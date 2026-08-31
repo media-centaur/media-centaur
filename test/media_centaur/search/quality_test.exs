@@ -223,4 +223,24 @@ defmodule MediaCentaur.Search.QualityTest do
       assert Quality.label(nil) == "Unknown"
     end
   end
+
+  describe "acceptable?/3 — the \"any\" minimum (best available)" do
+    test "an unranked (below-1080p) release passes when the minimum is any" do
+      assert Quality.acceptable?(nil, "any", "uhd_4k")
+    end
+
+    test "ranked releases still pass under an any minimum" do
+      assert Quality.acceptable?(:hd_1080p, "any", "uhd_4k")
+      assert Quality.acceptable?(:uhd_4k, "any", "uhd_4k")
+    end
+
+    test "the maximum still caps under an any minimum" do
+      refute Quality.acceptable?(:uhd_4k, "any", "hd_1080p")
+    end
+
+    test "an unranked release stays unacceptable under a ranked minimum" do
+      refute Quality.acceptable?(nil, "hd_1080p", "uhd_4k")
+    end
+  end
+
 end

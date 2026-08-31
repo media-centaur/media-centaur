@@ -23,6 +23,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Search.{Criteria, Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
+  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
 
@@ -136,7 +137,7 @@ defmodule MediaCentaur.Acquisition.Plans do
     else
       result =
         Repo.transaction(fn ->
-          with {:ok, plan} <- Repo.insert(Plan.create_changeset(plan_attrs)),
+          with {:ok, plan} <- Repo.insert(Plan.create_changeset(resolve_title_bounds(plan_attrs))),
                :ok <- insert_units(plan, unit_specs) do
             plan
           else
@@ -151,6 +152,43 @@ defmodule MediaCentaur.Acquisition.Plans do
       end
     end
   end
+
+  # A manual plan with no explicit bounds snapshots the tracked title's
+  # per-title quality preferences when the title is tracked (ADR-063 §2:
+  # bounds resolve unit override → per-title preference → global
+  # default; `criteria` is the per-plan snapshot of the middle layer).
+  defp resolve_title_bounds(%{criteria: criteria} = plan_attrs) when criteria == %{} do
+    case tracking_item_for(plan_attrs) do
+      %{min_quality: min, max_quality: max} when is_binary(min) or is_binary(max) ->
+        bounds =
+          %{}
+          |> put_bound("min_quality", min)
+          |> put_bound("max_quality", max)
+
+        %{plan_attrs | criteria: bounds}
+
+      _untracked_or_unset ->
+        plan_attrs
+    end
+  end
+
+  defp resolve_title_bounds(plan_attrs), do: plan_attrs
+
+  defp tracking_item_for(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type}) do
+    with {numeric_id, ""} <- Integer.parse(to_string(tmdb_id)),
+         {:ok, media_type} <- item_media_type(tmdb_type) do
+      ReleaseTracking.get_item_by_tmdb(numeric_id, media_type)
+    else
+      _no_identity -> nil
+    end
+  end
+
+  defp item_media_type("tv"), do: {:ok, :tv_series}
+  defp item_media_type("movie"), do: {:ok, :movie}
+  defp item_media_type(_other), do: :error
+
+  defp put_bound(bounds, _key, nil), do: bounds
+  defp put_bound(bounds, key, value), do: Map.put(bounds, key, value)
 
   defp insert_units(plan, unit_specs) do
     Enum.reduce_while(unit_specs, :ok, fn spec, :ok ->
@@ -718,6 +756,47 @@ defmodule MediaCentaur.Acquisition.Plans do
 
       broadcast_changed(planning)
       {:ok, planning}
+    end
+  end
+
+  @doc """
+  The per-title acceptance (ADR-063 §2, UIDR-029): the user has said
+  lower-quality releases are fine for this title. Ensures the title is
+  tracked, stores `min_quality: "any"` as its durable per-title
+  preference, snapshots the accepted bound onto this plan, and
+  re-solves so the below-preference releases become assignable. The
+  global default is never touched.
+  """
+  @spec accept_lower_quality(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
+  def accept_lower_quality(%Plan{} = plan) do
+    with {:ok, item} <- ensure_tracking_item(plan),
+         {:ok, _item} <- ReleaseTracking.update_auto_grab(item, %{min_quality: "any"}),
+         {:ok, snapshotted} <-
+           Repo.update(
+             Plan.criteria_changeset(plan, Map.put(plan.criteria || %{}, "min_quality", "any"))
+           ) do
+      replan(snapshotted)
+    end
+  end
+
+  defp ensure_tracking_item(%Plan{} = plan) do
+    case tracking_item_for(plan) do
+      nil ->
+        with {numeric_id, ""} <- Integer.parse(to_string(plan.tmdb_id)),
+             {:ok, media_type} <- item_media_type(plan.tmdb_type) do
+          ReleaseTracking.track_item(%{
+            tmdb_id: numeric_id,
+            media_type: media_type,
+            name: plan.title,
+            source: :manual,
+            origin_country: plan.origin_country
+          })
+        else
+          _no_identity -> {:error, :no_tmdb_identity}
+        end
+
+      item ->
+        {:ok, item}
     end
   end
 

@@ -798,4 +798,56 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
+
+  describe "per-title quality bounds (ADR-063)" do
+    test "a manual plan resolves a tracked title's any-minimum and assigns the lower-quality release" do
+      item =
+        MediaCentaur.ReleaseTracking.track_item!(%{
+          tmdb_id: 246_810,
+          media_type: :tv_series,
+          name: "Sample Show",
+          source: :manual
+        })
+
+      {:ok, _item} = MediaCentaur.ReleaseTracking.update_auto_grab(item, %{min_quality: "any"})
+
+      stub_recording_searches(%{
+        "Sample Show" => [
+          release("Sample.Show.S02E01.DVDRip.x264", "sd-e1", %{seeders: 5, size: 300_000_000})
+        ]
+      })
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "sd-e1"
+    end
+
+    test "accept_lower_quality tracks the title, stores the acceptance, and re-solves to the lower-quality release" do
+      stub_recording_searches(%{
+        "Sample Show" => [
+          release("Sample.Show.S02E01.DVDRip.x264", "sd-e1", %{seeders: 5, size: 300_000_000})
+        ]
+      })
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.below_floor_count == 1
+
+      {:ok, ready} = Plans.fetch(plan.id)
+      {:ok, _plan} = Plans.accept_lower_quality(ready)
+
+      item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
+      assert item.min_quality == "any"
+      assert item.status == :watching
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "sd-e1"
+    end
+  end
+
 end

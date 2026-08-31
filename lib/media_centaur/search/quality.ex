@@ -67,9 +67,12 @@ defmodule MediaCentaur.Search.Quality do
   defaults before calling this — passing nil is not supported, since the
   function should be deterministic without reading Settings.
 
-  `nil` quality (an unparseable release title) is never acceptable.
+  `nil` quality (an unparseable release title) is never acceptable —
+  except under the `"any"` minimum (a per-title "best available"
+  acceptance, ADR-063 §2), which admits unranked releases.
   """
   @spec acceptable?(t(), String.t(), String.t()) :: boolean()
+  def acceptable?(nil, "any", _max), do: true
   def acceptable?(nil, _min, _max), do: false
 
   def acceptable?(quality, min, max) when is_binary(min) and is_binary(max) do
@@ -85,6 +88,8 @@ defmodule MediaCentaur.Search.Quality do
   @spec label_rank(String.t() | nil) :: non_neg_integer()
   def label_rank("uhd_4k"), do: 2
   def label_rank("hd_1080p"), do: 1
+  # "any" — the no-minimum bound (ADR-063 §2) — ranks 0 explicitly;
+  # unknown labels also rank 0 so a malformed Settings entry can't crash.
   def label_rank(_), do: 0
 
   @doc "Returns a short human-readable label."
