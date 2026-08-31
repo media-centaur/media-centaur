@@ -1535,6 +1535,48 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
+  # The per-title acceptance (UIDR-029 / ADR-063 §2): one press means
+  # lower quality is fine for this title — track it, store the
+  # preference, re-solve. The global default never changes.
+  def handle_event("plan_accept_lower_quality", _params, socket) do
+    with %{plan_id: plan_id} <- socket.assigns.plan_board,
+         {:ok, plan} <- Plans.fetch(plan_id),
+         {:ok, _planning} <- Plans.accept_lower_quality(plan) do
+      {:noreply, socket}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Could not accept lower quality for this title.")}
+    end
+  end
+
+  def handle_event("plan_undo_lower_quality", _params, socket) do
+    with %{plan_id: plan_id} <- socket.assigns.plan_board,
+         {:ok, plan} <- Plans.fetch(plan_id),
+         {:ok, _planning} <- Plans.undo_lower_quality(plan) do
+      {:noreply, socket}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Could not undo the lower-quality acceptance.")}
+    end
+  end
+
+  # Stopping a search is one press, no confirmation — nothing is lost
+  # by stopping (UIDR-029). The run observes the discard within one
+  # search term (ADR-063 §3). Discard-with-confirmation remains for
+  # ready boards, where a solved plan is being thrown away.
+  def handle_event("plan_stop_searching", _params, socket) do
+    with %{plan_id: plan_id, status: :planning} <- socket.assigns.plan_board,
+         {:ok, plan} <- Plans.fetch(plan_id),
+         {:ok, _discarded} <- Plans.discard(plan) do
+      {:noreply,
+       socket
+       |> assign(plan_drafts: load_drafts())
+       |> build_view()
+       |> put_flash(:info, "Stopped searching.")
+       |> push_patch(to: incoming_path(socket))}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Could not stop this search.")}
+    end
+  end
+
   def handle_event("close_plan", _params, socket) do
     {:noreply, push_patch(socket, to: incoming_path(socket))}
   end
@@ -2735,17 +2777,27 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # The gap banner's adaptive verdict (UIDR-022) — only a ready board
-  # with gaps has one; recomputed on every board re-read so a forced
+  # The adaptive verdict (UIDR-022, extended by UIDR-029) — a ready
+  # board with gaps or below-preference units leads with the world the
+  # counts prove; recomputed on every board re-read so a forced
   # re-search refreshes the evidence's freshness.
   defp plan_gap_verdict(plan, board, search_health) do
-    if board.status == :ready and board.gaps != [] do
+    if board.status == :ready and (board.gaps != [] or board.below_preference != nil) do
+      below =
+        case board.below_preference do
+          nil -> nil
+          summary -> %{units: summary.units, releases: summary.releases}
+        end
+
       GapVerdict.build(
         Plans.gap_evidence(plan),
         gaps: board.gaps,
         movie?: board.movie?,
         search_health: search_health,
-        now: DateTime.utc_now()
+        now: DateTime.utc_now(),
+        below: below,
+        wanted: board.wanted,
+        covered: board.covered
       )
     end
   end

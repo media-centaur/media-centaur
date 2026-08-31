@@ -831,7 +831,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           />
         </div>
 
-        <div :if={@board.status == :ready && @board.gaps != [] && @gap_verdict} class="space-y-2">
+        <div :if={@board.status == :ready && @gap_verdict} class="space-y-2">
           <%!-- The adaptive diagnosis verdict (UIDR-022): the headline
                 states the world the counts prove; the muted line beneath
                 carries the receipts (queries, freshness). --%>
@@ -896,7 +896,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </span>
         <div class="flex items-center gap-2">
           <.button
-            :if={@board.status in [:planning, :ready]}
+            :if={@board.status == :planning}
+            variant="dismiss"
+            size="sm"
+            phx-click="plan_stop_searching"
+            title="Stop now and keep what's been found so far — nothing is grabbed"
+            data-nav-item
+            tabindex="0"
+          >
+            Stop searching
+          </.button>
+          <.button
+            :if={@board.status == :ready}
             variant="dismiss"
             size="sm"
             phx-click="plan_discard_prompt"

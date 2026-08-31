@@ -1126,6 +1126,67 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "button", "Search for something to watch")
     end
 
+    test "taking lower quality tracks the title, re-solves, and can be undone", %{conn: conn} do
+      stub_lower_quality_movie()
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+
+      view
+      |> element("button[phx-click='plan_accept_lower_quality']")
+      |> render_click()
+
+      item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_813, :movie)
+      assert item.min_quality == "any"
+
+      html = render(view)
+      assert html =~ "Lower quality accepted for this show"
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "bf-720p"
+
+      view
+      |> element("button[phx-click='plan_undo_lower_quality']")
+      |> render_click()
+
+      assert MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_813, :movie).min_quality == nil
+      refute render(view) =~ "Lower quality accepted for this show"
+    end
+
+    test "a gapless below-preference plan leads with the lower-quality verdict", %{conn: conn} do
+      stub_lower_quality_movie()
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+
+      assert render(view) =~ "nothing at your quality preference"
+    end
+
+    test "a planning board offers one-press Stop searching instead of Discard", %{conn: conn} do
+      stub_lower_quality_movie()
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      # The struct still says "planning" from before the inline run, so a
+      # stale-struct force diffs to a no-op — refetch first.
+      {:ok, ready} = Plans.fetch(plan.id)
+      force_attrs(ready, status: "planning")
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+
+      assert has_element?(view, "button[phx-click='plan_stop_searching']")
+      refute has_element?(view, "button[phx-click='plan_discard_prompt']")
+
+      view
+      |> element("button[phx-click='plan_stop_searching']")
+      |> render_click()
+
+      {:ok, stopped} = Plans.fetch(plan.id)
+      assert stopped.status == "discarded"
+    end
+
     test "a below-floor movie offers the picker instead of a bare gap", %{conn: conn} do
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
@@ -3140,5 +3201,44 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, ".page-side-dim.page-side-dim-high")
       refute has_element?(view, ".page-side-dim-calm")
     end
+  end
+
+  defp stub_lower_quality_movie do
+    Req.Test.stub(:prowlarr, fn conn ->
+      case {conn.method, conn.request_path} do
+        {"GET", "/api/v1/indexer"} ->
+          Req.Test.json(conn, [])
+
+        {"GET", "/api/v1/indexerstatus"} ->
+          Req.Test.json(conn, [])
+
+        {"GET", "/api/v1/search"} ->
+          %{"query" => query} = URI.decode_query(conn.query_string)
+
+          results =
+            if query == "Sample Movie 2005" do
+              [
+                %{
+                  "title" => "Sample.Movie.2005.720p.WEBRip.x264",
+                  "guid" => "bf-720p",
+                  "indexerId" => 1,
+                  "seeders" => 9,
+                  "size" => 1_400_000_000,
+                  "indexer" => "indexer-a"
+                }
+              ]
+            else
+              []
+            end
+
+          Req.Test.json(conn, results)
+
+        {"POST", "/api/v1/search"} ->
+          Req.Test.json(conn, %{"approved" => true})
+
+        _other ->
+          Req.Test.json(conn, %{})
+      end
+    end)
   end
 end
