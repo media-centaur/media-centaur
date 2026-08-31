@@ -252,6 +252,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         <span :if={@download.title} class="min-w-0 truncate text-xs text-base-content/50">
           {@download.title}
         </span>
+        <%!-- Facts cluster right, beside the cancel affordance — a
+              left-glued cluster leaves the row's width as dead span on
+              wide viewports. --%>
+        <div class="flex-1" />
         <span :if={@download.progress_pct} class="text-xs text-base-content/60 tabular-nums">
           {round(@download.progress_pct)}%
         </span>
@@ -273,7 +277,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         <span :if={@telemetry_age} class="text-xs text-warning/80 tabular-nums">
           · {@telemetry_age}
         </span>
-        <div class="flex-1" />
         <.button
           :if={@queue_item_id}
           variant="destructive_inline"

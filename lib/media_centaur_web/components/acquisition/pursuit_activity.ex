@@ -49,8 +49,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
         </ul>
       </div>
 
-      <div :if={@vm.downloads != []} class="space-y-2">
-        <div :for={entry <- @vm.downloads} class="space-y-1">
+      <div :if={@vm.downloads != []} class="space-y-3.5">
+        <div :for={entry <- @vm.downloads} class="space-y-1.5">
           <div
             :if={length(@vm.downloads) > 1}
             class="flex items-baseline justify-between gap-3 text-xs"
