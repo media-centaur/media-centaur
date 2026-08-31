@@ -778,7 +778,6 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
-
   describe "stop searching (ADR-063: status is the cancellation channel)" do
     test "a plan discarded mid-run stops before the next search term" do
       test_pid = self()
@@ -808,7 +807,6 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       refute_received {:searched, _any_later_term}
     end
   end
-
 
   describe "per-title quality bounds (ADR-063)" do
     test "a manual plan resolves a tracked title's any-minimum and assigns the lower-quality release" do
@@ -872,5 +870,4 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       refute board.lower_quality_accepted?
     end
   end
-
 end

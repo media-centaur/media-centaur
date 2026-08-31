@@ -66,5 +66,4 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabularyTest do
       assert CellVocabulary.segment_treatment(:below_preference) =~ "bg-info"
     end
   end
-
 end

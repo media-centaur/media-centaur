@@ -249,5 +249,4 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
       refute String.downcase(verdict.evidence_line || "") =~ "floor"
     end
   end
-
 end
