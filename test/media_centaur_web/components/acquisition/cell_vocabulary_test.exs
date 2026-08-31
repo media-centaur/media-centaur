@@ -54,4 +54,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabularyTest do
       end
     end
   end
+
+  describe "below-preference state (UIDR-029)" do
+    test "plan below_preference maps onto its own vocabulary state" do
+      assert CellVocabulary.from_plan_state(:below_preference, false) == :below_preference
+      assert CellVocabulary.from_plan_state(:below_preference, true) == :below_preference
+    end
+
+    test "treatments exist for both renderers" do
+      assert CellVocabulary.cell_treatment(:below_preference) =~ "border-info"
+      assert CellVocabulary.segment_treatment(:below_preference) =~ "bg-info"
+    end
+  end
+
 end

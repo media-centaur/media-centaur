@@ -2,6 +2,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Acquisition.Plans
+  alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
   alias MediaCentaur.Acquisition.{Target, Targeting}
   alias MediaCentaur.Search.Prowlarr
@@ -269,14 +270,15 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       board = Plans.board_for(plan)
 
-      assert [offer] = board.below_floor
-      assert offer.unit_id == unit.id
-      assert offer.unit_label == "Sample Movie"
-      assert offer.count == 3
+      assert %PlanBoard.BelowPreference{units: 1, releases: 3, unit_label: "Sample Movie"} =
+               board.below_preference
 
-      # The offer row owns the unit — it is not also a bare "not
-      # available" gap.
+      assert board.below_preference.unit_id == unit.id
+
+      # The grouped row owns the unit — it is not also a bare "not
+      # available" gap, and its cell reads as available-below-preference.
       assert board.gaps == []
+      assert [%{cells: [%{state: :below_preference}]}] = board.seasons
     end
 
     test "the candidates are choosable through the swap picker, with display-quality labels" do
@@ -303,7 +305,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert grabbed.assigned_quality == "720p"
 
       {:ok, reloaded} = Plans.fetch(created.id)
-      assert Plans.board_for(reloaded).below_floor == []
+      assert Plans.board_for(reloaded).below_preference == nil
     end
   end
 

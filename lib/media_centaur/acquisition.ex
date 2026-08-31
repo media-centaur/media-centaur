@@ -64,7 +64,7 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.NextStep,
       ViewModels.PlanBoard,
       ViewModels.PlanBoard.Alternative,
-      ViewModels.PlanBoard.BelowFloor,
+      ViewModels.PlanBoard.BelowPreference,
       ViewModels.PlanBoard.Cell,
       ViewModels.PlanBoard.Offer,
       ViewModels.PlanBoard.Overlap,
