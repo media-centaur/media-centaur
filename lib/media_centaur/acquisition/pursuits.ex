@@ -350,21 +350,28 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   def refresh_status_download(%PursuitStatus{} = status, queue_items) when is_list(queue_items) do
     queue_item = find_queue_match(status.target, queue_items)
     download = QueueMatcher.to_download(queue_item)
-    downloads = all_downloads(status.pursuit, status.target, queue_items)
 
-    if status.download == download and status.downloads == downloads do
+    {current_action, next_step, actions} =
+      PursuitStatus.derive(status.pursuit, status.unit, status.target, queue_item)
+
+    {current_action, downloads, downloads_done} =
+      PursuitStatus.compose_downloads(
+        current_action,
+        all_downloads(status.pursuit, status.target, queue_items)
+      )
+
+    if status.download == download and status.downloads == downloads and
+         status.downloads_done == downloads_done do
       status
     else
-      {current_action, next_step, actions} =
-        PursuitStatus.derive(status.pursuit, status.unit, status.target, queue_item)
-
       %{
         status
         | current_action: current_action,
           next_step: next_step,
           available_actions: actions,
           download: download,
-          downloads: downloads
+          downloads: downloads,
+          downloads_done: downloads_done
       }
     end
   end
@@ -391,6 +398,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     {current_action, next_step, actions} =
       PursuitStatus.derive(pursuit, unit, target, queue_item, location)
 
+    {current_action, downloads, downloads_done} =
+      PursuitStatus.compose_downloads(current_action, all_downloads(pursuit, target, queue_items))
+
     last_activity_at = latest_event_at(pursuit.id)
 
     %PursuitStatus{
@@ -404,7 +414,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       current_action: current_action,
       next_step: next_step,
       download: QueueMatcher.to_download(queue_item),
-      downloads: all_downloads(pursuit, target, queue_items),
+      downloads: downloads,
+      downloads_done: downloads_done,
       staleness: staleness_for(last_activity_at),
       last_activity_at: last_activity_at,
       available_actions: actions,
@@ -727,14 +738,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   defp header_artwork(_pursuit), do: %{backdrop_url: nil, logo_url: nil}
 
-  defp summarize_criteria(nil), do: nil
-  defp summarize_criteria(map) when map_size(map) == 0, do: nil
-
-  defp summarize_criteria(map) when is_map(map) do
-    map
-    |> Enum.sort()
-    |> Enum.map_join(", ", fn {k, v} -> "#{k}: #{v}" end)
-  end
+  # User-facing copy lives with the view model (`PursuitStatus.criteria_summary/1`).
+  defp summarize_criteria(map), do: PursuitStatus.criteria_summary(map)
 
   # --- status_for helpers ----------------------------------------------------
 

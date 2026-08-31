@@ -34,6 +34,7 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
   `list_active_rows/0`'s `updated_at desc` order.
   """
 
+  alias MediaCentaur.Acquisition.ViewModels.DownloadProgress
   alias MediaCentaur.Acquisition.ViewModels.{DownloadProgress, PursuitRow, PursuitWithDownload}
   alias MediaCentaur.Downloads.QueueItem
 
@@ -69,6 +70,11 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
 
         downloads = Enum.reverse(downloads_rev)
         primary = List.first(downloads)
+
+        # Finished files leave the in-flight strip (the card's unit
+        # segments already carry done state); they stay claimed above so
+        # they never resurface as orphan queue rows.
+        downloads = Enum.reject(downloads, &DownloadProgress.finished?(&1.download))
 
         entry = %PursuitWithDownload{
           row: row,

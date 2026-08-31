@@ -287,4 +287,24 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       assert [%QueueItem{id: "h"}] = orphans
     end
   end
+
+  describe "finished downloads leave the in-flight strip (UIDR-029 follow-up)" do
+    test "a finished file is excluded from downloads but stays claimed — never an orphan" do
+      row =
+        struct(MediaCentaur.Acquisition.ViewModels.PursuitRow,
+          pursuit_id: "p-1",
+          release_title: "Sample.Show.S01E01.x264",
+          torrent_hash: nil,
+          pairing_keys: [{nil, "Sample.Show.S01E01.x264"}, {nil, "Sample.Show.S01E02.x264"}]
+        )
+
+      done = item("qi-1", "Sample.Show.S01E01.x264", %{progress: 100.0})
+      active = item("qi-2", "Sample.Show.S01E02.x264", %{progress: 40.0})
+
+      {[entry], orphans} = QueueMatcher.match([row], [done, active])
+
+      assert [%{queue_item_id: "qi-2"}] = entry.downloads
+      assert orphans == []
+    end
+  end
 end

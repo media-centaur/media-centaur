@@ -13,6 +13,15 @@ defmodule MediaCentaur.Acquisition.ViewModels.DownloadProgress do
   # through unchanged, so any drift here is a lie about what can render.
   @type state :: MediaCentaur.Downloads.QueueItem.state()
 
+  @doc """
+  True when the transfer itself is done (progress at 100%) — the
+  in-flight surfaces drop these rows and carry them as a count
+  (UIDR-029 follow-up): a finished file is no longer in flight.
+  """
+  @spec finished?(t() | nil) :: boolean()
+  def finished?(%__MODULE__{progress_pct: pct}), do: is_number(pct) and pct >= 100
+  def finished?(nil), do: false
+
   @type t :: %__MODULE__{
           state: state(),
           title: String.t() | nil,

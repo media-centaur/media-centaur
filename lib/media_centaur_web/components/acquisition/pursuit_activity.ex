@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
       <div :if={@vm.downloads != []} class="space-y-3.5">
         <div :for={entry <- @vm.downloads} class="space-y-1.5">
           <div
-            :if={length(@vm.downloads) > 1}
+            :if={length(@vm.downloads) > 1 || @vm.downloads_done > 0}
             class="flex items-baseline justify-between gap-3 text-xs"
           >
             <span class="min-w-0 truncate font-mono text-base-content/50" title={entry.release_title}>
