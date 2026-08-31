@@ -30,8 +30,8 @@ defmodule MediaCentaur.Search.Quality do
   @type size_preference :: String.t()
 
   @source_ladders %{
-    "fidelity" => %{remux: 4, web_dl: 3, bluray_encode: 2, webrip: 1, hdtv: 1, unknown: 0},
-    "space" => %{bluray_encode: 4, web_dl: 3, webrip: 2, hdtv: 2, remux: 1, unknown: 0}
+    "fidelity" => %{remux: 4, web_dl: 3, bluray_encode: 2, dvdrip: 2, webrip: 1, hdtv: 1, unknown: 0},
+    "space" => %{bluray_encode: 4, dvdrip: 4, web_dl: 3, webrip: 2, hdtv: 2, remux: 1, unknown: 0}
   }
 
   @doc "Parses a quality tier from a release title string."
@@ -140,6 +140,11 @@ defmodule MediaCentaur.Search.Quality do
       String.contains?(downcased, ["web-dl", "webdl", "web.dl"]) -> :web_dl
       String.contains?(downcased, ["webrip", "web-rip", "web.rip"]) -> :webrip
       String.contains?(downcased, ["bluray", "blu-ray", "bdrip", "brrip"]) -> :bluray_encode
+      # Disc-encode family, lower disc (plan-board-diagnosis campaign):
+      # in an SD-only world a DVD rip must deterministically beat
+      # broadcast rips and unclassified encodes — before this tier
+      # existed, that pick fell to pool order.
+      String.contains?(downcased, ["dvdrip", "dvd-rip", "dvd.rip"]) -> :dvdrip
       String.contains?(downcased, "hdtv") -> :hdtv
       true -> :unknown
     end
@@ -166,6 +171,9 @@ defmodule MediaCentaur.Search.Quality do
       :bluray_encode -> "BluRay"
       :webrip -> "WEBRip"
       :hdtv -> "HDTV"
+      # The display-quality chip already reads "DVD" for these titles —
+      # a second identical label would be noise.
+      :dvdrip -> nil
       :unknown -> nil
     end
   end

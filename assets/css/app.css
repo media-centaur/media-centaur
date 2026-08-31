@@ -592,6 +592,15 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: flex;
   flex-direction: column;
   width: clamp(320px, calc(100vw - 200px), 1000px);
+  /* The clamp is the panel's whole width story. As a flex item the
+     default min-width:auto would let any unbreakable content (a long
+     dotted release name) silently widen the panel past the clamp and
+     make the width follow the content — the plan board visibly
+     wobbled as rows swapped during a re-solve. Zeroing the floor makes
+     content overflow a content problem (wrap/truncate inside, clipped
+     by the scrollport's overflow-x-hidden), never a panel-geometry
+     one. */
+  min-width: 0;
   /* Divided by `--ui-scale`: the root `zoom` multiplies `vh`, so a bare
      `100vh - 200px` renders at (100vh-200px) × scale — taller than the
      viewport at >1×, so the panel overflows the page and its inner
