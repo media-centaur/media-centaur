@@ -1179,8 +1179,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       html = render(view)
 
-      assert html =~ "Nothing matching your quality preference"
-      assert html =~ "2 lower-quality releases available"
+      assert html =~ "This movie is available only in lower quality — 2 releases found."
+      assert html =~ "Take lower quality"
+      assert html =~ "Your quality preference for everything else stays as it is."
       # Below-floor owns the unit — no gap banner world renders.
       refute html =~ "came back, but none"
       refute html =~ "No indexer had anything"

@@ -242,7 +242,7 @@ defmodule MediaCentaur.Acquisition.Plans do
           season_number: unit.season_number,
           episode_number: unit.episode_number,
           label: unit.label,
-          state: cell_state(unit.status, planning?),
+          state: cell_state(unit, planning?),
           release_guid: unit.assigned_guid,
           release_title: unit.assigned_title
         }
@@ -302,25 +302,41 @@ defmodule MediaCentaur.Acquisition.Plans do
         |> Enum.map(& &1.label),
       total_size_bytes: total_size(releases),
       movie?: plan.tmdb_type == "movie",
+      lower_quality_accepted?: lower_quality_accepted?(plan),
       overlaps: PlanBoard.overlaps(releases, claims),
       offers: offers(units),
-      below_floor: below_floor(units)
+      below_preference: below_preference(units)
     }
   end
 
   # Unfound units for which lower-quality releases exist (the planner's
-  # solve-time verdict) — surfaced as their own offer row, never a bare
-  # "not available" gap. The candidates are listed live via
-  # `alternatives_for/1`; choosing one is the explicit user pick that
-  # bypasses the floor.
-  defp below_floor(units) do
-    for unit <- units, unit.status == "unfound", unit.below_floor_count > 0 do
-      %PlanBoard.BelowFloor{
-        unit_id: unit.id,
-        unit_label: unit.label,
-        count: unit.below_floor_count
-      }
+  # solve-time verdict), totalled into one grouped summary (UIDR-029) —
+  # never a bare "not available" gap. Candidates are listed live via
+  # `alternatives_for/1`; taking them is the explicit per-title
+  # acceptance (`accept_lower_quality/1`).
+  defp below_preference(units) do
+    case for unit <- units, unit.status == "unfound", unit.below_floor_count > 0, do: unit do
+      [] ->
+        nil
+
+      [only] ->
+        %PlanBoard.BelowPreference{
+          units: 1,
+          releases: only.below_floor_count,
+          unit_id: only.id,
+          unit_label: only.label
+        }
+
+      below_units ->
+        %PlanBoard.BelowPreference{
+          units: length(below_units),
+          releases: below_units |> Enum.map(& &1.below_floor_count) |> Enum.sum()
+        }
     end
+  end
+
+  defp lower_quality_accepted?(%Plan{criteria: criteria}) do
+    (criteria || %{})["min_quality"] == "any"
   end
 
   # Unfound units whose only coverage is an over-broad pack the planner
@@ -355,11 +371,15 @@ defmodule MediaCentaur.Acquisition.Plans do
     if sizes != [], do: Enum.sum(sizes)
   end
 
-  defp cell_state("found", _planning?), do: :assigned
-  defp cell_state("unfound", _planning?), do: :unfound
-  defp cell_state("excluded", _planning?), do: :excluded
-  defp cell_state("pending", true), do: :searching
-  defp cell_state("pending", false), do: :unfound
+  defp cell_state(%PlanUnit{status: "found"}, _planning?), do: :assigned
+
+  defp cell_state(%PlanUnit{status: "unfound", below_floor_count: count}, _planning?) when count > 0,
+    do: :below_preference
+
+  defp cell_state(%PlanUnit{status: "unfound"}, _planning?), do: :unfound
+  defp cell_state(%PlanUnit{status: "excluded"}, _planning?), do: :excluded
+  defp cell_state(%PlanUnit{status: "pending"}, true), do: :searching
+  defp cell_state(%PlanUnit{status: "pending"}, false), do: :unfound
 
   @doc "Draft plans still in flight (planning or ready), newest first."
   @spec list_drafts() :: [Plan.t()]
@@ -775,6 +795,22 @@ defmodule MediaCentaur.Acquisition.Plans do
            Repo.update(
              Plan.criteria_changeset(plan, Map.put(plan.criteria || %{}, "min_quality", "any"))
            ) do
+      replan(snapshotted)
+    end
+  end
+
+  @doc """
+  Reverses `accept_lower_quality/1`: clears the title's per-title
+  acceptance (back to inheriting the global default), drops the plan's
+  snapshot, and re-solves. The tracking item itself stays — untracking
+  is a separate, deliberate act.
+  """
+  @spec undo_lower_quality(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
+  def undo_lower_quality(%Plan{} = plan) do
+    with {:ok, item} <- ensure_tracking_item(plan),
+         {:ok, _item} <- ReleaseTracking.update_auto_grab(item, %{min_quality: nil}),
+         {:ok, snapshotted} <-
+           Repo.update(Plan.criteria_changeset(plan, Map.delete(plan.criteria || %{}, "min_quality"))) do
       replan(snapshotted)
     end
   end

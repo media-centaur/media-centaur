@@ -638,13 +638,12 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       releases: [],
       gaps: [],
       total_size_bytes: nil,
-      below_floor: [
-        %PlanBoard.BelowFloor{
-          unit_id: "story-unit-movie",
-          unit_label: "Sample Movie",
-          count: 3
-        }
-      ]
+      below_preference: %PlanBoard.BelowPreference{
+        units: 1,
+        releases: 3,
+        unit_id: "story-unit-movie",
+        unit_label: "Sample Movie"
+      }
     }
   end
 

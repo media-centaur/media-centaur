@@ -175,4 +175,79 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
       assert build(evidence(%{}), search_health: blind_health(:degraded)).world == :nothing_live
     end
   end
+
+  describe "below-preference world (UIDR-029)" do
+    test "gapless below-preference TV plan gets the lower-quality verdict" do
+      verdict =
+        build(evidence(%{raw_total: 97}),
+          gaps: [],
+          movie?: false,
+          below: %{units: 21, releases: 97},
+          wanted: 22,
+          covered: 1
+        )
+
+      assert verdict.world == :below_preference
+      assert verdict.headline =~ "1 episode was found at your quality preference"
+      assert verdict.headline =~ "21 are available only in lower quality"
+      assert verdict.evidence_line =~ "97 lower-quality releases"
+    end
+
+    test "nothing covered reads as an all-lower-quality verdict" do
+      verdict =
+        build(evidence(%{raw_total: 40}),
+          gaps: [],
+          movie?: false,
+          below: %{units: 8, releases: 40},
+          wanted: 8,
+          covered: 0
+        )
+
+      assert verdict.world == :below_preference
+      assert verdict.headline =~ "Nothing at your quality preference"
+      assert verdict.headline =~ "8 episodes are available only in lower quality"
+    end
+
+    test "a movie below-preference plan names the movie, not episodes" do
+      verdict =
+        build(evidence(%{raw_total: 3}),
+          gaps: [],
+          movie?: true,
+          below: %{units: 1, releases: 3},
+          wanted: 1,
+          covered: 0
+        )
+
+      assert verdict.world == :below_preference
+      assert verdict.headline =~ "This movie is available only in lower quality"
+    end
+
+    test "bare gaps keep their diagnosis even when below-preference units exist" do
+      verdict =
+        build(evidence(%{raw_total: 14}),
+          gaps: ["S01E05"],
+          movie?: false,
+          below: %{units: 3, releases: 9},
+          wanted: 5,
+          covered: 1
+        )
+
+      assert verdict.world == :rejected
+    end
+
+    test "the word floor never appears in verdict copy" do
+      verdict =
+        build(evidence(%{raw_total: 97}),
+          gaps: [],
+          movie?: false,
+          below: %{units: 21, releases: 97},
+          wanted: 22,
+          covered: 1
+        )
+
+      refute String.downcase(verdict.headline) =~ "floor"
+      refute String.downcase(verdict.evidence_line || "") =~ "floor"
+    end
+  end
+
 end

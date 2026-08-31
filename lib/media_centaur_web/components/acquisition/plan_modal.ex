@@ -628,6 +628,22 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               Committed — the pursuit has taken over.
             </span>
           </p>
+          <p
+            :if={@board.lower_quality_accepted?}
+            id="plan-lower-quality-accepted"
+            class="mt-1 text-xs text-base-content/50"
+          >
+            Lower quality accepted for this show — it keeps using the best release there is.
+            <.button
+              variant="dismiss"
+              size="xs"
+              phx-click="plan_undo_lower_quality"
+              data-nav-item
+              tabindex="0"
+            >
+              Undo
+            </.button>
+          </p>
         </div>
 
         <div :if={@descent} class="glass-inset rounded-lg px-4 py-3 space-y-2">
@@ -766,44 +782,51 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           </.button>
         </div>
 
-        <div
-          :for={below <- @board.below_floor}
-          :if={@board.status == :ready}
-          id={"plan-below-floor-#{below.unit_id}"}
-          class="space-y-2"
-        >
+        <div :if={@board.below_preference} id="plan-below-preference" class="space-y-2">
           <div class="glass-inset rounded-lg px-4 py-3 border border-info/30 flex items-center gap-3">
             <.icon name="hero-arrow-trending-down-mini" class="size-4 text-info flex-shrink-0" />
             <span class="min-w-0 flex-1 text-sm">
-              <span class="text-base-content/90">
-                Nothing matching your quality preference<span :if={!@board.movie?}> for {below.unit_label}</span>
-              </span>
+              <span class="text-base-content/90">{below_preference_line(@board)}</span>
               <span class="block text-xs text-base-content/50 mt-1">
-                {below.count} lower-quality {if below.count == 1, do: "release", else: "releases"} available.
-                Grabbing one takes it for this title without changing your preference.
+                Taking them uses the best release there is, for this title only. Your quality preference for everything else stays as it is.
               </span>
             </span>
             <.button
+              :if={@board.below_preference.unit_id}
               variant="neutral"
               size="xs"
               class="flex-shrink-0"
               phx-click={
-                if @alternatives && @alternatives.unit_id == below.unit_id,
+                if @alternatives && @alternatives.unit_id == @board.below_preference.unit_id,
                   do: "plan_hide_alternatives",
                   else: "plan_show_alternatives"
               }
-              phx-value-unit-id={below.unit_id}
+              phx-value-unit-id={@board.below_preference.unit_id}
               data-nav-item
               tabindex="0"
             >
-              {if @alternatives && @alternatives.unit_id == below.unit_id,
+              {if @alternatives && @alternatives.unit_id == @board.below_preference.unit_id,
                 do: "Hide",
                 else: "Show them"}
+            </.button>
+            <.button
+              variant="action"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click="plan_accept_lower_quality"
+              title="Grab the best of what exists for this title, and keep accepting lower quality for it"
+              data-nav-item
+              tabindex="0"
+            >
+              {if @board.movie?, do: "Take lower quality", else: "Take lower quality for this show"}
             </.button>
           </div>
 
           <.alternatives_panel
-            :if={@alternatives && @alternatives.unit_id == below.unit_id}
+            :if={
+              @alternatives && @board.below_preference.unit_id &&
+                @alternatives.unit_id == @board.below_preference.unit_id
+            }
             alternatives={@alternatives}
           />
         </div>
@@ -1039,8 +1062,29 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     do: "#{cell.label} — #{title}"
 
   defp cell_title(%PlanBoard.Cell{state: :searching} = cell), do: "#{cell.label} — searching"
+
+  defp cell_title(%PlanBoard.Cell{state: :below_preference} = cell),
+    do: "#{cell.label} — available only in lower quality"
+
   defp cell_title(%PlanBoard.Cell{state: :unfound} = cell), do: "#{cell.label} — not available"
   defp cell_title(%PlanBoard.Cell{} = cell), do: cell.label
+
+  # One grouped sentence for the below-preference row (UIDR-029). Never
+  # says "floor" — user copy calls it the quality preference.
+  defp below_preference_line(%PlanBoard{below_preference: below} = board) do
+    releases = "#{below.releases} #{if below.releases == 1, do: "release", else: "releases"}"
+
+    cond do
+      board.movie? ->
+        "This movie is available only in lower quality — #{releases} found."
+
+      below.units == 1 ->
+        "#{below.unit_label} is available only in lower quality — #{releases} found."
+
+      true ->
+        "#{below.units} episodes are available only in lower quality — #{releases} found."
+    end
+  end
 
   defp selection_meta(%Targeting.Selection{} = selection) do
     aired = selection.seasons |> Enum.flat_map(& &1.episodes) |> Enum.count(& &1.aired?)

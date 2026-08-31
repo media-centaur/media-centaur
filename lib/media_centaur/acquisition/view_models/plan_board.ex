@@ -26,7 +26,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
       :release_title
     ]
 
-    @type state :: :searching | :assigned | :unfound | :excluded
+    @type state :: :searching | :assigned | :below_preference | :unfound | :excluded
 
     @type t :: %__MODULE__{
             plan_unit_id: Ecto.UUID.t(),
@@ -116,24 +116,27 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           }
   end
 
-  defmodule BelowFloor do
+  defmodule BelowPreference do
     @moduledoc """
-    The "lower quality available" offer: an unfound unit for which
-    identity-verified releases exist, all below the quality floor
-    (campaign `below-floor-releases`). The count is the planner's
-    solve-time verdict (durable on the unit); the candidates themselves
-    are listed live through the swap picker (`Plans.alternatives_for/1`),
-    where choosing one is the deliberate user pick that bypasses the
-    floor. Never presented as a bare "not available" gap.
+    The grouped "available only in lower quality" outcome (UIDR-029):
+    every unfound unit for which identity-verified releases exist, all
+    below the quality preference, totalled into one summary — one row,
+    however many episodes it covers. Counts are the planner's
+    solve-time verdict (durable on the units); candidates are listed
+    live via `Plans.alternatives_for/1`. `unit_id`/`unit_label` are set
+    only when a single unit is below preference (the movie case, or one
+    stray episode) so the row can open that unit's picker directly.
+    Never presented as a bare "not available" gap.
     """
 
-    @enforce_keys [:unit_id, :unit_label, :count]
-    defstruct [:unit_id, :unit_label, :count]
+    @enforce_keys [:units, :releases]
+    defstruct [:units, :releases, :unit_id, :unit_label]
 
     @type t :: %__MODULE__{
-            unit_id: Ecto.UUID.t(),
-            unit_label: String.t(),
-            count: pos_integer()
+            units: pos_integer(),
+            releases: pos_integer(),
+            unit_id: Ecto.UUID.t() | nil,
+            unit_label: String.t() | nil
           }
   end
 
@@ -170,9 +173,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     :gaps,
     :total_size_bytes,
     movie?: false,
+    lower_quality_accepted?: false,
     overlaps: [],
     offers: [],
-    below_floor: []
+    below_preference: nil
   ]
 
   @type status :: :planning | :ready | :committed | :discarded
@@ -189,9 +193,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           gaps: [String.t()],
           total_size_bytes: integer() | nil,
           movie?: boolean(),
+          lower_quality_accepted?: boolean(),
           overlaps: [Overlap.t()],
           offers: [Offer.t()],
-          below_floor: [BelowFloor.t()]
+          below_preference: BelowPreference.t() | nil
         }
 
   @doc """

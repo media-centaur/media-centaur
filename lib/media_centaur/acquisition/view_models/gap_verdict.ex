@@ -8,6 +8,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
 
   * `:blind` — the search couldn't ask anyone (UIDR-016; outranks
     everything, keeps that record's copy verbatim).
+  * `:below_preference` — every remaining unit has releases, all below
+    the quality preference (UIDR-029). Applies only when there are no
+    bare gaps: a bare gap's diagnosis (below) outranks it. Never says
+    "floor" — user copy calls it the quality preference.
   * `:no_evidence` — no ladder term has a corpus record (never
     searched, search failed, or pruned past retention).
   * `:rejected` — raw results exist, none qualified. Movie plans get
@@ -29,7 +33,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   @enforce_keys [:world, :headline]
   defstruct [:world, :headline, :evidence_line, rejected_count: 0, show_rejected?: false]
 
-  @type world :: :blind | :no_evidence | :rejected | :nothing_live | :nothing_stale
+  @type world ::
+          :blind | :below_preference | :no_evidence | :rejected | :nothing_live | :nothing_stale
 
   @type t :: %__MODULE__{
           world: world(),
@@ -41,18 +46,58 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
 
   @doc """
   Builds the verdict. Options: `gaps` (unit labels), `movie?`,
-  `search_health` (`IndexerHealth.t()` or nil), `now`.
+  `search_health` (`IndexerHealth.t()` or nil), `now` — plus, for the
+  below-preference world (UIDR-029), `below` (`%{units: n, releases: n}`
+  or nil), `wanted` and `covered`.
   """
   @spec build(GapEvidence.t() | nil, keyword()) :: t()
   def build(evidence, opts) do
     gaps = Keyword.fetch!(opts, :gaps)
     movie? = Keyword.fetch!(opts, :movie?)
     now = Keyword.fetch!(opts, :now)
+    below = Keyword.get(opts, :below)
 
-    case blind_reason(Keyword.fetch!(opts, :search_health)) do
-      nil -> diagnose(evidence, gaps, movie?, now)
-      reason -> blind(reason, gaps)
+    cond do
+      reason = blind_reason(Keyword.fetch!(opts, :search_health)) ->
+        blind(reason, gaps)
+
+      gaps == [] and match?(%{units: units} when units > 0, below) ->
+        below_preference(evidence, below, movie?, Keyword.get(opts, :covered, 0), now)
+
+      true ->
+        diagnose(evidence, gaps, movie?, now)
     end
+  end
+
+  defp below_preference(evidence, %{units: units, releases: releases}, movie?, covered, now) do
+    %__MODULE__{
+      world: :below_preference,
+      headline: below_headline(movie?, units, covered),
+      evidence_line: below_evidence_line(evidence, releases, now)
+    }
+  end
+
+  defp below_headline(true, _units, _covered),
+    do: "This movie is available only in lower quality — nothing at your quality preference."
+
+  defp below_headline(false, units, 0) do
+    "Nothing at your quality preference — all #{count(units, "episode")} are available only in lower quality."
+  end
+
+  defp below_headline(false, units, covered) do
+    verb = if covered == 1, do: "was", else: "were"
+
+    "#{count(covered, "episode")} #{verb} found at your quality preference — the other #{units} are available only in lower quality."
+  end
+
+  defp below_evidence_line(nil, releases, _now), do: "#{count(releases, "lower-quality release")} found."
+
+  defp below_evidence_line(%GapEvidence{checked_at: nil}, releases, _now),
+    do: "#{count(releases, "lower-quality release")} found."
+
+  defp below_evidence_line(%GapEvidence{checked_at: checked_at}, releases, now) do
+    checked = age_or_just_now(DateTime.diff(now, checked_at, :second))
+    "#{count(releases, "lower-quality release")} — checked #{checked}."
   end
 
   defp blind(reason, gaps) do

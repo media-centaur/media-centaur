@@ -17,6 +17,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
       when one pack covers a run of cells (consolidation made visible).
     * `:landed` — success fill. Pursuit `satisfied`; the plan board
       never shows it (nothing grabs before approval).
+    * `:below_preference` — info-tinted hollow. Plan `unfound` with
+      lower-quality releases on record (UIDR-029) — the world has this
+      unit, just not at the user's quality preference. Plan-only.
     * `:gap` — amber hollow. Plan `unfound`, pursuit
       `exhausted`/`cancelled` — a wanted unit nothing currently covers.
     * `:excluded` — muted strikethrough. User removed it from the plan.
@@ -26,7 +29,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
   downloads-debt-retirement campaign pinned them).
   """
 
-  @type state :: :searching | :claimed | :claimed_fused | :landed | :gap | :excluded
+  @type state ::
+          :searching | :claimed | :claimed_fused | :landed | :below_preference | :gap | :excluded
 
   @doc "Treatment classes for a full-size board cell (w-9 grid cell)."
   @spec cell_treatment(state()) :: String.t()
@@ -36,6 +40,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
   def cell_treatment(:claimed), do: "bg-primary/25 border border-primary/60 text-base-content/80"
   def cell_treatment(:claimed_fused), do: "bg-primary/20 text-base-content/80 rounded"
   def cell_treatment(:landed), do: "bg-success/25 border border-success/60 text-base-content/80"
+  def cell_treatment(:below_preference), do: "border border-info/40 text-base-content/60"
   def cell_treatment(:gap), do: "border border-warning/50 text-warning/80"
   def cell_treatment(:excluded), do: "bg-base-content/5 text-base-content/25 line-through"
 
@@ -47,6 +52,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
   @spec segment_treatment(state()) :: String.t()
   def segment_treatment(:landed), do: "bg-success/80"
   def segment_treatment(:claimed), do: "bg-primary/30"
+  def segment_treatment(:below_preference), do: "bg-info/20"
   def segment_treatment(:gap), do: "border border-warning/50"
   def segment_treatment(_other), do: "bg-base-content/10"
 
@@ -55,6 +61,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
   def from_plan_state(:assigned, true = _in_capsule), do: :claimed_fused
   def from_plan_state(:assigned, _in_capsule), do: :claimed
   def from_plan_state(:searching, _in_capsule), do: :searching
+  def from_plan_state(:below_preference, _in_capsule), do: :below_preference
   def from_plan_state(:unfound, _in_capsule), do: :gap
   def from_plan_state(:excluded, _in_capsule), do: :excluded
 
