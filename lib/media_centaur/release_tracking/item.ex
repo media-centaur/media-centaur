@@ -62,6 +62,8 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   # drafts instead of auto-committing. "all_releases" is the full-auto
   # posture (legacy name preserved across the plan-convergence cutover).
   @auto_grab_modes ~w(global off ask all_releases)
+  # `min_quality` additionally admits "any" — the per-title "best
+  # available" acceptance (ADR-063 §2); it is not a ceiling value.
   @quality_values ~w(hd_1080p uhd_4k)
 
   def create_changeset(attrs) do
@@ -148,7 +150,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :prefer_season_packs
     ])
     |> validate_inclusion(:auto_grab_mode, @auto_grab_modes)
-    |> validate_inclusion(:min_quality, @quality_values)
+    |> validate_inclusion(:min_quality, ["any" | @quality_values])
     |> validate_inclusion(:max_quality, @quality_values)
     |> validate_number(:quality_4k_patience_hours,
       greater_than_or_equal_to: 0,

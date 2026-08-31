@@ -82,6 +82,15 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     |> validate_inclusion(:origin, @origins)
   end
 
+  @doc """
+  Replaces the plan's quality-bound snapshot (`criteria`). Used by the
+  per-title acceptance (ADR-063 §2): the durable preference lives on the
+  tracking item; the plan snapshots it so the next solve sees it.
+  """
+  def criteria_changeset(%__MODULE__{} = plan, criteria) when is_map(criteria) do
+    change(plan, criteria: criteria)
+  end
+
   @doc "Transitions the plan's status, validating the source state."
   def transition_changeset(%__MODULE__{status: current} = plan, new_status, allowed_from) do
     if new_status in @statuses and current in allowed_from do
