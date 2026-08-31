@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan board popup — direction 2: Verdict first</title>
+<style>
+  :root {
+    --b1: oklch(27% 0.019 264);
+    --b2: oklch(23% 0.017 264);
+    --b3: oklch(14% 0.015 264);
+    --bc: 93% 0.005 264;
+    --primary: oklch(62% 0.16 250);
+    --info: oklch(70% 0.14 240);
+    --success: oklch(72% 0.13 158);
+    --warning: oklch(80% 0.14 80);
+    --error: oklch(68% 0.18 25);
+    --glass-bg: oklch(18% 0.017 264 / 0.4);
+    --glass-border: oklch(90% 0.005 264 / 0.09);
+    --hairline: oklch(90% 0.005 264 / 0.09);
+    --r-box: 0.5rem;
+    --r-field: 0.25rem;
+    --t90: oklch(var(--bc) / 0.9);
+    --t70: oklch(var(--bc) / 0.7);
+    --t50: oklch(var(--bc) / 0.5);
+    --t40: oklch(var(--bc) / 0.4);
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--b3);
+    color: var(--t90);
+    font-family: var(--font);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 48px 24px 96px;
+  }
+  .page-head {
+    width: 1100px; margin: 0 auto 28px;
+    color: var(--t50); font-size: 0.8125rem;
+  }
+  .page-head strong { color: var(--t70); font-weight: 500; }
+  .state-label {
+    width: 1100px; margin: 56px auto 10px;
+    color: var(--t50); font-size: 0.8125rem; letter-spacing: 0.01em;
+  }
+  .state-label:first-of-type { margin-top: 0; }
+
+  /* ---- cinematic frame shell ---- */
+  .frame {
+    width: 1100px; margin: 0 auto;
+    border-radius: var(--r-box);
+    border: 1px solid var(--glass-border);
+    overflow: hidden;
+    position: relative;
+    background: var(--b2);
+    box-shadow: 0 30px 80px oklch(0% 0 0 / 0.45);
+  }
+  .backdrop {
+    position: absolute; inset: 0; height: 520px;
+    background:
+      radial-gradient(ellipse 60% 70% at 18% 0%, oklch(46% 0.06 62 / 0.55), transparent 60%),
+      radial-gradient(ellipse 55% 60% at 82% 15%, oklch(40% 0.05 250 / 0.55), transparent 55%),
+      radial-gradient(ellipse 40% 40% at 55% 35%, oklch(38% 0.04 20 / 0.35), transparent 60%),
+      linear-gradient(180deg, oklch(31% 0.02 264), oklch(22% 0.017 264));
+  }
+  .scrim {
+    position: absolute; inset: 0; height: 520px;
+    background: linear-gradient(180deg,
+      oklch(18% 0.017 264 / 0.10) 0%,
+      oklch(18% 0.017 264 / 0.55) 34%,
+      oklch(18% 0.017 264 / 0.92) 62%,
+      var(--b2) 100%);
+  }
+  .close {
+    position: absolute; top: 14px; right: 14px; z-index: 3;
+    width: 32px; height: 32px; border-radius: var(--r-field);
+    display: grid; place-items: center;
+    background: oklch(100% 0 0 / 0.08); border: 1px solid var(--glass-border);
+    color: var(--t70);
+  }
+  .close svg { width: 16px; height: 16px; }
+  .lockup {
+    position: relative; z-index: 2;
+    padding: 118px 44px 0;
+    min-height: 220px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .lockup h1 {
+    margin: 0; font-size: 2.75rem; font-weight: 650; letter-spacing: -0.015em;
+    line-height: 1.05; color: oklch(var(--bc) / 0.96);
+    text-shadow: 0 2px 24px oklch(0% 0 0 / 0.4);
+  }
+  .lockup .meta {
+    margin: 10px 0 0; color: var(--t70); font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .lockup .meta .dot { margin: 0 0.45em; color: var(--t40); }
+
+  /* ---- body ---- */
+  .body { position: relative; z-index: 2; padding: 28px 44px 40px; }
+
+  .verdict {
+    margin: 0; font-size: 1.35rem; font-weight: 400; line-height: 1.4;
+    color: var(--t90); max-width: 46ch; letter-spacing: -0.004em;
+    font-variant-numeric: tabular-nums;
+  }
+  .verdict .spinner {
+    display: inline-block; width: 15px; height: 15px; vertical-align: -2px;
+    margin-right: 0.45em; border-radius: 50%;
+    border: 2px solid oklch(var(--bc) / 0.16); border-top-color: var(--t70);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .verdict .live { color: var(--t50); }
+
+  .actions { display: flex; align-items: center; gap: 10px; margin: 18px 0 0; }
+  .btn {
+    font: inherit; font-size: 0.875rem; line-height: 1; font-weight: 500;
+    padding: 0.6rem 0.9rem; border-radius: var(--r-field);
+    border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+  }
+  .btn-primary { background: var(--primary); color: oklch(14% 0.02 264); border-color: oklch(62% 0.16 250 / 0.6); }
+  .btn-neutral {
+    background: oklch(100% 0 0 / 0.08); color: oklch(var(--bc) / 0.85);
+    border-color: var(--glass-border);
+  }
+  .btn-sm { font-size: 0.8125rem; padding: 0.45rem 0.7rem; font-weight: 450; }
+  .btn-ghost { background: transparent; border-color: transparent; color: var(--t70); padding-left: 0.5rem; padding-right: 0.5rem; }
+  .link-quiet {
+    font: inherit; font-size: 0.9375rem; color: var(--t70); background: none; border: 0;
+    padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+    text-decoration-color: oklch(var(--bc) / 0.3);
+  }
+  .scope { margin: 12px 0 0; color: var(--t50); font-size: 0.875rem; }
+
+  .hairline { border: 0; border-top: 1px solid var(--hairline); margin: 26px 0 22px; }
+
+  .label {
+    margin: 0 0 6px; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.02em;
+    color: var(--t40);
+  }
+  .prose { margin: 0; color: var(--t70); font-size: 0.9375rem; max-width: 72ch; font-variant-numeric: tabular-nums; }
+  .receipts { margin: 8px 0 0; color: var(--t50); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+  .receipts .dot { margin: 0 0.5em; color: var(--t40); }
+
+  /* ---- season grid ---- */
+  .grid-block { margin-top: 24px; }
+  .season { display: flex; align-items: center; gap: 12px; }
+  .season .rowlabel { width: 22px; color: var(--t50); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+  .cells { display: flex; gap: 4px; flex-wrap: wrap; }
+  .cell {
+    width: 38px; height: 26px; border-radius: 4px;
+    display: grid; place-items: center;
+    font-size: 0.6875rem; font-variant-numeric: tabular-nums;
+    border: 1px solid oklch(var(--bc) / 0.14);
+    color: var(--t50); background: transparent;
+  }
+  .cell.kept {
+    background: oklch(72% 0.13 158 / 0.22); border-color: oklch(72% 0.13 158 / 0.55);
+    color: oklch(var(--bc) / 0.92);
+  }
+  .cell.kept-sd {
+    background: oklch(72% 0.13 158 / 0.13); border-color: oklch(72% 0.13 158 / 0.4);
+    color: oklch(var(--bc) / 0.85);
+  }
+  .cell.sd {
+    background: oklch(70% 0.14 240 / 0.08); border-color: oklch(70% 0.14 240 / 0.38);
+    color: var(--t70);
+  }
+  .cell.none { border-style: dashed; color: var(--t40); }
+  .cell.pending { opacity: 0.45; animation: pulse 2.6s ease-in-out infinite; }
+  .cell.settle { animation: settle 3.2s ease-out forwards; }
+  @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+  @keyframes settle {
+    0%   { opacity: 0.4; background: transparent; border-color: oklch(var(--bc) / 0.14); color: var(--t50); }
+    30%  { opacity: 0.8; background: transparent; border-color: oklch(var(--bc) / 0.14); }
+    60%  { opacity: 0.4; background: transparent; border-color: oklch(var(--bc) / 0.14); }
+    100% { opacity: 1; background: oklch(70% 0.14 240 / 0.08); border-color: oklch(70% 0.14 240 / 0.38); color: var(--t70); }
+  }
+  .legend {
+    margin: 12px 0 0 34px; display: flex; gap: 18px; flex-wrap: wrap;
+    color: var(--t50); font-size: 0.8125rem; font-variant-numeric: tabular-nums;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 12px; height: 10px; border-radius: 3px; border: 1px solid oklch(var(--bc) / 0.14); display: inline-block; }
+  .sw.kept { background: oklch(72% 0.13 158 / 0.22); border-color: oklch(72% 0.13 158 / 0.55); }
+  .sw.kept-sd { background: oklch(72% 0.13 158 / 0.13); border-color: oklch(72% 0.13 158 / 0.4); }
+  .sw.sd { background: oklch(70% 0.14 240 / 0.08); border-color: oklch(70% 0.14 240 / 0.38); }
+  .sw.none { border-style: dashed; }
+  .sw.pending { opacity: 0.45; }
+
+  /* ---- kept releases ---- */
+  .releases { margin-top: 26px; }
+  .release {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 14px; border-radius: var(--r-box);
+    background: var(--glass-bg); border: 1px solid var(--glass-border);
+  }
+  .release + .release { margin-top: 6px; }
+  .release .who { flex: 1; min-width: 0; }
+  .release .title {
+    margin: 0; font-size: 0.875rem; color: var(--t90);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .release .rmeta { margin: 3px 0 0; font-size: 0.8125rem; color: var(--t50); font-variant-numeric: tabular-nums; }
+  .release .rmeta .dot { margin: 0 0.45em; color: var(--t40); }
+  .release .ops { display: flex; gap: 6px; flex-shrink: 0; }
+  .more { margin: 10px 0 0; color: var(--t50); font-size: 0.8125rem; }
+  .holdout {
+    margin-top: 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    color: var(--t50); font-size: 0.875rem;
+  }
+
+  /* ---- disclosure ---- */
+  details.how { margin-top: 26px; }
+  details.how summary {
+    list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+    color: var(--t50); font-size: 0.875rem;
+  }
+  details.how summary::-webkit-details-marker { display: none; }
+  details.how summary svg { width: 14px; height: 14px; transition: transform 0.15s ease; }
+  details.how[open] summary svg { transform: rotate(90deg); }
+  details.how .how-body { margin: 12px 0 0 20px; max-width: 70ch; color: var(--t70); font-size: 0.9rem; }
+  details.how .how-body p { margin: 0 0 10px; }
+  details.how .how-body p:last-child { margin-bottom: 0; }
+  details.how .how-body b { font-weight: 500; color: var(--t90); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cell.pending, .cell.settle, .verdict .spinner { animation: none; }
+    .cell.settle { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<p class="page-head"><strong>Plan board popup — direction 2: Verdict first.</strong> One plain-language verdict leads the body; the decision sits directly under it; everything mechanical is supporting prose. Same cinematic shell as the library detail modal. Murphy Brown, Season 1, 22 episodes wanted, preference 1080p or better (global default).</p>
+
+<!-- =============================== STATE A =============================== -->
+<p class="state-label">State A — while searching</p>
+<section class="frame" aria-label="Plan board popup, searching">
+  <div class="backdrop"></div>
+  <div class="scrim"></div>
+  <button class="close" aria-label="Close"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/></svg></button>
+
+  <header class="lockup">
+    <h1>Murphy Brown</h1>
+    <p class="meta">1988<span class="dot">·</span>Season 1<span class="dot">·</span>22 episodes wanted<span class="dot">·</span>1080p or better</p>
+  </header>
+
+  <div class="body">
+    <p class="verdict"><span class="spinner" aria-hidden="true"></span>Searching… 2 of 24 searches done <span class="live">— so far 153 results, 1 kept</span></p>
+
+    <hr class="hairline">
+
+    <p class="label">What we've found so far</p>
+    <p class="prose">Every result so far has been a single episode — no season packs and no complete-series bundles were offered. One result matched your preference: episode 13 in 1080p, kept below. The rest are SD. Searches for the remaining episodes are still running.</p>
+    <p class="receipts">2 of 24 searches<span class="dot">·</span>153 results<span class="dot">·</span>3 indexers answering<span class="dot">·</span>live</p>
+
+    <div class="grid-block">
+      <div class="season">
+        <span class="rowlabel">S1</span>
+        <div class="cells">
+          <span class="cell sd">1</span>
+          <span class="cell sd">2</span>
+          <span class="cell sd">3</span>
+          <span class="cell sd">4</span>
+          <span class="cell sd">5</span>
+          <span class="cell sd">6</span>
+          <span class="cell sd">7</span>
+          <span class="cell sd">8</span>
+          <span class="cell sd">9</span>
+          <span class="cell sd">10</span>
+          <span class="cell sd">11</span>
+          <span class="cell sd">12</span>
+          <span class="cell kept">13</span>
+          <span class="cell settle" style="animation-delay:0.6s">14</span>
+          <span class="cell settle" style="animation-delay:2.1s">15</span>
+          <span class="cell settle" style="animation-delay:3.7s">16</span>
+          <span class="cell pending" style="animation-delay:0.3s">17</span>
+          <span class="cell pending" style="animation-delay:0.7s">18</span>
+          <span class="cell pending" style="animation-delay:1.1s">19</span>
+          <span class="cell pending" style="animation-delay:1.5s">20</span>
+          <span class="cell pending" style="animation-delay:1.9s">21</span>
+          <span class="cell pending" style="animation-delay:2.3s">22</span>
+        </div>
+      </div>
+      <p class="legend">
+        <span><i class="sw kept"></i>1 kept</span>
+        <span><i class="sw sd"></i>12 SD available so far</span>
+        <span><i class="sw pending"></i>9 still searching</span>
+      </p>
+    </div>
+
+    <div class="releases">
+      <p class="label">Kept · 1 release</p>
+      <div class="release">
+        <div class="who">
+          <p class="title">Murphy.Brown.S01E13.Happy.New.Year.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb</p>
+          <p class="rmeta">Episode 13<span class="dot">·</span>1080p WEB-DL<span class="dot">·</span>1.6 GB<span class="dot">·</span>9 seeders</p>
+        </div>
+        <div class="ops">
+          <button class="btn btn-neutral btn-sm">Options</button>
+          <button class="btn btn-ghost btn-sm">Remove</button>
+        </div>
+      </div>
+    </div>
+
+    <details class="how">
+      <summary><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>How we're searching</summary>
+      <div class="how-body">
+        <p><b>Whole series first.</b> One search for “Murphy Brown” returned 100 results, all single episodes from seasons 1–10. One result was another show and was set aside. Nothing to take as a bundle.</p>
+        <p><b>Then the season.</b> One search for “Murphy Brown S01” returned 53 results, again single episodes. Among them was a 1080p release of episode 13, which we kept.</p>
+        <p><b>Now episode by episode.</b> One search per remaining episode, running now.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- =============================== STATE B =============================== -->
+<p class="state-label">State B — finished</p>
+<section class="frame" aria-label="Plan board popup, finished">
+  <div class="backdrop"></div>
+  <div class="scrim"></div>
+  <button class="close" aria-label="Close"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/></svg></button>
+
+  <header class="lockup">
+    <h1>Murphy Brown</h1>
+    <p class="meta">1988<span class="dot">·</span>Season 1<span class="dot">·</span>22 episodes wanted<span class="dot">·</span>1080p or better</p>
+  </header>
+
+  <div class="body">
+    <p class="verdict">Murphy Brown exists almost entirely in SD. One episode was found in 1080p; the other 21 are available only in SD.</p>
+    <div class="actions">
+      <button class="btn btn-primary">Take SD for this show</button>
+      <button class="btn btn-neutral">Show the SD releases</button>
+    </div>
+    <p class="scope">This show only — your 1080p preference doesn't change.</p>
+
+    <hr class="hairline">
+
+    <p class="label">What we found</p>
+    <p class="prose">Every one of the 253 results was a single episode — no season packs and no complete-series bundles were offered. One result matched your preference: episode 13 in 1080p, kept below. About 97 SD results belong to Season 1 and between them cover the other 21 episodes. One result was another show and was set aside.</p>
+    <p class="receipts">24 searches<span class="dot">·</span>253 results<span class="dot">·</span>3 indexers answered<span class="dot">·</span>live, just now</p>
+
+    <div class="grid-block">
+      <div class="season">
+        <span class="rowlabel">S1</span>
+        <div class="cells">
+          <span class="cell sd">1</span>
+          <span class="cell sd">2</span>
+          <span class="cell sd">3</span>
+          <span class="cell sd">4</span>
+          <span class="cell sd">5</span>
+          <span class="cell sd">6</span>
+          <span class="cell sd">7</span>
+          <span class="cell sd">8</span>
+          <span class="cell sd">9</span>
+          <span class="cell sd">10</span>
+          <span class="cell sd">11</span>
+          <span class="cell sd">12</span>
+          <span class="cell kept">13</span>
+          <span class="cell sd">14</span>
+          <span class="cell sd">15</span>
+          <span class="cell sd">16</span>
+          <span class="cell sd">17</span>
+          <span class="cell sd">18</span>
+          <span class="cell sd">19</span>
+          <span class="cell sd">20</span>
+          <span class="cell sd">21</span>
+          <span class="cell sd">22</span>
+        </div>
+      </div>
+      <p class="legend">
+        <span><i class="sw kept"></i>1 kept</span>
+        <span><i class="sw sd"></i>21 SD available</span>
+        <span><i class="sw none"></i>0 nothing found</span>
+      </p>
+    </div>
+
+    <div class="releases">
+      <p class="label">Kept · 1 release</p>
+      <div class="release">
+        <div class="who">
+          <p class="title">Murphy.Brown.S01E13.Happy.New.Year.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb</p>
+          <p class="rmeta">Episode 13<span class="dot">·</span>1080p WEB-DL<span class="dot">·</span>1.6 GB<span class="dot">·</span>9 seeders</p>
+        </div>
+        <div class="ops">
+          <button class="btn btn-neutral btn-sm">Options</button>
+          <button class="btn btn-ghost btn-sm">Remove</button>
+        </div>
+      </div>
+      <div class="holdout">
+        <button class="btn btn-neutral btn-sm">Grab only the 1080p episode</button>
+        <span>The other 21 stay wanted at 1080p.</span>
+      </div>
+    </div>
+
+    <details class="how">
+      <summary><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>How we searched</summary>
+      <div class="how-body">
+        <p><b>Whole series first.</b> One search for “Murphy Brown” returned 100 results, all single episodes from seasons 1–10. One result was another show and was set aside. Nothing to take as a bundle.</p>
+        <p><b>Then the season.</b> One search for “Murphy Brown S01” returned 53 results, again single episodes. Among them was the only 1080p release in any of our results: episode 13. We kept it.</p>
+        <p><b>Then episode by episode.</b> One search per remaining episode, about 2 results each, all SD.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- =============================== STATE C =============================== -->
+<p class="state-label">State C — after accepting SD for this show</p>
+<section class="frame" aria-label="Plan board popup, SD accepted">
+  <div class="backdrop"></div>
+  <div class="scrim"></div>
+  <button class="close" aria-label="Close"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/></svg></button>
+
+  <header class="lockup">
+    <h1>Murphy Brown</h1>
+    <p class="meta">1988<span class="dot">·</span>Season 1<span class="dot">·</span>22 episodes wanted<span class="dot">·</span>SD accepted for this show</p>
+  </header>
+
+  <div class="body">
+    <p class="verdict">Taking Murphy Brown in SD — 21 releases queued. This show will keep accepting SD.</p>
+    <p class="scope">This show only — your 1080p preference for everything else is unchanged. <button class="link-quiet">Change</button></p>
+
+    <hr class="hairline">
+
+    <p class="label">What we found</p>
+    <p class="prose">Every one of the 253 results was a single episode — no season packs and no complete-series bundles were offered. One result matched your preference: episode 13 in 1080p. About 97 SD results belong to Season 1; the best-seeded one for each of the other 21 episodes is queued below.</p>
+    <p class="receipts">24 searches<span class="dot">·</span>253 results<span class="dot">·</span>3 indexers answered<span class="dot">·</span>live, just now</p>
+
+    <div class="grid-block">
+      <div class="season">
+        <span class="rowlabel">S1</span>
+        <div class="cells">
+          <span class="cell kept-sd">1</span>
+          <span class="cell kept-sd">2</span>
+          <span class="cell kept-sd">3</span>
+          <span class="cell kept-sd">4</span>
+          <span class="cell kept-sd">5</span>
+          <span class="cell kept-sd">6</span>
+          <span class="cell kept-sd">7</span>
+          <span class="cell kept-sd">8</span>
+          <span class="cell kept-sd">9</span>
+          <span class="cell kept-sd">10</span>
+          <span class="cell kept-sd">11</span>
+          <span class="cell kept-sd">12</span>
+          <span class="cell kept">13</span>
+          <span class="cell kept-sd">14</span>
+          <span class="cell kept-sd">15</span>
+          <span class="cell kept-sd">16</span>
+          <span class="cell kept-sd">17</span>
+          <span class="cell kept-sd">18</span>
+          <span class="cell kept-sd">19</span>
+          <span class="cell kept-sd">20</span>
+          <span class="cell kept-sd">21</span>
+          <span class="cell kept-sd">22</span>
+        </div>
+      </div>
+      <p class="legend">
+        <span><i class="sw kept"></i>1 kept in 1080p</span>
+        <span><i class="sw kept-sd"></i>21 kept in SD</span>
+      </p>
+    </div>
+
+    <div class="releases">
+      <p class="label">Kept · 22 releases</p>
+      <div class="release">
+        <div class="who">
+          <p class="title">Murphy.Brown.S01E01.Respect.DVDRip.XviD-SAiNTS</p>
+          <p class="rmeta">Episode 1<span class="dot">·</span>SD DVDRip<span class="dot">·</span>350 MB<span class="dot">·</span>4 seeders</p>
+        </div>
+        <div class="ops">
+          <button class="btn btn-neutral btn-sm">Options</button>
+          <button class="btn btn-ghost btn-sm">Remove</button>
+        </div>
+      </div>
+      <div class="release">
+        <div class="who">
+          <p class="title">Murphy.Brown.S01E02.Devil.With.A.Blue.Dress.On.DVDRip.XviD-SAiNTS</p>
+          <p class="rmeta">Episode 2<span class="dot">·</span>SD DVDRip<span class="dot">·</span>349 MB<span class="dot">·</span>3 seeders</p>
+        </div>
+        <div class="ops">
+          <button class="btn btn-neutral btn-sm">Options</button>
+          <button class="btn btn-ghost btn-sm">Remove</button>
+        </div>
+      </div>
+      <div class="release">
+        <div class="who">
+          <p class="title">Murphy.Brown.S01E13.Happy.New.Year.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb</p>
+          <p class="rmeta">Episode 13<span class="dot">·</span>1080p WEB-DL<span class="dot">·</span>1.6 GB<span class="dot">·</span>9 seeders</p>
+        </div>
+        <div class="ops">
+          <button class="btn btn-neutral btn-sm">Options</button>
+          <button class="btn btn-ghost btn-sm">Remove</button>
+        </div>
+      </div>
+      <p class="more"><button class="link-quiet" style="font-size:0.8125rem">Show all 22</button></p>
+    </div>
+
+    <details class="how">
+      <summary><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg>How we searched</summary>
+      <div class="how-body">
+        <p><b>Whole series first.</b> One search for “Murphy Brown” returned 100 results, all single episodes from seasons 1–10. One result was another show and was set aside. Nothing to take as a bundle.</p>
+        <p><b>Then the season.</b> One search for “Murphy Brown S01” returned 53 results, again single episodes. Among them was the only 1080p release in any of our results: episode 13. We kept it.</p>
+        <p><b>Then episode by episode.</b> One search per remaining episode, about 2 results each, all SD.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+</body>
+</html>

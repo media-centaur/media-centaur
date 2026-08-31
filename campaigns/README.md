@@ -20,6 +20,12 @@ for the full convention. The short version:
 Use [`template.md`](template.md) as a starter.
 
 ## Active
+* [`plan-board-diagnosis.md`](plan-board-diagnosis.md) —
+  **planning — design complete.** Verdict-led plan board on a single
+  per-unit outcome model, per-title quality acceptance ("Take SD for
+  this show"), real mid-search stop. UIDR-029 + ADR-063; mockups in
+  `docs/plans/plan-board-diagnosis-mockups/`.
+
 
 * [`friends-recommendations.md`](friends-recommendations.md) —
   **parked — v2 backbone (do not start until v1 is complete).** Friends, with

@@ -67,6 +67,7 @@ System design, data model, integration patterns, and engineering standards. Thes
 | 060 | 2026-08-06 | [Events publish through a per-topic `Events` chokepoint, over a `Topics` transport](architecture/2026-08-06-060-event-publication-idiom.md) | accepted |
 | 061 | 2026-08-16 | [Release quality: gates bound, ladders order, a profile chooses — size is never a signal](architecture/2026-08-16-061-source-quality-ladder.md) | accepted |
 | 062 | 2026-08-18 | [Episode auto-advance rides the mpv playlist inside one session](architecture/2026-08-18-062-playlist-based-episode-advance.md) | accepted |
+| 063 | 2026-08-31 | [Plan diagnosis model: per-unit outcomes, per-title quality bounds, status-observed cancellation](architecture/2026-08-31-063-plan-diagnosis-model.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
@@ -101,3 +102,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 026 | 2026-08-14 | [Re-selecting the current page in the main nav scrolls to the top](user-interface/2026-08-14-026-nav-reselect-scrolls-to-top.md) | accepted |
 | 027 | 2026-08-17 | [Play affordances play in place — the modal is never a waystation](user-interface/2026-08-17-027-play-in-place.md) | accepted |
 | 028 | 2026-08-19 | [Back enters the main menu; left stays in the page](user-interface/2026-08-19-028-back-enters-main-menu.md) | accepted |
+| 029 | 2026-08-31 | [The plan board narrates a diagnosis, not a procedure](user-interface/2026-08-31-029-plan-board-diagnosis.md) | accepted |

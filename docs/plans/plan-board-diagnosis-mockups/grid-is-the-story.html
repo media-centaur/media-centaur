@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan board — direction 3: the grid is the story</title>
+<style>
+  :root {
+    --b100: oklch(27% 0.019 264);
+    --b200: oklch(23% 0.017 264);
+    --b300: oklch(14% 0.015 264);
+    --bc: oklch(93% 0.005 264);
+    --primary: oklch(62% 0.16 250);
+    --info: oklch(70% 0.14 240);
+    --success: oklch(72% 0.13 158);
+    --warning: oklch(80% 0.14 80);
+    --error: oklch(68% 0.18 25);
+    --glass: oklch(18% 0.017 264 / 0.4);
+    --gborder: oklch(90% 0.005 264 / 0.09);
+    --rbox: 0.5rem;
+    --rfield: 0.25rem;
+    --t90: oklch(93% 0.005 264 / 0.9);
+    --t70: oklch(93% 0.005 264 / 0.7);
+    --t50: oklch(93% 0.005 264 / 0.5);
+    --t40: oklch(93% 0.005 264 / 0.4);
+    --t30: oklch(93% 0.005 264 / 0.3);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: oklch(10% 0.012 264);
+    color: var(--bc);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    padding: 56px 24px 96px;
+  }
+  b, strong { font-weight: 600; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* page chrome (outside the popups) */
+  .intro { max-width: 1100px; margin: 0 auto 44px; }
+  .intro h1 { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: var(--t70); }
+  .intro p { margin: 0; font-size: 13px; color: var(--t50); max-width: 70ch; }
+  .state { max-width: 1100px; margin: 0 auto 72px; }
+  .state-label { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--t50); margin: 0 0 12px; }
+
+  /* cinematic frame shell */
+  .frame {
+    position: relative;
+    border-radius: var(--rbox);
+    overflow: hidden;
+    background: var(--b300);
+    border: 1px solid var(--gborder);
+    box-shadow: 0 30px 80px oklch(0% 0 0 / 0.55);
+  }
+  .backdrop {
+    position: absolute; inset: 0 0 auto 0; height: 440px;
+    background:
+      radial-gradient(60% 90% at 18% 15%, oklch(48% 0.07 62 / 0.55), transparent 70%),
+      radial-gradient(50% 80% at 82% 25%, oklch(42% 0.06 300 / 0.5), transparent 70%),
+      radial-gradient(40% 60% at 55% 70%, oklch(38% 0.05 200 / 0.35), transparent 70%),
+      linear-gradient(180deg, oklch(32% 0.03 264), oklch(20% 0.02 264));
+  }
+  .scrim {
+    position: absolute; inset: 0 0 auto 0; height: 440px;
+    background: linear-gradient(180deg, oklch(14% 0.015 264 / 0.15) 0%, oklch(14% 0.015 264 / 0.65) 50%, var(--b300) 100%);
+  }
+  .close {
+    position: absolute; top: 14px; right: 14px; z-index: 2;
+    width: 32px; height: 32px; border-radius: 999px; border: 1px solid var(--gborder);
+    background: oklch(100% 0 0 / 0.08); color: var(--t70); display: grid; place-items: center;
+  }
+  .close svg { width: 16px; height: 16px; }
+  .lockup { position: relative; padding: 138px 44px 0; }
+  .lockup .title {
+    font-size: 54px; font-weight: 800; letter-spacing: -0.025em; line-height: 1;
+    text-shadow: 0 2px 24px oklch(0% 0 0 / 0.5);
+  }
+  .lockup .sub { margin-top: 10px; font-size: 14px; color: var(--t70); }
+  .body { position: relative; padding: 26px 44px 36px; }
+
+  /* status line */
+  .status { font-size: 13px; color: var(--t50); margin: 0 0 20px; display: flex; align-items: center; gap: 8px; }
+  .status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--t40); }
+  .status .dot.live { background: var(--info); animation: pulse-dot 1.6s ease-in-out infinite; }
+
+  /* season grid — the primary surface */
+  .season { display: flex; align-items: center; gap: 14px; }
+  .season-label { width: 30px; font-size: 13px; font-weight: 600; color: var(--t70); }
+  .cells { display: flex; gap: 4px; flex-wrap: wrap; }
+  .cell {
+    width: 38px; height: 38px; border-radius: var(--rfield);
+    border: 1px solid var(--gborder); background: transparent;
+    color: var(--t30); font: 13px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-variant-numeric: tabular-nums; display: grid; place-items: center;
+    position: relative; cursor: default;
+  }
+  .cell.kept {
+    background: oklch(72% 0.13 158 / 0.18);
+    border-color: oklch(72% 0.13 158 / 0.45);
+    color: var(--t90);
+  }
+  .cell.sd {
+    border-color: oklch(90% 0.005 264 / 0.16);
+    color: var(--t50);
+  }
+  .cell.sd::after {
+    content: ""; position: absolute; left: 50%; bottom: 5px;
+    width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%;
+    background: currentColor; opacity: 0.75;
+  }
+  .cell.sdkept {
+    background: oklch(90% 0.005 264 / 0.09);
+    border-color: oklch(90% 0.005 264 / 0.2);
+    color: var(--t90);
+  }
+  .cell.none { border-style: dashed; color: var(--t30); }
+  .cell.searching { animation: pulse-cell 2.2s ease-in-out infinite; }
+  .cell.hovered {
+    border-color: oklch(90% 0.005 264 / 0.45);
+    color: var(--t90);
+    box-shadow: 0 0 0 3px oklch(90% 0.005 264 / 0.06);
+  }
+  @keyframes pulse-cell {
+    0%, 100% { border-color: oklch(90% 0.005 264 / 0.07); }
+    50% { border-color: oklch(90% 0.005 264 / 0.2); }
+  }
+  @keyframes pulse-dot { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+  /* caption line below the grid (hover / focus readout) */
+  .caption {
+    margin: 12px 0 0 44px; min-height: 20px; font-size: 13px; color: var(--t70);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .caption .ep { font-weight: 600; color: var(--t90); }
+  .caption .rel { color: var(--t50); }
+  .caption.hint { color: var(--t40); }
+
+  /* outcome groups — calm rows */
+  .outcomes { list-style: none; margin: 28px 0 0; padding: 0; border-top: 1px solid var(--gborder); }
+  .outcome {
+    display: grid; grid-template-columns: 14px 1fr auto; gap: 0 16px; align-items: start;
+    padding: 18px 0; border-bottom: 1px solid var(--gborder);
+  }
+  .swatch { width: 14px; height: 14px; margin-top: 3px; border-radius: 3px; border: 1px solid var(--gborder); position: relative; }
+  .swatch.kept { background: oklch(72% 0.13 158 / 0.18); border-color: oklch(72% 0.13 158 / 0.45); }
+  .swatch.sd { border-color: oklch(90% 0.005 264 / 0.16); }
+  .swatch.sd::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; border-radius: 50%; background: var(--t50); }
+  .swatch.sdkept { background: oklch(90% 0.005 264 / 0.09); border-color: oklch(90% 0.005 264 / 0.2); }
+  .outcome .head { font-size: 15px; color: var(--t90); }
+  .outcome .head .muted { color: var(--t50); font-size: 13px; }
+  .outcome .detail { margin-top: 4px; font-size: 13px; color: var(--t50); }
+  .outcome .detail .rel { color: var(--t70); }
+  .outcome .actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .btn-row { display: flex; align-items: center; gap: 10px; }
+  .scope { font-size: 12px; color: var(--t50); text-align: right; }
+
+  /* buttons */
+  .btn {
+    height: 32px; padding: 0 12px; border-radius: var(--rfield); font: 600 13px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    border: 1px solid transparent; cursor: default; white-space: nowrap;
+  }
+  .btn.primary { background: var(--primary); color: oklch(99% 0 0); }
+  .btn.neutral { background: oklch(100% 0 0 / 0.08); border-color: var(--gborder); color: var(--t90); }
+  .btn.ghost { background: transparent; color: var(--t70); padding: 0 6px; font-weight: 500; }
+
+  /* commit row */
+  .commit { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0 0; }
+  .commit .note { font-size: 13px; color: var(--t50); }
+
+  /* footnote + disclosure */
+  .footnote {
+    margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--gborder);
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px;
+    font-size: 12.5px; color: var(--t40);
+  }
+  .how { display: contents; }
+  .how summary { list-style: none; cursor: default; color: var(--t50); text-decoration: underline; text-decoration-color: oklch(93% 0.005 264 / 0.25); text-underline-offset: 3px; }
+  .how summary::-webkit-details-marker { display: none; }
+  .how-body { flex-basis: 100%; margin-top: 6px; max-width: 78ch; color: var(--t50); font-size: 13px; }
+  .how-body p { margin: 0 0 8px; }
+  .how-body p:last-child { margin-bottom: 0; }
+  .how-body b { color: var(--t70); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Plan board popup — direction 3: the grid is the story</h1>
+  <p>The season grid is the primary surface. Each cell's fill is its outcome; the rows beneath the grid total those outcomes and carry the one decision. Search mechanics are a footnote with a disclosure.</p>
+</div>
+
+<!-- ============================================================ -->
+<section class="state">
+  <p class="state-label">State A — while searching</p>
+  <div class="frame">
+    <div class="backdrop"></div>
+    <div class="scrim"></div>
+    <button class="close" aria-label="Close"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+    <div class="lockup">
+      <div class="title">Murphy Brown</div>
+      <div class="sub">Season 1 · 22 episodes wanted</div>
+    </div>
+    <div class="body">
+      <p class="status"><span class="dot live"></span>Searching 3 indexers</p>
+
+      <div class="season">
+        <div class="season-label">S1</div>
+        <div class="cells" data-grid="SSSSSSSS....K........."></div>
+      </div>
+      <p class="caption hint">Hover an episode to see its best release.</p>
+
+      <ul class="outcomes">
+        <li class="outcome">
+          <span class="swatch kept"></span>
+          <div class="text">
+            <div class="head"><b class="num">1 episode</b> so far — kept in 1080p</div>
+            <div class="detail"><span class="rel">Murphy.Brown.S01E13.Happy.New.Year.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb</span> · 1.4 GB · 12 seeders</div>
+          </div>
+          <div class="actions"></div>
+        </li>
+        <li class="outcome">
+          <span class="swatch sd"></span>
+          <div class="text">
+            <div class="head"><b class="num">8 episodes</b> so far — available only in SD <span class="muted num">· 31 releases</span></div>
+            <div class="detail">Decide once the search finishes.</div>
+          </div>
+          <div class="actions"></div>
+        </li>
+      </ul>
+
+      <div class="footnote">
+        <span class="num">10 of 24 searches done · 189 results so far · 1 was another show</span>
+        <details class="how">
+          <summary>How we searched</summary>
+          <div class="how-body">
+            <p>The search starts with the largest thing that could cover the season and only goes smaller when it has to.</p>
+            <p><b>Whole series</b> — 100 results, every one a single episode from seasons 1–10, none at 1080p. One was a different show and was set aside.</p>
+            <p><b>Season 1 pack</b> — 53 results, again single episodes. One was 1080p, episode 13, and it was kept.</p>
+            <p><b>Each remaining episode</b> — 22 searches, running now.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="state">
+  <p class="state-label">State B — finished</p>
+  <div class="frame">
+    <div class="backdrop"></div>
+    <div class="scrim"></div>
+    <button class="close" aria-label="Close"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+    <div class="lockup">
+      <div class="title">Murphy Brown</div>
+      <div class="sub">Season 1 · 22 episodes wanted</div>
+    </div>
+    <div class="body">
+      <p class="status"><span class="dot"></span>Search finished · <span class="num">1 of 22</span> covered at 1080p</p>
+
+      <div class="season">
+        <div class="season-label">S1</div>
+        <div class="cells" data-grid="SSShSSSSSSSSKSSSSSSSSS"></div>
+      </div>
+      <p class="caption"><span class="ep">E04</span> Signed, Sealed, Delivered — best release is SD · <span class="rel">Murphy.Brown.S01E04.DVDRip.XviD-SAiNTS</span> · 4 releases, none at 1080p</p>
+
+      <ul class="outcomes">
+        <li class="outcome">
+          <span class="swatch kept"></span>
+          <div class="text">
+            <div class="head"><b class="num">1 episode</b> — kept in 1080p</div>
+            <div class="detail"><span class="rel">Murphy.Brown.S01E13.Happy.New.Year.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb</span> · 1.4 GB · 12 seeders</div>
+          </div>
+          <div class="actions"><button class="btn neutral">Options</button></div>
+        </li>
+        <li class="outcome">
+          <span class="swatch sd"></span>
+          <div class="text">
+            <div class="head"><b class="num">21 episodes</b> — available only in SD <span class="muted num">· 97 releases</span></div>
+            <div class="detail">Nothing at 1080p turned up for these episodes from the 3 indexers that answered.</div>
+          </div>
+          <div class="actions">
+            <div class="btn-row">
+              <button class="btn ghost">Show them</button>
+              <button class="btn primary">Take SD for this show</button>
+            </div>
+            <div class="scope">This show only; your 1080p preference is unchanged.</div>
+          </div>
+        </li>
+      </ul>
+
+      <div class="commit">
+        <span class="note">Approve grabs the 1080p episode now and keeps waiting for 1080p on the other 21.</span>
+        <button class="btn neutral">Approve · 1 release</button>
+      </div>
+
+      <div class="footnote">
+        <span class="num">24 searches across 3 indexers, live just now · 253 results · 1 was another show</span>
+        <details class="how" open>
+          <summary>How we searched</summary>
+          <div class="how-body">
+            <p>The search starts with the largest thing that could cover the season and only goes smaller when it has to.</p>
+            <p><b>Whole series</b> — 100 results, every one a single episode from seasons 1–10, none at 1080p. One was a different show and was set aside.</p>
+            <p><b>Season 1 pack</b> — 53 results, again single episodes. One was 1080p, episode 13, and it was kept.</p>
+            <p><b>Each remaining episode</b> — 22 searches, a few results each, all SD.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="state">
+  <p class="state-label">State C — after accepting SD for this show</p>
+  <div class="frame">
+    <div class="backdrop"></div>
+    <div class="scrim"></div>
+    <button class="close" aria-label="Close"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5 5l10 10M15 5L5 15"/></svg></button>
+    <div class="lockup">
+      <div class="title">Murphy Brown</div>
+      <div class="sub">Season 1 · 22 episodes wanted</div>
+    </div>
+    <div class="body">
+      <p class="status"><span class="dot"></span>Plan ready · <span class="num">22 of 22</span> covered</p>
+
+      <div class="season">
+        <div class="season-label">S1</div>
+        <div class="cells" data-grid="DDDDDDDDDDDDKDDDDDDDDD"></div>
+      </div>
+      <p class="caption hint">Hover an episode to see its release.</p>
+
+      <ul class="outcomes">
+        <li class="outcome">
+          <span class="swatch kept"></span>
+          <div class="text">
+            <div class="head"><b class="num">1 episode</b> — 1080p</div>
+            <div class="detail"><span class="rel">Murphy.Brown.S01E13.Happy.New.Year.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb</span> · 1.4 GB · 12 seeders</div>
+          </div>
+          <div class="actions"><button class="btn neutral">Options</button></div>
+        </li>
+        <li class="outcome">
+          <span class="swatch sdkept"></span>
+          <div class="text">
+            <div class="head"><b class="num">21 episodes</b> — SD, accepted for this show</div>
+            <div class="detail">Best SD release picked for each · 7.3 GB in total. Later seasons and episodes of Murphy Brown will take SD without asking.</div>
+          </div>
+          <div class="actions">
+            <div class="btn-row">
+              <button class="btn ghost">Show them</button>
+              <button class="btn ghost">Undo</button>
+            </div>
+            <div class="scope">Your 1080p preference for everything else is unchanged.</div>
+          </div>
+        </li>
+      </ul>
+
+      <div class="commit">
+        <span class="note">Approve grabs all 22 releases now.</span>
+        <button class="btn primary">Approve · 22 releases</button>
+      </div>
+
+      <div class="footnote">
+        <span class="num">24 searches across 3 indexers, live just now · 253 results · 1 was another show</span>
+        <details class="how">
+          <summary>How we searched</summary>
+          <div class="how-body">
+            <p>The search starts with the largest thing that could cover the season and only goes smaller when it has to.</p>
+            <p><b>Whole series</b> — 100 results, every one a single episode from seasons 1–10, none at 1080p. One was a different show and was set aside.</p>
+            <p><b>Season 1 pack</b> — 53 results, again single episodes. One was 1080p, episode 13, and it was kept.</p>
+            <p><b>Each remaining episode</b> — 22 searches, a few results each, all SD.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Grid spec, one character per episode:
+  //   K = kept at preference (1080p)   S = SD-only   h = SD-only, mocked as hovered
+  //   D = SD, accepted for this show    . = still searching   - = nothing anywhere
+  const classFor = { K: 'kept', S: 'sd', h: 'sd hovered', D: 'sdkept', '.': 'searching', '-': 'none' };
+  document.querySelectorAll('[data-grid]').forEach(el => {
+    [...el.dataset.grid].forEach((ch, i) => {
+      const c = document.createElement('div');
+      c.className = 'cell ' + classFor[ch];
+      c.textContent = i + 1;
+      el.appendChild(c);
+    });
+  });
+</script>
+</body>
+</html>

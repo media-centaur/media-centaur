@@ -164,6 +164,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       terms_by_guid: %{},
       assignment_by_unit: %{},
       offers_by_unit: %{},
+      below_floor_by_unit: %{},
       residual: wanted,
       stages: []
     }
@@ -200,7 +201,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       case Map.get(state.assignment_by_unit, key) do
         nil ->
           offer = offer_attrs(Map.get(state.offers_by_unit, key))
-          {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit, offer))
+          below_floor_count = Map.get(state.below_floor_by_unit, key, 0)
+          {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit, offer, below_floor_count))
 
         assignment ->
           {:ok, _} =
@@ -265,8 +267,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   defp solve_groups(state, wanted, floor_groups, plan_prefs) do
     options = Enum.reverse(state.options)
 
-    {assignment_by_unit, offers_by_unit} =
-      Enum.reduce(floor_groups, {%{}, %{}}, fn {group_min, group_wanted}, {assigns, offers} ->
+    {assignment_by_unit, offers_by_unit, below_floor_by_unit} =
+      Enum.reduce(floor_groups, {%{}, %{}, %{}}, fn {group_min, group_wanted},
+                                                    {assigns, offers, below} ->
         solution = Planner.solve(group_wanted, options, %{plan_prefs | min_quality: group_min})
 
         assigns =
@@ -275,13 +278,14 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
               into: assigns,
               do: {unit, assignment}
 
-        {assigns, Map.merge(offers, solution.offers)}
+        {assigns, Map.merge(offers, solution.offers), Map.merge(below, solution.below_floor)}
       end)
 
     %{
       state
       | assignment_by_unit: assignment_by_unit,
         offers_by_unit: offers_by_unit,
+        below_floor_by_unit: below_floor_by_unit,
         residual: Enum.reject(wanted, &Map.has_key?(assignment_by_unit, &1))
     }
   end
