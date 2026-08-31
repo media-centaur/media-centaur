@@ -242,5 +242,4 @@ defmodule MediaCentaur.Search.QualityTest do
       refute Quality.acceptable?(nil, "hd_1080p", "uhd_4k")
     end
   end
-
 end

@@ -568,5 +568,4 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
       assert solution.below_floor == %{{1, 1} => 1}
     end
   end
-
 end

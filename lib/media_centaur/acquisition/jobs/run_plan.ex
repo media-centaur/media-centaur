@@ -148,6 +148,13 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     # a season's density reads the same across quality-floor groups.
     plan_prefs = Map.put(prefs(plan), :all_wanted, wanted)
 
+    search_context = %{
+      identity: identity,
+      excluded: excluded,
+      unit_air_dates: unit_air_dates,
+      force?: force?
+    }
+
     # One solve per quality-floor group (ADR-056 Q4): a unit inside its
     # patience window carries an elevated `min_quality`, fails its
     # group's acceptability, and stays in the residual — so the descent
@@ -176,7 +183,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         active = %{id: rung_id, state: :active, term_count: length(terms), residual_after: nil}
         broadcast_descent(plan, length(wanted), state.stages, active)
 
-        state = gather_rung(state, plan, terms, identity, excluded, unit_air_dates, force?)
+        state = gather_rung(state, plan, terms, search_context)
 
         if state.halted? do
           {:halt, state}
@@ -243,17 +250,22 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   # plan-wide exclusions are dropped before solving (a release the user
   # rejected for one episode is almost never what they want for
   # another); guid dedup keeps the first term that surfaced a release.
-  defp gather_rung(state, plan, terms, identity, excluded, unit_air_dates, force?) do
+  defp gather_rung(state, plan, terms, search_context) do
     Enum.reduce_while(terms, state, fn {term, opts}, state ->
       if still_planning?(plan) do
-        {:cont, gather_term(state, plan, term, opts, identity, excluded, unit_air_dates, force?)}
+        {:cont, gather_term(state, plan, {term, opts}, search_context)}
       else
         {:halt, %{state | halted?: true}}
       end
     end)
   end
 
-  defp gather_term(state, plan, term, opts, identity, excluded, unit_air_dates, force?) do
+  defp gather_term(state, plan, {term, opts}, %{
+         identity: identity,
+         excluded: excluded,
+         unit_air_dates: unit_air_dates,
+         force?: force?
+       }) do
     plan
     |> search(term, opts, force?)
     |> Enum.reduce(state, fn result, state ->
@@ -445,6 +457,14 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         _ -> plan_prefs.min_quality
       end
 
+    movie_context = %{
+      criteria: criteria,
+      excluded: excluded,
+      min_quality: min_quality,
+      plan_prefs: plan_prefs,
+      force?: force?
+    }
+
     # Same residual discipline as the TV ladder: the broader (year-less)
     # term is searched only when the year term yields nothing acceptable.
     # Alongside the pick, every walked rung accumulates the identity-
@@ -456,17 +476,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       |> LadderTerms.for_plan([])
       |> Enum.reduce_while({nil, MapSet.new()}, fn {term, opts}, {_best, below_floor_guids} = acc ->
         if still_planning?(plan) do
-          movie_term_step(
-            plan,
-            term,
-            opts,
-            criteria,
-            excluded,
-            min_quality,
-            plan_prefs,
-            below_floor_guids,
-            force?
-          )
+          movie_term_step(plan, {term, opts}, below_floor_guids, movie_context)
         else
           {:halt, acc}
         end
@@ -479,17 +489,13 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     end
   end
 
-  defp movie_term_step(
-         plan,
-         term,
-         opts,
-         criteria,
-         excluded,
-         min_quality,
-         plan_prefs,
-         below_floor_guids,
-         force?
-       ) do
+  defp movie_term_step(plan, {term, opts}, below_floor_guids, %{
+         criteria: criteria,
+         excluded: excluded,
+         min_quality: min_quality,
+         plan_prefs: plan_prefs,
+         force?: force?
+       }) do
     matched =
       plan
       |> search(term, opts, force?)

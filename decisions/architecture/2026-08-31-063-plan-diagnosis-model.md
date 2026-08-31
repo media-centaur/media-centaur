@@ -30,13 +30,18 @@ and must not fork.
    grid, and outcome rows are folds of it; no surface re-derives the
    facts. (Exact vocabulary and struct shape are moduledoc contracts.)
 2. **Quality bounds resolve unit override → per-title preference →
-   global default.** "Take SD for this show" writes the per-title
-   layer — the same durable per-title home as the existing patience
-   override — visible and resettable in Manage, snapshotted by plans at
-   run time. ADR-061's invariant is intact and amended: gates still
-   express bounds; bounds are per-title-resolvable. The dormant
-   `plan.criteria["min_quality"]` slot must become that snapshot or be
-   removed — it does not remain a third writable place.
+   global default.** The per-title layer is the release-tracking item's
+   `min_quality` (the home the drop planner already snapshots into
+   `plan.criteria` — implementation showed criteria was never dormant:
+   it is the live snapshot mechanism, and stays exactly that). "Take
+   lower quality for this show" therefore **tracks the title** when it
+   isn't tracked yet (owner decision, 2026-08-31) and stores
+   `min_quality: "any"` — a new bound value admitting unranked
+   releases — on the item; manual plans resolve a tracked title's
+   bounds into their criteria snapshot at creation. Visible and
+   reversible (Undo on the board; the item's auto-grab settings
+   elsewhere). ADR-061's invariant is intact and amended: gates still
+   express bounds; bounds are per-title-resolvable.
 3. **Plan status is the cancellation channel.** The run observes status
    at search-term boundaries and stops within one term; the existing
    discard transition machinery already treats mid-run exit as normal.
@@ -54,5 +59,9 @@ and must not fork.
 * Bad, because the solve loop, unit persistence, and all board view
   models change together — campaign-sized, not a patch.
 * Neutral, because auto-upgrade after acceptance (grab HD if it appears
-  later) is explicitly out of scope; accepting SD promises nothing
-  about upgrades.
+  later) is explicitly out of scope; accepting lower quality promises
+  nothing about upgrades.
+* Neutral, because accepting lower quality on an untracked title makes
+  it tracked — deliberate: the acceptance is a durable per-title fact,
+  and the tracking item is its one home (no parallel preference
+  store).

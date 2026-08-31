@@ -37,12 +37,15 @@ The body becomes, top to bottom:
    (kept / available only below preference / nothing / searching) by
    fill and border only; focus/hover captions the episode's best release
    under the grid.
-3. **Outcome rows** — calm hairline rows totaling the grid, each opening
-   with a swatch drawn in its cell style. The below-preference row
-   carries the decision: primary **Take SD for this show**, quiet *Show
-   them* (best release per episode, reusing the alternatives panel), and
-   the scope note "This show only; your 1080p preference is unchanged."
-   A zero-count outcome renders no row.
+3. **Outcome rows** — the below-preference outcome renders as one
+   grouped row however many episodes it covers, carrying the decision:
+   **Take lower quality for this show** (implemented copy — "SD" was
+   imprecise; the releases are whatever exists below the preference),
+   *Show them* when a single unit anchors the row (reusing the
+   alternatives panel), and the scope note. A zero-count outcome
+   renders no row. Per-episode drill-in for multi-episode rows rides
+   the grid cells' titles; focusable grid cells with a caption line are
+   deferred (nav-graph work, tracked in the campaign).
 4. **Kept releases** — unchanged release rows.
 5. **Receipts footnote** — one muted line (searches · indexers ·
    freshness · results · out-of-scope note) that reconciles, with a
