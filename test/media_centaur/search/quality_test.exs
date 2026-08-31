@@ -242,4 +242,30 @@ defmodule MediaCentaur.Search.QualityTest do
       refute Quality.acceptable?(nil, "hd_1080p", "uhd_4k")
     end
   end
+
+  describe "dvdrip source tier (plan-board-diagnosis campaign)" do
+    test "dvd rips classify as their own source" do
+      assert Quality.source("Sample.Show.S01E09.DVDRip.AAC.x264-GROUP") == :dvdrip
+      assert Quality.source("Sample.Show.S01E09.DVD-Rip.x264") == :dvdrip
+    end
+
+    test "a disc encode outranks broadcast and web rips on the fidelity ladder" do
+      assert Quality.source_rank(:dvdrip, "fidelity") > Quality.source_rank(:hdtv, "fidelity")
+      assert Quality.source_rank(:dvdrip, "fidelity") > Quality.source_rank(:webrip, "fidelity")
+      assert Quality.source_rank(:dvdrip, "fidelity") > Quality.source_rank(:unknown, "fidelity")
+      assert Quality.source_rank(:remux, "fidelity") > Quality.source_rank(:dvdrip, "fidelity")
+    end
+
+    test "the space ladder ranks dvdrip with the disc encodes" do
+      assert Quality.source_rank(:dvdrip, "space") == Quality.source_rank(:bluray_encode, "space")
+    end
+
+    test "bluray tokens still win over the dvd classification when both appear" do
+      assert Quality.source("Sample.Movie.BluRay.DVDRip.x264") == :bluray_encode
+    end
+
+    test "dvd rips get no second label — the quality chip already reads DVD" do
+      assert Quality.source_label("Sample.Show.S01E09.DVDRip.x264") == nil
+    end
+  end
 end
