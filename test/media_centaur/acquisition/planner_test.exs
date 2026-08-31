@@ -537,4 +537,36 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
       assert solution.unfound == []
     end
   end
+
+  describe "solve/3 — below-floor counts" do
+    test "unfound units carry the count of identity-verified options below the floor" do
+      wanted = [{1, 1}, {1, 2}, {1, 3}]
+
+      options = [
+        option("sd-e1-a", {:episode, 1, 1}, quality: nil),
+        option("sd-e1-b", {:episode, 1, 1}, quality: nil),
+        option("good-e2", {:episode, 1, 2}, quality: :hd_1080p),
+        option("sd-e2", {:episode, 1, 2}, quality: nil)
+      ]
+
+      solution = Planner.solve(wanted, options, %{min_quality: "hd_1080p", max_quality: "uhd_4k"})
+
+      # {1, 2} is assigned, so it never carries a count; {1, 3} has no
+      # coverage at all — a bare unfound stores nothing.
+      assert solution.below_floor == %{{1, 1} => 2}
+    end
+
+    test "a below-floor pack counts only for units it can physically cover" do
+      wanted = [{1, 1}, {1, 2}]
+
+      options = [
+        option("sd-pack", {:season, 1}, quality: nil, coverable: MapSet.new([{1, 1}]))
+      ]
+
+      solution = Planner.solve(wanted, options, %{min_quality: "hd_1080p", max_quality: "uhd_4k"})
+
+      assert solution.below_floor == %{{1, 1} => 1}
+    end
+  end
+
 end

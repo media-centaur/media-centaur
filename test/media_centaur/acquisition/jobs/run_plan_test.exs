@@ -718,4 +718,53 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   defp descent_states(%PlanEvents.DescentStatus{stages: stages}) do
     Enum.map(stages, &{&1.id, &1.state})
   end
+
+  describe "TV below-preference counting" do
+    test "a show whose only releases are lower quality lands each unit unfound carrying its count" do
+      stub_recording_searches(%{
+        "Sample Show" => [
+          release("Sample.Show.S02E01.DVDRip.x264", "tv-bf-dvd", %{seeders: 5, size: 300_000_000}),
+          release("Sample.Show.S02E01.720p.WEBRip.x264", "tv-bf-720", %{
+            seeders: 8,
+            size: 900_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.below_floor_count == 2
+
+      board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.board_for(fetched) end)
+      assert board.gaps == []
+      assert [%MediaCentaur.Acquisition.ViewModels.PlanBoard.BelowFloor{count: 2}] = board.below_floor
+    end
+
+    test "a below-preference pack counts for uncovered episodes while acceptable singles still assign" do
+      stub_recording_searches(%{
+        "Sample Show S01" => [
+          release("Sample.Show.S01E01.1080p.WEB-DL.H.264", "tv-good-e1", %{
+            seeders: 10,
+            size: 2_000_000_000
+          }),
+          release("Sample.Show.S01.DVDRip.x264", "tv-bf-pack", %{seeders: 3, size: 2_500_000_000})
+        ]
+      })
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+
+      assert [first_episode, second_episode] =
+               plan.id |> Plans.units_for() |> Enum.sort_by(& &1.episode_number)
+
+      assert first_episode.status == "found"
+      assert first_episode.assigned_guid == "tv-good-e1"
+      assert first_episode.below_floor_count == 0
+
+      assert second_episode.status == "unfound"
+      assert second_episode.below_floor_count == 1
+    end
+  end
+
 end

@@ -110,12 +110,13 @@ defmodule MediaCentaur.Acquisition.Planner do
     """
 
     @enforce_keys [:assignments, :unfound]
-    defstruct [:assignments, :unfound, offers: %{}]
+    defstruct [:assignments, :unfound, offers: %{}, below_floor: %{}]
 
     @type t :: %__MODULE__{
             assignments: [Assignment.t()],
             unfound: [ReleaseCoverage.unit()],
-            offers: %{ReleaseCoverage.unit() => Option.t()}
+            offers: %{ReleaseCoverage.unit() => Option.t()},
+            below_floor: %{ReleaseCoverage.unit() => pos_integer()}
           }
   end
 
@@ -152,7 +153,8 @@ defmodule MediaCentaur.Acquisition.Planner do
     %Solution{
       assignments: assignments ++ single_assignments,
       unfound: unfound,
-      offers: offers_for(unfound, gated, size_preference)
+      offers: offers_for(unfound, gated, size_preference),
+      below_floor: below_floor_counts(unfound, options, prefs.min_quality)
     }
   end
 
@@ -299,6 +301,23 @@ defmodule MediaCentaur.Acquisition.Planner do
         [best | _] <- [covering],
         into: %{},
         do: {unit, best}
+  end
+
+  # How many identity-verified options sit below the quality floor for
+  # each unfound unit — the "lower quality available" verdict (campaign
+  # below-floor-releases; TV parity via ADR-063's unit outcome).
+  # Counted from the raw option pool (acceptability filtered these out
+  # of the solve above); only units with at least one such option
+  # appear, so a bare unfound stores nothing.
+  defp below_floor_counts(unfound, options, min_quality) do
+    floor = Quality.label_rank(min_quality)
+    below = Enum.filter(options, &(quality_rank(&1) < floor))
+
+    for {season, episode} = unit <- unfound,
+        count = Enum.count(below, &option_covers?(&1, season, episode)),
+        count > 0,
+        into: %{},
+        do: {unit, count}
   end
 
   # ---------------------------------------------------------------------------
