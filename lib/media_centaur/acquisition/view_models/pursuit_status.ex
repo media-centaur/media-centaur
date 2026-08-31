@@ -56,6 +56,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     :target,
     available_actions: [],
     downloads: [],
+    downloads_done: 0,
     search_queries: []
   ]
 
@@ -75,6 +76,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
           next_step: NextStep.t() | nil,
           download: DownloadProgress.t() | nil,
           downloads: [%{download: DownloadProgress.t(), release_title: String.t() | nil}],
+          downloads_done: non_neg_integer(),
           staleness: staleness(),
           last_activity_at: DateTime.t() | nil,
           available_actions: [action()],
@@ -396,6 +398,69 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
       [:cancel, :change_target]
     }
   end
+
+  @doc """
+  Composite-download presentation (UIDR-029 follow-up): finished entries
+  (progress at 100%) leave the per-file list — the header carries their
+  count — and a multi-file "Downloading" header aggregates ("N of M
+  finished • From <client>") instead of narrating one file's telemetry.
+  Single-download pursuits keep their per-file description; non-download
+  verbs are never rewritten. Returns `{action, active_entries, done}`.
+  """
+  @spec compose_downloads(CurrentAction.t(), [map()]) ::
+          {CurrentAction.t(), [map()], non_neg_integer()}
+  def compose_downloads(%CurrentAction{} = action, downloads) when is_list(downloads) do
+    {done, active} = Enum.split_with(downloads, &finished_entry?/1)
+    total = length(downloads)
+
+    action =
+      if action.verb == "Downloading" and total > 1 do
+        %{action | description: composite_description(length(done), total, downloads)}
+      else
+        action
+      end
+
+    {action, active, length(done)}
+  end
+
+  defp finished_entry?(%{download: download}), do: DownloadProgress.finished?(download)
+  defp finished_entry?(_entry), do: false
+
+  defp composite_description(done, total, downloads) do
+    base = "#{done} of #{total} finished"
+
+    case Enum.find_value(downloads, fn %{download: %DownloadProgress{client: client}} -> client end) do
+      nil -> base
+      client -> base <> " • From " <> client
+    end
+  end
+
+  @doc """
+  The pursuit's quality-bound snapshot in user copy — never raw
+  `key: value` dumps for the known bounds ("floor" and storage labels
+  are internal vocabulary). Unknown keys fall back to `key: value`
+  rather than disappearing.
+  """
+  @spec criteria_summary(map() | nil) :: String.t() | nil
+  def criteria_summary(nil), do: nil
+  def criteria_summary(map) when map_size(map) == 0, do: nil
+
+  def criteria_summary(map) when is_map(map) do
+    map
+    |> Enum.sort_by(fn {key, _value} -> criterion_order(key) end)
+    |> Enum.map_join(", ", &describe_criterion/1)
+  end
+
+  defp criterion_order("min_quality"), do: 0
+  defp criterion_order("max_quality"), do: 1
+  defp criterion_order(_other), do: 2
+
+  defp describe_criterion({"min_quality", "any"}), do: "lower quality accepted"
+  defp describe_criterion({"min_quality", "hd_1080p"}), do: "1080p or better"
+  defp describe_criterion({"min_quality", "uhd_4k"}), do: "4K only"
+  defp describe_criterion({"max_quality", "hd_1080p"}), do: "up to 1080p"
+  defp describe_criterion({"max_quality", "uhd_4k"}), do: "up to 4K"
+  defp describe_criterion({key, value}), do: "#{key}: #{value}"
 
   defp postprocessing_verb(:verifying), do: "Verifying"
   defp postprocessing_verb(:repairing), do: "Repairing"

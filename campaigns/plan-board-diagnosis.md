@@ -58,6 +58,13 @@ Implementation largely landed 2026-08-31 (unpushed, commits on main):
   the per-plan snapshot; ADR-063 §2 amended accordingly.
 - Implemented copy says "lower quality", never "SD" (imprecise) and
   never "floor" (banned).
+- In-flight rule (2026-08-31 polish): a finished file (progress 100%)
+  is no longer in flight — it leaves BOTH the pursuit modal's list and
+  the In Flight card strip (`DownloadProgress.finished?/1` is the one
+  predicate); a multi-file "Downloading" header aggregates ("N of M
+  finished • From <client>") via `PursuitStatus.compose_downloads/2`.
+- Criteria render as copy, never raw keys: `PursuitStatus.criteria_summary/1`
+  ("lower quality accepted", "1080p or better", …).
 
 ## Next steps
 
