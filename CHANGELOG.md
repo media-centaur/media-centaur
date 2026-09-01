@@ -4,6 +4,26 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.4.0 — 2026-09-01
+
+### New
+
+- **The plan board now tells you what the world actually offers.** When a search finishes, the board leads with a plain-language verdict — for example, *"1 episode was found at your quality preference — the other 21 are available only in lower quality."* — instead of reporting those episodes as unfindable. Episodes that exist only below your quality preference show as blue-outlined cells in the season grid rather than amber gaps, and the step-by-step search narrative folds into a collapsed **How we searched** line for when you want the receipts. This applies to TV shows as well as movies; previously only movies counted lower-quality releases.
+- **Take lower quality for this show.** Older shows often exist on indexers only as SD or 720p rips. One press on the board grabs the best release that exists for each affected episode and remembers the acceptance for that title, so later seasons and re-searches don't ask again. Your quality preference for everything else is unchanged, the board shows an accepted line with **Undo**, and the pursuit header reads *lower quality accepted* rather than an internal setting name. Accepting on a show you weren't tracking starts tracking it — that's where the per-title acceptance lives.
+- **Stop a running search with one press.** While a plan is still searching, the footer offers **Stop searching** — no confirmation, since nothing has been grabbed — and it takes effect within one search rather than at the end of the ladder. Discard-with-confirmation remains for finished plans.
+
+### Improved
+
+- **Downloads that have finished leave the in-flight lists.** Both the pursuit page's file list and the In Flight card drop files at 100%, and a multi-file download's header now reads *"N of M finished"* instead of narrating one file's progress.
+- **Download rows use their width.** On the Incoming page, each row's progress, ETA, size, and client now sit beside the cancel button instead of being glued to the filename with empty space after them; the pursuit page's file list also has more breathing room.
+
+### Fixed
+
+- **DVD rips now win over broadcast rips when nothing better exists.** The source ranking had no tier for DVD rips, so a choice between a DVD rip and an SDTV rip came down to the order the indexer returned them. DVD rips now rank with the disc encodes — above broadcast and unclassified rips, below WEB-DL and BluRay.
+- **Modal windows keep a steady width.** The plan board could widen slightly as rows changed during a re-solve, because a long release name was allowed to stretch the panel. The panel width is now fixed by the window size; long names wrap or truncate inside it.
+- **Tracking a title you already track no longer errors.** A duplicate track attempt is now reported as already tracked instead of failing.
+- **The Status page no longer lists the same fault more than once** when it recurs with only a differing timestamp.
+
 ## v1.3.0 — 2026-08-29
 
 ### New
