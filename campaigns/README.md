@@ -74,22 +74,6 @@ Use [`template.md`](template.md) as a starter.
   heritage: ports prowlarr-stack's proven parts; old repo removed at parity-
   plus-maturity. ADR-052 (amends ADR-035) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
-* [`usenet-download-client.md`](usenet-download-client.md) —
-  **implemented 2026-07-10 — P0 (stack) live; MC-side P1–P3 built & committed
-  the same day; remaining: wiki page + live smoke test (user enters the
-  SABnzbd API key in Settings).** Extended downloads from a single client
-  (qBittorrent) to a **set routed by protocol**, with SABnzbd as the first
-  usenet driver. Prowlarr routes by protocol (two download clients); MC's
-  work was the one-client → set refactor (`Dispatcher.drivers()`, merged
-  multi-client `QueueMonitor`, protocol-routed cancel) plus the SABnzbd
-  driver, two-slot config/Settings, per-slot capability tests, and the
-  `{:auto_cancel, :download_failed}` terminal-failure rule. SABnzbd owns
-  par2/repair/unrar; usenet completion reads from history (`storage` →
-  `content_path`, two-phase capture on the existing identity machinery).
-  Identity stays provisional (title-match → pin `nzo_id`) until real
-  payloads exist. Spans two repos (this + `prowlarr-stack`). Enables — but
-  does not build — the mixed-protocol grab that the media-search planner
-  (campaign complete 2026-06-10; see git history) drives.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
   **planning.** Reproducible install environments for media-centaur and
   prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written

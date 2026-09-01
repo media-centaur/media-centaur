@@ -23,7 +23,7 @@ the immediate forcing function for maturing the stack, and it's also the first
 real test of the control-plane model (a second client the user toggles in
 `stack.toml` rather than re-running an installer). The stack-side SABnzbd
 service therefore lands **here**, in the new repo — it is *moved out of* the
-[`usenet-download-client`](usenet-download-client.md) campaign's P0, which
+`usenet-download-client` (campaign complete 2026-09-01, in git history) campaign's P0, which
 assumed it would be bolted onto `prowlarr-stack`.
 
 ## The model
@@ -125,7 +125,7 @@ and **SABnzbd (net-new usenet service)** — registered as Prowlarr's two
 protocol-routed download clients, with SABnzbd's completed dir landing inside
 MC's watched paths and placed *outside* the gluetun tunnel (usenet is
 SSL-to-provider, no P2P leak — same posture as qBit today). The stack-side
-SABnzbd service is the [`usenet-download-client`](usenet-download-client.md)
+SABnzbd service is the `usenet-download-client` (campaign complete 2026-09-01, in git history)
 campaign's P0, relocated here; that campaign keeps the **MC-side** work (the
 one-client → set-of-clients refactor + the SABnzbd driver).
 
@@ -206,7 +206,7 @@ independently valuable and can be sequenced early.
    net-new SABnzbd usenet service** (outside the VPN tunnel, completed dir inside
    MC's watched paths, registered as Prowlarr's second protocol-routed client).
    Baseline = behavioral parity with prowlarr-stack *plus* working usenet. This
-   absorbs the [`usenet-download-client`](usenet-download-client.md) campaign's
+   absorbs the `usenet-download-client` (campaign complete 2026-09-01, in git history) campaign's
    stack-side P0.
 3. **P2 · Control plane.** `stack.toml` as the single source of desired state;
    `apply` reconciler (drain-aware: stop → render compose/env → restart);
@@ -287,7 +287,7 @@ independently valuable and can be sequenced early.
   (Search/Downloads split), [ADR-042](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
   (campaign convention).
 * **Sibling campaigns** —
-  [`usenet-download-client.md`](usenet-download-client.md) (the SABnzbd service
+  `usenet-download-client` (campaign complete 2026-09-01, in git history) (the SABnzbd service
   lands in the new repo; the multi-client refactor is MC-side and independent),
   [`install-repro-matrix.md`](install-repro-matrix.md) (reproducible installs —
   its prowlarr-stack references move to the new repo at cutover),
