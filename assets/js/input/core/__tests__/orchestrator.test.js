@@ -3234,6 +3234,95 @@ describe("Orchestrator", () => {
     })
   })
 
+  // An overlay's regions can populate after it opens: the plan modal opens on
+  // a loading stage with no controls at all and grows its regions when the
+  // targeting universe (or the board) lands. Entry is resolved against item
+  // counts, so at open there is nothing to enter and the cursor is left in
+  // the flat MODAL context — which would then walk every control in the
+  // overlay, grid cells included, as one list. The orchestrator re-resolves
+  // entry while the overlay is still flat and steps into the first region
+  // that appears.
+  describe("overlay regions that populate after opening", () => {
+    const PLAN_CONFIG = {
+      contextSelectors: {
+        ...TEST_CONFIG.contextSelectors,
+        plan_head: "[data-nav-zone='plan_head'] [data-nav-item]",
+        plan_grid: "[data-nav-zone='plan_grid'] [data-nav-item]",
+        plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
+      },
+      instanceTypes: { ...TEST_CONFIG.instanceTypes, plan_head: "tree", plan_grid: "shelf", plan_body: "tree" },
+      overlays: {
+        plan: {
+          entry: ["plan_head", "plan_body", "plan_grid"],
+          layout: {
+            plan_head: { down: ["plan_grid", "plan_body"] },
+            plan_grid: { up: ["plan_head"], down: ["plan_body"] },
+            plan_body: { up: ["plan_grid", "plan_head"] },
+          },
+        },
+      },
+    }
+
+    function openEmptyPlan() {
+      const counts = { plan_head: 0, plan_grid: 0, plan_body: 0 }
+      const result = setup({
+        getPresentation: () => "modal",
+        getOverlayName: () => "plan",
+        isModalOpen: () => true,
+        getItemCount: context => counts[context] ?? (context === "modal" ? 0 : 8),
+      }, PLAN_CONFIG)
+      return { ...result, counts }
+    }
+
+    test("opens flat while no region has items", () => {
+      const { system, globals } = openEmptyPlan()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      expect(system.focusMachine.inOverlay).toBe(true)
+      expect(Object.keys(PLAN_CONFIG.overlays.plan.layout)).not.toContain(system.focusMachine.context)
+    })
+
+    test("enters the first populated region when the stage lands", () => {
+      const { system, calls, globals, counts } = openEmptyPlan()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      counts.plan_body = 6
+      calls.length = 0
+      system.onViewChanged()
+      globals._flushRAF()
+
+      expect(system.focusMachine.context).toBe("plan_body")
+      const focused = calls.filter(c => c.method === "focusFirst").map(c => c.args[0])
+      expect(new Set(focused)).toEqual(new Set(["plan_body"]))
+    })
+
+    test("once in a region, a later patch does not re-enter", () => {
+      const { system, calls, globals, counts } = openEmptyPlan()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      counts.plan_body = 6
+      system.onViewChanged()
+      globals._flushRAF()
+
+      // The board lands: head and grid appear above the body the cursor is in.
+      counts.plan_head = 2
+      counts.plan_grid = 22
+      calls.length = 0
+      system.onViewChanged()
+      globals._flushRAF()
+
+      // Re-entering would resolve entry afresh and land on the head.
+      expect(system.focusMachine.context).toBe("plan_body")
+      expect(calls.filter(c => c.method === "focusFirst" && c.args[0] !== "plan_body")).toEqual([])
+    })
+  })
+
   // The detail modal is two regions rather than one flat list: an action row
   // (Play / More info / Manage) over the body of the title. See UIDR-019.
   describe("detail overlay", () => {

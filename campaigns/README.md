@@ -20,12 +20,6 @@ for the full convention. The short version:
 Use [`template.md`](template.md) as a starter.
 
 ## Active
-* [`plan-board-diagnosis.md`](plan-board-diagnosis.md) —
-  **shipped v1.4.0 (2026-09-01), leftovers open.** Verdict-led plan board
-  on a single per-unit outcome model, per-title quality acceptance, real
-  mid-search stop (UIDR-029 + ADR-063). Remaining: focusable grid cells +
-  caption line (nav-graph work) and a Manage-surface row for the per-title
-  acceptance; close once those land or are dropped.
 
 * [`friends-recommendations.md`](friends-recommendations.md) —
   **parked — v2 backbone (do not start until v1 is complete).** Friends, with

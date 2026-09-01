@@ -32,6 +32,7 @@ import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {SidebarTooltip} from "./hooks/sidebar_tooltip"
 import {pinReserve, sheetMaxRise} from "./hooks/detail_scroll_geometry"
 import {DetailBodyScroll} from "./hooks/detail_body_scroll"
+import {PlanGridCaption} from "./hooks/plan_grid_caption"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import {installNavReselect} from "./nav_reselect"
 import topbar from "../vendor/topbar"
@@ -48,6 +49,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     MouseAutofocus,
     FlashAutoDismiss,
     SidebarTooltip,
+    PlanGridCaption,
     // Publishes the detail scroller's measured geometry as CSS vars for
     // the pinned orientation block's backing replicas — layout facts CSS
     // cannot read about itself:

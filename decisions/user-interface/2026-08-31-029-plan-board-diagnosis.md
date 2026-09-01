@@ -44,8 +44,13 @@ The body becomes, top to bottom:
    *Show them* when a single unit anchors the row (reusing the
    alternatives panel), and the scope note. A zero-count outcome
    renders no row. Per-episode drill-in for multi-episode rows rides
-   the grid cells' titles; focusable grid cells with a caption line are
-   deferred (nav-graph work, tracked in the campaign).
+   the grid cells: each cell is a focusable nav item and the caption
+   line under the grid names the focused or hovered episode and its
+   best release (landed 2026-09-01; the grid is its own `plan_grid`
+   SHELF region between a `plan_head` and a `plan_body` TREE — see
+   `docs/input-system.md`, *Overlays with regions*). Cells carry no
+   tooltips: a caption a cursor can reach replaces one only a pointer
+   could.
 4. **Kept releases** — unchanged release rows.
 5. **Receipts footnote** — one muted line (searches · indexers ·
    freshness · results · out-of-scope note) that reconciles, with a

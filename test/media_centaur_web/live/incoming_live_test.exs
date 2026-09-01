@@ -1131,6 +1131,32 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "button", "Search for something to watch")
     end
 
+    test "the board navigates as head / grid / body regions and its cells caption themselves", %{
+      conn: conn
+    } do
+      stub_plan_tmdb()
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
+
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      [unit | _] = Plans.units_for(plan.id)
+
+      assert has_element?(view, "[data-plan-modal][data-nav-overlay='plan']")
+      assert has_element?(view, "[data-nav-zone='plan_head'] [data-nav-item]")
+      assert has_element?(view, "[data-nav-zone='plan_body'] [data-nav-item]")
+
+      # Cells are focusable and carry their caption for the grid's caption
+      # line (UIDR-029) — no per-cell tooltip, which a cursor never sees.
+      assert has_element?(
+               view,
+               "[data-nav-zone='plan_grid'] #plan-cell-#{unit.id}[data-nav-item][tabindex='0'][data-caption]"
+             )
+
+      refute has_element?(view, "#plan-cell-#{unit.id}[title]")
+      assert has_element?(view, "#plan-grid[phx-hook='PlanGridCaption'] [data-plan-caption]")
+    end
+
     test "taking lower quality tracks the title, re-solves, and can be undone", %{conn: conn} do
       stub_lower_quality_movie()
 

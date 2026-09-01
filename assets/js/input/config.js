@@ -24,6 +24,13 @@ export const inputConfig = {
     manage_list: "[data-nav-zone='manage_list'] [data-nav-item]",
     detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
     detail_cast: "[data-nav-zone='detail_cast'] [data-nav-item]",
+    // The plan modal's regions (UIDR-029): head (status, verdict, their
+    // controls) over the episode grid over the body (release rows,
+    // decisions, footer). Each stage before the board puts everything in
+    // `plan_body`.
+    plan_head: "[data-nav-zone='plan_head'] [data-nav-item]",
+    plan_grid: "[data-nav-zone='plan_grid'] [data-nav-item]",
+    plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
@@ -92,6 +99,13 @@ export const inputConfig = {
     manage_list: Context.TREE,
     detail_list: Context.TREE,
     detail_cast: Context.SHELF,
+    // The plan modal: two vertical lists around the episode grid. The grid's
+    // arrangement carries its meaning (season rows, capsules for packs), so
+    // it is a SHELF — geometry answers adjacency across wrapped rows and
+    // capsule groups without an adjacency table.
+    plan_head: Context.TREE,
+    plan_grid: Context.SHELF,
+    plan_body: Context.TREE,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -138,6 +152,20 @@ export const inputConfig = {
         manage_list: { up: ["manage_tools"], back: ["detail_actions"] },
         detail_list: { up: ["detail_rail", "detail_actions"], back: ["detail_actions"] },
         detail_cast: { up: ["detail_rail", "detail_actions"], back: ["detail_actions"] },
+      },
+    },
+    // The plan modal (UIDR-029). Regions stack vertically; a movie board has
+    // no grid and the candidate lists fall through head ↔ body. No `back`
+    // edges: BACK dismisses from anywhere, as it did when the modal was one
+    // flat list — the regions exist so the grid can be walked spatially, not
+    // to add depth. The modal opens on a loading stage with no controls;
+    // the orchestrator enters the first region that populates.
+    plan: {
+      entry: ["plan_head", "plan_body", "plan_grid"],
+      layout: {
+        plan_head: { down: ["plan_grid", "plan_body"] },
+        plan_grid: { up: ["plan_head"], down: ["plan_body"] },
+        plan_body: { up: ["plan_grid", "plan_head"] },
       },
     },
   },
