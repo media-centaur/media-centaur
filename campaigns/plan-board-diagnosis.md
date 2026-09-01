@@ -1,7 +1,7 @@
 ---
-status: implementing
+status: shipped-with-leftovers
 started: 2026-08-31
-last_updated: 2026-08-31
+last_updated: 2026-09-01
 ---
 # Plan Board Diagnosis
 
@@ -16,7 +16,9 @@ mid-search stop. Design records: UIDR-029, ADR-063; design plan
 
 ## Status
 
-Implementation largely landed 2026-08-31 (unpushed, commits on main):
+SHIPPED in v1.4.0 (2026-09-01). Owner verified the whole flow live on
+Murphy Brown S1 (accept → track → re-solve → approve → 22 downloads).
+Landed:
 
 - TV below-preference counting per unit (Planner solve returns
   `below_floor` map; persisted via `unfound_changeset/3`).
@@ -68,18 +70,13 @@ Implementation largely landed 2026-08-31 (unpushed, commits on main):
 
 ## Next steps
 
-1. Owner look at the live board (dev restarted with the new code;
-   Murphy Brown re-solved). Pressing "Take lower quality for this
-   show" there is the real acceptance — it tracks the show and grabs
-   SD on approval.
-2. Focusable grid cells + caption line (input-system nav-graph work) —
+1. Focusable grid cells + caption line (input-system nav-graph work) —
    deferred from the rebuild; hover titles carry the per-episode facts
    meanwhile.
-3. Manage-surface visibility of the per-title acceptance (item
+2. Manage-surface visibility of the per-title acceptance (item
    auto-grab settings already hold it; surface a labeled row + reset).
-4. Wiki sync (done in this pass — verify pages read right after owner
-   look); marketing screenshots intentionally untouched.
-5. Ship when the owner says so (/ship).
+3. Close the campaign (delete this file) once 1–2 land or are
+   explicitly dropped.
 
 ## Completion criteria
 
