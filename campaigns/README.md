@@ -84,9 +84,3 @@ Use [`template.md`](template.md) as a starter.
   (`--warnings-as-errors`). Next up: `Autostart.Launchd`,
   `DriveProbe.BsdDf`, `LogSource.Files`, darwin-arm64 in
   `ReleaseArtifact`.
-* [`instant-navigation.md`](instant-navigation.md) —
-  **in progress.** Sub-100ms page transitions across the app: ETS
-  projections behind every mount path, an explicit per-page mount query
-  budget locked by `test/media_centaur_web/no_db_on_render_test.exs`,
-  and UIDR-012 eager/sync rendering throughout. P1–P5 shipped; the
-  settings-probe pass is the remaining phase, gated on a re-measure.
