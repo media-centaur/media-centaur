@@ -3107,6 +3107,35 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert MediaCentaur.ReleaseTracking.get_item(item.id).auto_grab_mode == "all_releases"
     end
 
+    test "the title modal surfaces the per-title lower-quality acceptance and resets it", %{
+      conn: conn
+    } do
+      {item, _release} = tracked_with_release(%{name: "Accepted Show"})
+      {:ok, item} = MediaCentaur.ReleaseTracking.update_auto_grab(item, %{min_quality: "any"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=#{item.id}")
+
+      assert has_element?(view, "#title-lower-quality-accepted")
+
+      view
+      |> element("#title-lower-quality-accepted button[phx-click='reset_lower_quality']")
+      |> render_click()
+
+      assert MediaCentaur.ReleaseTracking.get_item(item.id).min_quality == nil
+      refute has_element?(view, "#title-lower-quality-accepted")
+    end
+
+    test "the title modal shows no acceptance row while the title inherits the default", %{
+      conn: conn
+    } do
+      {item, _release} = tracked_with_release(%{name: "Default Show"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=#{item.id}")
+
+      assert has_element?(view, "[phx-click='toggle_auto_grab']")
+      refute has_element?(view, "#title-lower-quality-accepted")
+    end
+
     test "stop_tracking deletes the item and flashes", %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Stop Show"})
 
