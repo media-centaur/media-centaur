@@ -135,6 +135,8 @@ defmodule MediaCentaur.ReleaseTracking.DifferTest do
     # in the differ index — a genuinely new typed date was misread as the lone
     # release's date *changing*. Keying on release_type keeps them distinct.
     test "a new typed release is an addition, not a date change (no collapse)" do
+      upcoming_date = Date.add(Date.utc_today(), 60)
+
       old = [
         build_tracking_release(%{
           season_number: nil,
@@ -156,7 +158,9 @@ defmodule MediaCentaur.ReleaseTracking.DifferTest do
         %{
           season_number: nil,
           episode_number: nil,
-          air_date: ~D[2026-09-01],
+          # Relative, not a literal: a hard-coded date silently stops
+          # being "upcoming" the day the calendar reaches it.
+          air_date: upcoming_date,
           title: "Sample Film",
           release_type: "digital"
         }
@@ -167,7 +171,7 @@ defmodule MediaCentaur.ReleaseTracking.DifferTest do
       refute Enum.any?(events, &(&1.event_type == :upcoming_release_date_changed))
       assert [event] = events
       assert event.event_type == :release_scheduled
-      assert event.metadata.air_date == ~D[2026-09-01]
+      assert event.metadata.air_date == upcoming_date
     end
 
     test "an undated movie release is not announced" do
