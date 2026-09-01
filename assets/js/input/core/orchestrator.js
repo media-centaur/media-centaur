@@ -371,6 +371,17 @@ export class Orchestrator {
       }
       this.focusMachine.presentationChanged("modal", entry)
       this._globals.requestAnimationFrame(() => this.writer.focusFirst(entry))
+    } else if (presentation === "modal" && overlay && !this._inOverlayRegion(overlay)) {
+      // An overlay whose regions populate after it opened: the plan modal opens
+      // on a loading stage with no controls and grows its regions when the
+      // stage lands. Entry was resolved against empty counts at open and fell
+      // back to the flat MODAL context (or the cursor start leaked to a page
+      // context beneath); re-resolve until a region exists to step into.
+      const entry = this._overlayEntry(overlay)
+      if (entry !== Context.MODAL) {
+        this.focusMachine.forceContext(entry)
+        this.writer.focusFirst(entry, this._restoreOpts())
+      }
     } else if (presentation === "drawer" && this.focusMachine.context !== Context.DRAWER) {
       this.focusMachine.presentationChanged("drawer")
       this._globals.requestAnimationFrame(() => this.writer.focusFirst(Context.DRAWER))
@@ -480,6 +491,11 @@ export class Orchestrator {
    * populated entry in its priority list, exactly as a page resolves its cursor
    * start. An overlay that declares no regions is a flat list and gets MODAL.
    */
+  /** Whether the cursor is in one of the open overlay's declared regions. */
+  _inOverlayRegion(overlay) {
+    return Object.prototype.hasOwnProperty.call(overlay?.layout ?? {}, this.focusMachine.context)
+  }
+
   _overlayEntry(overlay) {
     const entry = overlay?.entry ?? []
     return entry.find(region => (this._counts[region] ?? 0) > 0) ?? Context.MODAL

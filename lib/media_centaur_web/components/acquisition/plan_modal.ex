@@ -26,6 +26,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     construction.
   * `:error` — targeting failed (TMDB unreachable etc.).
 
+  Keyboard/gamepad navigation: the modal is a `plan` overlay with three
+  regions (`config.overlays.plan`). The board is a `plan_head` TREE
+  (status line, verdict and their controls) over the `plan_grid` SHELF
+  (episode cells, walked by geometry) over the `plan_body` TREE
+  (release rows, decisions, footer). Every other stage puts all of its
+  controls in `plan_body`, so it navigates as the one list it is. Grid
+  cells are nav items carrying `data-caption`; the `PlanGridCaption`
+  hook writes the focused or hovered cell's caption under the grid
+  (UIDR-029) — there are no per-cell tooltips.
+
   Pure rendering; the host owns all state and events.
   """
 
@@ -153,6 +163,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       view_key={@stage}
       data-plan-modal
       data-detail-mode={@open && "modal"}
+      data-nav-overlay={@open && "plan"}
       data-dismiss-event={@on_close}
     >
       <:orientation>
@@ -167,7 +178,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       <:body>
         <.loading_stage :if={@stage == :loading} />
 
-        <div :if={@stage == :error} class="p-8 text-center text-sm space-y-3">
+        <div
+          :if={@stage == :error}
+          data-nav-zone="plan_body"
+          class="p-8 text-center text-sm space-y-3"
+        >
           <p class="text-error">{@error || "Couldn't load this title from TMDB."}</p>
           <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
             Close
@@ -231,7 +246,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     assigns = assign(assigns, :chosen_count, MapSet.size(assigns.chosen))
 
     ~H"""
-    <div class="flex flex-col max-h-full">
+    <div data-nav-zone="plan_body" class="flex flex-col max-h-full">
       <div class="p-6 pb-6 space-y-5">
         <%!-- Identity (logo/title) lives in the pinned lockup above; this
               line carries the stage's facts — season/episode meta and the
@@ -481,7 +496,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     # it backdrop-or-poster via PlanLogic.shell_backdrop_url). This
     # stage is the facts below.
     ~H"""
-    <div>
+    <div data-nav-zone="plan_body">
       <div class="px-6 pt-6 pb-6 space-y-5">
         <div class="flex items-center justify-between gap-3">
           <MetadataRow.metadata_row badge_text="Movie" items={@movie.metadata_items} />
@@ -612,7 +627,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   defp board_stage(assigns) do
     ~H"""
     <div class="flex flex-col max-h-full">
-      <div class="p-6 pb-6 space-y-6">
+      <%!-- Three nav regions stacked (see the moduledoc): head, grid, body.
+            Each carries the 24px rhythm below itself so the gap holds
+            whether or not the grid renders (movies have none). --%>
+      <div data-nav-zone="plan_head" class="p-6 space-y-6">
         <div>
           <%!-- The title lives in the pinned lockup; this is the plan's
                 live status line. --%>
@@ -732,225 +750,244 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             <.descent_rows descent={@descent} />
           </div>
         </details>
+      </div>
 
-        <div :if={!@board.movie?} class="space-y-2">
-          <div :for={season <- @board.seasons} class="flex items-start gap-3">
-            <span class="flex-shrink-0 w-10 pt-2 text-sm text-base-content/40 tabular-nums">
-              S{season.season_number}
-            </span>
-            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-              <%= for run <- PlanLogic.cell_runs(season.cells) do %>
-                <div
-                  :if={match?({:capsule, _, _}, run)}
-                  class="flex flex-wrap gap-px rounded-lg border border-primary/60 bg-primary/10 p-0.5"
-                  title={run |> elem(2) |> hd() |> Map.get(:release_title)}
-                >
-                  <.board_cell :for={cell <- elem(run, 2)} cell={cell} in_capsule />
-                </div>
-                <.board_cell :if={match?({:cell, _}, run)} cell={elem(run, 1)} />
-              <% end %>
-            </div>
+      <%!-- The episode grid is its own SHELF region: cells are focusable
+            and the caption line beneath speaks for the cell under the
+            cursor or pointer (UIDR-029). --%>
+      <div
+        :if={!@board.movie?}
+        id="plan-grid"
+        phx-hook="PlanGridCaption"
+        data-nav-zone="plan_grid"
+        class="px-6 pb-6 space-y-2"
+      >
+        <div :for={season <- @board.seasons} class="flex items-start gap-3">
+          <span class="flex-shrink-0 w-10 pt-2 text-sm text-base-content/40 tabular-nums">
+            S{season.season_number}
+          </span>
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+            <%= for run <- PlanLogic.cell_runs(season.cells) do %>
+              <div
+                :if={match?({:capsule, _, _}, run)}
+                class="flex flex-wrap gap-px rounded-lg border border-primary/60 bg-primary/10 p-0.5"
+              >
+                <.board_cell :for={cell <- elem(run, 2)} cell={cell} in_capsule />
+              </div>
+              <.board_cell :if={match?({:cell, _}, run)} cell={elem(run, 1)} />
+            <% end %>
           </div>
         </div>
+        <p
+          id="plan-grid-caption"
+          data-plan-caption
+          aria-live="polite"
+          class="min-h-4 pl-13 text-xs text-base-content/50 truncate"
+        >
+        </p>
+      </div>
 
-        <div :if={@board.releases != []} class="space-y-2">
-          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-            Releases — {length(@board.releases)}
-          </h3>
-          <div :for={release <- @board.releases} class="space-y-2">
-            <div
-              id={"plan-release-#{release.swap_unit_id}"}
-              class="glass-inset rounded-lg px-4 py-2.5 flex items-center gap-3"
+      <div data-nav-zone="plan_body" class="flex flex-col">
+        <div class="px-6 pb-6 space-y-6">
+          <div :if={@board.releases != []} class="space-y-2">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+              Releases — {length(@board.releases)}
+            </h3>
+            <div :for={release <- @board.releases} class="space-y-2">
+              <div
+                id={"plan-release-#{release.swap_unit_id}"}
+                class="glass-inset rounded-lg px-4 py-2.5 flex items-center gap-3"
+              >
+                <ReleaseFacts.release_facts entry={release_entry(release)} />
+                <.button
+                  :if={@board.status == :ready}
+                  variant="neutral"
+                  size="xs"
+                  class="flex-shrink-0"
+                  phx-click={
+                    if @alternatives && @alternatives.unit_id == release.swap_unit_id,
+                      do: "plan_hide_alternatives",
+                      else: "plan_show_alternatives"
+                  }
+                  phx-value-unit-id={release.swap_unit_id}
+                  title="See the other options for this"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Options
+                </.button>
+                <.button
+                  :if={@board.status == :ready}
+                  variant="destructive_inline"
+                  size="xs"
+                  shape="square"
+                  class="flex-shrink-0"
+                  phx-click="plan_swap_release"
+                  phx-value-unit-id={release.swap_unit_id}
+                  phx-value-guid={release.guid}
+                  title="Remove this release — exclude it everywhere and re-solve"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  <.icon name="hero-x-mark-mini" class="size-3.5" />
+                </.button>
+              </div>
+
+              <.alternatives_panel
+                :if={@alternatives && @alternatives.unit_id == release.swap_unit_id}
+                alternatives={@alternatives}
+                release={release}
+              />
+            </div>
+          </div>
+
+          <div
+            :for={overlap <- @board.overlaps}
+            :if={@board.status == :ready}
+            id={"plan-overlap-#{:erlang.phash2(overlap.exclude_guid)}"}
+            class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
+          >
+            <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
+            <span class="min-w-0 flex-1 text-sm text-warning/90">{overlap.description}</span>
+            <.button
+              variant="risky"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click="plan_swap_release"
+              phx-value-unit-id={overlap.exclude_unit_id}
+              phx-value-guid={overlap.exclude_guid}
+              title="Exclude this release everywhere and let the planner re-solve without it"
+              data-nav-item
+              tabindex="0"
             >
-              <ReleaseFacts.release_facts entry={release_entry(release)} />
+              {overlap.action_label}
+            </.button>
+          </div>
+
+          <div
+            :for={offer <- @board.offers}
+            :if={@board.status == :ready}
+            id={"plan-offer-#{offer.unit_id}"}
+            class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
+          >
+            <.icon name="hero-archive-box-mini" class="size-4 text-warning flex-shrink-0" />
+            <span class="min-w-0 flex-1 text-sm text-warning/90">
+              No right-sized release for {offer.unit_label} — only a {offer.scope_label}<span :if={
+                offer.size_bytes
+              }>, {format_size(offer.size_bytes)}</span>, which brings episodes you didn't ask for.
+            </span>
+            <.button
+              variant="risky"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click="plan_choose_release"
+              phx-value-unit-id={offer.unit_id}
+              phx-value-guid={offer.guid}
+              title={offer.title}
+              data-nav-item
+              tabindex="0"
+            >
+              Grab the pack
+            </.button>
+          </div>
+
+          <div :if={@board.below_preference} id="plan-below-preference" class="space-y-2">
+            <div class="glass-inset rounded-lg px-4 py-3 border border-info/30 flex items-center gap-3">
+              <.icon name="hero-arrow-trending-down-mini" class="size-4 text-info flex-shrink-0" />
+              <span class="min-w-0 flex-1 text-sm">
+                <span class="text-base-content/90">{below_preference_line(@board)}</span>
+                <span class="block text-xs text-base-content/50 mt-1">
+                  Taking them uses the best release there is, for this title only. Your quality preference for everything else stays as it is.
+                </span>
+              </span>
               <.button
-                :if={@board.status == :ready}
+                :if={@board.below_preference.unit_id}
                 variant="neutral"
                 size="xs"
                 class="flex-shrink-0"
                 phx-click={
-                  if @alternatives && @alternatives.unit_id == release.swap_unit_id,
+                  if @alternatives && @alternatives.unit_id == @board.below_preference.unit_id,
                     do: "plan_hide_alternatives",
                     else: "plan_show_alternatives"
                 }
-                phx-value-unit-id={release.swap_unit_id}
-                title="See the other options for this"
+                phx-value-unit-id={@board.below_preference.unit_id}
                 data-nav-item
                 tabindex="0"
               >
-                Options
+                {if @alternatives && @alternatives.unit_id == @board.below_preference.unit_id,
+                  do: "Hide",
+                  else: "Show them"}
               </.button>
               <.button
-                :if={@board.status == :ready}
-                variant="destructive_inline"
+                variant="action"
                 size="xs"
-                shape="square"
                 class="flex-shrink-0"
-                phx-click="plan_swap_release"
-                phx-value-unit-id={release.swap_unit_id}
-                phx-value-guid={release.guid}
-                title="Remove this release — exclude it everywhere and re-solve"
+                phx-click="plan_accept_lower_quality"
+                title="Grab the best of what exists for this title, and keep accepting lower quality for it"
                 data-nav-item
                 tabindex="0"
               >
-                <.icon name="hero-x-mark-mini" class="size-3.5" />
+                {if @board.movie?, do: "Take lower quality", else: "Take lower quality for this show"}
               </.button>
             </div>
 
             <.alternatives_panel
-              :if={@alternatives && @alternatives.unit_id == release.swap_unit_id}
+              :if={
+                @alternatives && @board.below_preference.unit_id &&
+                  @alternatives.unit_id == @board.below_preference.unit_id
+              }
               alternatives={@alternatives}
-              release={release}
             />
           </div>
+
+          <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
+          <p :if={@last_activity} class="text-sm text-base-content/40">{@last_activity}</p>
         </div>
 
-        <div
-          :for={overlap <- @board.overlaps}
-          :if={@board.status == :ready}
-          id={"plan-overlap-#{:erlang.phash2(overlap.exclude_guid)}"}
-          class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
-        >
-          <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
-          <span class="min-w-0 flex-1 text-sm text-warning/90">{overlap.description}</span>
-          <.button
-            variant="risky"
-            size="xs"
-            class="flex-shrink-0"
-            phx-click="plan_swap_release"
-            phx-value-unit-id={overlap.exclude_unit_id}
-            phx-value-guid={overlap.exclude_guid}
-            title="Exclude this release everywhere and let the planner re-solve without it"
-            data-nav-item
-            tabindex="0"
-          >
-            {overlap.action_label}
-          </.button>
-        </div>
-
-        <div
-          :for={offer <- @board.offers}
-          :if={@board.status == :ready}
-          id={"plan-offer-#{offer.unit_id}"}
-          class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
-        >
-          <.icon name="hero-archive-box-mini" class="size-4 text-warning flex-shrink-0" />
-          <span class="min-w-0 flex-1 text-sm text-warning/90">
-            No right-sized release for {offer.unit_label} — only a {offer.scope_label}<span :if={
-              offer.size_bytes
-            }>, {format_size(offer.size_bytes)}</span>, which brings episodes you didn't ask for.
+        <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-between gap-4">
+          <span class="text-sm text-base-content/50 tabular-nums">
+            {@board.covered} of {@board.wanted} covered · {length(@board.releases)}
+            {if length(@board.releases) == 1, do: "release", else: "releases"}
+            <span :if={@board.total_size_bytes}>· ≈ {format_size(@board.total_size_bytes)}</span>
           </span>
-          <.button
-            variant="risky"
-            size="xs"
-            class="flex-shrink-0"
-            phx-click="plan_choose_release"
-            phx-value-unit-id={offer.unit_id}
-            phx-value-guid={offer.guid}
-            title={offer.title}
-            data-nav-item
-            tabindex="0"
-          >
-            Grab the pack
-          </.button>
-        </div>
-
-        <div :if={@board.below_preference} id="plan-below-preference" class="space-y-2">
-          <div class="glass-inset rounded-lg px-4 py-3 border border-info/30 flex items-center gap-3">
-            <.icon name="hero-arrow-trending-down-mini" class="size-4 text-info flex-shrink-0" />
-            <span class="min-w-0 flex-1 text-sm">
-              <span class="text-base-content/90">{below_preference_line(@board)}</span>
-              <span class="block text-xs text-base-content/50 mt-1">
-                Taking them uses the best release there is, for this title only. Your quality preference for everything else stays as it is.
-              </span>
-            </span>
+          <div class="flex items-center gap-2">
             <.button
-              :if={@board.below_preference.unit_id}
-              variant="neutral"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click={
-                if @alternatives && @alternatives.unit_id == @board.below_preference.unit_id,
-                  do: "plan_hide_alternatives",
-                  else: "plan_show_alternatives"
-              }
-              phx-value-unit-id={@board.below_preference.unit_id}
+              :if={@board.status == :planning}
+              variant="dismiss"
+              size="sm"
+              phx-click="plan_stop_searching"
+              title="Stop now and keep what's been found so far — nothing is grabbed"
               data-nav-item
               tabindex="0"
             >
-              {if @alternatives && @alternatives.unit_id == @board.below_preference.unit_id,
-                do: "Hide",
-                else: "Show them"}
+              Stop searching
             </.button>
             <.button
-              variant="action"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click="plan_accept_lower_quality"
-              title="Grab the best of what exists for this title, and keep accepting lower quality for it"
+              :if={@board.status == :ready}
+              variant="dismiss"
+              size="sm"
+              phx-click="plan_discard_prompt"
               data-nav-item
               tabindex="0"
             >
-              {if @board.movie?, do: "Take lower quality", else: "Take lower quality for this show"}
+              Discard
+            </.button>
+            <.button
+              :if={@board.status == :ready && @board.releases != []}
+              variant="primary"
+              size="sm"
+              phx-click="plan_approve"
+              aria-disabled={to_string(@approving)}
+              class={@approving && "opacity-70"}
+              data-nav-item
+              tabindex="0"
+            >
+              <%!-- The release count and total size sit in the footer summary
+                  to the left; the button names the act, not the tally. --%>
+              <span :if={@approving} class="loading loading-spinner loading-xs"></span>
+              {if @approving, do: "Approving…", else: "Approve plan"}
             </.button>
           </div>
-
-          <.alternatives_panel
-            :if={
-              @alternatives && @board.below_preference.unit_id &&
-                @alternatives.unit_id == @board.below_preference.unit_id
-            }
-            alternatives={@alternatives}
-          />
-        </div>
-
-        <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
-        <p :if={@last_activity} class="text-sm text-base-content/40">{@last_activity}</p>
-      </div>
-
-      <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-between gap-4">
-        <span class="text-sm text-base-content/50 tabular-nums">
-          {@board.covered} of {@board.wanted} covered · {length(@board.releases)}
-          {if length(@board.releases) == 1, do: "release", else: "releases"}
-          <span :if={@board.total_size_bytes}>· ≈ {format_size(@board.total_size_bytes)}</span>
-        </span>
-        <div class="flex items-center gap-2">
-          <.button
-            :if={@board.status == :planning}
-            variant="dismiss"
-            size="sm"
-            phx-click="plan_stop_searching"
-            title="Stop now and keep what's been found so far — nothing is grabbed"
-            data-nav-item
-            tabindex="0"
-          >
-            Stop searching
-          </.button>
-          <.button
-            :if={@board.status == :ready}
-            variant="dismiss"
-            size="sm"
-            phx-click="plan_discard_prompt"
-            data-nav-item
-            tabindex="0"
-          >
-            Discard
-          </.button>
-          <.button
-            :if={@board.status == :ready && @board.releases != []}
-            variant="primary"
-            size="sm"
-            phx-click="plan_approve"
-            aria-disabled={to_string(@approving)}
-            class={@approving && "opacity-70"}
-            data-nav-item
-            tabindex="0"
-          >
-            <%!-- The release count and total size sit in the footer summary
-                  to the left; the button names the act, not the tally. --%>
-            <span :if={@approving} class="loading loading-spinner loading-xs"></span>
-            {if @approving, do: "Approving…", else: "Approve plan"}
-          </.button>
         </div>
       </div>
     </div>
@@ -1093,7 +1130,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     ~H"""
     <span
       id={"plan-cell-#{@cell.plan_unit_id}"}
-      title={cell_title(@cell)}
+      data-nav-item
+      tabindex="0"
+      data-caption={cell_title(@cell)}
       class={[
         "w-9 h-9 rounded-md flex items-center justify-center text-[13px] tabular-nums select-none",
         @cell.state |> CellVocabulary.from_plan_state(@in_capsule) |> CellVocabulary.cell_treatment()

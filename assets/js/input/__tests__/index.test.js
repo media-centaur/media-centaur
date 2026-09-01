@@ -251,6 +251,52 @@ describe("Detail overlay cast region (real config)", () => {
   })
 })
 
+// The plan modal (UIDR-029): its board is a vertical head (status, verdict
+// and their controls) over the episode grid over the rest (release rows,
+// decisions, footer). The grid is a SHELF — a 2-D arrangement resolved by
+// geometry, like the cast grid — between two TREE regions. Nothing declares
+// a `back` edge: BACK dismisses the modal from anywhere, as it did when the
+// modal was one flat list. Movies render no grid; the candidate lists fall
+// through head ↔ body. The other stages (targeting, movie confirm, error)
+// put every control in `plan_body`, so they navigate as the one list they
+// always were.
+describe("Plan overlay regions (real config)", () => {
+  const openPlan = counts =>
+    buildNavGraph("incoming", counts, {
+      ...inputConfig,
+      overlayLayout: inputConfig.overlays.plan.layout,
+    })
+
+  test("head and body are trees, the grid is a shelf, entry prefers head then body", () => {
+    expect(inputConfig.instanceTypes.plan_head).toBe(Context.TREE)
+    expect(inputConfig.instanceTypes.plan_grid).toBe(Context.SHELF)
+    expect(inputConfig.instanceTypes.plan_body).toBe(Context.TREE)
+    expect(inputConfig.overlays.plan.entry).toEqual(["plan_head", "plan_body", "plan_grid"])
+    expect(inputConfig.contextSelectors.plan_grid).toBe("[data-nav-zone='plan_grid'] [data-nav-item]")
+  })
+
+  test("series board: down from the head enters the grid, down from the grid the body, and back up", () => {
+    const graph = openPlan({ plan_head: 2, plan_grid: 22, plan_body: 6, sidebar: 7 })
+    expect(graph.plan_head.down).toBe("plan_grid")
+    expect(graph.plan_grid.down).toBe("plan_body")
+    expect(graph.plan_grid.up).toBe("plan_head")
+    expect(graph.plan_body.up).toBe("plan_grid")
+  })
+
+  test("movie board (no grid): head and body meet directly", () => {
+    const graph = openPlan({ plan_head: 2, plan_grid: 0, plan_body: 6, sidebar: 7 })
+    expect(graph.plan_head.down).toBe("plan_body")
+    expect(graph.plan_body.up).toBe("plan_head")
+  })
+
+  test("no region declares a back edge — BACK dismisses the modal from anywhere", () => {
+    const graph = openPlan({ plan_head: 2, plan_grid: 22, plan_body: 6, sidebar: 7 })
+    expect(graph.plan_head.back).toBeUndefined()
+    expect(graph.plan_grid.back).toBeUndefined()
+    expect(graph.plan_body.back).toBeUndefined()
+  })
+})
+
 // The Manage sub-view's toolbar card is a horizontal strip (Delete all,
 // Rematch, Refresh artwork, the ID links) — walking it vertically as tree
 // items made DOWN step sideways. It is its own TOOLBAR-typed region: LEFT/
