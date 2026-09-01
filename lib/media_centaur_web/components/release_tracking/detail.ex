@@ -17,6 +17,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Detail do
     :acquisition?,
     :auto_grab,
     :tracking_since,
+    lower_quality_accepted?: false,
     timeline: [],
     activity: []
   ]
@@ -31,6 +32,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Detail do
           logo_url: String.t() | nil,
           acquisition?: boolean(),
           auto_grab: %{on?: boolean(), label: String.t()},
+          lower_quality_accepted?: boolean(),
           tracking_since: DateTime.t() | NaiveDateTime.t() | nil,
           timeline: [Event.t()],
           activity: [activity_entry()]

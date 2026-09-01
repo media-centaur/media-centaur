@@ -110,6 +110,18 @@ defmodule MediaCentaurWeb.Storybook.ReleaseTracking.TitleModal do
         attributes: %{open: true, detail: straggler_detail(), today: @today}
       },
       %Variation{
+        id: :lower_quality_accepted,
+        description:
+          "The title carries the per-title acceptance set from a plan board " <>
+            "(ADR-063 §2): the automation section adds the acceptance row with " <>
+            "Reset under the auto-grab toggle.",
+        attributes: %{
+          open: true,
+          detail: %{scheduled_detail() | lower_quality_accepted?: true},
+          today: @today
+        }
+      },
+      %Variation{
         id: :forecast_only,
         description:
           "Acquisition not configured: no automation section, and the timeline's " <>

@@ -66,6 +66,15 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   # available" acceptance (ADR-063 §2); it is not a ceiling value.
   @quality_values ~w(hd_1080p uhd_4k)
 
+  @doc """
+  Whether the title carries the per-title acceptance (ADR-063 §2): its
+  searches take the best release that exists instead of holding to the
+  quality preference. Set by "Take lower quality" on a plan board, reset
+  from the title's automation settings.
+  """
+  @spec lower_quality_accepted?(%__MODULE__{}) :: boolean()
+  def lower_quality_accepted?(%__MODULE__{min_quality: min_quality}), do: min_quality == "any"
+
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [

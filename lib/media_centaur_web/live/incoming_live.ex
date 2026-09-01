@@ -445,6 +445,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           logo_url: artwork.logo_url,
           acquisition?: acquisition?,
           auto_grab: Present.auto_grab_summary(item.auto_grab_mode, default_mode, acquisition?),
+          lower_quality_accepted?: Item.lower_quality_accepted?(item),
           tracking_since: item.inserted_at,
           timeline: flatten_feed(feed),
           activity: build_activity(item_id)
@@ -1836,6 +1837,18 @@ defmodule MediaCentaurWeb.IncomingLive do
       ReleaseTracking.update_auto_grab(item, %{
         auto_grab_mode: if(summary.on?, do: "off", else: "all_releases")
       })
+    end
+
+    socket = build_view(socket)
+    {:noreply, assign(socket, detail: build_detail(socket, item_id))}
+  end
+
+  # The per-title acceptance's durable home is the tracking item (ADR-063
+  # §2); this is its reset outside any plan board. An open plan keeps its
+  # own criteria snapshot — the board's Undo is what re-solves a plan.
+  def handle_event("reset_lower_quality", %{"item-id" => item_id}, socket) do
+    with %Item{} = item <- ReleaseTracking.get_item(item_id) do
+      ReleaseTracking.update_auto_grab(item, %{min_quality: nil})
     end
 
     socket = build_view(socket)

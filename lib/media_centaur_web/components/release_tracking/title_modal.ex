@@ -10,8 +10,10 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
   off the `?title=<item_id>` URL param (the same idiom as the pursuit
   modal's `?selected=`). Body, top to bottom: the featured next release
   (or a plain absence statement — the surface never renders empty for
-  stragglers), the auto-grab toggle (hidden when acquisition isn't
-  configured), the release timeline, recent activity, and the only
+  stragglers), the automation section — the auto-grab toggle and, when
+  the title carries one, its lower-quality acceptance with Reset (both
+  hidden when acquisition isn't configured) — the release timeline,
+  recent activity, and the only
   error-tinted control on the page: Stop tracking. No close-X — the
   frame's backdrop click and Escape both close, like the library detail
   modal.
@@ -117,6 +119,29 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
                 phx-value-item-id={@detail.item_id}
               />
             </label>
+            <%!-- The per-title quality acceptance (ADR-063 §2) lives on
+                  this item; a plan board sets it, this is where it is
+                  reset once the board is gone. Rendered only when set —
+                  the inherited default is not a fact worth a row. --%>
+            <div
+              :if={@detail.lower_quality_accepted?}
+              id="title-lower-quality-accepted"
+              class="flex items-center justify-between gap-3"
+            >
+              <span class="text-sm text-base-content/80">
+                Lower quality accepted — takes the best release there is
+              </span>
+              <.button
+                variant="dismiss"
+                size="xs"
+                phx-click="reset_lower_quality"
+                phx-value-item-id={@detail.item_id}
+                data-nav-item
+                tabindex="0"
+              >
+                Reset
+              </.button>
+            </div>
           </section>
 
           <section :if={@detail.timeline != []} class="space-y-2">
