@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.5.0 — 2026-09-01
+
+### New
+
+- **The plan board's episode grid works with a keyboard or gamepad.** Arrow into the grid and every episode cell takes the cursor; the line under the grid names the episode under the cursor (or the pointer) and its best release — so the per-episode facts that used to live only in mouse tooltips are readable from the couch. Up and Down move between the board's verdict, the grid, and the releases and footer; Escape or B still closes the board from anywhere.
+
+### Improved
+
+- **A title's lower-quality acceptance is visible where the title is managed.** When you have pressed *Take lower quality for this show* on a plan board, the title's own view (open it from Coming up) now shows the acceptance under *Automation* with a **Reset** button. Until now the only way back was Undo on the board itself, which is gone once the plan is approved or discarded.
+
 ## v1.4.0 — 2026-09-01
 
 ### New
