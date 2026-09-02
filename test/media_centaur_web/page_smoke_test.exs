@@ -128,7 +128,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   # render crash — e.g. the gated Updates card, which renders nothing in the
   # default System view — surfaces here instead of in a user's browser. Keep in
   # sync with `MediaCentaurWeb.SettingsLive` @sections.
-  for section <- ~w(system services preferences controls library tmdb
+  for section <- ~w(system services preferences controls library tmdb social
                     acquisition import playback language maintenance danger) do
     test "settings section #{section} renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live_async!(conn, ~p"/settings?section=#{unquote(section)}")

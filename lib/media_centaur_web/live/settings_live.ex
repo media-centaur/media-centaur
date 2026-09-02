@@ -57,6 +57,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Preferences
   alias MediaCentaurWeb.SettingsLive.Services
   alias MediaCentaurWeb.SettingsLive.Tmdb
+  alias MediaCentaurWeb.SettingsLive.SocialSection
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Connections
+  alias MediaCentaur.Social.Identity
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
 
   # Sections are grouped for sidebar display — a thin divider renders between
@@ -74,6 +78,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     # lives on the Acquisition section — it feeds auto-grab.)
     %{id: "library", label: "Library", group: :media},
     %{id: "tmdb", label: "TMDB", group: :media},
+    %{id: "social", label: "Social", group: :media},
     %{id: "acquisition", label: "Acquisition", group: :media},
     %{id: "import", label: "Media Import", group: :media},
     %{id: "playback", label: "Playback", group: :media},
@@ -96,6 +101,8 @@ defmodule MediaCentaurWeb.SettingsLive do
       SelfUpdate.subscribe_progress()
       Config.subscribe()
       Controls.subscribe()
+      Social.subscribe()
+      Social.subscribe_connections()
       # Coarse heartbeat so the "next check" estimate on the Updates card stays
       # roughly current without behaving like a per-second countdown. The
       # labels carry no seconds (minute grain at their finest), so a 60s
@@ -134,6 +141,8 @@ defmodule MediaCentaurWeb.SettingsLive do
      )
      |> assign(bindings: %{})
      |> assign(glyph_style: nil)
+     |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
+     |> assign(relays: [], relay_status: %{})
      |> assign(
        sections: @sections,
        exclude_dir_input: "",
@@ -231,6 +240,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       |> ensure_loaded()
       |> assign(active_section: section)
       |> assign_update_snapshot(section)
+      |> load_social(section)
       |> open_media_dir_dialog(MediaDirsLogic.new_entry())
 
     {:noreply, socket}
@@ -256,9 +266,26 @@ defmodule MediaCentaurWeb.SettingsLive do
       |> ensure_loaded()
       |> assign(active_section: section)
       |> assign_update_snapshot(section)
+      |> load_social(section)
 
     {:noreply, socket}
   end
+
+  # The Social section is where the identity comes into existence (the
+  # only other minting site is `Recommendations.recommend/2`). Other
+  # sections leave it alone, so opening Settings never creates a key.
+  defp load_social(socket, "social") do
+    Identity.ensure()
+
+    socket
+    |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false, import_draft: "")
+    |> assign(relay_status: Connections.status())
+    |> load_relays()
+  end
+
+  defp load_social(socket, _section), do: socket
+
+  defp load_relays(socket), do: assign(socket, :relays, Social.list_relays())
 
   # First-render data load — runs on BOTH the disconnected (static) and
   # connected renders so the first paint already carries the settings state,
@@ -849,6 +876,54 @@ defmodule MediaCentaurWeb.SettingsLive do
   # form re-renders against `@config` — which now matches the typed-in
   # values, so the user sees their input preserved instead of clobbered.
   # See `test/media_centaur_web/live/settings_live_acquisition_test.exs`.
+
+  # --- Social: identity + relays ------------------------------------------
+
+  def handle_event("reveal_nsec", _params, socket),
+    do: {:noreply, assign(socket, nsec_revealed: Identity.export_nsec())}
+
+  def handle_event("hide_nsec", _params, socket), do: {:noreply, assign(socket, nsec_revealed: nil)}
+
+  # Two-click arm (MC0027 treatment b): the first submit arms, the second
+  # replaces. Costly but recoverable — the old nsec can be re-imported.
+  def handle_event("import_nsec", %{"nsec" => nsec}, %{assigns: %{import_armed?: false}} = socket),
+    do: {:noreply, assign(socket, import_armed?: true, import_draft: nsec)}
+
+  def handle_event("import_nsec", %{"nsec" => nsec}, socket) do
+    case Identity.import_nsec(nsec) do
+      :ok ->
+        {:noreply,
+         socket
+         |> assign(
+           identity_npub: Identity.npub(),
+           nsec_revealed: nil,
+           import_armed?: false,
+           import_draft: ""
+         )
+         |> put_flash(:info, "Identity replaced")}
+
+      {:error, :invalid_secret} ->
+        {:noreply,
+         socket
+         |> assign(import_armed?: false, import_draft: "")
+         |> put_flash(:error, "That is not a valid secret key")}
+    end
+  end
+
+  def handle_event("add_relay", %{"url" => url}, socket) do
+    case Social.add_relay(url) do
+      {:ok, _relay} ->
+        {:noreply, load_relays(socket)}
+
+      {:error, %Ecto.Changeset{}} ->
+        {:noreply, put_flash(socket, :error, "Relay addresses start with wss:// or ws://")}
+    end
+  end
+
+  def handle_event("remove_relay", %{"url" => url}, socket) do
+    :ok = Social.remove_relay(url)
+    {:noreply, load_relays(socket)}
+  end
 
   def handle_event("save_tmdb", params, socket) do
     if params["tmdb_api_key"] != "" do
@@ -1554,6 +1629,31 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_flash(:error, "Couldn't reach Prowlarr to discover download clients")}
   end
 
+  # Another tab replaced the identity. A key revealed here belongs to the
+  # identity that is gone, an arm here is aimed at it too, and the pasted
+  # draft is the secret that arm would have installed — all three drop.
+  def handle_info({:identity_changed, _event}, socket) do
+    {:noreply,
+     assign(socket,
+       identity_npub: Identity.npub(),
+       nsec_revealed: nil,
+       import_armed?: false,
+       import_draft: ""
+     )}
+  end
+
+  def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
+    {:noreply, load_relays(socket)}
+  end
+
+  # `Connections.apply_message/2` is the owner's own fold, so the page and
+  # the owner can never disagree about what a connection message means.
+  def handle_info({:relay_connection, url, message}, socket) do
+    entry = Map.get(socket.assigns.relay_status, url, Connections.blank_entry())
+    status = Map.put(socket.assigns.relay_status, url, Connections.apply_message(entry, message))
+    {:noreply, assign(socket, relay_status: status)}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -1764,6 +1864,12 @@ defmodule MediaCentaurWeb.SettingsLive do
             <div data-nav-zone="grid" class="flex-1 min-w-0">
               <.section_content
                 active_section={@active_section}
+                identity_npub={@identity_npub}
+                nsec_revealed={@nsec_revealed}
+                import_armed?={@import_armed?}
+                import_draft={@import_draft}
+                relays={@relays}
+                relay_status={@relay_status}
                 language_policy={@language_policy}
                 language_draft={@language_draft}
                 language_options={@language_options}
@@ -1928,6 +2034,19 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp section_content(%{active_section: "tmdb"} = assigns) do
     ~H"""
     <Tmdb.render config={@config} tmdb_test={@tmdb_test} tmdb_testing={@tmdb_testing} />
+    """
+  end
+
+  defp section_content(%{active_section: "social"} = assigns) do
+    ~H"""
+    <SocialSection.render
+      npub={@identity_npub}
+      nsec_revealed={@nsec_revealed}
+      import_armed?={@import_armed?}
+      import_draft={@import_draft}
+      relays={@relays}
+      status={@relay_status}
+    />
     """
   end
 
