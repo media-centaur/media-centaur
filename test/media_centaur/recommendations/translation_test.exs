@@ -86,4 +86,40 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
     assert {:error, :bad_content} =
              Translation.from_event(%{good | created_at: 253_402_300_800})
   end
+
+  test "from_event rejects a note over the cap and accepts one at the cap" do
+    over_cap = String.duplicate("n", 501)
+    at_cap = String.duplicate("n", 500)
+
+    over_event = Event.sign(Translation.to_event(title(), over_cap, @pubkey), @secret)
+    at_event = Event.sign(Translation.to_event(title(), at_cap, @pubkey), @secret)
+
+    assert {:error, :bad_content} = Translation.from_event(over_event)
+    assert {:ok, %{note: ^at_cap}} = Translation.from_event(at_event)
+  end
+
+  test "from_event rejects a title name over the cap" do
+    long_title = Title.new!(%{tmdb_id: 603, media_type: :movie, name: String.duplicate("n", 301)})
+    event = Event.sign(Translation.to_event(long_title, nil, @pubkey), @secret)
+
+    assert {:error, :bad_content} = Translation.from_event(event)
+  end
+
+  test "from_event rejects a title overview over the cap" do
+    long_title =
+      Title.new!(%{
+        tmdb_id: 603,
+        media_type: :movie,
+        name: "Sample Movie",
+        overview: String.duplicate("n", 2001)
+      })
+
+    event = Event.sign(Translation.to_event(long_title, nil, @pubkey), @secret)
+
+    assert {:error, :bad_content} = Translation.from_event(event)
+  end
+
+  test "max_note_length/0 is the inbound note cap" do
+    assert Translation.max_note_length() == 500
+  end
 end

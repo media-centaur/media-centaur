@@ -54,7 +54,7 @@ defmodule MediaCentaur.Recommendations do
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe, do: Topics.subscribe(Topics.recommendations_updates())
 
-  @max_note_length 500
+  @max_note_length Translation.max_note_length()
 
   @doc """
   Builds, signs, stores and publishes a recommendation from this

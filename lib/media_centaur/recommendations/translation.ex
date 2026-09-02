@@ -11,12 +11,23 @@ defmodule MediaCentaur.Recommendations.Translation do
   shape-checks an already-*verified* event into record attrs. The
   address and the content snapshot must agree on identity — a mismatch
   is a rejected event, not a reconciled one.
+
+  Inbound strings are capped: note at 500, title name at 300, title
+  overview at 2000 characters; larger events are rejected as
+  `:bad_content`.
   """
 
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.TMDB.Title
 
   @kind 32_160
+  @max_note 500
+  @max_name 300
+  @max_overview 2000
+
+  @doc "The inbound cap on a recommendation note, in characters."
+  @spec max_note_length() :: pos_integer()
+  def max_note_length, do: @max_note
 
   @doc "The event kind recommendations use."
   @spec kind() :: non_neg_integer()
@@ -55,6 +66,9 @@ defmodule MediaCentaur.Recommendations.Translation do
   def from_event(%Event{kind: @kind} = event) do
     with {:ok, {media_type, tmdb_id}} <- parse_address(Event.tag_value(event, "d")),
          {:ok, %{"title" => title_attrs} = content} <- decode_content(event.content),
+         :ok <- check_length(content["note"], @max_note),
+         :ok <- check_length(title_attrs["name"], @max_name),
+         :ok <- check_length(title_attrs["overview"], @max_overview),
          {:ok, title} <- build_title(title_attrs),
          :ok <- match_identity(title, media_type, tmdb_id),
          {:ok, recommended_at} <- parse_created_at(event.created_at) do
@@ -100,6 +114,14 @@ defmodule MediaCentaur.Recommendations.Translation do
       _other -> {:error, :bad_content}
     end
   end
+
+  # A relay can send a string of any length in these slots; a non-string
+  # value is left for `build_title/1` (or `blank_to_nil/1`) to reject.
+  defp check_length(value, max) when is_binary(value) do
+    if String.length(value) <= max, do: :ok, else: {:error, :bad_content}
+  end
+
+  defp check_length(_value, _max), do: :ok
 
   defp build_title(attrs) when is_map(attrs) do
     case Ecto.Changeset.apply_action(Title.changeset(attrs), :insert) do

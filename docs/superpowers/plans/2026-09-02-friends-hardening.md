@@ -27,6 +27,17 @@ Per the input-system skill: the Discovery layout in `assets/js/input/config.js` 
 - `connections_test.exs` teardown warning (`lost …: :closed_by_relay` when the fake relay stops before the connection): stop connections before relays in the tests (`stop_supervised/1` order) rather than silencing the warning.
 - The `/status` no-DB-on-render budget comment if layer 7 bumped it.
 - `Friends.IncidentContext`: reconsider the 180 s grace against real relay behaviour once the owner has run a private relay for a while.
+- The end-to-end test `discovery_live_e2e_test.exs` (identity → FakeRelay stored friend event → Sync → feed row "from Sample Friend" → Add to watchlist → `/discovery/watchlist` row with `source: :friend` and the marker → Track hands off to ReleaseTracking).
+- Re-auth after `:auth_failed` (drop the socket, re-enter backoff) with the wiki Rejected row updated.
+- Inbound frame-size cap before `Jason.decode`.
+- `Nostr.Connection` child `restart: :transient` + Owner reconcile on `:DOWN` (or wider `max_restarts`) so a crashing relay cannot cascade.
+- One subscription map (`Sync.resubscribe/1` per relay via `subscribe/3`; delete `subscribe_all/2`).
+- Stop the Owner before the FakeRelay in `connections_test`, `sync_test`, `connection_test` to kill the teardown warning.
+- Extract `keyed_list_section/1` and `copyable_code/1` from the three Friends blocks.
+- `DiscoveryLive.find_item/2`.
+- `list_feed/0` returns `nickname: nil` instead of the "a former friend" sentinel (FeedRow owns the copy).
+- `Sync` prunes `seen[url]` on `relay_removed`.
+- An "As built" note in the spec recording: Friends deps `[Nostr]` only, `Connections.status/0` returns entry maps, connection auth messages are `{:auth, :ok | {:failed, reason}}`, feed decoration lives in the web layer.
 
 ### Task 4: Precommit + campaign closure
 
