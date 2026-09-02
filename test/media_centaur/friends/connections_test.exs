@@ -117,6 +117,28 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
     assert %{^url => %{last_error: "auth-required: not authenticated"}} = Connections.status()
   end
 
+  describe "apply_message/2 — an entry records when its state began" do
+    test "a state change stamps `since`; a message that only records an error keeps it" do
+      blank = Connections.blank_entry()
+      assert %{state: :connecting, since: %DateTime{}} = blank
+
+      connected = Connections.apply_message(blank, :connected)
+      assert connected.state == :connected
+      assert DateTime.compare(connected.since, blank.since) in [:gt, :eq]
+
+      # Re-affirming the state the entry is already in keeps the onset.
+      assert Connections.apply_message(connected, :connected).since == connected.since
+
+      closed = Connections.apply_message(connected, {:closed, "feed", "nope"})
+      assert closed.since == connected.since
+      assert closed.last_error == "nope"
+
+      dropped = Connections.apply_message(connected, {:disconnected, :closed_by_relay})
+      assert dropped.state == :disconnected
+      assert DateTime.compare(dropped.since, connected.since) in [:gt, :eq]
+    end
+  end
+
   test "publish/2 and subscribe/3 address one relay" do
     first = FakeRelay.start()
     second = FakeRelay.start()
