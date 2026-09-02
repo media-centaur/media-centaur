@@ -41,7 +41,8 @@ landed 2026-09-02. Layer 8 (docs) landed 2026-09-02: the wiki page
 *Friends and Recommendations* plus Settings-Reference / Troubleshooting /
 FAQ / Watchlist / Home / _Sidebar entries, and the contributor guide
 `docs/friends.md` linked from `CLAUDE.md` and `docs/architecture.md`.
-Dev tooling landed 2026-09-02 (spec
+**Shipped as v1.6.0 on 2026-09-02** (layers 1–8 plus dev tooling; relay
+repo v0.1.0). Dev tooling landed 2026-09-02 (spec
 `docs/superpowers/specs/2026-09-02-social-dev-tooling-design.md`): `just
 social` walkthrough, `just social-up/down/reset/status/recommend/feed`,
 `mix social.dev` (dev friend key + `Nostr.OneShot` sessions), and
@@ -202,41 +203,12 @@ campaign, then layer 9 (hardening) after iteration.
 
 ## Next steps
 
-* **CHANGELOG at the next `/ship`** (no Unreleased section by convention —
-  `scripts/ship release` inserts the version header before the first
-  `## v…` line). Draft, in the changelog's voice:
-
-  *New*
-
-  * **Recommend titles to your friends, and read what they recommend to
-    you.** The new Discovery page carries three tabs — Feed, Watchlist and
-    Friends — where you hold your own key, the relays you publish to, and
-    the friends whose recommendations you read. Recommendations travel
-    over Nostr relays you choose: no account, and no server we run. Send
-    one from any movie or series page, or from a watchlist row. Early
-    preview, behind the **Discovery** preference.
-  * **The Watchlist is now a tab of Discovery** (`/discovery/watchlist`),
-    and the **Discovery** preference replaces the old Watchlist one —
-    your saved titles and your setting carry over.
-  * **A Social tile on the Status page** — how many relays are
-    connected, the last thing one complained about, and how many
-    recommendations you've sent and received.
-
-  *Migration safety*
-
-  * "Watchlist entries now store their TMDB title as one value. Existing
-    entries are converted automatically on update; nothing to do."
-  * New `relays`, `friends` and `recommendations` tables are created
-    empty; the `show_watchlist` preference row is renamed to
-    `show_discovery`, keeping your setting.
-  * The new dependencies (`bitcoinex`, `mint_web_socket`) are pure
-    Elixir — no native code, and nothing extra to install.
-
+* ~~CHANGELOG~~ shipped in v1.6.0.
 * **Drop the watchlist flat snapshot columns** (`name`, `year`,
   `release_date`, `poster_path`, `overview`) and remove the transitional
   `name` write in `WatchlistItem.create_changeset/2` — a schema migration that
-  MUST ship in the **very next release** after the embed (v1.6.0 ships the
-  embed → the drop goes in the release right after): until it lands, a
+  MUST ship in the **very next release** after the embed (v1.6.0 shipped the
+  embed on 2026-09-02 → the drop goes in v1.7.0, the very next release): until it lands, a
   watchlist row written by the old release during the seconds-wide upgrade
   window (`title = NULL`) crashes `/watchlist` on mount, and only the drop
   migration's inline heal repairs it. It MUST first run the same
