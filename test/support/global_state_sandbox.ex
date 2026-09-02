@@ -101,6 +101,8 @@ defmodule MediaCentaur.GlobalStateSandbox do
     MediaCentaur.Watcher.Supervisor => {:stateless, "watchers are not started under :test"},
     MediaCentaur.Friends.Connections =>
       {:stateless, "the relay-connection owner is not started under :test"},
+    MediaCentaur.Recommendations.Sync =>
+      {:stateless, "not started under :test; sync_test starts its own"},
     MediaCentaur.Console.JournalSource => {:stateless, "reads journald; no test asserts on it"},
     MediaCentaur.Library.BroadcastCoalescer =>
       {:accepted, "pending entity ids for one ~100ms flush window, then empty"},

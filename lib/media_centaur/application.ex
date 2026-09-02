@@ -7,6 +7,7 @@ defmodule MediaCentaur.Application do
     deps: [
       MediaCentaur.Capabilities,
       MediaCentaur.Friends,
+      MediaCentaur.Recommendations,
       MediaCentaur.Settings.Controls,
       MediaCentaur.Library,
       MediaCentaur.Maintenance,
@@ -84,7 +85,10 @@ defmodule MediaCentaur.Application do
           MediaCentaur.TMDB.RateLimiter,
           MediaCentaur.TMDB.MetadataStats,
           MediaCentaur.Watcher.Supervisor,
-          MediaCentaur.Friends.Connections,
+          MediaCentaur.Friends.Connections
+        ] ++
+        recommendations_sync_children() ++
+        [
           MediaCentaur.Library.BroadcastCoalescer,
           MediaCentaur.Library.Availability,
           MediaCentaur.Pipeline.Supervisor,
@@ -265,6 +269,15 @@ defmodule MediaCentaur.Application do
   # fight over the SAME marker file, minting false "did not shut down cleanly"
   # warnings. The opted-in daily driver (prod release, or dev with the env var)
   # is the sole instance, so it owns the marker.
+  # Gated like the relay-connection owner it rides on: under :test the
+  # sync would subscribe every FakeRelay a test stands up, so sync_test
+  # starts its own by hand.
+  defp recommendations_sync_children do
+    if Application.get_env(:media_centaur, :start_recommendations_sync, true),
+      do: [MediaCentaur.Recommendations.Sync],
+      else: []
+  end
+
   defp diagnostics_children(true), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
   defp diagnostics_children(false), do: []
 
