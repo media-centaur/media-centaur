@@ -56,7 +56,8 @@ defmodule MediaCentaur.Settings.Config do
     :tmdb_api_key,
     :prowlarr_api_key,
     :download_client_password,
-    :usenet_download_client_api_key
+    :usenet_download_client_api_key,
+    :nostr_secret_key
   ]
 
   # Runtime-settable keys: tunable via `update/2` and persisted to the
@@ -92,7 +93,8 @@ defmodule MediaCentaur.Settings.Config do
     :update_check_enabled,
     :update_check_interval_minutes,
     :auto_update_enabled,
-    :image_resolution
+    :image_resolution,
+    :nostr_secret_key
   ]
 
   # Artwork resolution preset (Settings → Pipeline). Governs the master
@@ -180,6 +182,10 @@ defmodule MediaCentaur.Settings.Config do
   require a restart (`database_path`, `media_dirs`, etc.).
   """
   def runtime_settable_keys, do: @runtime_settable_keys
+
+  @doc "Keys whose values are wrapped in `MediaCentaur.Secret` (never logged or rendered)."
+  @spec sensitive_keys() :: [atom()]
+  def sensitive_keys, do: @sensitive_keys
 
   @doc """
   Loads runtime overrides from the Settings database and overlays them
@@ -463,7 +469,9 @@ defmodule MediaCentaur.Settings.Config do
       showcase_mode: false,
       update_check_enabled: true,
       update_check_interval_minutes: @update_check_interval_default_minutes,
-      auto_update_enabled: false
+      auto_update_enabled: false,
+      # Friends: this install's Nostr secret key (hex), generated on first use
+      nostr_secret_key: nil
     }
 
     if Application.get_env(:media_centaur, :skip_user_config, false) do

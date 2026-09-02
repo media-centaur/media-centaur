@@ -18,6 +18,14 @@ defmodule MediaCentaur.Settings.ConfigUpdateTest do
     end
   end
 
+  describe "the Friends identity key" do
+    test "nostr_secret_key is runtime-settable, sensitive, and defaults to nil" do
+      assert :nostr_secret_key in Config.runtime_settable_keys()
+      assert :nostr_secret_key in Config.sensitive_keys()
+      assert Config.get(:nostr_secret_key) == nil
+    end
+  end
+
   describe "runtime_settable_keys/0" do
     test "includes ffprobe_path" do
       assert :ffprobe_path in Config.runtime_settable_keys()
