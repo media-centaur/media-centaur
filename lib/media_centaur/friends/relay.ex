@@ -1,8 +1,9 @@
 defmodule MediaCentaur.Friends.Relay do
   @moduledoc """
   One configured relay: a `ws://` or `wss://` URL, normalized (trimmed,
-  no userinfo, path defaults to `/`). Connection state is runtime
-  (`Friends.Connections.status/0`), never stored.
+  lowercase scheme and host, no userinfo, path defaults to `/`).
+  Connection state is runtime (`Friends.Connections.status/0`), never
+  stored.
   """
 
   use Ecto.Schema
@@ -33,7 +34,14 @@ defmodule MediaCentaur.Friends.Relay do
     |> unique_constraint(:url)
   end
 
-  @doc "Trims and canonicalizes a relay URL; returns the input unchanged when it does not parse."
+  @doc """
+  Trims and canonicalizes a relay URL — lowercase scheme and host, path
+  defaulting to `/` — so the same relay typed two ways is one row.
+  Returns the input trimmed when it does not parse as a relay URL.
+
+  `URI.parse/1` already downcases the scheme; the host it leaves as
+  typed, so we downcase it here.
+  """
   @spec normalize(String.t()) :: String.t()
   def normalize(url) when is_binary(url) do
     trimmed = String.trim(url)
@@ -41,7 +49,7 @@ defmodule MediaCentaur.Friends.Relay do
     case URI.parse(trimmed) do
       %URI{scheme: scheme, host: host} = uri
       when scheme in ["ws", "wss"] and is_binary(host) and host != "" ->
-        URI.to_string(%{uri | path: uri.path || "/"})
+        URI.to_string(%{uri | host: String.downcase(host), path: uri.path || "/"})
 
       _other ->
         trimmed
