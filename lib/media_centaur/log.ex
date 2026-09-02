@@ -39,6 +39,14 @@ defmodule MediaCentaur.Log do
         mc_incident: :skip)
   """
 
+  @doc "Emits a debug-level log tagged with the given component."
+  defmacro debug(component, message, metadata \\ []) do
+    quote do
+      require Logger
+      Logger.debug(unquote(message), [{:component, unquote(component)} | unquote(metadata)])
+    end
+  end
+
   @doc "Emits an info-level log tagged with the given component."
   defmacro info(component, message, metadata \\ []) do
     quote do
