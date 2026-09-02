@@ -50,7 +50,7 @@ layer's job — see [Web layer](#web-layer).
 `MediaCentaur.Secret` at rest and in memory); the public key is derived on every
 read rather than stored, so the two can never disagree.
 
-- `ensure/0` generates on first use. Two callers: the Social tab, and
+- `ensure/0` generates on first use. Two callers: the Settings page's Social section, and
   `Recommendations.recommend/2` — a user can recommend a title before ever
   opening the tab, which mints the identity right there.
 - `import_nsec/1` is the only replacement path (two-click arm in the UI,
@@ -241,7 +241,7 @@ the recipes.
 
 | Recipe | Does |
 |---|---|
-| `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Social. Re-run to restart. |
+| `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Social. The relay goes under Settings → Social. Re-run to restart. |
 | `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up in your Feed. |
 | `just social-feed` | Everything the relay holds, including what the dev app sent. |
 | `just social-status` / `social-down` / `social-reset` | Container state and NIP-11; stop; stop and forget data plus the friend's key. |

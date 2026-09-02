@@ -170,6 +170,14 @@ campaign, then layer 9 (hardening) after iteration.
   second app instance is deferred until a feature needs two real UIs. Bare
   `just` now lists recipes instead of running `deploy`.
 
+* `2026-09-02` — **Identity and relays move to Settings → Social** (owner
+  request after v1.6.0; reverses spec decision "not a Settings section").
+  `SettingsLive.SocialSection` holds the npub/secret-key/import block and
+  the relay list; the Discovery page's Social tab keeps only the roster
+  and points at Settings. The section is always shown (relays connect
+  regardless of the Discovery preference) and is where the identity is
+  minted. Wiki, relay docs and `just social` updated.
+
 ## Open questions
 
 *All resolved 2026-09-02 — see Decisions and the spec. Kept for history.*

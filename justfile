@@ -47,11 +47,11 @@ _install:
 social:
     @echo 'Social development: a private relay in Docker plus a scripted "friend".'
     @echo
-    @echo '1. just social-up npub1...     your npub: Discovery → Social → Your identity → Copy'
+    @echo '1. just social-up npub1...     your npub: Settings → Social → Your identity → Copy'
     @echo '                               builds ../social-relay, starts it on ws://127.0.0.1:2173,'
     @echo '                               and prints the friend'"'"'s npub'
-    @echo '2. In the dev app (Discovery → Social): add relay ws://127.0.0.1:2173,'
-    @echo '   then add a friend with the npub from step 1.'
+    @echo '2. In the dev app: Settings → Social → add relay ws://127.0.0.1:2173,'
+    @echo '   then Discovery → Social → add a friend with the npub from step 1.'
     @echo '3. just social-recommend movie 603 --name "Sample Movie" --note "try it"'
     @echo '                               the friend recommends a title; it appears in your Feed'
     @echo '4. just social-feed            everything the relay holds, including what you sent'
@@ -70,12 +70,12 @@ social-up npub="":
     elif [ -f ../social-relay/dev/relay.toml ]; then
         {{_dev_relay}} up
     else
-        echo 'First run needs your npub (Discovery → Social → Your identity → Copy):'
+        echo 'First run needs your npub (Settings → Social → Your identity → Copy):'
         echo '  just social-up npub1...'
         exit 2
     fi
     echo
-    echo "friend's npub (add it under Discovery → Social → Friends): $friend"
+    echo "friend's npub (add it under Discovery → Social): $friend"
 
 # Stop the dev relay.
 social-down:

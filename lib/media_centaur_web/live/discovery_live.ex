@@ -20,11 +20,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   `library:updates` — a completed download flips a row to In library
   without a reload.
 
-  Social — this install's Nostr identity (`Social.Identity`), generated
-  the first time the tab is opened, with the npub to hand out and the
-  secret key behind a disclosure for export/import; below it the relay
-  list, whose per-row connection state follows `social:connections`
-  live, and the roster of followed keys.
+  Social — the roster of followed keys. Identity and relays live on the
+  Settings page's Social section; this tab points there.
 
   Subscribes to Discovery directly (it needs the full item list, not the
   `WatchlistAware` ref set — see that trait's moduledoc).
@@ -36,8 +33,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   alias MediaCentaur.Discovery
   alias MediaCentaur.Social
-  alias MediaCentaur.Social.Connections
-  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Recommendations
@@ -46,9 +41,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.Live.RecommendFlow
   alias MediaCentaurWeb.DiscoveryLive.FeedRow
-  alias MediaCentaurWeb.DiscoveryLive.IdentityBlock
   alias MediaCentaurWeb.DiscoveryLive.RecommendModal
-  alias MediaCentaurWeb.DiscoveryLive.RelayBlock
   alias MediaCentaurWeb.DiscoveryLive.RosterBlock
 
   @impl true
@@ -57,38 +50,21 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       Discovery.subscribe()
       Library.subscribe()
       Social.subscribe()
-      Social.subscribe_connections()
       Recommendations.subscribe()
     end
 
     {:ok,
      socket
      |> assign(:page_title, "Discovery")
-     |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
-     |> assign(relays: [], relay_status: %{}, friends: [])
+     |> assign(friends: [])
      |> RecommendFlow.init()
      |> load_items()
      |> load_feed()}
   end
 
-  # The Social tab is where the identity comes into existence — nothing
-  # else in the app generates one.
   @impl true
-  def handle_params(_params, _uri, %{assigns: %{live_action: :social}} = socket) do
-    Identity.ensure()
-
-    {:noreply,
-     socket
-     |> assign(
-       identity_npub: Identity.npub(),
-       nsec_revealed: nil,
-       import_armed?: false,
-       import_draft: ""
-     )
-     |> assign(relay_status: Connections.status())
-     |> load_relays()
-     |> load_friends()}
-  end
+  def handle_params(_params, _uri, %{assigns: %{live_action: :social}} = socket),
+    do: {:noreply, load_friends(socket)}
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
@@ -139,21 +115,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     end
   end
 
-  def handle_event("add_relay", %{"url" => url}, socket) do
-    case Social.add_relay(url) do
-      {:ok, _relay} ->
-        {:noreply, load_relays(socket)}
-
-      {:error, %Ecto.Changeset{}} ->
-        {:noreply, put_flash(socket, :error, "Relay addresses start with wss:// or ws://")}
-    end
-  end
-
-  def handle_event("remove_relay", %{"url" => url}, socket) do
-    :ok = Social.remove_relay(url)
-    {:noreply, load_relays(socket)}
-  end
-
   def handle_event("add_friend", %{"key" => key, "nickname" => nickname}, socket) do
     case Social.add_friend(key, nickname) do
       {:ok, _friend} -> {:noreply, load_friends(socket)}
@@ -166,37 +127,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_event("remove_friend", %{"pubkey" => pubkey}, socket) do
     :ok = Social.remove_friend(pubkey)
     {:noreply, load_friends(socket)}
-  end
-
-  def handle_event("reveal_nsec", _params, socket),
-    do: {:noreply, assign(socket, nsec_revealed: Identity.export_nsec())}
-
-  def handle_event("hide_nsec", _params, socket), do: {:noreply, assign(socket, nsec_revealed: nil)}
-
-  # Two-click arm (MC0027 treatment b): the first submit arms, the second
-  # replaces. Costly but recoverable — the old nsec can be re-imported.
-  def handle_event("import_nsec", %{"nsec" => nsec}, %{assigns: %{import_armed?: false}} = socket),
-    do: {:noreply, assign(socket, import_armed?: true, import_draft: nsec)}
-
-  def handle_event("import_nsec", %{"nsec" => nsec}, socket) do
-    case Identity.import_nsec(nsec) do
-      :ok ->
-        {:noreply,
-         socket
-         |> assign(
-           identity_npub: Identity.npub(),
-           nsec_revealed: nil,
-           import_armed?: false,
-           import_draft: ""
-         )
-         |> put_flash(:info, "Identity replaced")}
-
-      {:error, :invalid_secret} ->
-        {:noreply,
-         socket
-         |> assign(import_armed?: false, import_draft: "")
-         |> put_flash(:error, "That is not a valid secret key")}
-    end
   end
 
   @impl true
@@ -212,36 +142,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, load_feed(socket)}
   end
 
-  # Another tab (or a later relay layer) replaced the identity. A key
-  # revealed here belongs to the identity that is gone, an arm here is
-  # aimed at it too, and the pasted draft is the secret that arm would
-  # have installed — all three drop with it.
-  def handle_info({:identity_changed, _event}, socket) do
-    {:noreply,
-     assign(socket,
-       identity_npub: Identity.npub(),
-       nsec_revealed: nil,
-       import_armed?: false,
-       import_draft: ""
-     )}
-  end
-
-  # Both also move the feed: its prerequisites are a relay and a friend,
-  # and a roster change renames (or orphans) rows already in it.
   def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
-    {:noreply, socket |> load_relays() |> load_feed()}
+    {:noreply, load_feed(socket)}
   end
 
   def handle_info({tag, _event}, socket) when tag in [:friend_added, :friend_removed] do
     {:noreply, socket |> load_friends() |> load_feed()}
-  end
-
-  # `Connections.apply_message/2` is the owner's own fold, so the page and
-  # the owner can never disagree about what a connection message means.
-  def handle_info({:relay_connection, url, message}, socket) do
-    entry = Map.get(socket.assigns.relay_status, url, Connections.blank_entry())
-    status = Map.put(socket.assigns.relay_status, url, Connections.apply_message(entry, message))
-    {:noreply, assign(socket, relay_status: status)}
   end
 
   def handle_info(_message, socket), do: {:noreply, socket}
@@ -325,8 +231,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     end
   end
 
-  defp load_relays(socket), do: assign(socket, :relays, Social.list_relays())
-
   defp load_friends(socket), do: assign(socket, :friends, Social.list_friends())
 
   defp tabs(feed, items),
@@ -386,14 +290,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           </div>
 
           <div :if={@live_action == :social} class="space-y-4">
-            <IdentityBlock.identity_block
-              npub={@identity_npub}
-              nsec_revealed={@nsec_revealed}
-              import_armed?={@import_armed?}
-              import_draft={@import_draft}
-            />
-            <RelayBlock.relay_block relays={@relays} status={@relay_status} />
             <RosterBlock.roster_block friends={@friends} />
+            <p id="social-settings-pointer" class="px-1 text-xs text-base-content/50">
+              Your identity and relays are under <.link
+                navigate={~p"/settings?section=social"}
+                class="link link-primary"
+              >
+                Settings → Social
+              </.link>.
+            </p>
           </div>
 
           <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="grid">
