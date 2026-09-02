@@ -41,6 +41,7 @@ defmodule MediaCentaurWeb.Router do
       live "/", HomeLive, :index
       live "/apps", AppsLive, :index
       live "/console", ConsolePageLive, :index
+      live "/discovery/watchlist", DiscoveryLive, :watchlist
       live "/guide", GuideLive, :index
       live "/guide/:slug", GuideLive, :show
       live "/history", WatchHistoryLive, :index
@@ -51,7 +52,6 @@ defmodule MediaCentaurWeb.Router do
       live "/settings", SettingsLive, :index
       live "/setup", SetupLive, :index
       live "/status", StatusLive, :index
-      live "/watchlist", WatchlistLive, :index
     end
 
     # Steam picker artwork — local librarycache file or CDN redirect

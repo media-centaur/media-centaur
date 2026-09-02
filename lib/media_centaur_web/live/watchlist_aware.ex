@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Live.WatchlistAware do
   halting those messages so hosts need no clauses for them. Hosts MUST
   NOT call `Discovery.subscribe/0` themselves.
 
-  `WatchlistLive` does NOT use this module — it needs the full item
+  `DiscoveryLive` does NOT use this module — it needs the full item
   list and subscribes directly.
   """
 

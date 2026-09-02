@@ -1,5 +1,8 @@
-defmodule MediaCentaurWeb.WatchlistLive do
+defmodule MediaCentaurWeb.DiscoveryLive do
   @moduledoc """
+  The Discovery page — the surface every candidate source lands on. This
+  layer hosts one tab, the watchlist:
+
   The watchlist — title-level intent, triaged. Rows come from
   `Discovery.list_watchlist/0` (library presence derived live); the
   primary action per row is the honest one for its state (see
@@ -9,15 +12,19 @@ defmodule MediaCentaurWeb.WatchlistLive do
 
   Subscribes to Discovery directly (it needs the full item list, not the
   `WatchlistAware` ref set — see that trait's moduledoc).
+
+  Feed and Friends tabs arrive with the recommendations layers.
   """
   use MediaCentaurWeb, :live_view
 
+  import MediaCentaurWeb.Components.TabStrip, only: [tab_strip: 1]
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.Components.Discovery.WatchlistRow
+  alias MediaCentaurWeb.Components.TabStrip.Tab
 
   @impl true
   def mount(_params, _session, socket) do
@@ -26,7 +33,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
       Library.subscribe()
     end
 
-    {:ok, socket |> assign(:page_title, "Watchlist") |> load_items()}
+    {:ok, socket |> assign(:page_title, "Discovery") |> load_items()}
   end
 
   @impl true
@@ -72,6 +79,13 @@ defmodule MediaCentaurWeb.WatchlistLive do
     assign(socket, :items, items)
   end
 
+  # The tabs this layer hosts. Feed (`/discovery`) and Friends
+  # (`/discovery/friends`) join here with their layers.
+  defp tabs(items),
+    do: [
+      %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)}
+    ]
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -80,31 +94,35 @@ defmodule MediaCentaurWeb.WatchlistLive do
       show_discovery={@show_discovery}
       show_apps={@show_apps}
       flash={@flash}
-      current_path="/watchlist"
+      current_path="/discovery/watchlist"
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
       status_errors={assigns[:status_errors] || 0}
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
     >
-      <div class="relative" data-page-behavior="watchlist" data-nav-default-zone="watchlist">
-        <div class="mx-auto w-full max-w-3xl space-y-2 pt-10" data-nav-zone="grid">
-          <h1 class="px-1 text-lg font-semibold">Watchlist</h1>
+      <div class="relative" data-page-behavior="discovery" data-nav-default-zone="discovery">
+        <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
+          <h1 class="px-1 text-lg font-semibold">Discovery</h1>
 
-          <div
-            :if={@items == []}
-            id="watchlist-empty"
-            class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
-          >
-            Nothing on your watchlist yet. Titles you save from a search land here.
+          <.tab_strip tabs={tabs(@items)} active={:watchlist} />
+
+          <div class="space-y-2" data-nav-zone="grid">
+            <div
+              :if={@items == []}
+              id="watchlist-empty"
+              class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+            >
+              Nothing on your watchlist yet. Titles you save from a search land here.
+            </div>
+
+            <WatchlistRow.watchlist_row
+              :for={row <- @items}
+              item={row.item}
+              library_owner_id={row.library_owner_id}
+              poster_url={row.poster_url}
+              release_mode_available={@prowlarr_ready}
+            />
           </div>
-
-          <WatchlistRow.watchlist_row
-            :for={row <- @items}
-            item={row.item}
-            library_owner_id={row.library_owner_id}
-            poster_url={row.poster_url}
-            release_mode_available={@prowlarr_ready}
-          />
         </div>
       </div>
     </Layouts.app>

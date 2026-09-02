@@ -22,7 +22,7 @@ import { createReconcileBehavior } from "./reconcile_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createIncomingBehavior, incomingDom } from "./incoming_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
-import { createWatchlistBehavior } from "./watchlist_behavior"
+import { createDiscoveryBehavior } from "./discovery_behavior"
 import { createAppsBehavior } from "./apps_behavior"
 import { createSetupBehavior } from "./setup_behavior"
 import { createGuideBehavior } from "./guide_behavior"
@@ -40,7 +40,7 @@ const BEHAVIOR_REGISTRY = {
   settings: () => createSettingsBehavior(),
   incoming: () => createIncomingBehavior(incomingDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
-  watchlist: () => createWatchlistBehavior(),
+  discovery: () => createDiscoveryBehavior(),
   apps: () => createAppsBehavior(),
   setup: () => createSetupBehavior(),
   guide: () => createGuideBehavior(),
