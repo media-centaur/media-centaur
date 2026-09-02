@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict}
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Library.Person
-  alias MediaCentaur.ReleaseTracking.TitleResult
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.Components.Detail.Facet
@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           open: true,
           stage: :loading,
           backdrop_url: @sample_backdrop,
-          identity: %TitleResult{
+          identity: %Title{
             tmdb_id: 246_810,
             media_type: :tv_series,
             name: "Sample Show",

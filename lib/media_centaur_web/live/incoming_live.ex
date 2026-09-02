@@ -120,6 +120,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
+  alias MediaCentaur.TMDB.TitleSearch
 
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
@@ -215,6 +216,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_searched: nil,
          omnibox_scope: :all,
          in_library_refs: MapSet.new(),
+         tracked_refs: MapSet.new(),
          plan_param: nil,
          plan_stage: :loading,
          plan_selection: nil,
@@ -464,8 +466,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # A media pick on the forecast-only page: track the title (movies grab no
-  # scope; shows start from the last library episode) and mark the dropdown
-  # row so the pick reads as done.
+  # scope; shows start from the last library episode) and add its ref to
+  # `tracked_refs` so the row reads as done without a re-query.
   defp track_picked_result(socket, tmdb_id) do
     case Enum.find(socket.assigns.omnibox_results, &(to_string(&1.tmdb_id) == to_string(tmdb_id))) do
       nil ->
@@ -482,21 +484,10 @@ defmodule MediaCentaurWeb.IncomingLive do
               %{start_season: last_season, start_episode: last_episode}
           end
 
-        ReleaseTracking.track_from_search_async(
-          %{
-            tmdb_id: result.tmdb_id,
-            media_type: result.media_type,
-            name: result.name,
-            poster_path: result.poster_path
-          },
-          scope
-        )
+        ReleaseTracking.track_from_search_async(result, scope)
 
         assign(socket,
-          omnibox_results:
-            Enum.map(socket.assigns.omnibox_results, fn row ->
-              if to_string(row.tmdb_id) == to_string(tmdb_id), do: %{row | tracked?: true}, else: row
-            end)
+          tracked_refs: MapSet.put(socket.assigns.tracked_refs, {result.tmdb_id, result.media_type})
         )
     end
   end
@@ -967,6 +958,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             scope={@omnibox_scope}
             watchlisted_refs={@watchlisted_refs}
             in_library_refs={@in_library_refs}
+            tracked_refs={@tracked_refs}
           />
 
           <Search.search_zone
@@ -1623,7 +1615,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          socket
          |> assign(omnibox_searching?: true, omnibox_searched: trimmed)
          |> cancel_async(:omnibox_search, :superseded)
-         |> start_async(:omnibox_search, fn -> {query, ReleaseTracking.search_tmdb(trimmed)} end)}
+         |> start_async(:omnibox_search, fn -> {query, TitleSearch.search(trimmed)} end)}
     end
   end
 
@@ -2415,7 +2407,8 @@ defmodule MediaCentaurWeb.IncomingLive do
        assign(socket,
          omnibox_results: rows,
          omnibox_searching?: false,
-         in_library_refs: in_library_refs
+         in_library_refs: in_library_refs,
+         tracked_refs: ReleaseTracking.tracked_refs()
        )}
     else
       {:noreply, socket}

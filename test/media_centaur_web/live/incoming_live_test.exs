@@ -1479,6 +1479,38 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#omnibox-result-movie-888", "Track release")
     end
 
+    test "an already-tracked title carries the Tracked marker from the ref set", %{conn: conn} do
+      create_tracking_item(%{tmdb_id: 200, media_type: :tv_series, name: "Sample Show"})
+
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 200,
+          "media_type" => "tv",
+          "name" => "Sample Show",
+          "first_air_date" => "2025-01-01"
+        },
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2020-01-01"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      assert has_element?(view, "#omnibox-result-tv_series-200", "Tracked")
+      refute has_element?(view, "#omnibox-result-movie-777", "Tracked")
+    end
+
     test "the upcoming/released chips scope the results; the active chip toggles back off", %{
       conn: conn
     } do
