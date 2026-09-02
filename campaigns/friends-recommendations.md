@@ -2,7 +2,7 @@
 status: active
 status_note: design — unparked 2026-09-01 (v1.0.0 shipped 2026-08-19)
 started: 2026-06-17
-last_updated: 2026-09-01
+last_updated: 2026-09-02
 ---
 # Friends & recommendations (Nostr backbone)
 
@@ -18,13 +18,15 @@ building until v1 is done.
 
 ## Status
 
-**Spec written 2026-09-02, awaiting owner review; no code yet.** v1.0.0
+**Spec written 2026-09-02; building.** v1.0.0
 shipped 2026-08-19, so the parking condition is met. All open questions are
 resolved (below). Spec:
 `docs/superpowers/specs/2026-09-02-friends-recommendations-design.md`
 (includes the unify_design adjudication and an eight-layer build order).
-Next: owner reviews the spec → writing-plans → layer 1 (`TMDB.Title`
-convergence + Discovery page).
+Layer 1a (title convergence, plan
+`docs/superpowers/plans/2026-09-02-title-convergence.md`) landed 2026-09-02
+on main, unpushed; next: plan 1b (Discovery page: `tab_strip`,
+`show_discovery`, `/discovery` routes).
 
 ## Decisions made
 
@@ -132,6 +134,20 @@ convergence + Discovery page).
   fit for the app's OTP + PubSub + event-translation grain.
 * Human-confirm before any download (no auto-acquire from an imported/received
   artifact) — aligns with the existing `user_decision_requested` pattern.
+
+## Next steps
+
+* **Drop the watchlist flat snapshot columns** (`name`, `year`,
+  `release_date`, `poster_path`, `overview`) and remove the transitional
+  `name` write in `WatchlistItem.create_changeset/2` — a schema migration in
+  the release after the one that ships the embed. It MUST first run the same
+  `UPDATE watchlist_items SET title = json_object(…) WHERE title IS NULL`
+  inline (per-line Credo carve-out for MC0015) before `remove`-ing the
+  columns: schema migrations run before data migrations, so a skipped-release
+  upgrade reaches the drop before the backfill; and the old release can write
+  flat-only rows between `migrate` and restart.
+* **Hardening pass** after iteration settles (spec decision 11).
+* **Plan 1b** — Discovery page.
 
 ## Completion criteria
 
