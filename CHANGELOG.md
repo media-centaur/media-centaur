@@ -4,6 +4,28 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.7.0 — 2026-09-02
+
+### New
+
+- **Withdraw a recommendation.** The Discovery page's Feed tab is now **Recommendations**, with two views: **Incoming**, what your friends recommended, and **Yours**, what you sent. Every row under Yours has **Delete**, which takes the recommendation off the relays and out of your friends' lists. A friend deleting theirs removes it from your list too, even if you were offline at the time. Deleting needs a relay that understands deletions; the private relay gains that in its next release, and until then a deleted recommendation disappears for you and is withdrawn from the relay as soon as it can be.
+- **Your identity and relays live under Settings → Social.** The key friends add you by, the secret-key backup and import, and the relay list with each relay's live state are on their own Settings section, always shown. The Discovery page's third tab is now **Friends** and holds only the people you follow.
+- **The wire protocol is documented.** The wiki page *Social Protocol* is the full contract for every message Media Centaur puts on a relay, for anyone running a relay or writing another client.
+
+### Improved
+
+- **Reconnecting fetches only what is new.** The app remembers how far it has read from each relay and asks for newer messages only, in pages, instead of re-reading everything on every connect.
+- **Recommend from a title's page.** The paper-plane control on a movie or series page is the one place to recommend from; the watchlist row's Recommend link is gone.
+
+### Fixed
+
+- **Relays reconnect after a restart.** In v1.6.0, relays connected only when you added one or changed your identity; after a restart, nothing connected until you did. They now connect at start-up.
+
+### Migration safety
+
+- The watchlist's old flat title columns, superseded in v1.6.0, are dropped. Any entry still missing its combined title is converted first, so nothing is lost.
+- Recommendations gain two columns for withdrawn entries, and relays gain a read cursor. Both are added empty; nothing to do.
+
 ## v1.6.0 — 2026-09-02
 
 ### New
