@@ -32,6 +32,19 @@ defmodule MediaCentaur.Friends.FriendTest do
       assert length(Friends.list_friends()) == 1
     end
 
+    test "renaming an existing friend broadcasts; an identical re-add stays silent" do
+      Friends.subscribe()
+
+      {:ok, _friend} = Friends.add_friend(@pubkey, "One")
+      assert_receive {:friend_added, %FriendAdded{pubkey: @pubkey}}, 500
+
+      {:ok, _friend} = Friends.add_friend(@pubkey, "Two")
+      assert_receive {:friend_added, %FriendAdded{pubkey: @pubkey}}, 500
+
+      {:ok, _friend} = Friends.add_friend(@pubkey, "Two")
+      refute_receive {:friend_added, _event}, 100
+    end
+
     test "rejects a bad key, a blank nickname, and your own key" do
       assert {:error, :invalid_pubkey} = Friends.add_friend("npub1nope", "X")
       assert {:error, :invalid_pubkey} = Friends.add_friend("12", "X")
