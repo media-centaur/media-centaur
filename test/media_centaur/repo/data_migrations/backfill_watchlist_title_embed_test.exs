@@ -62,4 +62,17 @@ defmodule MediaCentaur.Repo.DataMigrations.BackfillWatchlistTitleEmbedTest do
       assert :ok = BackfillWatchlistTitleEmbed.backfill(Repo)
     end
   end
+
+  describe "flat_columns_present?/1" do
+    test "is true while the flat snapshot columns exist" do
+      assert BackfillWatchlistTitleEmbed.flat_columns_present?(Repo)
+    end
+  end
+
+  describe "column_present?/3" do
+    test "reads the table's columns from PRAGMA table_info" do
+      assert BackfillWatchlistTitleEmbed.column_present?(Repo, "watchlist_items", "year")
+      refute BackfillWatchlistTitleEmbed.column_present?(Repo, "watchlist_items", "no_such_column")
+    end
+  end
 end

@@ -40,7 +40,7 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
     field :tmdb_id, :integer
     field :media_type, Ecto.Enum, values: [:movie, :tv_series]
     field :name, :string
-    embeds_one :title, Title, on_replace: :update
+    embeds_one :title, Title
     field :source, Ecto.Enum, values: [:manual], default: :manual
     field :note, :string
 
