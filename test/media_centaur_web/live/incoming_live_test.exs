@@ -171,6 +171,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # is covered by the ReleaseTracking tests.
       assert html =~ "Tracked"
       refute has_element?(view, "#plan-modal[data-state='open']")
+
+      await_supervised_tasks()
     end
 
     test "hides the active-downloads queue when the download client is untested",
@@ -1477,6 +1479,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert has_element?(view, "#omnibox-result-movie-888", "Tracked")
       refute has_element?(view, "#omnibox-result-movie-888", "Track release")
+
+      await_supervised_tasks()
     end
 
     test "an already-tracked title carries the Tracked marker from the ref set", %{conn: conn} do

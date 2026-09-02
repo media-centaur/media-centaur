@@ -64,16 +64,15 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
     # quietly serve the full-resolution master, which is the exact failure the
     # width hint exists to prevent and is invisible in review. Fail loudly.
     test "raises on a width outside the vocabulary instead of serving the master" do
-      assert_raise FunctionClauseError, fn ->
-        sized_image_url("/media-images/abc/backdrop.jpg", "960")
-      end
+      # Each bad width goes through `Enum.at/2` so the type checker cannot see
+      # the literal and flag the call as impossible — the assertion is exactly
+      # the runtime behaviour we want: no silent fall-through to the master.
+      for bad_width <- ["960", nil, 0] do
+        width = Enum.at([bad_width], 0)
 
-      assert_raise FunctionClauseError, fn ->
-        sized_image_url("/media-images/abc/backdrop.jpg", nil)
-      end
-
-      assert_raise FunctionClauseError, fn ->
-        sized_image_url("/media-images/abc/backdrop.jpg", 0)
+        assert_raise FunctionClauseError, fn ->
+          sized_image_url("/media-images/abc/backdrop.jpg", width)
+        end
       end
     end
   end
@@ -307,6 +306,27 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       title = Title.new!(%{tmdb_id: 999_999_002, media_type: :tv_series, name: "Sample Show"})
 
       assert title_poster_url(title) == nil
+    end
+
+    # The cached tier wins over the hotlink. Seeded through TmdbArtwork's own
+    # path helper under the configured (test) data_dir rather than by
+    # overriding `data_dir` in `:persistent_term`, so this stays `async: true`
+    # — the identity is unique to this test, nothing global is perturbed.
+    test "serves the local cached tier when TmdbArtwork holds the poster" do
+      path = MediaCentaur.TmdbArtwork.on_disk_path(:poster, :movie, 999_999_003)
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, "not-a-real-jpeg")
+      on_exit(fn -> File.rm_rf!(Path.dirname(path)) end)
+
+      title =
+        Title.new!(%{
+          tmdb_id: 999_999_003,
+          media_type: :movie,
+          name: "Sample Movie",
+          poster_path: "/p.jpg"
+        })
+
+      assert "/media-images/" <> _ = title_poster_url(title)
     end
   end
 end

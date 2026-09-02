@@ -168,8 +168,9 @@ defmodule MediaCentaurWeb.LiveHelpers do
   @doc """
   The `src` a title thumb paints: the local cached tier when
   `TmdbArtwork` holds the identity, the TMDB hotlink otherwise, nil when
-  the title carries no poster path either. Hosts resolve this once per
-  row; `title_summary/1` sizes it.
+  the title carries no poster path either. Filesystem-only (no DB), so
+  hosts may call it at render time per row or once at load;
+  `title_summary/1` sizes the result.
   """
   @spec title_poster_url(MediaCentaur.TMDB.Title.t()) :: String.t() | nil
   def title_poster_url(%MediaCentaur.TMDB.Title{} = title) do
