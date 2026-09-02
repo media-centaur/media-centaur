@@ -181,4 +181,39 @@ defmodule MediaCentaur.RecommendationsTest do
     assert MapSet.member?(Recommendations.TmdbArtworkHolds.holds(), {:movie, 9})
     await_supervised_tasks()
   end
+
+  describe "counts/0" do
+    test "with no identity, everything counts as received" do
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _one} = Recommendations.ingest(friend_event(title(1), "a", 1_700_000_000))
+      {:ok, _two} = Recommendations.ingest(friend_event(title(2), "b", 1_700_000_500))
+
+      assert Recommendations.counts() == %{
+               sent: 0,
+               received: 2,
+               last_received_at: DateTime.from_unix!(1_700_000_500)
+             }
+
+      await_supervised_tasks()
+    end
+
+    test "splits sent from received and finds the newest received recommended_at" do
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _sent} = Recommendations.recommend(title(3), "mine")
+      {:ok, _one} = Recommendations.ingest(friend_event(title(1), "a", 1_700_000_000))
+      {:ok, _two} = Recommendations.ingest(friend_event(title(2), "b", 1_700_000_500))
+
+      assert Recommendations.counts() == %{
+               sent: 1,
+               received: 2,
+               last_received_at: DateTime.from_unix!(1_700_000_500)
+             }
+
+      await_supervised_tasks()
+    end
+
+    test "with nothing stored, zero counts and no last_received_at" do
+      assert Recommendations.counts() == %{sent: 0, received: 0, last_received_at: nil}
+    end
+  end
 end

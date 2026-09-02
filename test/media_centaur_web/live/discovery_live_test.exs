@@ -446,6 +446,33 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       await_supervised_tasks()
     end
+
+    test "an own recommendation reads You, not from, and still counts", %{conn: conn} do
+      title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
+      {:ok, rec} = Recommendations.recommend(title, "mine")
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(view, "#feed-#{rec.id}", "You ·")
+      refute has_element?(view, "#feed-#{rec.id}", "from")
+
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a .badge", "1")
+
+      view |> element("#feed-#{rec.id} button", "Add to watchlist") |> render_click()
+      assert Discovery.on_watchlist?(999, :movie)
+
+      await_supervised_tasks()
+    end
+
+    test "a tampered id on feed_add_to_watchlist is ignored, not a crash", %{conn: conn} do
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      render_click(view, "feed_add_to_watchlist", %{"id" => "junk"})
+
+      assert Process.alive?(view.pid)
+      assert Discovery.list_watchlist() == []
+    end
   end
 
   describe "watchlist tab — provenance" do

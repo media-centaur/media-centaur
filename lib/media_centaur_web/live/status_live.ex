@@ -146,24 +146,18 @@ defmodule MediaCentaurWeb.StatusLive do
   end
 
   # Snapshot of the friend network for the Friends Activity widget:
-  # aggregates only (the Friends tab owns the lists).
-  #
-  # Received is derived by subtracting our own rows from the feed rather
-  # than by asking which are ours: the ids are authoritative either way,
-  # and Recommendations owns the sent/received distinction.
+  # aggregates only (the Friends tab owns the lists). `Recommendations.counts/0`
+  # is two aggregate queries — cheaper than loading every row just to
+  # count and diff them.
   defp assign_friends(socket) do
-    sent = Recommendations.list_sent()
-    sent_ids = MapSet.new(sent, & &1.id)
-
-    received =
-      Enum.reject(Recommendations.list_feed(), &MapSet.member?(sent_ids, &1.recommendation.id))
+    counts = Recommendations.counts()
 
     assign(socket,
       relay_status: relay_status(),
       friend_count: length(Friends.list_friends()),
-      sent_count: length(sent),
-      received_count: length(received),
-      last_received_at: last_received_at(received)
+      sent_count: counts.sent,
+      received_count: counts.received,
+      last_received_at: counts.last_received_at
     )
   end
 
@@ -176,9 +170,6 @@ defmodule MediaCentaurWeb.StatusLive do
     live = Connections.status()
     Map.new(Friends.list_relays(), &{&1.url, Map.get(live, &1.url, Connections.blank_entry())})
   end
-
-  defp last_received_at([]), do: nil
-  defp last_received_at([%{recommendation: rec} | _rest]), do: rec.recommended_at
 
   defp assign_storage_snapshot(socket, snapshot) do
     assign(socket,

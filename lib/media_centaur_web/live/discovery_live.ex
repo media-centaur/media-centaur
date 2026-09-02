@@ -127,10 +127,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   use RecommendFlow
 
+  # `id` is a `phx-value-id` off the client, so it must be validated before
+  # it reaches a `Repo.get` — an id that isn't a UUID at all raises
+  # `Ecto.Query.CastError` and takes the whole view down with it.
   def handle_event("feed_add_to_watchlist", %{"id" => id}, socket) do
-    case Recommendations.get(id) do
-      nil -> {:noreply, socket}
-      rec -> add_recommended_to_watchlist(socket, rec)
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         %Recommendations.Recommendation{} = rec <- Recommendations.get(id) do
+      add_recommended_to_watchlist(socket, rec)
+    else
+      _not_found_or_invalid -> {:noreply, socket}
     end
   end
 

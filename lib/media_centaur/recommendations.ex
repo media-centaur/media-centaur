@@ -140,6 +140,32 @@ defmodule MediaCentaur.Recommendations do
   def get(id), do: Repo.get(Recommendation, id)
 
   @doc """
+  Aggregate traffic for the Status widget, in two queries rather than
+  loading every row: how many recommendations this identity sent, how
+  many it received, and when the newest received one landed. Before an
+  identity exists nothing stored can be ours, so everything counts as
+  received (mirrors `list_feed/0`).
+  """
+  @spec counts() :: %{
+          sent: non_neg_integer(),
+          received: non_neg_integer(),
+          last_received_at: DateTime.t() | nil
+        }
+  def counts do
+    case Identity.pubkey() do
+      nil ->
+        %{
+          sent: 0,
+          received: Repo.aggregate(Recommendation, :count),
+          last_received_at: max_recommended_at(Recommendation)
+        }
+
+      me ->
+        counts_for(me)
+    end
+  end
+
+  @doc """
   The recommendations for `ids`, as `%{id => recommendation}` — one query,
   for a caller decorating a list of rows that name their provenance. Ids
   with no row are simply absent from the map.
@@ -177,6 +203,31 @@ defmodule MediaCentaur.Recommendations do
       nickname: Map.get(friends, rec.author_pubkey, "a former friend"),
       own?: false
     }
+
+  # One grouped count query buckets every row as "sent" or "received" by
+  # comparing author_pubkey to `me`; a second query finds the newest
+  # `recommended_at` among the received bucket only.
+  defp counts_for(me) do
+    buckets =
+      Recommendation
+      |> group_by([r], fragment("CASE WHEN ? = ? THEN 'sent' ELSE 'received' END", r.author_pubkey, ^me))
+      |> select(
+        [r],
+        {fragment("CASE WHEN ? = ? THEN 'sent' ELSE 'received' END", r.author_pubkey, ^me), count(r.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    received_query = where(Recommendation, [r], r.author_pubkey != ^me)
+
+    %{
+      sent: Map.get(buckets, "sent", 0),
+      received: Map.get(buckets, "received", 0),
+      last_received_at: max_recommended_at(received_query)
+    }
+  end
+
+  defp max_recommended_at(query), do: query |> select([r], max(r.recommended_at)) |> Repo.one()
 
   defp known_author(pubkey) do
     if pubkey == Identity.pubkey() or Friends.friend_by_pubkey(pubkey),
