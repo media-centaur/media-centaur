@@ -22,11 +22,20 @@ defmodule MediaCentaur.Recommendations.Events do
     @type t :: %__MODULE__{id: Ecto.UUID.t()}
   end
 
-  @type t :: Received.t() | Sent.t()
+  defmodule Deleted do
+    @moduledoc "A recommendation was withdrawn — by this install or by the friend who sent it. Subscribers reload."
+    @enforce_keys [:id, :author_pubkey]
+    defstruct [:id, :author_pubkey]
+
+    @type t :: %__MODULE__{id: Ecto.UUID.t(), author_pubkey: String.t()}
+  end
+
+  @type t :: Received.t() | Sent.t() | Deleted.t()
 
   @spec broadcast(t()) :: :ok | {:error, term()}
   def broadcast(%Received{} = event), do: publish({:recommendation_received, event})
   def broadcast(%Sent{} = event), do: publish({:recommendation_sent, event})
+  def broadcast(%Deleted{} = event), do: publish({:recommendation_deleted, event})
 
   defp publish(message), do: Topics.publish(Topics.recommendations_updates(), message)
 end

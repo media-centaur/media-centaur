@@ -68,7 +68,11 @@ defmodule MediaCentaur.Recommendations.SyncTest do
   test "a live event from a friend arrives through the feed subscription" do
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
-    assert_receive {:relay_in, ["REQ", "feed", %{"authors" => authors, "kinds" => [32_160]}]}, 5_000
+
+    assert_receive {:relay_in,
+                    ["REQ", "feed", %{"authors" => authors, "kinds" => [32_160, 5], "limit" => 500}]},
+                   5_000
+
     assert @friend_pubkey in authors
     assert Identity.pubkey() in authors
 
@@ -99,5 +103,86 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     FakeRelay.push(relay, ["EVENT", "feed", Event.to_map(event)])
     refute_receive {:recommendation_received, _event}, 500
     assert Recommendations.list_feed() == []
+  end
+
+  defp friend_event_at(id, created_at),
+    do:
+      Event.sign(
+        %{Translation.to_event(title(id), "old", @friend_pubkey) | created_at: created_at},
+        @friend_secret
+      )
+
+  test "the first connect has no cursor; a reconnect asks only for what is newer" do
+    now = System.os_time(:second)
+    relay = FakeRelay.start(events: [friend_event_at(1, now - 100)])
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["REQ", "feed", first]}, 5_000
+    refute Map.has_key?(first, "since")
+    assert_receive {:recommendation_received, _event}, 5_000
+    assert Social.synced_until(relay.url) == now - 100
+
+    FakeRelay.drop(relay)
+    assert_receive {:relay_in, ["REQ", "feed", %{"since" => since}]}, 5_000
+    assert since == now - 100
+    await_supervised_tasks()
+  end
+
+  test "a full page is followed by the next one, then the feed goes live again" do
+    stop_supervised!(Sync)
+    start_supervised!({Sync, page_limit: 2})
+    now = System.os_time(:second)
+
+    relay =
+      FakeRelay.start(
+        events: [
+          friend_event_at(1, now - 30),
+          friend_event_at(2, now - 20),
+          friend_event_at(3, now - 10)
+        ]
+      )
+
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["REQ", "feed", %{"limit" => 2} = first]}, 5_000
+    refute Map.has_key?(first, "until")
+    assert_receive {:relay_in, ["REQ", "feed", %{"until" => until}]}, 5_000
+    assert until == now - 20 - 1
+    assert_receive {:relay_in, ["REQ", "feed", %{"since" => since} = live]}, 5_000
+    refute Map.has_key?(live, "until")
+    assert since == now - 10
+
+    render_all = fn ->
+      Recommendations.list_feed() |> Enum.map(& &1.recommendation.tmdb_id) |> Enum.sort()
+    end
+
+    assert_receive {:recommendation_received, _event}, 5_000
+    Process.sleep(100)
+    assert render_all.() == [1, 2, 3]
+    await_supervised_tasks()
+  end
+
+  test "own deletions the relay lacks are published after its EOSE" do
+    {:ok, rec} = Recommendations.recommend(title(7), "mine")
+    {:ok, _gone} = Recommendations.delete(rec.id)
+    relay = FakeRelay.start()
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["EVENT", %{"kind" => 5, "tags" => [["a", coordinate] | _rest]}]}, 5_000
+    assert coordinate == "32160:#{Identity.pubkey()}:tmdb:movie:7"
+    refute_receive {:relay_in, ["EVENT", %{"kind" => 32_160}]}, 300
+    await_supervised_tasks()
+  end
+
+  test "a friend's deletion arriving on the feed hides their recommendation" do
+    now = System.os_time(:second)
+    {:ok, _rec} = Recommendations.ingest(friend_event_at(4, now - 10))
+    deletion = Event.sign(Translation.to_deletion(@friend_pubkey, :movie, 4, "x"), @friend_secret)
+    relay = FakeRelay.start(events: [deletion])
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:recommendation_deleted, _event}, 5_000
+    assert Recommendations.list_feed() == []
+    await_supervised_tasks()
   end
 end

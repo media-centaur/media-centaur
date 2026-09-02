@@ -17,10 +17,6 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
   contexts; the web layer resolves the nickname from the
   recommendation's author. A `:manual` item carries none, and the
   pairing is validated both ways.
-
-  The flat `name` column is transitional: NOT NULL until the
-  drop-flat-columns migration lands in a later release, so it is still
-  written from the embed. Nothing reads it.
   """
   use Ecto.Schema
 
@@ -32,7 +28,6 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
           id: Ecto.UUID.t(),
           tmdb_id: integer(),
           media_type: Title.media_type(),
-          name: String.t(),
           title: Title.t(),
           source: :manual | :friend,
           note: String.t() | nil,
@@ -45,7 +40,6 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
   schema "watchlist_items" do
     field :tmdb_id, :integer
     field :media_type, Ecto.Enum, values: [:movie, :tv_series]
-    field :name, :string
     embeds_one :title, Title
     field :source, Ecto.Enum, values: [:manual, :friend], default: :manual
     field :note, :string
@@ -62,8 +56,7 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
     |> put_embed(:title, title)
     |> put_change(:tmdb_id, title.tmdb_id)
     |> put_change(:media_type, title.media_type)
-    |> put_change(:name, title.name)
-    |> validate_required([:tmdb_id, :media_type, :name])
+    |> validate_required([:tmdb_id, :media_type])
     |> validate_provenance()
     |> unique_constraint([:tmdb_id, :media_type])
   end

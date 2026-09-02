@@ -4,14 +4,14 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
   provenance note displaces its overview line) plus the single
   state-dependent primary action — link to the library detail
   when the library knows the title, Download (plan flow) when released
-  and an indexer exists, Track release otherwise. Recommend (send the
-  title to your friends) and Remove are the quiet secondary actions.
-  A row that came from the feed says so quietly in the markers slot
-  (`from <nickname>`), resolved by the host — the row itself never
-  reads Recommendations.
+  and an indexer exists, Track release otherwise. Remove is the quiet
+  secondary action. A row that came from a recommendation says so
+  quietly in the markers slot (`from <nickname>`), resolved by the host
+  — the row itself never reads Recommendations. Recommending happens
+  on the title's detail page, not here.
 
-  Pure rendering; `watchlist_remove`, `watchlist_track` and
-  `watchlist_recommend` bubble to the host, navigation is by link.
+  Pure rendering; `watchlist_remove` and `watchlist_track` bubble to
+  the host, navigation is by link.
   """
 
   use Phoenix.Component
@@ -59,13 +59,13 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
         <:secondary :if={@item.note}>{@item.note}</:secondary>
       </.title_summary>
 
-      <%!-- The action strip is a real 3-track grid and carries
+      <%!-- The action strip is a real 2-track grid and carries
             `data-nav-grid`: the input system reads its computed column
             count, so DOWN/UP move row-to-row (primary → primary) and
-            LEFT/RIGHT move within a row (primary ↔ Recommend ↔ Remove).
-            Every row renders exactly these three nav items. --%>
+            LEFT/RIGHT move within a row (primary ↔ Remove). Every row
+            renders exactly these two nav items. --%>
       <span
-        class="grid shrink-0 grid-cols-[auto_auto_auto] items-center gap-3 self-center"
+        class="grid shrink-0 grid-cols-[auto_auto] items-center gap-3 self-center"
         data-nav-grid
       >
         <.primary_action
@@ -74,17 +74,6 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
           library_owner_id={@library_owner_id}
           release_mode_available={@release_mode_available}
         />
-        <button
-          type="button"
-          class="cursor-pointer text-xs text-base-content/30 transition-colors hover:text-base-content/60"
-          phx-click="watchlist_recommend"
-          phx-value-tmdb-id={@item.tmdb_id}
-          phx-value-media-type={@item.media_type}
-          data-nav-item
-          tabindex="0"
-        >
-          Recommend
-        </button>
         <button
           type="button"
           class="cursor-pointer text-xs text-base-content/30 transition-colors hover:text-base-content/60"

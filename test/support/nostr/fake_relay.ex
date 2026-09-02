@@ -199,7 +199,12 @@ defmodule MediaCentaur.Nostr.FakeRelay do
   end
 
   defp handle_frame(["REQ", sub_id | filters], state) do
-    matches = Enum.filter(state.events, fn event -> Enum.any?(filters, &matches?(event, &1)) end)
+    matches =
+      state.events
+      |> Enum.filter(fn event -> Enum.any?(filters, &matches?(event, &1)) end)
+      |> Enum.sort_by(& &1.created_at, :desc)
+      |> take_limit(filters)
+
     frames = Enum.map(matches, &text(["EVENT", sub_id, Event.to_map(&1)]))
     {:push, frames ++ [text(["EOSE", sub_id])], state}
   end
@@ -209,15 +214,28 @@ defmodule MediaCentaur.Nostr.FakeRelay do
 
   defp text(frame), do: {:text, Jason.encode!(frame)}
 
-  # authors / kinds / ids / #d only — enough for the tests
+  # authors / kinds / ids / since / until / #d — enough for the tests
   defp matches?(event, filter) do
     Enum.all?(filter, fn
       {"authors", list} -> event.pubkey in list
       {"kinds", list} -> event.kind in list
       {"ids", list} -> event.id in list
+      {"since", since} -> event.created_at >= since
+      {"until", until} -> event.created_at <= until
       {"#" <> tag, list} -> Event.tag_value(event, tag) in list
       _other -> true
     end)
+  end
+
+  # The smallest `limit` across the REQ's filters, newest first (NIP-01).
+  defp take_limit(matches, filters) do
+    filters
+    |> Enum.map(&Map.get(&1, "limit"))
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> matches
+      limits -> Enum.take(matches, Enum.min(limits))
+    end
   end
 
   defmodule Plug do

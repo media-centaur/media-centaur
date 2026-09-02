@@ -3,12 +3,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   The Discovery page — the surface every candidate source lands on. Three
   tabs, one LiveView with a `live_action` per tab:
 
-  The feed (`/discovery`, the page's default) — what friends recommended,
-  newest first. `Recommendations.list_feed/0` carries the record and the
-  friend's nickname; this page joins the rest, because Recommendations
-  knows nothing about the watchlist or the library:
-  `Library.ExternalIds.tmdb_owners/1` and `Discovery.watchlisted_refs/0`
-  decide what each row can offer.
+  Recommendations (`/discovery`, the page's default) — what friends
+  recommended (**Incoming**, the default scope) or what this install
+  recommended (**Yours**, where each row can be deleted, which withdraws
+  it from every relay), newest first. `Recommendations.list_feed/0`
+  carries the record and the friend's nickname; this page joins the
+  rest, because Recommendations knows nothing about the watchlist or the
+  library: `Library.ExternalIds.tmdb_owners/1` and
+  `Discovery.watchlisted_refs/0` decide what each row can offer.
+  Recommending itself happens on a title's detail page.
 
   The watchlist — title-level intent, triaged. Rows come from
   `Discovery.list_watchlist/0` (library presence derived live); the
@@ -40,9 +43,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.Components.Discovery.WatchlistRow
   alias MediaCentaurWeb.Components.TabStrip.Tab
-  alias MediaCentaurWeb.Live.RecommendFlow
   alias MediaCentaurWeb.DiscoveryLive.FeedRow
-  alias MediaCentaurWeb.DiscoveryLive.RecommendModal
   alias MediaCentaurWeb.DiscoveryLive.RosterBlock
 
   @impl true
@@ -57,8 +58,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:ok,
      socket
      |> assign(:page_title, "Discovery")
-     |> assign(friends: [])
-     |> RecommendFlow.init()
+     |> assign(friends: [], feed_scope: :incoming)
      |> load_items()
      |> load_feed()}
   end
@@ -92,21 +92,19 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     end
   end
 
-  def handle_event("watchlist_recommend", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
-      when media_type in ~w(movie tv_series) do
-    ref = {String.to_integer(tmdb_id), String.to_existing_atom(media_type)}
+  def handle_event("feed_scope", %{"scope" => scope}, socket) when scope in ["incoming", "own"],
+    do: {:noreply, assign(socket, feed_scope: String.to_existing_atom(scope))}
 
-    case Enum.find(socket.assigns.items, fn %{item: item} -> {item.tmdb_id, item.media_type} == ref end) do
-      nil -> {:noreply, socket}
-      %{item: item} -> {:noreply, RecommendFlow.open(socket, item.title)}
+  def handle_event("feed_delete", %{"id" => id}, socket) do
+    case Recommendations.delete(id) do
+      {:ok, _rec} ->
+        {:noreply, socket |> load_feed() |> put_flash(:info, "Recommendation withdrawn")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Only your own recommendations can be deleted")}
     end
   end
 
-  use RecommendFlow
-
-  # `id` is a `phx-value-id` off the client, so it must be validated before
-  # it reaches a `Repo.get` — an id that isn't a UUID at all raises
-  # `Ecto.Query.CastError` and takes the whole view down with it.
   def handle_event("feed_add_to_watchlist", %{"id" => id}, socket) do
     with {:ok, id} <- Ecto.UUID.cast(id),
          %Recommendations.Recommendation{} = rec <- Recommendations.get(id) do
@@ -139,7 +137,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, socket |> load_items() |> load_feed()}
   end
 
-  def handle_info({tag, _event}, socket) when tag in [:recommendation_received, :recommendation_sent] do
+  def handle_info({tag, _event}, socket)
+      when tag in [:recommendation_received, :recommendation_sent, :recommendation_deleted] do
     {:noreply, load_feed(socket)}
   end
 
@@ -234,19 +233,37 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   defp load_friends(socket), do: assign(socket, :friends, Social.list_friends())
 
+  @doc "The feed rows in one scope: `:incoming` (friends') or `:own` (this install's)."
+  @spec scoped_feed([map()], :incoming | :own) :: [map()]
+  def scoped_feed(feed, :incoming), do: Enum.reject(feed, & &1.own?)
+  def scoped_feed(feed, :own), do: Enum.filter(feed, & &1.own?)
+
+  @doc "How many feed rows fall in a scope."
+  @spec scope_count([map()], :incoming | :own) :: non_neg_integer()
+  def scope_count(feed, scope), do: feed |> scoped_feed(scope) |> length()
+
   defp tabs(feed, items),
     do: [
-      %Tab{id: :feed, label: "Feed", navigate: "/discovery", count: length(feed)},
+      %Tab{
+        id: :recommendations,
+        label: "Recommendations",
+        navigate: "/discovery",
+        count: scope_count(feed, :incoming)
+      },
       %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
       %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends"}
     ]
 
   # Before a relay and a friend exist the feed cannot fill, so the empty
   # state names what is missing rather than implying nobody wrote.
-  defp feed_empty_state(true), do: "Nothing from your friends yet."
+  defp feed_empty_state(:own, _prereqs_met),
+    do: "Titles you recommend from their detail page show up here."
 
-  defp feed_empty_state(_prereqs_met),
-    do: "Recommendations from your friends land here. Add a relay and a friend on the Social tab."
+  defp feed_empty_state(:incoming, true), do: "Nothing from your friends yet."
+
+  defp feed_empty_state(:incoming, _prereqs_met),
+    do:
+      "Recommendations from your friends land here. Add a relay under Settings → Social and a friend on the Friends tab."
 
   defp current_path(:friends), do: "/discovery/friends"
   defp current_path(:watchlist), do: "/discovery/watchlist"
@@ -266,28 +283,43 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
     >
-      <:overlays>
-        <RecommendModal.recommend_modal
-          subject={@recommend_subject}
-          relay_counts={@recommend_relay_counts}
-        />
-      </:overlays>
+      <:overlays></:overlays>
       <div class="relative" data-page-behavior="discovery" data-nav-default-zone="discovery">
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <h1 class="px-1 text-lg font-semibold">Discovery</h1>
 
           <.tab_strip tabs={tabs(@feed, @items)} active={@live_action} />
 
-          <div :if={@live_action == :feed} class="space-y-2" data-nav-zone="grid">
-            <div
-              :if={@feed == []}
-              id="feed-empty"
-              class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
-            >
-              {feed_empty_state(@feed_prereqs_met?)}
+          <div :if={@live_action == :recommendations} class="space-y-3">
+            <%!-- Iteration-phase control (spec decision 11): no input-system
+                  zone yet; the hardening pass gives it one. --%>
+            <div class="flex gap-1 px-1">
+              <button
+                :for={{scope, label} <- [incoming: "Incoming", own: "Yours"]}
+                type="button"
+                id={"feed-scope-#{scope}"}
+                class={["zone-tab cursor-pointer", @feed_scope == scope && "zone-tab-active"]}
+                phx-click="feed_scope"
+                phx-value-scope={scope}
+              >
+                {label}
+                <.badge :if={scope_count(@feed, scope) > 0} variant="ghost" class="ml-1">
+                  {scope_count(@feed, scope)}
+                </.badge>
+              </button>
             </div>
 
-            <FeedRow.feed_row :for={row <- @feed} row={row} />
+            <div class="space-y-2" data-nav-zone="grid">
+              <div
+                :if={scoped_feed(@feed, @feed_scope) == []}
+                id="feed-empty"
+                class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+              >
+                {feed_empty_state(@feed_scope, @feed_prereqs_met?)}
+              </div>
+
+              <FeedRow.feed_row :for={row <- scoped_feed(@feed, @feed_scope)} row={row} />
+            </div>
           </div>
 
           <div :if={@live_action == :friends} class="space-y-4">

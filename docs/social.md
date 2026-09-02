@@ -88,7 +88,11 @@ before touching it:
 
 `Social.Connections` keeps that population in step with the `relays` table: a
 Registry keyed by URL, a DynamicSupervisor, and `Connections.Owner`, which
-reconciles on boot and on `RelayAdded` / `RelayRemoved` / `IdentityChanged`,
+reconciles on boot, on `RelayAdded` / `RelayRemoved` / `IdentityChanged`, and
+on `{:config_updated, :nostr_secret_key, _}` — the boot reconcile runs before
+`Application.post_supervisor_hooks/1` overlays the database settings, so the
+identity is usually absent then and the overlay's broadcast is what starts
+the connections —
 receives every connection's messages, and re-broadcasts them on
 `social:connections`. `Connections.status/0` is the read model —
 `%{url => %{state, last_error, since}}` — where `since` is the onset of the
@@ -125,7 +129,18 @@ republished to a relay that lacks it. Sent vs received is derived by comparing
 with the signature.
 
 Note length is capped at 500 characters (`Recommendations`), matched by the
-textarea's `maxlength`.
+textarea's `maxlength`. Content carries `"v": 1`; `from_event/1` treats an
+absent `v` as 1 and drops an unknown one.
+
+**Deletion.** `Recommendations.delete/1` withdraws an own row: `Translation.to_deletion/4`
+builds the kind 5 (`a` = `32160:<pubkey>:tmdb:<type>:<id>`, `e` = the event id),
+the row becomes a tombstone (`deleted_at` + `deletion_event`, see the
+`Recommendation` moduledoc), the deletion is published, and `Events.Deleted`
+goes out. `ingest/1` of a kind 5 (`Translation.from_deletion/1`, author must
+own the address) tombstones the addressed row unless the row is newer; a
+recommendation older than a row's tombstone is `:ignored`; a newer one revives.
+Every read excludes tombstones except `own_events/0`, which yields the deletion
+of a withdrawn own row instead of its recommendation.
 
 ## Sync
 
@@ -133,16 +148,20 @@ textarea's `maxlength`.
 `social:updates`:
 
 1. `:connected` for a relay → subscribe `"feed"` (authors = friends ++ self,
-   kind 32160) and `"own:<url>"` (authors = [self]) on that relay, and reset the
+   kinds 32160 + 5, `since` = `relays.synced_until`, `limit` 500) and
+   `"own:<url>"` (authors = [self], both kinds) on that relay, and reset the
    seen-set for that URL.
-2. `{:event, sub_id, event}` → `Recommendations.ingest/1` (verify signature,
-   require a known author, newest wins). Events on `"own:<url>"` also record
-   their id in the seen-set.
-3. `{:eose, "own:<url>"}` → publish to that relay every stored own event it did
-   *not* send. A per-relay diff, not a blanket re-publish: addressable events are
-   few, and a relay that already holds one doesn't need it again.
-4. A roster change on `social:updates` resubscribes `"feed"` on every relay with
-   the new author list.
+2. `{:event, "feed", event}` → advance the relay's cursor
+   (`Social.advance_synced_until/2`), then `Recommendations.ingest/1` (verify
+   signature, require a known author, newest wins, deletions tombstone).
+   Events on `"own:<url>"` also record their id in the seen-set.
+3. `{:eose, "feed"}` → a full page asks for the next (`until` = oldest − 1, same
+   `since`); the first short page after paging re-issues `"feed"` live.
+4. `{:eose, "own:<url>"}` → publish to that relay every stored own event it did
+   *not* send — recommendations of live rows, deletions of withdrawn ones. A
+   per-relay diff, not a blanket re-publish.
+5. A roster change on `social:updates` resubscribes `"feed"` on every connected
+   relay with the new author list and that relay's cursor.
 
 `ingest/1` rejects anything not signed by the identity or a key on the roster, so
 a relay that hands over the whole world still yields only what you follow.
@@ -172,10 +191,12 @@ disagree with the owner about what a message meant.
 ## Web layer
 
 `MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
-(`:feed` at `/discovery`, `:watchlist`, `:friends`). The Friends tab's block is
-iteration-phase function components under `live/discovery_live/`
-(`identity_block`, `relay_block`, `roster_block`, `feed_row`, `recommend_modal`)
-— no stories and no input-system support yet; the hardening pass moves them under
+(`:recommendations` at `/discovery`, `:watchlist`, `:friends`). The
+Recommendations tab has an Incoming / Yours scope (`feed_scope` assign; the tab
+badge counts incoming only) and own rows carry Delete → `Recommendations.delete/1`.
+The tab's pieces are iteration-phase function components under
+`live/discovery_live/` (`roster_block`, `feed_row`, `recommend_modal`) — no
+stories and no input-system support yet; the hardening pass moves them under
 `components/` (spec decision 11), which is when MC0009 starts applying.
 
 The joins the contexts may not make happen here:
@@ -188,12 +209,11 @@ The joins the contexts may not make happen here:
 - **Watchlist rows** — the row stores only `recommendation_id`; the page resolves
   it to a nickname through `Recommendations.get_many/1` → `Social.list_friends/0`.
 
-`MediaCentaurWeb.Live.RecommendFlow` is the shared modal flow (`use RecommendFlow`
-injects the handlers), hosted by `DiscoveryLive` for watchlist rows and by any
-`EntityModal` host for the library detail page. The detail page's Recommend
-control is gated on the `show_discovery` preference
-(`Settings.Preferences.DiscoveryVisibility`), the same preference that gates the
-sidebar entry; watchlist rows need no gate because that page is Discovery already.
+`MediaCentaurWeb.Live.RecommendFlow` is the modal flow (`use RecommendFlow`
+injects the handlers), hosted by every `EntityModal` host for the library detail
+page — the only place a recommendation is made. The Recommend control is gated
+on the `show_discovery` preference (`Settings.Preferences.DiscoveryVisibility`),
+the same preference that gates the sidebar entry.
 
 ## Health
 
@@ -276,15 +296,15 @@ Both are pure Elixir — no NIF, nothing added to a user's install footprint.
 ## Scheduled migrations
 
 The watchlist's flat snapshot columns (`name`, `year`, `release_date`,
-`poster_path`, `overview`) are superseded by the embedded `TMDB.Title` and
-**must be dropped in the release immediately after the one that shipped the
-embed**. The drop migration has to run the inline heal
+`poster_path`, `overview`) were superseded by the embedded `TMDB.Title` in
+v1.6.0 and dropped in the very next release by
+`DropWatchlistFlatColumns`, which runs the inline heal
 (`UPDATE watchlist_items SET title = json_object(…) WHERE title IS NULL`, with
-the per-line MC0015 carve-out) *before* `remove`-ing the columns: schema
-migrations run before data migrations, so a skipped-release upgrade reaches the
-drop before any backfill, and the old release can write flat-only rows in the
-seconds between `migrate` and restart. Until it lands, such a row crashes
-`/discovery/watchlist` on mount.
+the per-line MC0015 carve-out) *before* `remove`-ing them: schema migrations
+run before data migrations, so a skipped-release upgrade reaches the drop
+before any backfill, and the old release can write flat-only rows in the
+seconds between `migrate` and restart. The backfill data migration tolerates
+the columns being gone. Nothing is scheduled now.
 
 The `show_watchlist` → `show_discovery` Settings rename is a data migration
 (`priv/repo/data_migrations/20260902150000_rename_show_watchlist_settings_key.exs`).

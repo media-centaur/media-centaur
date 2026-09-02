@@ -30,6 +30,8 @@ defmodule Mix.Tasks.Social.Dev do
   @default_relay "ws://127.0.0.1:2173"
   @default_dir "priv/dev-social"
   @kind 32_160
+  # A dev relay in a container can be slow to answer its first request.
+  @relay_timeout_ms 15_000
 
   @switches [
     dir: :string,
@@ -112,7 +114,7 @@ defmodule Mix.Tasks.Social.Dev do
 
     event = title |> Translation.to_event(opts[:note], Keys.pubkey(secret)) |> Event.sign(secret)
 
-    case OneShot.publish(relay, event, signer(secret)) do
+    case OneShot.publish(relay, event, signer(secret), timeout_ms: @relay_timeout_ms) do
       :ok -> Mix.shell().info("Published #{Translation.address(title)} as the friend to #{relay}")
       {:error, reason} -> fail(relay_error(relay, reason))
     end
@@ -136,7 +138,9 @@ defmodule Mix.Tasks.Social.Dev do
     relay = Keyword.get(opts, :relay, @default_relay)
     own_pubkey = Keys.pubkey(secret)
 
-    case OneShot.query(relay, [Filter.new(kinds: [@kind])], signer(secret)) do
+    case OneShot.query(relay, [Filter.new(kinds: [@kind])], signer(secret),
+           timeout_ms: @relay_timeout_ms
+         ) do
       {:ok, []} ->
         Mix.shell().info("The relay holds no recommendations.")
 

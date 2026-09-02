@@ -27,8 +27,10 @@ defmodule MediaCentaur.Recommendations do
   else.
 
   `list_feed/0` includes this identity's own recommendations alongside
-  received ones (spec: the Feed marks them "You") — `own?` and `nickname`
-  tell a row apart; `nickname` is `nil` on an own row.
+  received ones — `own?` and `nickname` tell a row apart; `nickname` is
+  `nil` on an own row. Withdrawn rows (tombstones, see `Recommendation`)
+  are excluded everywhere except `own_events/0`, which republishes their
+  deletions.
 
   Broadcasts typed events on `recommendations:updates` (subscribe
   through `subscribe/0`).
@@ -80,11 +82,55 @@ defmodule MediaCentaur.Recommendations do
   end
 
   @doc """
+  Withdraws one of this identity's own recommendations: signs a deletion
+  (kind 5) for its address, keeps the row as a tombstone, publishes the
+  deletion to every connected relay, and broadcasts `Events.Deleted`.
+  `{:error, :not_own}` for a friend's row; `{:error, :not_found}` for an
+  unknown id. Withdrawing a tombstone again is a no-op returning the row.
+  """
+  @spec delete(Ecto.UUID.t()) :: {:ok, Recommendation.t()} | {:error, :not_own | :not_found | term()}
+  def delete(id) do
+    case Repo.get(Recommendation, id) do
+      nil -> {:error, :not_found}
+      %Recommendation{deleted_at: %DateTime{}} = rec -> {:ok, rec}
+      %Recommendation{} = rec -> delete_own(rec)
+    end
+  end
+
+  defp delete_own(%Recommendation{author_pubkey: author} = rec) do
+    if author == Identity.pubkey() do
+      event =
+        author
+        |> Translation.to_deletion(rec.media_type, rec.tmdb_id, rec.event_id)
+        |> Event.sign(Identity.secret())
+
+      with {:ok, attrs} <- Translation.from_deletion(event),
+           {:ok, rec} <- Repo.update(Recommendation.tombstone_changeset(rec, attrs)) do
+        Connections.publish(event)
+        Events.broadcast(%Events.Deleted{id: rec.id, author_pubkey: author})
+        {:ok, rec}
+      end
+    else
+      {:error, :not_own}
+    end
+  end
+
+  @doc """
   Stores a relay-delivered event: it must verify, and its author must be
-  a friend or this identity. `:ignored` when it is not newer than what is
-  already stored — including our own event coming back off a relay.
+  a friend or this identity. A recommendation (kind 32160) is stored when
+  newer than the row — a tombstone included, which it revives. A deletion
+  (kind 5) tombstones the row it addresses when the row is not newer.
+  `:ignored` otherwise — including our own events coming back off a relay.
   """
   @spec ingest(Event.t()) :: {:ok, Recommendation.t()} | :ignored | {:error, term()}
+  def ingest(%Event{kind: 5} = event) do
+    with :ok <- Event.verify(event),
+         :ok <- known_author(event.pubkey),
+         {:ok, attrs} <- Translation.from_deletion(event) do
+      tombstone_if_newer(attrs)
+    end
+  end
+
   def ingest(%Event{} = event) do
     with :ok <- Event.verify(event),
          :ok <- known_author(event.pubkey),
@@ -105,6 +151,7 @@ defmodule MediaCentaur.Recommendations do
     me = Identity.pubkey()
 
     Recommendation
+    |> live()
     |> order_by(desc: :recommended_at)
     |> Repo.all()
     |> Enum.map(&feed_row(&1, me, friends))
@@ -118,22 +165,44 @@ defmodule MediaCentaur.Recommendations do
         []
 
       me ->
-        Repo.all(
-          from(r in Recommendation, where: r.author_pubkey == ^me, order_by: [desc: r.recommended_at])
-        )
+        Recommendation
+        |> live()
+        |> where([r], r.author_pubkey == ^me)
+        |> order_by([r], desc: r.recommended_at)
+        |> Repo.all()
     end
   end
 
-  @doc "This identity's signed events, for republishing to relays that lack them."
+  @doc """
+  This identity's signed events, for republishing to relays that lack
+  them: the recommendation of every live own row, the deletion of every
+  withdrawn one.
+  """
   @spec own_events() :: [Event.t()]
   def own_events do
-    Enum.flat_map(list_sent(), fn rec ->
-      case Event.from_map(rec.raw_event) do
-        {:ok, event} -> [event]
-        {:error, _reason} -> []
-      end
-    end)
+    case Identity.pubkey() do
+      nil ->
+        []
+
+      me ->
+        Recommendation
+        |> where([r], r.author_pubkey == ^me)
+        |> Repo.all()
+        |> Enum.flat_map(&own_event/1)
+    end
   end
+
+  defp own_event(%Recommendation{deleted_at: nil, raw_event: raw}), do: decode_stored(raw)
+  defp own_event(%Recommendation{deletion_event: raw}), do: decode_stored(raw)
+
+  defp decode_stored(raw) do
+    case Event.from_map(raw) do
+      {:ok, event} -> [event]
+      {:error, _reason} -> []
+    end
+  end
+
+  defp live(query), do: where(query, [r], is_nil(r.deleted_at))
 
   @doc "One recommendation by id, or nil."
   @spec get(Ecto.UUID.t()) :: Recommendation.t() | nil
@@ -156,8 +225,8 @@ defmodule MediaCentaur.Recommendations do
       nil ->
         %{
           sent: 0,
-          received: Repo.aggregate(Recommendation, :count),
-          last_received_at: max_recommended_at(Recommendation)
+          received: Recommendation |> live() |> Repo.aggregate(:count),
+          last_received_at: max_recommended_at(live(Recommendation))
         }
 
       me ->
@@ -210,6 +279,7 @@ defmodule MediaCentaur.Recommendations do
   defp counts_for(me) do
     buckets =
       Recommendation
+      |> live()
       |> group_by([r], fragment("CASE WHEN ? = ? THEN 'sent' ELSE 'received' END", r.author_pubkey, ^me))
       |> select(
         [r],
@@ -218,7 +288,7 @@ defmodule MediaCentaur.Recommendations do
       |> Repo.all()
       |> Map.new()
 
-    received_query = where(Recommendation, [r], r.author_pubkey != ^me)
+    received_query = Recommendation |> live() |> where([r], r.author_pubkey != ^me)
 
     %{
       sent: Map.get(buckets, "sent", 0),
@@ -263,16 +333,56 @@ defmodule MediaCentaur.Recommendations do
     end
   end
 
+  # Newer than the row's recommendation *and* its tombstone, if any: a
+  # recommendation older than the deletion that withdrew it is the stale
+  # copy the tombstone exists to refuse.
   defp upsert_if_newer(attrs) do
     case existing(attrs) do
       nil ->
         Repo.insert(Recommendation.changeset(attrs))
 
-      %Recommendation{recommended_at: at} = rec ->
-        if DateTime.after?(attrs.recommended_at, at),
-          do: Repo.update(Recommendation.changeset(rec, attrs)),
-          else: :ignored
+      %Recommendation{recommended_at: at, deleted_at: deleted_at} = rec ->
+        if DateTime.after?(attrs.recommended_at, at) and
+             newer_than_tombstone?(attrs.recommended_at, deleted_at),
+           do: Repo.update(Recommendation.changeset(rec, attrs)),
+           else: :ignored
     end
+  end
+
+  defp newer_than_tombstone?(_at, nil), do: true
+  defp newer_than_tombstone?(at, deleted_at), do: DateTime.after?(at, deleted_at)
+
+  # A deletion applies to a recommendation at or before its time; a row
+  # already withdrawn by a deletion at least as new is left alone, and a
+  # deletion for an address never stored has nothing to tombstone.
+  defp tombstone_if_newer(attrs) do
+    case existing(attrs) do
+      nil ->
+        :ignored
+
+      %Recommendation{} = rec ->
+        if tombstone_applies?(rec, attrs.deleted_at), do: tombstone(rec, attrs), else: :ignored
+    end
+  end
+
+  defp tombstone_applies?(%Recommendation{deleted_at: %DateTime{} = already}, deleted_at),
+    do: DateTime.after?(deleted_at, already)
+
+  defp tombstone_applies?(%Recommendation{recommended_at: at}, deleted_at),
+    do: not DateTime.after?(at, deleted_at)
+
+  defp tombstone(rec, attrs) do
+    with {:ok, rec} <- Repo.update(Recommendation.tombstone_changeset(rec, attrs)) do
+      broadcast_deleted(rec)
+      {:ok, rec}
+    end
+  end
+
+  # Our own deletion arriving back from a relay is not news.
+  defp broadcast_deleted(%Recommendation{author_pubkey: author} = rec) do
+    if author == Identity.pubkey(),
+      do: :ok,
+      else: Events.broadcast(%Events.Deleted{id: rec.id, author_pubkey: author})
   end
 
   defp existing(%{author_pubkey: author, tmdb_id: tmdb_id, media_type: media_type}),

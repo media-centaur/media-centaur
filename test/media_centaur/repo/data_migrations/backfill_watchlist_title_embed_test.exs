@@ -13,15 +13,35 @@ defmodule MediaCentaur.Repo.DataMigrations.BackfillWatchlistTitleEmbedTest do
     MediaCentaur.TmdbStubs.setup_tmdb_client()
   end
 
+  # The flat snapshot columns were dropped by `DropWatchlistFlatColumns`;
+  # this migration still has to work on an install that skipped straight
+  # past that release. Re-create them for the test (SQLite DDL is
+  # transactional, so the sandbox rolls them back).
+  defp restore_flat_columns do
+    for {column, type} <- [
+          name: "TEXT",
+          year: "TEXT",
+          release_date: "DATE",
+          poster_path: "TEXT",
+          overview: "TEXT"
+        ] do
+      Repo.query!("ALTER TABLE watchlist_items ADD COLUMN #{column} #{type}")
+    end
+
+    :ok
+  end
+
   # A pre-embed row: the flat snapshot columns filled, `title` NULL.
-  # New rows only write `name`, so the other flat columns are set by hand.
   defp insert_legacy_row do
+    restore_flat_columns()
+
     {:ok, item} =
       Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
 
     Repo.query!(
-      "UPDATE watchlist_items SET title = NULL, year = '2010', release_date = '2010-03-05', " <>
-        "poster_path = '/p.jpg', overview = 'A sample overview.' WHERE tmdb_id = 777"
+      "UPDATE watchlist_items SET title = NULL, name = 'Sample Movie', year = '2010', " <>
+        "release_date = '2010-03-05', poster_path = '/p.jpg', overview = 'A sample overview.' " <>
+        "WHERE tmdb_id = 777"
     )
 
     await_supervised_tasks()
@@ -64,15 +84,26 @@ defmodule MediaCentaur.Repo.DataMigrations.BackfillWatchlistTitleEmbedTest do
   end
 
   describe "flat_columns_present?/1" do
-    test "is true while the flat snapshot columns exist" do
+    test "is false on the current schema and true while the flat snapshot columns exist" do
+      refute BackfillWatchlistTitleEmbed.flat_columns_present?(Repo)
+      restore_flat_columns()
       assert BackfillWatchlistTitleEmbed.flat_columns_present?(Repo)
+    end
+
+    test "backfill is a no-op once the flat columns are gone" do
+      {:ok, item} =
+        Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 778, media_type: :movie, name: "Sample Movie"}))
+
+      assert :ok = BackfillWatchlistTitleEmbed.backfill(Repo)
+      assert %WatchlistItem{title: %Title{name: "Sample Movie"}} = Repo.get!(WatchlistItem, item.id)
+      await_supervised_tasks()
     end
   end
 
   describe "column_present?/3" do
     test "reads the table's columns from PRAGMA table_info" do
-      assert BackfillWatchlistTitleEmbed.column_present?(Repo, "watchlist_items", "year")
-      refute BackfillWatchlistTitleEmbed.column_present?(Repo, "watchlist_items", "no_such_column")
+      assert BackfillWatchlistTitleEmbed.column_present?(Repo, "watchlist_items", "tmdb_id")
+      refute BackfillWatchlistTitleEmbed.column_present?(Repo, "watchlist_items", "year")
     end
   end
 end

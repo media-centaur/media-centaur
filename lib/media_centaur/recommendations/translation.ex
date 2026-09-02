@@ -1,10 +1,12 @@
 defmodule MediaCentaur.Recommendations.Translation do
   @moduledoc """
   The anti-corruption layer between Nostr events and recommendation
-  records. Kind 32160 (addressable): `d` = `tmdb:<media_type>:<tmdb_id>`;
-  content = JSON `{"title": <TMDB.Title fields>, "note": string|null}`.
-  An optional `p` (recipient) tag is defined by the spec for directed
-  recommendations and is never set here.
+  records — the app's side of `docs/social-protocol.md`. Kind 32160
+  (addressable): `d` = `tmdb:<media_type>:<tmdb_id>`; content = JSON
+  `{"v": 1, "title": <TMDB.Title fields>, "note": string|null}`. An
+  optional `p` (recipient) tag is defined by the spec for directed
+  recommendations and is never set here. Kind 5 (NIP-09) withdraws one:
+  a single `a` tag naming the signer's own recommendation address.
 
   Both directions are pure and know nothing about relays or storage:
   `to_event/3` builds the unsigned event a caller signs, `from_event/1`
@@ -21,6 +23,8 @@ defmodule MediaCentaur.Recommendations.Translation do
   alias MediaCentaur.TMDB.Title
 
   @kind 32_160
+  @deletion_kind 5
+  @content_version 1
   @max_note 500
   @max_name 300
   @max_overview 2000
@@ -32,6 +36,14 @@ defmodule MediaCentaur.Recommendations.Translation do
   @doc "The event kind recommendations use."
   @spec kind() :: non_neg_integer()
   def kind, do: @kind
+
+  @doc "The event kind a deletion uses (NIP-09)."
+  @spec deletion_kind() :: non_neg_integer()
+  def deletion_kind, do: @deletion_kind
+
+  @doc "The address coordinate a deletion names: `32160:<pubkey>:tmdb:<type>:<id>`."
+  @spec coordinate(String.t(), Title.media_type(), pos_integer()) :: String.t()
+  def coordinate(pubkey, media_type, tmdb_id), do: "#{@kind}:#{pubkey}:tmdb:#{media_type}:#{tmdb_id}"
 
   @doc "The address tag value for a title."
   @spec address(Title.t()) :: String.t()
@@ -45,9 +57,77 @@ defmodule MediaCentaur.Recommendations.Translation do
       created_at: System.os_time(:second),
       kind: @kind,
       tags: [["d", address(title)]],
-      content: Jason.encode!(%{"title" => title_map(title), "note" => blank_to_nil(note)})
+      content:
+        Jason.encode!(%{
+          "v" => @content_version,
+          "title" => title_map(title),
+          "note" => blank_to_nil(note)
+        })
     })
   end
+
+  @doc """
+  An unsigned deletion (kind 5) from `pubkey` withdrawing its own
+  recommendation at the address — the `a` tag — with the withdrawn
+  event's id as an `e` tag.
+  """
+  @spec to_deletion(String.t(), Title.media_type(), pos_integer(), String.t()) :: Event.t()
+  def to_deletion(pubkey, media_type, tmdb_id, event_id) do
+    Event.new(%{
+      pubkey: pubkey,
+      created_at: System.os_time(:second),
+      kind: @deletion_kind,
+      tags: [["a", coordinate(pubkey, media_type, tmdb_id)], ["e", event_id]],
+      content: ""
+    })
+  end
+
+  @type deletion_attrs :: %{
+          author_pubkey: String.t(),
+          tmdb_id: pos_integer(),
+          media_type: Title.media_type(),
+          deleted_at: DateTime.t(),
+          deletion_event: map()
+        }
+
+  @doc """
+  Tombstone attrs from a *verified* deletion event. Exactly one `a` tag,
+  kind 32160, whose pubkey is the signer's own; anything else is
+  `:not_author` or `:bad_address`.
+  """
+  @spec from_deletion(Event.t()) ::
+          {:ok, deletion_attrs()} | {:error, :wrong_kind | :bad_address | :not_author | :bad_content}
+  def from_deletion(%Event{kind: @deletion_kind} = event) do
+    with {:ok, {author, media_type, tmdb_id}} <- parse_coordinate(Event.tag_value(event, "a")),
+         :ok <- author_matches(author, event.pubkey),
+         {:ok, deleted_at} <- parse_created_at(event.created_at) do
+      {:ok,
+       %{
+         author_pubkey: author,
+         tmdb_id: tmdb_id,
+         media_type: media_type,
+         deleted_at: deleted_at,
+         deletion_event: Event.to_map(event)
+       }}
+    end
+  end
+
+  def from_deletion(%Event{}), do: {:error, :wrong_kind}
+
+  defp parse_coordinate(coordinate) when is_binary(coordinate) do
+    with [kind, pubkey, address] <- String.split(coordinate, ":", parts: 3),
+         true <- kind == Integer.to_string(@kind),
+         {:ok, {media_type, tmdb_id}} <- parse_address(address) do
+      {:ok, {pubkey, media_type, tmdb_id}}
+    else
+      _other -> {:error, :bad_address}
+    end
+  end
+
+  defp parse_coordinate(_absent), do: {:error, :bad_address}
+
+  defp author_matches(author, author), do: :ok
+  defp author_matches(_author, _signer), do: {:error, :not_author}
 
   @type attrs :: %{
           event_id: String.t(),
@@ -62,10 +142,13 @@ defmodule MediaCentaur.Recommendations.Translation do
 
   @doc "Record attrs from a *verified* event; shape and address checks only."
   @spec from_event(Event.t()) ::
-          {:ok, attrs()} | {:error, :wrong_kind | :bad_address | :bad_content | :identity_mismatch}
+          {:ok, attrs()}
+          | {:error,
+             :wrong_kind | :bad_address | :bad_content | :identity_mismatch | :unsupported_version}
   def from_event(%Event{kind: @kind} = event) do
     with {:ok, {media_type, tmdb_id}} <- parse_address(Event.tag_value(event, "d")),
          {:ok, %{"title" => title_attrs} = content} <- decode_content(event.content),
+         :ok <- check_version(content),
          :ok <- check_length(content["note"], @max_note),
          :ok <- check_length(title_attrs["name"], @max_name),
          :ok <- check_length(title_attrs["overview"], @max_overview),
@@ -107,6 +190,13 @@ defmodule MediaCentaur.Recommendations.Translation do
       {:error, _reason} -> {:error, :bad_content}
     end
   end
+
+  # Absent means 1 (events written before the field existed). Fields
+  # can be added without a bump; a bump marks a change of meaning, and a
+  # reader that does not know the version drops the event.
+  defp check_version(%{"v" => version}) when version in [@content_version], do: :ok
+  defp check_version(%{"v" => _unknown}), do: {:error, :unsupported_version}
+  defp check_version(_content), do: :ok
 
   defp decode_content(content) do
     case Jason.decode(content) do
