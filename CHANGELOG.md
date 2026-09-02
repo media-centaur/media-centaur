@@ -4,6 +4,28 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.6.0 — 2026-09-02
+
+### New
+
+- **Recommend titles to your friends, and read what they recommend to you.** The new Discovery page has three tabs: **Feed**, **Watchlist** and **Social**. On Social you hold your own identity (a key the app generates for you, with export and import), the relays you connect to, and the friends whose recommendations you read. Recommendations travel over Nostr relays you choose — no account, and no server we run. Send one from any movie or series page, or from a watchlist row, with an optional note; anything a friend sends shows up in your Feed, where you can add it to your watchlist. Early preview, behind the **Discovery** preference in Settings.
+- **Run a private relay for your friend group.** The companion project [social-relay](https://github.com/media-centaur/social-relay) is one small container with a list of members' keys; only those keys can read or write. The wiki pages *Social* and *Hosting a private relay* walk through both sides.
+- **A Social tile on the Status page** shows how many relays are connected, the last thing one complained about, and how many recommendations you have sent and received.
+
+### Improved
+
+- **The Watchlist is now a tab of Discovery** (`/discovery/watchlist`). Your saved titles carry over, and the **Discovery** preference replaces the old Watchlist one, keeping your setting.
+
+### Fixed
+
+- **The Incoming page's *Tracked* marker could land on the wrong search result** when a movie and a series shared the same TMDB number. Results are now matched on both the number and the type.
+
+### Migration safety
+
+- Watchlist entries now store their title as one value; existing entries are converted automatically, and the old columns are dropped in the next release.
+- New `relays`, `friends` and `recommendations` tables are created empty. The `show_watchlist` preference row is renamed to `show_discovery`.
+- The new dependencies are pure Elixir: nothing extra to install, and no change to the install footprint.
+
 ## v1.5.0 — 2026-09-01
 
 ### New
