@@ -13,7 +13,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   The watchlist — title-level intent, triaged. Rows come from
   `Discovery.list_watchlist/0` (library presence derived live); the
   primary action per row is the honest one for its state (see
-  `WatchlistRow`). Refreshes on `discovery:updates` and
+  `WatchlistRow`). A row added from the feed carries a bare
+  `recommendation_id`, and this page turns it into `from <nickname>`
+  (`Recommendations.get_many/1` → `Friends.list_friends/0`) — the join
+  neither context may make. Refreshes on `discovery:updates` and
   `library:updates` — a completed download flips a row to In library
   without a reload.
 
@@ -238,13 +241,43 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   def handle_info(_message, socket), do: {:noreply, socket}
 
+  # The watchlist row's decoration: Discovery owns the item and library
+  # presence; the poster and the provenance nickname are joined here,
+  # because Discovery stores only the bare `recommendation_id` and knows
+  # nothing about Recommendations or Friends.
   defp load_items(socket) do
+    rows = Discovery.list_watchlist()
+    nicknames = from_nicknames(rows)
+
     items =
-      Enum.map(Discovery.list_watchlist(), fn %{item: item} = row ->
-        Map.put(row, :poster_url, title_poster_url(item.title))
+      Enum.map(rows, fn %{item: item} = row ->
+        Map.merge(row, %{
+          poster_url: title_poster_url(item.title),
+          from_nickname: Map.get(nicknames, item.recommendation_id)
+        })
       end)
 
     assign(socket, :items, items)
+  end
+
+  # `%{recommendation_id => nickname}` for the friend-sourced rows, in one
+  # recommendations query and one roster read. A recommendation or a
+  # friend that is gone simply has no entry, so the row shows no marker.
+  defp from_nicknames(rows) do
+    ids = rows |> Enum.map(& &1.item.recommendation_id) |> Enum.reject(&is_nil/1)
+
+    case Recommendations.get_many(ids) do
+      recommendations when map_size(recommendations) == 0 ->
+        %{}
+
+      recommendations ->
+        friends = Map.new(Friends.list_friends(), &{&1.pubkey, &1.nickname})
+
+        for {id, rec} <- recommendations,
+            nickname = Map.get(friends, rec.author_pubkey),
+            into: %{},
+            do: {id, nickname}
+    end
   end
 
   # The feed row's decoration: Recommendations owns the record and the
@@ -276,7 +309,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   defp add_recommended_to_watchlist(socket, rec) do
-    case Discovery.add_to_watchlist(rec.title, %{note: rec.note}) do
+    attrs = %{source: :friend, recommendation_id: rec.id, note: rec.note}
+
+    case Discovery.add_to_watchlist(rec.title, attrs) do
       {:ok, _item} ->
         {:noreply, load_feed(socket)}
 
@@ -370,6 +405,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               item={row.item}
               library_owner_id={row.library_owner_id}
               poster_url={row.poster_url}
+              from_nickname={row.from_nickname}
               release_mode_available={@prowlarr_ready}
             />
           </div>

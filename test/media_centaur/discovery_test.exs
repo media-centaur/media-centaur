@@ -20,6 +20,14 @@ defmodule MediaCentaur.DiscoveryTest do
       assert %Title{name: "Sample Movie"} = Ecto.Changeset.get_embed(changeset, :title, :struct)
     end
 
+    test "a friend-sourced item carries its recommendation id; the pairing is enforced" do
+      title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      id = Ecto.UUID.generate()
+      assert WatchlistItem.create_changeset(title, %{source: :friend, recommendation_id: id}).valid?
+      refute WatchlistItem.create_changeset(title, %{source: :friend}).valid?
+      refute WatchlistItem.create_changeset(title, %{source: :manual, recommendation_id: id}).valid?
+    end
+
     test "rejects an unknown source" do
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
       changeset = WatchlistItem.create_changeset(title, %{source: :carrier_pigeon})

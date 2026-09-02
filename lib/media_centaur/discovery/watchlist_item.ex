@@ -10,8 +10,13 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
   `Library.ExternalIds` (one source of truth, cannot go stale).
 
   `source` is the provenance seam every future candidate source extends
-  (`:friend`, `:import`, …); directed recommendations later add nullable
-  sender/recipient columns — no dead columns until then.
+  (`:import`, …); directed recommendations later add nullable
+  sender/recipient columns — no dead columns until then. A `:friend`
+  item names the recommendation it came from in `recommendation_id` — a
+  bare uuid, because Discovery and Recommendations are independent
+  contexts; the web layer resolves the nickname from the
+  recommendation's author. A `:manual` item carries none, and the
+  pairing is validated both ways.
 
   The flat `name` column is transitional: NOT NULL until the
   drop-flat-columns migration lands in a later release, so it is still
@@ -29,8 +34,9 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
           media_type: Title.media_type(),
           name: String.t(),
           title: Title.t(),
-          source: :manual,
-          note: String.t() | nil
+          source: :manual | :friend,
+          note: String.t() | nil,
+          recommendation_id: Ecto.UUID.t() | nil
         }
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
@@ -41,22 +47,39 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
     field :media_type, Ecto.Enum, values: [:movie, :tv_series]
     field :name, :string
     embeds_one :title, Title
-    field :source, Ecto.Enum, values: [:manual], default: :manual
+    field :source, Ecto.Enum, values: [:manual, :friend], default: :manual
     field :note, :string
+    field :recommendation_id, Ecto.UUID
 
     timestamps()
   end
 
-  @doc "A new row for `title`; `attrs` may carry `:source` and `:note`."
+  @doc "A new row for `title`; `attrs` may carry `:source`, `:note` and `:recommendation_id`."
   @spec create_changeset(Title.t(), map()) :: Ecto.Changeset.t()
   def create_changeset(%Title{} = title, attrs \\ %{}) do
     %__MODULE__{}
-    |> cast(attrs, [:source, :note])
+    |> cast(attrs, [:source, :note, :recommendation_id])
     |> put_embed(:title, title)
     |> put_change(:tmdb_id, title.tmdb_id)
     |> put_change(:media_type, title.media_type)
     |> put_change(:name, title.name)
     |> validate_required([:tmdb_id, :media_type, :name])
+    |> validate_provenance()
     |> unique_constraint([:tmdb_id, :media_type])
+  end
+
+  # Provenance pairing: a friend-sourced item names its recommendation; a
+  # manual one carries none.
+  defp validate_provenance(changeset) do
+    case {get_field(changeset, :source), get_field(changeset, :recommendation_id)} do
+      {:friend, nil} ->
+        add_error(changeset, :recommendation_id, "is required for a friend-sourced item")
+
+      {:manual, id} when not is_nil(id) ->
+        add_error(changeset, :recommendation_id, "only a friend-sourced item carries one")
+
+      _ok ->
+        changeset
+    end
   end
 end

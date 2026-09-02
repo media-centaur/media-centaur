@@ -128,6 +128,25 @@ defmodule MediaCentaurWeb.Storybook.Discovery.WatchlistRow do
           release_mode_available: true,
           today: ~D[2026-08-18]
         }
+      },
+      %Variation{
+        id: :from_friend,
+        description:
+          "Added from the feed: `from <nickname>` sits quietly after the " <>
+            "type/year, and the friend's note keeps the secondary line. The " <>
+            "host resolves the nickname; a row whose recommendation or friend " <>
+            "is gone passes `from_nickname: nil` and looks like any other.",
+        attributes: %{
+          item:
+            item(%{
+              source: :friend,
+              recommendation_id: "0d2c5cd6-0000-4000-8000-000000000002",
+              note: "Watch it before anyone spoils the ending."
+            }),
+          from_nickname: "Sample Friend",
+          release_mode_available: true,
+          today: ~D[2026-08-18]
+        }
       }
     ]
   end
