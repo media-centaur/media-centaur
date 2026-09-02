@@ -38,6 +38,11 @@
 
 ---
 
+### Task 0: Preliminary (deferred review findings)
+
+- `lib/media_centaur_web/live/discovery_live.ex`: `handle_info({:identity_changed, _}, socket)` resets `nsec_revealed` and `import_armed?` but not `import_draft`; a pasted secret stays in the textarea of a tab whose identity was replaced elsewhere. Clear `import_draft: ""` there too; extend the two-tab identity test to assert the draft is gone in the other tab.
+- Commit `fix(discovery): identity replacement clears the import draft in every tab`.
+
 ### Task 1: Watchlist provenance
 
 - [ ] **Step 1: Failing tests**
