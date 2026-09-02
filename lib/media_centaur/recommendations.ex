@@ -78,25 +78,33 @@ defmodule MediaCentaur.Recommendations do
     end
   end
 
-  @doc "Received recommendations, newest first, with the friend's nickname."
+  @doc """
+  Received recommendations, newest first, with the friend's nickname.
+  Before an identity exists nothing stored can be ours, so every row is
+  a received one.
+  """
   @spec list_feed() :: [feed_row()]
   def list_feed do
-    me = Identity.pubkey()
     friends = Map.new(Friends.list_friends(), &{&1.pubkey, &1.nickname})
 
-    from(r in Recommendation, where: r.author_pubkey != ^me, order_by: [desc: r.recommended_at])
+    Identity.pubkey()
+    |> feed_query()
     |> Repo.all()
     |> Enum.map(&%{recommendation: &1, nickname: Map.get(friends, &1.author_pubkey, "a former friend")})
   end
 
-  @doc "Recommendations this install sent, newest first."
+  @doc "Recommendations this install sent, newest first — none before an identity exists."
   @spec list_sent() :: [Recommendation.t()]
   def list_sent do
-    me = Identity.pubkey()
+    case Identity.pubkey() do
+      nil ->
+        []
 
-    Repo.all(
-      from(r in Recommendation, where: r.author_pubkey == ^me, order_by: [desc: r.recommended_at])
-    )
+      me ->
+        Repo.all(
+          from(r in Recommendation, where: r.author_pubkey == ^me, order_by: [desc: r.recommended_at])
+        )
+    end
   end
 
   @doc "This identity's signed events, for republishing to relays that lack them."
@@ -115,6 +123,11 @@ defmodule MediaCentaur.Recommendations do
   def get(id), do: Repo.get(Recommendation, id)
 
   # --- internals ---
+
+  defp feed_query(nil), do: from(r in Recommendation, order_by: [desc: r.recommended_at])
+
+  defp feed_query(me),
+    do: from(r in Recommendation, where: r.author_pubkey != ^me, order_by: [desc: r.recommended_at])
 
   defp known_author(pubkey) do
     if pubkey == Identity.pubkey() or Friends.friend_by_pubkey(pubkey),
