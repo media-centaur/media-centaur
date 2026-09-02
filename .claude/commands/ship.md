@@ -26,7 +26,7 @@ You are shipping Media Centaur. All release mechanics are deterministic and live
 4. **Write the notes** to the `NOTES_FILE` path from step 2 — body only, no version header (the script adds `## v<version> — <date>`). This is the one creative step; voice rules below. Do not ask for approval — best-effort and proceed.
 5. **When the gate passes**: `scripts/ship release <level> --notes <NOTES_FILE>`. This inserts the changelog entry, commits, bumps `mix.exs`, commits, pushes `main`, tags from `mix.exs`, pushes the tag.
 6. **`scripts/ship verify`** — polls the GitHub release until both platform tarballs + SHA256SUMS are present (fails fast if the workflow run failed). Report the result.
-7. **Wiki sync** — if the release contains user-visible changes not yet reflected in `../media-centaur.wiki/`, update the relevant pages and push the wiki too.
+7. **Wiki sync** — run `scripts/sync-wiki-docs` (copies the pages whose canonical source lives in this repo, e.g. `docs/social-protocol.md` → *Social Protocol*), then, if the release contains user-visible changes not yet reflected in `../media-centaur.wiki/`, update the relevant pages; commit and push the wiki.
 
 ### If `scripts/ship check` fails
 

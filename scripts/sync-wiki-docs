@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Copy the docs that have one canonical source in this repo into the wiki
+# checkout next door. Run before pushing the wiki; the ship flow calls it.
+#
+#   scripts/sync-wiki-docs            copy every mapped page
+#
+# Mapping: one line per page, "<repo path> <wiki page>". The wiki copy
+# carries a header naming its source so nobody edits the generated page.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+wiki="../media-centaur.wiki"
+[ -d "$wiki/.git" ] || { echo "no wiki checkout at $wiki" >&2; exit 2; }
+
+pages='
+docs/social-protocol.md Social-Protocol.md
+'
+
+echo "$pages" | while read -r source page; do
+  [ -n "$source" ] || continue
+  {
+    printf '<!-- Generated from %s in the media-centaur repository. Edit that file, not this page. -->\n\n' "$source"
+    cat "$source"
+  } > "$wiki/$page"
+  echo "$page <- $source"
+done

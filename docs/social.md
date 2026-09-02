@@ -96,6 +96,11 @@ current state, which is what the health probe measures against.
 
 ## Event shape
 
+The wire contract — every kind, its tags and content fields, deletion, sync
+and what a relay must do — is [`docs/social-protocol.md`](social-protocol.md)
+(the wiki's *Social Protocol* page is generated from it). This section is the
+implementation view.
+
 `Recommendations.Translation` is the anti-corruption layer, and it is pure in
 both directions.
 
