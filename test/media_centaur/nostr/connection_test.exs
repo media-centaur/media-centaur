@@ -1,6 +1,8 @@
 defmodule MediaCentaur.Nostr.ConnectionTest do
   use ExUnit.Case, async: true
 
+  @moduletag :capture_log
+
   alias MediaCentaur.Nostr.Connection
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
@@ -139,5 +141,54 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
     refute_receive {:nostr, ^url, {:event, "s", _event}}, 300
     assert Process.alive?(conn)
     assert Connection.status(conn) == :connected
+  end
+
+  test "hostile frames with the wrong types are ignored, not crashed on" do
+    relay = FakeRelay.start()
+    conn = start_connection(relay)
+    url = relay.url
+    assert_receive {:nostr, ^url, :connected}, 2_000
+
+    for frame <- [
+          ["EVENT", %{}, %{}],
+          ["EOSE", 7],
+          ["CLOSED", 1, 2],
+          ["OK", 1, "yes", 3],
+          ["NOTICE", %{}],
+          ["AUTH", 5]
+        ] do
+      FakeRelay.push(relay, frame)
+    end
+
+    # A well-formed exchange after them proves the process kept serving.
+    :ok = Connection.subscribe(conn, "s", [Filter.new(kinds: [1])])
+    assert_receive {:nostr, ^url, {:eose, "s"}}, 2_000
+    assert Process.alive?(conn)
+    assert Connection.status(conn) == :connected
+  end
+
+  test "a CLOSED frame is reported as {:closed, sub_id, reason}" do
+    relay = FakeRelay.start()
+    conn = start_connection(relay)
+    url = relay.url
+    assert_receive {:nostr, ^url, :connected}, 2_000
+
+    FakeRelay.push(relay, ["CLOSED", "s", "auth-required: not authenticated"])
+    assert_receive {:nostr, ^url, {:closed, "s", "auth-required: not authenticated"}}, 2_000
+    assert Connection.status(conn) == :connected
+  end
+
+  test "a publish while disconnected is dropped, not queued" do
+    relay = FakeRelay.start()
+    conn = start_connection(relay, backoff_ms: 5_000)
+    url = relay.url
+    assert_receive {:nostr, ^url, :connected}, 2_000
+
+    FakeRelay.drop(relay)
+    assert_receive {:nostr, ^url, {:disconnected, _reason}}, 2_000
+
+    assert :ok = Connection.publish(conn, signed("dropped"))
+    refute_receive {:relay_in, ["EVENT", _map]}, 300
+    assert Process.alive?(conn)
   end
 end

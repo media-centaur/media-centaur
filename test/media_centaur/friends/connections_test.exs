@@ -1,6 +1,10 @@
 defmodule MediaCentaur.Friends.ConnectionsTest do
   use MediaCentaur.DataCase, async: false
 
+  import ExUnit.CaptureLog
+
+  @moduletag :capture_log
+
   alias MediaCentaur.Friends
   alias MediaCentaur.Friends.Connections
   alias MediaCentaur.Friends.Identity
@@ -68,14 +72,49 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
     assert Connections.status() == %{}
   end
 
-  test "a relay that rejects publishes surfaces the reason as last_error" do
+  test "a relay that rejects publishes surfaces the reason as last_error and logs it" do
     relay = FakeRelay.start(accept: false, reason: "blocked: not on the allowlist")
+
+    log =
+      capture_log(fn ->
+        {:ok, _row} = Friends.add_relay(relay.url)
+        assert_receive {:relay_connection, url, :connected}, 3_000
+
+        Connections.publish(signed("x"))
+
+        assert_receive {:relay_connection, ^url, {:ok, _id, false, "blocked: not on the allowlist"}},
+                       3_000
+
+        assert %{^url => %{last_error: "blocked: not on the allowlist"}} = Connections.status()
+      end)
+
+    assert log =~ "rejected a recommendation"
+    assert log =~ "blocked: not on the allowlist"
+  end
+
+  test "a successful auth leaves no error behind" do
+    relay = FakeRelay.start(auth: true)
+    {:ok, _row} = Friends.add_relay(relay.url)
+
+    assert_receive {:relay_connection, url, {:auth, :ok}}, 3_000
+    Connections.Owner.__sync_for_test__()
+    assert %{^url => %{state: :connected, last_error: nil}} = Connections.status()
+  end
+
+  test "a NOTICE is not an error; a CLOSED is" do
+    relay = FakeRelay.start()
     {:ok, _row} = Friends.add_relay(relay.url)
     assert_receive {:relay_connection, url, :connected}, 3_000
 
-    Connections.publish(signed("x"))
-    assert_receive {:relay_connection, ^url, {:ok, _id, false, "blocked: not on the allowlist"}}, 3_000
-    assert %{^url => %{last_error: "blocked: not on the allowlist"}} = Connections.status()
+    FakeRelay.push(relay, ["NOTICE", "restarting for maintenance"])
+    assert_receive {:relay_connection, ^url, {:notice, "restarting for maintenance"}}, 3_000
+    Connections.Owner.__sync_for_test__()
+    assert %{^url => %{state: :connected, last_error: nil}} = Connections.status()
+
+    FakeRelay.push(relay, ["CLOSED", "feed", "auth-required: not authenticated"])
+    assert_receive {:relay_connection, ^url, {:closed, "feed", _reason}}, 3_000
+    Connections.Owner.__sync_for_test__()
+    assert %{^url => %{last_error: "auth-required: not authenticated"}} = Connections.status()
   end
 
   test "publish/2 and subscribe/3 address one relay" do

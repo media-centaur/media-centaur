@@ -31,6 +31,17 @@ defmodule MediaCentaur.Friends.RelayTest do
     end
   end
 
+  describe "normalize/1" do
+    test "lowercases the scheme and the host" do
+      assert Relay.normalize("WSS://Relay.Example") == "wss://relay.example/"
+      assert Relay.normalize("  WS://LOCALHOST:7777/Inbox  ") == "ws://localhost:7777/Inbox"
+    end
+
+    test "returns the input trimmed when it does not parse as a relay URL" do
+      assert Relay.normalize("  relay.example  ") == "relay.example"
+    end
+  end
+
   describe "remove_relay/1" do
     test "removes by URL and broadcasts; absent is a no-op" do
       {:ok, _relay} = Friends.add_relay("wss://relay.example")

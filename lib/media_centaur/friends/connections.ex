@@ -74,13 +74,18 @@ defmodule MediaCentaur.Friends.Connections do
   def apply_message(entry, {:disconnected, reason}),
     do: %{entry | state: :disconnected, last_error: format_reason(reason)}
 
-  def apply_message(entry, {:auth, :ok}), do: %{entry | state: :connected}
+  def apply_message(entry, {:auth, :ok}), do: %{entry | state: :connected, last_error: nil}
 
   def apply_message(entry, {:auth, {:failed, reason}}),
     do: %{entry | state: :auth_failed, last_error: format_reason(reason)}
 
   def apply_message(entry, {:ok, _id, false, reason}), do: %{entry | last_error: format_reason(reason)}
-  def apply_message(entry, {:notice, text}), do: %{entry | last_error: text}
+
+  def apply_message(entry, {:closed, _sub_id, reason}), do: %{entry | last_error: format_reason(reason)}
+
+  # A `NOTICE` is a relay talking about itself ("restarting for maintenance"),
+  # not a verdict on anything we asked for, so it never becomes `last_error`.
+  def apply_message(entry, {:notice, _text}), do: entry
   def apply_message(entry, _other), do: entry
 
   defp format_reason(reason) when is_binary(reason), do: reason

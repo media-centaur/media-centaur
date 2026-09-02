@@ -107,6 +107,7 @@ defmodule MediaCentaur.Friends.Connections.Owner do
   def handle_info({:identity_changed, _event}, state), do: {:noreply, state |> stop_all() |> reconcile()}
 
   def handle_info({:nostr, url, message}, state) do
+    log_message(url, message)
     Events.broadcast_connection(url, message)
 
     status =
@@ -127,6 +128,13 @@ defmodule MediaCentaur.Friends.Connections.Owner do
     stop_all(state)
     :ok
   end
+
+  # A relay refusing what we published is the one connection message a user
+  # cannot see coming; the status entry keeps it, the log keeps the history.
+  defp log_message(url, {:ok, _id, false, reason}),
+    do: Log.warning(:friends, "#{url} rejected a recommendation: #{reason}")
+
+  defp log_message(_url, _message), do: :ok
 
   # --- reconcile ---------------------------------------------------------
 
@@ -184,7 +192,10 @@ defmodule MediaCentaur.Friends.Connections.Owner do
     end
   end
 
-  defp await_unregistered(_url, 0), do: :ok
+  defp await_unregistered(url, 0) do
+    Log.warning(:friends, "#{url} is still registered after being stopped; restarting it may collide")
+    :ok
+  end
 
   defp await_unregistered(url, tries) do
     case Registry.lookup(Connections.Registry, url) do

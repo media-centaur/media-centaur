@@ -9,14 +9,23 @@ defmodule MediaCentaur.Nostr.Connection do
 
     * `:connected` / `{:disconnected, reason}`
     * `{:event, sub_id, %Event{}}` — shape-checked and signature-verified
-    * `{:eose, sub_id}`, `{:notice, text}`
+    * `{:eose, sub_id}`
+    * `{:closed, sub_id, reason}` — the relay ended that subscription
+    * `{:notice, text}` — a relay's informational notice, not an error
     * `{:ok, event_id, accepted?, reason}` — the relay's verdict on a publish
     * `{:auth, :ok | {:failed, reason}}`
+
+  Every inbound frame is type-guarded before its parts are used: a relay
+  is untrusted input, and a frame that does not match falls to a debug
+  log rather than a crash.
 
   Subscriptions live in state and are re-issued after every reconnect
   and after a successful `AUTH` (an allowlist relay refuses `REQ`
   before it). Reconnect backoff doubles from `backoff_ms` (1 s) to
   `max_backoff_ms` (60 s) and resets on connect.
+
+  `publish/2`, `subscribe/3` and `unsubscribe/2` are casts, so a caller
+  is never blocked behind a connect attempt to an unreachable relay.
   """
 
   use GenServer
@@ -27,6 +36,10 @@ defmodule MediaCentaur.Nostr.Connection do
   alias MediaCentaur.Nostr.Filter
 
   @auth_kind 22_242
+
+  # Mint's own connect timeout defaults to 30 s; a relay that drops SYN
+  # would otherwise hold this process for that long.
+  @connect_timeout_ms 5_000
 
   @type status :: :connecting | :connected | :disconnected | :auth_failed
 
@@ -55,17 +68,22 @@ defmodule MediaCentaur.Nostr.Connection do
     GenServer.start_link(__MODULE__, opts, if(name, do: [name: name], else: []))
   end
 
-  @doc "Sends a signed event to the relay. The verdict arrives as `{:ok, id, accepted?, reason}`."
-  @spec publish(GenServer.server(), Event.t()) :: :ok | {:error, :not_connected}
-  def publish(server, %Event{} = event), do: GenServer.call(server, {:publish, event})
+  @doc """
+  Sends a signed event to the relay. The verdict arrives as `{:ok, id,
+  accepted?, reason}`; a publish issued while the socket is down is
+  dropped, so callers publish only to relays they have seen reach
+  `:connected` (`Connections.Owner` guards on exactly that).
+  """
+  @spec publish(GenServer.server(), Event.t()) :: :ok
+  def publish(server, %Event{} = event), do: GenServer.cast(server, {:publish, event})
 
   @doc "Opens (or replaces) subscription `sub_id`; re-issued on every reconnect."
   @spec subscribe(GenServer.server(), String.t(), [Filter.t()]) :: :ok
-  def subscribe(server, sub_id, filters), do: GenServer.call(server, {:subscribe, sub_id, filters})
+  def subscribe(server, sub_id, filters), do: GenServer.cast(server, {:subscribe, sub_id, filters})
 
   @doc "Closes subscription `sub_id` and forgets it."
   @spec unsubscribe(GenServer.server(), String.t()) :: :ok
-  def unsubscribe(server, sub_id), do: GenServer.call(server, {:unsubscribe, sub_id})
+  def unsubscribe(server, sub_id), do: GenServer.cast(server, {:unsubscribe, sub_id})
 
   @spec status(GenServer.server()) :: status()
   def status(server), do: GenServer.call(server, :status)
@@ -91,20 +109,20 @@ defmodule MediaCentaur.Nostr.Connection do
   @impl true
   def handle_call(:status, _from, state), do: {:reply, state.status, state}
 
-  def handle_call({:publish, _event}, _from, %{websocket: nil} = state),
-    do: {:reply, {:error, :not_connected}, state}
+  # `send_raw/2` drops the frame when there is no socket, so a publish while
+  # disconnected is a no-op rather than a queued write.
+  @impl true
+  def handle_cast({:publish, event}, state),
+    do: {:noreply, send_frame(state, ["EVENT", Event.to_map(event)])}
 
-  def handle_call({:publish, event}, _from, state),
-    do: {:reply, :ok, send_frame(state, ["EVENT", Event.to_map(event)])}
-
-  def handle_call({:subscribe, sub_id, filters}, _from, state) do
+  def handle_cast({:subscribe, sub_id, filters}, state) do
     state = %{state | subs: Map.put(state.subs, sub_id, filters)}
-    {:reply, :ok, if(state.websocket, do: send_req(state, sub_id, filters), else: state)}
+    {:noreply, if(state.websocket, do: send_req(state, sub_id, filters), else: state)}
   end
 
-  def handle_call({:unsubscribe, sub_id}, _from, state) do
+  def handle_cast({:unsubscribe, sub_id}, state) do
     state = %{state | subs: Map.delete(state.subs, sub_id)}
-    {:reply, :ok, if(state.websocket, do: send_frame(state, ["CLOSE", sub_id]), else: state)}
+    {:noreply, if(state.websocket, do: send_frame(state, ["CLOSE", sub_id]), else: state)}
   end
 
   @impl true
@@ -134,7 +152,9 @@ defmodule MediaCentaur.Nostr.Connection do
     {http_scheme, ws_scheme} = if uri.scheme == "wss", do: {:https, :wss}, else: {:http, :ws}
     path = (uri.path || "/") <> if(uri.query, do: "?" <> uri.query, else: "")
 
-    with {:ok, conn} <- Mint.HTTP.connect(http_scheme, uri.host, uri.port, protocols: [:http1]),
+    opts = [protocols: [:http1], transport_opts: [timeout: @connect_timeout_ms]]
+
+    with {:ok, conn} <- Mint.HTTP.connect(http_scheme, uri.host, uri.port, opts),
          {:ok, conn, ref} <- Mint.WebSocket.upgrade(ws_scheme, conn, path, []) do
       {:noreply, %{state | conn: conn, ref: ref, status: :connecting}}
     else
@@ -197,7 +217,8 @@ defmodule MediaCentaur.Nostr.Connection do
   defp handle_frame({:close, _code, _reason}, state), do: lost(state, :closed_by_relay)
   defp handle_frame(_other, state), do: state
 
-  defp handle_relay_message(["EVENT", sub_id, event_map], state) do
+  defp handle_relay_message(["EVENT", sub_id, event_map], state)
+       when is_binary(sub_id) and is_map(event_map) do
     with {:ok, event} <- Event.from_map(event_map),
          :ok <- Event.verify(event) do
       notify(state, {:event, sub_id, event})
@@ -208,22 +229,24 @@ defmodule MediaCentaur.Nostr.Connection do
     state
   end
 
-  defp handle_relay_message(["EOSE", sub_id], state) do
+  defp handle_relay_message(["EOSE", sub_id], state) when is_binary(sub_id) do
     notify(state, {:eose, sub_id})
     state
   end
 
-  defp handle_relay_message(["NOTICE", text], state) do
+  defp handle_relay_message(["NOTICE", text], state) when is_binary(text) do
     notify(state, {:notice, text})
     state
   end
 
-  defp handle_relay_message(["CLOSED", sub_id, reason], state) do
-    notify(state, {:notice, "#{sub_id}: #{reason}"})
+  defp handle_relay_message(["CLOSED", sub_id, reason], state)
+       when is_binary(sub_id) and is_binary(reason) do
+    notify(state, {:closed, sub_id, reason})
     state
   end
 
-  defp handle_relay_message(["OK", event_id, accepted?, reason], %{pending_auth: event_id} = state) do
+  defp handle_relay_message(["OK", event_id, accepted?, reason], %{pending_auth: event_id} = state)
+       when is_binary(event_id) and is_boolean(accepted?) and is_binary(reason) do
     if accepted? do
       Log.info(:nostr, "authenticated with #{state.url}")
       notify(state, {:auth, :ok})
@@ -235,7 +258,8 @@ defmodule MediaCentaur.Nostr.Connection do
     end
   end
 
-  defp handle_relay_message(["OK", event_id, accepted?, reason], state) do
+  defp handle_relay_message(["OK", event_id, accepted?, reason], state)
+       when is_binary(event_id) and is_boolean(accepted?) and is_binary(reason) do
     notify(state, {:ok, event_id, accepted?, reason})
     state
   end
@@ -254,7 +278,10 @@ defmodule MediaCentaur.Nostr.Connection do
     %{state | pending_auth: signed.id}
   end
 
-  defp handle_relay_message(_other, state), do: state
+  defp handle_relay_message(other, state) do
+    Log.debug(:nostr, "#{state.url}: unhandled frame #{inspect(other)}")
+    state
+  end
 
   # --- sending -----------------------------------------------------------
 
