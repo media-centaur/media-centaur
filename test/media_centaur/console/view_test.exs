@@ -26,6 +26,8 @@ defmodule MediaCentaur.Console.ViewTest do
       assert :tmdb in components
       assert :playback in components
       assert :library in components
+      assert :nostr in components
+      assert :friends in components
       assert :system in components
       assert :phoenix in components
       assert :ecto in components
@@ -53,6 +55,8 @@ defmodule MediaCentaur.Console.ViewTest do
                :playback,
                :library,
                :acquisition,
+               :nostr,
+               :friends,
                :system
              ]
     end
