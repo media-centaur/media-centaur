@@ -47,6 +47,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/console", "console"},
         {"/history", "watch history"},
         {"/discovery/watchlist", "discovery watchlist"},
+        {"/discovery/friends", "discovery friends"},
         {"/apps", "apps"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
