@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Library.Person
-  alias MediaCentaur.ReleaseTracking.TitleResult
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.TMDB.Mapper
   alias MediaCentaurWeb.IncomingLive.MoviePreview
@@ -336,13 +336,13 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   """
   @spec lockup(atom(), map()) ::
           %{title: String.t() | nil, logo_url: String.t() | nil, tagline: String.t() | nil} | nil
-  def lockup(:loading, %{identity: %TitleResult{} = identity}),
+  def lockup(:loading, %{identity: %Title{} = identity}),
     do: %{title: identity.name, logo_url: nil, tagline: nil}
 
   def lockup(:targeting, %{selection: %Targeting.Selection{} = selection}),
     do: %{title: selection.title, logo_url: tmdb_logo_url(selection.logo_path), tagline: nil}
 
-  def lockup(:targeting, %{identity: %TitleResult{} = identity}),
+  def lockup(:targeting, %{identity: %Title{} = identity}),
     do: %{title: identity.name, logo_url: nil, tagline: nil}
 
   def lockup(:movie_confirm, %{movie: %MoviePreview{} = movie}),
@@ -363,7 +363,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
     end
   end
 
-  defp identity_backdrop(%TitleResult{backdrop_path: path}), do: tmdb_backdrop_url(path)
+  defp identity_backdrop(%Title{backdrop_path: path}), do: tmdb_backdrop_url(path)
   defp identity_backdrop(_absent), do: nil
 
   defp selection_backdrop(%Targeting.Selection{backdrop_path: path}), do: tmdb_backdrop_url(path)

@@ -70,7 +70,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :identity, :any,
     default: nil,
     doc:
-      "%ReleaseTracking.TitleResult{} | nil — the picked search result, dressing the " <>
+      "%TMDB.Title{} | nil — the picked search result, dressing the " <>
         ":loading stage the instant the modal opens."
 
   attr :selection, :any,

@@ -30,13 +30,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [tmdb_cdn_url: 2]
 
-  alias MediaCentaur.ReleaseTracking.TitleResult
+  alias MediaCentaur.TMDB.Title
 
   attr :query, :string,
     required: true,
     doc: "The live query — the section renders only while `active_query?/1` holds."
 
-  attr :results, :list, required: true, doc: "`TitleResult.t()` rows, TMDB relevance order."
+  attr :results, :list, required: true, doc: "`Title.t()` rows, TMDB relevance order."
   attr :searching?, :boolean, required: true
 
   attr :release_mode_available, :boolean,
@@ -59,6 +59,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   attr :in_library_refs, :any,
     default: MapSet.new(),
     doc: "`{tmdb_id, media_type}` refs the library has a presentable container for."
+
+  attr :tracked_refs, :any,
+    default: MapSet.new(),
+    doc: "`{tmdb_id, media_type}` refs release tracking holds an open item for — the Tracked marker."
 
   def media_results(assigns) do
     today = assigns.today || Date.utc_today()
@@ -134,6 +138,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
           release_mode_available={@release_mode_available}
           watchlisted?={MapSet.member?(@watchlisted_refs, {result.tmdb_id, result.media_type})}
           in_library?={MapSet.member?(@in_library_refs, {result.tmdb_id, result.media_type})}
+          tracked?={MapSet.member?(@tracked_refs, {result.tmdb_id, result.media_type})}
         />
       </div>
     </section>
@@ -171,7 +176,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     """
   end
 
-  attr :result, TitleResult, required: true
+  attr :result, Title, required: true
 
   attr :status, :atom,
     required: true,
@@ -188,6 +193,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     required: true,
     doc: "Whether the library already presents this title — the quiet In library marker."
 
+  attr :tracked?, :boolean,
+    required: true,
+    doc:
+      "Whether release tracking already holds this title — the Tracked marker, and no verb when upcoming."
+
   # A wrapper div owns the row surface: the main pick button and the
   # bookmark toggle are siblings — nested interactive elements are
   # invalid HTML. The wrapper is a real 2-track grid carrying
@@ -197,7 +207,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   # two nav items.
   defp result_row(assigns) do
     assigns =
-      assign(assigns, :verb, verb(assigns.result, assigns.status, assigns.release_mode_available))
+      assign(assigns, :verb, verb(assigns.tracked?, assigns.status, assigns.release_mode_available))
 
     ~H"""
     <div
@@ -238,7 +248,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
             <span class="shrink-0 text-xs text-base-content/50">
               {if @result.media_type == :movie, do: "Movie", else: "TV"}<span :if={@result.year}> · {@result.year}</span>
             </span>
-            <span :if={@result.tracked?} class="shrink-0 text-xs text-success/70">Tracked</span>
+            <span :if={@tracked?} class="shrink-0 text-xs text-success/70">Tracked</span>
             <%!-- Quiet neutral, deliberately unlike Tracked's success tint —
                 in-library is metadata here, not a state this page owns. --%>
             <span :if={@in_library?} class="shrink-0 text-xs text-base-content/50">In library</span>
@@ -291,10 +301,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   # split. The verb names the goal, not the planning step it opens with.
   # An already-tracked upcoming row affords nothing further, so the verb
   # slot stays empty (the identity line carries the Tracked marker).
-  defp verb(%TitleResult{tracked?: true}, :upcoming, _release_mode_available), do: nil
-  defp verb(%TitleResult{}, :upcoming, _release_mode_available), do: "Track release"
-  defp verb(%TitleResult{}, :released, true), do: "Download"
-  defp verb(%TitleResult{}, :released, false), do: "Track"
+  defp verb(true, :upcoming, _release_mode_available), do: nil
+  defp verb(false, :upcoming, _release_mode_available), do: "Track release"
+  defp verb(_tracked?, :released, true), do: "Download"
+  defp verb(_tracked?, :released, false), do: "Track"
 
   @doc """
   Whether the typed query is active — two or more characters after
@@ -308,7 +318,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   A title's release status as of `today`. A passed date (including
   today) is `:released`; a future date is `:upcoming` — and so is a
   missing one, because TMDB leaves unreleased titles undated. Accepts
-  anything carrying `:release_date` (`TitleResult`, `WatchlistItem`).
+  anything carrying `:release_date` (`Title`, `WatchlistItem`).
   """
   @spec release_status(%{release_date: Date.t() | nil}, Date.t()) :: :released | :upcoming
   def release_status(%{release_date: nil}, _today), do: :upcoming
@@ -321,7 +331,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   Applies the upcoming/released scope to the result list, preserving
   TMDB relevance order. `:all` passes everything through untouched.
   """
-  @spec scope([TitleResult.t()], :all | :upcoming | :released, Date.t()) :: [TitleResult.t()]
+  @spec scope([Title.t()], :all | :upcoming | :released, Date.t()) :: [Title.t()]
   def scope(results, :all, _today), do: results
 
   def scope(results, scope, today) when scope in [:upcoming, :released] do

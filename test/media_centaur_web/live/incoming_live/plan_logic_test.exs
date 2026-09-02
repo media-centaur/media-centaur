@@ -305,14 +305,14 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
   end
 
   describe "shell_backdrop_url/2 — the plan modal's cinematic shell" do
-    alias MediaCentaur.ReleaseTracking.TitleResult
+    alias MediaCentaur.TMDB.Title
 
     defp sources(overrides) do
       Map.merge(%{identity: nil, selection: nil, movie: nil, artwork: nil}, overrides)
     end
 
     defp identity(backdrop_path) do
-      struct!(TitleResult, %{
+      Title.new!(%{
         tmdb_id: 246_810,
         media_type: :tv_series,
         name: "Sample Show",
@@ -384,14 +384,14 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
   end
 
   describe "lockup/2 — the pinned identity block per stage" do
-    alias MediaCentaur.ReleaseTracking.TitleResult, as: LockupTitleResult
+    alias MediaCentaur.TMDB.Title, as: LockupTitle
 
     defp lockup_sources(overrides) do
       Map.merge(%{identity: nil, selection: nil, movie: nil, board: nil}, overrides)
     end
 
     test "loading introduces the picked result by name — no logo yet" do
-      identity = struct!(LockupTitleResult, %{tmdb_id: 1, media_type: :tv_series, name: "Sample Show"})
+      identity = LockupTitle.new!(%{tmdb_id: 1, media_type: :tv_series, name: "Sample Show"})
 
       assert PlanLogic.lockup(:loading, lockup_sources(%{identity: identity})) ==
                %{title: "Sample Show", logo_url: nil, tagline: nil}

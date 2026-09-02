@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentaur.ReleaseTracking.TitleResult
+  alias MediaCentaur.TMDB.Title
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.MediaResults.media_results/1
   def render_source, do: :function
@@ -18,17 +18,16 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
 
   defp results do
     [
-      %TitleResult{
+      %Title{
         tmdb_id: 246_810,
         media_type: :tv_series,
         name: "Sample Show",
         year: "2010",
         release_date: ~D[2010-06-16],
         poster_path: "/sample-show-poster.jpg",
-        overview: "A sample overview line that helps confirm this is the show you meant.",
-        tracked?: true
+        overview: "A sample overview line that helps confirm this is the show you meant."
       },
-      %TitleResult{
+      %Title{
         tmdb_id: 777,
         media_type: :movie,
         name: "Sample Movie",
@@ -36,21 +35,20 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         release_date: ~D[2010-03-05],
         overview: "A sample movie overview."
       },
-      %TitleResult{
+      %Title{
         tmdb_id: 778,
         media_type: :movie,
         name: "Sample Movie Returns: An Extraordinarily Long Title That Truncates",
         year: "2999",
         release_date: ~D[2999-01-01]
       },
-      %TitleResult{
+      %Title{
         tmdb_id: 779,
         media_type: :tv_series,
         name: "Sample Upcoming Show",
         year: "2999",
         release_date: ~D[2999-03-01],
-        overview: "Already tracked and not yet out — the verb slot stays empty.",
-        tracked?: true
+        overview: "Already tracked and not yet out — the verb slot stays empty."
       }
     ]
   end
@@ -75,7 +73,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           scope: :all,
           today: ~D[2026-08-02],
           watchlisted_refs: MapSet.new([{777, :movie}]),
-          in_library_refs: MapSet.new([{246_810, :tv_series}])
+          in_library_refs: MapSet.new([{246_810, :tv_series}]),
+          tracked_refs: MapSet.new([{246_810, :tv_series}, {779, :tv_series}])
         }
       },
       %Variation{
@@ -89,7 +88,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           searching?: false,
           release_mode_available: true,
           scope: :upcoming,
-          today: ~D[2026-08-02]
+          today: ~D[2026-08-02],
+          tracked_refs: MapSet.new([{246_810, :tv_series}, {779, :tv_series}])
         }
       },
       %Variation{
