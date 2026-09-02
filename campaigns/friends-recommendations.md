@@ -27,7 +27,9 @@ Layers 1a (title convergence,
 `docs/superpowers/plans/2026-09-02-title-convergence.md`) and 1b (Discovery
 page at `/discovery/watchlist` with `tab_strip` and `show_discovery`,
 `docs/superpowers/plans/2026-09-02-discovery-page.md`) landed 2026-09-02 on
-main, unpushed; next: layer 2 (`MediaCentaur.Nostr`: keys, events, filters).
+main, unpushed. Layer 2 (`MediaCentaur.Nostr`: `Keys`, `Event`, `Filter`;
+`bitcoinex` dep) landed 2026-09-02; next: layer 3 (`Friends.Identity` +
+Friends tab identity block).
 
 ## Decisions made
 
@@ -100,6 +102,13 @@ main, unpushed; next: layer 2 (`MediaCentaur.Nostr`: keys, events, filters).
   thin in-house client over `mint_web_socket`; **no NIF** (`bitcoinex`
   pure-Elixir Schnorr: sign ≈3 ms, verify ≈1.3 ms measured).
 * `2026-09-02` — **Event kind 32160** (addressable, `d` = `tmdb:<type>:<id>`).
+* `2026-09-02` — **`decimal` overridden to `~> 3.0`.** `bitcoinex` 0.3.0 still
+  requires `decimal ~> 1.0 or ~> 2.0`, and every `decimal` below 3.0.0 carries
+  GHSA-rhv4-8758-jx7v, which `mix deps.audit` fails on. `bitcoinex` touches
+  `Decimal` only in `LightningNetwork.Invoice` (calls unchanged in 3.x) and we
+  never call it, so `mix.exs` carries `{:decimal, "~> 3.0", override: true}`
+  rather than a vulnerable pin. Revisit when `bitcoinex` widens its
+  requirement.
 * `2026-09-02` — **unify_design adjudication accepted** (≈ +1 session):
   `TMDB.Title` embedded schema replaces `TitleResult`; rows embed it;
   `tracked?` → ref-set attr; shared `title_summary`, poster helper and
@@ -157,6 +166,9 @@ main, unpushed; next: layer 2 (`MediaCentaur.Nostr`: keys, events, filters).
   columns: schema migrations run before data migrations, so a skipped-release
   upgrade reaches the drop before the backfill; and the old release can write
   flat-only rows between `migrate` and restart.
+* **Layer 4 gotchas recorded:** `Mint.WebSocket` API sketch and the fake-relay
+  approach (`WebSock` handler under Bandit `port: 0`) are in the Nostr research
+  notes (session 2026-09-02); `mint_web_socket` is not yet a dep.
 * **Hardening pass** after iteration settles (spec decision 11).
 * **`show_discovery` gates the sidebar entry only** (spec decision 7
   corrected 2026-09-02); decide the Recommend action's gating with layer 6.

@@ -99,6 +99,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.Guide` | Markdown guide book rendering | Static content; no DB tables. |
 | `MediaCentaur.Setup` | First-run tour state + probes | Reads Capabilities and IntegrationHealth. |
 | `MediaCentaur.Apps` | `apps` table, app launcher (Steam discovery, fire-and-forget spawn), `{data_dir}/images/apps/` art cache | Uniform App rows filled by add-time importers; artwork is disk-as-ledger, same idiom as TmdbArtwork. Nav entry gated by the `show_apps` preference. |
+| `MediaCentaur.Nostr` | Nostr protocol only: keys (`Keys`), NIP-01 events (`Event`), subscription filters (`Filter`) | Pure protocol library — no deps, no DB tables, no network, no domain meaning. Crypto via `bitcoinex` (pure Elixir, no NIF). |
 
 ## Data Flow
 
