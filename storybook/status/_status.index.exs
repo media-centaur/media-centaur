@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.Storybook.Status do
   def entry("pipeline_widget"), do: [icon: {:fa, "diagram-project", :thin}, name: "Pipeline widget"]
   def entry("tmdb_widget"), do: [icon: {:fa, "film", :thin}, name: "TMDB widget"]
   def entry("playback_widget"), do: [icon: {:fa, "play", :thin}, name: "Playback widget"]
+  def entry("friends_widget"), do: [icon: {:fa, "users", :thin}, name: "Friends widget"]
 
   def entry("self_update_widget"), do: [icon: {:fa, "arrow-down-to-line", :thin}, name: "Updates widget"]
 end

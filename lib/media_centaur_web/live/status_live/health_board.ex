@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     :playback,
     :library,
     :acquisition,
+    :friends,
     :self_update,
     :system
   ]
@@ -23,6 +24,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     playback: "Playback",
     library: "Library",
     acquisition: "Downloads",
+    friends: "Friends",
     self_update: "Updates",
     system: "System"
   }
@@ -34,6 +36,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     playback: "hero-play-circle",
     library: "hero-rectangle-stack",
     acquisition: "hero-arrow-down-tray",
+    friends: "hero-users",
     self_update: "hero-arrow-down-circle",
     system: "hero-cpu-chip"
   }
@@ -57,6 +60,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     acquisition:
       "Runs downloads through Prowlarr and your download client, " <>
         "then links finished files into the library.",
+    friends: "Connects to your relays to send and receive recommendations from friends.",
     self_update: "Checks for new releases and applies in-app updates.",
     system: "Runtime health, plus anything not owned by another subsystem."
   }

@@ -218,6 +218,12 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # unprimed, their test-mode fallbacks run the overview + storage +
       # badge queries inline in the mount process, which this counter
       # would misattribute to the navigation path.
+      #
+      # 2026-09-02: the Friends drill-in's widget added the relay rows, the
+      # roster (twice — once for the count, once inside the feed read) and
+      # the recommendations read to every mount, +8 measured in isolation
+      # (34 → 42). The band moves with it, so the ceiling moves 52 → 60 to
+      # keep the same headroom over the observed jitter.
       MediaCentaur.Status.Views.Overview.refresh_cache()
       MediaCentaur.Status.Views.Storage.refresh_cache()
       MediaCentaurWeb.ShellBadges.refresh_cache()
@@ -226,7 +232,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       mount_and_assert(
         conn,
         "/status",
-        52,
+        60,
         "Cross-context status surfaces (settings cache-miss DB fallback in test mode)"
       )
     end

@@ -375,6 +375,38 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     end
   end
 
+  describe "friends activity widget" do
+    @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+
+    test "the board carries a Friends tile", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, "/status")
+      assert html =~ "Friends"
+    end
+
+    test "the drill-in aggregates relays, roster and recommendations", %{conn: conn} do
+      {:ok, _relay} = MediaCentaur.Friends.add_relay("wss://relay-one.example")
+      {:ok, _relay} = MediaCentaur.Friends.add_relay("wss://relay-two.example")
+      {:ok, _friend} = MediaCentaur.Friends.add_friend(@friend_pubkey, "Sample Friend")
+
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=friends")
+
+      assert html =~ ~s(data-testid="friends-widget")
+      # No connections owner runs under :test, so nothing is connected.
+      assert html =~ "Connected to 0 of 2 relays"
+      assert html =~ "1 friends"
+      assert html =~ "0 sent"
+      assert html =~ "0 received"
+      assert html =~ "/discovery/friends"
+    end
+
+    test "with nothing configured the widget says so", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=friends")
+
+      assert html =~ "No relays configured"
+      assert html =~ "0 friends"
+    end
+  end
+
   defp put_config(key, value) do
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))

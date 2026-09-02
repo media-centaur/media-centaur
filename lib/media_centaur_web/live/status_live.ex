@@ -12,6 +12,9 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
 
+  alias MediaCentaur.Friends
+  alias MediaCentaur.Friends.Connections
+  alias MediaCentaur.Recommendations
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status}
   alias MediaCentaur.SelfUpdate.Changelog
@@ -44,6 +47,7 @@ defmodule MediaCentaurWeb.StatusLive do
       Acquisition.subscribe_queue()
       Capabilities.subscribe_changes()
       Status.Views.subscribe()
+      Friends.subscribe_connections()
 
       # Visiting /status marks auto-detected incidents as seen, clearing
       # the discovery badge on the Status nav item. The web layer owns
@@ -138,7 +142,43 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(overview: Status.Views.overview())
     |> assign_storage_snapshot(Status.Views.storage())
     |> assign_self_update()
+    |> assign_friends()
   end
+
+  # Snapshot of the friend network for the Friends Activity widget:
+  # aggregates only (the Friends tab owns the lists).
+  #
+  # Received is derived by subtracting our own rows from the feed rather
+  # than by asking which are ours: the ids are authoritative either way,
+  # and Recommendations owns the sent/received distinction.
+  defp assign_friends(socket) do
+    sent = Recommendations.list_sent()
+    sent_ids = MapSet.new(sent, & &1.id)
+
+    received =
+      Enum.reject(Recommendations.list_feed(), &MapSet.member?(sent_ids, &1.recommendation.id))
+
+    assign(socket,
+      relay_status: relay_status(),
+      friend_count: length(Friends.list_friends()),
+      sent_count: length(sent),
+      received_count: length(received),
+      last_received_at: last_received_at(received)
+    )
+  end
+
+  # The configured relays are the relay rows, not the connection owner's
+  # map: the owner reconciles to those rows, but it is not running in
+  # every environment, and a widget that read only its map would report
+  # "no relays configured" when the truth is "no connections yet". A relay
+  # nothing has been heard from yet takes the blank (`:connecting`) entry.
+  defp relay_status do
+    live = Connections.status()
+    Map.new(Friends.list_relays(), &{&1.url, Map.get(live, &1.url, Connections.blank_entry())})
+  end
+
+  defp last_received_at([]), do: nil
+  defp last_received_at([%{recommendation: rec} | _rest]), do: rec.recommended_at
 
   defp assign_storage_snapshot(socket, snapshot) do
     assign(socket,
@@ -240,6 +280,12 @@ defmodule MediaCentaurWeb.StatusLive do
       system_vitals: assigns.system_vitals,
       # acquisition
       acquisition_activity: assigns.acquisition_activity,
+      # friends
+      relay_status: assigns.relay_status,
+      friend_count: assigns.friend_count,
+      sent_count: assigns.sent_count,
+      received_count: assigns.received_count,
+      last_received_at: assigns.last_received_at,
       # self_update — sourced from assigns + persistent_term (Config) + utc_now
       version: Version.current_version(),
       status: assigns.self_update_status,
@@ -474,6 +520,22 @@ defmodule MediaCentaurWeb.StatusLive do
 
   def handle_info(:capabilities_changed, socket) do
     {:noreply, assign(socket, acquisition_activity: build_acquisition_activity())}
+  end
+
+  # `Connections.apply_message/2` is the owner's own fold, so this page and
+  # the owner can never disagree about what a connection message means.
+  # Only relays this page has loaded are folded — the configured set comes
+  # from the relay rows, and a message about one it does not know belongs
+  # to a row added or removed since; the next navigation picks that up.
+  def handle_info({:relay_connection, url, message}, socket) do
+    case Map.fetch(socket.assigns.relay_status, url) do
+      {:ok, entry} ->
+        status = Map.put(socket.assigns.relay_status, url, Connections.apply_message(entry, message))
+        {:noreply, assign(socket, relay_status: status)}
+
+      :error ->
+        {:noreply, socket}
+    end
   end
 
   def handle_info(_msg, socket) do
