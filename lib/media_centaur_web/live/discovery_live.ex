@@ -205,10 +205,17 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   # Another tab (or a later relay layer) replaced the identity. A key
-  # revealed here belongs to the identity that is gone, and an arm here
-  # is aimed at it too — both drop with it.
+  # revealed here belongs to the identity that is gone, an arm here is
+  # aimed at it too, and the pasted draft is the secret that arm would
+  # have installed — all three drop with it.
   def handle_info({:identity_changed, _event}, socket) do
-    {:noreply, assign(socket, identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)}
+    {:noreply,
+     assign(socket,
+       identity_npub: Identity.npub(),
+       nsec_revealed: nil,
+       import_armed?: false,
+       import_draft: ""
+     )}
   end
 
   # Both also move the feed: its prerequisites are a relay and a friend,

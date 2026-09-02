@@ -208,6 +208,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       render_until(tab_a, fn _html -> not has_element?(tab_a, "#identity-nsec", old_nsec) end)
       assert has_element?(tab_a, "#import-nsec-submit", "Replace identity")
+      refute has_element?(tab_a, "#import-nsec", old_nsec)
     end
 
     test "an invalid secret key is refused with a flash", %{conn: conn} do

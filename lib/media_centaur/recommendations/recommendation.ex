@@ -48,7 +48,7 @@ defmodule MediaCentaur.Recommendations.Recommendation do
   @fields [:event_id, :author_pubkey, :tmdb_id, :media_type, :note, :recommended_at, :raw_event]
 
   @doc "A row from `Translation.from_event/1` attrs; the embed is replaced wholesale."
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
+  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def changeset(rec \\ %__MODULE__{}, attrs) do
     rec
     |> cast(Map.delete(attrs, :title), @fields)
