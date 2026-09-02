@@ -4,18 +4,21 @@ defmodule MediaCentaur.Friends do
     exports: [
       Connections,
       Events,
+      Events.FriendAdded,
+      Events.FriendRemoved,
       Events.IdentityChanged,
       Events.RelayAdded,
       Events.RelayRemoved,
+      Friend,
       Identity,
       Relay
     ]
 
   @moduledoc """
   Bounded context for the friend network's configuration: this install's
-  identity (`Friends.Identity`), the relay list (`Friends.Relay`) and the
-  live connections keyed by it (`Friends.Connections`); the friend roster
-  joins them in a later layer.
+  identity (`Friends.Identity`), the relay list (`Friends.Relay`), the
+  live connections keyed by it (`Friends.Connections`) and the roster of
+  followed keys (`Friends.Friend`).
 
   Broadcasts typed events on `friends:updates` (subscribe through
   `subscribe/0`) and re-broadcasts every relay connection's messages on
@@ -25,7 +28,10 @@ defmodule MediaCentaur.Friends do
   import Ecto.Query
 
   alias MediaCentaur.Friends.Events
+  alias MediaCentaur.Friends.Friend
+  alias MediaCentaur.Friends.Identity
   alias MediaCentaur.Friends.Relay
+  alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
 
@@ -65,6 +71,78 @@ defmodule MediaCentaur.Friends do
   @doc "Every configured relay, in URL order."
   @spec list_relays() :: [Relay.t()]
   def list_relays, do: Repo.all(from(relay in Relay, order_by: relay.url))
+
+  @doc """
+  Adds a friend by npub or 64-hex key with a local nickname. Idempotent
+  on the key: re-adding one already on the roster renames it.
+  """
+  @spec add_friend(String.t(), String.t()) ::
+          {:ok, Friend.t()}
+          | {:error, :invalid_pubkey | :nickname_required | :own_key | Ecto.Changeset.t()}
+  def add_friend(key, nickname) when is_binary(key) and is_binary(nickname) do
+    with {:ok, pubkey} <- Keys.parse_pubkey(String.trim(key)),
+         :ok <- not_own_key(pubkey),
+         :ok <- nickname_present(nickname) do
+      upsert_friend(pubkey, String.trim(nickname))
+    end
+  end
+
+  @doc "Removes a friend by public key. Absent is a no-op — and broadcasts nothing."
+  @spec remove_friend(String.t()) :: :ok
+  def remove_friend(pubkey) when is_binary(pubkey) do
+    case Repo.get_by(Friend, pubkey: String.downcase(pubkey)) do
+      nil ->
+        :ok
+
+      friend ->
+        Repo.delete!(friend)
+        Events.broadcast(%Events.FriendRemoved{pubkey: friend.pubkey})
+        :ok
+    end
+  end
+
+  @doc "The roster, by nickname."
+  @spec list_friends() :: [Friend.t()]
+  def list_friends, do: Repo.all(from(friend in Friend, order_by: friend.nickname))
+
+  @doc "One friend by public key, or nil."
+  @spec friend_by_pubkey(String.t()) :: Friend.t() | nil
+  def friend_by_pubkey(pubkey) when is_binary(pubkey),
+    do: Repo.get_by(Friend, pubkey: String.downcase(pubkey))
+
+  @doc "Every followed pubkey — the authors the recommendations feed subscribes to."
+  @spec friend_pubkeys() :: [String.t()]
+  def friend_pubkeys,
+    do: Repo.all(from(friend in Friend, select: friend.pubkey, order_by: friend.pubkey))
+
+  defp not_own_key(pubkey), do: if(Identity.pubkey() == pubkey, do: {:error, :own_key}, else: :ok)
+
+  defp nickname_present(nickname),
+    do: if(String.trim(nickname) == "", do: {:error, :nickname_required}, else: :ok)
+
+  defp upsert_friend(pubkey, nickname) do
+    case Repo.get_by(Friend, pubkey: pubkey) do
+      %Friend{} = existing ->
+        Repo.update(Friend.changeset(existing, %{nickname: nickname}))
+
+      nil ->
+        insert_friend(pubkey, nickname)
+    end
+  end
+
+  defp insert_friend(pubkey, nickname) do
+    case Repo.insert(Friend.changeset(%{pubkey: pubkey, nickname: nickname})) do
+      {:ok, friend} ->
+        Events.broadcast(%Events.FriendAdded{pubkey: friend.pubkey})
+        {:ok, friend}
+
+      {:error, changeset} ->
+        # A concurrent insert of the same key is the rename case, not a failure.
+        if unique_violation?(changeset),
+          do: Repo.update(Friend.changeset(Repo.get_by!(Friend, pubkey: pubkey), %{nickname: nickname})),
+          else: {:error, changeset}
+    end
+  end
 
   defp insert_relay(url, normalized) do
     case Repo.insert(Relay.create_changeset(%{url: url})) do
