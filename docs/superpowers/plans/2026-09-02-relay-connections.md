@@ -922,13 +922,46 @@ defmodule MediaCentaur.Friends.Connections do
   @spec publish(MediaCentaur.Nostr.Event.t()) :: :ok
   def publish(event), do: Owner.publish(event)
 
-  @doc "Subscribes every connection with the same filters under `sub_id`."
+  @doc "Subscribes every connection with the same filters under `sub_id` (re-applied to connections started later)."
   @spec subscribe_all(String.t(), [MediaCentaur.Nostr.Filter.t()]) :: :ok
   def subscribe_all(sub_id, filters), do: Owner.subscribe_all(sub_id, filters)
+
+  @doc "Publishes to one relay; a no-op unless that relay is connected."
+  @spec publish(String.t(), MediaCentaur.Nostr.Event.t()) :: :ok
+  def publish(url, event), do: Owner.publish(url, event)
+
+  @doc "Subscribes one relay under `sub_id` (per-relay; re-applied if that connection restarts)."
+  @spec subscribe(String.t(), String.t(), [MediaCentaur.Nostr.Filter.t()]) :: :ok
+  def subscribe(url, sub_id, filters), do: Owner.subscribe(url, sub_id, filters)
 
   def via(url), do: {:via, Registry, {__MODULE__.Registry, url}}
 end
 ```
+
+The per-relay `publish/2` and `subscribe/3` exist for the recommendations sync (layer 6): after a relay's own-events `EOSE`, the sync publishes only what **that** relay lacks, so fan-out is wrong there. The owner keeps two subscription maps — `subs` (global, from `subscribe_all/2`) and `relay_subs` (`%{url => %{sub_id => filters}}`, from `subscribe/3`) — and re-applies both when a connection (re)starts. `Nostr.Connection` itself stores subscriptions and issues them on connect, so subscribing a not-yet-connected relay is safe; publishing to one is not, hence the connected-only guard on both `publish/1` and `publish/2`. Add the corresponding `Owner.publish/2`, `Owner.subscribe/3` (`GenServer.cast`), their `handle_cast` clauses, the `relay_subs` field, and the re-apply in `start/2`; and a test in `connections_test.exs`:
+
+```elixir
+  test "publish/2 and subscribe/3 address one relay" do
+    a = FakeRelay.start()
+    b = FakeRelay.start()
+    {:ok, _} = Friends.add_relay(a.url)
+    {:ok, _} = Friends.add_relay(b.url)
+    Friends.subscribe_connections()
+    assert_receive {:relay_connection, _, :connected}, 3_000
+    assert_receive {:relay_connection, _, :connected}, 3_000
+
+    Connections.subscribe(a.url, "only-a", [MediaCentaur.Nostr.Filter.new(kinds: [1])])
+    assert_receive {:relay_in, ["REQ", "only-a", _]}, 2_000
+    refute_receive {:relay_in, ["REQ", "only-a", _]}, 300
+
+    event = MediaCentaur.Nostr.Event.sign(MediaCentaur.Nostr.Event.new(%{created_at: 1, kind: 1, tags: [], content: "x"}), Identity.secret())
+    Connections.publish(b.url, event)
+    assert_receive {:relay_in, ["EVENT", %{"content" => "x"}]}, 2_000
+    refute_receive {:relay_in, ["EVENT", _]}, 300
+  end
+```
+
+(Both fake relays forward frames to the same test pid; the `refute_receive` after each positive assertion proves exactly one relay saw the frame.)
 
 `lib/media_centaur/friends/connections/owner.ex`:
 

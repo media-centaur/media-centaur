@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.DiscoveryLive do
   @moduledoc """
-  The Discovery page — the surface every candidate source lands on. This
-  layer hosts one tab, the watchlist:
+  The Discovery page — the surface every candidate source lands on. Two
+  tabs today, one LiveView with a `live_action` per tab:
 
   The watchlist — title-level intent, triaged. Rows come from
   `Discovery.list_watchlist/0` (library presence derived live); the
@@ -10,10 +10,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   `library:updates` — a completed download flips a row to In library
   without a reload.
 
+  Friends — this install's Nostr identity (`Friends.Identity`), generated
+  the first time the tab is opened, with the npub to hand out and the
+  secret key behind a disclosure for export/import. Relays and the
+  roster join it with their layers.
+
   Subscribes to Discovery directly (it needs the full item list, not the
   `WatchlistAware` ref set — see that trait's moduledoc).
 
-  Feed and Friends tabs arrive with the recommendations layers.
+  The Feed tab arrives with the recommendations layers.
   """
   use MediaCentaurWeb, :live_view
 
@@ -21,20 +26,39 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Discovery
+  alias MediaCentaur.Friends
+  alias MediaCentaur.Friends.Identity
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.Components.Discovery.WatchlistRow
   alias MediaCentaurWeb.Components.TabStrip.Tab
+  alias MediaCentaurWeb.DiscoveryLive.IdentityBlock
 
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket) do
       Discovery.subscribe()
       Library.subscribe()
+      Friends.subscribe()
     end
 
-    {:ok, socket |> assign(:page_title, "Discovery") |> load_items()}
+    {:ok,
+     socket
+     |> assign(:page_title, "Discovery")
+     |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false)
+     |> load_items()}
   end
+
+  # The Friends tab is where the identity comes into existence — nothing
+  # else in the app generates one.
+  @impl true
+  def handle_params(_params, _uri, %{assigns: %{live_action: :friends}} = socket) do
+    Identity.ensure()
+
+    {:noreply, assign(socket, identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)}
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event("watchlist_remove", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
@@ -59,6 +83,32 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     end
   end
 
+  def handle_event("reveal_nsec", _params, socket),
+    do: {:noreply, assign(socket, nsec_revealed: Identity.export_nsec())}
+
+  def handle_event("hide_nsec", _params, socket), do: {:noreply, assign(socket, nsec_revealed: nil)}
+
+  # Two-click arm (MC0027 treatment b): the first submit arms, the second
+  # replaces. Costly but recoverable — the old nsec can be re-imported.
+  def handle_event("import_nsec", %{"nsec" => _nsec}, %{assigns: %{import_armed?: false}} = socket),
+    do: {:noreply, assign(socket, import_armed?: true)}
+
+  def handle_event("import_nsec", %{"nsec" => nsec}, socket) do
+    case Identity.import_nsec(nsec) do
+      :ok ->
+        {:noreply,
+         socket
+         |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)
+         |> put_flash(:info, "Identity replaced")}
+
+      {:error, :invalid_secret} ->
+        {:noreply,
+         socket
+         |> assign(import_armed?: false)
+         |> put_flash(:error, "That is not a valid secret key")}
+    end
+  end
+
   @impl true
   def handle_info({tag, _event}, socket) when tag in [:watchlist_item_added, :watchlist_item_removed] do
     {:noreply, load_items(socket)}
@@ -66,6 +116,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   def handle_info({:entities_changed, %Library.Events.EntitiesChanged{}}, socket) do
     {:noreply, load_items(socket)}
+  end
+
+  # Another tab (or a later relay layer) replaced the identity.
+  def handle_info({:identity_changed, _event}, socket) do
+    {:noreply, assign(socket, identity_npub: Identity.npub())}
   end
 
   def handle_info(_message, socket), do: {:noreply, socket}
@@ -79,12 +134,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     assign(socket, :items, items)
   end
 
-  # The tabs this layer hosts. Feed (`/discovery`) and Friends
-  # (`/discovery/friends`) join here with their layers.
+  # The tabs this layer hosts. Feed (`/discovery/feed`) joins here with
+  # its layer.
   defp tabs(items),
     do: [
-      %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)}
+      %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
+      %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends"}
     ]
+
+  defp current_path(:friends), do: "/discovery/friends"
+  defp current_path(_action), do: "/discovery/watchlist"
 
   @impl true
   def render(assigns) do
@@ -94,7 +153,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       show_discovery={@show_discovery}
       show_apps={@show_apps}
       flash={@flash}
-      current_path="/discovery/watchlist"
+      current_path={current_path(@live_action)}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
       status_errors={assigns[:status_errors] || 0}
       review_pending={assigns[:review_pending] || 0}
@@ -104,9 +163,17 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <h1 class="px-1 text-lg font-semibold">Discovery</h1>
 
-          <.tab_strip tabs={tabs(@items)} active={:watchlist} />
+          <.tab_strip tabs={tabs(@items)} active={@live_action} />
 
-          <div class="space-y-2" data-nav-zone="grid">
+          <div :if={@live_action == :friends} class="space-y-4">
+            <IdentityBlock.identity_block
+              npub={@identity_npub}
+              nsec_revealed={@nsec_revealed}
+              import_armed?={@import_armed?}
+            />
+          </div>
+
+          <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="grid">
             <div
               :if={@items == []}
               id="watchlist-empty"

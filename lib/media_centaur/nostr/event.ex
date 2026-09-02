@@ -52,6 +52,10 @@ defmodule MediaCentaur.Nostr.Event do
 
   @doc "NIP-01 canonical serialization — the exact bytes the id hashes."
   @spec serialize(t()) :: String.t()
+  def serialize(%__MODULE__{pubkey: nil}) do
+    raise ArgumentError, "cannot serialize an event without a pubkey"
+  end
+
   def serialize(%__MODULE__{} = event) do
     tags =
       Enum.map_join(event.tags, ",", fn tag ->
@@ -74,19 +78,33 @@ defmodule MediaCentaur.Nostr.Event do
   @doc "Sets `pubkey` from the secret, computes `id`, signs it (BIP-340)."
   @spec sign(t(), Secret.t()) :: t()
   def sign(%__MODULE__{} = event, %Secret{} = secret) do
+    aux = :binary.decode_unsigned(:crypto.strong_rand_bytes(32))
+    sign_with_aux(event, secret, aux)
+  end
+
+  @doc false
+  @spec sign_with_aux(t(), Secret.t(), non_neg_integer()) :: t()
+  def sign_with_aux(%__MODULE__{} = event, %Secret{} = secret, aux) do
     event = %{event | pubkey: Keys.pubkey(secret)}
     id = id(event)
     z = id |> Base.decode16!(case: :lower) |> :binary.decode_unsigned()
-    aux = :binary.decode_unsigned(:crypto.strong_rand_bytes(32))
-    {:ok, %Signature{r: r_value, s: s_value}} = Schnorr.sign(Keys.private_key!(secret), z, aux)
+    {:ok, signature} = Schnorr.sign(Keys.private_key!(secret), z, aux)
+    %{event | id: id, sig: serialize_signature(signature)}
+  end
+
+  @doc false
+  @spec serialize_signature(Signature.t()) :: String.t()
+  def serialize_signature(%Signature{r: r_value, s: s_value}) do
     # bitcoinex's own serializer does not zero-pad r/s; fixed-width here.
-    sig = Base.encode16(<<r_value::big-unsigned-256, s_value::big-unsigned-256>>, case: :lower)
-    %{event | id: id, sig: sig}
+    Base.encode16(<<r_value::big-unsigned-256, s_value::big-unsigned-256>>, case: :lower)
   end
 
   @doc """
   Recomputes the id and checks the signature against `pubkey`.
-  `{:error, :malformed}` when a hex field is not the right shape.
+  `{:error, :malformed}` when a hex field is not the right shape, `pubkey` is
+  64 hex chars that do not decode to a point on the curve, or `sig` is 128
+  hex chars that do not parse as a valid `r, s` pair. `{:error, :bad_signature}`
+  is reserved for a well-formed signature that fails Schnorr verification.
   """
   @spec verify(t()) :: :ok | {:error, :bad_id | :bad_signature | :malformed}
   def verify(%__MODULE__{} = event) do
@@ -163,11 +181,14 @@ defmodule MediaCentaur.Nostr.Event do
 
   defp check_signature(pubkey_bytes, id_bytes, sig_bytes) do
     with {:ok, point} <- Point.lift_x(pubkey_bytes),
-         {:ok, signature} <- Signature.parse_signature(sig_bytes),
-         true <- Schnorr.verify_signature(point, :binary.decode_unsigned(id_bytes), signature) do
-      :ok
+         {:ok, signature} <- Signature.parse_signature(sig_bytes) do
+      if Schnorr.verify_signature(point, :binary.decode_unsigned(id_bytes), signature) do
+        :ok
+      else
+        {:error, :bad_signature}
+      end
     else
-      _other -> {:error, :bad_signature}
+      {:error, _reason} -> {:error, :malformed}
     end
   end
 
@@ -186,8 +207,6 @@ defmodule MediaCentaur.Nostr.Event do
   # everything else verbatim. The catch-all copies one byte at a time,
   # which reproduces multi-byte UTF-8 unchanged and cannot fail on input
   # that is not valid UTF-8.
-  defp json_string(nil), do: ~s("")
-
   defp json_string(string) when is_binary(string), do: IO.iodata_to_binary([?", escape(string, []), ?"])
 
   defp escape(<<>>, acc), do: acc

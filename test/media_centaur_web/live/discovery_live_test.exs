@@ -6,8 +6,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Discovery
+  alias MediaCentaur.Friends.Identity
   alias MediaCentaur.Library
+  alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.Secret
   alias MediaCentaur.Settings
   alias MediaCentaur.Settings.Preferences.DiscoveryVisibility
   alias MediaCentaur.TmdbStubs
@@ -140,5 +143,60 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     {:ok, view, _html} = live(conn, "/discovery/watchlist")
     assert has_element?(view, "#sidebar a.sidebar-link-active[href='/discovery/watchlist']")
+  end
+
+  describe "friends tab — identity" do
+    test "opening the tab generates an identity and shows the npub with a copy control", %{conn: conn} do
+      refute Identity.present?()
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+
+      assert Identity.present?()
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Friends")
+      assert has_element?(view, "#identity-npub", Identity.npub())
+      assert has_element?(view, "#copy-npub[data-copy-text='#{Identity.npub()}']")
+      refute render(view) =~ Identity.export_nsec()
+    end
+
+    test "the secret key is revealed only on request", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      nsec = Identity.export_nsec()
+
+      refute render(view) =~ nsec
+      view |> element("#reveal-nsec") |> render_click()
+      assert has_element?(view, "#identity-nsec", nsec)
+      assert has_element?(view, "#copy-nsec[data-copy-text='#{nsec}']")
+    end
+
+    test "importing a secret key replaces the identity after a second click", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      before = Identity.pubkey()
+      nsec = Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "3"))
+
+      view |> form("#import-nsec-form", %{"nsec" => nsec}) |> render_submit()
+      assert has_element?(view, "#import-nsec-submit", "Click again to replace")
+      assert Identity.pubkey() == before
+
+      view |> form("#import-nsec-form", %{"nsec" => nsec}) |> render_submit()
+      assert Identity.pubkey() == "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+      assert render(view) =~ "Identity replaced"
+      assert has_element?(view, "#identity-npub", Identity.npub())
+    end
+
+    test "an invalid secret key is refused with a flash", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      before = Identity.pubkey()
+
+      view |> form("#import-nsec-form", %{"nsec" => "nsec1nope"}) |> render_submit()
+      view |> form("#import-nsec-form", %{"nsec" => "nsec1nope"}) |> render_submit()
+
+      assert render(view) =~ "That is not a valid secret key"
+      assert Identity.pubkey() == before
+    end
+
+    test "the watchlist tab still renders and the strip shows both tabs", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Watchlist")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Friends")
+    end
   end
 end

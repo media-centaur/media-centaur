@@ -50,6 +50,12 @@ defmodule MediaCentaur.Nostr.EventTest do
       assert Event.serialize(event) ==
                Jason.encode!([0, event.pubkey, event.created_at, event.kind, event.tags, event.content])
     end
+
+    test "refuses an event without a pubkey — a silent wrong id is worse than a crash" do
+      event = Event.new(%{created_at: 1, kind: 1, tags: [], content: "x"})
+      assert_raise ArgumentError, ~r/pubkey/, fn -> Event.serialize(event) end
+      assert_raise ArgumentError, ~r/pubkey/, fn -> Event.id(event) end
+    end
   end
 
   describe "id/1" do
@@ -81,14 +87,46 @@ defmodule MediaCentaur.Nostr.EventTest do
       end
     end
 
+    test "sign_with_aux reproduces BIP-340 test vector 0 byte for byte" do
+      # Vector 0: secret 3, aux 0x00…00, message 0x00…00 → the published signature.
+      # Our message is the event id, so build an event whose id hashes to all zeros?
+      # That is not possible; instead pin the primitive directly:
+      z = 0
+      aux = 0
+
+      {:ok, sig} =
+        Bitcoinex.Secp256k1.Schnorr.sign(MediaCentaur.Nostr.Keys.private_key!(@secret), z, aux)
+
+      assert Event.serialize_signature(sig) ==
+               "e907831f80848d1069a5371b402410364bdf1c5f8307b0084c55f1ce2dca821525f66a4a85ea8b71e482a74f382d2ce5ebeee8fdb2172f477df4900d310536c0"
+    end
+
     test "verify rejects a tampered id, a tampered content, a wrong signature, and a malformed event" do
       signed = Event.sign(Event.new(%{created_at: 1, kind: 1, tags: [], content: "hello"}), @secret)
 
       assert Event.verify(%{signed | id: String.duplicate("0", 64)}) == {:error, :bad_id}
       assert Event.verify(%{signed | content: "bye"}) == {:error, :bad_id}
-      assert Event.verify(%{signed | sig: String.duplicate("0", 128)}) == {:error, :bad_signature}
+      # r = s = 0 is out of the valid [1, n-1] range, so this is a parse failure, not
+      # a real Schnorr mismatch — the signature never got far enough to be "wrong".
+      assert Event.verify(%{signed | sig: String.duplicate("0", 128)}) == {:error, :malformed}
       assert Event.verify(%{signed | sig: "zz"}) == {:error, :malformed}
       assert Event.verify(%{signed | pubkey: "not-hex"}) == {:error, :malformed}
+
+      # 64 hex "f"s decodes but is not a valid curve x-coordinate (Point.lift_x
+      # fails). The id has to be recomputed for this pubkey first, or check_id
+      # would reject it as :bad_id before check_signature is ever reached.
+      bad_pubkey = String.duplicate("f", 64)
+
+      unsigned_with_bad_pubkey =
+        Event.new(%{pubkey: bad_pubkey, created_at: 1, kind: 1, tags: [], content: "hello"})
+
+      malformed_pubkey_event = %{
+        unsigned_with_bad_pubkey
+        | id: Event.id(unsigned_with_bad_pubkey),
+          sig: signed.sig
+      }
+
+      assert Event.verify(malformed_pubkey_event) == {:error, :malformed}
     end
 
     test "verify rejects a signature made by a different key" do
