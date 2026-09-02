@@ -28,8 +28,10 @@ Layers 1a (title convergence,
 page at `/discovery/watchlist` with `tab_strip` and `show_discovery`,
 `docs/superpowers/plans/2026-09-02-discovery-page.md`) landed 2026-09-02 on
 main, unpushed. Layer 2 (`MediaCentaur.Nostr`: `Keys`, `Event`, `Filter`;
-`bitcoinex` dep) landed 2026-09-02; next: layer 3 (`Friends.Identity` +
-Friends tab identity block).
+`bitcoinex` dep) landed 2026-09-02. Layer 3 (Friends identity:
+`Friends.Identity` on the sensitive `nostr_secret_key` config key, Friends
+tab identity block at `/discovery/friends`) landed 2026-09-02; next: layer 4
+(`Nostr.Connection` + fake relay + `Friends.Relay` + relay block).
 
 ## Decisions made
 
@@ -169,6 +171,8 @@ Friends tab identity block).
 * **Layer 4 gotchas recorded:** `Mint.WebSocket` API sketch and the fake-relay
   approach (`WebSock` handler under Bandit `port: 0`) are in the Nostr research
   notes (session 2026-09-02); `mint_web_socket` is not yet a dep.
+* **Wiki (layer 8):** the Friends-and-Recommendations page must carry the
+  backup advice for the secret key.
 * **Hardening pass** after iteration settles (spec decision 11).
 * **`show_discovery` gates the sidebar entry only** (spec decision 7
   corrected 2026-09-02); decide the Recommend action's gating with layer 6.
