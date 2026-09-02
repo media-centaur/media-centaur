@@ -112,6 +112,14 @@ defmodule MediaCentaur.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
+      {:bitcoinex, "~> 0.3"},
+      # bitcoinex 0.3.0 still requires `decimal ~> 1.0 or ~> 2.0`, and every
+      # decimal < 3.0.0 carries GHSA-rhv4-8758-jx7v (unbounded exponent in
+      # `Decimal.new`), which `mix deps.audit` fails on. bitcoinex touches
+      # Decimal only in `LightningNetwork.Invoice` (mult/round/equal?/
+      # to_integer/from_float — all unchanged in 3.x) and we never call it, so
+      # we override to the patched line instead of pinning a vulnerable dep.
+      {:decimal, "~> 3.0", override: true},
       {:file_system, "~> 1.0"},
       {:broadway, "~> 1.1"},
       {:image, "~> 0.54"},
