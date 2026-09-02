@@ -8,6 +8,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.Settings
+  alias MediaCentaur.Settings.Preferences.DiscoveryVisibility
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
 
@@ -122,17 +124,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     {:ok, _} =
       Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
 
-    {:ok, view, html} = live(conn, "/discovery/watchlist")
+    {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
-    assert html =~ "Discovery"
+    assert has_element?(view, "h1", "Discovery")
     assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Watchlist")
     assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "1")
     await_supervised_tasks()
   end
 
   test "the sidebar marks Discovery active on the watchlist tab", %{conn: conn} do
-    MediaCentaur.Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+    Settings.find_or_create_entry!(%{
+      key: DiscoveryVisibility.setting_key(),
       value: %{"enabled" => true}
     })
 
