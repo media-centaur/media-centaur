@@ -125,6 +125,7 @@ config :media_centaur, :health_activity_widgets, %{
   tmdb: {MediaCentaurWeb.Components.StatusWidgets.Tmdb, :tmdb_widget},
   playback: {MediaCentaurWeb.Components.StatusWidgets.Playback, :playback_widget},
   acquisition: {MediaCentaurWeb.Components.StatusWidgets.Acquisition, :acquisition_widget},
+  friends: {MediaCentaurWeb.Components.StatusWidgets.Friends, :friends_widget},
   self_update: {MediaCentaurWeb.Components.StatusWidgets.SelfUpdate, :self_update_widget},
   system: {MediaCentaurWeb.Components.StatusWidgets.System, :system_widget}
 }

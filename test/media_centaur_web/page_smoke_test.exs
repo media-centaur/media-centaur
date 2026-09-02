@@ -40,6 +40,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/status?subsystem=self_update", "status self_update drill-in"},
         {"/status?subsystem=library", "status library drill-in"},
         {"/status?subsystem=system", "status system drill-in"},
+        {"/status?subsystem=friends", "status friends drill-in"},
         {"/settings", "settings"},
         {"/setup", "setup tour"},
         {"/review", "review"},
