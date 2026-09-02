@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     LibraryBackdrop,
     LibraryCardInfo,
     UIScale,
-    WatchlistVisibility
+    DiscoveryVisibility
   }
 
   # `SettingsLive.ensure_loaded/1` loads its config / capability / probe
@@ -236,16 +236,16 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert LetterboxdLinks.enabled?() == true
     end
 
-    test "toggling the watchlist persists the flag", %{conn: conn} do
+    test "toggling Discovery persists the flag", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
-      assert WatchlistVisibility.enabled?() == false
+      assert DiscoveryVisibility.enabled?() == false
 
-      view |> element("div[phx-click=toggle_show_watchlist]") |> render_click()
-      assert WatchlistVisibility.enabled?() == true
+      view |> element("div[phx-click=toggle_show_discovery]") |> render_click()
+      assert DiscoveryVisibility.enabled?() == true
 
-      view |> element("div[phx-click=toggle_show_watchlist]") |> render_click()
-      assert WatchlistVisibility.enabled?() == false
+      view |> element("div[phx-click=toggle_show_discovery]") |> render_click()
+      assert DiscoveryVisibility.enabled?() == false
     end
 
     test "toggling the apps launcher persists the flag", %{conn: conn} do

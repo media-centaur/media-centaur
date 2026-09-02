@@ -137,7 +137,7 @@ defmodule MediaCentaurWeb.AppsLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
-      show_watchlist={@show_watchlist}
+      show_discovery={@show_discovery}
       show_apps={@show_apps}
       flash={@flash}
       current_path="/apps"

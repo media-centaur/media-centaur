@@ -714,15 +714,15 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, letterboxd_links: enabled)}
   end
 
-  def handle_event("toggle_show_watchlist", _params, socket) do
-    enabled = !socket.assigns.show_watchlist
+  def handle_event("toggle_show_discovery", _params, socket) do
+    enabled = !socket.assigns.show_discovery
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.WatchlistVisibility.setting_key(),
+      key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
       value: %{"enabled" => enabled}
     })
 
-    {:noreply, assign(socket, show_watchlist: enabled)}
+    {:noreply, assign(socket, show_discovery: enabled)}
   end
 
   def handle_event("toggle_show_apps", _params, socket) do
@@ -1681,7 +1681,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
-      show_watchlist={@show_watchlist}
+      show_discovery={@show_discovery}
       show_apps={@show_apps}
       flash={@flash}
       current_path="/settings"
@@ -1790,7 +1790,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 show_play_button={@show_play_button}
                 auto_play_next_episode={@auto_play_next_episode}
                 letterboxd_links={@letterboxd_links}
-                show_watchlist={@show_watchlist}
+                show_discovery={@show_discovery}
                 show_apps={@show_apps}
                 library_backdrop={@library_backdrop}
                 incoming_backdrop={@incoming_backdrop}
@@ -1913,7 +1913,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       show_play_button={@show_play_button}
       auto_play_next_episode={@auto_play_next_episode}
       letterboxd_links={@letterboxd_links}
-      show_watchlist={@show_watchlist}
+      show_discovery={@show_discovery}
       show_apps={@show_apps}
     />
     """

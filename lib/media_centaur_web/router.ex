@@ -28,12 +28,12 @@ defmodule MediaCentaurWeb.Router do
       on_mount: [
         MediaCentaurWeb.Live.CapabilitiesAware,
         {MediaCentaurWeb.ShellBadges, :default},
-        # The sidebar renders on every page, so its watchlist entry needs
-        # `:show_watchlist` seeded session-wide (and re-assigned live on
+        # The sidebar renders on every page, so its Discovery entry needs
+        # `:show_discovery` seeded session-wide (and re-assigned live on
         # toggle) rather than per-LiveView.
         {MediaCentaurWeb.Live.SettingAware,
-         {MediaCentaur.Settings.Preferences.WatchlistVisibility, :show_watchlist,
-          :setting_aware_show_watchlist}},
+         {MediaCentaur.Settings.Preferences.DiscoveryVisibility, :show_discovery,
+          :setting_aware_show_discovery}},
         # Same deal for the Apps launcher entry.
         {MediaCentaurWeb.Live.SettingAware,
          {MediaCentaur.Settings.Preferences.AppsVisibility, :show_apps, :setting_aware_show_apps}}
