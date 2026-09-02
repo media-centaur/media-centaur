@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.DiscoveryLive.RelayBlock
+  alias MediaCentaurWeb.DiscoveryLive.RosterBlock
 
   setup do
     TmdbStubs.setup_tmdb_client()
@@ -262,6 +263,60 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       Events.broadcast_connection(@relay_url, {:auth, {:failed, "not on the allowlist"}})
       render_until(view, fn _html -> has_element?(view, relay_row(), "Rejected") end)
       assert has_element?(view, relay_row(), "not on the allowlist")
+    end
+  end
+
+  describe "friends tab — roster" do
+    @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+
+    defp friend_row, do: "#friend-" <> String.slice(@friend_pubkey, 0, 8)
+
+    test "adds a friend by npub + name, lists them, and removes", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      npub = Keys.to_npub(@friend_pubkey)
+
+      view
+      |> form("#add-friend-form", %{"key" => npub, "nickname" => "Sample Friend"})
+      |> render_submit()
+
+      assert has_element?(view, friend_row(), "Sample Friend")
+      assert has_element?(view, friend_row(), RosterBlock.short_npub(@friend_pubkey))
+      assert [%{nickname: "Sample Friend"}] = Friends.list_friends()
+
+      view |> element(friend_row() <> " button", "Remove") |> render_click()
+      refute has_element?(view, friend_row())
+      assert Friends.list_friends() == []
+    end
+
+    test "refuses a bad key, your own key, and a blank name with flashes", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+
+      view |> form("#add-friend-form", %{"key" => "npub1nope", "nickname" => "X"}) |> render_submit()
+      assert render(view) =~ "That is not a valid public key"
+
+      view
+      |> form("#add-friend-form", %{"key" => Identity.npub(), "nickname" => "Me"})
+      |> render_submit()
+
+      assert render(view) =~ "That is your own key"
+
+      view
+      |> form("#add-friend-form", %{"key" => Keys.to_npub(@friend_pubkey), "nickname" => " "})
+      |> render_submit()
+
+      assert render(view) =~ "Give your friend a name"
+      assert Friends.list_friends() == []
+    end
+
+    test "a roster change in another tab lands live", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      refute has_element?(view, friend_row())
+
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      render_until(view, fn _html -> has_element?(view, friend_row(), "Sample Friend") end)
+
+      :ok = Friends.remove_friend(@friend_pubkey)
+      render_until(view, fn _html -> not has_element?(view, friend_row()) end)
     end
   end
 end

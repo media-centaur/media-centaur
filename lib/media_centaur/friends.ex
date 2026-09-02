@@ -110,6 +110,13 @@ defmodule MediaCentaur.Friends do
   def friend_by_pubkey(pubkey) when is_binary(pubkey),
     do: Repo.get_by(Friend, pubkey: String.downcase(pubkey))
 
+  @doc """
+  The NIP-19 `npub` form of a public key. The context owns the key
+  vocabulary; the web layer never reaches into `Nostr.Keys` itself.
+  """
+  @spec to_npub(String.t()) :: String.t()
+  def to_npub(pubkey) when is_binary(pubkey), do: Keys.to_npub(pubkey)
+
   @doc "Every followed pubkey — the authors the recommendations feed subscribes to."
   @spec friend_pubkeys() :: [String.t()]
   def friend_pubkeys,
