@@ -25,8 +25,10 @@ Terms are defined here before first use. Code names are in backticks.
   page.
 - **Watchlist** — the existing local list of title-level viewing intent
   (`MediaCentaur.Discovery`).
-- **Discovery page** — the main-navigation page that hosts the Feed and the
-  Watchlist as two tabs. Replaces the Watchlist page.
+- **Discovery page** — the main-navigation page that hosts the Feed, the
+  Watchlist and Friends as three tabs. Replaces the Watchlist page.
+- **Friends tab** — the Discovery tab where the identity, the relay list and
+  the friend roster are managed. Not a Settings section.
 - **Title** — the app-wide TMDB title snapshot: identity (`tmdb_id`,
   `media_type`) plus render fields. `MediaCentaur.TMDB.Title`.
 - **Addressable event** — a Nostr event kind in the 30000–39999 range: relays
@@ -54,14 +56,16 @@ Made in this session (2026-09-01 / 02):
 2. **Received recommendations are a feed the user browses.** Adding one to the
    watchlist is the user's act. Nothing auto-lands.
 3. **Discovery page with tabs.** The Watchlist page becomes the Discovery page
-   with Feed and Watchlist tabs. Later discovery sources join it.
+   with Feed, Watchlist and Friends tabs. Later discovery sources join it.
+   Friends is a product surface that will keep evolving, so it lives here
+   rather than in Settings.
 4. **Private first.** No default relay list ships. The user pastes their
    group's relay URL; public relays are more entries. The client speaks
    NIP-42 relay authentication so an allowlist relay can gate reads and
    writes by pubkey. The self-hosted relay itself is a separate repository
    in the GitHub organization and is out of scope here.
 5. **Key management: generate silently, export on demand.** The keypair is
-   created when the Friends settings section is first opened. Settings shows
+   created when the Friends tab is first opened. Settings shows
    the npub with a copy control; "Export secret key" and "Import secret key"
    live behind a disclosure. No passphrase.
 6. **Friend = pasted npub + typed nickname.** No profile events. Names are
@@ -75,6 +79,17 @@ Made in this session (2026-09-01 / 02):
    becomes a measured problem.
 10. **Thin in-house Nostr client** over `mint_web_socket`. The hex packages
     `nostr` and `nostr_basics` are unmaintained since 2023.
+11. **Iterate light, harden after.** The UI will change a lot. During
+    iteration the new pieces (feed row, friend row, relay row, identity
+    block, recommend modal) are function components inside the Discovery
+    LiveView's own directory (`lib/media_centaur_web/live/discovery_live/`),
+    where the storybook check (MC0009) does not apply. A scheduled
+    **hardening pass** moves them under `lib/media_centaur_web/components/`
+    with stories and adds keyboard/gamepad navigation. No input-system
+    support in the first iteration.
+12. **Own Status section.** The Status page gains a Friends section: health
+    and aggregates only (per-relay connection state, friend count, last
+    received recommendation time), with a link to the Friends tab.
 
 ## Unification decisions (unify_design pass — adjudicated, follow as written)
 
@@ -190,7 +205,7 @@ data; the struct is a value type. `Title.changeset/2` validates identity and
   that starts one `Nostr.Connection` per relay row at boot, starts/stops
   connections on relay add/remove, and exposes `status/0`
   (`%{url => :connected | :connecting | :disconnected | :auth_failed}`) for
-  Settings. It is the `owner` of every connection and re-broadcasts
+  the Friends tab and the Status section. It is the `owner` of every connection and re-broadcasts
   connection messages on PubSub topic `friends:connections`.
 - PubSub topic `friends:updates` for roster, relay and identity changes.
 
@@ -262,20 +277,29 @@ debug under the `:recommendations` component tag.
 ## Runtime behavior
 
 - Boot: `Friends.Connections` starts a connection per relay row; if no
-  identity exists, no connections start (nothing to sign with) and Settings
-  explains this.
+  identity exists, no connections start (nothing to sign with) and the
+  Friends tab explains this.
 - Connect → optional `AUTH` challenge signed with the identity → subscribe
   → outbound sync → live events. Reconnect on drop with backoff; the
   subscription is re-issued.
 - Sending with zero connected relays persists locally; the recommend modal
   shows the relay state inline so the user knows delivery is pending.
 - Relay `OK` with `accepted? = false` is logged at warning with the relay's
-  reason (allowlist rejections surface here) and shown in Settings as the
-  relay's last error.
+  reason (allowlist rejections surface here) and shown on the Friends tab
+  and the Status section as the relay's last error.
 
 ## UI
 
-- **Settings → Friends** (new section module under `settings_live/`):
+- **Discovery page** at `/discovery` (Feed), `/discovery/watchlist` and
+  `/discovery/friends`. Sidebar entry "Discovery", gated by `show_discovery`.
+  The old `/watchlist` route is removed. `tab_strip` joins the three tabs
+  (Feed and Watchlist with counts).
+- **Feed tab** rows: `title_summary` + "from <nickname> · <relative time>"
+  + note. Actions: "Add to watchlist" (becomes an "On watchlist" state), "In
+  library" marker when present. Own recommendations appear with "You".
+  Empty state names the two prerequisites plainly when missing (no relay,
+  no friends).
+- **Friends tab**, three blocks:
   - Identity: npub with copy control; disclosure with "Export secret key"
     (reveals nsec with a plain warning) and "Import secret key" (textarea +
     confirm). Copy states that recommendations are visible to anyone who can
@@ -283,20 +307,18 @@ debug under the `:recommendations` component tag.
   - Relays: list with per-relay status and last error; add by URL; remove.
   - Friends: list with nickname and shortened npub; add by npub + nickname;
     remove.
-- **Discovery page** at `/discovery` (Feed) and `/discovery/watchlist`.
-  Sidebar entry "Discovery", gated by `show_discovery`. The old `/watchlist`
-  route is removed. `tab_strip` joins the two tabs with counts.
-- **Feed rows**: `title_summary` + "from <nickname> · <relative time>" +
-  note. Actions: "Add to watchlist" (becomes an "On watchlist" state), "In
-  library" marker when present. Own recommendations appear with "You".
-  Empty state names the two prerequisites plainly when missing (no relay,
-  no friends).
 - **Recommend modal**: opened from the library detail modal (`Recommend`
   next to the watchlist toggle) and from watchlist rows. Optional note,
   relay state line, Send. Re-recommending replaces the earlier event.
-- Keyboard/gamepad navigation on the feed, the tab strip, the recommend
-  modal and the Friends settings section from the first commit
-  (`input-system` skill).
+- **Status page, Friends section**: per-relay connection state and last
+  error, friend count, sent/received counts, last received time; a link to
+  the Friends tab. No lists that duplicate the tab.
+- Settings gains nothing beyond the renamed `show_discovery` preference.
+- All new UI pieces are function components under
+  `lib/media_centaur_web/live/discovery_live/` during iteration (decision
+  11); the shared `title_summary` and `tab_strip` are proper components
+  with stories from the start because they replace existing rendering.
+- No keyboard/gamepad navigation in the first iteration (decision 11).
 
 Copy passes through the `writing-copy` skill; "entry" for titles in user
 copy, never "entity".
@@ -305,8 +327,8 @@ copy, never "entity".
 
 - All logging through `MediaCentaur.Log` with component tags `:nostr`,
   `:friends`, `:recommendations`.
-- Connection state is visible in Settings; the Status page is untouched in
-  this slice.
+- Connection state is visible on the Friends tab and the Status page's
+  Friends section.
 - Malformed or unverifiable events never raise; they are dropped with a
   debug log.
 - Secret key never appears in logs: `Secret`-wrapped everywhere except the
@@ -327,11 +349,11 @@ copy, never "entity".
 - `Translation`: property-style round trip `to_event` → sign → verify →
   `from_event`.
 - LiveView tests: feed rows and actions, recommend modal from both hosts,
-  Friends settings (identity create, export/import, relay and friend
-  add/remove), Discovery tab visibility gate.
+  Friends tab (identity create, export/import, relay and friend add/remove),
+  Discovery visibility gate, Status section.
 - Existing `TitleResult` tests move with the struct; storybook stories for
-  `title_summary`, `tab_strip`, feed row, and the recommend modal
-  (MC0009).
+  `title_summary` and `tab_strip` only in this slice (the rest arrive with
+  the hardening pass).
 - No network in tests; no real titles in fixtures.
 
 ## Out of scope for this slice
@@ -346,16 +368,20 @@ public relay defaults, and the self-hosted relay repository itself.
    poster helper + watchlist embed migration + `tab_strip` +
    `show_discovery` rename + Discovery page with the Watchlist tab only.
 2. `MediaCentaur.Nostr` (keys, events, filters) with vector tests.
-3. `Friends.Identity` + Settings identity block.
+3. `Friends.Identity` + Friends tab identity block.
 4. `Nostr.Connection` + fake relay + `Friends.Relay` + `Friends.Connections`
-   + Settings relay block.
-5. `Friends.Friend` + Settings friends block.
+   + Friends tab relay block.
+5. `Friends.Friend` + Friends tab roster block.
 6. `Recommendations` (schema, translation, sync) + recommend modal + Feed
    tab.
-7. Watchlist provenance (`:friend`, `recommendation_id`, "from <nickname>").
-8. Wiki: new *Friends and Recommendations* page, Settings-Reference,
-   Keyboard-and-Gamepad, Troubleshooting (relay rejected, no identity);
+7. Watchlist provenance (`:friend`, `recommendation_id`, "from <nickname>")
+   + Status page Friends section.
+8. Wiki: new *Friends and Recommendations* page, Settings-Reference
+   (`show_discovery`), Troubleshooting (relay rejected, no identity);
    CHANGELOG.
+9. **Hardening pass** (after iteration settles): move the Discovery pieces
+   under `components/` with stories; keyboard/gamepad navigation on the feed,
+   tab strip, Friends tab and recommend modal; wiki Keyboard-and-Gamepad.
 
 ## Pointers
 

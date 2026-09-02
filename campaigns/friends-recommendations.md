@@ -76,8 +76,15 @@ convergence + Discovery page).
 * `2026-09-02` — **Feed, not auto-land.** Received recommendations are browsed
   on a Feed tab; adding to the watchlist is the user's act.
 * `2026-09-02` — **Discovery page.** Watchlist page becomes `/discovery` with
-  Feed and Watchlist tabs; later discovery sources join it. `show_watchlist`
-  preference renamed `show_discovery`.
+  Feed, Watchlist and Friends tabs (identity, relays, roster live on the
+  Friends tab, not in Settings); later discovery sources join it.
+  `show_watchlist` preference renamed `show_discovery`.
+* `2026-09-02` — **Iterate light, harden after.** New UI pieces are function
+  components under `live/discovery_live/` (no MC0009 stories) and get no
+  input-system support in the first iteration; a scheduled hardening pass
+  moves them under `components/` with stories and adds navigation.
+* `2026-09-02` — **Own Status section** (health + aggregates, link to the
+  Friends tab).
 * `2026-09-02` — **Private first.** No default relays; the group's
   self-hosted allowlist relay is the first target (separate org repo, out of
   scope here); public relays are extra entries. Client implements NIP-42.
