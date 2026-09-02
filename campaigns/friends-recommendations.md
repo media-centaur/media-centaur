@@ -32,7 +32,9 @@ main, unpushed. Layer 2 (`MediaCentaur.Nostr`: `Keys`, `Event`, `Filter`;
 `Friends.Identity` on the sensitive `nostr_secret_key` config key, Friends
 tab identity block at `/discovery/friends`) landed 2026-09-02. Layer 4 (relay
 connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Friends.Relay`,
-`Friends.Connections`, relay block) landed 2026-09-02; next: layer 5 (roster).
+`Friends.Connections`, relay block) landed 2026-09-02. Layer 5 (roster:
+`Friends.Friend`, roster block) landed 2026-09-02; next: layer 6
+(`Recommendations`: schema, translation, sync, recommend modal, Feed tab).
 
 ## Decisions made
 
