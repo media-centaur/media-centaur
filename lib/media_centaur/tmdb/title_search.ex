@@ -22,6 +22,8 @@ defmodule MediaCentaur.TMDB.TitleSearch do
 
   alias MediaCentaur.TMDB.{Client, Title}
 
+  require MediaCentaur.Log, as: Log
+
   # A query ending in a standalone year, optionally parenthesized
   # ("Title 1999", "Title (1999)"). The title part must be non-empty —
   # a bare year is a title query ("1999" the film), not a filter.
@@ -64,12 +66,12 @@ defmodule MediaCentaur.TMDB.TitleSearch do
 
   defp tag_media_type({:error, _reason}, _media_type), do: []
 
-  defp normalize_multi_result(%{"media_type" => "movie"} = tmdb), do: [normalize_movie_result(tmdb)]
-  defp normalize_multi_result(%{"media_type" => "tv"} = tmdb), do: [normalize_tv_result(tmdb)]
+  defp normalize_multi_result(%{"media_type" => "movie"} = tmdb), do: normalize_movie_result(tmdb)
+  defp normalize_multi_result(%{"media_type" => "tv"} = tmdb), do: normalize_tv_result(tmdb)
   defp normalize_multi_result(_person_or_unknown), do: []
 
   defp normalize_movie_result(tmdb) do
-    Title.new!(%{
+    build_title(%{
       tmdb_id: tmdb["id"],
       media_type: :movie,
       name: tmdb["title"],
@@ -77,12 +79,12 @@ defmodule MediaCentaur.TMDB.TitleSearch do
       release_date: extract_date(tmdb["release_date"]),
       poster_path: tmdb["poster_path"],
       backdrop_path: tmdb["backdrop_path"],
-      overview: presence(tmdb["overview"])
+      overview: tmdb["overview"]
     })
   end
 
   defp normalize_tv_result(tmdb) do
-    Title.new!(%{
+    build_title(%{
       tmdb_id: tmdb["id"],
       media_type: :tv_series,
       name: tmdb["name"],
@@ -90,13 +92,27 @@ defmodule MediaCentaur.TMDB.TitleSearch do
       release_date: extract_date(tmdb["first_air_date"]),
       poster_path: tmdb["poster_path"],
       backdrop_path: tmdb["backdrop_path"],
-      overview: presence(tmdb["overview"])
+      overview: tmdb["overview"]
     })
   end
 
-  defp presence(nil), do: nil
-  defp presence(""), do: nil
-  defp presence(text) when is_binary(text), do: text
+  # A TMDB hit missing its id or title is junk, not a crash: drop it and
+  # keep the rest of the results. `Title.new!/1` stays the enforced
+  # constructor for in-app builders, where a bad title is a programmer error.
+  defp build_title(attrs) do
+    case Ecto.Changeset.apply_action(Title.changeset(attrs), :insert) do
+      {:ok, title} ->
+        [title]
+
+      {:error, changeset} ->
+        Log.debug(
+          :tmdb,
+          "dropped malformed title hit #{inspect(attrs[:tmdb_id])}: #{inspect(changeset.errors)}"
+        )
+
+        []
+    end
+  end
 
   defp extract_year(nil), do: nil
   defp extract_year(""), do: nil

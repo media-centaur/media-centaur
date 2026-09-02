@@ -385,7 +385,7 @@ defmodule MediaCentaur.TMDB.TitleSearch do
 end
 ```
 
-Note `Title.new!/1` raises on a TMDB hit without a name/title. The old struct did the same via `@enforce_keys`, so behavior is unchanged; a multi result always carries one.
+Note: a TMDB hit missing its id or title is dropped with a debug log rather than raising — `@enforce_keys` on the old struct only checked key presence, so the old code rendered a blank row; dropping is the chosen policy (review of Task 2, 2026-09-02).
 
 - [ ] **Step 4: Export it, run both test files**
 

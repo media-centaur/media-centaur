@@ -7,7 +7,11 @@ defmodule MediaCentaur.TMDB do
   Boundary anchor for the TMDB external-integration adapter.
 
   TMDB owns no domain data and broadcasts no PubSub events. It exposes
-  `Client` (HTTP), `Confidence` (scoring), and `Mapper` (TMDB → domain attrs)
-  for use by Pipeline, Library, and Review. `RateLimiter` is internal.
+  `Client` (HTTP), `Confidence` (scoring), `Mapper` (TMDB → domain attrs), and
+  `MetadataStats` for use by Pipeline, Library, and Review. `Title` is the
+  app-wide title value — an embedded schema every title-carrying context
+  (release tracking, watchlist, review) reuses — and `TitleSearch` is the
+  normalized title search built on it, for the omnibox and track flow.
+  `RateLimiter` is internal.
   """
 end

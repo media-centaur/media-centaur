@@ -123,6 +123,21 @@ defmodule MediaCentaur.TMDB.TitleSearchTest do
       MediaCentaur.TmdbStubs.stub_search_multi([])
       assert TitleSearch.search("xyznonexistent") == []
     end
+
+    test "drops a hit with a blank title and keeps the rest" do
+      MediaCentaur.TmdbStubs.stub_search_multi([
+        %{"id" => 1, "media_type" => "movie", "title" => "", "release_date" => "2020-01-01"},
+        %{"id" => 2, "media_type" => "movie", "title" => "Sample Movie", "release_date" => "2020-01-01"},
+        %{"id" => nil, "media_type" => "tv", "name" => "Sample Show"}
+      ])
+
+      assert [%Title{tmdb_id: 2, name: "Sample Movie"}] = TitleSearch.search("sample")
+    end
+
+    test "returns an empty list when TMDB errors" do
+      MediaCentaur.TmdbStubs.stub_tmdb_error("/search/multi")
+      assert TitleSearch.search("sample") == []
+    end
   end
 
   describe "search/1 — trailing year in the query" do
