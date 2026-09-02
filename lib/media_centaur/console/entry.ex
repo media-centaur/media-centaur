@@ -162,6 +162,12 @@ defmodule MediaCentaur.Console.Entry do
     {"MediaCentaur.Downloads", :acquisition},
     {"MediaCentaur.ReleaseTracking", :acquisition},
     {"MediaCentaur.SelfUpdate", :self_update},
+    # The friend network's three modules share one board tile: a relay
+    # socket, the roster and the recommendations sync are one subsystem
+    # to a reader, whatever component tag the emitting module chose.
+    {"MediaCentaur.Nostr", :friends},
+    {"MediaCentaur.Friends", :friends},
+    {"MediaCentaur.Recommendations", :friends},
     {"MediaCentaurWeb.Acquisition", :acquisition},
     {"MediaCentaurWeb.Incoming", :acquisition},
     {"MediaCentaurWeb.Library", :library},

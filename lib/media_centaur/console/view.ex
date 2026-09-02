@@ -15,6 +15,8 @@ defmodule MediaCentaur.Console.View do
     :playback,
     :library,
     :acquisition,
+    :nostr,
+    :friends,
     :system,
     # framework
     :phoenix,
@@ -22,7 +24,17 @@ defmodule MediaCentaur.Console.View do
     :live_view
   ]
 
-  @app_components [:watcher, :pipeline, :tmdb, :playback, :library, :acquisition, :system]
+  @app_components [
+    :watcher,
+    :pipeline,
+    :tmdb,
+    :playback,
+    :library,
+    :acquisition,
+    :nostr,
+    :friends,
+    :system
+  ]
   @framework_components [:phoenix, :ecto, :live_view]
 
   # Deliberate per-component mapping. The old hash-into-daisyUI-palette approach
@@ -36,6 +48,8 @@ defmodule MediaCentaur.Console.View do
     playback: "chip-playback",
     library: "chip-library",
     acquisition: "chip-acquisition",
+    nostr: "chip-nostr",
+    friends: "chip-friends",
     system: "chip-system",
     phoenix: "chip-phoenix",
     ecto: "chip-ecto",
