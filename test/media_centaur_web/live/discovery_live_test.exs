@@ -177,12 +177,33 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       view |> form("#import-nsec-form", %{"nsec" => nsec}) |> render_submit()
       assert has_element?(view, "#import-nsec-submit", "Click again to replace")
+      assert has_element?(view, "#import-nsec", nsec)
       assert Identity.pubkey() == before
 
       view |> form("#import-nsec-form", %{"nsec" => nsec}) |> render_submit()
       assert Identity.pubkey() == "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
       assert render(view) =~ "Identity replaced"
       assert has_element?(view, "#identity-npub", Identity.npub())
+      refute has_element?(view, "#import-nsec", nsec)
+    end
+
+    test "replacing the identity in another tab clears the revealed key and the arm", %{conn: conn} do
+      {:ok, tab_a, _html} = live(conn, "/discovery/friends")
+      {:ok, tab_b, _html} = live(conn, "/discovery/friends")
+
+      old_nsec = Identity.export_nsec()
+      tab_a |> element("#reveal-nsec") |> render_click()
+      assert has_element?(tab_a, "#identity-nsec", old_nsec)
+
+      tab_a |> form("#import-nsec-form", %{"nsec" => old_nsec}) |> render_submit()
+      assert has_element?(tab_a, "#import-nsec-submit", "Click again to replace")
+
+      replacement = Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "3"))
+      tab_b |> form("#import-nsec-form", %{"nsec" => replacement}) |> render_submit()
+      tab_b |> form("#import-nsec-form", %{"nsec" => replacement}) |> render_submit()
+
+      render_until(tab_a, fn _html -> not has_element?(tab_a, "#identity-nsec", old_nsec) end)
+      assert has_element?(tab_a, "#import-nsec-submit", "Replace identity")
     end
 
     test "an invalid secret key is refused with a flash", %{conn: conn} do
@@ -193,6 +214,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> form("#import-nsec-form", %{"nsec" => "nsec1nope"}) |> render_submit()
 
       assert render(view) =~ "That is not a valid secret key"
+      assert has_element?(view, "#import-nsec-submit", "Replace identity")
       assert Identity.pubkey() == before
     end
 

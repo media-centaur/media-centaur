@@ -88,9 +88,8 @@ defmodule MediaCentaur.Nostr.EventTest do
     end
 
     test "sign_with_aux reproduces BIP-340 test vector 0 byte for byte" do
-      # Vector 0: secret 3, aux 0x00…00, message 0x00…00 → the published signature.
-      # Our message is the event id, so build an event whose id hashes to all zeros?
-      # That is not possible; instead pin the primitive directly:
+      # Pins the sign path to BIP-340 vector 0 (secret 3, aux 0, message 0) through
+      # the fixed-width serializer.
       z = 0
       aux = 0
 

@@ -2,7 +2,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.IdentityBlock do
   @moduledoc """
   The Friends tab's identity block: this install's npub with a copy
   control, and a disclosure holding the secret key (reveal + copy) and
-  the import form. Iteration-phase component (lives with the LiveView,
+  the import form. The import textarea renders `import_draft`, so the
+  arming click keeps what was pasted and a finished import clears it.
+  Iteration-phase component (lives with the LiveView,
   no story yet — spec decision 11). Events bubble to `DiscoveryLive`:
   `reveal_nsec`, `hide_nsec`, `import_nsec`.
   """
@@ -12,6 +14,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.IdentityBlock do
   attr :npub, :string, required: true
   attr :nsec_revealed, :string, default: nil, doc: "the nsec while revealed; nil hides it"
   attr :import_armed?, :boolean, required: true
+  attr :import_draft, :string, default: "", doc: "the pasted nsec while the replace is armed"
 
   def identity_block(assigns) do
     ~H"""
@@ -85,7 +88,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.IdentityBlock do
               rows="2"
               placeholder="nsec1…"
               class="textarea textarea-bordered w-full font-mono text-xs"
-            ></textarea>
+            >{@import_draft}</textarea>
             <.button
               id="import-nsec-submit"
               type="submit"
