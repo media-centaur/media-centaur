@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.Reconciliation,
       MediaCentaur.DeleteTargets,
       MediaCentaur.Discovery,
-      MediaCentaur.Friends,
+      MediaCentaur.Social,
       MediaCentaur.Recommendations
     ],
     exports: [Endpoint]

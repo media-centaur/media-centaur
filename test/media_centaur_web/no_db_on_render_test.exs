@@ -219,7 +219,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # badge queries inline in the mount process, which this counter
       # would misattribute to the navigation path.
       #
-      # 2026-09-02: the Friends drill-in's widget added the relay rows, the
+      # 2026-09-02: the Social drill-in's widget added the relay rows, the
       # roster (twice — once for the count, once inside the feed read) and
       # the recommendations read to every mount, +8 measured in isolation
       # (34 → 42). The band moves with it, so the ceiling moves 52 → 60 to

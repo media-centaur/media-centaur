@@ -3,8 +3,8 @@ defmodule MediaCentaur.RecommendationsTest do
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Recommendations
   alias MediaCentaur.Recommendations.Events.Received
@@ -96,7 +96,7 @@ defmodule MediaCentaur.RecommendationsTest do
 
   describe "ingest/1" do
     test "accepts a friend's verified event, decorates the feed with the nickname, broadcasts" do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       Recommendations.subscribe()
       event = friend_event(title(), "Great.", 1_700_000_000)
 
@@ -110,7 +110,7 @@ defmodule MediaCentaur.RecommendationsTest do
     end
 
     test "a newer event replaces, an older one is ignored, the same one is a no-op" do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, first} = Recommendations.ingest(friend_event(title(), "one", 1_700_000_000))
 
       assert {:ok, newer} = Recommendations.ingest(friend_event(title(), "two", 1_700_000_100))
@@ -128,7 +128,7 @@ defmodule MediaCentaur.RecommendationsTest do
       event = friend_event(title(), "x", 1_700_000_000)
       assert {:error, :unknown_author} = Recommendations.ingest(event)
 
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
       # A well-formed signature over a *different* event: the shape is
       # valid, the signature is not this event's.
@@ -153,7 +153,7 @@ defmodule MediaCentaur.RecommendationsTest do
   end
 
   test "feed rows come newest first" do
-    {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+    {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
     {:ok, _one} = Recommendations.ingest(friend_event(title(1), "a", 1_700_000_000))
     {:ok, _two} = Recommendations.ingest(friend_event(title(2), "b", 1_700_000_500))
 
@@ -164,7 +164,7 @@ defmodule MediaCentaur.RecommendationsTest do
   end
 
   test "before an identity exists nothing is sent and a friend's recommendation still lands" do
-    {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+    {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
     refute Identity.present?()
 
     {:ok, _rec} = Recommendations.ingest(friend_event(title(), "hi", 1_700_000_000))
@@ -184,7 +184,7 @@ defmodule MediaCentaur.RecommendationsTest do
 
   describe "counts/0" do
     test "with no identity, everything counts as received" do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _one} = Recommendations.ingest(friend_event(title(1), "a", 1_700_000_000))
       {:ok, _two} = Recommendations.ingest(friend_event(title(2), "b", 1_700_000_500))
 
@@ -198,7 +198,7 @@ defmodule MediaCentaur.RecommendationsTest do
     end
 
     test "splits sent from received and finds the newest received recommended_at" do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _sent} = Recommendations.recommend(title(3), "mine")
       {:ok, _one} = Recommendations.ingest(friend_event(title(1), "a", 1_700_000_000))
       {:ok, _two} = Recommendations.ingest(friend_event(title(2), "b", 1_700_000_500))

@@ -12,8 +12,8 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
 
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Connections
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Connections
   alias MediaCentaur.Recommendations
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status}
@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.StatusLive do
       Acquisition.subscribe_queue()
       Capabilities.subscribe_changes()
       Status.Views.subscribe()
-      Friends.subscribe_connections()
+      Social.subscribe_connections()
 
       # Visiting /status marks auto-detected incidents as seen, clearing
       # the discovery badge on the Status nav item. The web layer owns
@@ -142,19 +142,19 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(overview: Status.Views.overview())
     |> assign_storage_snapshot(Status.Views.storage())
     |> assign_self_update()
-    |> assign_friends()
+    |> assign_social()
   end
 
-  # Snapshot of the friend network for the Friends Activity widget:
-  # aggregates only (the Friends tab owns the lists). `Recommendations.counts/0`
+  # Snapshot of the friend network for the Social Activity widget:
+  # aggregates only (the Social tab owns the lists). `Recommendations.counts/0`
   # is two aggregate queries — cheaper than loading every row just to
   # count and diff them.
-  defp assign_friends(socket) do
+  defp assign_social(socket) do
     counts = Recommendations.counts()
 
     assign(socket,
       relay_status: relay_status(),
-      friend_count: length(Friends.list_friends()),
+      friend_count: length(Social.list_friends()),
       sent_count: counts.sent,
       received_count: counts.received,
       last_received_at: counts.last_received_at
@@ -168,7 +168,7 @@ defmodule MediaCentaurWeb.StatusLive do
   # nothing has been heard from yet takes the blank (`:connecting`) entry.
   defp relay_status do
     live = Connections.status()
-    Map.new(Friends.list_relays(), &{&1.url, Map.get(live, &1.url, Connections.blank_entry())})
+    Map.new(Social.list_relays(), &{&1.url, Map.get(live, &1.url, Connections.blank_entry())})
   end
 
   defp assign_storage_snapshot(socket, snapshot) do

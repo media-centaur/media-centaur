@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Recommendations do
   use Boundary,
     deps: [
-      MediaCentaur.Friends,
+      MediaCentaur.Social,
       MediaCentaur.Nostr,
       MediaCentaur.TMDB,
       MediaCentaur.TmdbArtwork
@@ -36,9 +36,9 @@ defmodule MediaCentaur.Recommendations do
 
   import Ecto.Query
 
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Connections
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Connections
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Recommendations.Events
   alias MediaCentaur.Recommendations.Recommendation
@@ -101,7 +101,7 @@ defmodule MediaCentaur.Recommendations do
   """
   @spec list_feed() :: [feed_row()]
   def list_feed do
-    friends = Map.new(Friends.list_friends(), &{&1.pubkey, &1.nickname})
+    friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
     me = Identity.pubkey()
 
     Recommendation
@@ -230,7 +230,7 @@ defmodule MediaCentaur.Recommendations do
   defp max_recommended_at(query), do: query |> select([r], max(r.recommended_at)) |> Repo.one()
 
   defp known_author(pubkey) do
-    if pubkey == Identity.pubkey() or Friends.friend_by_pubkey(pubkey),
+    if pubkey == Identity.pubkey() or Social.friend_by_pubkey(pubkey),
       do: :ok,
       else: {:error, :unknown_author}
   end

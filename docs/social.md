@@ -1,11 +1,14 @@
-# Friends and recommendations (contributor guide)
+# Social (contributor guide)
 
-How the friend network is put together: four contexts, one protocol library, one
+**Social** is the subsystem that connects one install to friends' installs over
+Nostr relays: this install's identity, its relays, its friends, and the
+recommendations that travel between them. A **friend** is one roster entry
+inside it. How it is put together: four contexts, one protocol library, one
 long-lived WebSocket per relay, and a sync loop that keeps stored
 recommendations in step with what the relays hold.
 
 End-user setup lives on the wiki:
-[Friends and Recommendations](https://github.com/media-centaur/media-centaur/wiki/Friends-and-Recommendations).
+[Social](https://github.com/media-centaur/media-centaur/wiki/Social).
 Design rationale and the build order live in
 [`docs/superpowers/specs/2026-09-02-friends-recommendations-design.md`](superpowers/specs/2026-09-02-friends-recommendations-design.md)
 and [`campaigns/friends-recommendations.md`](../campaigns/friends-recommendations.md).
@@ -25,13 +28,13 @@ and [`campaigns/friends-recommendations.md`](../campaigns/friends-recommendation
 ## Contexts
 
 Four `Boundary` contexts, each with one job. The dependency edges run one way:
-`Discovery ← (nothing) → Recommendations → Friends → Nostr`.
+`Discovery ← (nothing) → Recommendations → Social → Nostr`.
 
 | Context | Owns | Depends on |
 |---|---|---|
 | `MediaCentaur.Nostr` | The protocol and nothing else: `Keys`, `Event`, `Filter`, `Connection`. No tables, no domain meaning. | — |
-| `MediaCentaur.Friends` | The network's *configuration*: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), and `Connections` (one live connection per relay). | `Nostr` |
-| `MediaCentaur.Recommendations` | The *content*: `recommendations` table, `Translation` (events ↔ rows), `Sync` (relays ↔ rows). | `Friends`, `Nostr`, `TMDB`, `TmdbArtwork` |
+| `MediaCentaur.Social` | The network's *configuration*: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), and `Connections` (one live connection per relay). | `Nostr` |
+| `MediaCentaur.Recommendations` | The *content*: `recommendations` table, `Translation` (events ↔ rows), `Sync` (relays ↔ rows). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork` |
 | `MediaCentaur.Discovery` | The watchlist (`watchlist_items`). Knows nothing about the friend network — a row from the feed stores a bare `recommendation_id`. | `Library`, `TmdbArtwork`, `TMDB` |
 
 The Discovery/Recommendations separation is deliberate: a watchlist row records
@@ -41,17 +44,17 @@ layer's job — see [Web layer](#web-layer).
 
 ## Identity and secrets
 
-`Friends.Identity` holds one secp256k1 keypair. The secret is a single
+`Social.Identity` holds one secp256k1 keypair. The secret is a single
 **sensitive Settings config key**, `nostr_secret_key` (hex, wrapped in
 `MediaCentaur.Secret` at rest and in memory); the public key is derived on every
 read rather than stored, so the two can never disagree.
 
-- `ensure/0` generates on first use. Two callers: the Friends tab, and
+- `ensure/0` generates on first use. Two callers: the Social tab, and
   `Recommendations.recommend/2` — a user can recommend a title before ever
   opening the tab, which mints the identity right there.
 - `import_nsec/1` is the only replacement path (two-click arm in the UI,
   MC0027 treatment b).
-- Both broadcast `Friends.Events.IdentityChanged`, which makes
+- Both broadcast `Social.Events.IdentityChanged`, which makes
   `Connections.Owner` rebuild every connection so `AUTH` answers are re-signed.
 
 `Nostr.Keys` owns the hex ↔ bech32 (`npub` / `nsec`, NIP-19) conversions and
@@ -82,11 +85,11 @@ before touching it:
 - **Every inbound frame is type-guarded.** A relay is untrusted input; a frame
   that doesn't match falls to a debug log, never a crash.
 
-`Friends.Connections` keeps that population in step with the `relays` table: a
+`Social.Connections` keeps that population in step with the `relays` table: a
 Registry keyed by URL, a DynamicSupervisor, and `Connections.Owner`, which
 reconciles on boot and on `RelayAdded` / `RelayRemoved` / `IdentityChanged`,
 receives every connection's messages, and re-broadcasts them on
-`friends:connections`. `Connections.status/0` is the read model —
+`social:connections`. `Connections.status/0` is the read model —
 `%{url => %{state, last_error, since}}` — where `since` is the onset of the
 current state, which is what the health probe measures against.
 
@@ -120,8 +123,8 @@ textarea's `maxlength`.
 
 ## Sync
 
-`Recommendations.Sync` is a GenServer over `friends:connections` and
-`friends:updates`:
+`Recommendations.Sync` is a GenServer over `social:connections` and
+`social:updates`:
 
 1. `:connected` for a relay → subscribe `"feed"` (authors = friends ++ self,
    kind 32160) and `"own:<url>"` (authors = [self]) on that relay, and reset the
@@ -132,7 +135,7 @@ textarea's `maxlength`.
 3. `{:eose, "own:<url>"}` → publish to that relay every stored own event it did
    *not* send. A per-relay diff, not a blanket re-publish: addressable events are
    few, and a relay that already holds one doesn't need it again.
-4. A roster change on `friends:updates` resubscribes `"feed"` on every relay with
+4. A roster change on `social:updates` resubscribes `"feed"` on every relay with
    the new author list.
 
 `ingest/1` rejects anything not signed by the identity or a key on the roster, so
@@ -149,21 +152,21 @@ All three are declared in `MediaCentaur.Topics`.
 
 | Topic | Publisher | Messages |
 |---|---|---|
-| `friends:updates` | `Friends.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_removed, _}` |
-| `friends:connections` | `Friends.Connections.Owner` | `{:relay_connection, url, message}` — the re-broadcast of every `Nostr.Connection` owner message |
+| `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_removed, _}` |
+| `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — the re-broadcast of every `Nostr.Connection` owner message |
 | `recommendations:updates` | `Recommendations.Events` | `{:recommendation_received, _}`, `{:recommendation_sent, _}` |
 
-Subscribers use `Friends.subscribe/0`, `Friends.subscribe_connections/0` and
+Subscribers use `Social.subscribe/0`, `Social.subscribe_connections/0` and
 `Recommendations.subscribe/0`. Payloads are typed structs per ADR-060.
 
 `Connections.apply_message/2` is the owner's own fold over a connection message,
-exported so a LiveView folding `friends:connections` into local state can never
+exported so a LiveView folding `social:connections` into local state can never
 disagree with the owner about what a message meant.
 
 ## Web layer
 
 `MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
-(`:feed` at `/discovery`, `:watchlist`, `:friends`). The Friends tab's blocks are
+(`:feed` at `/discovery`, `:watchlist`, `:social`). The Social tab's blocks are
 iteration-phase function components under `live/discovery_live/`
 (`identity_block`, `relay_block`, `roster_block`, `feed_row`, `recommend_modal`)
 — no stories and no input-system support yet; the hardening pass moves them under
@@ -177,7 +180,7 @@ The joins the contexts may not make happen here:
   (`Library.ExternalIds.tmdb_owners/1`) and `on_watchlist?`
   (`Discovery.watchlisted_refs/0`).
 - **Watchlist rows** — the row stores only `recommendation_id`; the page resolves
-  it to a nickname through `Recommendations.get_many/1` → `Friends.list_friends/0`.
+  it to a nickname through `Recommendations.get_many/1` → `Social.list_friends/0`.
 
 `MediaCentaurWeb.Live.RecommendFlow` is the shared modal flow (`use RecommendFlow`
 injects the handlers), hosted by `DiscoveryLive` for watchlist rows and by any
@@ -188,7 +191,7 @@ sidebar entry; watchlist rows need no gate because that page is Discovery alread
 
 ## Health
 
-`Friends.IncidentContext` is the `assess/0` the `ErrorReports.Evaluator` polls
+`Social.IncidentContext` is the `assess/0` the `ErrorReports.Evaluator` polls
 (ADR-054), owning one `:subsystem` incident for the `friends` component. Its
 faults are `:relay_auth_failed` (error, no grace), `:relays_unreachable` (error,
 after a 180 s grace) and `:relay_degraded` (warning). No relays configured is
@@ -196,15 +199,15 @@ never a fault. The decision is the pure `decide/3`; `assess/0` is the shell.
 
 **Known gap:** `:subsystem` incidents don't reach the health board.
 `BucketCache.from_incidents/1` keeps only fingerprint-keyed (`:log`) rows, so the
-Friends tile reads "No issues" with every relay down. Pre-existing and
+Social tile reads "No issues" with every relay down. Pre-existing and
 system-wide (the download-client and search probes have it too); fixing it is an
 `ErrorReports` change. The Status widget
-(`Components.StatusWidgets.Friends`) still shows the live summary in the
+(`Components.StatusWidgets.Social`) still shows the live summary in the
 drill-in.
 
-Console tags: `:nostr` for transport, `:friends`, `:recommendations` for the
-contexts. `HealthBoard.normalize/1` aliases `:nostr` and `:recommendations`
-incidents onto the Friends tile; `:subsystem` incidents (the assessor's own
+Console tags: `:nostr` for the wire (`Nostr.Connection`), `:social` for
+everything above it (`Social`, `Recommendations`). `HealthBoard.normalize/1`
+aliases `:nostr` incidents onto the Social tile; `:subsystem` incidents (the assessor's own
 faults) still never reach the board — a pre-existing ErrorReports gap.
 
 ## Testing
@@ -222,7 +225,7 @@ Two application gates keep the real thing out of the suite, both `false` in
 
 | Key | Gates |
 |---|---|
-| `:start_relay_connections` | `Friends.Connections.Owner` — without it, no connection is opened for a configured relay |
+| `:start_relay_connections` | `Social.Connections.Owner` — without it, no connection is opened for a configured relay |
 | `:start_recommendations_sync` | `Recommendations.Sync` — without it, nothing subscribes to every `FakeRelay` a test stands up |
 
 Tests that need either start it by hand, pointed at a `FakeRelay`.

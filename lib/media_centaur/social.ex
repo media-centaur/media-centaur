@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Friends do
+defmodule MediaCentaur.Social do
   use Boundary,
     deps: [MediaCentaur.Nostr],
     exports: [
@@ -16,21 +16,21 @@ defmodule MediaCentaur.Friends do
 
   @moduledoc """
   Bounded context for the friend network's configuration: this install's
-  identity (`Friends.Identity`), the relay list (`Friends.Relay`), the
-  live connections keyed by it (`Friends.Connections`) and the roster of
-  followed keys (`Friends.Friend`).
+  identity (`Social.Identity`), the relay list (`Social.Relay`), the
+  live connections keyed by it (`Social.Connections`) and the roster of
+  followed keys (`Social.Friend`).
 
-  Broadcasts typed events on `friends:updates` (subscribe through
+  Broadcasts typed events on `social:updates` (subscribe through
   `subscribe/0`) and re-broadcasts every relay connection's messages on
-  `friends:connections` (`subscribe_connections/0`).
+  `social:connections` (`subscribe_connections/0`).
   """
 
   import Ecto.Query
 
-  alias MediaCentaur.Friends.Events
-  alias MediaCentaur.Friends.Friend
-  alias MediaCentaur.Friends.Identity
-  alias MediaCentaur.Friends.Relay
+  alias MediaCentaur.Social.Events
+  alias MediaCentaur.Social.Friend
+  alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Relay
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics

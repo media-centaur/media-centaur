@@ -57,8 +57,8 @@ defmodule MediaCentaur.Topics do
   | `watcher:state` | `Watcher` | dir-watch state transitions |
   | `review:intake` | `Review` | inbound files awaiting review |
   | `discovery:updates` | `Discovery.Events` | `{:watchlist_item_added, _}`, `{:watchlist_item_removed, _}` |
-  | `friends:updates` | `Friends.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_removed, _}` |
-  | `friends:connections` | `Friends.Connections.Owner` | `{:relay_connection, url, message}` — re-broadcast of `Nostr.Connection` owner messages |
+  | `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_removed, _}` |
+  | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — re-broadcast of `Nostr.Connection` owner messages |
   | `recommendations:updates` | `Recommendations.Events` | `{:recommendation_received, _}`, `{:recommendation_sent, _}` |
   | `apps:updates` | `Apps.Events` | `{:app_artwork_cached, _}` — async CDN art landed |
   | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:file_reviewed, _}`, `{:group_approved, _}`, `{:group_error, _}` — typed structs, ADR-060's worked example |
@@ -162,8 +162,8 @@ defmodule MediaCentaur.Topics do
   def review_intake, do: "review:intake"
   def review_updates, do: "review:updates"
   def discovery_updates, do: "discovery:updates"
-  def friends_updates, do: "friends:updates"
-  def friends_connections, do: "friends:connections"
+  def friends_updates, do: "social:updates"
+  def friends_connections, do: "social:connections"
   def recommendations_updates, do: "recommendations:updates"
   def apps_updates, do: "apps:updates"
   def settings_updates, do: "settings:updates"

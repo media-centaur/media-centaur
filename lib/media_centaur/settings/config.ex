@@ -470,7 +470,7 @@ defmodule MediaCentaur.Settings.Config do
       update_check_enabled: true,
       update_check_interval_minutes: @update_check_interval_default_minutes,
       auto_update_enabled: false,
-      # Friends: this install's Nostr secret key (hex), generated on first use
+      # Social: this install's Nostr secret key (hex), generated on first use
       nostr_secret_key: nil
     }
 

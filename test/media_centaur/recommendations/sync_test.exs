@@ -3,9 +3,9 @@ defmodule MediaCentaur.Recommendations.SyncTest do
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Connections
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Connections
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
   alias MediaCentaur.Nostr.Keys
@@ -24,7 +24,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
   setup do
     TmdbStubs.setup_tmdb_client()
     Identity.ensure()
-    {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+    {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
     start_supervised!({Connections.Owner, backoff_ms: 50})
     start_supervised!(Sync)
     Recommendations.subscribe()
@@ -38,7 +38,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
 
   test "on connect, a friend's stored recommendation lands in the feed" do
     relay = FakeRelay.start(events: [friend_event(1)])
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:recommendation_received, _event}, 5_000
     assert [%{recommendation: %{tmdb_id: 1}, nickname: "Sample Friend"}] = Recommendations.list_feed()
@@ -48,7 +48,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
   test "own recommendations the relay lacks are published after its EOSE" do
     {:ok, _rec} = Recommendations.recommend(title(7), "mine")
     relay = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:relay_in, ["EVENT", %{"kind" => 32_160, "tags" => [["d", "tmdb:movie:7"]]}]}, 5_000
     await_supervised_tasks()
@@ -58,7 +58,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     {:ok, _rec} = Recommendations.recommend(title(7), "mine")
     [own] = Recommendations.own_events()
     relay = FakeRelay.start(events: [own])
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:relay_in, ["REQ", "own:" <> _url, _filter]}, 5_000
     refute_receive {:relay_in, ["EVENT", _event]}, 1_000
@@ -67,7 +67,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
 
   test "a live event from a friend arrives through the feed subscription" do
     relay = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
     assert_receive {:relay_in, ["REQ", "feed", %{"authors" => authors, "kinds" => [32_160]}]}, 5_000
     assert @friend_pubkey in authors
     assert Identity.pubkey() in authors
@@ -79,11 +79,11 @@ defmodule MediaCentaur.Recommendations.SyncTest do
 
   test "adding a friend resubscribes the feed with the new author" do
     relay = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
     assert_receive {:relay_in, ["REQ", "feed", _filter]}, 5_000
 
     other = Keys.generate()
-    {:ok, _friend} = Friends.add_friend(Keys.pubkey(other), "Another")
+    {:ok, _friend} = Social.add_friend(Keys.pubkey(other), "Another")
 
     assert_receive {:relay_in, ["REQ", "feed", %{"authors" => authors}]}, 5_000
     assert Keys.pubkey(other) in authors
@@ -93,7 +93,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     stranger = Keys.generate()
     event = Event.sign(Translation.to_event(title(3), nil, Keys.pubkey(stranger)), stranger)
     relay = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
     assert_receive {:relay_in, ["REQ", "feed", _filter]}, 5_000
 
     FakeRelay.push(relay, ["EVENT", "feed", Event.to_map(event)])

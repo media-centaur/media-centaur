@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Friends.Friend do
+defmodule MediaCentaur.Social.Friend do
   @moduledoc """
   One followed public key: the x-only key as lowercase hex, and the
   nickname this install gave it. The nickname is local — nothing about a

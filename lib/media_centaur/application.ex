@@ -6,7 +6,7 @@ defmodule MediaCentaur.Application do
     top_level?: true,
     deps: [
       MediaCentaur.Capabilities,
-      MediaCentaur.Friends,
+      MediaCentaur.Social,
       MediaCentaur.Recommendations,
       MediaCentaur.Settings.Controls,
       MediaCentaur.Library,
@@ -85,7 +85,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.TMDB.RateLimiter,
           MediaCentaur.TMDB.MetadataStats,
           MediaCentaur.Watcher.Supervisor,
-          MediaCentaur.Friends.Connections
+          MediaCentaur.Social.Connections
         ] ++
         recommendations_sync_children() ++
         [

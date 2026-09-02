@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [put_flash: 3]
 
-  alias MediaCentaur.Friends.Connections
+  alias MediaCentaur.Social.Connections
   alias MediaCentaur.Recommendations
   alias MediaCentaur.TMDB.Title
 

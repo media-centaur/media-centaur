@@ -161,7 +161,7 @@ defmodule MediaCentaurWeb.Layouts do
               sidebar_link_class(@current_path, [
                 "/discovery",
                 "/discovery/watchlist",
-                "/discovery/friends"
+                "/discovery/social"
               ])
             }
             data-tip="Discovery"

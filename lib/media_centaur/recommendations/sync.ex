@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Recommendations.Sync do
   @moduledoc """
   Keeps recommendations in step with the relays. Consumes
-  `friends:connections`:
+  `social:connections`:
 
     * `:connected` for a relay → subscribe `"feed"` (authors = friends ++
       self, kind 32160) and `"own:<url>"` (authors = [self]) on that
@@ -13,7 +13,7 @@ defmodule MediaCentaur.Recommendations.Sync do
     * `{:event, _sub_id, event}` → `Recommendations.ingest/1` (verified,
       friend or self, newest wins).
 
-  Consumes `friends:updates`: a roster change resubscribes `"feed"` on
+  Consumes `social:updates`: a roster change resubscribes `"feed"` on
   every relay with the new author list.
 
   On reconnect, `Connections.Owner` also re-applies the relay's
@@ -30,9 +30,9 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Connections
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Connections
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Filter
   alias MediaCentaur.Recommendations
   alias MediaCentaur.Recommendations.Translation
@@ -43,8 +43,8 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   @impl true
   def init(_opts) do
-    Friends.subscribe_connections()
-    Friends.subscribe()
+    Social.subscribe_connections()
+    Social.subscribe()
     {:ok, %__MODULE__{}}
   end
 
@@ -66,7 +66,7 @@ defmodule MediaCentaur.Recommendations.Sync do
         :ok
 
       {:error, reason} ->
-        Log.debug(:recommendations, "#{url}: dropped event #{event.id}: #{inspect(reason)}")
+        Log.debug(:social, "#{url}: dropped event #{event.id}: #{inspect(reason)}")
     end
 
     {:noreply, state}
@@ -94,7 +94,7 @@ defmodule MediaCentaur.Recommendations.Sync do
     for event <- missing, do: Connections.publish(url, event)
 
     if missing != [],
-      do: Log.info(:recommendations, "#{url}: published #{length(missing)} recommendation(s) it lacked")
+      do: Log.info(:social, "#{url}: published #{length(missing)} recommendation(s) it lacked")
 
     :ok
   end
@@ -103,7 +103,7 @@ defmodule MediaCentaur.Recommendations.Sync do
   # connection either, since `Connections` starts none — but the nil
   # would still reach the wire as an author, so it is filtered out.
   defp feed_filter do
-    authors = Enum.reject(Enum.uniq([Identity.pubkey() | Friends.friend_pubkeys()]), &is_nil/1)
+    authors = Enum.reject(Enum.uniq([Identity.pubkey() | Social.friend_pubkeys()]), &is_nil/1)
     Filter.new(authors: authors, kinds: [Translation.kind()])
   end
 

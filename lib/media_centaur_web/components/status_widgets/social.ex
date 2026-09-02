@@ -1,9 +1,9 @@
-defmodule MediaCentaurWeb.Components.StatusWidgets.Friends do
+defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
   @moduledoc """
-  Friends subsystem Activity widget: relay connectivity, roster size and
+  Social subsystem Activity widget: relay connectivity, roster size and
   recommendation traffic — aggregates only.
 
-  Deliberately carries no relay list and no roster: the Friends tab owns
+  Deliberately carries no relay list and no roster: the Social tab owns
   those, and a status widget that reprints them would be a second place
   to read the same rows. What it adds is the count the tab cannot show at
   a glance ("connected to 2 of 3"), the last thing a relay complained
@@ -18,11 +18,11 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Friends do
 
   alias MediaCentaur.Format
 
-  @doc "Friends subsystem Activity widget: relay connectivity, friend count, sent/received traffic."
+  @doc "Social subsystem Activity widget: relay connectivity, friend count, sent/received traffic."
   attr :relay_status, :map,
     required: true,
     doc:
-      "one `%{state, last_error, since}` entry per configured relay, keyed by URL (the host merges the relay rows with `Friends.Connections.status/0`); empty when no relay is configured"
+      "one `%{state, last_error, since}` entry per configured relay, keyed by URL (the host merges the relay rows with `Social.Connections.status/0`); empty when no relay is configured"
 
   attr :friend_count, :integer, required: true, doc: "how many keys are on the roster"
   attr :sent_count, :integer, required: true, doc: "recommendations this install has sent"
@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Friends do
     default: nil,
     doc: "`DateTime.t()` of the newest received recommendation, or nil when none"
 
-  def friends_widget(assigns) do
+  def social_widget(assigns) do
     entries = Map.values(assigns.relay_status)
 
     assigns =
@@ -41,9 +41,9 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Friends do
       |> Map.put(:last_error, last_error(entries))
 
     ~H"""
-    <div class="card glass-inset" data-testid="friends-widget">
+    <div class="card glass-inset" data-testid="social-widget">
       <div class="card-body">
-        <h2 class="card-title text-lg">Friends</h2>
+        <h2 class="card-title text-lg">Social</h2>
 
         <p class="text-sm">{@relay_line}</p>
 
@@ -58,10 +58,10 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Friends do
 
         <div class="mt-3">
           <.link
-            navigate={~p"/discovery/friends"}
+            navigate={~p"/discovery/social"}
             class="text-xs font-medium text-primary/70 transition-colors hover:text-primary"
           >
-            Open the Friends tab
+            Open the Social tab
           </.link>
         </div>
       </div>
@@ -79,7 +79,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Friends do
   end
 
   # The newest complaint any relay has recorded — one line, because the
-  # per-relay breakdown belongs to the Friends tab.
+  # per-relay breakdown belongs to the Social tab.
   defp last_error(entries) do
     entries
     |> Enum.filter(& &1.last_error)

@@ -165,9 +165,9 @@ defmodule MediaCentaur.Console.Entry do
     # The friend network's three modules share one board tile: a relay
     # socket, the roster and the recommendations sync are one subsystem
     # to a reader, whatever component tag the emitting module chose.
-    {"MediaCentaur.Nostr", :friends},
-    {"MediaCentaur.Friends", :friends},
-    {"MediaCentaur.Recommendations", :friends},
+    {"MediaCentaur.Nostr", :social},
+    {"MediaCentaur.Social", :social},
+    {"MediaCentaur.Recommendations", :social},
     {"MediaCentaurWeb.Acquisition", :acquisition},
     {"MediaCentaurWeb.Incoming", :acquisition},
     {"MediaCentaurWeb.Library", :library},

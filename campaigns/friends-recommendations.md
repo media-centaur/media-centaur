@@ -29,11 +29,11 @@ page at `/discovery/watchlist` with `tab_strip` and `show_discovery`,
 `docs/superpowers/plans/2026-09-02-discovery-page.md`) landed 2026-09-02 on
 main, unpushed. Layer 2 (`MediaCentaur.Nostr`: `Keys`, `Event`, `Filter`;
 `bitcoinex` dep) landed 2026-09-02. Layer 3 (Friends identity:
-`Friends.Identity` on the sensitive `nostr_secret_key` config key, Friends
-tab identity block at `/discovery/friends`) landed 2026-09-02. Layer 4 (relay
-connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Friends.Relay`,
-`Friends.Connections`, relay block) landed 2026-09-02. Layer 5 (roster:
-`Friends.Friend`, roster block) landed 2026-09-02. Layer 6
+`Social.Identity` on the sensitive `nostr_secret_key` config key, Friends
+tab identity block at `/discovery/social`) landed 2026-09-02. Layer 4 (relay
+connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Social.Relay`,
+`Social.Connections`, relay block) landed 2026-09-02. Layer 5 (roster:
+`Social.Friend`, roster block) landed 2026-09-02. Layer 6
 (`Recommendations` records/translation/sync, the Recommend modal, and the
 Feed tab at `/discovery`) landed 2026-09-02. Layer 7 (watchlist
 provenance, console tags, Friends incident assessor + Status tile/widget)
@@ -144,6 +144,17 @@ iteration.
   `tracked?` → ref-set attr; shared `title_summary`, poster helper and
   `tab_strip`; Recommendations artwork holds.
 
+* `2026-09-02` — **Vocabulary: "Social" is the subsystem; "friend" is a
+  roster entry.** "Friends" had named the subsystem (Status tile, incident
+  component, console tag), the bounded context, the Discovery tab and the
+  roster block at once. Renamed: context `MediaCentaur.Friends` →
+  `MediaCentaur.Social`; topics `social:updates` / `social:connections`;
+  console tags collapse to `:nostr` (wire) + `:social`; board key, incident
+  component and widget `:social`; tab `/discovery/social` labelled
+  **Social**; contributor guide `docs/social.md`; wiki page *Social*. Stored
+  incidents keyed `friends` are left as they are. Glossary elevated to
+  `docs/GLOSSARY.md`.
+
 ## Open questions
 
 *All resolved 2026-09-02 — see Decisions and the spec. Kept for history.*
@@ -193,7 +204,7 @@ iteration.
   * **The Watchlist is now a tab of Discovery** (`/discovery/watchlist`),
     and the **Discovery** preference replaces the old Watchlist one —
     your saved titles and your setting carry over.
-  * **A Friends tile on the Status page** — how many relays are
+  * **A Social tile on the Status page** — how many relays are
     connected, the last thing one complained about, and how many
     recommendations you've sent and received.
 
@@ -226,7 +237,7 @@ iteration.
 * **`:subsystem` incidents do not reach the health board.**
   `BucketCache.from_incidents/1` keeps only fingerprint-keyed (`:log`)
   rows, and the `Evaluator` raises faults with no `message`, so every
-  assessor's verdict — `Friends.IncidentContext` included, and
+  assessor's verdict — `Social.IncidentContext` included, and
   `download_client_unreachable` / `search_provider_unreachable` before it
   — is stored durably and colours nothing. The Friends tile therefore
   reads "No issues" even with every relay down. Pre-existing and

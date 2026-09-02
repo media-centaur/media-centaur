@@ -110,7 +110,7 @@ config :media_centaur, :diagnostics_contributors, %{
   tmdb: MediaCentaur.TMDB.IncidentContext,
   self_update: MediaCentaur.SelfUpdate.IncidentContext,
   acquisition: MediaCentaur.Acquisition.IncidentContext,
-  friends: MediaCentaur.Friends.IncidentContext
+  social: MediaCentaur.Social.IncidentContext
 }
 
 # Public repo the in-app reporter opens a new issue against (user posts under
@@ -125,7 +125,7 @@ config :media_centaur, :health_activity_widgets, %{
   tmdb: {MediaCentaurWeb.Components.StatusWidgets.Tmdb, :tmdb_widget},
   playback: {MediaCentaurWeb.Components.StatusWidgets.Playback, :playback_widget},
   acquisition: {MediaCentaurWeb.Components.StatusWidgets.Acquisition, :acquisition_widget},
-  friends: {MediaCentaurWeb.Components.StatusWidgets.Friends, :friends_widget},
+  social: {MediaCentaurWeb.Components.StatusWidgets.Social, :social_widget},
   self_update: {MediaCentaurWeb.Components.StatusWidgets.SelfUpdate, :self_update_widget},
   system: {MediaCentaurWeb.Components.StatusWidgets.System, :system_widget}
 }

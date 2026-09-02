@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.DiscoveryLive.RelayBlock do
   @moduledoc """
-  The Friends tab's relay block: the configured relays with their live
+  The Social tab's relay block: the configured relays with their live
   connection state, an add-by-URL form, and a per-row remove. Iteration-
   phase component (lives with the LiveView, no story yet — spec decision
   11). Events bubble to `DiscoveryLive`: `add_relay`, `remove_relay`.
@@ -8,11 +8,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.RelayBlock do
 
   use MediaCentaurWeb, :html
 
-  attr :relays, :list, required: true, doc: "`Friends.Relay.t()` in URL order"
+  attr :relays, :list, required: true, doc: "`Social.Relay.t()` in URL order"
 
   attr :status, :map,
     required: true,
-    doc: "`Friends.Connections.status/0` — `%{url => %{state: atom, last_error: String.t() | nil}}`"
+    doc: "`Social.Connections.status/0` — `%{url => %{state: atom, last_error: String.t() | nil}}`"
 
   def relay_block(assigns) do
     ~H"""

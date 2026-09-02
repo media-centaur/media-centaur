@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
                  :playback,
                  :library,
                  :acquisition,
-                 :friends,
+                 :social,
                  :self_update,
                  :system
                ]
@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       assert HealthBoard.label(:pipeline) == "Media import"
       assert HealthBoard.label(:tmdb) == "Metadata"
       assert HealthBoard.label(:acquisition) == "Downloads"
-      assert HealthBoard.label(:friends) == "Friends"
+      assert HealthBoard.label(:social) == "Social"
       assert HealthBoard.label(:self_update) == "Updates"
       assert "hero-" <> _ = HealthBoard.glyph(:pipeline)
       assert "hero-" <> _ = HealthBoard.glyph(:self_update)
@@ -83,16 +83,16 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       for s <- HealthBoard.board_subsystems(), do: assert(grouped[s] == [])
     end
 
-    test "aliases :nostr and :recommendations log components onto the friends tile" do
+    test "aliases the :nostr log component onto the social tile" do
       buckets = [
         bucket(:nostr, :warning),
-        bucket(:recommendations, :error),
+        bucket(:social, :error),
         bucket(:phoenix, :warning)
       ]
 
       grouped = HealthBoard.group_buckets(buckets)
 
-      assert length(grouped[:friends]) == 2
+      assert length(grouped[:social]) == 2
       # an unrelated, unknown component still folds to :system
       assert length(grouped[:system]) == 1
     end

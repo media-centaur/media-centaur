@@ -15,15 +15,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   primary action per row is the honest one for its state (see
   `WatchlistRow`). A row added from the feed carries a bare
   `recommendation_id`, and this page turns it into `from <nickname>`
-  (`Recommendations.get_many/1` → `Friends.list_friends/0`) — the join
+  (`Recommendations.get_many/1` → `Social.list_friends/0`) — the join
   neither context may make. Refreshes on `discovery:updates` and
   `library:updates` — a completed download flips a row to In library
   without a reload.
 
-  Friends — this install's Nostr identity (`Friends.Identity`), generated
+  Social — this install's Nostr identity (`Social.Identity`), generated
   the first time the tab is opened, with the npub to hand out and the
   secret key behind a disclosure for export/import; below it the relay
-  list, whose per-row connection state follows `friends:connections`
+  list, whose per-row connection state follows `social:connections`
   live, and the roster of followed keys.
 
   Subscribes to Discovery directly (it needs the full item list, not the
@@ -35,9 +35,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Discovery
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Connections
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Connections
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Recommendations
@@ -56,8 +56,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     if connected?(socket) do
       Discovery.subscribe()
       Library.subscribe()
-      Friends.subscribe()
-      Friends.subscribe_connections()
+      Social.subscribe()
+      Social.subscribe_connections()
       Recommendations.subscribe()
     end
 
@@ -71,10 +71,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      |> load_feed()}
   end
 
-  # The Friends tab is where the identity comes into existence — nothing
+  # The Social tab is where the identity comes into existence — nothing
   # else in the app generates one.
   @impl true
-  def handle_params(_params, _uri, %{assigns: %{live_action: :friends}} = socket) do
+  def handle_params(_params, _uri, %{assigns: %{live_action: :social}} = socket) do
     Identity.ensure()
 
     {:noreply,
@@ -140,7 +140,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   def handle_event("add_relay", %{"url" => url}, socket) do
-    case Friends.add_relay(url) do
+    case Social.add_relay(url) do
       {:ok, _relay} ->
         {:noreply, load_relays(socket)}
 
@@ -150,12 +150,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   def handle_event("remove_relay", %{"url" => url}, socket) do
-    :ok = Friends.remove_relay(url)
+    :ok = Social.remove_relay(url)
     {:noreply, load_relays(socket)}
   end
 
   def handle_event("add_friend", %{"key" => key, "nickname" => nickname}, socket) do
-    case Friends.add_friend(key, nickname) do
+    case Social.add_friend(key, nickname) do
       {:ok, _friend} -> {:noreply, load_friends(socket)}
       {:error, :own_key} -> {:noreply, put_flash(socket, :error, "That is your own key")}
       {:error, :nickname_required} -> {:noreply, put_flash(socket, :error, "Give your friend a name")}
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   def handle_event("remove_friend", %{"pubkey" => pubkey}, socket) do
-    :ok = Friends.remove_friend(pubkey)
+    :ok = Social.remove_friend(pubkey)
     {:noreply, load_friends(socket)}
   end
 
@@ -249,7 +249,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # The watchlist row's decoration: Discovery owns the item and library
   # presence; the poster and the provenance nickname are joined here,
   # because Discovery stores only the bare `recommendation_id` and knows
-  # nothing about Recommendations or Friends.
+  # nothing about Recommendations or Social.
   defp load_items(socket) do
     rows = Discovery.list_watchlist()
     nicknames = from_nicknames(rows)
@@ -276,7 +276,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         %{}
 
       recommendations ->
-        friends = Map.new(Friends.list_friends(), &{&1.pubkey, &1.nickname})
+        friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
 
         for {id, rec} <- recommendations,
             nickname = Map.get(friends, rec.author_pubkey),
@@ -309,7 +309,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
     assign(socket,
       feed: feed,
-      feed_prereqs_met?: Friends.list_relays() != [] and Friends.list_friends() != []
+      feed_prereqs_met?: Social.list_relays() != [] and Social.list_friends() != []
     )
   end
 
@@ -325,15 +325,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     end
   end
 
-  defp load_relays(socket), do: assign(socket, :relays, Friends.list_relays())
+  defp load_relays(socket), do: assign(socket, :relays, Social.list_relays())
 
-  defp load_friends(socket), do: assign(socket, :friends, Friends.list_friends())
+  defp load_friends(socket), do: assign(socket, :friends, Social.list_friends())
 
   defp tabs(feed, items),
     do: [
       %Tab{id: :feed, label: "Feed", navigate: "/discovery", count: length(feed)},
       %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
-      %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends"}
+      %Tab{id: :social, label: "Social", navigate: "/discovery/social"}
     ]
 
   # Before a relay and a friend exist the feed cannot fill, so the empty
@@ -341,9 +341,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp feed_empty_state(true), do: "Nothing from your friends yet."
 
   defp feed_empty_state(_prereqs_met),
-    do: "Recommendations from your friends land here. Add a relay and a friend on the Friends tab."
+    do: "Recommendations from your friends land here. Add a relay and a friend on the Social tab."
 
-  defp current_path(:friends), do: "/discovery/friends"
+  defp current_path(:social), do: "/discovery/social"
   defp current_path(:watchlist), do: "/discovery/watchlist"
   defp current_path(_action), do: "/discovery"
 
@@ -385,7 +385,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
             <FeedRow.feed_row :for={row <- @feed} row={row} />
           </div>
 
-          <div :if={@live_action == :friends} class="space-y-4">
+          <div :if={@live_action == :social} class="space-y-4">
             <IdentityBlock.identity_block
               npub={@identity_npub}
               nsec_revealed={@nsec_revealed}
