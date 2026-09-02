@@ -1,7 +1,14 @@
 defmodule MediaCentaurWeb.DiscoveryLive do
   @moduledoc """
-  The Discovery page — the surface every candidate source lands on. Two
-  tabs today, one LiveView with a `live_action` per tab:
+  The Discovery page — the surface every candidate source lands on. Three
+  tabs, one LiveView with a `live_action` per tab:
+
+  The feed (`/discovery`, the page's default) — what friends recommended,
+  newest first. `Recommendations.list_feed/0` carries the record and the
+  friend's nickname; this page joins the rest, because Recommendations
+  knows nothing about the watchlist or the library:
+  `Library.ExternalIds.tmdb_owners/1` and `Discovery.watchlisted_refs/0`
+  decide what each row can offer.
 
   The watchlist — title-level intent, triaged. Rows come from
   `Discovery.list_watchlist/0` (library presence derived live); the
@@ -18,8 +25,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   Subscribes to Discovery directly (it needs the full item list, not the
   `WatchlistAware` ref set — see that trait's moduledoc).
-
-  The Feed tab arrives with the recommendations layers.
   """
   use MediaCentaurWeb, :live_view
 
@@ -31,10 +36,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Friends.Connections
   alias MediaCentaur.Friends.Identity
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.ExternalIds
+  alias MediaCentaur.Recommendations
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.Components.Discovery.WatchlistRow
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.Live.RecommendFlow
+  alias MediaCentaurWeb.DiscoveryLive.FeedRow
   alias MediaCentaurWeb.DiscoveryLive.IdentityBlock
   alias MediaCentaurWeb.DiscoveryLive.RecommendModal
   alias MediaCentaurWeb.DiscoveryLive.RelayBlock
@@ -47,6 +55,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       Library.subscribe()
       Friends.subscribe()
       Friends.subscribe_connections()
+      Recommendations.subscribe()
     end
 
     {:ok,
@@ -55,7 +64,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
      |> assign(relays: [], relay_status: %{}, friends: [])
      |> RecommendFlow.init()
-     |> load_items()}
+     |> load_items()
+     |> load_feed()}
   end
 
   # The Friends tab is where the identity comes into existence — nothing
@@ -113,6 +123,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   use RecommendFlow
+
+  def handle_event("feed_add_to_watchlist", %{"id" => id}, socket) do
+    case Recommendations.get(id) do
+      nil -> {:noreply, socket}
+      rec -> add_recommended_to_watchlist(socket, rec)
+    end
+  end
 
   def handle_event("add_relay", %{"url" => url}, socket) do
     case Friends.add_relay(url) do
@@ -176,11 +193,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   @impl true
   def handle_info({tag, _event}, socket) when tag in [:watchlist_item_added, :watchlist_item_removed] do
-    {:noreply, load_items(socket)}
+    {:noreply, socket |> load_items() |> load_feed()}
   end
 
   def handle_info({:entities_changed, %Library.Events.EntitiesChanged{}}, socket) do
-    {:noreply, load_items(socket)}
+    {:noreply, socket |> load_items() |> load_feed()}
+  end
+
+  def handle_info({tag, _event}, socket) when tag in [:recommendation_received, :recommendation_sent] do
+    {:noreply, load_feed(socket)}
   end
 
   # Another tab (or a later relay layer) replaced the identity. A key
@@ -190,12 +211,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, assign(socket, identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)}
   end
 
+  # Both also move the feed: its prerequisites are a relay and a friend,
+  # and a roster change renames (or orphans) rows already in it.
   def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
-    {:noreply, load_relays(socket)}
+    {:noreply, socket |> load_relays() |> load_feed()}
   end
 
   def handle_info({tag, _event}, socket) when tag in [:friend_added, :friend_removed] do
-    {:noreply, load_friends(socket)}
+    {:noreply, socket |> load_friends() |> load_feed()}
   end
 
   # `Connections.apply_message/2` is the owner's own fold, so the page and
@@ -217,20 +240,65 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     assign(socket, :items, items)
   end
 
+  # The feed row's decoration: Recommendations owns the record and the
+  # nickname; watchlist and library presence are derived here, live, from
+  # the contexts that own them.
+  defp load_feed(socket) do
+    rows = Recommendations.list_feed()
+
+    owners =
+      ExternalIds.tmdb_owners(Enum.map(rows, &{&1.recommendation.tmdb_id, &1.recommendation.media_type}))
+
+    watchlisted = Discovery.watchlisted_refs()
+
+    feed =
+      Enum.map(rows, fn %{recommendation: rec} = row ->
+        ref = {rec.tmdb_id, rec.media_type}
+
+        Map.merge(row, %{
+          poster_url: title_poster_url(rec.title),
+          library_owner_id: Map.get(owners, ref),
+          on_watchlist?: MapSet.member?(watchlisted, ref)
+        })
+      end)
+
+    assign(socket,
+      feed: feed,
+      feed_prereqs_met?: Friends.list_relays() != [] and Friends.list_friends() != []
+    )
+  end
+
+  defp add_recommended_to_watchlist(socket, rec) do
+    case Discovery.add_to_watchlist(rec.title, %{note: rec.note}) do
+      {:ok, _item} ->
+        {:noreply, load_feed(socket)}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Could not add that to your watchlist")}
+    end
+  end
+
   defp load_relays(socket), do: assign(socket, :relays, Friends.list_relays())
 
   defp load_friends(socket), do: assign(socket, :friends, Friends.list_friends())
 
-  # The tabs this layer hosts. Feed (`/discovery/feed`) joins here with
-  # its layer.
-  defp tabs(items),
+  defp tabs(feed, items),
     do: [
+      %Tab{id: :feed, label: "Feed", navigate: "/discovery", count: length(feed)},
       %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
       %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends"}
     ]
 
+  # Before a relay and a friend exist the feed cannot fill, so the empty
+  # state names what is missing rather than implying nobody wrote.
+  defp feed_empty_state(true), do: "Nothing from your friends yet."
+
+  defp feed_empty_state(_prereqs_met),
+    do: "Recommendations from your friends land here. Add a relay and a friend on the Friends tab."
+
   defp current_path(:friends), do: "/discovery/friends"
-  defp current_path(_action), do: "/discovery/watchlist"
+  defp current_path(:watchlist), do: "/discovery/watchlist"
+  defp current_path(_action), do: "/discovery"
 
   @impl true
   def render(assigns) do
@@ -256,7 +324,19 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <h1 class="px-1 text-lg font-semibold">Discovery</h1>
 
-          <.tab_strip tabs={tabs(@items)} active={@live_action} />
+          <.tab_strip tabs={tabs(@feed, @items)} active={@live_action} />
+
+          <div :if={@live_action == :feed} class="space-y-2" data-nav-zone="grid">
+            <div
+              :if={@feed == []}
+              id="feed-empty"
+              class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+            >
+              {feed_empty_state(@feed_prereqs_met?)}
+            </div>
+
+            <FeedRow.feed_row :for={row <- @feed} row={row} />
+          </div>
 
           <div :if={@live_action == :friends} class="space-y-4">
             <IdentityBlock.identity_block

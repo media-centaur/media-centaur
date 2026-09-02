@@ -18,9 +18,11 @@ defmodule MediaCentaur.RecommendationsTest do
   @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
   @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
+  # No identity here on purpose: `recommend/2` creates one, and ingesting a
+  # friend's event never needs one — so the tests that want an identity get
+  # it from the code under test.
   setup do
     TmdbStubs.setup_tmdb_client()
-    Identity.ensure()
     :ok
   end
 
@@ -125,6 +127,19 @@ defmodule MediaCentaur.RecommendationsTest do
 
     assert [%{recommendation: %{tmdb_id: 2}}, %{recommendation: %{tmdb_id: 1}}] =
              Recommendations.list_feed()
+
+    await_supervised_tasks()
+  end
+
+  test "before an identity exists nothing is sent and a friend's recommendation still lands" do
+    {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+    refute Identity.present?()
+
+    {:ok, _rec} = Recommendations.ingest(friend_event(title(), "hi", 1_700_000_000))
+
+    assert [%{recommendation: %{note: "hi"}}] = Recommendations.list_feed()
+    assert Recommendations.list_sent() == []
+    assert Recommendations.own_events() == []
 
     await_supervised_tasks()
   end

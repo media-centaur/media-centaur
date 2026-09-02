@@ -10,8 +10,10 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Friends.Events
   alias MediaCentaur.Friends.Identity
   alias MediaCentaur.Library
+  alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Recommendations
+  alias MediaCentaur.Recommendations.Translation
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings
@@ -147,7 +149,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     })
 
     {:ok, view, _html} = live(conn, "/discovery/watchlist")
-    assert has_element?(view, "#sidebar a.sidebar-link-active[href='/discovery/watchlist']")
+    assert has_element?(view, "#sidebar a.sidebar-link-active[href='/discovery']")
   end
 
   describe "friends tab — identity" do
@@ -356,6 +358,85 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       refute has_element?(view, "#recommend-modal[data-state='open']")
       assert Recommendations.list_sent() == []
+
+      await_supervised_tasks()
+    end
+  end
+
+  describe "feed tab" do
+    @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
+    @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+
+    setup do
+      Identity.ensure()
+      :ok
+    end
+
+    defp friend_event(tmdb_id, note) do
+      title = Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie #{tmdb_id}"})
+      Event.sign(Translation.to_event(title, note, @friend_pubkey), @friend_secret)
+    end
+
+    test "empty state names the prerequisites, then the quiet empty state", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Feed")
+      assert render(view) =~ "Add a relay and a friend on the Friends tab"
+
+      {:ok, _relay} = Friends.add_relay("wss://relay.example")
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert render(view) =~ "Nothing from your friends yet."
+    end
+
+    test "rows show the title, who and when, the note, and add to the watchlist", %{conn: conn} do
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(view, "#feed-#{rec.id}", "Sample Movie 777")
+      assert has_element?(view, "#feed-#{rec.id}", "from Sample Friend")
+      assert has_element?(view, "#feed-#{rec.id}", "Watch it.")
+
+      view |> element("#feed-#{rec.id} button", "Add to watchlist") |> render_click()
+      assert Discovery.on_watchlist?(777, :movie)
+      assert has_element?(view, "#feed-#{rec.id}", "On watchlist")
+
+      await_supervised_tasks()
+    end
+
+    test "a title the library has shows In library and links to it", %{conn: conn} do
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Recommendations.ingest(friend_event(777, nil))
+
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
+      create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert has_element?(view, "#feed-#{rec.id} a[href='/library?selected=#{movie.id}']", "In library")
+
+      await_supervised_tasks()
+    end
+
+    test "a received recommendation appears without a reload", %{conn: conn} do
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      {:ok, rec} = Recommendations.ingest(friend_event(778, "live"))
+      render_until(view, fn _html -> has_element?(view, "#feed-#{rec.id}") end)
+
+      await_supervised_tasks()
+    end
+
+    test "the tab strip counts the feed", %{conn: conn} do
+      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _rec} = Recommendations.ingest(friend_event(777, nil))
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Feed")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a .badge", "1")
 
       await_supervised_tasks()
     end

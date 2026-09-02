@@ -84,7 +84,7 @@ defmodule MediaCentaurWeb.Layouts do
     preference (`MediaCentaur.Settings.Preferences.DiscoveryVisibility`, default off
     while the feature is an opt-in preview). Seeded app-wide by the
     `SettingAware` on_mount in the default `live_session`; only the nav
-    entry is gated — `/discovery/watchlist` stays reachable by URL.
+    entry is gated — `/discovery` stays reachable by URL.
     """
 
   attr :show_apps, :boolean,
@@ -156,7 +156,7 @@ defmodule MediaCentaurWeb.Layouts do
           </.link>
           <.link
             :if={@show_discovery}
-            navigate="/discovery/watchlist"
+            navigate="/discovery"
             class={
               sidebar_link_class(@current_path, [
                 "/discovery",
