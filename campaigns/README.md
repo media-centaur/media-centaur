@@ -22,14 +22,15 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`friends-recommendations.md`](friends-recommendations.md) —
-  **parked — v2 backbone (do not start until v1 is complete).** Friends, with
+  **design — unparked 2026-09-01.** Friends, with
   send/receive show recommendations that one-click into the existing
   acquisition path — no central server we operate, strong privacy/control.
   Direction settled: **Nostr** (signed events = recs, followed pubkeys =
   friends, relays = the pipe; free public relays *or* self-hosted private
   relays — control on a slider), keypair identity, NIF Schnorr bundled in the
-  release. Open: the core gesture (broadcast feed vs directed/encrypted DM vs
-  both — Q4), payload shape, key/relay UX. Resume at the open-questions section.
+  release (likely unnecessary: `bitcoinex` has pure-Elixir Schnorr). Q4
+  resolved: broadcast-first. Open: payload shape, privacy default, key/relay
+  UX. Resume at the open-questions section.
 * [`showcase-comprehensive-coverage.md`](showcase-comprehensive-coverage.md) —
   **planning.** Expand the marketing showcase from well-covered static
   surfaces to the high-impact feature set that photographs well:

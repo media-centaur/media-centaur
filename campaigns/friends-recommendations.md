@@ -1,8 +1,8 @@
 ---
-status: parked
-status_note: parked — v2 backbone (deferred until v1 is complete)
+status: active
+status_note: design — unparked 2026-09-01 (v1.0.0 shipped 2026-08-19)
 started: 2026-06-17
-last_updated: 2026-08-18
+last_updated: 2026-09-01
 ---
 # Friends & recommendations (Nostr backbone)
 
@@ -18,10 +18,13 @@ building until v1 is done.
 
 ## Status
 
-**Parked / design-in-progress.** The connectivity and protocol direction is
-settled (Nostr); one core UX fork (Q4) and several detail decisions are still
-open. No code, no spec, no plan yet. Next session resumes at Q4 below, then runs
-the normal brainstorm → spec → plan flow.
+**Spec written 2026-09-02, awaiting owner review; no code yet.** v1.0.0
+shipped 2026-08-19, so the parking condition is met. All open questions are
+resolved (below). Spec:
+`docs/superpowers/specs/2026-09-02-friends-recommendations-design.md`
+(includes the unify_design adjudication and an eight-layer build order).
+Next: owner reviews the spec → writing-plans → layer 1 (`TMDB.Title`
+convergence + Discovery page).
 
 ## Decisions made
 
@@ -68,7 +71,33 @@ the normal brainstorm → spec → plan flow.
   `source` enum is the provenance seam `:friend` extends). See
   `docs/superpowers/specs/2026-08-18-watchlist-foundation-design.md`.
 
-## Open questions (resume here)
+* `2026-09-02` — **Payload = title snapshot + optional note.** No episode
+  pointer, no reactions (additive later).
+* `2026-09-02` — **Feed, not auto-land.** Received recommendations are browsed
+  on a Feed tab; adding to the watchlist is the user's act.
+* `2026-09-02` — **Discovery page.** Watchlist page becomes `/discovery` with
+  Feed and Watchlist tabs; later discovery sources join it. `show_watchlist`
+  preference renamed `show_discovery`.
+* `2026-09-02` — **Private first.** No default relays; the group's
+  self-hosted allowlist relay is the first target (separate org repo, out of
+  scope here); public relays are extra entries. Client implements NIP-42.
+* `2026-09-02` — **Keys: generate silently, export/import on demand.** No
+  passphrase; nsec stored as a sensitive Settings key.
+* `2026-09-02` — **Friend = pasted npub + local nickname.** No profile events.
+* `2026-09-02` — **Recommend action** on library detail modals and watchlist
+  rows only.
+* `2026-09-02` — **Transport = long-lived `Nostr.Connection` per relay**;
+  thin in-house client over `mint_web_socket`; **no NIF** (`bitcoinex`
+  pure-Elixir Schnorr: sign ≈3 ms, verify ≈1.3 ms measured).
+* `2026-09-02` — **Event kind 32160** (addressable, `d` = `tmdb:<type>:<id>`).
+* `2026-09-02` — **unify_design adjudication accepted** (≈ +1 session):
+  `TMDB.Title` embedded schema replaces `TitleResult`; rows embed it;
+  `tracked?` → ref-set attr; shared `title_summary`, poster helper and
+  `tab_strip`; Recommendations artwork holds.
+
+## Open questions
+
+*All resolved 2026-09-02 — see Decisions and the spec. Kept for history.*
 
 1. **Recommendation payload shape** — TMDB ref (movie/series) + optional note;
    maybe "where to start" (episode), maybe a reaction/reply primitive. Keep
@@ -78,8 +107,12 @@ the normal brainstorm → spec → plan flow.
 3. **Key & friend management UX** — where the keypair lives, the friend-add
    handshake (exchange npubs), relay configuration UI, backup/restore of the
    secret key.
-4. **Elixir Nostr support** — existing hex lib vs a thin in-house client (it's
-   websocket + JSON + Schnorr sign/verify); pick the Schnorr NIF.
+4. **Elixir Nostr support** — *researched 2026-09-01:* the hex Nostr clients
+   (`nostr` 0.1.3, `nostr_basics`) are unmaintained since 2023 → thin in-house
+   client over `mint_web_socket`. `bitcoinex` 0.3.0 (pure Elixir, maintained,
+   only dep `decimal`) ships BIP-340 Schnorr sign/verify + bech32, so **no NIF
+   is needed**; `ex_secp256k1` (Rustler) stays the fallback if pure-Elixir
+   verify proves too slow. Decision pending the spec.
 
 ## Architectural sketch (provisional)
 
