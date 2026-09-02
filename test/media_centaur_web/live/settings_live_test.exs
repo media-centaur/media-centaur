@@ -9,12 +9,12 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   alias MediaCentaur.Settings.Preferences.{
     AppsVisibility,
     AutoPlayNextEpisode,
+    DiscoveryVisibility,
     IncomingBackdrop,
     LetterboxdLinks,
     LibraryBackdrop,
     LibraryCardInfo,
-    UIScale,
-    DiscoveryVisibility
+    UIScale
   }
 
   # `SettingsLive.ensure_loaded/1` loads its config / capability / probe
