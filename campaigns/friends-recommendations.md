@@ -192,10 +192,9 @@ landed 2026-09-02; next: layer 8 (wiki + changelog notes), then 9
   columns: schema migrations run before data migrations, so a skipped-release
   upgrade reaches the drop before the backfill; and the old release can write
   flat-only rows between `migrate` and restart.
-* **Console: crash frames from Nostr/Friends/Recommendations map to the
-  Friends tile** — revisit if a separate Nostr tile is ever wanted (the
-  `:nostr` log tag exists as a console chip but is not a board subsystem,
-  so a `:nostr`-tagged incident would fold under System).
+* **Board alias:** `:nostr`/`:recommendations` log incidents count on the
+  Friends tile (`HealthBoard.normalize/1`); the pre-existing gap that
+  `:subsystem` incidents never reach the board remains (ErrorReports).
 * **`:subsystem` incidents do not reach the health board.**
   `BucketCache.from_incidents/1` keeps only fingerprint-keyed (`:log`)
   rows, and the `Evaluator` raises faults with no `message`, so every

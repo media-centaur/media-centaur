@@ -162,6 +162,9 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   defp count_phrase(1, word), do: "1 #{word}"
   defp count_phrase(n, word), do: "#{n} #{word}s"
 
+  # Nostr and Recommendations log under their own component tags but share
+  # the Friends board tile — alias them before the generic fold.
+  defp normalize(component) when component in [:nostr, :recommendations], do: :friends
   # Framework + unknown components fold under :system on the board.
   defp normalize(component) when component in @board_subsystems, do: component
   defp normalize(_), do: :system

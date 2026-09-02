@@ -82,6 +82,20 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       grouped = HealthBoard.group_buckets([])
       for s <- HealthBoard.board_subsystems(), do: assert(grouped[s] == [])
     end
+
+    test "aliases :nostr and :recommendations log components onto the friends tile" do
+      buckets = [
+        bucket(:nostr, :warning),
+        bucket(:recommendations, :error),
+        bucket(:phoenix, :warning)
+      ]
+
+      grouped = HealthBoard.group_buckets(buckets)
+
+      assert length(grouped[:friends]) == 2
+      # an unrelated, unknown component still folds to :system
+      assert length(grouped[:system]) == 1
+    end
   end
 
   describe "tile_state/1" do

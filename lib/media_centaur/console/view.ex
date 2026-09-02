@@ -16,6 +16,7 @@ defmodule MediaCentaur.Console.View do
     :library,
     :acquisition,
     :nostr,
+    :recommendations,
     :friends,
     :system,
     # framework
@@ -32,6 +33,7 @@ defmodule MediaCentaur.Console.View do
     :library,
     :acquisition,
     :nostr,
+    :recommendations,
     :friends,
     :system
   ]
@@ -49,6 +51,7 @@ defmodule MediaCentaur.Console.View do
     library: "chip-library",
     acquisition: "chip-acquisition",
     nostr: "chip-nostr",
+    recommendations: "chip-recommendations",
     friends: "chip-friends",
     system: "chip-system",
     phoenix: "chip-phoenix",
