@@ -6,6 +6,10 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
   when the library knows the title, Download (plan flow) when released
   and an indexer exists, Track release otherwise. Recommend (send the
   title to your friends) and Remove are the quiet secondary actions.
+  A row that came from the feed says so quietly in the markers slot
+  (`from <nickname>`), resolved by the host — the row itself never
+  reads Recommendations.
+
   Pure rendering; `watchlist_remove`, `watchlist_track` and
   `watchlist_recommend` bubble to the host, navigation is by link.
   """
@@ -30,6 +34,10 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
 
   attr :release_mode_available, :boolean, required: true
 
+  attr :from_nickname, :string,
+    default: nil,
+    doc: "who recommended it, when the item came from the feed"
+
   attr :today, :any,
     default: nil,
     doc: "`Date.t()` for the released/upcoming split — nil means today (fixed in stories)."
@@ -45,6 +53,9 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
       data-component="watchlist-row"
     >
       <.title_summary title={@item.title} poster_url={@poster_url}>
+        <:markers :if={@from_nickname}>
+          <span class="shrink-0 text-xs text-base-content/50">from {@from_nickname}</span>
+        </:markers>
         <:secondary :if={@item.note}>{@item.note}</:secondary>
       </.title_summary>
 

@@ -404,6 +404,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert Discovery.on_watchlist?(777, :movie)
       assert has_element?(view, "#feed-#{rec.id}", "On watchlist")
 
+      assert [%{item: %{source: :friend, recommendation_id: rec_id, note: "Watch it."}}] =
+               Discovery.list_watchlist()
+
+      assert rec_id == rec.id
+
       await_supervised_tasks()
     end
 
@@ -439,6 +444,49 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Feed")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a .badge", "1")
 
+      await_supervised_tasks()
+    end
+  end
+
+  describe "watchlist tab — provenance" do
+    setup do
+      Identity.ensure()
+      :ok
+    end
+
+    test "a friend-sourced watchlist row says who recommended it", %{conn: conn} do
+      {:ok, _} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
+
+      {:ok, _} =
+        Discovery.add_to_watchlist(rec.title, %{
+          source: :friend,
+          recommendation_id: rec.id,
+          note: rec.note
+        })
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      assert has_element?(view, "#watchlist-item-movie-777", "from Sample Friend")
+      assert has_element?(view, "#watchlist-item-movie-777", "Watch it.")
+      await_supervised_tasks()
+    end
+
+    test "a row whose friend is gone shows no marker", %{conn: conn} do
+      {:ok, _} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
+
+      {:ok, _} =
+        Discovery.add_to_watchlist(rec.title, %{
+          source: :friend,
+          recommendation_id: rec.id,
+          note: rec.note
+        })
+
+      :ok = Friends.remove_friend(@friend_pubkey)
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      assert has_element?(view, "#watchlist-item-movie-777")
+      refute has_element?(view, "#watchlist-item-movie-777", "from Sample Friend")
       await_supervised_tasks()
     end
   end

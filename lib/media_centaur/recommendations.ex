@@ -122,6 +122,21 @@ defmodule MediaCentaur.Recommendations do
   @spec get(Ecto.UUID.t()) :: Recommendation.t() | nil
   def get(id), do: Repo.get(Recommendation, id)
 
+  @doc """
+  The recommendations for `ids`, as `%{id => recommendation}` — one query,
+  for a caller decorating a list of rows that name their provenance. Ids
+  with no row are simply absent from the map.
+  """
+  @spec get_many([Ecto.UUID.t()]) :: %{optional(Ecto.UUID.t()) => Recommendation.t()}
+  def get_many([]), do: %{}
+
+  def get_many(ids) when is_list(ids) do
+    Recommendation
+    |> where([r], r.id in ^ids)
+    |> Repo.all()
+    |> Map.new(&{&1.id, &1})
+  end
+
   # --- internals ---
 
   defp feed_query(nil), do: from(r in Recommendation, order_by: [desc: r.recommended_at])
