@@ -16,6 +16,7 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Events
@@ -62,6 +63,12 @@ defmodule MediaCentaur.Social.Connections.Owner do
   def init(opts) do
     Process.flag(:trap_exit, true)
     Social.subscribe()
+    # The identity reaches `:persistent_term` only after the supervision
+    # tree is up (`Application.post_supervisor_hooks/1` overlays the
+    # database settings), so the boot reconcile below usually sees none.
+    # The overlay broadcasts each key it applies; the identity key is the
+    # cue to reconcile again.
+    Config.subscribe()
     {:ok, %__MODULE__{backoff_ms: Keyword.get(opts, :backoff_ms, 1_000)}, {:continue, :boot}}
   end
 
@@ -105,6 +112,8 @@ defmodule MediaCentaur.Social.Connections.Owner do
   def handle_info({:relay_removed, _event}, state), do: {:noreply, reconcile(state)}
 
   def handle_info({:identity_changed, _event}, state), do: {:noreply, state |> stop_all() |> reconcile()}
+
+  def handle_info({:config_updated, :nostr_secret_key, _value}, state), do: {:noreply, reconcile(state)}
 
   def handle_info({:nostr, url, message}, state) do
     log_message(url, message)
