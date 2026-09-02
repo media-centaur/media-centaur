@@ -1,153 +1,29 @@
 defmodule MediaCentaur.ReleaseTracking.Acquisition do
   @moduledoc """
-  TMDB-first acquisition for release tracking: omnibox search
-  (`search_tmdb/1`) and track-from-search onboarding
-  (`track_from_search/2`, `track_from_search_async/2`).
+  Track-from-search onboarding for release tracking
+  (`track_from_search/2`, `track_from_search_async/2`). Title search
+  itself lives in `MediaCentaur.TMDB.TitleSearch`.
 
   Split out of the `ReleaseTracking` context so the CRUD context isn't
   also a search-and-onboard module. Persistence and event creation route
   back through the context (`track_item`, `persist_release!`,
   `create_release!`, `mark_in_library_releases`, `create_event!`,
   `update_item`, `broadcast_releases_updated`), which own those concerns;
-  this module owns only the TMDB-facing search/track flow.
+  this module owns only the track-from-search flow.
   """
-
-  import Ecto.Query
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Item, Release, TitleResult, Wants}
+  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Release, Wants}
   alias MediaCentaur.TmdbArtwork
-  alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.Client
-
-  # --- Search ---
-
-  # A query ending in a standalone year, optionally parenthesized
-  # ("Title 1999", "Title (1999)"). The title part must be non-empty —
-  # a bare year is a title query ("1999" the film), not a filter.
-  @trailing_year_query ~r/^(.+?)\s+\(?((?:19|20)\d{2})\)?$/
-
-  @doc """
-  Searches TMDB for movies and TV shows. Plain queries go to the multi
-  endpoint, preserving TMDB's cross-type relevance order (a regrouped
-  movies-then-tv merge once starved every TV result out of the capped
-  omnibox dropdown). Person results are dropped.
-
-  A trailing year ("Title 1999", "Title (1999)") never matches a TMDB
-  title through the multi endpoint, so it is stripped and sent as the
-  year filter of the per-type search endpoints instead, merged by
-  popularity. A year that filters everything out (wrong year, or a
-  number that is part of the title) falls back to a year-less multi
-  search of the stripped title — the year is a disambiguator, never a
-  gatekeeper.
-
-  Returns `[TitleResult.t()]` — the one normalized shape every
-  title-search surface consumes.
-  """
-  @spec search_tmdb(String.t()) :: [TitleResult.t()]
-  def search_tmdb(query) do
-    results =
-      case Regex.run(@trailing_year_query, String.trim(query)) do
-        [_full, title, year] -> year_search(title, String.to_integer(year))
-        nil -> multi_search(query)
-      end
-
-    tracked_tmdb_ids =
-      from(i in Item, select: {i.tmdb_id, i.media_type})
-      |> Repo.all()
-      |> MapSet.new()
-
-    Enum.map(results, fn result ->
-      tracked = MapSet.member?(tracked_tmdb_ids, {result.tmdb_id, result.media_type})
-      %{result | tracked?: tracked}
-    end)
-  end
-
-  defp multi_search(query) do
-    case Client.search_multi(query) do
-      {:ok, results} -> Enum.flat_map(results, &normalize_multi_result/1)
-      {:error, _reason} -> []
-    end
-  end
-
-  # The per-type endpoints carry no cross-type relevance rank, so the
-  # merged list orders by TMDB popularity instead.
-  defp year_search(title, year) do
-    movie_results = tag_media_type(Client.search_movie(title, year), "movie")
-    tv_results = tag_media_type(Client.search_tv(title, year), "tv")
-
-    case movie_results ++ tv_results do
-      [] ->
-        multi_search(title)
-
-      combined ->
-        combined
-        |> Enum.sort_by(&(&1["popularity"] || 0.0), :desc)
-        |> Enum.flat_map(&normalize_multi_result/1)
-    end
-  end
-
-  defp tag_media_type({:ok, results}, media_type),
-    do: Enum.map(results, &Map.put(&1, "media_type", media_type))
-
-  defp tag_media_type({:error, _reason}, _media_type), do: []
-
-  defp normalize_multi_result(%{"media_type" => "movie"} = tmdb), do: [normalize_movie_result(tmdb)]
-  defp normalize_multi_result(%{"media_type" => "tv"} = tmdb), do: [normalize_tv_result(tmdb)]
-  defp normalize_multi_result(_person_or_unknown), do: []
-
-  defp normalize_movie_result(tmdb) do
-    %TitleResult{
-      tmdb_id: tmdb["id"],
-      media_type: :movie,
-      name: tmdb["title"],
-      year: extract_year(tmdb["release_date"]),
-      release_date: extract_date(tmdb["release_date"]),
-      poster_path: tmdb["poster_path"],
-      backdrop_path: tmdb["backdrop_path"],
-      overview: presence(tmdb["overview"])
-    }
-  end
-
-  defp normalize_tv_result(tmdb) do
-    %TitleResult{
-      tmdb_id: tmdb["id"],
-      media_type: :tv_series,
-      name: tmdb["name"],
-      year: extract_year(tmdb["first_air_date"]),
-      release_date: extract_date(tmdb["first_air_date"]),
-      poster_path: tmdb["poster_path"],
-      backdrop_path: tmdb["backdrop_path"],
-      overview: presence(tmdb["overview"])
-    }
-  end
-
-  defp presence(nil), do: nil
-  defp presence(""), do: nil
-  defp presence(text) when is_binary(text), do: text
-
-  defp extract_year(nil), do: nil
-  defp extract_year(""), do: nil
-  defp extract_year(<<year::binary-size(4), _::binary>>), do: year
-
-  # Full date, not just the year — the results' upcoming/released scoping
-  # compares against today. TMDB leaves unreleased titles undated or with
-  # partial strings; both come through as nil.
-  defp extract_date(date_string) when is_binary(date_string) do
-    case Date.from_iso8601(date_string) do
-      {:ok, date} -> date
-      {:error, _reason} -> nil
-    end
-  end
-
-  defp extract_date(_missing), do: nil
 
   # --- Track from search ---
 
   @doc """
   Creates a tracking item from a search result. Used by the Track New Show modal.
 
-  Accepts a result map (%{tmdb_id, media_type, name, poster_path}) and options:
+  Accepts anything carrying `tmdb_id`, `media_type` and `name` — a
+  `MediaCentaur.TMDB.Title` in practice — and options:
   - For TV: %{start_season: n, start_episode: n} to set tracking offset
   - For movies: %{} (no options needed)
   """

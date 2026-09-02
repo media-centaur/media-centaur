@@ -11,7 +11,6 @@ defmodule MediaCentaur.ReleaseTracking do
     exports: [
       Item,
       Release,
-      TitleResult,
       Event,
       Want,
       Views,
@@ -248,8 +247,14 @@ defmodule MediaCentaur.ReleaseTracking do
   # Implementation lives in `ReleaseTracking.Acquisition`; these thin
   # delegators keep the context's public API stable for callers.
 
-  @doc "See `MediaCentaur.ReleaseTracking.Acquisition.search_tmdb/1`."
-  def search_tmdb(query), do: Acquisition.search_tmdb(query)
+  @doc """
+  The `{tmdb_id, media_type}` ref set of every tracked item — bulk
+  decoration for title rows (the Tracked marker on search results).
+  """
+  @spec tracked_refs() :: MapSet.t({integer(), :movie | :tv_series})
+  def tracked_refs do
+    MapSet.new(Repo.all(from(i in Item, select: {i.tmdb_id, i.media_type})))
+  end
 
   @doc "See `MediaCentaur.ReleaseTracking.Acquisition.track_from_search/2`."
   def track_from_search(result, opts \\ %{}), do: Acquisition.track_from_search(result, opts)

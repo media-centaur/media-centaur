@@ -51,7 +51,7 @@ defmodule MediaCentaur.TMDB.Title do
   @fields [:tmdb_id, :media_type, :name, :year, :release_date, :poster_path, :backdrop_path, :overview]
 
   @doc "Casts a title from plain attrs; identity and name are required."
-  @spec changeset(t(), map()) :: Ecto.Changeset.t()
+  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def changeset(title \\ %__MODULE__{}, attrs) do
     title
     |> cast(attrs, @fields)
