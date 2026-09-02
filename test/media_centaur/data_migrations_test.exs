@@ -34,6 +34,11 @@ defmodule MediaCentaur.DataMigrationsTest do
       files = DataMigrations.path() |> File.ls!() |> Enum.filter(&String.ends_with?(&1, ".exs"))
       assert "20260902120100_backfill_watchlist_title_embed.exs" in files
     end
+
+    test "directory contains the show_watchlist settings-key rename" do
+      files = DataMigrations.path() |> File.ls!() |> Enum.filter(&String.ends_with?(&1, ".exs"))
+      assert "20260902150000_rename_show_watchlist_settings_key.exs" in files
+    end
   end
 
   describe "with_data_migration_source/2" do

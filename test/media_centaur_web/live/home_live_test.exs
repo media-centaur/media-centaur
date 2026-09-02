@@ -15,24 +15,24 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     assert html =~ "Continue Watching" or html =~ "Your home page will populate"
   end
 
-  describe "watchlist sidebar entry" do
+  describe "discovery sidebar entry" do
     test "is hidden by default", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/")
-      refute has_element?(view, "#sidebar a[href='/watchlist']")
+      refute has_element?(view, "#sidebar a[href='/discovery/watchlist']")
     end
 
     test "shows when the preference is on, and live-updates on toggle", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/")
-      refute has_element?(view, "#sidebar a[href='/watchlist']")
+      refute has_element?(view, "#sidebar a[href='/discovery/watchlist']")
 
-      # The Settings write broadcasts {:setting_changed, "show_watchlist", _};
+      # The Settings write broadcasts {:setting_changed, "show_discovery", _};
       # the session-wide SettingAware hook re-assigns without a remount.
       MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.WatchlistVisibility.setting_key(),
+        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
         value: %{"enabled" => true}
       })
 
-      render_until(view, fn _html -> has_element?(view, "#sidebar a[href='/watchlist']") end)
+      render_until(view, fn _html -> has_element?(view, "#sidebar a[href='/discovery/watchlist']") end)
     end
   end
 

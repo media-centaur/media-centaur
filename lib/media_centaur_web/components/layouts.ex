@@ -77,14 +77,14 @@ defmodule MediaCentaurWeb.Layouts do
     or dismissed.
     """
 
-  attr :show_watchlist, :boolean,
+  attr :show_discovery, :boolean,
     default: false,
     doc: """
-    Whether the sidebar shows the Watchlist entry — the `show_watchlist`
-    preference (`MediaCentaur.Settings.Preferences.WatchlistVisibility`, default off
+    Whether the sidebar shows the Discovery entry — the `show_discovery`
+    preference (`MediaCentaur.Settings.Preferences.DiscoveryVisibility`, default off
     while the feature is an opt-in preview). Seeded app-wide by the
     `SettingAware` on_mount in the default `live_session`; only the nav
-    entry is gated — `/watchlist` stays reachable by URL.
+    entry is gated — `/discovery/watchlist` stays reachable by URL.
     """
 
   attr :show_apps, :boolean,
@@ -155,16 +155,22 @@ defmodule MediaCentaurWeb.Layouts do
             <span class="sidebar-label">Library</span>
           </.link>
           <.link
-            :if={@show_watchlist}
-            navigate="/watchlist"
-            class={sidebar_link_class(@current_path, "/watchlist")}
-            data-tip="Watchlist"
+            :if={@show_discovery}
+            navigate="/discovery/watchlist"
+            class={
+              sidebar_link_class(@current_path, [
+                "/discovery",
+                "/discovery/watchlist",
+                "/discovery/friends"
+              ])
+            }
+            data-tip="Discovery"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
-            <.icon name="hero-bookmark" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Watchlist</span>
+            <.icon name="hero-sparkles" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Discovery</span>
           </.link>
           <%!-- One entry for the whole collection-growth story (DDR-015) —
                 unconditional: without acquisition the page degrades to an

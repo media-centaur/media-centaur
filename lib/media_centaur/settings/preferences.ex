@@ -10,13 +10,13 @@ defmodule MediaCentaur.Settings.Preferences do
       AutoPlayNextEpisode,
       BooleanSetting,
       CardPlayButton,
+      DiscoveryVisibility,
       IncomingBackdrop,
       LetterboxdLinks,
       LibraryBackdrop,
       LibraryCardInfo,
       SpoilerFree,
-      UIScale,
-      WatchlistVisibility
+      UIScale
     ]
 
   @moduledoc """
