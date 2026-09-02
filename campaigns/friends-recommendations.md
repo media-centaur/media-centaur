@@ -173,10 +173,6 @@ landed 2026-09-02; next: layer 8 (wiki + changelog notes), then 9
 
 ## Next steps
 
-* **`DiscoveryLive`/`feed_row.ex` must render `own?` rows with a "You"
-  marker and no "from <nickname>" line** — `Recommendations.list_feed/0`
-  now returns own rows (`nickname: nil, own?: true`); the feed row
-  component still assumes every row has a friend nickname.
 * **CHANGELOG at the next `/ship`** (no Unreleased section by convention —
   `scripts/ship release` inserts the version header before the first
   `## v…` line): under *Migration safety*: "Watchlist entries now store
@@ -211,11 +207,6 @@ landed 2026-09-02; next: layer 8 (wiki + changelog notes), then 9
   grouping key and a per-kind headline (the three Friends kinds are
   **Relay rejected this identity**, **No relay reachable**, **A relay is
   unreachable**), which is an `ErrorReports` change, not a Friends one.
-* **`Recommendations.counts/0`** — the Status widget currently derives
-  sent/received by loading `list_sent/0` + `list_feed/0` (every
-  recommendation row, twice per navigation) purely to count them. Two
-  aggregate queries in the context would replace it; the `/status` mount
-  budget moved 52 → 60 to absorb the reads as they stand.
 * **Wiki (layer 8):** the Friends-and-Recommendations page must carry the
   backup advice for the secret key.
 * **Hardening pass** after iteration settles (spec decision 11).

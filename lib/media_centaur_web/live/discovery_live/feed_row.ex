@@ -1,10 +1,13 @@
 defmodule MediaCentaurWeb.DiscoveryLive.FeedRow do
   @moduledoc """
-  One recommendation a friend sent: the shared `title_summary/1`
-  identity block, marked with who sent it and when, the friend's note in
-  place of the TMDB overview, and the one action the title's state
-  allows — the library detail when the library already owns it, a quiet
-  "On watchlist" when it is already saved, otherwise Add to watchlist.
+  One recommendation on the Feed, sent by a friend or by this identity:
+  the shared `title_summary/1` identity block, marked with who sent it
+  (`You` for an own row, `from <nickname>` otherwise) and when, the
+  sender's note in place of the TMDB overview, and the one action the
+  title's state allows — the library detail when the library already
+  owns it, a quiet "On watchlist" when it is already saved, otherwise
+  Add to watchlist. An own row carries the same action as a received one
+  — the title can be in the library or on the watchlist just the same.
 
   Pure rendering; `feed_add_to_watchlist` bubbles to `DiscoveryLive`,
   which owns both the decoration and the write.
@@ -18,7 +21,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedRow do
   attr :row, :map,
     required: true,
     doc:
-      "a `Recommendations.list_feed/0` row (`:recommendation`, `:nickname`) decorated by `DiscoveryLive` with `:poster_url`, `:library_owner_id` and `:on_watchlist?`."
+      "a `Recommendations.list_feed/0` row (`:recommendation`, `:nickname`, `:own?`) decorated by `DiscoveryLive` with `:poster_url`, `:library_owner_id` and `:on_watchlist?`."
 
   def feed_row(assigns) do
     assigns = assign(assigns, :recommendation, assigns.row.recommendation)
@@ -32,7 +35,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedRow do
       <.title_summary title={@recommendation.title} poster_url={@row.poster_url}>
         <:markers>
           <span class="shrink-0 text-xs text-base-content/40">
-            from {@row.nickname} · {Format.relative_ago(@recommendation.recommended_at)}
+            <%= if @row.own? do %>
+              You · {Format.relative_ago(@recommendation.recommended_at)}
+            <% else %>
+              from {@row.nickname} · {Format.relative_ago(@recommendation.recommended_at)}
+            <% end %>
           </span>
         </:markers>
         <:secondary :if={@recommendation.note}>{@recommendation.note}</:secondary>
