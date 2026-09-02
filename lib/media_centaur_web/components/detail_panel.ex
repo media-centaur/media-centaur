@@ -124,6 +124,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "whether the panel's subject is on the watchlist — forwarded to the view controls' bookmark toggle. Compute via `EntityModal.watchlisted?/3`."
 
+  attr :recommend?, :boolean,
+    default: false,
+    doc:
+      "whether the view controls offer Recommend — the host passes `show_discovery`, the preference gating the friend-network preview."
+
   attr :seasons_view, :list,
     default: nil,
     doc:
@@ -362,6 +367,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                     detail_view={@detail_view}
                     letterboxd_links={@letterboxd_links}
                     watchlisted?={@watchlisted?}
+                    recommend?={@recommend?}
                   />
                   <%!-- Member watched toggle: acting on the *selected*
                         movie is what the movie-first modal is for, and

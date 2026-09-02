@@ -31,6 +31,7 @@ defmodule MediaCentaurWeb.HomeLive do
     PosterRow
   }
 
+  alias MediaCentaurWeb.DiscoveryLive.RecommendModal
   alias MediaCentaurWeb.HomeLive.Logic
 
   @impl true
@@ -97,6 +98,12 @@ defmodule MediaCentaurWeb.HomeLive do
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
     >
+      <:overlays>
+        <RecommendModal.recommend_modal
+          subject={@recommend_subject}
+          relay_counts={@recommend_relay_counts}
+        />
+      </:overlays>
       <%!-- Home page positioning context. `relative` makes this the anchor
             for the absolutely positioned atmosphere layers, and because it
             sizes naturally to its content (unlike Layouts.app's flex-1 inner
@@ -261,6 +268,7 @@ defmodule MediaCentaurWeb.HomeLive do
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
           watchlisted_refs={@watchlisted_refs}
+          show_discovery={@show_discovery}
         />
       </div>
     </Layouts.app>

@@ -36,6 +36,11 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
       primary tint and `aria-pressed` (`:movie_on_watchlist`). Never shown
       without a `:tmdb_id`, which is why the tmdb-id-less variations
       render without either icon button.
+    * **Recommend rides on the Discovery preview.** `recommend?` is the
+      `show_discovery` preference, off by default, so no variation but
+      `:movie_recommend` carries the paper-plane button. It sits after
+      the bookmark and before the cog, and never appears without a
+      `:tmdb_id`.
 
   Rendered here bare. In the app these sit inside `PlayCard`'s row via its
   `controls` slot, to the right of the Play button.
@@ -141,6 +146,18 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
           entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
           detail_view: :main,
           watchlisted?: true
+        }
+      },
+      %Variation{
+        id: :movie_recommend,
+        description:
+          "The same movie with the Discovery preview on (`recommend?`) — " <>
+            "the paper-plane button joins the row between the bookmark " <>
+            "and the cog, and opens the Recommend modal.",
+        attributes: %{
+          entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
+          detail_view: :main,
+          recommend?: true
         }
       },
       %Variation{

@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Friends.Identity
   alias MediaCentaur.Library
   alias MediaCentaur.Nostr.Keys
+  alias MediaCentaur.Recommendations
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings
@@ -317,6 +318,46 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       :ok = Friends.remove_friend(@friend_pubkey)
       render_until(view, fn _html -> not has_element?(view, friend_row()) end)
+    end
+  end
+
+  describe "recommend from a watchlist row" do
+    setup do
+      Identity.ensure()
+      :ok
+    end
+
+    test "opens the modal, sends with a note, and flashes", %{conn: conn} do
+      {:ok, _item} =
+        Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+
+      view |> element("#watchlist-item-movie-777 button", "Recommend") |> render_click()
+      assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
+      assert has_element?(view, "#recommend-modal", "No relay configured")
+
+      view |> form("#recommend-form", %{"note" => "Watch it."}) |> render_submit()
+      assert render(view) =~ "Saved — it will send when a relay connects"
+      refute has_element?(view, "#recommend-modal[data-state='open']")
+      assert [%{note: "Watch it.", tmdb_id: 777}] = Recommendations.list_sent()
+
+      await_supervised_tasks()
+    end
+
+    test "cancel closes without sending", %{conn: conn} do
+      {:ok, _item} =
+        Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+
+      view |> element("#watchlist-item-movie-777 button", "Recommend") |> render_click()
+      view |> element("#recommend-cancel") |> render_click()
+
+      refute has_element?(view, "#recommend-modal[data-state='open']")
+      assert Recommendations.list_sent() == []
+
+      await_supervised_tasks()
     end
   end
 end

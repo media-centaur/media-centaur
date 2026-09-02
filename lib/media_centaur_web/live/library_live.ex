@@ -47,6 +47,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaur.Pipeline.Stats
 
   alias MediaCentaurWeb.Components.LibraryCards
+  alias MediaCentaurWeb.DiscoveryLive.RecommendModal
   alias MediaCentaurWeb.HomeLive.Logic
 
   import MediaCentaurWeb.LibraryHelpers
@@ -349,6 +350,12 @@ defmodule MediaCentaurWeb.LibraryLive do
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
     >
+      <:overlays>
+        <RecommendModal.recommend_modal
+          subject={@recommend_subject}
+          relay_counts={@recommend_relay_counts}
+        />
+      </:overlays>
       <div
         class="relative"
         data-page-behavior="library"
@@ -493,6 +500,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
           watchlisted_refs={@watchlisted_refs}
+          show_discovery={@show_discovery}
         />
       </div>
     </Layouts.app>

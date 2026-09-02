@@ -332,6 +332,37 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       await_supervised_tasks()
     end
 
+    test "the detail page's Recommend control opens the modal and sends", %{conn: conn} do
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        value: %{"enabled" => true}
+      })
+
+      MediaCentaur.Friends.Identity.ensure()
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      view |> element("#detail-recommend") |> render_click()
+      assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
+
+      view |> form("#recommend-form", %{"note" => ""}) |> render_submit()
+      assert [%{tmdb_id: 777, note: nil}] = MediaCentaur.Recommendations.list_sent()
+
+      await_supervised_tasks()
+    end
+
+    test "the Recommend control is absent while Discovery is off", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      assert has_element?(view, "#detail-modal[data-state='open']")
+      refute has_element?(view, "#detail-recommend")
+    end
+
     test "toggling adds a TV series with the :tv_series media type", %{conn: conn} do
       series = create_tv_series(%{name: "Watchlist TV Fixture", tmdb_id: "606"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
