@@ -6,6 +6,7 @@ defmodule MediaCentaur.Application do
     top_level?: true,
     deps: [
       MediaCentaur.Capabilities,
+      MediaCentaur.Friends,
       MediaCentaur.Settings.Controls,
       MediaCentaur.Library,
       MediaCentaur.Maintenance,
@@ -83,6 +84,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.TMDB.RateLimiter,
           MediaCentaur.TMDB.MetadataStats,
           MediaCentaur.Watcher.Supervisor,
+          MediaCentaur.Friends.Connections,
           MediaCentaur.Library.BroadcastCoalescer,
           MediaCentaur.Library.Availability,
           MediaCentaur.Pipeline.Supervisor,
