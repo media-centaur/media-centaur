@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Discovery do
   use Boundary,
-    deps: [MediaCentaur.Library, MediaCentaur.TmdbArtwork],
+    deps: [MediaCentaur.Library, MediaCentaur.TmdbArtwork, MediaCentaur.TMDB],
     exports: [WatchlistItem, Events, Events.ItemAdded, Events.ItemRemoved]
 
   @moduledoc """
@@ -8,12 +8,9 @@ defmodule MediaCentaur.Discovery do
   "I want to watch this" intent — and, in later iterations, the candidate
   sources that feed it (TMDB discover, list import, friend recommendations).
 
-  Accepts plain attrs at the boundary (cross-context composition is plain
-  data). Scheduled convergence: when this context grows its first
-  TMDB-calling source, TMDB title search and a neutral title struct move
-  from `ReleaseTracking` into `MediaCentaur.TMDB` and both contexts
-  consume them (see the unification notes in
-  docs/superpowers/plans/2026-08-18-watchlist-foundation.md).
+  Accepts `MediaCentaur.TMDB.Title` at the boundary — the app-wide title
+  value every candidate source produces (converged 2026-09-02; see
+  docs/superpowers/specs/2026-09-02-friends-recommendations-design.md).
   """
 
   import Ecto.Query
@@ -22,6 +19,7 @@ defmodule MediaCentaur.Discovery do
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
   @doc "Subscribe the caller to watchlist update events."
@@ -29,19 +27,20 @@ defmodule MediaCentaur.Discovery do
   def subscribe, do: Topics.subscribe(Topics.discovery_updates())
 
   @doc """
-  Adds a title to the watchlist. Idempotent — re-adding an existing
-  `(tmdb_id, media_type)` returns the existing item unchanged, including
-  when a concurrent insert wins the race (unique-constraint branch).
+  Adds a title to the watchlist. `attrs` may carry `:source` and
+  `:note`. Idempotent — re-adding an existing `(tmdb_id, media_type)`
+  returns the existing item unchanged, including when a concurrent
+  insert wins the race (unique-constraint branch).
   """
-  @spec add_to_watchlist(map()) :: {:ok, WatchlistItem.t()} | {:error, Ecto.Changeset.t()}
-  def add_to_watchlist(attrs) do
-    case get_item(attrs[:tmdb_id], attrs[:media_type]) do
+  @spec add_to_watchlist(Title.t(), map()) :: {:ok, WatchlistItem.t()} | {:error, Ecto.Changeset.t()}
+  def add_to_watchlist(%Title{} = title, attrs \\ %{}) do
+    case get_item(title.tmdb_id, title.media_type) do
       %WatchlistItem{} = existing ->
         {:ok, existing}
 
       nil ->
-        attrs
-        |> WatchlistItem.create_changeset()
+        title
+        |> WatchlistItem.create_changeset(attrs)
         |> Repo.insert()
         |> case do
           {:ok, item} ->
@@ -64,7 +63,7 @@ defmodule MediaCentaur.Discovery do
               Enum.any?(errors, fn {_field, {_msg, meta}} -> meta[:constraint] == :unique end)
 
             if unique_violation?,
-              do: {:ok, get_item(attrs[:tmdb_id], attrs[:media_type])},
+              do: {:ok, get_item(title.tmdb_id, title.media_type)},
               else: {:error, changeset}
         end
     end

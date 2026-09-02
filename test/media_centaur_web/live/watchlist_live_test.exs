@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TmdbStubs
+  alias MediaCentaur.TMDB.Title
 
   setup do
     TmdbStubs.setup_tmdb_client()
@@ -21,20 +22,24 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
 
   test "renders rows with the honest action per state", %{conn: conn} do
     {:ok, _} =
-      Discovery.add_to_watchlist(%{
-        tmdb_id: 777,
-        media_type: :movie,
-        name: "Sample Movie",
-        release_date: ~D[2020-01-01]
-      })
+      Discovery.add_to_watchlist(
+        Title.new!(%{
+          tmdb_id: 777,
+          media_type: :movie,
+          name: "Sample Movie",
+          release_date: ~D[2020-01-01]
+        })
+      )
 
     {:ok, _} =
-      Discovery.add_to_watchlist(%{
-        tmdb_id: 42,
-        media_type: :tv_series,
-        name: "Sample Show",
-        release_date: ~D[2999-01-01]
-      })
+      Discovery.add_to_watchlist(
+        Title.new!(%{
+          tmdb_id: 42,
+          media_type: :tv_series,
+          name: "Sample Show",
+          release_date: ~D[2999-01-01]
+        })
+      )
 
     # A presentable movie (container + linked file) owning TMDB id 777.
     movie = create_standalone_movie(%{name: "Sample Movie"})
@@ -48,7 +53,9 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
   end
 
   test "remove deletes the item live", %{conn: conn} do
-    {:ok, _} = Discovery.add_to_watchlist(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+    {:ok, _} =
+      Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+
     {:ok, view, _html} = live(conn, "/watchlist")
 
     view
@@ -62,13 +69,18 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
 
   test "watchlist events refresh the page", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/watchlist")
-    {:ok, _} = Discovery.add_to_watchlist(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+
+    {:ok, _} =
+      Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+
     assert render(view) =~ "Sample Movie"
     await_supervised_tasks()
   end
 
   test "library changes flip a row to In library without a reload", %{conn: conn} do
-    {:ok, _} = Discovery.add_to_watchlist(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+    {:ok, _} =
+      Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+
     {:ok, view, html} = live(conn, "/watchlist")
     refute html =~ "In library"
 
@@ -83,12 +95,14 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
 
   test "track action hands off to release tracking", %{conn: conn} do
     {:ok, _} =
-      Discovery.add_to_watchlist(%{
-        tmdb_id: 42,
-        media_type: :tv_series,
-        name: "Sample Show",
-        release_date: ~D[2999-01-01]
-      })
+      Discovery.add_to_watchlist(
+        Title.new!(%{
+          tmdb_id: 42,
+          media_type: :tv_series,
+          name: "Sample Show",
+          release_date: ~D[2999-01-01]
+        })
+      )
 
     {:ok, view, _html} = live(conn, "/watchlist")
 

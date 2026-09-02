@@ -1,7 +1,8 @@
 defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
   @moduledoc """
-  One watchlist entry: poster thumb, identity line, provenance note, and
-  the single state-dependent primary action — link to the library detail
+  One watchlist entry: the shared `title_summary/1` identity block (the
+  provenance note displaces its overview line) plus the single
+  state-dependent primary action — link to the library detail
   when the library knows the title, Download (plan flow) when released
   and an indexer exists, Track release otherwise. Remove is the quiet
   secondary action. Pure rendering; `watchlist_remove` and
@@ -11,7 +12,7 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+  import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
   alias MediaCentaur.Discovery.WatchlistItem
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
@@ -24,7 +25,7 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
 
   attr :poster_url, :string,
     default: nil,
-    doc: "resolved by the host: local TmdbArtwork url or TMDB hotlink"
+    doc: "resolved by the host via `LiveHelpers.title_poster_url/1`"
 
   attr :release_mode_available, :boolean, required: true
 
@@ -34,7 +35,7 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
 
   def watchlist_row(assigns) do
     today = assigns.today || Date.utc_today()
-    assigns = assign(assigns, :status, MediaResults.release_status(assigns.item, today))
+    assigns = assign(assigns, :status, MediaResults.release_status(assigns.item.title, today))
 
     ~H"""
     <div
@@ -42,47 +43,9 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
       class="glass-surface flex w-full items-start gap-4 rounded-xl px-4 py-3"
       data-component="watchlist-row"
     >
-      <span class="flex h-[72px] w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-base-content/10">
-        <%!-- The thumb paints at 48 CSS px (96 device px on the 4K 2×
-              compose) — 160 clears that and is the shared thumb
-              derivative width (incoming shelf, status, library
-              overview), so local artwork reuses the warm derivative;
-              hotlinked TMDB urls pass through `sized_image_url/2`
-              untouched. --%>
-        <img
-          :if={@poster_url}
-          src={sized_image_url(@poster_url, 160)}
-          alt=""
-          class="h-full w-full object-cover"
-          loading="eager"
-          decoding="sync"
-        />
-        <.icon
-          :if={!@poster_url}
-          name={if @item.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
-          class="size-5 text-base-content/25"
-        />
-      </span>
-
-      <span class="min-w-0 flex-1 space-y-0.5 self-center">
-        <span class="flex items-baseline gap-2">
-          <span class="truncate text-sm font-semibold">{@item.name}</span>
-          <%!-- Quiet text, not colored chips — type is metadata; color
-                stays reserved for interaction and state. --%>
-          <span class="shrink-0 text-xs text-base-content/50">
-            {if @item.media_type == :movie, do: "Movie", else: "TV"}<span :if={@item.year}> · {@item.year}</span>
-          </span>
-        </span>
-        <span :if={@item.note} class="line-clamp-2 block text-xs leading-relaxed text-base-content/55">
-          {@item.note}
-        </span>
-        <span
-          :if={!@item.note && @item.overview}
-          class="line-clamp-2 block text-xs leading-relaxed text-base-content/55"
-        >
-          {@item.overview}
-        </span>
-      </span>
+      <.title_summary title={@item.title} poster_url={@poster_url}>
+        <:secondary :if={@item.note}>{@item.note}</:secondary>
+      </.title_summary>
 
       <%!-- The action strip is a real 2-track grid and carries
             `data-nav-grid`: the input system reads its computed column

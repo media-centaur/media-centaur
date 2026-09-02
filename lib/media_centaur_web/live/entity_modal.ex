@@ -64,6 +64,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.{Discovery, Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
@@ -1163,14 +1164,16 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         else
           # No poster_path on purpose: library subjects don't carry a TMDB
           # poster path — artwork arrives via Discovery's async TmdbArtwork.ensure.
-          Discovery.add_to_watchlist(%{
-            tmdb_id: tmdb_id,
-            media_type: media_type,
-            name: subject.name,
-            year: watchlist_year(subject[:date_published]),
-            release_date: subject[:date_published],
-            overview: subject[:description]
-          })
+          Discovery.add_to_watchlist(
+            Title.new!(%{
+              tmdb_id: tmdb_id,
+              media_type: media_type,
+              name: subject.name,
+              year: watchlist_year(subject[:date_published]),
+              release_date: subject[:date_published],
+              overview: subject[:description]
+            })
+          )
         end
 
         socket

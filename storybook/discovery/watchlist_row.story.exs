@@ -10,23 +10,40 @@ defmodule MediaCentaurWeb.Storybook.Discovery.WatchlistRow do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Discovery.WatchlistItem
+  alias MediaCentaur.TMDB.Title
 
   def function, do: &MediaCentaurWeb.Components.Discovery.WatchlistRow.watchlist_row/1
   def render_source, do: :function
   def layout, do: :one_column
 
   defp item(overrides) do
+    {title_overrides, item_overrides} =
+      Map.split(overrides, [:tmdb_id, :media_type, :name, :year, :release_date, :overview])
+
+    title =
+      Title.new!(
+        Map.merge(
+          %{
+            tmdb_id: 777,
+            media_type: :movie,
+            name: "Sample Movie",
+            year: "2010",
+            release_date: ~D[2010-03-05],
+            overview: "A sample movie overview that confirms this is the title you meant."
+          },
+          title_overrides
+        )
+      )
+
     struct!(
       %WatchlistItem{
-        tmdb_id: 777,
-        media_type: :movie,
-        name: "Sample Movie",
-        year: "2010",
-        release_date: ~D[2010-03-05],
-        overview: "A sample movie overview that confirms this is the title you meant.",
+        tmdb_id: title.tmdb_id,
+        media_type: title.media_type,
+        name: title.name,
+        title: title,
         source: :manual
       },
-      overrides
+      item_overrides
     )
   end
 

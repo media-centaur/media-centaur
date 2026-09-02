@@ -290,8 +290,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   @doc """
   A title's release status as of `today`. A passed date (including
   today) is `:released`; a future date is `:upcoming` — and so is a
-  missing one, because TMDB leaves unreleased titles undated. Accepts
-  anything carrying `:release_date` (`Title`, `WatchlistItem`).
+  missing one, because TMDB leaves unreleased titles undated. Takes a
+  `TMDB.Title` — every caller now holds one (search rows, watchlist
+  rows), so `:release_date` is read from a single shape.
   """
   @spec release_status(%{release_date: Date.t() | nil}, Date.t()) :: :released | :upcoming
   def release_status(%{release_date: nil}, _today), do: :upcoming
