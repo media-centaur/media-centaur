@@ -35,8 +35,10 @@ connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Friends.Relay`,
 `Friends.Connections`, relay block) landed 2026-09-02. Layer 5 (roster:
 `Friends.Friend`, roster block) landed 2026-09-02. Layer 6
 (`Recommendations` records/translation/sync, the Recommend modal, and the
-Feed tab at `/discovery`) landed 2026-09-02; next: layer 7 (watchlist
-provenance `:friend` + `recommendation_id`, Status page Friends section).
+Feed tab at `/discovery`) landed 2026-09-02. Layer 7 (watchlist
+provenance, console tags, Friends incident assessor + Status tile/widget)
+landed 2026-09-02; next: layer 8 (wiki + changelog notes), then 9
+(hardening).
 
 ## Decisions made
 
@@ -194,9 +196,26 @@ provenance `:friend` + `recommendation_id`, Status page Friends section).
   columns: schema migrations run before data migrations, so a skipped-release
   upgrade reaches the drop before the backfill; and the old release can write
   flat-only rows between `migrate` and restart.
-* **Status page Friends section** (layer 7) reads
-  `Friends.Connections.status/0` — health + counts only, no rehash of the
-  Friends tab's relay list.
+* **Console: crash frames from Nostr/Friends/Recommendations map to the
+  Friends tile** — revisit if a separate Nostr tile is ever wanted (the
+  `:nostr` log tag exists as a console chip but is not a board subsystem,
+  so a `:nostr`-tagged incident would fold under System).
+* **`:subsystem` incidents do not reach the health board.**
+  `BucketCache.from_incidents/1` keeps only fingerprint-keyed (`:log`)
+  rows, and the `Evaluator` raises faults with no `message`, so every
+  assessor's verdict — `Friends.IncidentContext` included, and
+  `download_client_unreachable` / `search_provider_unreachable` before it
+  — is stored durably and colours nothing. The Friends tile therefore
+  reads "No issues" even with every relay down. Pre-existing and
+  system-wide; fixing it means giving `:subsystem` incidents a synthetic
+  grouping key and a per-kind headline (the three Friends kinds are
+  **Relay rejected this identity**, **No relay reachable**, **A relay is
+  unreachable**), which is an `ErrorReports` change, not a Friends one.
+* **`Recommendations.counts/0`** — the Status widget currently derives
+  sent/received by loading `list_sent/0` + `list_feed/0` (every
+  recommendation row, twice per navigation) purely to count them. Two
+  aggregate queries in the context would replace it; the `/status` mount
+  budget moved 52 → 60 to absorb the reads as they stand.
 * **Wiki (layer 8):** the Friends-and-Recommendations page must carry the
   backup advice for the secret key.
 * **Hardening pass** after iteration settles (spec decision 11).
