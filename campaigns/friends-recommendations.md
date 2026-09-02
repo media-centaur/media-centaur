@@ -23,10 +23,11 @@ shipped 2026-08-19, so the parking condition is met. All open questions are
 resolved (below). Spec:
 `docs/superpowers/specs/2026-09-02-friends-recommendations-design.md`
 (includes the unify_design adjudication and an eight-layer build order).
-Layer 1a (title convergence, plan
-`docs/superpowers/plans/2026-09-02-title-convergence.md`) landed 2026-09-02
-on main, unpushed; next: plan 1b (Discovery page: `tab_strip`,
-`show_discovery`, `/discovery` routes).
+Layers 1a (title convergence,
+`docs/superpowers/plans/2026-09-02-title-convergence.md`) and 1b (Discovery
+page at `/discovery/watchlist` with `tab_strip` and `show_discovery`,
+`docs/superpowers/plans/2026-09-02-discovery-page.md`) landed 2026-09-02 on
+main, unpushed; next: layer 2 (`MediaCentaur.Nostr`: keys, events, filters).
 
 ## Decisions made
 
@@ -157,7 +158,8 @@ on main, unpushed; next: plan 1b (Discovery page: `tab_strip`,
   upgrade reaches the drop before the backfill; and the old release can write
   flat-only rows between `migrate` and restart.
 * **Hardening pass** after iteration settles (spec decision 11).
-* **Plan 1b** — Discovery page.
+* **`show_discovery` gates the sidebar entry only** (spec decision 7
+  corrected 2026-09-02); decide the Recommend action's gating with layer 6.
 * **Plan modal selection header → `title_summary`** (spec unification
   decision 4): converges when the plan modal is next touched; not before.
 * **`Review.search_tmdb/2` → `TMDB.TitleSearch` / `TMDB.Title`**: the review

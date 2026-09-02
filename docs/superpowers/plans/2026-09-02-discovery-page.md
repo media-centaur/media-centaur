@@ -18,6 +18,7 @@
 - The tab strip renders even with one tab: it is the section header the next tabs join.
 - Sidebar entry: label "Discovery", icon `hero-sparkles`, tooltip "Discovery".
 - Copy (house voice): Settings row label **Discovery**, description **"Show the Discovery page in the sidebar. Early preview — it may still change shape."** Page heading **Discovery**. Tab label **Watchlist** with the item count as its badge. Empty state unchanged.
+- `data-nav-default-zone` names the layout key (`discovery`), not a zone — `config_coverage.test.js` enforces it.
 
 ---
 
@@ -519,7 +520,7 @@ Run the two files: expected failures — no route.
 - render: `show_discovery={@show_discovery}`, `current_path="/discovery/watchlist"`, `data-page-behavior="discovery"`, and the content block becomes
 
 ```heex
-      <div class="relative" data-page-behavior="discovery" data-nav-default-zone="grid">
+      <div class="relative" data-page-behavior="discovery" data-nav-default-zone="discovery">
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <h1 class="px-1 text-lg font-semibold">Discovery</h1>
 
@@ -554,7 +555,7 @@ and a private
   defp tabs(items), do: [%Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)}]
 ```
 
-Keep the wrapper's existing `data-nav-default-zone` value if it was something other than `"watchlist"` — check the file; the zone that holds the rows is `grid`, so `data-nav-default-zone="grid"` is the honest value (the old `"watchlist"` named the page layout, not a zone — verify against `assets/js/input/config.js` semantics: `data-nav-default-zone` names a **zone**; if the old value worked it is because the framework fell back, so `grid` is correct).
+Keep the wrapper's existing `data-nav-default-zone` value if it was something other than `"watchlist"` — check the file; the zone that holds the rows is `grid`, so `data-nav-default-zone="discovery"` is the honest value (the old `"watchlist"` named the page layout, not a zone — verify against `assets/js/input/config.js` semantics: `data-nav-default-zone` names a **zone**; if the old value worked it is because the framework fell back, so `grid` is correct).
 
 - `lib/media_centaur_web/router.ex`: `live "/watchlist", WatchlistLive, :index` → `live "/discovery/watchlist", DiscoveryLive, :watchlist` (keep the list alphabetical: it goes after `/console`).
 

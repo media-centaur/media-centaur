@@ -135,9 +135,12 @@ value by an identity the user trusts.
    `TmdbArtwork.HoldProvider` and is registered alongside the Discovery
    provider: a feed row is standing interest.
 7. **Feature gate renamed.** `show_watchlist` becomes `show_discovery`
-   (`Settings.Preferences.DiscoveryVisibility`), gating the sidebar entry,
-   the Discovery page, the modal watchlist toggle, the modal Recommend
-   action, and the Incoming search-row bookmark. A settings-row migration
+   (`Settings.Preferences.DiscoveryVisibility`). It gates the sidebar entry
+   only — `/discovery/watchlist` stays reachable by URL and the bookmark
+   controls are ungated, as the wiki documents; the earlier claim that it
+   gated the page and the bookmarks was inherited from a wrong moduledoc
+   *(corrected 2026-09-02)*. Whether the Recommend action is gated is
+   decided when that surface lands (layer 6). A settings-row migration
    renames the stored key. Default stays off until the feature settles.
 8. **Shared tab strip.** `MediaCentaurWeb.Components.TabStrip`
    (`tab_strip/1`) is extracted from `review_tabs`; Review and Discovery
@@ -350,7 +353,7 @@ copy, never "entity".
   `from_event`.
 - LiveView tests: feed rows and actions, recommend modal from both hosts,
   Friends tab (identity create, export/import, relay and friend add/remove),
-  Discovery visibility gate, Status section.
+  Discovery sidebar-entry gate, Status section.
 - Existing `TitleResult` tests move with the struct; storybook stories for
   `title_summary` and `tab_strip` only in this slice (the rest arrive with
   the hardening pass).
