@@ -21,6 +21,63 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
     })
   end
 
+  test "to_event stamps the content schema version" do
+    assert %{"v" => 1} = Jason.decode!(Translation.to_event(title(), nil, @pubkey).content)
+  end
+
+  test "from_event accepts an absent version and drops an unknown one" do
+    signed = Event.sign(Translation.to_event(title(), "note", @pubkey), @secret)
+    content = Jason.decode!(signed.content)
+
+    legacy = Event.sign(%{signed | content: Jason.encode!(Map.delete(content, "v"))}, @secret)
+    assert {:ok, %{note: "note"}} = Translation.from_event(legacy)
+
+    future = Event.sign(%{signed | content: Jason.encode!(Map.put(content, "v", 2))}, @secret)
+    assert {:error, :unsupported_version} = Translation.from_event(future)
+  end
+
+  describe "deletion" do
+    test "to_deletion names the signer's own address and the withdrawn event" do
+      event = Translation.to_deletion(@pubkey, :movie, 603, "abc")
+
+      assert event.kind == 5
+      assert Event.tag_value(event, "a") == "32160:#{@pubkey}:tmdb:movie:603"
+      assert Event.tag_value(event, "e") == "abc"
+      assert Translation.deletion_kind() == 5
+    end
+
+    test "from_deletion round-trips a signed deletion into tombstone attrs" do
+      signed = Event.sign(Translation.to_deletion(@pubkey, :tv_series, 42, "abc"), @secret)
+
+      assert {:ok, attrs} = Translation.from_deletion(signed)
+      assert attrs.author_pubkey == @pubkey
+      assert attrs.media_type == :tv_series
+      assert attrs.tmdb_id == 42
+      assert DateTime.to_unix(attrs.deleted_at) == signed.created_at
+      assert attrs.deletion_event == Event.to_map(signed)
+    end
+
+    test "from_deletion refuses another signer's address, a bad coordinate, and the wrong kind" do
+      other = String.duplicate("a", 64)
+      foreign = Event.sign(Translation.to_deletion(other, :movie, 603, "abc"), @secret)
+      assert {:error, :not_author} = Translation.from_deletion(foreign)
+
+      bad =
+        Event.sign(
+          %{Translation.to_deletion(@pubkey, :movie, 603, "abc") | tags: [["a", "1:x:y"]]},
+          @secret
+        )
+
+      assert {:error, :bad_address} = Translation.from_deletion(bad)
+
+      missing = Event.sign(%{Translation.to_deletion(@pubkey, :movie, 603, "abc") | tags: []}, @secret)
+      assert {:error, :bad_address} = Translation.from_deletion(missing)
+
+      recommendation = Event.sign(Translation.to_event(title(), nil, @pubkey), @secret)
+      assert {:error, :wrong_kind} = Translation.from_deletion(recommendation)
+    end
+  end
+
   test "to_event builds an addressable kind-32160 event with the title snapshot and note" do
     event = Translation.to_event(title(), "Watch it twice.", @pubkey)
 

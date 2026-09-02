@@ -3,7 +3,9 @@ defmodule MediaCentaur.Social.Relay do
   One configured relay: a `ws://` or `wss://` URL, normalized (trimmed,
   lowercase scheme and host, no userinfo, path defaults to `/`).
   Connection state is runtime (`Social.Connections.status/0`), never
-  stored.
+  stored. `synced_until` is the sync cursor: the newest event time (Unix
+  seconds) seen from this relay, which `Recommendations.Sync` passes as
+  `since` on the next connect.
   """
 
   use Ecto.Schema
@@ -15,6 +17,7 @@ defmodule MediaCentaur.Social.Relay do
 
   schema "relays" do
     field :url, :string
+    field :synced_until, :integer
 
     timestamps()
   end

@@ -222,47 +222,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
   end
 
-  describe "recommend from a watchlist row" do
-    setup do
-      Identity.ensure()
-      :ok
-    end
-
-    test "opens the modal, sends with a note, and flashes", %{conn: conn} do
-      {:ok, _item} =
-        Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
-
-      {:ok, view, _html} = live(conn, "/discovery/watchlist")
-
-      view |> element("#watchlist-item-movie-777 button", "Recommend") |> render_click()
-      assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
-      assert has_element?(view, "#recommend-modal", "No relay configured")
-
-      view |> form("#recommend-form", %{"note" => "Watch it."}) |> render_submit()
-      assert render(view) =~ "Saved — it will send when a relay connects"
-      refute has_element?(view, "#recommend-modal[data-state='open']")
-      assert [%{note: "Watch it.", tmdb_id: 777}] = Recommendations.list_sent()
-
-      await_supervised_tasks()
-    end
-
-    test "cancel closes without sending", %{conn: conn} do
-      {:ok, _item} =
-        Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
-
-      {:ok, view, _html} = live(conn, "/discovery/watchlist")
-
-      view |> element("#watchlist-item-movie-777 button", "Recommend") |> render_click()
-      view |> element("#recommend-cancel") |> render_click()
-
-      refute has_element?(view, "#recommend-modal[data-state='open']")
-      assert Recommendations.list_sent() == []
-
-      await_supervised_tasks()
-    end
-  end
-
-  describe "feed tab" do
+  describe "recommendations tab" do
     @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
     @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
@@ -278,8 +238,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "empty state names the prerequisites, then the quiet empty state", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Feed")
-      assert render(view) =~ "Add a relay and a friend on the Social tab"
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Recommendations")
+      assert has_element?(view, "#feed-scope-incoming.zone-tab-active")
+      assert render(view) =~ "Add a relay under Settings → Social and a friend on the Friends tab"
 
       {:ok, _relay} = Social.add_relay("wss://relay.example")
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
@@ -339,7 +300,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _rec} = Recommendations.ingest(friend_event(777, nil))
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Feed")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Recommendations")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a .badge", "1")
 
       await_supervised_tasks()
@@ -350,11 +311,14 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, rec} = Recommendations.recommend(title, "mine")
 
       {:ok, view, _html} = live(conn, "/discovery")
+      view |> element("#feed-scope-own") |> render_click()
 
       assert has_element?(view, "#feed-#{rec.id}", "You ·")
       refute has_element?(view, "#feed-#{rec.id}", "from")
 
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a .badge", "1")
+      # The tab badge counts incoming only; own rows count on the Yours scope.
+      refute has_element?(view, "[data-nav-zone='zone-tabs'] a .badge")
+      assert has_element?(view, "#feed-scope-own .badge", "1")
 
       view |> element("#feed-#{rec.id} button", "Add to watchlist") |> render_click()
       assert Discovery.on_watchlist?(999, :movie)
@@ -370,6 +334,66 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert Process.alive?(view.pid)
       assert Discovery.list_watchlist() == []
+    end
+
+    test "Yours shows own rows with Delete; Incoming hides them; delete withdraws", %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, theirs} = Recommendations.ingest(friend_event(777, nil))
+      title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
+      {:ok, mine} = Recommendations.recommend(title, "mine")
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert has_element?(view, "#feed-#{theirs.id}")
+      refute has_element?(view, "#feed-#{mine.id}")
+      refute has_element?(view, "#feed-#{theirs.id} button", "Delete")
+
+      view |> element("#feed-scope-own") |> render_click()
+      assert has_element?(view, "#feed-scope-own.zone-tab-active")
+      assert has_element?(view, "#feed-#{mine.id}", "You")
+      refute has_element?(view, "#feed-#{theirs.id}")
+
+      view |> element("#feed-#{mine.id} button", "Delete") |> render_click()
+      refute has_element?(view, "#feed-#{mine.id}")
+      assert render(view) =~ "Recommendation withdrawn"
+      assert render(view) =~ "Titles you recommend from their detail page show up here."
+      assert Recommendations.list_sent() == []
+
+      await_supervised_tasks()
+    end
+
+    test "a friend's deletion removes their row without a reload", %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      now = System.os_time(:second)
+      title = Title.new!(%{tmdb_id: 779, media_type: :movie, name: "Sample Movie 779"})
+
+      event =
+        Event.sign(
+          %{Translation.to_event(title, nil, @friend_pubkey) | created_at: now - 5},
+          @friend_secret
+        )
+
+      {:ok, rec} = Recommendations.ingest(event)
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert has_element?(view, "#feed-#{rec.id}")
+
+      deletion =
+        Event.sign(Translation.to_deletion(@friend_pubkey, :movie, 779, rec.event_id), @friend_secret)
+
+      {:ok, _gone} = Recommendations.ingest(deletion)
+      render_until(view, fn _html -> not has_element?(view, "#feed-#{rec.id}") end)
+
+      await_supervised_tasks()
+    end
+
+    test "the watchlist row no longer offers Recommend", %{conn: conn} do
+      {:ok, _item} =
+        Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      refute has_element?(view, "#watchlist-item-movie-777 button", "Recommend")
+      refute has_element?(view, "#recommend-modal")
+      await_supervised_tasks()
     end
   end
 

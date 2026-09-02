@@ -7,10 +7,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedRow do
   title's state allows — the library detail when the library already
   owns it, a quiet "On watchlist" when it is already saved, otherwise
   Add to watchlist. An own row carries the same action as a received one
-  — the title can be in the library or on the watchlist just the same.
+  — the title can be in the library or on the watchlist just the same —
+  plus Delete, which withdraws the recommendation from every relay.
 
-  Pure rendering; `feed_add_to_watchlist` bubbles to `DiscoveryLive`,
-  which owns both the decoration and the write.
+  Pure rendering; `feed_add_to_watchlist` and `feed_delete` bubble to
+  `DiscoveryLive`, which owns both the decoration and the write.
   """
   use MediaCentaurWeb, :html
 
@@ -45,8 +46,19 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedRow do
         <:secondary :if={@recommendation.note}>{@recommendation.note}</:secondary>
       </.title_summary>
 
-      <span class="shrink-0 self-center">
+      <span class="flex shrink-0 items-center gap-3 self-center">
         <.action row={@row} recommendation={@recommendation} />
+        <button
+          :if={@row.own?}
+          type="button"
+          class="cursor-pointer text-xs text-base-content/30 transition-colors hover:text-base-content/60"
+          phx-click="feed_delete"
+          phx-value-id={@recommendation.id}
+          data-nav-item
+          tabindex="0"
+        >
+          Delete
+        </button>
       </span>
     </div>
     """

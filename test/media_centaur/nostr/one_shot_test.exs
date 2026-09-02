@@ -9,6 +9,9 @@ defmodule MediaCentaur.Nostr.OneShotTest do
   alias MediaCentaur.Nostr.OneShot
 
   @secret_hex String.duplicate("0", 63) <> "3"
+  # Generous: these run async alongside the whole suite, and a 5 s
+  # deadline has timed out under that load.
+  @opts [timeout_ms: 15_000]
 
   defp secret, do: MediaCentaur.Secret.wrap(@secret_hex)
   defp signer, do: fn %Event{} = event -> Event.sign(event, secret()) end
@@ -25,7 +28,7 @@ defmodule MediaCentaur.Nostr.OneShotTest do
       relay = FakeRelay.start()
       event = signed("hello")
 
-      assert :ok = OneShot.publish(relay.url, event, signer())
+      assert :ok = OneShot.publish(relay.url, event, signer(), @opts)
       assert_received {:relay_in, ["EVENT", %{"content" => "hello"}]}
     end
 
@@ -33,7 +36,7 @@ defmodule MediaCentaur.Nostr.OneShotTest do
       relay = FakeRelay.start(auth: true)
       event = signed("hello")
 
-      assert :ok = OneShot.publish(relay.url, event, signer())
+      assert :ok = OneShot.publish(relay.url, event, signer(), @opts)
       assert_received {:relay_in, ["AUTH", %{"kind" => 22_242}]}
       assert_received {:relay_in, ["EVENT", %{"content" => "hello"}]}
     end
@@ -43,12 +46,12 @@ defmodule MediaCentaur.Nostr.OneShotTest do
         FakeRelay.start(accept: false, reason: "restricted: this key is not a member of this relay")
 
       assert {:error, "restricted: this key is not a member of this relay"} =
-               OneShot.publish(relay.url, signed("hello"), signer())
+               OneShot.publish(relay.url, signed("hello"), signer(), @opts)
     end
 
     test "returns an error when the relay is unreachable" do
       assert {:error, {:disconnected, _reason}} =
-               OneShot.publish("ws://127.0.0.1:1/", signed("hello"), signer())
+               OneShot.publish("ws://127.0.0.1:1/", signed("hello"), signer(), @opts)
     end
   end
 
@@ -57,13 +60,13 @@ defmodule MediaCentaur.Nostr.OneShotTest do
       relay = FakeRelay.start(auth: true, events: [signed("kept", 32_160), signed("other", 1)])
 
       assert {:ok, [%Event{content: "kept"}]} =
-               OneShot.query(relay.url, [Filter.new(kinds: [32_160])], signer())
+               OneShot.query(relay.url, [Filter.new(kinds: [32_160])], signer(), @opts)
     end
 
     test "returns an empty list when nothing matches" do
       relay = FakeRelay.start()
 
-      assert {:ok, []} = OneShot.query(relay.url, [Filter.new(kinds: [32_160])], signer())
+      assert {:ok, []} = OneShot.query(relay.url, [Filter.new(kinds: [32_160])], signer(), @opts)
     end
   end
 end

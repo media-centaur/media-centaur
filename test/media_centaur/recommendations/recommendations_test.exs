@@ -7,6 +7,7 @@ defmodule MediaCentaur.RecommendationsTest do
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Recommendations
+  alias MediaCentaur.Recommendations.Events.Deleted
   alias MediaCentaur.Recommendations.Events.Received
   alias MediaCentaur.Recommendations.Events.Sent
   alias MediaCentaur.Recommendations.Recommendation
@@ -214,6 +215,118 @@ defmodule MediaCentaur.RecommendationsTest do
 
     test "with nothing stored, zero counts and no last_received_at" do
       assert Recommendations.counts() == %{sent: 0, received: 0, last_received_at: nil}
+    end
+  end
+
+  defp friend_deletion(title, created_at) do
+    Event.sign(
+      %{
+        Translation.to_deletion(@friend_pubkey, title.media_type, title.tmdb_id, "x")
+        | created_at: created_at
+      },
+      @friend_secret
+    )
+  end
+
+  describe "delete/1" do
+    test "tombstones an own row, hides it everywhere, republishes the deletion, broadcasts" do
+      Recommendations.subscribe()
+      {:ok, rec} = Recommendations.recommend(title(), "mine")
+
+      assert {:ok, %Recommendation{deleted_at: %DateTime{}, deletion_event: %{"kind" => 5}} = gone} =
+               Recommendations.delete(rec.id)
+
+      assert Recommendation.deleted?(gone)
+      assert Recommendations.list_feed() == []
+      assert Recommendations.list_sent() == []
+      assert %{sent: 0, received: 0} = Recommendations.counts()
+
+      assert [%Event{kind: 5} = deletion] = Recommendations.own_events()
+      assert Event.verify(deletion) == :ok
+      assert Event.tag_value(deletion, "a") == "32160:#{Identity.pubkey()}:tmdb:movie:603"
+
+      id = rec.id
+      assert_receive {:recommendation_deleted, %Deleted{id: ^id}}, 500
+      await_supervised_tasks()
+    end
+
+    test "refuses a friend's row and an unknown id; deleting twice is a no-op" do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, theirs} = Recommendations.ingest(friend_event(title(), "theirs", System.os_time(:second)))
+      assert {:error, :not_own} = Recommendations.delete(theirs.id)
+      assert {:error, :not_found} = Recommendations.delete(Ecto.UUID.generate())
+
+      {:ok, mine} = Recommendations.recommend(title(9), nil)
+      {:ok, gone} = Recommendations.delete(mine.id)
+      assert {:ok, ^gone} = Recommendations.delete(mine.id)
+      await_supervised_tasks()
+    end
+
+    test "a stale copy of the withdrawn recommendation is ignored; recommending again revives it" do
+      {:ok, rec} = Recommendations.recommend(title(), "mine")
+      {:ok, stale} = Event.from_map(rec.raw_event)
+      {:ok, _gone} = Recommendations.delete(rec.id)
+
+      assert :ignored = Recommendations.ingest(stale)
+      assert Recommendations.list_sent() == []
+
+      Process.sleep(1_100)
+      {:ok, again} = Recommendations.recommend(title(), "again")
+      assert again.id == rec.id
+      refute Recommendation.deleted?(again)
+      assert [%{note: "again"}] = Recommendations.list_sent()
+      assert [%Event{kind: 32_160}] = Recommendations.own_events()
+      await_supervised_tasks()
+    end
+  end
+
+  describe "ingest/1 of a deletion" do
+    setup do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      :ok
+    end
+
+    test "a friend's deletion tombstones their row and broadcasts" do
+      Recommendations.subscribe()
+      now = System.os_time(:second)
+      {:ok, rec} = Recommendations.ingest(friend_event(title(), "theirs", now - 10))
+
+      assert {:ok, %Recommendation{deleted_at: %DateTime{}}} =
+               Recommendations.ingest(friend_deletion(title(), now))
+
+      id = rec.id
+      assert_receive {:recommendation_deleted, %Deleted{id: ^id, author_pubkey: @friend_pubkey}}, 500
+      assert Recommendations.list_feed() == []
+
+      # The withdrawn recommendation coming back off another relay stays hidden.
+      assert :ignored = Recommendations.ingest(friend_event(title(), "theirs", now - 10))
+      assert Recommendations.list_feed() == []
+
+      # A newer recommendation revives it.
+      assert {:ok, _revived} = Recommendations.ingest(friend_event(title(), "again", now + 10))
+      assert [%{recommendation: %{note: "again"}}] = Recommendations.list_feed()
+      await_supervised_tasks()
+    end
+
+    test "a deletion older than the recommendation, or for nothing stored, is ignored" do
+      now = System.os_time(:second)
+      {:ok, _rec} = Recommendations.ingest(friend_event(title(), "theirs", now))
+
+      assert :ignored = Recommendations.ingest(friend_deletion(title(), now - 10))
+      assert [_row] = Recommendations.list_feed()
+
+      assert :ignored = Recommendations.ingest(friend_deletion(title(99), now))
+      await_supervised_tasks()
+    end
+
+    test "a stranger's deletion and a bad signature are rejected" do
+      stranger = MediaCentaur.Nostr.Keys.generate()
+      pubkey = MediaCentaur.Nostr.Keys.pubkey(stranger)
+      event = Event.sign(Translation.to_deletion(pubkey, :movie, 603, "x"), stranger)
+      assert {:error, :unknown_author} = Recommendations.ingest(event)
+
+      forged = %{friend_deletion(title(), System.os_time(:second)) | sig: String.duplicate("0", 128)}
+      assert {:error, _reason} = Recommendations.ingest(forged)
     end
   end
 end
