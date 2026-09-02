@@ -32,7 +32,7 @@ Four `Boundary` contexts, each with one job. The dependency edges run one way:
 | `MediaCentaur.Nostr` | The protocol and nothing else: `Keys`, `Event`, `Filter`, `Connection`. No tables, no domain meaning. | — |
 | `MediaCentaur.Friends` | The network's *configuration*: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), and `Connections` (one live connection per relay). | `Nostr` |
 | `MediaCentaur.Recommendations` | The *content*: `recommendations` table, `Translation` (events ↔ rows), `Sync` (relays ↔ rows). | `Friends`, `Nostr`, `TMDB`, `TmdbArtwork` |
-| `MediaCentaur.Discovery` | The watchlist (`watchlist_items`). Knows nothing about any of the above — a row from the feed stores a bare `recommendation_id`. | — |
+| `MediaCentaur.Discovery` | The watchlist (`watchlist_items`). Knows nothing about the friend network — a row from the feed stores a bare `recommendation_id`. | `Library`, `TmdbArtwork`, `TMDB` |
 
 The Discovery/Recommendations separation is deliberate: a watchlist row records
 *intent*, a recommendation records *what a signed event said*. Joining them (who
@@ -46,8 +46,9 @@ layer's job — see [Web layer](#web-layer).
 `MediaCentaur.Secret` at rest and in memory); the public key is derived on every
 read rather than stored, so the two can never disagree.
 
-- `ensure/0` generates on first use. The Friends tab is the only caller — nothing
-  else in the app mints an identity.
+- `ensure/0` generates on first use. Two callers: the Friends tab, and
+  `Recommendations.recommend/2` — a user can recommend a title before ever
+  opening the tab, which mints the identity right there.
 - `import_nsec/1` is the only replacement path (two-click arm in the UI,
   MC0027 treatment b).
 - Both broadcast `Friends.Events.IdentityChanged`, which makes
@@ -55,8 +56,9 @@ read rather than stored, so the two can never disagree.
 
 `Nostr.Keys` owns the hex ↔ bech32 (`npub` / `nsec`, NIP-19) conversions and
 enforces `1 <= d < n` — `bitcoinex` would otherwise accept a zero scalar as a
-private key. The secret is unwrapped only inside `Keys.pubkey/1` and the signing
-call in `Nostr.Event`.
+private key. The secret is unwrapped in exactly three places: `Keys.private_key!/1`
+(used by both `Keys.pubkey/1` and the signing call in `Nostr.Event`),
+`Keys.to_nsec/1`, and `Identity.store!/1`.
 
 ## Transport
 
@@ -201,8 +203,9 @@ system-wide (the download-client and search probes have it too); fixing it is an
 drill-in.
 
 Console tags: `:nostr` for transport, `:friends`, `:recommendations` for the
-contexts. `:nostr` is a console chip but not a board subsystem, so a
-`:nostr`-tagged incident folds under System.
+contexts. `HealthBoard.normalize/1` aliases `:nostr` and `:recommendations`
+incidents onto the Friends tile; `:subsystem` incidents (the assessor's own
+faults) still never reach the board — a pre-existing ErrorReports gap.
 
 ## Testing
 

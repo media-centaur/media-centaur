@@ -3,8 +3,10 @@ defmodule MediaCentaur.Nostr.Keys do
   secp256k1 keypairs as Nostr uses them: a 32-byte secret, its x-only
   32-byte public key (BIP-340), and the NIP-19 bech32 forms `nsec` /
   `npub`. In-app representation is lowercase hex; the secret rides in
-  `MediaCentaur.Secret` and is exposed only inside `pubkey/1` and the
-  signing call in `Event`.
+  `MediaCentaur.Secret` and is exposed in exactly three places:
+  `private_key!/1` (used by both `pubkey/1` and the signing call in
+  `Event`), `to_nsec/1`, and `Identity.store!/1` (persisting a new or
+  imported secret to config).
 
   `bitcoinex` accepts a zero scalar as a private key; we do not
   (`valid_secret?/1` enforces `1 <= d < n`).
