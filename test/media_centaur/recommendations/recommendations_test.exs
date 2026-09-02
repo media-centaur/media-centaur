@@ -49,7 +49,9 @@ defmodule MediaCentaur.RecommendationsTest do
       assert_receive {:recommendation_sent, %Sent{id: id}}, 500
       assert id == rec.id
       assert [%Recommendation{id: ^id}] = Recommendations.list_sent()
-      assert Recommendations.list_feed() == []
+
+      assert [%{recommendation: %Recommendation{id: ^id}, nickname: nil, own?: true}] =
+               Recommendations.list_feed()
 
       await_supervised_tasks()
     end
@@ -61,6 +63,32 @@ defmodule MediaCentaur.RecommendationsTest do
       assert first.id == second.id
       assert Recommendations.list_sent() |> hd() |> Map.get(:note) == "second"
       assert length(Recommendations.own_events()) == 1
+
+      await_supervised_tasks()
+    end
+
+    test "rejects a note over 500 characters and stores nothing" do
+      long_note = String.duplicate("a", 501)
+
+      assert {:error, :note_too_long} = Recommendations.recommend(title(), long_note)
+      assert Recommendations.list_sent() == []
+    end
+
+    test "a note at exactly 500 characters is accepted" do
+      note = String.duplicate("a", 500)
+
+      assert {:ok, rec} = Recommendations.recommend(title(), note)
+      assert rec.note == note
+
+      await_supervised_tasks()
+    end
+
+    test "a note is trimmed before the length check and blank becomes nil" do
+      assert {:ok, rec} = Recommendations.recommend(title(), "  Go.  ")
+      assert rec.note == "Go."
+
+      assert {:ok, rec2} = Recommendations.recommend(title(2), "   ")
+      assert rec2.note == nil
 
       await_supervised_tasks()
     end
@@ -109,12 +137,16 @@ defmodule MediaCentaur.RecommendationsTest do
       assert Recommendations.list_feed() == []
     end
 
-    test "own events arriving from a relay are stored as sent, not shown in the feed" do
-      {:ok, _rec} = Recommendations.recommend(title(), "mine")
+    test "own events arriving from a relay are stored once and shown as own" do
+      {:ok, rec} = Recommendations.recommend(title(), "mine")
       [event] = Recommendations.own_events()
 
       assert :ignored = Recommendations.ingest(event)
-      assert Recommendations.list_feed() == []
+
+      assert [%{recommendation: %Recommendation{id: id}, nickname: nil, own?: true}] =
+               Recommendations.list_feed()
+
+      assert id == rec.id
 
       await_supervised_tasks()
     end

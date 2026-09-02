@@ -16,6 +16,13 @@ defmodule MediaCentaur.Recommendations.Sync do
   Consumes `friends:updates`: a roster change resubscribes `"feed"` on
   every relay with the new author list.
 
+  On reconnect, `Connections.Owner` also re-applies the relay's
+  previously-registered subscriptions (its own job, independent of this
+  module), so `"feed"` and `"own:<url>"` each go out twice — this is
+  harmless (relays de-duplicate identical subs, and `seen` resets on
+  `:connected` here so the own-events diff still lands right) and left
+  alone rather than adding a seam to suppress one of the two senders.
+
   Gated off under `:test` (`:start_recommendations_sync`); tests start it
   by hand against `Nostr.FakeRelay`, as with `Connections.Owner`.
   """
@@ -34,18 +41,12 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
-  @doc false
-  def __sync_for_test__(server \\ __MODULE__), do: GenServer.call(server, :sync)
-
   @impl true
   def init(_opts) do
     Friends.subscribe_connections()
     Friends.subscribe()
     {:ok, %__MODULE__{}}
   end
-
-  @impl true
-  def handle_call(:sync, _from, state), do: {:reply, :ok, state}
 
   @impl true
   def handle_info({:relay_connection, url, :connected}, state) do
@@ -58,9 +59,14 @@ defmodule MediaCentaur.Recommendations.Sync do
     state = if sub_id == own_sub(url), do: mark_seen(state, url, event.id), else: state
 
     case Recommendations.ingest(event) do
-      {:ok, _rec} -> :ok
-      :ignored -> :ok
-      {:error, reason} -> Log.debug(:friends, "#{url}: dropped event #{event.id}: #{inspect(reason)}")
+      {:ok, _rec} ->
+        :ok
+
+      :ignored ->
+        :ok
+
+      {:error, reason} ->
+        Log.debug(:recommendations, "#{url}: dropped event #{event.id}: #{inspect(reason)}")
     end
 
     {:noreply, state}
@@ -88,7 +94,7 @@ defmodule MediaCentaur.Recommendations.Sync do
     for event <- missing, do: Connections.publish(url, event)
 
     if missing != [],
-      do: Log.info(:friends, "#{url}: published #{length(missing)} recommendation(s) it lacked")
+      do: Log.info(:recommendations, "#{url}: published #{length(missing)} recommendation(s) it lacked")
 
     :ok
   end

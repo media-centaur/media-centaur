@@ -40,6 +40,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
           <textarea
             name="note"
             rows="3"
+            maxlength="500"
             placeholder="Why they should watch it (optional)"
             class="textarea textarea-bordered w-full text-sm"
           ></textarea>

@@ -26,6 +26,10 @@ defmodule MediaCentaur.Recommendations do
   `list_feed/0` decorates rows with the friend's nickname and nothing
   else.
 
+  `list_feed/0` includes this identity's own recommendations alongside
+  received ones (spec: the Feed marks them "You") — `own?` and `nickname`
+  tell a row apart; `nickname` is `nil` on an own row.
+
   Broadcasts typed events on `recommendations:updates` (subscribe
   through `subscribe/0`).
   """
@@ -44,23 +48,34 @@ defmodule MediaCentaur.Recommendations do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
-  @type feed_row :: %{recommendation: Recommendation.t(), nickname: String.t()}
+  @type feed_row :: %{recommendation: Recommendation.t(), nickname: String.t() | nil, own?: boolean()}
 
   @doc "Subscribe the caller to recommendation events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe, do: Topics.subscribe(Topics.recommendations_updates())
 
-  @doc "Builds, signs, stores and publishes a recommendation from this identity."
-  @spec recommend(Title.t(), String.t() | nil) :: {:ok, Recommendation.t()} | {:error, term()}
-  def recommend(%Title{} = title, note) do
-    secret = Identity.ensure()
-    event = title |> Translation.to_event(note, Identity.pubkey()) |> Event.sign(secret)
+  @max_note_length 500
 
-    with {:ok, attrs} <- Translation.from_event(event),
-         {:ok, rec} <- upsert(attrs) do
-      Connections.publish(event)
-      Events.broadcast(%Events.Sent{id: rec.id})
-      {:ok, rec}
+  @doc """
+  Builds, signs, stores and publishes a recommendation from this
+  identity, creating the identity first (`Identity.ensure/0`) if none
+  exists yet. `note` is trimmed first; blank becomes `nil`; a note over
+  #{@max_note_length} characters is rejected with `{:error,
+  :note_too_long}` and nothing is stored.
+  """
+  @spec recommend(Title.t(), String.t() | nil) ::
+          {:ok, Recommendation.t()} | {:error, :note_too_long | term()}
+  def recommend(%Title{} = title, note) do
+    with {:ok, note} <- validate_note(note) do
+      secret = Identity.ensure()
+      event = title |> Translation.to_event(note, Identity.pubkey()) |> Event.sign(secret)
+
+      with {:ok, attrs} <- Translation.from_event(event),
+           {:ok, rec} <- upsert(attrs) do
+        Connections.publish(event)
+        Events.broadcast(%Events.Sent{id: rec.id})
+        {:ok, rec}
+      end
     end
   end
 
@@ -79,18 +94,20 @@ defmodule MediaCentaur.Recommendations do
   end
 
   @doc """
-  Received recommendations, newest first, with the friend's nickname.
-  Before an identity exists nothing stored can be ours, so every row is
-  a received one.
+  Every recommendation, newest first — received ones with the friend's
+  nickname, this identity's own marked `own?: true` with `nickname: nil`
+  (the spec's Feed shows them as "You"). Before an identity exists
+  nothing stored can be ours, so every row is a received one.
   """
   @spec list_feed() :: [feed_row()]
   def list_feed do
     friends = Map.new(Friends.list_friends(), &{&1.pubkey, &1.nickname})
+    me = Identity.pubkey()
 
-    Identity.pubkey()
-    |> feed_query()
+    Recommendation
+    |> order_by(desc: :recommended_at)
     |> Repo.all()
-    |> Enum.map(&%{recommendation: &1, nickname: Map.get(friends, &1.author_pubkey, "a former friend")})
+    |> Enum.map(&feed_row(&1, me, friends))
   end
 
   @doc "Recommendations this install sent, newest first — none before an identity exists."
@@ -139,10 +156,27 @@ defmodule MediaCentaur.Recommendations do
 
   # --- internals ---
 
-  defp feed_query(nil), do: from(r in Recommendation, order_by: [desc: r.recommended_at])
+  defp validate_note(nil), do: {:ok, nil}
 
-  defp feed_query(me),
-    do: from(r in Recommendation, where: r.author_pubkey != ^me, order_by: [desc: r.recommended_at])
+  defp validate_note(note) when is_binary(note) do
+    case String.trim(note) do
+      "" ->
+        {:ok, nil}
+
+      trimmed ->
+        if String.length(trimmed) <= @max_note_length, do: {:ok, trimmed}, else: {:error, :note_too_long}
+    end
+  end
+
+  defp feed_row(%Recommendation{author_pubkey: author} = rec, me, _friends) when author == me,
+    do: %{recommendation: rec, nickname: nil, own?: true}
+
+  defp feed_row(%Recommendation{} = rec, _me, friends),
+    do: %{
+      recommendation: rec,
+      nickname: Map.get(friends, rec.author_pubkey, "a former friend"),
+      own?: false
+    }
 
   defp known_author(pubkey) do
     if pubkey == Identity.pubkey() or Friends.friend_by_pubkey(pubkey),
