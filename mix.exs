@@ -112,6 +112,8 @@ defmodule MediaCentaur.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
+      {:mint_web_socket, "~> 1.0"},
+      {:websock_adapter, "~> 0.5"},
       {:bitcoinex, "~> 0.3"},
       # bitcoinex 0.3.0 still requires `decimal ~> 1.0 or ~> 2.0`, and every
       # decimal < 3.0.0 carries GHSA-rhv4-8758-jx7v (unbounded exponent in
