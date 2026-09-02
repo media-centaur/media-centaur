@@ -73,11 +73,12 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | Context | Owns | Notes |
 |---------|------|-------|
 | `MediaCentaur.Library` | `library_*` tables, entity facade, file-presence ownership (FilePresence + AbsenceSweeper, per ADR-045) | Type-specific schemas: Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchProgress, WatchedFile, ExtraFile, FilePresence. |
-| `MediaCentaur.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. ETS-backed in-flight set in `Discovery.InflightSet` dedupes duplicate file-detected events. |
+| `MediaCentaur.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. ETS-backed in-flight set in `Pipeline.Discovery.InflightSet` dedupes duplicate file-detected events — file discovery in the pipeline, unrelated to the `MediaCentaur.Discovery` context below. |
 | `MediaCentaur.Review` | `review_*` table | Holds low-confidence matches awaiting human decision. |
 | `MediaCentaur.Watcher` | inotify supervision + filesystem observer, drive-mount detection, exclude-dir handling | No DB tables — pure filesystem observer that emits `{:file_detected, ...}` events. Library owns the presence record (ADR-045). |
 | `MediaCentaur.Settings` | `settings_*` table (key/value entries) | Shared infrastructure: any context may write its own keys via a declared `Settings` dep. |
 | `MediaCentaur.ReleaseTracking` | `release_tracking_*` tables | Periodic TMDB refresh of upcoming items in the user's library. |
+| `MediaCentaur.Discovery` | `watchlist_items` table | The local watchlist — title-level "I want to watch this" intent — and, in later iterations, the candidate sources that feed it (TMDB discover, list import, friend recommendations). Broadcasts on `discovery:updates`. |
 | `MediaCentaur.Playback` | mpv session supervision, progress broadcasts | No DB tables — in-memory sessions. |
 | `MediaCentaur.Console` | `console_*` (filter/buffer-cap settings) + in-memory ring buffer + journal source | Drives the `/console` page and the Guake-style drawer. |
 | `MediaCentaur.Acquisition` | `acquisition_*` tables, Prowlarr + download-client drivers, Oban jobs. **Sub-namespace `Acquisition.Pursuits`** introduces a goal-level aggregate with append-only event log and a hybrid-autonomy decision pipeline (`Snapshot → Policy → Action → Command`); workers (`Pursuits.Watcher`, `Pursuits.IdentityVerifier`) orchestrate, commands execute. See [ADR-039](../decisions/architecture/2026-05-07-039-acquisition-pursuits.md). | Optional — gated by `MediaCentaur.Capabilities`. |
