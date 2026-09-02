@@ -145,8 +145,12 @@ on main, unpushed; next: plan 1b (Discovery page: `tab_strip`,
 
 * **Drop the watchlist flat snapshot columns** (`name`, `year`,
   `release_date`, `poster_path`, `overview`) and remove the transitional
-  `name` write in `WatchlistItem.create_changeset/2` — a schema migration in
-  the release after the one that ships the embed. It MUST first run the same
+  `name` write in `WatchlistItem.create_changeset/2` — a schema migration that
+  MUST ship in the **very next release** after the embed (v1.6.0 ships the
+  embed → the drop goes in the release right after): until it lands, a
+  watchlist row written by the old release during the seconds-wide upgrade
+  window (`title = NULL`) crashes `/watchlist` on mount, and only the drop
+  migration's inline heal repairs it. It MUST first run the same
   `UPDATE watchlist_items SET title = json_object(…) WHERE title IS NULL`
   inline (per-line Credo carve-out for MC0015) before `remove`-ing the
   columns: schema migrations run before data migrations, so a skipped-release
@@ -154,6 +158,11 @@ on main, unpushed; next: plan 1b (Discovery page: `tab_strip`,
   flat-only rows between `migrate` and restart.
 * **Hardening pass** after iteration settles (spec decision 11).
 * **Plan 1b** — Discovery page.
+* **Plan modal selection header → `title_summary`** (spec unification
+  decision 4): converges when the plan modal is next touched; not before.
+* **`Review.search_tmdb/2` → `TMDB.TitleSearch` / `TMDB.Title`**: the review
+  page's TMDB search still returns its own map shape; converge when Review
+  search is next touched.
 
 ## Completion criteria
 

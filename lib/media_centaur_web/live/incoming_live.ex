@@ -1877,7 +1877,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         scope = if media_type == :tv_series, do: %{start_season: 0, start_episode: 0}, else: %{}
 
         ReleaseTracking.track_from_search_async(
-          %{tmdb_id: tmdb_id, media_type: media_type, name: name, poster_path: nil},
+          Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name}),
           scope
         )
 

@@ -4,6 +4,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
   import Ecto.Query
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Release
+  alias MediaCentaur.TMDB.Title
 
   describe "persist_release!/2" do
     test "keeps release_type and part_tmdb_id so Differ keys stay stable" do
@@ -722,7 +723,12 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       {:ok, item} =
         ReleaseTracking.track_from_search(
-          %{tmdb_id: 5555, media_type: :tv_series, name: "New Show", poster_path: "/new.jpg"},
+          Title.new!(%{
+            tmdb_id: 5555,
+            media_type: :tv_series,
+            name: "New Show",
+            poster_path: "/new.jpg"
+          }),
           %{start_season: 2, start_episode: 5}
         )
 
@@ -767,7 +773,12 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       {:ok, item} =
         ReleaseTracking.track_from_search(
-          %{tmdb_id: 6666, media_type: :tv_series, name: "Mixed Show", poster_path: "/mix.jpg"},
+          Title.new!(%{
+            tmdb_id: 6666,
+            media_type: :tv_series,
+            name: "Mixed Show",
+            poster_path: "/mix.jpg"
+          }),
           %{start_season: 0, start_episode: 0}
         )
 
@@ -802,7 +813,12 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       {:ok, item} =
         ReleaseTracking.track_from_search(
-          %{tmdb_id: 9999, media_type: :movie, name: "Upcoming Movie", poster_path: "/movie.jpg"},
+          Title.new!(%{
+            tmdb_id: 9999,
+            media_type: :movie,
+            name: "Upcoming Movie",
+            poster_path: "/movie.jpg"
+          }),
           %{}
         )
 
@@ -837,7 +853,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       {:ok, item} =
         ReleaseTracking.track_from_search(
-          %{tmdb_id: 8888, media_type: :movie, name: "Mystery Film", poster_path: nil},
+          Title.new!(%{tmdb_id: 8888, media_type: :movie, name: "Mystery Film", poster_path: nil}),
           %{}
         )
 
@@ -866,7 +882,8 @@ defmodule MediaCentaur.ReleaseTrackingTest do
          }}
       ])
 
-      result = %{tmdb_id: 7777, media_type: :tv_series, name: "Sample Show", poster_path: nil}
+      result =
+        Title.new!(%{tmdb_id: 7777, media_type: :tv_series, name: "Sample Show", poster_path: nil})
 
       {:ok, item} = ReleaseTracking.track_from_search(result, %{})
 
@@ -889,7 +906,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
          }}
       ])
 
-      result = %{tmdb_id: 6060, media_type: :movie, name: "Sample Movie", poster_path: nil}
+      result = Title.new!(%{tmdb_id: 6060, media_type: :movie, name: "Sample Movie", poster_path: nil})
 
       {:ok, item} = ReleaseTracking.track_from_search(result, %{})
 

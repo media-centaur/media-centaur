@@ -26,6 +26,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffs do
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
+  alias MediaCentaur.TMDB.Title
 
   @doc """
   Runs the grab-future handoff for a pursuit that just refolded.
@@ -118,8 +119,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffs do
     case ReleaseTracking.get_item_by_tmdb(tmdb_id_int, media_type) do
       nil ->
         ReleaseTracking.track_from_search(
-          %{tmdb_id: tmdb_id_int, media_type: media_type, name: title, poster_path: nil},
-          %{}
+          Title.new!(%{tmdb_id: tmdb_id_int, media_type: media_type, name: title})
         )
 
       item ->

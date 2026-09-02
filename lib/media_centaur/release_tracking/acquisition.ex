@@ -16,22 +16,23 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Release, Wants}
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Client
+  alias MediaCentaur.TMDB.Title
 
   # --- Track from search ---
 
   @doc """
   Creates a tracking item from a search result. Used by the Track New Show modal.
 
-  Accepts anything carrying `tmdb_id`, `media_type` and `name` — a
-  `MediaCentaur.TMDB.Title` in practice — and options:
+  Accepts a `MediaCentaur.TMDB.Title` and options:
   - For TV: %{start_season: n, start_episode: n} to set tracking offset
   - For movies: %{} (no options needed)
   """
-  def track_from_search(result, opts \\ %{}) do
+  @spec track_from_search(Title.t(), map()) :: {:ok, ReleaseTracking.Item.t()} | {:error, term()}
+  def track_from_search(%Title{} = title, opts \\ %{}) do
     start_season = Map.get(opts, :start_season, 0)
     start_episode = Map.get(opts, :start_episode, 0)
 
-    case do_track_from_search(result, start_season, start_episode) do
+    case do_track_from_search(title, start_season, start_episode) do
       {:ok, item} ->
         ReleaseTracking.broadcast_releases_updated([item.id])
         {:ok, item}
@@ -48,19 +49,20 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   lives in the context, not a web-layer `start_child`). The resulting
   `broadcast_releases_updated/1` keeps subscribers in sync.
   """
-  def track_from_search_async(result, opts \\ %{}) do
+  @spec track_from_search_async(Title.t(), map()) :: :ok
+  def track_from_search_async(%Title{} = title, opts \\ %{}) do
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      track_from_search(result, opts)
+      track_from_search(title, opts)
     end)
 
     :ok
   end
 
-  defp do_track_from_search(%{media_type: :tv_series} = result, start_season, start_episode) do
-    case Client.get_tv(result.tmdb_id) do
+  defp do_track_from_search(%Title{media_type: :tv_series} = title, start_season, start_episode) do
+    case Client.get_tv(title.tmdb_id) do
       {:ok, response} ->
         all_releases =
-          Helpers.fetch_tv_releases(result.tmdb_id, start_season, start_episode, response)
+          Helpers.fetch_tv_releases(title.tmdb_id, start_season, start_episode, response)
 
         # "All upcoming" (0,0) = only future episodes. Custom scope = include released too.
         releases =
@@ -71,9 +73,9 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
           end
 
         case ReleaseTracking.track_item(%{
-               tmdb_id: result.tmdb_id,
+               tmdb_id: title.tmdb_id,
                media_type: :tv_series,
-               name: response["name"] || result.name,
+               name: response["name"] || title.name,
                source: :manual,
                last_refreshed_at: DateTime.utc_now(),
                last_library_season: start_season,
@@ -82,7 +84,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
           {:ok, item} ->
             persist_releases(item, releases)
             create_began_tracking_event(item)
-            schedule_image_downloads(item, result.tmdb_id, response)
+            schedule_image_downloads(item, title.tmdb_id, response)
 
             {:ok, item}
 
@@ -95,13 +97,13 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
     end
   end
 
-  defp do_track_from_search(%{media_type: :movie} = result, _start_season, _start_episode) do
-    case Client.get_movie(result.tmdb_id) do
+  defp do_track_from_search(%Title{media_type: :movie} = title, _start_season, _start_episode) do
+    case Client.get_movie(title.tmdb_id) do
       {:ok, response} ->
         case ReleaseTracking.track_item(%{
-               tmdb_id: result.tmdb_id,
+               tmdb_id: title.tmdb_id,
                media_type: :movie,
-               name: response["title"] || result.name,
+               name: response["title"] || title.name,
                source: :manual,
                last_refreshed_at: DateTime.utc_now()
              }) do
@@ -110,7 +112,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
             persist_movie_releases(item, releases)
 
             create_began_tracking_event(item)
-            schedule_image_downloads(item, result.tmdb_id, response)
+            schedule_image_downloads(item, title.tmdb_id, response)
 
             {:ok, item}
 

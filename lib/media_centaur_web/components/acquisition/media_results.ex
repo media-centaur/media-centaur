@@ -294,7 +294,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   `TMDB.Title` — every caller now holds one (search rows, watchlist
   rows), so `:release_date` is read from a single shape.
   """
-  @spec release_status(%{release_date: Date.t() | nil}, Date.t()) :: :released | :upcoming
+  @spec release_status(Title.t(), Date.t()) :: :released | :upcoming
   def release_status(%{release_date: nil}, _today), do: :upcoming
 
   def release_status(%{release_date: release_date}, today) do
