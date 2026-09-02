@@ -29,6 +29,11 @@ defmodule MediaCentaur.DataMigrationsTest do
 
       assert "20260509120000_backfill_orphaned_pursuits.exs" in files
     end
+
+    test "directory contains the watchlist title-embed backfill" do
+      files = DataMigrations.path() |> File.ls!() |> Enum.filter(&String.ends_with?(&1, ".exs"))
+      assert "20260902120100_backfill_watchlist_title_embed.exs" in files
+    end
   end
 
   describe "with_data_migration_source/2" do

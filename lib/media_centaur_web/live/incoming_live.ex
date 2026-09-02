@@ -1713,15 +1713,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           :ok
 
         result ->
-          Discovery.add_to_watchlist(%{
-            tmdb_id: result.tmdb_id,
-            media_type: result.media_type,
-            name: result.name,
-            year: result.year,
-            release_date: result.release_date,
-            poster_path: result.poster_path,
-            overview: result.overview
-          })
+          Discovery.add_to_watchlist(result)
       end
     end
 

@@ -12,12 +12,11 @@ defmodule MediaCentaurWeb.WatchlistLive do
   """
   use MediaCentaurWeb, :live_view
 
-  import MediaCentaurWeb.LiveHelpers, only: [tmdb_cdn_url: 2]
+  import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Components.Discovery.WatchlistRow
 
   @impl true
@@ -46,14 +45,10 @@ defmodule MediaCentaurWeb.WatchlistLive do
         {:noreply, socket}
 
       %{item: item} ->
-        ReleaseTracking.track_from_search_async(%{
-          tmdb_id: item.tmdb_id,
-          media_type: item.media_type,
-          name: item.name,
-          poster_path: item.poster_path
-        })
+        ReleaseTracking.track_from_search_async(item.title)
 
-        {:noreply, put_flash(socket, :info, "Tracking #{item.name} — it will appear under Coming up.")}
+        {:noreply,
+         put_flash(socket, :info, "Tracking #{item.title.name} — it will appear under Coming up.")}
     end
   end
 
@@ -71,17 +66,10 @@ defmodule MediaCentaurWeb.WatchlistLive do
   defp load_items(socket) do
     items =
       Enum.map(Discovery.list_watchlist(), fn %{item: item} = row ->
-        Map.put(row, :poster_url, poster_url(item))
+        Map.put(row, :poster_url, title_poster_url(item.title))
       end)
 
     assign(socket, :items, items)
-  end
-
-  # Referenced-tier artwork once the add-time ensure has landed; TMDB
-  # hotlink as the browsing-tier fallback (same ladder as search rows).
-  defp poster_url(item) do
-    TmdbArtwork.urls(item.media_type, item.tmdb_id).poster_url ||
-      tmdb_cdn_url(item.poster_path, :w92)
   end
 
   @impl true
