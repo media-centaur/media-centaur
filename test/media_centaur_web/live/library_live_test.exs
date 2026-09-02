@@ -338,7 +338,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         value: %{"enabled" => true}
       })
 
-      MediaCentaur.Friends.Identity.ensure()
+      MediaCentaur.Social.Identity.ensure()
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 

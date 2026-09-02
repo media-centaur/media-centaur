@@ -6,9 +6,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Discovery
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Events
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Events
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Library
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
@@ -155,17 +155,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   describe "friends tab — identity" do
     test "opening the tab generates an identity and shows the npub with a copy control", %{conn: conn} do
       refute Identity.present?()
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
 
       assert Identity.present?()
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Friends")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Social")
       assert has_element?(view, "#identity-npub", Identity.npub())
       assert has_element?(view, "#copy-npub[data-copy-text='#{Identity.npub()}']")
       refute render(view) =~ Identity.export_nsec()
     end
 
     test "the secret key is revealed only on request", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
       nsec = Identity.export_nsec()
 
       refute render(view) =~ nsec
@@ -175,7 +175,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "importing a secret key replaces the identity after a second click", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
       before = Identity.pubkey()
       nsec = Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "3"))
 
@@ -192,8 +192,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "replacing the identity in another tab clears the revealed key and the arm", %{conn: conn} do
-      {:ok, tab_a, _html} = live(conn, "/discovery/friends")
-      {:ok, tab_b, _html} = live(conn, "/discovery/friends")
+      {:ok, tab_a, _html} = live(conn, "/discovery/social")
+      {:ok, tab_b, _html} = live(conn, "/discovery/social")
 
       old_nsec = Identity.export_nsec()
       tab_a |> element("#reveal-nsec") |> render_click()
@@ -212,7 +212,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "an invalid secret key is refused with a flash", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
       before = Identity.pubkey()
 
       view |> form("#import-nsec-form", %{"nsec" => "nsec1nope"}) |> render_submit()
@@ -226,7 +226,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "the watchlist tab still renders and the strip shows both tabs", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Watchlist")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Friends")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Social")
     end
   end
 
@@ -236,28 +236,28 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     defp relay_row, do: "#" <> RelayBlock.dom_id(@relay_url)
 
     test "lists relays with their connection state, adds by URL, and removes", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
 
       view |> form("#add-relay-form", %{"url" => "wss://relay.example"}) |> render_submit()
       assert has_element?(view, relay_row(), @relay_url)
       assert has_element?(view, relay_row(), "Not connected")
-      assert [%{url: @relay_url}] = Friends.list_relays()
+      assert [%{url: @relay_url}] = Social.list_relays()
 
       view |> element(relay_row() <> " button", "Remove") |> render_click()
       refute has_element?(view, relay_row())
-      assert Friends.list_relays() == []
+      assert Social.list_relays() == []
     end
 
     test "an invalid relay address is refused with a flash", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
       view |> form("#add-relay-form", %{"url" => "https://relay.example"}) |> render_submit()
       assert render(view) =~ "Relay addresses start with wss:// or ws://"
-      assert Friends.list_relays() == []
+      assert Social.list_relays() == []
     end
 
-    test "connection state updates live from friends:connections", %{conn: conn} do
-      {:ok, _relay} = Friends.add_relay(@relay_url)
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+    test "connection state updates live from social:connections", %{conn: conn} do
+      {:ok, _relay} = Social.add_relay(@relay_url)
+      {:ok, view, _html} = live(conn, "/discovery/social")
       assert has_element?(view, relay_row(), "Not connected")
 
       # The owner is not started under :test — stand in for its re-broadcast.
@@ -276,7 +276,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     defp friend_row, do: "#friend-" <> String.slice(@friend_pubkey, 0, 8)
 
     test "adds a friend by npub + name, lists them, and removes", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
       npub = Keys.to_npub(@friend_pubkey)
 
       view
@@ -285,15 +285,15 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(view, friend_row(), "Sample Friend")
       assert has_element?(view, friend_row(), RosterBlock.short_npub(@friend_pubkey))
-      assert [%{nickname: "Sample Friend"}] = Friends.list_friends()
+      assert [%{nickname: "Sample Friend"}] = Social.list_friends()
 
       view |> element(friend_row() <> " button", "Remove") |> render_click()
       refute has_element?(view, friend_row())
-      assert Friends.list_friends() == []
+      assert Social.list_friends() == []
     end
 
     test "refuses a bad key, your own key, and a blank name with flashes", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
 
       view |> form("#add-friend-form", %{"key" => "npub1nope", "nickname" => "X"}) |> render_submit()
       assert render(view) =~ "That is not a valid public key"
@@ -309,17 +309,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       |> render_submit()
 
       assert render(view) =~ "Give your friend a name"
-      assert Friends.list_friends() == []
+      assert Social.list_friends() == []
     end
 
     test "a roster change in another tab lands live", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/friends")
+      {:ok, view, _html} = live(conn, "/discovery/social")
       refute has_element?(view, friend_row())
 
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       render_until(view, fn _html -> has_element?(view, friend_row(), "Sample Friend") end)
 
-      :ok = Friends.remove_friend(@friend_pubkey)
+      :ok = Social.remove_friend(@friend_pubkey)
       render_until(view, fn _html -> not has_element?(view, friend_row()) end)
     end
   end
@@ -381,17 +381,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "empty state names the prerequisites, then the quiet empty state", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Feed")
-      assert render(view) =~ "Add a relay and a friend on the Friends tab"
+      assert render(view) =~ "Add a relay and a friend on the Social tab"
 
-      {:ok, _relay} = Friends.add_relay("wss://relay.example")
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _relay} = Social.add_relay("wss://relay.example")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
       {:ok, view, _html} = live(conn, "/discovery")
       assert render(view) =~ "Nothing from your friends yet."
     end
 
     test "rows show the title, who and when, the note, and add to the watchlist", %{conn: conn} do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
 
       {:ok, view, _html} = live(conn, "/discovery")
@@ -413,7 +413,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a title the library has shows In library and links to it", %{conn: conn} do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Recommendations.ingest(friend_event(777, nil))
 
       movie = create_standalone_movie(%{name: "Sample Movie"})
@@ -427,7 +427,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a received recommendation appears without a reload", %{conn: conn} do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, view, _html} = live(conn, "/discovery")
 
       {:ok, rec} = Recommendations.ingest(friend_event(778, "live"))
@@ -437,7 +437,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "the tab strip counts the feed", %{conn: conn} do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _rec} = Recommendations.ingest(friend_event(777, nil))
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
@@ -465,7 +465,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a tampered id on feed_add_to_watchlist is ignored, not a crash", %{conn: conn} do
-      {:ok, _friend} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, view, _html} = live(conn, "/discovery")
 
       render_click(view, "feed_add_to_watchlist", %{"id" => "junk"})
@@ -482,7 +482,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a friend-sourced watchlist row says who recommended it", %{conn: conn} do
-      {:ok, _} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
 
       {:ok, _} =
@@ -499,7 +499,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a row whose friend is gone shows no marker", %{conn: conn} do
-      {:ok, _} = Friends.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
 
       {:ok, _} =
@@ -509,7 +509,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
           note: rec.note
         })
 
-      :ok = Friends.remove_friend(@friend_pubkey)
+      :ok = Social.remove_friend(@friend_pubkey)
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       assert has_element?(view, "#watchlist-item-movie-777")

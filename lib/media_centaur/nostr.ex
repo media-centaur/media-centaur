@@ -9,7 +9,7 @@ defmodule MediaCentaur.Nostr do
   NIP-42 `AUTH` handshake. Nothing here knows what an event means —
   the domain that gives them meaning is
   `MediaCentaur.Recommendations`; the relay list and the connections
-  keyed by it are `MediaCentaur.Friends`.
+  keyed by it are `MediaCentaur.Social`.
 
   Crypto is `bitcoinex` (pure Elixir): secp256k1 keys, BIP-340 Schnorr
   signatures, bech32 for NIP-19. Secret keys are `MediaCentaur.Secret`

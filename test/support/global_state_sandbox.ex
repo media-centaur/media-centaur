@@ -99,7 +99,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
     MediaCentaur.Pipeline.Supervisor => {:stateless, "Broadway topology; state is per-message"},
     MediaCentaur.Pipeline.Image.Supervisor => {:stateless, "Broadway topology; state is per-message"},
     MediaCentaur.Watcher.Supervisor => {:stateless, "watchers are not started under :test"},
-    MediaCentaur.Friends.Connections =>
+    MediaCentaur.Social.Connections =>
       {:stateless, "the relay-connection owner is not started under :test"},
     MediaCentaur.Recommendations.Sync =>
       {:stateless, "not started under :test; sync_test starts its own"},

@@ -27,8 +27,7 @@ defmodule MediaCentaur.Console.ViewTest do
       assert :playback in components
       assert :library in components
       assert :nostr in components
-      assert :recommendations in components
-      assert :friends in components
+      assert :social in components
       assert :system in components
       assert :phoenix in components
       assert :ecto in components
@@ -57,8 +56,7 @@ defmodule MediaCentaur.Console.ViewTest do
                :library,
                :acquisition,
                :nostr,
-               :recommendations,
-               :friends,
+               :social,
                :system
              ]
     end

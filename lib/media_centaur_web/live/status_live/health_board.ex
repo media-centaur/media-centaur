@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     :playback,
     :library,
     :acquisition,
-    :friends,
+    :social,
     :self_update,
     :system
   ]
@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     playback: "Playback",
     library: "Library",
     acquisition: "Downloads",
-    friends: "Friends",
+    social: "Social",
     self_update: "Updates",
     system: "System"
   }
@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     playback: "hero-play-circle",
     library: "hero-rectangle-stack",
     acquisition: "hero-arrow-down-tray",
-    friends: "hero-users",
+    social: "hero-users",
     self_update: "hero-arrow-down-circle",
     system: "hero-cpu-chip"
   }
@@ -60,7 +60,8 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     acquisition:
       "Runs downloads through Prowlarr and your download client, " <>
         "then links finished files into the library.",
-    friends: "Connects to your relays to send and receive recommendations from friends.",
+    social:
+      "Your identity, your relays, and the recommendations that travel between you and your friends.",
     self_update: "Checks for new releases and applies in-app updates.",
     system: "Runtime health, plus anything not owned by another subsystem."
   }
@@ -162,9 +163,9 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   defp count_phrase(1, word), do: "1 #{word}"
   defp count_phrase(n, word), do: "#{n} #{word}s"
 
-  # Nostr and Recommendations log under their own component tags but share
-  # the Friends board tile — alias them before the generic fold.
-  defp normalize(component) when component in [:nostr, :recommendations], do: :friends
+  # The wire logs under its own `:nostr` tag but shares the Social board
+  # tile — alias it before the generic fold.
+  defp normalize(:nostr), do: :social
   # Framework + unknown components fold under :system on the board.
   defp normalize(component) when component in @board_subsystems, do: component
   defp normalize(_), do: :system

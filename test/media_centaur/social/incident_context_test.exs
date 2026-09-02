@@ -1,7 +1,7 @@
-defmodule MediaCentaur.Friends.IncidentContextTest do
+defmodule MediaCentaur.Social.IncidentContextTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.Friends.IncidentContext
+  alias MediaCentaur.Social.IncidentContext
 
   @now ~U[2026-09-02 12:00:00Z]
   @grace 180

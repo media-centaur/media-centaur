@@ -1,16 +1,16 @@
-defmodule MediaCentaurWeb.Storybook.Status.FriendsWidget do
+defmodule MediaCentaurWeb.Storybook.Status.SocialWidget do
   @moduledoc """
-  Storybook coverage for the Friends Activity widget — relay connectivity,
+  Storybook coverage for the Social Activity widget — relay connectivity,
   roster size and recommendation traffic, with the last thing a relay
   complained about.
 
   Every variation is aggregates only: no relay list, no roster, no feed
-  rows. The one navigation affordance is the link to the Friends tab,
+  rows. The one navigation affordance is the link to the Social tab,
   which owns all three.
   """
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.Components.StatusWidgets.Friends.friends_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.Social.social_widget/1
   def render_source, do: :function
 
   defp entry(state, opts \\ []) do

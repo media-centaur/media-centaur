@@ -1,10 +1,10 @@
-defmodule MediaCentaur.Friends.IdentityTest do
+defmodule MediaCentaur.Social.IdentityTest do
   # Writes a Config key → :persistent_term; GlobalStateSandbox restores only for async: false.
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Events.IdentityChanged
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Events.IdentityChanged
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings.Config
@@ -24,7 +24,7 @@ defmodule MediaCentaur.Friends.IdentityTest do
     end
 
     test "broadcasts identity_changed only when it generates" do
-      Friends.subscribe()
+      Social.subscribe()
       Identity.ensure()
       assert_receive {:identity_changed, %IdentityChanged{pubkey: pubkey}}, 500
       assert pubkey == Identity.pubkey()
@@ -36,7 +36,7 @@ defmodule MediaCentaur.Friends.IdentityTest do
   describe "export_nsec/0 and import_nsec/1" do
     test "exports the current secret; import replaces it and broadcasts" do
       Identity.ensure()
-      Friends.subscribe()
+      Social.subscribe()
 
       nsec = Keys.to_nsec(Secret.wrap(@vector0_secret_hex))
       assert :ok = Identity.import_nsec(nsec)

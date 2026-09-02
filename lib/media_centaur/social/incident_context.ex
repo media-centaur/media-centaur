@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Friends.IncidentContext do
+defmodule MediaCentaur.Social.IncidentContext do
   @moduledoc """
   The friend network's relay-health probe — the `assess/0` the
   `ErrorReports.Evaluator` polls to own a single `:subsystem` incident for
@@ -27,7 +27,7 @@ defmodule MediaCentaur.Friends.IncidentContext do
   the friend network is not broken. Neither is a relay still working
   through its first connect (`:connecting`) — it has not failed yet.
 
-  The decision is the pure `decide/3` over `Friends.Connections.status/0`
+  The decision is the pure `decide/3` over `Social.Connections.status/0`
   (whose entries carry `since`, the onset of their current state);
   `assess/0` is the thin shell that reads the status map and the current
   time, then defers to it.
@@ -35,11 +35,11 @@ defmodule MediaCentaur.Friends.IncidentContext do
   Like the other probes, this fulfils the `IncidentContext` `assess/0`
   contract **structurally rather than via `@behaviour`**: the registry
   binds assessors by `function_exported?(module, :assess, 0)`, so the
-  subsystem reports health with no compile-time `Friends → ErrorReports`
+  subsystem reports health with no compile-time `Social → ErrorReports`
   edge.
   """
 
-  alias MediaCentaur.Friends.Connections
+  alias MediaCentaur.Social.Connections
 
   # How long a relay must have been disconnected before it counts toward a
   # fault — long enough that the connection's own reconnect backoff wins
@@ -56,7 +56,7 @@ defmodule MediaCentaur.Friends.IncidentContext do
   @doc """
   Pure fault decision over the relay status map.
 
-    * `status` — `Friends.Connections.status/0`.
+    * `status` — `Social.Connections.status/0`.
     * `now` — current time.
     * `grace_seconds` — how long a relay must have been disconnected,
       measured from `since`, before it counts as down.

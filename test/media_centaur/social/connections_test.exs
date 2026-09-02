@@ -1,13 +1,13 @@
-defmodule MediaCentaur.Friends.ConnectionsTest do
+defmodule MediaCentaur.Social.ConnectionsTest do
   use MediaCentaur.DataCase, async: false
 
   import ExUnit.CaptureLog
 
   @moduletag :capture_log
 
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Connections
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Connections
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
   alias MediaCentaur.Nostr.Filter
@@ -17,7 +17,7 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
     Identity.ensure()
     owner = start_supervised!({Connections.Owner, backoff_ms: 50})
     Connections.Owner.__sync_for_test__(owner)
-    Friends.subscribe_connections()
+    Social.subscribe_connections()
     %{owner: owner}
   end
 
@@ -30,7 +30,7 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
 
   test "connects to every relay row at boot and reports status" do
     relay = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
     Connections.Owner.__sync_for_test__()
 
     url = relay.url
@@ -40,17 +40,17 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
 
   test "removing a relay stops its connection" do
     relay = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
     assert_receive {:relay_connection, _url, :connected}, 3_000
 
-    :ok = Friends.remove_relay(relay.url)
+    :ok = Social.remove_relay(relay.url)
     Connections.Owner.__sync_for_test__()
     refute Map.has_key?(Connections.status(), relay.url)
   end
 
   test "an auth-required relay is authenticated with the identity" do
     relay = FakeRelay.start(auth: true)
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:relay_connection, _url, {:auth, :ok}}, 3_000
     assert_receive {:relay_in, ["AUTH", %{"pubkey" => pubkey}]}, 3_000
@@ -59,7 +59,7 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
 
   test "identity replacement restarts the connections" do
     relay = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
     assert_receive {:relay_connection, _url, :connected}, 3_000
 
     :ok = Identity.import_nsec(Keys.to_nsec(Keys.generate()))
@@ -77,7 +77,7 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
 
     log =
       capture_log(fn ->
-        {:ok, _row} = Friends.add_relay(relay.url)
+        {:ok, _row} = Social.add_relay(relay.url)
         assert_receive {:relay_connection, url, :connected}, 3_000
 
         Connections.publish(signed("x"))
@@ -94,7 +94,7 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
 
   test "a successful auth leaves no error behind" do
     relay = FakeRelay.start(auth: true)
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:relay_connection, url, {:auth, :ok}}, 3_000
     Connections.Owner.__sync_for_test__()
@@ -103,7 +103,7 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
 
   test "a NOTICE is not an error; a CLOSED is" do
     relay = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(relay.url)
+    {:ok, _row} = Social.add_relay(relay.url)
     assert_receive {:relay_connection, url, :connected}, 3_000
 
     FakeRelay.push(relay, ["NOTICE", "restarting for maintenance"])
@@ -142,8 +142,8 @@ defmodule MediaCentaur.Friends.ConnectionsTest do
   test "publish/2 and subscribe/3 address one relay" do
     first = FakeRelay.start()
     second = FakeRelay.start()
-    {:ok, _row} = Friends.add_relay(first.url)
-    {:ok, _row} = Friends.add_relay(second.url)
+    {:ok, _row} = Social.add_relay(first.url)
+    {:ok, _row} = Social.add_relay(second.url)
     assert_receive {:relay_connection, _url, :connected}, 3_000
     assert_receive {:relay_connection, _url, :connected}, 3_000
 

@@ -195,12 +195,12 @@ defmodule MediaCentaur.Console.EntryTest do
     test "a crash in the friend network lands on the friends tile" do
       for module <- [
             MediaCentaur.Nostr.Connection,
-            MediaCentaur.Friends.Connections.Owner,
+            MediaCentaur.Social.Connections.Owner,
             MediaCentaur.Recommendations.Sync
           ] do
         meta = %{crash_reason: {%RuntimeError{message: "boom"}, [{module, :handle_info, 2, []}]}}
 
-        assert Entry.from_log_event(:error, {:string, "boom"}, meta).component == :friends
+        assert Entry.from_log_event(:error, {:string, "boom"}, meta).component == :social
       end
     end
 

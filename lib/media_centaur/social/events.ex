@@ -1,7 +1,7 @@
-defmodule MediaCentaur.Friends.Events do
+defmodule MediaCentaur.Social.Events do
   @moduledoc """
-  Typed events on `friends:updates`, plus the connection re-broadcast on
-  `friends:connections`. The only `Topics.publish` in the Friends
+  Typed events on `social:updates`, plus the connection re-broadcast on
+  `social:connections`. The only `Topics.publish` in the Social
   context (event chokepoint).
   """
 
@@ -58,7 +58,7 @@ defmodule MediaCentaur.Friends.Events do
 
   @doc """
   Re-broadcasts one relay connection's owner message on
-  `friends:connections`. Not a typed struct: the payload is
+  `social:connections`. Not a typed struct: the payload is
   `Nostr.Connection`'s own message vocabulary, relayed verbatim so a
   subscriber reads exactly what the connection reported.
   """

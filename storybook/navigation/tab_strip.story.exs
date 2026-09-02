@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Storybook.Navigation.TabStrip do
     [
       %Tab{id: :feed, label: "Feed", navigate: "#", count: 2},
       %Tab{id: :watchlist, label: "Watchlist", navigate: "#", count: 7},
-      %Tab{id: :friends, label: "Friends", navigate: "#"}
+      %Tab{id: :social, label: "Social", navigate: "#"}
     ]
   end
 

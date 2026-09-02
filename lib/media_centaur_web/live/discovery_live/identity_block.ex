@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.DiscoveryLive.IdentityBlock do
   @moduledoc """
-  The Friends tab's identity block: this install's npub with a copy
+  The Social tab's identity block: this install's npub with a copy
   control, and a disclosure holding the secret key (reveal + copy) and
   the import form. The import textarea renders `import_draft`, so the
   arming click keeps what was pasted and a finished import clears it.

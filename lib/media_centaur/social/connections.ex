@@ -1,11 +1,11 @@
-defmodule MediaCentaur.Friends.Connections do
+defmodule MediaCentaur.Social.Connections do
   @moduledoc """
   One `Nostr.Connection` per configured relay, kept in step with the
   `relays` table: a Registry (keyed by URL, so a connection can be
   looked up by the address the user typed), a DynamicSupervisor, and an
   owner process (`Connections.Owner`) that reconciles on boot and on
   `RelayAdded` / `RelayRemoved` / `IdentityChanged`, receives every
-  connection's messages, and re-broadcasts them on `friends:connections`.
+  connection's messages, and re-broadcasts them on `social:connections`.
 
   Under `:test` the owner is not started (`:start_relay_connections` is
   false); tests start it by hand against `Nostr.FakeRelay`.
@@ -13,7 +13,7 @@ defmodule MediaCentaur.Friends.Connections do
 
   use Supervisor
 
-  alias MediaCentaur.Friends.Connections.Owner
+  alias MediaCentaur.Social.Connections.Owner
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Filter
 
@@ -37,7 +37,7 @@ defmodule MediaCentaur.Friends.Connections do
   @doc """
   `%{url => %{state: Nostr.Connection.status(), last_error: String.t() |
   nil, since: DateTime.t()}}`; empty when no owner runs. `since` is when
-  the entry entered its current state — what `Friends.IncidentContext`
+  the entry entered its current state — what `Social.IncidentContext`
   measures its grace window from.
   """
   @spec status() :: %{optional(String.t()) => entry()}
@@ -70,7 +70,7 @@ defmodule MediaCentaur.Friends.Connections do
   @doc """
   Folds one `Nostr.Connection` owner message into a status entry. Shared
   by the owner (which keeps the authoritative map) and `DiscoveryLive`
-  (which folds the same messages off `friends:connections`), so the two
+  (which folds the same messages off `social:connections`), so the two
   can never disagree about what a message means.
   """
   @spec apply_message(entry(), term()) :: entry()

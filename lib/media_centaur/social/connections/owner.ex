@@ -1,10 +1,10 @@
-defmodule MediaCentaur.Friends.Connections.Owner do
+defmodule MediaCentaur.Social.Connections.Owner do
   @moduledoc """
   The process that owns every relay connection: it reconciles the running
   set against the `relays` rows (on boot, and on `RelayAdded` /
   `RelayRemoved` / `IdentityChanged`), receives each connection's
   `{:nostr, url, message}`, keeps the status map, and re-broadcasts on
-  `friends:connections` through `Friends.Events`.
+  `social:connections` through `Social.Events`.
 
   Two subscription maps are kept and re-applied whenever a connection
   starts: `subs` (every relay, from `subscribe_all/2`) and `relay_subs`
@@ -16,10 +16,10 @@ defmodule MediaCentaur.Friends.Connections.Owner do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Friends
-  alias MediaCentaur.Friends.Connections
-  alias MediaCentaur.Friends.Events
-  alias MediaCentaur.Friends.Identity
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Connections
+  alias MediaCentaur.Social.Events
+  alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Connection
   alias MediaCentaur.Nostr.Event
 
@@ -61,7 +61,7 @@ defmodule MediaCentaur.Friends.Connections.Owner do
   @impl true
   def init(opts) do
     Process.flag(:trap_exit, true)
-    Friends.subscribe()
+    Social.subscribe()
     {:ok, %__MODULE__{backoff_ms: Keyword.get(opts, :backoff_ms, 1_000)}, {:continue, :boot}}
   end
 
@@ -132,7 +132,7 @@ defmodule MediaCentaur.Friends.Connections.Owner do
   # A relay refusing what we published is the one connection message a user
   # cannot see coming; the status entry keeps it, the log keeps the history.
   defp log_message(url, {:ok, _id, false, reason}),
-    do: Log.warning(:friends, "#{url} rejected a recommendation: #{reason}")
+    do: Log.warning(:social, "#{url} rejected a recommendation: #{reason}")
 
   defp log_message(_url, _message), do: :ok
 
@@ -140,7 +140,7 @@ defmodule MediaCentaur.Friends.Connections.Owner do
 
   defp reconcile(state) do
     wanted =
-      if Identity.present?(), do: MapSet.new(Friends.list_relays(), & &1.url), else: MapSet.new()
+      if Identity.present?(), do: MapSet.new(Social.list_relays(), & &1.url), else: MapSet.new()
 
     running = MapSet.new(running_urls())
 
@@ -176,7 +176,7 @@ defmodule MediaCentaur.Friends.Connections.Owner do
         :ok
 
       {:error, reason} ->
-        Log.warning(:friends, "could not start relay connection #{url}: #{inspect(reason)}")
+        Log.warning(:social, "could not start relay connection #{url}: #{inspect(reason)}")
         :ok
     end
   end
@@ -193,7 +193,7 @@ defmodule MediaCentaur.Friends.Connections.Owner do
   end
 
   defp await_unregistered(url, 0) do
-    Log.warning(:friends, "#{url} is still registered after being stopped; restarting it may collide")
+    Log.warning(:social, "#{url} is still registered after being stopped; restarting it may collide")
     :ok
   end
 

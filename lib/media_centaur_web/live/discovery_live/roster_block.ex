@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.DiscoveryLive.RosterBlock do
   @moduledoc """
-  The Friends tab's roster block: the keys whose recommendations this
+  The Social tab's roster block: the keys whose recommendations this
   install reads, each under the nickname given here, with an add form and
   a per-row remove. Iteration-phase component (lives with the LiveView,
   no story yet — spec decision 11). Events bubble to `DiscoveryLive`:
@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RosterBlock do
 
   use MediaCentaurWeb, :html
 
-  alias MediaCentaur.Friends
+  alias MediaCentaur.Social
 
   attr :friends, :list, required: true, doc: "`Friend.t()` by nickname"
 
@@ -74,7 +74,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RosterBlock do
   @doc "The npub, elided in the middle — enough to compare against what a friend told you."
   @spec short_npub(String.t()) :: String.t()
   def short_npub(pubkey) do
-    npub = Friends.to_npub(pubkey)
+    npub = Social.to_npub(pubkey)
     String.slice(npub, 0, 9) <> "…" <> String.slice(npub, -4..-1//1)
   end
 end

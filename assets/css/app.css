@@ -2674,8 +2674,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 .chip-library     { --chip-h:  10; --chip-c: 0.15; }
 .chip-acquisition { --chip-h: 230; --chip-c: 0.15; }
 .chip-nostr       { --chip-h: 117; --chip-c: 0.14; }
-.chip-recommendations { --chip-h: 175; --chip-c: 0.14; }
-.chip-friends     { --chip-h:  60; --chip-c: 0.14; }
+.chip-social      { --chip-h:  60; --chip-c: 0.14; }
 .chip-system      { --chip-h: 264; --chip-c: 0.01; }
 .chip-phoenix     { --chip-h:  35; --chip-c: 0.16; }
 .chip-ecto        { --chip-h: 260; --chip-c: 0.14; }

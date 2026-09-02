@@ -1,18 +1,18 @@
-defmodule MediaCentaur.Friends.Identity do
+defmodule MediaCentaur.Social.Identity do
   @moduledoc """
   This install's Nostr identity: one secp256k1 keypair. The secret lives
   in the sensitive `nostr_secret_key` config key (hex, `MediaCentaur.Secret`
   wrapped at rest and in memory); the public key is derived on read.
 
-  Generated on first use (`ensure/0`) — called by the Friends tab when
+  Generated on first use (`ensure/0`) — called by the Social tab when
   opened, and by `Recommendations.recommend/2` when a user recommends a
   title before ever opening the tab. Replaced only by `import_nsec/1`.
-  Both broadcast `Friends.Events.IdentityChanged` so relay connections
+  Both broadcast `Social.Events.IdentityChanged` so relay connections
   re-sign.
   """
 
-  alias MediaCentaur.Friends.Events
-  alias MediaCentaur.Friends.Events.IdentityChanged
+  alias MediaCentaur.Social.Events
+  alias MediaCentaur.Social.Events.IdentityChanged
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings.Config

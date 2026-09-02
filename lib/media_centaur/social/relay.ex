@@ -1,8 +1,8 @@
-defmodule MediaCentaur.Friends.Relay do
+defmodule MediaCentaur.Social.Relay do
   @moduledoc """
   One configured relay: a `ws://` or `wss://` URL, normalized (trimmed,
   lowercase scheme and host, no userinfo, path defaults to `/`).
-  Connection state is runtime (`Friends.Connections.status/0`), never
+  Connection state is runtime (`Social.Connections.status/0`), never
   stored.
   """
 
