@@ -212,6 +212,11 @@ campaign, then layer 9 (hardening) after iteration.
   :nostr_secret_key, _}` (test `connections_boot_test.exs`). Needs a patch
   release.
 
+* `2026-09-02` — **Recommendation content stays minimal**: title snapshot +
+  note, `v: 1`. Extra fields (where to start, spoiler flag, progress,
+  reaction) are deferred until a surface reads them; adding fields needs
+  no version bump.
+
 ## Open questions
 
 *All resolved 2026-09-02 — see Decisions and the spec. Kept for history.*
