@@ -107,3 +107,6 @@ npm-debug.log
 
 # Internal project backlog
 /todo/
+
+# Dev friend identity for Social development — `just social` creates it.
+/priv/dev-social/

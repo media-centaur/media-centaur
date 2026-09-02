@@ -21,8 +21,27 @@ Developing Social features needs a relay to talk to and someone on the other end
 2. **The other user is a scripted friend**, not a second app instance. A second-instance override TOML is deferred until a feature needs two real UIs.
 3. **Snapshot from the command line, no network.** The friend's recommendation carries a title snapshot built from flags. Only TMDB id, media type and name are required by the app; poster path, year and overview are optional flags. No TMDB lookup.
 4. **Relay image built from the sibling repo** (`../social-relay`), so relay changes are testable here before a release. A `SOCIAL_RELAY_IMAGE` variable substitutes a published image.
-5. **The dev app's npub is pasted once.** The app's secret is encrypted at rest, so no script can derive it; it is copied from **Discovery → Social → Your identity** and remembered in `priv/dev-social/members`.
+5. **The dev app's npub is pasted once.** The app's secret is encrypted at rest, so no script can derive it; it is copied from **Discovery → Social → Your identity** and remembered by the relay's dev script in its own config.
 6. **No arguments means help, never an error trace.** Every recipe and every mix subcommand prints its usage with a working example when called without what it needs.
+7. **Each repo owns its half** (unify_design, below). The relay repo owns "run me in dev with these members": `scripts/dev-relay` there builds the image, writes the TOML and runs the container. The app repo owns "act as a friend": `mix social.dev`. The app's justfile is the single front door and delegates.
+
+## unify_design adjudication
+
+**Core idea.** The dev friend is a second instance of the Nostr client the app already has, driven from a shell instead of a LiveView. Everything it does is connect, authenticate, publish or query, and translate, and the app owns every one of those pieces.
+
+**Greenfield shape.** Two owners. The relay knows how to run itself with a member list; the app knows how to be a Nostr participant. A synchronous single-purpose session over `Nostr.Connection` is the one piece neither has.
+
+**Diff against the code, and each disposition.**
+
+| Gap | Kind | Disposition |
+|---|---|---|
+| Keys, signing, translation, connection | clean seams | Used as they are: `Nostr.Keys`, `Nostr.Event`, `Recommendations.Translation`, `Nostr.Connection`. |
+| The app writing the relay's TOML | duplicated schema | Moved to the relay repo (`scripts/dev-relay`). The app never spells the relay's config keys. |
+| A "You" label in `feed` needing the app's npub in the app's dev dir | second source of truth | Dropped. `feed` prints `friend` for the friend's own events and a shortened npub for anyone else. |
+| `series` on the command line mapped to `tv_series` | second vocabulary | Dropped. The command line takes `movie` or `tv_series`, the words the event address already uses. |
+| Connect, auth, do one thing, disconnect | missing piece | `Nostr.OneShot` in the `Nostr` context: `publish/3` and `query/3`, synchronous, over one short-lived `Connection`. Protocol only, no domain meaning, so it belongs there. |
+
+**Cost.** One small script in the relay repo and one cross-repo path (`../social-relay`) that the justfile already assumed for the image build. No app-side config writing at all, so the app side shrinks.
 
 ## Pieces
 
@@ -32,16 +51,18 @@ Developing Social features needs a relay to talk to and someone on the other end
 |---|---|
 | `default` | `just --list`. First recipe, so bare `just` lists instead of deploying. |
 | `social` | Prints the walkthrough: the steps below with copy-pasteable commands. |
-| `social-up [npub]` | Builds the relay image, `mix social.dev relay-config <npub>`, then runs the container (replacing a running one). Without an npub, reuses the remembered one or prints usage. |
+| `social-up [npub]` | `mix social.dev npub` for the friend's key, then `../social-relay/scripts/dev-relay up <npub> <friend-npub>`. Without an npub, `dev-relay up` reuses its existing config; if there is none, prints usage. |
 | `social-down` | Stops and removes the container. |
-| `social-reset` | `social-down` plus removes the data volume and `priv/dev-social/`. |
-| `social-status` | Container state plus the NIP-11 document from `http://127.0.0.1:2173`. |
+| `social-reset` | `dev-relay reset` (container, volume and config) plus removes `priv/dev-social/`, so the friend gets a new key and must be re-added in the app. |
+| `social-status` | `dev-relay status`: container state plus the NIP-11 document from `http://127.0.0.1:2173`. |
 | `social-recommend *args` | `mix social.dev recommend {{args}}`. |
 | `social-feed` | `mix social.dev feed`. |
 
 Each recipe carries a doc comment, which is what `just --list` shows.
 
-Container: name `social-relay-dev`, image tag `social-relay:dev`, port `127.0.0.1:2173` to the container's 2170, config bind-mounted read-only from `priv/dev-social/relay.toml`, bbolt file on the named volume `social-relay-dev-data`.
+### `scripts/dev-relay` (relay repo)
+
+`up <npub>...` builds `social-relay:dev` from the working tree (skipped when `SOCIAL_RELAY_IMAGE` is set), writes `dev/relay.toml` (gitignored) with `listen = "0.0.0.0:2170"`, `database = "/data/events.db"`, `service_url = "ws://127.0.0.1:2173"` and the given members, replaces any running `social-relay-dev` container (port `127.0.0.1:2173` to 2170, config bind-mounted read-only, bbolt file on the named volume `social-relay-dev-data`), waits for the NIP-11 document, and prints the URL. `up` with no npubs reuses `dev/relay.toml`. `down` removes the container. `reset` also removes the volume and `dev/`. `status` prints the container state and the NIP-11 document. No arguments prints usage.
 
 ### `mix social.dev`
 
@@ -50,18 +71,19 @@ Container: name `social-relay-dev`, image tag `social-relay:dev`, port `127.0.0.
 | Subcommand | Does |
 |---|---|
 | (none) or `help` | Usage for every subcommand with an example. |
-| `relay-config <npub>` | Creates `priv/dev-social/friend.nsec` if absent, writes `priv/dev-social/members`, writes `priv/dev-social/relay.toml` with `service_url = "ws://127.0.0.1:2173"`, `listen = "0.0.0.0:2170"`, `database = "/data/events.db"`, and both npubs. Prints the friend's npub and the relay URL to paste into the app. |
-| `npub` | Prints the friend's npub. |
-| `recommend <movie\|series> <tmdb_id> --name NAME [--year YYYY] [--poster-path PATH] [--overview TEXT] [--note TEXT]` | Builds a `TMDB.Title`, signs a kind 32160 event as the friend through `Recommendations.Translation.to_event/3`, connects with `Nostr.Connection`, answers the AUTH challenge, publishes, and exits 0 on `OK true` or 1 with the relay's reason. Timeout 5 s. |
-| `feed` | Connects the same way, requests every kind 32160 the relay holds, prints one line per event: author (`You`, `Friend`, or short npub), address, name, note, relative time. |
+| `npub` | Creates `priv/dev-social/friend.nsec` if absent and prints the friend's npub, nothing else, so a recipe can capture it. |
+| `recommend <movie\|tv_series> <tmdb_id> --name NAME [--year YYYY] [--poster-path PATH] [--overview TEXT] [--note TEXT]` | Builds a `TMDB.Title`, signs a kind 32160 event as the friend through `Recommendations.Translation.to_event/3`, publishes it with `Nostr.OneShot.publish/3`, and exits 0 on `OK true` or fails with the relay's reason. |
+| `feed` | `Nostr.OneShot.query/3` for every kind 32160 the relay holds; prints one line per event: author (`friend` or a shortened npub), address, name, note, relative time. |
 
-Media type on the command line is `movie` or `series`; `series` maps to `:tv_series`.
+Relay URL defaults to `ws://127.0.0.1:2173`, overridable with `--relay`. The state directory defaults to `priv/dev-social`, overridable with `--dir` (tests use it).
 
-Relay URL defaults to `ws://127.0.0.1:2173` and is overridable with `--relay`.
+### `Nostr.OneShot`
+
+Synchronous, single-purpose relay sessions for callers that are not long-lived processes. `publish(url, event, signer)` and `query(url, filters, signer)` start one `Connection`, wait for `:connected`, open a subscription (`ids: [event id]` for a publish, the given filters for a query), and treat its `:eose` as proof that any `AUTH` challenge has been answered, because `Connection` re-issues subscriptions only after a successful `AUTH`. A publish then sends the event and returns the relay's `OK` verdict; a query returns the events received before `:eose`. `{:auth, {:failed, _}}`, a `:closed` whose reason is not `auth-required:`, `{:disconnected, _}` and the 5 s timeout all return `{:error, reason}`. The connection is stopped on every path.
 
 ### Files
 
-`priv/dev-social/` is gitignored: `friend.nsec`, `members`, `relay.toml`.
+`priv/dev-social/` is gitignored and holds `friend.nsec`.
 
 ## Walkthrough (`just social` prints this)
 
@@ -75,19 +97,23 @@ Relay URL defaults to `ws://127.0.0.1:2173` and is overridable with `--relay`.
 
 ## Testing
 
-`test/mix/tasks/social_dev_test.exs` against `FakeRelay.start(auth: true)`:
+`test/media_centaur/nostr/one_shot_test.exs` against `FakeRelay`: publish round-trips with and without `auth: true`; a refused publish returns the relay's reason; query returns the stored events; an unreachable relay returns `{:error, {:disconnected, _}}`.
 
-- `recommend` publishes an event that the fake relay receives, that `Nostr.Event.verify/1` accepts, and that `Translation.from_event/1` turns into a recommendation with the given title and note; the task exits 0.
-- `recommend` against a relay answering `OK false` exits 1 and prints the reason.
+`test/mix/tasks/social_dev_test.exs` against `FakeRelay.start(auth: true)` with `--dir` pointing at `tmp_dir`:
+
+- `recommend` publishes an event the fake relay receives, that `Nostr.Event.verify/1` accepts, and that `Translation.from_event/1` turns into a recommendation with the given title and note.
+- `recommend` against a relay answering `OK false` raises `Mix.Error` carrying the reason.
 - `feed` prints one line per stored event.
-- `relay-config` writes a TOML whose `members` are exactly the two npubs, and a second run keeps the same friend key.
+- `npub` prints the same npub on a second run, and prints only the npub.
+- no arguments, or a subcommand missing its arguments, prints usage.
 
-The task takes the state directory from an option so tests use `tmp_dir`. The justfile and Docker are not unit-tested.
+The justfile, `scripts/dev-relay` and Docker are not unit-tested.
 
 ## Docs
 
 - `docs/social.md`: a **Development** section pointing at `just social`.
 - `campaigns/friends-recommendations.md`: decision and status entries.
+- Relay repo: `CLAUDE.md` or `docs/operating.md` mention of `scripts/dev-relay`, and its campaign file.
 
 ## Deferred
 

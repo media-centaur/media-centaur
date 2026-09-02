@@ -22,6 +22,7 @@ and [`campaigns/friends-recommendations.md`](../campaigns/friends-recommendation
 - [Web layer](#web-layer)
 - [Health](#health)
 - [Testing](#testing)
+- [Development](#development)
 - [Dependencies](#dependencies)
 - [Scheduled migrations](#scheduled-migrations)
 
@@ -229,6 +230,28 @@ Two application gates keep the real thing out of the suite, both `false` in
 | `:start_recommendations_sync` | `Recommendations.Sync` — without it, nothing subscribes to every `FakeRelay` a test stands up |
 
 Tests that need either start it by hand, pointed at a `FakeRelay`.
+
+## Development
+
+Two things stand in for the network on a dev machine: the private relay from
+`../social-relay` running in Docker on `ws://127.0.0.1:2173`, and a **dev
+friend** — a second keypair in `priv/dev-social/friend.nsec` (gitignored) driven
+from the command line. `just social` prints the walkthrough; `just --list` shows
+the recipes.
+
+| Recipe | Does |
+|---|---|
+| `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Social. Re-run to restart. |
+| `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up in your Feed. |
+| `just social-feed` | Everything the relay holds, including what the dev app sent. |
+| `just social-status` / `social-down` / `social-reset` | Container state and NIP-11; stop; stop and forget data plus the friend's key. |
+
+The recipes delegate: relay lifecycle to `../social-relay/scripts/dev-relay`
+(the relay repo owns its config schema), friend actions to `mix social.dev`,
+which loads config without starting the app and speaks to the relay through
+`Nostr.OneShot` — a synchronous connect / auth / one action / disconnect
+session over `Nostr.Connection`. The friend's title snapshot comes from flags
+(`--name`, `--year`, `--poster-path`, `--overview`); nothing calls TMDB.
 
 ## Dependencies
 

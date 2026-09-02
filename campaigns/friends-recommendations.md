@@ -41,8 +41,12 @@ landed 2026-09-02. Layer 8 (docs) landed 2026-09-02: the wiki page
 *Friends and Recommendations* plus Settings-Reference / Troubleshooting /
 FAQ / Watchlist / Home / _Sidebar entries, and the contributor guide
 `docs/friends.md` linked from `CLAUDE.md` and `docs/architecture.md`.
-Next: owner review of the full campaign, then layer 9 (hardening) after
-iteration.
+Dev tooling landed 2026-09-02 (spec
+`docs/superpowers/specs/2026-09-02-social-dev-tooling-design.md`): `just
+social` walkthrough, `just social-up/down/reset/status/recommend/feed`,
+`mix social.dev` (dev friend key + `Nostr.OneShot` sessions), and
+`scripts/dev-relay` in the relay repo. Next: owner review of the full
+campaign, then layer 9 (hardening) after iteration.
 
 ## Decisions made
 
@@ -155,6 +159,16 @@ iteration.
   incidents keyed `friends` are left as they are. Glossary elevated to
   `docs/GLOSSARY.md`.
 
+* `2026-09-02` — **Dev tooling: `just` front door, each repo owns its half.**
+  The relay repo's `scripts/dev-relay` builds the image, writes the
+  allowlist TOML and runs the container on `ws://127.0.0.1:2173`; the app's
+  `mix social.dev` holds a gitignored dev-friend key (`priv/dev-social/`)
+  and publishes / reads through `Nostr.OneShot`, a synchronous session over
+  `Nostr.Connection`. The dev app's npub is pasted once (`just social-up
+  npub1…`); the friend's title snapshot comes from flags, never TMDB. A
+  second app instance is deferred until a feature needs two real UIs. Bare
+  `just` now lists recipes instead of running `deploy`.
+
 ## Open questions
 
 *All resolved 2026-09-02 — see Decisions and the spec. Kept for history.*
@@ -251,6 +265,18 @@ iteration.
 * **`Review.search_tmdb/2` → `TMDB.TitleSearch` / `TMDB.Title`**: the review
   page's TMDB search still returns its own map shape; converge when Review
   search is next touched.
+
+* **Non-member rejection by `social-relay` surfaces as `last_error`, not
+  as *Relay rejected this identity*.** From the relay campaign (shipped
+  v0.1.0, 2026-09-02; contract in `../social-relay/docs/protocol.md`).
+  khatru cannot refuse an `AUTH` event, so a key that is not on the
+  allowlist gets `OK true` for its auth and then
+  `["CLOSED", "feed", "restricted: this key is not a member of this relay"]`,
+  the same on `own:<url>`, and `OK false` with that reason on every
+  `EVENT`. The row stays **Connected** with the reason as its error.
+  Proposed rule: a `CLOSED` whose reason starts with `restricted:` on
+  `feed`, from a relay that has accepted this identity's `AUTH`, is an
+  authentication failure (`:auth_failed`). Match on the prefix only.
 
 ## Completion criteria
 
