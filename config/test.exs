@@ -60,6 +60,7 @@ config :media_centaur, :start_pipeline, false
 # mpv instances, leaking the user's playback session into every LiveView
 # test that subscribes to playback events.
 config :media_centaur, :start_playback_recovery, false
+config :media_centaur, :start_relay_connections, false
 config :media_centaur, :start_watchers, false
 # Steam storefront appdetails lookups (SteamArtController banner
 # freshness) resolve nothing under test — fall back to local/CDN paths.

@@ -2,6 +2,7 @@ defmodule MediaCentaur.Friends do
   use Boundary,
     deps: [MediaCentaur.Nostr],
     exports: [
+      Connections,
       Events,
       Events.IdentityChanged,
       Events.RelayAdded,
