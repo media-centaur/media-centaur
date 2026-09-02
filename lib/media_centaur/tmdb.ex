@@ -10,8 +10,8 @@ defmodule MediaCentaur.TMDB do
   `Client` (HTTP), `Confidence` (scoring), `Mapper` (TMDB → domain attrs), and
   `MetadataStats` for use by Pipeline, Library, and Review. `Title` is the
   app-wide title value — an embedded schema every title-carrying context
-  (release tracking, watchlist, review) reuses — and `TitleSearch` is the
-  normalized title search built on it, for the omnibox and track flow.
-  `RateLimiter` is internal.
+  (release tracking, discovery (watchlist), and the web layer) reuses — and
+  `TitleSearch` is the normalized title search built on it, for the omnibox
+  and track flow. `RateLimiter` is internal.
   """
 end

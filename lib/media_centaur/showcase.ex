@@ -85,6 +85,7 @@ defmodule MediaCentaur.Showcase do
   alias MediaCentaur.Review
   alias MediaCentaur.Showcase.Catalog
   alias MediaCentaur.TMDB
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.WatchHistory
 
   require MediaCentaur.Log, as: Log
@@ -556,7 +557,9 @@ defmodule MediaCentaur.Showcase do
   defp track_upcoming(client, :movie, title) do
     case TMDB.Client.search_movie(title, nil, client) do
       {:ok, [%{"id" => id, "title" => name} | _]} ->
-        case ReleaseTracking.track_from_search(%{tmdb_id: id, media_type: :movie, name: name}) do
+        title = Title.new!(%{tmdb_id: id, media_type: :movie, name: name})
+
+        case ReleaseTracking.track_from_search(title) do
           {:ok, _item} -> :ok
           _ -> :error
         end
@@ -569,7 +572,9 @@ defmodule MediaCentaur.Showcase do
   defp track_upcoming(client, :tv_series, title) do
     case TMDB.Client.search_tv(title, nil, client) do
       {:ok, [%{"id" => id, "name" => name} | _]} ->
-        case ReleaseTracking.track_from_search(%{tmdb_id: id, media_type: :tv_series, name: name}) do
+        title = Title.new!(%{tmdb_id: id, media_type: :tv_series, name: name})
+
+        case ReleaseTracking.track_from_search(title) do
           {:ok, _item} -> :ok
           _ -> :error
         end

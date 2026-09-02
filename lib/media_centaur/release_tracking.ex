@@ -43,6 +43,7 @@ defmodule MediaCentaur.ReleaseTracking do
     Wants
   }
 
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
 
   alias MediaCentaur.Topics
@@ -257,10 +258,13 @@ defmodule MediaCentaur.ReleaseTracking do
   # delegators keep the context's public API stable for callers.
 
   @doc "See `MediaCentaur.ReleaseTracking.Acquisition.track_from_search/2`."
-  def track_from_search(result, opts \\ %{}), do: Acquisition.track_from_search(result, opts)
+  @spec track_from_search(Title.t(), map()) :: {:ok, Item.t()} | {:error, term()}
+  def track_from_search(%Title{} = title, opts \\ %{}), do: Acquisition.track_from_search(title, opts)
 
   @doc "See `MediaCentaur.ReleaseTracking.Acquisition.track_from_search_async/2`."
-  def track_from_search_async(result, opts \\ %{}), do: Acquisition.track_from_search_async(result, opts)
+  @spec track_from_search_async(Title.t(), map()) :: :ok
+  def track_from_search_async(%Title{} = title, opts \\ %{}),
+    do: Acquisition.track_from_search_async(title, opts)
 
   # --- Releases ---
 
