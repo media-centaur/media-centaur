@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.DiscoveryLive.RosterBlock do
   @moduledoc """
-  The Social tab's roster block: the keys whose recommendations this
+  The Friends tab's roster block: the keys whose recommendations this
   install reads, each under the nickname given here, with an add form and
   a per-row remove. Iteration-phase component (lives with the LiveView,
   no story yet — spec decision 11). Events bubble to `DiscoveryLive`:

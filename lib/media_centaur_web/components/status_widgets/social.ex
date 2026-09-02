@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
   Social subsystem Activity widget: relay connectivity, roster size and
   recommendation traffic — aggregates only.
 
-  Deliberately carries no relay list and no roster: the Social tab owns
+  Deliberately carries no relay list and no roster: Settings → Social and the Friends tab own
   those, and a status widget that reprints them would be a second place
   to read the same rows. What it adds is the count the tab cannot show at
   a glance ("connected to 2 of 3"), the last thing a relay complained
@@ -58,10 +58,10 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
 
         <div class="mt-3">
           <.link
-            navigate={~p"/discovery/social"}
+            navigate={~p"/discovery/friends"}
             class="text-xs font-medium text-primary/70 transition-colors hover:text-primary"
           >
-            Open the Social tab
+            Open Friends
           </.link>
         </div>
       </div>
@@ -79,7 +79,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
   end
 
   # The newest complaint any relay has recorded — one line, because the
-  # per-relay breakdown belongs to the Social tab.
+  # per-relay breakdown belongs to Settings → Social.
   defp last_error(entries) do
     entries
     |> Enum.filter(& &1.last_error)

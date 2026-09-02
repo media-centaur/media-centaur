@@ -4,7 +4,7 @@ defmodule MediaCentaur.Social.Identity do
   in the sensitive `nostr_secret_key` config key (hex, `MediaCentaur.Secret`
   wrapped at rest and in memory); the public key is derived on read.
 
-  Generated on first use (`ensure/0`) — called by the Social tab when
+  Generated on first use (`ensure/0`) — called by the Settings Social section when
   opened, and by `Recommendations.recommend/2` when a user recommends a
   title before ever opening the tab. Replaced only by `import_nsec/1`.
   Both broadcast `Social.Events.IdentityChanged` so relay connections

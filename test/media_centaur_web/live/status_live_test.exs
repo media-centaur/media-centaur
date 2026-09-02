@@ -396,7 +396,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert html =~ "1 friends"
       assert html =~ "0 sent"
       assert html =~ "0 received"
-      assert html =~ "/discovery/social"
+      assert html =~ "/discovery/friends"
     end
 
     test "with nothing configured the widget says so", %{conn: conn} do

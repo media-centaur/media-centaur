@@ -51,7 +51,7 @@ social:
     @echo '                               builds ../social-relay, starts it on ws://127.0.0.1:2173,'
     @echo '                               and prints the friend'"'"'s npub'
     @echo '2. In the dev app: Settings → Social → add relay ws://127.0.0.1:2173,'
-    @echo '   then Discovery → Social → add a friend with the npub from step 1.'
+    @echo '   then Discovery → Friends → add a friend with the npub from step 1.'
     @echo '3. just social-recommend movie 603 --name "Sample Movie" --note "try it"'
     @echo '                               the friend recommends a title; it appears in your Feed'
     @echo '4. just social-feed            everything the relay holds, including what you sent'
@@ -75,7 +75,7 @@ social-up npub="":
         exit 2
     fi
     echo
-    echo "friend's npub (add it under Discovery → Social): $friend"
+    echo "friend's npub (add it under Discovery → Friends): $friend"
 
 # Stop the dev relay.
 social-down:
