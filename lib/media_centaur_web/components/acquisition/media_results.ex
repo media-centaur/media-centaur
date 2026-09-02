@@ -27,8 +27,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   use Phoenix.Component
 
+  import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [tmdb_cdn_url: 2]
+  import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.TMDB.Title
 
@@ -224,42 +225,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         data-nav-item
         tabindex="0"
       >
-        <span class="flex h-[72px] w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-base-content/10">
-          <img
-            :if={@result.poster_path}
-            src={tmdb_cdn_url(@result.poster_path, :w92)}
-            alt=""
-            class="h-full w-full object-cover"
-            loading="eager"
-            decoding="sync"
-          />
-          <.icon
-            :if={!@result.poster_path}
-            name={if @result.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
-            class="size-5 text-base-content/25"
-          />
-        </span>
-
-        <span class="min-w-0 flex-1 space-y-0.5 self-center">
-          <span class="flex items-baseline gap-2">
-            <span class="truncate text-sm font-semibold">{@result.name}</span>
-            <%!-- Quiet text, not colored chips — type is metadata; color
-                stays reserved for interaction and state. --%>
-            <span class="shrink-0 text-xs text-base-content/50">
-              {if @result.media_type == :movie, do: "Movie", else: "TV"}<span :if={@result.year}> · {@result.year}</span>
-            </span>
+        <.title_summary title={@result} poster_url={title_poster_url(@result)}>
+          <:markers>
             <span :if={@tracked?} class="shrink-0 text-xs text-success/70">Tracked</span>
             <%!-- Quiet neutral, deliberately unlike Tracked's success tint —
                 in-library is metadata here, not a state this page owns. --%>
             <span :if={@in_library?} class="shrink-0 text-xs text-base-content/50">In library</span>
-          </span>
-          <span
-            :if={@result.overview}
-            class="line-clamp-2 block text-xs leading-relaxed text-base-content/55"
-          >
-            {@result.overview}
-          </span>
-        </span>
+          </:markers>
+        </.title_summary>
 
         <span
           :if={@verb}
