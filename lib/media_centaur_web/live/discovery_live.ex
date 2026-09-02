@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   the first time the tab is opened, with the npub to hand out and the
   secret key behind a disclosure for export/import; below it the relay
   list, whose per-row connection state follows `friends:connections`
-  live. The roster joins them with its layer.
+  live, and the roster of followed keys.
 
   Subscribes to Discovery directly (it needs the full item list, not the
   `WatchlistAware` ref set — see that trait's moduledoc).
@@ -36,6 +36,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.DiscoveryLive.IdentityBlock
   alias MediaCentaurWeb.DiscoveryLive.RelayBlock
+  alias MediaCentaurWeb.DiscoveryLive.RosterBlock
 
   @impl true
   def mount(_params, _session, socket) do
@@ -50,7 +51,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      socket
      |> assign(:page_title, "Discovery")
      |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
-     |> assign(relays: [], relay_status: %{})
+     |> assign(relays: [], relay_status: %{}, friends: [])
      |> load_items()}
   end
 
@@ -69,7 +70,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        import_draft: ""
      )
      |> assign(relay_status: Connections.status())
-     |> load_relays()}
+     |> load_relays()
+     |> load_friends()}
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
@@ -110,6 +112,20 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_event("remove_relay", %{"url" => url}, socket) do
     :ok = Friends.remove_relay(url)
     {:noreply, load_relays(socket)}
+  end
+
+  def handle_event("add_friend", %{"key" => key, "nickname" => nickname}, socket) do
+    case Friends.add_friend(key, nickname) do
+      {:ok, _friend} -> {:noreply, load_friends(socket)}
+      {:error, :own_key} -> {:noreply, put_flash(socket, :error, "That is your own key")}
+      {:error, :nickname_required} -> {:noreply, put_flash(socket, :error, "Give your friend a name")}
+      {:error, _invalid} -> {:noreply, put_flash(socket, :error, "That is not a valid public key")}
+    end
+  end
+
+  def handle_event("remove_friend", %{"pubkey" => pubkey}, socket) do
+    :ok = Friends.remove_friend(pubkey)
+    {:noreply, load_friends(socket)}
   end
 
   def handle_event("reveal_nsec", _params, socket),
@@ -163,6 +179,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, load_relays(socket)}
   end
 
+  def handle_info({tag, _event}, socket) when tag in [:friend_added, :friend_removed] do
+    {:noreply, load_friends(socket)}
+  end
+
   # `Connections.apply_message/2` is the owner's own fold, so the page and
   # the owner can never disagree about what a connection message means.
   def handle_info({:relay_connection, url, message}, socket) do
@@ -183,6 +203,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   defp load_relays(socket), do: assign(socket, :relays, Friends.list_relays())
+
+  defp load_friends(socket), do: assign(socket, :friends, Friends.list_friends())
 
   # The tabs this layer hosts. Feed (`/discovery/feed`) joins here with
   # its layer.
@@ -223,6 +245,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               import_draft={@import_draft}
             />
             <RelayBlock.relay_block relays={@relays} status={@relay_status} />
+            <RosterBlock.roster_block friends={@friends} />
           </div>
 
           <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="grid">
