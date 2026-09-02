@@ -165,6 +165,18 @@ defmodule MediaCentaurWeb.LiveHelpers do
     end
   end
 
+  @doc """
+  The `src` a title thumb paints: the local cached tier when
+  `TmdbArtwork` holds the identity, the TMDB hotlink otherwise, nil when
+  the title carries no poster path either. Hosts resolve this once per
+  row; `title_summary/1` sizes it.
+  """
+  @spec title_poster_url(MediaCentaur.TMDB.Title.t()) :: String.t() | nil
+  def title_poster_url(%MediaCentaur.TMDB.Title{} = title) do
+    MediaCentaur.TmdbArtwork.urls(title.media_type, title.tmdb_id).poster_url ||
+      tmdb_cdn_url(title.poster_path, :w92)
+  end
+
   @typedoc """
   How wide the surface will actually paint a piece of artwork.
 

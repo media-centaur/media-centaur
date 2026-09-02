@@ -287,4 +287,26 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       assert delete_in_flight?({:folder, "/m/Show"})
     end
   end
+
+  describe "title_poster_url/1" do
+    alias MediaCentaur.TMDB.Title
+
+    test "hotlinks TMDB when the artwork cache holds nothing for the identity" do
+      title =
+        Title.new!(%{
+          tmdb_id: 999_999_001,
+          media_type: :movie,
+          name: "Sample Movie",
+          poster_path: "/p.jpg"
+        })
+
+      assert title_poster_url(title) == "https://image.tmdb.org/t/p/w92/p.jpg"
+    end
+
+    test "is nil when there is neither cached artwork nor a poster path" do
+      title = Title.new!(%{tmdb_id: 999_999_002, media_type: :tv_series, name: "Sample Show"})
+
+      assert title_poster_url(title) == nil
+    end
+  end
 end
