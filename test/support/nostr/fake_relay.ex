@@ -10,6 +10,13 @@ defmodule MediaCentaur.Nostr.FakeRelay do
 
       relay = FakeRelay.start(auth: false, events: [])
       relay.url            # "ws://127.0.0.1:PORT/"
+
+  `push/2` and `drop/1` are called from the test process right after it
+  observes `:connected`, which races Bandit's own bookkeeping: the 101
+  upgrade response goes out, and `Connection` reports `:connected`,
+  before this handler's `init/1` has registered the socket pid in the
+  Agent. Both functions poll for at least one registered client (up to
+  2s, 10ms steps) before sending, and raise if none shows up in time.
   """
 
   alias MediaCentaur.Nostr.Event
@@ -67,19 +74,43 @@ defmodule MediaCentaur.Nostr.FakeRelay do
 
   @doc "Sends a raw frame (an Elixir term, JSON-encoded) to every connected client."
   @spec push(t(), term()) :: :ok
-  def push(%{name: name}, frame) do
-    for pid <- clients(name), do: send(pid, {:push, frame})
+  def push(relay, frame) do
+    for pid <- await_clients(relay), do: send(pid, {:push, frame})
     :ok
   end
 
   @doc "Closes every client socket (the relay stays up, so the client can reconnect)."
   @spec drop(t()) :: :ok
-  def drop(%{name: name}) do
-    for pid <- clients(name), do: send(pid, :drop)
+  def drop(relay) do
+    for pid <- await_clients(relay), do: send(pid, :drop)
     :ok
   end
 
-  defp clients(name), do: Agent.get(name, & &1.clients)
+  @await_client_timeout_ms 2_000
+  @await_client_interval_ms 10
+
+  # `init/1` registers the socket pid asynchronously relative to the test
+  # process observing `:connected` — see moduledoc. Poll instead of trusting
+  # `clients` to be populated yet.
+  defp await_clients(%{name: name}) do
+    poll_clients(name, System.monotonic_time(:millisecond) + @await_client_timeout_ms)
+  end
+
+  defp poll_clients(name, deadline) do
+    case Agent.get(name, & &1.clients) do
+      [] -> retry_or_raise(name, deadline)
+      clients -> clients
+    end
+  end
+
+  defp retry_or_raise(name, deadline) do
+    if System.monotonic_time(:millisecond) < deadline do
+      Process.sleep(@await_client_interval_ms)
+      poll_clients(name, deadline)
+    else
+      raise "FakeRelay: no client registered within #{@await_client_timeout_ms}ms"
+    end
+  end
 
   # --- WebSock -----------------------------------------------------------
 

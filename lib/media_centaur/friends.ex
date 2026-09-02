@@ -129,11 +129,8 @@ defmodule MediaCentaur.Friends do
 
   defp upsert_friend(pubkey, nickname) do
     case Repo.get_by(Friend, pubkey: pubkey) do
-      %Friend{} = existing ->
-        Repo.update(Friend.changeset(existing, %{nickname: nickname}))
-
-      nil ->
-        insert_friend(pubkey, nickname)
+      %Friend{} = existing -> rename_friend(existing, nickname)
+      nil -> insert_friend(pubkey, nickname)
     end
   end
 
@@ -146,8 +143,18 @@ defmodule MediaCentaur.Friends do
       {:error, changeset} ->
         # A concurrent insert of the same key is the rename case, not a failure.
         if unique_violation?(changeset),
-          do: Repo.update(Friend.changeset(Repo.get_by!(Friend, pubkey: pubkey), %{nickname: nickname})),
+          do: rename_friend(Repo.get_by!(Friend, pubkey: pubkey), nickname),
           else: {:error, changeset}
+    end
+  end
+
+  # An identical re-add is a no-op: same nickname, no broadcast.
+  defp rename_friend(%Friend{nickname: nickname} = existing, nickname), do: {:ok, existing}
+
+  defp rename_friend(existing, nickname) do
+    with {:ok, friend} <- Repo.update(Friend.changeset(existing, %{nickname: nickname})) do
+      Events.broadcast(%Events.FriendAdded{pubkey: friend.pubkey})
+      {:ok, friend}
     end
   end
 
