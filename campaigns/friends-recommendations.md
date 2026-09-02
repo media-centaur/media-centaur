@@ -30,8 +30,9 @@ page at `/discovery/watchlist` with `tab_strip` and `show_discovery`,
 main, unpushed. Layer 2 (`MediaCentaur.Nostr`: `Keys`, `Event`, `Filter`;
 `bitcoinex` dep) landed 2026-09-02. Layer 3 (Friends identity:
 `Friends.Identity` on the sensitive `nostr_secret_key` config key, Friends
-tab identity block at `/discovery/friends`) landed 2026-09-02; next: layer 4
-(`Nostr.Connection` + fake relay + `Friends.Relay` + relay block).
+tab identity block at `/discovery/friends`) landed 2026-09-02. Layer 4 (relay
+connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Friends.Relay`,
+`Friends.Connections`, relay block) landed 2026-09-02; next: layer 5 (roster).
 
 ## Decisions made
 
@@ -168,9 +169,9 @@ tab identity block at `/discovery/friends`) landed 2026-09-02; next: layer 4
   columns: schema migrations run before data migrations, so a skipped-release
   upgrade reaches the drop before the backfill; and the old release can write
   flat-only rows between `migrate` and restart.
-* **Layer 4 gotchas recorded:** `Mint.WebSocket` API sketch and the fake-relay
-  approach (`WebSock` handler under Bandit `port: 0`) are in the Nostr research
-  notes (session 2026-09-02); `mint_web_socket` is not yet a dep.
+* **Status page Friends section** (layer 7) reads
+  `Friends.Connections.status/0` — health + counts only, no rehash of the
+  Friends tab's relay list.
 * **Wiki (layer 8):** the Friends-and-Recommendations page must carry the
   backup advice for the secret key.
 * **Hardening pass** after iteration settles (spec decision 11).
