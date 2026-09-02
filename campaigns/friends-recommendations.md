@@ -257,6 +257,11 @@ iteration.
 
 ## Pointers
 
+* **Private relay repo:** `../social-relay` (campaign
+  `campaigns/private-relay-v1.md` there). Decided 2026-09-02: khatru
+  (`fiatjaf.com/nostr/khatru`), SQLite store, TOML allowlist, challenge on
+  connect, kind 32160 only. Built by its own Claude instance; app-side
+  follow-ups arrive here under its **Cross-repo** section.
 * Acquisition entry points: `MediaCentaur.Acquisition`, `MediaCentaur.Search`,
   `MediaCentaur.Tmdb`.
 * Nostr: NIP-01 (events/relays/subscriptions), NIP-17 + NIP-44 (private DMs /
