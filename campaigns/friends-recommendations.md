@@ -118,11 +118,14 @@ provenance `:friend` + `recommendation_id`, Status page Friends section).
   requirement.
 * `2026-09-02` — **Feed decoration lives in the web layer.**
   `Recommendations.list_feed/0` returns the record plus the friend's
-  nickname and nothing else — Recommendations depends on Friends but not on
-  Discovery or Library. `DiscoveryLive` joins the rest
-  (`Library.ExternalIds.tmdb_owners/1`, `Discovery.watchlisted_refs/0`) into
-  `library_owner_id` / `on_watchlist?` / `poster_url`. The only
-  Boundary-legal reading of the spec's `list_feed/0` sentence.
+  nickname (and, for an own row, `own?: true` / `nickname: nil`) —
+  Recommendations depends on Friends but not on Discovery or Library.
+  `DiscoveryLive` joins the rest (`Library.ExternalIds.tmdb_owners/1`,
+  `Discovery.watchlisted_refs/0`) into `library_owner_id` /
+  `on_watchlist?` / `poster_url`. The only Boundary-legal reading of the
+  spec's `list_feed/0` sentence.
+* `2026-09-02` — **Own recommendations appear in the Feed marked "You"**
+  (spec UI › Feed; the layer-6 plan had dropped this).
 * `2026-09-02` — **The detail page's Recommend control is gated by
   `show_discovery`** — the same preference that gates the Discovery sidebar
   entry, because the friend network is a preview and this is the one control
@@ -168,6 +171,10 @@ provenance `:friend` + `recommendation_id`, Status page Friends section).
 
 ## Next steps
 
+* **`DiscoveryLive`/`feed_row.ex` must render `own?` rows with a "You"
+  marker and no "from <nickname>" line** — `Recommendations.list_feed/0`
+  now returns own rows (`nickname: nil, own?: true`); the feed row
+  component still assumes every row has a friend nickname.
 * **CHANGELOG at the next `/ship`** (no Unreleased section by convention —
   `scripts/ship release` inserts the version header before the first
   `## v…` line): under *Migration safety*: "Watchlist entries now store

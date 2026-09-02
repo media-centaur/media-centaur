@@ -78,5 +78,12 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
                good
                | content: ~s({"title": {"tmdb_id": 603, "media_type": "movie"}})
              })
+
+    # `DateTime.from_unix!/1` raises for a value past `~U[9999-12-31
+    # 23:59:59Z]` — a relay can send any `created_at` it likes, so this must
+    # be rejected, not crash the caller. Unsigned: `from_event/1` never
+    # verifies signatures.
+    assert {:error, :bad_content} =
+             Translation.from_event(%{good | created_at: 253_402_300_800})
   end
 end

@@ -13,6 +13,8 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   Send goes through `Recommendations.recommend/2`, which stores and
   publishes; the flash names whether a relay was connected at the time,
   because with none the recommendation is real but has gone nowhere yet.
+  A note over 500 characters is rejected without closing the modal, so
+  the half-written note is not lost.
 
   ## Host contract
 
@@ -31,11 +33,10 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
         do: {:noreply, MediaCentaurWeb.Live.RecommendFlow.close(socket)}
 
       def handle_event("recommend_send", %{"note" => note}, socket),
-        do: {:noreply, MediaCentaurWeb.Live.RecommendFlow.send(socket, note)}
+        do: {:noreply, MediaCentaurWeb.Live.RecommendFlow.submit(socket, note)}
     end
   end
 
-  import Kernel, except: [send: 2]
   import Phoenix.Component, only: [assign: 2]
   import Phoenix.LiveView, only: [put_flash: 3]
 
@@ -57,19 +58,26 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   @spec close(socket()) :: socket()
   def close(socket), do: assign(socket, recommend_subject: nil)
 
-  @doc "Sends the open subject as a recommendation. A no-op when nothing is open."
-  @spec send(socket(), String.t() | nil) :: socket()
-  def send(%{assigns: %{recommend_subject: %Title{} = title}} = socket, note) do
+  @doc """
+  Sends the open subject as a recommendation. A no-op when nothing is
+  open. A note over 500 characters flashes and leaves the modal open, so
+  the note is not lost.
+  """
+  @spec submit(socket(), String.t() | nil) :: socket()
+  def submit(%{assigns: %{recommend_subject: %Title{} = title}} = socket, note) do
     case Recommendations.recommend(title, note) do
       {:ok, _rec} ->
         socket |> close() |> put_flash(:info, sent_message())
+
+      {:error, :note_too_long} ->
+        put_flash(socket, :error, "Keep the note under 500 characters")
 
       {:error, _reason} ->
         socket |> close() |> put_flash(:error, "Could not send the recommendation")
     end
   end
 
-  def send(socket, _note), do: socket
+  def submit(socket, _note), do: socket
 
   @doc "`{connected, total}` relays — the modal's relay line."
   @spec relay_counts() :: {non_neg_integer(), non_neg_integer()}

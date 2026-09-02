@@ -56,7 +56,8 @@ defmodule MediaCentaur.Recommendations.Translation do
     with {:ok, {media_type, tmdb_id}} <- parse_address(Event.tag_value(event, "d")),
          {:ok, %{"title" => title_attrs} = content} <- decode_content(event.content),
          {:ok, title} <- build_title(title_attrs),
-         :ok <- match_identity(title, media_type, tmdb_id) do
+         :ok <- match_identity(title, media_type, tmdb_id),
+         {:ok, recommended_at} <- parse_created_at(event.created_at) do
       {:ok,
        %{
          event_id: event.id,
@@ -65,7 +66,7 @@ defmodule MediaCentaur.Recommendations.Translation do
          media_type: media_type,
          title: title,
          note: blank_to_nil(content["note"]),
-         recommended_at: DateTime.from_unix!(event.created_at),
+         recommended_at: recommended_at,
          raw_event: Event.to_map(event)
        }}
     end
@@ -81,6 +82,15 @@ defmodule MediaCentaur.Recommendations.Translation do
     case Integer.parse(id) do
       {int, ""} when int > 0 -> {:ok, {type, int}}
       _other -> {:error, :bad_address}
+    end
+  end
+
+  # A relay can send any `created_at` it likes; `DateTime.from_unix!/1`
+  # raises past `~U[9999-12-31 23:59:59Z]`, and this is untrusted input.
+  defp parse_created_at(created_at) do
+    case DateTime.from_unix(created_at) do
+      {:ok, at} -> {:ok, at}
+      {:error, _reason} -> {:error, :bad_content}
     end
   end
 
