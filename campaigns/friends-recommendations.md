@@ -137,6 +137,12 @@ on main, unpushed; next: plan 1b (Discovery page: `tab_strip`,
 
 ## Next steps
 
+* **CHANGELOG at the next `/ship`** (no Unreleased section by convention —
+  `scripts/ship release` inserts the version header before the first
+  `## v…` line): under *Migration safety*: "Watchlist entries now store
+  their TMDB title as one value. Existing entries are converted
+  automatically on update; nothing to do."
+
 * **Drop the watchlist flat snapshot columns** (`name`, `year`,
   `release_date`, `poster_path`, `overview`) and remove the transitional
   `name` write in `WatchlistItem.create_changeset/2` — a schema migration in

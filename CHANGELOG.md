@@ -4,12 +4,6 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
-## Unreleased
-
-### Migration safety
-
-- **Watchlist entries now store their TMDB title as one value.** Existing entries are converted automatically on update; nothing to do.
-
 ## v1.5.0 — 2026-09-01
 
 ### New
