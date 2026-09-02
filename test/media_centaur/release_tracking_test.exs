@@ -1324,4 +1324,15 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       refute File.dir?(released_dir)
     end
   end
+
+  describe "tracked_refs/0" do
+    test "is the {tmdb_id, media_type} set of every tracked item" do
+      assert ReleaseTracking.tracked_refs() == MapSet.new()
+
+      create_tracking_item(%{tmdb_id: 200, media_type: :tv_series, name: "Sample Show"})
+      create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+
+      assert ReleaseTracking.tracked_refs() == MapSet.new([{200, :tv_series}, {777, :movie}])
+    end
+  end
 end
