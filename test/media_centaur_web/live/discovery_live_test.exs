@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.WatchlistLiveTest do
+defmodule MediaCentaurWeb.DiscoveryLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
   end
 
   test "empty watchlist renders the empty state", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/watchlist")
+    {:ok, view, _html} = live(conn, "/discovery/watchlist")
     assert has_element?(view, "#watchlist-empty")
   end
 
@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
     create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
     create_linked_file(%{movie_id: movie.id})
 
-    {:ok, _view, html} = live(conn, "/watchlist")
+    {:ok, _view, html} = live(conn, "/discovery/watchlist")
     assert html =~ "In library"
     assert html =~ "Track release"
     await_supervised_tasks()
@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
     {:ok, _} =
       Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
 
-    {:ok, view, _html} = live(conn, "/watchlist")
+    {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
     view
     |> element("#watchlist-item-movie-777 button", "Remove")
@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
   end
 
   test "watchlist events refresh the page", %{conn: conn} do
-    {:ok, view, _html} = live(conn, "/watchlist")
+    {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
     {:ok, _} =
       Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
@@ -81,7 +81,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
     {:ok, _} =
       Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
 
-    {:ok, view, html} = live(conn, "/watchlist")
+    {:ok, view, html} = live(conn, "/discovery/watchlist")
     refute html =~ "In library"
 
     movie = create_standalone_movie(%{name: "Sample Movie"})
@@ -104,7 +104,7 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
         })
       )
 
-    {:ok, view, _html} = live(conn, "/watchlist")
+    {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
     view
     |> element("#watchlist-item-tv_series-42 button", "Track release")
@@ -116,5 +116,27 @@ defmodule MediaCentaurWeb.WatchlistLiveTest do
     # then assert the effect landed.
     await_supervised_tasks()
     assert %{tmdb_id: 42} = ReleaseTracking.get_item_by_tmdb(42, :tv_series)
+  end
+
+  test "renders the Discovery heading and the Watchlist tab with its count", %{conn: conn} do
+    {:ok, _} =
+      Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+
+    {:ok, view, html} = live(conn, "/discovery/watchlist")
+
+    assert html =~ "Discovery"
+    assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Watchlist")
+    assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "1")
+    await_supervised_tasks()
+  end
+
+  test "the sidebar marks Discovery active on the watchlist tab", %{conn: conn} do
+    MediaCentaur.Settings.find_or_create_entry!(%{
+      key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+      value: %{"enabled" => true}
+    })
+
+    {:ok, view, _html} = live(conn, "/discovery/watchlist")
+    assert has_element?(view, "#sidebar a.sidebar-link-active[href='/discovery/watchlist']")
   end
 end

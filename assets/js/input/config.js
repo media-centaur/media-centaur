@@ -264,9 +264,12 @@ export const inputConfig = {
       grid:      { up: ["toolbar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
-    watchlist: {
-      grid:    {},
-      sidebar: { right: ["grid"] },
+    // Discovery: the zone-tabs strip above the watchlist grid (feed and
+    // friends tabs join the strip later). Same shape as review/reconcile.
+    discovery: {
+      zone_tabs: { down: ["grid"] },
+      grid:      { up: ["zone_tabs"] },
+      sidebar:   { right: ["grid", "zone_tabs"] },
     },
     apps: {
       toolbar: { down: ["grid"] },
@@ -302,7 +305,7 @@ export const inputConfig = {
     reconcile: ["reconcile-list", "reconcile-detail", "zone_tabs", "sidebar"],
     incoming:  ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],
-    watchlist: ["grid", "sidebar"],
+    discovery: ["grid", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],

@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/reconcile", "reconcile"},
         {"/console", "console"},
         {"/history", "watch history"},
-        {"/watchlist", "watchlist"},
+        {"/discovery/watchlist", "discovery watchlist"},
         {"/apps", "apps"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
