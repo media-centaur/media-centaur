@@ -177,6 +177,9 @@ campaign, then layer 9 (hardening) after iteration.
   and points at Settings. The section is always shown (relays connect
   regardless of the Discovery preference) and is where the identity is
   minted. Wiki, relay docs and `just social` updated.
+* `2026-09-02` — **The Discovery tab is "Friends"** (`/discovery/friends`,
+  `live_action :friends`): Social is the set of features; Friends is the
+  roster feature within it. Status widget links there as *Open Friends*.
 
 ## Open questions
 

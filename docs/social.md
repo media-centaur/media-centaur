@@ -167,7 +167,7 @@ disagree with the owner about what a message meant.
 ## Web layer
 
 `MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
-(`:feed` at `/discovery`, `:watchlist`, `:social`). The Social tab's blocks are
+(`:feed` at `/discovery`, `:watchlist`, `:friends`). The Friends tab's block is
 iteration-phase function components under `live/discovery_live/`
 (`identity_block`, `relay_block`, `roster_block`, `feed_row`, `recommend_modal`)
 — no stories and no input-system support yet; the hardening pass moves them under
@@ -241,7 +241,7 @@ the recipes.
 
 | Recipe | Does |
 |---|---|
-| `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Social. The relay goes under Settings → Social. Re-run to restart. |
+| `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Friends. The relay goes under Settings → Social. Re-run to restart. |
 | `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up in your Feed. |
 | `just social-feed` | Everything the relay holds, including what the dev app sent. |
 | `just social-status` / `social-down` / `social-reset` | Container state and NIP-11; stop; stop and forget data plus the friend's key. |

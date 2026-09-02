@@ -150,12 +150,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     assert has_element?(view, "#sidebar a.sidebar-link-active[href='/discovery']")
   end
 
-  describe "social tab" do
+  describe "friends tab" do
     test "shows the roster and points at Settings for identity and relays", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/social")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Social")
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Friends")
       assert has_element?(view, "#add-friend-form")
-      assert has_element?(view, "#social-settings-pointer a[href='/settings?section=social']")
+      assert has_element?(view, "#friends-settings-pointer a[href='/settings?section=social']")
       refute has_element?(view, "#identity-npub")
       refute has_element?(view, "#add-relay-form")
     end
@@ -163,17 +163,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "the watchlist tab still renders and the strip shows both tabs", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Watchlist")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Social")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Friends")
     end
   end
 
-  describe "social tab — roster" do
+  describe "friends tab — roster" do
     @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
     defp friend_row, do: "#friend-" <> String.slice(@friend_pubkey, 0, 8)
 
     test "adds a friend by npub + name, lists them, and removes", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/social")
+      {:ok, view, _html} = live(conn, "/discovery/friends")
       npub = Keys.to_npub(@friend_pubkey)
 
       view
@@ -191,7 +191,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "refuses a bad key, your own key, and a blank name with flashes", %{conn: conn} do
       Identity.ensure()
-      {:ok, view, _html} = live(conn, "/discovery/social")
+      {:ok, view, _html} = live(conn, "/discovery/friends")
 
       view |> form("#add-friend-form", %{"key" => "npub1nope", "nickname" => "X"}) |> render_submit()
       assert render(view) =~ "That is not a valid public key"
@@ -211,7 +211,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a roster change in another tab lands live", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/social")
+      {:ok, view, _html} = live(conn, "/discovery/friends")
       refute has_element?(view, friend_row())
 
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")

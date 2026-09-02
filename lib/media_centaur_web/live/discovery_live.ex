@@ -20,8 +20,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   `library:updates` — a completed download flips a row to In library
   without a reload.
 
-  Social — the roster of followed keys. Identity and relays live on the
-  Settings page's Social section; this tab points there.
+  Friends — the roster of followed keys, one feature of the Social
+  subsystem. Identity and relays live on the Settings page's Social
+  section; this tab points there.
 
   Subscribes to Discovery directly (it needs the full item list, not the
   `WatchlistAware` ref set — see that trait's moduledoc).
@@ -63,7 +64,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   @impl true
-  def handle_params(_params, _uri, %{assigns: %{live_action: :social}} = socket),
+  def handle_params(_params, _uri, %{assigns: %{live_action: :friends}} = socket),
     do: {:noreply, load_friends(socket)}
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
@@ -237,7 +238,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     do: [
       %Tab{id: :feed, label: "Feed", navigate: "/discovery", count: length(feed)},
       %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
-      %Tab{id: :social, label: "Social", navigate: "/discovery/social"}
+      %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends"}
     ]
 
   # Before a relay and a friend exist the feed cannot fill, so the empty
@@ -247,7 +248,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp feed_empty_state(_prereqs_met),
     do: "Recommendations from your friends land here. Add a relay and a friend on the Social tab."
 
-  defp current_path(:social), do: "/discovery/social"
+  defp current_path(:friends), do: "/discovery/friends"
   defp current_path(:watchlist), do: "/discovery/watchlist"
   defp current_path(_action), do: "/discovery"
 
@@ -289,9 +290,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
             <FeedRow.feed_row :for={row <- @feed} row={row} />
           </div>
 
-          <div :if={@live_action == :social} class="space-y-4">
+          <div :if={@live_action == :friends} class="space-y-4">
             <RosterBlock.roster_block friends={@friends} />
-            <p id="social-settings-pointer" class="px-1 text-xs text-base-content/50">
+            <p id="friends-settings-pointer" class="px-1 text-xs text-base-content/50">
               Your identity and relays are under <.link
                 navigate={~p"/settings?section=social"}
                 class="link link-primary"

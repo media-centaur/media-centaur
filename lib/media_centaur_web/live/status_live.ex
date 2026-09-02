@@ -146,7 +146,7 @@ defmodule MediaCentaurWeb.StatusLive do
   end
 
   # Snapshot of the friend network for the Social Activity widget:
-  # aggregates only (the Social tab owns the lists). `Recommendations.counts/0`
+  # aggregates only (Settings → Social and the Friends tab own the lists). `Recommendations.counts/0`
   # is two aggregate queries — cheaper than loading every row just to
   # count and diff them.
   defp assign_social(socket) do
