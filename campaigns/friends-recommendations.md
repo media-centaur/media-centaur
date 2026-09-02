@@ -37,8 +37,12 @@ connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Friends.Relay`,
 (`Recommendations` records/translation/sync, the Recommend modal, and the
 Feed tab at `/discovery`) landed 2026-09-02. Layer 7 (watchlist
 provenance, console tags, Friends incident assessor + Status tile/widget)
-landed 2026-09-02; next: layer 8 (wiki + changelog notes), then 9
-(hardening).
+landed 2026-09-02. Layer 8 (docs) landed 2026-09-02: the wiki page
+*Friends and Recommendations* plus Settings-Reference / Troubleshooting /
+FAQ / Watchlist / Home / _Sidebar entries, and the contributor guide
+`docs/friends.md` linked from `CLAUDE.md` and `docs/architecture.md`.
+Next: owner review of the full campaign, then layer 9 (hardening) after
+iteration.
 
 ## Decisions made
 
@@ -175,9 +179,33 @@ landed 2026-09-02; next: layer 8 (wiki + changelog notes), then 9
 
 * **CHANGELOG at the next `/ship`** (no Unreleased section by convention —
   `scripts/ship release` inserts the version header before the first
-  `## v…` line): under *Migration safety*: "Watchlist entries now store
-  their TMDB title as one value. Existing entries are converted
-  automatically on update; nothing to do."
+  `## v…` line). Draft, in the changelog's voice:
+
+  *New*
+
+  * **Recommend titles to your friends, and read what they recommend to
+    you.** The new Discovery page carries three tabs — Feed, Watchlist and
+    Friends — where you hold your own key, the relays you publish to, and
+    the friends whose recommendations you read. Recommendations travel
+    over Nostr relays you choose: no account, and no server we run. Send
+    one from any movie or series page, or from a watchlist row. Early
+    preview, behind the **Discovery** preference.
+  * **The Watchlist is now a tab of Discovery** (`/discovery/watchlist`),
+    and the **Discovery** preference replaces the old Watchlist one —
+    your saved titles and your setting carry over.
+  * **A Friends tile on the Status page** — how many relays are
+    connected, the last thing one complained about, and how many
+    recommendations you've sent and received.
+
+  *Migration safety*
+
+  * "Watchlist entries now store their TMDB title as one value. Existing
+    entries are converted automatically on update; nothing to do."
+  * New `relays`, `friends` and `recommendations` tables are created
+    empty; the `show_watchlist` preference row is renamed to
+    `show_discovery`, keeping your setting.
+  * The new dependencies (`bitcoinex`, `mint_web_socket`) are pure
+    Elixir — no native code, and nothing extra to install.
 
 * **Drop the watchlist flat snapshot columns** (`name`, `year`,
   `release_date`, `poster_path`, `overview`) and remove the transitional
@@ -206,8 +234,6 @@ landed 2026-09-02; next: layer 8 (wiki + changelog notes), then 9
   grouping key and a per-kind headline (the three Friends kinds are
   **Relay rejected this identity**, **No relay reachable**, **A relay is
   unreachable**), which is an `ErrorReports` change, not a Friends one.
-* **Wiki (layer 8):** the Friends-and-Recommendations page must carry the
-  backup advice for the secret key.
 * **Hardening pass** after iteration settles (spec decision 11).
 * **Plan modal selection header → `title_summary`** (spec unification
   decision 4): converges when the plan modal is next touched; not before.
