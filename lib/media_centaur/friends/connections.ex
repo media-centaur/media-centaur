@@ -17,7 +17,7 @@ defmodule MediaCentaur.Friends.Connections do
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Filter
 
-  @type entry :: %{state: atom(), last_error: String.t() | nil}
+  @type entry :: %{state: atom(), last_error: String.t() | nil, since: DateTime.t()}
 
   def start_link(opts), do: Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -34,7 +34,12 @@ defmodule MediaCentaur.Friends.Connections do
     Supervisor.init(children, strategy: :one_for_all, max_restarts: 5, max_seconds: 60)
   end
 
-  @doc "`%{url => %{state: Nostr.Connection.status(), last_error: String.t() | nil}}`; empty when no owner runs."
+  @doc """
+  `%{url => %{state: Nostr.Connection.status(), last_error: String.t() |
+  nil, since: DateTime.t()}}`; empty when no owner runs. `since` is when
+  the entry entered its current state — what `Friends.IncidentContext`
+  measures its grace window from.
+  """
   @spec status() :: %{optional(String.t()) => entry()}
   def status, do: Owner.status()
 
@@ -60,7 +65,7 @@ defmodule MediaCentaur.Friends.Connections do
 
   @doc "A status entry for a relay nothing has been heard from yet."
   @spec blank_entry() :: entry()
-  def blank_entry, do: %{state: :connecting, last_error: nil}
+  def blank_entry, do: %{state: :connecting, last_error: nil, since: DateTime.utc_now()}
 
   @doc """
   Folds one `Nostr.Connection` owner message into a status entry. Shared
@@ -69,15 +74,15 @@ defmodule MediaCentaur.Friends.Connections do
   can never disagree about what a message means.
   """
   @spec apply_message(entry(), term()) :: entry()
-  def apply_message(entry, :connected), do: %{entry | state: :connected, last_error: nil}
+  def apply_message(entry, :connected), do: put_state(entry, :connected, nil)
 
   def apply_message(entry, {:disconnected, reason}),
-    do: %{entry | state: :disconnected, last_error: format_reason(reason)}
+    do: put_state(entry, :disconnected, format_reason(reason))
 
-  def apply_message(entry, {:auth, :ok}), do: %{entry | state: :connected, last_error: nil}
+  def apply_message(entry, {:auth, :ok}), do: put_state(entry, :connected, nil)
 
   def apply_message(entry, {:auth, {:failed, reason}}),
-    do: %{entry | state: :auth_failed, last_error: format_reason(reason)}
+    do: put_state(entry, :auth_failed, format_reason(reason))
 
   def apply_message(entry, {:ok, _id, false, reason}), do: %{entry | last_error: format_reason(reason)}
 
@@ -87,6 +92,14 @@ defmodule MediaCentaur.Friends.Connections do
   # not a verdict on anything we asked for, so it never becomes `last_error`.
   def apply_message(entry, {:notice, _text}), do: entry
   def apply_message(entry, _other), do: entry
+
+  # `since` is the onset of the *current* state, so re-affirming the state
+  # an entry is already in leaves it alone — a relay that keeps saying
+  # "connected" has not started being connected again.
+  defp put_state(%{state: state} = entry, state, last_error), do: %{entry | last_error: last_error}
+
+  defp put_state(entry, state, last_error),
+    do: %{entry | state: state, last_error: last_error, since: DateTime.utc_now()}
 
   defp format_reason(reason) when is_binary(reason), do: reason
   defp format_reason(reason), do: inspect(reason)

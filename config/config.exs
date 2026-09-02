@@ -109,7 +109,8 @@ config :media_centaur, Oban,
 config :media_centaur, :diagnostics_contributors, %{
   tmdb: MediaCentaur.TMDB.IncidentContext,
   self_update: MediaCentaur.SelfUpdate.IncidentContext,
-  acquisition: MediaCentaur.Acquisition.IncidentContext
+  acquisition: MediaCentaur.Acquisition.IncidentContext,
+  friends: MediaCentaur.Friends.IncidentContext
 }
 
 # Public repo the in-app reporter opens a new issue against (user posts under
