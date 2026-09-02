@@ -28,12 +28,33 @@ defmodule MediaCentaur.Friends.Events do
     @type t :: %__MODULE__{url: String.t()}
   end
 
-  @type t :: IdentityChanged.t() | RelayAdded.t() | RelayRemoved.t()
+  defmodule FriendAdded do
+    @moduledoc "A public key joined the roster, or its nickname changed."
+    @enforce_keys [:pubkey]
+    defstruct [:pubkey]
+    @type t :: %__MODULE__{pubkey: String.t()}
+  end
+
+  defmodule FriendRemoved do
+    @moduledoc "A public key left the roster."
+    @enforce_keys [:pubkey]
+    defstruct [:pubkey]
+    @type t :: %__MODULE__{pubkey: String.t()}
+  end
+
+  @type t ::
+          IdentityChanged.t()
+          | RelayAdded.t()
+          | RelayRemoved.t()
+          | FriendAdded.t()
+          | FriendRemoved.t()
 
   @spec broadcast(t()) :: :ok | {:error, term()}
   def broadcast(%IdentityChanged{} = event), do: publish({:identity_changed, event})
   def broadcast(%RelayAdded{} = event), do: publish({:relay_added, event})
   def broadcast(%RelayRemoved{} = event), do: publish({:relay_removed, event})
+  def broadcast(%FriendAdded{} = event), do: publish({:friend_added, event})
+  def broadcast(%FriendRemoved{} = event), do: publish({:friend_removed, event})
 
   @doc """
   Re-broadcasts one relay connection's owner message on
