@@ -120,6 +120,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TMDB.TitleSearch
 
   alias MediaCentaur.Acquisition.AutoGrabSettings
@@ -467,29 +468,27 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   # A media pick on the forecast-only page: track the title (movies grab no
   # scope; shows start from the last library episode) and add its ref to
-  # `tracked_refs` so the row reads as done without a re-query.
-  defp track_picked_result(socket, tmdb_id) do
-    case Enum.find(socket.assigns.omnibox_results, &(to_string(&1.tmdb_id) == to_string(tmdb_id))) do
-      nil ->
-        socket
+  # `tracked_refs` so the row reads as done without a re-query. Takes the
+  # row the pick handler already matched on the full `{tmdb_id, media_type}`
+  # identity — movie and TV ids overlap, so the id alone names two titles.
+  defp track_picked_result(socket, nil), do: socket
 
-      result ->
-        scope =
-          case result.media_type do
-            :movie ->
-              %{}
+  defp track_picked_result(socket, %Title{} = picked) do
+    scope =
+      case picked.media_type do
+        :movie ->
+          %{}
 
-            :tv_series ->
-              {last_season, last_episode} = ReleaseTracking.find_last_library_episode(nil)
-              %{start_season: last_season, start_episode: last_episode}
-          end
+        :tv_series ->
+          {last_season, last_episode} = ReleaseTracking.find_last_library_episode(nil)
+          %{start_season: last_season, start_episode: last_episode}
+      end
 
-        ReleaseTracking.track_from_search_async(result, scope)
+    ReleaseTracking.track_from_search_async(picked, scope)
 
-        assign(socket,
-          tracked_refs: MapSet.put(socket.assigns.tracked_refs, {result.tmdb_id, result.media_type})
-        )
-    end
+    assign(socket,
+      tracked_refs: MapSet.put(socket.assigns.tracked_refs, {picked.tmdb_id, picked.media_type})
+    )
   end
 
   # The plan modal's current identity, whichever stage holds it —
@@ -1678,12 +1677,12 @@ defmodule MediaCentaurWeb.IncomingLive do
       not Capabilities.prowlarr_ready?() ->
         # Forecast-only page: the hero promised tracking, so a pick tracks —
         # never the plan (grab) flow. Same shape the track modal uses.
-        {:noreply, track_picked_result(socket, tmdb_id)}
+        {:noreply, track_picked_result(socket, picked)}
 
       picked && MediaResults.release_status(picked, Date.utc_today()) == :upcoming ->
         # An unreleased title has nothing to grab — the row's verb says
         # "Track release" and the pick does exactly that, in place.
-        {:noreply, track_picked_result(socket, tmdb_id)}
+        {:noreply, track_picked_result(socket, picked)}
 
       true ->
         plan_type = if media_type == "movie", do: "movie", else: "tv"
