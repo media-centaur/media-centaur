@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:ok,
      socket
      |> assign(:page_title, "Discovery")
-     |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false)
+     |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
      |> assign(relays: [], relay_status: %{})
      |> load_items()}
   end
@@ -62,7 +62,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
     {:noreply,
      socket
-     |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)
+     |> assign(
+       identity_npub: Identity.npub(),
+       nsec_revealed: nil,
+       import_armed?: false,
+       import_draft: ""
+     )
      |> assign(relay_status: Connections.status())
      |> load_relays()}
   end
@@ -114,21 +119,26 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # Two-click arm (MC0027 treatment b): the first submit arms, the second
   # replaces. Costly but recoverable — the old nsec can be re-imported.
-  def handle_event("import_nsec", %{"nsec" => _nsec}, %{assigns: %{import_armed?: false}} = socket),
-    do: {:noreply, assign(socket, import_armed?: true)}
+  def handle_event("import_nsec", %{"nsec" => nsec}, %{assigns: %{import_armed?: false}} = socket),
+    do: {:noreply, assign(socket, import_armed?: true, import_draft: nsec)}
 
   def handle_event("import_nsec", %{"nsec" => nsec}, socket) do
     case Identity.import_nsec(nsec) do
       :ok ->
         {:noreply,
          socket
-         |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)
+         |> assign(
+           identity_npub: Identity.npub(),
+           nsec_revealed: nil,
+           import_armed?: false,
+           import_draft: ""
+         )
          |> put_flash(:info, "Identity replaced")}
 
       {:error, :invalid_secret} ->
         {:noreply,
          socket
-         |> assign(import_armed?: false)
+         |> assign(import_armed?: false, import_draft: "")
          |> put_flash(:error, "That is not a valid secret key")}
     end
   end
@@ -142,9 +152,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, load_items(socket)}
   end
 
-  # Another tab (or a later relay layer) replaced the identity.
+  # Another tab (or a later relay layer) replaced the identity. A key
+  # revealed here belongs to the identity that is gone, and an arm here
+  # is aimed at it too — both drop with it.
   def handle_info({:identity_changed, _event}, socket) do
-    {:noreply, assign(socket, identity_npub: Identity.npub())}
+    {:noreply, assign(socket, identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)}
   end
 
   def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
@@ -208,6 +220,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               npub={@identity_npub}
               nsec_revealed={@nsec_revealed}
               import_armed?={@import_armed?}
+              import_draft={@import_draft}
             />
             <RelayBlock.relay_block relays={@relays} status={@relay_status} />
           </div>
