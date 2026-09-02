@@ -2,9 +2,13 @@ defmodule MediaCentaurWeb.Storybook.Discovery.WatchlistRow do
   @moduledoc """
   One watchlist entry — poster thumb, identity line, note or overview,
   and the single state-dependent primary action (In library / Download /
-  Track release) with Remove as the quiet secondary. `poster_url: nil`
-  throughout shows the icon fallback; a fixed `today` pins the
-  released/upcoming split.
+  Track release) with Recommend and Remove as the quiet secondaries.
+  `poster_url: nil` throughout shows the icon fallback; a fixed `today`
+  pins the released/upcoming split.
+
+  The action strip is the same three nav items in every state — only the
+  primary changes what it says, so the row never grows or loses a
+  control depending on where the title stands.
   """
 
   use PhoenixStorybook.Story, :component
@@ -53,7 +57,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery.WatchlistRow do
         id: :in_library,
         description:
           "The library already knows the title — the primary action links straight " <>
-            "to its detail; no download verb competes with what is already owned.",
+            "to its detail; no download verb competes with what is already owned. " <>
+            "Recommend and Remove sit beside it, as in every state.",
         attributes: %{
           item: item(%{}),
           library_owner_id: "0d2c5cd6-0000-4000-8000-000000000001",
@@ -74,7 +79,10 @@ defmodule MediaCentaurWeb.Storybook.Discovery.WatchlistRow do
       },
       %Variation{
         id: :track_release,
-        description: "Not out yet (`:upcoming`) — the only honest verb is Track release.",
+        description:
+          "Not out yet (`:upcoming`) — the only honest primary verb is Track " <>
+            "release. Recommend still stands: an unreleased title is a fine " <>
+            "thing to send a friend.",
         attributes: %{
           item:
             item(%{

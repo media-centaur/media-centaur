@@ -69,6 +69,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.DetailPanel
+  alias MediaCentaurWeb.Live.RecommendFlow
   alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
@@ -231,6 +232,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       def handle_event("modal_watchlist_toggle", _params, socket) do
         {:noreply, EntityModal.toggle_watchlist(socket)}
       end
+
+      # --- Recommend ---
+      use MediaCentaurWeb.Live.RecommendFlow
+
+      def handle_event("modal_recommend_open", _params, socket),
+        do: {:noreply, EntityModal.open_recommend(socket)}
 
       # --- Track overrides ---
 
@@ -542,7 +549,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   """
   @spec assign_modal_defaults(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def assign_modal_defaults(socket) do
-    Phoenix.Component.assign(socket,
+    socket
+    |> RecommendFlow.init()
+    |> Phoenix.Component.assign(
       selected_entity_id: nil,
       selected_member_id: nil,
       selected_entry: nil,
@@ -871,6 +880,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     doc:
       "`MapSet.t({tmdb_id, media_type})` from the host's `WatchlistAware` trait — drives the view controls' watchlist toggle. Required so a host cannot mount the modal without the trait."
 
+  attr :show_discovery, :boolean,
+    default: false,
+    doc:
+      "the session-wide `show_discovery` preference — gates the view controls' Recommend button (the friend network is a preview)."
+
   def entity_modal(assigns) do
     ~H"""
     <DetailPanel.detail_panel
@@ -902,6 +916,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           @watchlisted_refs
         )
       }
+      recommend?={@show_discovery}
       tracking_status={@tracking_status}
       available={
         @selected_entry == nil ||
@@ -1177,6 +1192,39 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         end
 
         socket
+    end
+  end
+
+  @doc """
+  Opens the Recommend modal on the panel's subject — the same subject
+  `toggle_watchlist/1` acts on, so the two controls can never disagree
+  about what the panel is showing. No-op when the subject carries no
+  TMDB id (the control isn't rendered then).
+
+  The title carries no poster path on purpose: library subjects have no
+  TMDB poster path, and the receiving install fetches its own artwork
+  from the TMDB identity.
+  """
+  @spec open_recommend(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def open_recommend(socket) do
+    subject = watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
+
+    case watchlist_ref(subject) do
+      nil ->
+        socket
+
+      {tmdb_id, media_type} ->
+        RecommendFlow.open(
+          socket,
+          Title.new!(%{
+            tmdb_id: tmdb_id,
+            media_type: media_type,
+            name: subject.name,
+            year: watchlist_year(subject[:date_published]),
+            release_date: subject[:date_published],
+            overview: subject[:description]
+          })
+        )
     end
   end
 

@@ -34,7 +34,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.Components.Discovery.WatchlistRow
   alias MediaCentaurWeb.Components.TabStrip.Tab
+  alias MediaCentaurWeb.Live.RecommendFlow
   alias MediaCentaurWeb.DiscoveryLive.IdentityBlock
+  alias MediaCentaurWeb.DiscoveryLive.RecommendModal
   alias MediaCentaurWeb.DiscoveryLive.RelayBlock
   alias MediaCentaurWeb.DiscoveryLive.RosterBlock
 
@@ -52,6 +54,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      |> assign(:page_title, "Discovery")
      |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
      |> assign(relays: [], relay_status: %{}, friends: [])
+     |> RecommendFlow.init()
      |> load_items()}
   end
 
@@ -98,6 +101,18 @@ defmodule MediaCentaurWeb.DiscoveryLive do
          put_flash(socket, :info, "Tracking #{item.title.name} — it will appear under Coming up.")}
     end
   end
+
+  def handle_event("watchlist_recommend", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
+      when media_type in ~w(movie tv_series) do
+    ref = {String.to_integer(tmdb_id), String.to_existing_atom(media_type)}
+
+    case Enum.find(socket.assigns.items, fn %{item: item} -> {item.tmdb_id, item.media_type} == ref end) do
+      nil -> {:noreply, socket}
+      %{item: item} -> {:noreply, RecommendFlow.open(socket, item.title)}
+    end
+  end
+
+  use RecommendFlow
 
   def handle_event("add_relay", %{"url" => url}, socket) do
     case Friends.add_relay(url) do
@@ -231,6 +246,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
     >
+      <:overlays>
+        <RecommendModal.recommend_modal
+          subject={@recommend_subject}
+          relay_counts={@recommend_relay_counts}
+        />
+      </:overlays>
       <div class="relative" data-page-behavior="discovery" data-nav-default-zone="discovery">
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <h1 class="px-1 text-lg font-semibold">Discovery</h1>

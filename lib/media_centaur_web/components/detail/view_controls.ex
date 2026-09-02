@@ -60,6 +60,15 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   from the host's `:watchlisted_refs` (`WatchlistAware`), threaded down as
   `watchlisted?`. In-app action, so unlike Letterboxd it IS a
   `data-nav-item`.
+
+  ## Recommend
+
+  A paper-plane icon button after the bookmark opens the Recommend modal
+  on the panel's subject (`modal_recommend_open`, handled by the injected
+  `EntityModal` clause). Gated by `recommend?`, which the hosts wire to
+  the `show_discovery` preference: the friend network is a preview, and
+  this is the only control on the modal that belongs to it. A
+  `data-nav-item` like the bookmark.
   """
 
   use MediaCentaurWeb, :html
@@ -83,6 +92,11 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
     default: false,
     doc:
       "whether the subject is on the watchlist — flips the bookmark toggle solid. Compute via `EntityModal.watchlisted?/3` so it matches what `modal_watchlist_toggle` acts on."
+
+  attr :recommend?, :boolean,
+    default: false,
+    doc:
+      "whether the Recommend control is offered — the hosts pass `show_discovery`, the preference that gates the whole friend-network preview."
 
   def view_controls(assigns) do
     assigns = assign(assigns, :destination, Logic.secondary_view(assigns.entity, assigns.detail_view))
@@ -143,6 +157,21 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       aria-label={if @watchlisted?, do: "Remove from watchlist", else: "Add to watchlist"}
     >
       <.icon name={if @watchlisted?, do: "hero-bookmark-solid", else: "hero-bookmark"} class="size-5" />
+    </.button>
+    <.button
+      :if={@recommend? && @entity[:tmdb_id] && @entity.type in [:movie, :tv_series]}
+      id="detail-recommend"
+      variant="dismiss"
+      size="sm"
+      shape="circle"
+      class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
+      phx-click="modal_recommend_open"
+      data-nav-item
+      tabindex="0"
+      title="Recommend"
+      aria-label="Recommend"
+    >
+      <.icon name="hero-paper-airplane" class="size-5" />
     </.button>
     <.button
       variant="dismiss"
