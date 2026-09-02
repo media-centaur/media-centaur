@@ -33,8 +33,10 @@ main, unpushed. Layer 2 (`MediaCentaur.Nostr`: `Keys`, `Event`, `Filter`;
 tab identity block at `/discovery/friends`) landed 2026-09-02. Layer 4 (relay
 connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Friends.Relay`,
 `Friends.Connections`, relay block) landed 2026-09-02. Layer 5 (roster:
-`Friends.Friend`, roster block) landed 2026-09-02; next: layer 6
-(`Recommendations`: schema, translation, sync, recommend modal, Feed tab).
+`Friends.Friend`, roster block) landed 2026-09-02. Layer 6
+(`Recommendations` records/translation/sync, the Recommend modal, and the
+Feed tab at `/discovery`) landed 2026-09-02; next: layer 7 (watchlist
+provenance `:friend` + `recommendation_id`, Status page Friends section).
 
 ## Decisions made
 
@@ -114,6 +116,20 @@ connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Friends.Relay`,
   never call it, so `mix.exs` carries `{:decimal, "~> 3.0", override: true}`
   rather than a vulnerable pin. Revisit when `bitcoinex` widens its
   requirement.
+* `2026-09-02` — **Feed decoration lives in the web layer.**
+  `Recommendations.list_feed/0` returns the record plus the friend's
+  nickname and nothing else — Recommendations depends on Friends but not on
+  Discovery or Library. `DiscoveryLive` joins the rest
+  (`Library.ExternalIds.tmdb_owners/1`, `Discovery.watchlisted_refs/0`) into
+  `library_owner_id` / `on_watchlist?` / `poster_url`. The only
+  Boundary-legal reading of the spec's `list_feed/0` sentence.
+* `2026-09-02` — **The detail page's Recommend control is gated by
+  `show_discovery`** — the same preference that gates the Discovery sidebar
+  entry, because the friend network is a preview and this is the one control
+  on the entity modal that belongs to it. Watchlist rows need no extra gate:
+  they are only reachable on the Discovery page.
+* `2026-09-02` — **Feed time is `Format.relative_ago/1` as it stands**
+  ("3d ago"). No second time vocabulary for one surface.
 * `2026-09-02` — **unify_design adjudication accepted** (≈ +1 session):
   `TMDB.Title` embedded schema replaces `TitleResult`; rows embed it;
   `tracked?` → ref-set attr; shared `title_summary`, poster helper and
@@ -177,8 +193,6 @@ connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Friends.Relay`,
 * **Wiki (layer 8):** the Friends-and-Recommendations page must carry the
   backup advice for the secret key.
 * **Hardening pass** after iteration settles (spec decision 11).
-* **`show_discovery` gates the sidebar entry only** (spec decision 7
-  corrected 2026-09-02); decide the Recommend action's gating with layer 6.
 * **Plan modal selection header → `title_summary`** (spec unification
   decision 4): converges when the plan modal is next touched; not before.
 * **`Review.search_tmdb/2` → `TMDB.TitleSearch` / `TMDB.Title`**: the review
