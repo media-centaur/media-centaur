@@ -6,6 +6,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Discovery
+  alias MediaCentaur.Friends
+  alias MediaCentaur.Friends.Events
   alias MediaCentaur.Friends.Identity
   alias MediaCentaur.Library
   alias MediaCentaur.Nostr.Keys
@@ -15,6 +17,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Settings.Preferences.DiscoveryVisibility
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.DiscoveryLive.RelayBlock
 
   setup do
     TmdbStubs.setup_tmdb_client()
@@ -197,6 +200,46 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Watchlist")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Friends")
+    end
+  end
+
+  describe "friends tab — relays" do
+    @relay_url "wss://relay.example/"
+
+    defp relay_row, do: "#" <> RelayBlock.dom_id(@relay_url)
+
+    test "lists relays with their connection state, adds by URL, and removes", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+
+      view |> form("#add-relay-form", %{"url" => "wss://relay.example"}) |> render_submit()
+      assert has_element?(view, relay_row(), @relay_url)
+      assert has_element?(view, relay_row(), "Not connected")
+      assert [%{url: @relay_url}] = Friends.list_relays()
+
+      view |> element(relay_row() <> " button", "Remove") |> render_click()
+      refute has_element?(view, relay_row())
+      assert Friends.list_relays() == []
+    end
+
+    test "an invalid relay address is refused with a flash", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      view |> form("#add-relay-form", %{"url" => "https://relay.example"}) |> render_submit()
+      assert render(view) =~ "Relay addresses start with wss:// or ws://"
+      assert Friends.list_relays() == []
+    end
+
+    test "connection state updates live from friends:connections", %{conn: conn} do
+      {:ok, _relay} = Friends.add_relay(@relay_url)
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      assert has_element?(view, relay_row(), "Not connected")
+
+      # The owner is not started under :test — stand in for its re-broadcast.
+      Events.broadcast_connection(@relay_url, :connected)
+      render_until(view, fn _html -> has_element?(view, relay_row(), "Connected") end)
+
+      Events.broadcast_connection(@relay_url, {:auth, {:failed, "not on the allowlist"}})
+      render_until(view, fn _html -> has_element?(view, relay_row(), "Rejected") end)
+      assert has_element?(view, relay_row(), "not on the allowlist")
     end
   end
 end

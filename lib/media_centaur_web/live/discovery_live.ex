@@ -12,8 +12,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   Friends — this install's Nostr identity (`Friends.Identity`), generated
   the first time the tab is opened, with the npub to hand out and the
-  secret key behind a disclosure for export/import. Relays and the
-  roster join it with their layers.
+  secret key behind a disclosure for export/import; below it the relay
+  list, whose per-row connection state follows `friends:connections`
+  live. The roster joins them with its layer.
 
   Subscribes to Discovery directly (it needs the full item list, not the
   `WatchlistAware` ref set — see that trait's moduledoc).
@@ -27,12 +28,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   alias MediaCentaur.Discovery
   alias MediaCentaur.Friends
+  alias MediaCentaur.Friends.Connections
   alias MediaCentaur.Friends.Identity
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.Components.Discovery.WatchlistRow
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.DiscoveryLive.IdentityBlock
+  alias MediaCentaurWeb.DiscoveryLive.RelayBlock
 
   @impl true
   def mount(_params, _session, socket) do
@@ -40,12 +43,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       Discovery.subscribe()
       Library.subscribe()
       Friends.subscribe()
+      Friends.subscribe_connections()
     end
 
     {:ok,
      socket
      |> assign(:page_title, "Discovery")
      |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false)
+     |> assign(relays: [], relay_status: %{})
      |> load_items()}
   end
 
@@ -55,7 +60,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_params(_params, _uri, %{assigns: %{live_action: :friends}} = socket) do
     Identity.ensure()
 
-    {:noreply, assign(socket, identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)}
+    {:noreply,
+     socket
+     |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false)
+     |> assign(relay_status: Connections.status())
+     |> load_relays()}
   end
 
   def handle_params(_params, _uri, socket), do: {:noreply, socket}
@@ -81,6 +90,21 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         {:noreply,
          put_flash(socket, :info, "Tracking #{item.title.name} — it will appear under Coming up.")}
     end
+  end
+
+  def handle_event("add_relay", %{"url" => url}, socket) do
+    case Friends.add_relay(url) do
+      {:ok, _relay} ->
+        {:noreply, load_relays(socket)}
+
+      {:error, %Ecto.Changeset{}} ->
+        {:noreply, put_flash(socket, :error, "Relay addresses start with wss:// or ws://")}
+    end
+  end
+
+  def handle_event("remove_relay", %{"url" => url}, socket) do
+    :ok = Friends.remove_relay(url)
+    {:noreply, load_relays(socket)}
   end
 
   def handle_event("reveal_nsec", _params, socket),
@@ -123,6 +147,18 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, assign(socket, identity_npub: Identity.npub())}
   end
 
+  def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
+    {:noreply, load_relays(socket)}
+  end
+
+  # `Connections.apply_message/2` is the owner's own fold, so the page and
+  # the owner can never disagree about what a connection message means.
+  def handle_info({:relay_connection, url, message}, socket) do
+    entry = Map.get(socket.assigns.relay_status, url, Connections.blank_entry())
+    status = Map.put(socket.assigns.relay_status, url, Connections.apply_message(entry, message))
+    {:noreply, assign(socket, relay_status: status)}
+  end
+
   def handle_info(_message, socket), do: {:noreply, socket}
 
   defp load_items(socket) do
@@ -133,6 +169,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
     assign(socket, :items, items)
   end
+
+  defp load_relays(socket), do: assign(socket, :relays, Friends.list_relays())
 
   # The tabs this layer hosts. Feed (`/discovery/feed`) joins here with
   # its layer.
@@ -171,6 +209,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               nsec_revealed={@nsec_revealed}
               import_armed?={@import_armed?}
             />
+            <RelayBlock.relay_block relays={@relays} status={@relay_status} />
           </div>
 
           <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="grid">
