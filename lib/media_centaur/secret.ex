@@ -35,7 +35,9 @@ defmodule MediaCentaur.Secret do
   @enforce_keys [:value]
   defstruct [:value]
 
-  @opaque t :: %__MODULE__{value: String.t()}
+  # Not opaque: the protection is the inspect redaction and the missing
+  # `String.Chars`, not type opacity — callers legitimately match `%Secret{}`.
+  @type t :: %__MODULE__{value: String.t()}
 
   @doc """
   Wraps a string as a `Secret`. `nil` passes through unchanged so callers

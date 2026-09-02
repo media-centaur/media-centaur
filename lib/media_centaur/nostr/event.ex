@@ -210,18 +210,18 @@ defmodule MediaCentaur.Nostr.Event do
   defp json_string(string) when is_binary(string), do: IO.iodata_to_binary([?", escape(string, []), ?"])
 
   defp escape(<<>>, acc), do: acc
-  defp escape(<<?", rest::binary>>, acc), do: escape(rest, [acc | "\\\""])
-  defp escape(<<?\\, rest::binary>>, acc), do: escape(rest, [acc | "\\\\"])
-  defp escape(<<?\n, rest::binary>>, acc), do: escape(rest, [acc | "\\n"])
-  defp escape(<<?\r, rest::binary>>, acc), do: escape(rest, [acc | "\\r"])
-  defp escape(<<?\t, rest::binary>>, acc), do: escape(rest, [acc | "\\t"])
-  defp escape(<<?\b, rest::binary>>, acc), do: escape(rest, [acc | "\\b"])
-  defp escape(<<?\f, rest::binary>>, acc), do: escape(rest, [acc | "\\f"])
+  defp escape(<<?", rest::binary>>, acc), do: escape(rest, [acc, "\\\""])
+  defp escape(<<?\\, rest::binary>>, acc), do: escape(rest, [acc, "\\\\"])
+  defp escape(<<?\n, rest::binary>>, acc), do: escape(rest, [acc, "\\n"])
+  defp escape(<<?\r, rest::binary>>, acc), do: escape(rest, [acc, "\\r"])
+  defp escape(<<?\t, rest::binary>>, acc), do: escape(rest, [acc, "\\t"])
+  defp escape(<<?\b, rest::binary>>, acc), do: escape(rest, [acc, "\\b"])
+  defp escape(<<?\f, rest::binary>>, acc), do: escape(rest, [acc, "\\f"])
 
   defp escape(<<byte, rest::binary>>, acc) when byte < 0x20 do
     hex = byte |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(2, "0")
-    escape(rest, [acc | ["\\u00", hex]])
+    escape(rest, [acc, ["\\u00", hex]])
   end
 
-  defp escape(<<byte, rest::binary>>, acc), do: escape(rest, [acc | <<byte>>])
+  defp escape(<<byte, rest::binary>>, acc), do: escape(rest, [acc, <<byte>>])
 end
