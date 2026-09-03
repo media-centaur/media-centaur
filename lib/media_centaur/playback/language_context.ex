@@ -66,10 +66,7 @@ defmodule MediaCentaur.Playback.LanguageContext do
     []
     |> append_lang_flag("--alang", args.alang)
     |> append_lang_flag("--slang", args.slang)
-    |> Kernel.++([
-      if(args.sub_visibility, do: "--sub-visibility=yes", else: "--sub-visibility=no"),
-      "--subs-with-matching-audio=#{args.subs_match_audio}"
-    ])
+    |> Kernel.++(["--subs-with-matching-audio=#{args.subs_match_audio}"])
     |> Kernel.++(if(args.disable_subs, do: ["--sid=no"], else: []))
   end
 

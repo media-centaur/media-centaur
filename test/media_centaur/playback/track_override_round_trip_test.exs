@@ -72,7 +72,6 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
 
     args = TrackResolver.priority_args(@policy, override, "eng")
     assert hd(args.slang) == "spa"
-    assert args.sub_visibility == true
     assert args.disable_subs == false
     assert args.subs_match_audio == "yes"
   end
@@ -92,7 +91,6 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
 
     args = TrackResolver.priority_args(@policy, override, "jpn")
     assert args.slang == []
-    assert args.sub_visibility == false
     assert args.disable_subs == true
   end
 
