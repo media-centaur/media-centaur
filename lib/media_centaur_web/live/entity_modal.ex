@@ -1203,7 +1203,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   The title carries no poster path on purpose: library subjects have no
   TMDB poster path, and the receiving install fetches its own artwork
-  from the TMDB identity.
+  from the TMDB identity. The modal itself paints the subject's library
+  poster, resolved here through `image_url/2` because this host owns the
+  entity and the modal only knows the TMDB identity.
   """
   @spec open_recommend(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def open_recommend(socket) do
@@ -1223,7 +1225,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
             year: watchlist_year(subject[:date_published]),
             release_date: subject[:date_published],
             overview: subject[:description]
-          })
+          }),
+          LiveHelpers.image_url(subject, "poster")
         )
     end
   end

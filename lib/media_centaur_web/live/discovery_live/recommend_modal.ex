@@ -13,11 +13,15 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
 
   import MediaCentaurWeb.Components.Modal, only: [modal: 1]
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.TMDB.Title
 
   attr :subject, Title, default: nil, doc: "the title being recommended; nil = closed"
+
+  attr :poster_url, :string,
+    default: nil,
+    doc:
+      "resolved by the host from the subject's artwork tier (`RecommendFlow`); nil shows the icon fallback"
 
   attr :relay_counts, :any,
     required: true,
@@ -35,7 +39,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
     >
       <div :if={@subject} class="space-y-4">
         <h2 class="text-sm font-semibold">Recommend to your friends</h2>
-        <.title_summary title={@subject} poster_url={title_poster_url(@subject)} />
+        <.title_summary title={@subject} poster_url={@poster_url} />
         <form id="recommend-form" phx-submit="recommend_send" class="space-y-3">
           <textarea
             name="note"
