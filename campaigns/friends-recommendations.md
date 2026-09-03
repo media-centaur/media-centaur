@@ -1,8 +1,8 @@
 ---
 status: active
-status_note: design — unparked 2026-09-01 (v1.0.0 shipped 2026-08-19)
+status_note: shipped v1.6.0 + v1.7.0 (2026-09-02); iterating with the owner; relay deletion pending
 started: 2026-06-17
-last_updated: 2026-09-02
+last_updated: 2026-09-03
 ---
 # Friends & recommendations (Nostr backbone)
 
@@ -18,36 +18,21 @@ building until v1 is done.
 
 ## Status
 
-**Spec written 2026-09-02; building.** v1.0.0
-shipped 2026-08-19, so the parking condition is met. All open questions are
-resolved (below). Spec:
-`docs/superpowers/specs/2026-09-02-friends-recommendations-design.md`
-(includes the unify_design adjudication and an eight-layer build order).
-Layers 1a (title convergence,
-`docs/superpowers/plans/2026-09-02-title-convergence.md`) and 1b (Discovery
-page at `/discovery/watchlist` with `tab_strip` and `show_discovery`,
-`docs/superpowers/plans/2026-09-02-discovery-page.md`) landed 2026-09-02 on
-main, unpushed. Layer 2 (`MediaCentaur.Nostr`: `Keys`, `Event`, `Filter`;
-`bitcoinex` dep) landed 2026-09-02. Layer 3 (Friends identity:
-`Social.Identity` on the sensitive `nostr_secret_key` config key, Friends
-tab identity block at `/discovery/social`) landed 2026-09-02. Layer 4 (relay
-connections: `Nostr.Connection`, `Nostr.FakeRelay`, `Social.Relay`,
-`Social.Connections`, relay block) landed 2026-09-02. Layer 5 (roster:
-`Social.Friend`, roster block) landed 2026-09-02. Layer 6
-(`Recommendations` records/translation/sync, the Recommend modal, and the
-Feed tab at `/discovery`) landed 2026-09-02. Layer 7 (watchlist
-provenance, console tags, Friends incident assessor + Status tile/widget)
-landed 2026-09-02. Layer 8 (docs) landed 2026-09-02: the wiki page
-*Friends and Recommendations* plus Settings-Reference / Troubleshooting /
-FAQ / Watchlist / Home / _Sidebar entries, and the contributor guide
-`docs/friends.md` linked from `CLAUDE.md` and `docs/architecture.md`.
-**Shipped as v1.6.0 on 2026-09-02** (layers 1–8 plus dev tooling; relay
-repo v0.1.0). Dev tooling landed 2026-09-02 (spec
-`docs/superpowers/specs/2026-09-02-social-dev-tooling-design.md`): `just
-social` walkthrough, `just social-up/down/reset/status/recommend/feed`,
-`mix social.dev` (dev friend key + `Nostr.OneShot` sessions), and
-`scripts/dev-relay` in the relay repo. Next: owner review of the full
-campaign, then layer 9 (hardening) after iteration.
+**Shipped: v1.6.0 (layers 1–8 + `just social` dev tooling) and v1.7.0
+(Settings → Social section, Friends tab, Recommendations tab with
+Incoming / Yours, own-deletion tombstones with kind 5, incremental paged
+sync, boot-order relay fix, watchlist flat-column drop), both on
+2026-09-02.** The owner is iterating on the UI one change at a time; the
+build history is in **Decisions made** and `git log`.
+
+Wire contract: `docs/social-protocol.md` (wiki *Social Protocol*, generated
+by `scripts/sync-wiki-docs`). Relay side: `../social-relay`, whose
+`campaigns/deletion-and-sync-v1.md` is the open work the app's Delete
+depends on for effect on the relay.
+
+Dev workflow: `just social` (relay in Docker on `ws://127.0.0.1:2173` +
+scripted friend via `mix social.dev`). The dev app has that relay, the
+owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
 
 ## Decisions made
 
@@ -255,6 +240,17 @@ campaign, then layer 9 (hardening) after iteration.
   (`20260902220000_drop_watchlist_flat_columns.exs`, inline heal first;
   `WatchlistItem` no longer writes `name`). Ships in the next release,
   as required.
+* **Verify own-delete end to end once `social-relay` ships
+  `deletion-and-sync-v1`**: `just social-recommend …`, delete it in the app's
+  Recommendations → Yours, `just social-feed` shows the kind 5 and not the
+  recommendation; then a friend's app drops the row after reconnect. Until
+  then the relay answers `blocked:` and keeps the copy (the app-side
+  tombstone hides it locally regardless).
+* **Suite load flakes.** Full `mix test` runs on 2026-09-02 each dropped one
+  or two unrelated tests to timeouts (OneShot 5 s deadline — since raised to
+  15 s in tests — and a page-smoke `LazyHTML` render past 60 s); all pass
+  alone. The suite is ~160 s now; the Sync tests stand up Bandit relays.
+  Watch, and consider `page_limit`-style injection over sleeps if it grows.
 * **Board alias:** `:nostr`/`:recommendations` log incidents count on the
   Friends tile (`HealthBoard.normalize/1`); the pre-existing gap that
   `:subsystem` incidents never reach the board remains (ErrorReports).
@@ -299,17 +295,22 @@ campaign, then layer 9 (hardening) after iteration.
 
 ## Completion criteria
 
-*(Provisional — refine when the campaign is unparked for real.)*
-
-* A user can generate a keypair, add a friend, and configure at least one relay
-  (public default; self-hosted optional) from inside the app.
-* A user can send a recommendation and a friend receives it, attributed and
-  identity-verified, with no server operated by us.
-* Selecting a received recommendation triggers acquisition through the existing
-  pursuit path after an explicit human confirm.
-* Public-and-private feed modes both work; private mode requires only a
-  self-hosted relay, nothing exposed by any individual's home instance.
-* Wiki + Settings docs updated for key management and relay setup.
+* ✅ A user can generate a keypair, add a friend, and configure at least one
+  relay from inside the app (Settings → Social; Discovery → Friends). Private
+  first: no default relay.
+* ✅ A user can send a recommendation and a friend receives it, attributed and
+  identity-verified, with no server operated by us (verified 2026-09-02
+  dev app ↔ scripted friend over `social-relay`).
+* ◐ Selecting a received recommendation triggers acquisition after an
+  explicit human confirm — today via Add to watchlist → the watchlist row's
+  Download / Track release; no direct Download on the Recommendations row.
+  Acceptable for now; revisit with the hardening pass.
+* ✅ Public and private modes both work: any `ws://`/`wss://` relay; private
+  = an allowlist `social-relay`, nothing exposed by a home instance.
+* ✅ Wiki + Settings docs: *Social*, *Social Protocol*, *Hosting a Private
+  Relay*, Settings-Reference → Social.
+* ⏳ Withdrawing a recommendation removes it from the relay — waits on the
+  relay's `deletion-and-sync-v1`.
 
 ## Pointers
 
