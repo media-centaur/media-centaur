@@ -101,6 +101,7 @@ defmodule MediaCentaurWeb.HomeLive do
       <:overlays>
         <RecommendModal.recommend_modal
           subject={@recommend_subject}
+          poster_url={@recommend_poster_url}
           relay_counts={@recommend_relay_counts}
         />
       </:overlays>

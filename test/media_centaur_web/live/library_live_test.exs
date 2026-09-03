@@ -353,6 +353,23 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       await_supervised_tasks()
     end
 
+    test "the Recommend modal paints the library poster", %{conn: conn} do
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        value: %{"enabled" => true}
+      })
+
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      create_image(%{movie_id: movie.id, role: "poster", content_url: "#{movie.id}/poster.jpg"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      view |> element("#detail-recommend") |> render_click()
+
+      assert has_element?(view, "#recommend-modal img[src^='/media-images/#{movie.id}/poster.jpg']")
+    end
+
     test "the Recommend control is absent while Discovery is off", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})

@@ -4,11 +4,17 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   the library detail hosts through `EntityModal`'s injected handlers, and
   the Discovery page for watchlist rows.
 
-  Assigns: `recommend_subject` (`Title.t()`, or nil = closed) and
-  `recommend_relay_counts` (`{connected, total}` for the modal's relay
-  line). The counts are read when the modal opens, not on render:
-  `Connections.status/0` is a `GenServer.call`, and the render path runs
-  on every diff.
+  Assigns: `recommend_subject` (`Title.t()`, or nil = closed),
+  `recommend_poster_url` (the artwork the modal paints, or nil for the
+  icon fallback) and `recommend_relay_counts` (`{connected, total}` for
+  the modal's relay line). The counts are read when the modal opens, not
+  on render: `Connections.status/0` is a `GenServer.call`, and the render
+  path runs on every diff.
+
+  The poster is the host's to resolve, because only the host knows which
+  artwork tier the subject lives in: a library entry's poster is in the
+  entity-keyed store (`LiveHelpers.image_url/2`), which the TMDB-identity
+  resolver `LiveHelpers.title_poster_url/1` cannot see.
 
   Send goes through `Recommendations.recommend/2`, which stores and
   publishes; the flash names whether a relay was connected at the time,
@@ -48,15 +54,24 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
 
   @doc "Seeds the closed state. Called from the host's mount (or on_mount hook)."
   @spec init(socket()) :: socket()
-  def init(socket), do: assign(socket, recommend_subject: nil, recommend_relay_counts: {0, 0})
+  def init(socket),
+    do: assign(socket, recommend_subject: nil, recommend_poster_url: nil, recommend_relay_counts: {0, 0})
 
-  @doc "Opens the modal on `title`, capturing the relay counts it shows."
-  @spec open(socket(), Title.t()) :: socket()
-  def open(socket, %Title{} = title),
-    do: assign(socket, recommend_subject: title, recommend_relay_counts: relay_counts())
+  @doc """
+  Opens the modal on `title`, painting `poster_url` (nil = icon fallback)
+  and capturing the relay counts it shows.
+  """
+  @spec open(socket(), Title.t(), String.t() | nil) :: socket()
+  def open(socket, %Title{} = title, poster_url) do
+    assign(socket,
+      recommend_subject: title,
+      recommend_poster_url: poster_url,
+      recommend_relay_counts: relay_counts()
+    )
+  end
 
   @spec close(socket()) :: socket()
-  def close(socket), do: assign(socket, recommend_subject: nil)
+  def close(socket), do: assign(socket, recommend_subject: nil, recommend_poster_url: nil)
 
   @doc """
   Sends the open subject as a recommendation. A no-op when nothing is
