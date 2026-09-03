@@ -96,33 +96,35 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
   end
 
   describe "to_mpv_flags/1" do
-    test "emits --alang/--slang/--sub-visibility/--subs-with-matching-audio from the priority args" do
+    test "emits --alang/--slang/--subs-with-matching-audio from the priority args" do
       flags =
         LanguageContext.to_mpv_flags(%{
           alang: ["jpn", "eng"],
           slang: ["eng"],
-          sub_visibility: true,
           subs_match_audio: "no",
           disable_subs: false
         })
 
       assert "--alang=jpn,eng" in flags
       assert "--slang=eng" in flags
-      assert "--sub-visibility=yes" in flags
       assert "--subs-with-matching-audio=no" in flags
       refute "--sid=no" in flags
     end
 
-    test "emits --sid=no when subs disabled (off policy or override)" do
+    # Disabling subs is expressed through `sid` alone. `--sub-visibility=no`
+    # is a session-wide render toggle nothing flips back at runtime, so a
+    # launch with it made every later subtitle switch in the track menu
+    # select a track that never rendered until the player was reopened.
+    test "never emits --sub-visibility — disabling subs is sid-only" do
       flags =
         LanguageContext.to_mpv_flags(%{
           alang: ["eng"],
           slang: [],
-          sub_visibility: false,
           subs_match_audio: "no",
           disable_subs: true
         })
 
+      refute Enum.any?(flags, &String.starts_with?(&1, "--sub-visibility"))
       assert "--sid=no" in flags
     end
 
@@ -131,7 +133,6 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
         LanguageContext.to_mpv_flags(%{
           alang: [],
           slang: ["eng"],
-          sub_visibility: true,
           subs_match_audio: "no",
           disable_subs: false
         })
@@ -145,7 +146,6 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
         LanguageContext.to_mpv_flags(%{
           alang: ["eng"],
           slang: [],
-          sub_visibility: false,
           subs_match_audio: "no",
           disable_subs: false
         })

@@ -8,7 +8,7 @@ defmodule MediaCentaur.Playback.TrackResolver do
   Two entry points:
 
     * `priority_args/3` — pre-launch: computes mpv launch flags
-      (`--alang`, `--slang`, `--sub-visibility`) from policy + override
+      (`--alang`, `--slang`, `--sid=no`) from policy + override
       alone. The file's track list isn't available yet.
 
     * `resolve/5` — post-launch: given the file's track list, picks
@@ -54,7 +54,6 @@ defmodule MediaCentaur.Playback.TrackResolver do
   @type priority_args :: %{
           alang: [String.t()],
           slang: [String.t()],
-          sub_visibility: boolean(),
           subs_match_audio: String.t(),
           disable_subs: boolean()
         }
@@ -69,7 +68,6 @@ defmodule MediaCentaur.Playback.TrackResolver do
     %{
       alang: build_alang(policy, override, original_language),
       slang: build_slang(policy, override),
-      sub_visibility: build_sub_visibility(policy, override),
       subs_match_audio: build_subs_match_audio(policy, override),
       disable_subs: build_disable_subs(policy, override)
     }
@@ -105,14 +103,6 @@ defmodule MediaCentaur.Playback.TrackResolver do
 
       true ->
         policy.understood_languages
-    end
-  end
-
-  defp build_sub_visibility(policy, override) do
-    cond do
-      override_subtitles_off?(override) -> false
-      policy.subtitles_when == "off" -> false
-      true -> true
     end
   end
 

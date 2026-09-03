@@ -719,7 +719,6 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
 
       assert args.alang == ["jpn", "eng"]
       assert args.slang == ["eng"]
-      assert args.sub_visibility == true
       # Default policy has forced_subs="fill_gaps", so mpv's "forced"
       # value handles the conditional: full subs for foreign audio,
       # forced-only subs when audio is understood.
@@ -751,11 +750,10 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
       }
 
       args = TrackResolver.priority_args(policy, nil, "eng")
-      assert args.sub_visibility == true
       assert args.subs_match_audio == "yes"
     end
 
-    test "subs off — slang empty, disable_subs=true, visibility off" do
+    test "subs off — slang empty, disable_subs=true" do
       policy = %{
         LanguagePolicy.defaults()
         | subtitles_when: "off"
@@ -763,7 +761,6 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
 
       args = TrackResolver.priority_args(policy, nil, "eng")
       assert args.slang == []
-      assert args.sub_visibility == false
       assert args.disable_subs == true
     end
 
@@ -791,11 +788,11 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
       assert hd(args.slang) == "spa"
     end
 
-    test "subtitles_off override forces visibility false and empty slang" do
+    test "subtitles_off override forces disable_subs and empty slang" do
       override = %MediaTrackOverride{subtitles_off: true}
       args = TrackResolver.priority_args(LanguagePolicy.defaults(), override, "jpn")
 
-      assert args.sub_visibility == false
+      assert args.disable_subs == true
       assert args.slang == []
     end
   end
