@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.7.1 — 2026-09-03
+
+### Fixed
+
+- **Switching subtitles mid-episode works again.** On a series or movie where you had once turned subtitles off, picking a subtitle track from the player's track menu selected it but never showed it; the words only appeared after you closed the player and reopened the episode. The player launched with subtitles hidden for the whole session in that case. It now launches with no track selected instead, so a track you pick shows immediately.
+- **The Recommend window shows the poster.** Recommending a title from your library opened the window without its artwork. The poster now comes from the library's own image store.
+
 ## v1.7.0 — 2026-09-02
 
 ### New
