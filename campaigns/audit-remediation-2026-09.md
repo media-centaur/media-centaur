@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: parked
 started: 2026-09-04
 last_updated: 2026-09-04
 ---
@@ -39,8 +39,8 @@ running.
 
 Engineering Pass 1 (E1–E6), Pass 2 (E7–E18) and Pass 3 (E19–E28)
 resolved 2026-09-04 in the commits from `a661eea7` onward (plus E36, E41,
-and the polling half of P2, which those passes pulled in). **Paused for
-owner review** before Pass 4 (E29–E42). Full `mix precommit` is green
+and the polling half of P2, which those passes pulled in). Reviewed and
+ratified by the owner; **parked** before Pass 4 (E29–E42). Full `mix precommit` is green
 apart from the suite's known concurrency flakes (relay timeout,
 "Database busy", a 60 s page-smoke timeout), each passing in isolation. Sweep run 2026-09-04 against `7e1df187` (v1.7.3): 57
 engineering, 10 performance, 42 documentation, 25 design findings.
@@ -68,16 +68,13 @@ Criticals: P1; DS4, DS14, DS15, DS16, DS25.
   and `config :media_centaur, :req_test_stubs` instead of writing clients
   into `persistent_term` — two tests that had been quietly hitting the
   real TMDB API surfaced and were stubbed.
-* `2026-09-04` — **Owner review:** decisions E7 (EntityView), E19/E26
-  (corpus keying), E23 (compat layers removed) and E18 (pipeline stats
-  broadcasts) **ratified**. E9/E11 not ratified — see next entry.
-* `2026-09-04` — **Owner review: E9/E11 NOT ratified.** A parallel task is
-  reworking the Req client setup. Commit `0a40c933` stays in the tree as
-  the measured state, but its shape (client built per call, drivers
-  taking `%ClientConfig{}`, `MediaCentaur.HttpClient` + `:req_test_stubs`
-  as the test seam, `Capabilities.save_integration/2`) is provisional
-  until reconciled with that work — see *Next steps*.
-* `2026-09-04` — **E11 decided (provisional, see above):** `Capabilities.save_integration/2` is the
+* `2026-09-04` — **Owner review: all five Pass 1–3 decisions ratified**
+  (E7 EntityView, E9/E11 integration clients and save path, E19/E26
+  corpus keying, E23 compat layers removed, E18 pipeline stats
+  broadcasts). A parallel task is reworking the Req client setup;
+  reconciling it with commit `0a40c933` stays the first item under
+  *Next steps*. Campaign **paused** at the owner's request after review.
+* `2026-09-04` — **E11 decided:** `Capabilities.save_integration/2` is the
   one save path (blank secrets leave the value, a change clears the test
   result); `Capabilities.configured?/1` the one configured predicate.
   `Acquisition.Config` deleted.
