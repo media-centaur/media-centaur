@@ -172,6 +172,11 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   each Nostr range (2160+, 12160+, 22160+, 32160+); recommendation stays
   32160. Content carries `v: 1`; unknown fields ignored, unknown `v`
   dropped.
+* `2026-09-04` — **Relay carries the contract from v0.3.0.** social-relay
+  v0.3.0 accepts kind 5 (address form, author only), keeps one record per
+  address, refuses a recommendation older than its tombstone, and caps
+  `limit` at 500. Relays on v0.2.x still answer withdrawals with
+  `blocked: kind 5 is not stored by this relay`.
 * `2026-09-02` — **Delete = tombstone + kind 5.** Own recommendations can be
   withdrawn: the row keeps `deleted_at` + the signed deletion, ingest
   refuses older copies, a newer recommendation revives, the sync loop
