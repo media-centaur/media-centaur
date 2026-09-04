@@ -3,12 +3,24 @@ defmodule MediaCentaur.Search.ProwlarrTest do
 
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
 
+  # `Prowlarr.default_client/0` is built from Settings on every call; the
+  # test config routes it through the `:prowlarr` Req.Test stub, so a test
+  # only has to stub responses. Explicit-client tests pass `client`.
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
-    on_exit(fn -> :persistent_term.erase({Prowlarr, :client}) end)
-    {:ok, client: client}
+    original = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+    :persistent_term.put(
+      {MediaCentaur.Settings.Config, :config},
+      Map.merge(original, %{
+        prowlarr_url: "http://prowlarr.test",
+        prowlarr_api_key: MediaCentaur.Secret.wrap("test-key"),
+        showcase_mode: false
+      })
+    )
+
+    on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, original) end)
+    {:ok, client: Prowlarr.default_client()}
   end
 
   describe "search/2" do
@@ -239,11 +251,8 @@ defmodule MediaCentaur.Search.ProwlarrTest do
         }
       )
 
-      Prowlarr.invalidate_client()
-
       on_exit(fn ->
         :persistent_term.put({MediaCentaur.Settings.Config, :config}, original)
-        Prowlarr.invalidate_client()
       end)
 
       :ok

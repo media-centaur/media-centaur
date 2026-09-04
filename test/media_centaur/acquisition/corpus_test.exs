@@ -2,16 +2,13 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Acquisition.Corpus
-  alias MediaCentaur.Search.{IndexerHealth, Prowlarr, SearchResult}
+  alias MediaCentaur.Search.{IndexerHealth, SearchResult}
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
     IndexerHealth.clear_cache()
 
     on_exit(fn ->
-      :persistent_term.erase({Prowlarr, :client})
       IndexerHealth.clear_cache()
     end)
 

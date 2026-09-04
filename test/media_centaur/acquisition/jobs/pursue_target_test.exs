@@ -21,10 +21,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
     # Install a stub that crashes if invoked — any Prowlarr call is a
     # bug since the worker should early-exit before reaching the network.
     Req.Test.stub(:prowlarr, fn _conn -> flunk("Prowlarr must not be called") end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
 
-    on_exit(fn -> :persistent_term.erase({Prowlarr, :client}) end)
     :ok
   end
 

@@ -4,12 +4,9 @@ defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.ViewModels.GapEvidence
   alias MediaCentaur.Acquisition.Targeting
-  alias MediaCentaur.Search.Prowlarr
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
 
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
@@ -21,7 +18,6 @@ defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
     )
 
     on_exit(fn ->
-      :persistent_term.erase({Prowlarr, :client})
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
     end)
 

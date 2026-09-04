@@ -4,13 +4,11 @@ defmodule MediaCentaur.DownloadClientStubs do
   @moduledoc """
   Shared download-client stub helpers (mirrors `TmdbStubs`).
 
-  Configures qBittorrent as the active driver and installs a
-  `Req.Test`-backed client in `:persistent_term` so driver calls hit
-  the `:qbittorrent` stub. Config and client are restored on exit.
+  Configures a download-client slot in Settings; the test config routes
+  each driver's requests through its `Req.Test` stub
+  (`MediaCentaur.HttpClient`), so driver calls hit `:qbittorrent` /
+  `:sabnzbd`. Config is restored on exit.
   """
-
-  alias MediaCentaur.Downloads.DownloadClient.QBittorrent
-  alias MediaCentaur.Downloads.DownloadClient.SABnzbd
 
   @doc """
   Points the configured download client at a `Req.Test` `:qbittorrent`
@@ -29,13 +27,10 @@ defmodule MediaCentaur.DownloadClientStubs do
       })
     )
 
-    qbit_client = Req.new(plug: {Req.Test, :qbittorrent}, retry: false, base_url: "http://qbit.test")
-    :persistent_term.put({QBittorrent, :client}, qbit_client)
     Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, %{}) end)
 
     ExUnit.Callbacks.on_exit(fn ->
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-      QBittorrent.invalidate_client()
     end)
 
     context
@@ -58,9 +53,6 @@ defmodule MediaCentaur.DownloadClientStubs do
       })
     )
 
-    sab_client = Req.new(plug: {Req.Test, :sabnzbd}, retry: false, base_url: "http://sab.test")
-    :persistent_term.put({SABnzbd, :client}, sab_client)
-
     Req.Test.stub(:sabnzbd, fn conn ->
       case conn.params["mode"] do
         "history" -> Req.Test.json(conn, %{"history" => %{"slots" => []}})
@@ -70,7 +62,6 @@ defmodule MediaCentaur.DownloadClientStubs do
 
     ExUnit.Callbacks.on_exit(fn ->
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-      SABnzbd.invalidate_client()
     end)
 
     context

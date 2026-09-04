@@ -10,6 +10,14 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
 
   @sidebar_review ~s{aside a[data-tip="Review"]}
 
+  # /reconcile assembles the show spine from TMDB; an empty show keeps
+  # these sidebar tests off the network and on the badge.
+  setup do
+    MediaCentaur.TmdbStubs.setup_tmdb_client()
+    Req.Test.stub(:tmdb, fn conn -> Req.Test.json(conn, %{"seasons" => []}) end)
+    :ok
+  end
+
   defp divert_awaiting_file do
     {:ok, awaiting_file} =
       Reconciliation.divert(%{

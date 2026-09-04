@@ -43,20 +43,15 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
 
   ## Configuration
 
-  Reads from `MediaCentaur.Settings.Config`:
-
-    * `:usenet_download_client_url`     — e.g. `http://localhost:8085`
-    * `:usenet_download_client_api_key` — SABnzbd API key (Secret)
-
-  The base HTTP client is cached in `:persistent_term`. Call
-  `invalidate_client/0` after settings change.
+  Every call takes the usenet slot's `MediaCentaur.Downloads.ClientConfig`
+  (`url`, `api_key`); the driver reads no settings and caches nothing.
   """
 
   @behaviour MediaCentaur.Downloads.DownloadClient
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Downloads.DownloadClient.SyncResult
   alias MediaCentaur.Downloads.QueueItem
 
@@ -67,33 +62,15 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
   @history_limit 30
 
   @impl true
-  def list_downloads(filter, client \\ default_client())
-
-  def list_downloads(:active, client), do: fetch_queue_items(client)
-
-  def list_downloads(:completed, client) do
-    with {:ok, items} <- fetch_history_items(client) do
-      {:ok, Enum.filter(items, &(&1.state == :completed))}
-    end
-  end
-
-  def list_downloads(:all, client) do
-    with {:ok, queue_items} <- fetch_queue_items(client),
-         {:ok, history_items} <- fetch_history_items(client) do
-      {:ok, queue_items ++ history_items}
-    end
-  end
-
-  @impl true
-  def test_connection(client \\ default_client()) do
-    case get_api(client, mode: "queue", limit: 1) do
+  def test_connection(%ClientConfig{} = config) do
+    case get_api(config, mode: "queue", limit: 1) do
       {:ok, _body} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
 
   @impl true
-  def cancel_download(id, client \\ default_client()) do
+  def cancel_download(%ClientConfig{} = config, id) do
     # An NZO lives in exactly one store: the live queue while it's
     # grabbing/downloading/post-processing, or history once it's terminal
     # (Completed/Failed). Deletion is store-specific — the queue endpoint
@@ -101,9 +78,9 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
     # jobs undeletable and re-rendering on every poll. So attempt the queue
     # delete, and fall back to history when SABnzbd reports it removed
     # nothing. `del_files=1` removes the on-disk data in both stores.
-    case delete_slot(client, "queue", id) do
+    case delete_slot(config, "queue", id) do
       {:ok, %{"status" => false}} ->
-        case delete_slot(client, "history", id) do
+        case delete_slot(config, "history", id) do
           {:ok, _body} -> :ok
           {:error, reason} -> {:error, reason}
         end
@@ -116,18 +93,17 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
     end
   end
 
-  defp delete_slot(client, mode, id) do
-    get_api(client, mode: mode, name: "delete", value: id, del_files: 1)
+  defp delete_slot(config, mode, id) do
+    get_api(config, mode: mode, name: "delete", value: id, del_files: 1)
   end
 
   @impl true
-  def sync(driver_state, client \\ default_client())
-  def sync(nil, client), do: sync(%{}, client)
+  def sync(%ClientConfig{} = config, nil), do: sync(config, %{})
 
-  def sync(previous_fingerprint, client) when is_map(previous_fingerprint) do
-    with {:ok, queue_items} <- wrap_sync_error(fetch_queue_items(client), previous_fingerprint),
+  def sync(%ClientConfig{} = config, previous_fingerprint) when is_map(previous_fingerprint) do
+    with {:ok, queue_items} <- wrap_sync_error(fetch_queue_items(config), previous_fingerprint),
          {:ok, history_items} <-
-           wrap_sync_error(fetch_history_items(client), previous_fingerprint) do
+           wrap_sync_error(fetch_history_items(config), previous_fingerprint) do
       items = queue_items ++ history_items
       fingerprint = fingerprint(items)
 
@@ -141,43 +117,25 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
     end
   end
 
-  @doc "Clears the cached HTTP client."
-  def invalidate_client do
-    :persistent_term.erase({__MODULE__, :client})
-    :ok
-  end
-
-  @doc "Returns a Req client configured for SABnzbd, cached in `:persistent_term`."
-  def default_client do
-    case :persistent_term.get({__MODULE__, :client}, nil) do
-      nil ->
-        client = Req.new(base_url: Config.get(:usenet_download_client_url), retry: false)
-        :persistent_term.put({__MODULE__, :client}, client)
-        client
-
-      client ->
-        client
-    end
-  end
-
   # --- Internal ---
 
-  defp fetch_queue_items(client) do
-    with {:ok, body} <- get_api(client, mode: "queue") do
+  defp fetch_queue_items(config) do
+    with {:ok, body} <- get_api(config, mode: "queue") do
       slots = get_in(body, ["queue", "slots"]) || []
       {:ok, Enum.map(slots, &QueueItem.from_sabnzbd_queue/1)}
     end
   end
 
-  defp fetch_history_items(client) do
-    with {:ok, body} <- get_api(client, mode: "history", limit: @history_limit) do
+  defp fetch_history_items(config) do
+    with {:ok, body} <- get_api(config, mode: "history", limit: @history_limit) do
       slots = get_in(body, ["history", "slots"]) || []
       {:ok, Enum.map(slots, &QueueItem.from_sabnzbd_history/1)}
     end
   end
 
-  defp get_api(client, params) do
-    api_key = MediaCentaur.Secret.expose(Config.get(:usenet_download_client_api_key)) || ""
+  defp get_api(%ClientConfig{} = config, params) do
+    client = MediaCentaur.HttpClient.new(__MODULE__, base_url: config.url, retry: false)
+    api_key = MediaCentaur.Secret.expose(config.api_key) || ""
     params = Keyword.merge([output: "json", apikey: api_key], params)
 
     case Req.get(client, url: "/api", params: params) do

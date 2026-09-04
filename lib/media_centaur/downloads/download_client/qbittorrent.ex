@@ -29,49 +29,20 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
 
   ## Configuration
 
-  Reads from `MediaCentaur.Settings.Config`:
-
-    * `:download_client_url`      — e.g. `http://localhost:8080`
-    * `:download_client_username` — qBit WebUI username (may be nil)
-    * `:download_client_password` — qBit WebUI password (may be nil)
-
-  The base HTTP client and the session cookie are cached in
-  `:persistent_term`. Call `invalidate_client/0` after settings change.
+  Every call takes the torrent slot's `MediaCentaur.Downloads.ClientConfig`
+  (`url`, `username`, `password`); the driver reads no settings itself.
+  Only the session cookie is kept between calls (`:persistent_term`) — a
+  cookie the server no longer accepts surfaces as 403 and is replaced by
+  a fresh login.
   """
 
   @behaviour MediaCentaur.Downloads.DownloadClient
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync
   alias MediaCentaur.Downloads.DownloadClient.SyncResult
-  alias MediaCentaur.Downloads.QueueItem
-
-  @impl true
-  def list_downloads(filter \\ :all, client \\ default_client()) do
-    attempt(client, fn c ->
-      case Req.get(c, url: "/api/v2/torrents/info", params: [filter: qbit_filter(filter)]) do
-        {:ok, %{status: 200, body: torrents}} when is_list(torrents) ->
-          {:ok, Enum.map(torrents, &QueueItem.from_qbittorrent/1)}
-
-        {:ok, %{status: 403, body: body}} ->
-          {:error, {:http_error, 403, body}}
-
-        {:ok, %{status: status, body: body}} ->
-          Log.warning(
-            :acquisition,
-            "qbittorrent list_downloads failed — status=#{status} body=#{inspect(body)}"
-          )
-
-          {:error, {:http_error, status, body}}
-
-        {:error, reason} ->
-          Log.warning(:acquisition, "qbittorrent list_downloads error — #{inspect(reason)}")
-          {:error, reason}
-      end
-    end)
-  end
 
   @doc """
   Fetches incremental queue state via `/api/v2/sync/maindata?rid=N`.
@@ -85,9 +56,9 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
   the webUI uses, optimised for sub-second cadence with minimal
   bandwidth.
   """
-  @spec sync_maindata(non_neg_integer(), Req.Request.t()) :: {:ok, map()} | {:error, term()}
-  def sync_maindata(rid \\ 0, client \\ default_client()) when is_integer(rid) and rid >= 0 do
-    attempt(client, fn c ->
+  @spec sync_maindata(ClientConfig.t(), non_neg_integer()) :: {:ok, map()} | {:error, term()}
+  def sync_maindata(%ClientConfig{} = config, rid \\ 0) when is_integer(rid) and rid >= 0 do
+    attempt(config, fn c ->
       case Req.get(c, url: "/api/v2/sync/maindata", params: [rid: rid]) do
         {:ok, %{status: 200, body: body}} when is_map(body) ->
           {:ok, body}
@@ -124,11 +95,10 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
   torrent mirror; `nil` starts fresh with a full update.
   """
   @impl true
-  def sync(driver_state, client \\ default_client())
-  def sync(nil, client), do: sync(%Sync.State{}, client)
+  def sync(%ClientConfig{} = config, nil), do: sync(config, %Sync.State{})
 
-  def sync(%Sync.State{} = bookmark, client) do
-    case sync_maindata(bookmark.rid, client) do
+  def sync(%ClientConfig{} = config, %Sync.State{} = bookmark) do
+    case sync_maindata(config, bookmark.rid) do
       {:ok, response} ->
         torrents = Sync.apply_maindata(bookmark.torrents, response)
         counts = Sync.counts(response, bookmark.torrents, torrents)
@@ -155,8 +125,8 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
   end
 
   @impl true
-  def cancel_download(id, client \\ default_client()) do
-    attempt(client, fn c ->
+  def cancel_download(%ClientConfig{} = config, id) do
+    attempt(config, fn c ->
       case Req.post(c,
              url: "/api/v2/torrents/delete",
              form: [hashes: id, deleteFiles: "true"]
@@ -183,8 +153,8 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
   end
 
   @impl true
-  def test_connection(client \\ default_client()) do
-    attempt(client, fn c ->
+  def test_connection(%ClientConfig{} = config) do
+    attempt(config, fn c ->
       case Req.get(c, url: "/api/v2/app/version") do
         {:ok, %{status: 200}} -> :ok
         {:ok, %{status: 403}} -> {:error, {:http_error, 403}}
@@ -194,28 +164,14 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
     end)
   end
 
-  @doc "Clears the cached HTTP client and session cookie."
-  def invalidate_client do
-    :persistent_term.erase({__MODULE__, :client})
-    :persistent_term.erase({__MODULE__, :cookie})
-    :ok
-  end
-
-  @doc """
-  Returns a Req client configured for qBittorrent. The base client is
-  cached in `:persistent_term`; if a session cookie has been obtained,
-  it is composed into the returned client at call time.
-  """
-  def default_client do
+  # The Req client for a slot: the configured base URL (or, in showcase
+  # mode, the fixture plug) plus the session cookie when one is held.
+  defp req(%ClientConfig{} = config) do
     base =
-      case :persistent_term.get({__MODULE__, :client}, nil) do
-        nil ->
-          client = build_client()
-          :persistent_term.put({__MODULE__, :client}, client)
-          client
-
-        client ->
-          client
+      if MediaCentaur.Settings.Config.get(:showcase_mode) do
+        Req.new(plug: &MediaCentaur.Showcase.Stubs.qbittorrent_plug/1, retry: false)
+      else
+        MediaCentaur.HttpClient.new(__MODULE__, base_url: config.url, retry: false)
       end
 
     case :persistent_term.get({__MODULE__, :cookie}, nil) do
@@ -224,33 +180,25 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
     end
   end
 
-  defp build_client do
-    if Config.get(:showcase_mode) do
-      Req.new(plug: &MediaCentaur.Showcase.Stubs.qbittorrent_plug/1, retry: false)
-    else
-      url = Config.get(:download_client_url)
-      Req.new(base_url: url, retry: false)
-    end
-  end
-
-  # Runs `fun.(client)`. On a 403 response, attempts to authenticate and
-  # retries once with a fresh client carrying the new cookie.
-  defp attempt(client, fun) do
-    case fun.(client) do
+  # Runs `fun.(req)`. On a 403 response, logs in with the slot's
+  # credentials and retries once with a client carrying the new cookie.
+  defp attempt(%ClientConfig{} = config, fun) do
+    case fun.(req(config)) do
       {:error, {:http_error, 403, _}} ->
-        with {:ok, fresh} <- authenticate(client), do: fun.(fresh)
+        with {:ok, fresh} <- authenticate(config), do: fun.(fresh)
 
       {:error, {:http_error, 403}} ->
-        with {:ok, fresh} <- authenticate(client), do: fun.(fresh)
+        with {:ok, fresh} <- authenticate(config), do: fun.(fresh)
 
       result ->
         result
     end
   end
 
-  defp authenticate(client) do
-    username = Config.get(:download_client_username) || ""
-    password = MediaCentaur.Secret.expose(Config.get(:download_client_password)) || ""
+  defp authenticate(%ClientConfig{} = config) do
+    client = req(config)
+    username = config.username || ""
+    password = MediaCentaur.Secret.expose(config.password) || ""
 
     Log.info(:acquisition, "qbittorrent — authenticating")
 
@@ -292,8 +240,4 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
       end
     end)
   end
-
-  defp qbit_filter(:active), do: "active"
-  defp qbit_filter(:completed), do: "completed"
-  defp qbit_filter(:all), do: "all"
 end

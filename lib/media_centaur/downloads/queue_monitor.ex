@@ -203,7 +203,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
       last_sync_log_ms: nil,
       poll_generation: 0,
       # Per-protocol client conversations:
-      # %{protocol => %{module, driver_state, items, connectivity}}.
+      # %{protocol => %{module, config, driver_state, items, connectivity}}.
       # `driver_state` is the driver's opaque sync bookmark, reset when
       # the slot's driver module changes between polls; `items` is the
       # slot's last successful item list, carried through failed polls.
@@ -272,7 +272,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
     ready_drivers =
       for {config, module} <- Dispatcher.drivers(),
           Capabilities.client_ready?(config.protocol),
-          do: {config.protocol, module}
+          do: {config, module}
 
     case ready_drivers do
       [] -> mark_not_configured(state)
@@ -284,8 +284,9 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
     now = DateTime.utc_now()
 
     outcomes =
-      Enum.map(drivers, fn {protocol, module} ->
-        {protocol, sync_client(client_for(state.clients, protocol, module), protocol, now)}
+      Enum.map(drivers, fn {config, module} ->
+        client = client_for(state.clients, config.protocol, module)
+        {config.protocol, sync_client(%{client | config: config}, config.protocol, now)}
       end)
 
     clients = Map.new(outcomes, fn {protocol, {client, _tick}} -> {protocol, client} end)
@@ -320,7 +321,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   # {movement?, summary} on success, nil on failure (the failed slot
   # keeps its last-known items and its grade carries the failure).
   defp sync_client(client, protocol, now) do
-    case client.module.sync(client.driver_state) do
+    case client.module.sync(client.config, client.driver_state) do
       {:ok, %SyncResult{} = result} ->
         {%{
            client
@@ -357,7 +358,13 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         client
 
       _new_or_swapped ->
-        %{module: module, driver_state: nil, items: [], connectivity: Connectivity.initial()}
+        %{
+          module: module,
+          config: nil,
+          driver_state: nil,
+          items: [],
+          connectivity: Connectivity.initial()
+        }
     end
   end
 

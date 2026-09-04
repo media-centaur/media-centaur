@@ -86,6 +86,82 @@ defmodule MediaCentaur.Capabilities do
     Topics.subscribe(Topics.capabilities_updates())
   end
 
+  @doc """
+  True when the integration's connection settings are complete — the
+  first half of readiness, before any connection test. TMDB needs a key;
+  Prowlarr a URL and a key; each download-client slot a type and a URL.
+  """
+  @spec configured?(subject()) :: boolean()
+  def configured?(:tmdb), do: MediaCentaur.Secret.present?(Config.get(:tmdb_api_key))
+
+  def configured?(:prowlarr),
+    do:
+      present?(Config.get(:prowlarr_url)) and MediaCentaur.Secret.present?(Config.get(:prowlarr_api_key))
+
+  def configured?(:download_client),
+    do: present?(Config.get(:download_client_type)) and present?(Config.get(:download_client_url))
+
+  def configured?(:usenet_download_client) do
+    present?(Config.get(:usenet_download_client_type)) and
+      present?(Config.get(:usenet_download_client_url))
+  end
+
+  # The form fields of each integration and how a blank submission reads:
+  # a blank `:setting` or `:secret` means "leave it", the one `:clearable`
+  # field (the qBittorrent username) may legitimately be emptied.
+  @integration_fields %{
+    tmdb: [tmdb_api_key: :secret],
+    prowlarr: [prowlarr_url: :setting, prowlarr_api_key: :secret],
+    download_client: [
+      download_client_type: :setting,
+      download_client_url: :setting,
+      download_client_username: :clearable,
+      download_client_password: :secret
+    ],
+    usenet_download_client: [
+      usenet_download_client_type: :setting,
+      usenet_download_client_url: :setting,
+      usenet_download_client_api_key: :secret
+    ]
+  }
+
+  @doc """
+  Saves an integration's connection form. `params` is the submitted form
+  (string keys); fields absent from it are untouched, blank settings and
+  secrets are left as they were. Returns whether any stored value changed;
+  a change clears the integration's persisted test result, since the old
+  result no longer describes these settings. Both the Settings page and
+  the setup tour save through here.
+  """
+  @spec save_integration(subject(), %{optional(String.t()) => term()}) :: boolean()
+  def save_integration(subject, params) when is_map(params) do
+    changed? =
+      @integration_fields
+      |> Map.fetch!(subject)
+      |> Enum.reduce(false, fn {key, kind}, changed? ->
+        write_field(key, kind, Map.get(params, Atom.to_string(key))) or changed?
+      end)
+
+    if changed?, do: clear_test_result(subject)
+    changed?
+  end
+
+  defp write_field(_key, _kind, nil), do: false
+  defp write_field(_key, kind, "") when kind in [:setting, :secret], do: false
+
+  defp write_field(key, kind, value) when is_binary(value) do
+    current = if kind == :secret, do: MediaCentaur.Secret.expose(Config.get(key)), else: Config.get(key)
+
+    if current == value do
+      false
+    else
+      Config.update(key, value)
+      true
+    end
+  end
+
+  defp present?(value), do: is_binary(value) and value != ""
+
   @doc "Filters PubSub messages relevant to this cache."
   @impl MediaCentaur.Cache
   def relevant?(:capabilities_changed), do: true
@@ -149,20 +225,13 @@ defmodule MediaCentaur.Capabilities do
   end
 
   defp compute_flags do
-    prowlarr = prowlarr_configured?() and last_test_ok?(:prowlarr)
-
-    torrent_client =
-      client_configured?(:download_client_type, :download_client_url) and
-        last_test_ok?(:download_client)
-
-    usenet_client =
-      client_configured?(:usenet_download_client_type, :usenet_download_client_url) and
-        last_test_ok?(:usenet_download_client)
-
+    prowlarr = configured?(:prowlarr) and last_test_ok?(:prowlarr)
+    torrent_client = configured?(:download_client) and last_test_ok?(:download_client)
+    usenet_client = configured?(:usenet_download_client) and last_test_ok?(:usenet_download_client)
     download_client = torrent_client or usenet_client
 
     %{
-      tmdb: tmdb_configured?() and last_test_ok?(:tmdb),
+      tmdb: configured?(:tmdb) and last_test_ok?(:tmdb),
       prowlarr: prowlarr,
       torrent_client: torrent_client,
       usenet_client: usenet_client,
@@ -218,21 +287,6 @@ defmodule MediaCentaur.Capabilities do
       %{status: :ok} -> true
       _ -> false
     end
-  end
-
-  defp tmdb_configured?, do: MediaCentaur.Secret.present?(Config.get(:tmdb_api_key))
-
-  defp prowlarr_configured? do
-    url = Config.get(:prowlarr_url)
-
-    is_binary(url) and url != "" and
-      MediaCentaur.Secret.present?(Config.get(:prowlarr_api_key))
-  end
-
-  defp client_configured?(type_key, url_key) do
-    type = Config.get(type_key)
-    url = Config.get(url_key)
-    is_binary(type) and type != "" and is_binary(url) and url != ""
   end
 
   defp parse(%{"status" => status, "tested_at" => iso})

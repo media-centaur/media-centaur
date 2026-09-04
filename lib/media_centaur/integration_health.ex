@@ -50,6 +50,7 @@ defmodule MediaCentaur.IntegrationHealth do
     deps: [
       MediaCentaur.TMDB,
       MediaCentaur.Acquisition,
+      MediaCentaur.Capabilities,
       MediaCentaur.Downloads
     ],
     exports: [Status, Verifier]
@@ -57,22 +58,20 @@ defmodule MediaCentaur.IntegrationHealth do
   use GenServer
 
   alias MediaCentaur.Settings.Config
-  alias MediaCentaur.{Downloads, Secret, Topics}
+  alias MediaCentaur.{Capabilities, Downloads, Topics}
   alias MediaCentaur.IntegrationHealth.{Status, Verifier}
   require MediaCentaur.Log, as: Log
 
   @table :integration_health
   @integrations [:tmdb, :prowlarr, :download_client]
 
-  # Map a single-key integration id to the Config key whose presence
-  # flips `configured?`. `:download_client` is deliberately absent: it
-  # spans two slots (torrent + usenet), so it derives `configured?` from
-  # `Downloads.configured_clients/0` and reacts to any of the slot keys
-  # (`Downloads.config_key?/1`) — see `configured_for?/1` and
-  # `integration_for_key/1`.
-  @config_key %{
-    tmdb: :tmdb_api_key,
-    prowlarr: :prowlarr_api_key
+  # The Config keys whose change can flip an integration's `configured?`
+  # (the predicate itself is `Capabilities.configured?/1`).
+  # `:download_client` is deliberately absent: it spans two slots
+  # (torrent + usenet) and reacts to any slot key (`Downloads.config_key?/1`).
+  @config_keys %{
+    tmdb: [:tmdb_api_key],
+    prowlarr: [:prowlarr_url, :prowlarr_api_key]
   }
 
   # ---------------------------------------------------------------------------
@@ -208,19 +207,13 @@ defmodule MediaCentaur.IntegrationHealth do
   end
 
   defp configured_for?(:download_client), do: Downloads.configured_clients() != []
-
-  defp configured_for?(id) do
-    @config_key
-    |> Map.fetch!(id)
-    |> Config.get()
-    |> Secret.present?()
-  end
+  defp configured_for?(id), do: Capabilities.configured?(id)
 
   defp integration_for_key(key) do
     if Downloads.config_key?(key) do
       :download_client
     else
-      Enum.find([:tmdb, :prowlarr], fn id -> Map.get(@config_key, id) == key end)
+      Enum.find([:tmdb, :prowlarr], fn id -> key in Map.fetch!(@config_keys, id) end)
     end
   end
 

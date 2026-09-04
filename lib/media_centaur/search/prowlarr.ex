@@ -33,8 +33,8 @@ defmodule MediaCentaur.Search.Prowlarr do
     * `:prowlarr_url`     — base URL, e.g. `http://localhost:9696`
     * `:prowlarr_api_key` — sent as `x-api-key` header
 
-  The HTTP client is built lazily, cached in `:persistent_term`, and
-  rebuilt by `invalidate_client/0` (call after settings change).
+  The HTTP client is built from the current settings on every call, so a
+  saved URL or key is live immediately.
 
   ## Testing
 
@@ -50,24 +50,8 @@ defmodule MediaCentaur.Search.Prowlarr do
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Search.SearchResult
 
-  @doc "Clears the cached Req client so the next call rebuilds it from config."
-  def invalidate_client do
-    :persistent_term.erase({__MODULE__, :client})
-    :ok
-  end
-
-  @doc "Returns a Req client configured for Prowlarr. Cached in `:persistent_term`."
-  def default_client do
-    case :persistent_term.get({__MODULE__, :client}, nil) do
-      nil ->
-        client = build_client()
-        :persistent_term.put({__MODULE__, :client}, client)
-        client
-
-      client ->
-        client
-    end
-  end
+  @doc "A Req client for Prowlarr, built from the configured URL and key."
+  def default_client, do: build_client()
 
   # Prowlarr's /api/v1/search fans out to every configured indexer in
   # real time. With 6+ indexers (especially when one is a meta-aggregator
@@ -86,11 +70,14 @@ defmodule MediaCentaur.Search.Prowlarr do
       url = Config.get(:prowlarr_url)
       api_key = MediaCentaur.Secret.expose(Config.get(:prowlarr_api_key))
 
-      Req.new(
-        base_url: url,
-        headers: [{"x-api-key", api_key}],
-        receive_timeout: @search_timeout_ms,
-        retry: false
+      # An unconfigured URL or key is left out rather than sent as nil; the
+      # request then fails at the transport, and `Acquisition.available?/0`
+      # keeps callers from getting this far in the first place.
+      MediaCentaur.HttpClient.new(
+        __MODULE__,
+        [receive_timeout: @search_timeout_ms, retry: false] ++
+          if(is_binary(url) and url != "", do: [base_url: url], else: []) ++
+          if(api_key, do: [headers: [{"x-api-key", api_key}]], else: [])
       )
     end
   end

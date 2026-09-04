@@ -21,31 +21,13 @@ defmodule MediaCentaur.TMDB.Client do
 
   @base_url "https://api.themoviedb.org/3"
 
-  @doc "Clears the cached Req client so the next call rebuilds it from config."
-  def invalidate_client do
-    :persistent_term.erase({__MODULE__, :client})
-    :ok
-  end
-
   @doc """
-  Returns a `Req` client configured with the TMDB base URL and API key.
-  Caches the client in `persistent_term` for reuse across calls.
+  A `Req` client for the TMDB API, built from the configured key on every
+  call so a saved key is live immediately.
   """
   def default_client do
-    case :persistent_term.get({__MODULE__, :client}, nil) do
-      nil ->
-        client = build_client()
-        :persistent_term.put({__MODULE__, :client}, client)
-        client
-
-      client ->
-        client
-    end
-  end
-
-  defp build_client do
     api_key = MediaCentaur.Secret.expose(MediaCentaur.Settings.Config.get(:tmdb_api_key))
-    Req.new(base_url: @base_url, params: [api_key: api_key])
+    MediaCentaur.HttpClient.new(__MODULE__, base_url: @base_url, params: [api_key: api_key])
   end
 
   @doc """

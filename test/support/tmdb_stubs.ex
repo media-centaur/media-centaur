@@ -4,24 +4,16 @@ defmodule MediaCentaur.TmdbStubs do
   @moduledoc """
   Shared TMDB API stub helpers for pipeline tests.
 
-  Uses `Req.Test` to intercept HTTP requests and return fixture data.
-  Installs a stubbed client into `:persistent_term` so that `TMDB.Client`
-  functions use it transparently.
+  Uses `Req.Test` to intercept HTTP requests and return fixture data. The
+  test config routes every `TMDB.Client` request through the `:tmdb` stub
+  (`MediaCentaur.HttpClient`), so these helpers only register responses.
   """
 
   @doc """
-  Sets up a Req.Test-backed TMDB client in persistent_term.
-  Call in test setup; cleans up on exit automatically.
+  Registers a default empty-results `:tmdb` stub. Call in test setup.
   """
   def setup_tmdb_client(context \\ %{}) do
     Req.Test.stub(:tmdb, fn conn -> json_resp(conn, 200, %{"results" => []}) end)
-    client = Req.new(plug: {Req.Test, :tmdb}, retry: false)
-    :persistent_term.put({MediaCentaur.TMDB.Client, :client}, client)
-
-    ExUnit.Callbacks.on_exit(fn ->
-      :persistent_term.erase({MediaCentaur.TMDB.Client, :client})
-    end)
-
     context
   end
 

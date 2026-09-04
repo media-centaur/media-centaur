@@ -916,13 +916,10 @@ defmodule MediaCentaur.Showcase do
     MediaCentaur.Capabilities.save_test_result(:download_client, :ok)
     MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
 
-    # Flip the showcase-mode flag and invalidate the HTTP clients so
-    # subsequent Prowlarr / qBittorrent calls go through the fixture
-    # plugs in MediaCentaur.Showcase.Stubs instead of hitting real
-    # backends that the showcase instance doesn't have.
+    # Flip the showcase-mode flag; Prowlarr and qBittorrent build their
+    # HTTP clients per call and route through the fixture plugs in
+    # MediaCentaur.Showcase.Stubs from the next call on.
     Config.update(:showcase_mode, true)
-    MediaCentaur.Search.Prowlarr.invalidate_client()
-    MediaCentaur.Downloads.DownloadClient.QBittorrent.invalidate_client()
 
     :ok
   end

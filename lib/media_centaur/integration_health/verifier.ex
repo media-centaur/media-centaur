@@ -42,11 +42,8 @@ defmodule MediaCentaur.IntegrationHealth.Verifier do
         {:error, :not_configured}
 
       drivers ->
-        # Each driver reads its own slot config via `default_client/0`
-        # (same seam as `Acquisition.test_download_client/1`), so the
-        # paired ClientConfig isn't needed here.
-        Enum.reduce_while(drivers, :ok, fn {_client, module}, :ok ->
-          case module.test_connection() do
+        Enum.reduce_while(drivers, :ok, fn {config, module}, :ok ->
+          case module.test_connection(config) do
             :ok -> {:cont, :ok}
             {:error, reason} -> {:halt, {:error, reason}}
           end

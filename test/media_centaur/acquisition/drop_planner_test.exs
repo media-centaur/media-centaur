@@ -7,14 +7,16 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
   alias MediaCentaur.Acquisition.Reactor.Handlers
   alias MediaCentaur.Capabilities
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.Search.Prowlarr
 
   @last_month Date.add(Date.utc_today(), -30)
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
+
+    # A re-search of a TV pursuit consults cour segmentation (a TMDB season
+    # fetch); an empty season degrades it to the regular queries.
+    MediaCentaur.TmdbStubs.setup_tmdb_client()
+    Req.Test.stub(:tmdb, fn conn -> Req.Test.json(conn, %{"episodes" => []}) end)
 
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
@@ -28,7 +30,6 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     Capabilities.save_test_result(:prowlarr, :ok)
 
     on_exit(fn ->
-      :persistent_term.erase({Prowlarr, :client})
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
     end)
 
