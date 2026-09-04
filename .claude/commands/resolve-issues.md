@@ -10,8 +10,25 @@ Review the status issues in the currently running app and, for each, determine i
 
 1. the message should show up in the issues section at all, should be surfaced
    another way, or was surfaced perfectly as-is.
-2. we should follow up with any fixes to the system to account for the conditions
+2. the error is showing up in the wrong category, and if so whether there's an
+   appropriate / reasonable way to ensure that it shows up in the correct
+   category. A category is the board's bucket: the **component** the incident
+   is filed under (`nostr`, `social`, `pipeline`, …) and its **kind** (a `:log`
+   incident minted from a warning line vs a `subsystem` fault raised by an
+   assessor, `subsystem:<component>:<kind>`). Typical miscategorisation: a
+   transport-layer warning (`:nostr` "lost <relay>") filed as its own log
+   incident when the condition it describes is the Social subsystem's relay
+   fault, so the same event shows twice under two components — or a wire
+   subsystem's line landing under a component the user doesn't recognise.
+   "Reasonable" means fixing it at the seam that produced it (the `Log`
+   component tag, the assessor that raises the fault, the fingerprint /
+   headline) — not a display-side remap.
+3. we should follow up with any fixes to the system to account for the conditions
    that created the issue.
+
+Before implementing any fix — a recategorisation included — run the
+**`unify_design`** skill on the affected slice, so the fix lands as one coherent
+design rather than a bolt-on.
 
 Be aware that we will see mid-development issues pop up — there's a non-zero
 chance the issue comes from live-reloading partially-developed code changes.
@@ -39,7 +56,11 @@ diagnostics functions directly:
   (or `MediaCentaur.Diagnostics.dismiss(:all)` to clear the board).
 
 Durable minting is gated on `:durable_diagnostics`, which the dev daily-driver
-service enables — so incidents accrue here normally. Load **`automated-testing`**
+service enables — so incidents accrue here normally. For the category check,
+read where the line was minted: `MediaCentaur.Diagnostics.incident/1` shows the
+`component` and `module`, `MediaCentaur.Log` macros carry the component tag,
+and `lib/media_centaur/error_reports/fingerprint.ex` / `buckets.ex` decide the
+bucket. Then, in order: **`unify_design`** on the slice, **`automated-testing`**
 plus the relevant thinking skill before writing any fix (test-first); apply code
 changes live by editing source (the dev server recompiles on the next request,
 or `systemctl --user restart media-centaur-dev`).
