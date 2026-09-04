@@ -68,6 +68,9 @@ Criticals: P1; DS4, DS14, DS15, DS16, DS25.
   and `config :media_centaur, :req_test_stubs` instead of writing clients
   into `persistent_term` — two tests that had been quietly hitting the
   real TMDB API surfaced and were stubbed.
+* `2026-09-04` — **Owner review:** decisions E7 (EntityView), E19/E26
+  (corpus keying), E23 (compat layers removed) and E18 (pipeline stats
+  broadcasts) **ratified**. E9/E11 not ratified — see next entry.
 * `2026-09-04` — **Owner review: E9/E11 NOT ratified.** A parallel task is
   reworking the Req client setup. Commit `0a40c933` stays in the tree as
   the measured state, but its shape (client built per call, drivers
