@@ -29,8 +29,8 @@ defmodule MediaCentaur.Library.ModalEntry do
   Reads from `MediaCentaur.Library.Views.Detail` (Pillar-2 ETS
   projection, microsecond reads in production; live DB-fallback in test
   mode) — probes each container kind in turn and converts the first
-  match's `DetailItem` to the legacy entity-map shape via
-  `Views.DetailItem.to_entity_map/1`. Progress records come from
+  match's `DetailItem` to an `EntityView` via
+  `Views.DetailItem.to_entity_view/1`. Progress records come from
   `list_progress_records_for_container/2`; the summary from
   `ProgressSummary.compute/2`.
 
@@ -53,7 +53,7 @@ defmodule MediaCentaur.Library.ModalEntry do
     # Route through the single presentable authority: it applies the hoist
     # rule once (so opening a hoisted collection by its series id correctly
     # lands on the sole movie), then we build the view for the resolved
-    # kind. `to_entity_map/1` keys off the projection's `presented_as`, so
+    # kind. `to_entity_view/1` keys off the projection's `presented_as`, so
     # the resolved kind and the built entity always agree.
     case Presentable.resolve(id) do
       {kind, resolved_id} -> load_resolved(kind, resolved_id)
@@ -102,7 +102,7 @@ defmodule MediaCentaur.Library.ModalEntry do
   defp any_present?(_type, %Views.DetailItem{present?: present}), do: present == true
 
   defp build_modal_entry(container_type, item, id) do
-    entity = item |> Views.DetailItem.to_entity_map() |> MediaTrackOverrides.put_on_entity()
+    entity = item |> Views.DetailItem.to_entity_view() |> MediaTrackOverrides.put_on_entity()
     progress_records = ProgressRecords.list_for_container(container_type, id)
     progress = ProgressSummary.compute(entity, progress_records)
 

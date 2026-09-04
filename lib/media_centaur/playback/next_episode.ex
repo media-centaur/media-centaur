@@ -46,7 +46,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
          {:ok, season} <- Library.Seasons.fetch(episode.season_id),
          {:ok, tv_series} <-
            Library.Containers.fetch_with_associations(:tv_series, season.tv_series_id) do
-      entity = EntityShape.to_view_model(tv_series, :tv_series)
+      entity = EntityShape.to_entity_view(tv_series, :tv_series)
       progress_records = EntityShape.extract_progress(tv_series, :tv_series)
       successor(entity, progress_records, episode_id)
     else
@@ -88,7 +88,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
            preload: Library.Containers.full_preloads_by_type()
          ) do
       {:ok, type, record} ->
-        entity = EntityShape.to_view_model(record, type)
+        entity = EntityShape.to_entity_view(record, type)
 
         case PlayableFks.resolve(entity, content_url) do
           %{episode_id: episode_id} when not is_nil(episode_id) ->

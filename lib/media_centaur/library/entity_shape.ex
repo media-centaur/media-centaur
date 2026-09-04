@@ -1,32 +1,15 @@
 defmodule MediaCentaur.Library.EntityShape do
   @moduledoc """
-  View-model translation for type-specific container records (`Movie`,
-  `TVSeries`, `MovieSeries`, `VideoObject`). Produces a uniform map
-  shape the detail-panel UI and the playback pipeline consume.
+  Adapts a preloaded type-specific container record (`Movie`, `TVSeries`,
+  `MovieSeries`, `VideoObject`) into a `MediaCentaur.Library.EntityView` —
+  the record-sourced counterpart of `Views.DetailItem.to_entity_view/1`.
+  Used where the database, not the projection, is the source: playback
+  resolution (`Playback.Resolver`, `NextEpisode`, `SessionRecovery`) and
+  the Browse projection's rebuild (`Library.Browser`).
 
-  ## Role after Library Schema v2 Phase 2
-
-  Phase 2 reified `MediaCentaur.Library.PlayableItem` as the canonical
-  *playable leaf identity* — the UUID `WatchedFile` / `WatchProgress`
-  key against. EntityShape operates one layer up: `to_view_model/2`
-  produces the *view model* the container-level UI and the resume /
-  progress pipelines read (`:type`, `:imdb_id`, `:collection`, plus
-  pass-through container fields and associations).
-
-  The two concerns are kept separate on purpose:
-
-    * `PlayableItem` is the write-side identity for files / progress /
-      subtitles (see its moduledoc).
-    * `EntityShape.to_view_model/2` is the read-side view model for the
-      detail panel, `MediaCentaur.Library.ProgressSummary.compute/2`,
-      `MediaCentaur.Playback.ResumeTarget.compute/2`, and
-      `MediaCentaur.Playback.Resume.resolve/2`.
-
-  Library Schema v2 Phase 2 Task H renamed this from the historical
-  `normalize/2`; "normalize" oversold the function as eliminating
-  polymorphism, when in practice it produces a flat view model that
-  still distinguishes types via the `:type` tag. The rename reflects
-  the true scope: this is a *view model*, not a polymorphism eraser.
+  `MediaCentaur.Library.PlayableItem` is the write-side leaf identity that
+  files and progress key against; this module operates one layer up, at
+  the container the user sees.
 
   ## Companion helpers (`extract_progress/2`, `attach_container/3`)
 
@@ -39,22 +22,21 @@ defmodule MediaCentaur.Library.EntityShape do
   `belongs_to :playable_item` back-ref.
   """
 
+  alias MediaCentaur.Library.EntityView
+
   @doc """
-  Produces the view-model map the detail panel and the resume / progress
-  pipelines consume.
+  The `EntityView` of a preloaded container record.
 
   Missing associations default to empty lists. Fields that don't exist on
-  a given type (e.g. `duration_seconds` on TVSeries) return `nil` via
-  `Map.get/3`.
-
-  TMDB / IMDB ids are derived from the record's preloaded `:external_ids`
-  association (Library Schema v2 Phase 1 Task 6); callers must preload
-  it for `:imdb_id` to be populated.
+  a given type (e.g. `duration_seconds` on TVSeries) are `nil`. TMDB /
+  IMDB ids come from the preloaded `:external_ids` association; callers
+  must preload it for `:imdb_id` / `:tmdb_id` to be populated.
   """
-  def to_view_model(record, type) do
+  @spec to_entity_view(struct(), EntityView.kind()) :: EntityView.t()
+  def to_entity_view(record, type) do
     external_ids = Map.get(record, :external_ids, [])
 
-    %{
+    struct!(EntityView,
       id: record.id,
       type: type,
       name: record.name,
@@ -78,6 +60,7 @@ defmodule MediaCentaur.Library.EntityShape do
       cast: Map.get(record, :cast) || [],
       crew: Map.get(record, :crew) || [],
       imdb_id: extract_external_id(external_ids, "imdb"),
+      tmdb_id: extract_external_id(external_ids, "tmdb"),
       collection: collection_from(record, type),
       images: effective_images(record, type),
       external_ids: external_ids,
@@ -85,11 +68,13 @@ defmodule MediaCentaur.Library.EntityShape do
       seasons: Map.get(record, :seasons, []),
       movies: Map.get(record, :movies, []),
       watched_files: Map.get(record, :watched_files, []),
+      subtitle_tracks: [],
       watch_progress: [],
       extra_progress: [],
       inserted_at: record.inserted_at,
-      updated_at: record.updated_at
-    }
+      updated_at: record.updated_at,
+      track_override: nil
+    )
   end
 
   # A collection (MovieSeries) shows blank when TMDB has no collection-level

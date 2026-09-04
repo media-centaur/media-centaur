@@ -1184,9 +1184,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
               tmdb_id: tmdb_id,
               media_type: media_type,
               name: subject.name,
-              year: watchlist_year(subject[:date_published]),
-              release_date: subject[:date_published],
-              overview: subject[:description]
+              year: watchlist_year(Map.get(subject, :date_published)),
+              release_date: Map.get(subject, :date_published),
+              overview: Map.get(subject, :description)
             })
           )
         end
@@ -1222,9 +1222,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
             tmdb_id: tmdb_id,
             media_type: media_type,
             name: subject.name,
-            year: watchlist_year(subject[:date_published]),
-            release_date: subject[:date_published],
-            overview: subject[:description]
+            year: watchlist_year(Map.get(subject, :date_published)),
+            release_date: Map.get(subject, :date_published),
+            overview: Map.get(subject, :description)
           }),
           LiveHelpers.image_url(subject, "poster")
         )

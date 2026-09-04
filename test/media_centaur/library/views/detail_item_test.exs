@@ -155,7 +155,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     end
   end
 
-  describe "to_entity_map/1 — TV series adapter (Phase 3.2 Task C.2)" do
+  describe "to_entity_view/1 — TV series adapter (Phase 3.2 Task C.2)" do
     # The adapter is a temporary compatibility shim: it converts a TV-series
     # DetailItem (canonical-episode leaf carrying the entire series tree)
     # into the polymorphic-entity-map shape that `SeriesDetail.build/4`,
@@ -165,7 +165,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     test "produces an entity map keyed to the TVSeries container, not the leaf" do
       detail_item = tv_series_detail_item()
 
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.type == :tv_series
       assert entity.id == detail_item.parent_container_id
@@ -191,7 +191,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
           container_number_of_seasons: 2
         )
 
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.description == "A sample show."
       assert entity.url == "https://tmdb.example/tv/1"
@@ -212,7 +212,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     test "passes the series first-air date through as :date_published" do
       detail_item = tv_series_detail_item(container_date_published: ~D[2020-01-12])
 
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.date_published == ~D[2020-01-12]
     end
@@ -241,7 +241,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
         }
 
       detail_item = tv_series_detail_item(seasons: [season])
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert [adapted_season] = entity.seasons
       assert adapted_season.season_number == 1
@@ -269,7 +269,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
           tmdb_id: "42"
         )
 
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.imdb_id == "tt0000042"
       assert entity.tmdb_id == "42"
@@ -287,7 +287,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
           seasons: nil
         )
 
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.cast == []
       assert entity.crew == []
@@ -333,10 +333,10 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     end
   end
 
-  describe "to_entity_map/1 — standalone Movie adapter (Phase 3.2 Task D)" do
+  describe "to_entity_view/1 — standalone Movie adapter (Phase 3.2 Task D)" do
     test "keys to the Movie container, type: :movie" do
       detail_item = movie_detail_item()
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.type == :movie
       assert entity.id == detail_item.container_id
@@ -345,13 +345,13 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
 
     test "carries Movie-specific :director facet field" do
       detail_item = movie_detail_item(container_director: "Sample Director")
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
       assert entity.director == "Sample Director"
     end
 
     test "passes leaf date_published through (entity-level for solo movies)" do
       detail_item = movie_detail_item(date_published: ~D[2010-07-16])
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
       assert entity.date_published == ~D[2010-07-16]
     end
 
@@ -362,13 +362,13 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       ]
 
       detail_item = movie_detail_item(watched_files: files)
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
       assert entity.content_url == "/media/x/a.mkv"
     end
 
     test "content_url is nil when no WatchedFiles attach" do
       detail_item = movie_detail_item(watched_files: [])
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
       assert entity.content_url == nil
     end
 
@@ -385,7 +385,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       ]
 
       detail_item = movie_detail_item(watched_files: files)
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
       assert entity.watched_files == files
     end
 
@@ -396,13 +396,13 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       ]
 
       detail_item = movie_detail_item(subtitle_tracks: tracks)
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
       assert entity.subtitle_tracks == tracks
     end
 
     test "defaults extra_progress to []" do
       detail_item = movie_detail_item()
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
       assert entity.extra_progress == []
     end
 
@@ -448,10 +448,10 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     end
   end
 
-  describe "to_entity_map/1 — MovieSeries adapter (Phase 3.2 Task D)" do
+  describe "to_entity_view/1 — MovieSeries adapter (Phase 3.2 Task D)" do
     test "keys to the MovieSeries container (parent_container_id), type: :movie_series" do
       detail_item = movie_series_detail_item()
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.type == :movie_series
       assert entity.id == detail_item.parent_container_id
@@ -461,7 +461,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     test "passes the collection release date through as :date_published" do
       detail_item = movie_series_detail_item(container_date_published: ~D[2010-05-01])
 
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.date_published == ~D[2010-05-01]
     end
@@ -491,7 +491,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
           ]
         )
 
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert [m1, m2] = entity.movies
       assert m1.id == "11111111-1111-1111-1111-111111111111"
@@ -503,7 +503,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
 
     test "empty :movies list when projection produced nothing" do
       detail_item = movie_series_detail_item(movies: nil)
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
       assert entity.movies == []
     end
 
@@ -549,10 +549,10 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     end
   end
 
-  describe "to_entity_map/1 — VideoObject adapter (Phase 3.2 Task D)" do
+  describe "to_entity_view/1 — VideoObject adapter (Phase 3.2 Task D)" do
     test "keys to the VideoObject container, type: :video_object" do
       detail_item = video_object_detail_item()
-      entity = DetailItem.to_entity_map(detail_item)
+      entity = DetailItem.to_entity_view(detail_item)
 
       assert entity.type == :video_object
       assert entity.id == detail_item.container_id
@@ -598,6 +598,13 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
         watched_files: [],
         subtitle_tracks: []
       }
+    end
+  end
+
+  describe "to_entity_view/1 — the typed view" do
+    test "a projection row adapts into the same EntityView a record produces" do
+      assert %MediaCentaur.Library.EntityView{type: :tv_series, watch_progress: [], track_override: nil} =
+               DetailItem.to_entity_view(tv_series_detail_item())
     end
   end
 end

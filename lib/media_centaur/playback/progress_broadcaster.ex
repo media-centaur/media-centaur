@@ -114,7 +114,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   defp load_via_detail(type, id) do
     case LibraryViews.detail_by_container(type, id) do
       %DetailItem{} = item ->
-        entity = DetailItem.to_entity_map(item)
+        entity = DetailItem.to_entity_view(item)
 
         progress_records =
           type

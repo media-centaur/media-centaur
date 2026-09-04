@@ -74,7 +74,7 @@ defmodule MediaCentaur.Playback.Resolver do
     case TypeResolver.resolve_container(uuid, preload: Library.Containers.full_preloads_by_type()) do
       {:ok, type, record} ->
         progress = EntityShape.extract_progress(record, type)
-        {:ok, EntityShape.to_view_model(record, type), progress}
+        {:ok, EntityShape.to_entity_view(record, type), progress}
 
       :not_found ->
         :not_found
@@ -136,7 +136,7 @@ defmodule MediaCentaur.Playback.Resolver do
     with {:ok, season} <- Library.Seasons.fetch(episode.season_id),
          {:ok, tv_series} <-
            Library.Containers.fetch_with_associations(:tv_series, season.tv_series_id) do
-      entity = EntityShape.to_view_model(tv_series, :tv_series)
+      entity = EntityShape.to_entity_view(tv_series, :tv_series)
       progress_records = EntityShape.extract_progress(tv_series, :tv_series)
 
       progress_by_key = EpisodeList.index_progress_by_key(progress_records)
@@ -242,7 +242,7 @@ defmodule MediaCentaur.Playback.Resolver do
     if movie.movie_series_id do
       case Library.Containers.fetch_with_associations(:movie_series, movie.movie_series_id) do
         {:ok, ms} ->
-          entity = EntityShape.to_view_model(ms, :movie_series)
+          entity = EntityShape.to_entity_view(ms, :movie_series)
           progress = EntityShape.extract_progress(ms, :movie_series)
           {:ok, entity, progress}
 
@@ -254,7 +254,7 @@ defmodule MediaCentaur.Playback.Resolver do
       case Library.Containers.fetch_with_associations(:movie, movie.id) do
         {:ok, m} ->
           progress = EntityShape.extract_progress(m, :movie)
-          {:ok, EntityShape.to_view_model(m, :movie), progress}
+          {:ok, EntityShape.to_entity_view(m, :movie), progress}
 
         _ ->
           :not_found

@@ -101,8 +101,7 @@ defmodule MediaCentaur.Library.Views.Browse do
 
   # `entry` is the rich `%{entity:, progress:, progress_records:}` map
   # produced by `Browser.fetch_all_typed_entries/0` — the entity is the
-  # normalized view-model from `EntityShape.to_view_model/2` (a map with
-  # :id, :type, :name, :date_published, :images, ...). The projection
+  # `EntityView` from `EntityShape.to_entity_view/2`. The projection
   # collapses this into the minimal BrowseItem shape; consumers that
   # need progress / availability / playback enrich per-row via their
   # own LiveView state (see ADR-041's decoupling principle).
