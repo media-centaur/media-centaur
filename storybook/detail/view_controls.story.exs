@@ -48,6 +48,8 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Library.EntityView
+
   def function, do: &MediaCentaurWeb.Components.Detail.ViewControls.view_controls/1
   def render_source, do: :function
   def layout, do: :one_column
@@ -60,7 +62,11 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
     """
   end
 
-  defp series, do: %{type: :tv_series, extras: []}
+  defp series, do: entity(:tv_series)
+
+  defp entity(type, extras \\ []) do
+    %EntityView{id: "00000000-0000-0000-0000-0000000000d1", type: type, name: "Sample", extras: extras}
+  end
 
   def variations do
     [
@@ -92,7 +98,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
           "Manage showing on a movie with no extras. Its root view *is* More " <>
             "info, so that is where the control leads and what it is named " <>
             "for — there is no episode list here to label it after.",
-        attributes: %{entity: %{type: :movie, extras: []}, detail_view: :info}
+        attributes: %{entity: entity(:movie), detail_view: :info}
       },
       %Variation{
         id: :collection,
@@ -100,7 +106,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
           "A collection (`:movie_series`) on its movie list has no " <>
             "collection-level cast, so there is no Cast view to " <>
             "offer — Play's line carries only the cog.",
-        attributes: %{entity: %{type: :movie_series, extras: []}, detail_view: :main}
+        attributes: %{entity: entity(:movie_series), detail_view: :main}
       },
       %Variation{
         id: :movie_with_extras,
@@ -108,7 +114,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
           "A movie carrying entity-level extras has a body of its own, so " <>
             "Cast is a real second destination.",
         attributes: %{
-          entity: %{type: :movie, extras: [%{owner_type: :movie}]},
+          entity: entity(:movie, [%{owner_type: :movie}]),
           detail_view: :main
         }
       },
@@ -120,7 +126,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
             "`/tmdb/<id>` redirect — and the watchlist bookmark in its " <>
             "quiet off-list state between the two.",
         attributes: %{
-          entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
+          entity: %{entity(:movie, [%{owner_type: :movie}]) | tmdb_id: "1001"},
           detail_view: :main
         }
       },
@@ -131,7 +137,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
             "Letterboxd button drops out; the watchlist bookmark is a " <>
             "library affordance and stays.",
         attributes: %{
-          entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
+          entity: %{entity(:movie, [%{owner_type: :movie}]) | tmdb_id: "1001"},
           detail_view: :main,
           letterboxd_links: false
         }
@@ -143,7 +149,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
             "solid with a primary tint and `aria-pressed`, and its title " <>
             "offers removal.",
         attributes: %{
-          entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
+          entity: %{entity(:movie, [%{owner_type: :movie}]) | tmdb_id: "1001"},
           detail_view: :main,
           watchlisted?: true
         }
@@ -155,7 +161,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
             "the paper-plane button joins the row between the bookmark " <>
             "and the cog, and opens the Recommend modal.",
         attributes: %{
-          entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
+          entity: %{entity(:movie, [%{owner_type: :movie}]) | tmdb_id: "1001"},
           detail_view: :main,
           recommend?: true
         }
@@ -166,7 +172,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
           "A movie with nothing of its own to list opens on Cast — that " <>
             "*is* its root view, so the slot is empty rather than offering a " <>
             "control that goes where you already are.",
-        attributes: %{entity: %{type: :movie, extras: []}, detail_view: :cast}
+        attributes: %{entity: entity(:movie), detail_view: :cast}
       }
     ]
   end

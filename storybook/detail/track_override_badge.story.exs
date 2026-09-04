@@ -1,13 +1,14 @@
 defmodule MediaCentaurWeb.Storybook.Detail.TrackOverrideBadge do
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.MediaTrackOverride
 
   def function, do: &MediaCentaurWeb.Components.Detail.TrackOverrideBadge.track_override_badge/1
 
-  @entity %{type: :movie, name: "Sample Movie"}
+  @entity %EntityView{id: "00000000-0000-0000-0000-0000000000b1", type: :movie, name: "Sample Movie"}
 
-  defp with_override(override), do: Map.put(@entity, :track_override, override)
+  defp with_override(override), do: %{@entity | track_override: override}
 
   def variations do
     [

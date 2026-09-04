@@ -147,6 +147,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   # The component declares `attr :progress_records, :list` (loose-typed),
   # so this story uses plain maps with the same fields. `WatchedFile` IS
   # exported and stays aliased.
+  alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.{Person, WatchedFile}
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
   alias MediaCentaurWeb.ViewModel.MovieListItem
@@ -530,7 +531,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   @movie_id "11111111-1111-1111-1111-111111111111"
 
   defp sample_movie_entity do
-    %{
+    struct!(EntityView,
       id: @movie_id,
       type: :movie,
       name: "A Sample Silent Picture",
@@ -557,7 +558,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         %{source: "imdb", external_id: "tt0000000"},
         %{source: "tmdb", external_id: "1001"}
       ],
-      # Top-level convenience ids mirror `DetailItem.to_entity_map/1`;
+      # Top-level convenience ids mirror `DetailItem.to_entity_view/1`;
       # `tmdb_id` also makes the movie variations render the Play-line
       # Letterboxd link (default-on).
       imdb_id: "tt0000000",
@@ -572,7 +573,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       extra_progress: [],
       inserted_at: ~U[2026-04-01 00:00:00Z],
       updated_at: ~U[2026-04-01 00:00:00Z]
-    }
+    )
   end
 
   # Plain-map progress records mirror `MediaCentaur.Library.WatchProgress`
@@ -870,7 +871,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   defp episode_state(_), do: :unwatched
 
   defp sample_tv_entity do
-    %{
+    struct!(EntityView,
       id: @tv_id,
       type: :tv_series,
       name: "Quiet Sample Series",
@@ -968,7 +969,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       extra_progress: [],
       inserted_at: ~U[2026-04-01 00:00:00Z],
       updated_at: ~U[2026-04-01 00:00:00Z]
-    }
+    )
   end
 
   # --- Movie series fixture --------------------------------------------
@@ -1087,7 +1088,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       )
     ]
 
-    %{
+    struct!(EntityView,
       id: @ms_id,
       type: :movie_series,
       name: "Sample Picture Trilogy",
@@ -1118,7 +1119,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       extra_progress: [],
       inserted_at: ~U[2026-04-01 00:00:00Z],
       updated_at: ~U[2026-04-01 00:00:00Z]
-    }
+    )
   end
 
   # --- Detail files fixture --------------------------------------------

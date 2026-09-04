@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.Detail.ManagePanel do
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.ExternalId
   alias MediaCentaur.Library.WatchedFile
 
@@ -19,7 +20,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ManagePanel do
     """
   end
 
-  @entity %{
+  @entity %EntityView{
     id: "00000000-0000-0000-0000-00000000c0a1",
     type: :tv_series,
     name: "Sample Show",

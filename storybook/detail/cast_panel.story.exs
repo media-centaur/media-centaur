@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.Detail.CastPanel do
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.Person
 
   def function, do: &MediaCentaurWeb.Components.Detail.CastPanel.cast_panel/1
@@ -39,7 +40,8 @@ defmodule MediaCentaurWeb.Storybook.Detail.CastPanel do
     }
   ]
 
-  @movie %{
+  @movie %EntityView{
+    id: "00000000-0000-0000-0000-0000000000a1",
     type: :movie,
     name: "Sample Movie",
     cast: @movie_cast,
@@ -59,7 +61,8 @@ defmodule MediaCentaurWeb.Storybook.Detail.CastPanel do
                  }
                end)
 
-  @tv_series %{
+  @tv_series %EntityView{
+    id: "00000000-0000-0000-0000-0000000000a2",
     type: :tv_series,
     name: "Sample Series",
     cast: @series_cast,
