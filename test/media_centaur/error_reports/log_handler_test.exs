@@ -273,4 +273,25 @@ defmodule MediaCentaur.ErrorReports.LogHandlerTest do
     assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, minted).key)
     assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, minted).key)
   end
+
+  test "a PendingMigrationError from the dev repo-status plug is not minted (dev-only artifact)" do
+    # `Phoenix.Ecto.CheckRepoStatus` is mounted only under `code_reloading?`:
+    # source with a new migration got reloaded before `mix ecto.migrate` ran.
+    # A compiled release never mounts the plug, so this cannot occur there.
+    skipped = "** (Phoenix.Ecto.PendingMigrationError) pending migrations #{uniq()}"
+    sentinel = "ordinary system error #{uniq()}"
+
+    pending = %Phoenix.Ecto.PendingMigrationError{
+      repo: MediaCentaur.Repo,
+      directories: [],
+      migration_opts: []
+    }
+
+    LogHandler.log(crash_event(:error, skipped, {pending, []}), config())
+    LogHandler.log(event(:error, sentinel, %{component: :system}), config())
+
+    # The sentinel's bucket read is a call, so it orders after the skipped cast.
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, sentinel).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, skipped).key) == nil
+  end
 end

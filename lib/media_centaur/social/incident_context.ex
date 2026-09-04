@@ -2,7 +2,7 @@ defmodule MediaCentaur.Social.IncidentContext do
   @moduledoc """
   The friend network's relay-health probe — the `assess/0` the
   `ErrorReports.Evaluator` polls to own a single `:subsystem` incident for
-  the `friends` component (ADR-054).
+  the `social` component (ADR-054).
 
   Relay connectivity is a *health condition*, not a stream of log lines:
   a relay drops and reconnects on its own backoff all day, and every drop

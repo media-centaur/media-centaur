@@ -37,4 +37,24 @@ defmodule MediaCentaur.ErrorReports.BucketTest do
       assert bucket.headline == "[System] ** (RuntimeError) boom"
     end
   end
+
+  describe "from_incident/2 component" do
+    test "resolves a log component from the console taxonomy" do
+      assert Bucket.from_incident(incident(component: "nostr"), []).component == :nostr
+    end
+
+    test "resolves a subsystem component the console taxonomy does not list" do
+      assert Bucket.from_incident(incident(component: "self_update"), []).component ==
+               :self_update
+    end
+
+    test "a component outside both taxonomies lands under :system even when the atom exists" do
+      # The atom exists (this line mints it); membership, not atom-table
+      # presence, is what makes a component a bucket key.
+      _ = :not_a_media_centaur_component
+
+      assert Bucket.from_incident(incident(component: "not_a_media_centaur_component"), []).component ==
+               :system
+    end
+  end
 end

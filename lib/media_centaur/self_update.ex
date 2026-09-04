@@ -30,6 +30,7 @@ defmodule MediaCentaur.SelfUpdate do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Platform.Autostart
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.SelfUpdate.{CheckerJob, Health, History, Storage, UpdateChecker, Updater}
   alias MediaCentaur.Topics
 
@@ -51,6 +52,17 @@ defmodule MediaCentaur.SelfUpdate do
   @spec enabled?() :: boolean()
   def enabled? do
     Application.get_env(:media_centaur, :environment, :dev) == :prod
+  end
+
+  @doc """
+  True when the unattended checker will actually run on its tick: this build
+  runs checks (`enabled?/0`) *and* the user has background checks switched on.
+  The checker job and the diagnostics probe share this one gate, so a build
+  that never checks can never look like a stalled scheduler.
+  """
+  @spec scheduled_checks_enabled?() :: boolean()
+  def scheduled_checks_enabled? do
+    enabled?() and Config.get(:update_check_enabled) == true
   end
 
   @doc """
