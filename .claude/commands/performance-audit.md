@@ -1,208 +1,168 @@
 ---
-description: Systematic performance analysis — DB queries, process architecture, LiveView efficiency, concurrency, and caching.
+description: Evidence-based performance analysis — SQLite query and transaction behaviour, process architecture, PubSub payloads, LiveView efficiency, pipeline/job concurrency, and the profiling suite.
 argument-hint: "[module-or-path (optional)]"
-allowed-tools: Read, Glob, Grep, Bash(mix compile *), Bash(mix deps.tree *), mcp__tidewave__project_eval, mcp__tidewave__execute_sql_query, mcp__tidewave__get_source_location, mcp__tidewave__get_ecto_schemas, mcp__tidewave__get_ash_resources, mcp__tidewave__get_docs
+allowed-tools: Read, Glob, Grep, Bash(mix compile *), Bash(mix deps.tree *), Bash(scripts/profile *), Bash(ls *), mcp__tidewave__project_eval, mcp__tidewave__execute_sql_query, mcp__tidewave__get_source_location, mcp__tidewave__get_ecto_schemas, mcp__tidewave__get_docs, mcp__tidewave__get_logs, mcp__tidewave__search_package_docs
 ---
 
 # Performance Audit
 
-You are performing a systematic performance analysis of an Elixir/Phoenix codebase.
-Your goal is to find **concrete, evidence-based** performance issues — not speculative
-optimizations. Every finding must cite the exact file and line number, explain the
-mechanism of waste, and propose a specific fix.
+You are performing a systematic performance analysis of the Media Centaur backend:
+Phoenix LiveView on Bandit, Ecto on **SQLite** (`ecto_sqlite3`/`exqlite`), Broadway
+for the import pipeline, Oban (Lite engine) for jobs, `image`/`vix` for artwork, and
+a single BEAM node that is also the user's desktop media center. Findings must be
+**concrete and evidence-based** — a mechanism of waste with `file_path:line`, not a
+speculative optimisation.
 
-**Scope:** If `$ARGUMENTS` is provided, focus the analysis on that module or path only.
-Otherwise, analyze the full application.
+**Scope:** If `$ARGUMENTS` is provided, analyse that module or path only. Otherwise
+the full application.
 
 ---
 
 ## Phase 1 — Orientation
 
-Understand the project shape before diving into analysis.
-
-1. Read `mix.exs` to identify dependencies and the tech stack (Phoenix, Ecto,
-   Broadway, Oban, etc.).
-2. Read `CLAUDE.md` if it exists — it describes architecture, hot paths, and design
-   principles.
-3. Identify the hot paths: web endpoints/channels, background pipelines, GenServers
-   that handle frequent messages, LiveViews with real-time updates.
-4. Use `mcp__tidewave__get_ecto_schemas` to map out the data model.
-5. Count approximate module count and identify the largest/most complex modules.
+1. Read `CLAUDE.md`, `docs/architecture.md` (bounded contexts, PubSub topics,
+   supervision tree, key principles) and `docs/pipeline.md`.
+2. Read `mix.exs` for the dependency set and `config/config.exs` for Oban queues,
+   Broadway stages, and Repo settings (`busy_timeout`, transaction mode).
+3. Map the data model with `mcp__tidewave__get_ecto_schemas`.
+4. Identify hot paths: LiveView mounts and `handle_params` for every route in
+   `lib/media_centaur_web/router.ex`, PubSub fan-out (`MediaCentaur.Topics`, the
+   `BroadcastCoalescer`), the projection caches (ETS, `refresh_cache`), the Broadway
+   pipeline stages, Oban workers, the queue monitor and watcher polling loops, and
+   image serving (`MediaCentaurWeb.Plugs.ImageServer`).
+5. Check whether a profiling baseline exists under `priv/profiling/` — `mix profile`
+   ([ADR-041]) seeds representative data, runs every `MediaCentaur.Profile.Suite`
+   through Benchee, times every top-level LiveView mount, and diffs against the
+   baseline. `scripts/profile` is the one-button entry point (it sets the config
+   override so it can never touch the real DB).
 
 ---
 
 ## Phase 2 — Targeted Analysis
 
-For each category below, scan the relevant code and flag concrete issues. Always cite
-`file_path:line_number` for every finding.
+Cite `file_path:line` for every finding.
 
-### 2.1 — DB / Query Efficiency
+### 2.1 — SQLite query and transaction behaviour
 
-Look for:
-- **N+1 queries**: Loops that issue a query per iteration instead of preloading or
-  batch-loading. Look for `Repo.get`, `Repo.get_by`, or `Repo.one` inside `Enum.map`
-  or comprehensions.
-- **Missing preloads**: Relationship access that triggers a separate query. Ecto
-  does NOT lazy-load associations — accessing an unpreloaded relation raises. But
-  calling `Repo.preload/2` on a list after `Repo.all/1` still issues one query per
-  association level, which is fine as long as it's not per-entity.
-- **Unbounded queries**: `Repo.all` without a `limit` or `where`, on tables that
-  grow with usage.
-- **Read-all-then-filter**: Loading full tables into memory and filtering with `Enum`
-  instead of pushing predicates to the database.
-- **Missing indexes**: Use `mcp__tidewave__execute_sql_query` to check for indexes on
-  columns used in frequent lookups, filters, and unique constraints.
-- **Full-table scans on hot paths**: Queries in request/channel handlers that scan
-  entire tables.
+- **N+1 queries:** `Repo.get`/`get_by`/`one` inside `Enum.map`, comprehensions, or
+  per-row callbacks; `Repo.preload` per entity instead of on the collection.
+- **Unbounded reads:** `Repo.all` without `limit`/`where` on tables that grow with
+  the library, watch history, console entries, diagnostic events, or pursuits;
+  read-all-then-`Enum.filter` where the predicate belongs in the query.
+- **Single-writer discipline:** SQLite serialises writers. Flag long-running
+  transactions that hold the write lock while doing I/O or computation, write bursts
+  that could be one `insert_all`/`update_all`, and code that opens a deferred
+  transaction and upgrades to a write (the lock-upgrade returns `SQLITE_BUSY`
+  immediately, ignoring `busy_timeout`; the Repo runs `:immediate` transactions for
+  this reason — anything bypassing that is a finding).
+- **Indexes:** with `mcp__tidewave__execute_sql_query`, check `EXPLAIN QUERY PLAN`
+  for the hot queries and look for `SCAN` on large tables; confirm indexes back the
+  columns used by lookups, filters, and unique constraints.
+- **Retention:** tables with unbounded growth that no `Retention` sweep policy
+  covers.
 
-### 2.2 — Process Architecture
+### 2.2 — Process architecture
 
-Look for:
-- **GenServer bottlenecks**: A single GenServer serializing work that could be
-  parallelized or handled without a process. Remember: a GenServer processes one
-  message at a time — if work is CPU-bound or IO-bound, it serializes everything.
-- **Large state in GenServer**: GenServer state that holds large data structures
-  (full entity lists, file contents) that get copied on every `handle_call` reply.
-- **Synchronous calls where casts suffice**: `GenServer.call` blocking the caller
-  when the caller doesn't need the result.
-- **Missing Task.Supervisor**: `Task.async` without a supervisor in production code
-  (unsupervised tasks crash silently or take down the caller).
-- **Unnecessary processes**: GenServers used for code organization rather than
-  runtime state management — a plain module with functions would be simpler and
-  avoid process overhead.
+- A single GenServer serialising CPU- or I/O-bound work that could be parallel or
+  needs no process at all (plain functions).
+- Large state copied on every reply; `GenServer.call` where the caller does not need
+  a result; unsupervised `Task.async` in production paths (web code uses owned
+  async — MC0019 — but library code is unchecked).
+- `init/1` doing DB or filesystem I/O instead of `handle_continue`; startup races
+  between processes (the pipeline reconcile-on-boot race was a real one).
 
-### 2.3 — Message Passing & Channel Efficiency
+### 2.3 — PubSub and message payloads
 
-Look for:
-- **Large data in messages**: PubSub broadcasts, GenServer calls/casts, or channel
-  pushes that send large data structures (data is copied between process heaps).
-- **Unbounded list pushes**: Pushing entire entity lists over channels without
-  batching/chunking.
-- **Redundant broadcasts**: Multiple broadcasts for what could be a single batched
-  notification.
-- **Serialization in hot paths**: JSON encoding happening inside GenServer callbacks
-  or other serialization points that block message processing.
+- Broadcasts carrying whole entity lists or projections instead of ids/deltas
+  (data is copied into every subscriber's heap; every LiveView is a subscriber).
+- Redundant broadcasts where the coalescer should batch; JSON encoding or heavy
+  computation inside GenServer callbacks.
+- Detail/modal live updates that re-read a cached projection before it was
+  refreshed (react to `{:library_view_updated, :detail, _}`-style events, not to the
+  raw mutation).
 
-### 2.4 — LiveView Efficiency
+### 2.4 — LiveView efficiency
 
-Look for:
-- **Queries in connected mount**: Database queries in the connected `mount/3` callback
-  that could be deferred to `handle_params` or loaded asynchronously with
-  `assign_async`.
-- **Full-collection reassigns**: Reassigning entire lists to socket assigns when only
-  one item changed — use streams for large collections.
-- **Over-assigned data**: Assigns that hold more data than the template actually uses
-  (all assigns are diffed on every render).
-- **Missing pagination/streaming**: Rendering unbounded lists without pagination or
-  LiveView streams.
-- **Expensive computations in render**: Function calls in HEEx templates that perform
-  non-trivial work on every render.
+- Queries in `mount/3` that belong in `handle_params` or `assign_async`; work done
+  on the static render that is thrown away on the connected mount.
+- Full-collection reassigns where streams fit; assigns holding more than the
+  template uses (every assign is diffed); helper calls in HEEx that do non-trivial
+  work per render.
+- Desktop rendering defaults ([UIDR-012]): images must be eager and sync-decoded
+  with stable ids and no entrance animations — lazy loading or keyframe-per-row
+  patterns are perf regressions here, not polish.
+- `phx-update`/stream resets that redraw whole lists on single-item changes.
 
-### 2.5 — Enumeration Efficiency
+### 2.5 — Enumeration and data shaping
 
-Look for:
-- **Multi-pass chains**: `Enum.map |> Enum.filter |> Enum.map` chains that traverse
-  lists multiple times when a single `Enum.flat_map`, `for` comprehension, or
-  `Enum.reduce` would do.
-- **Intermediate list construction**: Building lists that are immediately discarded
-  (e.g., `Enum.map` only to pass to `Enum.join`).
-- **Eager evaluation of large datasets**: Using `Enum` where `Stream` would avoid
-  materializing large intermediate collections.
-- **Repeated traversals**: Calling `Enum.count`, `Enum.find`, `length()` on the same
-  list multiple times.
+- Multi-pass `Enum` chains over the same list, intermediate lists that are
+  immediately consumed, repeated `length/1` or `Enum.find` on the same collection,
+  `Enum` where `Stream` avoids materialising a large intermediate (file walks,
+  console ring buffer scans).
 
-### 2.6 — Caching Opportunities
+### 2.6 — Caching
 
-Look for:
-- **Repeated identical reads**: The same database query or API call executed multiple
-  times in the same request/pipeline with no caching.
-- **Config lookups in hot paths**: `Application.get_env` or config GenServer calls
-  inside loops or frequently-called functions where the value rarely changes —
-  candidates for `:persistent_term` or ETS.
-- **Recomputed derived data**: Values derived from stable inputs that are recomputed
-  instead of cached.
+- Identical reads repeated within one request or pipeline run; `Application.get_env`
+  or Settings lookups inside loops; derived data recomputed from stable inputs.
+- Existing caches (projection ETS tables, `:persistent_term` for the update check)
+  with unclear invalidation — a stale cache is a correctness bug reported here only
+  when it also causes redundant work.
 
-### 2.7 — Startup & Supervision
+### 2.7 — Pipeline, jobs, and external I/O
 
-Look for:
-- **Blocking init**: `GenServer.init/1` callbacks that perform I/O (DB queries, HTTP
-  calls, file reads) synchronously, delaying application startup. Should use
-  `handle_continue` or send self a message.
-- **Race conditions**: Processes that depend on other processes being started (e.g.,
-  querying the DB before Repo is up, or using a GenServer before its init completes).
-- **Heavyweight supervision**: Too many children started eagerly when some could be
-  started lazily or on demand.
-
-### 2.8 — Concurrency Utilization
-
-Look for:
-- **Sequential work that could parallelize**: Independent I/O operations (API calls,
-  file reads, DB queries) done sequentially when `Task.async_stream` or similar
-  concurrency would help.
-- **Under-utilized concurrency**: Broadway/Oban configurations with low concurrency
-  limits when the work is I/O-bound.
-- **Over-utilized concurrency**: Too many concurrent processes for CPU-bound work,
-  causing contention.
+- Broadway stage concurrency and batch sizes versus the actual work (I/O-bound
+  TMDB/image fetches versus CPU-bound hashing or vix transforms).
+- Oban queue limits (`acquisition`, `self_update`, `images`, `maintenance`) versus
+  outbound rate limits (Prowlarr fans out per indexer; TMDB has its own limiter).
+- Sequential HTTP calls that are independent (`Task.async_stream` candidates) and
+  the reverse: unbounded fan-out against a VPN-tunnelled service.
+- Watcher and queue-monitor poll intervals that wake the system when idle.
 
 ---
 
-## Phase 3 — Runtime Introspection (when applicable)
+## Phase 3 — Runtime evidence (when the dev server is up)
 
-If the application is running and MCP tools are available:
+The dev service on `127.0.0.1:2160` is the daily driver against the real database.
+Use it read-only:
 
-- Use `mcp__tidewave__project_eval` to check:
-  - Process message queue lengths: `:erlang.process_info(pid, :message_queue_len)`
-  - ETS table sizes: `:ets.info(table, :size)`
-  - Process counts: `length(Process.list())`
-  - Memory usage: `:erlang.memory()`
-- Use `mcp__tidewave__execute_sql_query` to:
-  - Check for missing indexes on frequently-queried columns
-  - Inspect query plans with `EXPLAIN QUERY PLAN` (SQLite) or `EXPLAIN ANALYZE` (Postgres)
-  - Check table sizes and row counts
+- `mcp__tidewave__project_eval` for message-queue lengths of the named processes,
+  ETS table sizes, `:erlang.memory()`, and `Process.list()` counts.
+- `mcp__tidewave__execute_sql_query` for `EXPLAIN QUERY PLAN`, table row counts, and
+  index lists (`PRAGMA index_list`).
+- `mcp__tidewave__get_logs` for slow-query or timeout noise.
+- `scripts/profile --scale=small` when a claim needs numbers. Read the median, not
+  the p99: microsecond-scale p99 variance is noise on this machine, and a regression
+  is only real when it reproduces across two runs.
+
+Never mutate data through Tidewave; never point a mix task at the real DB.
 
 ---
 
-## Phase 4 — Severity Classification
-
-Rate each finding:
+## Phase 4 — Severity
 
 | Severity | Criteria |
 |----------|----------|
-| **Critical** | Causes observable latency or resource exhaustion under normal load |
-| **Moderate** | Wastes resources but doesn't cause user-visible issues yet; will degrade as data grows |
-| **Minor** | Suboptimal but negligible real-world impact at any realistic scale |
+| **Critical** | Observable latency, UI jank, or resource exhaustion under normal library sizes |
+| **Moderate** | Wastes resources without visible impact yet; degrades as the library, history, or logs grow |
+| **Minor** | Suboptimal but negligible at any realistic scale |
 
 ---
 
-## Phase 5 — Remediation Plan
+## Phase 5 — Output
 
-For each finding, provide:
-
-1. **Location** — exact `file_path:line_number`
-2. **Issue** — one-sentence description of the performance problem
-3. **Mechanism** — brief explanation of *why* this is slow (what work is wasted, what
-   resource is contended, what scales poorly)
-4. **Severity** — Critical / Moderate / Minor
-5. **Fix** — concrete, specific change to make (not vague advice like "consider caching")
-
-Group findings by severity (Critical first). Within each severity group, order by
-impact/effort ratio — highest-impact, lowest-effort fixes first.
+Number findings **P1, P2, …**, grouped by severity (Critical first), ordered within a
+group by impact-to-effort. For each: **Location**, **Issue** (one sentence),
+**Mechanism** (what work is wasted or what resource is contended), **Severity**,
+**Fix** (specific change, not "consider caching").
 
 ---
 
 ## Rules
 
-- **Evidence, not speculation.** Only flag patterns with concrete evidence of waste.
-  "This *could* be slow if..." is not a finding. "This queries the DB inside a loop
-  that runs once per entity" is.
-- **Cite every finding.** Every issue must include the exact file path and line number.
-  No exceptions.
-- **Skip what's fine.** If a category has no issues, say "No issues found" and move on.
-  Do not pad the report.
-- **No unearned praise.** If an area is clean, one sentence suffices. Spend your
-  words on problems, not compliments. A clean report is a valid outcome — but only
-  if you genuinely found nothing.
-- **No implementation changes.** This command produces analysis only. Do not modify
-  any files.
-- **Scope to arguments.** If `$ARGUMENTS` names a specific module or path, analyze
-  only that area. Do not expand scope unless explicitly asked.
+- **Evidence, not speculation.** "This could be slow if…" is not a finding. A query
+  inside a per-entity loop is.
+- **Cite every finding** with `file_path:line`.
+- **Skip what's fine.** "No issues found" is a valid section result; do not pad.
+- **No unearned praise.**
+- **Analysis only.** Do not modify files. Output goes to the chat.
+- **Scope to arguments.** Do not expand scope unless asked.
