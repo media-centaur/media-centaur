@@ -107,6 +107,21 @@ defmodule MediaCentaur.FormatTest do
     end
   end
 
+  describe "elapsed/2" do
+    @now ~U[2026-09-04 12:00:00Z]
+
+    test "seconds, minutes, hours and days at their coarsest whole unit" do
+      assert Format.elapsed(~U[2026-09-04 11:59:18Z], @now) == "42s"
+      assert Format.elapsed(~U[2026-09-04 11:57:00Z], @now) == "3m"
+      assert Format.elapsed(~U[2026-09-04 09:30:00Z], @now) == "2h"
+      assert Format.elapsed(~U[2026-09-02 12:00:00Z], @now) == "2d"
+    end
+
+    test "a moment in the future reads as no time at all" do
+      assert Format.elapsed(~U[2026-09-04 12:00:05Z], @now) == "0s"
+    end
+  end
+
   describe "relative_ago/2" do
     test "nil returns \"never\"" do
       assert Format.relative_ago(nil) == "never"

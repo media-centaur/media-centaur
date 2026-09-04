@@ -20,6 +20,7 @@ defmodule Mix.Tasks.Social.Dev do
   use Mix.Task
 
   alias MediaCentaur.Nostr.Event
+  alias MediaCentaur.Nostr.Reason
   alias MediaCentaur.Nostr.Filter
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Nostr.OneShot
@@ -201,7 +202,8 @@ defmodule Mix.Tasks.Social.Dev do
   # --- errors ------------------------------------------------------------
 
   defp relay_error(relay, {:disconnected, reason}),
-    do: "Could not reach #{relay} (#{inspect(reason)}). Is the dev relay up? Try `just social-status`."
+    do:
+      "Could not reach #{relay} (#{Reason.describe(reason)}). Is the dev relay up? Try `just social-status`."
 
   defp relay_error(relay, {:auth_failed, reason}),
     do: "#{relay} rejected the friend's identity: #{reason}"

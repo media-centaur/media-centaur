@@ -15,6 +15,9 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaur.Social.Connections
+  alias MediaCentaurWeb.RelayStatusRow
+
   import MediaCentaurWeb.SettingsLive.Components
 
   attr :npub, :string, required: true
@@ -163,7 +166,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             >
               <code class="min-w-0 flex-1 truncate text-xs">{relay.url}</code>
               <span class="shrink-0 text-xs text-base-content/60">
-                {state_label(@status[relay.url])}
+                {RelayStatusRow.state_label(@status[relay.url])}
               </span>
               <span
                 :if={last_error(@status[relay.url])}
@@ -214,12 +217,8 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
 
   @doc "Whether at least one relay is connected — the section's status dot."
   @spec any_connected?(map()) :: boolean()
-  def any_connected?(status), do: Enum.any?(status, fn {_url, entry} -> entry.state == :connected end)
-
-  defp state_label(%{state: :connected}), do: "Connected"
-  defp state_label(%{state: :connecting}), do: "Connecting"
-  defp state_label(%{state: :auth_failed}), do: "Rejected"
-  defp state_label(_absent_or_disconnected), do: "Not connected"
+  def any_connected?(status),
+    do: Enum.any?(status, fn {_url, entry} -> Connections.connected?(entry) end)
 
   defp last_error(%{last_error: error}) when is_binary(error), do: error
   defp last_error(_absent), do: nil

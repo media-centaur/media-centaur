@@ -7,7 +7,10 @@ defmodule MediaCentaur.Nostr.Connection do
   Event.t()`, used only to sign the `AUTH` answer). The owner receives
   `{:nostr, url, message}`:
 
-    * `:connected` / `{:disconnected, reason}`
+    * `:connected` / `{:disconnected, reason, retry_in_ms}` — the wait
+      before the next attempt rides along, so a status surface can say
+      when
+    * `:pong` — the relay answered a liveness ping (see below)
     * `{:event, sub_id, %Event{}}` — shape-checked and signature-verified
     * `{:eose, sub_id}`
     * `{:closed, sub_id, reason}` — the relay ended that subscription
@@ -24,6 +27,16 @@ defmodule MediaCentaur.Nostr.Connection do
   before it). Reconnect backoff doubles from `backoff_ms` (1 s) to
   `max_backoff_ms` (60 s) and resets on connect.
 
+  While connected, a ping goes out every `ping_interval_ms` (30 s); a
+  pong that does not arrive within `pong_timeout_ms` (10 s) drops the
+  socket with reason `:unresponsive` into the normal backoff. Without
+  it a half-open socket — relay host rebooted, NAT entry expired —
+  would stay "connected" until the kernel gave up on it.
+
+  The console sees one warning per outage: the loss of a live socket,
+  or the first failed attempt after one. Retries are silent; every
+  disconnect still reaches the owner.
+
   `publish/2`, `subscribe/3` and `unsubscribe/2` are casts, so a caller
   is never blocked behind a connect attempt to an unreachable relay.
   """
@@ -34,6 +47,7 @@ defmodule MediaCentaur.Nostr.Connection do
 
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Filter
+  alias MediaCentaur.Nostr.Reason
 
   @auth_kind 22_242
 
@@ -53,11 +67,15 @@ defmodule MediaCentaur.Nostr.Connection do
     :http_status,
     :resp_headers,
     :pending_auth,
+    :ping_timer,
+    :pong_deadline,
     status: :connecting,
     subs: %{},
     backoff_ms: 1_000,
     max_backoff_ms: 60_000,
-    current_backoff: nil
+    current_backoff: nil,
+    ping_interval_ms: 30_000,
+    pong_timeout_ms: 10_000
   ]
 
   # --- API ---------------------------------------------------------------
@@ -97,7 +115,9 @@ defmodule MediaCentaur.Nostr.Connection do
       owner: Keyword.fetch!(opts, :owner),
       signer: Keyword.fetch!(opts, :signer),
       backoff_ms: Keyword.get(opts, :backoff_ms, 1_000),
-      max_backoff_ms: Keyword.get(opts, :max_backoff_ms, 60_000)
+      max_backoff_ms: Keyword.get(opts, :max_backoff_ms, 60_000),
+      ping_interval_ms: Keyword.get(opts, :ping_interval_ms, 30_000),
+      pong_timeout_ms: Keyword.get(opts, :pong_timeout_ms, 10_000)
     }
 
     {:ok, %{state | current_backoff: state.backoff_ms}, {:continue, :connect}}
@@ -129,6 +149,18 @@ defmodule MediaCentaur.Nostr.Connection do
   def handle_info(:reconnect, %{conn: conn} = state) when not is_nil(conn), do: {:noreply, state}
 
   def handle_info(:reconnect, state), do: connect(state)
+
+  # Timers from a socket that has since gone are stale: the ping only
+  # fires with a live websocket, the deadline only while one is armed.
+  def handle_info(:ping, %{websocket: nil} = state), do: {:noreply, state}
+
+  def handle_info(:ping, state) do
+    deadline = Process.send_after(self(), :pong_deadline, state.pong_timeout_ms)
+    {:noreply, send_raw(%{state | ping_timer: nil, pong_deadline: deadline}, {:ping, ""})}
+  end
+
+  def handle_info(:pong_deadline, %{pong_deadline: nil} = state), do: {:noreply, state}
+  def handle_info(:pong_deadline, state), do: {:noreply, lost(state, :unresponsive)}
 
   def handle_info(message, %{conn: conn} = state) when not is_nil(conn) do
     case Mint.WebSocket.stream(conn, message) do
@@ -174,13 +206,15 @@ defmodule MediaCentaur.Nostr.Connection do
         Log.info(:nostr, "connected to #{state.url}")
         notify(state, :connected)
 
-        resubscribe(%{
+        %{
           state
           | conn: conn,
             websocket: websocket,
             status: :connected,
             current_backoff: state.backoff_ms
-        })
+        }
+        |> schedule_ping()
+        |> resubscribe()
 
       {:error, conn, reason} ->
         lost(%{state | conn: conn}, reason)
@@ -214,6 +248,12 @@ defmodule MediaCentaur.Nostr.Connection do
   end
 
   defp handle_frame({:ping, data}, state), do: send_raw(state, {:pong, data})
+
+  defp handle_frame({:pong, _data}, state) do
+    notify(state, :pong)
+    state |> cancel_pong_deadline() |> schedule_ping()
+  end
+
   defp handle_frame({:close, _code, _reason}, state), do: lost(state, :closed_by_relay)
   defp handle_frame(_other, state), do: state
 
@@ -313,12 +353,12 @@ defmodule MediaCentaur.Nostr.Connection do
 
   defp lost(state, reason) do
     if state.conn, do: Mint.HTTP.close(state.conn)
-    if state.status == :connected, do: Log.warning(:nostr, "lost #{state.url}: #{inspect(reason)}")
-    notify(state, {:disconnected, reason})
+    log_loss(state, reason)
+    notify(state, {:disconnected, reason, state.current_backoff})
     Process.send_after(self(), :reconnect, state.current_backoff)
 
     %{
-      state
+      cancel_timers(state)
       | conn: nil,
         websocket: nil,
         ref: nil,
@@ -328,6 +368,43 @@ defmodule MediaCentaur.Nostr.Connection do
         status: :disconnected,
         current_backoff: min(state.current_backoff * 2, state.max_backoff_ms)
     }
+  end
+
+  # The backoff sits at its floor only before the first failure of an
+  # outage, so that attempt gets the line and the retries do not.
+  defp log_loss(%{status: :connected} = state, reason),
+    do: Log.warning(:nostr, "lost #{state.url}: #{Reason.describe(reason)} (#{inspect(reason)})")
+
+  defp log_loss(%{current_backoff: floor, backoff_ms: floor} = state, reason),
+    do:
+      Log.warning(
+        :nostr,
+        "could not connect to #{state.url}: #{Reason.describe(reason)} (#{inspect(reason)})"
+      )
+
+  defp log_loss(_state, _reason), do: :ok
+
+  # --- liveness ----------------------------------------------------------
+
+  defp schedule_ping(state) do
+    state = cancel_ping(state)
+    %{state | ping_timer: Process.send_after(self(), :ping, state.ping_interval_ms)}
+  end
+
+  defp cancel_timers(state), do: state |> cancel_ping() |> cancel_pong_deadline()
+
+  defp cancel_ping(%{ping_timer: nil} = state), do: state
+
+  defp cancel_ping(state) do
+    Process.cancel_timer(state.ping_timer)
+    %{state | ping_timer: nil}
+  end
+
+  defp cancel_pong_deadline(%{pong_deadline: nil} = state), do: state
+
+  defp cancel_pong_deadline(state) do
+    Process.cancel_timer(state.pong_deadline)
+    %{state | pong_deadline: nil}
   end
 
   defp notify(state, message) do

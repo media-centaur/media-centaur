@@ -126,7 +126,8 @@ defmodule MediaCentaur.Format do
   minute reads: `:seconds` (default) gives `"<N>s ago"` for activity surfaces
   where seconds-precision is meaningful; `:just_now` collapses the whole first
   minute to `"just now"` where sub-minute precision is noise. Minute, hour and
-  day granularity is identical either way.
+  day granularity is identical either way. `:now` pins the reference time
+  (defaults to the current time).
 
       iex> dt = DateTime.add(DateTime.utc_now(), -90, :second)
       iex> MediaCentaur.Format.relative_ago(dt)
@@ -137,7 +138,7 @@ defmodule MediaCentaur.Format do
   def relative_ago(nil, _opts), do: "never"
 
   def relative_ago(%DateTime{} = at, opts) do
-    seconds = DateTime.diff(DateTime.utc_now(), at, :second)
+    seconds = DateTime.diff(Keyword.get_lazy(opts, :now, &DateTime.utc_now/0), at, :second)
 
     cond do
       seconds < 60 -> sub_minute_label(Keyword.get(opts, :sub_minute, :seconds), seconds)
@@ -163,16 +164,19 @@ defmodule MediaCentaur.Format do
   - `< 1h` → `"in <N>m"` (minute granularity)
   - `< 24h` → `"in <H>h <M>m"` (or just `"in <H>h"` when minutes are zero)
   - `≥ 24h` → `"in <D>d <H>h"` (or just `"in <D>d"` when hours are zero)
-  """
-  @spec relative_in(DateTime.t() | nil) :: String.t()
-  def relative_in(nil), do: "unknown"
 
-  def relative_in(%DateTime{} = at) do
+  `:now` pins the reference time (defaults to the current time).
+  """
+  @spec relative_in(DateTime.t() | nil, keyword()) :: String.t()
+  def relative_in(at, opts \\ [])
+  def relative_in(nil, _opts), do: "unknown"
+
+  def relative_in(%DateTime{} = at, opts) do
     # Millisecond precision + ceil — without this, computing the diff
     # immediately after `DateTime.add(now, 45, :second)` rounds *down*
     # to 44s because microsecond-level latency is shaved off when
     # truncating to seconds.
-    ms = DateTime.diff(at, DateTime.utc_now(), :millisecond)
+    ms = DateTime.diff(at, Keyword.get_lazy(opts, :now, &DateTime.utc_now/0), :millisecond)
     seconds = div(ms + 999, 1000)
 
     cond do
@@ -181,6 +185,25 @@ defmodule MediaCentaur.Format do
       seconds < 3600 -> "in #{ceil_div(seconds, 60)}m"
       seconds < 86_400 -> "in #{hours_minutes(seconds)}"
       true -> "in #{days_hours(seconds)}"
+    end
+  end
+
+  @doc """
+  How long ago `from` was, as a bare duration at its coarsest whole unit —
+  the "for 3h" beside a state, where "3h ago" would misread as an event.
+
+      iex> MediaCentaur.Format.elapsed(~U[2026-09-04 09:30:00Z], ~U[2026-09-04 12:00:00Z])
+      "2h"
+  """
+  @spec elapsed(DateTime.t(), DateTime.t()) :: String.t()
+  def elapsed(%DateTime{} = from, %DateTime{} = now) do
+    seconds = max(DateTime.diff(now, from, :second), 0)
+
+    cond do
+      seconds < 60 -> "#{seconds}s"
+      seconds < 3600 -> "#{div(seconds, 60)}m"
+      seconds < 86_400 -> "#{div(seconds, 3600)}h"
+      true -> "#{div(seconds, 86_400)}d"
     end
   end
 

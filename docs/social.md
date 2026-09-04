@@ -68,8 +68,9 @@ private key. The secret is unwrapped in exactly three places: `Keys.private_key!
 
 `Nostr.Connection` is one GenServer per relay URL: one WebSocket
 (`mint_web_socket`), NIP-01 frames, and the NIP-42 `AUTH` handshake. It knows
-nothing about what an event means. Statuses are `:connecting`, `:connected`,
-`:disconnected`, `:auth_failed`.
+nothing about what an event means. Its own statuses are `:connecting`,
+`:connected`, `:disconnected`, `:auth_failed`; the owner's entry adds `:synced`
+(below).
 
 The owner (the pid passed as `owner`) receives `{:nostr, url, message}` — see the
 `Nostr.Connection` moduledoc for the full message list. Behaviour worth knowing
@@ -80,7 +81,19 @@ before touching it:
   before authenticating.
 - **Backoff** doubles from 1 s to 60 s and resets on connect. Mint's own connect
   timeout is capped at 5 s so an unreachable relay doesn't hold the process for
-  30.
+  30. Every `{:disconnected, reason, retry_in_ms}` carries the wait before the
+  next attempt.
+- **Liveness ping** every 30 s while connected; a pong missing after 10 s drops
+  the socket as `:unresponsive` into the normal backoff. Without it a half-open
+  socket stays "connected" until the kernel gives up. Each pong reaches the
+  owner as `:pong`, so "last heard" stays fresh on a quiet relay.
+- **One console line per outage** under `:nostr`: the loss of a live socket, or
+  the first failed attempt after one. Retries are silent.
+- **Reasons are words once** — `Nostr.Reason.describe/1` turns a transport term
+  into "connection refused" / "host not found" / "timed out" / "TLS failed" /
+  "closed by relay" / "unresponsive"; a relay's own `OK` / `CLOSED` / `AUTH`
+  text passes through; anything unknown is "connection failed". No inspected
+  struct reaches the UI.
 - **`publish/2`, `subscribe/3`, `unsubscribe/2` are casts** — nothing blocks
   behind a connect attempt.
 - **Every inbound frame is type-guarded.** A relay is untrusted input; a frame
@@ -95,8 +108,21 @@ identity is usually absent then and the overlay's broadcast is what starts
 the connections —
 receives every connection's messages, and re-broadcasts them on
 `social:connections`. `Connections.status/0` is the read model —
-`%{url => %{state, last_error, since}}` — where `since` is the onset of the
-current state, which is what the health probe measures against.
+`%{url => %{state, last_error, since, last_heard_at, retry_at}}` (the
+`Connections.entry/0` typedoc defines each field). `state` names how far the
+connection has got: `:connecting`, `:connected`, `:synced` (the relay answered
+the feed subscription with `EOSE`, so it serves this identity's requests),
+`:auth_failed`, `:disconnected`. A `CLOSED` on the feed whose reason starts
+with `restricted:` is `:auth_failed` — khatru cannot refuse an `AUTH` event, so
+that is the only signal a non-member gets. `since` is the onset of the current
+state, which is what the health probe measures against; `connected?/1` is the
+one predicate for "counts as connected" (`:connected` or `:synced`), used by
+publish fan-out, sync, and every surface's connected-of-configured count.
+
+The words for an entry live once, in `MediaCentaurWeb.RelayStatusRow`:
+Connecting / Connected / Synced / Rejected / Not connected, plus the Status
+drill-in's per-relay details (how long in the state, the newest complaint,
+the next attempt, when last heard).
 
 ## Event shape
 
@@ -228,7 +254,7 @@ never a fault. The decision is the pure `decide/3`; `assess/0` is the shell.
 Social tile reads "No issues" with every relay down. Pre-existing and
 system-wide (the download-client and search probes have it too); fixing it is an
 `ErrorReports` change. The Status widget
-(`Components.StatusWidgets.Social`) still shows the live summary in the
+(`Components.StatusWidgets.Social`) shows the live per-relay rows in the
 drill-in.
 
 Console tags: `:nostr` for the wire (`Nostr.Connection`), `:social` for
