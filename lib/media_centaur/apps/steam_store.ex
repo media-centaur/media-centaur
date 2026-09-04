@@ -12,18 +12,21 @@ defmodule MediaCentaur.Apps.SteamStore do
   three sources). No equivalent API field exists for the library
   poster (`library_600x900.jpg`), so this module is banner-only.
 
-  HTTP client seam mirrors `MediaCentaur.ImageFiles`: a per-process
-  override (`:steam_store_http_client` in the process dict) wins over
-  the Application env, so async tests stub independently; test config
-  pins the no-op client so no test can reach the network.
+  Requests go through `MediaCentaur.HttpClient` with the response cache
+  attached: Steam's answer for an app is the same for everyone, so a
+  repeat lookup within its `max-age` costs nothing.
   """
+
+  alias MediaCentaur.HttpClient
 
   @appdetails "https://store.steampowered.com/api/appdetails"
 
   @spec current_banner_url(integer()) :: String.t() | nil
   def current_banner_url(app_id) do
+    client = HttpClient.new(__MODULE__, upstream: :steam, cache: true, retry: false)
+
     with {:ok, %{status: 200, body: body}} <-
-           http_client().get("#{@appdetails}?appids=#{app_id}&filters=basic"),
+           Req.get(client, url: @appdetails, params: [appids: app_id, filters: "basic"]),
          {:ok, decoded} <- decode(body),
          %{"success" => true, "data" => %{"header_image" => url}} when is_binary(url) <-
            decoded[to_string(app_id)] do
@@ -40,9 +43,4 @@ defmodule MediaCentaur.Apps.SteamStore do
   defp decode(body) when is_map(body), do: {:ok, body}
   defp decode(body) when is_binary(body), do: JSON.decode(body)
   defp decode(_other), do: :error
-
-  defp http_client do
-    Process.get(:steam_store_http_client) ||
-      Application.get_env(:media_centaur, :steam_store_http_client, Req)
-  end
 end

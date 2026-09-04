@@ -63,7 +63,10 @@ defmodule MediaCentaur.Search.Prowlarr do
 
   defp build_client do
     if Config.get(:showcase_mode) do
-      Req.new(plug: &MediaCentaur.Showcase.Stubs.prowlarr_plug/1)
+      MediaCentaur.HttpClient.new(__MODULE__,
+        upstream: :prowlarr,
+        plug: &MediaCentaur.Showcase.Stubs.prowlarr_plug/1
+      )
     else
       url = Config.get(:prowlarr_url)
       api_key = MediaCentaur.Secret.expose(Config.get(:prowlarr_api_key))
@@ -73,7 +76,7 @@ defmodule MediaCentaur.Search.Prowlarr do
       # keeps callers from getting this far in the first place.
       MediaCentaur.HttpClient.new(
         __MODULE__,
-        [receive_timeout: @search_timeout_ms, retry: false] ++
+        [upstream: :prowlarr, receive_timeout: @search_timeout_ms, retry: false] ++
           if(is_binary(url) and url != "", do: [base_url: url], else: []) ++
           if(api_key, do: [headers: [{"x-api-key", api_key}]], else: [])
       )

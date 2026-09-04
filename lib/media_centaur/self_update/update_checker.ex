@@ -3,9 +3,10 @@ defmodule MediaCentaur.SelfUpdate.UpdateChecker do
   Queries GitHub Releases for the latest Media Centaur release and compares
   it against the running version.
 
-  Uses `Req` with a base client cached in `:persistent_term`. The public
-  `latest_release/1` function accepts an optional `%Req.Request{}` for
-  test stubbing (see `test/media_centaur/self_update/update_checker_test.exs`).
+  The `Req` client is built through `MediaCentaur.HttpClient` on every
+  call. The public `latest_release/1` function accepts an optional
+  `%Req.Request{}` for test stubbing (see
+  `test/media_centaur/self_update/update_checker_test.exs`).
 
   ## Endpoint
 
@@ -46,24 +47,11 @@ defmodule MediaCentaur.SelfUpdate.UpdateChecker do
 
   @type classification :: :update_available | :up_to_date | :ahead_of_release
 
-  @doc """
-  Returns the default `Req` client for the GitHub Releases API.
-  Cached in `:persistent_term` after first call.
-  """
+  @doc "The `Req` client for the GitHub Releases API."
+  @spec default_client() :: Req.Request.t()
   def default_client do
-    case :persistent_term.get({__MODULE__, :client}, nil) do
-      nil ->
-        client = build_client()
-        :persistent_term.put({__MODULE__, :client}, client)
-        client
-
-      client ->
-        client
-    end
-  end
-
-  defp build_client do
-    Req.new(
+    MediaCentaur.HttpClient.new(__MODULE__,
+      upstream: :github,
       base_url: @base_url,
       headers: [
         {"accept", "application/vnd.github+json"},

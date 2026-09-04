@@ -28,7 +28,10 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/backdrop.jpg")
 
       assert {:ok, ^dest} =
-               ImageFiles.download("https://example.com/img.jpg", dest, resize: {:fit, 1920, 1080})
+               ImageFiles.download("https://example.com/img.jpg", dest,
+                 upstream: :tmdb_images,
+                 resize: {:fit, 1920, 1080}
+               )
 
       assert File.exists?(dest)
       {:ok, result} = Image.open(dest)
@@ -42,7 +45,10 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
       assert {:ok, ^dest} =
-               ImageFiles.download("https://example.com/img.jpg", dest, resize: {:fit, 1120, 1680})
+               ImageFiles.download("https://example.com/img.jpg", dest,
+                 upstream: :tmdb_images,
+                 resize: {:fit, 1120, 1680}
+               )
 
       {:ok, result} = Image.open(dest)
       {width, height, _} = Image.shape(result)
@@ -55,7 +61,10 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/logo.jpg")
 
       assert {:ok, ^dest} =
-               ImageFiles.download("https://example.com/img.jpg", dest, resize: {:longest_edge, 1440})
+               ImageFiles.download("https://example.com/img.jpg", dest,
+                 upstream: :tmdb_images,
+                 resize: {:longest_edge, 1440}
+               )
 
       {:ok, result} = Image.open(dest)
       {width, height, _} = Image.shape(result)
@@ -66,7 +75,9 @@ defmodule MediaCentaur.ImageFilesTest do
       stub_http_success(jpeg)
       dest = Path.join([tmp_dir, "deep", "nested", "img.jpg"])
 
-      assert {:ok, ^dest} = ImageFiles.download("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} =
+               ImageFiles.download("https://example.com/img.jpg", dest, upstream: :tmdb_images)
+
       assert File.exists?(dest)
     end
   end
@@ -82,7 +93,8 @@ defmodule MediaCentaur.ImageFilesTest do
       stub_http_success(jpeg)
       dest = Path.join(tmp_dir, "test/raw.jpg")
 
-      assert {:ok, ^dest} = ImageFiles.download("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} =
+               ImageFiles.download("https://example.com/img.jpg", dest, upstream: :tmdb_images)
 
       {:ok, result} = Image.open(dest)
       {width, height, _} = Image.shape(result)
@@ -91,13 +103,15 @@ defmodule MediaCentaur.ImageFilesTest do
     end
   end
 
-  describe "download_raw/2" do
+  describe "download_raw/3" do
     test "writes bytes directly without image processing", %{tmp_dir: tmp_dir} do
       body = :binary.copy("x", 2_000)
       stub_http_success(body)
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
-      assert {:ok, ^dest} = ImageFiles.download_raw("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} =
+               ImageFiles.download_raw("https://example.com/img.jpg", dest, upstream: :tmdb_images)
+
       assert File.read!(dest) == body
     end
 
@@ -106,7 +120,7 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
       assert {:error, :permanent, {:body_too_small, _url, 0}} =
-               ImageFiles.download_raw("https://example.com/img.jpg", dest)
+               ImageFiles.download_raw("https://example.com/img.jpg", dest, upstream: :tmdb_images)
 
       refute File.exists?(dest)
     end
@@ -117,7 +131,7 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
       assert {:error, :permanent, {:body_too_small, _url, 200}} =
-               ImageFiles.download_raw("https://example.com/img.jpg", dest)
+               ImageFiles.download_raw("https://example.com/img.jpg", dest, upstream: :tmdb_images)
 
       refute File.exists?(dest)
     end
@@ -127,7 +141,9 @@ defmodule MediaCentaur.ImageFilesTest do
       stub_http_success(body)
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
-      assert {:ok, ^dest} = ImageFiles.download_raw("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} =
+               ImageFiles.download_raw("https://example.com/img.jpg", dest, upstream: :tmdb_images)
+
       assert File.read!(dest) == body
     end
 
@@ -135,7 +151,9 @@ defmodule MediaCentaur.ImageFilesTest do
       stub_http_success(:binary.copy("d", 1500))
       dest = Path.join([tmp_dir, "new", "dir", "img.jpg"])
 
-      assert {:ok, ^dest} = ImageFiles.download_raw("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} =
+               ImageFiles.download_raw("https://example.com/img.jpg", dest, upstream: :tmdb_images)
+
       assert File.exists?(dest)
     end
   end
@@ -146,7 +164,7 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :permanent, {:http_error, 404, _}} =
-               ImageFiles.download("https://example.com/img.jpg", dest)
+               ImageFiles.download("https://example.com/img.jpg", dest, upstream: :tmdb_images)
     end
 
     test "HTTP 500 is transient", %{tmp_dir: tmp_dir} do
@@ -154,15 +172,15 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :transient, {:http_error, 500, _}} =
-               ImageFiles.download("https://example.com/img.jpg", dest)
+               ImageFiles.download("https://example.com/img.jpg", dest, upstream: :tmdb_images)
     end
 
     test "connection failure is transient", %{tmp_dir: tmp_dir} do
       stub_http_connection_error(:timeout)
       dest = Path.join(tmp_dir, "test/img.jpg")
 
-      assert {:error, :transient, {:download_failed, _, :timeout}} =
-               ImageFiles.download("https://example.com/img.jpg", dest)
+      assert {:error, :transient, {:download_failed, _, %Req.TransportError{reason: :timeout}}} =
+               ImageFiles.download("https://example.com/img.jpg", dest, upstream: :tmdb_images)
     end
 
     test "corrupt image data is permanent for download/3", %{tmp_dir: tmp_dir} do
@@ -170,7 +188,7 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :permanent, {:image_open_failed, _}} =
-               ImageFiles.download("https://example.com/img.jpg", dest)
+               ImageFiles.download("https://example.com/img.jpg", dest, upstream: :tmdb_images)
     end
 
     test "download_raw passes through HTTP errors", %{tmp_dir: tmp_dir} do
@@ -178,7 +196,7 @@ defmodule MediaCentaur.ImageFilesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :permanent, {:http_error, 403, _}} =
-               ImageFiles.download_raw("https://example.com/img.jpg", dest)
+               ImageFiles.download_raw("https://example.com/img.jpg", dest, upstream: :tmdb_images)
     end
   end
 
@@ -285,27 +303,22 @@ defmodule MediaCentaur.ImageFilesTest do
 
   # --- HTTP stub helpers ---
 
-  # Per-process overrides — see `ImageFiles.http_client/0`. These don't
-  # mutate `Application.env`, so async-true tests in this file and
+  # `Req.Test` stubs are per-process, so async-true tests in this file and
   # siblings can stub independently without clobbering each other.
 
   defp stub_http_success(body) do
-    Process.put(:image_http_client, __MODULE__.FakeClient)
-    Process.put(:fake_http_response, {:ok, %{status: 200, body: body}})
+    Req.Test.stub(:images, fn conn ->
+      conn
+      |> Plug.Conn.put_resp_content_type("image/jpeg")
+      |> Plug.Conn.send_resp(200, body)
+    end)
   end
 
   defp stub_http_error(status) do
-    Process.put(:image_http_client, __MODULE__.FakeClient)
-    Process.put(:fake_http_response, {:ok, %{status: status, body: ""}})
+    Req.Test.stub(:images, fn conn -> Plug.Conn.send_resp(conn, status, "") end)
   end
 
   defp stub_http_connection_error(reason) do
-    Process.put(:image_http_client, __MODULE__.FakeClient)
-    Process.put(:fake_http_response, {:error, reason})
-  end
-
-  defmodule FakeClient do
-    @moduledoc false
-    def get(_url), do: Process.get(:fake_http_response)
+    Req.Test.stub(:images, fn conn -> Req.Test.transport_error(conn, reason) end)
   end
 end

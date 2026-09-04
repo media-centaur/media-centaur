@@ -134,7 +134,9 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
   end
 
   defp get_api(%ClientConfig{} = config, params) do
-    client = MediaCentaur.HttpClient.new(__MODULE__, base_url: config.url, retry: false)
+    client =
+      MediaCentaur.HttpClient.new(__MODULE__, upstream: :sabnzbd, base_url: config.url, retry: false)
+
     api_key = MediaCentaur.Secret.expose(config.api_key) || ""
     params = Keyword.merge([output: "json", apikey: api_key], params)
 

@@ -52,7 +52,7 @@ defmodule MediaCentaur.Apps.Artwork do
   @doc "Downloads a URL into the cache via the shared ImageFiles service."
   @spec store_url(role(), String.t(), String.t()) :: :ok | {:error, term()}
   def store_url(role, app_id, url) do
-    case ImageFiles.download_raw(url, on_disk_path(role, app_id)) do
+    case ImageFiles.download_raw(url, on_disk_path(role, app_id), upstream: :steam) do
       {:ok, _path} -> :ok
       {:error, _category, reason} -> {:error, reason}
     end

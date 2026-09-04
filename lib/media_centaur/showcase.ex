@@ -1078,7 +1078,7 @@ defmodule MediaCentaur.Showcase do
     images_root = Config.images_dir_for(media_dir)
     dest = Path.join([images_root, owner_id, "#{role}.#{extension}"])
 
-    case MediaCentaur.ImageFiles.download(url, dest, []) do
+    case MediaCentaur.ImageFiles.download(url, dest, upstream: :tmdb_images) do
       {:ok, _} ->
         Library.Images.create!(%{
           owner_type: owner_type,

@@ -159,7 +159,7 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
 
       dest = Path.join(tmp_dir, "entity-id/poster.jpg")
 
-      assert {:error, :transient, {:download_failed, _, :timeout}} =
+      assert {:error, :transient, {:download_failed, _, %Req.TransportError{reason: :timeout}}} =
                ImageProcessor.download_and_resize(
                  "https://example.com/poster.jpg",
                  "poster",
@@ -257,7 +257,7 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
       stub_http_connection_error(:econnrefused)
       dest = Path.join(tmp_dir, "entity-id/poster.jpg")
 
-      assert {:error, :transient, {:download_failed, _, :econnrefused}} =
+      assert {:error, :transient, {:download_failed, _, %Req.TransportError{reason: :econnrefused}}} =
                ImageProcessor.download_and_resize("https://example.com/x.jpg", "poster", dest)
     end
 
@@ -274,29 +274,22 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
   # HTTP stub helpers
   # ---------------------------------------------------------------------------
 
-  # Per-process overrides — see `ImageFiles.http_client/0`. These don't
-  # mutate `Application.env`, so async-true tests in this file and
+  # `Req.Test` stubs are per-process, so async-true tests in this file and
   # siblings can stub independently without clobbering each other.
 
   defp stub_http_success(body) do
-    Process.put(:image_http_client, __MODULE__.FakeClient)
-    Process.put(:fake_http_response, {:ok, %{status: 200, body: body}})
+    Req.Test.stub(:images, fn conn ->
+      conn
+      |> Plug.Conn.put_resp_content_type("image/jpeg")
+      |> Plug.Conn.send_resp(200, body)
+    end)
   end
 
   defp stub_http_error(status) do
-    Process.put(:image_http_client, __MODULE__.FakeClient)
-    Process.put(:fake_http_response, {:ok, %{status: status, body: ""}})
+    Req.Test.stub(:images, fn conn -> Plug.Conn.send_resp(conn, status, "") end)
   end
 
   defp stub_http_connection_error(reason) do
-    Process.put(:image_http_client, __MODULE__.FakeClient)
-    Process.put(:fake_http_response, {:error, reason})
-  end
-
-  defmodule FakeClient do
-    @moduledoc false
-    def get(_url) do
-      Process.get(:fake_http_response)
-    end
+    Req.Test.stub(:images, fn conn -> Req.Test.transport_error(conn, reason) end)
   end
 end

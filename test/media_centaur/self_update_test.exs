@@ -8,20 +8,16 @@ defmodule MediaCentaur.SelfUpdateTest do
     # boot!/0 can enqueue a CheckerJob that runs inline in the test
     # Oban config. Install a stub client so any such job uses the stub
     # instead of the real GitHub API.
-    Req.Test.stub(:github_releases_facade, fn conn ->
+    Req.Test.stub(:github, fn conn ->
       Plug.Conn.send_resp(conn, 404, "not found")
     end)
 
     Req.Test.set_req_test_from_context(%{async: false})
-
-    client = Req.new(plug: {Req.Test, :github_releases_facade}, retry: false)
-    :persistent_term.put({UpdateChecker, :client}, client)
-    Req.Test.allow(:github_releases_facade, self(), self())
+    Req.Test.allow(:github, self(), self())
 
     UpdateChecker.clear_cache()
 
     on_exit(fn ->
-      :persistent_term.erase({UpdateChecker, :client})
       UpdateChecker.clear_cache()
     end)
 
@@ -143,7 +139,7 @@ defmodule MediaCentaur.SelfUpdateTest do
 
   describe "run_check/1" do
     test "fetches, records, broadcasts, and returns the success outcome" do
-      Req.Test.stub(:github_releases_facade, fn conn ->
+      Req.Test.stub(:github, fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.send_resp(

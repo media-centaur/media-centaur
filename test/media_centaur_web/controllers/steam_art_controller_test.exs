@@ -14,32 +14,20 @@ defmodule MediaCentaurWeb.SteamArtControllerTest do
     File.write!(Path.join(hash_dir, "library_header.jpg"), bytes)
   end
 
-  defmodule FakeStoreClient do
-    @moduledoc false
-    def get(_url), do: Process.get(:fake_store_response)
-  end
-
-  defp stub_store(response) do
-    Process.put(:steam_store_http_client, FakeStoreClient)
-    Process.put(:fake_store_response, response)
+  defp stub_store(body) do
+    Req.Test.stub(:steam, fn conn -> Req.Test.json(conn, body) end)
   end
 
   test "banner prefers the store API's current URL over local art", %{conn: conn} do
     root = tmp_steam_root()
     write_local_banner(root, 100, "stale-local-bytes")
 
-    stub_store(
-      {:ok,
-       %{
-         status: 200,
-         body: %{
-           "100" => %{
-             "success" => true,
-             "data" => %{"header_image" => "https://cdn.test/98dd/header.jpg?t=1"}
-           }
-         }
-       }}
-    )
+    stub_store(%{
+      "100" => %{
+        "success" => true,
+        "data" => %{"header_image" => "https://cdn.test/98dd/header.jpg?t=1"}
+      }
+    })
 
     conn = get(conn, ~p"/apps/steam-art/100/banner?#{[root: root]}")
 

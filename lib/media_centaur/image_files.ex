@@ -6,13 +6,22 @@ defmodule MediaCentaur.ImageFiles do
 
   Any context can call this to download an image from a URL, optionally
   resize it, and write it to disk. Does not own queuing, retry scheduling,
-  or database records — those stay in their respective contexts.
+  or database records — those stay in their respective contexts. Requests
+  go through `MediaCentaur.HttpClient` without Req's own retries, since
+  the image pipeline schedules retries itself.
+
+  Images come from more than one upstream (the TMDB image CDN, the Steam
+  CDN), so every download names its `:upstream` — the caller knows, this
+  module does not.
   """
+
+  alias MediaCentaur.HttpClient
 
   @doc """
   Downloads an image from `url`, optionally resizes it, and writes to `dest_path`.
 
   Options:
+  - `:upstream` — required; the `MediaCentaur.HttpClient.Upstream` id the URL belongs to.
   - `:resize` — `{:fit, width, height}` or `{:longest_edge, max}`. Skipped if image is already smaller.
   - `:format` — `:jpg` (default) or `:png`. Determines write options.
 
@@ -25,7 +34,7 @@ defmodule MediaCentaur.ImageFiles do
     resize = Keyword.get(opts, :resize)
     format = Keyword.get(opts, :format, :jpg)
 
-    with {:ok, body} <- fetch(url),
+    with {:ok, body} <- fetch(url, Keyword.fetch!(opts, :upstream)),
          {:ok, image} <- open(body),
          {:ok, resized} <- maybe_resize(image, resize),
          :ok <- write(resized, dest_path, format) do
@@ -51,12 +60,14 @@ defmodule MediaCentaur.ImageFiles do
   `{:error, :permanent, {:body_too_small, url, byte_size}}` so partial
   / error-envelope downloads can't masquerade as valid images.
 
+  Options: `:upstream` — required, as for `download/3`.
+
   Returns `{:ok, dest_path}` or `{:error, category, reason}`.
   """
-  def download_raw(url, dest_path) do
+  def download_raw(url, dest_path, opts) do
     dest_path |> Path.dirname() |> File.mkdir_p!()
 
-    case fetch(url) do
+    case fetch(url, Keyword.fetch!(opts, :upstream)) do
       {:ok, body} when is_binary(body) and byte_size(body) >= @raw_min_bytes ->
         File.write!(dest_path, body)
         {:ok, dest_path}
@@ -154,8 +165,8 @@ defmodule MediaCentaur.ImageFiles do
 
   # Derivatives live under the app data dir so they survive restarts and never
   # touch the (possibly read-only / network-mounted) media image caches. The
-  # per-process override mirrors `http_client/0` — it lets async tests redirect
-  # the cache into a tmp dir without mutating global config.
+  # per-process override lets async tests redirect the cache into a tmp dir
+  # without mutating global config.
   defp derivative_root do
     base =
       Process.get(:image_derivative_root) ||
@@ -206,8 +217,10 @@ defmodule MediaCentaur.ImageFiles do
 
   # --- HTTP ---
 
-  defp fetch(url) do
-    case http_client().get(url) do
+  defp fetch(url, upstream) do
+    client = HttpClient.new(__MODULE__, upstream: upstream, retry: false, decode_body: false)
+
+    case Req.get(client, url: url) do
       {:ok, %{status: 200, body: body}} ->
         {:ok, body}
 
@@ -219,17 +232,6 @@ defmodule MediaCentaur.ImageFiles do
     end
   rescue
     _ -> {:error, {:download_failed, url, :unavailable}}
-  end
-
-  # Resolves the HTTP client module to call. A per-process override in
-  # the caller's process dict wins if present — this lets concurrent
-  # async tests stub independently without clobbering each other via
-  # the shared `Application` env. Production callers don't use the
-  # process dict, so they fall through to the Application value
-  # (NoopImageDownloader in tests; Req in dev/prod).
-  defp http_client do
-    Process.get(:image_http_client) ||
-      Application.get_env(:media_centaur, :image_http_client, Req)
   end
 
   # --- Image operations ---

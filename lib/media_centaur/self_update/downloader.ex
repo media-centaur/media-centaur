@@ -174,8 +174,8 @@ defmodule MediaCentaur.SelfUpdate.Downloader do
   end
 
   defp default_client do
-    Req.new(
-      base_url: nil,
+    MediaCentaur.HttpClient.new(__MODULE__,
+      upstream: :github,
       headers: [{"user-agent", "media-centaur"}]
     )
   end

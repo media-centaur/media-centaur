@@ -7,7 +7,7 @@ defmodule MediaCentaur.AcquisitionTest do
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
-  alias MediaCentaur.Search.{Prowlarr, SearchResult}
+  alias MediaCentaur.Search.SearchResult
   alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
   alias MediaCentaur.Repo
 

@@ -4,6 +4,7 @@ defmodule MediaCentaur.Acquisition do
       MediaCentaur.Capabilities,
       MediaCentaur.Downloads,
       MediaCentaur.ErrorReports,
+      MediaCentaur.HttpClient,
       MediaCentaur.Library,
       MediaCentaur.ReleaseTracking,
       MediaCentaur.Retention,

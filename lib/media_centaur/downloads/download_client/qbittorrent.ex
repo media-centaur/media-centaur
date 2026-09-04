@@ -169,9 +169,17 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
   defp req(%ClientConfig{} = config) do
     base =
       if MediaCentaur.Settings.Config.get(:showcase_mode) do
-        Req.new(plug: &MediaCentaur.Showcase.Stubs.qbittorrent_plug/1, retry: false)
+        MediaCentaur.HttpClient.new(__MODULE__,
+          upstream: :qbittorrent,
+          plug: &MediaCentaur.Showcase.Stubs.qbittorrent_plug/1,
+          retry: false
+        )
       else
-        MediaCentaur.HttpClient.new(__MODULE__, base_url: config.url, retry: false)
+        MediaCentaur.HttpClient.new(__MODULE__,
+          upstream: :qbittorrent,
+          base_url: config.url,
+          retry: false
+        )
       end
 
     case :persistent_term.get({__MODULE__, :cookie}, nil) do

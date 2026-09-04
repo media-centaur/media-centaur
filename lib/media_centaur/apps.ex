@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Apps do
   use Boundary,
-    deps: [MediaCentaur.Settings, MediaCentaur.Library],
+    deps: [MediaCentaur.HttpClient, MediaCentaur.Settings, MediaCentaur.Library],
     exports: [App, Events, Events.ArtworkCached, Steam, SteamStore]
 
   @moduledoc """

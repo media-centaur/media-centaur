@@ -82,8 +82,9 @@ defmodule MediaCentaur.TmdbArtworkTest do
 
   describe "download_poster/3" do
     test "a failed download is an error, not a nil success" do
-      # The test image client answers every GET with an empty body, which
-      # `ImageFiles.download_raw/2` rejects as too small.
+      # An empty body is rejected by `ImageFiles.download_raw/3` as too small.
+      Req.Test.stub(:images, fn conn -> Plug.Conn.send_resp(conn, 200, "") end)
+
       assert {:error, {:body_too_small, _url, 0}} =
                TmdbArtwork.download_poster(:movie, 550, "/sample-poster.jpg")
     end

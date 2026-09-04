@@ -338,7 +338,7 @@ defmodule MediaCentaur.TmdbArtwork do
     type = normalize_type(type)
     dest = on_disk_path(role, type, tmdb_id)
 
-    case ImageFiles.download_raw(@tmdb_cdn <> tmdb_path, dest) do
+    case ImageFiles.download_raw(@tmdb_cdn <> tmdb_path, dest, upstream: :tmdb_images) do
       {:ok, _path} ->
         Log.info(:library, "downloaded tmdb #{role} for #{type}-#{tmdb_id}")
         touch(type, tmdb_id)

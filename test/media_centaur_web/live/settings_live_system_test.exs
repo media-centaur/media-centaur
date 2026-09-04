@@ -17,9 +17,9 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
   alias MediaCentaur.SelfUpdate.UpdateChecker
 
   setup do
-    # Install a stub GitHub Releases client into the same persistent_term
-    # key UpdateChecker uses, so checks issued by the LiveView hit our stub.
-    Req.Test.stub(:github_releases_live, fn conn ->
+    # UpdateChecker's client is routed to the :github Req.Test stub, so
+    # checks issued by the LiveView hit our stub.
+    Req.Test.stub(:github, fn conn ->
       conn
       |> Plug.Conn.put_resp_content_type("application/json")
       |> Plug.Conn.send_resp(
@@ -35,9 +35,6 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
 
     Req.Test.set_req_test_from_context(%{async: false})
 
-    client = Req.new(plug: {Req.Test, :github_releases_live}, retry: false)
-    :persistent_term.put({UpdateChecker, :client}, client)
-
     # The cache is global (persistent_term) — reset it so each test starts
     # from a known empty state and can't be polluted by prior runs.
     UpdateChecker.clear_cache()
@@ -49,7 +46,6 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
 
     on_exit(fn ->
       Application.put_env(:media_centaur, :environment, :test)
-      :persistent_term.erase({UpdateChecker, :client})
       UpdateChecker.clear_cache()
     end)
 
@@ -76,7 +72,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
 
     # Permit the stub so that *if* a stray check fired, it would resolve to
     # v99.0.0 and fail the assertion below — otherwise this proves nothing.
-    Req.Test.allow(:github_releases_live, self(), view.pid)
+    Req.Test.allow(:github, self(), view.pid)
 
     # Give any would-be auto-check a window to run; none should.
     Process.sleep(100)
@@ -132,7 +128,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     Process.sleep(100)
     assert render(view) =~ "v55.0.0"
 
-    Req.Test.allow(:github_releases_live, self(), view.pid)
+    Req.Test.allow(:github, self(), view.pid)
     render_click(view, "check_updates", %{})
 
     assert_eventually(fn -> render(view) =~ "v99.0.0" end)
@@ -140,7 +136,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
 
   test "a manual check writes results back to the cache", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, ~p"/settings?section=system")
-    Req.Test.allow(:github_releases_live, self(), view.pid)
+    Req.Test.allow(:github, self(), view.pid)
     render_click(view, "check_updates", %{})
 
     assert_eventually(fn -> render(view) =~ "v99.0.0" end)
@@ -153,12 +149,12 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     # The card's checking state must resolve through the owned async task, not
     # rely on a completion broadcast reaching this view (the prod hang fixed in
     # v0.80.x — a worker→view PubSub gap left it stuck on "Checking…").
-    Req.Test.stub(:github_releases_live, fn conn ->
+    Req.Test.stub(:github, fn conn ->
       Plug.Conn.send_resp(conn, 404, "not found")
     end)
 
     {:ok, view, _html} = live_async!(conn, ~p"/settings?section=system")
-    Req.Test.allow(:github_releases_live, self(), view.pid)
+    Req.Test.allow(:github, self(), view.pid)
     render_click(view, "check_updates", %{})
 
     assert_eventually(fn ->
