@@ -37,9 +37,12 @@ running.
 
 ## Status
 
-Engineering Pass 1 (E1–E6) and Pass 2 (E7–E18) resolved 2026-09-04, in
-eight commits from `a661eea7` to the EntityView commit. Pass 3 (E19–E28)
-in progress. Sweep run 2026-09-04 against `7e1df187` (v1.7.3): 57
+Engineering Pass 1 (E1–E6), Pass 2 (E7–E18) and Pass 3 (E19–E28)
+resolved 2026-09-04 in the commits from `a661eea7` onward (plus E36, E41,
+and the polling half of P2, which those passes pulled in). **Paused for
+owner review** before Pass 4 (E29–E42). Full `mix precommit` is green
+apart from the suite's known concurrency flakes (relay timeout,
+"Database busy", a 60 s page-smoke timeout), each passing in isolation. Sweep run 2026-09-04 against `7e1df187` (v1.7.3): 57
 engineering, 10 performance, 42 documentation, 25 design findings.
 Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 
@@ -76,6 +79,32 @@ Criticals: P1; DS4, DS14, DS15, DS16, DS25.
   `retrying_count` DB read now runs only on image-pipeline updates.
 * `2026-09-04` — **E12:** Pipeline declares its dependency on Review
   (`PendingFile.parsed_attrs/1`); it was already building Review's row.
+* `2026-09-04` — **E19/E26 decided: the corpus keys on the term (plus
+  `:year`).** `:type` never reached Prowlarr, so two keys held one result
+  set and the commit path had to guess which — every movie approve
+  missed and grabbed without an infohash. Ladder terms are plain strings;
+  `QueryBuilder`/`CourQueries` keep `{query, opts}` because `:year` is a
+  real option; `CommitPlan.rehydrate/1` reads the assigned term alone.
+  `Search.SearchProvider` (E41) deleted with it. `commit_plan_test.exs`
+  pins the landed target's infohash and quality.
+* `2026-09-04` — **E24 decided without a migration:** a `:movie` tracking
+  item linked to a `MovieSeries` is a TMDB collection; any other movie
+  item is one film. The link already carried the answer, so the
+  Refresher dispatches on it instead of probing `/collection` first.
+* `2026-09-04` — **E23 decided: all of it goes.** `watch_dirs` now stops
+  the boot with the fix named; the cwd `data/` fallbacks, the
+  `body_excerpt` fallback, `Acquisition.Artwork`, `Playback.Iso639`, the
+  `/download`, `/upcoming` and `?section=` redirects, and the artwork-
+  layout boot migration (shipped 2026-08-11) are removed. Nothing in the
+  README, docs-site or wiki linked the retired routes.
+* `2026-09-04` — **E22:** `OwnerRef`'s per-type shorthand lives with the
+  fixtures as `TestFactory.OwnerRef`; production writes the owner pair.
+* `2026-09-04` — **E28 partial:** the `Watcher.Reconciler` moduledoc keeps
+  describing the unreachable `to_replace` case until Stage E-3's E56
+  collapses the branch; `Reconciliation`'s deferred-follow-ups moduledoc
+  stays (deliberate: its campaign was retired per ADR-042).
+* `2026-09-04` — **Storybook:** the detail stories build `%EntityView{}`
+  fixtures; the components read struct fields with dot access.
 * `2026-09-04` — **Declined for now:** the three Settings-key separator
   styles (Pass 1 minor). Renaming persisted keys needs a data migration
   for a cosmetic gain; revisit if a fourth style appears. **E34**
