@@ -454,6 +454,30 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
              )
     end
 
+    test "switching to a different plan clears the previous plan's stale activity line", %{
+      conn: conn
+    } do
+      {:ok, plan_a} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+      {:ok, plan_b} = Plans.create_movie_plan(%{tmdb_id: "778", title: "Other Movie"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan_a.id}")
+
+      send(
+        view.pid,
+        %PlanEvents.SearchActivity{
+          plan_id: plan_a.id,
+          term: "Sample Movie 2026",
+          outcome: :live,
+          result_count: 54
+        }
+      )
+
+      assert render(view) =~ "Searched: Sample Movie 2026 — 54 found"
+
+      render_patch(view, ~p"/incoming?plan=#{plan_b.id}")
+      refute render(view) =~ "Sample Movie 2026"
+    end
+
     test "the TV picker offers Track only for an untracked series", %{conn: conn} do
       stub_plan_tmdb()
 
