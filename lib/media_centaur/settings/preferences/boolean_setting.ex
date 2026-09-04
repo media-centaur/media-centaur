@@ -4,10 +4,14 @@ defmodule MediaCentaur.Settings.Preferences.BooleanSetting do
 
       use MediaCentaur.Settings.Preferences.BooleanSetting, key: "library_backdrop", default: false
 
-  Defines `setting_key/0`, `enabled?/0` and `enabled?/1` on the calling
-  module. Four flags shared this shape, differing only in the key and the
-  default; the module keeps its own `@moduledoc` explaining what the flag
-  means, which is the part that was never duplicated.
+  Defines `setting_key/0`, `enabled?/0`, `enabled?/1` and `set/1` on the
+  calling module. The boolean flags share this shape, differing only in the
+  key and the default; each module keeps its own `@moduledoc` explaining
+  what the flag means, which is the part that was never duplicated.
+
+  `set/1` is the only write. The Settings row shape (`%{"enabled" =>
+  boolean}`) is spelled here once; the web layer flips a preference by
+  calling `set/1`, never by writing the row itself.
 
   `default:` is required and load-bearing. Three of the four flags are
   default-off, but `library_show_card_info` is default-**on** — its entry is
@@ -72,6 +76,12 @@ defmodule MediaCentaur.Settings.Preferences.BooleanSetting do
       @spec enabled?(map()) :: boolean()
       def enabled?(%{"enabled" => enabled}) when is_boolean(enabled), do: enabled
       def enabled?(_value), do: @setting_default
+
+      @doc "Persists the flag. Subscribers learn of it through `{:setting_changed, key, value}`."
+      @spec set(boolean()) :: Settings.Entry.t()
+      def set(enabled?) when is_boolean(enabled?) do
+        Settings.find_or_create_entry!(%{key: @setting_key, value: %{"enabled" => enabled?}})
+      end
     end
   end
 end

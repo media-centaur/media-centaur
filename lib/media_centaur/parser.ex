@@ -76,6 +76,15 @@ defmodule MediaCentaur.Parser do
   end
 
   @doc """
+  The `{title, year}` a parsed file is looked up under. An extra is looked
+  up under its parent title — the feature or show it belongs to — because
+  that is the record it will be attached to.
+  """
+  @spec search_params(Result.t()) :: {String.t() | nil, integer() | nil}
+  def search_params(%Result{type: :extra, parent_title: title, parent_year: year}), do: {title, year}
+  def search_params(%Result{title: title, year: year}), do: {title, year}
+
+  @doc """
   Resolves the effective media type for extras.
 
   Extras with a season number are TV extras; extras without are movie extras.

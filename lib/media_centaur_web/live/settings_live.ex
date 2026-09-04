@@ -732,67 +732,37 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_event("toggle_letterboxd_links", _params, socket) do
     enabled = !socket.assigns.letterboxd_links
-
-    Settings.find_or_create_entry!(%{
-      key: "letterboxd_links",
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.LetterboxdLinks.set(enabled)
     {:noreply, assign(socket, letterboxd_links: enabled)}
   end
 
   def handle_event("toggle_show_discovery", _params, socket) do
     enabled = !socket.assigns.show_discovery
-
-    Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.DiscoveryVisibility.set(enabled)
     {:noreply, assign(socket, show_discovery: enabled)}
   end
 
   def handle_event("toggle_show_apps", _params, socket) do
     enabled = !socket.assigns.show_apps
-
-    Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.AppsVisibility.setting_key(),
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.AppsVisibility.set(enabled)
     {:noreply, assign(socket, show_apps: enabled)}
   end
 
   def handle_event("toggle_spoiler_free", _params, socket) do
     enabled = !socket.assigns.spoiler_free
-
-    Settings.find_or_create_entry!(%{
-      key: "spoiler_free_mode",
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.SpoilerFree.set(enabled)
     {:noreply, assign(socket, spoiler_free: enabled)}
   end
 
   def handle_event("toggle_library_backdrop", _params, socket) do
     enabled = !socket.assigns.library_backdrop
-
-    Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.LibraryBackdrop.setting_key(),
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.LibraryBackdrop.set(enabled)
     {:noreply, assign(socket, library_backdrop: enabled)}
   end
 
   def handle_event("toggle_incoming_backdrop", _params, socket) do
     enabled = !socket.assigns.incoming_backdrop
-
-    Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.IncomingBackdrop.setting_key(),
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.IncomingBackdrop.set(enabled)
     {:noreply, assign(socket, incoming_backdrop: enabled)}
   end
 
@@ -812,34 +782,19 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_event("toggle_show_card_info", _params, socket) do
     enabled = !socket.assigns.show_card_info
-
-    Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.LibraryCardInfo.setting_key(),
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.LibraryCardInfo.set(enabled)
     {:noreply, assign(socket, show_card_info: enabled)}
   end
 
   def handle_event("toggle_show_play_button", _params, socket) do
     enabled = !socket.assigns.show_play_button
-
-    Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.CardPlayButton.setting_key(),
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.CardPlayButton.set(enabled)
     {:noreply, assign(socket, show_play_button: enabled)}
   end
 
   def handle_event("toggle_auto_play_next_episode", _params, socket) do
     enabled = !socket.assigns.auto_play_next_episode
-
-    Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Settings.Preferences.AutoPlayNextEpisode.setting_key(),
-      value: %{"enabled" => enabled}
-    })
-
+    MediaCentaur.Settings.Preferences.AutoPlayNextEpisode.set(enabled)
     {:noreply, assign(socket, auto_play_next_episode: enabled)}
   end
 

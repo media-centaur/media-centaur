@@ -23,6 +23,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{Parse, Search}
   alias MediaCentaur.Repo
+  alias MediaCentaur.Review.PendingFile
 
   @processor_concurrency 10
 
@@ -175,16 +176,9 @@ defmodule MediaCentaur.Pipeline.Discovery do
   end
 
   defp build_review_attrs(payload) do
-    {search_title, search_year} = search_params(payload.parsed)
-
-    %{
+    Map.merge(PendingFile.parsed_attrs(payload.parsed), %{
       file_path: payload.file_path,
       media_directory: payload.media_directory,
-      parsed_title: search_title,
-      parsed_year: search_year,
-      parsed_type: type_to_string(payload.parsed.type),
-      season_number: payload.parsed.season,
-      episode_number: payload.parsed.episode,
       tmdb_id: payload.tmdb_id,
       tmdb_type: type_to_string(payload.tmdb_type),
       confidence: payload.confidence,
@@ -192,11 +186,8 @@ defmodule MediaCentaur.Pipeline.Discovery do
       match_year: payload.match_year,
       match_poster_path: payload.match_poster_path,
       candidates: normalize_candidates(payload.candidates)
-    }
+    })
   end
-
-  defp search_params(%{type: :extra, parent_title: title, parent_year: year}), do: {title, year}
-  defp search_params(%{title: title, year: year}), do: {title, year}
 
   defp type_to_string(nil), do: nil
   defp type_to_string(type) when is_atom(type), do: Atom.to_string(type)

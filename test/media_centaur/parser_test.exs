@@ -857,4 +857,17 @@ defmodule MediaCentaur.ParserTest do
       assert String.valid?(result.title)
     end
   end
+
+  describe "search_params/1" do
+    test "a movie or episode searches under its own title and year" do
+      parsed = Parser.parse("/media/movies/Sample Movie (2010)/Sample.Movie.2010.1080p.mkv")
+      assert Parser.search_params(parsed) == {"Sample Movie", 2010}
+    end
+
+    test "an extra searches under its parent's title and year" do
+      parsed = Parser.parse("/media/movies/Sample Movie (2010)/Featurettes/Making Of.mkv")
+      assert parsed.type == :extra
+      assert Parser.search_params(parsed) == {"Sample Movie", 2010}
+    end
+  end
 end

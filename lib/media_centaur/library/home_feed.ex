@@ -300,15 +300,9 @@ defmodule MediaCentaur.Library.HomeFeed do
     |> Enum.reject(&is_nil/1)
   end
 
-  # Builds `%{entity, progress, progress_records}` for one in-progress movie,
-  # or nil when no incomplete progress record remains.
   defp build_in_progress_movie_entry(movie) do
-    progress_records = if movie.watch_progress, do: [movie.watch_progress], else: []
-
-    in_progress_records = Enum.reject(progress_records, & &1.completed)
-
-    if in_progress_records != [] do
-      entity = %{
+    single_leaf_entry(
+      %{
         id: movie.id,
         type: :movie,
         name: movie.name,
@@ -319,20 +313,27 @@ defmodule MediaCentaur.Library.HomeFeed do
         images: (movie.images || []) ++ collection_images(movie),
         genres: movie.genres,
         duration_seconds: movie.duration_seconds
-      }
+      },
+      movie.watch_progress
+    )
+  end
 
-      progress =
-        Map.merge(
-          %{
-            episodes_completed:
-              if(movie.watch_progress && movie.watch_progress.completed, do: 1, else: 0),
-            episodes_total: 1
-          },
-          ContinueWatchingProgress.current_position_summary(progress_records)
-        )
+  # `%{entity, progress, progress_records}` for a container with exactly one
+  # playable leaf (movie, video object), or nil unless its one progress
+  # record is unfinished. One unfinished record means nothing is completed.
+  defp single_leaf_entry(_entity, nil), do: nil
+  defp single_leaf_entry(_entity, %{completed: true}), do: nil
 
-      %{entity: entity, progress: progress, progress_records: progress_records}
-    end
+  defp single_leaf_entry(entity, progress_record) do
+    progress_records = [progress_record]
+
+    progress =
+      Map.merge(
+        %{episodes_completed: 0, episodes_total: 1},
+        ContinueWatchingProgress.current_position_summary(progress_records)
+      )
+
+    %{entity: entity, progress: progress, progress_records: progress_records}
   end
 
   defp collection_images(%Movie{movie_series: %MovieSeries{images: images}}), do: images || []
@@ -458,11 +459,8 @@ defmodule MediaCentaur.Library.HomeFeed do
 
     Enum.reject(
       Enum.map(video_objects, fn video_object ->
-        progress_records = if video_object.watch_progress, do: [video_object.watch_progress], else: []
-        in_progress_records = Enum.reject(progress_records, & &1.completed)
-
-        if in_progress_records != [] do
-          entity = %{
+        single_leaf_entry(
+          %{
             id: video_object.id,
             type: :video_object,
             name: video_object.name,
@@ -470,23 +468,9 @@ defmodule MediaCentaur.Library.HomeFeed do
             images: video_object.images || [],
             genres: nil,
             duration_seconds: nil
-          }
-
-          progress =
-            Map.merge(
-              %{
-                episodes_completed:
-                  if(video_object.watch_progress && video_object.watch_progress.completed,
-                    do: 1,
-                    else: 0
-                  ),
-                episodes_total: 1
-              },
-              ContinueWatchingProgress.current_position_summary(progress_records)
-            )
-
-          %{entity: entity, progress: progress, progress_records: progress_records}
-        end
+          },
+          video_object.watch_progress
+        )
       end),
       &is_nil/1
     )

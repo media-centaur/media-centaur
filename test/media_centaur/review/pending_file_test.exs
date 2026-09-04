@@ -174,4 +174,25 @@ defmodule MediaCentaur.Review.PendingFileTest do
       assert Review.count_pending() == 0
     end
   end
+
+  describe "parsed_attrs/1" do
+    test "maps a parsed episode onto the parsed_* columns" do
+      parsed = MediaCentaur.Parser.parse("/media/tv/Sample Show/Season 01/Sample.Show.S01E02.1080p.mkv")
+
+      assert Review.PendingFile.parsed_attrs(parsed) == %{
+               parsed_title: "Sample Show",
+               parsed_year: nil,
+               parsed_type: "tv",
+               season_number: 1,
+               episode_number: 2
+             }
+    end
+
+    test "an extra is filed under its parent title" do
+      parsed = MediaCentaur.Parser.parse("/media/movies/Sample Movie (2010)/Featurettes/Making Of.mkv")
+
+      assert %{parsed_title: "Sample Movie", parsed_year: 2010, parsed_type: "extra"} =
+               Review.PendingFile.parsed_attrs(parsed)
+    end
+  end
 end
