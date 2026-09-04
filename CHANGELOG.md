@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.8.1 — 2026-09-05
+
+### Fixed
+
+- **An acquisition plan could show a search result that belonged to a different title.** Switching from one plan to another could leave the previous plan's "Searched: … — N found" status line showing under the new plan's card, sometimes permanently if that plan wasn't actively searching. Opening a plan now always starts its status line fresh.
+
+### Migration safety
+
+- No database migration runs on update.
+
 ## v1.8.0 — 2026-09-04
 
 ### New
