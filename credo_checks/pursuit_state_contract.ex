@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Credo.Checks.PursuitStateContract do
   use Credo.Check,
-    id: "MC0015",
+    id: "MC0031",
     base_priority: :high,
     category: :design,
     explanations: [

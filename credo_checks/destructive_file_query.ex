@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Credo.Checks.DestructiveFileQuery do
   use Credo.Check,
-    id: "MC0015",
+    id: "MC0030",
     base_priority: :high,
     category: :design,
     explanations: [

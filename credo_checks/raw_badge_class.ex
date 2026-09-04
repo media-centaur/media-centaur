@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Credo.Checks.RawBadgeClass do
   use Credo.Check,
-    id: "MC0008",
+    id: "MC0010",
     base_priority: :high,
     category: :design,
     explanations: [

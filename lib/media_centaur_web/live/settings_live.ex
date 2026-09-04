@@ -147,7 +147,6 @@ defmodule MediaCentaurWeb.SettingsLive do
        media_dir_dialog: nil,
        media_dir_delete_confirm: nil,
        scanning: false,
-       scan_task: nil,
        clearing_database: false,
        clear_database_prompt: false,
        confirming_image_refresh: false,
@@ -579,31 +578,25 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("scan", _params, socket) do
-    # Spawn the scan on a supervised Task so the LiveView stays responsive
-    # and we can surface a Cancel button backed by Task.shutdown/2. A
-    # synchronous call here would block the socket process — no render
-    # could fire during the scan, so the "Scanning…" label would never
-    # become visible.
-    task =
-      Task.Supervisor.async_nolink(MediaCentaur.TaskSupervisor, fn ->
-        MediaCentaur.Watcher.Supervisor.scan()
-      end)
-
-    {:noreply, assign(socket, scanning: true, scan_task: task)}
+    # Owned async (ADR-049, MC0019) so the LiveView stays responsive and the
+    # Cancel button has something to cancel. A synchronous call here would
+    # block the socket process — no render could fire during the scan, so the
+    # "Scanning…" label would never become visible.
+    {:noreply,
+     socket
+     |> assign(scanning: true)
+     |> start_async(:scan, fn -> MediaCentaur.Watcher.Supervisor.scan() end)}
   end
 
   def handle_event("cancel_scan", _params, socket) do
-    case socket.assigns[:scan_task] do
-      %Task{} = task ->
-        _ = Task.shutdown(task, :brutal_kill)
-
-        {:noreply,
-         socket
-         |> assign(scanning: false, scan_task: nil)
-         |> put_flash(:info, "Scan cancelled.")}
-
-      _ ->
-        {:noreply, socket}
+    if socket.assigns[:scanning] do
+      {:noreply,
+       socket
+       |> cancel_async(:scan)
+       |> assign(scanning: false)
+       |> put_flash(:info, "Scan cancelled.")}
+    else
+      {:noreply, socket}
     end
   end
 
@@ -1193,34 +1186,6 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_flash(:info, "Database cleared successfully")}
   end
 
-  # async_nolink delivers the scan result here as {ref, result} when the
-  # Task succeeds. We match on the stored task's ref to avoid confusing it
-  # with any other Task.async_nolink result flowing through this socket.
-  def handle_info({ref, {:ok, count}}, %{assigns: %{scan_task: %Task{ref: ref}}} = socket) do
-    Process.demonitor(ref, [:flush])
-
-    message =
-      case count do
-        0 -> "Scan complete — no new files found"
-        1 -> "Scan complete — 1 new file detected"
-        n -> "Scan complete — #{n} new files detected"
-      end
-
-    {:noreply,
-     socket
-     |> assign(scanning: false, scan_task: nil)
-     |> put_flash(:info, message)}
-  end
-
-  # Task exited normally after we already reaped its result above, or
-  # exited from Task.shutdown in cancel_scan. Either way nothing to do.
-  def handle_info(
-        {:DOWN, ref, :process, _pid, _reason},
-        %{assigns: %{scan_task: %Task{ref: ref}}} = socket
-      ) do
-    {:noreply, assign(socket, scan_task: nil)}
-  end
-
   def handle_info({:image_cache_refreshed, count}, socket) do
     {:noreply,
      socket
@@ -1612,6 +1577,31 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_async(:usenet_client_test_result, {:ok, status}, socket) do
     info = save_test_result(:usenet_download_client, status)
     {:noreply, assign(socket, usenet_client_testing: false, usenet_client_test: info)}
+  end
+
+  def handle_async(:scan, {:ok, {:ok, count}}, socket) do
+    message =
+      case count do
+        0 -> "Scan complete — no new files found"
+        1 -> "Scan complete — 1 new file detected"
+        n -> "Scan complete — #{n} new files detected"
+      end
+
+    {:noreply,
+     socket
+     |> assign(scanning: false)
+     |> put_flash(:info, message)}
+  end
+
+  # A crashed scan must clear the label; leaving `scanning` true strands the
+  # page on "Scanning…" with only Cancel to escape (audit E52/DS17).
+  def handle_async(:scan, {:exit, reason}, socket) do
+    Log.warning(:settings, "library scan task exited — #{inspect(reason)}")
+
+    {:noreply,
+     socket
+     |> assign(scanning: false)
+     |> put_flash(:error, "Scan failed. Check the console for details.")}
   end
 
   def handle_async(name, {:exit, reason}, socket) do
