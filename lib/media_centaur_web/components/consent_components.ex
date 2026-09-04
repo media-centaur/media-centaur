@@ -29,7 +29,12 @@ defmodule MediaCentaurWeb.ConsentComponents do
         <span class="text-sm text-base-content/70">
           In your own words, what happened? <span class="text-base-content/40">(optional)</span>
         </span>
-        <form phx-change="set_narrative" phx-target={@target} phx-debounce="300">
+        <form
+          id="consent-narrative-form"
+          phx-change="set_narrative"
+          phx-target={@target}
+          phx-debounce="300"
+        >
           <textarea
             name="value"
             rows="4"
@@ -60,7 +65,7 @@ defmodule MediaCentaurWeb.ConsentComponents do
       </div>
       <label class="flex flex-col gap-1">
         <span class="text-sm text-base-content/70">Title</span>
-        <form phx-change="set_title" phx-target={@target} phx-debounce="300">
+        <form id="consent-title-form" phx-change="set_title" phx-target={@target} phx-debounce="300">
           <input
             type="text"
             name="value"
@@ -71,7 +76,7 @@ defmodule MediaCentaurWeb.ConsentComponents do
       </label>
       <label class="flex flex-col gap-1">
         <span class="text-sm text-base-content/70">Report</span>
-        <form phx-change="set_body" phx-target={@target} phx-debounce="300">
+        <form id="consent-body-form" phx-change="set_body" phx-target={@target} phx-debounce="300">
           <textarea
             name="value"
             rows="14"

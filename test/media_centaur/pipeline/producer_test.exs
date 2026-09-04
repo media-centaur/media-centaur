@@ -91,7 +91,7 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
 
     test "retries with a delay while the watcher isn't running yet and attempts remain" do
       assert {:retry, delay} = DiscoveryProducer.reconcile_action(0, false)
-      assert is_integer(delay) and delay > 0
+      assert delay > 0
     end
 
     test "gives up silently once the attempt budget is exhausted" do

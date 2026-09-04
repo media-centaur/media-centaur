@@ -5,7 +5,7 @@ defmodule MediaCentaur.MixProject do
     [
       app: :media_centaur,
       version: "1.7.2",
-      elixir: "~> 1.15",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       description: "Library management and playback for a personal movie and TV collection.",
@@ -81,26 +81,23 @@ defmodule MediaCentaur.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:sourceror, "~> 1.8", only: [:dev, :test]},
+      {:sourceror, "~> 1.12", only: [:dev, :test]},
       {:usage_rules, "~> 1.0", only: [:dev]},
-      {:ecto_sqlite3, "~> 0.18"},
+      {:ecto_sqlite3, "~> 0.24"},
       {:phoenix, "~> 1.8.1"},
       {:phoenix_ecto, "~> 4.5"},
-      {:ecto_sql, "~> 3.13"},
+      {:ecto_sql, "~> 3.14"},
       {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
-      # Included in all envs because `import PhoenixStorybook.Router` inside
-      # an `if Mix.env() == :dev` block is still validated at compile time
-      # (Elixir does not dead-code-eliminate import directives — both branches
-      # of the resulting case expression are compiled). The router only mounts
-      # the storybook routes in :dev; :test and :prod just need the module to
-      # load. The bytecode footprint is small and no routes are exposed.
-      {:phoenix_storybook, "~> 1.0"},
+      {:phoenix_live_reload, "~> 1.7", only: :dev},
+      # Dev/test only: since 1.2 the storybook renders markdown with MDEx, a
+      # Rust NIF that stays out of the release. The router mounts it through
+      # `Code.eval_quoted/3` so the import is never expanded in :prod.
+      {:phoenix_storybook, "~> 1.3", only: [:dev, :test]},
       {:earmark_parser, "~> 1.4"},
-      {:phoenix_live_view, "~> 1.1.0"},
+      {:phoenix_live_view, "~> 1.2.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.5", runtime: Mix.env() == :dev},
       {:heroicons,
        github: "tailwindlabs/heroicons",
        tag: "v2.2.0",
@@ -108,7 +105,7 @@ defmodule MediaCentaur.MixProject do
        app: false,
        compile: false,
        depth: 1},
-      {:req, "~> 0.5"},
+      {:req, "~> 0.7"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
@@ -124,18 +121,18 @@ defmodule MediaCentaur.MixProject do
       {:decimal, "~> 3.0", override: true},
       {:file_system, "~> 1.0"},
       {:broadway, "~> 1.1"},
-      {:image, "~> 0.54"},
+      {:image, "~> 0.72"},
       {:toml, "~> 0.7"},
-      {:oban, "~> 2.19"},
-      {:tidewave, "~> 0.5", only: :dev},
+      {:oban, "~> 2.24"},
+      {:tidewave, "~> 0.9", only: :dev},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:credo_naming, "~> 2.1", only: [:dev, :test], runtime: false},
       {:credo_envvar, "~> 0.1", only: [:dev, :test], runtime: false},
-      {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
-      {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
+      {:quokka, "~> 2.13", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.15", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:boundary, "~> 0.10", runtime: false},
-      {:benchee, "~> 1.3", only: [:dev, :test], runtime: false}
+      {:benchee, "~> 1.5", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -174,7 +171,8 @@ defmodule MediaCentaur.MixProject do
         # Earmark.Parser.as_ast and emits HEEx (Phoenix auto-escapes), and the
         # only markdown is trusted, repo-authored guide content — no untrusted
         # input reaches it. earmark is retired with no patched version, and the
-        # maintained alternative (MDEx) is a Rust NIF we deliberately avoid.
+        # maintained alternative (MDEx) is a Rust NIF we keep out of the
+        # release (phoenix_storybook pulls it into :dev/:test only).
         # Unreachable advisory; ignored until we replace earmark_parser.
         "deps.audit --ignore-advisory-ids GHSA-52mm-h59v-f3c7",
         "sobelow",

@@ -145,8 +145,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
               data-nav-item
               tabindex="0"
             >
-              <span :if={@download_client_detecting} class="loading loading-spinner loading-xs">
-              </span>
+              <span :if={@download_client_detecting} class="loading loading-spinner loading-xs"></span>
               <.icon
                 :if={!@download_client_detecting}
                 name="hero-magnifying-glass-mini"

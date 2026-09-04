@@ -214,7 +214,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   def cast_filter_form(assigns) do
     ~H"""
-    <form phx-change="filter_cast" class={@class}>
+    <form id="cast-filter-form" phx-change="filter_cast" class={@class}>
       <%!-- Same anatomy as the library toolbar's filter: the wrap
             shrink-wraps the input, which carries its own width, so a
             right-pinned host (flex justify-end) keeps the idle icon pill

@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.GuideMarkdown do
 
   @doc "Render a markdown string to a HEEx rendered struct."
   def to_heex(markdown) when is_binary(markdown) do
-    {:ok, ast, _messages} = Earmark.Parser.as_ast(markdown, gfm: true)
+    {:ok, ast, _messages} = EarmarkParser.as_ast(markdown, gfm: true)
     assigns = %{nodes: ast}
 
     ~H"""
@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.GuideMarkdown do
 
   @doc "Extract the on-this-page outline as `[{level, text, anchor}]` for h2/h3."
   def outline(markdown) when is_binary(markdown) do
-    {:ok, ast, _messages} = Earmark.Parser.as_ast(markdown, gfm: true)
+    {:ok, ast, _messages} = EarmarkParser.as_ast(markdown, gfm: true)
 
     for {tag, _attrs, children, _meta} <- ast, tag in ~w(h2 h3) do
       text = node_text(children)

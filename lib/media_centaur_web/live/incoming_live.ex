@@ -1094,8 +1094,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                 <span
                   :if={!@queue_loaded?}
                   class="loading loading-spinner loading-xs text-base-content/30"
-                >
-                </span>
+                ></span>
               </div>
             </div>
             <div class="grid grid-cols-1 gap-2">

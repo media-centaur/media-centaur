@@ -34,7 +34,7 @@ If a refactor splits one component into two, write the second story before mergi
 
 ### 5. Dev-only
 
-Storybook is mounted under `if Mix.env() == :dev` in `MediaCentaurWeb.Router`. The dep itself is `only: [:dev, :test]` (test inclusion is required so the `import PhoenixStorybook.Router` inside the dev guard still passes compile in `:test` — see the comment in `mix.exs`). Same posture as Tidewave: never reachable in production.
+Storybook is mounted under `if Mix.env() in [:dev, :test]` in `MediaCentaurWeb.Router`. The dep itself is `only: [:dev, :test]` (test inclusion is required so the `import PhoenixStorybook.Router` inside the dev guard still passes compile in `:test` — see the comment in `mix.exs`). Same posture as Tidewave: never reachable in production.
 
 ### 6. Visuals only — no assertions, no logic
 

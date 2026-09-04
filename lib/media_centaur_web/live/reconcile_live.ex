@@ -261,7 +261,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
             <div class="text-xs text-base-content/40">release labelled {row.claimed}</div>
           </div>
           <.icon name="hero-arrow-right-mini" class="size-4 text-base-content/30 shrink-0" />
-          <form phx-change="override" class="shrink-0">
+          <form id={"override-#{row.id}"} phx-change="override" class="shrink-0">
             <input type="hidden" name="file" value={row.id} />
             <select
               name="target"

@@ -1018,6 +1018,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       </p>
 
       <form
+        id="review-search-form"
         phx-submit="search"
         phx-change="update_search"
         class="flex gap-2 items-end"

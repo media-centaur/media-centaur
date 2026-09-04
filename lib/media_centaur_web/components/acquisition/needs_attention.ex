@@ -116,8 +116,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
               class={["progress h-1.5 w-full", row.progress_class]}
               value={row.usage_percent}
               max="100"
-            >
-            </progress>
+            ></progress>
           </div>
         </div>
       </div>

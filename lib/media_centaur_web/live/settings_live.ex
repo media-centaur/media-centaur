@@ -2572,6 +2572,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
       <form
         :if={@media_dir_dialog}
+        id="media-dir-form"
         phx-change="media_dir:validate"
         phx-submit="media_dir:save"
         class="space-y-3"

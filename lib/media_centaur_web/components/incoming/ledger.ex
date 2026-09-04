@@ -86,7 +86,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
           {HistoryLogic.filter_label(filter_atom)}
         </button>
 
-        <form phx-change="set_history_search" class="ml-auto">
+        <form id="history-search-form" phx-change="set_history_search" class="ml-auto">
           <input
             type="search"
             name="search"

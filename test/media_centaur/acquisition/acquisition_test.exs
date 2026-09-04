@@ -1,6 +1,6 @@
 defmodule MediaCentaur.AcquisitionTest do
   use MediaCentaur.DataCase, async: false
-  use Oban.Testing, repo: MediaCentaur.Repo
+  use Oban.Testing, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite
 
   import MediaCentaur.TestFactory
 

@@ -6,7 +6,7 @@ defmodule MediaCentaur.Retention.SweepJobTest do
   or unrunnable provider fails here rather than at 04:33 in production.
   """
   use MediaCentaur.DataCase, async: false
-  use Oban.Testing, repo: MediaCentaur.Repo
+  use Oban.Testing, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite
 
   import MediaCentaur.TestFactory
 

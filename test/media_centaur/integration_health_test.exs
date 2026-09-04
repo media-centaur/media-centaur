@@ -158,7 +158,9 @@ defmodule MediaCentaur.IntegrationHealthTest do
   describe "verify/1 — only accepts known integration ids" do
     test "raises FunctionClauseError for unknown ids" do
       start_supervised!(IntegrationHealth)
-      assert_raise FunctionClauseError, fn -> IntegrationHealth.verify(:made_up) end
+      # Built at runtime: the type checker already rejects an unknown literal.
+      unknown = String.to_atom("made_up")
+      assert_raise FunctionClauseError, fn -> IntegrationHealth.verify(unknown) end
     end
   end
 

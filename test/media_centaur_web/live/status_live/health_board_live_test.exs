@@ -118,6 +118,11 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
   end
 
   test "dismissing all clears every incident in the subsystem", %{conn: conn} do
+    # Dismissing broadcasts the global Buckets snapshot, which replaces the
+    # injected list in the view. Warnings logged by earlier tests can have
+    # minted pipeline buckets there, so start from an empty snapshot.
+    Buckets.dismiss(Enum.map(Buckets.list_buckets(), & &1.fingerprint))
+
     {:ok, view, _html} = live(conn, ~p"/status?subsystem=pipeline")
     inject_bucket(view, "fp-dismiss-all")
 

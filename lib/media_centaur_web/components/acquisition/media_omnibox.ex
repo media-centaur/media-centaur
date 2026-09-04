@@ -115,7 +115,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   defp media_form(assigns) do
     ~H"""
-    <form phx-change="omnibox_change" phx-submit="omnibox_change" autocomplete="off">
+    <form
+      id="media-omnibox-form"
+      phx-change="omnibox_change"
+      phx-submit="omnibox_change"
+      autocomplete="off"
+    >
       <div class="relative">
         <.icon
           name="hero-magnifying-glass"
@@ -171,7 +176,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           disabled submit button once silently swallowed Enter here;
           buttonless makes that bug class unrepresentable. submit_search
           guards empty/invalid queries server-side. --%>
-    <form phx-change="query_change" phx-submit="submit_search" autocomplete="off">
+    <form
+      id="release-omnibox-form"
+      phx-change="query_change"
+      phx-submit="submit_search"
+      autocomplete="off"
+    >
       <div class="relative">
         <.icon
           name="hero-command-line-mini"
@@ -200,8 +210,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
             "loading loading-spinner loading-sm absolute top-1/2 -translate-y-1/2 text-base-content/40",
             (@session.query != "" && "right-12") || "right-4"
           ]}
-        >
-        </span>
+        ></span>
         <button
           :if={@session.query != ""}
           id="omnibox-release-clear"

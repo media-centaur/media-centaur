@@ -194,8 +194,7 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
       ]}
       aria-label={if @configured, do: "Configured", else: "Not configured"}
       title={if @configured, do: "Configured", else: "Not configured"}
-    >
-    </span>
+    ></span>
     """
   end
 
@@ -249,8 +248,7 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
         @status == :ok && "bg-success",
         @status == :error && "bg-error",
         is_nil(@status) && "bg-base-content/30"
-      ]}>
-      </span>
+      ]}></span>
       <span class="min-w-0 truncate">
         <span class="text-base-content/70">
           {cond do

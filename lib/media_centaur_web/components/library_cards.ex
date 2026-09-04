@@ -225,7 +225,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
         </div>
       </div>
 
-      <form phx-change="filter" class="ml-auto">
+      <form id="library-filter-form" phx-change="filter" class="ml-auto">
         <div class="library-filter-wrap">
           <.icon name="hero-magnifying-glass-mini" class="library-filter-icon" />
           <input

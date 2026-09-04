@@ -270,7 +270,7 @@ defmodule MediaCentaurWeb.ConsoleComponents do
         rescan
       </.button>
       <div class="console-buffer-size">
-        <form phx-change="resize_buffer">
+        <form id="console-buffer-size-form" phx-change="resize_buffer">
           <input
             type="range"
             name="size"

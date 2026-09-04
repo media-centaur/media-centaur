@@ -28,7 +28,7 @@ defmodule MediaCentaur.SelfUpdate.UpdateChecker do
 
   @base_url "https://api.github.com"
   @repo "media-centaur/media-centaur"
-  @cache_ttl_ms :timer.minutes(5)
+  @cache_ttl_ms to_timeout(minute: 5)
   @tag_regex ~r/^v\d+\.\d+\.\d+(-[A-Za-z0-9\.]+)?$/
 
   @type release :: %{

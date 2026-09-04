@@ -111,7 +111,7 @@ defmodule MediaCentaur.Platform.DriveProbe.GnuDfTest do
   describe "available_bytes/1 (live, no injection)" do
     test "returns available bytes for /tmp on Linux" do
       assert {:ok, avail} = GnuDf.available_bytes("/tmp")
-      assert is_integer(avail) and avail > 0
+      assert avail > 0
     end
 
     test "returns :error for a nonexistent path" do

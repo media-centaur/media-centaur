@@ -19,7 +19,7 @@ mix setup          # install deps, create DB, run migrations, build assets
 mix phx.server     # start dev server at http://localhost:1080
 ```
 
-Requirements: Elixir 1.15+, Erlang/OTP 26+, SQLite3, mpv, inotify-tools. See [README.md#requirements](README.md#requirements) for distro-specific install commands.
+Requirements: Elixir 1.20+, Erlang/OTP 27+, SQLite3, mpv, inotify-tools. See [README.md#requirements](README.md#requirements) for distro-specific install commands.
 
 ## Running tests
 
