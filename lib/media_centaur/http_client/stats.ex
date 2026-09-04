@@ -28,10 +28,14 @@ defmodule MediaCentaur.HttpClient.Stats do
         recent: [%{at:, upstream:, method:, path:, status:, error:, duration_ms:, cache:}, …]
       }
 
-  A request counts as an error when it failed at the transport or
-  answered with a status of 400 or above. `recent` is newest-first and
-  bounded to the last #{20} requests. Window figures cover the last
-  fifteen minutes; session figures accumulate since boot.
+  `requests`, `errors`, and `median_latency_ms` describe what reached
+  the upstream: cache hits are not requests, they are counted under
+  `cache.hit` only, so a repeated search that the cache answers moves
+  the hit count and nothing else. A request counts as an error when it
+  failed at the transport or answered with a status of 400 or above.
+  `recent` is newest-first and bounded to the last #{20} requests, hits
+  included. Window figures cover the last fifteen minutes; session
+  figures accumulate since boot.
   """
   use GenServer
 
@@ -174,6 +178,9 @@ defmodule MediaCentaur.HttpClient.Stats do
 
   defp empty_session, do: %{requests: 0, errors: 0, last_success_at: nil, last_failure_at: nil}
 
+  # A hit never reached the upstream: nothing to count against it.
+  defp bump(session, %{cache: :hit}, _entry), do: session
+
   defp bump(session, %{error?: true}, entry) do
     %{session | requests: session.requests + 1, errors: session.errors + 1, last_failure_at: entry.at}
   end
@@ -188,13 +195,15 @@ defmodule MediaCentaur.HttpClient.Stats do
   end
 
   defp row(id, samples, session) do
+    wire = Enum.reject(samples, &(&1.cache == :hit))
+
     %{
       id: id,
       label: Upstream.label(id),
       window: %{
-        requests: length(samples),
-        errors: Enum.count(samples, & &1.error?),
-        median_latency_ms: median(Enum.map(samples, & &1.duration_ms)),
+        requests: length(wire),
+        errors: Enum.count(wire, & &1.error?),
+        median_latency_ms: median(Enum.map(wire, & &1.duration_ms)),
         cache: %{
           hit: Enum.count(samples, &(&1.cache == :hit)),
           miss: Enum.count(samples, &(&1.cache == :miss)),

@@ -31,7 +31,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
       <div class="card-body">
         <h2 class="card-title text-lg">Outbound requests</h2>
         <p class="text-xs text-base-content/50">
-          Last {@http_stats.window_minutes} minutes, with session totals in grey. Cache is the share of requests answered without going out.
+          Last {@http_stats.window_minutes} minutes, with session totals in grey. Requests are what went out; Cache is what was answered here instead.
         </p>
 
         <div class="overflow-x-auto" data-component="http-upstreams">
@@ -108,7 +108,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
   defp hit_ratio_label(cache) do
     case Stats.hit_ratio(cache) do
       nil -> "—"
-      ratio -> "#{round(ratio * 100)}%"
+      ratio -> "#{cache.hit} · #{round(ratio * 100)}%"
     end
   end
 
