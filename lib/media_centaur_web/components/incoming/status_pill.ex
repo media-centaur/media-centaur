@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
   The Incoming page's shared status vocabulary — one pill component
   rendered by both zoom levels of an incoming item: the Coming-up shelf
   card and the in-flight torrent row. Speaking the same pill on both is
-  what welds the pair together (DDR-015).
+  what welds the pair together (UIDR-015).
 
   Color is state/health only (never identity): will-grab (`:armed`)
   and landed read success, in-pursuit reads info, failed reads error,

@@ -238,7 +238,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
     end
 
     test "GET /incoming mounts within budget", %{conn: conn} do
-      # Incoming (the merged /upcoming + /download page, DDR-015) is a
+      # Incoming (the merged /upcoming + /download page, UIDR-015) is a
       # ReleaseTracking + Acquisition surface, not Library. Phase 3
       # projections don't cover it; the LiveView reads both contexts.
       # Without Prowlarr configured (this fixture) the acquisition reads

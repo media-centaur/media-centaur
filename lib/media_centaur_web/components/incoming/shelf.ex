@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   @moduledoc """
-  The Coming-up shelf — the Incoming page's forecast band (DDR-015).
+  The Coming-up shelf — the Incoming page's forecast band (UIDR-015).
 
   An agenda list: one vertical column of compact date-led rows in
   nearness order, each built from a `Card` view-model the LiveView

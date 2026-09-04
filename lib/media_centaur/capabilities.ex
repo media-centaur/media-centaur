@@ -199,7 +199,7 @@ defmodule MediaCentaur.Capabilities do
         :ok
 
       entry ->
-        Settings.destroy_entry(entry)
+        Settings.delete_entry(entry)
         broadcast_changed()
         :ok
     end

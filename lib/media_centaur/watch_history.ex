@@ -6,7 +6,7 @@ defmodule MediaCentaur.WatchHistory do
   @moduledoc """
   Public API for the WatchHistory bounded context.
 
-  Records a permanent, append-only `WatchEvent` for each completion (≥90%
+  Records a permanent, append-only `Event` for each completion (≥90%
   playback threshold). The `Recorder` GenServer drives writes; this module
   exposes queries and the `delete_event!/1` mutation.
   """
@@ -20,7 +20,7 @@ defmodule MediaCentaur.WatchHistory do
     Topics.subscribe(Topics.watch_history_events())
   end
 
-  @doc "Insert a new WatchEvent. Called by Recorder."
+  @doc "Insert a new Event. Called by Recorder."
   def create_event(attrs) do
     attrs
     |> Event.create_changeset()
@@ -167,7 +167,7 @@ defmodule MediaCentaur.WatchHistory do
   def rewatch_count_map(type), do: Rewatch.count_per_entity(type)
 
   @doc """
-  Delete a WatchEvent from history.
+  Delete an Event from history.
 
   By default the linked `WatchProgress` is left untouched (use `remove from
   history` semantics). Pass `reset_progress: true` to also reset the linked

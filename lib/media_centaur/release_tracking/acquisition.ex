@@ -172,16 +172,13 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
     if poster_path || backdrop_path do
       Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
         downloaded? =
-          Enum.any?(
-            [
-              TmdbArtwork.download_poster(item.media_type, tmdb_id, poster_path),
-              TmdbArtwork.download_backdrop(item.media_type, tmdb_id, backdrop_path)
-            ],
-            fn
-              {:ok, path} when is_binary(path) -> true
-              _ -> false
-            end
-          )
+          [
+            {poster_path, &TmdbArtwork.download_poster/3},
+            {backdrop_path, &TmdbArtwork.download_backdrop/3}
+          ]
+          |> Enum.filter(fn {path, _downloader} -> is_binary(path) end)
+          |> Enum.map(fn {path, downloader} -> downloader.(item.media_type, tmdb_id, path) end)
+          |> Enum.any?(&match?({:ok, _path}, &1))
 
         # Landed files change what the UI resolves for this identity —
         # nudge subscribers to re-read.

@@ -17,7 +17,7 @@ defmodule MediaCentaur.Settings do
   skip the cache child and exercise the live DB path.
 
   Writes (`create_entry/1`, `update_entry/2`, `find_or_create_entry/1`,
-  `destroy_entry/1`) broadcast `{:setting_changed, key, value}` on
+  `delete_entry/1`) broadcast `{:setting_changed, key, value}` on
   `Topics.settings_updates/0`. The Cache.Worker observes those events
   and triggers a `refresh_cache/0`. Subscribers (LiveViews, derived
   caches like Capabilities/Controls) receive the same broadcast and
@@ -144,7 +144,7 @@ defmodule MediaCentaur.Settings do
     entry |> Entry.update_changeset(attrs) |> Repo.update() |> tap(&on_write/1)
   end
 
-  def destroy_entry(entry) do
+  def delete_entry(entry) do
     case Repo.delete(entry) do
       {:ok, deleted} ->
         delete_cache(deleted.key)
@@ -156,8 +156,8 @@ defmodule MediaCentaur.Settings do
     end
   end
 
-  def destroy_entry!(entry) do
-    Repo.bang!(destroy_entry(entry))
+  def delete_entry!(entry) do
+    Repo.bang!(delete_entry(entry))
     :ok
   end
 

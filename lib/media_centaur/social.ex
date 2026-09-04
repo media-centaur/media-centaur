@@ -37,11 +37,11 @@ defmodule MediaCentaur.Social do
 
   @doc "Subscribe the caller to friends events."
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Topics.subscribe(Topics.friends_updates())
+  def subscribe, do: Topics.subscribe(Topics.social_updates())
 
   @doc "Subscribe the caller to relay connection messages."
   @spec subscribe_connections() :: :ok | {:error, term()}
-  def subscribe_connections, do: Topics.subscribe(Topics.friends_connections())
+  def subscribe_connections, do: Topics.subscribe(Topics.social_connections())
 
   @doc "Adds a relay URL (idempotent on the normalized URL)."
   @spec add_relay(String.t()) :: {:ok, Relay.t()} | {:error, Ecto.Changeset.t()}
@@ -159,7 +159,7 @@ defmodule MediaCentaur.Social do
   end
 
   defp insert_relay(url, normalized) do
-    case Repo.insert(Relay.create_changeset(%{url: url})) do
+    case Repo.insert(Relay.changeset(%{url: url})) do
       {:ok, relay} ->
         Events.broadcast(%Events.RelayAdded{url: relay.url})
         {:ok, relay}

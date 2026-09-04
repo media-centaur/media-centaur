@@ -22,10 +22,10 @@ defmodule MediaCentaur.Social.Relay do
 
   @type t :: %__MODULE__{}
 
-  @doc "Changeset for a new relay row; normalizes the URL, then validates the normalized form."
-  @spec create_changeset(map()) :: Ecto.Changeset.t()
-  def create_changeset(attrs) do
-    %__MODULE__{}
+  @doc "Changeset for a relay row; normalizes the URL, then validates the normalized form."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
+  def changeset(relay \\ %__MODULE__{}, attrs) do
+    relay
     |> cast(attrs, [:url])
     |> update_change(:url, &normalize/1)
     |> validate_required([:url])

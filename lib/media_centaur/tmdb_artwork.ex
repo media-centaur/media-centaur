@@ -173,11 +173,21 @@ defmodule MediaCentaur.TmdbArtwork do
     end
   end
 
-  def download_poster(type, tmdb_id, tmdb_path), do: download_role(:poster, type, tmdb_id, tmdb_path)
+  @doc """
+  Downloads one role from a TMDB CDN path into the cache. Returns the
+  cache-relative path, or the download error (already logged).
+  """
+  @spec download_poster(media_type(), integer(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  def download_poster(type, tmdb_id, tmdb_path) when is_binary(tmdb_path),
+    do: download_role(:poster, type, tmdb_id, tmdb_path)
 
-  def download_backdrop(type, tmdb_id, tmdb_path), do: download_role(:backdrop, type, tmdb_id, tmdb_path)
+  @spec download_backdrop(media_type(), integer(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  def download_backdrop(type, tmdb_id, tmdb_path) when is_binary(tmdb_path),
+    do: download_role(:backdrop, type, tmdb_id, tmdb_path)
 
-  def download_logo(type, tmdb_id, tmdb_path), do: download_role(:logo, type, tmdb_id, tmdb_path)
+  @spec download_logo(media_type(), integer(), String.t()) :: {:ok, String.t()} | {:error, term()}
+  def download_logo(type, tmdb_id, tmdb_path) when is_binary(tmdb_path),
+    do: download_role(:logo, type, tmdb_id, tmdb_path)
 
   @doc """
   Bumps the entry's last-used stamp (directory mtime) — the TTL clock
@@ -216,8 +226,8 @@ defmodule MediaCentaur.TmdbArtwork do
       when role in [:poster, :backdrop, :logo] and is_binary(tmdb_path) do
     if stale_image?(on_disk_path(role, type, tmdb_id)) do
       case download_role(role, type, tmdb_id, tmdb_path) do
-        {:ok, path} when is_binary(path) -> :refreshed
-        _ -> :failed
+        {:ok, _path} -> :refreshed
+        {:error, _reason} -> :failed
       end
     else
       :current
@@ -380,9 +390,7 @@ defmodule MediaCentaur.TmdbArtwork do
   defp detail(:movie, id), do: Client.get_movie(id)
   defp detail(:tv_series, id), do: Client.get_tv(id)
 
-  defp download_role(_role, _type, _tmdb_id, nil), do: {:ok, nil}
-
-  defp download_role(role, type, tmdb_id, tmdb_path) when is_binary(tmdb_path) do
+  defp download_role(role, type, tmdb_id, tmdb_path) do
     type = normalize_type(type)
     dest = on_disk_path(role, type, tmdb_id)
 
@@ -392,8 +400,9 @@ defmodule MediaCentaur.TmdbArtwork do
         touch(type, tmdb_id)
         {:ok, relative_path(role, type, tmdb_id)}
 
-      {:error, _category, _reason} ->
-        {:ok, nil}
+      {:error, _category, reason} ->
+        Log.warning(:library, "tmdb #{role} download failed for #{type}-#{tmdb_id}: #{inspect(reason)}")
+        {:error, reason}
     end
   end
 

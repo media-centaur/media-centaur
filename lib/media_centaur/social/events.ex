@@ -64,8 +64,8 @@ defmodule MediaCentaur.Social.Events do
   """
   @spec broadcast_connection(String.t(), term()) :: :ok | {:error, term()}
   def broadcast_connection(url, message) when is_binary(url) do
-    Topics.publish(Topics.friends_connections(), {:relay_connection, url, message})
+    Topics.publish(Topics.social_connections(), {:relay_connection, url, message})
   end
 
-  defp publish(message), do: Topics.publish(Topics.friends_updates(), message)
+  defp publish(message), do: Topics.publish(Topics.social_updates(), message)
 end

@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.IncomingNavTest do
   @moduledoc """
-  Pins the DDR-015 sidebar contract: ONE unconditional "Incoming" entry
+  Pins the UIDR-015 sidebar contract: ONE unconditional "Incoming" entry
   replaces the old conditional "Downloads" + unconditional "Upcoming"
   pair. Without acquisition capabilities the page degrades to an honest
   forecast instead of disappearing, so the nav entry must render in BOTH

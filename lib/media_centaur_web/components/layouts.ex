@@ -172,7 +172,7 @@ defmodule MediaCentaurWeb.Layouts do
             <.icon name="hero-sparkles" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Discovery</span>
           </.link>
-          <%!-- One entry for the whole collection-growth story (DDR-015) —
+          <%!-- One entry for the whole collection-growth story (UIDR-015) —
                 unconditional: without acquisition the page degrades to an
                 honest forecast instead of disappearing. --%>
           <.link

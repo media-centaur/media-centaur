@@ -97,7 +97,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "mount" do
-    # DDR-015: capability gating moved from route-level (redirect) to
+    # UIDR-015: capability gating moved from route-level (redirect) to
     # render-level. The page must MOUNT without Prowlarr and degrade to the
     # honest forecast — hero omnibox reframed to tracking, no acquisition
     # sections — instead of navigating away.
@@ -3038,7 +3038,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
   # ---------------------------------------------------------------------------
   # Forecast concerns — ported from UpcomingLiveTest when /upcoming merged
-  # into this page (DDR-015). The shelf, detail slide-over, track modal, and
+  # into this page (UIDR-015). The shelf, detail slide-over, track modal, and
   # calendar disclosure are presentations of ReleaseTracking data and live on
   # /incoming in both capability states.
   # ---------------------------------------------------------------------------

@@ -40,7 +40,7 @@ defmodule MediaCentaur.Status do
   """
   @spec load_overview() :: LibraryOverview.t()
   def load_overview do
-    stats = fetch_library_stats()
+    stats = library_stats()
 
     %LibraryOverview{
       movie_count: stats.by_type.movie,
@@ -56,11 +56,5 @@ defmodule MediaCentaur.Status do
     }
   end
 
-  def fetch_recent_changes do
-    days = MediaCentaur.Settings.Config.get(:recent_changes_days) || 3
-    since = DateTime.add(DateTime.utc_now(), -days, :day)
-    Library.ChangeLog.list_recent_changes(10, since)
-  end
-
-  def fetch_library_stats, do: Library.Stats.all()
+  def library_stats, do: Library.Stats.all()
 end
