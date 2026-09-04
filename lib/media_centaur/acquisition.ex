@@ -14,7 +14,6 @@ defmodule MediaCentaur.Acquisition do
       MediaCentaur.TmdbArtwork
     ],
     exports: [
-      Artwork,
       AutoGrabSettings,
       CancelReasons,
       PlanEvents,

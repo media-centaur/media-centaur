@@ -99,7 +99,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
     Enum.find_value(media_dirs, fn dir ->
       candidate = Path.join(Config.images_dir_for(dir), relative)
       if File.regular?(candidate), do: candidate
-    end) || find_in_data_dir(relative) || find_in_legacy_data(relative)
+    end) || find_in_data_dir(relative)
   end
 
   # Configured app-data root — covers tracking-item images written by
@@ -113,14 +113,6 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
         candidate = Path.join(data_dir, relative)
         if File.regular?(candidate), do: candidate
     end
-  end
-
-  # Legacy cwd-relative fallback — kept so installs that wrote images
-  # before `:data_dir` was introduced continue to serve them without a
-  # manual move.
-  defp find_in_legacy_data(relative) do
-    candidate = Path.join("data", relative)
-    if File.regular?(candidate), do: candidate
   end
 
   defp send_file_response(conn, file_path) do

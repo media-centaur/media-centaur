@@ -50,7 +50,6 @@ defmodule MediaCentaur.TmdbArtwork do
   @type role :: :poster | :backdrop | :logo
 
   @subdir "images/tmdb"
-  @legacy_subdir "images/tracking"
   @ttl_days 7
 
   # All roles download TMDB `original` — masters stay full-size and the
@@ -316,61 +315,6 @@ defmodule MediaCentaur.TmdbArtwork do
     end)
   end
 
-  # --- Legacy layout migration ------------------------------------------
-
-  @doc """
-  One-shot boot migration from the bare-id `images/tracking/{tmdb_id}/`
-  layout to the typed layout. `mapping` is `%{tmdb_id_string => media_type}`
-  from the tracked items; unmapped directories are orphans (the old
-  `:tracking_artwork` policy would have swept them) and are deleted.
-  Idempotent: with no legacy root it is a no-op, and the legacy root is
-  removed when done. Self-retiring — remove once every install is past
-  the layout change.
-  """
-  @spec migrate_legacy!(%{optional(String.t()) => media_type()}) :: :ok
-  def migrate_legacy!(mapping) do
-    with data_dir when is_binary(data_dir) <- Config.get(:data_dir),
-         legacy_root = Path.join(data_dir, @legacy_subdir),
-         true <- File.dir?(legacy_root) do
-      case File.ls(legacy_root) do
-        {:ok, names} -> Enum.each(names, &migrate_legacy_entry(legacy_root, &1, mapping))
-        {:error, _} -> :ok
-      end
-
-      File.rm_rf(legacy_root)
-      :ok
-    else
-      _ -> :ok
-    end
-  end
-
-  defp migrate_legacy_entry(legacy_root, name, mapping) do
-    source = Path.join(legacy_root, name)
-
-    case Map.get(mapping, name) do
-      nil ->
-        :ok
-
-      type ->
-        dest = Path.join([data_dir(), @subdir, "#{type}-#{name}"])
-
-        if File.dir?(dest) do
-          # A populated typed entry is newer than any legacy copy.
-          :ok
-        else
-          File.mkdir_p!(Path.dirname(dest))
-
-          case File.rename(source, dest) do
-            :ok ->
-              Log.info(:library, "migrated tracking artwork #{name} -> #{type}-#{name}")
-
-            {:error, reason} ->
-              Log.warning(:library, "artwork migration failed for #{name}: #{inspect(reason)}")
-          end
-        end
-    end
-  end
-
   # --- Internals ---------------------------------------------------------
 
   defp fetch_missing(type, id) do
@@ -413,5 +357,5 @@ defmodule MediaCentaur.TmdbArtwork do
   # Falls back to "data" (cwd-relative) only if data_dir is not
   # configured — a misconfigured deploy still writes somewhere instead
   # of crashing. The sweep and migration refuse that fallback instead.
-  defp data_dir, do: Config.get(:data_dir) || "data"
+  defp data_dir, do: Config.get(:data_dir) || raise(ArgumentError, "data_dir is not configured")
 end

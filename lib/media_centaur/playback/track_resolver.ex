@@ -22,7 +22,7 @@ defmodule MediaCentaur.Playback.TrackResolver do
   """
 
   alias MediaCentaur.Library.MediaTrackOverride
-  alias MediaCentaur.Playback.Iso639
+  alias MediaCentaur.Iso639
   alias MediaCentaur.Playback.LanguagePolicy
 
   defmodule Track do

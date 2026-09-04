@@ -104,7 +104,9 @@ mismatch structurally impossible instead.
 
 ## Pointers
 
-* Modules: `MediaCentaur.Playback.Iso639`,
+* Modules: `MediaCentaur.Iso639` (the code table; the
+  `Playback.Iso639` facade this record named was removed 2026-09-04 once
+  `Subtitles` shared the table),
   `MediaCentaur.Playback.LanguageContext`,
   `MediaCentaur.Playback.LanguagePolicy`,
   `MediaCentaur.Playback.TrackResolver`

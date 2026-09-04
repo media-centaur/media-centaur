@@ -476,15 +476,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert html =~ "Media import settings saved"
     end
 
-    test "the retired ?section=pipeline address lands on Media Import", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
-
-      assert has_element?(
-               view,
-               "[data-nav-zone='sections'] a.menu-item-active[href='/settings?section=import']"
-             )
-    end
-
     test "saving persists the auto-approve threshold", %{conn: conn} do
       Config.update(:image_resolution, "1080p")
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
@@ -615,15 +606,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
              )
     end
 
-    test "the retired ?section=release_tracking address lands on Acquisition", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=release_tracking")
-
-      assert has_element?(
-               view,
-               "[data-nav-zone='sections'] a.menu-item-active[href='/settings?section=acquisition']"
-             )
-    end
-
     test "saving the refresh interval from Acquisition persists it", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
 
@@ -710,7 +692,8 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       movie = Library.Containers.create!(:movie, %{name: "Lost Posters", position: 0})
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"

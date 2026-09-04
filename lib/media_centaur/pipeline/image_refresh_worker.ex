@@ -12,10 +12,11 @@ defmodule MediaCentaur.Pipeline.ImageRefreshWorker do
 
   alias MediaCentaur.Pipeline.ImageRefresh
 
-  # Whitelist guards the atom conversion: a job persisted with a legacy or
-  # typo'd entity_type cancels cleanly instead of raising ArgumentError and
-  # retrying forever.
-  @entity_types ~w(movie tv_series movie_series video_object episode)
+  # The container types `ImageRefresh.refresh_entity/2` can fetch metadata
+  # for. The whitelist guards the atom conversion and the dispatch: a job
+  # carrying any other type (a typo, an episode) cancels cleanly instead of
+  # raising and retrying forever.
+  @entity_types ~w(movie tv_series movie_series video_object)
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"entity_id" => entity_id, "entity_type" => type}})

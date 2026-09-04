@@ -57,12 +57,12 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
   end
 
   test "overview section mounts and renders the current version", %{conn: conn} do
-    {:ok, _view, html} = live_async!(conn, ~p"/settings?section=overview")
+    {:ok, _view, html} = live_async!(conn, ~p"/settings?section=system")
     assert html =~ MediaCentaur.Version.current_version()
   end
 
   test "overview links to the guide", %{conn: conn} do
-    {:ok, _view, html} = live_async!(conn, ~p"/settings?section=overview")
+    {:ok, _view, html} = live_async!(conn, ~p"/settings?section=system")
     assert html =~ ~p"/guide"
     assert html =~ "Open the guide"
   end
@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     # Arriving on the page must never kick a network poll — the background
     # CheckerJob is the single scheduled poller. With an empty cache the card
     # renders the idle/current state, never the freshly-fetched v99.0.0.
-    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=system")
 
     # Permit the stub so that *if* a stray check fired, it would resolve to
     # v99.0.0 and fail the assertion below — otherwise this proves nothing.
@@ -96,7 +96,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
 
     :ok = UpdateChecker.cache_result({:ok, cached})
 
-    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=system")
 
     # Give any would-be auto-check a window to run; none should.
     Process.sleep(100)
@@ -109,7 +109,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
   test "landing on overview with a cached error reuses the error result", %{conn: conn} do
     :ok = UpdateChecker.cache_result({:error, :not_found})
 
-    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=system")
     Process.sleep(100)
 
     # The live stub returns v99.0.0 — confirm no fetch happened by asserting
@@ -128,7 +128,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
 
     :ok = UpdateChecker.cache_result({:ok, cached})
 
-    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=system")
     Process.sleep(100)
     assert render(view) =~ "v55.0.0"
 
@@ -139,7 +139,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
   end
 
   test "a manual check writes results back to the cache", %{conn: conn} do
-    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=system")
     Req.Test.allow(:github_releases_live, self(), view.pid)
     render_click(view, "check_updates", %{})
 
@@ -157,7 +157,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
       Plug.Conn.send_resp(conn, 404, "not found")
     end)
 
-    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=system")
     Req.Test.allow(:github_releases_live, self(), view.pid)
     render_click(view, "check_updates", %{})
 

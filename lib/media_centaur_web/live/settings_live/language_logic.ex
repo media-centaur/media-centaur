@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.SettingsLive.LanguageLogic do
   unit-testable without a socket or the DOM ([ADR-030]).
   """
 
-  alias MediaCentaur.Playback.Iso639
+  alias MediaCentaur.Iso639
 
   @doc "All selectable languages as `{code, name}`, sorted by name."
   @spec options() :: [{String.t(), String.t()}]

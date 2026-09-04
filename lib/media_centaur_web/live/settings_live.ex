@@ -245,18 +245,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_params(params, _uri, socket) do
     section =
-      case params["section"] do
-        nil -> "system"
-        # Legacy redirects — older bookmarks pointed at ?section=overview;
-        # the Updates section merged into System's Updates card; the
-        # Pipeline section was renamed Media Import; Release Tracking
-        # folded into Acquisition.
-        "overview" -> "system"
-        "updates" -> "system"
-        "pipeline" -> "import"
-        "release_tracking" -> "acquisition"
-        other -> other
-      end
+      params["section"] || "system"
 
     socket =
       socket
@@ -346,12 +335,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   # redundant traffic. A fresh check is still one click away via the
   # "check_updates" event. `view_status/0` is a pure cache read.
   defp assign_update_snapshot(socket, "system") do
-    if connected?(socket) do
-      {status, release} = SelfUpdate.view_status()
-      assign(socket, update_status: status, latest_release: release)
-    else
-      socket
-    end
+    {status, release} = SelfUpdate.view_status()
+    assign(socket, update_status: status, latest_release: release)
   end
 
   defp assign_update_snapshot(socket, _section), do: socket

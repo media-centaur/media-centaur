@@ -14,13 +14,14 @@ defmodule MediaCentaur.TestFactory do
 
   alias MediaCentaur.Library
 
+  alias MediaCentaur.TestFactory.OwnerRef
+
   alias MediaCentaur.Library.{
     Extra,
     Image,
     ExternalId,
     Movie,
     MovieSeries,
-    OwnerRef,
     Person,
     PlayableItem,
     Season,

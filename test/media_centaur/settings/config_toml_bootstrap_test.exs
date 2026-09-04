@@ -88,46 +88,18 @@ defmodule MediaCentaur.Settings.ConfigTomlBootstrapTest do
     end
   end
 
-  describe "Config.load!/0 with a legacy `watch_dirs` TOML key" do
-    # Pre-rename user configs carry `watch_dirs` — the loader must keep
-    # accepting that spelling forever so an existing install (or a fresh
-    # install pointed at an old config file) still boots with its
-    # library intact.
-    setup %{toml_path: toml_path} do
+  describe "Config.load!/0 with the retired `watch_dirs` TOML key" do
+    # The key was renamed to `media_dirs` in 2026-06. A file still using the
+    # old spelling must fail loudly with the fix named, never boot with no
+    # media directories.
+    test "raises naming the rename", %{toml_path: toml_path} do
       File.write!(toml_path, """
       watch_dirs = ["/mnt/legacy-movies"]
       """)
 
-      :ok = Config.load!()
-      :ok
-    end
-
-    test "loads the legacy key into :media_dirs" do
-      assert Config.get(:media_dirs) == ["/mnt/legacy-movies"]
-    end
-
-    test "snapshots the legacy entries for the one-shot Settings import" do
-      assert Application.get_env(:media_centaur, :__raw_toml_media_dirs) ==
-               ["/mnt/legacy-movies"]
-    end
-  end
-
-  describe "Config.load!/0 with both `media_dirs` and legacy `watch_dirs` keys" do
-    setup %{toml_path: toml_path} do
-      File.write!(toml_path, """
-      media_dirs = ["/mnt/current-movies"]
-      watch_dirs = ["/mnt/legacy-movies"]
-      """)
-
-      :ok = Config.load!()
-      :ok
-    end
-
-    test "the current key wins" do
-      assert Config.get(:media_dirs) == ["/mnt/current-movies"]
-
-      assert Application.get_env(:media_centaur, :__raw_toml_media_dirs) ==
-               ["/mnt/current-movies"]
+      assert_raise ArgumentError, ~r/`watch_dirs`; rename it to `media_dirs`/, fn ->
+        Config.load!()
+      end
     end
   end
 

@@ -729,11 +729,11 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     }
   end
 
-  # Local-only (DB + disk) — the modal kicks the network `Artwork.ensure`
+  # Local-only (disk) — the modal kicks the network `TmdbArtwork.ensure/2`
   # async when this comes back empty for a TMDB pursuit.
   defp header_artwork(%Pursuit{recipe_type: "tmdb", tmdb_id: tmdb_id} = pursuit)
        when not is_nil(tmdb_id) do
-    MediaCentaur.Acquisition.Artwork.resolve(tmdb_id, pursuit.tmdb_type)
+    pursuit.tmdb_type |> MediaCentaur.TmdbArtwork.urls(tmdb_id) |> Map.take([:backdrop_url, :logo_url])
   end
 
   defp header_artwork(_pursuit), do: %{backdrop_url: nil, logo_url: nil}

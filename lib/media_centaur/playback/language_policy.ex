@@ -40,7 +40,7 @@ defmodule MediaCentaur.Playback.LanguagePolicy do
       `subtitles_when` choosing not to show main subs).
   """
 
-  alias MediaCentaur.Playback.Iso639
+  alias MediaCentaur.Iso639
   alias MediaCentaur.Settings
 
   @settings_key "playback.tracks"

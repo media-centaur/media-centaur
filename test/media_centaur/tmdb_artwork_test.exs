@@ -157,45 +157,4 @@ defmodule MediaCentaur.TmdbArtworkTest do
       assert TmdbArtwork.sweep() == 0
     end
   end
-
-  describe "migrate_legacy!/1" do
-    test "moves legacy tracking dirs into the typed layout using the mapping", %{data_dir: data_dir} do
-      legacy = Path.join([data_dir, "images", "tracking", "246810"])
-      File.mkdir_p!(legacy)
-      File.write!(Path.join(legacy, "backdrop.jpg"), "img")
-
-      TmdbArtwork.migrate_legacy!(%{"246810" => :tv_series})
-
-      assert File.exists?(Path.join([data_dir, "images", "tmdb", "tv_series-246810", "backdrop.jpg"]))
-      refute File.exists?(Path.join([data_dir, "images", "tracking"]))
-    end
-
-    test "unmapped (orphan) legacy dirs are deleted", %{data_dir: data_dir} do
-      legacy = Path.join([data_dir, "images", "tracking", "999"])
-      File.mkdir_p!(legacy)
-      File.write!(Path.join(legacy, "backdrop.jpg"), "img")
-
-      TmdbArtwork.migrate_legacy!(%{})
-
-      refute File.exists?(legacy)
-      refute File.exists?(Path.join([data_dir, "images", "tracking"]))
-    end
-
-    test "a populated destination wins over the legacy copy", %{data_dir: data_dir} do
-      seed_entry(data_dir, :movie, 550, [:backdrop])
-      legacy = Path.join([data_dir, "images", "tracking", "550"])
-      File.mkdir_p!(legacy)
-      File.write!(Path.join(legacy, "backdrop.jpg"), "legacy")
-
-      TmdbArtwork.migrate_legacy!(%{"550" => :movie})
-
-      assert File.read!(Path.join([data_dir, "images", "tmdb", "movie-550", "backdrop.jpg"])) != "legacy"
-      refute File.exists?(legacy)
-    end
-
-    test "no legacy root is a no-op", %{data_dir: data_dir} do
-      assert TmdbArtwork.migrate_legacy!(%{"1" => :movie}) == :ok
-      refute File.exists?(Path.join([data_dir, "images", "tracking"]))
-    end
-  end
 end

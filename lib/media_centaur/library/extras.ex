@@ -5,8 +5,7 @@ defmodule MediaCentaur.Library.Extras do
 
   An Extra hangs off an `(owner_type, owner_id)` pair rather than a
   per-type FK, so the same table serves movies, series, collections and
-  seasons; `Library.OwnerRef` translates the per-type shorthand callers
-  still use. Its file lives in `Library.Files` as an `ExtraFile` — an
+  seasons. Its file lives in `Library.Files` as an `ExtraFile` — an
   Extra is a metadata-and-file pair, not a `PlayableItem`.
 
   `name` has exactly one update path (`rename/2`), because the name is
@@ -15,7 +14,7 @@ defmodule MediaCentaur.Library.Extras do
 
   import Ecto.Query
 
-  alias MediaCentaur.Library.{Extra, OwnerRef, Writes}
+  alias MediaCentaur.Library.{Extra, Writes}
   alias MediaCentaur.Repo
 
   @doc "Fetches an `Extra` by id."
@@ -27,9 +26,9 @@ defmodule MediaCentaur.Library.Extras do
     end
   end
 
-  @doc "Inserts an `Extra`, accepting either owner shape."
+  @doc "Inserts an `Extra` for an `(owner_type, owner_id)` owner."
   @spec create(map()) :: {:ok, Extra.t()} | {:error, Ecto.Changeset.t()}
-  def create(attrs), do: Repo.insert(Extra.create_changeset(OwnerRef.normalise(attrs, :extra)))
+  def create(attrs), do: Repo.insert(Extra.create_changeset(attrs))
 
   @doc "Bang variant of `create/1` — raises on changeset error."
   @spec create!(map()) :: Extra.t()

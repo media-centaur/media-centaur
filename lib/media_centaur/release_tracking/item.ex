@@ -9,13 +9,13 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   because a tracked release maps to a series or a movie collection,
   not a specific episode or movie file.
 
-  `media_type` describes the TMDB resource (`:movie` or `:tv_series`)
-  and drives TMDB API calls + grab orchestration; `library_container_type`
-  describes the Library schema that owns the linked container. They
-  happen to be 1:1 today (`:tv_series` → `:tv_series`, `:movie` →
-  `:movie_series`) but the two questions are different — keep them
-  separate so a future solo-movie link can coexist with collection
-  tracking.
+  `media_type` is the kind of content (`:movie` or `:tv_series`) and
+  drives release shape and grab orchestration; `library_container_type`
+  names the Library schema of the linked container, when there is one.
+  Together they identify the TMDB resource: a `:movie` item linked to a
+  `MovieSeries` tracks a TMDB *collection* (the Scanner writes these),
+  while a `:movie` item with no link tracks one film (a manual track from
+  search) — `Refresher` dispatches on exactly that.
   """
   use Ecto.Schema
   import Ecto.Changeset

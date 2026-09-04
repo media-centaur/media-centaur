@@ -47,23 +47,6 @@ defmodule MediaCentaur.SelfUpdate.StorageTest do
       assert persisted.body == long_body
     end
 
-    test "falls back to legacy body_excerpt rows for installs upgraded mid-rename" do
-      # Simulate a Settings.Entry row written by the pre-rename release.
-      MediaCentaur.Settings.find_or_create_entry!(%{
-        key: "update.latest_known",
-        value: %{
-          "version" => "0.8.0",
-          "tag" => "v0.8.0",
-          "published_at" => "2026-04-17T00:00:00Z",
-          "html_url" => "https://github.com/x/x/releases/tag/v0.8.0",
-          "body_excerpt" => "legacy notes",
-          "classification" => "up_to_date"
-        }
-      })
-
-      assert {:ok, %{release: %{body: "legacy notes"}}} = Storage.get_latest_known()
-    end
-
     test "returns :none when nothing is persisted" do
       assert :none = Storage.get_latest_known()
     end

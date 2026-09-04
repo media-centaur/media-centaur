@@ -14,16 +14,16 @@ defmodule MediaCentaur.Library.Images do
 
   import Ecto.Query
 
-  alias MediaCentaur.Library.{Image, OwnerRef}
+  alias MediaCentaur.Library.Image
   alias MediaCentaur.Repo
 
   @doc "Every `Image` row."
   @spec list_all() :: [Image.t()]
   def list_all, do: Repo.all(Image)
 
-  @doc "Inserts an `Image`, accepting either owner shape."
+  @doc "Inserts an `Image` for an `(owner_type, owner_id)` owner."
   @spec create(map()) :: {:ok, Image.t()} | {:error, Ecto.Changeset.t()}
-  def create(attrs), do: Repo.insert(Image.create_changeset(OwnerRef.normalise(attrs, :image)))
+  def create(attrs), do: Repo.insert(Image.create_changeset(attrs))
 
   @doc "Bang variant of `create/1` — raises on changeset error."
   @spec create!(map()) :: Image.t()
@@ -36,7 +36,6 @@ defmodule MediaCentaur.Library.Images do
   """
   @spec upsert(map(), [atom()]) :: {:ok, Image.t()} | {:error, Ecto.Changeset.t()}
   def upsert(attrs, conflict_target) do
-    attrs = OwnerRef.normalise(attrs, :image)
     delete_replaced_file(attrs, conflict_target)
 
     Repo.insert(Image.create_changeset(attrs),

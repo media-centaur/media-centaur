@@ -5,6 +5,7 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
 
   import Ecto.Query
   alias MediaCentaur.ReleaseTracking.Extractor
+  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
 
@@ -31,12 +32,15 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   bounded concurrency rather than fanning out to N independent tasks.
   """
   def download_images_sync(item, tmdb_id, response) do
-    item
-    |> pending_image_downloads(response)
-    |> Enum.each(fn {tmdb_path, downloader} ->
-      downloader.(item.media_type, tmdb_id, tmdb_path)
-    end)
+    landed? =
+      item
+      |> pending_image_downloads(response)
+      |> Enum.map(fn {tmdb_path, downloader} -> downloader.(item.media_type, tmdb_id, tmdb_path) end)
+      |> Enum.any?(&match?({:ok, _path}, &1))
 
+    # Landed files change what the UI resolves for this identity — nudge
+    # subscribers to re-read.
+    if landed?, do: ReleaseTracking.broadcast_releases_updated([item.id])
     :ok
   end
 

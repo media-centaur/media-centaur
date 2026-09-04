@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Library.OwnerRefTest do
+defmodule MediaCentaur.TestFactory.OwnerRefTest do
   @moduledoc """
   The per-type-key → `(owner_type, owner_id)` translation every sidecar
   write goes through (Library Schema v2 Phase 2 Task D). The behaviour
@@ -8,7 +8,7 @@ defmodule MediaCentaur.Library.OwnerRefTest do
   """
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.Library.OwnerRef
+  alias MediaCentaur.TestFactory.OwnerRef
 
   describe "kinds/0 and owner_types/1" do
     test "declares the three sidecar kinds" do

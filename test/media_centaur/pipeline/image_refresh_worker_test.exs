@@ -32,6 +32,11 @@ defmodule MediaCentaur.Pipeline.ImageRefreshWorkerTest do
     assert {:cancel, :no_tmdb_id} = ImageRefreshWorker.perform(job)
   end
 
+  test "perform/1 cancels (no retry) for an episode — episodes have no refreshable artwork" do
+    job = %Oban.Job{args: %{"entity_id" => "abc", "entity_type" => "episode"}}
+    assert {:cancel, {:bad_entity_type, "episode"}} = ImageRefreshWorker.perform(job)
+  end
+
   test "perform/1 cancels (no retry) on an unrecognized entity_type" do
     job = %Oban.Job{args: %{"entity_id" => "abc", "entity_type" => "bogus"}}
     assert {:cancel, {:bad_entity_type, "bogus"}} = ImageRefreshWorker.perform(job)
