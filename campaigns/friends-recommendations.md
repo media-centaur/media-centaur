@@ -2,7 +2,7 @@
 status: active
 status_note: shipped v1.6.0 + v1.7.0 (2026-09-02); iterating with the owner; relay deletion pending
 started: 2026-06-17
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 ---
 # Friends & recommendations (Nostr backbone)
 
@@ -265,6 +265,13 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   grouping key and a per-kind headline (the three Friends kinds are
   **Relay rejected this identity**, **No relay reachable**, **A relay is
   unreachable**), which is an `ErrorReports` change, not a Friends one.
+* **Relay observability** — spec approved 2026-09-04
+  (`docs/superpowers/specs/2026-09-04-social-relay-observability-design.md`).
+  Stage one: per-relay rows in the Status drill-in (state incl. `synced`,
+  duration, plain reason, retry countdown, last heard), liveness ping,
+  console lifecycle lines, the `restricted:` → Rejected rule below. Stage
+  two: the `:subsystem` board gap above, via a synthetic fingerprint and
+  per-kind headline.
 * **Hardening pass** after iteration settles (spec decision 11).
 * **Plan modal selection header → `title_summary`** (spec unification
   decision 4): converges when the plan modal is next touched; not before.
