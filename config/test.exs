@@ -66,7 +66,7 @@ config :media_centaur, :req_test_stubs, %{
   MediaCentaur.Apps.SteamStore => :steam,
   MediaCentaur.SelfUpdate.UpdateChecker => :github,
   MediaCentaur.SelfUpdate.Downloader => :github,
-  MediaCentaur.Acquisition.InfoHash => :indexers
+  MediaCentaur.Acquisition.InfoHash => :prowlarr
 }
 
 config :media_centaur, :skip_user_config, true

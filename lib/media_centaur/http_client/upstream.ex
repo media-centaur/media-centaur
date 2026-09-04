@@ -8,6 +8,9 @@ defmodule MediaCentaur.HttpClient.Upstream do
   is a user-configured, credential-bearing service with a verify probe.
   GitHub, Steam, and the TMDB image CDN are upstreams without being
   integrations; the download-client integration spans two upstreams.
+  Prowlarr is one upstream for both its search API and its download
+  proxy: a release file fetched for its infohash comes from Prowlarr's
+  host, whichever indexer sits behind it.
 
   Every `MediaCentaur.HttpClient.new/2` call names its upstream, and the
   instrumentation event carries it, so the enum here is the whole key
@@ -27,11 +30,10 @@ defmodule MediaCentaur.HttpClient.Upstream do
     qbittorrent: [label: "qBittorrent", panel?: true],
     sabnzbd: [label: "SABnzbd", panel?: true],
     github: [label: "GitHub", panel?: true],
-    steam: [label: "Steam", panel?: false],
-    indexers: [label: "Indexers", panel?: true]
+    steam: [label: "Steam", panel?: false]
   ]
 
-  @type id :: :tmdb | :tmdb_images | :prowlarr | :qbittorrent | :sabnzbd | :github | :steam | :indexers
+  @type id :: :tmdb | :tmdb_images | :prowlarr | :qbittorrent | :sabnzbd | :github | :steam
 
   @doc "Every upstream id, in panel display order."
   @spec ids() :: [id()]

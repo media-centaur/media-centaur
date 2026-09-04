@@ -7,7 +7,7 @@
 - **Upstream** — a remote party this app makes HTTP requests to. One
   row on the Status panel per upstream. Closed enum in
   `MediaCentaur.HttpClient.Upstream`: TMDB, TMDB images, Prowlarr,
-  qBittorrent, SABnzbd, GitHub, Steam, indexers. Distinct from an
+  qBittorrent, SABnzbd, GitHub, Steam. Distinct from an
   *integration* (`MediaCentaur.IntegrationHealth`), which is a
   user-configured, credential-bearing service with a verify probe.
 - **Fresh** — a cached response whose origin `max-age` has not elapsed.
