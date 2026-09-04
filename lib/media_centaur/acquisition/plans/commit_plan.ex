@@ -160,20 +160,18 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
     end)
   end
 
-  # The corpus is the rehydration source (full grab-ready struct);
-  # the denormalized assignment fields are the fallback when the
-  # candidate aged out of retention between ready and approve.
+  # The corpus row the assignment came from (`assigned_term` is its key)
+  # is the rehydration source — the full grab-ready struct with infohash,
+  # size and protocol. The denormalized assignment fields are the fallback
+  # when the candidate aged out of retention between ready and approve.
   defp rehydrate(%PlanUnit{} = unit) do
     corpus_hit =
-      unit.assigned_term &&
-        unit.assigned_term
-        |> Corpus.candidates_for(type: :tv)
-        |> Enum.find(&(&1.guid == unit.assigned_guid))
+      case unit.assigned_term do
+        nil -> nil
+        term -> term |> Corpus.candidates_for() |> Enum.find(&(&1.guid == unit.assigned_guid))
+      end
 
     corpus_hit ||
-      unit.assigned_term
-      |> Corpus.candidates_for([])
-      |> Enum.find(&(&1.guid == unit.assigned_guid)) ||
       %SearchResult{
         title: unit.assigned_title,
         guid: unit.assigned_guid,

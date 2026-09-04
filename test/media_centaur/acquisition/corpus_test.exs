@@ -37,9 +37,9 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
     test "round-trips search results through the durable corpus" do
       results = [result("guid-1"), result("guid-2", %{quality: :uhd_4k, seeders: 99})]
 
-      Corpus.record!("Sample Show S01E01", [type: :tv], results)
+      Corpus.record!("Sample Show S01E01", [], results)
 
-      candidates = Corpus.candidates_for("Sample Show S01E01", type: :tv)
+      candidates = Corpus.candidates_for("Sample Show S01E01")
 
       assert [%SearchResult{} = first, %SearchResult{} = second] = candidates
       # Ordered most-seeded first.
@@ -51,11 +51,11 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
     end
 
     test "search opts are part of the key — same term, different type, different corpus" do
-      Corpus.record!("Sample Title", [type: :tv], [result("guid-tv")])
-      Corpus.record!("Sample Title", [type: :movie], [result("guid-movie")])
+      Corpus.record!("Sample Title", [year: 2010], [result("guid-2010")])
+      Corpus.record!("Sample Title", [year: 2011], [result("guid-2011")])
 
-      assert [%{guid: "guid-tv"}] = Corpus.candidates_for("Sample Title", type: :tv)
-      assert [%{guid: "guid-movie"}] = Corpus.candidates_for("Sample Title", type: :movie)
+      assert [%{guid: "guid-2010"}] = Corpus.candidates_for("Sample Title", year: 2010)
+      assert [%{guid: "guid-2011"}] = Corpus.candidates_for("Sample Title", year: 2011)
       assert [] = Corpus.candidates_for("Sample Title", [])
     end
 

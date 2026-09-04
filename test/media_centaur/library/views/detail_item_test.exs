@@ -603,8 +603,9 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
 
   describe "to_entity_view/1 — the typed view" do
     test "a projection row adapts into the same EntityView a record produces" do
-      assert %MediaCentaur.Library.EntityView{type: :tv_series, watch_progress: [], track_override: nil} =
-               DetailItem.to_entity_view(tv_series_detail_item())
+      view = DetailItem.to_entity_view(tv_series_detail_item())
+      assert %MediaCentaur.Library.EntityView{type: :tv_series, watch_progress: []} = view
+      assert view.track_override == nil
     end
   end
 end

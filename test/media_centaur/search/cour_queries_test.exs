@@ -22,12 +22,6 @@ defmodule MediaCentaur.Search.CourQueriesTest do
              ]
     end
 
-    test "every query carries the :tv type hint" do
-      for {_query, opts} <- CourQueries.build("Sample Show", run(1, {1, 29}, {1, 38})) do
-        assert Keyword.get(opts, :type) == :tv
-      end
-    end
-
     test "the ordinal tracks the run index — third run reads as 3rd" do
       queries = queries("Sample Show", run(2, {1, 39}, {1, 48}))
       assert "Sample Show 3rd Season" in queries

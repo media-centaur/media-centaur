@@ -245,8 +245,7 @@ defmodule MediaCentaur.Acquisition do
   Returns `{:error, :not_configured}` when Prowlarr is not configured.
 
   Options:
-  - `:type` — `:movie` or `:tv`
-  - `:year` — integer year
+  - `:year` — integer year, sent to Prowlarr alongside the query
   """
   @spec search(String.t(), keyword()) :: {:ok, list()} | {:error, term()}
   def search(query, opts \\ []) do

@@ -34,7 +34,10 @@ defmodule MediaCentaur.Acquisition.Corpus do
 
   # Opts that change what an indexer returns — part of the corpus key.
   # Everything else (e.g. :force) is corpus-internal.
-  @keyed_opts [:type, :year]
+  # The only search option that changes what an indexer returns. (`:type`
+  # was once keyed too, but Prowlarr's search never received it, so two keys
+  # held one identical result set — and the commit path guessed which.)
+  @keyed_opts [:year]
 
   @doc """
   Consult-first search. A fresh corpus key returns its candidates with
