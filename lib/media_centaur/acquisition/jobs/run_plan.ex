@@ -417,7 +417,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       assigned_seeders: assignment.result.seeders,
       assigned_indexer_id: assignment.result.indexer_id,
       assigned_size_bytes: assignment.result.size_bytes,
-      assigned_scope: scope_label(assignment.scope)
+      assigned_scope: ReleaseCoverage.scope_label(assignment.scope)
     }
   end
 
@@ -427,17 +427,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     %{
       offered_guid: result.guid,
       offered_title: result.title,
-      offered_scope: scope_label(scope),
+      offered_scope: ReleaseCoverage.scope_label(scope),
       offered_size_bytes: result.size_bytes
     }
   end
-
-  defp scope_label({:episode, season, episode}), do: "S#{pad(season)}E#{pad(episode)}"
-  defp scope_label({:episodes, season, first, last}), do: "S#{pad(season)}E#{pad(first)}-#{pad(last)}"
-  defp scope_label({:season, season}), do: "Season #{season} pack"
-  defp scope_label({:seasons, first, last}), do: "Seasons #{first}–#{last} pack"
-  defp scope_label(:series), do: "Complete series"
-  defp scope_label(:unknown), do: nil
 
   # ---------------------------------------------------------------------------
   # Movies — precise-to-broad terms, best acceptable pick
@@ -634,6 +627,4 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   defp still_planning?(plan) do
     match?(%Plan{status: "planning"}, Repo.reload(plan))
   end
-
-  defp pad(number), do: number |> Integer.to_string() |> String.pad_leading(2, "0")
 end

@@ -309,18 +309,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
     end
   end
 
-  # --- extract_year/1 ---
-
-  describe "extract_year/1" do
-    test "extracts year from date string" do
-      assert LibraryFormatters.extract_year("2024-01-15") == "2024"
-    end
-
-    test "returns empty string for nil" do
-      assert LibraryFormatters.extract_year(nil) == ""
-    end
-  end
-
   # --- reload_strategy/1 ---
 
   describe "reload_strategy/1" do

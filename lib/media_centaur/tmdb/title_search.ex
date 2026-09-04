@@ -21,6 +21,7 @@ defmodule MediaCentaur.TMDB.TitleSearch do
   """
 
   alias MediaCentaur.TMDB.{Client, Title}
+  alias MediaCentaur.DateUtil
 
   require MediaCentaur.Log, as: Log
 
@@ -75,7 +76,7 @@ defmodule MediaCentaur.TMDB.TitleSearch do
       tmdb_id: tmdb["id"],
       media_type: :movie,
       name: tmdb["title"],
-      year: extract_year(tmdb["release_date"]),
+      year: DateUtil.extract_year(tmdb["release_date"]),
       release_date: extract_date(tmdb["release_date"]),
       poster_path: tmdb["poster_path"],
       backdrop_path: tmdb["backdrop_path"],
@@ -88,7 +89,7 @@ defmodule MediaCentaur.TMDB.TitleSearch do
       tmdb_id: tmdb["id"],
       media_type: :tv_series,
       name: tmdb["name"],
-      year: extract_year(tmdb["first_air_date"]),
+      year: DateUtil.extract_year(tmdb["first_air_date"]),
       release_date: extract_date(tmdb["first_air_date"]),
       poster_path: tmdb["poster_path"],
       backdrop_path: tmdb["backdrop_path"],
@@ -113,10 +114,6 @@ defmodule MediaCentaur.TMDB.TitleSearch do
         []
     end
   end
-
-  defp extract_year(nil), do: nil
-  defp extract_year(""), do: nil
-  defp extract_year(<<year::binary-size(4), _::binary>>), do: year
 
   # Full date, not just the year — the results' upcoming/released scoping
   # compares against today. TMDB leaves unreleased titles undated or with

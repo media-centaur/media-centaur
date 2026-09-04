@@ -17,6 +17,7 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   """
 
   alias MediaCentaur.Acquisition.Plans.{Plan, PlanUnit}
+  alias MediaCentaur.Format
   alias MediaCentaur.Search.QueryTerm
 
   @type term_pair :: {String.t(), keyword()}
@@ -44,7 +45,7 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
     Enum.flat_map(seasons, fn season ->
       [
         {"#{title(plan)} Season #{season}", [type: :tv]},
-        {"#{title(plan)} S#{pad(season)}", [type: :tv]}
+        {"#{title(plan)} S#{Format.pad2(season)}", [type: :tv]}
       ]
     end)
   end
@@ -53,7 +54,7 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   @spec episode_terms(Plan.t(), [{pos_integer(), pos_integer()}]) :: [term_pair()]
   def episode_terms(%Plan{tmdb_type: "tv"} = plan, units) do
     Enum.map(units, fn {season, episode} ->
-      {"#{title(plan)} S#{pad(season)}E#{pad(episode)}", [type: :tv]}
+      {"#{title(plan)} #{Format.episode_label(season, episode)}", [type: :tv]}
     end)
   end
 
@@ -79,6 +80,4 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   end
 
   defp title(plan), do: QueryTerm.sanitize(plan.title)
-
-  defp pad(number), do: number |> Integer.to_string() |> String.pad_leading(2, "0")
 end

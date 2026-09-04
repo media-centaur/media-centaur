@@ -139,4 +139,18 @@ defmodule MediaCentaur.Search.ReleaseCoverageTest do
       assert ReleaseCoverage.covered_units(:series, wanted) == wanted
     end
   end
+
+  describe "scope_label/1" do
+    test "labels every scope the classifier can produce" do
+      assert ReleaseCoverage.scope_label({:episode, 1, 3}) == "S01E03"
+      assert ReleaseCoverage.scope_label({:episodes, 1, 1, 5}) == "S01E01-05"
+      assert ReleaseCoverage.scope_label({:season, 2}) == "Season 2 pack"
+      assert ReleaseCoverage.scope_label({:seasons, 1, 5}) == "Seasons 1–5 pack"
+      assert ReleaseCoverage.scope_label(:series) == "Complete series"
+    end
+
+    test "an unknown scope has no label" do
+      assert ReleaseCoverage.scope_label(:unknown) == nil
+    end
+  end
 end

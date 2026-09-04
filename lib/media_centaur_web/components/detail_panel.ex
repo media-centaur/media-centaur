@@ -540,8 +540,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp hairline_label(%{type: :movie}), do: "Movie progress"
   defp hairline_label(_subject), do: "Watch progress"
 
-  defp year_or_nil(%{date_published: %Date{} = date}), do: MediaCentaur.Format.year(date)
-  defp year_or_nil(_), do: nil
+  defp year_or_nil(subject), do: MediaCentaur.Format.year(Map.get(subject, :date_published))
 
   defp season_count_or_nil(%{type: :tv_series, seasons: seasons}) when is_list(seasons) do
     case length(seasons) do

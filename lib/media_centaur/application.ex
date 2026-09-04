@@ -196,17 +196,17 @@ defmodule MediaCentaur.Application do
     # migration.
     MediaCentaur.ReleaseTracking.migrate_artwork_layout_on_boot(env)
 
-    if should_start?(env, :start_watchers) do
+    if should_start?(:start_watchers) do
       MediaCentaur.Watcher.Supervisor.start_watchers()
       MediaCentaur.Watcher.Supervisor.start_image_dir_monitors()
     end
 
-    if !should_start?(env, :start_pipeline) do
+    if !should_start?(:start_pipeline) do
       MediaCentaur.Pipeline.Supervisor.stop_pipeline()
       MediaCentaur.Pipeline.Image.Supervisor.stop_pipeline()
     end
 
-    if !should_start?(env, :start_acquisition) do
+    if !should_start?(:start_acquisition) do
       MediaCentaur.Acquisition.pause_auto_grab()
     end
   end
@@ -297,15 +297,9 @@ defmodule MediaCentaur.Application do
     ]
   end
 
-  defp should_start?(env, service) do
+  defp should_start?(service) do
     config_default = Application.get_env(:media_centaur, service, true)
-    key = "services:#{env}:#{service}"
-
-    case MediaCentaur.Settings.get_by_key(key) do
-      %{value: %{"enabled" => true}} -> true
-      %{value: %{"enabled" => false}} -> false
-      _ -> config_default
-    end
+    MediaCentaur.Settings.Services.enabled?(service, config_default)
   end
 
   # Tell Phoenix to update the endpoint configuration

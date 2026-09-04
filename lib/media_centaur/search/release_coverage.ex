@@ -31,6 +31,8 @@ defmodule MediaCentaur.Search.ReleaseCoverage do
   show?) is `TitleMatcher`'s job; this module only reads scope.
   """
 
+  alias MediaCentaur.Format
+
   @type t ::
           {:episode, pos_integer(), pos_integer()}
           | {:episodes, pos_integer(), pos_integer(), pos_integer()}
@@ -53,6 +55,21 @@ defmodule MediaCentaur.Search.ReleaseCoverage do
   @season_marker ~r/\bS(\d{1,2})\b/i
   @season_wording ~r/\bSeason[\s._-]+(\d{1,2})\b/i
   @complete_marker ~r/\b(?:COMPLETE|Complete[\s._-]+(?:Series|Collection))\b/i
+
+  @doc """
+  The user-facing label for a coverage scope — what the plan board and
+  the pursuit history call the release's slice. `:unknown` has none.
+  """
+  @spec scope_label(t()) :: String.t() | nil
+  def scope_label({:episode, season, episode}), do: Format.episode_label(season, episode)
+
+  def scope_label({:episodes, season, first, last}),
+    do: "#{Format.episode_label(season, first)}-#{Format.pad2(last)}"
+
+  def scope_label({:season, season}), do: "Season #{season} pack"
+  def scope_label({:seasons, first, last}), do: "Seasons #{first}–#{last} pack"
+  def scope_label(:series), do: "Complete series"
+  def scope_label(:unknown), do: nil
 
   @doc "Classifies a release title into its coverage scope."
   @spec classify(String.t()) :: t()

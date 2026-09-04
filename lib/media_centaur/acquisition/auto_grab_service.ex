@@ -13,16 +13,11 @@ defmodule MediaCentaur.Acquisition.AutoGrabService do
   `:acquisition` queue).
   """
 
-  alias MediaCentaur.Settings
+  alias MediaCentaur.Settings.Services
 
   @doc "True when auto-grab is enabled (defaults to true on fresh installs)."
   @spec running?() :: boolean()
-  def running? do
-    case Settings.get_by_key(service_flag_key()) do
-      %{value: %{"enabled" => false}} -> false
-      _ -> true
-    end
-  end
+  def running?, do: Services.enabled?(:start_acquisition, true)
 
   @doc """
   Pauses auto-grab. Persists `enabled: false` in Settings and pauses
@@ -46,17 +41,7 @@ defmodule MediaCentaur.Acquisition.AutoGrabService do
     :ok
   end
 
-  defp service_flag_key do
-    env = Application.get_env(:media_centaur, :environment, :dev)
-    "services:#{env}:start_acquisition"
-  end
-
-  defp persist_flag(enabled?) do
-    Settings.find_or_create_entry!(%{
-      key: service_flag_key(),
-      value: %{"enabled" => enabled?}
-    })
-  end
+  defp persist_flag(enabled?), do: Services.set(:start_acquisition, enabled?)
 
   # Inline Oban testing mode doesn't run real queue processes, so
   # `Oban.pause_queue/1` raises. Skip it there — `running?/0` is the
