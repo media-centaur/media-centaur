@@ -38,6 +38,19 @@ defmodule MediaCentaur.ErrorReports.BucketCacheTest do
       assert [%{message: _}] = bucket.sample_entries
     end
 
+    test "a live bucket carries its headline from the first entry, like one rebuilt from the store" do
+      cache =
+        BucketCache.put_entry(
+          %{},
+          entry(component: :nostr, message: "lost ws://127.0.0.1:2173/: closed by relay")
+        )
+
+      [bucket] = Map.values(cache)
+
+      assert bucket.headline == "lost ws:/<path> closed by relay"
+      assert bucket.headline == MediaCentaur.ErrorReports.Headline.derive(bucket.normalized_message)
+    end
+
     test "maps level to severity" do
       assert [%Bucket{severity: :warning}] =
                BucketCache.new()

@@ -372,15 +372,15 @@ defmodule MediaCentaur.Nostr.Connection do
 
   # The backoff sits at its floor only before the first failure of an
   # outage, so that attempt gets the line and the retries do not.
-  defp log_loss(%{status: :connected} = state, reason),
-    do: Log.warning(:nostr, "lost #{state.url}: #{Reason.describe(reason)} (#{inspect(reason)})")
+  defp log_loss(%{status: :connected} = state, reason) do
+    Log.warning(:nostr, "lost #{state.url}: #{Reason.describe(reason)}")
+    Log.debug(:nostr, "#{state.url}: #{inspect(reason)}")
+  end
 
-  defp log_loss(%{current_backoff: floor, backoff_ms: floor} = state, reason),
-    do:
-      Log.warning(
-        :nostr,
-        "could not connect to #{state.url}: #{Reason.describe(reason)} (#{inspect(reason)})"
-      )
+  defp log_loss(%{current_backoff: floor, backoff_ms: floor} = state, reason) do
+    Log.warning(:nostr, "could not connect to #{state.url}: #{Reason.describe(reason)}")
+    Log.debug(:nostr, "#{state.url}: #{inspect(reason)}")
+  end
 
   defp log_loss(_state, _reason), do: :ok
 

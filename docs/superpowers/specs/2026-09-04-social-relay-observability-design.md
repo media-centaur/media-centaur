@@ -1,7 +1,7 @@
 # Social relay observability — design
 
 **Date:** 2026-09-04
-**Status:** approved
+**Status:** implemented 2026-09-04 (stage one + stage two)
 **Campaign:** `campaigns/friends-recommendations.md`
 
 ## Glossary
