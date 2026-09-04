@@ -30,13 +30,11 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
   registry — which binds assessors by `function_exported?(module, :assess, 0)`,
   purely by name.
 
-  This module fulfils the `ErrorReports.IncidentContext` `assess/0` contract
-  **structurally rather than via `@behaviour`**: declaring the behaviour would
-  add a compile-time `SelfUpdate → ErrorReports` edge, closing a Boundary cycle
-  (`SelfUpdate → ErrorReports → Console → SelfUpdate`, since `Console` already
-  depends on `SelfUpdate` for unit detection). The registry's name-based binding
-  is exactly the seam that lets a subsystem report health without that edge.
+  Registered under `:self_update` in `config :media_centaur,
+  :diagnostics_contributors`; the registry reaches it by name, so
+  `ErrorReports` never depends on this context.
   """
+  @behaviour MediaCentaur.ErrorReports.IncidentContext
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.SelfUpdate
@@ -47,6 +45,7 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
 
   @doc "Health probe polled by the diagnostics evaluator. Side-effect-free."
   @spec assess() :: :ok | {:fault, atom(), :warning | :error, map()}
+  @impl true
   def assess do
     decide(
       Health.snapshot(),
@@ -78,6 +77,7 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
   correlated with "was an update applying / failing at the time?".
   """
   @spec vitals() :: map()
+  @impl true
   def vitals do
     {classification, release} = SelfUpdate.last_known_status()
     %{check_failure_streak: streak, last_apply_failure: apply_failure} = Health.snapshot()

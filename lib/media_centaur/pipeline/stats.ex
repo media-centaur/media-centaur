@@ -25,6 +25,14 @@ defmodule MediaCentaur.Pipeline.Stats do
   `error_message`, `stage`, and `updated_at` — shaped to match what the
   Status errors table expects.
 
+  ## Broadcasts
+
+  Every state change marks the snapshot dirty; at most one
+  `{:pipeline_stats_updated, :content}` goes out on `Topics.pipeline_stats/0`
+  per broadcast interval (500 ms) while work is flowing, and none at all
+  when the pipeline is idle. Subscribers (the Status and Library pages)
+  read the snapshot with `get_snapshot/0` instead of polling it.
+
   ## Status derivation (computed at snapshot time)
 
   - `:erroring` — active and recent errors in window
@@ -35,9 +43,11 @@ defmodule MediaCentaur.Pipeline.Stats do
   use GenServer
 
   alias MediaCentaur.Pipeline.StatsHelpers
+  alias MediaCentaur.Topics
 
   @stages [:parse, :search, :fetch_metadata, :ingest]
   @window_ms 5_000
+  @broadcast_interval_ms 500
   @saturated_threshold 10
   @max_recent_errors 50
 
@@ -145,7 +155,8 @@ defmodule MediaCentaur.Pipeline.Stats do
       total_processed: 0,
       total_failed: 0,
       needs_review_count: 0,
-      recent_errors: []
+      recent_errors: [],
+      broadcast_scheduled?: false
     }
 
     attach_telemetry()
@@ -155,6 +166,11 @@ defmodule MediaCentaur.Pipeline.Stats do
   end
 
   @impl true
+  def handle_info(:broadcast, state) do
+    Topics.publish(Topics.pipeline_stats(), {:pipeline_stats_updated, :content})
+    {:noreply, %{state | broadcast_scheduled?: false}}
+  end
+
   def handle_info(:prune, state) do
     now = System.monotonic_time(:millisecond)
 
@@ -235,7 +251,7 @@ defmodule MediaCentaur.Pipeline.Stats do
         %{data | active_count: data.active_count + 1}
       end)
 
-    {:noreply, state}
+    {:noreply, changed(state)}
   end
 
   def handle_cast({:stage_stop, stage, duration, result, file_path, error_reason}, state) do
@@ -263,22 +279,30 @@ defmodule MediaCentaur.Pipeline.Stats do
       |> Map.update!(:total_failed, &(&1 + 1))
       |> record_error(stage, file_path, reason)
 
-    {:noreply, state}
+    {:noreply, changed(state)}
   end
 
   def handle_cast({:needs_review, _file_path}, state) do
-    {:noreply, %{state | needs_review_count: state.needs_review_count + 1}}
+    {:noreply, changed(%{state | needs_review_count: state.needs_review_count + 1})}
   end
 
   def handle_cast({:queue_depth, :discovery, depth}, state) do
-    {:noreply, %{state | discovery_queue_depth: depth}}
+    {:noreply, changed(%{state | discovery_queue_depth: depth})}
   end
 
   def handle_cast({:queue_depth, :import, depth}, state) do
-    {:noreply, %{state | import_queue_depth: depth}}
+    {:noreply, changed(%{state | import_queue_depth: depth})}
   end
 
   # --- Private ---
+
+  # Coalesces state changes into at most one broadcast per interval.
+  defp changed(%{broadcast_scheduled?: true} = state), do: state
+
+  defp changed(state) do
+    Process.send_after(self(), :broadcast, @broadcast_interval_ms)
+    %{state | broadcast_scheduled?: true}
+  end
 
   defp handle_stage_stop(state, stage, duration, result, timestamp, file_path, error_reason) do
     state =
@@ -304,7 +328,7 @@ defmodule MediaCentaur.Pipeline.Stats do
           state
       end
 
-    {:noreply, state}
+    {:noreply, changed(state)}
   end
 
   defp record_error(state, stage, file_path, reason) do

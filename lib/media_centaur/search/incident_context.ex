@@ -34,9 +34,9 @@ defmodule MediaCentaur.Search.IncidentContext do
   Composed into the `acquisition` component's single assessor by
   `MediaCentaur.Acquisition.IncidentContext` — the evaluator contract
   is one condition per component, and both this and the download-client
-  probe are acquisition capabilities. Fulfils the `assess/0` contract
-  structurally (no `@behaviour`), like the other incident contexts.
+  probe are acquisition capabilities.
   """
+  @behaviour MediaCentaur.ErrorReports.IncidentContext
 
   alias MediaCentaur.Search.IndexerHealth
 
@@ -53,6 +53,7 @@ defmodule MediaCentaur.Search.IncidentContext do
 
   @doc "Health probe polled (via the acquisition composite) by the diagnostics evaluator."
   @spec assess() :: :ok | fault()
+  @impl true
   def assess do
     decide(IndexerHealth.cached(), DateTime.utc_now(), @grace_seconds, @staleness_seconds)
   end

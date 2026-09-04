@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Console do
   use Boundary,
-    deps: [MediaCentaur.Settings, MediaCentaur.SelfUpdate],
+    deps: [MediaCentaur.Settings],
     exports: [View, Filter, Buffer, Entry]
 
   @moduledoc """

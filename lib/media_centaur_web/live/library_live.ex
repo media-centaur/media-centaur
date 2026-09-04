@@ -45,6 +45,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   }
 
   alias MediaCentaur.Pipeline.Stats
+  alias MediaCentaur.Topics
 
   alias MediaCentaurWeb.Components.LibraryCards
   alias MediaCentaurWeb.DiscoveryLive.RecommendModal
@@ -64,7 +65,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       Library.Views.subscribe()
       Availability.subscribe()
       Config.subscribe()
-      Process.send_after(self(), :tick_pipeline, 1_000)
+      Topics.subscribe(Topics.pipeline_stats())
     end
 
     {:ok,
@@ -299,15 +300,15 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, stream(socket, :grid, socket.assigns.entries, reset: true)}
   end
 
-  # Polled once per second so the empty-state can show "Ingesting N
-  # files…" while the pipeline drains. Same cadence StatusLive uses.
-  # Cheap: Pipeline.Stats keeps the snapshot in ETS, no DB query.
-  def handle_info(:tick_pipeline, socket) do
-    Process.send_after(self(), :tick_pipeline, 1_000)
+  # The empty state shows "Ingesting N files…" while the pipeline drains;
+  # Pipeline.Stats broadcasts (coalesced) whenever that picture changes.
+  def handle_info({:pipeline_stats_updated, :content}, socket) do
     snapshot = Stats.get_snapshot()
     depth = snapshot.discovery_queue_depth + snapshot.import_queue_depth
     {:noreply, assign(socket, pipeline_queue_depth: depth)}
   end
+
+  def handle_info({:pipeline_stats_updated, :image}, socket), do: {:noreply, socket}
 
   # Reply from the async scan Task. Matches on the stored ref so we
   # don't confuse it with any other async_nolink result on this socket.

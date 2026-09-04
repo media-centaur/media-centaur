@@ -24,8 +24,8 @@ defmodule MediaCentaur.Console.JournalSource do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Console.Entry
+  alias MediaCentaur.Platform.Autostart
   alias MediaCentaur.Platform.LogSource
-  alias MediaCentaur.SelfUpdate
   alias MediaCentaur.Topics
 
   @buffer_cap 500
@@ -309,5 +309,5 @@ defmodule MediaCentaur.Console.JournalSource do
     Topics.publish(Topics.service_journal(), message)
   end
 
-  defp default_unit_fetcher, do: SelfUpdate.detected_unit()
+  defp default_unit_fetcher, do: Autostart.detected_unit()
 end

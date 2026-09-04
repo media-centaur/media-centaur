@@ -3,6 +3,7 @@ defmodule MediaCentaur.Acquisition do
     deps: [
       MediaCentaur.Capabilities,
       MediaCentaur.Downloads,
+      MediaCentaur.ErrorReports,
       MediaCentaur.Library,
       MediaCentaur.ReleaseTracking,
       MediaCentaur.Retention,

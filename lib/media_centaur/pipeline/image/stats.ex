@@ -36,8 +36,10 @@ defmodule MediaCentaur.Pipeline.Image.Stats do
   use GenServer
 
   alias MediaCentaur.Pipeline.StatsHelpers
+  alias MediaCentaur.Topics
 
   @window_ms 5_000
+  @broadcast_interval_ms 500
   @saturated_threshold 3
   @max_recent_errors 20
 
@@ -107,7 +109,8 @@ defmodule MediaCentaur.Pipeline.Image.Stats do
       queue_depth: 0,
       total_downloaded: 0,
       total_failed: 0,
-      recent_errors: []
+      recent_errors: [],
+      broadcast_scheduled?: false
     }
 
     attach_telemetry()
@@ -116,7 +119,14 @@ defmodule MediaCentaur.Pipeline.Image.Stats do
     {:ok, state}
   end
 
+  # One `{:pipeline_stats_updated, :image}` per interval while downloads
+  # flow, none when idle — same coalescing as `Pipeline.Stats`.
   @impl true
+  def handle_info(:broadcast, state) do
+    Topics.publish(Topics.pipeline_stats(), {:pipeline_stats_updated, :image})
+    {:noreply, %{state | broadcast_scheduled?: false}}
+  end
+
   def handle_info(:prune, state) do
     now = System.monotonic_time(:millisecond)
     completions = StatsHelpers.prune_window(state.window_completions, now, @window_ms)
@@ -164,7 +174,7 @@ defmodule MediaCentaur.Pipeline.Image.Stats do
 
   @impl true
   def handle_cast({:download_start, _role, _entity_id}, state) do
-    {:noreply, %{state | active_count: state.active_count + 1}}
+    {:noreply, changed(%{state | active_count: state.active_count + 1})}
   end
 
   def handle_cast({:download_stop, duration, result, role, entity_id, error_reason}, state) do
@@ -189,7 +199,7 @@ defmodule MediaCentaur.Pipeline.Image.Stats do
           |> record_error(role, entity_id, error_reason || "download failed")
       end
 
-    {:noreply, state}
+    {:noreply, changed(state)}
   end
 
   def handle_cast({:download_exception, duration, reason, role, entity_id}, state) do
@@ -206,11 +216,18 @@ defmodule MediaCentaur.Pipeline.Image.Stats do
 
     state = record_error(state, role, entity_id, reason)
 
-    {:noreply, state}
+    {:noreply, changed(state)}
   end
 
   def handle_cast({:queue_depth, depth}, state) do
-    {:noreply, %{state | queue_depth: depth}}
+    {:noreply, changed(%{state | queue_depth: depth})}
+  end
+
+  defp changed(%{broadcast_scheduled?: true} = state), do: state
+
+  defp changed(state) do
+    Process.send_after(self(), :broadcast, @broadcast_interval_ms)
+    %{state | broadcast_scheduled?: true}
   end
 
   # --- Private ---

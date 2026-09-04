@@ -13,10 +13,9 @@ defmodule MediaCentaur.Acquisition.IncidentContext do
   client is the more directly actionable of the two.
 
   Registered under `:acquisition` in
-  `config :media_centaur, :diagnostics_contributors`; fulfils the
-  `assess/0` contract structurally (no `@behaviour`), like the probes
-  it composes.
+  `config :media_centaur, :diagnostics_contributors`.
   """
+  @behaviour MediaCentaur.ErrorReports.IncidentContext
 
   alias MediaCentaur.Downloads
   alias MediaCentaur.Search
@@ -25,6 +24,7 @@ defmodule MediaCentaur.Acquisition.IncidentContext do
 
   @doc "Health probe polled by the diagnostics evaluator."
   @spec assess() :: assessment()
+  @impl true
   def assess do
     worst([Downloads.IncidentContext.assess(), Search.IncidentContext.assess()])
   end

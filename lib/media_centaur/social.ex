@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Social do
   use Boundary,
-    deps: [MediaCentaur.Nostr],
+    deps: [MediaCentaur.ErrorReports, MediaCentaur.Nostr],
     exports: [
       Connections,
       Events,
