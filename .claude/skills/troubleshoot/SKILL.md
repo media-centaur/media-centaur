@@ -82,6 +82,10 @@ the console. Likewise, Req's own retry log lines — anything from
 `will retry in N, attempts left` that follows — are transient by definition
 (Req is recovering on its own; a terminal give-up is logged by the *caller* and
 mints normally), so they stay in the console but never mint a `:log` incident.
+The dev code reloader's own artifacts — a stale-closure `BadFunctionError`, an
+`UndefinedFunctionError` for a module no longer loaded, or the
+`Phoenix.Ecto.PendingMigrationError` the dev-only `CheckRepoStatus` plug raises
+when source reloads ahead of `mix ecto.migrate` — never mint either.
 Durable minting is also **prod-only**: the dev server shares the
 prod database, so its hot-reload crashes and shutdown markers would otherwise
 pollute the production Status page. Crash incidents are attributed to the

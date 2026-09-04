@@ -11,6 +11,21 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
 
   @secret_hex String.duplicate("0", 63) <> "3"
 
+  # Forwards every log event's message and metadata to the test process, so a
+  # test can assert on the metadata a line carries (CaptureLog only sees text).
+  defmodule LogEventProbe do
+    def log(%{msg: {:string, message}, meta: meta}, %{config: %{pid: pid}}),
+      do: send(pid, {:log_event, IO.chardata_to_string(message), meta})
+
+    def log(_event, _config), do: :ok
+  end
+
+  defp probe_log_events do
+    id = :"log_probe_#{System.unique_integer([:positive])}"
+    :ok = :logger.add_handler(id, LogEventProbe, %{config: %{pid: self()}})
+    ExUnit.Callbacks.on_exit(fn -> :logger.remove_handler(id) end)
+  end
+
   defp secret, do: MediaCentaur.Secret.wrap(@secret_hex)
   defp signer, do: fn %Event{} = event -> Event.sign(event, secret()) end
 
@@ -170,6 +185,31 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
 
     assert log =~ "could not connect to #{url}: connection refused"
     assert length(String.split(log, "could not connect to")) == 2
+  end
+
+  test "a failed connect is logged for the console only — the Social probe owns the fault" do
+    probe_log_events()
+    url = "ws://127.0.0.1:1/"
+
+    start_connection(%{url: url}, backoff_ms: 20)
+    assert_receive {:nostr, ^url, {:disconnected, _reason, 20}}, 2_000
+
+    assert_receive {:log_event, "could not connect to " <> _rest, meta}, 2_000
+    assert meta[:mc_incident] == :skip
+  end
+
+  test "a lost connection is logged for the console only — the Social probe owns the fault" do
+    probe_log_events()
+    relay = FakeRelay.start()
+    start_connection(relay, backoff_ms: 20)
+    url = relay.url
+    assert_receive {:nostr, ^url, :connected}, 2_000
+
+    FakeRelay.drop(relay)
+    assert_receive {:nostr, ^url, {:disconnected, _reason, _backoff}}, 2_000
+
+    assert_receive {:log_event, "lost " <> _rest, meta}, 2_000
+    assert meta[:mc_incident] == :skip
   end
 
   test "a malformed inbound EVENT is dropped, not crashed on" do

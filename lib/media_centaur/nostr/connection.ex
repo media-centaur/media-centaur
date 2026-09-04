@@ -292,7 +292,7 @@ defmodule MediaCentaur.Nostr.Connection do
       notify(state, {:auth, :ok})
       resubscribe(%{state | pending_auth: nil, status: :connected})
     else
-      Log.warning(:nostr, "#{state.url} rejected auth: #{reason}")
+      Log.warning(:nostr, "#{state.url} rejected auth: #{reason}", mc_incident: :skip)
       notify(state, {:auth, {:failed, reason}})
       %{state | pending_auth: nil, status: :auth_failed}
     end
@@ -372,13 +372,23 @@ defmodule MediaCentaur.Nostr.Connection do
 
   # The backoff sits at its floor only before the first failure of an
   # outage, so that attempt gets the line and the retries do not.
+  #
+  # Connectivity — like the auth rejection above — is a health condition the
+  # owner's `Social.IncidentContext` assesses from connection status, so these
+  # lines stay in the console (`mc_incident: :skip`) and never mint a `:log`
+  # incident beside the subsystem fault (ADR-054).
   defp log_loss(%{status: :connected} = state, reason) do
-    Log.warning(:nostr, "lost #{state.url}: #{Reason.describe(reason)}")
+    Log.warning(:nostr, "lost #{state.url}: #{Reason.describe(reason)}", mc_incident: :skip)
     Log.debug(:nostr, "#{state.url}: #{inspect(reason)}")
   end
 
   defp log_loss(%{current_backoff: floor, backoff_ms: floor} = state, reason) do
-    Log.warning(:nostr, "could not connect to #{state.url}: #{Reason.describe(reason)}")
+    Log.warning(
+      :nostr,
+      "could not connect to #{state.url}: #{Reason.describe(reason)}",
+      mc_incident: :skip
+    )
+
     Log.debug(:nostr, "#{state.url}: #{inspect(reason)}")
   end
 

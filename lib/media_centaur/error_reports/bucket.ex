@@ -10,6 +10,8 @@ defmodule MediaCentaur.ErrorReports.Bucket do
   colour by health; `sample_entries` carries up to the last 5 redacted log
   lines for developer context.
   """
+  alias MediaCentaur.Console
+  alias MediaCentaur.ErrorReports.Contributors
   alias MediaCentaur.ErrorReports.Headline
   alias MediaCentaur.ErrorReports.Incident
 
@@ -62,7 +64,7 @@ defmodule MediaCentaur.ErrorReports.Bucket do
   def from_incident(%Incident{} = incident, sample_entries) do
     %__MODULE__{
       fingerprint: incident.fingerprint,
-      component: safe_component(incident.component),
+      component: component_atom(incident.component),
       normalized_message: incident.message || "",
       display_title: incident.display_title || "",
       headline: headline(incident),
@@ -83,11 +85,16 @@ defmodule MediaCentaur.ErrorReports.Bucket do
   defp headline(%Incident{display_title: display_title}), do: display_title || ""
 
   # Incidents store the component as a string; the bucket exposes the atom the
-  # rest of the UI (labels, icons) already keys on. The taxonomy is bounded, so
-  # an unknown string falls back to `:system` rather than growing the atom table.
-  defp safe_component(component) when is_binary(component) do
-    String.to_existing_atom(component)
-  rescue
-    ArgumentError -> :system
+  # rest of the UI (labels, icons) already keys on. A `:log` incident carries a
+  # console log component, a `:subsystem` incident the component of a
+  # registered assessor — those two taxonomies are the whole key space, so the
+  # string is matched against them and anything else lands under `:system`.
+  # (Matching against the atom table instead depended on which modules had
+  # loaded before the boot rebuild — under dev's lazy code loading a `nostr`
+  # incident bucketed as `:system` until something touched `Nostr`.)
+  defp component_atom(component) when is_binary(component) do
+    Enum.find(known_components(), :system, &(Atom.to_string(&1) == component))
   end
+
+  defp known_components, do: Console.known_components() ++ Map.keys(Contributors.registry())
 end

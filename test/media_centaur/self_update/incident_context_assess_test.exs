@@ -8,6 +8,8 @@ defmodule MediaCentaur.SelfUpdate.IncidentContextAssessTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.ErrorReports.Contributors
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.SelfUpdate
   alias MediaCentaur.SelfUpdate.{Health, IncidentContext}
 
   test "is registered as a diagnostics assessor for :self_update" do
@@ -28,6 +30,25 @@ defmodule MediaCentaur.SelfUpdate.IncidentContextAssessTest do
     for _ <- 1..3, do: Health.record_check_failure()
 
     assert {:fault, :check_failing, :warning, _ids} = IncidentContext.assess()
+  end
+
+  describe "scheduled_checks_enabled?/0 — the gate the probe shares with the checker job" do
+    test "is false where checks never run, however the preference is set" do
+      Config.update(:update_check_enabled, true)
+
+      refute SelfUpdate.scheduled_checks_enabled?()
+    end
+
+    test "follows the preference where checks run" do
+      Application.put_env(:media_centaur, :environment, :prod)
+      on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
+
+      Config.update(:update_check_enabled, true)
+      assert SelfUpdate.scheduled_checks_enabled?()
+
+      Config.update(:update_check_enabled, false)
+      refute SelfUpdate.scheduled_checks_enabled?()
+    end
   end
 
   describe "vitals/0" do

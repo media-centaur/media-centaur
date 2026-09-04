@@ -37,7 +37,7 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
     try do
       if meta[:mc_log_source] != :buffer and meta[:mc_incident] != :skip and
            level in @captured_levels and not transport_disconnect?(meta) and
-           not req_retry?(meta) and not stale_code_reload?(meta) do
+           not req_retry?(meta) and not code_reloader_artifact?(meta) do
         entry = Entry.from_log_event(level, msg, meta)
         Buckets.ingest(buckets_target(config), entry)
       end
@@ -81,11 +81,18 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
   defp req_retry?(%{mfa: {Req.Steps, :log_retry, _arity}}), do: true
   defp req_retry?(_meta), do: false
 
+  # Crashes only the dev code reloader can produce — a compiled release never
+  # purges code at runtime and never mounts the reloader's plugs, so none of
+  # these can occur there:
+  #
+  #   - `Phoenix.Ecto.PendingMigrationError` from `Phoenix.Ecto.CheckRepoStatus`,
+  #     mounted only under `code_reloading?`: source carrying a new migration
+  #     was reloaded before `mix ecto.migrate` ran. The browser already shows
+  #     the plug's own error page.
+  #
   # `mix phx.server`'s `Phoenix.CodeReloader` purges modules on every
   # recompile. A process holding a closure or module reference captured
-  # before the purge crashes with one of two shapes, both dev-only artifacts
-  # of hot-swapping — a compiled release never purges code at runtime, so
-  # neither can occur there:
+  # before the purge crashes with one of two shapes:
   #
   #   - `BadFunctionError` where `term` is an actual function value: Erlang
   #     only raises this for a genuine non-function term OR a fun whose
@@ -95,13 +102,16 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
   #   - `UndefinedFunctionError` whose module is no longer loaded (renamed,
   #     split, or removed) — as opposed to a module that IS loaded but lacks
   #     the called function/arity, which is a real bug and still mints.
-  defp stale_code_reload?(%{crash_reason: {%BadFunctionError{term: fun}, _stacktrace}}),
+  defp code_reloader_artifact?(%{crash_reason: {%Phoenix.Ecto.PendingMigrationError{}, _stacktrace}}),
+    do: true
+
+  defp code_reloader_artifact?(%{crash_reason: {%BadFunctionError{term: fun}, _stacktrace}}),
     do: is_function(fun)
 
-  defp stale_code_reload?(%{crash_reason: {%UndefinedFunctionError{module: module}, _stacktrace}}),
+  defp code_reloader_artifact?(%{crash_reason: {%UndefinedFunctionError{module: module}, _stacktrace}}),
     do: not Code.ensure_loaded?(module)
 
-  defp stale_code_reload?(_meta), do: false
+  defp code_reloader_artifact?(_meta), do: false
 
   # :logger handler lifecycle callbacks
   @doc false

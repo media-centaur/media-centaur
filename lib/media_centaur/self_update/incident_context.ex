@@ -53,7 +53,7 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
       SelfUpdate.last_check_at(),
       DateTime.utc_now(),
       %{
-        enabled: Config.get(:update_check_enabled) == true,
+        enabled: SelfUpdate.scheduled_checks_enabled?(),
         interval_minutes: Config.update_check_interval_minutes(),
         uptime_minutes: uptime_minutes()
       }

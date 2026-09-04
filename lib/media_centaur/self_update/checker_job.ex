@@ -47,8 +47,8 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
   # The cron tick fires at the rate-limit floor; this gate decides whether
   # a given tick actually contacts GitHub, so the user-facing interval is a
   # pure Config read with no Oban reconfiguration. A forced (manual) check
-  # always runs; otherwise we honour `update_check_enabled` and the elapsed
-  # interval.
+  # always runs; otherwise we honour `SelfUpdate.scheduled_checks_enabled?/0`
+  # (the gate the diagnostics probe reads too) and the elapsed interval.
   defp check_due?(forced?) do
     last_check_at =
       case Storage.get_last_check_at() do
@@ -58,7 +58,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
 
     due_for_check?(
       forced?,
-      Config.get(:update_check_enabled),
+      SelfUpdate.scheduled_checks_enabled?(),
       Config.update_check_interval_minutes(),
       last_check_at,
       DateTime.utc_now()
