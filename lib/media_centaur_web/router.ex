@@ -72,17 +72,30 @@ defmodule MediaCentaurWeb.Router do
   # Phoenix Storybook — dev component catalog (also mounted in :test so
   # storybook_render_test.exs can smoke each story URL end-to-end). See
   # docs/storybook.md.
+  #
+  # The dep is `only: [:dev, :test]` (its markdown renderer, MDEx, is a Rust
+  # NIF we keep out of the release), so `import PhoenixStorybook.Router`
+  # cannot appear as plain code here: Elixir expands both branches of a
+  # module-level `if`, and importing a module that is not compiled in :prod
+  # fails. `Code.eval_quoted/3` defers expansion of the quoted block to when
+  # the branch actually runs, which is only in :dev and :test.
   if Mix.env() in [:dev, :test] do
-    import PhoenixStorybook.Router
+    Code.eval_quoted(
+      quote do
+        import PhoenixStorybook.Router
 
-    scope "/" do
-      storybook_assets()
-    end
+        scope "/" do
+          storybook_assets()
+        end
 
-    scope "/", MediaCentaurWeb do
-      pipe_through :browser
-      live_storybook("/storybook", backend_module: MediaCentaurWeb.Storybook)
-    end
+        scope "/", MediaCentaurWeb do
+          pipe_through :browser
+          live_storybook("/storybook", backend_module: MediaCentaurWeb.Storybook)
+        end
+      end,
+      [],
+      __ENV__
+    )
   end
 
   # Other scopes may use custom stacks.

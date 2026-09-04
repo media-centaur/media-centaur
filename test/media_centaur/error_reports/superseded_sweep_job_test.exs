@@ -22,7 +22,11 @@ defmodule MediaCentaur.ErrorReports.SupersededSweepJobTest do
         )
       )
 
-    assert {:ok, 1} = Oban.Testing.perform_job(SupersededSweepJob, %{}, repo: MediaCentaur.Repo)
+    assert {:ok, 1} =
+             Oban.Testing.perform_job(SupersededSweepJob, %{},
+               repo: MediaCentaur.Repo,
+               engine: Oban.Engines.Lite
+             )
 
     assert Repo.get!(Incident, superseded.id).status == :resolved
     assert Repo.get!(Incident, current.id).status == :open
@@ -37,7 +41,12 @@ defmodule MediaCentaur.ErrorReports.SupersededSweepJobTest do
         )
       )
 
-    assert {:ok, 0} = Oban.Testing.perform_job(SupersededSweepJob, %{}, repo: MediaCentaur.Repo)
+    assert {:ok, 0} =
+             Oban.Testing.perform_job(SupersededSweepJob, %{},
+               repo: MediaCentaur.Repo,
+               engine: Oban.Engines.Lite
+             )
+
     assert Repo.get!(Incident, current.id).status == :open
   end
 end

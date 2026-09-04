@@ -118,8 +118,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
                 class={["progress h-1.5 flex-1", storage_progress_class(storage_severity(drive))]}
                 value={drive.usage_percent}
                 max="100"
-              >
-              </progress>
+              ></progress>
               <span class={[
                 "text-xs font-mono w-10 text-right shrink-0",
                 storage_text_class(storage_severity(drive))
@@ -186,8 +185,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
               class={["progress h-1.5 flex-1", storage_progress_class(storage_severity(@db_drive))]}
               value={@db_drive.usage_percent}
               max="100"
-            >
-            </progress>
+            ></progress>
             <span class={[
               "text-xs font-mono w-10 text-right",
               storage_text_class(storage_severity(@db_drive))

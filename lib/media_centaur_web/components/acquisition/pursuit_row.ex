@@ -220,8 +220,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
           "w-2 h-2 rounded-sm",
           state |> CellVocabulary.from_unit_state() |> CellVocabulary.segment_treatment()
         ]}
-      >
-      </span>
+      ></span>
     </div>
     """
   end

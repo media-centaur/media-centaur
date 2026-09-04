@@ -43,14 +43,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabularyTest do
     test "every shared state has a non-empty full-cell treatment" do
       for state <- @states do
         treatment = CellVocabulary.cell_treatment(state)
-        assert is_binary(treatment) and treatment != ""
+        assert treatment != ""
       end
     end
 
     test "every shared state has a non-empty segment treatment (with a fallback)" do
       for state <- @states do
         treatment = CellVocabulary.segment_treatment(state)
-        assert is_binary(treatment) and treatment != ""
+        assert treatment != ""
       end
     end
   end

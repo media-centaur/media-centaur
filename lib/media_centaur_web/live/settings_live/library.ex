@@ -208,6 +208,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
         </div>
 
         <form
+          id="exclude-dir-form"
           phx-change="exclude_dir:validate"
           phx-submit="exclude_dir:add"
           class="space-y-1.5 pt-1"

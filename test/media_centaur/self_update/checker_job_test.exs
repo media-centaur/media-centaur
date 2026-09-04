@@ -212,7 +212,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
   end
 
   defp perform_job(worker, args) do
-    case Oban.Testing.perform_job(worker, args, repo: MediaCentaur.Repo) do
+    case Oban.Testing.perform_job(worker, args, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite) do
       :ok -> {:ok, :ok}
       {:ok, value} -> {:ok, value}
       other -> other

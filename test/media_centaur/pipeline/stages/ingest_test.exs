@@ -193,7 +193,9 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
 
   describe "error handling" do
     test "nil metadata raises" do
-      payload = %Payload{metadata: nil}
+      # Built at runtime: the type checker already rejects a literal nil
+      # here; the test pins the runtime failure mode.
+      payload = %Payload{metadata: Function.identity(nil)}
 
       assert_raise BadMapError, fn ->
         Ingest.run(payload)

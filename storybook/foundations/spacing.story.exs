@@ -27,7 +27,8 @@ defmodule MediaCentaurWeb.Storybook.Foundations.Spacing do
           Tailwind defaults, no project override — every step is
           <code class="psb:text-xs">0.25rem</code>
           (4px). Smaller values dominate component-internal spacing
-          (<code class="psb:text-xs">p-2</code> through <code class="psb:text-xs">p-6</code>); larger values
+          (<code class="psb:text-xs">p-2</code>
+          through <code class="psb:text-xs">p-6</code>); larger values
           (<code class="psb:text-xs">8</code>+) are reserved for page-level
           hero or landing rhythm. Surface and focus rules complete the picture.
         </p>
@@ -224,8 +225,7 @@ defmodule MediaCentaurWeb.Storybook.Foundations.Spacing do
         <span
           class="psb:inline-block psb:h-3 psb:bg-primary psb:rounded-sm"
           style={"width: #{@width};"}
-        >
-        </span>
+        ></span>
       </div>
       <div class="psb:flex-1 psb:text-xs psb:text-slate-600">
         {@use_for}

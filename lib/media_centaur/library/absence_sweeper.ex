@@ -48,7 +48,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.Helpers
 
-  @ttl_check_interval :timer.hours(24)
+  @ttl_check_interval to_timeout(day: 1)
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)

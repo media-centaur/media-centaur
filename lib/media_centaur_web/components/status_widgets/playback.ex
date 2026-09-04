@@ -115,8 +115,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
               class={["progress h-1.5 flex-1", playback_progress_class(session.state)]}
               value={session.now_playing[:position_seconds] || 0}
               max={session.now_playing.duration_seconds}
-            >
-            </progress>
+            ></progress>
             <span class="text-xs text-base-content/50 whitespace-nowrap tabular-nums">
               {format_remaining(
                 session.now_playing.duration_seconds -

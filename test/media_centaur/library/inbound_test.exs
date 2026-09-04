@@ -941,7 +941,8 @@ defmodule MediaCentaur.Library.InboundTest do
   describe "error handling" do
     test "nil event raises" do
       assert_raise BadMapError, fn ->
-        Inbound.ingest(nil)
+        # Built at runtime: the type checker already rejects a literal nil.
+        Inbound.ingest(Function.identity(nil))
       end
     end
   end
