@@ -3,7 +3,6 @@ defmodule MediaCentaur.Library.MovieSeriesTest do
 
   alias MediaCentaur.Library.{MovieSeries, Person}
   alias MediaCentaur.Repo
-  alias MediaCentaur.TestFactory
 
   describe "cast field" do
     test "round-trips a list of TMDB-shaped maps as Library.Person structs" do
@@ -126,76 +125,6 @@ defmodule MediaCentaur.Library.MovieSeriesTest do
       assert reloaded.country_code == nil
       assert reloaded.vote_count == nil
       assert reloaded.status == nil
-    end
-  end
-
-  describe "update_credits_changeset/2" do
-    test "replaces cast and crew embeds in place" do
-      {:ok, series} =
-        %{name: "Sample Collection G", cast: [], crew: []}
-        |> MovieSeries.create_changeset()
-        |> Repo.insert()
-
-      new_cast = [
-        %{
-          "name" => "New Actor",
-          "character" => "New Role",
-          "tmdb_person_id" => 7,
-          "profile_path" => nil,
-          "order" => 0
-        }
-      ]
-
-      new_crew = [
-        %{
-          "name" => "New Director",
-          "job" => "Director",
-          "department" => "Directing",
-          "tmdb_person_id" => 9,
-          "profile_path" => nil
-        }
-      ]
-
-      assert {:ok, updated} =
-               series
-               |> MovieSeries.update_credits_changeset(%{cast: new_cast, crew: new_crew})
-               |> Repo.update()
-
-      reloaded = Repo.get!(MovieSeries, updated.id)
-
-      assert [%Person{name: "New Actor"}] = reloaded.cast
-      assert [%Person{name: "New Director"}] = reloaded.crew
-    end
-
-    test "writing empty lists is allowed (collection payload carries no credits)" do
-      {:ok, series} =
-        %{name: "Sample Collection H", cast: [], crew: []}
-        |> MovieSeries.create_changeset()
-        |> Repo.insert()
-
-      assert {:ok, _} =
-               series
-               |> MovieSeries.update_credits_changeset(%{cast: [], crew: []})
-               |> Repo.update()
-    end
-  end
-
-  describe "update_credits_changeset/2 — no-imdb_id seam" do
-    test "casts cast/crew embeds even though MovieSeries has no :imdb_id field" do
-      movie_series = TestFactory.create_movie_series()
-
-      attrs = %{
-        "cast" => [%{"name" => "Sample Actor"}],
-        "crew" => [%{"name" => "Sample Director", "job" => "Director"}]
-      }
-
-      {:ok, updated} =
-        movie_series
-        |> MovieSeries.update_credits_changeset(attrs)
-        |> Repo.update()
-
-      assert [%Person{name: "Sample Actor"}] = updated.cast
-      assert [%Person{name: "Sample Director", job: "Director"}] = updated.crew
     end
   end
 end

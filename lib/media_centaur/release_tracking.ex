@@ -60,10 +60,6 @@ defmodule MediaCentaur.ReleaseTracking do
     Repo.insert(Item.create_changeset(attrs))
   end
 
-  def track_item!(attrs) do
-    Repo.insert!(Item.create_changeset(attrs))
-  end
-
   def ignore_item(%Item{} = item) do
     Repo.update(Item.update_changeset(item, %{status: :ignored}))
   end
@@ -268,6 +264,11 @@ defmodule MediaCentaur.ReleaseTracking do
 
   # --- Releases ---
 
+  @doc """
+  Inserts one release, returning `{:ok, release}` or `{:error, changeset}`.
+  The non-raising pair to `create_release!/1`, which every production path
+  uses — this one is how the identity unique index is asserted.
+  """
   def create_release(attrs) do
     Repo.insert(Release.create_changeset(attrs))
   end
@@ -436,9 +437,6 @@ defmodule MediaCentaur.ReleaseTracking do
   @doc "See `MediaCentaur.ReleaseTracking.Wants.list_open_wants/0`."
   defdelegate list_open_wants(), to: Wants
 
-  @doc "See `MediaCentaur.ReleaseTracking.Wants.dismiss_before/2`."
-  defdelegate dismiss_wants_before(item, cutoff), to: Wants, as: :dismiss_before
-
   @doc "See `MediaCentaur.ReleaseTracking.Wants.mark_searched/2`."
   defdelegate mark_wants_searched(want_ids, searched_at), to: Wants, as: :mark_searched
 
@@ -447,9 +445,6 @@ defmodule MediaCentaur.ReleaseTracking do
 
   @doc "See `MediaCentaur.ReleaseTracking.Wants.open_gap_wants/2`."
   defdelegate open_gap_wants(item, unit_specs), to: Wants
-
-  @doc "See `MediaCentaur.ReleaseTracking.Wants.open_summary/0`."
-  defdelegate open_wants_summary(), to: Wants, as: :open_summary
 
   # --- Events ---
 

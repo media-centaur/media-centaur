@@ -3,17 +3,14 @@ defmodule MediaCentaur.Watcher.Reconciler do
   Pure diff calculator for watcher reconcile actions.
 
   Given the previous and current media-dir entry lists, computes which
-  watcher children need to start, stop, or be replaced (stop + start).
-  A replace is emitted when `dir` or `images_dir` changes for an id
-  present in both lists. A name-only change is a no-op.
+  watcher children need to start and which need to stop. An entry's
+  directory *is* its identity — `Watcher.Supervisor.reconcile/1` keys on
+  `dir` — so a changed directory is a stop plus a start, never an
+  in-place replacement.
   """
 
   @type entry :: %{required(String.t()) => String.t() | nil}
-  @type diff :: %{
-          to_start: [entry()],
-          to_stop: [String.t()],
-          to_replace: [%{old_dir: String.t(), new: entry()}]
-        }
+  @type diff :: %{to_start: [entry()], to_stop: [String.t()]}
 
   @doc """
   Computes start/stop actions for image-directory monitors.
@@ -51,22 +48,10 @@ defmodule MediaCentaur.Watcher.Reconciler do
 
     added = MapSet.difference(new_ids, old_ids)
     removed = MapSet.difference(old_ids, new_ids)
-    kept = MapSet.intersection(old_ids, new_ids)
 
     %{
       to_start: Enum.map(added, &Map.fetch!(new_by_id, &1)),
-      to_stop: Enum.map(removed, fn id -> old_by_id[id]["dir"] end),
-      to_replace:
-        Enum.flat_map(kept, fn id ->
-          old = old_by_id[id]
-          new = new_by_id[id]
-
-          if old["dir"] != new["dir"] or old["images_dir"] != new["images_dir"] do
-            [%{old_dir: old["dir"], new: new}]
-          else
-            []
-          end
-        end)
+      to_stop: Enum.map(removed, fn id -> old_by_id[id]["dir"] end)
     }
   end
 end

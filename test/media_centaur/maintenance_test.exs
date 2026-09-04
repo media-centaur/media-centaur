@@ -5,7 +5,6 @@ defmodule MediaCentaur.MaintenanceTest do
     ExternalIds,
     FilePresence,
     Movie,
-    MovieSeries,
     Person,
     PlayableItem,
     TVSeries
@@ -33,12 +32,6 @@ defmodule MediaCentaur.MaintenanceTest do
   defp seed_tv_series_with_tmdb!(attrs, tmdb_id) when is_map(attrs) do
     {:ok, series} = attrs |> TVSeries.create_changeset() |> Repo.insert()
     {:ok, _} = ExternalIds.put(:tmdb, series, tmdb_id)
-    series
-  end
-
-  defp seed_movie_series_with_tmdb!(attrs, tmdb_id) when is_map(attrs) do
-    {:ok, series} = attrs |> MovieSeries.create_changeset() |> Repo.insert()
-    {:ok, _} = ExternalIds.put(:tmdb_collection, series, tmdb_id)
     series
   end
 
@@ -533,89 +526,6 @@ defmodule MediaCentaur.MaintenanceTest do
 
       assert Repo.get!(MediaCentaur.Library.Episode, episode_one.id).cast_person_ids == [10, 20]
       assert Repo.get!(MediaCentaur.Library.Episode, episode_two.id).cast_person_ids == [10]
-    end
-  end
-
-  describe "refresh_movie_series_credits/0" do
-    setup [:setup_tmdb_client]
-
-    test "writes empty cast/crew (collection payload carries no top-level credits)" do
-      series = seed_movie_series_with_tmdb!(%{name: "Sample Collection", cast: [], crew: []}, "263")
-
-      stub_get_collection("263", %{
-        "id" => 263,
-        "name" => "Sample Collection",
-        "overview" => "Sample overview.",
-        "parts" => []
-      })
-
-      assert {:ok, %{updated: 1, skipped: 0, failed: 0}} =
-               Maintenance.refresh_movie_series_credits()
-
-      reloaded = Repo.get!(MovieSeries, series.id)
-      assert reloaded.cast == []
-      assert reloaded.crew == []
-    end
-
-    test "skips collections that already have non-empty cast and crew" do
-      existing_cast = [
-        %{
-          "name" => "Existing",
-          "character" => "Existing",
-          "tmdb_person_id" => 1,
-          "profile_path" => nil,
-          "order" => 0
-        }
-      ]
-
-      existing_crew = [
-        %{
-          "tmdb_person_id" => 2,
-          "name" => "Existing Director",
-          "job" => "Director",
-          "department" => "Directing",
-          "profile_path" => nil
-        }
-      ]
-
-      seed_movie_series_with_tmdb!(
-        %{name: "Sample Collection", cast: existing_cast, crew: existing_crew},
-        "264"
-      )
-
-      assert {:ok, %{updated: 0, skipped: 1, failed: 0}} =
-               Maintenance.refresh_movie_series_credits()
-    end
-
-    test "skips collections without a tmdb_id" do
-      {:ok, _} =
-        %{name: "Sample Collection", cast: [], crew: []}
-        |> MovieSeries.create_changeset()
-        |> Repo.insert()
-
-      assert {:ok, %{updated: 0, skipped: 0, failed: 0}} =
-               Maintenance.refresh_movie_series_credits()
-    end
-
-    test "writes update via Person.put_credits even though MovieSeries has no imdb_id field" do
-      # Person.put_credits/2 historically cast :imdb_id on the parent
-      # schema. MovieSeries has no such column — the helper must skip
-      # the field silently rather than raise. Without that guard this
-      # call would crash inside `Ecto.Changeset.cast/3`.
-      # After Library Schema v2 Phase 1 Task 6 the introspection is
-      # gone, but the test stays as a regression guard against future
-      # `:imdb_id` plumbing creep.
-      seed_movie_series_with_tmdb!(%{name: "Sample Collection", cast: [], crew: []}, "265")
-
-      stub_get_collection("265", %{
-        "id" => 265,
-        "name" => "Sample Collection",
-        "overview" => "Sample overview.",
-        "parts" => []
-      })
-
-      assert {:ok, %{updated: 1, skipped: 0, failed: 0}} =
-               Maintenance.refresh_movie_series_credits()
     end
   end
 

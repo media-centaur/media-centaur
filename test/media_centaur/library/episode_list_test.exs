@@ -96,38 +96,6 @@ defmodule MediaCentaur.Library.EpisodeListTest do
     end
   end
 
-  describe "find_content_url/3" do
-    setup do
-      entity =
-        build_entity(%{
-          seasons: [
-            build_season(%{
-              season_number: 1,
-              episodes: [
-                build_episode(%{episode_number: 1, content_url: "/s1e1.mkv"}),
-                build_episode(%{episode_number: 2, content_url: "/s1e2.mkv"})
-              ]
-            })
-          ]
-        })
-
-      %{entity: entity}
-    end
-
-    test "returns {:ok, url} for valid season/episode", %{entity: entity} do
-      assert EpisodeList.find_content_url(entity, 1, 1) == {:ok, "/s1e1.mkv"}
-      assert EpisodeList.find_content_url(entity, 1, 2) == {:ok, "/s1e2.mkv"}
-    end
-
-    test "returns {:error, :invalid_episode} for missing season", %{entity: entity} do
-      assert EpisodeList.find_content_url(entity, 99, 1) == {:error, :invalid_episode}
-    end
-
-    test "returns {:error, :invalid_episode} for missing episode", %{entity: entity} do
-      assert EpisodeList.find_content_url(entity, 1, 99) == {:error, :invalid_episode}
-    end
-  end
-
   describe "find_episode_name/3" do
     setup do
       entity =

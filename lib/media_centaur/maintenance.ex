@@ -281,33 +281,6 @@ defmodule MediaCentaur.Maintenance do
     :ok
   end
 
-  @doc """
-  Refreshes cast/crew for every `MovieSeries` row from TMDB collection data.
-
-  TMDB's `/collection/{id}` endpoint does not currently expose collection-
-  level cast/crew. This function exists for schema-level symmetry with
-  `refresh_movie_credits/0` and `refresh_series_credits/0` and to validate
-  the third-caller shape of `refresh_credits/1`. With every payload
-  returning `cast: [], crew: []`, the driver's `cast != [] and crew != []`
-  skip clause never engages, so each run will re-attempt every collection
-  — rate-limited by `TMDB.RateLimiter` but otherwise unbounded.
-
-  **Not wired to a Settings button or scheduled job in this task.** API
-  surface only. A future task will either (a) implement a
-  `tmdb_fetched_at`-based skip predicate or (b) aggregate constituent-movie
-  credits up to the collection level.
-  """
-  @spec refresh_movie_series_credits() ::
-          {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
-  def refresh_movie_series_credits do
-    refresh_credits(%{
-      label: "movie series",
-      schema: MovieSeries,
-      fetcher: &Client.get_collection/1,
-      attrs_builder: &build_movie_series_credits_attrs/1
-    })
-  end
-
   # Shared driver for credit-refresh maintenance actions. Each caller
   # supplies the schema to iterate, the TMDB fetcher keyed by the
   # container's TMDB ExternalId row, and a builder that turns the
@@ -460,10 +433,6 @@ defmodule MediaCentaur.Maintenance do
   # the contract anyway (empty lists are valid) so the maintenance entry
   # point stays uniform with movies/series. Aggregating from `parts`
   # would require N extra movie fetches and is out of scope here.
-  defp build_movie_series_credits_attrs(_body) do
-    {%{cast: [], crew: []}, nil}
-  end
-
   @doc """
   Backfills subtitle tracks for movie files that have none yet —
   picks up libraries imported before subtitle detection shipped, or

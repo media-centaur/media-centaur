@@ -43,8 +43,8 @@ defmodule MediaCentaur.Watcher.Supervisor do
 
   @doc """
   Reconciles the set of running watcher children with `new_entries`.
-  Starts added entries, terminates removed ones, and replaces entries
-  whose `dir` or `images_dir` changed. Name-only changes are no-ops.
+  Starts added directories and terminates removed ones. A directory is
+  its own identity here, so an edited path is a stop plus a start.
 
   Called whenever `Config` broadcasts `{:config_updated, :media_dirs, ...}`.
   """
@@ -66,15 +66,10 @@ defmodule MediaCentaur.Watcher.Supervisor do
 
     Enum.each(actions.to_stop, &stop_dir/1)
 
-    Enum.each(actions.to_replace, fn %{old_dir: old, new: new} ->
-      stop_dir(old)
-      start_dir(new["dir"])
-    end)
-
     Enum.each(actions.to_start, fn new -> start_dir(new["dir"]) end)
 
     count_summary =
-      "start=#{length(actions.to_start)} stop=#{length(actions.to_stop)} replace=#{length(actions.to_replace)}"
+      "start=#{length(actions.to_start)} stop=#{length(actions.to_stop)}"
 
     Log.info(:watcher, "reconcile — " <> count_summary)
 
@@ -410,13 +405,6 @@ defmodule MediaCentaur.Watcher.Supervisor do
   def rescan_unlinked_async do
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, &rescan_unlinked/0)
     :ok
-  end
-
-  @doc """
-  Returns true if any watcher is in a healthy state.
-  """
-  def media_dir_healthy? do
-    status() == :watching
   end
 
   @doc "Returns true if any watcher children are currently running."

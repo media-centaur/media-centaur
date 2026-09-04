@@ -78,25 +78,6 @@ defmodule MediaCentaur.Pipeline.Image.Stats do
     GenServer.cast(server, {:queue_depth, depth})
   end
 
-  @doc """
-  Returns an empty snapshot for use before the GenServer starts
-  (e.g., in disconnected LiveView mount).
-  """
-  def empty_snapshot do
-    %{
-      status: :idle,
-      active_count: 0,
-      throughput: 0.0,
-      avg_duration_ms: nil,
-      error_count: 0,
-      last_error: nil,
-      queue_depth: 0,
-      total_downloaded: 0,
-      total_failed: 0,
-      recent_errors: []
-    }
-  end
-
   # --- GenServer callbacks ---
 
   @impl true

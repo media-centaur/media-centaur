@@ -215,15 +215,6 @@ defmodule MediaCentaur.Acquisition do
   end
 
   @doc """
-  Returns the latest cached download-client queue snapshot (items only).
-  Synchronous; reads `:persistent_term`. Returns `[]` before the first
-  successful poll or when no download client is configured. Prefer
-  `queue_state/0` when connectivity metadata matters.
-  """
-  @spec queue_snapshot() :: [MediaCentaur.Downloads.QueueItem.t()]
-  defdelegate queue_snapshot, to: MediaCentaur.Downloads.QueueMonitor, as: :snapshot
-
-  @doc """
   Returns the latest cached `%QueueState{}` — items plus liveness
   metadata. Synchronous; reads `:persistent_term`.
   """
@@ -400,7 +391,7 @@ defmodule MediaCentaur.Acquisition do
       Enum.each(targets, &broadcast(%TargetEvents.Picked{target: &1}))
 
       Log.info(
-        :library,
+        :acquisition,
         "manual pick submitted — #{pursuit.title} (#{length(targets)} release(s))"
       )
 

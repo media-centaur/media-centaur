@@ -16,15 +16,11 @@ defmodule MediaCentaur.Library.ChangeLog do
   @doc """
   Records an entity addition. Call after successful entity creation.
 
-  The 2-arity version accepts the entity type explicitly, for type-specific
-  records (TVSeries, Movie, etc.) that don't have a `.type` field.
+  The entity type is passed explicitly: the type-specific records
+  (TVSeries, Movie, …) carry no `.type` field of their own.
   """
   def record_addition(record, entity_type) do
     create_entry_with_type(record, entity_type, :added)
-  end
-
-  def record_addition(entity) do
-    create_entry(entity, :added)
   end
 
   @doc """
@@ -32,10 +28,6 @@ defmodule MediaCentaur.Library.ChangeLog do
   """
   def record_removal(record, entity_type) do
     create_entry_with_type(record, entity_type, :removed)
-  end
-
-  def record_removal(entity) do
-    create_entry(entity, :removed)
   end
 
   @doc """
@@ -74,10 +66,6 @@ defmodule MediaCentaur.Library.ChangeLog do
       end
 
     Repo.all(query)
-  end
-
-  defp create_entry(entity, kind) do
-    create_entry_with_type(entity, entity.type, kind)
   end
 
   defp create_entry_with_type(record, entity_type, kind) do

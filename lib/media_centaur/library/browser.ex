@@ -94,10 +94,6 @@ defmodule MediaCentaur.Library.Browser do
 
   @epoch_inserted_at ~U[2000-01-01 00:00:00Z]
 
-  defp apply_sort(entries, :alpha) do
-    Enum.sort_by(entries, fn entry -> String.downcase(entry.entity.name || "") end)
-  end
-
   defp apply_sort(entries, :recent) do
     # Module-aware sort: Erlang term-order on `%DateTime{}` is not
     # chronological; `{:desc, DateTime}` forces `DateTime.compare/2`.
@@ -106,76 +102,6 @@ defmodule MediaCentaur.Library.Browser do
       fn entry -> entry.entity.inserted_at || @epoch_inserted_at end,
       {:desc, DateTime}
     )
-  end
-
-  @doc """
-  Loads specific entries by ID from the type-specific tables.
-
-  `type_hints` maps known IDs to their entity type
-  (`:movie | :tv_series | :movie_series | :video_object`). When the LiveView
-  has already loaded the entity once, the type is known and the lookup
-  routes to a single type-specific table — skipping 4 of 5 fetcher queries.
-  IDs absent from `type_hints` (newly inserted entities the LiveView hasn't
-  seen yet) fall back to the full all-types fan-out.
-
-  Returns `{updated_entries, gone_ids}` where `gone_ids` contains IDs
-  that no longer exist or have all files absent.
-  """
-  def fetch_typed_entries_by_ids(ids, type_hints \\ %{}) do
-    id_list = if is_list(ids), do: ids, else: MapSet.to_list(ids)
-    {known_typed, unknown_typed} = partition_by_known_type(id_list, type_hints)
-
-    typed_records =
-      known_typed
-      |> Enum.flat_map(fn {type, ids} -> fetch_records_for_type(type, ids) end)
-      |> Kernel.++(fetch_all_types(unknown_typed))
-
-    entries = Enum.map(typed_records, &build_typed_entry/1)
-
-    present_ids = MapSet.new(entries, fn entry -> entry.entity.id end)
-    requested = MapSet.new(id_list)
-    gone_ids = MapSet.difference(requested, present_ids)
-
-    {entries, gone_ids}
-  end
-
-  defp partition_by_known_type(ids, type_hints) do
-    {known, unknown} = Enum.split_with(ids, &Map.has_key?(type_hints, &1))
-
-    known_grouped =
-      known
-      |> Enum.group_by(&Map.fetch!(type_hints, &1))
-      |> Map.to_list()
-
-    {known_grouped, unknown}
-  end
-
-  # Standalone vs hoisted movies are both Movie records distinguished by the
-  # PresentableQueries.singleton_collection_movies/0 predicate (parent
-  # MovieSeries has exactly one child). Either fetcher may return a record
-  # for a given movie id; both query the same library_movies table. Calling
-  # both for the :movie hint preserves the standalone/hoisted split.
-  defp fetch_records_for_type(:movie, []), do: []
-
-  defp fetch_records_for_type(:movie, ids) do
-    fetch_standalone_movies_by_ids(ids) ++ fetch_hoisted_movies_by_ids(ids)
-  end
-
-  defp fetch_records_for_type(:tv_series, []), do: []
-  defp fetch_records_for_type(:tv_series, ids), do: fetch_tv_series_by_ids(ids)
-  defp fetch_records_for_type(:movie_series, []), do: []
-  defp fetch_records_for_type(:movie_series, ids), do: fetch_movie_series_by_ids(ids)
-  defp fetch_records_for_type(:video_object, []), do: []
-  defp fetch_records_for_type(:video_object, ids), do: fetch_video_objects_by_ids(ids)
-
-  defp fetch_all_types([]), do: []
-
-  defp fetch_all_types(ids) do
-    fetch_standalone_movies_by_ids(ids) ++
-      fetch_hoisted_movies_by_ids(ids) ++
-      fetch_tv_series_by_ids(ids) ++
-      fetch_movie_series_by_ids(ids) ++
-      fetch_video_objects_by_ids(ids)
   end
 
   # --- Type-Specific Fetchers (all) ---
@@ -227,58 +153,6 @@ defmodule MediaCentaur.Library.Browser do
     |> Repo.preload(@video_object_preloads)
     |> Enum.map(&Library.ContentUrls.populate/1)
   end
-
-  # --- Type-Specific Fetchers (by IDs) ---
-
-  defp fetch_standalone_movies_by_ids(ids) do
-    from([m] in PresentableQueries.standalone_movies(), where: m.id in ^ids)
-    |> Repo.all()
-    |> Repo.preload(@standalone_movie_preloads)
-    |> Enum.map(&Library.ContentUrls.populate/1)
-  end
-
-  defp fetch_hoisted_movies_by_ids(ids) do
-    from([m] in PresentableQueries.singleton_collection_movies(), where: m.id in ^ids)
-    |> Repo.all()
-    |> Repo.preload(@hoisted_movie_preloads)
-    |> Enum.map(&Library.ContentUrls.populate/1)
-  end
-
-  defp fetch_tv_series_by_ids(ids) do
-    from(t in TVSeries,
-      as: :item,
-      where: t.id in ^ids,
-      where: exists(PresentableQueries.tv_series_present_file_subquery())
-    )
-    |> Repo.all()
-    |> Repo.preload(@tv_series_preloads)
-    |> Enum.map(&Library.ContentUrls.populate/1)
-  end
-
-  defp fetch_movie_series_by_ids(ids) do
-    from([ms] in PresentableQueries.multi_child_movie_series(), where: ms.id in ^ids)
-    |> Repo.all()
-    |> Repo.preload(@movie_series_preloads)
-    |> Enum.map(&Library.ContentUrls.populate/1)
-  end
-
-  defp fetch_video_objects_by_ids(ids) do
-    from(v in VideoObject,
-      as: :item,
-      where: v.id in ^ids,
-      where: exists(PresentableQueries.video_object_present_file_subquery())
-    )
-    |> Repo.all()
-    |> Repo.preload(@video_object_preloads)
-    |> Enum.map(&Library.ContentUrls.populate/1)
-  end
-
-  # --- Typed Entry Builder ---
-  #
-  # Converts a type-specific struct into the same `%{entity: ..., progress: ..., progress_records: ...}`
-  # format used by the LiveView. Progress records are extracted from preloaded associations
-  # (no separate query needed). The struct is normalized to a map with :type, :seasons, :movies,
-  # :extras, :extra_progress fields so ProgressSummary.compute and pre_sort_children work correctly.
 
   defp build_typed_entry(%Movie{} = movie) do
     build_entry_for(movie, :movie)
