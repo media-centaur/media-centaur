@@ -58,7 +58,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     tmdb: "Fetches metadata and artwork from The Movie Database.",
     http:
       "Every request Media Centaur makes to another server — TMDB, Prowlarr, " <>
-        "your download client, GitHub, Steam — and how often the cache answered instead.",
+        "your download client, GitHub — and how often the cache answered instead.",
     playback:
       "Tracks playback and records watch progress — " <>
         "resume points and Continue Watching feed off it.",

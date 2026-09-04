@@ -9,7 +9,8 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
   `MediaCentaur.Acquisition.IncidentContext` from their own polls, and
   GitHub by `MediaCentaur.SelfUpdate.IncidentContext` from its check
   history. Grading those here again would mint two incidents for one
-  outage.
+  outage. Steam is not graded either: it has no panel row and a failed
+  banner lookup falls back to local art.
 
   `vitals/0` attaches the per-upstream figures and the cache size to
   every incident report, whichever subsystem raised it.
@@ -18,7 +19,7 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
 
   alias MediaCentaur.HttpClient.{Cache, Stats}
 
-  @assessed [:tmdb, :tmdb_images, :steam, :indexers]
+  @assessed [:tmdb, :tmdb_images, :indexers]
   @min_requests 10
   @failing_share 0.5
 

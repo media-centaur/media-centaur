@@ -35,13 +35,16 @@ defmodule MediaCentaur.HttpClient.IncidentContextTest do
     assert IncidentContext.assess(snapshot_with(%{tmdb: {5, 5}})) == :ok
   end
 
-  test "upstreams another subsystem assesses are left to it" do
-    assert IncidentContext.assess(snapshot_with(%{prowlarr: {30, 30}, github: {30, 30}})) == :ok
+  test "upstreams another subsystem assesses, and Steam, are left alone" do
+    assert IncidentContext.assess(
+             snapshot_with(%{prowlarr: {30, 30}, github: {30, 30}, steam: {30, 30}})
+           ) ==
+             :ok
   end
 
   test "the worst upstream wins when several fail" do
-    assert {:fault, _kind, _severity, %{upstream: :steam}} =
-             IncidentContext.assess(snapshot_with(%{tmdb: {20, 11}, steam: {20, 20}}))
+    assert {:fault, _kind, _severity, %{upstream: :indexers}} =
+             IncidentContext.assess(snapshot_with(%{tmdb: {20, 11}, indexers: {20, 20}}))
   end
 
   test "vitals carry every upstream and the cache size" do

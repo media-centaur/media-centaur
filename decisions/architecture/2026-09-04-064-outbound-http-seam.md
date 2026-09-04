@@ -24,7 +24,9 @@ are both properties of the request path, not of any one integration.
 1. **Every outbound request is built through
    `MediaCentaur.HttpClient.new/2`.** The call names its **upstream**
    (`MediaCentaur.HttpClient.Upstream`, a closed enum: TMDB, TMDB images,
-   Prowlarr, qBittorrent, SABnzbd, GitHub, Steam, indexers). Credo
+   Prowlarr, qBittorrent, SABnzbd, GitHub, Steam, indexers). Steam is
+   counted but has no panel row: fetched at most hourly for banner art,
+   with nothing for the reader to do about a bad answer. Credo
    MC0029 forbids `Req.new/1` and URL-first `Req.get/2` outside the seam.
    An *upstream* is a remote party; it is deliberately distinct from an
    *integration* (`MediaCentaur.IntegrationHealth`), which is a

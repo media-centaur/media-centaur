@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
 
   import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1]
 
-  alias MediaCentaur.HttpClient.Stats
+  alias MediaCentaur.HttpClient.{Stats, Upstream}
 
   @doc "Connections Activity widget: per-upstream request figures + recent-request feed."
   attr :http_stats, :map,
@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
               </tr>
             </thead>
             <tbody>
-              <tr :for={row <- @http_stats.upstreams} id={"http-upstream-#{row.id}"}>
+              <tr :for={row <- panel_rows(@http_stats.upstreams)} id={"http-upstream-#{row.id}"}>
                 <td>
                   <span class="text-base-content/80">{row.label}</span>
                   <span
@@ -100,6 +100,8 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
     """
   end
 
+  defp panel_rows(rows), do: Enum.filter(rows, &(&1.id in Upstream.panel_ids()))
+
   defp latency_label(nil), do: "—"
   defp latency_label(ms), do: "#{ms} ms"
 
@@ -113,7 +115,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
   defp last_label(nil), do: "—"
   defp last_label(%DateTime{} = at), do: time_ago(at)
 
-  defp upstream_label(id), do: MediaCentaur.HttpClient.Upstream.label(id)
+  defp upstream_label(id), do: Upstream.label(id)
 
   defp outcome_label(%{error: error}) when is_binary(error), do: error
   defp outcome_label(%{status: status}), do: to_string(status)
