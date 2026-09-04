@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     :watcher,
     :pipeline,
     :tmdb,
+    :http,
     :playback,
     :library,
     :acquisition,
@@ -21,6 +22,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     watcher: "File watching",
     pipeline: "Media import",
     tmdb: "Metadata",
+    http: "Connections",
     playback: "Playback",
     library: "Library",
     acquisition: "Downloads",
@@ -33,6 +35,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     watcher: "hero-eye",
     pipeline: "hero-arrow-down-on-square-stack",
     tmdb: "hero-film",
+    http: "hero-globe-alt",
     playback: "hero-play-circle",
     library: "hero-rectangle-stack",
     acquisition: "hero-arrow-down-tray",
@@ -53,6 +56,9 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
         "If it stalls, a manual scan picks up what it missed.",
     pipeline: "Turns new files into identified library entries with artwork.",
     tmdb: "Fetches metadata and artwork from The Movie Database.",
+    http:
+      "Every request Media Centaur makes to another server — TMDB, Prowlarr, " <>
+        "your download client, GitHub, Steam — and how often the cache answered instead.",
     playback:
       "Tracks playback and records watch progress — " <>
         "resume points and Continue Watching feed off it.",

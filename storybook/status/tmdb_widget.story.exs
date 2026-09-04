@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Storybook.Status.TmdbWidget do
-  @moduledoc "Storybook coverage for the TMDB Activity widget (config + rate-limiter budget + metadata-activity feed)."
+  @moduledoc "Storybook coverage for the TMDB Activity widget (config + metadata-activity feed)."
   use PhoenixStorybook.Story, :component
 
   def function, do: &MediaCentaurWeb.Components.StatusWidgets.Tmdb.tmdb_widget/1
@@ -15,7 +15,6 @@ defmodule MediaCentaurWeb.Storybook.Status.TmdbWidget do
       %Variation{
         id: :not_configured,
         attributes: %{
-          rate_limiter: nil,
           config: %{tmdb_configured: false},
           metadata_stats: empty_metadata()
         }
@@ -23,7 +22,6 @@ defmodule MediaCentaurWeb.Storybook.Status.TmdbWidget do
       %Variation{
         id: :configured_idle,
         attributes: %{
-          rate_limiter: %{used: 12, total: 40},
           config: %{tmdb_configured: true},
           metadata_stats: empty_metadata()
         }
@@ -31,7 +29,6 @@ defmodule MediaCentaurWeb.Storybook.Status.TmdbWidget do
       %Variation{
         id: :recent_activity,
         attributes: %{
-          rate_limiter: %{used: 12, total: 40},
           config: %{tmdb_configured: true},
           metadata_stats: %{
             last_enriched_at: seconds_ago(180),
@@ -47,7 +44,6 @@ defmodule MediaCentaurWeb.Storybook.Status.TmdbWidget do
       %Variation{
         id: :low_confidence,
         attributes: %{
-          rate_limiter: %{used: 30, total: 40},
           config: %{tmdb_configured: true},
           metadata_stats: %{
             last_enriched_at: seconds_ago(60),

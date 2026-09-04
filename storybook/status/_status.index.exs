@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.Storybook.Status do
   def entry("watcher_widget"), do: [icon: {:fa, "folder-tree", :thin}, name: "Watcher widget"]
   def entry("pipeline_widget"), do: [icon: {:fa, "diagram-project", :thin}, name: "Pipeline widget"]
   def entry("tmdb_widget"), do: [icon: {:fa, "film", :thin}, name: "TMDB widget"]
+  def entry("http_widget"), do: [icon: {:fa, "globe", :thin}, name: "Connections widget"]
   def entry("playback_widget"), do: [icon: {:fa, "play", :thin}, name: "Playback widget"]
   def entry("social_widget"), do: [icon: {:fa, "users", :thin}, name: "Social widget"]
 

@@ -1,7 +1,8 @@
 defmodule MediaCentaur.HttpClient do
   use Boundary,
     top_level?: true,
-    exports: [Cache, Cache.Coordinator, Instrument, Supervisor, Upstream]
+    deps: [MediaCentaur.ErrorReports],
+    exports: [Cache, Cache.Coordinator, IncidentContext, Instrument, Stats, Supervisor, Upstream]
 
   @moduledoc """
   The one seam every outbound HTTP request passes through.
@@ -25,8 +26,8 @@ defmodule MediaCentaur.HttpClient do
       on every call. A caller may also pass `plug:` directly.
 
   Anything HTTP that bypasses this function is invisible to the panel,
-  which is why the Credo check `NoBareReq` forbids `Req.new/1` and
-  URL-form `Req.get/2` outside this namespace.
+  which is why the Credo check MC0029 (`OutboundHttpSeam`) forbids
+  `Req.new/1` and URL-form `Req.get/2` outside this module.
 
   `module` is the calling module, used only for stub routing. It is
   not the upstream: one upstream may be spoken to by several modules

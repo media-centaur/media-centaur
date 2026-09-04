@@ -16,7 +16,8 @@ defmodule MediaCentaur.HttpClient.Supervisor do
   @impl true
   def init(_opts) do
     children = [
-      MediaCentaur.HttpClient.Cache.Coordinator
+      MediaCentaur.HttpClient.Cache.Coordinator,
+      MediaCentaur.HttpClient.Stats
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

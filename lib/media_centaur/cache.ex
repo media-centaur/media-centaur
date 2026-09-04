@@ -21,9 +21,14 @@ defmodule MediaCentaur.Cache do
 
   | Flavour | Use when | Examples |
   |---------|----------|----------|
-  | **`:persistent_term`** | The cached value is small, hot, mostly read, rarely written. Reads are inlined into the call site at byte-code level — the cheapest read in the BEAM. Each write copies all readers' data, so reserve for tiny payloads. | `Settings`, `Capabilities`, `Controls`, `TMDB.Client` (the built `Req` client) |
+  | **`:persistent_term`** | The cached value is small, hot, mostly read, rarely written. Reads are inlined into the call site at byte-code level — the cheapest read in the BEAM. Each write copies all readers' data, so reserve for tiny payloads. | `Settings`, `Capabilities`, `Controls` |
   | **ETS named table** | The cached value is a result-set the LiveView renders directly (rows, structs, view-models). Reads bypass the GenServer via `:read_concurrency, true`; whole-snapshot rebuilds use `:ets.delete_all_objects` + `:ets.insert`. | `Library.Views.ContinueWatching`, `HeroCandidates`, `RecentlyAdded`, `ReleaseTracking.Views.ComingUp` |
   | **GenServer state** | The cached value is purely transient — runtime-only by nature, never persisted, no read-pressure concern. The Worker's own state holds it; reads go through `GenServer.call/2`. | `TMDB.RateLimiter` (sliding window), `Acquisition.QueueMonitor` (poll snapshot + history) |
+
+  Not an instance of this behaviour: `MediaCentaur.HttpClient.Cache`.
+  Its entries expire on the origin's `Cache-Control` freshness and are
+  revalidated by ETag, not rebuilt from PubSub events, so it owns its
+  own ETS table and coordinator rather than a `Cache.Worker`.
 
   Misplacement is the primary defect class: durable things in
   `:persistent_term` (data lost on crash), ephemeral things in ETS

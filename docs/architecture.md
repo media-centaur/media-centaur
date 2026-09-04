@@ -134,6 +134,7 @@ graph TD
     App --> ConsoleBuffer[Console.Buffer]
     App --> JournalSource[Console.JournalSource]
     App --> TaskSup[TaskSupervisor]
+    App --> HttpSup[HttpClient.Supervisor<br/>Cache.Coordinator + Stats]
     App --> RateLimiter[TMDB.RateLimiter]
     App --> WatcherSup[Watcher.Supervisor]
     App --> Availability[Library.Availability]
@@ -190,6 +191,7 @@ Three roles in the taxonomy (see `MediaCentaur.Cache` for how they compose):
 - **PubSub for cross-context communication.** Contexts don't call into each other's internals; cross-context wiring is enforced by Boundary.
 - **Pipeline is a mediator.** The pipeline actively orchestrates — domain resources don't trigger pipeline behavior through state changes.
 - **Capability gating.** UI surfaces that depend on TMDB / Prowlarr / the download client only appear once the integration's most recent Test Connection succeeded. See `MediaCentaur.Capabilities`.
+- **One outbound HTTP seam.** Every `Req` client is built through `MediaCentaur.HttpClient.new/2`, which names the request's upstream, emits one telemetry event per request (the Status page's Connections tile), and attaches an origin-freshness response cache where asked. Credo MC0029 enforces it. See [ADR-064](../decisions/architecture/2026-09-04-064-outbound-http-seam.md).
 - **Three-pillar state segregation.** Every state-bearing module belongs to exactly one of three pillars: long-term durable storage (DB), short-term in-memory state (ETS / `:persistent_term` / GenServer), or real-time PubSub coordination. LiveView read paths go through Pillar-2 projections that subscribe to source topics, refresh in-memory state, and emit derived `*_view_updated` broadcasts; LiveViews consume only the derived topics, never the DB on render. `MediaCentaur.Cache` is the unified container for the three Pillar-2 flavours; `Library.Progress.Worker` is the canonical GenServer-with-debounced-flush example. See [ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
 
 ## Specifications

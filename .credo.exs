@@ -299,7 +299,14 @@
           # example: every message on the topic goes through
           # `MediaCentaur.Review.Events.broadcast/1` so its four payloads keep
           # their `@enforce_keys` guarantee. Same shape as MC0012/MC0013.
-          {MediaCentaur.Credo.Checks.ReviewUpdatesContract, []}
+          {MediaCentaur.Credo.Checks.ReviewUpdatesContract, []},
+          # MC0029 keeps every outbound HTTP client on the
+          # `MediaCentaur.HttpClient.new/2` seam — the upstream tag, the
+          # instrumentation behind the Status page's Connections tile, the
+          # response cache, and the test stub routing all hang off it. Added
+          # by the http-client-unification campaign; the moduledoc is the
+          # rule's spec.
+          {MediaCentaur.Credo.Checks.OutboundHttpSeam, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

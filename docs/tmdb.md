@@ -16,8 +16,10 @@ The TMDB subsystem provides rate-limited access to [The Movie Database API v3](h
 graph LR
     Search[Search Stage] --> Client
     Fetch[FetchMetadata Stage] --> Client
-    Client[TMDB.Client] --> RL[RateLimiter]
-    RL -->|"wait() then GET"| API[TMDB API v3]
+    Client[TMDB.Client] --> Seam[HttpClient.new]
+    Seam --> Cache[HttpClient.Cache]
+    Cache -->|"stale or missing"| RL[RateLimiter step]
+    RL -->|GET| API[TMDB API v3]
     Client --> Mapper[Mapper]
     Search --> Confidence[Confidence]
 ```
@@ -69,7 +71,7 @@ HTTP client using `Req` with base URL `https://api.themoviedb.org/3`. Endpoints:
 | `get_season/3` | `GET /tv/{id}/season/{n}` | Season details with episode list + appended `credits` (per-episode cast membership) |
 | `get_collection/2` | `GET /collection/{id}` | Movie collection details with images |
 
-Every request calls `RateLimiter.wait()` first and emits telemetry for wait duration and request latency.
+Every public function takes a trailing keyword list: `client:` substitutes a `Req` client, `reload: true` fetches past a fresh cache entry. The client comes from `MediaCentaur.HttpClient.new/2` ([ADR-064](../decisions/architecture/2026-09-04-064-outbound-http-seam.md)), which attaches the response cache (`api_key` excluded from the key) and the instrumentation; `RateLimiter.attach/1` adds the rate-limit step after the cache step, so a hit never spends a slot. TMDB states freshness on every response (`Cache-Control: max-age`, about one hour for search and eight for details) and the cache honours it, revalidating stale entries with `If-None-Match`. The release-tracking refresher and the `/configuration` credential probe pass `reload: true`.
 
 ### Confidence Scoring
 
@@ -122,4 +124,5 @@ Sliding window using Erlang `:queue`:
 | `MediaCentaur.TMDB.Client` | HTTP client, endpoint methods | `lib/media_centaur/tmdb/client.ex` |
 | `MediaCentaur.TMDB.Confidence` | Jaro distance scoring | `lib/media_centaur/tmdb/confidence.ex` |
 | `MediaCentaur.TMDB.Mapper` | JSON → domain attribute mapping | `lib/media_centaur/tmdb/mapper.ex` |
-| `MediaCentaur.TMDB.RateLimiter` | Sliding window rate limiter | `lib/media_centaur/tmdb/rate_limiter.ex` |
+| `MediaCentaur.TMDB.RateLimiter` | Sliding window rate limiter + its `Req` request step | `lib/media_centaur/tmdb/rate_limiter.ex` |
+| `MediaCentaur.HttpClient` | The outbound seam: upstream tagging, instrumentation, response cache | `lib/media_centaur/http_client.ex` |
