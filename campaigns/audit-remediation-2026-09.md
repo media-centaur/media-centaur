@@ -46,6 +46,33 @@ apart from the suite's known concurrency flakes (relay timeout,
 engineering, 10 performance, 42 documentation, 25 design findings.
 Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 
+## Resuming (handoff written 2026-09-04)
+
+Parked by the owner after ratifying Passes 1–3, to be continued in a fresh
+session **after the parallel HTTP/Req-client task lands**. On resume:
+
+1. Reconcile first (ADR-042): `git log a661eea7^..HEAD` is the work of
+   this campaign so far — 17 commits on `main`, **not pushed**. Confirm
+   nothing has been pushed or rebased since.
+2. Compare the HTTP task's result with commit `0a40c933` (E8/E9/E11):
+   who builds integration clients, what the test stub seam is
+   (`MediaCentaur.HttpClient` + `config :media_centaur, :req_test_stubs`
+   today), and where integration saves live
+   (`Capabilities.save_integration/2` today). Converge on one design and
+   record the outcome here before any Pass 4 work.
+3. Then Pass 4 = engineering findings E29–E42 (Stage E-5 context
+   boundaries, plus the E-3 dead-code batch E56 and the E-2 precommit
+   items E52/E53/E42/D13 not yet done). Same loop: verify the cited
+   file:line still holds, bring open questions, implement test-first,
+   `mix precommit`, record, stop.
+4. Still owed from Pass 2: a real-browser check of the Status page
+   pipeline tiles during an import on the dev server (`127.0.0.1:2160`),
+   which are event-driven since E18.
+
+Known suite flakes (pass alone, fail under load): Nostr connection and
+one-shot timeouts, `Mix.Tasks.Social.DevTest` relay timeout, "Database
+busy" in `IncomingLiveTest` setup, a 60 s page-smoke timeout.
+
 ## Decisions made
 
 * `2026-09-04` — Four-audit sweep run; campaign created with the
