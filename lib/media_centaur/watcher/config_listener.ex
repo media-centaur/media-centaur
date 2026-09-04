@@ -4,8 +4,16 @@ defmodule MediaCentaur.Watcher.ConfigListener do
   `Watcher.Supervisor.reconcile/1` on every media-dir change broadcast.
 
   Thin PubSub bridge — the reconcile itself is synchronous and idempotent.
+
+  Only while watching is on (`Watcher.Supervisor.enabled?/0`): with
+  watchers off — the service flag at boot, or the Settings toggle — a
+  media-dir edit starts nothing. Turning them back on
+  (`Watcher.Supervisor.start_watchers/0`) reads the current dirs, so
+  nothing is lost in between.
   """
   use GenServer
+
+  alias MediaCentaur.Watcher
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
@@ -24,8 +32,11 @@ defmodule MediaCentaur.Watcher.ConfigListener do
 
   @impl true
   def handle_info({:config_updated, :media_dirs, entries}, state) do
-    MediaCentaur.Watcher.Supervisor.reconcile(entries)
-    MediaCentaur.Watcher.Supervisor.reconcile_image_dir_monitors()
+    if Watcher.Supervisor.enabled?() do
+      Watcher.Supervisor.reconcile(entries)
+      Watcher.Supervisor.reconcile_image_dir_monitors()
+    end
+
     {:noreply, state}
   end
 

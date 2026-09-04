@@ -98,7 +98,8 @@ defmodule MediaCentaur.GlobalStateSandbox do
       {:stateless, "supervisor; sessions are temporary and registry-deregistered"},
     MediaCentaur.Pipeline.Supervisor => {:stateless, "Broadway topology; state is per-message"},
     MediaCentaur.Pipeline.Image.Supervisor => {:stateless, "Broadway topology; state is per-message"},
-    MediaCentaur.Watcher.Supervisor => {:stateless, "watchers are not started under :test"},
+    MediaCentaur.Watcher.Supervisor =>
+      {:sandboxed, "off unless a test calls start_watchers/0; the flag is a :persistent_term"},
     MediaCentaur.Social.Connections =>
       {:stateless, "the relay-connection owner is not started under :test"},
     MediaCentaur.Recommendations.Sync =>

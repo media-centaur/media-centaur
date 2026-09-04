@@ -70,6 +70,8 @@ Each watcher also auto-excludes its own images directory and staging directory.
 
 When media dirs or excluded dirs change, `Settings` broadcasts `:config_updated` on the `config:updates` topic. `Watcher.ConfigListener` translates that broadcast into targeted messages for each running `Watcher` (e.g. `{:config_updated, :exclude_dirs, new_list}`), which the watcher applies in place — no supervisor restart, no inotify teardown. This is what makes v0.21.0's "changes to your excluded-directory list take effect immediately" work.
 
+Media-dir edits reconcile the running set only while watching is on (`Watcher.Supervisor.enabled?/0`, flipped by `start_watchers/0` / `stop_watchers/0` — boot and the Settings toggle). With watchers off, an edit starts nothing; turning them back on reads the current dirs.
+
 The v0.21.0 crash fix lives in the same path: previously, creating or modifying an excluded directory could trip an unhandled message and kill the watcher; the handler now treats events for excluded paths as no-ops.
 
 ## How It Works

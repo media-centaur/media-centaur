@@ -16,6 +16,12 @@ defmodule MediaCentaur.Watcher.Supervisor do
   alias MediaCentaur.Watcher.DirMonitor
   alias MediaCentaur.Library.FilePresence
 
+  # Whether watching is on — flipped by `start_watchers/0` / `stop_watchers/0`
+  # (boot and the Settings toggle). `running?/0` cannot stand in for it:
+  # "on with no media dirs yet" and "off" both have zero children, and only
+  # the former should react when the first dir is added.
+  @enabled_key {__MODULE__, :enabled?}
+
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -141,9 +147,12 @@ defmodule MediaCentaur.Watcher.Supervisor do
   end
 
   @doc """
-  Called after the supervisor starts to launch a watcher for each configured directory.
+  Turns watching on and launches a watcher for each configured directory.
+  Called at boot and from the Settings toggle; while on, media-dir edits
+  reconcile the running set (`Watcher.ConfigListener`).
   """
   def start_watchers do
+    :persistent_term.put(@enabled_key, true)
     dirs = Config.get(:media_dirs) || []
 
     Enum.each(dirs, fn dir ->
@@ -255,12 +264,13 @@ defmodule MediaCentaur.Watcher.Supervisor do
   """
   def pause_during(fun) when is_function(fun, 0) do
     if Process.whereis(__MODULE__) do
+      resume? = enabled?()
       stop_watchers()
 
       try do
         fun.()
       after
-        start_watchers()
+        if resume?, do: start_watchers()
       end
     else
       fun.()
@@ -414,8 +424,14 @@ defmodule MediaCentaur.Watcher.Supervisor do
     DynamicSupervisor.which_children(MediaCentaur.Watcher.DynamicSupervisor) != []
   end
 
-  @doc "Stops all running watcher children."
+  @doc "Whether watching is on (`start_watchers/0` since the last `stop_watchers/0`)."
+  @spec enabled?() :: boolean()
+  def enabled?, do: :persistent_term.get(@enabled_key, false)
+
+  @doc "Turns watching off and stops all running watcher children."
   def stop_watchers do
+    :persistent_term.put(@enabled_key, false)
+
     MediaCentaur.Watcher.DynamicSupervisor
     |> DynamicSupervisor.which_children()
     |> Enum.each(fn {_, pid, _, _} ->
