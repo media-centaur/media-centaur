@@ -108,6 +108,8 @@ defmodule MediaCentaur.GlobalStateSandbox do
       {:accepted, "pending entity ids for one ~100ms flush window, then empty"},
     MediaCentaur.Library.FileEventHandler => {:accepted, "debounce timers only, no read API"},
     MediaCentaur.Library.AbsenceSweeper => {:accepted, "sweep schedule only, no read API"},
+    MediaCentaur.HttpClient.Supervisor =>
+      {:stateless, "response cache and HTTP stats are not started under :test"},
     MediaCentaur.TMDB.RateLimiter =>
       {:accepted, "sliding window; a leaked window delays a call, it cannot change an assertion"},
     MediaCentaur.TMDB.MetadataStats =>

@@ -1,7 +1,7 @@
 defmodule MediaCentaur.HttpClient do
   use Boundary,
     top_level?: true,
-    exports: [Cache, Cache.Coordinator, Instrument, Upstream]
+    exports: [Cache, Cache.Coordinator, Instrument, Supervisor, Upstream]
 
   @moduledoc """
   The one seam every outbound HTTP request passes through.

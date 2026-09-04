@@ -17,6 +17,23 @@ defmodule MediaCentaur.TMDB.RateLimiter do
   end
 
   @doc """
+  Appends the rate-limit request step to a TMDB `Req` client. Appended,
+  so it runs after the response cache's lookup step: a cache hit never
+  spends a slot. The wait is recorded on the request for the HTTP
+  instrumentation event (`rate_limit_wait`).
+  """
+  @spec attach(Req.Request.t()) :: Req.Request.t()
+  def attach(%Req.Request{} = request) do
+    Req.Request.append_request_steps(request, tmdb_rate_limit: &step/1)
+  end
+
+  defp step(request) do
+    started_at = System.monotonic_time()
+    wait()
+    Req.Request.put_private(request, :http_rate_limit_wait, System.monotonic_time() - started_at)
+  end
+
+  @doc """
   Blocks until a request slot is available, then returns `:ok`.
   """
   def wait do

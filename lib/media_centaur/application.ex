@@ -81,7 +81,10 @@ defmodule MediaCentaur.Application do
       ] ++
         cache_children(Application.get_env(:media_centaur, :environment)) ++
         [
-          {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
+          {Task.Supervisor, name: MediaCentaur.TaskSupervisor}
+        ] ++
+        http_client_children(Application.get_env(:media_centaur, :environment)) ++
+        [
           MediaCentaur.TMDB.RateLimiter,
           MediaCentaur.TMDB.MetadataStats,
           MediaCentaur.Watcher.Supervisor,
@@ -211,6 +214,12 @@ defmodule MediaCentaur.Application do
   # Capabilities, Controls, and SpoilerFree all fall through to a live
   # query when `:persistent_term` is unset, so tests get fresh-DB
   # semantics without the cache layer.
+  # The response cache is not started under :test: the suite's Req.Test
+  # stubs would otherwise share entries across tests. Cache tests start
+  # their own coordinator under a unique name.
+  defp http_client_children(:test), do: []
+  defp http_client_children(_env), do: [MediaCentaur.HttpClient.Supervisor]
+
   defp cache_children(:test), do: []
 
   defp cache_children(_env) do

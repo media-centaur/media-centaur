@@ -165,8 +165,11 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     |> Stream.run()
   end
 
+  # `reload: true` on every scheduled fetch: TMDB marks details fresh for
+  # about eight hours, longer than the refresh interval, and this sweep
+  # exists to notice what changed since last time.
   defp fetch_for_item(%{media_type: :tv_series} = item) do
-    case Client.get_tv(item.tmdb_id) do
+    case Client.get_tv(item.tmdb_id, reload: true) do
       {:ok, response} ->
         new_releases =
           Helpers.fetch_tv_releases(
@@ -188,14 +191,14 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   # (its `tmdb_id` is a collection id, written by the Scanner); any other
   # movie item tracks one film (a manual track from search).
   defp fetch_for_item(%{media_type: :movie, library_container_type: :movie_series} = item) do
-    case Client.get_collection(item.tmdb_id) do
+    case Client.get_collection(item.tmdb_id, reload: true) do
       {:ok, response} -> {:ok, item, response, Helpers.fetch_collection_releases(response)}
       {:error, reason} -> {:error, item, reason}
     end
   end
 
   defp fetch_for_item(%{media_type: :movie} = item) do
-    case Client.get_movie(item.tmdb_id) do
+    case Client.get_movie(item.tmdb_id, reload: true) do
       {:ok, response} -> {:ok, item, response, Helpers.fetch_movie_releases(response)}
       {:error, reason} -> {:error, item, reason}
     end
