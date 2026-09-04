@@ -15,6 +15,7 @@ defmodule Mix.Tasks.Social.Dev do
 
       mix social.dev npub
       mix social.dev recommend movie 603 --name "Sample Movie" --note "try it"
+      mix social.dev delete movie 603
       mix social.dev feed
   """
   use Mix.Task
@@ -30,7 +31,6 @@ defmodule Mix.Tasks.Social.Dev do
 
   @default_relay "ws://127.0.0.1:2173"
   @default_dir "priv/dev-social"
-  @kind 32_160
   # A dev relay in a container can be slow to answer its first request.
   @relay_timeout_ms 15_000
 
@@ -58,8 +58,12 @@ defmodule Mix.Tasks.Social.Dev do
         Example:
           mix social.dev recommend movie 603 --name "Sample Movie" --note "try it"
 
+    mix social.dev delete <movie|tv_series> <tmdb_id>
+        Withdraw the friend's recommendation of a title (a kind 5 deletion).
+          --relay URL           default #{@default_relay}
+
     mix social.dev feed
-        List every recommendation the dev relay holds, newest first.
+        List every recommendation and deletion the dev relay holds, newest first.
 
   The friend's key lives in #{@default_dir}/friend.nsec (--dir to change).
   Run `just social` for the full setup walkthrough.
@@ -87,6 +91,7 @@ defmodule Mix.Tasks.Social.Dev do
     do: opts |> secret() |> Keys.pubkey() |> Keys.to_npub() |> Mix.shell().info()
 
   defp dispatch(["recommend", type, tmdb_id], opts), do: recommend(type, tmdb_id, opts)
+  defp dispatch(["delete", type, tmdb_id], opts), do: delete(type, tmdb_id, opts)
   defp dispatch(["feed"], opts), do: feed(opts)
   defp dispatch(_other, _opts), do: fail("Unknown command.")
 
@@ -132,16 +137,39 @@ defmodule Mix.Tasks.Social.Dev do
     end
   end
 
+  # --- delete ------------------------------------------------------------
+
+  # The dev friend keeps no record of what it published, so the deletion
+  # names the address alone (the `e` tag is optional in the contract).
+  defp delete(type, tmdb_id, opts) do
+    media_type = parse_media_type(type)
+    tmdb_id = parse_tmdb_id(tmdb_id)
+    secret = secret(opts)
+    relay = Keyword.get(opts, :relay, @default_relay)
+
+    event =
+      secret
+      |> Keys.pubkey()
+      |> Translation.to_deletion(media_type, tmdb_id, nil)
+      |> Event.sign(secret)
+
+    case OneShot.publish(relay, event, signer(secret), timeout_ms: @relay_timeout_ms) do
+      :ok -> Mix.shell().info("Withdrew tmdb:#{media_type}:#{tmdb_id} as the friend from #{relay}")
+      {:error, reason} -> fail(relay_error(relay, reason))
+    end
+  end
+
   # --- feed --------------------------------------------------------------
 
   defp feed(opts) do
     secret = secret(opts)
     relay = Keyword.get(opts, :relay, @default_relay)
     own_pubkey = Keys.pubkey(secret)
+    kinds = [Translation.kind(), Translation.deletion_kind()]
 
-    case OneShot.query(relay, [Filter.new(kinds: [@kind])], signer(secret),
-           timeout_ms: @relay_timeout_ms
-         ) do
+    filters = [Filter.new(kinds: kinds)]
+
+    case OneShot.query(relay, filters, signer(secret), timeout_ms: @relay_timeout_ms) do
       {:ok, []} ->
         Mix.shell().info("The relay holds no recommendations.")
 
@@ -153,6 +181,19 @@ defmodule Mix.Tasks.Social.Dev do
 
       {:error, reason} ->
         fail(relay_error(relay, reason))
+    end
+  end
+
+  defp feed_line(%Event{kind: 5} = event, own_pubkey) do
+    author = if event.pubkey == own_pubkey, do: "friend", else: short_npub(event.pubkey)
+    time = event.created_at |> DateTime.from_unix!() |> Format.relative_ago()
+
+    case Translation.from_deletion(event) do
+      {:ok, attrs} ->
+        "#{author}  tmdb:#{attrs.media_type}:#{attrs.tmdb_id}  withdrawn  (#{time})"
+
+      {:error, reason} ->
+        "#{author}  #{Event.tag_value(event, "a")}  <unreadable deletion: #{reason}>  (#{time})"
     end
   end
 

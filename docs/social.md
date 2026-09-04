@@ -168,6 +168,14 @@ recommendation older than a row's tombstone is `:ignored`; a newer one revives.
 Every read excludes tombstones except `own_events/0`, which yields the deletion
 of a withdrawn own row instead of its recommendation.
 
+**Stamping.** A relay keeps one record per address and, on a `created_at` tie,
+keeps what it holds (a deletion beating a recommendation). So `recommend/2`
+stamps a new own recommendation strictly after the recommendation or tombstone
+the row already holds, and `delete/1` stamps the deletion no earlier than the
+recommendation it withdraws (`Recommendations.stamp/2`, private). Without this
+a same-second re-recommendation would replace the row here, be discarded by
+the relay, and be republished by the own-events diff on every connect.
+
 ## Sync
 
 `Recommendations.Sync` is a GenServer over `social:connections` and
@@ -188,6 +196,12 @@ of a withdrawn own row instead of its recommendation.
    per-relay diff, not a blanket re-publish.
 5. A roster change on `social:updates` resubscribes `"feed"` on every connected
    relay with the new author list and that relay's cursor.
+6. `{:ok, id, false, reason}` → a warning naming what the relay refused
+   (`Recommendations.own_event_kind/1`: "rejected a deletion: …" / "rejected a
+   recommendation: …"). The publisher owns the wording; `Connections` only keeps
+   the reason as the relay row's last error. A relay refusing a deletion with
+   `blocked: kind 5 is not stored by this relay` is a `social-relay` older than
+   v0.3.0.
 
 `ingest/1` rejects anything not signed by the identity or a key on the roster, so
 a relay that hands over the whole world still yields only what you follow.
@@ -293,7 +307,8 @@ the recipes.
 |---|---|
 | `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Friends. The relay goes under Settings → Social. Re-run to restart. |
 | `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up in your Feed. |
-| `just social-feed` | Everything the relay holds, including what the dev app sent. |
+| `just social-delete movie 603` | The friend withdraws it (kind 5); the row leaves your Feed. |
+| `just social-feed` | Everything the relay holds — recommendations and deletions — including what the dev app sent. |
 | `just social-status` / `social-down` / `social-reset` | Container state and NIP-11; stop; stop and forget data plus the friend's key. |
 
 The recipes delegate: relay lifecycle to `../social-relay/scripts/dev-relay`

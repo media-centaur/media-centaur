@@ -1,8 +1,6 @@
 defmodule MediaCentaur.Social.ConnectionsTest do
   use MediaCentaur.DataCase, async: false
 
-  import ExUnit.CaptureLog
-
   @moduletag :capture_log
 
   alias MediaCentaur.Social
@@ -72,24 +70,15 @@ defmodule MediaCentaur.Social.ConnectionsTest do
     assert Connections.status() == %{}
   end
 
-  test "a relay that rejects publishes surfaces the reason as last_error and logs it" do
+  test "a relay that rejects publishes surfaces the reason as last_error" do
     relay = FakeRelay.start(accept: false, reason: "blocked: not on the allowlist")
+    {:ok, _row} = Social.add_relay(relay.url)
+    assert_receive {:relay_connection, url, :connected}, 3_000
 
-    log =
-      capture_log(fn ->
-        {:ok, _row} = Social.add_relay(relay.url)
-        assert_receive {:relay_connection, url, :connected}, 3_000
+    Connections.publish(signed("x"))
 
-        Connections.publish(signed("x"))
-
-        assert_receive {:relay_connection, ^url, {:ok, _id, false, "blocked: not on the allowlist"}},
-                       3_000
-
-        assert %{^url => %{last_error: "blocked: not on the allowlist"}} = Connections.status()
-      end)
-
-    assert log =~ "rejected a recommendation"
-    assert log =~ "blocked: not on the allowlist"
+    assert_receive {:relay_connection, ^url, {:ok, _id, false, "blocked: not on the allowlist"}}, 3_000
+    assert %{^url => %{last_error: "blocked: not on the allowlist"}} = Connections.status()
   end
 
   test "a successful auth leaves no error behind" do

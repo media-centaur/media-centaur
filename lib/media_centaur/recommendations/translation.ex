@@ -49,12 +49,12 @@ defmodule MediaCentaur.Recommendations.Translation do
   @spec address(Title.t()) :: String.t()
   def address(%Title{tmdb_id: id, media_type: type}), do: "tmdb:#{type}:#{id}"
 
-  @doc "An unsigned recommendation event from `pubkey`."
-  @spec to_event(Title.t(), String.t() | nil, String.t()) :: Event.t()
-  def to_event(%Title{} = title, note, pubkey) do
+  @doc "An unsigned recommendation event from `pubkey`, stamped `created_at` (now by default)."
+  @spec to_event(Title.t(), String.t() | nil, String.t(), non_neg_integer()) :: Event.t()
+  def to_event(%Title{} = title, note, pubkey, created_at \\ System.os_time(:second)) do
     Event.new(%{
       pubkey: pubkey,
-      created_at: System.os_time(:second),
+      created_at: created_at,
       kind: @kind,
       tags: [["d", address(title)]],
       content:
@@ -69,15 +69,25 @@ defmodule MediaCentaur.Recommendations.Translation do
   @doc """
   An unsigned deletion (kind 5) from `pubkey` withdrawing its own
   recommendation at the address — the `a` tag — with the withdrawn
-  event's id as an `e` tag.
+  event's id as an `e` tag when known (`nil` omits it: the address alone
+  identifies what is withdrawn). Stamped `created_at`, now by default.
   """
-  @spec to_deletion(String.t(), Title.media_type(), pos_integer(), String.t()) :: Event.t()
-  def to_deletion(pubkey, media_type, tmdb_id, event_id) do
+  @spec to_deletion(
+          String.t(),
+          Title.media_type(),
+          pos_integer(),
+          String.t() | nil,
+          non_neg_integer()
+        ) :: Event.t()
+  def to_deletion(pubkey, media_type, tmdb_id, event_id, created_at \\ System.os_time(:second)) do
+    tags =
+      [["a", coordinate(pubkey, media_type, tmdb_id)]] ++ if(event_id, do: [["e", event_id]], else: [])
+
     Event.new(%{
       pubkey: pubkey,
-      created_at: System.os_time(:second),
+      created_at: created_at,
       kind: @deletion_kind,
-      tags: [["a", coordinate(pubkey, media_type, tmdb_id)], ["e", event_id]],
+      tags: tags,
       content: ""
     })
   end

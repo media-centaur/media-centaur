@@ -88,7 +88,44 @@ defmodule Mix.Tasks.Social.DevTest do
     end
   end
 
+  describe "delete" do
+    test "publishes a signed kind 5 for the friend's own address", %{tmp_dir: tmp_dir} do
+      relay = FakeRelay.start(auth: true)
+
+      output = run(["delete", "movie", "603"], tmp_dir, relay)
+      assert output =~ "Withdrew tmdb:movie:603"
+
+      assert_received {:relay_in, ["EVENT", event_map]}
+      assert {:ok, event} = Event.from_map(event_map)
+      assert :ok = Event.verify(event)
+      assert {:ok, attrs} = Translation.from_deletion(event)
+      assert attrs.tmdb_id == 603
+      assert attrs.media_type == :movie
+      assert Keys.to_npub(attrs.author_pubkey) == String.trim(run(["npub"], tmp_dir))
+    end
+
+    test "fails with the relay's reason when refused", %{tmp_dir: tmp_dir} do
+      relay = FakeRelay.start(accept: false, reason: "blocked: kind 5 is not stored by this relay")
+
+      assert_raise Mix.Error, ~r/blocked: kind 5 is not stored by this relay/, fn ->
+        run(["delete", "movie", "603"], tmp_dir, relay)
+      end
+    end
+  end
+
   describe "feed" do
+    test "prints a deletion as a withdrawn address", %{tmp_dir: tmp_dir} do
+      deletion =
+        @other_secret
+        |> Keys.pubkey()
+        |> Translation.to_deletion(:movie, 42, nil)
+        |> Event.sign(@other_secret)
+
+      output = run(["feed"], tmp_dir, FakeRelay.start(events: [deletion]))
+
+      assert output =~ "tmdb:movie:42  withdrawn"
+    end
+
     test "prints one line per stored recommendation", %{tmp_dir: tmp_dir} do
       relay =
         FakeRelay.start(
@@ -128,6 +165,7 @@ defmodule Mix.Tasks.Social.DevTest do
       output = run([], tmp_dir)
 
       assert output =~ "mix social.dev recommend movie 603 --name"
+      assert output =~ "mix social.dev delete"
       assert output =~ "just social"
     end
 

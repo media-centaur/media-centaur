@@ -63,14 +63,23 @@ defmodule MediaCentaur.Recommendations do
   identity, creating the identity first (`Identity.ensure/0`) if none
   exists yet. `note` is trimmed first; blank becomes `nil`; a note over
   #{@max_note_length} characters is rejected with `{:error,
-  :note_too_long}` and nothing is stored.
+  :note_too_long}` and nothing is stored. Stamped after whatever the
+  row already holds (see `stamp/2`).
   """
   @spec recommend(Title.t(), String.t() | nil) ::
           {:ok, Recommendation.t()} | {:error, :note_too_long | term()}
   def recommend(%Title{} = title, note) do
     with {:ok, note} <- validate_note(note) do
       secret = Identity.ensure()
-      event = title |> Translation.to_event(note, Identity.pubkey()) |> Event.sign(secret)
+      me = Identity.pubkey()
+
+      created_at =
+        stamp(
+          existing(%{author_pubkey: me, tmdb_id: title.tmdb_id, media_type: title.media_type}),
+          :after
+        )
+
+      event = title |> Translation.to_event(note, me, created_at) |> Event.sign(secret)
 
       with {:ok, attrs} <- Translation.from_event(event),
            {:ok, rec} <- upsert(attrs) do
@@ -101,7 +110,7 @@ defmodule MediaCentaur.Recommendations do
     if author == Identity.pubkey() do
       event =
         author
-        |> Translation.to_deletion(rec.media_type, rec.tmdb_id, rec.event_id)
+        |> Translation.to_deletion(rec.media_type, rec.tmdb_id, rec.event_id, stamp(rec, :at_or_after))
         |> Event.sign(Identity.secret())
 
       with {:ok, attrs} <- Translation.from_deletion(event),
@@ -209,6 +218,25 @@ defmodule MediaCentaur.Recommendations do
   def get(id), do: Repo.get(Recommendation, id)
 
   @doc """
+  What an own event with this id is — the recommendation of a live row,
+  the deletion of a withdrawn one — or `nil` for an id no row holds (a
+  stranger's event, or a deletion since superseded by a revival).
+  """
+  @spec own_event_kind(String.t()) :: :recommendation | :deletion | nil
+  def own_event_kind(event_id) do
+    query =
+      from r in Recommendation,
+        where:
+          r.event_id == ^event_id or fragment("json_extract(?, '$.id') = ?", r.deletion_event, ^event_id)
+
+    case Repo.one(query) do
+      nil -> nil
+      %Recommendation{event_id: ^event_id} -> :recommendation
+      %Recommendation{} -> :deletion
+    end
+  end
+
+  @doc """
   Aggregate traffic for the Status widget, in two queries rather than
   loading every row: how many recommendations this identity sent, how
   many it received, and when the newest received one landed. Before an
@@ -250,6 +278,21 @@ defmodule MediaCentaur.Recommendations do
   end
 
   # --- internals ---
+
+  # The `created_at` of a new own event. A relay keeps one record per
+  # address and, on a tie, keeps what it holds (a deletion beating a
+  # recommendation, contract Deletion rule 2), so a recommendation must
+  # be stamped strictly after the recommendation or tombstone it
+  # supersedes and a deletion no earlier than the recommendation it
+  # withdraws — otherwise the relay discards what this install stored,
+  # and the own-events diff republishes it on every connect.
+  defp stamp(nil, _bound), do: System.os_time(:second)
+
+  defp stamp(%Recommendation{recommended_at: at, deleted_at: deleted_at}, bound) do
+    held = [at, deleted_at] |> Enum.reject(&is_nil/1) |> Enum.map(&DateTime.to_unix/1) |> Enum.max()
+    floor = if bound == :after, do: held + 1, else: held
+    max(System.os_time(:second), floor)
+  end
 
   defp validate_note(nil), do: {:ok, nil}
 

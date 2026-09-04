@@ -3,6 +3,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
+  alias MediaCentaur.Console
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
@@ -172,6 +173,62 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     assert coordinate == "32160:#{Identity.pubkey()}:tmdb:movie:7"
     refute_receive {:relay_in, ["EVENT", %{"kind" => 32_160}]}, 300
     await_supervised_tasks()
+  end
+
+  test "a relay refusing an own event is logged by what was refused" do
+    {:ok, rec} = Recommendations.recommend(title(7), "mine")
+    {:ok, _gone} = Recommendations.delete(rec.id)
+    relay = FakeRelay.start(accept: false, reason: "blocked: kind 5 is not stored by this relay")
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["EVENT", %{"kind" => 5}]}, 5_000
+
+    assert_logged(~r/rejected a deletion: blocked: kind 5 is not stored by this relay/)
+    await_supervised_tasks()
+  end
+
+  test "a relay refusing an own recommendation is logged as such" do
+    {:ok, _rec} = Recommendations.recommend(title(7), "mine")
+
+    relay =
+      FakeRelay.start(
+        accept: false,
+        reason: "restricted: the event author is not a member of this relay"
+      )
+
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["EVENT", %{"kind" => 32_160}]}, 5_000
+
+    assert_logged(~r/rejected a recommendation: restricted: the event author/)
+    await_supervised_tasks()
+  end
+
+  # The verdict arrives after the EVENT frame the test saw, on another
+  # process; the console buffer (batched, hence the flush) is the
+  # observable, polled to a deadline.
+  defp assert_logged(regex, deadline_ms \\ 2_000) do
+    deadline = System.monotonic_time(:millisecond) + deadline_ms
+
+    assert logged?(regex, deadline),
+           "expected a console line matching #{inspect(regex)}, buffer holds: " <>
+             inspect(Enum.map(Console.Buffer.recent(), & &1.message))
+  end
+
+  defp logged?(regex, deadline) do
+    Console.Buffer.flush()
+
+    cond do
+      Enum.any?(Console.Buffer.recent(), &Regex.match?(regex, &1.message)) ->
+        true
+
+      System.monotonic_time(:millisecond) > deadline ->
+        false
+
+      true ->
+        Process.sleep(20)
+        logged?(regex, deadline)
+    end
   end
 
   test "a friend's deletion arriving on the feed hides their recommendation" do

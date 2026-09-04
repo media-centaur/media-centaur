@@ -19,6 +19,10 @@ defmodule MediaCentaur.Recommendations.Sync do
     * `{:eose, "own:<url>"}` → publish to that relay every stored own
       event it did not send — recommendations of live rows, deletions of
       withdrawn ones. A per-relay diff, not a blanket re-publish.
+    * `{:ok, id, false, reason}` → log the refusal by what was refused
+      (`Recommendations.own_event_kind/1`): a relay refusing a deletion
+      is the one that has not been upgraded to carry the contract. The
+      connection keeps the reason as the relay row's last error.
 
   Consumes `social:updates`: a roster change re-issues `"feed"` on every
   connected relay with the new author list and that relay's cursor.
@@ -109,6 +113,15 @@ defmodule MediaCentaur.Recommendations.Sync do
     {:noreply, state}
   end
 
+  def handle_info({:relay_connection, url, {:ok, event_id, false, reason}}, state) do
+    Log.warning(
+      :social,
+      "#{url} rejected #{refused(Recommendations.own_event_kind(event_id))}: #{reason}"
+    )
+
+    {:noreply, state}
+  end
+
   def handle_info({:friend_added, _event}, state), do: {:noreply, resubscribe(state)}
   def handle_info({:friend_removed, _event}, state), do: {:noreply, resubscribe(state)}
   def handle_info(_other, state), do: {:noreply, state}
@@ -153,6 +166,10 @@ defmodule MediaCentaur.Recommendations.Sync do
   end
 
   # --- own events ------------------------------------------------------------
+
+  defp refused(:recommendation), do: "a recommendation"
+  defp refused(:deletion), do: "a deletion"
+  defp refused(nil), do: "an event"
 
   defp mark_seen(state, url, event_id),
     do: %{state | seen: Map.update(state.seen, url, MapSet.new([event_id]), &MapSet.put(&1, event_id))}
