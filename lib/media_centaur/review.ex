@@ -245,7 +245,7 @@ defmodule MediaCentaur.Review do
   def destroy_pending_files(files) do
     Enum.each(files, fn file ->
       destroy_pending_file(file)
-      Log.info(:library, "deleted \"#{Path.basename(file.file_path)}\" — removed from review")
+      Log.info(:review, "deleted \"#{Path.basename(file.file_path)}\" — removed from review")
       broadcast_reviewed(file.id)
     end)
 
@@ -265,7 +265,7 @@ defmodule MediaCentaur.Review do
 
   defp approve_and_process(pending_file) do
     Log.info(
-      :library,
+      :review,
       "approved \"#{Path.basename(pending_file.file_path)}\" — tmdb:#{pending_file.tmdb_id} (#{pending_file.tmdb_type})"
     )
 
@@ -290,7 +290,7 @@ defmodule MediaCentaur.Review do
     result = dismiss_pending_file(pending_file)
 
     if match?({:ok, _}, result) do
-      Log.info(:library, "dismissed \"#{Path.basename(pending_file.file_path)}\"")
+      Log.info(:review, "dismissed \"#{Path.basename(pending_file.file_path)}\"")
       broadcast_reviewed(pending_file.id)
     end
 
@@ -313,7 +313,7 @@ defmodule MediaCentaur.Review do
 
         if match?({:ok, _}, result) do
           Log.info(
-            :library,
+            :review,
             "deleted \"#{Path.basename(pending_file.file_path)}\" — removed from review"
           )
 
@@ -324,7 +324,7 @@ defmodule MediaCentaur.Review do
 
       {:error, reason} ->
         Log.warning(
-          :library,
+          :review,
           "failed to delete #{pending_file.file_path}: #{inspect(reason)}"
         )
 
@@ -356,7 +356,7 @@ defmodule MediaCentaur.Review do
   end
 
   def search_tmdb(query, type) do
-    Log.info(:library, "manual search — #{query} (#{type})")
+    Log.info(:review, "manual search — #{query} (#{type})")
     search_fn = if type == :tv, do: &Client.search_tv/2, else: &Client.search_movie/2
     title_key = if type == :tv, do: "name", else: "title"
     year_key = if type == :tv, do: "first_air_date", else: "release_date"

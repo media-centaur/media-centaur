@@ -337,7 +337,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         # bookmark to carry forward (it resets its own conversation so the
         # next successful poll is a full update).
         Log.warning(
-          :library,
+          :acquisition,
           "queue monitor poll failed (#{protocol}): #{inspect(reason)}",
           mc_incident: :skip
         )

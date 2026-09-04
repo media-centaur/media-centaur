@@ -2669,13 +2669,16 @@ body:has(.modal-backdrop[data-state="open"]) {
  */
 .chip-watcher     { --chip-h: 150; --chip-c: 0.14; }
 .chip-pipeline    { --chip-h: 295; --chip-c: 0.14; }
+.chip-review      { --chip-h: 133; --chip-c: 0.14; }
 .chip-tmdb        { --chip-h: 200; --chip-c: 0.15; }
 .chip-http        { --chip-h: 180; --chip-c: 0.13; }
 .chip-playback    { --chip-h:  85; --chip-c: 0.15; }
 .chip-library     { --chip-h:  10; --chip-c: 0.15; }
 .chip-acquisition { --chip-h: 230; --chip-c: 0.15; }
+.chip-apps        { --chip-h: 245; --chip-c: 0.14; }
 .chip-nostr       { --chip-h: 117; --chip-c: 0.14; }
 .chip-social      { --chip-h:  60; --chip-c: 0.14; }
+.chip-settings    { --chip-h: 310; --chip-c: 0.13; }
 .chip-system      { --chip-h: 264; --chip-c: 0.01; }
 .chip-phoenix     { --chip-h:  35; --chip-c: 0.16; }
 .chip-ecto        { --chip-h: 260; --chip-c: 0.14; }

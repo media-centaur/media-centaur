@@ -39,7 +39,7 @@ defmodule MediaCentaur.Pipeline.ExtraRederive do
         rederive_one(extra, extras_dirs, %{acc | scanned: acc.scanned + 1})
       end)
 
-    Log.info(:library, fn ->
+    Log.info(:pipeline, fn ->
       "extra re-derive: scanned=#{summary.scanned} updated=#{summary.updated} " <>
         "skipped=#{summary.skipped}"
     end)

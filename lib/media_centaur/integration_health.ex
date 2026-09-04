@@ -246,7 +246,7 @@ defmodule MediaCentaur.IntegrationHealth do
         last_tested_at: DateTime.utc_now()
     })
 
-    Log.info(:integration_health, "#{id} test ok")
+    Log.info(:system, "#{id} test ok")
     broadcast(id)
   end
 
@@ -260,7 +260,7 @@ defmodule MediaCentaur.IntegrationHealth do
         last_tested_at: DateTime.utc_now()
     })
 
-    Log.warning(:integration_health, "#{id} test failed — #{inspect(reason)}")
+    Log.warning(:system, "#{id} test failed — #{inspect(reason)}")
     broadcast(id)
   end
 

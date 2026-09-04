@@ -65,7 +65,7 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
   end
 
   defp enqueue(entity_id, type, _media_dir, []) do
-    Log.info(:library, "image_refresh: no TMDB artwork for #{type}:#{entity_id}")
+    Log.info(:pipeline, "image_refresh: no TMDB artwork for #{type}:#{entity_id}")
     {:ok, 0}
   end
 
@@ -86,7 +86,7 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
       {:enqueue_images, %{entity_id: entity_id, media_dir: media_dir, images: pending}}
     )
 
-    Log.info(:library, "image_refresh: enqueued #{length(pending)} images for #{type}:#{entity_id}")
+    Log.info(:pipeline, "image_refresh: enqueued #{length(pending)} images for #{type}:#{entity_id}")
     {:ok, length(pending)}
   end
 

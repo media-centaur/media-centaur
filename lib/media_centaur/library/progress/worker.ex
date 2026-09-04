@@ -182,7 +182,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
 
       {:error, reason} ->
         Log.warning(
-          :playback,
+          :library,
           "Library.Progress.complete/1 — could not resolve watch_progress: #{inspect(reason)}"
         )
 
@@ -230,7 +230,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
 
       {:error, reason} ->
         Log.warning(
-          :playback,
+          :library,
           "Library.Progress.Worker — flush transaction failed; dirty set preserved for retry: #{inspect(reason)}"
         )
 
@@ -259,14 +259,14 @@ defmodule MediaCentaur.Library.Progress.Worker do
 
         {:error, reason} ->
           Log.warning(
-            :playback,
+            :library,
             "Library.Progress.Worker — terminate flush failed: #{inspect(reason)}"
           )
       end
     rescue
       error ->
         Log.warning(
-          :playback,
+          :library,
           "Library.Progress.Worker — terminate flush raised: #{Exception.message(error)}"
         )
     end

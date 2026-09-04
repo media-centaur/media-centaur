@@ -273,6 +273,11 @@
           # stub colocated with its single test has no compile-order cost.
           # Added by the 2026-09 audit remediation (E42).
           {MediaCentaur.Credo.Checks.OneModulePerFile, []},
+          # MC0033 keeps a log's component tag equal to its owning context's
+          # component, so the Console drawer's filter carries information. The
+          # table it reads is MediaCentaur.Log.Component. Added by the 2026-09
+          # audit remediation (E53).
+          {MediaCentaur.Credo.Checks.LogComponentMatchesContext, []},
           # MC0022 keeps a lookup's name honest about its return shape:
           # `fetch…` yields a tuple, `get…` yields the record or nil, `…!`
           # raises. It only opines where the shape is statically

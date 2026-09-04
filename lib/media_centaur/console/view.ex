@@ -5,70 +5,22 @@ defmodule MediaCentaur.Console.View do
   """
 
   alias MediaCentaur.Console.Entry
+  alias MediaCentaur.Log.Component
 
-  # Grouped for the chip row; app first, then framework.
-  @known_components [
-    # app
-    :watcher,
-    :pipeline,
-    :tmdb,
-    :http,
-    :playback,
-    :library,
-    :acquisition,
-    :nostr,
-    :social,
-    :system,
-    # framework
-    :phoenix,
-    :ecto,
-    :live_view
-  ]
-
-  @app_components [
-    :watcher,
-    :pipeline,
-    :tmdb,
-    :playback,
-    :library,
-    :acquisition,
-    :nostr,
-    :social,
-    :system
-  ]
-  @framework_components [:phoenix, :ecto, :live_view]
-
-  # Deliberate per-component mapping. The old hash-into-daisyUI-palette approach
-  # produced visually inconsistent chips (e.g. :library landing on `badge-warning`
-  # made routine library logs look like alerts). Each chip now has a dedicated
-  # CSS class in app.css with a cohesive categorical palette.
-  @component_chip_classes %{
-    watcher: "chip-watcher",
-    pipeline: "chip-pipeline",
-    tmdb: "chip-tmdb",
-    http: "chip-http",
-    playback: "chip-playback",
-    library: "chip-library",
-    acquisition: "chip-acquisition",
-    nostr: "chip-nostr",
-    social: "chip-social",
-    system: "chip-system",
-    phoenix: "chip-phoenix",
-    ecto: "chip-ecto",
-    live_view: "chip-live_view"
-  }
-
+  # The component vocabulary and its grouping live in `Log.Component` — the
+  # same table the emitting code and Credo MC0033 read. Console renders it;
+  # it does not get its own copy (audit E53).
   @doc "All component atoms in display order — app first, then framework."
   @spec known_components() :: [atom()]
-  def known_components, do: @known_components
+  defdelegate known_components(), to: Component, as: :all
 
   @doc "App-layer component atoms."
   @spec app_components() :: [atom()]
-  def app_components, do: @app_components
+  defdelegate app_components(), to: Component, as: :app
 
   @doc "Framework component atoms."
   @spec framework_components() :: [atom()]
-  def framework_components, do: @framework_components
+  defdelegate framework_components(), to: Component, as: :framework
 
   @doc """
   Formats a UTC `%DateTime{}` as `"HH:MM:SS.mmm"` in the local system timezone.
@@ -122,9 +74,7 @@ defmodule MediaCentaur.Console.View do
   Unknown atoms and `nil` fall back to `chip-system` so rendering never breaks.
   """
   @spec component_badge_class(atom() | nil) :: String.t()
-  def component_badge_class(component) do
-    Map.get(@component_chip_classes, component, "chip-system")
-  end
+  defdelegate component_badge_class(component), to: Component, as: :chip_class
 
   @doc """
   Formats a single `%Entry{}` as a plain-text line for download or copy output.

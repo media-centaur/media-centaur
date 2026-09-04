@@ -123,7 +123,7 @@ defmodule MediaCentaur.Acquisition.Targets do
 
     Oban.insert(PursueTarget.new(%{"target_id" => restarted.id}))
     Acquisition.broadcast_update(%TargetEvents.Armed{target: restarted})
-    Log.info(:library, "#{log_label} — #{restarted.title}")
+    Log.info(:acquisition, "#{log_label} — #{restarted.title}")
     restarted
   end
 
@@ -143,7 +143,7 @@ defmodule MediaCentaur.Acquisition.Targets do
         if TargetStatus.in_flight?(target.status) do
           {:ok, cancelled} = Repo.update(Target.cancelled_changeset(target, reason))
           Acquisition.broadcast_update(%TargetEvents.Cancelled{target: cancelled})
-          Log.info(:library, "target cancelled — #{target.title} (#{reason})")
+          Log.info(:acquisition, "target cancelled — #{target.title} (#{reason})")
           {:ok, cancelled}
         else
           {:ok, target}
@@ -306,7 +306,7 @@ defmodule MediaCentaur.Acquisition.Targets do
 
     Enum.each(updated, fn %Target{} = target ->
       Acquisition.broadcast_update(%TargetEvents.Cancelled{target: target})
-      Log.info(:library, "target cancelled — #{target.title} (#{reason})")
+      Log.info(:acquisition, "target cancelled — #{target.title} (#{reason})")
     end)
   end
 end

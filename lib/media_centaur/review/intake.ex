@@ -90,7 +90,7 @@ defmodule MediaCentaur.Review.Intake do
 
             {:error, reason} ->
               Log.warning(
-                :library,
+                :review,
                 "failed to create pending file for rematch — #{inspect(reason)}"
               )
 
@@ -100,7 +100,7 @@ defmodule MediaCentaur.Review.Intake do
         &is_nil/1
       )
 
-    Log.info(:library, "rematch — created #{length(pending_files)} pending files")
+    Log.info(:review, "rematch — created #{length(pending_files)} pending files")
 
     {:ok, length(pending_files)}
   end
@@ -116,7 +116,7 @@ defmodule MediaCentaur.Review.Intake do
         :ok
 
       {:error, reason} ->
-        Log.warning(:library, "failed to create pending file — #{inspect(reason)}")
+        Log.warning(:review, "failed to create pending file — #{inspect(reason)}")
     end
 
     {:noreply, state}

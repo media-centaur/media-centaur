@@ -99,7 +99,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   defp do_refresh_all do
-    Log.info(:library, "release tracking: starting refresh cycle")
+    Log.info(:acquisition, "release tracking: starting refresh cycle")
 
     items = ReleaseTracking.list_watching_items()
 
@@ -124,11 +124,11 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
           [{item, response}]
 
         {:ok, {:error, item, reason}} ->
-          Log.info(:library, "refresh failed for #{item.name}: #{inspect(reason)}")
+          Log.info(:acquisition, "refresh failed for #{item.name}: #{inspect(reason)}")
           []
 
         {:exit, reason} ->
-          Log.info(:library, "refresh task crashed: #{inspect(reason)}")
+          Log.info(:acquisition, "refresh task crashed: #{inspect(reason)}")
           []
       end)
 
@@ -148,7 +148,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       )
     end
 
-    Log.info(:library, "release tracking: refresh complete (#{length(items)} items)")
+    Log.info(:acquisition, "release tracking: refresh complete (#{length(items)} items)")
   end
 
   defp bulk_download_images([]), do: :ok
@@ -263,7 +263,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   defp do_sweep do
-    Log.info(:library, "release tracking: sweep")
+    Log.info(:acquisition, "release tracking: sweep")
 
     Enum.each(ReleaseTracking.list_watching_items(), fn item ->
       # The sweep is the want ledger's heartbeat (ADR-056): idempotent
@@ -315,7 +315,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
       {:error, changeset} ->
         Log.warning(
-          :library,
+          :acquisition,
           "release tracking: failed to persist last_swept_at — #{inspect(changeset.errors)}"
         )
 
@@ -341,13 +341,13 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
                }) do
             {:ok, _} ->
               Log.info(
-                :library,
+                :acquisition,
                 "linked tracking item #{item.name} to library entity #{tv_series_id}"
               )
 
             {:error, changeset} ->
               Log.info(
-                :library,
+                :acquisition,
                 "failed to link tracking item #{item.name}: #{inspect(changeset.errors)}"
               )
           end
@@ -382,14 +382,14 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
               {:error, changeset} ->
                 Log.info(
-                  :library,
+                  :acquisition,
                   "failed to update tracking item #{item.name}: #{inspect(changeset.errors)}"
                 )
             end
           end
         end
       else
-        Log.info(:library, "removing tracking item #{item.name} — library container deleted")
+        Log.info(:acquisition, "removing tracking item #{item.name} — library container deleted")
         ReleaseTracking.delete_item(item)
       end
     end)
@@ -472,7 +472,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
       :error ->
         Log.info(
-          :library,
+          :acquisition,
           "auto-track skipped for #{name}: unparseable TMDB id #{inspect(tmdb_id_str)}"
         )
     end
@@ -515,12 +515,12 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
         broadcast_tracking_update([item.id])
 
         Log.info(
-          :library,
+          :acquisition,
           "auto-tracked #{item.name} (TMDB #{tmdb_id}) — source: library"
         )
 
       {:error, reason} ->
-        Log.info(:library, "auto-track failed for #{name} (TMDB #{tmdb_id}): #{inspect(reason)}")
+        Log.info(:acquisition, "auto-track failed for #{name} (TMDB #{tmdb_id}): #{inspect(reason)}")
     end
   end
 

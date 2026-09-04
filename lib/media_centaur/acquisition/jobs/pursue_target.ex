@@ -85,7 +85,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
         {:ok, :not_found}
 
       {%Target{} = target, nil} ->
-        Log.warning(:library, "pursue_target: target #{target.id} has no pursuit; failing")
+        Log.warning(:acquisition, "pursue_target: target #{target.id} has no pursuit; failing")
         {:ok, _failed} = Repo.update(Target.failed_changeset(target, "orphan_target"))
         {:ok, :no_pursuit}
 
@@ -145,7 +145,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   defp pursue(%Target{} = target, %Pursuit{} = pursuit, %Unit{} = unit) do
     Log.info(
-      :library,
+      :acquisition,
       "acquisition search — #{target.title} (attempt #{target.attempt_count + 1})"
     )
 
@@ -301,11 +301,11 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
           )
 
         broadcast(%TargetEvents.Acquired{target: updated})
-        Log.info(:library, "acquisition acquired #{quality_label} — #{target.title}")
+        Log.info(:acquisition, "acquisition acquired #{quality_label} — #{target.title}")
         {:ok, quality_label}
 
       {:error, reason} ->
-        Log.warning(:library, "acquisition grab failed — #{inspect(reason)}")
+        Log.warning(:acquisition, "acquisition grab failed — #{inspect(reason)}")
         pursuit = Repo.get(Pursuit, target.pursuit_id)
         handle_no_results(target, pursuit, "grab_failed")
     end
@@ -321,14 +321,14 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
          }) do
       {:ok, _pursuit} ->
         Log.info(
-          :library,
+          :acquisition,
           "acquisition surfaced results — #{target.title} (Prowlarr query, awaiting pick)"
         )
 
         {:ok, :needs_decision}
 
       {:error, reason} ->
-        Log.warning(:library, "request_decision failed — #{inspect(reason)}")
+        Log.warning(:acquisition, "request_decision failed — #{inspect(reason)}")
         {:ok, :needs_decision_failed}
     end
   end
@@ -342,7 +342,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     if updated.attempt_count >= @max_attempts do
       {:ok, failed} = Repo.update(Target.failed_changeset(updated, "exhausted"))
       broadcast(%TargetEvents.Failed{target: failed})
-      Log.info(:library, "acquisition exhausted — #{target.title} (#{@max_attempts} attempts)")
+      Log.info(:acquisition, "acquisition exhausted — #{target.title} (#{@max_attempts} attempts)")
       :ok
     else
       seconds = snooze_seconds(updated.attempt_count)
@@ -350,7 +350,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       broadcast(%TargetEvents.Snoozed{target: scheduled})
 
       Log.info(
-        :library,
+        :acquisition,
         "acquisition snooze — #{target.title} (attempt #{scheduled.attempt_count})"
       )
 
@@ -359,7 +359,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   end
 
   defp handle_prowlarr_error(target, reason) do
-    Log.warning(:library, "acquisition prowlarr error — #{inspect(reason)}")
+    Log.warning(:acquisition, "acquisition prowlarr error — #{inspect(reason)}")
 
     {:ok, updated} =
       target
