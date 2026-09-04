@@ -43,8 +43,8 @@ defmodule MediaCentaur.HttpClient.IncidentContextTest do
   end
 
   test "the worst upstream wins when several fail" do
-    assert {:fault, _kind, _severity, %{upstream: :indexers}} =
-             IncidentContext.assess(snapshot_with(%{tmdb: {20, 11}, indexers: {20, 20}}))
+    assert {:fault, _kind, _severity, %{upstream: :tmdb_images}} =
+             IncidentContext.assess(snapshot_with(%{tmdb: {20, 11}, tmdb_images: {20, 20}}))
   end
 
   test "vitals carry every upstream and the cache size" do

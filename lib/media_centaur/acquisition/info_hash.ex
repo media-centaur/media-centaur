@@ -84,7 +84,9 @@ defmodule MediaCentaur.Acquisition.InfoHash do
   defp fetch(url) do
     client =
       MediaCentaur.HttpClient.new(__MODULE__,
-        upstream: :indexers,
+        # The download URL is Prowlarr's own proxy link (`downloadUrl`), so
+        # the request lands on the Prowlarr host whichever indexer served it.
+        upstream: :prowlarr,
         redirect: false,
         decode_body: false,
         receive_timeout: 15_000

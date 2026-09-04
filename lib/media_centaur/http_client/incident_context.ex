@@ -19,7 +19,7 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
 
   alias MediaCentaur.HttpClient.{Cache, Stats}
 
-  @assessed [:tmdb, :tmdb_images, :indexers]
+  @assessed [:tmdb, :tmdb_images]
   @min_requests 10
   @failing_share 0.5
 
