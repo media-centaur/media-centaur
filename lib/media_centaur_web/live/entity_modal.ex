@@ -328,6 +328,23 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         {:noreply, EntityModal.apply_delete_crash(socket, reason)}
       end
 
+      @before_compile EntityModal
+    end
+  end
+
+  @doc """
+  Injects the last-resort `handle_async` exit clause **after** the host's
+  own clauses.
+
+  It used to be injected by `__using__/1` alongside the modal's clauses,
+  which put it ahead of every host clause in definition order: a host that
+  wrote `handle_async(:scan, {:exit, _}, socket)` got an unreachable-clause
+  warning and its own failure path was silently swallowed (audit E52/DS16).
+  A `@before_compile` hook is the only placement that keeps a catch-all a
+  catch-all.
+  """
+  defmacro __before_compile__(_env) do
+    quote do
       def handle_async(_name, {:exit, _reason}, socket), do: {:noreply, socket}
     end
   end

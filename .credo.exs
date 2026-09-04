@@ -268,6 +268,11 @@
           # owned-async rollout backlog. See ADR-049 /
           # campaigns/test-suite-performance.md.
           {MediaCentaur.Credo.Checks.OwnedAsyncInWeb, []},
+          # MC0032 holds AGENTS.md's "never nest multiple modules in the same
+          # file" for application code. Test files are exempt on purpose — a
+          # stub colocated with its single test has no compile-order cost.
+          # Added by the 2026-09 audit remediation (E42).
+          {MediaCentaur.Credo.Checks.OneModulePerFile, []},
           # MC0022 keeps a lookup's name honest about its return shape:
           # `fetch…` yields a tuple, `get…` yields the record or nil, `…!`
           # raises. It only opines where the shape is statically

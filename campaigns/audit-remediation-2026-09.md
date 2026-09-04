@@ -1,7 +1,7 @@
 ---
-status: parked
+status: in-progress
 started: 2026-09-04
-last_updated: 2026-09-04
+last_updated: 2026-09-05
 ---
 # Audit remediation — September 2026
 
@@ -40,31 +40,60 @@ running.
 Engineering Pass 1 (E1–E6), Pass 2 (E7–E18) and Pass 3 (E19–E28)
 resolved 2026-09-04 in the commits from `a661eea7` onward (plus E36, E41,
 and the polling half of P2, which those passes pulled in). Reviewed and
-ratified by the owner; **parked** before Pass 4 (E29–E42). Full `mix precommit` is green
-apart from the suite's known concurrency flakes (relay timeout,
-"Database busy", a 60 s page-smoke timeout), each passing in isolation. Sweep run 2026-09-04 against `7e1df187` (v1.7.3): 57
-engineering, 10 performance, 42 documentation, 25 design findings.
-Criticals: P1; DS4, DS14, DS15, DS16, DS25.
+ratified by the owner. Those 17 commits are **pushed** and shipped — they
+rode out in v1.8.0/v1.8.1 alongside the HTTP campaign; `2ddd4b53` (v1.8.1)
+is HEAD. Full `mix precommit` is green apart from the suite's known
+concurrency flakes (relay timeout, "Database busy", a 60 s page-smoke
+timeout), each passing in isolation. Sweep run 2026-09-04 against
+`7e1df187` (v1.7.3): 57 engineering, 10 performance, 42 documentation, 25
+design findings. Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 
-## Resuming (handoff written 2026-09-04)
+**Now at Pass 4** (E29–E42 plus E56, E52/E53/E42/D13), reconciled
+2026-09-05 — see below.
 
-Parked by the owner after ratifying Passes 1–3, to be continued in a fresh
-session **after the parallel HTTP/Req-client task lands**. On resume:
+## Resuming (reconciled 2026-09-05)
 
-1. Reconcile first (ADR-042): `git log a661eea7^..HEAD` is the work of
-   this campaign so far — 17 commits on `main`, **not pushed**. Confirm
-   nothing has been pushed or rebased since.
-2. Compare the HTTP task's result with commit `0a40c933` (E8/E9/E11):
-   who builds integration clients, what the test stub seam is
-   (`MediaCentaur.HttpClient` + `config :media_centaur, :req_test_stubs`
-   today), and where integration saves live
-   (`Capabilities.save_integration/2` today). Converge on one design and
-   record the outcome here before any Pass 4 work.
-3. Then Pass 4 = engineering findings E29–E42 (Stage E-5 context
-   boundaries, plus the E-3 dead-code batch E56 and the E-2 precommit
-   items E52/E53/E42/D13 not yet done). Same loop: verify the cited
-   file:line still holds, bring open questions, implement test-first,
-   `mix precommit`, record, stop.
+The 2026-09-04 handoff's first two items are **closed**:
+
+1. **Reconcile** — `git log a661eea7^..HEAD` is intact and now pushed;
+   nothing was rebased. The campaign's work shipped in v1.8.0/v1.8.1.
+2. **HTTP convergence — no divergence to resolve.** The HTTP campaign
+   built *on* `0a40c933`'s design rather than replacing it:
+   `MediaCentaur.HttpClient.new/2` is the one client-construction seam
+   (now Credo-enforced by MC0029), `config :media_centaur, :req_test_stubs`
+   is the test stub seam, `Capabilities.save_integration/2` is the one
+   save path, `Capabilities.configured?/1` the one configured predicate,
+   `invalidate_client/0` has zero occurrences, and `Acquisition.Config`
+   stays deleted. E8/E9/E11 hold as ratified.
+
+**Pass 4 scope**, facts re-verified 2026-09-05 against HEAD:
+
+* **Stage E-5** (E29–E42) — context boundaries. E29 still live:
+  `release_tracking/wants.ex:390,391,452`, `helpers.ex:88,89`,
+  `refresher.ex:418` query Library schemas while `release_tracking.ex:28`
+  claims "Fully isolated from the Library context".
+* **Stage E-3's E56** dead-code batch — spot-checks hold:
+  `media_dir_healthy?/0`, `find_content_url/3`, `track_item!/1`,
+  `list_downloads/1` and the whole `Library.LastActivity` module have zero
+  `lib/` callers (tests only). The rest need per-item confirmation during
+  the deletion pass.
+* **Stage E-2's** precommit items — all four still open. **D13**:
+  `MC0008` ×2 (`raw_badge_class`, `typed_component_attrs`), `MC0015`
+  ×3 (`destructive_file_query`, `pursuit_state_contract`,
+  `row_mutation_in_schema_migration`); free IDs are now MC0010 and
+  MC0030+ (MC0029 went to `outbound_http_seam`). **E52**:
+  `library_live.ex:214`, `settings_live.ex:588` still use
+  `Task.Supervisor.async_nolink`; `credo_checks/owned_async_in_web.ex:67`
+  matches only `:start_child`. **E42**: five profile suites still define
+  two modules per file. **E53**: `console/view.ex` still keeps
+  `@known_components` and `@app_components` as two hand-maintained lists,
+  and the HTTP campaign widened the drift — `:http` is in
+  `@known_components` but not `@app_components`. Five tags are used in
+  `lib/` and unfilterable: `:settings`, `:retention`,
+  `:integration_health`, `:apps`, `:review`.
+
+3. Same loop for each: verify the cited file:line, bring open questions,
+   implement test-first, `mix precommit`, record, stop.
 4. Still owed from Pass 2: a real-browser check of the Status page
    pipeline tiles during an import on the dev server (`127.0.0.1:2160`),
    which are event-driven since E18.
@@ -138,6 +167,10 @@ busy" in `IncomingLiveTest` setup, a 60 s page-smoke timeout.
   stays (deliberate: its campaign was retired per ADR-042).
 * `2026-09-04` — **Storybook:** the detail stories build `%EntityView{}`
   fixtures; the components read struct fields with dot access.
+* `2026-09-05` — **HTTP convergence resolved with no rework.** The
+  parallel HTTP/Req task extended the E9 seam instead of competing with
+  it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
+  the single design, and MC0029 now enforces the construction seam.
 * `2026-09-04` — **Declined for now:** the three Settings-key separator
   styles (Pass 1 minor). Renaming persisted keys needs a data migration
   for a cosmetic gain; revisit if a fourth style appears. **E34**

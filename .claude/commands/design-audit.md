@@ -21,7 +21,7 @@ documentation drift (`/docs-audit`), dead code and duplication in logic
 (`/engineering-audit`). Skip such findings; do not emit "see also" notes.
 
 **What is already enforced — do not re-audit it.** Credo checks in `credo_checks/`
-gate raw badge and button classes (MC0007/MC0008), typed component attrs and
+gate raw badge and button classes (MC0007/MC0010), typed component attrs and
 storybook coverage (MC0008/MC0009), modal backdrop and click-away rules
 (MC0006/MC0020), native confirm dialogs (MC0027), image attribute defaults and
 declared artwork widths (MC0016/MC0028), `phx-value-value` (MC0021), and the entity

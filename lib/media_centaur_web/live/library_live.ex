@@ -37,6 +37,8 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb.Live.LetterboxdLinksAware
   use MediaCentaurWeb.Live.WatchlistAware
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.Settings.Config
 
   alias MediaCentaur.{
@@ -89,8 +91,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        media_dirs_configured: media_dirs_configured?(),
        dir_status: Availability.dir_status(),
        pipeline_queue_depth: 0,
-       scanning: false,
-       scan_task: nil
+       scanning: false
      )
      |> stream_configure(:grid, dom_id: &"entity-#{&1.id}")
      |> stream(:grid, [])}
@@ -206,16 +207,28 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, push_patch(socket, to: build_path(socket, %{tab: :all, filter: ""}))}
   end
 
-  # Run on a supervised Task so the socket stays responsive — a
-  # synchronous call would block render and the "Scanning…" label would
-  # never appear. Same pattern as `SettingsLive.handle_event("scan", ...)`.
+  # Owned async so the socket stays responsive — a synchronous call would
+  # block render and the "Scanning…" label would never appear — and so the
+  # scan is cancelled with the LiveView and awaitable in tests (ADR-049,
+  # MC0019). Same pattern as `SettingsLive.handle_event("scan", ...)`.
   def handle_event("scan", _params, socket) do
-    task =
-      Task.Supervisor.async_nolink(MediaCentaur.TaskSupervisor, fn ->
-        MediaCentaur.Watcher.Supervisor.scan()
-      end)
+    {:noreply,
+     socket
+     |> assign(scanning: true)
+     |> start_async(:scan, fn -> MediaCentaur.Watcher.Supervisor.scan() end)}
+  end
 
-    {:noreply, assign(socket, scanning: true, scan_task: task)}
+  # Result of the owned scan. A crash reaches the `{:exit, _}` clause, so
+  # the "Scanning…" label always clears — a stuck label is the failure this
+  # page had before (audit E52/DS17).
+  @impl true
+  def handle_async(:scan, {:ok, {:ok, _count}}, socket) do
+    {:noreply, assign(socket, scanning: false)}
+  end
+
+  def handle_async(:scan, {:exit, reason}, socket) do
+    Log.warning(:library, "Library scan failed", reason: inspect(reason))
+    {:noreply, assign(socket, scanning: false)}
   end
 
   # --- PubSub Handlers ---
@@ -309,22 +322,6 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_info({:pipeline_stats_updated, :image}, socket), do: {:noreply, socket}
-
-  # Reply from the async scan Task. Matches on the stored ref so we
-  # don't confuse it with any other async_nolink result on this socket.
-  def handle_info({ref, {:ok, _count}}, %{assigns: %{scan_task: %Task{ref: ref}}} = socket) do
-    Process.demonitor(ref, [:flush])
-    {:noreply, assign(socket, scanning: false, scan_task: nil)}
-  end
-
-  # Scan task exit — either after its result was reaped above or after
-  # a future Task.shutdown. Clear the ref either way.
-  def handle_info(
-        {:DOWN, ref, :process, _pid, _reason},
-        %{assigns: %{scan_task: %Task{ref: ref}}} = socket
-      ) do
-    {:noreply, assign(socket, scan_task: nil)}
-  end
 
   def handle_info(_msg, socket) do
     {:noreply, socket}

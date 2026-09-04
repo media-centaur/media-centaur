@@ -5,9 +5,12 @@ defmodule MediaCentaur.Credo.Checks.OwnedAsyncInWeb do
     category: :warning,
     explanations: [
       check: """
-      Web-layer modules (LiveViews, components) must not spawn
-      fire-and-forget work via
-      `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)`.
+      Web-layer modules (LiveViews, components) must not hang async work
+      off a `Task.Supervisor` — not `start_child/2`, and not
+      `async_nolink/2` or `async_stream_nolink/3` either. The `nolink`
+      pair looks owned because the caller gets a `%Task{}` back and
+      matches on its `ref`, but the task is still supervised globally:
+      it survives the LiveView, and nothing in a test can await it.
 
       Such a task is **owned by nobody**: it is not linked to the
       LiveView, so it is not cancelled when the LiveView dies and not
@@ -25,6 +28,10 @@ defmodule MediaCentaur.Credo.Checks.OwnedAsyncInWeb do
             result = expensive_load()
             send(self(), {:loaded, result})
           end)
+
+          # Also NOT allowed — a ref to match on is not ownership, and the
+          # hand-rolled {ref, result} / :DOWN pair reimplements handle_async
+          task = Task.Supervisor.async_nolink(MediaCentaur.TaskSupervisor, fn -> … end)
 
           # Allowed — owned by the LiveView, awaitable via render_async/1,
           # cancelled when the LiveView terminates
@@ -64,28 +71,34 @@ defmodule MediaCentaur.Credo.Checks.OwnedAsyncInWeb do
     Enum.any?(@grandfathered, &String.ends_with?(filename, &1))
   end
 
-  # `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)`
+  # Every `Task.Supervisor` spawn that hangs the task off a supervisor rather
+  # than off the LiveView. The supervisor argument is not matched: under a
+  # pipe (`MediaCentaur.TaskSupervisor |> Task.Supervisor.async_stream_nolink(…)`)
+  # it is not the first argument of the call node, and a task on *any* global
+  # supervisor is equally unowned by the view.
+  @unowned_spawns [:start_child, :async_nolink, :async_stream_nolink]
+
   defp traverse(
-         {{:., meta, [{:__aliases__, _, [:Task, :Supervisor]}, :start_child]}, _,
-          [{:__aliases__, _, [:MediaCentaur, :TaskSupervisor]} | _]} = ast,
+         {{:., meta, [{:__aliases__, _, [:Task, :Supervisor]}, fun]}, _, _} = ast,
          issues,
          issue_meta
-       ) do
-    {ast, [issue_for(issue_meta, meta[:line]) | issues]}
+       )
+       when fun in @unowned_spawns do
+    {ast, [issue_for(issue_meta, meta[:line], fun) | issues]}
   end
 
   defp traverse(ast, issues, _issue_meta), do: {ast, issues}
 
-  defp issue_for(issue_meta, line_no) do
+  defp issue_for(issue_meta, line_no, fun) do
     format_issue(
       issue_meta,
       message:
-        "Fire-and-forget `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)` " <>
-          "in the web layer orphans the task — it is not cancelled with the LiveView " <>
-          "and not awaitable in tests. Use `start_async/3` (owned, awaitable) for view " <>
+        "`Task.Supervisor.#{fun}` in the web layer orphans the task — it is " <>
+          "supervised globally, so it is not cancelled with the LiveView and not " <>
+          "awaitable in tests. Use `start_async/3` (owned, awaitable) for view " <>
           "loads, or an Oban job / supervised service for work that must outlive the " <>
           "LiveView. See ADR-049.",
-      trigger: "Task.Supervisor.start_child",
+      trigger: "Task.Supervisor.#{fun}",
       line_no: line_no
     )
   end

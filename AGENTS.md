@@ -87,7 +87,7 @@ custom classes must fully style the input
           assign(socket, :val, val)
         end
 
-- **Never** nest multiple modules in the same file as it can cause cyclic dependencies and compilation errors
+- **Never** define two sibling top-level modules in the same file — each becomes unfindable from its name, and they recompile as a unit. Enforced by Credo **MC0032** for `lib/`. A module *nested inside* the file's own module is the exception and is the house pattern for typed events and view-model structs (`MediaCentaur.Library.Events.EntitiesChanged` in `library/events.ex`): the parent namespaces it, so the name still says where it lives. Test files are exempt — a stub colocated with its single test is fine.
 - **Never** use map access syntax (`changeset[:field]`) on structs as they do not implement the Access behaviour by default. For regular structs, you **must** access the fields directly, such as `my_struct.field` or use higher level APIs that are available on the struct if they exist, `Ecto.Changeset.get_field/2` for changesets
 - Elixir's standard library has everything necessary for date and time manipulation. Familiarize yourself with the common `Time`, `Date`, `DateTime`, and `Calendar` interfaces by accessing their documentation as necessary. **Never** install additional dependencies unless asked or for date/time parsing (which you can use the `date_time_parser` package)
 - Don't use `String.to_atom/1` on user input (memory leak risk)
