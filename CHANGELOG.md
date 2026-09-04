@@ -4,6 +4,30 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.7.2 — 2026-09-04
+
+### New
+
+- **Every relay has its own row on the Status page.** Open the Social tile's drill-in to see each relay's state, when it entered that state, the last thing it complained about, when it was last heard from, and when the next reconnect attempt is due.
+- **Status tiles react to live conditions.** When a subsystem raises a condition, such as a relay that stays unreachable, a download client that cannot be reached, or a failed update, its tile colours the moment the condition is detected and clears on its own when the condition ends. Before, only logged errors reached the board.
+
+### Improved
+
+- **Deleting a recommendation now works end to end.** With the private relay at v0.3.0 or later, Delete under Recommendations → Yours removes the entry from the relay and from your friends' lists, and a friend's deletion reaches you even if you were offline. A relay that does not understand deletions is reported on the Status page as rejecting a deletion. The Incoming view lists a withdrawn recommendation as withdrawn.
+- **Recommending the same title again right after deleting it sticks.** A recommendation sent within the same second as its deletion was discarded by the relay and re-sent on every connect. The new one is now stamped strictly after the deletion.
+- **Reconnecting reads the whole feed again.** v1.7.0 remembered how far it had read from each relay and asked only for newer messages. That skipped a withdrawal published late with an older timestamp, such as one made while its sender was offline. A relay holds one record per person per title, so re-reading is cheap and misses nothing.
+- **Unresponsive relays are noticed.** The app now pings each relay and treats one that does not answer within ten seconds as down, instead of waiting for the connection to fail on its own.
+
+### Fixed
+
+- **A relay drop showed up twice on the Status page.** Losing a relay opened an issue under Social and a second one under System for the same event. The transport line stays in the console; only the Social condition reaches the board.
+- **Issues opened during a session had no title.** An issue that appeared while the app was running showed a blank headline until the next restart.
+- **Web framework security patches.** Phoenix and its HTTP stack are updated for two published advisories.
+
+### Migration safety
+
+- The relays table loses its read-cursor column, which the whole-feed sync no longer needs. Nothing to do.
+
 ## v1.7.1 — 2026-09-03
 
 ### Fixed
