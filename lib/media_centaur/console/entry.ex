@@ -11,6 +11,8 @@ defmodule MediaCentaur.Console.Entry do
   is not available.
   """
 
+  alias MediaCentaur.Log.Component
+
   @enforce_keys [:id, :timestamp, :level, :component, :message]
   defstruct [
     :id,
@@ -144,47 +146,11 @@ defmodule MediaCentaur.Console.Entry do
     end)
   end
 
-  # App-module prefix → board subsystem. Matched with starts_with? on the
-  # module name (so MediaCentaurWeb.IncomingLive matches the
-  # "MediaCentaurWeb.Incoming" entry, and the surviving Components.Acquisition
-  # modules still match "MediaCentaurWeb.Acquisition"). Modules outside this
-  # table — other web pages, framework, deps — fall through to :system.
-  @crash_frame_subsystems [
-    {"MediaCentaur.Watcher", :watcher},
-    {"MediaCentaur.Pipeline", :pipeline},
-    {"MediaCentaur.Review", :pipeline},
-    {"MediaCentaur.TMDB", :tmdb},
-    {"MediaCentaur.Playback", :playback},
-    {"MediaCentaur.Settings.Controls", :playback},
-    {"MediaCentaur.Library", :library},
-    {"MediaCentaur.WatchHistory", :library},
-    {"MediaCentaur.Acquisition", :acquisition},
-    {"MediaCentaur.Downloads", :acquisition},
-    {"MediaCentaur.ReleaseTracking", :acquisition},
-    {"MediaCentaur.SelfUpdate", :self_update},
-    # The friend network's three modules share one board tile: a relay
-    # socket, the roster and the recommendations sync are one subsystem
-    # to a reader, whatever component tag the emitting module chose.
-    {"MediaCentaur.Nostr", :social},
-    {"MediaCentaur.Social", :social},
-    {"MediaCentaur.Recommendations", :social},
-    {"MediaCentaurWeb.Acquisition", :acquisition},
-    {"MediaCentaurWeb.Incoming", :acquisition},
-    {"MediaCentaurWeb.Library", :library},
-    {"MediaCentaurWeb.Review", :pipeline}
-  ]
-
-  defp subsystem_for(module) when is_atom(module) do
-    case Atom.to_string(module) do
-      "Elixir." <> name ->
-        Enum.find_value(@crash_frame_subsystems, fn {prefix, component} ->
-          if String.starts_with?(name, prefix), do: component
-        end)
-
-      _ ->
-        nil
-    end
-  end
+  # Which subsystem a crash belongs to. The table lives in `Log.Component`
+  # so that a crash and a deliberate log from the same context report the
+  # same component — they disagreed for SelfUpdate and WatchHistory until
+  # the audit's E53 collapsed the two copies into one.
+  defp subsystem_for(module) when is_atom(module), do: Component.for_module(module)
 
   defp classify_module(nil), do: :system
 

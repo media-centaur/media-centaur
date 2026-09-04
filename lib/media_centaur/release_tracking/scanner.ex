@@ -13,7 +13,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
 
   def scan do
     candidates = Library.ExternalIds.list_tmdb_entities()
-    Log.info(:library, "release tracking scan: #{length(candidates)} TMDB IDs found")
+    Log.info(:acquisition, "release tracking scan: #{length(candidates)} TMDB IDs found")
 
     results =
       Enum.reduce(candidates, %{tracked: 0, skipped: 0, errors: 0}, fn ext_id, acc ->
@@ -24,7 +24,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         end
       end)
 
-    Log.info(:library, "release tracking scan complete: #{inspect(results)}")
+    Log.info(:acquisition, "release tracking scan complete: #{inspect(results)}")
     {:ok, results}
   end
 

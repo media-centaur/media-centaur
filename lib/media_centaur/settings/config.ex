@@ -344,7 +344,7 @@ defmodule MediaCentaur.Settings.Config do
   end
 
   defp normalize_toml_entry(other) do
-    Log.warning(:library, "ignoring malformed media_dirs TOML entry: #{inspect(other)}")
+    Log.warning(:settings, "ignoring malformed media_dirs TOML entry: #{inspect(other)}")
     nil
   end
 
@@ -496,7 +496,7 @@ defmodule MediaCentaur.Settings.Config do
 
           {:error, error} ->
             Log.warning(
-              :library,
+              :settings,
               "failed to parse config #{path}: #{inspect(error)}, using defaults"
             )
 

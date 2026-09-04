@@ -65,13 +65,13 @@ defmodule MediaCentaur.Retention do
     record_run(key, pruned)
 
     if pruned > 0 do
-      Log.info(:retention, "swept #{key}: removed #{pruned}")
+      Log.info(:library, "swept #{key}: removed #{pruned}")
     end
 
     :ok
   rescue
     exception ->
-      Log.error(:retention, "sweep of #{key} failed: #{Exception.message(exception)}")
+      Log.error(:library, "sweep of #{key} failed: #{Exception.message(exception)}")
       {:error, exception}
   end
 
@@ -110,7 +110,7 @@ defmodule MediaCentaur.Retention do
   rescue
     exception ->
       Log.error(
-        :retention,
+        :library,
         "failed to record run for #{policy_key}: #{Exception.message(exception)}"
       )
 

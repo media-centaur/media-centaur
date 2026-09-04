@@ -46,19 +46,21 @@ defmodule MediaCentaur.Console.ViewTest do
     end
   end
 
+  # The lists themselves live in `Log.Component` and are asserted there.
+  # Restating them here would be a second copy of the very thing E53
+  # collapsed, so these assert the contract Console depends on instead.
   describe "app_components/0" do
-    test "returns the app component atoms" do
-      assert View.app_components() == [
-               :watcher,
-               :pipeline,
-               :tmdb,
-               :playback,
-               :library,
-               :acquisition,
-               :nostr,
-               :social,
-               :system
-             ]
+    test "carries no framework component" do
+      refute Enum.any?(View.app_components(), &(&1 in View.framework_components()))
+    end
+
+    test "every component the app can emit is filterable" do
+      # The failure this guards: :http was added to the chip row but not to
+      # the app group, and five tags code actually emitted were in neither.
+      for component <- MediaCentaur.Log.Component.context_components() |> Map.values() |> Enum.uniq() do
+        assert component in View.app_components(),
+               "#{inspect(component)} is logged by real code but has no chip to filter it"
+      end
     end
   end
 

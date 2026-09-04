@@ -50,7 +50,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
     if missing == [] do
       {:ok, %{enqueued: 0, queue_reused: 0, queue_rebuilt: 0, skipped: 0}}
     else
-      Log.info(:library, "image_repair: starting — #{length(missing)} missing files")
+      Log.info(:pipeline, "image_repair: starting — #{length(missing)} missing files")
       do_repair(missing)
     end
   end
@@ -73,7 +73,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
     if entries == [] do
       {:ok, %{enqueued: 0, queue_reused: 0, queue_rebuilt: 0, skipped: 0}}
     else
-      Log.info(:library, "image_refetch: #{role} — #{length(entries)} images")
+      Log.info(:pipeline, "image_refetch: #{role} — #{length(entries)} images")
       purge_derivatives(entries)
       do_repair(entries)
     end
@@ -122,7 +122,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
     end)
 
     Log.info(
-      :library,
+      :pipeline,
       "image_repair: done — reused=#{counts.queue_reused} rebuilt=#{counts.queue_rebuilt} skipped=#{counts.skipped}"
     )
 
@@ -184,7 +184,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
 
         {:error, reason} ->
           Log.warning(
-            :library,
+            :pipeline,
             "image_repair: queue insert failed for #{owner_id}/#{image.role}: #{inspect(reason)}"
           )
 
@@ -193,7 +193,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
     else
       {:skip, reason} ->
         Log.warning(
-          :library,
+          :pipeline,
           "image_repair: skipping #{entity_type}:#{entity_id} (#{image.role}): #{inspect(reason)}"
         )
 

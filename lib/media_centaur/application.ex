@@ -165,13 +165,13 @@ defmodule MediaCentaur.Application do
 
       count = length(Config.media_dirs_entries())
       require MediaCentaur.Log
-      MediaCentaur.Log.info(:library, "media_dirs: #{count} entries active")
+      MediaCentaur.Log.info(:system, "media_dirs: #{count} entries active")
     rescue
       error ->
         require MediaCentaur.Log
 
         MediaCentaur.Log.error(
-          :library,
+          :system,
           "config migration failed: #{Exception.format(:error, error, __STACKTRACE__)}"
         )
     end

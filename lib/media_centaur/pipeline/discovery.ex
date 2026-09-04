@@ -81,7 +81,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
       {:http_error, status, _} = reason
 
       Log.error(
-        :tmdb,
+        :pipeline,
         "TMDB API key rejected (HTTP #{status}) — discovery failed for #{basename}; " <>
           "fix Settings → TMDB and the file will retry on the next key save or BEAM restart"
       )

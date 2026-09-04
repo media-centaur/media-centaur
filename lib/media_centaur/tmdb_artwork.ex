@@ -326,7 +326,7 @@ defmodule MediaCentaur.TmdbArtwork do
         :ok
 
       {:error, reason} ->
-        Log.warning(:library, "artwork fetch failed for tmdb:#{id} — #{inspect(reason)}")
+        Log.warning(:tmdb, "artwork fetch failed for tmdb:#{id} — #{inspect(reason)}")
         :error
     end
   end
@@ -340,12 +340,12 @@ defmodule MediaCentaur.TmdbArtwork do
 
     case ImageFiles.download_raw(@tmdb_cdn <> tmdb_path, dest, upstream: :tmdb_images) do
       {:ok, _path} ->
-        Log.info(:library, "downloaded tmdb #{role} for #{type}-#{tmdb_id}")
+        Log.info(:tmdb, "downloaded tmdb #{role} for #{type}-#{tmdb_id}")
         touch(type, tmdb_id)
         {:ok, relative_path(role, type, tmdb_id)}
 
       {:error, _category, reason} ->
-        Log.warning(:library, "tmdb #{role} download failed for #{type}-#{tmdb_id}: #{inspect(reason)}")
+        Log.warning(:tmdb, "tmdb #{role} download failed for #{type}-#{tmdb_id}: #{inspect(reason)}")
         {:error, reason}
     end
   end

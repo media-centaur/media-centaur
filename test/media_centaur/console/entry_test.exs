@@ -192,15 +192,20 @@ defmodule MediaCentaur.Console.EntryTest do
       assert entry.component == :acquisition
     end
 
-    test "a crash in the friend network lands on the friends tile" do
-      for module <- [
-            MediaCentaur.Nostr.Connection,
-            MediaCentaur.Social.Connections.Owner,
-            MediaCentaur.Recommendations.Sync
+    # A crash keeps the emitting context's own component, the same one a
+    # deliberate log from that context carries. Folding :nostr onto the
+    # friends tile is the board's job (HealthBoard.normalize/1, covered in
+    # health_board_test.exs) — doing it here as well used to erase the
+    # distinction, so the Console could not filter Nostr crashes at all.
+    test "a crash carries its context's component, not the board tile's" do
+      for {module, component} <- [
+            {MediaCentaur.Nostr.Connection, :nostr},
+            {MediaCentaur.Social.Connections.Owner, :social},
+            {MediaCentaur.Recommendations.Sync, :social}
           ] do
         meta = %{crash_reason: {%RuntimeError{message: "boom"}, [{module, :handle_info, 2, []}]}}
 
-        assert Entry.from_log_event(:error, {:string, "boom"}, meta).component == :social
+        assert Entry.from_log_event(:error, {:string, "boom"}, meta).component == component
       end
     end
 
