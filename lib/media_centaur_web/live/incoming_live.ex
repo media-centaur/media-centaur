@@ -2804,6 +2804,10 @@ defmodule MediaCentaurWeb.IncomingLive do
     case Plans.fetch(plan_id) do
       {:ok, plan} ->
         board = Plans.board_for(plan)
+        # Live activity is per-plan and session-only (no persisted history):
+        # switching to a different plan must drop the previous plan's ticker
+        # line rather than let it linger as if it described this one.
+        switching_plan? = socket.assigns.plan_param != plan_id
         socket = maybe_load_plan_artwork(socket, plan_id, plan)
 
         assign(socket,
@@ -2812,7 +2816,8 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_board: board,
           plan_gap_verdict: plan_gap_verdict(plan, board, socket.assigns.search_health),
           plan_descent: plan_descent_for(socket, plan_id, board),
-          plan_error: nil
+          plan_error: nil,
+          plan_last_activity: if(!switching_plan?, do: socket.assigns.plan_last_activity)
         )
 
       {:error, :not_found} ->
