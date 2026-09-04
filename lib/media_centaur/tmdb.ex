@@ -1,6 +1,6 @@
 defmodule MediaCentaur.TMDB do
   use Boundary,
-    deps: [MediaCentaur.ErrorReports],
+    deps: [MediaCentaur.ErrorReports, MediaCentaur.HttpClient],
     exports: [Client, Confidence, Mapper, MetadataStats, RateLimiter, Title, TitleSearch]
 
   @moduledoc """
