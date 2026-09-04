@@ -2,6 +2,7 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Watcher.ConfigListener
   alias MediaCentaur.Watcher.Supervisor, as: WatcherSup
 
   setup do
@@ -15,52 +16,81 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
     :ok
   end
 
-  alias MediaCentaur.Watcher.ConfigListener
-
-  test "name-only change keeps the same watcher pid (no stop/start)" do
-    tmp = Path.join(System.tmp_dir!(), "watcher-name-only-test-#{System.unique_integer([:positive])}")
-
+  defp tmp_dir(label) do
+    tmp = Path.join(System.tmp_dir!(), "watcher-#{label}-test-#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp)
     on_exit(fn -> File.rm_rf!(tmp) end)
-
-    :ok =
-      Config.put_media_dirs([
-        %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => nil}
-      ])
-
-    ConfigListener.__sync_for_test__()
-    [{pid1, _}] = Registry.lookup(MediaCentaur.Watcher.Registry, tmp)
-
-    :ok =
-      Config.put_media_dirs([
-        %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => "Movies"}
-      ])
-
-    ConfigListener.__sync_for_test__()
-    [{pid2, _}] = Registry.lookup(MediaCentaur.Watcher.Registry, tmp)
-
-    assert pid1 == pid2, "name-only change should not restart the watcher"
+    tmp
   end
 
-  test "put_media_dirs triggers reconcile that starts and stops watchers" do
-    tmp = Path.join(System.tmp_dir!(), "watcher-reconcile-test-#{System.unique_integer([:positive])}")
+  describe "while watchers are off" do
+    # Nothing has called `start_watchers/0` (config/test.exs keeps the
+    # service off at boot) — the state a user who toggled watchers off on
+    # the Settings page is in.
+    test "media-dir edits start nothing" do
+      tmp = tmp_dir("off")
 
-    File.mkdir_p!(tmp)
-    on_exit(fn -> File.rm_rf!(tmp) end)
+      :ok = Config.put_media_dirs([%{"id" => "off1", "dir" => tmp, "images_dir" => nil, "name" => nil}])
+      ConfigListener.__sync_for_test__()
 
-    :ok =
-      Config.put_media_dirs([
-        %{"id" => "t1", "dir" => tmp, "images_dir" => nil, "name" => nil}
-      ])
+      refute WatcherSup.running?()
+      assert Registry.lookup(MediaCentaur.Watcher.Registry, tmp) == []
+    end
+  end
 
-    ConfigListener.__sync_for_test__()
+  describe "while watchers are on" do
+    setup do
+      # No media dirs yet, so this starts no child — it turns watching on.
+      WatcherSup.start_watchers()
+      on_exit(fn -> WatcherSup.stop_watchers() end)
+      :ok
+    end
 
-    dirs = Enum.map(WatcherSup.statuses(), & &1.dir)
-    assert tmp in dirs
+    test "name-only change keeps the same watcher pid (no stop/start)" do
+      tmp = Path.join(System.tmp_dir!(), "watcher-name-only-test-#{System.unique_integer([:positive])}")
 
-    :ok = Config.put_media_dirs([])
-    ConfigListener.__sync_for_test__()
+      File.mkdir_p!(tmp)
+      on_exit(fn -> File.rm_rf!(tmp) end)
 
-    refute tmp in Enum.map(WatcherSup.statuses(), & &1.dir)
+      :ok =
+        Config.put_media_dirs([
+          %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => nil}
+        ])
+
+      ConfigListener.__sync_for_test__()
+      [{pid1, _}] = Registry.lookup(MediaCentaur.Watcher.Registry, tmp)
+
+      :ok =
+        Config.put_media_dirs([
+          %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => "Movies"}
+        ])
+
+      ConfigListener.__sync_for_test__()
+      [{pid2, _}] = Registry.lookup(MediaCentaur.Watcher.Registry, tmp)
+
+      assert pid1 == pid2, "name-only change should not restart the watcher"
+    end
+
+    test "put_media_dirs triggers reconcile that starts and stops watchers" do
+      tmp = Path.join(System.tmp_dir!(), "watcher-reconcile-test-#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(tmp)
+      on_exit(fn -> File.rm_rf!(tmp) end)
+
+      :ok =
+        Config.put_media_dirs([
+          %{"id" => "t1", "dir" => tmp, "images_dir" => nil, "name" => nil}
+        ])
+
+      ConfigListener.__sync_for_test__()
+
+      dirs = Enum.map(WatcherSup.statuses(), & &1.dir)
+      assert tmp in dirs
+
+      :ok = Config.put_media_dirs([])
+      ConfigListener.__sync_for_test__()
+
+      refute tmp in Enum.map(WatcherSup.statuses(), & &1.dir)
+    end
   end
 end
