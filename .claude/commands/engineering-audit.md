@@ -1,149 +1,156 @@
 ---
-description: Thorough code quality analysis — inconsistencies, missing abstractions, readability, structure, and test policy compliance.
+description: Judgment-level code quality analysis — vocabulary, duplication, readability, context boundaries, and test-policy compliance beyond what `mix precommit` already enforces.
 argument-hint: "[path-or-module (optional)]"
 ---
 
 # Engineering Audit
 
-You are performing a meticulous code review and quality analysis of an Elixir/Phoenix/Ecto
-codebase. Your goal is to find real, actionable issues — not to generate noise. Every
-finding must be specific, cite the exact file and line, and explain *why* it matters.
+You are performing a meticulous code review of the Media Centaur backend (Elixir /
+Phoenix / LiveView / Ecto on SQLite). Your goal is real, actionable findings — not
+noise. Every finding cites the exact file and line and explains *why* it matters in
+terms of the project's own rules.
 
-**Scope:** If `$ARGUMENTS` is provided, focus the analysis on that path or module.
-Otherwise, analyze the full `lib/` tree.
+**Scope:** If `$ARGUMENTS` is provided, focus on that path or module. Otherwise audit
+the full `lib/` tree plus `test/`.
 
-Read the project's `CLAUDE.md` before beginning — it defines the architecture principles,
-testing strategy, and coding conventions you are auditing against.
+**What is already enforced — do not re-audit it.** `mix precommit` runs
+`compile --warnings-as-errors`, `format` (with Quokka rewrites), `credo --strict`
+with the 30-odd custom checks in `credo_checks/` (MC0001–MC0028: predicate naming,
+no abbreviated names, PubSub facades and transport, log macros, `:sys` introspection,
+raw badge/button classes, typed component attrs, storybook coverage, typed-event
+chokepoints, destructive file queries, `on_exit` DB access, markup-substring
+assertions, Repo setup in tests, owned async in web, platform branching, native
+confirm dialogs, artwork width, and more), Boundary as a Mix compiler, dependency-
+cruiser for `assets/js`, `deps.audit`, `sobelow`, and the Elixir + bun suites. Assume
+it is green. A finding that a Credo check or Boundary would catch is not a finding;
+if you believe a mechanical rule is missing, propose a new Credo check (the house
+preference is code-as-spec over prose).
+
+**Authorities to read first:** `CLAUDE.md`, `AGENTS.md`, `docs/architecture.md`,
+`docs/GLOSSARY.md`, and the `coding-guidelines` and `automated-testing` skills. The
+user's global engineering rules apply too: no backward-compatibility layers or
+fallbacks, simplest implementation that fully meets today's requirement, no
+speculative abstraction or configuration, single-responsibility modules (a moduledoc
+that needs "and" is a split candidate), established libraries over hand-rolled code.
+
+**Bounded contexts are whatever `ls lib/media_centaur/` shows** (currently ~30
+directories, from `acquisition` to `watch_history`). Each has a `use Boundary,
+deps: [...]` declaration that is the canonical inter-context dependency list
+([ADR-029]). Do not work from a memorised list.
 
 ---
 
 ## Analysis Passes
 
-Work through each pass sequentially. For each pass, explore the relevant code thoroughly
-using file reads and searches. Do not guess — read the actual source.
+Work through each pass sequentially, reading the actual source. Do not guess.
 
-### Pass 1 — Inconsistencies
+### Pass 1 — Vocabulary & naming
 
-Look for inconsistencies across the codebase:
+- **Glossary discipline:** terms with a project meaning are defined in
+  `docs/GLOSSARY.md`; coined terms, metaphors-as-terms, and two names for one concept
+  are findings. Words with several project meanings must be split into explicit names.
+- **User/code vocabulary split:** code says `entity`, user copy says "entry";
+  "release" is acquisition-only (see the `writing-copy` skill). Flag leaks in either
+  direction.
+- **Peer API shape:** peer contexts exposing equivalent operations under different
+  names (`create_*` vs `insert_*`, `get_*` vs `fetch_*` outside the MC0022 lookup
+  contract), inconsistent changeset builder names, inconsistent `{:ok, _} | {:error, _}`
+  shapes for the same kind of operation.
+- **Function names describe *what* in domain terms, not *how*.**
 
-- **Naming inconsistencies:** Are similar concepts named differently in different modules?
-  Are there synonyms where a single term should be used? (e.g., `item` vs `entry` vs
-  `element` for the same concept, `parse` vs `decode` for the same operation)
-- **Pattern inconsistencies:** Are similar operations handled differently in different
-  places? (e.g., one module uses `case` for dispatch while an analogous module uses `cond`;
-  one GenServer wraps calls in public functions while another exposes GenServer.call
-  directly; one pipeline stage handles errors one way while a sibling does it differently)
-- **Style inconsistencies:** Module structure, alias ordering, function grouping, or
-  structural conventions that vary without reason between peer modules.
-- **API shape inconsistencies:** Do peer modules expose inconsistent function signatures
-  for equivalent operations?
-- **Context function inconsistencies:** Do peer contexts expose similar CRUD operations
-  with different function naming conventions (`create_*` vs `insert_*`, `get_*` vs `fetch_*`)?
-  Are changeset builders named consistently across schemas?
+### Pass 2 — Duplication & missing abstractions
 
-### Pass 2 — Duplication & Missing Abstractions
+- Literal or near-literal blocks in several places.
+- Structural duplication: modules that follow the same multi-step recipe
+  independently (a behaviour, shared module, or component would unify them).
+- Data duplication: one concept modelled by two structs, or derived in two places.
+- Informal contracts (same function names and arities across modules) without a
+  behaviour.
 
-Look for code that is duplicated or nearly duplicated, which may signal a missing
-abstraction:
+Suggest the abstraction only when it genuinely simplifies. Three similar lines beat a
+premature abstraction; the house rule is "grow in layers", not "abstract early".
 
-- **Literal duplication:** Identical or near-identical blocks of code appearing in multiple
-  locations.
-- **Structural duplication:** Different modules that follow the same multi-step pattern but
-  implement it independently — a sign that a shared module, behaviour, or macro could unify
-  them.
-- **Data duplication:** The same concept represented in multiple structs or computed in
-  multiple places.
-- **Missed behaviour opportunities:** Multiple modules that implement the same informal
-  contract (same function names, same arities) but don't share a behaviour.
+### Pass 3 — Readability & expressiveness
 
-For each finding, suggest the abstraction that would eliminate the duplication — but only
-if the abstraction would genuinely simplify the code. Three similar lines are better than
-a premature abstraction.
+- Deeply nested `case`/`cond`/`with`, long functions doing unrelated things,
+  nil-punning (`value && value.field`), catch-all `_ ->` clauses that swallow cases.
+- Raw primitives or bare maps where a struct or tagged tuple would make impossible
+  states unrepresentable.
+- Comments: explain *why*, not *what*; stale comments that no longer match the code
+  are findings (quote both).
+- Stopgaps: anything commented or shaped as "for now", "temporary", "legacy",
+  "compat", "fallback to the old …" — the project removes obsolete paths instead of
+  keeping them.
 
-### Pass 3 — Readability & Expressiveness
+### Pass 4 — Structure & boundaries
 
-Code should read like prose. A domain-driven design practitioner should understand the
-intent without deciphering implementation tricks.
+- **Single responsibility:** modules or contexts whose moduledoc needs "and"; contexts
+  mixing read-model projection with write-side commands without a stated reason.
+- **Boundary declarations as design, not just as a compiler gate:** deps lists that
+  are broader than the code needs, contexts that reach sideways into a sibling's
+  schemas rather than its public API, web modules that should go through a context
+  facade ([ADR-029] data decoupling).
+- **Cohesion and discoverability:** functions that belong in a different module
+  given the directory-as-domain layout; public functions used only internally.
+- **Processes without a runtime reason:** a GenServer, Agent, or Task where plain
+  functions would do (no persisted state, no concurrency, no fault isolation).
+- **Documentation placement:** module-internal contracts belong in `@moduledoc`;
+  repository-wide decisions belong in `decisions/` (ADR/UIDR). Flag concepts
+  documented in the wrong place or not at all.
 
-- **Function names:** Do they describe *what* they do in domain terms, not *how* they do
-  it? Are they specific enough to distinguish from peers?
-- **Variable names:** Do local bindings tell you what they hold? Are there single-letter
-  variables outside of trivial closures or comprehensions? Does the code follow the project's
-  variable naming rules (no abbreviations, name the value not the type)?
-- **Module names and file organization:** Does the directory structure reflect the domain?
-  Can you understand what a module does from its path alone?
-- **Control flow clarity:** Are there deeply nested `case`/`cond`/`with` blocks that could
-  be flattened? Are there long functions that do multiple unrelated things?
-- **Pattern match expressiveness:** Are pattern matches used effectively to make impossible
-  states unrepresentable? Are there raw primitives where a struct or tagged tuple would add
-  clarity?
-- **Comment quality:** Are comments explaining *why*, not *what*? Are there stale comments
-  that no longer match the code?
+### Pass 5 — Test-policy compliance
 
-### Pass 4 — Project Structure
+Audit against the `automated-testing` skill (read it), not against generic advice:
 
-Evaluate the module hierarchy:
+- **Test-first evidence:** new behaviour without a covering test; pure modules
+  (parser, mappers, projections, console filter/view, playback resume, progress
+  summaries) without a direct unit test.
+- **What we never test:** rendered-markup substring assertions, GenServer internals,
+  framework behaviour, static config text ("config-content grep tests"). Tests whose
+  deletion would not fail if the feature were removed are tautological.
+- **LiveView logic extraction:** business logic living in `handle_event` bodies and
+  tested only through `render_click` instead of an extracted pure module.
+- **Page smoke coverage:** every route and zone in `router.ex` has a smoke test.
+- **Factories:** `MediaCentaur.TestFactory` (`build_*` pure, `create_*` DB); inline
+  `Repo.insert!`/changeset boilerplate that duplicates it.
+- **Reproducibility:** no network, no TMDB, no real show titles outside
+  `test/media_centaur/parser_test.exs`; async ownership per [ADR-049]; global state
+  goes through `GlobalStateSandbox`.
+- **Append-only regression tests** ([ADR-027]): flag regression tests that were
+  weakened or deleted (check `git log -p` for the file when in doubt).
+- **Flake hygiene:** timing-based assertions (`Process.sleep`, `assert_receive` with
+  generous timeouts as the primary sync) instead of the render-settle / owned-async
+  patterns.
 
-- **Bounded contexts:** Does each top-level module under `lib/media_centaur/` represent a
-  clear domain boundary? Are there modules that mix concerns?
-- **Dependency direction:** Do modules depend in the right direction? (Domain logic should
-  not depend on LiveView; Ecto schemas and context modules should not depend on pipeline logic.)
-- **Cohesion:** Are related functions and modules co-located? Are there functions that would
-  be more discoverable in a different module?
-- **Public API surface:** Are modules exposing more than they need to? Are there public
-  functions that are only used internally?
-- **Context API organization:** Do the public functions exposed by each top-level context
-  module (`Library`, `Pipeline`, `Review`, `Watcher`, `Settings`, `Console`, `ReleaseTracking`)
-  match the underlying schemas they wrap? Are there dead wrapper functions, or schemas
-  without a public context API?
+### Pass 6 — Beyond the linters
 
-### Pass 5 — Test Policy Compliance
+Things `mix precommit` cannot see:
 
-Audit tests against the project's testing strategy (defined in CLAUDE.md):
-
-- **Coverage of testable code:** For every pure function module (Parser, Serializer, Mapper,
-  Confidence, Resume, ProgressSummary, Console.Filter, Console.View) — is there a corresponding
-  test? List any gaps.
-- **Factory usage:** Are tests using the shared `TestFactory` (`build_*` for pure tests,
-  `create_*` for DB tests)? Flag any inline `Ecto.Changeset.cast`/`Repo.insert!` boilerplate
-  that duplicates the factory.
-- **No tests for untestable code:** Are there tests that assert on rendered HTML, test
-  GenServer internals via `:sys.get_state`, or use direct `GenServer.call/cast` instead of
-  the module's public API? These violate the testing policy.
-- **Test quality:** Are there brittle tests that depend on implementation details rather
-  than behavior? Are there tests with no meaningful assertion?
-- **Pipeline test-first mandate:** Do pipeline tests cover real scenarios? Flag any that
-  appear to test trivial or synthetic cases.
-- **Zero warnings:** Are there test files that would produce warnings (unused variables,
-  unused aliases)?
-
-### Pass 6 — Compiler & Lint Health
-
-- Flag any code that `mix compile --warnings-as-errors` would catch: unused imports, unused
-  variables, unused aliases, unreachable clauses.
-- Flag any `String.to_atom` or `String.to_existing_atom` calls with untrusted input.
-- Flag any `Repo.*` calls from outside a top-level context module (contexts should own
-  their Repo access; LiveViews and other consumers go through context public APIs).
-- Flag any `Repo.all`, `Repo.delete_all`, or `Repo.update_all` in loops where a single
-  batched query would work — N+1 patterns in disguise.
-- Flag any dead code: functions defined but never called, modules defined but never aliased.
+- `String.to_atom/1` on untrusted input; `Repo.*` in loops that should be one query
+  (an N+1 that Credo does not model).
+- Dead code: functions and modules with no callers (verify with grep, not memory);
+  unused Settings keys; feature flags with a single value.
+- Migrations: a schema change without its paired safe migration, or a backfill that
+  is not idempotent (safe-migration policy; MC0015 covers row mutation in schema
+  migrations but not the policy as a whole).
+- Observability gaps: a new subsystem with no `MediaCentaur.Log` component tag, or a
+  failure path that neither logs nor raises a Status-page condition.
 
 ---
 
 ## Output Format
 
-Present findings grouped by pass. For each finding:
+Number findings **E1, E2, …** and group them by pass. For each:
 
-1. **Location** — exact file path and line number(s)
-2. **Issue** — one-sentence description
-3. **Why it matters** — brief explanation grounded in project principles
-4. **Suggested fix** — concrete, minimal change (or "no change needed, noting for
-   awareness" if it's a judgment call)
+1. **Location** — `file_path:line`
+2. **Issue** — one sentence
+3. **Why it matters** — grounded in a named project rule, ADR, skill, or glossary
+   entry
+4. **Suggested fix** — concrete and minimal, or "judgment call, noting for awareness"
 
-At the end, provide a **summary** with:
-- Total findings per pass
-- Top 3 highest-impact improvements
-- An overall health assessment (one paragraph)
+End with a **summary**: findings per pass, the top 3 highest-impact improvements, and
+a one-paragraph health assessment.
 
-Do not manufacture findings — but do not manufacture praise either. If an area is clean, a
-single sentence suffices. Spend your words on problems, not compliments.
+Do not manufacture findings, and do not manufacture praise. If a pass is clean, one
+sentence suffices. This command is analysis only: do not modify files. Output goes to
+the chat; the user decides what to persist.
