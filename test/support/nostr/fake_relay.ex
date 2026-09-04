@@ -17,6 +17,17 @@ defmodule MediaCentaur.Nostr.FakeRelay do
   before this handler's `init/1` has registered the socket pid in the
   Agent. Both functions poll for at least one registered client (up to
   2s, 10ms steps) before sending, and raise if none shows up in time.
+
+  ## Teardown order
+
+  A relay runs under `MediaCentaur.Nostr.FakeRelay.Supervisor` (started in
+  `test_helper.exs`), not under the test supervisor, and is stopped from an
+  `on_exit` callback. ExUnit terminates the test supervisor *before* it
+  runs `on_exit`, so every client the test started (a `Connection`, a
+  `Connections.Owner`) is already gone when its relay closes. Under the
+  test supervisor the relay — usually started after the client — would be
+  stopped first, and the still-live client would log `lost …: closed by
+  relay` for every test.
   """
 
   alias MediaCentaur.Nostr.Event
@@ -42,33 +53,46 @@ defmodule MediaCentaur.Nostr.FakeRelay do
   # --- lifecycle ---------------------------------------------------------
 
   @doc """
-  Starts a relay under the test supervisor. Options: `auth: boolean`
+  Starts a relay for the calling test. Options: `auth: boolean`
   (issue an AUTH challenge on connect and gate REQ/EVENT on it),
   `events: [Event.t()]` (stored events served to matching REQs),
   `accept: boolean` / `reason: String.t()` (the OK verdict for EVENT).
   Returns `%{url: String.t(), name: atom()}`.
 
   Must be called from the test process — the relay's lifetime is the
-  test's, and inbound frames are forwarded to the caller.
+  test's (it is stopped in `on_exit`, after the test's supervised clients
+  — see the moduledoc), and inbound frames are forwarded to the caller.
   """
   @spec start(keyword()) :: t()
   def start(opts \\ []) do
     name = :"fake_relay_#{System.unique_integer([:positive])}"
     config = opts |> Map.new() |> Map.merge(%{test_pid: self(), clients: []})
 
-    ExUnit.Callbacks.start_supervised!(%{
-      id: {__MODULE__, :agent, name},
-      start: {Agent, :start_link, [fn -> config end, [name: name]]}
-    })
+    agent = %{id: :agent, start: {Agent, :start_link, [fn -> config end, [name: name]]}}
 
     bandit =
-      {Bandit,
-       plug: {__MODULE__.Plug, name}, port: 0, ip: {127, 0, 0, 1}, scheme: :http, startup_log: false}
+      Supervisor.child_spec(
+        {Bandit,
+         plug: {__MODULE__.Plug, name}, port: 0, ip: {127, 0, 0, 1}, scheme: :http, startup_log: false},
+        id: :bandit
+      )
 
-    {:ok, pid} =
-      ExUnit.Callbacks.start_supervised(Supervisor.child_spec(bandit, id: {__MODULE__, :bandit, name}))
+    relay = %{
+      id: name,
+      type: :supervisor,
+      start: {Supervisor, :start_link, [[agent, bandit], [strategy: :one_for_all]]}
+    }
 
-    {:ok, {_ip, port}} = ThousandIsland.listener_info(pid)
+    {:ok, relay_pid} = DynamicSupervisor.start_child(__MODULE__.Supervisor, relay)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      DynamicSupervisor.terminate_child(__MODULE__.Supervisor, relay_pid)
+    end)
+
+    {:bandit, bandit_pid, :supervisor, _modules} =
+      relay_pid |> Supervisor.which_children() |> List.keyfind(:bandit, 0)
+
+    {:ok, {_ip, port}} = ThousandIsland.listener_info(bandit_pid)
     %{url: "ws://127.0.0.1:#{port}/", name: name}
   end
 

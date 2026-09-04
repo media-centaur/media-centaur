@@ -289,6 +289,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "plan flow — targeting → board → approve (UIDR-014)" do
+    # Track clicks fire release tracking's off-process artwork download;
+    # give it a stubbed CDN and a tmp cache so it lands instead of failing.
+    setup {TmdbStubs, :setup_artwork_cache}
+
     defp stub_selection do
       %MediaCentaur.Acquisition.Targeting.Selection{
         tmdb_id: "246810",
@@ -462,9 +466,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # The synchronous half: flash + hand back to the page (the shelf is
       # where the tracked title appears). The tracking task itself is
-      # covered by the ReleaseTracking tests.
+      # covered by the ReleaseTracking tests; drive it to completion so
+      # its stubs outlive it (ADR-049).
       assert_patch(view, "/incoming")
       assert render(view) =~ "Tracking Sample Show"
+      await_supervised_tasks()
     end
 
     test "the movie confirm offers Track release for a movie that isn't out yet", %{
@@ -482,6 +488,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert_patch(view, "/incoming")
       assert render(view) =~ "Tracking Sample Movie"
+      await_supervised_tasks()
     end
 
     test "the movie confirm drops Track release once the movie is out", %{conn: conn} do
@@ -2777,6 +2784,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     # data after the polling timer was removed.
 
     alias MediaCentaur.Downloads.QueueItem
+    alias MediaCentaur.Downloads.QueueMonitor
 
     test "queue_snapshot broadcast paints the active queue",
          %{conn: conn} do
@@ -2844,22 +2852,34 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         Req.Test.json(conn, [])
       end)
 
-      monitor = start_supervised!(MediaCentaur.Downloads.QueueMonitor)
+      monitor = start_supervised!(QueueMonitor)
       Req.Test.allow(:qbittorrent, self(), monitor)
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
-      # Drain any racing mount-time poll so the subsequent assert_receive
-      # observes the post-:capabilities_changed call specifically.
-      receive do
-        :qbit_called -> :ok
-      after
-        500 -> :ok
-      end
+      # Two polls precede the one under test: init's, and the one mount's
+      # subscriber registration triggers. A call lands behind both in the
+      # monitor's mailbox; once it returns, discard their stub calls so the
+      # assertion below can only observe the post-:capabilities_changed poll.
+      _ = QueueMonitor.state()
+      flush_qbit_calls()
 
       send(view.pid, :capabilities_changed)
 
       assert_receive :qbit_called, 1_000
+
+      # Let that poll finish before this process — and the stub allowance
+      # that dies with it — goes away; an in-flight sync would crash the
+      # monitor on the stub lookup.
+      _ = QueueMonitor.state()
+    end
+
+    defp flush_qbit_calls do
+      receive do
+        :qbit_called -> flush_qbit_calls()
+      after
+        0 -> :ok
+      end
     end
   end
 
