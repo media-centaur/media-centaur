@@ -36,15 +36,16 @@ defmodule MediaCentaur.HttpClient.StatsTest do
 
   test "a request lands in its upstream's window and session figures", %{stats: stats, name: name} do
     record(stats, %{duration_ms: 120})
-    record(stats, %{duration_ms: 80, cache: :hit})
+    record(stats, %{duration_ms: 0, cache: :hit})
     record(stats, %{upstream: :github, path: "/repos", status: 404, cache: :uncached})
 
+    # The hit never went out: it counts under cache.hit and nowhere else.
     tmdb = row(name, :tmdb)
-    assert tmdb.window.requests == 2
+    assert tmdb.window.requests == 1
     assert tmdb.window.errors == 0
     assert tmdb.window.median_latency_ms == 120
     assert tmdb.window.cache == %{hit: 1, miss: 1, revalidate: 0, reload: 0}
-    assert tmdb.session == %{requests: 2, errors: 0}
+    assert tmdb.session == %{requests: 1, errors: 0}
     assert %DateTime{} = tmdb.last_success_at
     assert tmdb.last_failure_at == nil
 
