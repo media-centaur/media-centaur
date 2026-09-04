@@ -31,12 +31,14 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert html =~ "metadata-activity"
     end
 
-    test "http drill-in renders one row per upstream", %{conn: conn} do
+    test "http drill-in renders one row per panel upstream and none for the rest", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=http")
+      alias MediaCentaur.HttpClient.Upstream
 
-      for id <- MediaCentaur.HttpClient.Upstream.ids() do
-        assert has_element?(view, "#http-upstream-#{id}")
-      end
+      for id <- Upstream.panel_ids(), do: assert(has_element?(view, "#http-upstream-#{id}"))
+
+      for id <- Upstream.ids() -- Upstream.panel_ids(),
+          do: refute(has_element?(view, "#http-upstream-#{id}"))
     end
   end
 
