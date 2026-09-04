@@ -14,8 +14,34 @@ per-upstream traffic, errors, latency, and cache effectiveness.
 
 ## Status
 
-Design settled via unify_design on 2026-09-04; implementation starting
-at step 1 of the plan.
+Paused 2026-09-04 after step 3. Steps 1–3 are committed (`1d0b7b77`,
+`e543385e`): the seam with upstream tagging and instrumentation, the
+cache plugin and coordinator with revalidation and single-flight, and
+TMDB adoption with keyword options and reload sites. Step 4 (client-path
+convergence) was fully read but nothing of it is written yet.
+
+Step 4 findings to carry forward:
+
+* `ImageFiles` serves two upstreams (TMDB CDN, Steam CDN), so its
+  `download/3` and `download_raw/3` take a required `upstream:` option
+  from the four callers (showcase, tmdb_artwork, image_processor,
+  apps/artwork).
+* `NoopImageDownloader` and the `:image_http_client` /
+  `:steam_store_http_client` config keys go away; `ImageFiles`,
+  `SteamStore`, `UpdateChecker`, `Downloader`, and `InfoHash` join the
+  `req_test_stubs` map (`:images`, `:steam`, `:github`, `:github`,
+  `:indexers`). An un-stubbed image download in a test raises inside
+  Req and is rescued by `ImageFiles.fetch/2` into a transient error;
+  confirm the full suite accepts that in place of the noop's empty 200.
+* Tests to rewrite on `Req.Test`: image_files_test, image_processor_test,
+  apps_test, steam_store_test, steam_art_controller_test,
+  checker_job_test (replace the persistent-term client with a `:github`
+  stub).
+* Boundaries to widen with `MediaCentaur.HttpClient`: Apps, SelfUpdate,
+  Acquisition.
+* Showcase's `Req.new(plug:)` clients in Prowlarr and qBittorrent become
+  `HttpClient.new(__MODULE__, upstream: …, plug: …)`; Prowlarr, qBittorrent,
+  SABnzbd add their `upstream:`.
 
 ## Decisions made
 
