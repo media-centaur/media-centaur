@@ -4,6 +4,29 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.8.0 — 2026-09-04
+
+### New
+
+- **A Connections tile on the Status page.** Every server Media Centaur talks to — TMDB, the TMDB image CDN, Prowlarr, your download client, GitHub — gets a row: requests that went out and errors in the last 15 minutes with session totals, median response time, and how many requests the response cache answered instead. The TMDB row shows how many of its rate-limit slots are in use; that figure moves here from the Metadata tile. Expand **Recent requests** for the last 20 calls with their status and timing. The tile turns amber when most recent requests to TMDB or its image CDN are failing.
+- **TMDB answers are cached.** Search results and title details are kept for as long as TMDB says they stay fresh, about an hour for searches and eight hours for details, and repeated lookups are answered locally. Searching the same title again in Incoming or Review is instant, and importing a season fetches the show once instead of once per episode. Release tracking and the Settings **Test connection** button always ask TMDB directly.
+
+### Improved
+
+- **The Status and Library pages update the moment import activity changes** instead of polling once a second, and stay quiet when nothing is happening.
+- **The Settings System card and the Console are complete on first paint** rather than filling in after the page loads.
+- **A retired `watch_dirs` key in `media-centaur.toml` stops startup with a message naming its replacement** instead of being silently ignored.
+- **Old addresses no longer redirect.** `/download`, `/upcoming`, and `?section=` links from before the page split return not found; update any bookmarks to the current pages.
+
+### Fixed
+
+- **Approving a movie in a plan lost its download identity.** The approve step looked its search up under the wrong key, so every movie grab went out without an infohash and was recorded at unknown quality. Approved movies now pair with their download and record the quality that was chosen.
+- **A failed artwork download reported success with nothing saved.** It is now reported and logged as the failure it is, so a missing poster can be retried.
+
+### Migration safety
+
+- No database migration runs on update.
+
 ## v1.7.3 — 2026-09-04
 
 ### Improved
