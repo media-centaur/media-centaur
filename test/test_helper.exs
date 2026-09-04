@@ -18,16 +18,29 @@ Application.ensure_all_started(:credo)
 
 Ecto.Adapters.SQL.Sandbox.mode(MediaCentaur.Repo, :manual)
 
+# Fake Nostr relays live here rather than under each test's supervisor so
+# a relay outlives the clients its test started — see the teardown-order
+# note in `MediaCentaur.Nostr.FakeRelay`.
+{:ok, _} =
+  DynamicSupervisor.start_link(name: MediaCentaur.Nostr.FakeRelay.Supervisor, strategy: :one_for_one)
+
+# App-managed files (the TMDB artwork cache, app banners) live under
+# `data_dir`, which defaults to the database's directory — `priv/repo` in
+# test. Point it at a per-run tmp dir so no test writes into the repo tree
+# (ADR-016); tests that assert on files still override it per test.
+test_data_dir = Path.join(System.tmp_dir!(), "media_centaur_test_#{System.unique_integer([:positive])}")
+File.mkdir_p!(test_data_dir)
+ExUnit.after_suite(fn _result -> File.rm_rf!(test_data_dir) end)
+
 # Default to "wizard already dismissed" in tests so `SetupRedirect` doesn't
 # divert every existing page-smoke test to /setup. Tests that exercise the
 # redirect itself (`setup_redirect_test.exs`) flip this back to false in
 # their own setup.
 :persistent_term.put(
   {MediaCentaur.Settings.Config, :config},
-  Map.put(
+  Map.merge(
     :persistent_term.get({MediaCentaur.Settings.Config, :config}),
-    :setup_wizard_dismissed,
-    true
+    %{setup_wizard_dismissed: true, data_dir: test_data_dir}
   )
 )
 

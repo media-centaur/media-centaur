@@ -13,22 +13,37 @@ defmodule MediaCentaur.TaskAwaits do
   output.
   """
 
-  @doc """
-  Blocks until every current child of `MediaCentaur.TaskSupervisor` has
-  finished (await-to-completion, never kill). Raises if any task is
-  still running after 1s — that is a hang, not a timing problem.
-  """
-  def await_supervised_tasks do
-    MediaCentaur.TaskSupervisor
-    |> Task.Supervisor.children()
-    |> Enum.each(fn pid ->
-      ref = Process.monitor(pid)
+  @await_ms 1_000
 
-      receive do
-        {:DOWN, ^ref, _, _, _} -> :ok
-      after
-        1_000 -> raise "supervised task did not finish within 1s"
-      end
-    end)
+  @doc """
+  Blocks until `MediaCentaur.TaskSupervisor` has no children left
+  (await-to-completion, never kill). Tasks a task starts on its way out —
+  release tracking's artwork download follows its `track_from_search`
+  task — are picked up on the next pass, so the supervisor is empty when
+  this returns. Raises if anything is still running after 1s — that is a
+  hang, not a timing problem.
+  """
+  def await_supervised_tasks, do: drain(System.monotonic_time(:millisecond) + @await_ms)
+
+  defp drain(deadline) do
+    case Task.Supervisor.children(MediaCentaur.TaskSupervisor) do
+      [] ->
+        :ok
+
+      pids ->
+        Enum.each(pids, &await_down(&1, deadline))
+        drain(deadline)
+    end
+  end
+
+  defp await_down(pid, deadline) do
+    ref = Process.monitor(pid)
+
+    receive do
+      {:DOWN, ^ref, _, _, _} -> :ok
+    after
+      max(deadline - System.monotonic_time(:millisecond), 0) ->
+        raise "supervised task did not finish within #{@await_ms}ms"
+    end
   end
 end

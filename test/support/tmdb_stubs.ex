@@ -17,6 +17,35 @@ defmodule MediaCentaur.TmdbStubs do
     context
   end
 
+  @doc """
+  Points the TMDB artwork cache (`TmdbArtwork`, under `{data_dir}/images/tmdb/`)
+  at a per-test tmp dir and stubs the image CDN (`:images`) with a body large
+  enough for `ImageFiles.download_raw/3` to accept. A flow that downloads
+  artwork off-process — release tracking's `download_images_async/3`,
+  `TmdbArtwork.ensure/2` — then lands files there instead of logging a
+  failed download. The bytes are not a decodable image: enough for the
+  download ledger, not for derivatives. Call in test setup; the config
+  term is restored by `GlobalStateSandbox` and the dir is removed on exit.
+  The test still drives the download task to completion before it exits
+  (`MediaCentaur.TaskAwaits.await_supervised_tasks/0`).
+  """
+  def setup_artwork_cache(context \\ %{}) do
+    data_dir = Path.join(System.tmp_dir!(), "tmdb_artwork_#{System.unique_integer([:positive])}")
+    File.mkdir_p!(data_dir)
+
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, data_dir))
+    ExUnit.Callbacks.on_exit(fn -> File.rm_rf!(data_dir) end)
+
+    Req.Test.stub(:images, fn conn ->
+      conn
+      |> Plug.Conn.put_resp_content_type("image/jpeg")
+      |> Plug.Conn.send_resp(200, :binary.copy("x", 2048))
+    end)
+
+    Map.put(context, :data_dir, data_dir)
+  end
+
   # ---------------------------------------------------------------------------
   # Search stubs
   # ---------------------------------------------------------------------------

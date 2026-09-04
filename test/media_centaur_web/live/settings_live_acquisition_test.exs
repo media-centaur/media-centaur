@@ -33,6 +33,16 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
     Config.update(:usenet_download_client_url, nil)
     Config.update(:usenet_download_client_api_key, nil)
 
+    # A "test" submit starts the connection test as a LiveView async task
+    # that calls the integration through its `Req.Test` stub. Answer every
+    # stub so the task completes — each test below awaits it with
+    # `render_async/1` — instead of crashing on a missing stub, or on a
+    # stub that died with this process (ADR-049). The verdict is not under
+    # test here: the contract is that the typed values are saved first.
+    for stub <- [:prowlarr, :qbittorrent, :sabnzbd, :tmdb] do
+      Req.Test.stub(stub, &Req.Test.json(&1, %{}))
+    end
+
     :ok
   end
 
@@ -106,6 +116,8 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       })
       |> render_submit(%{"_action" => "test"})
 
+      render_async(view)
+
       # Saved BEFORE the async test fires.
       assert Config.get(:prowlarr_url) == "http://prowlarr.example.com:9696"
     end
@@ -119,6 +131,8 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
         "prowlarr_api_key" => "user-typed-key"
       })
       |> render_submit(%{"_action" => "test"})
+
+      render_async(view)
 
       send(view.pid, {:prowlarr_test_result, :error})
       html = render(view)
@@ -158,6 +172,8 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       })
       |> render_submit(%{"_action" => "test"})
 
+      render_async(view)
+
       assert Config.get(:download_client_url) == "http://qb.example.com:8080"
     end
 
@@ -172,6 +188,8 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
         "download_client_password" => "pw"
       })
       |> render_submit(%{"_action" => "test"})
+
+      render_async(view)
 
       send(view.pid, {:download_client_test_result, :error})
       html = render(view)
@@ -239,6 +257,8 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       })
       |> render_submit(%{"_action" => "test"})
 
+      render_async(view)
+
       assert Config.get(:usenet_download_client_url) == "http://sab.example.com:8085"
     end
 
@@ -252,6 +272,8 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
         "usenet_download_client_api_key" => "sab-api-key"
       })
       |> render_submit(%{"_action" => "test"})
+
+      render_async(view)
 
       send(view.pid, {:usenet_client_test_result, :error})
       html = render(view)
@@ -298,6 +320,8 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
         "tmdb_api_key" => "tmdb-key-from-user"
       })
       |> render_submit(%{"_action" => "test"})
+
+      render_async(view)
 
       # Persistence assertion via the present? flag — the raw key never
       # round-trips through assigns (see SettingsLive.load_config/0).
