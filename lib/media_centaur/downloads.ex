@@ -21,26 +21,24 @@ defmodule MediaCentaur.Downloads do
 
   Owns:
 
-    * **Download-client driver** — `DownloadClient.QBittorrent` and its
-      sibling `DownloadClient.QBittorrent.Sync`, dispatched through
-      `DownloadClient.Dispatcher`. The dispatcher is the abstraction
-      seam for future drivers (e.g. SABnzbd) — every cross-context
-      call goes through it.
-    * **Queue monitor** — `QueueMonitor` polls the active driver,
-      snapshots the queue into `:persistent_term` + GenServer state,
-      and broadcasts `acquisition:queue` events. (Topic name kept for
-      now; rename deferred per ADR-043's "out of scope" list.)
+    * **Download-client drivers** — `DownloadClient.QBittorrent` (torrent
+      slot) and `DownloadClient.SABnzbd` (usenet slot), each a function of
+      its slot's `ClientConfig`, resolved through `DownloadClient.Dispatcher`.
+      Every cross-context call goes through the dispatcher.
+    * **Queue monitor** — `QueueMonitor` polls the configured drivers,
+      snapshots the merged queue into `:persistent_term` + GenServer
+      state, and broadcasts it on `acquisition:queue` (the topic name
+      predates the context split; rename deferred per ADR-043).
     * **Health classification** — `Health.classify/3` interprets a
-      `QueueItem` against its history (`HealthHistory`) to produce
-      `:healthy | :soft_stall | :frozen`. Read by Acquisition's
-      Pursuits subsystem on every tick.
+      `QueueItem` against its history (`HealthHistory`) into one of the
+      `Health.status/0` grades. Read by Acquisition's Pursuits subsystem
+      on every tick.
 
   Does NOT own:
 
     * The target lifecycle (`MediaCentaur.Acquisition.Target`).
     * The Pursuits aggregate (`MediaCentaur.Acquisition.Pursuits`).
-    * Prowlarr search or release matching
-      (`MediaCentaur.Acquisition.Search.*` after Phase 2).
+    * Prowlarr search or release matching (`MediaCentaur.Search`).
 
   The boundary is one-way: `Acquisition` calls into `Downloads` (via
   the exported modules above). `Downloads` knows nothing about targets

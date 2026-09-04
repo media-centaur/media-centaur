@@ -57,7 +57,7 @@ defmodule MediaCentaur.Library.Views do
 
   @doc """
   Returns the library browse grid as pre-shaped `BrowseItem` structs
-  in display order (alphabetical by name, case-insensitive).
+  in display order (newest first, by `inserted_at`).
 
   Reads bypass the GenServer via `:ets.tab2list/1` when the
   projection's Cache.Worker is running; falls back to the underlying

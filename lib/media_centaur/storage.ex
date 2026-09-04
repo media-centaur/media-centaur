@@ -10,7 +10,7 @@ defmodule MediaCentaur.Storage do
   probe to `MediaCentaur.Platform.DriveProbe`. That keeps GNU/BSD
   `df` flag differences quarantined to the Platform namespace.
 
-  Used by the Operations page storage section.
+  Used by the Status page's storage tile.
   """
 
   alias MediaCentaur.Settings.Config

@@ -12,14 +12,14 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
   - `console_mount/1` — shared mount setup (subscribe, snapshot, assigns, stream)
   - `handle_info` clauses for PubSub messages (plus a catch-all for
     messages forwarded by session-wide on_mount hooks)
-  - 11 `handle_event` clauses for user interactions
+  - the `handle_event` clauses for user interactions
 
   Pure decision logic lives in `ConsoleLive.Logic` (ADR-030) and is unchanged.
   """
 
   defmacro __using__(_opts) do
-    # This macro injects the full shared LiveView surface (mount + 6
-    # handle_info + 15 handle_event + terminate) into both console views.
+    # This macro injects the full shared LiveView surface (mount,
+    # handle_info, handle_event and terminate) into both console views.
     # Those callbacks can't be delegated out of the using module, so the
     # quote is inherently large; exempt it rather than loosen the global
     # 250-line ceiling in `.credo.exs` for every module.

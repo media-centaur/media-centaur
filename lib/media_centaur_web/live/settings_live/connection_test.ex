@@ -8,9 +8,9 @@ defmodule MediaCentaurWeb.Live.SettingsLive.ConnectionTest do
   age ("3 min ago"), and deciding when a result is stale enough to warrant
   a retest.
 
-  Persistence itself (reading/writing `Settings.Entry`) lives in
-  `MediaCentaurWeb.SettingsLive` — this module is pure and tested under
-  `async: true` with injected timestamps.
+  Persistence itself lives in `MediaCentaur.Capabilities`
+  (`load_test_result/1`, `save_test_result/2`) — this module is pure and
+  tested under `async: true` with injected timestamps.
   """
 
   @type status :: :ok | :error

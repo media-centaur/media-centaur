@@ -2526,9 +2526,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp load_pursuit_detail(%{assigns: %{selected_pursuit_id: id}} = socket) do
     case Pursuits.fetch(id) do
       {:ok, %Pursuit{} = pursuit} ->
-        # One DB read for the pursuit; reuse the struct for the header
-        # and status assemblers (was previously three separate Repo.gets
-        # of the same row — see audit M2). DB-only work below; the
+        # One DB read for the pursuit; the header and status assemblers
+        # reuse the struct. DB-only work below; the
         # Prowlarr decision-card fetch is dispatched off-process so the
         # modal opens in <5 ms regardless of indexer latency
         # (ADR-044).

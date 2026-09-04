@@ -4,7 +4,8 @@ defmodule MediaCentaur.Acquisition.Target do
   the goal described by the pursuit's recipe.
 
   A pursuit has many targets over its lifetime (history of attempts);
-  the current attempt is referenced from `pursuit.current_target_id`.
+  each unit references its current attempt via `unit.current_target_id`
+  (ADR-055).
   The recipe and quality preferences live on the pursuit; the target
   only carries per-attempt facts.
 

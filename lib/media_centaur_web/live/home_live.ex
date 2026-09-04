@@ -37,8 +37,6 @@ defmodule MediaCentaurWeb.HomeLive do
   @impl true
   def mount(_params, _session, socket) do
     # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
-    # the EntityModal on_mount callback — do not duplicate them here.
-    # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
     # the EntityModal on_mount callback; `Settings.subscribe()` by
     # SpoilerFreeAware; `Capabilities.subscribe()` by CapabilitiesAware.
     # Do not duplicate any of them here.

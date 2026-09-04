@@ -4,8 +4,8 @@ defmodule MediaCentaur.Console do
     exports: [View, Filter, Buffer, Entry]
 
   @moduledoc """
-  Bounded context for the in-browser log console: ring buffer, filter, rescan
-  dispatch. LiveViews interact through this facade plus the exported submodules
+  Bounded context for the in-browser log console: ring buffer and filter.
+  LiveViews interact through this facade plus the exported submodules
   (`Buffer`, `View`, `Filter`, `Entry`). The `Handler` is internal and must not
   be called from outside the context.
 

@@ -15,8 +15,10 @@ defmodule MediaCentaur.IntegrationHealth do
       and kick a verify for every configured integration so the cached
       state reflects reality without waiting for user action.
     * On `{:config_updated, key, _value}` for any tracked key: flip
-      `configured?` to match, reset `test_state` to `:pending`, kick a
-      verify.
+      `configured?` to match and reset `test_state` to `:pending`. The
+      verify itself is the caller's explicit act (`verify/1`, from the
+      setup tour or Settings), so a multi-field save cannot race a probe
+      against half-written credentials.
     * On `verify/1`: spawn the test on `Task.Supervisor`, set
       `test_state: :pending`, broadcast the change. The test result
       arrives via `handle_info({:test_result, id, ...})` and updates the
