@@ -1,8 +1,6 @@
 defmodule MediaCentaur.TMDB.IncidentContext do
   @moduledoc """
-  TMDB's contribution to diagnostics — the first concrete
-  `ErrorReports.IncidentContext` implementation (the others roll out
-  incrementally per the observability campaign).
+  TMDB's contribution to diagnostics, an `ErrorReports.IncidentContext`.
 
   TMDB is a stateless HTTP adapter, so it has no per-incident request history to
   `gather/1`; what it can offer is **cross-subsystem vitals** — the current

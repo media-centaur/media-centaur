@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Recommendations
   alias MediaCentaur.Settings.Config
-  alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status}
+  alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status, Topics}
   alias MediaCentaur.SelfUpdate.Changelog
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.StatusLive do
       # ErrorReports context stays free of any Settings dependency.
       MediaCentaurWeb.DiagnosticsBadge.mark_seen()
 
-      Process.send_after(self(), :tick_pipeline, 1_000)
+      Topics.subscribe(Topics.pipeline_stats())
       Process.send_after(self(), :refresh_vitals, @vitals_refresh_ms)
     end
 
@@ -372,18 +372,19 @@ defmodule MediaCentaurWeb.StatusLive do
 
   # --- Info handlers ---
 
+  # The pipelines say when their picture changed (coalesced, silent when
+  # idle); the page re-reads the snapshot then, never on a timer.
   @impl true
-  def handle_info(:tick_pipeline, socket) do
-    Process.send_after(self(), :tick_pipeline, 1_000)
-    pipeline_stats = Stats.get_snapshot()
-    image_stats = ImagePipeline.Stats.get_snapshot()
+  def handle_info({:pipeline_stats_updated, :content}, socket) do
+    {:noreply, assign(socket, pipeline_stats: Stats.get_snapshot(), rate_limiter: fetch_rate_limiter())}
+  end
 
+  def handle_info({:pipeline_stats_updated, :image}, socket) do
     {:noreply,
-     socket
-     |> assign(pipeline_stats: pipeline_stats)
-     |> assign(image_pipeline_stats: image_stats)
-     |> assign(rate_limiter: fetch_rate_limiter())
-     |> assign(retry_status: fetch_retry_status())}
+     assign(socket,
+       image_pipeline_stats: ImagePipeline.Stats.get_snapshot(),
+       retry_status: fetch_retry_status()
+     )}
   end
 
   def handle_info(:refresh_vitals, socket) do

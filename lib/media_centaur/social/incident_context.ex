@@ -31,13 +31,8 @@ defmodule MediaCentaur.Social.IncidentContext do
   (whose entries carry `since`, the onset of their current state);
   `assess/0` is the thin shell that reads the status map and the current
   time, then defers to it.
-
-  Like the other probes, this fulfils the `IncidentContext` `assess/0`
-  contract **structurally rather than via `@behaviour`**: the registry
-  binds assessors by `function_exported?(module, :assess, 0)`, so the
-  subsystem reports health with no compile-time `Social → ErrorReports`
-  edge.
   """
+  @behaviour MediaCentaur.ErrorReports.IncidentContext
 
   alias MediaCentaur.Social.Connections
 
@@ -51,6 +46,7 @@ defmodule MediaCentaur.Social.IncidentContext do
 
   @doc "Health probe polled by the diagnostics evaluator. Side-effect-free."
   @spec assess() :: :ok | fault()
+  @impl true
   def assess, do: decide(Connections.status(), DateTime.utc_now(), @grace_seconds)
 
   @doc """

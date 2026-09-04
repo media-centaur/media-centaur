@@ -63,6 +63,7 @@ defmodule MediaCentaur.Topics do
   | `apps:updates` | `Apps.Events` | `{:app_artwork_cached, _}` — async CDN art landed |
   | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:file_reviewed, _}`, `{:group_approved, _}`, `{:group_error, _}` — typed structs, ADR-060's worked example |
   | `pipeline:input`, `:matched`, `:images`, `:publish` | `Pipeline` | per-stage progress |
+  | `pipeline:stats` | `Pipeline.Stats`, `Pipeline.Image.Stats` | `{:pipeline_stats_updated, :content \| :image}` — coalesced; read the snapshot with `get_snapshot/0` |
   | `console:logs` | `Console` | log stream for the in-app drawer |
   | `service:journal` | `Service` | systemd-journal mirror |
   | `self_update:status`, `:progress` | `SelfUpdate` | release self-update lifecycle |
@@ -157,6 +158,7 @@ defmodule MediaCentaur.Topics do
   def pipeline_matched, do: "pipeline:matched"
   def pipeline_images, do: "pipeline:images"
   def pipeline_publish, do: "pipeline:publish"
+  def pipeline_stats, do: "pipeline:stats"
   def playback_events, do: "playback:events"
   def dir_state, do: "watcher:state"
   def review_intake, do: "review:intake"

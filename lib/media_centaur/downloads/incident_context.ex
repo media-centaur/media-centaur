@@ -39,14 +39,11 @@ defmodule MediaCentaur.Downloads.IncidentContext do
   (cached in `:persistent_term`, no GenServer call) and the current time, then
   defers to it.
 
-  Like `SelfUpdate.IncidentContext`, this fulfils the `IncidentContext` `assess/0`
-  contract **structurally rather than via `@behaviour`**: the registry binds
-  assessors by `function_exported?(module, :assess, 0)` purely by name, so a
-  subsystem reports health without a compile-time `Downloads → ErrorReports`
-  edge. Reaches the evaluator through the `acquisition` component's composite
+  Reaches the evaluator through the `acquisition` component's composite
   assessor (`MediaCentaur.Acquisition.IncidentContext`), which pairs this
   probe with the search-provider probe (`Search.IncidentContext`).
   """
+  @behaviour MediaCentaur.ErrorReports.IncidentContext
 
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.Downloads.QueueState
@@ -61,6 +58,7 @@ defmodule MediaCentaur.Downloads.IncidentContext do
 
   @doc "Health probe polled by the diagnostics evaluator. Side-effect-free."
   @spec assess() :: :ok | fault()
+  @impl true
   def assess do
     decide(QueueMonitor.state(), DateTime.utc_now(), @unreachable_grace_seconds)
   end
