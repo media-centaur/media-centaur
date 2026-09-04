@@ -14,7 +14,6 @@ defmodule MediaCentaur.Search do
       Quality,
       ReleaseCoverage,
       ReleaseRedFlags,
-      SearchProvider,
       SearchResult,
       TitleMatcher
     ]
@@ -32,9 +31,6 @@ defmodule MediaCentaur.Search do
       that Prowlarr supports.
     * **Result classification** — `Quality` and `TitleMatcher` rank
       and filter results into the windows pursuits can act on.
-    * **Provider abstraction** — `SearchProvider` is the seam for
-      future indexer drivers (e.g. Jackett); every cross-boundary
-      caller goes through this layer.
 
   In-flight search *UX* state is deliberately not here — it lives in
   `MediaCentaurWeb.IncomingLive.SearchSession` (web-layer UI

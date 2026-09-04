@@ -14,10 +14,8 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
 
       assert [{query, opts}, {fallback_query, fallback_opts}] = QueryBuilder.build(criteria)
       assert query == "Sample Movie 2010"
-      assert Keyword.get(opts, :type) == :movie
       assert Keyword.get(opts, :year) == 2010
       assert fallback_query == "Sample Movie"
-      assert Keyword.get(fallback_opts, :type) == :movie
       refute Keyword.has_key?(fallback_opts, :year)
     end
 
@@ -46,7 +44,6 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
 
       assert [{query, opts}] = QueryBuilder.build(criteria)
       assert query == "Sample Movie"
-      assert Keyword.get(opts, :type) == :movie
       refute Keyword.has_key?(opts, :year)
     end
   end
@@ -61,8 +58,7 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
         episode_number: 4
       }
 
-      assert [{"Sample Show S03E04", opts}] = QueryBuilder.build(criteria)
-      assert Keyword.get(opts, :type) == :tv
+      assert [{"Sample Show S03E04", _opts}] = QueryBuilder.build(criteria)
     end
 
     test "pads single-digit season and episode" do
@@ -114,13 +110,8 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
         episode_number: nil
       }
 
-      assert [
-               {"Sample Show Season 3", primary_opts},
-               {"Sample Show S03", fallback_opts}
-             ] = QueryBuilder.build(criteria)
-
-      assert Keyword.get(primary_opts, :type) == :tv
-      assert Keyword.get(fallback_opts, :type) == :tv
+      assert [{"Sample Show Season 3", _primary_opts}, {"Sample Show S03", _fallback_opts}] =
+               QueryBuilder.build(criteria)
     end
   end
 

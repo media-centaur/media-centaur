@@ -15,7 +15,6 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
-  alias MediaCentaur.Search.Prowlarr
 
   setup do
     # Install a stub that crashes if invoked — any Prowlarr call is a

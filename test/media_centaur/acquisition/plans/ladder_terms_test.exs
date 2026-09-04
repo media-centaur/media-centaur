@@ -7,42 +7,42 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTermsTest do
 
   describe "rung constructors" do
     test "series_terms/1 is the one broad term" do
-      assert LadderTerms.series_terms(plan()) == [{"Sample Show", [type: :tv]}]
+      assert LadderTerms.series_terms(plan()) == ["Sample Show"]
     end
 
     test "apostrophes are stripped from every term (scene names carry none)" do
       tagged_plan = %Plan{title: "Sample's Show", tmdb_type: "tv"}
 
-      assert LadderTerms.series_terms(tagged_plan) == [{"Samples Show", [type: :tv]}]
+      assert LadderTerms.series_terms(tagged_plan) == ["Samples Show"]
 
       assert LadderTerms.season_terms(tagged_plan, [1]) == [
-               {"Samples Show Season 1", [type: :tv]},
-               {"Samples Show S01", [type: :tv]}
+               "Samples Show Season 1",
+               "Samples Show S01"
              ]
 
-      assert LadderTerms.episode_terms(tagged_plan, [{1, 2}]) == [{"Samples Show S01E02", [type: :tv]}]
+      assert LadderTerms.episode_terms(tagged_plan, [{1, 2}]) == ["Samples Show S01E02"]
 
       movie_plan = %Plan{title: "Sample's Movie", tmdb_type: "movie", year: 2010}
 
       assert LadderTerms.for_plan(movie_plan, []) == [
-               {"Samples Movie 2010", [type: :movie]},
-               {"Samples Movie", [type: :movie]}
+               "Samples Movie 2010",
+               "Samples Movie"
              ]
     end
 
     test "season_terms/2 emits both text forms per season, in order" do
       assert LadderTerms.season_terms(plan(), [1, 3]) == [
-               {"Sample Show Season 1", [type: :tv]},
-               {"Sample Show S01", [type: :tv]},
-               {"Sample Show Season 3", [type: :tv]},
-               {"Sample Show S03", [type: :tv]}
+               "Sample Show Season 1",
+               "Sample Show S01",
+               "Sample Show Season 3",
+               "Sample Show S03"
              ]
     end
 
     test "episode_terms/2 emits one zero-padded term per unit" do
       assert LadderTerms.episode_terms(plan(), [{1, 2}, {10, 11}]) == [
-               {"Sample Show S01E02", [type: :tv]},
-               {"Sample Show S10E11", [type: :tv]}
+               "Sample Show S01E02",
+               "Sample Show S10E11"
              ]
     end
   end
@@ -67,8 +67,8 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTermsTest do
       movie_plan = %Plan{title: "Sample Movie", tmdb_type: "movie", year: 2010}
 
       assert LadderTerms.for_plan(movie_plan, []) == [
-               {"Sample Movie 2010", [type: :movie]},
-               {"Sample Movie", [type: :movie]}
+               "Sample Movie 2010",
+               "Sample Movie"
              ]
     end
   end

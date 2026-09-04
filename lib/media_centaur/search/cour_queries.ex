@@ -32,7 +32,7 @@ defmodule MediaCentaur.Search.CourQueries do
           first_ep: {integer(), integer()},
           last_ep: {integer(), integer()}
         }
-  @type query :: {String.t(), [{:type, :tv}]}
+  @type query :: {String.t(), keyword()}
 
   @spec build(String.t(), run()) :: [query()]
   def build(_title, %{index: 0}), do: []
@@ -42,21 +42,21 @@ defmodule MediaCentaur.Search.CourQueries do
 
     [
       absolute_query(title, first, last),
-      {"#{title} #{ordinal_word(ordinal)} Season", [type: :tv]},
-      {"#{title} Season #{ordinal}", [type: :tv]},
+      {"#{title} #{ordinal_word(ordinal)} Season", []},
+      {"#{title} Season #{ordinal}", []},
       tmdb_query(title, season, first, last)
     ]
   end
 
-  defp absolute_query(title, episode, episode), do: {"#{title} - #{episode}", [type: :tv]}
-  defp absolute_query(title, first, last), do: {"#{title} #{first}-#{last}", [type: :tv]}
+  defp absolute_query(title, episode, episode), do: {"#{title} - #{episode}", []}
+  defp absolute_query(title, first, last), do: {"#{title} #{first}-#{last}", []}
 
   defp tmdb_query(title, season, episode, episode) do
-    {"#{title} S#{Format.pad2(season)}E#{Format.pad2(episode)}", [type: :tv]}
+    {"#{title} S#{Format.pad2(season)}E#{Format.pad2(episode)}", []}
   end
 
   defp tmdb_query(title, season, first, last) do
-    {"#{title} S#{Format.pad2(season)}E#{Format.pad2(first)}-E#{Format.pad2(last)}", [type: :tv]}
+    {"#{title} S#{Format.pad2(season)}E#{Format.pad2(first)}-E#{Format.pad2(last)}", []}
   end
 
   @doc """

@@ -450,9 +450,7 @@ defmodule MediaCentaur.Acquisition.Plans do
          {:ok, plan} <- fetch(unit.plan_id) do
       plan
       |> LadderTerms.for_unit(unit)
-      |> Enum.each(fn {term, opts} ->
-        Corpus.search(term, Keyword.take(opts, [:type, :year]))
-      end)
+      |> Enum.each(&Corpus.search/1)
 
       alternatives_for(plan_unit_id)
     end
@@ -477,8 +475,8 @@ defmodule MediaCentaur.Acquisition.Plans do
     terms = evidence_terms(plan, gap_units)
 
     searches =
-      for {term, opts} <- terms,
-          record = Corpus.record_for(term, Keyword.take(opts, [:type, :year])),
+      for term <- terms,
+          record = Corpus.record_for(term, []),
           record != nil do
         %GapEvidence.Search{
           term: term,
@@ -489,9 +487,7 @@ defmodule MediaCentaur.Acquisition.Plans do
 
     raw =
       terms
-      |> Enum.flat_map(fn {term, opts} ->
-        Corpus.candidates_for(term, Keyword.take(opts, [:type, :year]))
-      end)
+      |> Enum.flat_map(&Corpus.candidates_for/1)
       |> Enum.uniq_by(& &1.guid)
 
     %GapEvidence{
@@ -585,9 +581,9 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp find_raw_candidate(plan, unit, guid) do
     plan
     |> LadderTerms.for_unit(unit)
-    |> Enum.find_value(fn {term, opts} ->
+    |> Enum.find_value(fn term ->
       term
-      |> Corpus.candidates_for(Keyword.take(opts, [:type, :year]))
+      |> Corpus.candidates_for()
       |> Enum.find(&(&1.guid == guid))
       |> case do
         nil -> nil
@@ -646,9 +642,9 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp unit_candidates(plan, unit) do
     plan
     |> LadderTerms.for_unit(unit)
-    |> Enum.flat_map(fn {term, opts} ->
+    |> Enum.flat_map(fn term ->
       term
-      |> Corpus.candidates_for(Keyword.take(opts, [:type, :year]))
+      |> Corpus.candidates_for()
       |> Enum.map(&{term, &1})
     end)
     |> Enum.uniq_by(fn {_term, result} -> result.guid end)
@@ -664,10 +660,10 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp find_candidate(plan, unit, guid) do
     plan
     |> LadderTerms.for_unit(unit)
-    |> Enum.find_value({:error, :alternative_unavailable}, fn {term, opts} ->
+    |> Enum.find_value({:error, :alternative_unavailable}, fn term ->
       candidate =
         term
-        |> Corpus.candidates_for(Keyword.take(opts, [:type, :year]))
+        |> Corpus.candidates_for()
         |> Enum.find(&(&1.guid == guid))
 
       with %{} <- candidate,

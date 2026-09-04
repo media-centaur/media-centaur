@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Search.Prowlarr do
   @moduledoc """
-  `SearchProvider` implementation backed by the Prowlarr indexer aggregator API.
+  Release search and grab backed by the Prowlarr indexer aggregator API.
 
   Prowlarr API reference: https://prowlarr.com/docs/api/
 
@@ -42,8 +42,6 @@ defmodule MediaCentaur.Search.Prowlarr do
   MUST assert on `conn.method` and `conn.request_path` — earlier tests
   did not, which let the `/api/v1/release` bug ship.
   """
-
-  @behaviour MediaCentaur.Search.SearchProvider
 
   require MediaCentaur.Log, as: Log
 
@@ -105,7 +103,6 @@ defmodule MediaCentaur.Search.Prowlarr do
     end
   end
 
-  @impl true
   def search(query, opts \\ [], client \\ default_client()) do
     params = [query: query, type: "search"] ++ maybe_year(opts)
     Log.info(:acquisition, "prowlarr search — #{query}")
@@ -137,7 +134,6 @@ defmodule MediaCentaur.Search.Prowlarr do
     end
   end
 
-  @impl true
   def grab(result, client \\ default_client())
 
   def grab(%{indexer_id: nil} = result, _client) do

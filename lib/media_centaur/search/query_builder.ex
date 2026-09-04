@@ -45,14 +45,14 @@ defmodule MediaCentaur.Search.QueryBuilder do
   # User-typed manual queries pass through untouched.
   defp sanitize_title(criteria), do: %{criteria | title: QueryTerm.sanitize(criteria.title)}
 
-  defp build_movie(%Criteria{title: title, year: nil}), do: [{title, [type: :movie]}]
+  defp build_movie(%Criteria{title: title, year: nil}), do: [{title, []}]
 
   # Year query first, year-less fallback second — release names carry
   # whichever year the group's source used (festival premiere vs
   # theatrical), so the year query alone can miss every release of the
   # right movie. The worker tries queries in order.
   defp build_movie(%Criteria{title: title, year: year}) when is_integer(year) do
-    [{"#{title} #{year}", [type: :movie, year: year]}, {title, [type: :movie]}]
+    [{"#{title} #{year}", [year: year]}, {title, []}]
   end
 
   # Later-cour residual: the first-run `Season N` query is wrong (it
@@ -66,7 +66,7 @@ defmodule MediaCentaur.Search.QueryBuilder do
     case criteria.episode_number do
       episode when is_integer(episode) ->
         season = criteria.season_number
-        Enum.uniq(cour ++ [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", [type: :tv]}])
+        Enum.uniq(cour ++ [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", []}])
 
       nil ->
         cour
@@ -76,14 +76,14 @@ defmodule MediaCentaur.Search.QueryBuilder do
   defp build_tv(%Criteria{title: title, season_number: season, episode_number: nil})
        when is_integer(season) do
     [
-      {"#{title} Season #{season}", [type: :tv]},
-      {"#{title} #{season_tag(season)}", [type: :tv]}
+      {"#{title} Season #{season}", []},
+      {"#{title} #{season_tag(season)}", []}
     ]
   end
 
   defp build_tv(%Criteria{title: title, season_number: season, episode_number: episode})
        when is_integer(season) and is_integer(episode) do
-    [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", [type: :tv]}]
+    [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", []}]
   end
 
   # Whole-series fallback (no season/episode known) — rare in the
@@ -91,7 +91,7 @@ defmodule MediaCentaur.Search.QueryBuilder do
   # episode info, but legitimate when a manual TMDB pursuit targets the
   # series itself.
   defp build_tv(%Criteria{title: title, season_number: nil, episode_number: nil}) do
-    [{title, [type: :tv]}]
+    [{title, []}]
   end
 
   defp build_prowlarr_query(%Criteria{manual_query: nil}), do: []

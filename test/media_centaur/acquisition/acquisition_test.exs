@@ -248,7 +248,7 @@ defmodule MediaCentaur.AcquisitionTest do
       # alternative from the original discovery. On the next worker
       # wake the alternative must be grabbed WITHOUT a fresh indexer
       # search — only the grab POST is allowed through.
-      Corpus.record!("Sample Show S01E01", [type: :tv], [
+      Corpus.record!("Sample Show S01E01", [], [
         %SearchResult{
           title: "Sample.Show.S01E01.1080p.WEB-DL.x264-TRIED",
           guid: "guid-tried",

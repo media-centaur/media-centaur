@@ -251,23 +251,23 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   # rejected for one episode is almost never what they want for
   # another); guid dedup keeps the first term that surfaced a release.
   defp gather_rung(state, plan, terms, search_context) do
-    Enum.reduce_while(terms, state, fn {term, opts}, state ->
+    Enum.reduce_while(terms, state, fn term, state ->
       if still_planning?(plan) do
-        {:cont, gather_term(state, plan, {term, opts}, search_context)}
+        {:cont, gather_term(state, plan, term, search_context)}
       else
         {:halt, %{state | halted?: true}}
       end
     end)
   end
 
-  defp gather_term(state, plan, {term, opts}, %{
+  defp gather_term(state, plan, term, %{
          identity: identity,
          excluded: excluded,
          unit_air_dates: unit_air_dates,
          force?: force?
        }) do
     plan
-    |> search(term, opts, force?)
+    |> search(term, force?)
     |> Enum.reduce(state, fn result, state ->
       with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
            false <- MapSet.member?(excluded, result.guid),
@@ -378,9 +378,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     |> Enum.flat_map(fn run ->
       plan.title
       |> CourQueries.build(run)
-      |> Enum.flat_map(fn {term, opts} ->
+      |> Enum.flat_map(fn {term, _opts} ->
         plan
-        |> search(term, opts, force?)
+        |> search(term, force?)
         |> Enum.flat_map(&cour_option(&1, plan, run, excluded))
       end)
     end)
@@ -467,9 +467,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     {best, below_floor_guids} =
       plan
       |> LadderTerms.for_plan([])
-      |> Enum.reduce_while({nil, MapSet.new()}, fn {term, opts}, {_best, below_floor_guids} = acc ->
+      |> Enum.reduce_while({nil, MapSet.new()}, fn term, {_best, below_floor_guids} = acc ->
         if still_planning?(plan) do
-          movie_term_step(plan, {term, opts}, below_floor_guids, movie_context)
+          movie_term_step(plan, term, below_floor_guids, movie_context)
         else
           {:halt, acc}
         end
@@ -482,7 +482,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     end
   end
 
-  defp movie_term_step(plan, {term, opts}, below_floor_guids, %{
+  defp movie_term_step(plan, term, below_floor_guids, %{
          criteria: criteria,
          excluded: excluded,
          min_quality: min_quality,
@@ -491,7 +491,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
        }) do
     matched =
       plan
-      |> search(term, opts, force?)
+      |> search(term, force?)
       |> Enum.filter(fn result ->
         not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
           not MapSet.member?(excluded, result.guid) and
@@ -546,9 +546,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
   # ---------------------------------------------------------------------------
 
-  defp search(plan, term, opts, force?) do
-    served_from = if not force? and Corpus.fresh?(term, opts), do: :corpus, else: :live
-    outcome = Corpus.search(term, Keyword.put(opts, :force, force?))
+  defp search(plan, term, force?) do
+    served_from = if not force? and Corpus.fresh?(term, []), do: :corpus, else: :live
+    outcome = Corpus.search(term, force: force?)
 
     activity =
       case outcome do
