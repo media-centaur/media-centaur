@@ -72,14 +72,10 @@ defmodule MediaCentaur.Recommendations do
     with {:ok, note} <- validate_note(note) do
       secret = Identity.ensure()
       me = Identity.pubkey()
-
-      created_at =
-        stamp(
-          existing(%{author_pubkey: me, tmdb_id: title.tmdb_id, media_type: title.media_type}),
-          :after
-        )
-
-      event = title |> Translation.to_event(note, me, created_at) |> Event.sign(secret)
+      now = System.os_time(:second)
+      row = existing(%{author_pubkey: me, tmdb_id: title.tmdb_id, media_type: title.media_type})
+      times = [created_at: stamp(row, now, :after), recommended_at: now]
+      event = title |> Translation.to_event(note, me, times) |> Event.sign(secret)
 
       with {:ok, attrs} <- Translation.from_event(event),
            {:ok, rec} <- upsert(attrs) do
@@ -108,9 +104,12 @@ defmodule MediaCentaur.Recommendations do
 
   defp delete_own(%Recommendation{author_pubkey: author} = rec) do
     if author == Identity.pubkey() do
+      now = System.os_time(:second)
+      times = [created_at: stamp(rec, now, :at_or_after), deleted_at: now]
+
       event =
         author
-        |> Translation.to_deletion(rec.media_type, rec.tmdb_id, rec.event_id, stamp(rec, :at_or_after))
+        |> Translation.to_deletion(rec.media_type, rec.tmdb_id, rec.event_id, times)
         |> Event.sign(Identity.secret())
 
       with {:ok, attrs} <- Translation.from_deletion(event),
@@ -279,19 +278,19 @@ defmodule MediaCentaur.Recommendations do
 
   # --- internals ---
 
-  # The `created_at` of a new own event. A relay keeps one record per
+  # The wire time of a new own event. A relay keeps one record per
   # address and, on a tie, keeps what it holds (a deletion beating a
   # recommendation, contract Deletion rule 2), so a recommendation must
   # be stamped strictly after the recommendation or tombstone it
   # supersedes and a deletion no earlier than the recommendation it
   # withdraws — otherwise the relay discards what this install stored,
   # and the own-events diff republishes it on every connect.
-  defp stamp(nil, _bound), do: System.os_time(:second)
+  defp stamp(nil, now, _bound), do: now
 
-  defp stamp(%Recommendation{recommended_at: at, deleted_at: deleted_at}, bound) do
-    held = [at, deleted_at] |> Enum.reject(&is_nil/1) |> Enum.map(&DateTime.to_unix/1) |> Enum.max()
+  defp stamp(%Recommendation{} = rec, now, bound) do
+    held = Enum.max([Recommendation.event_created_at(rec), Recommendation.deletion_created_at(rec) || 0])
     floor = if bound == :after, do: held + 1, else: held
-    max(System.os_time(:second), floor)
+    max(now, floor)
   end
 
   defp validate_note(nil), do: {:ok, nil}
@@ -376,24 +375,21 @@ defmodule MediaCentaur.Recommendations do
     end
   end
 
-  # Newer than the row's recommendation *and* its tombstone, if any: a
-  # recommendation older than the deletion that withdrew it is the stale
-  # copy the tombstone exists to refuse.
+  # Newer on the wire than the row's recommendation *and* its tombstone,
+  # if any: a recommendation older than the deletion that withdrew it is
+  # the stale copy the tombstone exists to refuse.
   defp upsert_if_newer(attrs) do
     case existing(attrs) do
       nil ->
         Repo.insert(Recommendation.changeset(attrs))
 
-      %Recommendation{recommended_at: at, deleted_at: deleted_at} = rec ->
-        if DateTime.after?(attrs.recommended_at, at) and
-             newer_than_tombstone?(attrs.recommended_at, deleted_at),
+      %Recommendation{} = rec ->
+        if attrs.created_at > Recommendation.event_created_at(rec) and
+             attrs.created_at > (Recommendation.deletion_created_at(rec) || 0),
            do: Repo.update(Recommendation.changeset(rec, attrs)),
            else: :ignored
     end
   end
-
-  defp newer_than_tombstone?(_at, nil), do: true
-  defp newer_than_tombstone?(at, deleted_at), do: DateTime.after?(at, deleted_at)
 
   # A deletion applies to a recommendation at or before its time; a row
   # already withdrawn by a deletion at least as new is left alone, and a
@@ -404,15 +400,16 @@ defmodule MediaCentaur.Recommendations do
         :ignored
 
       %Recommendation{} = rec ->
-        if tombstone_applies?(rec, attrs.deleted_at), do: tombstone(rec, attrs), else: :ignored
+        if tombstone_applies?(rec, attrs.created_at), do: tombstone(rec, attrs), else: :ignored
     end
   end
 
-  defp tombstone_applies?(%Recommendation{deleted_at: %DateTime{} = already}, deleted_at),
-    do: DateTime.after?(deleted_at, already)
-
-  defp tombstone_applies?(%Recommendation{recommended_at: at}, deleted_at),
-    do: not DateTime.after?(at, deleted_at)
+  defp tombstone_applies?(%Recommendation{} = rec, created_at) do
+    case Recommendation.deletion_created_at(rec) do
+      nil -> created_at >= Recommendation.event_created_at(rec)
+      already -> created_at > already
+    end
+  end
 
   defp tombstone(rec, attrs) do
     with {:ok, rec} <- Repo.update(Recommendation.tombstone_changeset(rec, attrs)) do

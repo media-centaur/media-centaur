@@ -31,12 +31,12 @@ defmodule MediaCentaur.RecommendationsTest do
   defp title(id \\ 603),
     do: Title.new!(%{tmdb_id: id, media_type: :movie, name: "Sample Movie #{id}", year: "1999"})
 
-  defp friend_event(title, note, created_at) do
-    Event.sign(
-      %{Translation.to_event(title, note, @friend_pubkey) | created_at: created_at},
-      @friend_secret
-    )
+  defp friend_event(title, note, created_at, recommended_at \\ nil) do
+    opts = [created_at: created_at, recommended_at: recommended_at || created_at]
+    Event.sign(Translation.to_event(title, note, @friend_pubkey, opts), @friend_secret)
   end
+
+  defp wire_time(%DateTime{} = at), do: DateTime.to_unix(at)
 
   describe "recommend/2" do
     test "signs with the identity, stores it as a sent recommendation, and broadcasts" do
@@ -287,38 +287,80 @@ defmodule MediaCentaur.RecommendationsTest do
   describe "own events are stamped after what the row holds" do
     test "a re-recommendation is stamped after the recommendation it replaces" do
       {:ok, rec} = Recommendations.recommend(title(), "first")
-      ahead = ahead_of_now()
-      force_attrs(rec, recommended_at: ahead)
+      ahead = wire_time(ahead_of_now())
+      force_attrs(rec, raw_event: Map.put(rec.raw_event, "created_at", ahead))
 
       {:ok, again} = Recommendations.recommend(title(), "second")
-      assert DateTime.after?(again.recommended_at, ahead)
-      assert again.raw_event["created_at"] == DateTime.to_unix(again.recommended_at)
+      assert again.raw_event["created_at"] > ahead
+      # The domain time is when the person acted, not the wire stamp.
+      assert DateTime.before?(again.recommended_at, DateTime.from_unix!(ahead))
       await_supervised_tasks()
     end
 
     test "a revival is stamped after the tombstone" do
       {:ok, rec} = Recommendations.recommend(title(), "mine")
       {:ok, gone} = Recommendations.delete(rec.id)
-      ahead = ahead_of_now()
-      force_attrs(gone, deleted_at: ahead)
+      ahead = wire_time(ahead_of_now())
+      force_attrs(gone, deletion_event: Map.put(gone.deletion_event, "created_at", ahead))
 
       {:ok, again} = Recommendations.recommend(title(), "again")
-      assert DateTime.after?(again.recommended_at, ahead)
+      assert again.raw_event["created_at"] > ahead
       await_supervised_tasks()
     end
 
     test "a deletion is stamped no earlier than the recommendation it withdraws" do
       {:ok, rec} = Recommendations.recommend(title(), "mine")
-      ahead = ahead_of_now()
-      force_attrs(rec, recommended_at: ahead)
+      ahead = wire_time(ahead_of_now())
+      force_attrs(rec, raw_event: Map.put(rec.raw_event, "created_at", ahead))
 
       {:ok, gone} = Recommendations.delete(rec.id)
-      refute DateTime.before?(gone.deleted_at, ahead)
-      assert gone.deletion_event["created_at"] == DateTime.to_unix(gone.deleted_at)
+      assert gone.deletion_event["created_at"] >= ahead
+      assert DateTime.before?(gone.deleted_at, DateTime.from_unix!(ahead))
       await_supervised_tasks()
     end
 
     defp ahead_of_now, do: DateTime.utc_now() |> DateTime.add(100, :second) |> DateTime.truncate(:second)
+  end
+
+  describe "wire time and domain time" do
+    setup do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      :ok
+    end
+
+    test "the payload's time is the row's recommended_at; created_at decides which copy wins" do
+      now = System.os_time(:second)
+      {:ok, rec} = Recommendations.ingest(friend_event(title(), "a", now, now - 1_000))
+      assert rec.recommended_at == DateTime.from_unix!(now - 1_000)
+
+      # Newer on the wire replaces, whatever the payload says.
+      {:ok, rec} = Recommendations.ingest(friend_event(title(), "b", now + 1, now - 2_000))
+      assert rec.note == "b"
+      assert rec.recommended_at == DateTime.from_unix!(now - 2_000)
+
+      # Older on the wire is the stale copy, whatever the payload says.
+      assert :ignored = Recommendations.ingest(friend_event(title(), "c", now - 5, now + 5_000))
+      assert [%{recommendation: %{note: "b"}}] = Recommendations.list_feed()
+      await_supervised_tasks()
+    end
+
+    test "a deletion's tag is the row's deleted_at; created_at decides whether it applies" do
+      now = System.os_time(:second)
+      {:ok, _rec} = Recommendations.ingest(friend_event(title(), "a", now))
+
+      early_act_late_wire =
+        Event.sign(
+          Translation.to_deletion(@friend_pubkey, :movie, 603, nil,
+            created_at: now + 1,
+            deleted_at: now - 50
+          ),
+          @friend_secret
+        )
+
+      assert {:ok, %Recommendation{deleted_at: deleted_at}} = Recommendations.ingest(early_act_late_wire)
+      assert deleted_at == DateTime.from_unix!(now - 50)
+      await_supervised_tasks()
+    end
   end
 
   describe "ingest/1 of a deletion" do

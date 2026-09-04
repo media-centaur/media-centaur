@@ -113,7 +113,10 @@ defmodule MediaCentaur.Recommendations.SyncTest do
         @friend_secret
       )
 
-  test "the first connect has no cursor; a reconnect asks only for what is newer" do
+  # No cursor: a relay holds one record per signer per title, so a friend
+  # group's whole history is one page, and a `since` cursor would skip an
+  # event published late with an older stamp (a withdrawal made offline).
+  test "every connect reads the relay from the start; what is already stored is not news" do
     now = System.os_time(:second)
     relay = FakeRelay.start(events: [friend_event_at(1, now - 100)])
     {:ok, _row} = Social.add_relay(relay.url)
@@ -121,11 +124,15 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     assert_receive {:relay_in, ["REQ", "feed", first]}, 5_000
     refute Map.has_key?(first, "since")
     assert_receive {:recommendation_received, _event}, 5_000
-    assert Social.synced_until(relay.url) == now - 100
 
     FakeRelay.drop(relay)
-    assert_receive {:relay_in, ["REQ", "feed", %{"since" => since}]}, 5_000
-    assert since == now - 100
+    # The reconnect sends "feed" twice (the owner replays its registered
+    # subscription, then Sync re-issues it); neither carries a cursor.
+    assert_receive {:relay_in, ["REQ", "feed", again]}, 5_000
+    refute Map.has_key?(again, "since")
+    refute_receive {:relay_in, ["REQ", "feed", %{"since" => _cursor}]}, 500
+    refute_receive {:recommendation_received, _event}, 100
+    assert [%{recommendation: %{tmdb_id: 1}}] = Recommendations.list_feed()
     await_supervised_tasks()
   end
 
@@ -149,9 +156,9 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     refute Map.has_key?(first, "until")
     assert_receive {:relay_in, ["REQ", "feed", %{"until" => until}]}, 5_000
     assert until == now - 20 - 1
-    assert_receive {:relay_in, ["REQ", "feed", %{"since" => since} = live]}, 5_000
+    assert_receive {:relay_in, ["REQ", "feed", %{"limit" => 2} = live]}, 5_000
     refute Map.has_key?(live, "until")
-    assert since == now - 10
+    refute Map.has_key?(live, "since")
 
     render_all = fn ->
       Recommendations.list_feed() |> Enum.map(& &1.recommendation.tmdb_id) |> Enum.sort()

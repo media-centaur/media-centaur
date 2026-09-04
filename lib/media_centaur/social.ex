@@ -73,29 +73,6 @@ defmodule MediaCentaur.Social do
   def list_relays, do: Repo.all(from(relay in Relay, order_by: relay.url))
 
   @doc """
-  Advances a relay's sync cursor (`synced_until`, Unix seconds) — the
-  newest event time seen from it. Never moves backwards; a URL with no
-  row is a no-op (the relay was removed mid-sync).
-  """
-  @spec advance_synced_until(String.t(), non_neg_integer()) :: :ok
-  def advance_synced_until(url, created_at) when is_binary(url) and is_integer(created_at) do
-    Repo.update_all(
-      from(relay in Relay,
-        where: relay.url == ^url and (is_nil(relay.synced_until) or relay.synced_until < ^created_at)
-      ),
-      set: [synced_until: created_at]
-    )
-
-    :ok
-  end
-
-  @doc "A relay's sync cursor, or nil before its first event (or when the URL is unknown)."
-  @spec synced_until(String.t()) :: non_neg_integer() | nil
-  def synced_until(url) when is_binary(url) do
-    Repo.one(from(relay in Relay, where: relay.url == ^url, select: relay.synced_until))
-  end
-
-  @doc """
   Adds a friend by npub or 64-hex key with a local nickname. Idempotent
   on the key: re-adding one already on the roster renames it.
   """

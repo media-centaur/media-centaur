@@ -5,17 +5,15 @@ defmodule MediaCentaur.Recommendations.Sync do
   `social:connections`:
 
     * `:connected` for a relay → subscribe `"feed"` (authors = friends ++
-      self, kinds 32160 and 5, `since` = the relay's sync cursor, `limit`
-      = the page size) and `"own:<url>"` (authors = [self], both kinds)
-      on that relay; collect the event ids the relay sends on the own sub.
+      self, kinds 32160 and 5, `limit` = the page size) and `"own:<url>"`
+      (authors = [self], both kinds) on that relay; collect the event ids
+      the relay sends on the own sub.
     * `{:event, "feed", event}` → `Recommendations.ingest/1` (verified,
-      friend or self, newest wins; a deletion tombstones), then advance
-      the relay's sync cursor (`Social.advance_synced_until/2`) so the
-      next connect asks only for what is newer.
+      friend or self, newest wins; a deletion tombstones).
     * `{:eose, "feed"}` → if the page came back full, ask for the next
-      one (`until` = one second before the oldest seen, same `since`);
-      after a short page that followed a full one, re-issue `"feed"` live
-      (no `until`) so new events keep arriving.
+      one (`until` = one second before the oldest seen); after a short
+      page that followed a full one, re-issue `"feed"` live (no `until`)
+      so new events keep arriving.
     * `{:eose, "own:<url>"}` → publish to that relay every stored own
       event it did not send — recommendations of live rows, deletions of
       withdrawn ones. A per-relay diff, not a blanket re-publish.
@@ -25,7 +23,14 @@ defmodule MediaCentaur.Recommendations.Sync do
       connection keeps the reason as the relay row's last error.
 
   Consumes `social:updates`: a roster change re-issues `"feed"` on every
-  connected relay with the new author list and that relay's cursor.
+  connected relay with the new author list.
+
+  Every connect reads the relay from the start: no `since` cursor. A relay
+  holds one record per signer per title (contract Deletion rule 3), so a
+  friend group's whole history is a page, and a cursor keyed on
+  `created_at` would skip an event published late with an older stamp —
+  a withdrawal made offline. Re-reading is idempotent: ingest ignores
+  what is not newer than the row.
 
   On reconnect, `Connections.Owner` also re-applies the relay's
   previously-registered subscriptions (its own job, independent of this
@@ -56,7 +61,7 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   defmodule Page do
     @moduledoc false
-    defstruct since: nil, count: 0, oldest: nil, paging?: false
+    defstruct count: 0, oldest: nil, paging?: false
   end
 
   defstruct seen: %{}, pages: %{}, page_limit: @default_page_limit
@@ -72,13 +77,12 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   @impl true
   def handle_info({:relay_connection, url, :connected}, state) do
-    since = Social.synced_until(url)
     Connections.subscribe(url, own_sub(url), [own_filter()])
 
     state =
       state
       |> put_in([Access.key(:seen), url], MapSet.new())
-      |> subscribe_feed(url, since, nil, false)
+      |> subscribe_feed(url, nil, false)
 
     {:noreply, state}
   end
@@ -86,9 +90,6 @@ defmodule MediaCentaur.Recommendations.Sync do
   def handle_info({:relay_connection, url, {:event, sub_id, event}}, state) do
     state = if sub_id == own_sub(url), do: mark_seen(state, url, event.id), else: state
     state = if sub_id == @feed, do: note_page_event(state, url, event), else: state
-    # Before ingest, whose broadcast is what readers wake on: the relay
-    # has delivered the event, whatever ingest makes of it.
-    if sub_id == @feed, do: Social.advance_synced_until(url, event.created_at)
 
     case Recommendations.ingest(event) do
       {:ok, _rec} ->
@@ -128,9 +129,9 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   # --- feed paging ---------------------------------------------------------
 
-  defp subscribe_feed(state, url, since, until, paging?) do
-    Connections.subscribe(url, @feed, [feed_filter(since, until, state.page_limit)])
-    put_in(state, [Access.key(:pages), url], %Page{since: since, paging?: paging?})
+  defp subscribe_feed(state, url, until, paging?) do
+    Connections.subscribe(url, @feed, [feed_filter(until, state.page_limit)])
+    put_in(state, [Access.key(:pages), url], %Page{paging?: paging?})
   end
 
   defp note_page_event(state, url, event) do
@@ -145,12 +146,11 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   defp next_page(state, url) do
     case Map.get(state.pages, url) do
-      %Page{count: count, oldest: oldest, since: since}
-      when count >= state.page_limit and is_integer(oldest) ->
-        subscribe_feed(state, url, since, oldest - 1, true)
+      %Page{count: count, oldest: oldest} when count >= state.page_limit and is_integer(oldest) ->
+        subscribe_feed(state, url, oldest - 1, true)
 
       %Page{paging?: true} ->
-        subscribe_feed(state, url, Social.synced_until(url), nil, false)
+        subscribe_feed(state, url, nil, false)
 
       _short_first_page_or_unknown ->
         state
@@ -160,9 +160,7 @@ defmodule MediaCentaur.Recommendations.Sync do
   defp resubscribe(state) do
     Connections.status()
     |> Enum.filter(fn {_url, entry} -> Connections.connected?(entry) end)
-    |> Enum.reduce(state, fn {url, _entry}, acc ->
-      subscribe_feed(acc, url, Social.synced_until(url), nil, false)
-    end)
+    |> Enum.reduce(state, fn {url, _entry}, acc -> subscribe_feed(acc, url, nil, false) end)
   end
 
   # --- own events ------------------------------------------------------------
@@ -189,9 +187,9 @@ defmodule MediaCentaur.Recommendations.Sync do
   # Before an identity exists there is nothing to subscribe as — and no
   # connection either, since `Connections` starts none — but the nil
   # would still reach the wire as an author, so it is filtered out.
-  defp feed_filter(since, until, limit) do
+  defp feed_filter(until, limit) do
     authors = Enum.reject(Enum.uniq([Identity.pubkey() | Social.friend_pubkeys()]), &is_nil/1)
-    Filter.new(authors: authors, kinds: kinds(), since: since, until: until, limit: limit)
+    Filter.new(authors: authors, kinds: kinds(), until: until, limit: limit)
   end
 
   defp own_filter, do: Filter.new(authors: Enum.reject([Identity.pubkey()], &is_nil/1), kinds: kinds())

@@ -168,11 +168,20 @@ recommendation older than a row's tombstone is `:ignored`; a newer one revives.
 Every read excludes tombstones except `own_events/0`, which yields the deletion
 of a withdrawn own row instead of its recommendation.
 
+**Two times.** `created_at` is the *wire* time: it decides which copy wins,
+here (`upsert_if_newer`, `tombstone_applies?`, read off the stored events via
+`Recommendation.event_created_at/1` / `deletion_created_at/1`) and on the
+relay, and nothing else. The *domain* time is when the person acted —
+`recommended_at` in the content, a `deleted_at` tag on the deletion — and is
+what `recommended_at` / `deleted_at` on the row hold, so ordering and display
+never move when a message is re-signed or arrives late. A message without
+its domain time gets the wire time as fallback.
+
 **Stamping.** A relay keeps one record per address and, on a `created_at` tie,
 keeps what it holds (a deletion beating a recommendation). So `recommend/2`
 stamps a new own recommendation strictly after the recommendation or tombstone
 the row already holds, and `delete/1` stamps the deletion no earlier than the
-recommendation it withdraws (`Recommendations.stamp/2`, private). Without this
+recommendation it withdraws (`Recommendations.stamp/3`, private). Without this
 a same-second re-recommendation would replace the row here, be discarded by
 the relay, and be republished by the own-events diff on every connect.
 
@@ -182,20 +191,23 @@ the relay, and be republished by the own-events diff on every connect.
 `social:updates`:
 
 1. `:connected` for a relay → subscribe `"feed"` (authors = friends ++ self,
-   kinds 32160 + 5, `since` = `relays.synced_until`, `limit` 500) and
-   `"own:<url>"` (authors = [self], both kinds) on that relay, and reset the
-   seen-set for that URL.
-2. `{:event, "feed", event}` → advance the relay's cursor
-   (`Social.advance_synced_until/2`), then `Recommendations.ingest/1` (verify
-   signature, require a known author, newest wins, deletions tombstone).
-   Events on `"own:<url>"` also record their id in the seen-set.
-3. `{:eose, "feed"}` → a full page asks for the next (`until` = oldest − 1, same
-   `since`); the first short page after paging re-issues `"feed"` live.
+   kinds 32160 + 5, `limit` 500, no `since`) and `"own:<url>"` (authors =
+   [self], both kinds) on that relay, and reset the seen-set for that URL.
+2. `{:event, "feed", event}` → `Recommendations.ingest/1` (verify signature,
+   require a known author, newest wins, deletions tombstone). Events on
+   `"own:<url>"` also record their id in the seen-set.
+3. `{:eose, "feed"}` → a full page asks for the next (`until` = oldest − 1);
+   the first short page after paging re-issues `"feed"` live.
 4. `{:eose, "own:<url>"}` → publish to that relay every stored own event it did
    *not* send — recommendations of live rows, deletions of withdrawn ones. A
    per-relay diff, not a blanket re-publish.
 5. A roster change on `social:updates` resubscribes `"feed"` on every connected
-   relay with the new author list and that relay's cursor.
+   relay with the new author list.
+
+There is no sync cursor: every connect reads the relay from the start. A relay
+holds one record per signer per title, so the whole history is a page, and a
+`since` keyed on `created_at` skipped an event published late with an older
+stamp (a withdrawal made offline). Re-reading is idempotent.
 6. `{:ok, id, false, reason}` → a warning naming what the relay refused
    (`Recommendations.own_event_kind/1`: "rejected a deletion: …" / "rejected a
    recommendation: …"). The publisher owns the wording; `Connections` only keeps
