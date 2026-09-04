@@ -37,16 +37,49 @@ running.
 
 ## Status
 
-Nothing resolved yet. Sweep run 2026-09-04 against `7e1df187` (v1.7.3):
-57 engineering, 10 performance, 42 documentation, 25 design findings.
-Criticals: P1; DS4, DS14, DS15, DS16, DS25. Engineering's top items are
-E19/E46 (movie approve rehydrates under the wrong corpus key), E7/E22/E23
-(Schema-v2 compat leftovers), E52/E53 (precommit gaps).
+Engineering Pass 1 (E1–E6) and Pass 2 (E7–E18) resolved 2026-09-04, in
+eight commits from `a661eea7` to the EntityView commit. Pass 3 (E19–E28)
+in progress. Sweep run 2026-09-04 against `7e1df187` (v1.7.3): 57
+engineering, 10 performance, 42 documentation, 25 design findings.
+Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 
 ## Decisions made
 
 * `2026-09-04` — Four-audit sweep run; campaign created with the
   engineering lane first, other lanes staged for later elaboration.
+* `2026-09-04` — Owner directed: resolve engineering Pass 1, then Pass 2
+  and Pass 3 under the `unify_design` skill, commit as we go, review
+  before continuing. The stage grouping below stays as the map of what
+  remains; the pass order is what was executed.
+* `2026-09-04` — **E7 decided: the entity-map is the read contract, typed.**
+  `Library.EntityView` is one struct that both adapters fill in full
+  (`DetailItem.to_entity_view/1` from the projection,
+  `EntityShape.to_entity_view/2` from a record). Task E (consumers on
+  `%DetailItem{}`) was rejected: playback and the Browse rebuild read the
+  database by design (ADR-041), so two sources into one typed view is the
+  coherent shape, not a compromise.
+* `2026-09-04` — **E9 decided: an integration client is a function of its
+  settings.** Drivers take `%ClientConfig{}` per call; TMDB, Prowlarr and
+  the drivers build their Req client per call; `invalidate_client/0` is
+  gone everywhere. Tests reach `Req.Test` through `MediaCentaur.HttpClient`
+  and `config :media_centaur, :req_test_stubs` instead of writing clients
+  into `persistent_term` — two tests that had been quietly hitting the
+  real TMDB API surfaced and were stubbed.
+* `2026-09-04` — **E11 decided:** `Capabilities.save_integration/2` is the
+  one save path (blank secrets leave the value, a change clears the test
+  result); `Capabilities.configured?/1` the one configured predicate.
+  `Acquisition.Config` deleted.
+* `2026-09-04` — **E18 decided:** `Pipeline.Stats` and `Image.Stats`
+  broadcast a coalesced `{:pipeline_stats_updated, :content | :image}` on
+  `pipeline:stats` (≤1 per 500 ms, none idle); Status and Library pages
+  subscribe. This also resolves the polling half of **P2**; the
+  `retrying_count` DB read now runs only on image-pipeline updates.
+* `2026-09-04` — **E12:** Pipeline declares its dependency on Review
+  (`PendingFile.parsed_attrs/1`); it was already building Review's row.
+* `2026-09-04` — **Declined for now:** the three Settings-key separator
+  styles (Pass 1 minor). Renaming persisted keys needs a data migration
+  for a cosmetic gain; revisit if a fourth style appears. **E34**
+  (god-module LiveViews) untouched per Stage E-10.
 
 ---
 
