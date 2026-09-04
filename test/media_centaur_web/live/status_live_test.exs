@@ -30,6 +30,14 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       {:ok, _view, html} = live_async!(conn, "/status?subsystem=tmdb")
       assert html =~ "metadata-activity"
     end
+
+    test "http drill-in renders one row per upstream", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=http")
+
+      for id <- MediaCentaur.HttpClient.Upstream.ids() do
+        assert has_element?(view, "#http-upstream-#{id}")
+      end
+    end
   end
 
   describe "first paint from projections (instant-navigation)" do

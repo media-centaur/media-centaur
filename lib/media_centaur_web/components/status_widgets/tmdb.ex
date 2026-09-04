@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.Components.StatusWidgets.Tmdb do
   @moduledoc """
-  TMDB subsystem Activity widget: integration config + rate-limiter budget.
+  TMDB subsystem Activity widget: integration config + metadata-activity feed.
+  The rate-limit budget lives on the Connections widget's TMDB row.
 
   Rendered into the health-board drill-in's :activity slot via
   MediaCentaurWeb.StatusLive.ActivityWidgets, invoked with a plain data
@@ -13,11 +14,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Tmdb do
   import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1]
   import MediaCentaurWeb.Components.StatusWidgets.Shared
 
-  @doc "TMDB subsystem Activity widget: external-integration configuration + rate-limiter budget."
-  attr :rate_limiter, :map,
-    default: nil,
-    doc: "TMDB.RateLimiter.status/0 result (%{used, total}), or nil when not started"
-
+  @doc "TMDB subsystem Activity widget: external-integration configuration + metadata-activity feed."
   attr :config, :map,
     required: true,
     doc: "status-page config map (tmdb_configured? + related runtime config keys)"
@@ -57,16 +54,6 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Tmdb do
                 not configured
               </.settings_link>
             </div>
-
-            <div :if={@rate_limiter} class="flex items-center gap-3 text-sm">
-              <span class="font-mono text-base-content/60">
-                {@rate_limiter.used}/{@rate_limiter.total} used
-              </span>
-            </div>
-
-            <span :if={!@rate_limiter} class="text-sm text-base-content/40">
-              rate limiter not started
-            </span>
           </div>
         </div>
 

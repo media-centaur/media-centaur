@@ -108,6 +108,7 @@ config :media_centaur, Oban,
 # these at runtime (boundary-clean IoC). Rolled out incrementally — TMDB first.
 config :media_centaur, :diagnostics_contributors, %{
   tmdb: MediaCentaur.TMDB.IncidentContext,
+  http: MediaCentaur.HttpClient.IncidentContext,
   self_update: MediaCentaur.SelfUpdate.IncidentContext,
   acquisition: MediaCentaur.Acquisition.IncidentContext,
   social: MediaCentaur.Social.IncidentContext
@@ -123,6 +124,7 @@ config :media_centaur, :health_activity_widgets, %{
   watcher: {MediaCentaurWeb.Components.StatusWidgets.Watcher, :watcher_widget},
   pipeline: {MediaCentaurWeb.Components.StatusWidgets.Pipeline, :pipeline_widget},
   tmdb: {MediaCentaurWeb.Components.StatusWidgets.Tmdb, :tmdb_widget},
+  http: {MediaCentaurWeb.Components.StatusWidgets.Http, :http_widget},
   playback: {MediaCentaurWeb.Components.StatusWidgets.Playback, :playback_widget},
   acquisition: {MediaCentaurWeb.Components.StatusWidgets.Acquisition, :acquisition_widget},
   social: {MediaCentaurWeb.Components.StatusWidgets.Social, :social_widget},

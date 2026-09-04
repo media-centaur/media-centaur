@@ -201,7 +201,7 @@ defmodule MediaCentaur.Maintenance do
 
   Idempotent: subsequent runs skip movies that already have non-empty
   cast and non-empty crew. Rate-limited automatically by
-  `MediaCentaur.TMDB.RateLimiter` inside `Client.get_movie/1`.
+  the TMDB client's `RateLimiter` step.
 
   Broadcasts `entities_changed` for the updated movies so the ETS
   Detail projection (and any open modal) picks up the new cast/crew
@@ -229,7 +229,7 @@ defmodule MediaCentaur.Maintenance do
 
   Idempotent: subsequent runs skip series that already have non-empty
   cast and non-empty crew. Rate-limited automatically by
-  `MediaCentaur.TMDB.RateLimiter` inside `Client.get_tv/1`.
+  the TMDB client's `RateLimiter` step.
 
   Broadcasts `entities_changed` for the updated series so dependent
   caches refresh in place.

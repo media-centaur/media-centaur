@@ -14,34 +14,10 @@ per-upstream traffic, errors, latency, and cache effectiveness.
 
 ## Status
 
-Paused 2026-09-04 after step 3. Steps 1–3 are committed (`1d0b7b77`,
-`e543385e`): the seam with upstream tagging and instrumentation, the
-cache plugin and coordinator with revalidation and single-flight, and
-TMDB adoption with keyword options and reload sites. Step 4 (client-path
-convergence) was fully read but nothing of it is written yet.
-
-Step 4 findings to carry forward:
-
-* `ImageFiles` serves two upstreams (TMDB CDN, Steam CDN), so its
-  `download/3` and `download_raw/3` take a required `upstream:` option
-  from the four callers (showcase, tmdb_artwork, image_processor,
-  apps/artwork).
-* `NoopImageDownloader` and the `:image_http_client` /
-  `:steam_store_http_client` config keys go away; `ImageFiles`,
-  `SteamStore`, `UpdateChecker`, `Downloader`, and `InfoHash` join the
-  `req_test_stubs` map (`:images`, `:steam`, `:github`, `:github`,
-  `:indexers`). An un-stubbed image download in a test raises inside
-  Req and is rescued by `ImageFiles.fetch/2` into a transient error;
-  confirm the full suite accepts that in place of the noop's empty 200.
-* Tests to rewrite on `Req.Test`: image_files_test, image_processor_test,
-  apps_test, steam_store_test, steam_art_controller_test,
-  checker_job_test (replace the persistent-term client with a `:github`
-  stub).
-* Boundaries to widen with `MediaCentaur.HttpClient`: Apps, SelfUpdate,
-  Acquisition.
-* Showcase's `Req.new(plug:)` clients in Prowlarr and qBittorrent become
-  `HttpClient.new(__MODULE__, upstream: …, plug: …)`; Prowlarr, qBittorrent,
-  SABnzbd add their `upstream:`.
+Steps 1–7 implemented 2026-09-04 (seam, cache, TMDB adoption, client
+convergence, Credo MC0029, Connections tile, docs + ADR-064 + wiki).
+Pending: `mix precommit` green, a real-browser look at
+`/status?subsystem=http` on the dev server, then the scheduled follow-up.
 
 ## Decisions made
 
@@ -61,14 +37,11 @@ Step 4 findings to carry forward:
 
 ## Next steps
 
-1. `HttpClient.new` with `upstream:` and instrumentation steps.
-2. `Cache` plugin and `Coordinator`.
-3. TMDB adoption.
-4. Client-path convergence and test rewrites.
-5. Credo check.
-6. Stats, incident context, board, widget, story, smoke test.
-7. Docs, ADR, wiki.
-8. Follow-up: stats base collapse.
+1. Verify the Connections drill-in in the real app (dev server, after
+   `mix assets.build` for the new console chip colour).
+2. Push the wiki edit when the app version carrying the tile ships.
+3. Follow-up: collapse `MetadataStats`, `Image.Stats`, `ScanStats`, and
+   `HttpClient.Stats` onto one attach/cast/snapshot base.
 
 ## Completion criteria
 

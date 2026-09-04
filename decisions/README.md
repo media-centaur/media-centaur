@@ -68,6 +68,7 @@ System design, data model, integration patterns, and engineering standards. Thes
 | 061 | 2026-08-16 | [Release quality: gates bound, ladders order, a profile chooses — size is never a signal](architecture/2026-08-16-061-source-quality-ladder.md) | accepted |
 | 062 | 2026-08-18 | [Episode auto-advance rides the mpv playlist inside one session](architecture/2026-08-18-062-playlist-based-episode-advance.md) | accepted |
 | 063 | 2026-08-31 | [Plan diagnosis model: per-unit outcomes, per-title quality bounds, status-observed cancellation](architecture/2026-08-31-063-plan-diagnosis-model.md) | accepted |
+| 064 | 2026-09-04 | [Outbound HTTP goes through one seam: upstream tagging, instrumentation, and an origin-freshness cache](architecture/2026-09-04-064-outbound-http-seam.md) | accepted |
 
 ## User Interface (`user-interface/`)
 

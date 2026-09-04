@@ -18,7 +18,7 @@
   `If-None-Match`. A 304 renews freshness and keeps the stored body.
 - **Reload** — a call that must reach the upstream regardless of cache
   state, and overwrites the entry with what comes back. Requested with
-  `cache: :reload`.
+  the per-request option `reload: true`.
 - **Single-flight** — concurrent misses or revalidations on one key
   share one in-flight request.
 - **Coordinator** — the GenServer owning the cache table that runs
@@ -75,7 +75,7 @@ attached at the seam, not features beside the client.
 
 - Freshness comes from origin `max-age`. No hand-written TTL table.
 - `/configuration` (the credential probe) and the release-tracking
-  refresher use `cache: :reload`.
+  refresher pass `reload: true`.
 - Artwork and file downloads never attach the cache.
 - Rate limiting stays TMDB's. `TMDB.RateLimiter` gains a request step
   TMDB attaches after the cache step, so a hit never spends a slot.

@@ -2670,6 +2670,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 .chip-watcher     { --chip-h: 150; --chip-c: 0.14; }
 .chip-pipeline    { --chip-h: 295; --chip-c: 0.14; }
 .chip-tmdb        { --chip-h: 200; --chip-c: 0.15; }
+.chip-http        { --chip-h: 180; --chip-c: 0.13; }
 .chip-playback    { --chip-h:  85; --chip-c: 0.15; }
 .chip-library     { --chip-h:  10; --chip-c: 0.15; }
 .chip-acquisition { --chip-h: 230; --chip-c: 0.15; }

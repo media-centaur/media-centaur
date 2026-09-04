@@ -131,6 +131,7 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
     |> assign(config: load_config())
     |> assign(rate_limiter: fetch_rate_limiter())
+    |> assign(http_stats: MediaCentaur.HttpClient.Stats.snapshot())
     |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
     |> assign(retry_status: fetch_retry_status())
     |> assign(playback: build_playback_state())
@@ -260,10 +261,12 @@ defmodule MediaCentaurWeb.StatusLive do
       pipeline_concurrency: assigns.pipeline_concurrency,
       image_concurrency: assigns.image_pipeline_concurrency,
       # tmdb
-      rate_limiter: assigns.rate_limiter,
       config: assigns.config,
       metadata_stats: assigns.metadata_stats,
       low_confidence_count: assigns.overview && assigns.overview.pending_review_count,
+      # http (connections)
+      http_stats: assigns.http_stats,
+      rate_limiter: assigns.rate_limiter,
       # playback
       playback: assigns.playback,
       playback_activity: assigns.playback_activity,
@@ -387,9 +390,17 @@ defmodule MediaCentaurWeb.StatusLive do
      )}
   end
 
+  # HTTP figures ride the same tick: they are runtime measurements, not
+  # a projection with a change event.
   def handle_info(:refresh_vitals, socket) do
     Process.send_after(self(), :refresh_vitals, @vitals_refresh_ms)
-    {:noreply, assign(socket, system_vitals: Vitals.snapshot())}
+
+    {:noreply,
+     assign(socket,
+       system_vitals: Vitals.snapshot(),
+       http_stats: MediaCentaur.HttpClient.Stats.snapshot(),
+       rate_limiter: fetch_rate_limiter()
+     )}
   end
 
   # Status.Views projection refreshed (library overview: entity/review

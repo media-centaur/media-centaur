@@ -4,12 +4,13 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
   alias MediaCentaurWeb.StatusLive.HealthBoard
 
   describe "board_subsystems/0" do
-    test "lists the nine app subsystems in display order" do
+    test "lists the ten app subsystems in display order" do
       assert HealthBoard.board_subsystems() ==
                [
                  :watcher,
                  :pipeline,
                  :tmdb,
+                 :http,
                  :playback,
                  :library,
                  :acquisition,
@@ -150,7 +151,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
 
       views = HealthBoard.build_board(buckets)
 
-      assert length(views) == 9
+      assert length(views) == 10
       assert Enum.map(views, & &1.component) == HealthBoard.board_subsystems()
 
       import_view = Enum.find(views, &(&1.component == :pipeline))
