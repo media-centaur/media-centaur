@@ -21,6 +21,12 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`http-client-unification.md`](http-client-unification.md) —
+  **in-progress, started 2026-09-04.** Every outbound HTTP request
+  through `HttpClient.new/2`; an origin-freshness response cache with
+  ETag revalidation for TMDB and Steam; an `:http` Status tile with
+  per-upstream traffic, errors, latency, and cache effectiveness.
+  Plan: `docs/plans/2026-09-04-http-client-cache-and-upstreams-panel.md`.
 * [`audit-remediation-2026-09.md`](audit-remediation-2026-09.md) —
   **in-progress, started 2026-09-04.** Work off the four-audit sweep of
   2026-09-04 (57 engineering / 10 performance / 42 documentation / 25

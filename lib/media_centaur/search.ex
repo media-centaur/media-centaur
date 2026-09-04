@@ -1,6 +1,11 @@
 defmodule MediaCentaur.Search do
   use Boundary,
-    deps: [MediaCentaur.Capabilities, MediaCentaur.ErrorReports, MediaCentaur.Settings],
+    deps: [
+      MediaCentaur.Capabilities,
+      MediaCentaur.ErrorReports,
+      MediaCentaur.HttpClient,
+      MediaCentaur.Settings
+    ],
     exports: [
       CourCoverage,
       CourQueries,
