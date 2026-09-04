@@ -538,24 +538,18 @@ defmodule MediaCentaur.Settings.Config do
     end
   end
 
-  # `media_dirs`, with a permanent fallback to the pre-rename
-  # `watch_dirs` spelling so configs written before the 2026-06 rename
-  # keep booting unchanged.
+  # The key was renamed from `watch_dirs` in 2026-06; a file still using
+  # the old spelling stops the boot with the fix spelled out rather than
+  # silently starting with no media directories.
   defp toml_media_dirs(toml) do
-    case {get_in(toml, ["media_dirs"]), get_in(toml, ["watch_dirs"])} do
-      {current, _legacy} when is_list(current) ->
-        current
+    if Map.has_key?(toml, "watch_dirs") do
+      raise ArgumentError,
+            "#{config_path()} uses the retired TOML key `watch_dirs`; rename it to `media_dirs`"
+    end
 
-      {_current, legacy} when is_list(legacy) ->
-        Log.info(
-          :library,
-          "TOML key `watch_dirs` is now `media_dirs` — the legacy spelling still works"
-        )
-
-        legacy
-
-      _ ->
-        nil
+    case get_in(toml, ["media_dirs"]) do
+      dirs when is_list(dirs) -> dirs
+      _ -> nil
     end
   end
 

@@ -14,7 +14,6 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
 
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Release, Wants}
-  alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Title
 
@@ -161,29 +160,6 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
     })
   end
 
-  # NOTE: older 2-image (poster/backdrop) downloader — misses logos and
-  # re-fetches existing artwork. Mirrors the Scanner gap that B4 closed via
-  # Helpers.download_images_async/3; routing this through that path is a
-  # follow-up (it would also drop the post-download broadcast below).
-  defp schedule_image_downloads(item, tmdb_id, response) do
-    poster_path = Extractor.extract_poster_path(response)
-    backdrop_path = response["backdrop_path"]
-
-    if poster_path || backdrop_path do
-      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-        downloaded? =
-          [
-            {poster_path, &TmdbArtwork.download_poster/3},
-            {backdrop_path, &TmdbArtwork.download_backdrop/3}
-          ]
-          |> Enum.filter(fn {path, _downloader} -> is_binary(path) end)
-          |> Enum.map(fn {path, downloader} -> downloader.(item.media_type, tmdb_id, path) end)
-          |> Enum.any?(&match?({:ok, _path}, &1))
-
-        # Landed files change what the UI resolves for this identity —
-        # nudge subscribers to re-read.
-        if downloaded?, do: ReleaseTracking.broadcast_releases_updated([item.id])
-      end)
-    end
-  end
+  defp schedule_image_downloads(item, tmdb_id, response),
+    do: Helpers.download_images_async(item, tmdb_id, response)
 end

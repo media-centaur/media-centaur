@@ -59,14 +59,6 @@ defmodule MediaCentaurWeb.Router do
     # Steam picker artwork — local librarycache file or CDN redirect
     # (hash-addressed titles have no guessable CDN URL; see controller).
     get "/apps/steam-art/:app_id/:role", SteamArtController, :show
-
-    # Backward-compat redirects — the Upcoming and Downloads pages merged
-    # into /incoming (UIDR-015); bookmarks and stale deep-links land there
-    # with their query strings intact (`?selected=<pursuit>` keeps opening
-    # the modal). The auto-grabs redirect predates the merge (v0.24.0).
-    get "/download", LegacyRedirectController, :download
-    get "/download/auto-grabs", LegacyRedirectController, :auto_grabs
-    get "/upcoming", LegacyRedirectController, :upcoming
   end
 
   # Phoenix Storybook — dev component catalog (also mounted in :test so

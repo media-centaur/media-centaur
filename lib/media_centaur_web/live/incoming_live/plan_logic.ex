@@ -291,7 +291,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   * `:movie_confirm` — the detail-shaped preview (backdrop, then poster).
   * `:board` — release tracking's local cache (`artwork`), then whatever
     the earlier stages of this session already showed. A refresh loses
-    the in-session fallbacks; the async `Artwork.ensure` fills the cache
+    the in-session fallbacks; the async `TmdbArtwork.ensure/2` fills the cache
     so the next open wears it again.
   * `:error` — nothing. An honest dead end isn't a cinematic moment.
 

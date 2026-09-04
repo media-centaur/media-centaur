@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Components.Detail.TrackOverrideBadge do
   use MediaCentaurWeb, :html
 
   alias MediaCentaur.Library.MediaTrackOverride
-  alias MediaCentaur.Playback.Iso639
+  alias MediaCentaur.Iso639
 
   attr :entity, :map,
     required: true,

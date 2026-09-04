@@ -7,7 +7,8 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
 
   use MediaCentaurWeb, :html
 
-  alias MediaCentaur.Playback.{Iso639, LanguagePolicy}
+  alias MediaCentaur.Iso639
+  alias MediaCentaur.Playback.LanguagePolicy
 
   attr :language_options, :list,
     required: true,

@@ -49,8 +49,15 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
     end
 
     test "refreshes movie collection releases" do
+      # A collection is a movie item linked to a library MovieSeries.
       item =
-        create_tracking_item(%{tmdb_id: 263, media_type: :movie, name: "Sample Collection"})
+        create_tracking_item(%{
+          tmdb_id: 263,
+          media_type: :movie,
+          name: "Sample Collection",
+          library_container_type: :movie_series,
+          library_container_id: Ecto.UUID.generate()
+        })
 
       ReleaseTracking.create_release!(%{
         item_id: item.id,
@@ -86,7 +93,7 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       refute Release.released?(hd(releases))
     end
 
-    test "falls back to /movie/{id} when /collection/{id} returns 404 (solo-movie tracker)" do
+    test "a solo movie tracker fetches /movie/{id} — it is not linked to a collection" do
       item =
         create_tracking_item(%{
           tmdb_id: 1_226_863,
@@ -94,9 +101,15 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
           name: "Solo Movie"
         })
 
-      # No /collection/1226863 stub → TmdbStubs returns 404. The /movie/{id}
-      # endpoint succeeds, exercising the fallback path.
+      # Both resources answer; only the movie one is the right resource for
+      # an item with no MovieSeries link, and only its date may land.
       stub_routes([
+        {"/collection/1226863",
+         %{
+           "id" => 1_226_863,
+           "name" => "Wrong Resource",
+           "parts" => [%{"id" => 1, "title" => "Part", "release_date" => "2030-01-01"}]
+         }},
         {"/movie/1226863",
          %{
            "id" => 1_226_863,

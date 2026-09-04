@@ -37,16 +37,12 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
           Console.subscribe()
         end
 
-        snapshot =
-          if connected?(socket) do
-            # Cap the initial paint at the default buffer size. The buffer
-            # itself may hold up to 50k entries on a bumped cap, but the
-            # initial viewport never needs that many — new entries arrive
-            # via PubSub. See Buffer.snapshot_window/1.
-            Console.snapshot_window(Buffer.default_cap())
-          else
-            Logic.initial_snapshot()
-          end
+        # Both renders paint the buffer (ADR-051: a pure in-memory read
+        # belongs on the first paint). Cap it at the default buffer size —
+        # the buffer may hold up to 50k entries on a bumped cap, but the
+        # initial viewport never needs that many; new entries arrive via
+        # PubSub. See Buffer.snapshot_window/1.
+        snapshot = Console.snapshot_window(Buffer.default_cap())
 
         journal_available =
           if connected?(socket), do: Console.journal_available?(), else: false

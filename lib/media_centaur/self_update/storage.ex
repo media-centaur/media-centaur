@@ -15,6 +15,7 @@ defmodule MediaCentaur.SelfUpdate.Storage do
       already capped at 20KB by `UpdateChecker`).
   """
 
+  require MediaCentaur.Log, as: Log
   alias MediaCentaur.Settings
   alias MediaCentaur.SelfUpdate.UpdateChecker
 
@@ -141,17 +142,29 @@ defmodule MediaCentaur.SelfUpdate.Storage do
       tag: value["tag"],
       published_at: decode_published_at(value["published_at"]),
       html_url: value["html_url"] || "",
-      # Fall back to legacy `body_excerpt` column for rows written before
-      # the rename so existing installs don't lose their cached notes.
-      body: value["body"] || value["body_excerpt"] || ""
+      body: value["body"] || ""
     }
 
     classification =
       case value["classification"] do
-        "update_available" -> :update_available
-        "up_to_date" -> :up_to_date
-        "ahead_of_release" -> :ahead_of_release
-        _ -> :up_to_date
+        "update_available" ->
+          :update_available
+
+        "up_to_date" ->
+          :up_to_date
+
+        "ahead_of_release" ->
+          :ahead_of_release
+
+        other ->
+          # A cache row only the next CheckerJob will overwrite; until then
+          # the safe reading is "nothing to apply", said out loud.
+          Log.warning(
+            :system,
+            "unknown cached update classification #{inspect(other)}; treating as up to date"
+          )
+
+          :up_to_date
       end
 
     %{release: release, classification: classification}

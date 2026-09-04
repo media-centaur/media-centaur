@@ -11,7 +11,7 @@ defmodule MediaCentaur.Playback.LanguageContext do
   """
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Playback.Iso639
+  alias MediaCentaur.Iso639
   alias MediaCentaur.Playback.LanguagePolicy
   alias MediaCentaur.Playback.TrackResolver
   alias MediaCentaur.Playback.TrackResolver.Track

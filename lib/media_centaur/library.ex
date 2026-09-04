@@ -35,7 +35,6 @@ defmodule MediaCentaur.Library do
       MovieList,
       MovieSeries,
       Presentable,
-      OwnerRef,
       Person,
       PlayableItem,
       PlayableItems,
@@ -94,7 +93,6 @@ defmodule MediaCentaur.Library do
   | Artwork | `Library.Images`, `Library.Posters`, `Library.ImageHealth` |
   | External identifiers | `Library.ExternalIds` |
   | Remembered audio/subtitle tracks | `Library.MediaTrackOverrides` |
-  | The `(owner_type, owner_id)` pair | `Library.OwnerRef` |
   | Movie-vs-collection hoist rule | `Library.Presentable`, `Library.PresentableQueries` |
   | Detail-modal view-model | `Library.ModalEntry` |
   | Search catalogue | `Library.SearchIndex` |

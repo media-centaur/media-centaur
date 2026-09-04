@@ -1,14 +1,17 @@
-defmodule MediaCentaur.Library.OwnerRef do
+defmodule MediaCentaur.TestFactory.OwnerRef do
+  use Boundary, top_level?: true, check: [in: false, out: false]
+
   @moduledoc """
   The `(owner_type, owner_id)` discriminator pair that sidecar rows use
   to point at the library entity they belong to.
 
-  Library Schema v2 Phase 2 Task D collapsed the per-type foreign keys
-  (`movie_id`, `tv_series_id`, `movie_series_id`, …) on `Image`,
-  `ExternalId` and `Extra` into a single discriminator pair, so one
-  sidecar table can hang off any entity type. Callers written before that
-  — and the fixtures that outlived them — still pass the per-type key,
-  because "the image for this movie" is a natural way to say it.
+  Library Schema v2 collapsed the per-type foreign keys (`movie_id`,
+  `tv_series_id`, `movie_series_id`, …) on `Image`, `ExternalId` and
+  `Extra` into a single discriminator pair, so one sidecar table can hang
+  off any entity type. Production code writes the pair; test fixtures may
+  still say `movie_id:` because "the image for this movie" is a natural
+  way to say it, and `TestFactory` normalises that here before it reaches
+  a context function.
 
   `normalise/2` is the single place that translation happens. Each
   sidecar kind declares which per-type keys it accepts and what owner

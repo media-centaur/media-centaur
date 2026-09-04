@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
 
   use MediaCentaurWeb, :html
 
-  alias MediaCentaur.Playback.Iso639
+  alias MediaCentaur.Iso639
   alias Phoenix.LiveView.JS
 
   attr :languages, :list,

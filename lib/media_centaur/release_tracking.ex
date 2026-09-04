@@ -493,25 +493,6 @@ defmodule MediaCentaur.ReleaseTracking do
     count
   end
 
-  @doc """
-  Boot-time one-shot: moves any legacy `images/tracking/{tmdb_id}/`
-  artwork into `TmdbArtwork`'s typed layout, using the tracked items to
-  resolve each id's media type (unmapped dirs are orphans and are
-  deleted). Idempotent and self-retiring — a no-op once the legacy root
-  is gone. Skipped under `:test` like the other boot fixups.
-  """
-  @spec migrate_artwork_layout_on_boot(atom()) :: :ok
-  def migrate_artwork_layout_on_boot(:test), do: :ok
-
-  def migrate_artwork_layout_on_boot(_env) do
-    mapping =
-      from(i in Item, select: {i.tmdb_id, i.media_type})
-      |> Repo.all()
-      |> Map.new(fn {id, type} -> {to_string(id), type} end)
-
-    TmdbArtwork.migrate_legacy!(mapping)
-  end
-
   # --- Bulk operations ---
 
   @doc """

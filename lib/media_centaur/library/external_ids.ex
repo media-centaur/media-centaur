@@ -37,7 +37,6 @@ defmodule MediaCentaur.Library.ExternalIds do
     ExternalId,
     Movie,
     MovieSeries,
-    OwnerRef,
     PlayableItem,
     PresentableQueries,
     Season,
@@ -112,7 +111,7 @@ defmodule MediaCentaur.Library.ExternalIds do
   end
 
   def create(attrs) do
-    Repo.insert(ExternalId.create_changeset(OwnerRef.normalise(attrs, :external_id)))
+    Repo.insert(ExternalId.create_changeset(attrs))
   end
 
   def create!(attrs), do: Repo.bang!(create(attrs))

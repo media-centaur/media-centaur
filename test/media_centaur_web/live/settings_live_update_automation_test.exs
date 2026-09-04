@@ -52,19 +52,6 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
     assert html =~ "waits until playback ends"
   end
 
-  test "the retired ?section=updates address lands on System", %{conn: conn} do
-    # The Updates section merged into System; old bookmarks and stale
-    # Status-page links must keep resolving to the automation controls.
-    {:ok, view, html} = live(conn, ~p"/settings?section=updates")
-
-    assert html =~ "Automatically check for updates"
-
-    assert has_element?(
-             view,
-             "[data-nav-zone='sections'] a.menu-item-active[href='/settings?section=system']"
-           )
-  end
-
   test "the System card shows the check cadence and a loose next-check time", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/settings?section=system")
 

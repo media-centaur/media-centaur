@@ -183,28 +183,21 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     end
   end
 
-  defp fetch_for_item(%{media_type: :movie} = item) do
-    # `:movie` items conflate two distinct TMDB resources — series-style
-    # collections (e.g. the Mario Bros collection) and solo movies (e.g.
-    # the Mascot Cosmos movie). The schema enum can't tell them apart, so
-    # we try /collection/{id} first and fall back to /movie/{id} on 404.
+  # A `:movie` item is one of two TMDB resources, and the library link
+  # says which: an item linked to a `MovieSeries` tracks a collection
+  # (its `tmdb_id` is a collection id, written by the Scanner); any other
+  # movie item tracks one film (a manual track from search).
+  defp fetch_for_item(%{media_type: :movie, library_container_type: :movie_series} = item) do
     case Client.get_collection(item.tmdb_id) do
-      {:ok, response} ->
-        new_releases = Helpers.fetch_collection_releases(response)
-        {:ok, item, response, new_releases}
+      {:ok, response} -> {:ok, item, response, Helpers.fetch_collection_releases(response)}
+      {:error, reason} -> {:error, item, reason}
+    end
+  end
 
-      {:error, {:http_error, 404, _}} ->
-        case Client.get_movie(item.tmdb_id) do
-          {:ok, response} ->
-            new_releases = Helpers.fetch_movie_releases(response)
-            {:ok, item, response, new_releases}
-
-          {:error, reason} ->
-            {:error, item, reason}
-        end
-
-      {:error, reason} ->
-        {:error, item, reason}
+  defp fetch_for_item(%{media_type: :movie} = item) do
+    case Client.get_movie(item.tmdb_id) do
+      {:ok, response} -> {:ok, item, response, Helpers.fetch_movie_releases(response)}
+      {:error, reason} -> {:error, item, reason}
     end
   end
 

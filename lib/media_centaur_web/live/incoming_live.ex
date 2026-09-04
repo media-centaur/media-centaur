@@ -2203,23 +2203,26 @@ defmodule MediaCentaurWeb.IncomingLive do
   # (transient lifecycle signals). TargetEvents trigger a History
   # reload (terminal state transitions show up there);
   # Pursuits.Events trigger a pursuit-row reload + modal sync.
+  def handle_info(%PlanEvents.Changed{} = event, socket) do
+    socket =
+      socket
+      |> assign(plan_drafts: load_drafts())
+      |> build_view()
+      |> maybe_reload_plan_board(event)
+
+    {:noreply, socket}
+  end
+
+  def handle_info(%PlanEvents.SearchActivity{} = event, socket),
+    do: {:noreply, maybe_note_plan_activity(socket, event)}
+
+  def handle_info(%PlanEvents.DescentStatus{} = event, socket),
+    do: {:noreply, maybe_note_plan_descent(socket, event)}
+
+  # The two event families are open sets (one struct per kind), so their
+  # membership is a predicate rather than a head.
   def handle_info(%struct{} = event, socket) do
     cond do
-      struct == PlanEvents.Changed ->
-        socket =
-          socket
-          |> assign(plan_drafts: load_drafts())
-          |> build_view()
-          |> maybe_reload_plan_board(event)
-
-        {:noreply, socket}
-
-      struct == PlanEvents.SearchActivity ->
-        {:noreply, maybe_note_plan_activity(socket, event)}
-
-      struct == PlanEvents.DescentStatus ->
-        {:noreply, maybe_note_plan_descent(socket, event)}
-
       TargetEvents.event?(struct) ->
         {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
 
@@ -2509,7 +2512,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       pursuit_id = header.id
 
       start_async(socket, {:pursuit_artwork, pursuit_id}, fn ->
-        Acquisition.Artwork.ensure(recipe.tmdb_id, recipe.tmdb_type)
+        MediaCentaur.TmdbArtwork.ensure(recipe.tmdb_type, recipe.tmdb_id)
       end)
     else
       socket
@@ -2658,7 +2661,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp maybe_reload_modal_for_event(socket, _event), do: socket
 
   # Draft rows carry their identity artwork when release tracking's local
-  # cache has it (`Artwork.resolve` — DB + disk only, no network); the
+  # cache has it (`TmdbArtwork.urls/2` — DB + disk only, no network); the
   # synthetic hue gradient stays the fallback.
   defp load_drafts do
     Enum.map(Plans.list_drafts(), fn plan ->
@@ -2666,7 +2669,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         id: plan.id,
         title: plan.title,
         status: plan.status,
-        backdrop_url: Acquisition.Artwork.resolve(plan.tmdb_id, plan.tmdb_type).backdrop_url
+        backdrop_url: MediaCentaur.TmdbArtwork.urls(plan.tmdb_type, plan.tmdb_id).backdrop_url
       }
     end)
   end
@@ -2823,19 +2826,19 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # The board's identity artwork — release tracking's local cache first
-  # (same store the pursuit modal reads), the network `Artwork.ensure`
+  # (same store the pursuit modal reads), the network `TmdbArtwork.ensure/2`
   # kicked off-process only on a fresh open with an empty cache, mirroring
   # `maybe_fetch_artwork/2` for pursuits.
   defp maybe_load_plan_artwork(socket, plan_id, plan) do
     if socket.assigns.plan_param == plan_id do
       socket
     else
-      artwork = Acquisition.Artwork.resolve(plan.tmdb_id, plan.tmdb_type)
+      artwork = MediaCentaur.TmdbArtwork.urls(plan.tmdb_type, plan.tmdb_id)
       socket = assign(socket, plan_artwork: artwork)
 
       if is_nil(artwork.backdrop_url) and Capabilities.tmdb_ready?() do
         start_async(socket, {:plan_artwork, plan_id}, fn ->
-          Acquisition.Artwork.ensure(plan.tmdb_id, plan.tmdb_type)
+          MediaCentaur.TmdbArtwork.ensure(plan.tmdb_type, plan.tmdb_id)
         end)
       else
         socket
