@@ -43,8 +43,8 @@ defmodule MediaCentaur.Downloads.DownloadClient.Dispatcher do
     end)
   end
 
-  @doc "Resolves the driver module for one protocol slot."
-  @spec driver_for(ClientConfig.protocol()) :: {:ok, module()} | {:error, error()}
+  @doc "Resolves one protocol slot to its config paired with its driver module."
+  @spec driver_for(ClientConfig.protocol()) :: {:ok, {ClientConfig.t(), module()}} | {:error, error()}
   def driver_for(protocol) when protocol in [:torrent, :usenet] do
     case Enum.find(Downloads.configured_clients(), &(&1.protocol == protocol)) do
       nil ->
@@ -52,7 +52,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.Dispatcher do
 
       client ->
         case module_for_type(client.type) do
-          {:ok, module} -> {:ok, module}
+          {:ok, module} -> {:ok, {client, module}}
           :unknown -> {:error, {:unknown_driver, client.type}}
         end
     end

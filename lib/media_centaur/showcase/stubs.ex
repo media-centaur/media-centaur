@@ -5,10 +5,10 @@ defmodule MediaCentaur.Showcase.Stubs do
   Runtime HTTP stubs used by the showcase instance so the /download
   page renders rich fixture data without a live Prowlarr or
   qBittorrent backend. Activated when `MediaCentaur.Settings.Config.get(:showcase_mode)`
-  returns true — `Acquisition.Prowlarr.build_client/0` and
-  `Acquisition.DownloadClient.QBittorrent.default_client/0` swap their
-  real HTTP clients for `Req.new(plug: ...)` wrappers that call the
-  functions in this module.
+  returns true — `Search.Prowlarr.default_client/0` and the
+  `Downloads.DownloadClient.QBittorrent` driver swap their real HTTP
+  clients for `Req.new(plug: ...)` wrappers that call the functions in
+  this module.
 
   All fixtures use public-domain media (Big Buck Bunny, Metropolis,
   Nosferatu, Plan 9, Night of the Living Dead) so the marketing

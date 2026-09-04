@@ -47,6 +47,7 @@ defmodule MediaCentaur.Downloads do
   or pursuits — its world is "what's the client doing right now."
   """
 
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Downloads.ClientConfig
 
@@ -100,42 +101,25 @@ defmodule MediaCentaur.Downloads do
   end
 
   defp torrent_slot do
-    case slot_identity(:download_client_type, :download_client_url) do
-      nil ->
-        nil
-
-      {type, url} ->
-        %ClientConfig{
-          protocol: :torrent,
-          type: type,
-          url: url,
-          username: Config.get(:download_client_username),
-          password: Config.get(:download_client_password)
-        }
+    if Capabilities.configured?(:download_client) do
+      %ClientConfig{
+        protocol: :torrent,
+        type: Config.get(:download_client_type),
+        url: Config.get(:download_client_url),
+        username: Config.get(:download_client_username),
+        password: Config.get(:download_client_password)
+      }
     end
   end
 
   defp usenet_slot do
-    case slot_identity(:usenet_download_client_type, :usenet_download_client_url) do
-      nil ->
-        nil
-
-      {type, url} ->
-        %ClientConfig{
-          protocol: :usenet,
-          type: type,
-          url: url,
-          api_key: Config.get(:usenet_download_client_api_key)
-        }
-    end
-  end
-
-  defp slot_identity(type_key, url_key) do
-    type = Config.get(type_key)
-    url = Config.get(url_key)
-
-    if is_binary(type) and type != "" and is_binary(url) and url != "" do
-      {type, url}
+    if Capabilities.configured?(:usenet_download_client) do
+      %ClientConfig{
+        protocol: :usenet,
+        type: Config.get(:usenet_download_client_type),
+        url: Config.get(:usenet_download_client_url),
+        api_key: Config.get(:usenet_download_client_api_key)
+      }
     end
   end
 end

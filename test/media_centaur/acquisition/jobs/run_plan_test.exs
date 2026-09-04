@@ -4,13 +4,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Targeting
-  alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.TmdbStubs
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
 
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
@@ -22,7 +19,6 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     )
 
     on_exit(fn ->
-      :persistent_term.erase({Prowlarr, :client})
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
     end)
 

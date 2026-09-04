@@ -35,10 +35,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Maintenance
   alias MediaCentaur.Settings.Preferences.UIScale
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Downloads.ClientConfig
-  alias MediaCentaur.Downloads.DownloadClient.QBittorrent
-  alias MediaCentaur.Downloads.DownloadClient.SABnzbd
   alias MediaCentaur.Watcher
   alias MediaCentaur.Pipeline
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
@@ -881,11 +878,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("save_tmdb", params, socket) do
-    if params["tmdb_api_key"] != "" do
-      Config.update(:tmdb_api_key, params["tmdb_api_key"])
-      MediaCentaur.TMDB.Client.invalidate_client()
-      clear_test_result(:tmdb)
-
+    if Capabilities.save_integration(:tmdb, params) do
       # Recovery hook: a fresh key may unblock files that were stranded
       # by an earlier TMDB auth failure. Re-emit `:file_detected` for
       # any present watcher_files row with no library link so the
@@ -913,18 +906,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("save_prowlarr", params, socket) do
-    if params["prowlarr_url"] != "" do
-      Config.update(:prowlarr_url, params["prowlarr_url"])
-    end
-
-    if params["prowlarr_api_key"] != "" do
-      Config.update(:prowlarr_api_key, params["prowlarr_api_key"])
-    end
-
-    Prowlarr.invalidate_client()
-    clear_test_result(:prowlarr)
-
-    socket = assign(socket, config: load_config(), prowlarr_test: nil)
+    Capabilities.save_integration(:prowlarr, params)
+    socket = assign(socket, config: load_config(), prowlarr_test: load_test_result(:prowlarr))
 
     case params["_action"] do
       "test" ->
@@ -944,27 +927,12 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("save_download_client", params, socket) do
-    if params["download_client_type"] not in [nil, ""] do
-      Config.update(:download_client_type, params["download_client_type"])
-    end
-
-    if params["download_client_url"] not in [nil, ""] do
-      Config.update(:download_client_url, params["download_client_url"])
-    end
-
-    Config.update(:download_client_username, params["download_client_username"] || "")
-
-    if params["download_client_password"] not in [nil, ""] do
-      Config.update(:download_client_password, params["download_client_password"])
-    end
-
-    QBittorrent.invalidate_client()
-    clear_test_result(:download_client)
+    Capabilities.save_integration(:download_client, params)
 
     socket =
       assign(socket,
         config: load_config(),
-        download_client_test: nil,
+        download_client_test: load_test_result(:download_client),
         download_client_detect_status: nil,
         detected_download_client: nil
       )
@@ -987,25 +955,12 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("save_usenet_client", params, socket) do
-    if params["usenet_download_client_type"] not in [nil, ""] do
-      Config.update(:usenet_download_client_type, params["usenet_download_client_type"])
-    end
-
-    if params["usenet_download_client_url"] not in [nil, ""] do
-      Config.update(:usenet_download_client_url, params["usenet_download_client_url"])
-    end
-
-    if params["usenet_download_client_api_key"] not in [nil, ""] do
-      Config.update(:usenet_download_client_api_key, params["usenet_download_client_api_key"])
-    end
-
-    SABnzbd.invalidate_client()
-    clear_test_result(:usenet_download_client)
+    Capabilities.save_integration(:usenet_download_client, params)
 
     socket =
       assign(socket,
         config: load_config(),
-        usenet_client_test: nil,
+        usenet_client_test: load_test_result(:usenet_download_client),
         detected_usenet_client: nil
       )
 
@@ -2757,7 +2712,6 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp load_test_result(subject), do: Capabilities.load_test_result(subject)
   defp save_test_result(subject, status), do: Capabilities.save_test_result(subject, status)
-  defp clear_test_result(subject), do: Capabilities.clear_test_result(subject)
 
   defp persist_service_flag(service, value), do: Settings.Services.set(service, value)
 

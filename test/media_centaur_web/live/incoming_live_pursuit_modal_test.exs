@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
   import Phoenix.LiveViewTest
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Acquisition.Pursuits.Event
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Repo
@@ -31,8 +30,6 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
     # Prowlarr so the worker snoozes cleanly rather than crashing on no
     # client configured.
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
 
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 

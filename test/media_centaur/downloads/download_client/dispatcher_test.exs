@@ -64,7 +64,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.DispatcherTest do
   end
 
   describe "driver_for/1" do
-    test "resolves each protocol slot to its driver module" do
+    test "resolves each protocol slot to its config paired with its driver module" do
       put_config(
         download_client_type: "qbittorrent",
         download_client_url: "http://localhost:8080",
@@ -72,8 +72,11 @@ defmodule MediaCentaur.Downloads.DownloadClient.DispatcherTest do
         usenet_download_client_url: "http://localhost:8085"
       )
 
-      assert {:ok, QBittorrent} = Dispatcher.driver_for(:torrent)
-      assert {:ok, SABnzbd} = Dispatcher.driver_for(:usenet)
+      assert {:ok, {%ClientConfig{protocol: :torrent, url: "http://localhost:8080"}, QBittorrent}} =
+               Dispatcher.driver_for(:torrent)
+
+      assert {:ok, {%ClientConfig{protocol: :usenet, url: "http://localhost:8085"}, SABnzbd}} =
+               Dispatcher.driver_for(:usenet)
     end
 
     test "returns :not_configured when the slot is empty" do

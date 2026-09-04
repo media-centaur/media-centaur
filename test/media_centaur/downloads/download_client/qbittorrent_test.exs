@@ -1,112 +1,44 @@
 defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
   use ExUnit.Case, async: false
 
+  alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
   alias MediaCentaur.Downloads.QueueItem
-  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Secret
 
+  # The driver is a function of its slot config; the test config routes
+  # its requests through the `:qbittorrent` Req.Test stub.
   setup do
-    original_config = :persistent_term.get({Config, :config}, %{})
-
-    :persistent_term.put(
-      {Config, :config},
-      Map.merge(original_config, %{
-        download_client_url: "http://qbit.test",
-        download_client_username: "alice",
-        download_client_password: Secret.wrap("s3cret")
-      })
-    )
-
     Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :qbittorrent}, retry: false, base_url: "http://qbit.test")
 
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original_config)
-      QBittorrent.invalidate_client()
-    end)
+    # A session cookie obtained by an earlier test must not decide this one.
+    :persistent_term.erase({QBittorrent, :cookie})
 
-    {:ok, client: client}
-  end
+    config = %ClientConfig{
+      protocol: :torrent,
+      type: "qbittorrent",
+      url: "http://qbit.test",
+      username: "alice",
+      password: Secret.wrap("s3cret")
+    }
 
-  describe "list_downloads/2" do
-    test "GETs /api/v2/torrents/info with filter=all by default", %{client: client} do
-      Req.Test.stub(:qbittorrent, fn conn ->
-        assert conn.method == "GET"
-        assert conn.request_path == "/api/v2/torrents/info"
-        assert conn.params == %{"filter" => "all"}
-        Req.Test.json(conn, [])
-      end)
-
-      assert {:ok, []} = QBittorrent.list_downloads(:all, client)
-    end
-
-    test "translates :active filter to qbittorrent's \"active\"", %{client: client} do
-      Req.Test.stub(:qbittorrent, fn conn ->
-        assert conn.params == %{"filter" => "active"}
-        Req.Test.json(conn, [])
-      end)
-
-      assert {:ok, []} = QBittorrent.list_downloads(:active, client)
-    end
-
-    test "translates :completed filter to qbittorrent's \"completed\"", %{client: client} do
-      Req.Test.stub(:qbittorrent, fn conn ->
-        assert conn.params == %{"filter" => "completed"}
-        Req.Test.json(conn, [])
-      end)
-
-      assert {:ok, []} = QBittorrent.list_downloads(:completed, client)
-    end
-
-    test "parses each torrent into a QueueItem", %{client: client} do
-      Req.Test.stub(:qbittorrent, fn conn ->
-        Req.Test.json(conn, [
-          %{
-            "hash" => "abc",
-            "name" => "Movie.2024",
-            "state" => "downloading",
-            "size" => 100,
-            "amount_left" => 25,
-            "progress" => 0.75,
-            "eta" => 60,
-            "category" => "movies"
-          }
-        ])
-      end)
-
-      assert {:ok, [%QueueItem{} = item]} = QBittorrent.list_downloads(:all, client)
-      assert item.id == "abc"
-      assert item.title == "Movie.2024"
-      assert item.state == :downloading
-      assert item.progress == 75.0
-    end
-
-    test "returns http_error tuple on non-200, non-403 responses", %{client: client} do
-      Req.Test.stub(:qbittorrent, fn conn ->
-        conn
-        |> Plug.Conn.put_resp_content_type("application/json")
-        |> Plug.Conn.send_resp(500, ~s({"error":"oops"}))
-      end)
-
-      assert {:error, {:http_error, 500, _}} = QBittorrent.list_downloads(:all, client)
-    end
+    {:ok, config: config}
   end
 
   describe "auth retry on 403" do
-    test "calls /api/v2/auth/login with form-encoded creds, then retries", %{client: client} do
+    test "calls /api/v2/auth/login with form-encoded creds, then retries", %{config: config} do
       counter = :counters.new(1, [:atomics])
 
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
-          {"GET", "/api/v2/torrents/info"} ->
+          {"GET", "/api/v2/app/version"} ->
             n = :counters.get(counter, 1)
             :counters.add(counter, 1, 1)
 
             if n == 0 do
               Plug.Conn.send_resp(conn, 403, "Forbidden")
             else
-              Req.Test.json(conn, [])
+              Plug.Conn.send_resp(conn, 200, "v4.6.0")
             end
 
           {"POST", "/api/v2/auth/login"} ->
@@ -119,15 +51,15 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         end
       end)
 
-      assert {:ok, []} = QBittorrent.list_downloads(:all, client)
-      # 1st info call (403), then login, then retry info (200)
+      assert :ok = QBittorrent.test_connection(config)
+      # 1st version call (403), then login, then retry version (200)
       assert :counters.get(counter, 1) == 2
     end
 
-    test "returns :auth_failed when login returns 403", %{client: client} do
+    test "returns :auth_failed when login returns 403", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
-          {"GET", "/api/v2/torrents/info"} ->
+          {"GET", "/api/v2/app/version"} ->
             Plug.Conn.send_resp(conn, 403, "Forbidden")
 
           {"POST", "/api/v2/auth/login"} ->
@@ -135,13 +67,13 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         end
       end)
 
-      assert {:error, :auth_failed} = QBittorrent.list_downloads(:all, client)
+      assert {:error, :auth_failed} = QBittorrent.test_connection(config)
     end
 
-    test "returns :auth_failed when login returns 200 but no SID cookie", %{client: client} do
+    test "returns :auth_failed when login returns 200 but no SID cookie", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
-          {"GET", "/api/v2/torrents/info"} ->
+          {"GET", "/api/v2/app/version"} ->
             Plug.Conn.send_resp(conn, 403, "Forbidden")
 
           {"POST", "/api/v2/auth/login"} ->
@@ -149,12 +81,12 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         end
       end)
 
-      assert {:error, :auth_failed} = QBittorrent.list_downloads(:all, client)
+      assert {:error, :auth_failed} = QBittorrent.test_connection(config)
     end
   end
 
   describe "sync_maindata/2" do
-    test "GETs /api/v2/sync/maindata with rid", %{client: client} do
+    test "GETs /api/v2/sync/maindata with rid", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->
         assert conn.method == "GET"
         assert conn.request_path == "/api/v2/sync/maindata"
@@ -168,19 +100,19 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
       end)
 
       assert {:ok, %{"rid" => 1, "full_update" => true}} =
-               QBittorrent.sync_maindata(0, client)
+               QBittorrent.sync_maindata(config, 0)
     end
 
-    test "passes a non-zero rid through to the request", %{client: client} do
+    test "passes a non-zero rid through to the request", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->
         assert conn.params == %{"rid" => "42"}
         Req.Test.json(conn, %{"rid" => 43})
       end)
 
-      assert {:ok, %{"rid" => 43}} = QBittorrent.sync_maindata(42, client)
+      assert {:ok, %{"rid" => 43}} = QBittorrent.sync_maindata(config, 42)
     end
 
-    test "re-auths on 403 then retries", %{client: client} do
+    test "re-auths on 403 then retries", %{config: config} do
       counter = :counters.new(1, [:atomics])
 
       Req.Test.stub(:qbittorrent, fn conn ->
@@ -202,13 +134,13 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         end
       end)
 
-      assert {:ok, %{"rid" => 1}} = QBittorrent.sync_maindata(0, client)
+      assert {:ok, %{"rid" => 1}} = QBittorrent.sync_maindata(config, 0)
       assert :counters.get(counter, 1) == 2
     end
   end
 
   describe "cancel_download/2" do
-    test "POSTs /api/v2/torrents/delete with hash and deleteFiles=true", %{client: client} do
+    test "POSTs /api/v2/torrents/delete with hash and deleteFiles=true", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->
         assert conn.method == "POST"
         assert conn.request_path == "/api/v2/torrents/delete"
@@ -217,18 +149,18 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         Plug.Conn.send_resp(conn, 200, "")
       end)
 
-      assert :ok = QBittorrent.cancel_download("abc123", client)
+      assert :ok = QBittorrent.cancel_download(config, "abc123")
     end
 
-    test "returns http_error tuple on non-200, non-403 responses", %{client: client} do
+    test "returns http_error tuple on non-200, non-403 responses", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->
         Plug.Conn.send_resp(conn, 500, "boom")
       end)
 
-      assert {:error, {:http_error, 500, _}} = QBittorrent.cancel_download("abc", client)
+      assert {:error, {:http_error, 500, _}} = QBittorrent.cancel_download(config, "abc")
     end
 
-    test "re-auths on 403 then retries the delete", %{client: client} do
+    test "re-auths on 403 then retries the delete", %{config: config} do
       counter = :counters.new(1, [:atomics])
 
       Req.Test.stub(:qbittorrent, fn conn ->
@@ -250,31 +182,31 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         end
       end)
 
-      assert :ok = QBittorrent.cancel_download("abc", client)
+      assert :ok = QBittorrent.cancel_download(config, "abc")
       assert :counters.get(counter, 1) == 2
     end
   end
 
   describe "test_connection/1" do
-    test "GETs /api/v2/app/version and returns :ok on 200", %{client: client} do
+    test "GETs /api/v2/app/version and returns :ok on 200", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->
         assert conn.method == "GET"
         assert conn.request_path == "/api/v2/app/version"
         Plug.Conn.send_resp(conn, 200, "v4.6.0")
       end)
 
-      assert :ok = QBittorrent.test_connection(client)
+      assert :ok = QBittorrent.test_connection(config)
     end
 
-    test "returns http_error on a 500 response", %{client: client} do
+    test "returns http_error on a 500 response", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn ->
         Plug.Conn.send_resp(conn, 500, "boom")
       end)
 
-      assert {:error, {:http_error, 500}} = QBittorrent.test_connection(client)
+      assert {:error, {:http_error, 500}} = QBittorrent.test_connection(config)
     end
 
-    test "re-auths on 403 then retries", %{client: client} do
+    test "re-auths on 403 then retries", %{config: config} do
       counter = :counters.new(1, [:atomics])
 
       Req.Test.stub(:qbittorrent, fn conn ->
@@ -296,7 +228,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         end
       end)
 
-      assert :ok = QBittorrent.test_connection(client)
+      assert :ok = QBittorrent.test_connection(config)
       assert :counters.get(counter, 1) == 2
     end
   end
@@ -320,7 +252,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
     end
 
     test "nil driver state starts the conversation at rid=0 and returns items + state", %{
-      client: client
+      config: config
     } do
       Req.Test.stub(:qbittorrent, fn conn ->
         assert conn.request_path == "/api/v2/sync/maindata"
@@ -328,15 +260,15 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         Req.Test.json(conn, maindata_full(7))
       end)
 
-      assert {:ok, result} = QBittorrent.sync(nil, client)
+      assert {:ok, result} = QBittorrent.sync(config, nil)
       assert [%QueueItem{id: "hash-a"}] = result.items
       assert result.movement?
       assert result.summary =~ "rid=7"
     end
 
-    test "the returned driver state carries the rid conversation forward", %{client: client} do
+    test "the returned driver state carries the rid conversation forward", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, maindata_full(7)) end)
-      {:ok, first} = QBittorrent.sync(nil, client)
+      {:ok, first} = QBittorrent.sync(config, nil)
 
       Req.Test.stub(:qbittorrent, fn conn ->
         assert conn.params == %{"rid" => "7"}
@@ -344,14 +276,14 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         Req.Test.json(conn, maindata_full(8))
       end)
 
-      assert {:ok, second} = QBittorrent.sync(first.driver_state, client)
+      assert {:ok, second} = QBittorrent.sync(config, first.driver_state)
       assert [%QueueItem{id: "hash-a"}] = second.items
       refute second.movement?, "a full-update echo with a stable set is not movement"
     end
 
-    test "a partial delta merges into the mirror and counts as movement", %{client: client} do
+    test "a partial delta merges into the mirror and counts as movement", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, maindata_full(7)) end)
-      {:ok, first} = QBittorrent.sync(nil, client)
+      {:ok, first} = QBittorrent.sync(config, nil)
 
       Req.Test.stub(:qbittorrent, fn conn ->
         Req.Test.json(conn, %{
@@ -360,25 +292,25 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
         })
       end)
 
-      assert {:ok, second} = QBittorrent.sync(first.driver_state, client)
+      assert {:ok, second} = QBittorrent.sync(config, first.driver_state)
       assert [%QueueItem{id: "hash-a", progress: progress}] = second.items
       assert progress > 0.5
       assert second.movement?
     end
 
-    test "an error resets the conversation so the next poll is a full update", %{client: client} do
+    test "an error resets the conversation so the next poll is a full update", %{config: config} do
       Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, maindata_full(7)) end)
-      {:ok, first} = QBittorrent.sync(nil, client)
+      {:ok, first} = QBittorrent.sync(config, nil)
 
       Req.Test.stub(:qbittorrent, fn conn -> Plug.Conn.send_resp(conn, 500, "boom") end)
-      assert {:error, _reason, recovery_state} = QBittorrent.sync(first.driver_state, client)
+      assert {:error, _reason, recovery_state} = QBittorrent.sync(config, first.driver_state)
 
       Req.Test.stub(:qbittorrent, fn conn ->
         assert conn.params == %{"rid" => "0"}
         Req.Test.json(conn, maindata_full(9))
       end)
 
-      assert {:ok, _recovered} = QBittorrent.sync(recovery_state, client)
+      assert {:ok, _recovered} = QBittorrent.sync(config, recovery_state)
     end
   end
 end

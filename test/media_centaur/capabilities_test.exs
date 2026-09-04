@@ -270,4 +270,70 @@ defmodule MediaCentaur.CapabilitiesTest do
       assert_receive :capabilities_changed, 500
     end
   end
+
+  describe "configured?/1" do
+    test "tmdb needs a key" do
+      refute Capabilities.configured?(:tmdb)
+      Config.update(:tmdb_api_key, "key")
+      assert Capabilities.configured?(:tmdb)
+    end
+
+    test "prowlarr needs both the URL and the key" do
+      Config.update(:prowlarr_api_key, "key")
+      refute Capabilities.configured?(:prowlarr)
+      Config.update(:prowlarr_url, "http://prowlarr.local")
+      assert Capabilities.configured?(:prowlarr)
+    end
+
+    test "each download-client slot needs its type and URL" do
+      refute Capabilities.configured?(:download_client)
+      refute Capabilities.configured?(:usenet_download_client)
+
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://qbit.local")
+      assert Capabilities.configured?(:download_client)
+      refute Capabilities.configured?(:usenet_download_client)
+    end
+  end
+
+  describe "save_integration/2" do
+    test "writes the changed fields and reports the change" do
+      assert Capabilities.save_integration(:prowlarr, %{
+               "prowlarr_url" => "http://prowlarr.local",
+               "prowlarr_api_key" => "key"
+             })
+
+      assert Config.get(:prowlarr_url) == "http://prowlarr.local"
+      assert MediaCentaur.Secret.expose(Config.get(:prowlarr_api_key)) == "key"
+    end
+
+    test "a blank secret or setting leaves the stored value alone" do
+      Config.update(:prowlarr_url, "http://prowlarr.local")
+      Config.update(:prowlarr_api_key, "key")
+
+      refute Capabilities.save_integration(:prowlarr, %{"prowlarr_url" => "", "prowlarr_api_key" => ""})
+      assert Config.get(:prowlarr_url) == "http://prowlarr.local"
+    end
+
+    test "resubmitting the same values is not a change" do
+      Config.update(:prowlarr_url, "http://prowlarr.local")
+      refute Capabilities.save_integration(:prowlarr, %{"prowlarr_url" => "http://prowlarr.local"})
+    end
+
+    test "a change clears the persisted test result; no change keeps it" do
+      Capabilities.save_test_result(:prowlarr, :ok)
+
+      refute Capabilities.save_integration(:prowlarr, %{"prowlarr_url" => ""})
+      assert %{status: :ok} = Capabilities.load_test_result(:prowlarr)
+
+      assert Capabilities.save_integration(:prowlarr, %{"prowlarr_url" => "http://prowlarr.local"})
+      assert Capabilities.load_test_result(:prowlarr) == nil
+    end
+
+    test "the qBittorrent username may be cleared to blank" do
+      Config.update(:download_client_username, "alice")
+      assert Capabilities.save_integration(:download_client, %{"download_client_username" => ""})
+      assert Config.get(:download_client_username) == ""
+    end
+  end
 end

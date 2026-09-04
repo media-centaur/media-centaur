@@ -15,8 +15,7 @@ defmodule MediaCentaurWeb.SetupLive do
 
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.Search.Prowlarr, as: ProwlarrClient
-  alias MediaCentaur.Downloads.DownloadClient.QBittorrent
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth
   alias MediaCentaur.Secret
@@ -162,25 +161,15 @@ defmodule MediaCentaurWeb.SetupLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("setup:save_integration", params, socket) do
-    # Save every recognised field; track whether ANY actually mutated
-    # config. The empty-submit case (user revisits an already-saved step
-    # and clicks Next without re-entering creds) leaves `changed?` false
-    # and skips the verify, so the gate just advances on the existing
-    # `:ok` health state instead of re-running the network test.
-    changed? =
-      Enum.reduce(params, false, fn
-        {"_" <> _, _}, acc -> acc
-        {key, value}, acc when is_binary(key) -> save_integration_field(key, value) or acc
-        _, acc -> acc
-      end)
+    id = integration_atom(params["_integration"])
 
-    ProwlarrClient.invalidate_client()
-    QBittorrent.invalidate_client()
-    MediaCentaur.TMDB.Client.invalidate_client()
+    # `changed?` is false on an empty resubmit (the user revisits an
+    # already-saved step and clicks Next without re-entering creds), so
+    # the gate advances on the existing `:ok` health state instead of
+    # re-running the network test.
+    changed? = if id, do: Capabilities.save_integration(id, params), else: false
 
     socket = refresh_probes(socket)
-
-    id = integration_atom(params["_integration"])
 
     # Kick a fresh verify only when config actually changed AND the step
     # is a known integration. This is the single explicit verify trigger
@@ -298,41 +287,6 @@ defmodule MediaCentaurWeb.SetupLive do
   defp save_binary_path("mpv", path), do: Config.update(:mpv_path, path)
   defp save_binary_path("ffprobe", path), do: Config.update(:ffprobe_path, path)
   defp save_binary_path(_, _), do: :ok
-
-  # Returns `true` when the call actually mutated Config, `false`
-  # otherwise (empty value, unknown key). The caller folds these into a
-  # `changed?` flag that drives the verify decision.
-  defp save_integration_field("tmdb_api_key", ""), do: false
-  defp save_integration_field("tmdb_api_key", value), do: update_if_changed(:tmdb_api_key, value)
-  defp save_integration_field("prowlarr_url", value), do: update_if_changed(:prowlarr_url, value)
-  defp save_integration_field("prowlarr_api_key", ""), do: false
-
-  defp save_integration_field("prowlarr_api_key", value), do: update_if_changed(:prowlarr_api_key, value)
-
-  defp save_integration_field("download_client_type", value),
-    do: update_if_changed(:download_client_type, value)
-
-  defp save_integration_field("download_client_url", value),
-    do: update_if_changed(:download_client_url, value)
-
-  defp save_integration_field("download_client_username", value),
-    do: update_if_changed(:download_client_username, value)
-
-  defp save_integration_field("download_client_password", ""), do: false
-
-  defp save_integration_field("download_client_password", value),
-    do: update_if_changed(:download_client_password, value)
-
-  defp save_integration_field(_, _), do: false
-
-  defp update_if_changed(key, value) do
-    if Config.get(key) == value do
-      false
-    else
-      Config.update(key, value)
-      true
-    end
-  end
 
   # Map the string id used on the wire (`name="_integration"` hidden
   # field, `phx-value-id="..."`, etc.) to the atom IntegrationHealth uses

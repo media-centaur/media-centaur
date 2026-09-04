@@ -125,9 +125,10 @@ defmodule MediaCentaur.Acquisition do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Capabilities
+
   alias MediaCentaur.Acquisition.{
     AutoGrabService,
-    Config,
     Corpus,
     DropPlanner,
     Target,
@@ -151,7 +152,7 @@ defmodule MediaCentaur.Acquisition do
 
   @doc "Returns true when Prowlarr is configured and acquisition features are available."
   @spec available?() :: boolean()
-  def available?, do: Config.available?()
+  def available?, do: Capabilities.configured?(:prowlarr)
 
   @doc "True when auto-grab is enabled. Delegates to `AutoGrabService.running?/0`."
   @spec auto_grab_running?() :: boolean()
@@ -575,8 +576,8 @@ defmodule MediaCentaur.Acquisition do
   """
   @spec cancel_download(String.t()) :: :ok | {:error, term()}
   def cancel_download(id) do
-    with {:ok, driver} <- Dispatcher.driver_for(protocol_for_download(id)) do
-      driver.cancel_download(id)
+    with {:ok, {config, driver}} <- Dispatcher.driver_for(protocol_for_download(id)) do
+      driver.cancel_download(config, id)
     end
   end
 
@@ -613,8 +614,8 @@ defmodule MediaCentaur.Acquisition do
   """
   @spec test_download_client(:torrent | :usenet) :: :ok | {:error, term()}
   def test_download_client(protocol \\ :torrent) do
-    with {:ok, driver} <- Dispatcher.driver_for(protocol) do
-      driver.test_connection()
+    with {:ok, {config, driver}} <- Dispatcher.driver_for(protocol) do
+      driver.test_connection(config)
     end
   end
 

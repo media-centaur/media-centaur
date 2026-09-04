@@ -1,7 +1,6 @@
 defmodule MediaCentaur.Showcase.StubsTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.Downloads.DownloadClient.QBittorrent
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Showcase.Stubs
 
@@ -32,30 +31,32 @@ defmodule MediaCentaur.Showcase.StubsTest do
   end
 
   describe "qbittorrent_plug/1" do
-    test "list_downloads :active returns fixture torrents" do
-      client = Req.new(plug: &Stubs.qbittorrent_plug/1, retry: false)
-      assert {:ok, items} = QBittorrent.list_downloads(:active, client)
-      assert length(items) >= 4
-      assert Enum.any?(items, fn i -> i.title =~ "Big.Buck.Bunny" end)
+    # The showcase driver is exercised through the real `QBittorrent`
+    # module in showcase mode; here the plug's own HTTP contract is pinned.
+    defp showcase_qbittorrent, do: Req.new(plug: &Stubs.qbittorrent_plug/1, retry: false)
+
+    test "torrents/info returns fixture torrents with progress and state" do
+      assert {:ok, %{status: 200, body: torrents}} =
+               Req.get(showcase_qbittorrent(), url: "/api/v2/torrents/info", params: [filter: "all"])
+
+      assert length(torrents) >= 4
+      assert Enum.any?(torrents, fn t -> t["name"] =~ "Big.Buck.Bunny" end)
+      assert Enum.all?(torrents, fn t -> is_binary(t["hash"]) and t["hash"] != "" end)
+      assert Enum.any?(torrents, fn t -> t["state"] == "downloading" end)
     end
 
-    test "list_downloads :completed returns empty list" do
-      client = Req.new(plug: &Stubs.qbittorrent_plug/1, retry: false)
-      assert {:ok, []} = QBittorrent.list_downloads(:completed, client)
+    test "login accepts any credentials and sets a session cookie" do
+      assert {:ok, %{status: 200} = response} =
+               Req.post(showcase_qbittorrent(),
+                 url: "/api/v2/auth/login",
+                 form: [username: "a", password: "b"]
+               )
+
+      assert Enum.any?(response.headers["set-cookie"] || [], &String.starts_with?(&1, "SID="))
     end
 
-    test "fixture torrents populate progress and state fields" do
-      client = Req.new(plug: &Stubs.qbittorrent_plug/1, retry: false)
-      assert {:ok, items} = QBittorrent.list_downloads(:all, client)
-
-      assert Enum.any?(items, fn i -> i.state == :downloading end)
-      assert Enum.any?(items, fn i -> i.state == :queued end)
-      assert Enum.all?(items, fn i -> is_binary(i.id) and i.id != "" end)
-    end
-
-    test "test_connection returns ok" do
-      client = Req.new(plug: &Stubs.qbittorrent_plug/1, retry: false)
-      assert :ok = QBittorrent.test_connection(client)
+    test "app/version answers 200" do
+      assert {:ok, %{status: 200}} = Req.get(showcase_qbittorrent(), url: "/api/v2/app/version")
     end
   end
 end

@@ -17,8 +17,6 @@ defmodule MediaCentaur.AcquisitionTest do
     # empty-response stub so the worker snoozes cleanly instead of
     # crashing.
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
 
     # TV pursuit re-searches consult cour segmentation (a TMDB season
     # fetch). Stub it to an empty season so the worker degrades to the
@@ -36,7 +34,6 @@ defmodule MediaCentaur.AcquisitionTest do
     )
 
     on_exit(fn ->
-      :persistent_term.erase({Prowlarr, :client})
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
     end)
 
@@ -109,8 +106,6 @@ defmodule MediaCentaur.AcquisitionTest do
     end
 
     test "returns :not_configured when Prowlarr is not configured" do
-      :persistent_term.erase({Prowlarr, :client})
-
       :persistent_term.put(
         {MediaCentaur.Settings.Config, :config},
         Map.put(:persistent_term.get({MediaCentaur.Settings.Config, :config}), :prowlarr_url, nil)

@@ -7,16 +7,13 @@ defmodule MediaCentaur.Downloads.DownloadClient do
   a `MediaCentaur.Downloads.DownloadClient.Dispatcher` type→module
   entry so its protocol slot resolves to the new driver.
 
-  ## Filter values
-
-    * `:active`    — currently downloading or in-flight
-    * `:completed` — finished
-    * `:all`       — both
-
-  Drivers translate these to whatever filter shape the underlying client
-  understands.
+  Every callback takes the slot's `MediaCentaur.Downloads.ClientConfig`
+  first: a driver is a function of its configuration and holds no
+  connection settings of its own. The Dispatcher hands each driver the
+  config it was resolved for.
   """
 
+  alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Downloads.QueueItem
 
   defmodule SyncResult do
@@ -41,12 +38,10 @@ defmodule MediaCentaur.Downloads.DownloadClient do
           }
   end
 
-  @type filter :: :active | :completed | :all
   @typedoc "Opaque per-driver sync bookmark. `nil` means start fresh (full update)."
   @type driver_state :: term()
 
-  @callback list_downloads(filter()) :: {:ok, [QueueItem.t()]} | {:error, term()}
-  @callback test_connection() :: :ok | {:error, term()}
+  @callback test_connection(ClientConfig.t()) :: :ok | {:error, term()}
 
   @doc """
   One incremental-sync tick: given the previous tick's opaque
@@ -55,12 +50,12 @@ defmodule MediaCentaur.Downloads.DownloadClient do
   caller should hand back next tick — drivers use this to reset their
   conversation so the next successful poll is a full update.
   """
-  @callback sync(driver_state()) ::
+  @callback sync(ClientConfig.t(), driver_state()) ::
               {:ok, SyncResult.t()} | {:error, term(), driver_state()}
 
   @doc """
   Cancels a download by its client-specific id. Destructive — the driver
   is expected to remove both the queue entry and the downloaded files.
   """
-  @callback cancel_download(id :: String.t()) :: :ok | {:error, term()}
+  @callback cancel_download(ClientConfig.t(), id :: String.t()) :: :ok | {:error, term()}
 end

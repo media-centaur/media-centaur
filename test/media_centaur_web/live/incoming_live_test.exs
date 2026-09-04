@@ -10,10 +10,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaur.Acquisition.Pursuits.Units
-  alias MediaCentaur.Downloads.DownloadClient.QBittorrent
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
-  alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Secret
 
@@ -46,8 +44,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-    :persistent_term.put({Prowlarr, :client}, client)
 
     # Settings mirrors into a process-global :persistent_term cache that
     # outlives the Ecto sandbox. Once any other test warms it, `put_cache/1`
@@ -79,7 +75,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     SearchSession.clear()
 
     on_exit(fn ->
-      :persistent_term.erase({Prowlarr, :client})
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
       SearchSession.clear()
     end)
@@ -2236,11 +2231,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     setup do
       Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, []) end)
 
-      qbit_client =
-        Req.new(plug: {Req.Test, :qbittorrent}, retry: false, base_url: "http://qbit.test")
-
-      :persistent_term.put({QBittorrent, :client}, qbit_client)
-
       config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       :persistent_term.put(
@@ -2255,7 +2245,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       on_exit(fn ->
         :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-        QBittorrent.invalidate_client()
       end)
 
       :ok
@@ -2854,12 +2843,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         send(test_pid, :qbit_called)
         Req.Test.json(conn, [])
       end)
-
-      qbit_client =
-        Req.new(plug: {Req.Test, :qbittorrent}, retry: false, base_url: "http://qbit.test")
-
-      :persistent_term.put({QBittorrent, :client}, qbit_client)
-      on_exit(fn -> QBittorrent.invalidate_client() end)
 
       monitor = start_supervised!(MediaCentaur.Downloads.QueueMonitor)
       Req.Test.allow(:qbittorrent, self(), monitor)

@@ -53,6 +53,18 @@ config :media_centaur, :media_dirs, []
 # No ffprobe subprocesses under test (ADR-016) — probes fail cleanly and
 # store nothing. MediaProbe.parse/1 is pure and carries the coverage.
 config :media_centaur, :media_probe_runner, MediaCentaur.Library.MediaProbe.Disabled
+
+# Every integration client is built through `MediaCentaur.HttpClient`, which
+# routes these owners to a `Req.Test` stub of the same name (see the stub
+# helpers under test/support). A test that lets a call through without a
+# stub fails loudly instead of touching the network.
+config :media_centaur, :req_test_stubs, %{
+  MediaCentaur.TMDB.Client => :tmdb,
+  MediaCentaur.Search.Prowlarr => :prowlarr,
+  MediaCentaur.Downloads.DownloadClient.QBittorrent => :qbittorrent,
+  MediaCentaur.Downloads.DownloadClient.SABnzbd => :sabnzbd
+}
+
 config :media_centaur, :skip_user_config, true
 config :media_centaur, :start_pipeline, false
 # Skip mpv socket recovery — otherwise the recovery task scans
