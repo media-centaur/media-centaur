@@ -208,6 +208,13 @@ defmodule MediaCentaur.ErrorReports.Store do
   ongoing condition) rather than opening a duplicate. `attrs` requires
   `:component`, `:kind`, `:severity`, `:occurred_at`. See the single-writer note
   on `upsert_log_incident/1` — the same read-then-write caveat applies.
+
+  The incident's `fingerprint` is `fault_fingerprint/2` — synthetic, so the
+  fault buckets on the health board beside log incidents; a re-assertion
+  stamps it too, which is how a row opened before fingerprints existed
+  acquires one. The key belongs to the *live* fault: `resolve_fault/3` clears
+  it (the column is unique, and the next raise opens a fresh row under the
+  same key), so a resolved row keeps its history and no bucket.
   """
   @spec raise_fault(map()) :: {:ok, Incident.t()} | {:error, Ecto.Changeset.t()}
   def raise_fault(attrs) do
@@ -217,11 +224,17 @@ defmodule MediaCentaur.ErrorReports.Store do
       |> Map.update!(:component, &to_string/1)
       |> Map.update!(:kind, &to_string/1)
 
+    attrs = Map.put(attrs, :fingerprint, fault_fingerprint(attrs.component, attrs.kind))
+
     case get_open_subsystem_incident(attrs.component, attrs.kind) do
       nil -> open_subsystem_incident(attrs)
       %Incident{} = incident -> reassert_subsystem_incident(incident, attrs)
     end
   end
+
+  @doc "The bucket key of a `:subsystem` fault: `subsystem:<component>:<kind>`."
+  @spec fault_fingerprint(atom() | String.t(), atom() | String.t()) :: String.t()
+  def fault_fingerprint(component, kind), do: "subsystem:#{component}:#{kind}"
 
   @doc """
   Resolves the open `:subsystem` incident for `{component, kind}`, stamping
@@ -240,7 +253,8 @@ defmodule MediaCentaur.ErrorReports.Store do
           count: incident.count,
           last_seen: incident.last_seen,
           status: :resolved,
-          resolved_at: resolved_at
+          resolved_at: resolved_at,
+          fingerprint: nil
         })
         |> Repo.update()
     end
@@ -467,6 +481,7 @@ defmodule MediaCentaur.ErrorReports.Store do
     incident
     |> Incident.recurrence_changeset(
       %{count: incident.count + 1, last_seen: max_dt(incident.last_seen, occurred_at)}
+      |> put_latest(:fingerprint, attrs)
       |> put_latest(:message, attrs)
       |> put_latest(:display_title, attrs)
       |> put_latest(:severity, attrs)

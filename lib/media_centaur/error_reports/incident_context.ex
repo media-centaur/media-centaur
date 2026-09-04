@@ -13,9 +13,11 @@ defmodule MediaCentaur.ErrorReports.IncidentContext do
   - **Detect** (`assess/0`) — a cheap, side-effect-free health check the
     periodic evaluator polls for duration/trend faults. Returns `:ok` when
     healthy, or `{:fault, kind, severity, ids}` to raise/keep a `:subsystem`
-    incident (grouped by `{component, kind}`). Subsystems may also raise/resolve
-    acute faults directly via the `ErrorReports` API the instant they happen,
-    independent of this poll.
+    incident (grouped by `{component, kind}`). `ids` may carry `headline:`,
+    the sentence the health board shows for the condition ("No relay
+    reachable"); without one the evaluator titles the incident after its
+    kind. Subsystems may also raise/resolve acute faults directly via the
+    `ErrorReports` API the instant they happen, independent of this poll.
   - **Contribute** (`gather/1`) — given the triggering ids of an incident,
     return a map of the structured context that subsystem deems relevant. Must
     be defensive: it runs while something is already wrong. The registry wraps

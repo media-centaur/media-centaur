@@ -120,6 +120,7 @@ defmodule MediaCentaur.ErrorReports.Incident do
     |> cast(attrs, [
       :component,
       :kind,
+      :fingerprint,
       :message,
       :display_title,
       :severity,
@@ -170,6 +171,7 @@ defmodule MediaCentaur.ErrorReports.Incident do
     incident
     |> cast(attrs, [
       :count,
+      :fingerprint,
       :first_seen,
       :last_seen,
       :message,

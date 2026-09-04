@@ -72,21 +72,29 @@ defmodule MediaCentaur.ErrorReports do
   @spec raise_fault(atom(), atom(), atom(), keyword()) ::
           {:ok, __MODULE__.Incident.t()} | {:error, Ecto.Changeset.t()}
   def raise_fault(component, kind, severity, opts \\ []) do
-    Store.raise_fault(%{
-      component: component,
-      kind: kind,
-      severity: severity,
-      occurred_at: opts[:occurred_at] || DateTime.utc_now(),
-      message: opts[:message],
-      display_title: opts[:display_title]
-    })
+    with {:ok, incident} <-
+           Store.raise_fault(%{
+             component: component,
+             kind: kind,
+             severity: severity,
+             occurred_at: opts[:occurred_at] || DateTime.utc_now(),
+             message: opts[:message],
+             display_title: opts[:display_title]
+           }) do
+      Buckets.fault_raised(incident)
+      {:ok, incident}
+    end
   end
 
   @doc "Resolves the open `:subsystem` fault for `{component, kind}` (no-op if none open)."
   @spec resolve_fault(atom(), atom(), keyword()) ::
           {:ok, __MODULE__.Incident.t()} | {:ok, :none} | {:error, Ecto.Changeset.t()}
   def resolve_fault(component, kind, opts \\ []) do
-    Store.resolve_fault(component, kind, opts[:resolved_at] || DateTime.utc_now())
+    with {:ok, %__MODULE__.Incident{} = incident} <-
+           Store.resolve_fault(component, kind, opts[:resolved_at] || DateTime.utc_now()) do
+      Buckets.fault_resolved(Store.fault_fingerprint(component, kind))
+      {:ok, incident}
+    end
   end
 
   @doc """

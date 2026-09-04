@@ -256,27 +256,19 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   15 s in tests — and a page-smoke `LazyHTML` render past 60 s); all pass
   alone. The suite is ~160 s now; the Sync tests stand up Bandit relays.
   Watch, and consider `page_limit`-style injection over sleeps if it grows.
-* **Board alias:** `:nostr`/`:recommendations` log incidents count on the
-  Friends tile (`HealthBoard.normalize/1`); the pre-existing gap that
-  `:subsystem` incidents never reach the board remains (ErrorReports).
-* **`:subsystem` incidents do not reach the health board.**
-  `BucketCache.from_incidents/1` keeps only fingerprint-keyed (`:log`)
-  rows, and the `Evaluator` raises faults with no `message`, so every
-  assessor's verdict — `Social.IncidentContext` included, and
-  `download_client_unreachable` / `search_provider_unreachable` before it
-  — is stored durably and colours nothing. The Friends tile therefore
-  reads "No issues" even with every relay down. Pre-existing and
-  system-wide; fixing it means giving `:subsystem` incidents a synthetic
-  grouping key and a per-kind headline (the three Friends kinds are
-  **Relay rejected this identity**, **No relay reachable**, **A relay is
-  unreachable**), which is an `ErrorReports` change, not a Friends one.
-* **Relay observability** — spec approved 2026-09-04
-  (`docs/superpowers/specs/2026-09-04-social-relay-observability-design.md`).
-  Stage one: per-relay rows in the Status drill-in (state incl. `synced`,
-  duration, plain reason, retry countdown, last heard), liveness ping,
-  console lifecycle lines, the `restricted:` → Rejected rule below. Stage
-  two: the `:subsystem` board gap above, via a synthetic fingerprint and
-  per-kind headline.
+* ~~**`:subsystem` incidents do not reach the health board.**~~ **Done
+  2026-09-04** (relay observability, stage two): faults bucket under
+  `subsystem:<component>:<kind>` with the assessor's `headline:`, the
+  cache rebuilds from open incidents only, and `resolve_fault` evicts the
+  bucket. System-wide — the download-client, search and self-update
+  probes name their conditions too.
+* ~~**Relay observability**~~ **Done 2026-09-04** — spec
+  `docs/superpowers/specs/2026-09-04-social-relay-observability-design.md`.
+  Per-relay rows in the Status drill-in (state incl. `synced`, duration,
+  plain reason, retry countdown, last heard), liveness ping, console
+  lifecycle lines, the `restricted:` → Rejected rule. Unshipped: wiki
+  (Settings-Reference → Social, Troubleshooting) needs the state and reason
+  vocabulary at ship time.
 * **Hardening pass** after iteration settles (spec decision 11).
 * **Plan modal selection header → `title_summary`** (spec unification
   decision 4): converges when the plan modal is next touched; not before.
@@ -284,17 +276,12 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   page's TMDB search still returns its own map shape; converge when Review
   search is next touched.
 
-* **Non-member rejection by `social-relay` surfaces as `last_error`, not
-  as *Relay rejected this identity*.** From the relay campaign (shipped
-  v0.1.0, 2026-09-02; contract in `../social-relay/docs/protocol.md`).
-  khatru cannot refuse an `AUTH` event, so a key that is not on the
-  allowlist gets `OK true` for its auth and then
-  `["CLOSED", "feed", "restricted: this key is not a member of this relay"]`,
-  the same on `own:<url>`, and `OK false` with that reason on every
-  `EVENT`. The row stays **Connected** with the reason as its error.
-  Proposed rule: a `CLOSED` whose reason starts with `restricted:` on
-  `feed`, from a relay that has accepted this identity's `AUTH`, is an
-  authentication failure (`:auth_failed`). Match on the prefix only.
+* ~~**Non-member rejection by `social-relay` surfaces as `last_error`, not
+  as *Relay rejected this identity*.**~~ **Done 2026-09-04**: a `CLOSED`
+  on `feed` whose reason starts with `restricted:` is `:auth_failed`
+  (`Connections.apply_message/2`, prefix match only). Background: khatru
+  cannot refuse an `AUTH` event, so a non-member gets `OK true` for its
+  auth and then the `restricted:` `CLOSED`.
 
 * **Allow friends on the relay from the app.** `social-relay` v0.2.0
   manages membership through NIP-86 (`allowpubkey`, `unallowpubkey`,

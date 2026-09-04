@@ -54,10 +54,23 @@ defmodule MediaCentaur.ErrorReports.Evaluator do
 
   defp reconcile(component, assessment) do
     %{raises: raises, resolves: resolves} = plan(assessment, Store.open_subsystem_kinds(component))
+    headline = headline(assessment)
 
-    Enum.each(raises, fn {kind, severity} -> ErrorReports.raise_fault(component, kind, severity) end)
+    Enum.each(raises, fn {kind, severity} ->
+      title = headline || humanize(kind)
+      ErrorReports.raise_fault(component, kind, severity, message: title, display_title: title)
+    end)
+
     Enum.each(resolves, fn kind -> ErrorReports.resolve_fault(component, kind) end)
   end
+
+  # The assessor names its own condition (`headline:` in the fault's context
+  # map); one that does not is titled after its kind, so no fault ever
+  # buckets untitled.
+  defp headline({:fault, _kind, _severity, %{headline: headline}}) when is_binary(headline), do: headline
+  defp headline(_assessment), do: nil
+
+  defp humanize(kind), do: kind |> to_string() |> String.replace("_", " ") |> String.capitalize()
 
   defp safe_assess(module) do
     case module.assess() do

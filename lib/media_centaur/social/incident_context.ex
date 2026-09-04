@@ -71,11 +71,20 @@ defmodule MediaCentaur.Social.IncidentContext do
     down = Enum.filter(entries, &down?(&1, now, grace_seconds))
 
     cond do
-      entries == [] -> :ok
-      Enum.any?(entries, &(&1.state == :auth_failed)) -> {:fault, :relay_auth_failed, :error, %{}}
-      down == [] -> :ok
-      length(down) == length(entries) -> {:fault, :relays_unreachable, :error, %{}}
-      true -> {:fault, :relay_degraded, :warning, %{}}
+      entries == [] ->
+        :ok
+
+      Enum.any?(entries, &(&1.state == :auth_failed)) ->
+        {:fault, :relay_auth_failed, :error, %{headline: "Relay rejected this identity"}}
+
+      down == [] ->
+        :ok
+
+      length(down) == length(entries) ->
+        {:fault, :relays_unreachable, :error, %{headline: "No relay reachable"}}
+
+      true ->
+        {:fault, :relay_degraded, :warning, %{headline: "A relay is unreachable"}}
     end
   end
 

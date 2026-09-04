@@ -3,9 +3,15 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   GenServer that serves the Status page a fast, in-memory **cache over the
   durable incident store**.
 
-  - On boot it rebuilds the cache from `Store.list_incidents/1` (the
-    `:warning`/`:error` `:log` incidents), so a restart no longer loses
-    evidence — the central guarantee of the observability backbone.
+  - On boot it rebuilds the cache from the store's **open** incidents —
+    `:log` buckets with their samples, and `:subsystem` faults under their
+    synthetic fingerprints — so a restart no longer loses evidence, the
+    central guarantee of the observability backbone.
+  - It is also fed by the fault path: `ErrorReports.raise_fault/4` and
+    `resolve_fault/3` write the store first, then `fault_raised/2` /
+    `fault_resolved/2` fold the verdict here, so an assessor's fault colours
+    the health board the moment the evaluator raises it and leaves the moment
+    it resolves.
   - It is fed by `ErrorReports.LogHandler` — an **independent** `:logger`
     handler, a peer of `Console.Handler`, not downstream of the volatile
     Console buffer — which casts each captured entry here via `ingest/2`. For
@@ -72,18 +78,29 @@ defmodule MediaCentaur.ErrorReports.Buckets do
     GenServer.cast(server, {:ingest, entry})
   end
 
+  @doc "Folds a raised (or re-asserted) `:subsystem` incident into the cache."
+  @spec fault_raised(GenServer.server(), struct()) :: :ok
+  def fault_raised(server \\ __MODULE__, incident), do: GenServer.cast(server, {:fault_raised, incident})
+
+  @doc "Evicts a resolved fault's bucket."
+  @spec fault_resolved(GenServer.server(), binary()) :: :ok
+  def fault_resolved(server \\ __MODULE__, fingerprint) when is_binary(fingerprint),
+    do: GenServer.cast(server, {:fault_resolved, fingerprint})
+
   @doc """
-  Dismisses the given fingerprints: permanently deletes each backing `:log`
-  incident (and its diagnostic events) from the durable store, evicts the buckets
-  from the in-memory cache, and broadcasts the new list immediately (a user
-  action, not throttled).
+  Dismisses the given fingerprints: permanently deletes each backing incident
+  (and its diagnostic events) from the durable store, evicts the buckets from
+  the in-memory cache, and broadcasts the new list immediately (a user action,
+  not throttled).
 
   Dismiss honours the user's intent literally — the incident is *removed*, not
   marked `:resolved`. A resolved row would reload on the next cache rebuild and
   reappear, which is the "dismissed incidents come back" complaint. If the same
   fault later recurs, the LogHandler opens a *fresh* incident from the new
-  evidence (`Store.upsert_log_incident/1`); dismiss never permanently silences a
-  live fault, it only clears what has happened so far.
+  evidence (`Store.upsert_log_incident/1`), and a dismissed `:subsystem` fault
+  is re-raised by the evaluator's next poll while its condition persists;
+  dismiss never permanently silences a live fault, it only clears what has
+  happened so far.
   """
   @spec dismiss(GenServer.server(), [binary()]) :: :ok
   def dismiss(server \\ __MODULE__, fingerprints) when is_list(fingerprints) do
@@ -147,6 +164,14 @@ defmodule MediaCentaur.ErrorReports.Buckets do
 
   @impl true
   def handle_cast({:ingest, _other}, state), do: {:noreply, state}
+
+  @impl true
+  def handle_cast({:fault_raised, incident}, state),
+    do: {:noreply, schedule_broadcast(%{state | cache: BucketCache.put_incident(state.cache, incident)})}
+
+  @impl true
+  def handle_cast({:fault_resolved, fingerprint}, state),
+    do: {:noreply, schedule_broadcast(%{state | cache: BucketCache.delete(state.cache, fingerprint)})}
 
   @impl true
   def handle_info(:flush_broadcast, state) do
@@ -239,22 +264,25 @@ defmodule MediaCentaur.ErrorReports.Buckets do
     _, _ -> :error
   end
 
-  # Rebuild the working set from the durable store, newest-active first. N+1 on
-  # boot (one recent-events read per incident) but bounded by the cache cap and
-  # one-time; SQLite reads are sub-ms.
+  # Rebuild the working set from the durable store's open incidents,
+  # newest-active first: a resolved row — a fault whose condition cleared, a
+  # log incident swept as superseded — is history, not a current issue. N+1
+  # on boot (one recent-events read per log incident) but bounded by the
+  # cache cap and one-time; SQLite reads are sub-ms.
   defp rebuild_from_store do
-    [limit: BucketCache.max_active_buckets()]
+    [status: :open, limit: BucketCache.max_active_buckets()]
     |> Store.list_incidents()
     |> Enum.map(fn incident -> {incident, samples_for(incident)} end)
     |> BucketCache.from_incidents()
   end
 
-  # Only fingerprint-keyed incidents (`:log`) have recent events to reconstruct
-  # samples from. `:subsystem`/`:user` incidents carry no fingerprint and don't
-  # bucket (BucketCache.from_incidents drops them), so skip the per-incident
-  # event read — a `fingerprint == nil` query is forbidden by Ecto and would
-  # crash the boot rebuild.
+  # Only `:log` incidents have recent events to reconstruct samples from: a
+  # fault's evidence is its headline, and a `:user` report carries no
+  # fingerprint and does not bucket (BucketCache.from_incidents drops it), so
+  # skip the per-incident event read — a `fingerprint == nil` query is
+  # forbidden by Ecto and would crash the boot rebuild.
   defp samples_for(%{fingerprint: nil}), do: []
+  defp samples_for(%{origin: :subsystem}), do: []
 
   defp samples_for(%{fingerprint: fingerprint}) do
     fingerprint
