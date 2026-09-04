@@ -46,6 +46,7 @@ One person recommending one title. The address is the title, so a person holds a
 | `v` | integer | | Content schema version. Absent means 1. |
 | `title` | object | | Snapshot of the title, below. |
 | `note` | string or null | 500 characters | The sender's note. |
+| `recommended_at` | integer, Unix seconds | | When the person recommended the title. Absent means `created_at`. |
 
 `title`:
 
@@ -65,6 +66,7 @@ One person recommending one title. The address is the title, so a person holds a
 - Readers ignore fields they do not know, so fields can be added without a version bump. A change that alters the meaning of an existing field bumps `v`; readers drop a message whose `v` they do not understand.
 - A message whose `d` tag and `title` disagree, whose content is not JSON, or whose strings exceed a cap is dropped as malformed. Nothing is repaired or truncated.
 - Between two recommendations from the same signer for the same title, the newer `created_at` wins. On a tie, what is already stored is kept.
+- `created_at` is the wire time and decides only which copy wins. `recommended_at` is when the person acted; readers order and display by it and never derive one from the other. The two coincide when a message is made and sent in one go.
 
 ## Deletion (kind 5)
 
@@ -76,6 +78,7 @@ A person withdrawing their own recommendation. Standard NIP-09, restricted to th
 |---|---|---|
 | `a` | `32160:<signer pubkey>:tmdb:<media_type>:<tmdb_id>` — the address of the recommendation being withdrawn. One `a` tag per deletion. | yes |
 | `e` | The id of the recommendation event, if known. | no |
+| `deleted_at` | When the person withdrew it, Unix seconds. Absent means `created_at`. Same split as a recommendation's `recommended_at`: `created_at` decides, `deleted_at` is shown. | no |
 
 `content` may carry a reason; readers ignore it.
 
@@ -97,7 +100,7 @@ The app keeps one long-lived connection per relay and, on every connect, opens t
 | `feed` | followed keys plus the install's own | 32160, 5 | what friends recommended and withdrew |
 | `own:<relay url>` | the install's own | 32160, 5 | what this relay holds of ours |
 
-**Incremental.** For each relay the app remembers the newest `created_at` it has seen from that relay and passes it as `since` on the next connect, so a reconnect fetches only what is new. The first connect to a relay has no `since` and fetches history.
+**From the start, every time.** Every connect reads the relay's whole stored set for the subscription; the app keeps no `since` cursor. A relay holds one record per signer per title (Deletion rule 3), so a friend group's history is a page or two, and a cursor keyed on `created_at` would skip a message published late with an older stamp — a withdrawal made while offline. Re-reading is idempotent: a reader ignores anything not newer than what it holds.
 
 **Paged.** The app asks for at most 500 events per request. A batch that comes back full is followed by another request with `until` set to the oldest `created_at` in the batch, until a batch comes back short.
 
@@ -137,3 +140,4 @@ For a relay to carry Media Centaur traffic:
 | Date | Change |
 |---|---|
 | 2026-09-02 | First version: kind blocks, Recommendation (32160) with content version `v`, Deletion (5), incremental and paged sync, relay requirements. |
+| 2026-09-04 | Domain times: `recommended_at` in a recommendation's content, `deleted_at` tag on a deletion; `created_at` decides, the domain time is shown. Sync reads from the start on every connect; the `since` cursor is gone. Relay requirements unchanged. |

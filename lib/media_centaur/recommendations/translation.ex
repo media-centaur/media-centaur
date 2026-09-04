@@ -9,10 +9,19 @@ defmodule MediaCentaur.Recommendations.Translation do
   a single `a` tag naming the signer's own recommendation address.
 
   Both directions are pure and know nothing about relays or storage:
-  `to_event/3` builds the unsigned event a caller signs, `from_event/1`
+  `to_event/4` builds the unsigned event a caller signs, `from_event/1`
   shape-checks an already-*verified* event into record attrs. The
   address and the content snapshot must agree on identity — a mismatch
   is a rejected event, not a reconciled one.
+
+  Two times ride on every message. The **wire time** is the event's
+  `created_at`: it decides which of two copies wins, here and on the
+  relay, and nothing else. The **domain time** is when the person acted
+  — `recommended_at` in a recommendation's content, a `deleted_at` tag on
+  a deletion — and is what the app orders and shows by. They coincide in
+  practice, but readers never derive one from the other: an event
+  missing its domain time gets the wire time as a fallback and that is
+  all.
 
   Inbound strings are capped: note at 500, title name at 300, title
   overview at 2000 characters; larger events are rejected as
@@ -49,19 +58,29 @@ defmodule MediaCentaur.Recommendations.Translation do
   @spec address(Title.t()) :: String.t()
   def address(%Title{tmdb_id: id, media_type: type}), do: "tmdb:#{type}:#{id}"
 
-  @doc "An unsigned recommendation event from `pubkey`, stamped `created_at` (now by default)."
-  @spec to_event(Title.t(), String.t() | nil, String.t(), non_neg_integer()) :: Event.t()
-  def to_event(%Title{} = title, note, pubkey, created_at \\ System.os_time(:second)) do
+  @typedoc "Unix seconds for the wire (`created_at`) and the act (`recommended_at` / `deleted_at`); both default to now."
+  @type times :: [
+          created_at: non_neg_integer(),
+          recommended_at: non_neg_integer(),
+          deleted_at: non_neg_integer()
+        ]
+
+  @doc "An unsigned recommendation event from `pubkey`."
+  @spec to_event(Title.t(), String.t() | nil, String.t(), times()) :: Event.t()
+  def to_event(%Title{} = title, note, pubkey, times \\ []) do
+    now = System.os_time(:second)
+
     Event.new(%{
       pubkey: pubkey,
-      created_at: created_at,
+      created_at: Keyword.get(times, :created_at, now),
       kind: @kind,
       tags: [["d", address(title)]],
       content:
         Jason.encode!(%{
           "v" => @content_version,
           "title" => title_map(title),
-          "note" => blank_to_nil(note)
+          "note" => blank_to_nil(note),
+          "recommended_at" => Keyword.get(times, :recommended_at, now)
         })
     })
   end
@@ -70,22 +89,22 @@ defmodule MediaCentaur.Recommendations.Translation do
   An unsigned deletion (kind 5) from `pubkey` withdrawing its own
   recommendation at the address — the `a` tag — with the withdrawn
   event's id as an `e` tag when known (`nil` omits it: the address alone
-  identifies what is withdrawn). Stamped `created_at`, now by default.
+  identifies what is withdrawn) and the time of the act as a `deleted_at`
+  tag.
   """
-  @spec to_deletion(
-          String.t(),
-          Title.media_type(),
-          pos_integer(),
-          String.t() | nil,
-          non_neg_integer()
-        ) :: Event.t()
-  def to_deletion(pubkey, media_type, tmdb_id, event_id, created_at \\ System.os_time(:second)) do
+  @spec to_deletion(String.t(), Title.media_type(), pos_integer(), String.t() | nil, times()) ::
+          Event.t()
+  def to_deletion(pubkey, media_type, tmdb_id, event_id, times \\ []) do
+    now = System.os_time(:second)
+
     tags =
-      [["a", coordinate(pubkey, media_type, tmdb_id)]] ++ if(event_id, do: [["e", event_id]], else: [])
+      [["a", coordinate(pubkey, media_type, tmdb_id)]] ++
+        if(event_id, do: [["e", event_id]], else: []) ++
+        [["deleted_at", Integer.to_string(Keyword.get(times, :deleted_at, now))]]
 
     Event.new(%{
       pubkey: pubkey,
-      created_at: created_at,
+      created_at: Keyword.get(times, :created_at, now),
       kind: @deletion_kind,
       tags: tags,
       content: ""
@@ -96,6 +115,7 @@ defmodule MediaCentaur.Recommendations.Translation do
           author_pubkey: String.t(),
           tmdb_id: pos_integer(),
           media_type: Title.media_type(),
+          created_at: non_neg_integer(),
           deleted_at: DateTime.t(),
           deletion_event: map()
         }
@@ -103,19 +123,21 @@ defmodule MediaCentaur.Recommendations.Translation do
   @doc """
   Tombstone attrs from a *verified* deletion event. Exactly one `a` tag,
   kind 32160, whose pubkey is the signer's own; anything else is
-  `:not_author` or `:bad_address`.
+  `:not_author` or `:bad_address`. `created_at` is the wire time;
+  `deleted_at` the `deleted_at` tag, or the wire time when absent.
   """
   @spec from_deletion(Event.t()) ::
           {:ok, deletion_attrs()} | {:error, :wrong_kind | :bad_address | :not_author | :bad_content}
   def from_deletion(%Event{kind: @deletion_kind} = event) do
     with {:ok, {author, media_type, tmdb_id}} <- parse_coordinate(Event.tag_value(event, "a")),
          :ok <- author_matches(author, event.pubkey),
-         {:ok, deleted_at} <- parse_created_at(event.created_at) do
+         {:ok, deleted_at} <- parse_domain_time(tag_integer(event, "deleted_at"), event.created_at) do
       {:ok,
        %{
          author_pubkey: author,
          tmdb_id: tmdb_id,
          media_type: media_type,
+         created_at: event.created_at,
          deleted_at: deleted_at,
          deletion_event: Event.to_map(event)
        }}
@@ -139,6 +161,21 @@ defmodule MediaCentaur.Recommendations.Translation do
   defp author_matches(author, author), do: :ok
   defp author_matches(_author, _signer), do: {:error, :not_author}
 
+  # A tag value is a string on the wire; anything but an integer in it is
+  # malformed, and an absent tag is `nil` (the wire time stands in).
+  defp tag_integer(event, name) do
+    case Event.tag_value(event, name) do
+      nil ->
+        nil
+
+      text ->
+        case Integer.parse(text) do
+          {int, ""} -> int
+          _other -> :malformed
+        end
+    end
+  end
+
   @type attrs :: %{
           event_id: String.t(),
           author_pubkey: String.t(),
@@ -146,11 +183,16 @@ defmodule MediaCentaur.Recommendations.Translation do
           media_type: Title.media_type(),
           title: Title.t(),
           note: String.t() | nil,
+          created_at: non_neg_integer(),
           recommended_at: DateTime.t(),
           raw_event: map()
         }
 
-  @doc "Record attrs from a *verified* event; shape and address checks only."
+  @doc """
+  Record attrs from a *verified* event; shape and address checks only.
+  `created_at` is the wire time; `recommended_at` the content's, or the
+  wire time when absent.
+  """
   @spec from_event(Event.t()) ::
           {:ok, attrs()}
           | {:error,
@@ -164,7 +206,7 @@ defmodule MediaCentaur.Recommendations.Translation do
          :ok <- check_length(title_attrs["overview"], @max_overview),
          {:ok, title} <- build_title(title_attrs),
          :ok <- match_identity(title, media_type, tmdb_id),
-         {:ok, recommended_at} <- parse_created_at(event.created_at) do
+         {:ok, recommended_at} <- parse_domain_time(content["recommended_at"], event.created_at) do
       {:ok,
        %{
          event_id: event.id,
@@ -173,6 +215,7 @@ defmodule MediaCentaur.Recommendations.Translation do
          media_type: media_type,
          title: title,
          note: blank_to_nil(content["note"]),
+         created_at: event.created_at,
          recommended_at: recommended_at,
          raw_event: Event.to_map(event)
        }}
@@ -192,14 +235,20 @@ defmodule MediaCentaur.Recommendations.Translation do
     end
   end
 
-  # A relay can send any `created_at` it likes; `DateTime.from_unix!/1`
-  # raises past `~U[9999-12-31 23:59:59Z]`, and this is untrusted input.
-  defp parse_created_at(created_at) do
-    case DateTime.from_unix(created_at) do
+  # The act's time from the payload, the wire time standing in when the
+  # payload has none. A relay can send any integer it likes;
+  # `DateTime.from_unix!/1` raises past `~U[9999-12-31 23:59:59Z]`, and
+  # this is untrusted input — as is a value that is not an integer at all.
+  defp parse_domain_time(nil, created_at), do: parse_domain_time(created_at, created_at)
+
+  defp parse_domain_time(seconds, _created_at) when is_integer(seconds) do
+    case DateTime.from_unix(seconds) do
       {:ok, at} -> {:ok, at}
       {:error, _reason} -> {:error, :bad_content}
     end
   end
+
+  defp parse_domain_time(_other, _created_at), do: {:error, :bad_content}
 
   # Absent means 1 (events written before the field existed). Fields
   # can be added without a bump; a bump marks a change of meaning, and a

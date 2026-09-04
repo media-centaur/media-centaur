@@ -46,16 +46,66 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
       assert Translation.deletion_kind() == 5
     end
 
-    test "to_deletion without a known event id carries only the address" do
+    test "to_deletion without a known event id carries no e tag" do
       event = Translation.to_deletion(@pubkey, :movie, 603, nil)
-      assert event.tags == [["a", "32160:#{@pubkey}:tmdb:movie:603"]]
+      assert Event.tag_value(event, "a") == "32160:#{@pubkey}:tmdb:movie:603"
+      assert Event.tag_value(event, "e") == nil
     end
 
-    test "to_event and to_deletion take an explicit created_at" do
-      assert Translation.to_event(title(), nil, @pubkey, 1_700_000_000).created_at == 1_700_000_000
+    test "to_event and to_deletion take the wire time and the domain time apart" do
+      event =
+        Translation.to_event(title(), nil, @pubkey,
+          created_at: 1_700_000_000,
+          recommended_at: 1_600_000_000
+        )
 
-      assert Translation.to_deletion(@pubkey, :movie, 603, "abc", 1_700_000_001).created_at ==
-               1_700_000_001
+      assert event.created_at == 1_700_000_000
+      assert %{"recommended_at" => 1_600_000_000} = Jason.decode!(event.content)
+
+      deletion =
+        Translation.to_deletion(@pubkey, :movie, 603, "abc",
+          created_at: 1_700_000_001,
+          deleted_at: 1_600_000_001
+        )
+
+      assert deletion.created_at == 1_700_000_001
+      assert Event.tag_value(deletion, "deleted_at") == "1600000001"
+    end
+
+    test "both default to now, on the wire and in the payload" do
+      before = System.os_time(:second)
+      event = Translation.to_event(title(), nil, @pubkey)
+      assert event.created_at >= before
+      assert Jason.decode!(event.content)["recommended_at"] == event.created_at
+
+      deletion = Translation.to_deletion(@pubkey, :movie, 603, nil)
+      assert Event.tag_value(deletion, "deleted_at") == Integer.to_string(deletion.created_at)
+    end
+
+    test "from_deletion takes deleted_at from the tag and falls back to created_at" do
+      tagged =
+        Event.sign(
+          Translation.to_deletion(@pubkey, :movie, 603, nil,
+            created_at: 1_700_000_001,
+            deleted_at: 1_600_000_001
+          ),
+          @secret
+        )
+
+      assert {:ok, %{deleted_at: ~U[2020-09-13 12:26:41Z], created_at: 1_700_000_001}} =
+               Translation.from_deletion(tagged)
+
+      bare =
+        Event.sign(
+          %{
+            Translation.to_deletion(@pubkey, :movie, 603, nil)
+            | tags: [["a", "32160:#{@pubkey}:tmdb:movie:603"]],
+              created_at: 1_700_000_001
+          },
+          @secret
+        )
+
+      assert {:ok, %{deleted_at: ~U[2023-11-14 22:13:21Z]}} = Translation.from_deletion(bare)
     end
 
     test "from_deletion round-trips a signed deletion into tombstone attrs" do
@@ -149,11 +199,45 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
              })
 
     # `DateTime.from_unix!/1` raises for a value past `~U[9999-12-31
-    # 23:59:59Z]` — a relay can send any `created_at` it likes, so this must
-    # be rejected, not crash the caller. Unsigned: `from_event/1` never
-    # verifies signatures.
-    assert {:error, :bad_content} =
-             Translation.from_event(%{good | created_at: 253_402_300_800})
+    # 23:59:59Z]` — a relay can send any time it likes, so this must be
+    # rejected, not crash the caller: the domain time from the content, and
+    # the wire time it falls back to when the content has none. Unsigned:
+    # `from_event/1` never verifies signatures.
+    far = 253_402_300_800
+    stamped = good.content |> Jason.decode!() |> Map.put("recommended_at", far) |> Jason.encode!()
+    assert {:error, :bad_content} = Translation.from_event(%{good | content: stamped})
+
+    bare = good.content |> Jason.decode!() |> Map.delete("recommended_at") |> Jason.encode!()
+    assert {:error, :bad_content} = Translation.from_event(%{good | content: bare, created_at: far})
+  end
+
+  test "from_event takes recommended_at from the content and falls back to created_at" do
+    stamped =
+      Event.sign(
+        Translation.to_event(title(), nil, @pubkey,
+          created_at: 1_700_000_000,
+          recommended_at: 1_600_000_000
+        ),
+        @secret
+      )
+
+    assert {:ok, %{recommended_at: ~U[2020-09-13 12:26:40Z], created_at: 1_700_000_000}} =
+             Translation.from_event(stamped)
+
+    bare = Translation.to_event(title(), nil, @pubkey, created_at: 1_700_000_000)
+
+    with_content = fn fun ->
+      Event.sign(
+        %{bare | content: bare.content |> Jason.decode!() |> fun.() |> Jason.encode!()},
+        @secret
+      )
+    end
+
+    without = with_content.(&Map.delete(&1, "recommended_at"))
+    assert {:ok, %{recommended_at: ~U[2023-11-14 22:13:20Z]}} = Translation.from_event(without)
+
+    wrong = with_content.(&Map.put(&1, "recommended_at", "yesterday"))
+    assert {:error, :bad_content} = Translation.from_event(wrong)
   end
 
   test "from_event rejects a note over the cap and accepts one at the cap" do

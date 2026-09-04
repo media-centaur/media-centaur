@@ -4,12 +4,18 @@ defmodule MediaCentaur.Recommendations.Recommendation do
 
   Identity is `(author_pubkey, tmdb_id, media_type)` — the event's
   address — so a newer event for the same title from the same author
-  replaces the row (`recommended_at` decides) — embed included, hence
-  `on_replace: :delete`: the snapshot in the newer event is the whole
-  truth, never a field-wise merge onto the older one. `raw_event` keeps the
-  signed wire form for republishing to a relay that lacks it. Sent vs
-  received is derived by comparing `author_pubkey` with the identity;
-  no stored direction column can disagree with the signature.
+  replaces the row — embed included, hence `on_replace: :delete`: the
+  snapshot in the newer event is the whole truth, never a field-wise merge
+  onto the older one. `raw_event` keeps the signed wire form for
+  republishing to a relay that lacks it. Sent vs received is derived by
+  comparing `author_pubkey` with the identity; no stored direction column
+  can disagree with the signature.
+
+  Two times per record (see `Translation`): `recommended_at` and
+  `deleted_at` are **domain** times — when the person acted — and are what
+  the app orders and shows by. The **wire** times that decide which copy
+  wins live in the stored events, `event_created_at/1` and
+  `deletion_created_at/1`; nothing else reads `created_at`.
 
   A withdrawn recommendation is a **tombstone**, not a deleted row:
   `deleted_at` is the deletion event's time and `deletion_event` its
@@ -84,4 +90,13 @@ defmodule MediaCentaur.Recommendations.Recommendation do
   @doc "Whether the row is a tombstone."
   @spec deleted?(%__MODULE__{}) :: boolean()
   def deleted?(%__MODULE__{deleted_at: deleted_at}), do: not is_nil(deleted_at)
+
+  @doc "The wire time (`created_at`, Unix seconds) of the row's recommendation event."
+  @spec event_created_at(%__MODULE__{}) :: non_neg_integer()
+  def event_created_at(%__MODULE__{raw_event: %{"created_at" => at}}), do: at
+
+  @doc "The wire time of the deletion that withdrew the row, or nil for a live row."
+  @spec deletion_created_at(%__MODULE__{}) :: non_neg_integer() | nil
+  def deletion_created_at(%__MODULE__{deletion_event: %{"created_at" => at}}), do: at
+  def deletion_created_at(%__MODULE__{deletion_event: nil}), do: nil
 end

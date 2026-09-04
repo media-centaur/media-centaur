@@ -30,12 +30,18 @@ by `scripts/sync-wiki-docs`). Relay side: `../social-relay`, v0.3.0 carries
 the whole contract (its `deletion-and-sync-v1` campaign closed 2026-09-04).
 
 **Unshipped (committed 2026-09-04):** relay observability (per-relay Status
-rows, faults on the board), and the deletion closure below — own-event
-stamping, the refusal log named by kind, `just social-delete`, wiki.
+rows, faults on the board), the deletion closure below — own-event
+stamping, the refusal log named by kind, `just social-delete`, wiki — and
+the sync-cursor drop with domain times in the payload (migration
+`20260904120000_drop_relay_synced_until`, ships with the next release).
 
 Dev workflow: `just social` (relay in Docker on `ws://127.0.0.1:2173` +
-scripted friend via `mix social.dev`). The dev app has that relay, the
-owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
+scripted friend via `mix social.dev`). The dev app is the owner's real app:
+the dev relay and "Dev friend" may be added to it for a verification run
+and are **removed again when the run is done** (owner request 2026-09-04) —
+`just social-delete` the friend's test rows while connected, remove the
+friend and the relay in the app, `just social-down`, dismiss the down-relay
+incidents. Only `wss://social-media.shawnmc.cool/` stays configured.
 
 ## Decisions made
 
@@ -220,6 +226,23 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   a deletion: …" / "rejected a recommendation: …". The relay row keeps
   the reason as before. A deletion refused with `blocked: kind 5 is not
   stored by this relay` is the signature of a relay below v0.3.0.
+* `2026-09-04` — **No sync cursor.** `since` was the newest `created_at`
+  seen, so a message published late with an older stamp (a withdrawal
+  made offline) was never fetched by a reader whose cursor had passed it.
+  Every connect now reads the relay from the start: one record per signer
+  per title makes a group's history a page, ingest is idempotent.
+  `relays.synced_until` dropped (`20260904120000`); contract *Reading and
+  sync* rewritten. Send-time stamping was considered and set aside: it
+  needs re-signing per publish, a semantic own-diff, and still trusts the
+  sender's clock.
+* `2026-09-04` — **Domain times ride in the payload.** `recommended_at`
+  in a recommendation's content, a `deleted_at` tag on a deletion; absent
+  means `created_at`. Readers decouple the two: `created_at` (wire)
+  decides which copy wins and is read off the stored event
+  (`Recommendation.event_created_at/1`, `deletion_created_at/1`); the
+  row's `recommended_at` / `deleted_at` are the act's time and drive
+  ordering and display. Existing rows need nothing: their stored events
+  carry `created_at`, and the two times were equal. Additive, `v` stays 1.
 * `2026-09-04` — **Deletion verified end to end against v0.3.0** (dev
   relay and the owner's relay): a deletion made while the relay was on
   v0.2.x reached it through the own-events diff after the upgrade; own
@@ -275,19 +298,8 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   as required.
 * ~~**Verify own-delete end to end once `social-relay` ships
   `deletion-and-sync-v1`**~~ **Done 2026-09-04** (Decisions).
-* **Open design question — the sync cursor can skip late-published
-  events.** `since` is the newest `created_at` seen from a relay, but an
-  event is stamped when it is *made*, not when the relay *receives* it. A
-  friend who withdraws (or recommends) while offline publishes later with
-  the older stamp; a reader whose cursor has already passed that stamp
-  never fetches it unless its feed subscription was open at that moment.
-  Not deletion-specific, but a withdrawal is the case where silence
-  matters. Options: (a) accept, and document; (b) `since` minus an overlap
-  window; (c) drop the cursor for kind 5 — deletions are bounded to one
-  per withdrawn address (contract rule 6) and re-tombstoning is a no-op;
-  (d) drop the cursor altogether — the relay holds one record per signer
-  per title, a friend group's whole history is one page. Owner's call;
-  (c) or (d) is the principled fix, (b) the cheap one.
+* ~~**Open design question — the sync cursor can skip late-published
+  events.**~~ **Resolved 2026-09-04**: cursor dropped (Decisions).
 * **Suite load flakes.** Full `mix test` runs on 2026-09-02 each dropped one
   or two unrelated tests to timeouts (OneShot 5 s deadline — since raised to
   15 s in tests — and a page-smoke `LazyHTML` render past 60 s); all pass
