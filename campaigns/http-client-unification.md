@@ -14,10 +14,12 @@ per-upstream traffic, errors, latency, and cache effectiveness.
 
 ## Status
 
-Steps 1–7 implemented 2026-09-04 (seam, cache, TMDB adoption, client
-convergence, Credo MC0029, Connections tile, docs + ADR-064 + wiki).
-Pending: `mix precommit` green, a real-browser look at
-`/status?subsystem=http` on the dev server, then the scheduled follow-up.
+Steps 1–7 done and verified 2026-09-04: `mix precommit` green (6582
+tests), the dev server restarted onto the new supervision tree, a live
+`get_movie` pair showed miss (128 ms) then hit (0 ms), and the
+Connections drill-in renders real figures. Commits `1d0b7b77`,
+`e543385e`, `7850f104`, `309823c6`; wiki commit `8ebeb67` (local, push
+when the tile ships). Unpushed.
 
 ## Decisions made
 
@@ -37,10 +39,8 @@ Pending: `mix precommit` green, a real-browser look at
 
 ## Next steps
 
-1. Verify the Connections drill-in in the real app (dev server, after
-   `mix assets.build` for the new console chip colour).
-2. Push the wiki edit when the app version carrying the tile ships.
-3. Follow-up: collapse `MetadataStats`, `Image.Stats`, `ScanStats`, and
+1. Push the wiki edit when the app version carrying the tile ships.
+2. Follow-up: collapse `MetadataStats`, `Image.Stats`, `ScanStats`, and
    `HttpClient.Stats` onto one attach/cast/snapshot base.
 
 ## Completion criteria
