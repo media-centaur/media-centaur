@@ -21,7 +21,7 @@ defmodule MediaCentaur.Social.IncidentContextTest do
   end
 
   test "auth failure faults immediately" do
-    assert {:fault, :relay_auth_failed, :error, _} =
+    assert {:fault, :relay_auth_failed, :error, %{headline: "Relay rejected this identity"}} =
              IncidentContext.decide(status([{"wss://a/", :auth_failed, @now}]), @now, @grace)
   end
 

@@ -22,8 +22,23 @@ defmodule MediaCentaur.ErrorReports.FaultLifecycleTest do
       assert incident.kind == "drive_offline"
       assert incident.severity == :error
       assert incident.status == :open
-      assert incident.fingerprint == nil
+      assert incident.fingerprint == "subsystem:watcher:drive_offline"
       assert incident.count == 1
+    end
+
+    test "the headline becomes the incident's title and message" do
+      assert {:ok, %Incident{} = incident} =
+               Store.raise_fault(%{
+                 component: :social,
+                 kind: :relays_unreachable,
+                 severity: :error,
+                 occurred_at: at(0),
+                 message: "No relay reachable",
+                 display_title: "No relay reachable"
+               })
+
+      assert incident.display_title == "No relay reachable"
+      assert incident.message == "No relay reachable"
     end
 
     test "re-raising while open keeps one incident, advancing last_seen and count" do

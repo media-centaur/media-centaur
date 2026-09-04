@@ -48,6 +48,19 @@ defmodule MediaCentaur.ErrorReports.BucketCache do
   end
 
   @doc """
+  Puts a `:subsystem` incident into the cache as a bucket under its synthetic
+  fingerprint (replacing any earlier bucket for the same fault), then enforces
+  the working-set cap. A fault has no log samples — its evidence is the
+  assessor's verdict, carried as the headline.
+  """
+  @spec put_incident(t(), struct()) :: t()
+  def put_incident(cache, %{fingerprint: fingerprint} = incident) when is_binary(fingerprint) do
+    cache
+    |> Map.put(fingerprint, Bucket.from_incident(incident, []))
+    |> enforce_cap()
+  end
+
+  @doc """
   Folds a captured `%Entry{}` into the cache: opens a new bucket or bumps the
   existing one for the entry's fingerprint, then enforces the working-set cap.
   """

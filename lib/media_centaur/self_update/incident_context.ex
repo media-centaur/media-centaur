@@ -123,10 +123,17 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
         ) :: :ok | {:fault, atom(), :warning | :error, map()}
   def decide(snapshot, last_check_at, now, config) do
     cond do
-      apply_failed?(snapshot) -> {:fault, :apply_failed, :error, %{}}
-      check_failing?(snapshot) -> {:fault, :check_failing, :warning, %{}}
-      checks_stalled?(last_check_at, now, config) -> {:fault, :checks_stalled, :warning, %{}}
-      true -> :ok
+      apply_failed?(snapshot) ->
+        {:fault, :apply_failed, :error, %{headline: "The last update failed to apply"}}
+
+      check_failing?(snapshot) ->
+        {:fault, :check_failing, :warning, %{headline: "Update checks are failing"}}
+
+      checks_stalled?(last_check_at, now, config) ->
+        {:fault, :checks_stalled, :warning, %{headline: "Update checks have stalled"}}
+
+      true ->
+        :ok
     end
   end
 

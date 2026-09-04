@@ -69,11 +69,14 @@ defmodule MediaCentaur.Search.IncidentContext do
     with kind when not is_nil(kind) <- fault_kind(health.state),
          false <- stale?(health, now, staleness_seconds),
          true <- sustained?(health, now, grace_seconds) do
-      {:fault, kind, :warning, %{}}
+      {:fault, kind, :warning, %{headline: headline(kind)}}
     else
       _quiet -> :ok
     end
   end
+
+  defp headline(:search_provider_unreachable), do: "Search provider unreachable"
+  defp headline(:search_indexers_unavailable), do: "No indexer available"
 
   defp fault_kind(:unreachable), do: :search_provider_unreachable
   defp fault_kind(:blind), do: :search_indexers_unavailable

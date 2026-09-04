@@ -403,6 +403,26 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert html =~ "/discovery/friends"
     end
 
+    test "a relay fault colours the Social tile and names itself in the drill-in", %{conn: conn} do
+      {:ok, _incident} =
+        MediaCentaur.ErrorReports.raise_fault(:social, :relays_unreachable, :error,
+          message: "No relay reachable",
+          display_title: "No relay reachable"
+        )
+
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=social")
+
+      assert html =~ "No relay reachable"
+
+      assert [%{component: :social, state: :error}] =
+               Enum.filter(
+                 MediaCentaurWeb.StatusLive.HealthBoard.build_board(
+                   MediaCentaur.ErrorReports.list_buckets()
+                 ),
+                 &(&1.component == :social)
+               )
+    end
+
     test "with nothing configured the widget says so", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, "/status?subsystem=social")
 

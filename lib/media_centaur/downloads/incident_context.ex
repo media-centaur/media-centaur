@@ -78,12 +78,13 @@ defmodule MediaCentaur.Downloads.IncidentContext do
   """
   @spec decide(QueueState.t(), DateTime.t(), pos_integer()) :: :ok | fault()
   def decide(%QueueState{connectivity: :auth_failed}, _now, _grace) do
-    {:fault, :download_client_auth_failed, :error, %{}}
+    {:fault, :download_client_auth_failed, :error,
+     %{headline: "Download client rejected the credentials"}}
   end
 
   def decide(%QueueState{connectivity: {:offline, %DateTime{} = since}}, now, grace) do
     if DateTime.diff(now, since, :second) >= grace do
-      {:fault, :download_client_unreachable, :warning, %{}}
+      {:fault, :download_client_unreachable, :warning, %{headline: "Download client unreachable"}}
     else
       :ok
     end

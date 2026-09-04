@@ -16,6 +16,12 @@ defmodule MediaCentaur.ErrorReports.EvaluatorTest do
     def assess, do: {:fault, :stalled, :error, %{queue: 99}}
   end
 
+  defmodule Headlined do
+    @behaviour MediaCentaur.ErrorReports.IncidentContext
+    @impl true
+    def assess, do: {:fault, :queue_stalled, :error, %{headline: "Import queue has stalled"}}
+  end
+
   defmodule Crasher do
     @behaviour MediaCentaur.ErrorReports.IncidentContext
     @impl true
@@ -55,6 +61,15 @@ defmodule MediaCentaur.ErrorReports.EvaluatorTest do
 
       Evaluator.run(%{pipeline: Healthy})
       assert Store.get_open_subsystem_incident(:pipeline, :stalled) == nil
+    end
+
+    test "the fault's headline titles the incident; a fault without one is named after its kind" do
+      Evaluator.run(%{pipeline: Headlined, tmdb: Stalled})
+
+      assert %{display_title: "Import queue has stalled", message: "Import queue has stalled"} =
+               Store.get_open_subsystem_incident(:pipeline, :queue_stalled)
+
+      assert %{display_title: "Stalled"} = Store.get_open_subsystem_incident(:tmdb, :stalled)
     end
 
     test "a healthy assessor with nothing open does nothing" do

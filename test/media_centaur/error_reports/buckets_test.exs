@@ -44,6 +44,52 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
 
   defp fingerprint_of(component, message), do: Fingerprint.fingerprint(component, message).key
 
+  describe "faults" do
+    defp fault(kind) do
+      %{
+        component: :social,
+        kind: kind,
+        severity: :error,
+        occurred_at: DateTime.utc_now(),
+        message: "No relay reachable",
+        display_title: "No relay reachable"
+      }
+    end
+
+    test "a raised fault is a bucket under its synthetic fingerprint; resolving evicts it" do
+      {:ok, incident} = Store.raise_fault(fault(:relays_unreachable))
+      Buckets.fault_raised(:buckets_test, incident)
+
+      assert %Bucket{
+               component: :social,
+               severity: :error,
+               headline: "No relay reachable",
+               sample_entries: []
+             } =
+               Buckets.get_bucket(:buckets_test, incident.fingerprint)
+
+      Buckets.fault_resolved(:buckets_test, incident.fingerprint)
+      assert Buckets.get_bucket(:buckets_test, incident.fingerprint) == nil
+    end
+
+    test "a boot rebuild carries open faults and leaves resolved ones behind" do
+      {:ok, open} = Store.raise_fault(fault(:relays_unreachable))
+      {:ok, closed} = Store.raise_fault(fault(:relay_degraded))
+      {:ok, _} = Store.resolve_fault(:social, :relay_degraded, DateTime.utc_now())
+
+      start_supervised!(
+        Supervisor.child_spec({Buckets, name: :buckets_rebuild, persist_window_ms: 60_000},
+          id: :buckets_rebuild
+        )
+      )
+
+      assert %Bucket{headline: "No relay reachable"} =
+               Buckets.get_bucket(:buckets_rebuild, open.fingerprint)
+
+      assert Buckets.get_bucket(:buckets_rebuild, closed.fingerprint) == nil
+    end
+  end
+
   describe "capture + cache" do
     test "an error is cached and durably persisted" do
       message = "tmdb failed #{uniq()}"

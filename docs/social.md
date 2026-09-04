@@ -249,18 +249,17 @@ faults are `:relay_auth_failed` (error, no grace), `:relays_unreachable` (error,
 after a 180 s grace) and `:relay_degraded` (warning). No relays configured is
 never a fault. The decision is the pure `decide/3`; `assess/0` is the shell.
 
-**Known gap:** `:subsystem` incidents don't reach the health board.
-`BucketCache.from_incidents/1` keeps only fingerprint-keyed (`:log`) rows, so the
-Social tile reads "No issues" with every relay down. Pre-existing and
-system-wide (the download-client and search probes have it too); fixing it is an
-`ErrorReports` change. The Status widget
-(`Components.StatusWidgets.Social`) shows the live per-relay rows in the
-drill-in.
+Each fault carries a `headline:` — **Relay rejected this identity**, **No
+relay reachable**, **A relay is unreachable** — which is the sentence the
+health board shows. Faults bucket under the synthetic fingerprint
+`subsystem:social:<kind>` (`Store.fault_fingerprint/2`), so the Social tile
+colours the moment the evaluator raises one and clears the moment it resolves;
+the drill-in below the tile shows the live per-relay rows
+(`Components.StatusWidgets.Social`).
 
 Console tags: `:nostr` for the wire (`Nostr.Connection`), `:social` for
 everything above it (`Social`, `Recommendations`). `HealthBoard.normalize/1`
-aliases `:nostr` incidents onto the Social tile; `:subsystem` incidents (the assessor's own
-faults) still never reach the board — a pre-existing ErrorReports gap.
+aliases `:nostr` incidents onto the Social tile.
 
 ## Testing
 
