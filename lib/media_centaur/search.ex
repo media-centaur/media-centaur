@@ -38,8 +38,9 @@ defmodule MediaCentaur.Search do
 
   ## Where to start
 
-  * `search/2`, `find_best/2` — the Prowlarr-facing entry points
-    (delegated from `MediaCentaur.Acquisition` for grab callers).
+  * `Search.Prowlarr.search/3` and `grab/2` — the indexer-facing entry
+    points; `MediaCentaur.Acquisition.search/2` gates them on
+    configuration for grab callers.
 
   ## Boundary deps
 

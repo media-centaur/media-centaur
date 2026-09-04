@@ -92,9 +92,9 @@ defmodule MediaCentaur.Acquisition do
 
   - **Pursuit** — the intent. Owns the recipe (`tmdb` or
     `prowlarr_query`) and the lifecycle.
-  - **Target** — a specific release the pursuit is chasing right now.
-    A pursuit has many targets over its lifetime; `current_target_id`
-    refers to the active one.
+  - **Target** — one grab attempt of one release. A pursuit's units each
+    point at their current attempt (`unit.current_target_id`, ADR-055);
+    a pursuit has many targets over its lifetime.
   - **Recipe** — `pursuit.recipe_type` discriminator plus the variant
     columns (TMDB metadata for `tmdb`, `manual_query` for
     `prowlarr_query`).
@@ -337,7 +337,7 @@ defmodule MediaCentaur.Acquisition do
 
   Creates a pursuit with `recipe_type = "prowlarr_query"` and the
   user's typed query, then a target in `acquired`, atomically via
-  `StartFromPick`. Broadcasts `{:target_picked, target}` on success.
+  `StartFromPick`. Broadcasts `%TargetEvents.Picked{}` on success.
   The Prowlarr GUID is recorded on the target so the duplicate-guid
   check in `ChangeTarget` works.
 
@@ -364,8 +364,7 @@ defmodule MediaCentaur.Acquisition do
   become units. Returns `{:ok, pairs}` where `pairs` aligns with the
   input picks as `{pick, {:ok, target} | {:error, reason}}`. When
   every grab fails, no pursuit is created (the pairs still report the
-  per-pick errors). Broadcasts `{:target_picked, target}` per landed
-  pick.
+  per-pick errors). Broadcasts `%TargetEvents.Picked{}` per landed pick.
 
   Returns `{:error, :not_configured}` when Prowlarr is not configured.
   """

@@ -19,10 +19,9 @@ defmodule MediaCentaur.Acquisition.Targets do
   tracked item is removed and the user has effectively withdrawn
   consent to keep chasing it.
 
-  All operations broadcast on `acquisition:updates` via
-  `Acquisition.broadcast_update/1` so the LiveView subscriber receives
-  the same `{:target_*, target}` shape regardless of which entry point
-  fired the flip.
+  All operations broadcast a `MediaCentaur.Acquisition.TargetEvents`
+  struct on `acquisition:updates`, so subscribers see the same typed
+  event regardless of which entry point fired the flip.
   """
 
   import Ecto.Query
@@ -87,7 +86,7 @@ defmodule MediaCentaur.Acquisition.Targets do
   @doc """
   Re-arms a terminal target back to `seeking` and re-enqueues a
   `PursueTarget` Oban job. Resets `attempt_count` to 0 so the snooze
-  schedule starts fresh. Broadcasts `{:target_armed, target}`.
+  schedule starts fresh. Broadcasts `%TargetEvents.Armed{}`.
 
   No-op for already-active targets (returns the target as-is). Use
   `Pursuits.Commands.ChangeTarget` when the pursuit's `current_target_id`
@@ -130,7 +129,7 @@ defmodule MediaCentaur.Acquisition.Targets do
 
   @doc """
   Cancels an active target (status `seeking`). No-op for terminal-state
-  targets; broadcasts `{:target_cancelled, target}` only when the row
+  targets; broadcasts `%TargetEvents.Cancelled{}` only when the row
   was actually flipped.
   """
   @spec cancel_target(Ecto.UUID.t(), String.t()) ::
@@ -256,9 +255,8 @@ defmodule MediaCentaur.Acquisition.Targets do
   Used by the `Reactor` when a tracked item is removed.
 
   The cancellation is one `update_all` regardless of how many targets
-  match — broadcasts still fire per-target so existing subscribers
-  (LiveViews, decision-card refreshers) receive the same
-  `{:target_cancelled, target}` shape they always have.
+  match — broadcasts still fire per target so subscribers (LiveViews,
+  decision-card refreshers) receive one `%TargetEvents.Cancelled{}` each.
   """
   @spec cancel_active_targets_for(String.t(), String.t(), String.t()) :: :ok
   def cancel_active_targets_for(tmdb_id, tmdb_type, reason) when is_binary(reason) do

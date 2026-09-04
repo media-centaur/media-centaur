@@ -54,7 +54,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       movie = create_movie_with_watched_file(tmp)
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
@@ -99,7 +100,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       {:ok, _} = Image.write(img, master, suffix: ".jpg", quality: 90)
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg",
         extension: "jpg"
@@ -144,7 +146,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
@@ -169,7 +172,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       tv = create_tv_series_with_watched_file(tmp, %{tmdb_id: "1396"})
 
       Library.Images.create!(%{
-        tv_series_id: tv.id,
+        owner_type: :tv_series,
+        owner_id: tv.id,
         role: "backdrop",
         content_url: "#{tv.id}/backdrop.jpg",
         extension: "jpg"
@@ -190,7 +194,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       movie_series = create_movie_series_with_watched_file(tmp, %{tmdb_id: "263"})
 
       Library.Images.create!(%{
-        movie_series_id: movie_series.id,
+        owner_type: :movie_series,
+        owner_id: movie_series.id,
         role: "poster",
         content_url: "#{movie_series.id}/poster.jpg",
         extension: "jpg"
@@ -210,7 +215,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
@@ -230,7 +236,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
@@ -247,7 +254,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       tv = create_tv_series_with_watched_file(tmp)
 
       Library.Images.create!(%{
-        tv_series_id: tv.id,
+        owner_type: :tv_series,
+        owner_id: tv.id,
         role: "poster",
         content_url: "#{tv.id}/poster.jpg",
         extension: "jpg"
@@ -261,7 +269,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       movie = create_standalone_movie(%{name: "Orphan", position: 0, tmdb_id: "550"})
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
@@ -277,14 +286,16 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
       })
 
       Library.Images.create!(%{
-        movie_id: movie.id,
+        owner_type: :movie,
+        owner_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg",
         extension: "jpg"
@@ -312,7 +323,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
         create_episode(%{season_id: season.id, episode_number: 3, name: "Sample Episode 3"})
 
       Library.Images.create!(%{
-        episode_id: episode.id,
+        owner_type: :episode,
+        owner_id: episode.id,
         role: "thumb",
         content_url: "#{episode.id}/thumb.jpg",
         extension: "jpg"

@@ -183,8 +183,8 @@ defmodule MediaCentaur.Downloads.Health do
   Whether a status is "stuck enough" that a future automation pass
   should consider replacing the release.
 
-  Today nothing reads this — it's the forward-compatible API for the
-  next slice. Defining it now means the next slice is purely additive.
+  Read by the Incoming page's row logic (`MediaCentaurWeb.IncomingLive.Logic`)
+  to flag a download as stuck.
   """
   @spec degraded?(status() | nil) :: boolean()
   def degraded?(:soft_stall), do: true

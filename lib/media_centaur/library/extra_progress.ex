@@ -4,8 +4,6 @@ defmodule MediaCentaur.Library.ExtraProgress do
   for bonus content (featurettes, deleted scenes, behind-the-scenes).
 
   Keyed by `extra_id` — each extra gets at most one progress record.
-  The `entity_id` is denormalized for efficient queries (list all extra progress
-  for an entity without joining through extras).
   """
   use Ecto.Schema
   import Ecto.Changeset

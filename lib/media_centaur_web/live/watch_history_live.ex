@@ -46,15 +46,9 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     {:noreply, ensure_loaded(socket)}
   end
 
-  # First-render data load — gated by `connected?` so the static HTTP render
-  # ships empty defaults and the WebSocket render fills them in once. See
-  # AGENTS.md → LiveView callbacks (Iron Law).
-  #
-  # Per the "no blocking LV page loads" rule, the summary read + first
-  # page of events run on a supervised task and message back via
-  # `{:history_loaded, _}`. The summary is a microsecond ETS read but
-  # `fetch_page/1` is a paginated DB query that scales with the history
-  # table; deferring it keeps `handle_params` snappy on big histories.
+  # First-render data load, once per LiveView (`loaded?` guards the
+  # repeat `handle_params` calls). The load itself is synchronous — see
+  # `load_history/1`.
   defp ensure_loaded(socket) do
     if socket.assigns.loaded? do
       socket
