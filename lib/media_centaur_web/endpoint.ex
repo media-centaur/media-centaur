@@ -31,7 +31,9 @@ defmodule MediaCentaurWeb.Endpoint do
 
   # Tidewave MCP — must be before code_reloading? block per Tidewave docs.
   if Code.ensure_loaded?(Tidewave) do
-    plug Tidewave
+    # toolbar: false — Tidewave 0.9 injects a browser toolbar by default; the
+    # MCP endpoint is all we use.
+    plug Tidewave, toolbar: false
   end
 
   # Code reloading can be explicitly enabled under the
