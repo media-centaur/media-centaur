@@ -48,8 +48,12 @@ timeout), each passing in isolation. Sweep run 2026-09-04 against
 `7e1df187` (v1.7.3): 57 engineering, 10 performance, 42 documentation, 25
 design findings. Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 
-**Now at Pass 4** (E29–E42 plus E56, E52/E53/E42/D13), reconciled
-2026-09-05 — see below.
+**Pass 4 part one done 2026-09-05** — Stage E-2's precommit items
+(D13, E52, E42, E53) and Stage E-3's E56 dead-code batch, in commits
+`3c764d2d`, `9dc0fb83` and `6200e014`. Full `mix precommit` green: 6578
+Elixir + 795 JS tests, zero failures and none of the usual flakes.
+**Stage E-5 (E29–E42) is what remains of the engineering lane**, with two
+of its open questions already answered by the owner (below).
 
 ## Resuming (reconciled 2026-09-05)
 
@@ -66,31 +70,18 @@ The 2026-09-04 handoff's first two items are **closed**:
    `invalidate_client/0` has zero occurrences, and `Acquisition.Config`
    stays deleted. E8/E9/E11 hold as ratified.
 
-**Pass 4 scope**, facts re-verified 2026-09-05 against HEAD:
+**Pass 4 remaining scope:**
 
-* **Stage E-5** (E29–E42) — context boundaries. E29 still live:
-  `release_tracking/wants.ex:390,391,452`, `helpers.ex:88,89`,
-  `refresher.ex:418` query Library schemas while `release_tracking.ex:28`
-  claims "Fully isolated from the Library context".
-* **Stage E-3's E56** dead-code batch — spot-checks hold:
-  `media_dir_healthy?/0`, `find_content_url/3`, `track_item!/1`,
-  `list_downloads/1` and the whole `Library.LastActivity` module have zero
-  `lib/` callers (tests only). The rest need per-item confirmation during
-  the deletion pass.
-* **Stage E-2's** precommit items — all four still open. **D13**:
-  `MC0008` ×2 (`raw_badge_class`, `typed_component_attrs`), `MC0015`
-  ×3 (`destructive_file_query`, `pursuit_state_contract`,
-  `row_mutation_in_schema_migration`); free IDs are now MC0010 and
-  MC0030+ (MC0029 went to `outbound_http_seam`). **E52**:
-  `library_live.ex:214`, `settings_live.ex:588` still use
-  `Task.Supervisor.async_nolink`; `credo_checks/owned_async_in_web.ex:67`
-  matches only `:start_child`. **E42**: five profile suites still define
-  two modules per file. **E53**: `console/view.ex` still keeps
-  `@known_components` and `@app_components` as two hand-maintained lists,
-  and the HTTP campaign widened the drift — `:http` is in
-  `@known_components` but not `@app_components`. Five tags are used in
-  `lib/` and unfilterable: `:settings`, `:retention`,
-  `:integration_health`, `:apps`, `:review`.
+* **Stage E-5** (E29–E42) — context boundaries. Verified still live
+  2026-09-05: `release_tracking/wants.ex:390,391,452`, `helpers.ex:88,89`
+  and `refresher.ex:418` query Library schemas while
+  `release_tracking.ex:28` claims "Fully isolated from the Library
+  context". Owner answers already banked: **E35 → amend
+  `docs/architecture.md`** to describe the Status page that exists rather
+  than build eleven projections for reads that are not hot; **E39 → do all
+  three splits** (`Review.Search`, `Watcher.Rescan`,
+  `Plans`/`Plans.Board`/`Plans.Alternatives`) as part of the stage.
+* Stage E-2 and Stage E-3's E56 are **Done** — see below.
 
 3. Same loop for each: verify the cited file:line, bring open questions,
    implement test-first, `mix precommit`, record, stop.
@@ -167,6 +158,51 @@ busy" in `IncomingLiveTest` setup, a 60 s page-smoke timeout.
   stays (deliberate: its campaign was retired per ADR-042).
 * `2026-09-04` — **Storybook:** the detail stories build `%EntityView{}`
   fixtures; the components read struct fields with dot access.
+* `2026-09-05` — **D13 decided by citation weight.** `TypedComponentAttrs`
+  keeps MC0008 and `RowMutationInSchemaMigration` keeps MC0015, because
+  that is what every existing doc, plan and migration comment means by
+  those ids. `RawBadgeClass` → MC0010, `DestructiveFileQuery` → MC0030,
+  `PursuitStateContract` → MC0031. `check_registry_test.exs` holds ids
+  unique from here on; writing it surfaced that `event_chokepoint.ex` is a
+  shared AST matcher, not a check, and correctly carries no id.
+* `2026-09-05` — **E52 decided: a ref to match on is not ownership.**
+  MC0019 now covers `async_nolink` and `async_stream_nolink` as well as
+  `start_child`, and does not require the supervisor in the first argument
+  (a pipe moves it). Fixing the two sites required moving `EntityModal`'s
+  blanket `handle_async(_name, {:exit, _}, …)` into a `@before_compile`
+  hook — injected by `__using__` it preceded every host clause, so no host
+  could handle its own async failure and `SettingsLive`'s own exit clause
+  was already unreachable. That is **DS16's mechanism**; DS16 proper
+  (logging the swallowed exit, the files sub-view's loading state) stays
+  in Stage E-8.
+* `2026-09-05` — **E42 decided: siblings, not nesting.** Enforced to the
+  letter of AGENTS.md the new MC0032 flagged 43 files, but 38 were nested
+  submodules — `Library.Events.EntitiesChanged` in `library/events.ex`,
+  the view-model and component item structs — which is the house pattern
+  and is namespaced by the file's own module. The check holds one
+  *top-level* module per `lib/` file; AGENTS.md line 90 was rewritten to
+  say that, since its old wording had been contradicted 38 times by its
+  own codebase. Test files stay exempt.
+* `2026-09-05` — **E53 decided: one table, everything derives.**
+  `MediaCentaur.Log.Component` owns the component vocabulary and the
+  owning-context map; Console's chip row, grouping, chip classes and
+  crash attribution all read it, and MC0033 holds a `Log.*` tag to its
+  context's component. The map is many-to-one on purpose (downloads,
+  search and release_tracking all log as `:acquisition`). `:review`,
+  `:apps` and `:settings` became components; `:retention` folded into
+  `:library` and `:integration_health` into `:system`. A Nostr crash now
+  carries `:nostr` — the fold onto the friends tile is `HealthBoard`'s
+  job, and doing it twice meant the Console could not filter Nostr
+  crashes at all.
+* `2026-09-05` — **E56: two entries were wrong.**
+  `ReleaseTracking.create_release/1` stays — it is how the identity unique
+  index is asserted, and removing it would weaken those tests to
+  `assert_raise`. `Watcher.record_seen/1` stays — the showcase seeder
+  still calls it. Everything else in the batch went, plus E49's four
+  leftovers on `SettingsLive.ConnectionTest`. The Reconciler's
+  `to_replace` branch was confirmed *unreachable* (the only caller keys
+  `id` on `dir` and nils `images_dir` on both sides), which also finishes
+  E28's deferred moduledoc clause.
 * `2026-09-05` — **HTTP convergence resolved with no rework.** The
   parallel HTTP/Req task extended the E9 seam instead of competing with
   it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
@@ -222,7 +258,7 @@ context.
 
 ---
 
-## Stage E-2 — Things `mix precommit` should catch and doesn't
+## Stage E-2 — Things `mix precommit` should catch and doesn't — **DONE 2026-09-05**
 
 **Why.** CLAUDE.md prefers code-as-spec. Each item below is a rule the
 repo already states in prose that a check could hold.
@@ -271,18 +307,19 @@ two sites with `start_async`/`handle_async`. Add
 E45: a public write seam + `flush/0` in `Progress`, or extend MC0004 to
 `GenServer.call/cast` in `test/` with a grandfather entry.
 
-**Open questions for the owner**
-* Should a Credo check also pin the component tag to the calling module's
-  context (a `Log.*` call in `lib/media_centaur/review/**` must tag
-  `:review`)? That would make E53 permanent rather than a one-time sweep.
-* E45: seam or check?
+**Resolved.** The owner chose the Credo check over a one-time sweep, so
+E53 is permanent: MC0033 reads `Log.Component`'s owning-context table.
+D13, E52 and E42 landed with it (`3c764d2d`, `9dc0fb83`). **Still open
+in this stage: E6** (DDR-015 → UIDR-015 citations) and **E45** (seam or
+check for `Progress.Worker` being driven by `GenServer.cast/call` from
+its own test) — neither was in this sitting's scope.
 
 **Verification.** `mix precommit`; each new/extended check demonstrated to
 fire against a deliberate violation before it lands (August clause 3).
 
 ---
 
-## Stage E-3 — Retire the Schema-v2 leftovers and dead code
+## Stage E-3 — Retire the Schema-v2 leftovers and dead code — **E56 DONE 2026-09-05**
 
 **Why.** The first engineering rule is "no compatibility layers or
 fallbacks". Library Schema v2 closed 2026-05-17; its temporary shims are
@@ -360,15 +397,10 @@ now load-bearing, and ~400 lines of verified dead code sit beside them.
 each item's test. `watch_dirs`: read `media_dirs` only and raise at
 `load!/0` naming the rename if `watch_dirs` is present.
 
-**Open questions for the owner**
-* **Entity-map direction:** finish Task E (detail components take
-  `%DetailItem{}`, delete `to_entity_map`) or declare the entity-map the
-  read contract, delete the "temporary" note, and retire `EntityShape` by
-  pointing Playback at `Views.detail_by_container/2`? The split state is
-  the finding; either end is acceptable.
-* Keep the `/download`, `/upcoming` redirects and the `?section=` aliases
-  for a single-user desktop app, or drop them?
-* Which release removes the artwork-layout boot migration?
+**Resolved.** All three questions were answered in Pass 3 (E7 EntityView,
+E23 "all of it goes"). E56, the dead-code batch, landed 2026-09-05 in
+`6200e014` — with two entries corrected: `create_release/1` and
+`record_seen/1` are not dead. Nothing remains in this stage.
 
 **Verification.** `mix precommit`; `grep` confirms zero callers of each
 deleted symbol; MC0023 grandfather list may only shrink.

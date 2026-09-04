@@ -22,13 +22,15 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`http-client-unification.md`](http-client-unification.md) —
-  **in-progress, started 2026-09-04.** Every outbound HTTP request
+  **shipped v1.8.0 2026-09-04**, one follow-up open (collapse the four
+  mirrored stats GenServers onto one base). Every outbound HTTP request
   through `HttpClient.new/2`; an origin-freshness response cache with
   ETag revalidation for TMDB and Steam; an `:http` Status tile with
   per-upstream traffic, errors, latency, and cache effectiveness.
   Plan: `docs/plans/2026-09-04-http-client-cache-and-upstreams-panel.md`.
 * [`audit-remediation-2026-09.md`](audit-remediation-2026-09.md) —
-  **in-progress, started 2026-09-04.** Work off the four-audit sweep of
+  **in-progress, started 2026-09-04.** Passes 1–4a done; Stage E-5
+  (context boundaries) is what remains of the engineering lane. Work off the four-audit sweep of
   2026-09-04 (57 engineering / 10 performance / 42 documentation / 25
   design findings) in discussable stages. Engineering lane first (E-1
   movie-approve corpus key, E-2 precommit gaps, E-3 Schema-v2 leftovers,
