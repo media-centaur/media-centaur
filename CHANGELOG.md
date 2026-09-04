@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.7.3 — 2026-09-04
+
+### Improved
+
+- **Runtime and framework updates.** Media Centaur now ships on the current Erlang/OTP and Elixir runtimes and the latest releases of its web framework, job runner, and HTTP stack. These carry upstream security and stability fixes. Nothing changes in how the app looks or behaves, and no database migration runs on update.
+
 ## v1.7.2 — 2026-09-04
 
 ### New
