@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`audit-remediation-2026-09.md`](audit-remediation-2026-09.md) —
+  **in-progress, started 2026-09-04.** Work off the four-audit sweep of
+  2026-09-04 (57 engineering / 10 performance / 42 documentation / 25
+  design findings) in discussable stages. Engineering lane first (E-1
+  movie-approve corpus key, E-2 precommit gaps, E-3 Schema-v2 leftovers,
+  …), then Performance (P1 detail-projection O(N²)), Documentation (skills
+  that misdirect, subsystem docs on retired contracts), Design (invisible
+  gamepad cursor on the library grid, modal input contract, text
+  contrast). Each stage carries its evidence and open questions; nothing
+  resolved yet.
 * [`friends-recommendations.md`](friends-recommendations.md) —
   **design — unparked 2026-09-01.** Friends, with
   send/receive show recommendations that one-click into the existing
