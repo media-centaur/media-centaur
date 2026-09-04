@@ -49,7 +49,7 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
   @spec download_and_resize(String.t(), String.t(), String.t()) ::
           :ok | {:error, :permanent | :transient, term()}
   def download_and_resize(url, role, dest_path) do
-    case ImageFiles.download(url, dest_path, role_opts(role)) do
+    case ImageFiles.download(url, dest_path, [upstream: :tmdb_images] ++ role_opts(role)) do
       {:ok, _path} -> :ok
       {:error, category, reason} -> {:error, category, reason}
     end

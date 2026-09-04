@@ -161,28 +161,18 @@ defmodule MediaCentaur.AppsTest do
       %{data_dir: data_dir}
     end
 
-    defmodule FakeStoreClient do
-      @moduledoc false
-      def get(_url), do: Process.get(:fake_store_response)
-    end
-
-    defmodule FakeImageClient do
-      @moduledoc false
-      def get(_url), do: Process.get(:fake_image_response)
-    end
-
     defp stub_store_url(url) do
-      Process.put(:steam_store_http_client, FakeStoreClient)
-
-      Process.put(
-        :fake_store_response,
-        {:ok, %{status: 200, body: %{"100" => %{"success" => true, "data" => %{"header_image" => url}}}}}
-      )
+      Req.Test.stub(:steam, fn conn ->
+        Req.Test.json(conn, %{"100" => %{"success" => true, "data" => %{"header_image" => url}}})
+      end)
     end
 
     defp stub_image_bytes(bytes) do
-      Process.put(:image_http_client, FakeImageClient)
-      Process.put(:fake_image_response, {:ok, %{status: 200, body: bytes}})
+      Req.Test.stub(:images, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("image/jpeg")
+        |> Plug.Conn.send_resp(200, bytes)
+      end)
     end
 
     test "overwrites the cached banner with the current store art and broadcasts", %{
@@ -212,8 +202,7 @@ defmodule MediaCentaur.AppsTest do
       File.mkdir_p!(Path.dirname(banner))
       File.write!(banner, "stale-bytes")
 
-      Process.put(:steam_store_http_client, FakeStoreClient)
-      Process.put(:fake_store_response, {:ok, %{status: 429, body: ""}})
+      Req.Test.stub(:steam, fn conn -> Plug.Conn.send_resp(conn, 429, "") end)
 
       assert :noop = Apps.refresh_steam_artwork(app)
       assert File.read!(banner) == "stale-bytes"

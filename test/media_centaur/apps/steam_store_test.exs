@@ -3,17 +3,13 @@ defmodule MediaCentaur.Apps.SteamStoreTest do
 
   alias MediaCentaur.Apps.SteamStore
 
-  defmodule FakeClient do
-    @moduledoc false
-    def get(url) do
-      Process.put(:steam_store_requested_url, url)
-      Process.get(:fake_store_response)
-    end
-  end
+  defp stub_json(body) do
+    test_pid = self()
 
-  defp stub(response) do
-    Process.put(:steam_store_http_client, FakeClient)
-    Process.put(:fake_store_response, response)
+    Req.Test.stub(:steam, fn conn ->
+      send(test_pid, {:steam_request, conn.query_string})
+      Req.Test.json(conn, body)
+    end)
   end
 
   defp appdetails_body(app_id, url) do
@@ -22,39 +18,45 @@ defmodule MediaCentaur.Apps.SteamStoreTest do
 
   describe "current_banner_url/1" do
     test "returns the header URL from a decoded appdetails response" do
-      stub({:ok, %{status: 200, body: appdetails_body(100, "https://cdn.test/hash/header.jpg?t=1")}})
+      stub_json(appdetails_body(100, "https://cdn.test/hash/header.jpg?t=1"))
 
       assert SteamStore.current_banner_url(100) == "https://cdn.test/hash/header.jpg?t=1"
-      assert Process.get(:steam_store_requested_url) =~ "appids=100"
+      assert_receive {:steam_request, query}
+      assert query =~ "appids=100"
     end
 
-    test "decodes a raw JSON body" do
+    test "decodes a raw JSON body served without a JSON content type" do
       body = JSON.encode!(appdetails_body(100, "https://cdn.test/hash/header.jpg"))
-      stub({:ok, %{status: 200, body: body}})
+
+      Req.Test.stub(:steam, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("text/plain")
+        |> Plug.Conn.send_resp(200, body)
+      end)
 
       assert SteamStore.current_banner_url(100) == "https://cdn.test/hash/header.jpg"
     end
 
     test "nil when the API reports failure for the app" do
-      stub({:ok, %{status: 200, body: %{"100" => %{"success" => false}}}})
+      stub_json(%{"100" => %{"success" => false}})
 
       assert SteamStore.current_banner_url(100) == nil
     end
 
     test "nil on a non-200 response" do
-      stub({:ok, %{status: 429, body: ""}})
+      Req.Test.stub(:steam, fn conn -> Plug.Conn.send_resp(conn, 429, "") end)
 
       assert SteamStore.current_banner_url(100) == nil
     end
 
     test "nil on a transport error" do
-      stub({:error, :timeout})
+      Req.Test.stub(:steam, fn conn -> Req.Test.transport_error(conn, :timeout) end)
 
       assert SteamStore.current_banner_url(100) == nil
     end
 
-    test "nil on an undecodable body (the test-env noop client)" do
-      stub({:ok, %{status: 200, body: ""}})
+    test "nil on an empty body" do
+      Req.Test.stub(:steam, fn conn -> Plug.Conn.send_resp(conn, 200, "") end)
 
       assert SteamStore.current_banner_url(100) == nil
     end

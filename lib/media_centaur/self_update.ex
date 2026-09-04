@@ -1,6 +1,11 @@
 defmodule MediaCentaur.SelfUpdate do
   use Boundary,
-    deps: [MediaCentaur.ErrorReports, MediaCentaur.Retention, MediaCentaur.Settings],
+    deps: [
+      MediaCentaur.ErrorReports,
+      MediaCentaur.HttpClient,
+      MediaCentaur.Retention,
+      MediaCentaur.Settings
+    ],
     exports: [Changelog, StagingSweep, UpdateChecker]
 
   @moduledoc """

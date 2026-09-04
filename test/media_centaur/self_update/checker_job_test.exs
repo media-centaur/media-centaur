@@ -5,14 +5,11 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
   alias MediaCentaur.SelfUpdate.{CheckerJob, Storage, UpdateChecker}
 
   setup do
-    Req.Test.stub(:github_releases_job, fn conn ->
+    Req.Test.stub(:github, fn conn ->
       Plug.Conn.send_resp(conn, 404, "not found")
     end)
 
     Req.Test.set_req_test_from_context(%{async: false})
-
-    client = Req.new(plug: {Req.Test, :github_releases_job}, retry: false)
-    :persistent_term.put({UpdateChecker, :client}, client)
 
     UpdateChecker.clear_cache()
 
@@ -22,7 +19,6 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
 
     on_exit(fn ->
       Application.put_env(:media_centaur, :environment, :test)
-      :persistent_term.erase({UpdateChecker, :client})
       UpdateChecker.clear_cache()
     end)
 
@@ -31,7 +27,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
 
   describe "perform/1 happy path" do
     test "persists latest_known + last_check_at and broadcasts" do
-      Req.Test.stub(:github_releases_job, fn conn ->
+      Req.Test.stub(:github, fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.send_resp(
@@ -45,7 +41,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
         )
       end)
 
-      Req.Test.allow(:github_releases_job, self(), self())
+      Req.Test.allow(:github, self(), self())
       :ok = SelfUpdate.subscribe()
 
       assert {:ok, _} = perform_job(CheckerJob, %{})
@@ -63,7 +59,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
     end
 
     test "refreshes the :persistent_term cache" do
-      Req.Test.stub(:github_releases_job, fn conn ->
+      Req.Test.stub(:github, fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.send_resp(
@@ -76,7 +72,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
         )
       end)
 
-      Req.Test.allow(:github_releases_job, self(), self())
+      Req.Test.allow(:github, self(), self())
       assert {:ok, _} = perform_job(CheckerJob, %{})
 
       assert {:fresh, {:ok, %{version: "99.0.0"}}} = UpdateChecker.cached_latest_release()
@@ -86,7 +82,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
   describe "perform/1 error paths" do
     test "does not write last_check_at when the check fails" do
       # Default stub returns 404, which UpdateChecker maps to :not_found.
-      Req.Test.allow(:github_releases_job, self(), self())
+      Req.Test.allow(:github, self(), self())
       :ok = SelfUpdate.subscribe()
 
       assert {:ok, _} = perform_job(CheckerJob, %{})
@@ -96,7 +92,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
     end
 
     test "does not write latest_known when the API returns a bogus tag" do
-      Req.Test.stub(:github_releases_job, fn conn ->
+      Req.Test.stub(:github, fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.send_resp(
@@ -108,7 +104,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
         )
       end)
 
-      Req.Test.allow(:github_releases_job, self(), self())
+      Req.Test.allow(:github, self(), self())
       assert {:ok, _} = perform_job(CheckerJob, %{})
 
       assert Storage.get_latest_known() == :none
@@ -148,7 +144,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
   describe "perform/1 gating" do
     test "a scheduled tick does not check when checking is disabled" do
       set_config(:update_check_enabled, false)
-      Req.Test.allow(:github_releases_job, self(), self())
+      Req.Test.allow(:github, self(), self())
 
       assert {:ok, _} = perform_job(CheckerJob, %{})
 
@@ -158,7 +154,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
     test "a forced check runs even when checking is disabled" do
       set_config(:update_check_enabled, false)
 
-      Req.Test.stub(:github_releases_job, fn conn ->
+      Req.Test.stub(:github, fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.send_resp(
@@ -167,7 +163,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
         )
       end)
 
-      Req.Test.allow(:github_releases_job, self(), self())
+      Req.Test.allow(:github, self(), self())
 
       assert {:ok, _} = perform_job(CheckerJob, %{"force" => true})
       assert {:ok, %DateTime{}} = Storage.get_last_check_at()
@@ -176,7 +172,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
     test "a scheduled tick skips when the last check is more recent than the interval" do
       Storage.put_last_check_at(DateTime.utc_now())
       set_config(:update_check_interval_minutes, 360)
-      Req.Test.allow(:github_releases_job, self(), self())
+      Req.Test.allow(:github, self(), self())
 
       assert {:ok, _} = perform_job(CheckerJob, %{})
 
@@ -192,7 +188,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
       # through the broadcasting job path (so AutoApply and any open LiveView
       # react uniformly). The interval gate would otherwise swallow a manual
       # check that lands inside the last scheduled check's window.
-      Req.Test.allow(:github_releases_job, self(), self())
+      Req.Test.allow(:github, self(), self())
 
       assert {:ok, %Oban.Job{} = job} = CheckerJob.enqueue_now()
       assert job.args == %{"force" => true}

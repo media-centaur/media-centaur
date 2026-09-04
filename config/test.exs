@@ -48,7 +48,6 @@ config :media_centaur, Oban, testing: :inline
 config :media_centaur, :coalesce_broadcasts?, false
 config :media_centaur, :default_config_path, "~/.config/media-centaur/media-centaur-test.toml"
 config :media_centaur, :environment, :test
-config :media_centaur, :image_http_client, MediaCentaur.NoopImageDownloader
 config :media_centaur, :media_dirs, []
 # No ffprobe subprocesses under test (ADR-016) — probes fail cleanly and
 # store nothing. MediaProbe.parse/1 is pure and carries the coverage.
@@ -62,7 +61,12 @@ config :media_centaur, :req_test_stubs, %{
   MediaCentaur.TMDB.Client => :tmdb,
   MediaCentaur.Search.Prowlarr => :prowlarr,
   MediaCentaur.Downloads.DownloadClient.QBittorrent => :qbittorrent,
-  MediaCentaur.Downloads.DownloadClient.SABnzbd => :sabnzbd
+  MediaCentaur.Downloads.DownloadClient.SABnzbd => :sabnzbd,
+  MediaCentaur.ImageFiles => :images,
+  MediaCentaur.Apps.SteamStore => :steam,
+  MediaCentaur.SelfUpdate.UpdateChecker => :github,
+  MediaCentaur.SelfUpdate.Downloader => :github,
+  MediaCentaur.Acquisition.InfoHash => :indexers
 }
 
 config :media_centaur, :skip_user_config, true
@@ -77,9 +81,6 @@ config :media_centaur, :start_playback_recovery, false
 config :media_centaur, :start_recommendations_sync, false
 config :media_centaur, :start_relay_connections, false
 config :media_centaur, :start_watchers, false
-# Steam storefront appdetails lookups (SteamArtController banner
-# freshness) resolve nothing under test — fall back to local/CDN paths.
-config :media_centaur, :steam_store_http_client, MediaCentaur.NoopImageDownloader
 
 # The retention sweep's staging policy walks this root with File.rm_rf —
 # point it away from the real ~/.cache so tests can never touch live

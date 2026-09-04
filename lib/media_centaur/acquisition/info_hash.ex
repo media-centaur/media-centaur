@@ -82,7 +82,15 @@ defmodule MediaCentaur.Acquisition.InfoHash do
   defp resolve_via_download(_result, _fetcher), do: nil
 
   defp fetch(url) do
-    case Req.get(url, redirect: false, decode_body: false, receive_timeout: 15_000) do
+    client =
+      MediaCentaur.HttpClient.new(__MODULE__,
+        upstream: :indexers,
+        redirect: false,
+        decode_body: false,
+        receive_timeout: 15_000
+      )
+
+    case Req.get(client, url: url) do
       {:ok, %{status: status} = resp} when status in 300..399 ->
         resp
         |> Req.Response.get_header("location")
