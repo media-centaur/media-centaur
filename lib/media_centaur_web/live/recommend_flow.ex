@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   @spec relay_counts() :: {non_neg_integer(), non_neg_integer()}
   def relay_counts do
     status = Connections.status()
-    {Enum.count(status, fn {_url, %{state: state}} -> state == :connected end), map_size(status)}
+    {Enum.count(status, fn {_url, entry} -> Connections.connected?(entry) end), map_size(status)}
   end
 
   defp sent_message do

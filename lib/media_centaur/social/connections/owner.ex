@@ -81,13 +81,13 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
   @impl true
   def handle_cast({:publish, event}, state) do
-    for {url, %{state: :connected}} <- state.status, do: publish_to(url, event)
+    for {url, entry} <- state.status, Connections.connected?(entry), do: publish_to(url, event)
     {:noreply, state}
   end
 
   def handle_cast({:publish, url, event}, state) do
     case state.status do
-      %{^url => %{state: :connected}} -> publish_to(url, event)
+      %{^url => entry} -> if Connections.connected?(entry), do: publish_to(url, event)
       _other -> :ok
     end
 

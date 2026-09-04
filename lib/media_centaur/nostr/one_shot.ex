@@ -108,7 +108,7 @@ defmodule MediaCentaur.Nostr.OneShot do
   end
 
   defp fatal({:auth, {:failed, reason}}), do: {:halt, {:error, {:auth_failed, reason}}}
-  defp fatal({:disconnected, reason}), do: {:halt, {:error, {:disconnected, reason}}}
+  defp fatal({:disconnected, reason, _retry_in_ms}), do: {:halt, {:error, {:disconnected, reason}}}
   defp fatal({:closed, @sub, "auth-required:" <> _rest}), do: nil
   defp fatal({:closed, @sub, reason}), do: {:halt, {:error, reason}}
   defp fatal(_message), do: nil

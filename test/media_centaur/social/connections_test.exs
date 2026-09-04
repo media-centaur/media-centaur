@@ -133,9 +133,98 @@ defmodule MediaCentaur.Social.ConnectionsTest do
       assert closed.since == connected.since
       assert closed.last_error == "nope"
 
-      dropped = Connections.apply_message(connected, {:disconnected, :closed_by_relay})
+      dropped = Connections.apply_message(connected, {:disconnected, :closed_by_relay, 1_000})
       assert dropped.state == :disconnected
       assert DateTime.compare(dropped.since, connected.since) in [:gt, :eq]
+    end
+  end
+
+  describe "apply_message/2 — the entry says why, when it retries, and when it was last heard" do
+    test "a blank entry has heard nothing and has no retry" do
+      assert %{last_heard_at: nil, retry_at: nil} = Connections.blank_entry()
+    end
+
+    test "a disconnect carries a plain reason and the next attempt" do
+      before = DateTime.utc_now()
+
+      entry =
+        Connections.apply_message(
+          Connections.blank_entry(),
+          {:disconnected, %Mint.TransportError{reason: :econnrefused}, 30_000}
+        )
+
+      assert entry.state == :disconnected
+      assert entry.last_error == "connection refused"
+      assert DateTime.diff(entry.retry_at, before, :second) in 29..31
+      assert entry.last_heard_at == nil
+    end
+
+    test "connecting clears the retry and counts as being heard from" do
+      dropped =
+        Connections.apply_message(Connections.blank_entry(), {:disconnected, :closed_by_relay, 1_000})
+
+      connected = Connections.apply_message(dropped, :connected)
+
+      assert connected.retry_at == nil
+      assert %DateTime{} = connected.last_heard_at
+    end
+
+    test "a pong is heard without changing the state" do
+      connected = Connections.apply_message(Connections.blank_entry(), :connected)
+      heard = Connections.apply_message(connected, :pong)
+
+      assert heard.state == :connected
+      assert heard.since == connected.since
+      assert DateTime.compare(heard.last_heard_at, connected.last_heard_at) in [:gt, :eq]
+    end
+
+    test "EOSE on the feed means synced; on any other subscription it does not" do
+      connected = Connections.apply_message(Connections.blank_entry(), :connected)
+
+      assert Connections.apply_message(connected, {:eose, "own:wss://a/"}).state == :connected
+      synced = Connections.apply_message(connected, {:eose, Connections.feed_sub_id()})
+      assert synced.state == :synced
+      assert synced.last_error == nil
+    end
+
+    test "a reconnect after syncing starts over at connected" do
+      synced =
+        Connections.blank_entry()
+        |> Connections.apply_message(:connected)
+        |> Connections.apply_message({:eose, Connections.feed_sub_id()})
+
+      assert Connections.apply_message(synced, :connected).state == :connected
+    end
+
+    test "the feed being closed drops synced back to connected with the reason" do
+      synced =
+        Connections.blank_entry()
+        |> Connections.apply_message(:connected)
+        |> Connections.apply_message({:eose, Connections.feed_sub_id()})
+
+      closed =
+        Connections.apply_message(synced, {:closed, Connections.feed_sub_id(), "error: overloaded"})
+
+      assert closed.state == :connected
+      assert closed.last_error == "error: overloaded"
+    end
+
+    test "the feed being closed as restricted is a rejected identity" do
+      connected = Connections.apply_message(Connections.blank_entry(), :connected)
+
+      rejected =
+        Connections.apply_message(
+          connected,
+          {:closed, Connections.feed_sub_id(), "restricted: this key is not a member of this relay"}
+        )
+
+      assert rejected.state == :auth_failed
+      assert rejected.last_error == "restricted: this key is not a member of this relay"
+
+      other_sub =
+        Connections.apply_message(connected, {:closed, "own:wss://a/", "restricted: not a member"})
+
+      assert other_sub.state == :connected
     end
   end
 

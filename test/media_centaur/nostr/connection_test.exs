@@ -7,6 +7,7 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
   alias MediaCentaur.Nostr.Filter
+  alias MediaCentaur.Nostr.SilentRelay
 
   @secret_hex String.duplicate("0", 63) <> "3"
 
@@ -107,7 +108,7 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
     assert_receive {:relay_in, ["REQ", "s", _filter]}, 2_000
 
     FakeRelay.drop(relay)
-    assert_receive {:nostr, ^url, {:disconnected, _reason}}, 2_000
+    assert_receive {:nostr, ^url, {:disconnected, _reason, _retry}}, 2_000
     assert_receive {:nostr, ^url, :connected}, 5_000
     assert_receive {:relay_in, ["REQ", "s", _filter]}, 2_000
     assert Connection.status(conn) == :connected
@@ -117,9 +118,58 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
     url = "ws://127.0.0.1:1/"
     conn = start_connection(%{url: url}, backoff_ms: 50)
 
-    assert_receive {:nostr, ^url, {:disconnected, _reason}}, 2_000
+    assert_receive {:nostr, ^url, {:disconnected, _reason, 50}}, 2_000
     assert Connection.status(conn) in [:connecting, :disconnected]
-    assert_receive {:nostr, ^url, {:disconnected, _reason}}, 2_000
+    assert_receive {:nostr, ^url, {:disconnected, _reason, 100}}, 2_000
+  end
+
+  test "a disconnect carries the wait before the next attempt, and it resets on connect" do
+    relay = FakeRelay.start()
+    _conn = start_connection(relay, backoff_ms: 50)
+    url = relay.url
+    assert_receive {:nostr, ^url, :connected}, 2_000
+
+    FakeRelay.drop(relay)
+    assert_receive {:nostr, ^url, {:disconnected, _reason, 50}}, 2_000
+    assert_receive {:nostr, ^url, :connected}, 2_000
+
+    FakeRelay.drop(relay)
+    assert_receive {:nostr, ^url, {:disconnected, _reason, 50}}, 2_000
+  end
+
+  test "a relay that answers pings is heard from between events" do
+    relay = FakeRelay.start()
+    _conn = start_connection(relay, ping_interval_ms: 50)
+    url = relay.url
+    assert_receive {:nostr, ^url, :connected}, 2_000
+
+    assert_receive {:nostr, ^url, :pong}, 2_000
+    assert_receive {:nostr, ^url, :pong}, 2_000
+  end
+
+  test "a relay that stops answering pings is dropped as unresponsive and retried" do
+    relay = SilentRelay.start()
+    _conn = start_connection(relay, ping_interval_ms: 50, pong_timeout_ms: 100, backoff_ms: 50)
+    url = relay.url
+    assert_receive {:nostr, ^url, :connected}, 2_000
+
+    assert_receive {:nostr, ^url, {:disconnected, :unresponsive, 50}}, 2_000
+    assert_receive {:nostr, ^url, :connected}, 2_000
+  end
+
+  test "the first failed attempt logs once; the retries that follow do not" do
+    url = "ws://127.0.0.1:1/"
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        start_connection(%{url: url}, backoff_ms: 20)
+        assert_receive {:nostr, ^url, {:disconnected, _reason, 20}}, 2_000
+        assert_receive {:nostr, ^url, {:disconnected, _reason, 40}}, 2_000
+        assert_receive {:nostr, ^url, {:disconnected, _reason, 80}}, 2_000
+      end)
+
+    assert log =~ "could not connect to #{url}: connection refused"
+    assert length(String.split(log, "could not connect to")) == 2
   end
 
   test "a malformed inbound EVENT is dropped, not crashed on" do
@@ -185,7 +235,7 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
     assert_receive {:nostr, ^url, :connected}, 2_000
 
     FakeRelay.drop(relay)
-    assert_receive {:nostr, ^url, {:disconnected, _reason}}, 2_000
+    assert_receive {:nostr, ^url, {:disconnected, _reason, _retry}}, 2_000
 
     assert :ok = Connection.publish(conn, signed("dropped"))
     refute_receive {:relay_in, ["EVENT", _map]}, 300

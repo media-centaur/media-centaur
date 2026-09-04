@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Nostr do
-  use Boundary, deps: [], exports: [Connection, Event, Filter, Keys, OneShot]
+  use Boundary, deps: [], exports: [Connection, Event, Filter, Keys, OneShot, Reason]
 
   @moduledoc """
   Nostr protocol, nothing else: keys (`Keys`), events (`Event`),

@@ -48,7 +48,7 @@ defmodule MediaCentaur.Recommendations.Sync do
   alias MediaCentaur.Recommendations.Translation
 
   @default_page_limit 500
-  @feed "feed"
+  @feed Connections.feed_sub_id()
 
   defmodule Page do
     @moduledoc false
@@ -146,7 +146,7 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   defp resubscribe(state) do
     Connections.status()
-    |> Enum.filter(fn {_url, entry} -> entry.state == :connected end)
+    |> Enum.filter(fn {_url, entry} -> Connections.connected?(entry) end)
     |> Enum.reduce(state, fn {url, _entry}, acc ->
       subscribe_feed(acc, url, Social.synced_until(url), nil, false)
     end)

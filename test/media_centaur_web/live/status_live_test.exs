@@ -393,6 +393,10 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert html =~ ~s(data-testid="social-widget")
       # No connections owner runs under :test, so nothing is connected.
       assert html =~ "Connected to 0 of 2 relays"
+      assert html =~ "relay-one.example"
+      assert html =~ "relay-two.example"
+      assert html =~ "Connecting"
+      assert html =~ "/settings?section=social"
       assert html =~ "1 friends"
       assert html =~ "0 sent"
       assert html =~ "0 received"

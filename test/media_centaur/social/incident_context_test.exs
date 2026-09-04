@@ -25,6 +25,10 @@ defmodule MediaCentaur.Social.IncidentContextTest do
              IncidentContext.decide(status([{"wss://a/", :auth_failed, @now}]), @now, @grace)
   end
 
+  test "a synced relay is healthy" do
+    assert IncidentContext.decide(status([{"wss://a/", :synced, @now}]), @now, @grace) == :ok
+  end
+
   test "disconnected inside the grace window is still healthy" do
     since = DateTime.add(@now, -60, :second)
     assert IncidentContext.decide(status([{"wss://a/", :disconnected, since}]), @now, @grace) == :ok

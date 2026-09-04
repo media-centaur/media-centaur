@@ -16,8 +16,34 @@ defmodule MediaCentaur.Social.Connections do
   alias MediaCentaur.Social.Connections.Owner
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Filter
+  alias MediaCentaur.Nostr.Reason
 
-  @type entry :: %{state: atom(), last_error: String.t() | nil, since: DateTime.t()}
+  @typedoc """
+  One relay's status. `state` names how far the connection has got:
+
+    * `:connecting` — nothing heard yet, or a socket mid-handshake
+    * `:connected` — the socket is up (and authenticated, where the relay asks)
+    * `:synced` — the relay has answered the feed subscription with `EOSE`,
+      so it serves this identity's requests
+    * `:auth_failed` — the relay rejected this identity: a NIP-42 refusal, or a
+      `CLOSED` on the feed whose reason starts with `restricted:` (khatru
+      cannot refuse an `AUTH` event, so that is the only signal a non-member gets)
+    * `:disconnected` — lost, retrying at `retry_at`
+
+  `last_error` is the newest plain-language complaint (`Nostr.Reason`);
+  `since` the onset of the current state; `last_heard_at` the newest inbound
+  frame of any kind, pongs included; `retry_at` the next attempt while
+  disconnected, nil otherwise.
+  """
+  @type entry :: %{
+          state: :connecting | :connected | :synced | :auth_failed | :disconnected,
+          last_error: String.t() | nil,
+          since: DateTime.t(),
+          last_heard_at: DateTime.t() | nil,
+          retry_at: DateTime.t() | nil
+        }
+
+  @feed_sub_id "feed"
 
   def start_link(opts), do: Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -63,9 +89,24 @@ defmodule MediaCentaur.Social.Connections do
   @spec via(String.t()) :: {:via, Registry, {module(), String.t()}}
   def via(url), do: {:via, Registry, {__MODULE__.Registry, url}}
 
+  @doc "The subscription id of the friends feed — the one whose `EOSE` means synced."
+  @spec feed_sub_id() :: String.t()
+  def feed_sub_id, do: @feed_sub_id
+
+  @doc "Whether a state counts as connected for the connected-of-configured count."
+  @spec connected?(entry()) :: boolean()
+  def connected?(%{state: state}), do: state in [:connected, :synced]
+
   @doc "A status entry for a relay nothing has been heard from yet."
   @spec blank_entry() :: entry()
-  def blank_entry, do: %{state: :connecting, last_error: nil, since: DateTime.utc_now()}
+  def blank_entry,
+    do: %{
+      state: :connecting,
+      last_error: nil,
+      since: DateTime.utc_now(),
+      last_heard_at: nil,
+      retry_at: nil
+    }
 
   @doc """
   Folds one `Nostr.Connection` owner message into a status entry. Shared
@@ -74,24 +115,41 @@ defmodule MediaCentaur.Social.Connections do
   can never disagree about what a message means.
   """
   @spec apply_message(entry(), term()) :: entry()
-  def apply_message(entry, :connected), do: put_state(entry, :connected, nil)
+  def apply_message(entry, {:disconnected, reason, retry_in_ms}) do
+    %{
+      put_state(entry, :disconnected, Reason.describe(reason))
+      | retry_at: DateTime.add(DateTime.utc_now(), retry_in_ms, :millisecond)
+    }
+  end
 
-  def apply_message(entry, {:disconnected, reason}),
-    do: put_state(entry, :disconnected, format_reason(reason))
+  def apply_message(entry, message), do: entry |> heard() |> fold(message)
 
-  def apply_message(entry, {:auth, :ok}), do: put_state(entry, :connected, nil)
+  # A reconnect starts over at :connected: whether the relay still serves
+  # the feed is proven again by its next EOSE.
+  defp fold(entry, :connected), do: put_state(entry, :connected, nil)
+  defp fold(entry, {:auth, :ok}), do: put_state(entry, :connected, nil)
 
-  def apply_message(entry, {:auth, {:failed, reason}}),
-    do: put_state(entry, :auth_failed, format_reason(reason))
+  defp fold(entry, {:auth, {:failed, reason}}),
+    do: put_state(entry, :auth_failed, Reason.describe(reason))
 
-  def apply_message(entry, {:ok, _id, false, reason}), do: %{entry | last_error: format_reason(reason)}
+  defp fold(entry, {:eose, @feed_sub_id}), do: put_state(entry, :synced, nil)
 
-  def apply_message(entry, {:closed, _sub_id, reason}), do: %{entry | last_error: format_reason(reason)}
+  defp fold(entry, {:closed, @feed_sub_id, "restricted:" <> _rest = reason}),
+    do: put_state(entry, :auth_failed, reason)
+
+  # The feed going away is a demotion, not a loss: the socket is still up.
+  defp fold(%{state: :synced} = entry, {:closed, @feed_sub_id, reason}),
+    do: put_state(entry, :connected, reason)
+
+  defp fold(entry, {:closed, _sub_id, reason}), do: %{entry | last_error: reason}
+  defp fold(entry, {:ok, _id, false, reason}), do: %{entry | last_error: reason}
 
   # A `NOTICE` is a relay talking about itself ("restarting for maintenance"),
   # not a verdict on anything we asked for, so it never becomes `last_error`.
-  def apply_message(entry, {:notice, _text}), do: entry
-  def apply_message(entry, _other), do: entry
+  defp fold(entry, {:notice, _text}), do: entry
+  defp fold(entry, _other), do: entry
+
+  defp heard(entry), do: %{entry | last_heard_at: DateTime.utc_now(), retry_at: nil}
 
   # `since` is the onset of the *current* state, so re-affirming the state
   # an entry is already in leaves it alone — a relay that keeps saying
@@ -100,7 +158,4 @@ defmodule MediaCentaur.Social.Connections do
 
   defp put_state(entry, state, last_error),
     do: %{entry | state: state, last_error: last_error, since: DateTime.utc_now()}
-
-  defp format_reason(reason) when is_binary(reason), do: reason
-  defp format_reason(reason), do: inspect(reason)
 end
