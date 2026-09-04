@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.LegacyRedirectController do
   @moduledoc """
   Backward-compat redirects for routes that moved. `/download` and
-  `/upcoming` merged into `/incoming` (DDR-015); the auto-grabs route
+  `/upcoming` merged into `/incoming` (UIDR-015); the auto-grabs route
   predates that (manual + auto grabs unified into one page, v0.24.0).
 
   Query strings are preserved so deep-links keep their meaning —

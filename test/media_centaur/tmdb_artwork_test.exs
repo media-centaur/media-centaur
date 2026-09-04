@@ -80,6 +80,15 @@ defmodule MediaCentaur.TmdbArtworkTest do
     end
   end
 
+  describe "download_poster/3" do
+    test "a failed download is an error, not a nil success" do
+      # The test image client answers every GET with an empty body, which
+      # `ImageFiles.download_raw/2` rejects as too small.
+      assert {:error, {:body_too_small, _url, 0}} =
+               TmdbArtwork.download_poster(:movie, 550, "/sample-poster.jpg")
+    end
+  end
+
   describe "sweep/0 — TTL AND no hold" do
     test "keeps a fresh unreferenced entry", %{data_dir: data_dir} do
       seed_entry(data_dir, :movie, 100, [:backdrop])

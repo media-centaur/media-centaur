@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.Router do
     get "/apps/steam-art/:app_id/:role", SteamArtController, :show
 
     # Backward-compat redirects — the Upcoming and Downloads pages merged
-    # into /incoming (DDR-015); bookmarks and stale deep-links land there
+    # into /incoming (UIDR-015); bookmarks and stale deep-links land there
     # with their query strings intact (`?selected=<pursuit>` keeps opening
     # the modal). The auto-grabs redirect predates the merge (v0.24.0).
     get "/download", LegacyRedirectController, :download

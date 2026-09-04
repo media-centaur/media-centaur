@@ -331,7 +331,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   end
 
   describe "/incoming forecast-only (Prowlarr NOT configured) with tracked-item fixtures" do
-    # The honest-degradation acceptance criterion (DDR-015): without
+    # The honest-degradation acceptance criterion (UIDR-015): without
     # Prowlarr the merged page must MOUNT and render the forecast —
     # hero omnibox reframed to tracking plus the shelf — with no
     # acquisition sections. The fixture covers the release shapes the

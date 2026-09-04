@@ -105,7 +105,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
   # --- Acquisition widget helpers ---
 
   defp tone_chrome(:ok), do: %{dot: "bg-success", text: "text-success"}
-  defp tone_chrome(:warn), do: %{dot: "bg-warning", text: "text-warning"}
+  defp tone_chrome(:warning), do: %{dot: "bg-warning", text: "text-warning"}
   defp tone_chrome(:error), do: %{dot: "bg-error", text: "text-error"}
   defp tone_chrome(:muted), do: %{dot: "bg-base-content/30", text: "text-base-content/50"}
 
@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
   # the UI stays quiet on a blip), amber because it may be the first
   # tick of a real outage.
   defp acq_client_status({:transient_failure, _since}, last),
-    do: %{label: "Retrying…", tone: :warn, detail: poll_suffix(last)}
+    do: %{label: "Retrying…", tone: :warning, detail: poll_suffix(last)}
 
   defp acq_client_status({:offline, since}, _last),
     do: %{label: "Offline", tone: :error, detail: "down #{duration_since(since)}"}
@@ -138,12 +138,12 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
   defp worst_tone(tones) do
     cond do
       :error in tones -> :error
-      :warn in tones -> :warn
+      :warning in tones -> :warning
       true -> :ok
     end
   end
 
   defp acq_border_class(:error), do: "border-error/60"
-  defp acq_border_class(:warn), do: "border-warning/60"
+  defp acq_border_class(:warning), do: "border-warning/60"
   defp acq_border_class(_), do: "border-base-content/10"
 end

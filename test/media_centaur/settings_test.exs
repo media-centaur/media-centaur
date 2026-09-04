@@ -60,10 +60,10 @@ defmodule MediaCentaur.SettingsTest do
     end
   end
 
-  describe "destroy_entry" do
+  describe "delete_entry" do
     test "removes the entry" do
       {:ok, entry} = Settings.create_entry(%{key: "doomed", value: %{}})
-      assert :ok = Settings.destroy_entry!(entry)
+      assert :ok = Settings.delete_entry!(entry)
       assert Settings.get_by_key("doomed") == nil
     end
   end
@@ -121,11 +121,11 @@ defmodule MediaCentaur.SettingsTest do
       assert_receive {:setting_changed, "broadcast_update", %{"v" => 2}}
     end
 
-    test "destroy_entry broadcasts a nil value to signal deletion" do
+    test "delete_entry broadcasts a nil value to signal deletion" do
       {:ok, entry} = Settings.create_entry(%{key: "broadcast_destroy", value: %{}})
       assert_receive {:setting_changed, "broadcast_destroy", _}
 
-      Settings.destroy_entry(entry)
+      Settings.delete_entry(entry)
       assert_receive {:setting_changed, "broadcast_destroy", nil}
     end
   end

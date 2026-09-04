@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.IncomingLive do
   @moduledoc """
-  The Incoming page at `/incoming` (DDR-015) — Upcoming and Downloads
+  The Incoming page at `/incoming` (UIDR-015) — Upcoming and Downloads
   merged into one collection-growth destination. The hero omnibox is
   the standing front door; below it, zone tabs (UIDR-006, `?zone=`)
   split the content into three calm views — **Coming up** (default),

@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.LegacyRedirectControllerTest do
   @moduledoc """
   Pins the backward-compat contract for routes that merged into
-  `/incoming` (DDR-015): `/download` and `/upcoming` answer plain GET
+  `/incoming` (UIDR-015): `/download` and `/upcoming` answer plain GET
   redirects (302), and the query string is preserved so deep-links keep
   their meaning — `/download?selected=<pursuit_id>` must still open the
   pursuit modal on the merged page.

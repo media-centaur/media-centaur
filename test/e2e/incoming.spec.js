@@ -1,5 +1,5 @@
 /**
- * Incoming page E2E tests (the merged Upcoming + Downloads page, DDR-015).
+ * Incoming page E2E tests (the merged Upcoming + Downloads page, UIDR-015).
  *
  * Covers cursor start on the shelf, the vertical zone chain
  * (omnibox → shelf → pursuits → ledger), left-to-sidebar, and BACK as a

@@ -19,8 +19,8 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
 
   def system_widget(assigns) do
     v = assigns.system_vitals
-    proc_tone = if v.process_count > v.process_limit * 0.8, do: :warn, else: :ok
-    rq_tone = if v.run_queue > v.schedulers, do: :warn, else: :ok
+    proc_tone = if v.process_count > v.process_limit * 0.8, do: :warning, else: :ok
+    rq_tone = if v.run_queue > v.schedulers, do: :warning, else: :ok
 
     assigns =
       assigns
@@ -99,7 +99,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
   # System vitals read calm-when-healthy: neutral by default, amber only when a
   # vital is concerning (color = signal). Distinct from `tone_chrome/1`, whose
   # `:ok` is success-green (right for a "Connected" status, wrong for a fine metric).
-  defp vital_value_class(:warn), do: "text-warning"
+  defp vital_value_class(:warning), do: "text-warning"
   defp vital_value_class(_ok), do: "text-base-content/70"
 
   defp format_uptime(seconds) when seconds < 60, do: "#{seconds}s"

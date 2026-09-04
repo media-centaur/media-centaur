@@ -1,6 +1,6 @@
 # Incoming Page — Implementation Plan
 
-> Executable plan for `docs/plans/2026-07-11-incoming-page-design.md` (DDR-015).
+> Executable plan for `docs/plans/2026-07-11-incoming-page-design.md` (UIDR-015).
 > Visual reference: `mockups/incoming-page/` (local, gitignored). Read the design plan
 > first for the what; this document is the how. Test-first per the `automated-testing`
 > skill; component changes bundle their story updates in the same change (MC0009).
