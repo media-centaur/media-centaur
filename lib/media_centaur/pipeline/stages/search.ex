@@ -19,7 +19,7 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   @spec run(Payload.t()) :: {:ok, Payload.t()} | {:needs_review, Payload.t()} | {:error, term()}
   @impl true
   def run(%Payload{parsed: parsed} = payload) do
-    {search_title, search_year} = search_params(parsed)
+    {search_title, search_year} = Parser.search_params(parsed)
 
     if is_nil(search_title) do
       {:error, :no_title}
@@ -38,14 +38,6 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
           {:error, reason}
       end
     end
-  end
-
-  defp search_params(%{type: :extra, parent_title: parent_title, parent_year: parent_year}) do
-    {parent_title, parent_year}
-  end
-
-  defp search_params(%{title: title, year: year}) do
-    {title, year}
   end
 
   defp apply_match(payload, {result, score, title_key}, top_matches) do

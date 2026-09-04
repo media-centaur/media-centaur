@@ -2,6 +2,7 @@ defmodule MediaCentaur.Review do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.TMDB],
     exports: [
+      PendingFile,
       Rematch,
       # Subscribers to `review:updates` pattern-match these payloads, so
       # they are part of the context's published surface (ADR-060). Same

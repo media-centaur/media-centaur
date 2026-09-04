@@ -63,6 +63,24 @@ defmodule MediaCentaur.Review.PendingFile do
     :error_message
   ]
 
+  @doc """
+  The parsed columns of a pending file, from a `Parser.Result`: the title
+  and year the file is looked up under (`Parser.search_params/1`), its
+  parsed type and its season/episode numbers.
+  """
+  @spec parsed_attrs(MediaCentaur.Parser.Result.t()) :: map()
+  def parsed_attrs(%MediaCentaur.Parser.Result{} = parsed) do
+    {title, year} = MediaCentaur.Parser.search_params(parsed)
+
+    %{
+      parsed_title: title,
+      parsed_year: year,
+      parsed_type: Atom.to_string(parsed.type),
+      season_number: parsed.season,
+      episode_number: parsed.episode
+    }
+  end
+
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, @create_fields)

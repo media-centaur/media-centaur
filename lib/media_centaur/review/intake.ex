@@ -17,6 +17,7 @@ defmodule MediaCentaur.Review.Intake do
   alias MediaCentaur.Review.Events
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
+  alias MediaCentaur.Review.PendingFile
   alias MediaCentaur.Topics
 
   def start_link(_opts) do
@@ -140,22 +141,9 @@ defmodule MediaCentaur.Review.Intake do
   # ---------------------------------------------------------------------------
 
   defp build_pending_attrs(file) do
-    parsed = Parser.parse(file.file_path)
-    {search_title, search_year} = search_params(parsed)
-
-    %{
-      file_path: file.file_path,
-      media_directory: file.media_dir,
-      parsed_title: search_title,
-      parsed_year: search_year,
-      parsed_type: type_to_string(parsed.type),
-      season_number: parsed.season,
-      episode_number: parsed.episode
-    }
+    file.file_path
+    |> Parser.parse()
+    |> PendingFile.parsed_attrs()
+    |> Map.merge(%{file_path: file.file_path, media_directory: file.media_dir})
   end
-
-  defp search_params(%{type: :extra, parent_title: title, parent_year: year}), do: {title, year}
-  defp search_params(%{title: title, year: year}), do: {title, year}
-
-  defp type_to_string(type) when is_atom(type), do: Atom.to_string(type)
 end
