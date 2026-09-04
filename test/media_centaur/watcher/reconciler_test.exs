@@ -3,63 +3,41 @@ defmodule MediaCentaur.Watcher.ReconcilerTest do
 
   alias MediaCentaur.Watcher.Reconciler
 
-  defp entry(id, dir, opts \\ []) do
-    %{
-      "id" => id,
-      "dir" => dir,
-      "images_dir" => opts[:images_dir],
-      "name" => opts[:name]
-    }
+  # `Watcher.Supervisor.reconcile/1` builds entries exactly this way: the
+  # directory is the id, and images_dir/name are always nil.
+  defp entry(dir) do
+    %{"id" => dir, "dir" => dir, "images_dir" => nil, "name" => nil}
   end
 
   test "no change returns no actions" do
-    list = [entry("a", "/mnt/a")]
-    assert %{to_start: [], to_stop: [], to_replace: []} = Reconciler.diff(list, list)
+    list = [entry("/mnt/a")]
+    assert %{to_start: [], to_stop: []} = Reconciler.diff(list, list)
   end
 
   test "new entry → to_start" do
-    assert %{to_start: [%{"dir" => "/mnt/b"}], to_stop: [], to_replace: []} =
-             Reconciler.diff([], [entry("b", "/mnt/b")])
+    assert %{to_start: [%{"dir" => "/mnt/b"}], to_stop: []} =
+             Reconciler.diff([], [entry("/mnt/b")])
   end
 
   test "removed entry → to_stop" do
-    assert %{to_start: [], to_stop: ["/mnt/a"], to_replace: []} =
-             Reconciler.diff([entry("a", "/mnt/a")], [])
+    assert %{to_start: [], to_stop: ["/mnt/a"]} =
+             Reconciler.diff([entry("/mnt/a")], [])
   end
 
-  test "dir changed → to_replace" do
-    old = [entry("a", "/mnt/a")]
-    new = [entry("a", "/mnt/a2")]
+  test "an edited directory is a stop plus a start, not a replacement" do
+    result = Reconciler.diff([entry("/mnt/a")], [entry("/mnt/a2")])
 
-    assert %{
-             to_start: [],
-             to_stop: [],
-             to_replace: [%{old_dir: "/mnt/a", new: %{"dir" => "/mnt/a2"}}]
-           } = Reconciler.diff(old, new)
+    assert Enum.map(result.to_start, & &1["dir"]) == ["/mnt/a2"]
+    assert result.to_stop == ["/mnt/a"]
   end
 
-  test "images_dir changed → to_replace" do
-    old = [entry("a", "/mnt/a", images_dir: nil)]
-    new = [entry("a", "/mnt/a", images_dir: "/mnt/ssd")]
-
-    assert %{to_replace: [%{old_dir: "/mnt/a", new: %{"images_dir" => "/mnt/ssd"}}]} =
-             Reconciler.diff(old, new)
-  end
-
-  test "name-only change is a no-op" do
-    old = [entry("a", "/mnt/a", name: nil)]
-    new = [entry("a", "/mnt/a", name: "Movies")]
-    assert %{to_start: [], to_stop: [], to_replace: []} = Reconciler.diff(old, new)
-  end
-
-  test "mixed: add + remove + replace + no-op in one diff" do
-    old = [entry("a", "/mnt/a"), entry("b", "/mnt/b"), entry("c", "/mnt/c")]
-    new = [entry("a", "/mnt/a"), entry("b", "/mnt/b2"), entry("d", "/mnt/d")]
+  test "mixed: add + remove + edit + no-op in one diff" do
+    old = [entry("/mnt/a"), entry("/mnt/b"), entry("/mnt/c")]
+    new = [entry("/mnt/a"), entry("/mnt/b2"), entry("/mnt/d")]
 
     result = Reconciler.diff(old, new)
-    assert Enum.map(result.to_start, & &1["dir"]) == ["/mnt/d"]
-    assert result.to_stop == ["/mnt/c"]
-    assert [%{old_dir: "/mnt/b", new: %{"dir" => "/mnt/b2"}}] = result.to_replace
+    assert Enum.sort(Enum.map(result.to_start, & &1["dir"])) == ["/mnt/b2", "/mnt/d"]
+    assert Enum.sort(result.to_stop) == ["/mnt/b", "/mnt/c"]
   end
 
   describe "diff_image_monitors/2" do

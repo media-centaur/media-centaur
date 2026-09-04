@@ -107,22 +107,6 @@ defmodule MediaCentaur.Library.EpisodeList do
   end
 
   @doc """
-  Finds the content_url for a specific season/episode in an entity.
-
-  Returns `{:ok, url}` or `{:error, :invalid_episode}`.
-  """
-  def find_content_url(entity, season_number, episode_number) do
-    with %{} = season <- Enum.find(entity.seasons || [], &(&1.season_number == season_number)),
-         %{} = episode <-
-           Enum.find(season.episodes || [], &(&1.episode_number == episode_number)),
-         url when not is_nil(url) <- episode.content_url do
-      {:ok, url}
-    else
-      _ -> {:error, :invalid_episode}
-    end
-  end
-
-  @doc """
   Finds the name of a specific episode in an entity.
 
   Returns the episode name string or `nil`.

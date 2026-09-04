@@ -34,22 +34,6 @@ defmodule MediaCentaur.Pipeline.StatsTest do
     end
   end
 
-  describe "empty_snapshot/0" do
-    test "returns a valid snapshot without a running GenServer" do
-      snapshot = Stats.empty_snapshot()
-
-      for stage <- @stages do
-        assert snapshot.stages[stage].active_count == 0
-        assert snapshot.stages[stage].status == :idle
-      end
-
-      assert snapshot.queue_depth == 0
-      assert snapshot.discovery_queue_depth == 0
-      assert snapshot.import_queue_depth == 0
-      assert snapshot.recent_errors == []
-    end
-  end
-
   describe "active count tracking" do
     test "start increments active count, stop decrements it", %{stats: stats} do
       Stats.stage_start(stats, :parse, "test.mkv")

@@ -36,10 +36,8 @@ defmodule MediaCentaur.Library.ModalEntry do
 
   Returns `:not_found` when no container matches *and has at least one
   present file* — orphan entities (record exists, no `WatchedFile`)
-  don't appear in the modal. Same gating
-  `Browser.fetch_typed_entries_by_ids/1` applied pre-Phase-3.2; the
-  presence check now walks the projection's `present?` flags (or
-  `:seasons/:movies` trees for series containers).
+  don't appear in the modal. The presence check walks the projection's
+  `present?` flags (or `:seasons/:movies` trees for series containers).
 
   Library Schema v2 Phase 3.2 Task D flipped this from the
   `Browser + load_extras_for_entity` chain to the projection.

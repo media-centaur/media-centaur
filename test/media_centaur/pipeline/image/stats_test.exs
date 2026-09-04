@@ -26,19 +26,6 @@ defmodule MediaCentaur.Pipeline.Image.StatsTest do
     end
   end
 
-  describe "empty_snapshot/0" do
-    test "returns a valid snapshot without a running GenServer" do
-      snapshot = Stats.empty_snapshot()
-
-      assert snapshot.status == :idle
-      assert snapshot.active_count == 0
-      assert snapshot.queue_depth == 0
-      assert snapshot.total_downloaded == 0
-      assert snapshot.total_failed == 0
-      assert snapshot.recent_errors == []
-    end
-  end
-
   describe "active count tracking" do
     test "start increments active count, stop decrements it", %{stats: stats} do
       Stats.download_start(stats, :poster, "entity-123")

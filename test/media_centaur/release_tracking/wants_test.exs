@@ -105,11 +105,10 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
 
     test "does not reopen a dismissed want" do
       item = create_tv_item()
-      create_episode_release(item, %{air_date: @last_month})
+      release = create_episode_release(item, %{air_date: @last_month})
 
       :ok = ReleaseTracking.sync_wants(item)
-      {:ok, item} = ReleaseTracking.update_item(item, %{dismiss_released_before: Date.utc_today()})
-      ReleaseTracking.dismiss_wants_before(item, Date.utc_today())
+      {:ok, _} = ReleaseTracking.dismiss_release(release.id)
       assert ReleaseTracking.open_wants_for_item(item.id) == []
 
       :ok = ReleaseTracking.sync_wants(item)
@@ -294,22 +293,6 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
   end
 
   describe "dismissals" do
-    test "dismiss_wants_before/2 dismisses open wants aired before the cutoff" do
-      item = create_tv_item()
-      create_episode_release(item, %{season_number: 1, episode_number: 1, air_date: @last_month})
-      create_episode_release(item, %{season_number: 1, episode_number: 2, air_date: Date.utc_today()})
-      :ok = ReleaseTracking.sync_wants(item)
-
-      ReleaseTracking.dismiss_wants_before(item, @yesterday)
-
-      assert [open] = ReleaseTracking.open_wants_for_item(item.id)
-      assert open.episode_number == 2
-
-      dismissed = Enum.find(all_wants_for_item(item.id), &(&1.status == :dismissed))
-      assert dismissed.episode_number == 1
-      assert dismissed.dismissed_at
-    end
-
     test "dismiss_release/1 dismisses the matching want" do
       item = create_tv_item()
       release = create_episode_release(item, %{season_number: 3, episode_number: 7})

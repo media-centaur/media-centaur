@@ -1,53 +1,18 @@
 defmodule MediaCentaurWeb.Live.SettingsLive.ConnectionTest do
   @moduledoc """
-  Persisted connection-test results for Prowlarr and the download client.
+  How old a connection-test result reads on the Settings page.
 
   A connection test is a point-in-time observation — a success a week ago
-  doesn't tell you much about right now. This module handles the pure
-  formatting concerns: parsing/serializing the stored JSON, rendering the
-  age ("3 min ago"), and deciding when a result is stale enough to warrant
-  a retest.
+  doesn't tell you much about right now — so every place that shows one
+  shows its age beside it. This module is that formatting, and nothing
+  else: pure, `async: true`, with an injectable clock.
 
-  Persistence itself lives in `MediaCentaur.Capabilities`
-  (`load_test_result/1`, `save_test_result/2`) — this module is pure and
-  tested under `async: true` with injected timestamps.
+  Storing and reading the result is `MediaCentaur.Capabilities`
+  (`load_test_result/1`, `save_test_result/2`), which also owns its key
+  and its shape. This module used to carry a parallel `parse/1`,
+  `serialize/1` and `storage_key/1` from before that move; they outlived
+  their callers and are gone (audit E49).
   """
-
-  @type status :: :ok | :error
-  @type info :: %{status: status(), tested_at: DateTime.t()}
-
-  # After this many seconds, display the age with a "retest" hint — the
-  # result is likely still correct but worth re-verifying.
-  @stale_after_seconds 24 * 60 * 60
-
-  @doc """
-  Parses a stored map (as returned from `Settings.Entry`) into an `info`
-  struct. Returns `nil` if the stored value is missing or malformed.
-  """
-  @spec parse(map() | nil) :: info() | nil
-  def parse(nil), do: nil
-
-  def parse(%{"status" => status, "tested_at" => iso})
-      when status in ["ok", "error"] and is_binary(iso) do
-    case DateTime.from_iso8601(iso) do
-      {:ok, datetime, _offset} ->
-        %{status: String.to_existing_atom(status), tested_at: datetime}
-
-      _ ->
-        nil
-    end
-  end
-
-  def parse(_), do: nil
-
-  @doc "Serializes an `info` struct into a map suitable for JSON storage."
-  @spec serialize(info()) :: map()
-  def serialize(%{status: status, tested_at: %DateTime{} = tested_at}) do
-    %{
-      "status" => Atom.to_string(status),
-      "tested_at" => DateTime.to_iso8601(tested_at)
-    }
-  end
 
   @doc """
   Returns a human-readable age like `"just now"`, `"3 min ago"`,
@@ -56,8 +21,9 @@ defmodule MediaCentaurWeb.Live.SettingsLive.ConnectionTest do
   """
   @spec relative_age(DateTime.t(), DateTime.t()) :: String.t()
   def relative_age(tested_at, now \\ DateTime.utc_now()) do
-    seconds = DateTime.diff(now, tested_at, :second)
-    do_age(seconds)
+    tested_at
+    |> then(&DateTime.diff(now, &1, :second))
+    |> do_age()
   end
 
   defp do_age(seconds) when seconds < 60, do: "just now"
@@ -79,15 +45,4 @@ defmodule MediaCentaurWeb.Live.SettingsLive.ConnectionTest do
 
   defp pluralize(1, singular, _plural), do: singular
   defp pluralize(_, _singular, plural), do: plural
-
-  @doc "True when the test result is older than the staleness threshold."
-  @spec stale?(DateTime.t(), DateTime.t()) :: boolean()
-  def stale?(tested_at, now \\ DateTime.utc_now()) do
-    DateTime.diff(now, tested_at, :second) > @stale_after_seconds
-  end
-
-  @doc "Returns the Settings.Entry key for a given test subject."
-  @spec storage_key(:prowlarr | :download_client) :: String.t()
-  def storage_key(:prowlarr), do: "acquisition:prowlarr:last_test"
-  def storage_key(:download_client), do: "acquisition:download_client:last_test"
 end

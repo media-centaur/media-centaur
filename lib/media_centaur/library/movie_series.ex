@@ -99,17 +99,4 @@ defmodule MediaCentaur.Library.MovieSeries do
     |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
     |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
   end
-
-  @doc """
-  Replaces the credits embeds in place — used by
-  `MediaCentaur.Maintenance.refresh_movie_series_credits/0` to backfill
-  cast and crew from a fresh TMDB fetch. `cast_embed` is required here
-  because `Ecto.Changeset.change/2` cannot coerce maps into
-  `embeds_many` entries.
-  """
-  def update_credits_changeset(movie_series, attrs) do
-    movie_series
-    |> change()
-    |> Person.put_credits(attrs)
-  end
 end

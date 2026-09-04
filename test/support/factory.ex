@@ -863,7 +863,8 @@ defmodule MediaCentaur.TestFactory do
       name: "Test Tracked Series"
     }
 
-    ReleaseTracking.track_item!(Map.merge(defaults, attrs))
+    {:ok, item} = ReleaseTracking.track_item(Map.merge(defaults, attrs))
+    item
   end
 
   def create_tracking_release(attrs) do

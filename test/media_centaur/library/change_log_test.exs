@@ -6,7 +6,7 @@ defmodule MediaCentaur.Library.ChangeLogTest do
 
   import MediaCentaur.TestFactory
 
-  describe "record_addition/1" do
+  describe "record_addition/2" do
     test "creates an :added entry with correct entity snapshot" do
       movie = create_entity(%{type: :movie, name: "Sample Movie"})
       ChangeLog.record_addition(movie, :movie)
@@ -19,10 +19,10 @@ defmodule MediaCentaur.Library.ChangeLogTest do
     end
   end
 
-  describe "record_removal/1" do
+  describe "record_removal/2" do
     test "creates a :removed entry with correct entity snapshot" do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
-      ChangeLog.record_removal(%{id: tv_series.id, name: tv_series.name, type: :tv_series})
+      ChangeLog.record_removal(%{id: tv_series.id, name: tv_series.name}, :tv_series)
 
       [entry] = Library.ChangeLog.list_recent_changes(50, nil)
       assert entry.entity_id == tv_series.id

@@ -34,18 +34,6 @@ defmodule MediaCentaur.Library.Availability do
   # --- Public reads (zero message-passing cost) ---
 
   @doc """
-  Returns true if the entity's artwork cache is currently reachable.
-  Safe to call at render time — reads a single `:persistent_term` key.
-  """
-  @spec available?(map()) :: boolean()
-  def available?(entity) do
-    case entity_media_dir(entity) do
-      nil -> true
-      dir -> Map.get(dir_status(), dir) != :unavailable
-    end
-  end
-
-  @doc """
   Bulk variant for projection consumers that hold container ids but not
   preloaded `entity.watched_files`. Returns `%{entity_id => boolean()}`
   for every id in the input.
@@ -215,25 +203,4 @@ defmodule MediaCentaur.Library.Availability do
   end
 
   def handle_call(:__sync_for_test__, _from, state), do: {:reply, :ok, state}
-
-  # --- Entity → media-dir lookup ---
-
-  defp entity_media_dir(entity) do
-    case entity_file_path(entity) do
-      nil -> nil
-      path -> longest_prefix(path, Map.keys(dir_status()))
-    end
-  end
-
-  defp entity_file_path(%{files: [%{path: path} | _]}) when is_binary(path), do: path
-  defp entity_file_path(%{file_path: path}) when is_binary(path), do: path
-  defp entity_file_path(_), do: nil
-
-  defp longest_prefix(_path, []), do: nil
-
-  defp longest_prefix(path, dirs) do
-    dirs
-    |> Enum.filter(fn dir -> String.starts_with?(path, dir <> "/") end)
-    |> Enum.max_by(&String.length/1, fn -> nil end)
-  end
 end

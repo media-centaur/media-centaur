@@ -103,36 +103,6 @@ defmodule MediaCentaur.Pipeline.Stats do
     GenServer.cast(server, {:queue_depth, pipeline, depth})
   end
 
-  @doc """
-  Returns an empty snapshot for use before the GenServer starts
-  (e.g., in disconnected LiveView mount).
-  """
-  def empty_snapshot do
-    stages =
-      Map.new(@stages, fn stage ->
-        {stage,
-         %{
-           active_count: 0,
-           status: :idle,
-           throughput: 0.0,
-           error_count: 0,
-           last_error: nil,
-           avg_duration_ms: nil
-         }}
-      end)
-
-    %{
-      stages: stages,
-      queue_depth: 0,
-      discovery_queue_depth: 0,
-      import_queue_depth: 0,
-      total_processed: 0,
-      total_failed: 0,
-      needs_review_count: 0,
-      recent_errors: []
-    }
-  end
-
   # --- GenServer callbacks ---
 
   @impl true

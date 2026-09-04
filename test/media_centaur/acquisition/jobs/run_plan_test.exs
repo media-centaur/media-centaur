@@ -806,8 +806,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
   describe "per-title quality bounds (ADR-063)" do
     test "a manual plan resolves a tracked title's any-minimum and assigns the lower-quality release" do
-      item =
-        MediaCentaur.ReleaseTracking.track_item!(%{
+      {:ok, item} =
+        MediaCentaur.ReleaseTracking.track_item(%{
           tmdb_id: 246_810,
           media_type: :tv_series,
           name: "Sample Show",

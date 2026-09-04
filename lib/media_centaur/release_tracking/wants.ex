@@ -93,43 +93,6 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   end
 
   @doc """
-  Counts the open ledger across watching items — `{want_count,
-  item_count}`. Drives the Downloads page's quiet "watching for…"
-  pointer (ADR-056 Q7: count + link, never want cards — open wants are
-  not acquisition activity).
-  """
-  @spec open_summary() :: {non_neg_integer(), non_neg_integer()}
-  def open_summary do
-    Repo.one(
-      from(w in Want,
-        join: i in Item,
-        on: i.id == w.item_id,
-        where: w.status == :open and i.status == :watching,
-        select: {count(w.id), count(w.item_id, :distinct)}
-      )
-    ) || {0, 0}
-  end
-
-  @doc """
-  Dismisses the item's open wants that aired before `cutoff`. Returns
-  the dismissed count.
-  """
-  @spec dismiss_before(Item.t(), Date.t()) :: non_neg_integer()
-  def dismiss_before(%Item{} = item, %Date{} = cutoff) do
-    {count, _} =
-      Repo.update_all(
-        from(w in Want,
-          where:
-            w.item_id == ^item.id and w.status == :open and
-              not is_nil(w.air_date) and w.air_date < ^cutoff
-        ),
-        set: [status: :dismissed, dismissed_at: DateTime.utc_now(:second)]
-      )
-
-    count
-  end
-
-  @doc """
   Opens gap-provenance wants on an item — the media-search gap handoff
   (ADR-056 Q15): units a plan couldn't find become standing intent on
   the track. Unit specs carry `season_number`/`episode_number` (TV) or
