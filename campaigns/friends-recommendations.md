@@ -1,6 +1,6 @@
 ---
 status: active
-status_note: shipped v1.6.0 + v1.7.0 (2026-09-02); iterating with the owner; relay deletion pending
+status_note: shipped v1.6.0 + v1.7.0 (2026-09-02); deletion verified end to end against social-relay v0.3.0 (2026-09-04), unshipped
 started: 2026-06-17
 last_updated: 2026-09-04
 ---
@@ -26,9 +26,12 @@ sync, boot-order relay fix, watchlist flat-column drop), both on
 build history is in **Decisions made** and `git log`.
 
 Wire contract: `docs/social-protocol.md` (wiki *Social Protocol*, generated
-by `scripts/sync-wiki-docs`). Relay side: `../social-relay`, whose
-`campaigns/deletion-and-sync-v1.md` is the open work the app's Delete
-depends on for effect on the relay.
+by `scripts/sync-wiki-docs`). Relay side: `../social-relay`, v0.3.0 carries
+the whole contract (its `deletion-and-sync-v1` campaign closed 2026-09-04).
+
+**Unshipped (committed 2026-09-04):** relay observability (per-relay Status
+rows, faults on the board), and the deletion closure below — own-event
+stamping, the refusal log named by kind, `just social-delete`, wiki.
 
 Dev workflow: `just social` (relay in Docker on `ws://127.0.0.1:2173` +
 scripted friend via `mix social.dev`). The dev app has that relay, the
@@ -202,6 +205,31 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   :nostr_secret_key, _}` (test `connections_boot_test.exs`). Needs a patch
   release.
 
+* `2026-09-04` — **Own events are stamped after what the row holds.** The
+  relay keeps one record per address and on a `created_at` tie keeps what
+  it holds (deletion beating recommendation). A same-second
+  re-recommendation would replace the row here, be discarded there, and be
+  republished by the own-events diff on every connect. `recommend/2` now
+  stamps strictly after the row's recommendation or tombstone, `delete/1`
+  no earlier than the recommendation (`Recommendations.stamp/2`);
+  `Translation.to_event/4` and `to_deletion/5` take the `created_at`.
+* `2026-09-04` — **The publisher words a relay's refusal.** The
+  "rejected a recommendation" warning moved from `Connections.Owner`
+  (which cannot know what it carried) to `Recommendations.Sync`, which
+  looks the id up (`Recommendations.own_event_kind/1`) and logs "rejected
+  a deletion: …" / "rejected a recommendation: …". The relay row keeps
+  the reason as before. A deletion refused with `blocked: kind 5 is not
+  stored by this relay` is the signature of a relay below v0.3.0.
+* `2026-09-04` — **Deletion verified end to end against v0.3.0** (dev
+  relay and the owner's relay): a deletion made while the relay was on
+  v0.2.x reached it through the own-events diff after the upgrade; own
+  Delete through the real Yours row leaves only the kind 5 on both relays;
+  the friend's deletion (`just social-delete`, new) tombstones the app's
+  row live; a newer recommendation from either side replaces the deletion
+  on the relay and revives the row. `to_deletion` takes a nil event id so
+  the dev friend, which keeps no record of what it published, can name
+  the address alone (`e` is optional in the contract).
+
 * `2026-09-02` — **Recommendation content stays minimal**: title snapshot +
   note, `v: 1`. Extra fields (where to start, spoiler flag, progress,
   reaction) are deferred until a surface reads them; adding fields needs
@@ -245,12 +273,21 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   (`20260902220000_drop_watchlist_flat_columns.exs`, inline heal first;
   `WatchlistItem` no longer writes `name`). Ships in the next release,
   as required.
-* **Verify own-delete end to end once `social-relay` ships
-  `deletion-and-sync-v1`**: `just social-recommend …`, delete it in the app's
-  Recommendations → Yours, `just social-feed` shows the kind 5 and not the
-  recommendation; then a friend's app drops the row after reconnect. Until
-  then the relay answers `blocked:` and keeps the copy (the app-side
-  tombstone hides it locally regardless).
+* ~~**Verify own-delete end to end once `social-relay` ships
+  `deletion-and-sync-v1`**~~ **Done 2026-09-04** (Decisions).
+* **Open design question — the sync cursor can skip late-published
+  events.** `since` is the newest `created_at` seen from a relay, but an
+  event is stamped when it is *made*, not when the relay *receives* it. A
+  friend who withdraws (or recommends) while offline publishes later with
+  the older stamp; a reader whose cursor has already passed that stamp
+  never fetches it unless its feed subscription was open at that moment.
+  Not deletion-specific, but a withdrawal is the case where silence
+  matters. Options: (a) accept, and document; (b) `since` minus an overlap
+  window; (c) drop the cursor for kind 5 — deletions are bounded to one
+  per withdrawn address (contract rule 6) and re-tombstoning is a no-op;
+  (d) drop the cursor altogether — the relay holds one record per signer
+  per title, a friend group's whole history is one page. Owner's call;
+  (c) or (d) is the principled fix, (b) the cheap one.
 * **Suite load flakes.** Full `mix test` runs on 2026-09-02 each dropped one
   or two unrelated tests to timeouts (OneShot 5 s deadline — since raised to
   15 s in tests — and a page-smoke `LazyHTML` render past 60 s); all pass
@@ -308,8 +345,8 @@ owner's own `wss://social-media.shawnmc.cool/`, and a "Dev friend" configured.
   = an allowlist `social-relay`, nothing exposed by a home instance.
 * ✅ Wiki + Settings docs: *Social*, *Social Protocol*, *Hosting a Private
   Relay*, Settings-Reference → Social.
-* ⏳ Withdrawing a recommendation removes it from the relay — waits on the
-  relay's `deletion-and-sync-v1`.
+* ✅ Withdrawing a recommendation removes it from the relay — `social-relay`
+  v0.3.0, verified 2026-09-04 on the dev relay and the owner's.
 
 ## Pointers
 

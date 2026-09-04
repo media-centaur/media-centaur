@@ -2,6 +2,7 @@ defmodule MediaCentaur.RecommendationsTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
+  import MediaCentaur.TestFactory, only: [force_attrs: 2]
 
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
@@ -270,7 +271,6 @@ defmodule MediaCentaur.RecommendationsTest do
       assert :ignored = Recommendations.ingest(stale)
       assert Recommendations.list_sent() == []
 
-      Process.sleep(1_100)
       {:ok, again} = Recommendations.recommend(title(), "again")
       assert again.id == rec.id
       refute Recommendation.deleted?(again)
@@ -278,6 +278,47 @@ defmodule MediaCentaur.RecommendationsTest do
       assert [%Event{kind: 32_160}] = Recommendations.own_events()
       await_supervised_tasks()
     end
+  end
+
+  # The relay keeps one record per address and, on a `created_at` tie,
+  # keeps what it holds (a deletion beating a recommendation). An own event
+  # stamped no later than the row it supersedes would be discarded there
+  # while replacing the row here, and republished on every connect.
+  describe "own events are stamped after what the row holds" do
+    test "a re-recommendation is stamped after the recommendation it replaces" do
+      {:ok, rec} = Recommendations.recommend(title(), "first")
+      ahead = ahead_of_now()
+      force_attrs(rec, recommended_at: ahead)
+
+      {:ok, again} = Recommendations.recommend(title(), "second")
+      assert DateTime.after?(again.recommended_at, ahead)
+      assert again.raw_event["created_at"] == DateTime.to_unix(again.recommended_at)
+      await_supervised_tasks()
+    end
+
+    test "a revival is stamped after the tombstone" do
+      {:ok, rec} = Recommendations.recommend(title(), "mine")
+      {:ok, gone} = Recommendations.delete(rec.id)
+      ahead = ahead_of_now()
+      force_attrs(gone, deleted_at: ahead)
+
+      {:ok, again} = Recommendations.recommend(title(), "again")
+      assert DateTime.after?(again.recommended_at, ahead)
+      await_supervised_tasks()
+    end
+
+    test "a deletion is stamped no earlier than the recommendation it withdraws" do
+      {:ok, rec} = Recommendations.recommend(title(), "mine")
+      ahead = ahead_of_now()
+      force_attrs(rec, recommended_at: ahead)
+
+      {:ok, gone} = Recommendations.delete(rec.id)
+      refute DateTime.before?(gone.deleted_at, ahead)
+      assert gone.deletion_event["created_at"] == DateTime.to_unix(gone.deleted_at)
+      await_supervised_tasks()
+    end
+
+    defp ahead_of_now, do: DateTime.utc_now() |> DateTime.add(100, :second) |> DateTime.truncate(:second)
   end
 
   describe "ingest/1 of a deletion" do

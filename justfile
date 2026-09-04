@@ -54,7 +54,8 @@ social:
     @echo '   then Discovery → Friends → add a friend with the npub from step 1.'
     @echo '3. just social-recommend movie 603 --name "Sample Movie" --note "try it"'
     @echo '                               the friend recommends a title; it appears in your Feed'
-    @echo '4. just social-feed            everything the relay holds, including what you sent'
+    @echo '4. just social-delete movie 603  the friend withdraws it; the row leaves your Feed'
+    @echo '5. just social-feed            everything the relay holds, including what you sent'
     @echo
     @echo 'Also: just social-status · just social-down · just social-reset (new friend key)'
     @echo '      mix social.dev            all friend options (--year, --poster-path, --relay, ...)'
@@ -95,6 +96,10 @@ social-status:
 social-recommend *args:
     mix social.dev recommend "$@"
 
-# Everything the dev relay holds, newest first.
+# The friend withdraws a recommendation: social-delete movie 603
+social-delete *args:
+    mix social.dev delete "$@"
+
+# Everything the dev relay holds, newest first — recommendations and deletions.
 social-feed:
     mix social.dev feed

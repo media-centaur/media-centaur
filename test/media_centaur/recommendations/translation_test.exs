@@ -46,6 +46,18 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
       assert Translation.deletion_kind() == 5
     end
 
+    test "to_deletion without a known event id carries only the address" do
+      event = Translation.to_deletion(@pubkey, :movie, 603, nil)
+      assert event.tags == [["a", "32160:#{@pubkey}:tmdb:movie:603"]]
+    end
+
+    test "to_event and to_deletion take an explicit created_at" do
+      assert Translation.to_event(title(), nil, @pubkey, 1_700_000_000).created_at == 1_700_000_000
+
+      assert Translation.to_deletion(@pubkey, :movie, 603, "abc", 1_700_000_001).created_at ==
+               1_700_000_001
+    end
+
     test "from_deletion round-trips a signed deletion into tombstone attrs" do
       signed = Event.sign(Translation.to_deletion(@pubkey, :tv_series, 42, "abc"), @secret)
 

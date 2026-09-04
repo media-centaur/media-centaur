@@ -116,7 +116,6 @@ defmodule MediaCentaur.Social.Connections.Owner do
   def handle_info({:config_updated, :nostr_secret_key, _value}, state), do: {:noreply, reconcile(state)}
 
   def handle_info({:nostr, url, message}, state) do
-    log_message(url, message)
     Events.broadcast_connection(url, message)
 
     status =
@@ -137,13 +136,6 @@ defmodule MediaCentaur.Social.Connections.Owner do
     stop_all(state)
     :ok
   end
-
-  # A relay refusing what we published is the one connection message a user
-  # cannot see coming; the status entry keeps it, the log keeps the history.
-  defp log_message(url, {:ok, _id, false, reason}),
-    do: Log.warning(:social, "#{url} rejected a recommendation: #{reason}")
-
-  defp log_message(_url, _message), do: :ok
 
   # --- reconcile ---------------------------------------------------------
 
