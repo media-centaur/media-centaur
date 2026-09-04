@@ -16,6 +16,7 @@ defmodule MediaCentaur.ErrorReports.BucketCache do
   alias MediaCentaur.Console.Entry
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.ErrorReports.Fingerprint
+  alias MediaCentaur.ErrorReports.Headline
 
   @max_sample_entries 5
   @max_active_buckets 200
@@ -79,6 +80,7 @@ defmodule MediaCentaur.ErrorReports.BucketCache do
             component: entry.component,
             normalized_message: normalized,
             display_title: title,
+            headline: Headline.derive(normalized),
             severity: severity_for(entry.level),
             count: 1,
             first_seen: entry.timestamp,
