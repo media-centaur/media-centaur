@@ -86,6 +86,8 @@ defmodule MediaCentaur.Library.Views.DetailItem do
                                        (embedded streams + sidecar files) for this leaf.
   """
 
+  alias MediaCentaur.Library.EntityView
+
   @enforce_keys [:playable_item_id, :container_type, :container_id, :name]
   defstruct [
     :playable_item_id,
@@ -93,7 +95,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     # Materialized hoist decision — how this row should be presented
     # (`:movie | :movie_series | :tv_series | :video_object`). Computed
     # once at build time from the collection's present-movie count so
-    # `to_entity_map/1` never has to re-infer it from the struct shape.
+    # `to_entity_view/1` never has to re-infer it from the struct shape.
     :presented_as,
     :container_id,
     :name,
@@ -382,49 +384,44 @@ defmodule MediaCentaur.Library.Views.DetailItem do
   end
 
   @doc """
-  Adapts a `DetailItem` into the polymorphic entity-map shape today's
-  consumers
-  (`MediaCentaurWeb.ViewModel.SeriesDetail.build/4`,
-  `MediaCentaurWeb.Components.DetailPanel`,
-  `MediaCentaur.Playback.ResumeTarget.compute/2`,
-  `MediaCentaurWeb.Live.EntityModal.find_tmdb_id/1`,
-  the detail modal's leaf-id watched toggles) consume.
+  Adapts a `DetailItem` into the `MediaCentaur.Library.EntityView` the
+  detail components, `MediaCentaurWeb.ViewModel.SeriesDetail` /
+  `CollectionDetail`, `Library.ModalEntry` and
+  `Playback.ProgressBroadcaster` consume — the projection-sourced
+  counterpart of `Library.EntityShape.to_entity_view/2`.
 
-  Dispatches on `(parent_container_type, container_type)` to produce
-  the right shape for each modal kind:
+  Dispatches on the materialized `presented_as` (falling back to the
+  container types for rows built without it):
 
-    * `parent_container_type: :tv_series` → TV-series entity-map (Task C.2).
-    * `parent_container_type: :movie_series, container_type: :movie`
-      → MovieSeries entity-map (Task D). The DetailItem is a canonical
-      child Movie carrying the full `:movies` tree.
-    * `container_type: :movie` → standalone (or hoisted-collection) Movie
-      entity-map (Task D).
-    * `container_type: :video_object` → VideoObject entity-map (Task D).
+    * `:tv_series` → the series view; the row is the canonical episode
+      carrying the full `:seasons` tree.
+    * `:movie_series` → the collection view; the row is a constituent
+      movie carrying the full `:movies` list.
+    * `:movie` → a standalone or hoisted-collection movie, with
+      `:collection` naming the collection it belongs to.
+    * `:video_object` → a video object.
 
-  Pure: no DB, no side effects. Library Schema v2 Phase 3.2 introduces
-  this as a temporary compatibility shim — Task E retires it when the
-  DetailPanel consumer tree migrates to typed `DetailItem` attrs.
+  Pure: no DB, no side effects.
   """
-  @spec to_entity_map(t()) :: map()
-  # Prefer the materialized `presented_as` decision; fall back to struct
-  # inference for fixtures / legacy callers that don't set it.
-  def to_entity_map(%__MODULE__{presented_as: :tv_series} = item), do: tv_series_entity_map(item)
-  def to_entity_map(%__MODULE__{presented_as: :movie_series} = item), do: movie_series_entity_map(item)
-  def to_entity_map(%__MODULE__{presented_as: :movie} = item), do: movie_entity_map(item)
-  def to_entity_map(%__MODULE__{presented_as: :video_object} = item), do: video_object_entity_map(item)
+  @spec to_entity_view(t()) :: EntityView.t()
+  def to_entity_view(%__MODULE__{presented_as: :tv_series} = item), do: tv_series_entity_view(item)
+  def to_entity_view(%__MODULE__{presented_as: :movie_series} = item), do: movie_series_entity_view(item)
+  def to_entity_view(%__MODULE__{presented_as: :movie} = item), do: movie_entity_view(item)
+  def to_entity_view(%__MODULE__{presented_as: :video_object} = item), do: video_object_entity_view(item)
 
-  def to_entity_map(%__MODULE__{parent_container_type: :tv_series} = item),
-    do: tv_series_entity_map(item)
+  def to_entity_view(%__MODULE__{parent_container_type: :tv_series} = item),
+    do: tv_series_entity_view(item)
 
-  def to_entity_map(%__MODULE__{parent_container_type: :movie_series, container_type: :movie} = item),
-    do: movie_series_entity_map(item)
+  def to_entity_view(%__MODULE__{parent_container_type: :movie_series, container_type: :movie} = item),
+    do: movie_series_entity_view(item)
 
-  def to_entity_map(%__MODULE__{container_type: :movie} = item), do: movie_entity_map(item)
+  def to_entity_view(%__MODULE__{container_type: :movie} = item), do: movie_entity_view(item)
 
-  def to_entity_map(%__MODULE__{container_type: :video_object} = item), do: video_object_entity_map(item)
+  def to_entity_view(%__MODULE__{container_type: :video_object} = item),
+    do: video_object_entity_view(item)
 
-  defp tv_series_entity_map(%__MODULE__{} = item) do
-    %{
+  defp tv_series_entity_view(%__MODULE__{} = item) do
+    struct!(EntityView,
       id: item.parent_container_id,
       type: :tv_series,
       collection: nil,
@@ -457,12 +454,16 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       movies: [],
       watched_files: item.watched_files || [],
       subtitle_tracks: [],
-      extra_progress: []
-    }
+      extra_progress: [],
+      watch_progress: [],
+      inserted_at: nil,
+      updated_at: nil,
+      track_override: nil
+    )
   end
 
-  defp movie_series_entity_map(%__MODULE__{} = item) do
-    %{
+  defp movie_series_entity_view(%__MODULE__{} = item) do
+    struct!(EntityView,
       id: item.parent_container_id,
       type: :movie_series,
       collection: nil,
@@ -495,12 +496,16 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       movies: Enum.map(item.movies || [], &movie_entry_to_map/1),
       watched_files: item.watched_files || [],
       subtitle_tracks: [],
-      extra_progress: []
-    }
+      extra_progress: [],
+      watch_progress: [],
+      inserted_at: nil,
+      updated_at: nil,
+      track_override: nil
+    )
   end
 
-  defp movie_entity_map(%__MODULE__{} = item) do
-    %{
+  defp movie_entity_view(%__MODULE__{} = item) do
+    struct!(EntityView,
       id: item.container_id,
       type: :movie,
       collection: collection_ref(item),
@@ -533,12 +538,16 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       movies: [],
       watched_files: item.watched_files || [],
       subtitle_tracks: item.subtitle_tracks || [],
-      extra_progress: []
-    }
+      extra_progress: [],
+      watch_progress: [],
+      inserted_at: nil,
+      updated_at: nil,
+      track_override: nil
+    )
   end
 
-  defp video_object_entity_map(%__MODULE__{} = item) do
-    %{
+  defp video_object_entity_view(%__MODULE__{} = item) do
+    struct!(EntityView,
       id: item.container_id,
       type: :video_object,
       collection: nil,
@@ -571,8 +580,12 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       movies: [],
       watched_files: item.watched_files || [],
       subtitle_tracks: item.subtitle_tracks || [],
-      extra_progress: []
-    }
+      extra_progress: [],
+      watch_progress: [],
+      inserted_at: nil,
+      updated_at: nil,
+      track_override: nil
+    )
   end
 
   # The collection reference carried on a movie view (presented_as :movie)

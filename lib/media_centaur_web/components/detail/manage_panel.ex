@@ -79,7 +79,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   attr :entity, :map,
     required: true,
     doc:
-      "entity-map from `MediaCentaur.Library.Views.DetailItem.to_entity_map/1`. Read for `:id`, `:url`, `:external_ids`, `:watched_files` (probed media info), and movie `:subtitle_tracks`."
+      "`MediaCentaur.Library.EntityView`. Read for `:id`, `:url`, `:external_ids`, `:watched_files` (probed media info), and movie `:subtitle_tracks`."
 
   attr :files, :list, default: [], doc: @doc_files
   attr :rematch_confirm, :boolean, default: false
@@ -622,7 +622,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   # two lists describe the same files from different concerns; the path
   # is their shared identity.
   defp media_info_by_path(entity) do
-    for %{path: path, media_info: media_info} <- entity[:watched_files] || [],
+    for %{path: path, media_info: media_info} <- Map.get(entity, :watched_files) || [],
         media_info != nil,
         into: %{},
         do: {path, media_info}

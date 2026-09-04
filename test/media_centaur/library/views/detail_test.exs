@@ -489,7 +489,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
       record_present(create_linked_file(%{movie_id: child.id}))
 
-      entity = DetailItem.to_entity_map(Views.detail_by_container(:movie, child.id))
+      entity = DetailItem.to_entity_view(Views.detail_by_container(:movie, child.id))
 
       # Presents as the movie itself — not the collection container.
       assert entity.type == :movie
@@ -508,7 +508,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       record_present(create_linked_file(%{movie_id: part1.id}))
       record_present(create_linked_file(%{movie_id: part2.id}))
 
-      entity = DetailItem.to_entity_map(Views.detail_by_container(:movie_series, ms.id))
+      entity = DetailItem.to_entity_view(Views.detail_by_container(:movie_series, ms.id))
 
       assert entity.type == :movie_series
       assert entity.id == ms.id

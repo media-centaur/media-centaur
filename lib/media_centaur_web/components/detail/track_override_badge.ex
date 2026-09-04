@@ -17,8 +17,7 @@ defmodule MediaCentaurWeb.Components.Detail.TrackOverrideBadge do
 
   attr :entity, :map,
     required: true,
-    doc:
-      "entity-map from `MediaCentaur.Library.Views.DetailItem.to_entity_map/1`. Reads `:track_override`."
+    doc: "`MediaCentaur.Library.EntityView`. Reads `:track_override`."
 
   def track_override_badge(%{entity: %{track_override: %MediaTrackOverride{} = override}} = assigns) do
     assigns = assign(assigns, :segments, track_override_summary(override))

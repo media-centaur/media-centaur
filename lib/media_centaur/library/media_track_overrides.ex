@@ -70,11 +70,11 @@ defmodule MediaCentaur.Library.MediaTrackOverrides do
   end
 
   @doc """
-  Decorates a modal entity-map with its override under `:track_override`.
+  Decorates an `EntityView` with its override under `:track_override`.
 
   Container kinds that cannot own an override — and any map missing
   `:id` / `:type` — get `nil`. Called by the modal-entry builders right
-  after `Views.DetailItem.to_entity_map/1`, so both construction paths
+  after `Views.DetailItem.to_entity_view/1`, so both construction paths
   carry the override without the detail UI issuing a second round-trip.
   """
   @spec put_on_entity(map()) :: map()

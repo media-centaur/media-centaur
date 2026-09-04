@@ -168,7 +168,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
            standalone_movie: false,
            preload: Library.Containers.full_preloads_by_type()
          ) do
-      {:ok, type, record} -> {:ok, EntityShape.to_view_model(record, type)}
+      {:ok, type, record} -> {:ok, EntityShape.to_entity_view(record, type)}
       :not_found -> :not_found
     end
   end

@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # Each points at the typed producer in the data layer (Library) so the
   # contract stays inspectable without exporting internal schemas across
   # the boundary.
-  @doc_entity "polymorphic entity-map produced by `MediaCentaur.Library.Views.DetailItem.to_entity_map/1` (Phase 3.2 Task D). Carries the same `:type | :name | :images | :seasons | :movies | :extras | :external_ids | :cast | :crew | :content_url` shape the pre-Phase-3.2 `Library.Browser` preload chain produced — kept as a map (not a typed struct) until the typed-attr migration (Phase 3.3 / component-contracts campaign)."
+  @doc_entity "`MediaCentaur.Library.EntityView` — the container-level read model (`:type | :name | :images | :seasons | :movies | :extras | :external_ids | :cast | :crew | :content_url | …`), produced by `Library.Views.DetailItem.to_entity_view/1` for the modal."
   @doc_progress "`MediaCentaur.Library.ProgressSummary.t() | nil` — composed at `Library.ModalEntry.load/1` from `list_progress_records_for_container/2` (Phase 3.2)."
   @doc_progress_records "list of `MediaCentaur.Library.WatchProgress.t()` rows for the entity's leaves; each carries a synthesised `:playable_item` `(container_type, container_id)` so `EpisodeList.progress_container_id/1` resolves to the leaf UUID."
   @doc_resume "resume target map `%{kind, season, episode, ...} | nil` — see `LibraryProgress.resume_target_for/1`."
@@ -256,7 +256,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(
         :cast_filter_in_header?,
         assigns.detail_view == :cast && description_right? &&
-          CastSelection.show_filter?(subject[:cast] || [])
+          CastSelection.show_filter?(Map.get(subject, :cast) || [])
       )
       |> assign(:resume_episode_key, resume_episode_key)
       |> assign(:extra_progress_by_id, extra_progress_by_id)

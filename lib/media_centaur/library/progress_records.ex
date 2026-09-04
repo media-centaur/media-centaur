@@ -206,10 +206,9 @@ defmodule MediaCentaur.Library.ProgressRecords do
   so consumers can key by leaf-container UUID without a separate
   `belongs_to :playable_item` preload.
 
-  Same shape `EntityShape.extract_progress/2` produced for the legacy
-  entity-preload path. Used by the modal compose flows after the Phase
-  3.2 projection flip, where there is no preloaded entity to extract
-  from.
+  Same shape `EntityShape.extract_progress/2` produces from a preloaded
+  record; this is the projection-side counterpart, used by the modal
+  compose flows where there is no preloaded entity to extract from.
 
   Returns `[]` for an unknown container id, or one with no rows beneath
   any leaf.

@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   end
 
   defp compose_from_detail(detail_item, entity_id) do
-    entity = detail_item |> DetailItem.to_entity_map() |> Library.MediaTrackOverrides.put_on_entity()
+    entity = detail_item |> DetailItem.to_entity_view() |> Library.MediaTrackOverrides.put_on_entity()
     progress_records = Library.ProgressRecords.list_for_container(:movie_series, entity_id)
     progress_summary = ProgressSummary.compute(entity, progress_records)
 

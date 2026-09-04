@@ -43,7 +43,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   attr :entity, :map,
     required: true,
     doc:
-      "entity-map produced by `MediaCentaur.Library.Views.DetailItem.to_entity_map/1`. Reads `:type`, `:crew`, `:cast`, and `:seasons` (episode cast membership)."
+      "`MediaCentaur.Library.EntityView`. Reads `:type`, `:crew`, `:cast`, and `:seasons` (episode cast membership)."
 
   attr :cast_filter, :string,
     default: "",
@@ -65,7 +65,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
       "true when the host already renders `cast_filter_form/1` in the detail header — suppresses the inline fallback form."
 
   def cast_panel(assigns) do
-    cast = assigns.entity[:cast] || []
+    cast = Map.get(assigns.entity, :cast) || []
     filter = assigns[:cast_filter] || ""
     limit = assigns.cast_limit || CastSelection.page_size()
     filtering? = CastSelection.filtering?(filter)
@@ -149,13 +149,13 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
           %{key: {non_neg_integer(), non_neg_integer()}, cast_person_ids: [integer()]} | nil
   def lead_episode(entity, resume_episode_key) do
     episodes =
-      for season <- entity[:seasons] || [],
-          episode <- season[:episodes] || [],
-          do: {season[:season_number], episode}
+      for season <- Map.get(entity, :seasons) || [],
+          episode <- Map.get(season, :episodes) || [],
+          do: {Map.get(season, :season_number), episode}
 
     target =
       find_by_key(episodes, resume_episode_key) ||
-        Enum.find(episodes, fn {_season_number, episode} -> episode[:content_url] end)
+        Enum.find(episodes, fn {_season_number, episode} -> Map.get(episode, :content_url) end)
 
     case target do
       {season_number, episode} ->
@@ -178,7 +178,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   end
 
   defp movie_headline(%{entity: %{type: :movie}} = assigns) do
-    crew = assigns.entity[:crew] || []
+    crew = Map.get(assigns.entity, :crew) || []
 
     assigns =
       assigns

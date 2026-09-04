@@ -78,7 +78,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   attr :entity, :map,
     required: true,
     doc:
-      "entity-map from `MediaCentaur.Library.Views.DetailItem.to_entity_map/1`. Read for `:type` and `:extras` (via `Detail.Logic`) to decide which control belongs here, and for `:tmdb_id` for the Letterboxd link."
+      "`MediaCentaur.Library.EntityView`. Read for `:type` and `:extras` (via `Detail.Logic`) to decide which control belongs here, and for `:tmdb_id` for the Letterboxd link."
 
   attr :detail_view, :atom,
     required: true,
@@ -113,12 +113,12 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       Cast
     </.view_button>
     <.button
-      :if={@letterboxd_links && @entity.type == :movie && @entity[:tmdb_id]}
+      :if={@letterboxd_links && @entity.type == :movie && @entity.tmdb_id}
       variant="dismiss"
       size="sm"
       shape="circle"
       class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
-      href={Logic.letterboxd_url(@entity[:tmdb_id])}
+      href={Logic.letterboxd_url(@entity.tmdb_id)}
       target="_blank"
       rel="noopener"
       title="Open on Letterboxd"
@@ -140,7 +140,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       </svg>
     </.button>
     <.button
-      :if={@entity[:tmdb_id] && @entity.type in [:movie, :tv_series]}
+      :if={@entity.tmdb_id && @entity.type in [:movie, :tv_series]}
       id="detail-watchlist-toggle"
       variant="dismiss"
       size="sm"
@@ -159,7 +159,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       <.icon name={if @watchlisted?, do: "hero-bookmark-solid", else: "hero-bookmark"} class="size-5" />
     </.button>
     <.button
-      :if={@recommend? && @entity[:tmdb_id] && @entity.type in [:movie, :tv_series]}
+      :if={@recommend? && @entity.tmdb_id && @entity.type in [:movie, :tv_series]}
       id="detail-recommend"
       variant="dismiss"
       size="sm"

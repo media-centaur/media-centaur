@@ -298,7 +298,7 @@ defmodule MediaCentaur.Library.Browser do
 
   defp build_entry_for(record, type) do
     progress_records = EntityShape.extract_progress(record, type)
-    normalized = EntityShape.to_view_model(record, type)
+    normalized = EntityShape.to_entity_view(record, type)
     build_entry_from_normalized(normalized, progress_records)
   end
 

@@ -10,6 +10,7 @@ defmodule MediaCentaur.Library do
       Containers,
       ContentUrls,
       EntityShape,
+      EntityView,
       Episode,
       EpisodeList,
       Episodes,
