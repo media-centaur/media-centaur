@@ -170,28 +170,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     end
   end
 
-  describe "year_from_date/1" do
-    test "extracts year from a Date struct" do
-      assert Logic.year_from_date(~D[2008-07-18]) == "2008"
-    end
-
-    test "extracts year from an ISO date string (transition tolerance)" do
-      assert Logic.year_from_date("2008-07-18") == "2008"
-    end
-
-    test "returns nil for nil input" do
-      assert Logic.year_from_date(nil) == nil
-    end
-
-    test "returns nil for empty string" do
-      assert Logic.year_from_date("") == nil
-    end
-
-    test "returns nil for malformed date" do
-      assert Logic.year_from_date("not-a-date") == nil
-    end
-  end
-
   describe "humanize_status/1" do
     test "title-cases atom statuses" do
       assert Logic.humanize_status(:released) == "Released"

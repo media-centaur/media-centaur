@@ -25,7 +25,6 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.LiveHelpers
-  import MediaCentaurWeb.LibraryFormatters, only: [extract_year: 1]
 
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.PlayableRow
@@ -124,7 +123,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
         <div :if={!@logo_url} class="text-sm font-semibold text-white text-on-image-lg truncate">
           {@movie.name}
           <span :if={@movie.date_published} class="text-white/50 font-normal ml-0.5">
-            {extract_year(@movie.date_published)}
+            {MediaCentaur.Format.year(@movie.date_published)}
           </span>
         </div>
       </div>

@@ -2804,14 +2804,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp save_test_result(subject, status), do: Capabilities.save_test_result(subject, status)
   defp clear_test_result(subject), do: Capabilities.clear_test_result(subject)
 
-  defp persist_service_flag(service, value) do
-    env = Application.get_env(:media_centaur, :environment, :dev)
-
-    Settings.find_or_create_entry!(%{
-      key: "services:#{env}:#{service}",
-      value: %{"enabled" => value}
-    })
-  end
+  defp persist_service_flag(service, value), do: Settings.Services.set(service, value)
 
   # --- Media-dir private helpers ---
 

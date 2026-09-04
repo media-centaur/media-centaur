@@ -95,6 +95,19 @@ defmodule MediaCentaur.Format do
     do: "S#{pad2(season)}E#{pad2(episode)}"
 
   @doc """
+  `episode_label/2` followed by the episode's title after a middle dot;
+  the bare label when there is no title.
+
+      iex> MediaCentaur.Format.episode_label(1, 3, "Pilot")
+      "S01E03 · Pilot"
+      iex> MediaCentaur.Format.episode_label(1, 3, nil)
+      "S01E03"
+  """
+  @spec episode_label(integer(), integer(), String.t() | nil) :: String.t()
+  def episode_label(season, episode, nil), do: episode_label(season, episode)
+  def episode_label(season, episode, title), do: episode_label(season, episode) <> " · " <> title
+
+  @doc """
   Formats a byte count for display using **decimal** units (1 GB =
   1,000,000,000 bytes) — the convention torrent indexers and release listings
   report sizes in. One decimal place for GB, whole numbers for MB. Returns

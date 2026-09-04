@@ -4,8 +4,6 @@ defmodule MediaCentaurWeb.LibraryFormatters do
   failure flash. Pure functions — no I/O, no assigns.
   """
 
-  alias MediaCentaur.{DateUtil, Format}
-
   # --- Duration ---
 
   @doc """
@@ -69,20 +67,6 @@ defmodule MediaCentaurWeb.LibraryFormatters do
   @spec count_label(integer(), String.t()) :: String.t()
   def count_label(1, noun), do: "1 #{noun}"
   def count_label(count, noun), do: "#{count} #{noun}s"
-
-  @doc """
-  Returns the 4-digit year for an `entity.date_published` value. Accepts a
-  `Date` struct (canonical, post Library Schema v2 Phase 1). The binary
-  clause is retained only for legacy storybook fixtures (e.g.
-  `poster_card.story.exs`) that still pass ISO-8601 strings; production
-  callers always receive `%Date{}` from the schema.
-  """
-  # Follow-up: drop the binary clause once the component-contract campaign
-  # migrates poster_card.story.exs (and remaining stories) to typed
-  # %Date{} fixtures.
-  def extract_year(%Date{} = date), do: Format.year(date)
-  def extract_year(date_string) when is_binary(date_string), do: DateUtil.extract_year(date_string) || ""
-  def extract_year(nil), do: ""
 
   # --- Playback failure flash ---
 

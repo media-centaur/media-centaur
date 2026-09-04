@@ -37,6 +37,16 @@ defmodule MediaCentaur.FormatTest do
     end
   end
 
+  describe "episode_label/3" do
+    test "appends the episode title after a middle dot" do
+      assert Format.episode_label(1, 3, "Pilot") == "S01E03 · Pilot"
+    end
+
+    test "is the bare SnnEnn label without a title" do
+      assert Format.episode_label(1, 3, nil) == "S01E03"
+    end
+  end
+
   describe "short_id/1" do
     test "returns first 8 characters of a UUID" do
       assert Format.short_id("550e8400-e29b-41d4-a716-446655440000") == "550e8400"

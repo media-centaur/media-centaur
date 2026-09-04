@@ -22,6 +22,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.Plans.{CommitPlan, LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
+  alias MediaCentaur.Format
   alias MediaCentaur.Search.{Criteria, Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
@@ -52,7 +53,7 @@ defmodule MediaCentaur.Acquisition.Plans do
           season_number: season,
           episode_number: episode,
           air_date: selected && selected.air_date,
-          label: unit_label(season, episode, selected && selected.label),
+          label: Format.episode_label(season, episode, selected && selected.label),
           position: index
         }
       end)
@@ -198,11 +199,6 @@ defmodule MediaCentaur.Acquisition.Plans do
       end
     end)
   end
-
-  defp unit_label(season, episode, nil), do: "S#{pad(season)}E#{pad(episode)}"
-  defp unit_label(season, episode, title), do: "S#{pad(season)}E#{pad(episode)} · #{title}"
-
-  defp pad(number), do: number |> Integer.to_string() |> String.pad_leading(2, "0")
 
   # ---------------------------------------------------------------------------
   # Reads
@@ -714,14 +710,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   defp scope_display(:movie), do: nil
-  defp scope_display({:episode, season, episode}), do: "S#{pad(season)}E#{pad(episode)}"
-
-  defp scope_display({:episodes, season, first, last}), do: "S#{pad(season)}E#{pad(first)}-#{pad(last)}"
-
-  defp scope_display({:season, season}), do: "Season #{season} pack"
-  defp scope_display({:seasons, first, last}), do: "Seasons #{first}–#{last} pack"
-  defp scope_display(:series), do: "Complete series"
-  defp scope_display(:unknown), do: nil
+  defp scope_display(scope), do: ReleaseCoverage.scope_label(scope)
 
   # Display-label ladder for picker sorting. Below-floor resolutions rank
   # between the tiers and "no signal", so a known-720p rip never sorts

@@ -133,28 +133,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
     )
   end
 
-  @doc """
-  Extracts the 4-digit year for an `entity.date_published` value. Accepts a
-  `Date` struct (canonical, post Library Schema v2 Phase 1). Returns `nil`
-  for anything else.
-
-  The `nil`/`""`/binary clauses are retained for legacy storybook fixtures
-  (e.g. `poster_card.story.exs`) pending storybook migration to typed
-  `%Date{}` fixtures under the component-contract campaign — production
-  callers always receive `%Date{}` from the schema.
-  """
-  # Follow-up: drop the binary/"" clauses once the component-contract
-  # campaign migrates poster_card.story.exs to typed %Date{} fixtures.
-  def year_from_date(nil), do: nil
-  def year_from_date(""), do: nil
-  def year_from_date(%Date{year: y}), do: Integer.to_string(y)
-
-  def year_from_date(<<year::binary-size(4), "-", _rest::binary>>) when byte_size(year) == 4 do
-    if String.match?(year, ~r/^\d{4}$/), do: year
-  end
-
-  def year_from_date(_), do: nil
-
   # ---------------------------------------------------------------------------
   # Play button label/target — explicit case functions
   # ---------------------------------------------------------------------------
@@ -357,7 +335,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
   defp movie_series_years(movies) do
     movies
-    |> Enum.map(&year_from_date(&1.date_published))
+    |> Enum.map(&MediaCentaur.Format.year(&1.date_published))
     |> Enum.reject(&is_nil/1)
     |> Enum.sort()
   end

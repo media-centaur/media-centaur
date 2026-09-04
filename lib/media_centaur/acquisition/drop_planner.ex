@@ -29,6 +29,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   alias MediaCentaur.Acquisition.{AutoGrabSettings, Plans, WantSchedule}
   alias MediaCentaur.Acquisition.Plans.Claims
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.Search.Quality
@@ -334,13 +335,6 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
     end
   end
 
-  defp unit_label(%{season_number: season, episode_number: episode, title: nil}) do
-    "S#{pad(season)}E#{pad(episode)}"
-  end
-
-  defp unit_label(%{season_number: season, episode_number: episode, title: title}) do
-    "S#{pad(season)}E#{pad(episode)} · #{title}"
-  end
-
-  defp pad(number), do: number |> Integer.to_string() |> String.pad_leading(2, "0")
+  defp unit_label(%{season_number: season, episode_number: episode, title: title}),
+    do: Format.episode_label(season, episode, title)
 end

@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
+  alias MediaCentaur.Format
   alias MediaCentaur.Library.Person
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Search.IndexerHealth
@@ -243,7 +244,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   defp movie_metadata_items(attrs) do
     Enum.reject(
       [
-        DetailLogic.year_from_date(attrs.date_published),
+        Format.year(attrs.date_published),
         runtime_label(attrs.duration_seconds),
         attrs.content_rating,
         attrs.country_code
