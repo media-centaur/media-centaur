@@ -14,12 +14,8 @@ per-upstream traffic, errors, latency, and cache effectiveness.
 
 ## Status
 
-Steps 1–7 done and verified 2026-09-04: `mix precommit` green (6582
-tests), the dev server restarted onto the new supervision tree, a live
-`get_movie` pair showed miss (128 ms) then hit (0 ms), and the
-Connections drill-in renders real figures. Commits `1d0b7b77`,
-`e543385e`, `7850f104`, `309823c6`; wiki commit `8ebeb67` (local, push
-when the tile ships). Unpushed.
+Shipped in v1.8.0 (2026-09-04), wiki pushed. What remains is the
+scheduled follow-up below.
 
 ## Decisions made
 
@@ -36,11 +32,13 @@ when the tile ships). Unpushed.
   owner accepted the coherence cost.
 * `2026-09-04` — Collapsing the four mirrored stats GenServers onto one
   base is scheduled as the follow-up after the panel ships.
+* `2026-09-04` — Steam is instrumented but has no panel row; `:indexers`
+  folded into `:prowlarr` (Prowlarr's downloadUrl is its own proxy); a
+  cache hit is not a request. (owner review of the first cut)
 
 ## Next steps
 
-1. Push the wiki edit when the app version carrying the tile ships.
-2. Follow-up: collapse `MetadataStats`, `Image.Stats`, `ScanStats`, and
+1. Follow-up: collapse `MetadataStats`, `Image.Stats`, `ScanStats`, and
    `HttpClient.Stats` onto one attach/cast/snapshot base.
 
 ## Completion criteria
