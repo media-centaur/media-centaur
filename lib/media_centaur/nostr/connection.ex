@@ -69,6 +69,9 @@ defmodule MediaCentaur.Nostr.Connection do
     :pending_auth,
     :ping_timer,
     :pong_deadline,
+    # Bytes the relay sent in the same packet as its 101 — Mint hands them
+    # over as `:data` ahead of `:done`, before the socket is upgraded.
+    data_before_upgrade: <<>>,
     status: :connecting,
     subs: %{},
     backoff_ms: 1_000,
@@ -215,11 +218,18 @@ defmodule MediaCentaur.Nostr.Connection do
         }
         |> schedule_ping()
         |> resubscribe()
+        |> decode_data_before_upgrade()
 
       {:error, conn, reason} ->
         lost(%{state | conn: conn}, reason)
     end
   end
+
+  # A relay that speaks first (an AUTH challenge on connect) can land its
+  # frame in the packet that carries the 101. Hold those bytes until the
+  # websocket exists, then decode them as the first frames.
+  defp handle_response({:data, ref, data}, %{ref: ref, websocket: nil} = state),
+    do: %{state | data_before_upgrade: state.data_before_upgrade <> data}
 
   defp handle_response({:data, ref, data}, %{ref: ref, websocket: websocket} = state)
        when not is_nil(websocket) do
@@ -233,6 +243,11 @@ defmodule MediaCentaur.Nostr.Connection do
   end
 
   defp handle_response(_other, state), do: state
+
+  defp decode_data_before_upgrade(%{data_before_upgrade: <<>>} = state), do: state
+
+  defp decode_data_before_upgrade(%{data_before_upgrade: data} = state),
+    do: handle_response({:data, state.ref, data}, %{state | data_before_upgrade: <<>>})
 
   # --- frames ------------------------------------------------------------
 
@@ -365,6 +380,7 @@ defmodule MediaCentaur.Nostr.Connection do
         http_status: nil,
         resp_headers: nil,
         pending_auth: nil,
+        data_before_upgrade: <<>>,
         status: :disconnected,
         current_backoff: min(state.current_backoff * 2, state.max_backoff_ms)
     }

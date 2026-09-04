@@ -113,6 +113,19 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
     assert_receive {:nostr, ^url, {:eose, "s"}}, 2_000
   end
 
+  test "a frame sharing the packet with the 101 upgrade is decoded, not dropped" do
+    # Mint hands bytes that follow the 101 in the same packet to the
+    # client as a `:data` response ahead of `:done`, before the socket is
+    # upgraded. A relay that speaks first (an AUTH challenge on connect)
+    # lands its frame there whenever the writes coalesce.
+    relay = SilentRelay.start(greeting: ["EOSE", "s"])
+    start_connection(relay)
+    url = relay.url
+
+    assert_receive {:nostr, ^url, :connected}, 2_000
+    assert_receive {:nostr, ^url, {:eose, "s"}}, 2_000
+  end
+
   test "reconnects after the relay drops the socket and re-issues subscriptions" do
     relay = FakeRelay.start()
     conn = start_connection(relay, backoff_ms: 50)
