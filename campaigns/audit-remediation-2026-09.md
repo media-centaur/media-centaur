@@ -68,7 +68,13 @@ Criticals: P1; DS4, DS14, DS15, DS16, DS25.
   and `config :media_centaur, :req_test_stubs` instead of writing clients
   into `persistent_term` — two tests that had been quietly hitting the
   real TMDB API surfaced and were stubbed.
-* `2026-09-04` — **E11 decided:** `Capabilities.save_integration/2` is the
+* `2026-09-04` — **Owner review: E9/E11 NOT ratified.** A parallel task is
+  reworking the Req client setup. Commit `0a40c933` stays in the tree as
+  the measured state, but its shape (client built per call, drivers
+  taking `%ClientConfig{}`, `MediaCentaur.HttpClient` + `:req_test_stubs`
+  as the test seam, `Capabilities.save_integration/2`) is provisional
+  until reconciled with that work — see *Next steps*.
+* `2026-09-04` — **E11 decided (provisional, see above):** `Capabilities.save_integration/2` is the
   one save path (blank secrets leave the value, a change clears the test
   result); `Capabilities.configured?/1` the one configured predicate.
   `Acquisition.Config` deleted.
@@ -776,6 +782,11 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
 
 ## Next steps
 
+0. **Reconcile the Req client seam with the parallel Req task.** Compare
+   that task's result against commit `0a40c933` (E8/E9/E11): which side
+   owns client construction, the test stub seam, and integration saves.
+   Determine the gap and converge on one design; nothing else in this
+   campaign depends on which side wins.
 1. **Stage E-1** — discuss the two open questions, then red-first test +
    fix.
 2. Stage E-2, E-3 in order; E-4 through E-9 as agreed.
