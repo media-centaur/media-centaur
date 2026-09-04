@@ -161,7 +161,7 @@ defmodule MediaCentaur.Showcase do
 
   defp seed_movie!(%{title: title, year: year} = entry, client) do
     with {:ok, tmdb_id} <- search_movie(title, year, client),
-         {:ok, movie_data} <- TMDB.Client.get_movie(tmdb_id, client) do
+         {:ok, movie_data} <- TMDB.Client.get_movie(tmdb_id, client: client) do
       movie =
         Library.Containers.create!(:movie, %{
           name: movie_data["title"] || title,
@@ -216,7 +216,7 @@ defmodule MediaCentaur.Showcase do
 
   defp seed_tv_series!(%{title: title, year: year, seasons: season_numbers} = _entry, client) do
     with {:ok, tmdb_id} <- search_tv(title, year, client),
-         {:ok, tv_data} <- TMDB.Client.get_tv(tmdb_id, client) do
+         {:ok, tv_data} <- TMDB.Client.get_tv(tmdb_id, client: client) do
       series =
         Library.Containers.create!(:tv_series, %{
           name: tv_data["name"] || title,
@@ -272,7 +272,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp seed_season!(series, tmdb_id, season_number, client) do
-    case TMDB.Client.get_season(tmdb_id, season_number, client) do
+    case TMDB.Client.get_season(tmdb_id, season_number, client: client) do
       {:ok, season_data} ->
         season =
           Library.Seasons.create!(%{
@@ -555,7 +555,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp track_upcoming(client, :movie, title) do
-    case TMDB.Client.search_movie(title, nil, client) do
+    case TMDB.Client.search_movie(title, nil, client: client) do
       {:ok, [%{"id" => id, "title" => name} | _]} ->
         title = Title.new!(%{tmdb_id: id, media_type: :movie, name: name})
 
@@ -570,7 +570,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp track_upcoming(client, :tv_series, title) do
-    case TMDB.Client.search_tv(title, nil, client) do
+    case TMDB.Client.search_tv(title, nil, client: client) do
       {:ok, [%{"id" => id, "name" => name} | _]} ->
         title = Title.new!(%{tmdb_id: id, media_type: :tv_series, name: name})
 
@@ -1007,7 +1007,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp search_movie(title, year, client) do
-    case TMDB.Client.search_movie(title, year, client) do
+    case TMDB.Client.search_movie(title, year, client: client) do
       {:ok, [%{"id" => id} | _]} -> {:ok, id}
       {:ok, []} -> {:error, :not_found}
       {:ok, _} -> {:error, :unexpected_shape}
@@ -1016,7 +1016,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp search_tv(title, year, client) do
-    case TMDB.Client.search_tv(title, year, client) do
+    case TMDB.Client.search_tv(title, year, client: client) do
       {:ok, [%{"id" => id} | _]} -> {:ok, id}
       {:ok, []} -> {:error, :not_found}
       {:ok, _} -> {:error, :unexpected_shape}
@@ -1366,7 +1366,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp tmdb_poster_path(client, title, year) do
-    case TMDB.Client.search_movie(title, year, client) do
+    case TMDB.Client.search_movie(title, year, client: client) do
       {:ok, [%{"poster_path" => path} | _]} when is_binary(path) -> path
       _ -> nil
     end

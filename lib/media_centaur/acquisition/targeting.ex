@@ -103,7 +103,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
     tmdb_id = to_string(tmdb_id)
     client = client || TMDB.Client.default_client()
 
-    with {:ok, tv} <- TMDB.Client.get_tv(tmdb_id, client),
+    with {:ok, tv} <- TMDB.Client.get_tv(tmdb_id, client: client),
          {:ok, seasons} <- load_seasons(tmdb_id, tv, client) do
       {:ok,
        %Selection{
@@ -159,7 +159,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
     |> Enum.filter(&(is_integer(&1) and &1 > 0))
     |> Enum.sort()
     |> Enum.reduce_while({:ok, []}, fn season_number, {:ok, seasons} ->
-      case TMDB.Client.get_season(tmdb_id, season_number, client) do
+      case TMDB.Client.get_season(tmdb_id, season_number, client: client) do
         {:ok, season_data} ->
           {:cont,
            {:ok, [build_season(tmdb_id, season_number, season_data, today, tracked_units) | seasons]}}
