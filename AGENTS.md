@@ -11,9 +11,6 @@ This is a web application written using the Phoenix web framework.
 
 - **Always** begin your LiveView templates with `<Layouts.app flash={@flash} ...>` which wraps all inner content
 - The `MyAppWeb.Layouts` module is aliased in the `my_app_web.ex` file, so you can use it without needing to alias it again
-- Anytime you run into errors with no `current_scope` assign:
-  - You failed to follow the Authenticated Routes guidelines, or you failed to pass `current_scope` to `<Layouts.app>`
-  - **Always** fix the `current_scope` error by moving your routes to the proper `live_session` and ensure you pass `current_scope` as needed
 - Phoenix v1.8 moved the `<.flash_group>` component to the `Layouts` module. You are **forbidden** from calling `<.flash_group>` outside of the `layouts.ex` module
 - Out of the box, `core_components.ex` imports an `<.icon name="hero-x-mark" class="w-5 h-5"/>` component for for hero icons. **Always** use the `<.icon>` component for icons, **never** use `Heroicons` modules or similar
 - **Always** use the imported `<.input>` component for form inputs from `core_components.ex` when available. `<.input>` is imported and using it will will save steps and prevent errors
@@ -40,16 +37,16 @@ custom classes must fully style the input
 
 ### UI/UX & design guidelines
 
-- **Produce world-class UI designs** with a focus on usability, aesthetics, and modern design principles
-- Implement **subtle micro-interactions** (e.g., button hover effects, and smooth transitions)
+- **Produce world-class UI designs** with a focus on usability, aesthetics, and modern design principles — the `user-interface` skill is the house style
 - Ensure **clean typography, spacing, and layout balance** for a refined, premium look
-- Focus on **delightful details** like hover effects, loading states, and smooth page transitions
+- **No entrance animations, no page transitions, no lazy images** — this is a desktop app on a TV, not a website (UIDR-012, Credo MC0016). Hover and focus states are welcome; motion that delays content is not
+- Every state a user can see — loading, empty, failed — is designed, never defaulted (no "0 files" while a load is in flight)
 
 ### Storybook (live component catalog)
 
 - **A PR that adds or changes a function component must update its story** in the same change. Same rule as wiki sync — drift kills the value.
 - Story modules **must** live under `MediaCentaurWeb.Storybook.*` so they classify into the existing `MediaCentaurWeb` boundary. The auto-generated `Storybook.*` namespace breaks Boundary.
-- Storybook is **dev-only** (`/storybook`, `Mix.env() == :dev` only) and visual-only — no logic, no assertions. Behavioural coverage stays in test suites.
+- Storybook is **dev and test only** (`/storybook`, `Mix.env() in [:dev, :test]`; the test env compiles and renders every story) and visual-only — no logic, no assertions. Behavioural coverage stays in test suites.
 - Skip storybook for components that need sticky LiveView state, `data-input` modes, or PubSub topics — page smoke tests cover them.
 - Full philosophy + per-component triage: [`docs/storybook.md`](docs/storybook.md). Conventions, anti-patterns, checklist: [`storybook` skill](.claude/skills/storybook/SKILL.md).
 
@@ -100,7 +97,7 @@ custom classes must fully style the input
 - Read the docs and options before using tasks (by using `mix help task_name`)
 - To debug test failures, run tests in a specific file with `mix test test/my_test.exs` or run all previously failed tests with `mix test --failed`
 - `mix deps.clean --all` is **almost never needed**. **Avoid** using it unless you have good reason
-- `mix precommit` is the merge gate: it runs `compile --warning-as-errors`, `format` (with **Quokka** auto-rewrites), `credo --strict`, the JS `boundaries` task, `deps.audit`, `sobelow`, and `test`. Run before finishing any change.
+- `mix precommit` is the merge gate. What it runs is listed once, in `CLAUDE.md` § Static Analysis (`mix.exs` defines the alias). Run before finishing any change.
 - Static analysis configuration: `.credo.exs` (lint rules), `.sobelow-conf` (security scan), `.formatter.exs` (formatter + Quokka), `.dependency-cruiser.cjs` (JS boundaries). House-rule custom Credo checks live under `credo_checks/` — each `.ex` file's moduledoc explains its rule. **Boundary** is enforced by a Mix compiler; read each context's `use Boundary, deps: [...]` declaration as the canonical inter-context dependency list.
 <!-- phoenix:elixir-end -->
 
@@ -283,7 +280,7 @@ All LiveViews stay current via PubSub — no manual page refreshes.
 1. **Subscribe in `mount/3`** (inside `if connected?(socket)`) using context facade helpers: `Library.subscribe()`, `Playback.subscribe()`, etc. Direct `Phoenix.PubSub.subscribe/2` is flagged by the `ContextSubscribeFacade` Credo check (MC0003), and by `PubSubTransport` (MC0025) everywhere in `lib/` — `MediaCentaur.Topics` owns the transport (ADR-060).
 2. **Handle PubSub messages in `handle_info/2`** with pattern-matched clauses. Every LiveView ends with a catch-all `def handle_info(_msg, socket)`. Topics with a typed chokepoint deliver a struct as the second element (`{:file_added, %Review.Events.FileAdded{}}`) — match the struct, not a positional tuple.
 3. **Debounce rapid changes** with `debounce(socket, timer_assign, message, delay_ms)` from `LiveHelpers`. Callers that accumulate data (e.g. LibraryLive's pending entity IDs) do so before calling debounce — the utility only manages the timer lifecycle.
-4. **Update streams surgically** — `touch_stream_entries` for in-place changes, full `reset_stream` only when sort position may change.
+4. **Update streams surgically** — `stream_insert/4` for an in-place change, `stream(socket, name, items, reset: true)` only when sort position may change.
 
 Shared utilities in `LiveHelpers`:
 - `debounce/4` — cancel-old-timer + schedule-new-timer

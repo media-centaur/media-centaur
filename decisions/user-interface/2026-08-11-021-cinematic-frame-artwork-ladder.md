@@ -1,5 +1,8 @@
 # Cinematic modal frame for TMDB-grounded modals; artwork promotion ladder
 
+- Status: Accepted
+- Date: 2026-08-11
+
 ## Context and Problem Statement
 
 Three modals were grounded in a TMDB identity but each drew it differently: the

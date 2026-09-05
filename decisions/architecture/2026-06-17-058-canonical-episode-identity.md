@@ -1,5 +1,5 @@
 ---
-status: superseded
+status: amended
 date: 2026-06-17
 ---
 # Canonical episode identity — one TMDB-anchored vocabulary, ambiguity only at the edges

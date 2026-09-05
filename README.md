@@ -20,20 +20,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 </div>
 
 > [!NOTE]
-> **Pre-1.0 and actively developed.** Functional for daily use; expect the occasional rough edge or breaking change between releases.
-
-> [!NOTE]
-> **UI overhaul in progress.** A complete pass over the visual design is shipping page by page. Every page is fully operational throughout — we're raising the bar on craft, not gating anything behind the rebuild.
->
-> | Page              | Status        |
-> | ----------------- | ------------- |
-> | Home              | **Done**      |
-> | Library           | **Done**      |
-> | Release tracking  | In progress   |
-> | Acquisition       | In progress   |
-> | Dashboard         | In progress   |
-> | Review            | In progress   |
-> | Settings          | In progress   |
+> **Actively developed.** In daily use since well before 1.0; releases are frequent and each one migrates your data safely, but expect the occasional rough edge.
 
 > [!IMPORTANT]
 > **macOS support — experimental (Apple Silicon).** The Mac build now ships: the one-line installer works on Apple Silicon, autostart runs via launchd, and in-app updates work the same as on Linux. **Linux remains the fully-supported, primary platform.**
@@ -65,6 +52,8 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 - **Playback** — launches mpv on the local machine, tracks your progress, resumes where you left off, and auto-advances to the next episode.
 - **Release tracking** — monitors TMDB daily for upcoming movies and new TV seasons tied to the shows in your library.
 - **Acquisition** *(optional)* — search and queue downloads via Prowlarr. Entirely optional: Media Centaur is a full library manager without it.
+- **Discovery** — a watchlist for titles you don't have yet, and recommendations from friends: each install has a Nostr identity, friends are followed keys, and a friend's recommendation is one click from your acquisition path. No server we run.
+- **Apps** — a launcher for Steam games and other local applications from the same couch UI.
 - **Couch-first UI** — keyboard *and* gamepad navigation, large artwork, dark-first. Built to drive a TV from across the room.
 - **Real-time** — every change (new file, metadata fetched, playback started) appears instantly via Phoenix LiveView. No polling, no refresh.
 
@@ -103,10 +92,10 @@ Building from source additionally needs **Elixir 1.20+** and **Erlang/OTP 27+**.
 
 All end-user documentation lives in the **[Wiki](https://github.com/media-centaur/media-centaur/wiki)**:
 
-- [Getting Started](https://github.com/media-centaur/media-centaur/wiki) — install, first run, add your library
-- [Using Media Centaur](https://github.com/media-centaur/media-centaur/wiki) — browsing, playback, keyboard & gamepad, review queue
-- [Setup Guides](https://github.com/media-centaur/media-centaur/wiki) — TMDB, Prowlarr, backup & restore, running as a service
-- [Reference](https://github.com/media-centaur/media-centaur/wiki) — settings, FAQ, troubleshooting
+- Getting started — [Installation](https://github.com/media-centaur/media-centaur/wiki/Installation), [First Run](https://github.com/media-centaur/media-centaur/wiki/First-Run), [Adding Your Library](https://github.com/media-centaur/media-centaur/wiki/Adding-Your-Library)
+- Using Media Centaur — [Browsing](https://github.com/media-centaur/media-centaur/wiki/Browsing-Your-Library), [Playback](https://github.com/media-centaur/media-centaur/wiki/Playback), [Keyboard and Gamepad](https://github.com/media-centaur/media-centaur/wiki/Keyboard-and-Gamepad), [Review Queue](https://github.com/media-centaur/media-centaur/wiki/Review-Queue), [Social](https://github.com/media-centaur/media-centaur/wiki/Social), [Apps](https://github.com/media-centaur/media-centaur/wiki/Apps)
+- Setup guides — [TMDB API key](https://github.com/media-centaur/media-centaur/wiki/TMDB-API-Key), [Prowlarr](https://github.com/media-centaur/media-centaur/wiki/Prowlarr-Integration), [Download Clients](https://github.com/media-centaur/media-centaur/wiki/Download-Clients), [Backup and Restore](https://github.com/media-centaur/media-centaur/wiki/Backup-and-Restore), [Running as a Service](https://github.com/media-centaur/media-centaur/wiki/Running-as-a-Service)
+- Reference — [Settings](https://github.com/media-centaur/media-centaur/wiki/Settings-Reference), [Configuration File](https://github.com/media-centaur/media-centaur/wiki/Configuration-File), [FAQ](https://github.com/media-centaur/media-centaur/wiki/FAQ), [Troubleshooting](https://github.com/media-centaur/media-centaur/wiki/Troubleshooting)
 
 ---
 
