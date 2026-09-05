@@ -98,7 +98,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.ErrorReports` | `incidents` table, error buckets, public-issue submission | Drives the Status page's report modal. |
 | `MediaCentaur.IntegrationHealth` | Per-integration `configured? × test_state` in ETS | Gates the Setup tour; no DB tables. |
 | `MediaCentaur.Diagnostics` | Read-side aggregator over ErrorReports + Playback | Composition only, owns no state. |
-| `MediaCentaur.Status` | Read-side aggregator for the Status page | Composition only, owns no state. |
+| `MediaCentaur.Status` | Read-side aggregator for the Status page | Composes tiles from subsystem reads. The two hot reads (library overview, storage) are `Status.Views` projections over `status:views`; every other tile reads its subsystem directly and re-renders on that subsystem's own topic. Owns no domain state. |
 | `MediaCentaur.Guide` | Markdown guide book rendering | Static content; no DB tables. |
 | `MediaCentaur.Setup` | First-run tour state + probes | Reads Capabilities and IntegrationHealth. |
 | `MediaCentaur.Apps` | `apps` table, app launcher (Steam discovery, fire-and-forget spawn), `{data_dir}/images/apps/` art cache | Uniform App rows filled by add-time importers; artwork is disk-as-ledger, same idiom as TmdbArtwork. Nav entry gated by the `show_apps` preference. |
@@ -180,7 +180,11 @@ Three roles in the taxonomy (see `MediaCentaur.Cache` for how they compose):
 * **Derived topics** (`library:views`, `release_tracking:views`,
   `status:views`, `watch_history:views`) carry `{:*_view_updated, view_id}`
   after a projection rebuild. **LiveViews subscribe to derived topics,
-  never to source topics for cache-driven data** (ADR-041).
+  never to source topics for cache-driven data** (ADR-041). The Status
+  page is the one deliberate exception: only its overview and storage
+  tiles are projected; its other tiles are cold reads that re-run on the
+  owning subsystem's source topic, because none of them is hot enough
+  to earn a projection.
 * **Command topics** (`library:commands`) carry external write requests.
 
 ## Key Principles
