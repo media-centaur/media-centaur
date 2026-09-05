@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Activities.Activity
   alias MediaCentaur.TMDB.Title
 
   def function, do: &MediaCentaurWeb.Components.Discovery.TitleRow.title_row/1
@@ -29,6 +30,21 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
         overrides
       )
     )
+  end
+
+  defp recommendation(nickname, sentiment) do
+    %{
+      activity: %Activity{
+        kind: :recommendation,
+        sentiment: sentiment,
+        tmdb_id: 777,
+        media_type: :movie,
+        title: title(),
+        acted_at: ~U[2026-09-01 12:00:00Z]
+      },
+      nickname: nickname,
+      own?: is_nil(nickname)
+    }
   end
 
   def variations do
@@ -61,20 +77,42 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
       %Variation{
         id: :from_friend_with_note,
         description:
-          "A feed row: the lead line says who and when, On watchlist is a marker, and " <>
-            "the friend's note displaces the overview.",
+          "A feed row: the lead line says who and when, On watchlist is a marker, the " <>
+            "friend's note displaces the overview, and the pennant is icon-only because " <>
+            "the lead already names the friend.",
         attributes: %{
           id: "row-from-friend",
           title: title(),
-          lead: "from Sample Friend · 2 days ago",
+          lead: "Sample Friend recommended · 2 days ago",
           markers: ["On watchlist"],
-          secondary: "Watch it before anyone spoils the ending."
+          secondary: "Watch it before anyone spoils the ending.",
+          recommendations: [recommendation("Sample Friend", :love)],
+          named?: false
         }
       },
       %Variation{
         id: :own_recommendation,
         description: "An own recommendation on the Yours scope: the lead reads You.",
-        attributes: %{id: "row-own", title: title(), lead: "You · today"}
+        attributes: %{
+          id: "row-own",
+          title: title(),
+          lead: "You recommended · today",
+          recommendations: [recommendation(nil, :like)],
+          named?: false
+        }
+      },
+      %Variation{
+        id: :watchlist_recommended,
+        description: "A watchlist row has no lead, so the pennants carry the names — love above like.",
+        attributes: %{
+          id: "row-watchlist-recommended",
+          title: title(),
+          markers: ["In library"],
+          recommendations: [
+            recommendation("Other Friend", :like),
+            recommendation("Sample Friend", :love)
+          ]
+        }
       },
       %Variation{
         id: :with_poster,

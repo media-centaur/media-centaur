@@ -115,6 +115,10 @@ html { scrollbar-gutter: stable; }
   --glass-nav-bg: oklch(14% 0.015 264 / 0.8);
   --glass-gradient-a: oklch(40% 0.16 250 / 0.2);
   --glass-gradient-b: oklch(38% 0.14 300 / 0.15);
+  /* The one warm hue outside the health palette: a recommendation's
+     love pennant. Rose, between error and secondary, so it never reads
+     as a fault. */
+  --color-love: oklch(66% 0.17 12);
 }
 
 /* Gradient backdrop — gives the glass something to show through.
@@ -2860,6 +2864,68 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 .release-notes-disclosure[open] > summary .disclosure-caret {
   transform: rotate(90deg);
+}
+
+/* ── Recommendation pennant ──
+   A flag flying inward from the right edge of a row or hero (the mast).
+   The mast is a flex column hugging that edge; a row bleeds it into its
+   own right padding under overflow-hidden so the hoist meets the border.
+   The point is the clip-path. One shape at every width: icon-only on the
+   Feed, named elsewhere, stacked love-above-like for several friends. */
+.pennant-mast {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex: none;
+  pointer-events: none;
+}
+
+.pennant {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 12px 0 16px;
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: oklch(from var(--color-base-content) l c h / 0.7);
+  background: oklch(from var(--color-base-content) l c h / 0.12);
+}
+
+.pennant-icon-only {
+  padding: 0 9px 0 15px;
+}
+
+.pennant-love {
+  color: oklch(98% 0.01 12);
+  background: var(--color-love);
+}
+
+/* Over imagery the neutral tint has nothing to sit on. */
+.pennant-on-image.pennant-like {
+  color: oklch(from var(--color-base-content) l c h / 0.85);
+  background: oklch(14% 0.015 264 / 0.72);
+}
+
+/* The sender's choice in the Recommend modal: two pennants, one lit. The
+   radio itself is visually hidden; the label is the nav item. */
+.pennant-choice {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.pennant-choice .pennant {
+  pointer-events: none;
+  opacity: 0.4;
+  transition: opacity 120ms ease-out;
+}
+
+.pennant-choice:has(:checked) .pennant {
+  opacity: 1;
 }
 
 /* ── Identity banners (UIDR-014) ─────────────────────────────────────

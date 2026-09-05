@@ -1417,6 +1417,53 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#omnibox-result-tv_series-246810 img")
     end
 
+    test "a result a friend recommended flies their pennant from the row's edge", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
+      friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+      {:ok, _} = MediaCentaur.Social.add_friend(friend_pubkey, "Sample Friend")
+      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+
+      event =
+        MediaCentaur.Nostr.Event.sign(
+          MediaCentaur.Activities.Translation.to_event(
+            :recommendation,
+            title,
+            [note: nil, sentiment: :love],
+            friend_pubkey
+          ),
+          friend_secret
+        )
+
+      {:ok, _rec} = MediaCentaur.Activities.ingest(event)
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='grid'] .pennant[data-sentiment='love']",
+               "Sample Friend"
+             )
+
+      await_supervised_tasks()
+    end
+
     test "a media query owns the page — flat results replace the forecast until cleared", %{
       conn: conn
     } do

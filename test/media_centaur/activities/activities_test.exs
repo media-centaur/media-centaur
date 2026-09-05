@@ -32,22 +32,28 @@ defmodule MediaCentaur.ActivitiesTest do
   defp title(id \\ 603),
     do: Title.new!(%{tmdb_id: id, media_type: :movie, name: "Sample Movie #{id}", year: "1999"})
 
-  defp friend_event(title, note, created_at, acted_at \\ nil) do
+  defp friend_event(title, note, created_at, acted_at \\ nil, sentiment \\ :like) do
     opts = [created_at: created_at, acted_at: acted_at || created_at]
 
     Event.sign(
-      Translation.to_event(:recommendation, title, [note: note], @friend_pubkey, opts),
+      Translation.to_event(
+        :recommendation,
+        title,
+        [note: note, sentiment: sentiment],
+        @friend_pubkey,
+        opts
+      ),
       @friend_secret
     )
   end
 
   defp wire_time(%DateTime{} = at), do: DateTime.to_unix(at)
 
-  describe "recommend/2" do
+  describe "recommend/3" do
     test "signs with the identity, stores it as a sent recommendation, and broadcasts" do
       Activities.subscribe()
 
-      assert {:ok, %Activity{} = rec} = Activities.recommend(title(), "Go.")
+      assert {:ok, %Activity{} = rec} = Activities.recommend(title(), :like, "Go.")
       assert rec.author_pubkey == Identity.pubkey()
       assert rec.note == "Go."
       assert {:ok, event} = Event.from_map(rec.raw_event)
@@ -64,8 +70,8 @@ defmodule MediaCentaur.ActivitiesTest do
     end
 
     test "re-recommending the same title replaces the record" do
-      {:ok, first} = Activities.recommend(title(), "first")
-      {:ok, second} = Activities.recommend(title(), "second")
+      {:ok, first} = Activities.recommend(title(), :like, "first")
+      {:ok, second} = Activities.recommend(title(), :like, "second")
 
       assert first.id == second.id
       assert Activities.list_sent() |> hd() |> Map.get(:note) == "second"
@@ -77,26 +83,93 @@ defmodule MediaCentaur.ActivitiesTest do
     test "rejects a note over 500 characters and stores nothing" do
       long_note = String.duplicate("a", 501)
 
-      assert {:error, :note_too_long} = Activities.recommend(title(), long_note)
+      assert {:error, :note_too_long} = Activities.recommend(title(), :like, long_note)
       assert Activities.list_sent() == []
     end
 
     test "a note at exactly 500 characters is accepted" do
       note = String.duplicate("a", 500)
 
-      assert {:ok, rec} = Activities.recommend(title(), note)
+      assert {:ok, rec} = Activities.recommend(title(), :like, note)
       assert rec.note == note
 
       await_supervised_tasks()
     end
 
     test "a note is trimmed before the length check and blank becomes nil" do
-      assert {:ok, rec} = Activities.recommend(title(), "  Go.  ")
+      assert {:ok, rec} = Activities.recommend(title(), :like, "  Go.  ")
       assert rec.note == "Go."
 
-      assert {:ok, rec2} = Activities.recommend(title(2), "   ")
+      assert {:ok, rec2} = Activities.recommend(title(2), :like, "   ")
       assert rec2.note == nil
 
+      await_supervised_tasks()
+    end
+  end
+
+  describe "recommend/3 sentiment" do
+    test "stores the sentiment on the row and on the wire" do
+      assert {:ok, %Activity{sentiment: :love} = rec} = Activities.recommend(title(), :love, nil)
+      assert {:ok, event} = Event.from_map(rec.raw_event)
+      assert %{"sentiment" => "love"} = Jason.decode!(event.content)
+      assert {:ok, %Activity{sentiment: :like}} = Activities.recommend(title(2), :like, nil)
+      await_supervised_tasks()
+    end
+  end
+
+  describe "recommendations_for/1" do
+    test "the live recommendations per title: friend rows named, own rows marked, newest first" do
+      {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, theirs} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000, nil, :love))
+      {:ok, mine} = Activities.recommend(title(), :like, "mine")
+      {:ok, other} = Activities.ingest(friend_event(title(604), "other", 1_700_000_000))
+      {:ok, withdrawn} = Activities.recommend(title(605), :like, nil)
+      {:ok, _tombstone} = Activities.delete(withdrawn.id)
+
+      watched =
+        Event.sign(
+          Translation.to_event(:watched, title(), [episode: nil], @friend_pubkey,
+            created_at: 1_700_000_000
+          ),
+          @friend_secret
+        )
+
+      {:ok, _watched} = Activities.ingest(watched)
+
+      result =
+        Activities.recommendations_for([{603, :movie}, {604, :movie}, {605, :movie}, {999, :movie}])
+
+      theirs_id = theirs.id
+      mine_id = mine.id
+      other_id = other.id
+
+      assert %{
+               {603, :movie} => [
+                 %{activity: %Activity{id: ^mine_id, sentiment: :like}, nickname: nil, own?: true},
+                 %{
+                   activity: %Activity{id: ^theirs_id, sentiment: :love},
+                   nickname: "Sample Friend",
+                   own?: false
+                 }
+               ],
+               {604, :movie} => [
+                 %{activity: %Activity{id: ^other_id}, nickname: "Sample Friend", own?: false}
+               ]
+             } = result
+
+      assert map_size(result) == 2
+      await_supervised_tasks()
+    end
+
+    test "nothing for no refs, and nothing from a former friend" do
+      assert Activities.recommendations_for([]) == %{}
+
+      {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _rec} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000))
+      assert %{{603, :movie} => [_row]} = Activities.recommendations_for([{603, :movie}])
+
+      :ok = Social.remove_friend(@friend_pubkey)
+      assert Activities.recommendations_for([{603, :movie}]) == %{}
       await_supervised_tasks()
     end
   end
@@ -145,7 +218,7 @@ defmodule MediaCentaur.ActivitiesTest do
     end
 
     test "own events arriving from a relay are stored once and shown as own" do
-      {:ok, rec} = Activities.recommend(title(), "mine")
+      {:ok, rec} = Activities.recommend(title(), :like, "mine")
       [event] = Activities.own_events()
 
       assert :ignored = Activities.ingest(event)
@@ -184,7 +257,7 @@ defmodule MediaCentaur.ActivitiesTest do
   end
 
   test "artwork holds cover every stored title" do
-    {:ok, _rec} = Activities.recommend(title(9), nil)
+    {:ok, _rec} = Activities.recommend(title(9), :like, nil)
     assert MapSet.member?(Activities.TmdbArtworkHolds.holds(), {:movie, 9})
     await_supervised_tasks()
   end
@@ -206,7 +279,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
     test "splits sent from received and finds the newest received acted_at" do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, _sent} = Activities.recommend(title(3), "mine")
+      {:ok, _sent} = Activities.recommend(title(3), :like, "mine")
       {:ok, _one} = Activities.ingest(friend_event(title(1), "a", 1_700_000_000))
       {:ok, _two} = Activities.ingest(friend_event(title(2), "b", 1_700_000_500))
 
@@ -237,7 +310,7 @@ defmodule MediaCentaur.ActivitiesTest do
   describe "delete/1" do
     test "tombstones an own row, hides it everywhere, republishes the deletion, broadcasts" do
       Activities.subscribe()
-      {:ok, rec} = Activities.recommend(title(), "mine")
+      {:ok, rec} = Activities.recommend(title(), :like, "mine")
 
       assert {:ok, %Activity{deleted_at: %DateTime{}, deletion_event: %{"kind" => 5}} = gone} =
                Activities.delete(rec.id)
@@ -262,21 +335,21 @@ defmodule MediaCentaur.ActivitiesTest do
       assert {:error, :not_own} = Activities.delete(theirs.id)
       assert {:error, :not_found} = Activities.delete(Ecto.UUID.generate())
 
-      {:ok, mine} = Activities.recommend(title(9), nil)
+      {:ok, mine} = Activities.recommend(title(9), :like, nil)
       {:ok, gone} = Activities.delete(mine.id)
       assert {:ok, ^gone} = Activities.delete(mine.id)
       await_supervised_tasks()
     end
 
     test "a stale copy of the withdrawn recommendation is ignored; recommending again revives it" do
-      {:ok, rec} = Activities.recommend(title(), "mine")
+      {:ok, rec} = Activities.recommend(title(), :like, "mine")
       {:ok, stale} = Event.from_map(rec.raw_event)
       {:ok, _gone} = Activities.delete(rec.id)
 
       assert :ignored = Activities.ingest(stale)
       assert Activities.list_sent() == []
 
-      {:ok, again} = Activities.recommend(title(), "again")
+      {:ok, again} = Activities.recommend(title(), :like, "again")
       assert again.id == rec.id
       refute Activity.deleted?(again)
       assert [%{note: "again"}] = Activities.list_sent()
@@ -291,11 +364,11 @@ defmodule MediaCentaur.ActivitiesTest do
   # while replacing the row here, and republished on every connect.
   describe "own events are stamped after what the row holds" do
     test "a re-recommendation is stamped after the recommendation it replaces" do
-      {:ok, rec} = Activities.recommend(title(), "first")
+      {:ok, rec} = Activities.recommend(title(), :like, "first")
       ahead = wire_time(ahead_of_now())
       force_attrs(rec, raw_event: Map.put(rec.raw_event, "created_at", ahead))
 
-      {:ok, again} = Activities.recommend(title(), "second")
+      {:ok, again} = Activities.recommend(title(), :like, "second")
       assert again.raw_event["created_at"] > ahead
       # The domain time is when the person acted, not the wire stamp.
       assert DateTime.before?(again.acted_at, DateTime.from_unix!(ahead))
@@ -303,18 +376,18 @@ defmodule MediaCentaur.ActivitiesTest do
     end
 
     test "a revival is stamped after the tombstone" do
-      {:ok, rec} = Activities.recommend(title(), "mine")
+      {:ok, rec} = Activities.recommend(title(), :like, "mine")
       {:ok, gone} = Activities.delete(rec.id)
       ahead = wire_time(ahead_of_now())
       force_attrs(gone, deletion_event: Map.put(gone.deletion_event, "created_at", ahead))
 
-      {:ok, again} = Activities.recommend(title(), "again")
+      {:ok, again} = Activities.recommend(title(), :like, "again")
       assert again.raw_event["created_at"] > ahead
       await_supervised_tasks()
     end
 
     test "a deletion is stamped no earlier than the recommendation it withdraws" do
-      {:ok, rec} = Activities.recommend(title(), "mine")
+      {:ok, rec} = Activities.recommend(title(), :like, "mine")
       ahead = wire_time(ahead_of_now())
       force_attrs(rec, raw_event: Map.put(rec.raw_event, "created_at", ahead))
 
@@ -439,7 +512,7 @@ defmodule MediaCentaur.ActivitiesTest do
     test "a watched movie has no episode, and kinds are separate rows for one title" do
       assert {:ok, %Activity{kind: :watched, episode: nil}} = Activities.watched(title(), nil)
       assert {:ok, %Activity{kind: :tracking}} = Activities.tracking(title())
-      assert {:ok, %Activity{kind: :recommendation}} = Activities.recommend(title(), nil)
+      assert {:ok, %Activity{kind: :recommendation}} = Activities.recommend(title(), :like, nil)
 
       kinds = Activities.list_sent() |> Enum.map(& &1.kind) |> Enum.sort()
       assert kinds == [:recommendation, :tracking, :watched]

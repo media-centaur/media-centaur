@@ -95,6 +95,9 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
 
   slot :hero_actions, doc: "top-right overlay in the hero window (tracking bell, etc.)."
 
+  slot :hero_mast,
+    doc: "pinned to the hero window's right edge under the actions — the recommendation pennants."
+
   slot :orientation,
     doc: "content of the pinned block — identity lockup, metadata, controls."
 
@@ -160,6 +163,17 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
                       class="absolute top-3 right-3 flex items-center gap-1"
                     >
                       {render_slot(@hero_actions)}
+                    </div>
+                    <%!-- Under the action cluster when there is one; at the
+                          same inset as the cluster would be when there is not. --%>
+                    <div
+                      :if={@hero_mast != []}
+                      class={[
+                        "absolute right-0",
+                        if(@hero_actions == [], do: "top-3", else: "top-14")
+                      ]}
+                    >
+                      {render_slot(@hero_mast)}
                     </div>
                   </div>
                 </div>

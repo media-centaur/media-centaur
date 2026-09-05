@@ -65,6 +65,7 @@ The three addressable kinds are **activities**: one signed statement by one pers
 
 | Field | Type | Cap | Notes |
 |---|---|---|---|
+| `sentiment` | `"like"` or `"love"` | | How strongly the person recommends it. Absent means `like`; any other value is malformed. |
 | `note` | string or null | 500 characters | The sender's note. |
 | `recommended_at` | integer, Unix seconds | | When the person recommended the title. Absent means `created_at`. |
 

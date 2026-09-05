@@ -51,7 +51,7 @@ defmodule MediaCentaur.Activities.SyncTest do
   end
 
   test "own recommendations the relay lacks are published after its EOSE" do
-    {:ok, _rec} = Activities.recommend(title(7), "mine")
+    {:ok, _rec} = Activities.recommend(title(7), :like, "mine")
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
 
@@ -60,7 +60,7 @@ defmodule MediaCentaur.Activities.SyncTest do
   end
 
   test "own recommendations the relay already has are not republished" do
-    {:ok, _rec} = Activities.recommend(title(7), "mine")
+    {:ok, _rec} = Activities.recommend(title(7), :like, "mine")
     [own] = Activities.own_events()
     relay = FakeRelay.start(events: [own])
     {:ok, _row} = Social.add_relay(relay.url)
@@ -188,7 +188,7 @@ defmodule MediaCentaur.Activities.SyncTest do
   end
 
   test "own deletions the relay lacks are published after its EOSE" do
-    {:ok, rec} = Activities.recommend(title(7), "mine")
+    {:ok, rec} = Activities.recommend(title(7), :like, "mine")
     {:ok, _gone} = Activities.delete(rec.id)
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
@@ -200,7 +200,7 @@ defmodule MediaCentaur.Activities.SyncTest do
   end
 
   test "a relay refusing an own event is logged by what was refused" do
-    {:ok, rec} = Activities.recommend(title(7), "mine")
+    {:ok, rec} = Activities.recommend(title(7), :like, "mine")
     {:ok, _gone} = Activities.delete(rec.id)
     relay = FakeRelay.start(accept: false, reason: "blocked: kind 5 is not stored by this relay")
     {:ok, _row} = Social.add_relay(relay.url)
@@ -212,7 +212,7 @@ defmodule MediaCentaur.Activities.SyncTest do
   end
 
   test "a relay refusing an own recommendation is logged as such" do
-    {:ok, _rec} = Activities.recommend(title(7), "mine")
+    {:ok, _rec} = Activities.recommend(title(7), :like, "mine")
 
     relay =
       FakeRelay.start(

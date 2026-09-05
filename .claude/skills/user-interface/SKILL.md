@@ -179,6 +179,20 @@ Modals are **never** conditionally rendered with `:if={}`. They stay in the DOM 
 
 **Why always-in-DOM:** `backdrop-filter: blur()` has a first-frame compositing cost. Conditional rendering causes visible flash on every open.
 
+### Recommendation pennant
+
+Who recommended a title and how much, as flags flying inward from the
+right edge of the surface the title is on. One component,
+`<.recommendation_pennants recommendations={rows} />`
+(`Components.Discovery.RecommendationPennant`), fed the
+`Activities.recommendations_for/1` rows for one title; `named?={false}` where
+the surface already says who (the Feed lead), `on_image` over a hero. The
+host places the mast: a row bleeds it into its own right padding under
+`overflow-hidden`; the cinematic shell has a `:hero_mast` slot. Like is a
+thumbs up on a neutral tint, love a heart on `--color-love` (rose), the one
+warm hue outside the health palette. Never on poster cards. Story:
+`/storybook/discovery/recommendation_pennants`.
+
 ### File Paths ([UIDR-001])
 
 ```html

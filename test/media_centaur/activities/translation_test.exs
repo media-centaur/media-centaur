@@ -177,6 +177,43 @@ defmodule MediaCentaur.Activities.TranslationTest do
              Jason.decode!(Translation.to_event(:recommendation, title(), [note: nil], @pubkey).content)
   end
 
+  describe "sentiment" do
+    test "to_event writes the sentiment and defaults to like" do
+      love = Translation.to_event(:recommendation, title(), [note: nil, sentiment: :love], @pubkey)
+      assert %{"sentiment" => "love"} = Jason.decode!(love.content)
+
+      plain = Translation.to_event(:recommendation, title(), [note: nil], @pubkey)
+      assert %{"sentiment" => "like"} = Jason.decode!(plain.content)
+    end
+
+    test "from_event reads the sentiment, takes an absent one as like, and rejects an unknown one" do
+      signed =
+        Event.sign(
+          Translation.to_event(:recommendation, title(), [note: nil, sentiment: :love], @pubkey),
+          @secret
+        )
+
+      assert {:ok, %{sentiment: :love}} = Translation.from_event(signed)
+
+      content = Jason.decode!(signed.content)
+      legacy = Event.sign(%{signed | content: Jason.encode!(Map.delete(content, "sentiment"))}, @secret)
+      assert {:ok, %{sentiment: :like}} = Translation.from_event(legacy)
+
+      junk =
+        Event.sign(%{signed | content: Jason.encode!(Map.put(content, "sentiment", "meh"))}, @secret)
+
+      assert {:error, :bad_content} = Translation.from_event(junk)
+    end
+
+    test "watched and tracking events carry no sentiment" do
+      event = Translation.to_event(:tracking, title(), [], @pubkey)
+      refute Map.has_key?(Jason.decode!(event.content), "sentiment")
+
+      assert {:ok, attrs} = Translation.from_event(Event.sign(event, @secret))
+      refute Map.has_key?(attrs, :sentiment)
+    end
+  end
+
   test "from_event round-trips a signed event into attrs" do
     signed =
       Event.sign(

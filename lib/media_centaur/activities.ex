@@ -73,17 +73,17 @@ defmodule MediaCentaur.Activities do
 
   @doc """
   Builds, signs, stores and publishes a recommendation from this
-  identity, creating the identity first (`Identity.ensure/0`) if none
-  exists yet. `note` is trimmed first; blank becomes `nil`; a note over
-  #{@max_note_length} characters is rejected with `{:error,
-  :note_too_long}` and nothing is stored. Stamped after whatever the
-  row already holds (see `stamp/3`).
+  identity with a `sentiment` (`:like` or `:love`), creating the identity
+  first (`Identity.ensure/0`) if none exists yet. `note` is trimmed
+  first; blank becomes `nil`; a note over #{@max_note_length} characters
+  is rejected with `{:error, :note_too_long}` and nothing is stored.
+  Stamped after whatever the row already holds (see `stamp/3`).
   """
-  @spec recommend(Title.t(), String.t() | nil) ::
+  @spec recommend(Title.t(), Activity.sentiment(), String.t() | nil) ::
           {:ok, Activity.t()} | {:error, :note_too_long | term()}
-  def recommend(%Title{} = title, note) do
+  def recommend(%Title{} = title, sentiment, note) when sentiment in [:like, :love] do
     with {:ok, note} <- validate_note(note) do
-      publish_own(:recommendation, title, note: note)
+      publish_own(:recommendation, title, sentiment: sentiment, note: note)
     end
   end
 
@@ -203,6 +203,36 @@ defmodule MediaCentaur.Activities do
     |> order_by(desc: :acted_at)
     |> Repo.all()
     |> Enum.map(&feed_row(&1, me, friends))
+  end
+
+  @doc """
+  The live recommendations of the titles in `refs` by this identity and
+  by current friends, as `%{ref => [feed_row]}` — the rows in
+  `list_feed/0`'s shape, newest first, in one query plus one roster
+  read. Refs nobody recommended are absent, and a former friend's
+  recommendation is left out: a pennant names a friend. What every
+  recommendation pennant is fed from.
+  """
+  @spec recommendations_for([{integer(), Title.media_type()}]) ::
+          %{optional({integer(), Title.media_type()}) => [feed_row()]}
+  def recommendations_for([]), do: %{}
+
+  def recommendations_for(refs) when is_list(refs) do
+    friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
+    me = Identity.pubkey()
+    tmdb_ids = refs |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
+    wanted = MapSet.new(refs)
+
+    Activity
+    |> live()
+    |> where([a], a.kind == :recommendation and a.tmdb_id in ^tmdb_ids)
+    |> order_by(desc: :acted_at)
+    |> Repo.all()
+    |> Enum.filter(
+      &(MapSet.member?(wanted, {&1.tmdb_id, &1.media_type}) and
+          (&1.author_pubkey == me or is_map_key(friends, &1.author_pubkey)))
+    )
+    |> Enum.group_by(&{&1.tmdb_id, &1.media_type}, &feed_row(&1, me, friends))
   end
 
   @doc "Activities this install sent, newest first — none before an identity exists."

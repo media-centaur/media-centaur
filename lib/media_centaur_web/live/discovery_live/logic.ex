@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   `library_owner_id`, `on_watchlist?`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
   `backdrop_url`, `kind`, `episode`, `sender`, `note`, `acted_at`,
-  `own?`, `activity_id`, `preview`. The primary action is the watchlist row's
+  `own?`, `activity_id`, `recommendations`, `preview`. The primary action is the watchlist row's
   three-state rule with the acquisition state folded in between In
   library and Download.
   """
@@ -40,6 +40,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       acted_at: Map.get(facts, :acted_at),
       own?: Map.get(facts, :own?),
       activity_id: Map.get(facts, :activity_id),
+      recommendations: Map.get(facts, :recommendations, []),
       preview: Map.get(facts, :preview)
     }
   end
@@ -81,14 +82,14 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   @doc """
   The quiet text markers a Discovery row shows after its type and year,
   in order: the library or acquisition state (one of them — In library
-  wins), then provenance (`from <nickname>`), then On watchlist (never
-  for an owned title — membership is noise once the file is there). The
-  feed row's sender/when line is the host's, not a marker.
+  wins), then On watchlist (never for an owned title — membership is
+  noise once the file is there). Who recommended the title is the
+  pennant's, and the feed row's sender/when line is the host's; neither
+  is a marker.
   """
   @spec row_markers(%{
           library_owner_id: Ecto.UUID.t() | nil,
           acquisition_state: acquisition_state(),
-          from_nickname: String.t() | nil,
           on_watchlist?: boolean()
         }) :: [String.t()]
   def row_markers(facts) do
@@ -99,10 +100,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
         true -> nil
       end
 
-    provenance = facts.from_nickname && "from #{facts.from_nickname}"
     watchlist = if facts.on_watchlist? and is_nil(facts.library_owner_id), do: "On watchlist"
 
-    Enum.reject([state, provenance, watchlist], &is_nil/1)
+    Enum.reject([state, watchlist], &is_nil/1)
   end
 
   @doc "`?title=<media_type>-<tmdb_id>` → ref."

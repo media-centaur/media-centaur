@@ -16,8 +16,9 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   entity-keyed store (`LiveHelpers.image_url/2`), which the TMDB-identity
   resolver `LiveHelpers.title_poster_url/1` cannot see.
 
-  Send goes through `Activities.recommend/2`, which stores and
-  publishes; the flash names whether a relay was connected at the time,
+  Send goes through `Activities.recommend/3` with the chosen sentiment,
+  which stores and publishes; the flash names whether a relay was
+  connected at the time,
   because with none the recommendation is real but has gone nowhere yet.
   A note over 500 characters is rejected without closing the modal, so
   the half-written note is not lost.
@@ -38,8 +39,8 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
       def handle_event("recommend_cancel", _params, socket),
         do: {:noreply, MediaCentaurWeb.Live.RecommendFlow.close(socket)}
 
-      def handle_event("recommend_send", %{"note" => note}, socket),
-        do: {:noreply, MediaCentaurWeb.Live.RecommendFlow.submit(socket, note)}
+      def handle_event("recommend_send", %{"sentiment" => sentiment, "note" => note}, socket),
+        do: {:noreply, MediaCentaurWeb.Live.RecommendFlow.submit(socket, sentiment, note)}
     end
   end
 
@@ -74,13 +75,14 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   def close(socket), do: assign(socket, recommend_subject: nil, recommend_poster_url: nil)
 
   @doc """
-  Sends the open subject as a recommendation. A no-op when nothing is
+  Sends the open subject as a recommendation with the form's sentiment
+  (`"like"` or `"love"`; anything else is like). A no-op when nothing is
   open. A note over 500 characters flashes and leaves the modal open, so
   the note is not lost.
   """
-  @spec submit(socket(), String.t() | nil) :: socket()
-  def submit(%{assigns: %{recommend_subject: %Title{} = title}} = socket, note) do
-    case Activities.recommend(title, note) do
+  @spec submit(socket(), String.t(), String.t() | nil) :: socket()
+  def submit(%{assigns: %{recommend_subject: %Title{} = title}} = socket, sentiment, note) do
+    case Activities.recommend(title, parse_sentiment(sentiment), note) do
       {:ok, _rec} ->
         socket |> close() |> put_flash(:info, sent_message())
 
@@ -92,7 +94,10 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
     end
   end
 
-  def submit(socket, _note), do: socket
+  def submit(socket, _sentiment, _note), do: socket
+
+  defp parse_sentiment("love"), do: :love
+  defp parse_sentiment(_like_or_junk), do: :like
 
   @doc "`{connected, total}` relays — the modal's relay line."
   @spec relay_counts() :: {non_neg_integer(), non_neg_integer()}

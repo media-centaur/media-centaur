@@ -53,6 +53,21 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
     ]
   end
 
+  defp recommendation(tmdb_id, nickname, sentiment) do
+    %{
+      activity: %MediaCentaur.Activities.Activity{
+        kind: :recommendation,
+        sentiment: sentiment,
+        tmdb_id: tmdb_id,
+        media_type: :movie,
+        title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie"}),
+        acted_at: ~U[2026-09-01 10:00:00Z]
+      },
+      nickname: nickname,
+      own?: is_nil(nickname)
+    }
+  end
+
   def variations do
     [
       %Variation{
@@ -74,7 +89,14 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           today: ~D[2026-08-02],
           watchlisted_refs: MapSet.new([{777, :movie}]),
           in_library_refs: MapSet.new([{246_810, :tv_series}]),
-          tracked_refs: MapSet.new([{246_810, :tv_series}, {779, :tv_series}])
+          tracked_refs: MapSet.new([{246_810, :tv_series}, {779, :tv_series}]),
+          recommendations_by_ref: %{
+            {777, :movie} => [recommendation(777, "Sample Friend", :love)],
+            {778, :movie} => [
+              recommendation(778, "Other Friend", :like),
+              recommendation(778, "Sample Friend", :love)
+            ]
+          }
         }
       },
       %Variation{

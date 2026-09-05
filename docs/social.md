@@ -140,7 +140,7 @@ envelope (`v`, `title`); each adds its own fields:
 
 | Kind | Name | `d` tag | Content beyond the envelope |
 |---|---|---|---|
-| `32160` | Recommendation | `tmdb:<media_type>:<tmdb_id>` | `note`, `recommended_at` |
+| `32160` | Recommendation | `tmdb:<media_type>:<tmdb_id>` | `sentiment` (`like` / `love`, absent = like), `note`, `recommended_at` |
 | `32161` | Watched | same | `watched_at`, `episode` (TV: `season_number`, `episode_number`, `name`) |
 | `32162` | Tracking | same | `tracked_at` |
 
@@ -166,7 +166,8 @@ textarea's `maxlength`. Content carries `"v": 1`; `from_event/1` treats an
 absent `v` as 1 and drops an unknown one.
 
 **Producers.** Recommending is an explicit act and always publishes
-(`Activities.recommend/2`, from the Recommend modal). Watched and tracking
+(`Activities.recommend/3`, from the Recommend modal, with the sentiment
+the sender picked). Watched and tracking
 activities come from `Activities.Publisher`, a pubsub listener over
 `watch_history:events` and `release_tracking:updates` that calls
 `Activities.watched/2` / `tracking/1` only while the `share_watched` /
@@ -277,6 +278,12 @@ The tab's pieces are iteration-phase function components under
 `live/discovery_live/` (`roster_block`, `feed_row`, `recommend_modal`) — no
 stories and no input-system support yet; the hardening pass moves them under
 `components/` (spec decision 11), which is when MC0009 starts applying.
+
+Who recommended a title, and how much, is one component everywhere —
+`Components.Discovery.RecommendationPennant` — fed by
+`Activities.recommendations_for/1` on the watchlist rows, the Incoming
+search rows and both detail modals, and by the row itself on the Feed. See
+`docs/plans/2026-09-05-recommendation-pennant.md` for the decisions.
 
 The joins the contexts may not make happen here:
 

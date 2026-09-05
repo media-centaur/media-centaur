@@ -4,7 +4,6 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
-  alias MediaCentaur.Library.Person
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.PlanLogic

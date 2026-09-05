@@ -27,6 +27,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   use Phoenix.Component
 
+  import MediaCentaurWeb.Components.Discovery.RecommendationPennant,
+    only: [recommendation_pennants: 1]
+
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
@@ -64,6 +67,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   attr :tracked_refs, :any,
     default: MapSet.new(),
     doc: "`{tmdb_id, media_type}` refs release tracking holds an open item for — the Tracked marker."
+
+  attr :recommendations_by_ref, :map,
+    default: %{},
+    doc:
+      "`%{ref => rows}` from `Activities.recommendations_for/1` for the landed results — the pennants on the mast."
 
   def media_results(assigns) do
     today = assigns.today || Date.utc_today()
@@ -138,6 +146,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
           status={release_status(result, @today)}
           release_mode_available={@release_mode_available}
           watchlisted?={MapSet.member?(@watchlisted_refs, {result.tmdb_id, result.media_type})}
+          recommendations={Map.get(@recommendations_by_ref, {result.tmdb_id, result.media_type}, [])}
           in_library?={MapSet.member?(@in_library_refs, {result.tmdb_id, result.media_type})}
           tracked?={MapSet.member?(@tracked_refs, {result.tmdb_id, result.media_type})}
         />
@@ -199,20 +208,27 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     doc:
       "Whether release tracking already holds this title — the Tracked marker, and no verb when upcoming."
 
+  attr :recommendations, :list,
+    default: [],
+    doc: "the title's `Activities.recommendations_for/1` rows — the pennants above the bookmark."
+
   # A wrapper div owns the row surface: the main pick button and the
   # bookmark toggle are siblings — nested interactive elements are
   # invalid HTML. The wrapper is a real 2-track grid carrying
   # `data-nav-grid`: the input system reads its computed column count,
   # so DOWN/UP move row-to-row (pick → pick) and LEFT/RIGHT move
   # within a row (pick ↔ bookmark). Every row renders exactly these
-  # two nav items.
+  # two nav items. The pennants share the bookmark's track, above it,
+  # so the track stays one of two and the pick's text never runs under
+  # a flag; the mast bleeds into the row's right padding to meet the
+  # edge.
   defp result_row(assigns) do
     assigns =
       assign(assigns, :verb, verb(assigns.tracked?, assigns.status, assigns.release_mode_available))
 
     ~H"""
     <div
-      class="glass-surface grid w-full grid-cols-[1fr_auto] items-start gap-1 rounded-xl pr-2 transition-colors hover:bg-base-content/[0.05]"
+      class="glass-surface grid w-full grid-cols-[1fr_auto] items-start gap-1 overflow-hidden rounded-xl pr-2 transition-colors hover:bg-base-content/[0.05]"
       data-nav-grid
     >
       <button
@@ -243,27 +259,30 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         </span>
       </button>
 
-      <button
-        id={"omnibox-watchlist-#{@result.media_type}-#{@result.tmdb_id}"}
-        type="button"
-        class={[
-          "flex cursor-pointer items-center self-stretch px-2 transition-colors",
-          @watchlisted? && "text-primary",
-          !@watchlisted? && "text-base-content/55 hover:text-base-content/60"
-        ]}
-        phx-click="watchlist_toggle"
-        phx-value-tmdb-id={@result.tmdb_id}
-        phx-value-media-type={@result.media_type}
-        aria-pressed={to_string(@watchlisted?)}
-        title={if @watchlisted?, do: "Remove from watchlist", else: "Add to watchlist"}
-        data-nav-item
-        tabindex="0"
-      >
-        <.icon
-          name={if @watchlisted?, do: "hero-bookmark-solid", else: "hero-bookmark"}
-          class="size-4"
-        />
-      </button>
+      <div class="flex flex-col items-end self-stretch">
+        <.recommendation_pennants recommendations={@recommendations} class="-mr-2 mt-2.5" />
+        <button
+          id={"omnibox-watchlist-#{@result.media_type}-#{@result.tmdb_id}"}
+          type="button"
+          class={[
+            "flex flex-1 cursor-pointer items-center px-2 transition-colors",
+            @watchlisted? && "text-primary",
+            !@watchlisted? && "text-base-content/55 hover:text-base-content/60"
+          ]}
+          phx-click="watchlist_toggle"
+          phx-value-tmdb-id={@result.tmdb_id}
+          phx-value-media-type={@result.media_type}
+          aria-pressed={to_string(@watchlisted?)}
+          title={if @watchlisted?, do: "Remove from watchlist", else: "Add to watchlist"}
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon
+            name={if @watchlisted?, do: "hero-bookmark-solid", else: "hero-bookmark"}
+            class="size-4"
+          />
+        </button>
+      </div>
     </div>
     """
   end

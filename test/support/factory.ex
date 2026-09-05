@@ -808,6 +808,34 @@ defmodule MediaCentaur.TestFactory do
   # Release Tracking
   # ---------------------------------------------------------------------------
 
+  alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.TMDB.Title
+
+  @doc "A pure `Activity` struct — a friend's like of a sample movie unless overridden."
+  def build_activity(overrides \\ %{}) do
+    tmdb_id = Map.get(overrides, :tmdb_id, 777)
+    media_type = Map.get(overrides, :media_type, :movie)
+
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      kind: :recommendation,
+      event_id: Ecto.UUID.generate(),
+      author_pubkey: String.duplicate("f", 64),
+      tmdb_id: tmdb_id,
+      media_type: media_type,
+      title: Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: "Sample Movie"}),
+      sentiment: :like,
+      note: nil,
+      episode: nil,
+      acted_at: ~U[2026-09-01 12:00:00Z],
+      raw_event: %{},
+      deleted_at: nil,
+      deletion_event: nil
+    }
+
+    struct(Activity, Map.merge(defaults, overrides))
+  end
+
   alias MediaCentaur.ReleaseTracking
 
   def build_tracking_item(overrides \\ %{}) do

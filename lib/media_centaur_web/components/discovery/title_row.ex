@@ -16,6 +16,9 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
 
   use Phoenix.Component
 
+  import MediaCentaurWeb.Components.Discovery.RecommendationPennant,
+    only: [recommendation_pennants: 1]
+
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
   alias MediaCentaur.TMDB.Title
@@ -32,12 +35,20 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
   attr :markers, :list, default: [], doc: "quiet text markers from `Logic.row_markers/1`"
   attr :secondary, :string, default: nil, doc: "a note that displaces the overview"
 
+  attr :recommendations, :list,
+    default: [],
+    doc: "the title's `Activities.recommendations_for/1` rows — the pennants on the mast"
+
+  attr :named?, :boolean,
+    default: true,
+    doc: "pennants carry names; false on the Feed, whose lead already says who"
+
   def title_row(assigns) do
     ~H"""
     <button
       id={@id}
       type="button"
-      class="glass-surface flex w-full cursor-pointer items-start gap-4 rounded-xl px-4 py-3 text-left"
+      class="glass-surface flex w-full cursor-pointer items-start gap-4 overflow-hidden rounded-xl px-4 py-3 text-left"
       data-component="title-row"
       phx-click="open_title"
       phx-value-ref={Logic.title_ref_param({@title.tmdb_id, @title.media_type})}
@@ -54,6 +65,13 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
         </:markers>
         <:secondary :if={@secondary}>{@secondary}</:secondary>
       </.title_summary>
+      <%!-- The mast bleeds into the row's right padding so the hoist
+            meets the border; overflow-hidden clips it to the corners. --%>
+      <.recommendation_pennants
+        recommendations={@recommendations}
+        named?={@named?}
+        class="-mr-4 self-center"
+      />
     </button>
     """
   end

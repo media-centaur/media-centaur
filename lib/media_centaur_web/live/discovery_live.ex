@@ -185,8 +185,17 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       acted_at: feed_row && feed_row.activity.acted_at,
       own?: feed_row && feed_row.own?,
       activity_id: feed_row && feed_row.activity.id,
+      recommendations: (watch_row && watch_row.recommendations) || feed_recommendations(socket, ref),
       preview: preview
     })
+  end
+
+  # A feed-only title's recommendations are the feed's own recommendation
+  # rows for it — the rows are the one representation.
+  defp feed_recommendations(socket, ref) do
+    socket.assigns.feed
+    |> Enum.filter(&({&1.activity.tmdb_id, &1.activity.media_type} == ref))
+    |> Enum.flat_map(& &1.recommendations)
   end
 
   @impl true
@@ -335,7 +344,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   def handle_info({tag, _event}, socket)
       when tag in [:activity_received, :activity_sent, :activity_deleted] do
-    {:noreply, load_feed(socket)}
+    {:noreply, socket |> load_items() |> load_feed()}
   end
 
   def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
@@ -354,44 +363,25 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   # The watchlist row's decoration: Discovery owns the item and library
-  # presence; the poster and the provenance nickname are joined here,
-  # because Discovery stores only the bare `activity_id` and knows
-  # nothing about Recommendations or Social.
+  # presence; the poster and the recommendations (the pennants) are
+  # joined here, because Discovery knows nothing about Activities.
   defp load_items(socket) do
     rows = Discovery.list_watchlist()
-    nicknames = from_nicknames(rows)
+
+    recommendations =
+      Activities.recommendations_for(Enum.map(rows, &{&1.item.tmdb_id, &1.item.media_type}))
 
     items =
       Enum.map(rows, fn %{item: item} = row ->
         Map.merge(row, %{
           poster_url: title_poster_url(item.title),
-          from_nickname: Map.get(nicknames, item.activity_id)
+          recommendations: Map.get(recommendations, {item.tmdb_id, item.media_type}, [])
         })
       end)
 
     socket
     |> assign(:items, items)
     |> stamp_acquisition_states()
-  end
-
-  # `%{activity_id => nickname}` for the friend-sourced rows, in one
-  # recommendations query and one roster read. A recommendation or a
-  # friend that is gone simply has no entry, so the row shows no marker.
-  defp from_nicknames(rows) do
-    ids = rows |> Enum.map(& &1.item.activity_id) |> Enum.reject(&is_nil/1)
-
-    case Activities.get_many(ids) do
-      recommendations when map_size(recommendations) == 0 ->
-        %{}
-
-      recommendations ->
-        friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
-
-        for {id, rec} <- recommendations,
-            nickname = Map.get(friends, rec.author_pubkey),
-            into: %{},
-            do: {id, nickname}
-    end
   end
 
   # The feed row's decoration: Recommendations owns the record and the
@@ -405,6 +395,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
     watchlisted = Discovery.watchlisted_refs()
 
+    # A feed row is one activity, so a recommendation row's pennant is
+    # the row itself: no second read.
     feed =
       Enum.map(rows, fn %{activity: rec} = row ->
         ref = {rec.tmdb_id, rec.media_type}
@@ -412,7 +404,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         Map.merge(row, %{
           poster_url: title_poster_url(rec.title),
           library_owner_id: Map.get(owners, ref),
-          on_watchlist?: MapSet.member?(watchlisted, ref)
+          on_watchlist?: MapSet.member?(watchlisted, ref),
+          recommendations: if(rec.kind == :recommendation, do: [row], else: [])
         })
       end)
 
@@ -572,11 +565,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                   Logic.row_markers(%{
                     library_owner_id: row.library_owner_id,
                     acquisition_state: row.acquisition_state,
-                    from_nickname: nil,
                     on_watchlist?: row.on_watchlist?
                   })
                 }
                 secondary={row.activity.note}
+                recommendations={row.recommendations}
+                named?={false}
               />
             </div>
           </div>
@@ -613,11 +607,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 Logic.row_markers(%{
                   library_owner_id: row.library_owner_id,
                   acquisition_state: row.acquisition_state,
-                  from_nickname: row.from_nickname,
                   on_watchlist?: false
                 })
               }
               secondary={row.item.note}
+              recommendations={row.recommendations}
             />
           </div>
         </div>
