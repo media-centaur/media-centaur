@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   `library_owner_id`, `on_watchlist?`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
   `backdrop_url`, `sender`, `note`, `recommended_at`, `own?`,
-  `recommendation_id`. The primary action is the watchlist row's
+  `recommendation_id`, `preview`. The primary action is the watchlist row's
   three-state rule with the acquisition state folded in between In
   library and Download.
   """
@@ -34,7 +34,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       note: Map.get(facts, :note),
       recommended_at: Map.get(facts, :recommended_at),
       own?: Map.get(facts, :own?),
-      recommendation_id: Map.get(facts, :recommendation_id)
+      recommendation_id: Map.get(facts, :recommendation_id),
+      preview: Map.get(facts, :preview)
     }
   end
 

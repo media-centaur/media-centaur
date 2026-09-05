@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Library.Person
   alias MediaCentaur.Search.IndexerHealth
-  alias MediaCentaurWeb.IncomingLive.MoviePreview
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.PlanLogic
 
   # S1: E1 in library, E2/E3 pickable. S2: E1 pickable, E2 unaired.
@@ -134,176 +134,6 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     assert PlanLogic.toggle_expanded(expanded, 1) == MapSet.new([1, 2])
   end
 
-  test "movie_preview builds a detail-shaped preview from a full TMDB payload" do
-    tmdb_movie = %{
-      "id" => 550,
-      "title" => "Sample Movie",
-      "tagline" => "Every confirmation counts.",
-      "release_date" => "1999-10-15",
-      "overview" => "A sample movie overview.",
-      "runtime" => 139,
-      "genres" => [%{"id" => 18, "name" => "Drama"}, %{"id" => 80, "name" => "Crime"}],
-      "vote_average" => 8.4,
-      "vote_count" => 26_000,
-      "original_language" => "en",
-      "production_companies" => [%{"name" => "Sample Studio"}],
-      "production_countries" => [%{"iso_3166_1" => "US"}],
-      "status" => "Released",
-      "poster_path" => "/poster.jpg",
-      "backdrop_path" => "/backdrop.jpg",
-      "images" => %{"logos" => [%{"iso_639_1" => "en", "file_path" => "/logo.png"}]},
-      "release_dates" => %{
-        "results" => [
-          %{"iso_3166_1" => "US", "release_dates" => [%{"certification" => "R"}]}
-        ]
-      },
-      "credits" => %{
-        "cast" => [
-          %{
-            "name" => "Actor One",
-            "character" => "The Narrator",
-            "id" => 1,
-            "profile_path" => "/a1.jpg",
-            "order" => 0
-          },
-          %{
-            "name" => "Actor Two",
-            "character" => "Tyler",
-            "id" => 2,
-            "profile_path" => nil,
-            "order" => 1
-          }
-        ],
-        "crew" => [%{"name" => "Jane Director", "job" => "Director", "department" => "Directing"}]
-      }
-    }
-
-    preview = PlanLogic.movie_preview(tmdb_movie, false)
-
-    assert %MoviePreview{} = preview
-    assert preview.tmdb_id == "550"
-    assert preview.title == "Sample Movie"
-    assert preview.tagline == "Every confirmation counts."
-    assert preview.overview == "A sample movie overview."
-    assert preview.in_library? == false
-
-    assert preview.backdrop_url == "https://image.tmdb.org/t/p/original/backdrop.jpg"
-    assert preview.logo_url == "https://image.tmdb.org/t/p/original/logo.png"
-    assert preview.poster_url == "https://image.tmdb.org/t/p/original/poster.jpg"
-
-    # Metadata row items (facet-strip fields intentionally excluded here).
-    assert "1999" in preview.metadata_items
-    assert "2h 19m" in preview.metadata_items
-    assert "R" in preview.metadata_items
-    assert "US" in preview.metadata_items
-
-    director = Enum.find(preview.facets, &(&1.label == "Director"))
-    assert director.value == "Jane Director"
-
-    rating = Enum.find(preview.facets, &(&1.label == "Rating"))
-    assert rating.value.rating == 8.4
-
-    genres = Enum.find(preview.facets, &(&1.label == "Genres"))
-    assert genres.value == ["Drama", "Crime"]
-
-    assert [%Person{name: "Actor One", character: "The Narrator"}, %Person{name: "Actor Two"}] =
-             preview.cast
-  end
-
-  test "movie_preview carries the canonical release year for the download query" do
-    # Later theatrical release_date, earlier digital typed date — the plan
-    # query must use the year indexers actually tag (the digital 2025), not
-    # the primary theatrical 2026.
-    tmdb_movie = %{
-      "id" => 1_422_011,
-      "title" => "Sample Movie",
-      "release_date" => "2026-08-21",
-      "release_dates" => %{
-        "results" => [
-          %{
-            "iso_3166_1" => "US",
-            "release_dates" => [
-              %{"type" => 3, "release_date" => "2026-08-21T00:00:00.000Z"},
-              %{"type" => 4, "release_date" => "2025-12-10T00:00:00.000Z"}
-            ]
-          }
-        ]
-      }
-    }
-
-    preview = PlanLogic.movie_preview(tmdb_movie, false)
-
-    assert preview.year == 2025
-    assert "2025" in preview.metadata_items
-  end
-
-  test "movie_preview marks a movie whose earliest typed release is still ahead as upcoming" do
-    tmdb_movie = %{
-      "id" => 1_422_011,
-      "title" => "Sample Movie",
-      "release_date" => "2027-03-05",
-      "release_dates" => %{
-        "results" => [
-          %{
-            "iso_3166_1" => "US",
-            "release_dates" => [%{"type" => 3, "release_date" => "2027-03-05T00:00:00.000Z"}]
-          }
-        ]
-      }
-    }
-
-    assert PlanLogic.movie_preview(tmdb_movie, false, ~D[2026-08-06]).upcoming?
-  end
-
-  test "movie_preview marks a released movie as not upcoming" do
-    tmdb_movie = %{
-      "id" => 550,
-      "title" => "Sample Movie",
-      "release_date" => "2016-03-18",
-      "release_dates" => %{
-        "results" => [
-          %{
-            "iso_3166_1" => "US",
-            "release_dates" => [%{"type" => 3, "release_date" => "2016-03-18T00:00:00.000Z"}]
-          }
-        ]
-      }
-    }
-
-    refute PlanLogic.movie_preview(tmdb_movie, false, ~D[2026-08-06]).upcoming?
-
-    # Out today counts as out.
-    refute PlanLogic.movie_preview(tmdb_movie, false, ~D[2016-03-18]).upcoming?
-  end
-
-  test "movie_preview treats an undated movie as upcoming" do
-    tmdb_movie = %{"id" => 550, "title" => "Sample Movie"}
-
-    assert PlanLogic.movie_preview(tmdb_movie, false, ~D[2026-08-06]).upcoming?
-  end
-
-  test "movie_preview tolerates a sparse TMDB payload" do
-    tmdb_movie = %{"id" => 550, "title" => "Sample Movie", "overview" => ""}
-
-    preview = PlanLogic.movie_preview(tmdb_movie, true)
-
-    assert %MoviePreview{} = preview
-    assert preview.tmdb_id == "550"
-    assert preview.title == "Sample Movie"
-    assert preview.year == nil
-    assert preview.overview == nil
-    assert preview.tagline == nil
-    assert preview.in_library? == true
-
-    assert preview.backdrop_url == nil
-    assert preview.logo_url == nil
-    assert preview.poster_url == nil
-
-    assert preview.metadata_items == []
-    assert preview.facets == []
-    assert preview.cast == []
-  end
-
   describe "shell_backdrop_url/2 — the plan modal's cinematic shell" do
     alias MediaCentaur.TMDB.Title
 
@@ -357,17 +187,34 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     end
 
     test "movie confirm wears the preview's backdrop, poster as fallback" do
-      movie = %MoviePreview{tmdb_id: "550", in_library?: false, backdrop_url: "https://x/b.jpg"}
+      movie = %TitlePreview{
+        media_type: :movie,
+        tmdb_id: "550",
+        in_library?: false,
+        backdrop_url: "https://x/b.jpg"
+      }
+
       assert PlanLogic.shell_backdrop_url(:movie_confirm, sources(%{movie: movie})) == "https://x/b.jpg"
 
-      poster_only = %MoviePreview{tmdb_id: "550", in_library?: false, poster_url: "https://x/p.jpg"}
+      poster_only = %TitlePreview{
+        media_type: :movie,
+        tmdb_id: "550",
+        in_library?: false,
+        poster_url: "https://x/p.jpg"
+      }
 
       assert PlanLogic.shell_backdrop_url(:movie_confirm, sources(%{movie: poster_only})) ==
                "https://x/p.jpg"
     end
 
     test "board prefers locally cached artwork, then falls back through the flow's earlier stages" do
-      movie = %MoviePreview{tmdb_id: "550", in_library?: false, backdrop_url: "https://x/movie.jpg"}
+      movie = %TitlePreview{
+        media_type: :movie,
+        tmdb_id: "550",
+        in_library?: false,
+        backdrop_url: "https://x/movie.jpg"
+      }
+
       artwork = %{backdrop_url: "/media-images/tracking/backdrop-550.jpg", logo_url: nil}
 
       assert PlanLogic.shell_backdrop_url(:board, sources(%{movie: movie, artwork: artwork})) ==
@@ -419,7 +266,8 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     end
 
     test "movie confirm carries the preview's logo and tagline" do
-      movie = %MoviePreview{
+      movie = %TitlePreview{
+        media_type: :movie,
         tmdb_id: "550",
         in_library?: false,
         title: "Sample Movie",

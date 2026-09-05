@@ -415,6 +415,44 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       })
     end
 
+    test "the modal opens from the snapshot, then dresses itself from the live TMDB detail",
+         %{conn: conn} do
+      # A ready TMDB capability: a key in config plus a passed test.
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentaur.Settings.Config, :config},
+        Map.put(config, :tmdb_api_key, MediaCentaur.Secret.wrap("test-key"))
+      )
+
+      MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
+
+      TmdbStubs.stub_get_movie(
+        777,
+        TmdbStubs.movie_detail(%{
+          "id" => 777,
+          "title" => "Sample Movie",
+          "tagline" => "Every confirmation counts.",
+          "backdrop_path" => "/sample-backdrop.jpg",
+          "images" => %{"logos" => [%{"iso_639_1" => "en", "file_path" => "/sample-logo.png"}]}
+        })
+      )
+
+      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
+
+      # Snapshot first: the modal is open before TMDB answers.
+      assert has_element?(view, "#title-detail-modal #title-download")
+      refute html =~ "Every confirmation counts."
+
+      html = render_async(view)
+      assert html =~ "Every confirmation counts."
+      assert has_element?(view, "#title-detail-modal [data-component='preview-body']")
+      assert html =~ "sample-backdrop.jpg"
+      assert html =~ "sample-logo.png"
+      await_supervised_tasks()
+    end
+
     test "a watchlist card click opens the modal via the URL; close returns", %{conn: conn} do
       {:ok, _} = Discovery.add_to_watchlist(released_movie())
       {:ok, view, _html} = live(conn, "/discovery/watchlist")

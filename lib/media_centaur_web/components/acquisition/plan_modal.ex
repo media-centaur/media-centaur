@@ -41,17 +41,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.LiveHelpers, only: [format_size: 1, tmdb_cdn_url: 2]
+  import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
 
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
-  alias MediaCentaurWeb.IncomingLive.MoviePreview
+  alias MediaCentaurWeb.Components.Detail.PreviewBody
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.Components.CinematicShell
-  alias MediaCentaurWeb.Components.Detail.FacetStrip
-  alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.TitleLayer
 
   attr :open, :boolean, required: true
@@ -89,7 +88,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :movie, :any,
     default: nil,
     doc:
-      "%MediaCentaurWeb.IncomingLive.MoviePreview{} | nil — the movie fast path's detail-shaped preview (built by PlanLogic.movie_preview/2)."
+      "%MediaCentaurWeb.Components.Detail.TitlePreview{} | nil — the movie fast path's detail-shaped preview (built by PlanLogic.movie_preview/2)."
 
   attr :board, :any,
     default: nil,
@@ -485,9 +484,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   # Movie stage
   # ---------------------------------------------------------------------------
 
-  attr :movie, MoviePreview,
+  attr :movie, TitlePreview,
     required: true,
-    doc: "detail-shaped preview built by PlanLogic.movie_preview/2 in the host's targeting task."
+    doc: "detail-shaped preview built by `TitlePreview.movie/3` in the host's targeting task."
 
   attr :on_close, :string, required: true
 
@@ -498,24 +497,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     # stage is the facts below.
     ~H"""
     <div data-nav-zone="plan_body">
-      <div class="px-6 pt-6 pb-6 space-y-5">
-        <div class="flex items-center justify-between gap-3">
-          <MetadataRow.metadata_row badge_text="Movie" items={@movie.metadata_items} />
-          <span class={[
-            "flex-shrink-0 text-xs",
-            if(@movie.in_library?, do: "text-warning/80", else: "text-base-content/55")
-          ]}>
-            {if @movie.in_library?, do: "Already in your library", else: "Not in your library"}
-          </span>
-        </div>
-
-        <p :if={@movie.overview} class="text-sm text-base-content/70 line-clamp-6">
-          {@movie.overview}
-        </p>
-
-        <FacetStrip.facet_strip :if={@movie.facets != []} facets={@movie.facets} />
-
-        <.cast_strip :if={@movie.cast != []} cast={@movie.cast} />
+      <div class="px-6 pt-6 pb-6">
+        <PreviewBody.preview_body preview={@movie} library_state />
       </div>
 
       <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-end gap-2">
@@ -546,48 +529,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         >
           Download
         </.button>
-      </div>
-    </div>
-    """
-  end
-
-  attr :cast, :list,
-    required: true,
-    doc:
-      "top-billed `MediaCentaur.Library.Person` structs (capped by PlanLogic.movie_preview/2) — a compact confirmation strip, not the owned detail panel's full cast grid."
-
-  defp cast_strip(assigns) do
-    ~H"""
-    <div>
-      <h3 class="text-[0.65rem] uppercase tracking-wider text-base-content/55 font-semibold mb-2">
-        Top cast
-      </h3>
-      <div class="flex gap-3 overflow-x-auto thin-scrollbar pb-1">
-        <div :for={person <- @cast} class="flex-shrink-0 w-16 text-center">
-          <img
-            :if={person.profile_path}
-            src={tmdb_cdn_url(person.profile_path, :w185)}
-            alt={person.name}
-            loading="eager"
-            decoding="sync"
-            class="w-16 h-16 rounded-full object-cover bg-base-300"
-          />
-          <div
-            :if={!person.profile_path}
-            class="w-16 h-16 rounded-full bg-base-300/60 flex items-center justify-center"
-          >
-            <.icon name="hero-user" class="size-6 text-base-content/30" />
-          </div>
-          <p class="mt-1 text-[11px] leading-tight text-base-content/80 line-clamp-2">
-            {person.name}
-          </p>
-          <p
-            :if={person.character}
-            class="text-[10px] leading-tight text-base-content/55 line-clamp-1"
-          >
-            {person.character}
-          </p>
-        </div>
       </div>
     </div>
     """

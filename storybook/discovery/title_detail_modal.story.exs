@@ -7,7 +7,10 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Library.Person
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Detail.Facet
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
 
   def function, do: &MediaCentaurWeb.Components.Discovery.TitleDetailModal.title_detail_modal/1
@@ -53,8 +56,37 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
     )
   end
 
+  defp preview(title) do
+    %TitlePreview{
+      media_type: title.media_type,
+      tmdb_id: to_string(title.tmdb_id),
+      title: title.name,
+      tagline: "Every confirmation counts.",
+      overview: title.overview,
+      metadata_items: ["2010", "2h 19m", "R", "US"],
+      facets: [
+        Facet.text("Director", "Jane Director"),
+        Facet.rating("Rating", 8.2, 26_000),
+        Facet.chips("Genres", ["Drama", "Mystery"])
+      ],
+      cast: [
+        %Person{name: "Actor One", character: "The Drifter", order: 0},
+        %Person{name: "Actor Two", character: "Lighthouse Keeper", order: 1}
+      ],
+      in_library?: false
+    }
+  end
+
   def variations do
     [
+      %Variation{
+        id: :dressed,
+        description:
+          "The live TMDB preview has landed: tagline in the lockup and the shared preview " <>
+            "body — metadata row, facets, top cast — under the provenance. Backdrop and logo " <>
+            "are hotlinked from TMDB in the app; nil here pins the frame's placeholder.",
+        attributes: %{detail: detail(movie(), %{preview: preview(movie())})}
+      },
       %Variation{
         id: :movie_download,
         description: "A released movie with an indexer: Download, Add to watchlist.",

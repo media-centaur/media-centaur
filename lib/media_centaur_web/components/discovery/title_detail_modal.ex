@@ -39,6 +39,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
 
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.CinematicShell
+  alias MediaCentaurWeb.Components.Detail.PreviewBody
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
   alias MediaCentaurWeb.DiscoveryLive.Logic
@@ -47,6 +48,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   attr :scope_menu_open, :boolean, default: false, doc: "the series scope menu is showing"
 
   def title_detail_modal(assigns) do
+    assigns = assign(assigns, :preview, assigns.detail && assigns.detail.preview)
+
     ~H"""
     <CinematicShell.cinematic_shell
       id="title-detail-modal"
@@ -54,7 +57,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
       dismiss={:ephemeral}
       on_close="close_title"
       present={@detail != nil}
-      backdrop_url={@detail && @detail.backdrop_url}
+      backdrop_url={backdrop_url(@detail, @preview)}
       scroll_key={@detail && Logic.title_ref_param(@detail.ref)}
       view_key={:main}
       data-nav-overlay={@detail != nil && "title_detail"}
@@ -62,7 +65,11 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
     >
       <:orientation>
         <div :if={@detail} class="px-6">
-          <TitleLayer.lockup title={@detail.title.name} />
+          <TitleLayer.lockup
+            title={@detail.title.name}
+            logo_url={@preview && @preview.logo_url}
+            tagline={@preview && @preview.tagline}
+          />
           <p class="mt-3 flex items-center gap-2 text-xs uppercase tracking-wider text-base-content/55 text-on-image">
             <.icon name={media_icon(@detail.title.media_type)} class="size-4" />
             <span>{media_label(@detail.title.media_type)}</span>
@@ -111,7 +118,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
             Recommended by {@detail.sender} · {Format.relative_ago(@detail.recommended_at)}
           </p>
           <p :if={@detail.note} class="text-sm">{@detail.note}</p>
-          <p :if={@detail.title.overview} class="text-sm text-base-content/70">
+          <PreviewBody.preview_body :if={@preview} preview={@preview} />
+          <p :if={!@preview && @detail.title.overview} class="text-sm text-base-content/70">
             {@detail.title.overview}
           </p>
         </div>
@@ -282,6 +290,13 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
     </span>
     """
   end
+
+  # The live preview's backdrop (poster as its fallback) once it lands;
+  # the snapshot's backdrop path, when it has one, until then.
+  defp backdrop_url(nil, _preview), do: nil
+  defp backdrop_url(_detail, %{backdrop_url: url}) when is_binary(url), do: url
+  defp backdrop_url(_detail, %{poster_url: url}) when is_binary(url), do: url
+  defp backdrop_url(detail, _preview), do: detail.backdrop_url
 
   defp media_icon(:tv_series), do: "hero-tv"
   defp media_icon(:movie), do: "hero-film"

@@ -45,6 +45,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, TitleStates}
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.Discovery
   alias MediaCentaur.Format
   alias MediaCentaur.Library
@@ -52,12 +53,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Recommendations
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Social
+  alias MediaCentaur.TMDB.Client, as: TMDBClient
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Discovery.{TitleDetail, TitleDetailModal, TitleRow}
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.DiscoveryLive.Logic
   alias MediaCentaurWeb.DiscoveryLive.RosterBlock
 
+  require MediaCentaur.Log, as: Log
   require PursuitEvents
 
   @impl true
@@ -94,11 +98,21 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # `?title=<media_type>-<tmdb_id>` drives the modal (UIDR-017 idiom):
   # back closes, refresh keeps it, the URL is shareable. An unknown
-  # ref — a title on neither tab — leaves it closed.
+  # ref — a title on neither tab — leaves it closed. A fresh open
+  # starts the live TMDB preview fetch; a re-patch of the same title
+  # keeps the preview it already has.
   defp apply_title_param(socket, %{"title" => param}) do
     with {:ok, ref} <- Logic.parse_title_ref(param),
          %Title{} = title <- find_title(socket, ref) do
-      assign(socket, title_detail: build_title_detail(socket, title), scope_menu_open: false)
+      case socket.assigns.title_detail do
+        %TitleDetail{ref: ^ref} = open ->
+          assign(socket, title_detail: build_title_detail(socket, title, open.preview))
+
+        _closed_or_other ->
+          socket
+          |> assign(title_detail: build_title_detail(socket, title, nil), scope_menu_open: false)
+          |> fetch_title_preview(title)
+      end
     else
       _unknown -> assign(socket, title_detail: nil, scope_menu_open: false)
     end
@@ -125,9 +139,31 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     )
   end
 
+  # The live preview runs as an owned async (cancelled with the view,
+  # awaitable in tests); the modal reads the snapshot until it lands.
+  # Without a working TMDB key the snapshot is all there is.
+  defp fetch_title_preview(socket, %Title{} = title) do
+    if Capabilities.tmdb_ready?() do
+      ref = {title.tmdb_id, title.media_type}
+      in_library? = match?({:in_library, _owner}, socket.assigns.title_detail.primary)
+
+      start_async(socket, {:title_preview, ref}, fn -> load_title_preview(title, in_library?) end)
+    else
+      socket
+    end
+  end
+
+  defp load_title_preview(%Title{media_type: :movie, tmdb_id: id}, in_library?) do
+    with {:ok, movie} <- TMDBClient.get_movie(id), do: {:ok, TitlePreview.movie(movie, in_library?)}
+  end
+
+  defp load_title_preview(%Title{media_type: :tv_series, tmdb_id: id}, in_library?) do
+    with {:ok, show} <- TMDBClient.get_tv(id), do: {:ok, TitlePreview.tv(show, in_library?)}
+  end
+
   # The detail joins the facts the rows already carry — the rows are the
   # one representation of library, watchlist and acquisition state.
-  defp build_title_detail(socket, %Title{} = title) do
+  defp build_title_detail(socket, %Title{} = title, preview) do
     ref = {title.tmdb_id, title.media_type}
     watch_row = watch_row(socket, ref)
     feed_row = feed_row(socket, ref)
@@ -146,8 +182,30 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       note: (feed_row && feed_row.recommendation.note) || (watch_row && watch_row.item.note),
       recommended_at: feed_row && feed_row.recommendation.recommended_at,
       own?: feed_row && feed_row.own?,
-      recommendation_id: feed_row && feed_row.recommendation.id
+      recommendation_id: feed_row && feed_row.recommendation.id,
+      preview: preview
     })
+  end
+
+  @impl true
+  def handle_async({:title_preview, ref}, {:ok, {:ok, %TitlePreview{} = preview}}, socket) do
+    case socket.assigns.title_detail do
+      %TitleDetail{ref: ^ref} = detail ->
+        {:noreply, assign(socket, :title_detail, %{detail | preview: preview})}
+
+      _closed_or_other ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_async({:title_preview, _ref}, {:ok, {:error, reason}}, socket) do
+    Log.debug(:tmdb, "title preview unavailable — #{inspect(reason)}")
+    {:noreply, socket}
+  end
+
+  def handle_async({:title_preview, _ref}, {:exit, reason}, socket) do
+    Log.warning(:tmdb, "title preview crashed — #{inspect(reason)}")
+    {:noreply, socket}
   end
 
   @impl true
@@ -396,7 +454,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp refresh_title_detail(%{assigns: %{title_detail: nil}} = socket), do: socket
 
   defp refresh_title_detail(%{assigns: %{title_detail: detail}} = socket),
-    do: assign(socket, :title_detail, build_title_detail(socket, detail.title))
+    do: assign(socket, :title_detail, build_title_detail(socket, detail.title, detail.preview))
 
   defp load_friends(socket), do: assign(socket, :friends, Social.list_friends())
 

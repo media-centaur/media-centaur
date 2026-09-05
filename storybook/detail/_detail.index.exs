@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.Storybook.Detail do
 
   def entry("track_override_badge"), do: [icon: {:fa, "language", :thin}, name: "Track override badge"]
   def entry("metadata_row"), do: [icon: {:fa, "list", :thin}, name: "Metadata row"]
+  def entry("preview_body"), do: [icon: {:fa, "file-lines", :thin}, name: "Preview body"]
 
   def entry("play_card"), do: [icon: {:fa, "play", :thin}, name: "Play card"]
   def entry("watched_toggle"), do: [icon: {:fa, "circle-check", :thin}, name: "Watched toggle"]
