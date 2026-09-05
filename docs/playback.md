@@ -28,8 +28,8 @@ graph TD
     SessionB -->|Port + Unix socket| MPVB[mpv process B]
     SessionA -->|PubSub: playback_state_changed| LiveView
     SessionB -->|PubSub: playback_state_changed| LiveView
-    SessionA -->|WatchProgress.upsert_progress| DB[(SQLite)]
-    SessionB -->|WatchProgress.upsert_progress| DB
+    SessionA -->|Library.Progress.record| DB[(SQLite)]
+    SessionB -->|Library.Progress.record| DB
 ```
 
 ### Key Concepts
@@ -46,7 +46,7 @@ graph TD
 
 **Offline state:** `Library.Availability` tracks per-media-directory mount/reachability. When a file's media directory is unavailable, UI cards and the detail panel swap the **Play** button for a muted **Offline** indicator. The indicator clears automatically when availability restores — no LiveView reload needed.
 
-**Error surfacing:** mpv exit codes are classified by `MpvExitClassifier` into user-actionable categories (bad format, missing file, unreadable input, generic). MpvSession attaches the classification to the flash message the UI shows, and pipes mpv's full stderr through `ProgressBroadcaster` into the Console drawer (`:playback` filter) and the systemd journal for post-mortem inspection.
+**Error surfacing:** `MpvExitClassifier.classify/1` tells a normal end (`{:ok, :ended}` — mpv reported a property event before exiting) from a startup failure (`{:error, :startup_failure, message}`, the message built from the exit status and mpv's last stderr lines). MpvSession attaches the classification to the flash message the UI shows, and pipes mpv's full stderr through `ProgressBroadcaster` into the Console drawer (`:playback` filter) and the systemd journal for post-mortem inspection.
 
 Because the production launch uses `--no-terminal` (which silences mpv's stderr entirely), the live port-data tail is usually empty. `MpvSession` adds `--log-file=<socket_dir>/media-centaur-<session_id>.log` to every spawn, and `MpvLogReader.fallback_tail/3` slurps the last 5 lines of that file when the port tail is empty — so the classifier always has the real mpv error string to summarise.
 
@@ -109,12 +109,12 @@ MpvSession communicates with mpv via newline-delimited JSON over a Unix domain s
 
 | Event | Action |
 |-------|--------|
-| During active watching | Save every 60 seconds |
+| During active watching | Every position tick lands in memory via `Library.Progress.record/3`; `Library.Progress.Worker` flushes dirty rows every 5 s (`:library_progress_flush_interval_ms`) |
 | On pause | Save immediately |
 | On stop / EOF | Save immediately |
 | During seeking | No save |
 
-Each save calls `WatchProgress.upsert_progress` with the tracker's `saveable_position` (guards against seek corruption). At 90% completion, `mark_completed` is called (monotonic).
+Each tick calls `Library.Progress.record/3` with the tracker's `saveable_position` (guards against seek corruption). At 90% completion, `mark_completed` is called (monotonic).
 
 #### Progress Broadcasting
 
@@ -125,7 +125,6 @@ Every save broadcasts to `"playback:events"`:
   entity_id: entity_id,
   summary: summary,
   resume_target: resume_target,
-  child_targets_delta: child_targets_delta,
   changed_record: changed_record,
   last_activity_at: last_activity_at
 }}
@@ -134,10 +133,10 @@ Every save broadcasts to `"playback:events"`:
 State changes broadcast with entity_id:
 
 ```elixir
-{:playback_state_changed, entity_id, state, now_playing}
+{:playback_state_changed, %{entity_id: entity_id, state: state, now_playing: now_playing, started_at: started_at}}
 ```
 
-LiveView subscribers receive both via PubSub.
+Both payloads are `Playback.Events` structs (map-match them; MC0012 pins the contract).
 
 #### Session Recovery (ADR-023)
 
@@ -184,7 +183,7 @@ After 10 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 | `MediaCentaur.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centaur/playback/progress_summary.ex` |
 | `MediaCentaur.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centaur/playback/resume_target.ex` |
 | `MediaCentaur.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centaur/playback/watching_tracker.ex` |
-| `MediaCentaur.Playback.MpvExitClassifier` | Classifies mpv exit output into actionable error categories | `lib/media_centaur/playback/mpv_exit_classifier.ex` |
+| `MediaCentaur.Playback.MpvExitClassifier` | Tells a normal end from a startup failure, with the message for the latter | `lib/media_centaur/playback/mpv_exit_classifier.ex` |
 | `MediaCentaur.Playback.MpvLogReader` | Tails the per-session `--log-file=` capture for the classifier | `lib/media_centaur/playback/mpv_log_reader.ex` |
-| `MediaCentaur.Playback.DisplayEnv` | Resolves `WAYLAND_DISPLAY` / `DISPLAY` env for mpv spawn | `lib/media_centaur/playback/display_env.ex` |
+| `MediaCentaur.Platform.DisplayEnv` | Resolves `WAYLAND_DISPLAY` / `DISPLAY` env for mpv spawn (OS-specific, so it lives under `Platform`) | `lib/media_centaur/platform/display_env.ex` |
 | `MediaCentaur.Playback.ProgressBroadcaster` | Fan-out of progress + diagnostic output to PubSub and thinking logs | `lib/media_centaur/playback/progress_broadcaster.ex` |

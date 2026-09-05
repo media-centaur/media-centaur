@@ -59,7 +59,7 @@ defmodule MediaCentaur.Topics do
   | `discovery:updates` | `Discovery.Events` | `{:watchlist_item_added, _}`, `{:watchlist_item_removed, _}` |
   | `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_removed, _}` |
   | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — re-broadcast of `Nostr.Connection` owner messages |
-  | `recommendations:updates` | `Recommendations.Events` | `{:recommendation_received, _}`, `{:recommendation_sent, _}` |
+  | `recommendations:updates` | `Recommendations.Events` | `{:recommendation_received, _}`, `{:recommendation_sent, _}`, `{:recommendation_deleted, _}` |
   | `apps:updates` | `Apps.Events` | `{:app_artwork_cached, _}` — async CDN art landed |
   | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:file_reviewed, _}`, `{:group_approved, _}`, `{:group_error, _}` — typed structs, ADR-060's worked example |
   | `pipeline:input`, `:matched`, `:images`, `:publish` | `Pipeline` | per-stage progress |
@@ -68,6 +68,8 @@ defmodule MediaCentaur.Topics do
   | `service:journal` | `Service` | systemd-journal mirror |
   | `self_update:status`, `:progress` | `SelfUpdate` | release self-update lifecycle |
   | `error_reports:updates` | `ErrorReports` | error-report intake |
+  | `integration_health:updates` | `IntegrationHealth` | `{:integration_health_changed, %Status{}}` |
+  | `reconciliation:updates` | `Reconciliation` | awaiting-file changes |
 
   ### 2. Derived view topics (`*:views`)
 
@@ -77,7 +79,7 @@ defmodule MediaCentaur.Topics do
 
   | Topic | Emitted by | Payloads |
   |-------|-----------|----------|
-  | `library:views` | `Library.Views.*` projections | `{:library_view_updated, :continue_watching \| :hero_candidates \| :recently_added}` |
+  | `library:views` | `Library.Views.*` projections | `{:library_view_updated, :browse \| :search \| :continue_watching \| :hero_candidates \| :recently_added}`; Detail is the 3-tuple `{:library_view_updated, :detail, playable_item_id \| :all}` |
   | `release_tracking:views` | `ReleaseTracking.Views.*` projections | `{:release_tracking_view_updated, :coming_up}` |
   | `watch_history:views` | `WatchHistory.Views.*` projections | `{:watch_history_view_updated, :summary}` |
   | `status:views` | `Status.Views.*` projections | `{:status_view_updated, :overview \| :storage}` |

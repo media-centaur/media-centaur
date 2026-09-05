@@ -33,7 +33,7 @@ inotify + scan               high confidence → matched       → publish entit
 | `pipeline:input` | Watcher | Discovery.Producer | `{:file_detected, %{path, media_dir}}` |
 | `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, media_dir, tmdb_id, tmdb_type, pending_file_id}}` |
 | `pipeline:publish` | Import (Ingest stage), Pipeline.Image | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
-| `pipeline:images` | Library.Inbound | Pipeline.Image.Producer | `{:images_pending, %{entity_id, media_dir}}` |
+| `pipeline:images` | Library.Inbound (and ImageRefresh / ImageRepair) | Pipeline.Image.Producer | `{:enqueue_images, %{entity_id, media_dir, images}}` — the producer creates the queue rows, then sends itself `{:images_pending, %{entity_id, media_dir}}` |
 | `review:intake` | Discovery, Import | Review.Intake | `{:needs_review, attrs}`, `{:review_completed, id}`, `{:files_for_review, files}` |
 | `review:updates` | Review.Intake | LiveViews | `{:file_added, id}`, `{:file_reviewed, id}` |
 | `library:updates` | Library.Inbound, Watcher | LiveViews, Channels | `{:entities_changed, entity_ids}` |
@@ -124,7 +124,7 @@ Downloads and processes artwork asynchronously after entity creation.
 
 **Failure handling:** `handle_failed/2` classifies failures as `:permanent` (4xx responses, malformed URLs — marks the queue entry `:permanent`, never retries) or `:transient` (network errors, 5xx — delegates to `ImageQueue.mark_failed/1`, which `Pipeline.Image.RetryScheduler` picks up on its next tick).
 
-**Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Entries are created by `Library.Inbound` after entity creation.
+**Queue table:** `pipeline_image_queue` tracks source URL, owner metadata, retry state. Rows are created by `Pipeline.Image.Producer` when it receives `{:enqueue_images, …}` (broadcast by `Library.Inbound` after entity creation, and by the artwork refresh / repair paths).
 
 ---
 
@@ -147,6 +147,7 @@ All stages are pure-function modules in `lib/media_centaur/pipeline/stages/`. Ea
 MediaCentaur.Supervisor
 ├── Pipeline.Supervisor (:rest_for_one)
 │   ├── Pipeline.Stats (telemetry)
+│   ├── Pipeline.Discovery.InflightSet (ETS dedup table — above Discovery so it outlives a producer crash)
 │   ├── Pipeline.Discovery (Broadway)
 │   └── Pipeline.Import (Broadway)
 ├── Pipeline.Image.Supervisor (:rest_for_one)

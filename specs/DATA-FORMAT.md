@@ -45,8 +45,7 @@ data path.
 
 ## Library Entry Shape
 
-`Library.Browser.list_entries/0` and the related browser functions
-return entries in this shape:
+`Library.Browser.fetch_all_typed_entries/1` (the database path) returns entries in this shape; the Browse projection (`Library.Views.Browse`, ADR-041) carries the same data as `Views.BrowseItem` structs, and the struct is the authority for field names:
 
 ```elixir
 %{

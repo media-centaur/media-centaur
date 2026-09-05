@@ -102,7 +102,7 @@ The app keeps one long-lived connection per relay and, on every connect, opens t
 
 **From the start, every time.** Every connect reads the relay's whole stored set for the subscription; the app keeps no `since` cursor. A relay holds one record per signer per title (Deletion rule 3), so a friend group's history is a page or two, and a cursor keyed on `created_at` would skip a message published late with an older stamp — a withdrawal made while offline. Re-reading is idempotent: a reader ignores anything not newer than what it holds.
 
-**Paged.** The app asks for at most 500 events per request. A batch that comes back full is followed by another request with `until` set to the oldest `created_at` in the batch, until a batch comes back short.
+**Paged.** The app asks for at most 500 events per request. A batch that comes back full is followed by another request with `until` set to one second before the oldest `created_at` in the batch, until a batch comes back short.
 
 **Own-events diff.** When the `own:<url>` subscription reaches end-of-stored-events, the app publishes to that relay every own recommendation and deletion the relay did not send. This is how a message made while offline, or before the relay was added, reaches it later.
 

@@ -123,7 +123,8 @@ The dashboard provides a "Scan directories" button that calls `Watcher.Rescan.sc
 | Module | Description | Path |
 |--------|-------------|------|
 | `MediaCentaur.Watcher` | Per-directory GenServer, inotify + PubSub. Stamps `Library.FilePresence` on detection; broadcasts `{:files_removed, paths}` on inotify delete | `lib/media_centaur/watcher.ex` |
-| `MediaCentaur.Watcher.Supervisor` | Coordinates all watchers, scan/pause API, `rescan_unlinked` walks `library_file_presences` | `lib/media_centaur/watcher/supervisor.ex` |
+| `MediaCentaur.Watcher.Supervisor` | Coordinates all watchers; start/stop/pause API, statuses | `lib/media_centaur/watcher/supervisor.ex` |
+| `MediaCentaur.Watcher.Rescan` | On-demand `scan/0` and `rescan_unlinked/0` (walks `library_file_presences` for present-but-unlinked files), each with an `_async` form | `lib/media_centaur/watcher/rescan.ex` |
 | `MediaCentaur.Watcher.ConfigListener` | Subscribes to `config:updates` and routes changes to each watcher | `lib/media_centaur/watcher/config_listener.ex` |
 | `MediaCentaur.Watcher.ExcludeDirs` | Pure helpers for computing effective exclude lists | `lib/media_centaur/watcher/exclude_dirs.ex` |
 | `MediaCentaur.Watcher.DirMonitor` | Supervises image-dir availability monitors | `lib/media_centaur/watcher/dir_monitor.ex` |

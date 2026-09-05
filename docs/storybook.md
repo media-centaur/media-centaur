@@ -14,7 +14,7 @@ Storybook catalogs **function components** — `<.button>`, `<.poster_card>`, `<
 
 ### 2. Stories follow the component contract
 
-Every variation is a struct/map literal mapped onto the component's typed `attr`s. If a component can't be storyboarded without faking an entire context, that's a smell about the component's contract — fix the contract, not the story. This is the reason the [component-contracts initiative](#) (typed attrs / ViewModel structs) and storybook reinforce each other.
+Every variation is a struct/map literal mapped onto the component's typed `attr`s. If a component can't be storyboarded without faking an entire context, that's a smell about the component's contract — fix the contract, not the story. This is the reason typed component contracts (typed attrs / ViewModel structs, Credo MC0008) and storybook reinforce each other.
 
 ### 3. Every meaningful state
 

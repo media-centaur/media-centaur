@@ -76,14 +76,15 @@ Every public function takes a trailing keyword list: `client:` substitutes a `Re
 ### Confidence Scoring
 
 ```
-score = min(base + year_bonus + position_bonus, 1.0)
+quality = clamp(base + year_adjustment, 0.0, 1.0)
+score   = quality + position_bonus
 ```
 
 | Component | Value | Condition |
 |-----------|-------|-----------|
 | Base | 0.0–1.0 | `String.jaro_distance/2` of normalized titles |
-| Year bonus | +0.08 | Parsed year matches TMDB year |
-| Position bonus | +0.05 | Result is first in search results |
+| Year adjustment | +0.08 / −0.15 / 0 | Parsed year matches / contradicts / is unknown on either side |
+| Position bonus | +0.05 | Result is first in search results (applied after the clamp, so a top result can score just above 1.0) |
 
 **Normalization:** Lowercase, strip non-alphanumeric characters (except spaces), collapse whitespace.
 
