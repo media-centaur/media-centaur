@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.StatusLive do
 
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
-  alias MediaCentaur.Recommendations
+  alias MediaCentaur.Activities
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status, Topics}
   alias MediaCentaur.SelfUpdate.Changelog
@@ -149,11 +149,11 @@ defmodule MediaCentaurWeb.StatusLive do
   end
 
   # Snapshot of the friend network for the Social Activity widget:
-  # aggregates only (Settings → Social and the Friends tab own the lists). `Recommendations.counts/0`
+  # aggregates only (Settings → Social and the Friends tab own the lists). `Activities.counts/0`
   # is two aggregate queries — cheaper than loading every row just to
   # count and diff them.
   defp assign_social(socket) do
-    counts = Recommendations.counts()
+    counts = Activities.counts()
 
     assign(socket,
       relay_status: relay_status(),

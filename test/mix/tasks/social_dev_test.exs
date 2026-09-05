@@ -9,7 +9,7 @@ defmodule Mix.Tasks.Social.DevTest do
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
   alias MediaCentaur.Nostr.Keys
-  alias MediaCentaur.Recommendations.Translation
+  alias MediaCentaur.Activities.Translation
   alias MediaCentaur.TMDB.Title
   alias Mix.Tasks.Social.Dev
 
@@ -23,8 +23,8 @@ defmodule Mix.Tasks.Social.DevTest do
   defp stored_recommendation(name, note) do
     title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: name})
 
-    title
-    |> Translation.to_event(note, Keys.pubkey(@other_secret))
+    :recommendation
+    |> Translation.to_event(title, [note: note], Keys.pubkey(@other_secret))
     |> Event.sign(@other_secret)
   end
 
@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Social.DevTest do
           relay
         )
 
-      assert output =~ "Published tmdb:movie:603"
+      assert output =~ "Published recommendation tmdb:movie:603"
 
       assert_received {:relay_in, ["EVENT", event_map]}
       assert {:ok, event} = Event.from_map(event_map)
@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Social.DevTest do
       relay = FakeRelay.start(auth: true)
 
       output = run(["delete", "movie", "603"], tmp_dir, relay)
-      assert output =~ "Withdrew tmdb:movie:603"
+      assert output =~ "Withdrew recommendation tmdb:movie:603"
 
       assert_received {:relay_in, ["EVENT", event_map]}
       assert {:ok, event} = Event.from_map(event_map)
@@ -116,9 +116,8 @@ defmodule Mix.Tasks.Social.DevTest do
   describe "feed" do
     test "prints a deletion as a withdrawn address", %{tmp_dir: tmp_dir} do
       deletion =
-        @other_secret
-        |> Keys.pubkey()
-        |> Translation.to_deletion(:movie, 42, nil)
+        :recommendation
+        |> Translation.to_deletion(Keys.pubkey(@other_secret), :movie, 42, nil)
         |> Event.sign(@other_secret)
 
       output = run(["feed"], tmp_dir, FakeRelay.start(events: [deletion]))
@@ -147,15 +146,15 @@ defmodule Mix.Tasks.Social.DevTest do
       title = Title.new!(%{tmdb_id: 603, media_type: :movie, name: "Sample Movie"})
 
       own =
-        title
-        |> Translation.to_event(nil, Keys.pubkey(friend_secret))
+        :recommendation
+        |> Translation.to_event(title, [note: nil], Keys.pubkey(friend_secret))
         |> Event.sign(friend_secret)
 
       relay = FakeRelay.start(events: [own])
 
       output = run(["feed"], tmp_dir, relay)
 
-      assert output =~ "friend  tmdb:movie:603"
+      assert output =~ "friend  recommendation  tmdb:movie:603"
       assert output =~ "Sample Movie"
     end
   end

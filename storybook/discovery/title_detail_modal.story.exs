@@ -112,7 +112,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
             detail(movie(), %{
               sender: "Sample Friend",
               note: "Watch it before anyone spoils the ending.",
-              recommended_at: ~U[2026-09-01 10:00:00Z],
+              acted_at: ~U[2026-09-01 10:00:00Z],
               own?: false,
               on_watchlist?: true
             })
@@ -122,7 +122,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
         id: :own_recommendation,
         description: "An own recommendation carries Delete recommendation as the tertiary verb.",
         attributes: %{
-          detail: detail(movie(), %{own?: true, recommended_at: ~U[2026-09-01 10:00:00Z]})
+          detail: detail(movie(), %{own?: true, acted_at: ~U[2026-09-01 10:00:00Z]})
         }
       },
       %Variation{

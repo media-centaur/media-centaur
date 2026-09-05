@@ -348,7 +348,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
 
       view |> form("#recommend-form", %{"note" => ""}) |> render_submit()
-      assert [%{tmdb_id: 777, note: nil}] = MediaCentaur.Recommendations.list_sent()
+      assert [%{tmdb_id: 777, note: nil}] = MediaCentaur.Activities.list_sent()
 
       await_supervised_tasks()
     end

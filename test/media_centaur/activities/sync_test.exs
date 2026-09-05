@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Recommendations.SyncTest do
+defmodule MediaCentaur.Activities.SyncTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
@@ -10,9 +10,9 @@ defmodule MediaCentaur.Recommendations.SyncTest do
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
   alias MediaCentaur.Nostr.Keys
-  alias MediaCentaur.Recommendations
-  alias MediaCentaur.Recommendations.Sync
-  alias MediaCentaur.Recommendations.Translation
+  alias MediaCentaur.Activities
+  alias MediaCentaur.Activities.Sync
+  alias MediaCentaur.Activities.Translation
   alias MediaCentaur.Secret
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
@@ -28,26 +28,30 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
     start_supervised!({Connections.Owner, backoff_ms: 50})
     start_supervised!(Sync)
-    Recommendations.subscribe()
+    Activities.subscribe()
     :ok
   end
 
   defp title(id), do: Title.new!(%{tmdb_id: id, media_type: :movie, name: "Sample Movie #{id}"})
 
   defp friend_event(id),
-    do: Event.sign(Translation.to_event(title(id), "from a friend", @friend_pubkey), @friend_secret)
+    do:
+      Event.sign(
+        Translation.to_event(:recommendation, title(id), [note: "from a friend"], @friend_pubkey),
+        @friend_secret
+      )
 
   test "on connect, a friend's stored recommendation lands in the feed" do
     relay = FakeRelay.start(events: [friend_event(1)])
     {:ok, _row} = Social.add_relay(relay.url)
 
-    assert_receive {:recommendation_received, _event}, 5_000
-    assert [%{recommendation: %{tmdb_id: 1}, nickname: "Sample Friend"}] = Recommendations.list_feed()
+    assert_receive {:activity_received, _event}, 5_000
+    assert [%{activity: %{tmdb_id: 1}, nickname: "Sample Friend"}] = Activities.list_feed()
     await_supervised_tasks()
   end
 
   test "own recommendations the relay lacks are published after its EOSE" do
-    {:ok, _rec} = Recommendations.recommend(title(7), "mine")
+    {:ok, _rec} = Activities.recommend(title(7), "mine")
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
 
@@ -56,8 +60,8 @@ defmodule MediaCentaur.Recommendations.SyncTest do
   end
 
   test "own recommendations the relay already has are not republished" do
-    {:ok, _rec} = Recommendations.recommend(title(7), "mine")
-    [own] = Recommendations.own_events()
+    {:ok, _rec} = Activities.recommend(title(7), "mine")
+    [own] = Activities.own_events()
     relay = FakeRelay.start(events: [own])
     {:ok, _row} = Social.add_relay(relay.url)
 
@@ -71,14 +75,18 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:relay_in,
-                    ["REQ", "feed", %{"authors" => authors, "kinds" => [32_160, 5], "limit" => 500}]},
+                    [
+                      "REQ",
+                      "feed",
+                      %{"authors" => authors, "kinds" => [32_160, 32_161, 32_162, 5], "limit" => 500}
+                    ]},
                    5_000
 
     assert @friend_pubkey in authors
     assert Identity.pubkey() in authors
 
     FakeRelay.push(relay, ["EVENT", "feed", Event.to_map(friend_event(2))])
-    assert_receive {:recommendation_received, _event}, 5_000
+    assert_receive {:activity_received, _event}, 5_000
     await_supervised_tasks()
   end
 
@@ -96,20 +104,29 @@ defmodule MediaCentaur.Recommendations.SyncTest do
 
   test "events from strangers on the relay are ignored" do
     stranger = Keys.generate()
-    event = Event.sign(Translation.to_event(title(3), nil, Keys.pubkey(stranger)), stranger)
+
+    event =
+      Event.sign(
+        Translation.to_event(:recommendation, title(3), [note: nil], Keys.pubkey(stranger)),
+        stranger
+      )
+
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
     assert_receive {:relay_in, ["REQ", "feed", _filter]}, 5_000
 
     FakeRelay.push(relay, ["EVENT", "feed", Event.to_map(event)])
-    refute_receive {:recommendation_received, _event}, 500
-    assert Recommendations.list_feed() == []
+    refute_receive {:activity_received, _event}, 500
+    assert Activities.list_feed() == []
   end
 
   defp friend_event_at(id, created_at),
     do:
       Event.sign(
-        %{Translation.to_event(title(id), "old", @friend_pubkey) | created_at: created_at},
+        %{
+          Translation.to_event(:recommendation, title(id), [note: "old"], @friend_pubkey)
+          | created_at: created_at
+        },
         @friend_secret
       )
 
@@ -123,7 +140,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
 
     assert_receive {:relay_in, ["REQ", "feed", first]}, 5_000
     refute Map.has_key?(first, "since")
-    assert_receive {:recommendation_received, _event}, 5_000
+    assert_receive {:activity_received, _event}, 5_000
 
     FakeRelay.drop(relay)
     # The reconnect sends "feed" twice (the owner replays its registered
@@ -131,8 +148,8 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     assert_receive {:relay_in, ["REQ", "feed", again]}, 5_000
     refute Map.has_key?(again, "since")
     refute_receive {:relay_in, ["REQ", "feed", %{"since" => _cursor}]}, 500
-    refute_receive {:recommendation_received, _event}, 100
-    assert [%{recommendation: %{tmdb_id: 1}}] = Recommendations.list_feed()
+    refute_receive {:activity_received, _event}, 100
+    assert [%{activity: %{tmdb_id: 1}}] = Activities.list_feed()
     await_supervised_tasks()
   end
 
@@ -161,18 +178,18 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     refute Map.has_key?(live, "since")
 
     render_all = fn ->
-      Recommendations.list_feed() |> Enum.map(& &1.recommendation.tmdb_id) |> Enum.sort()
+      Activities.list_feed() |> Enum.map(& &1.activity.tmdb_id) |> Enum.sort()
     end
 
-    assert_receive {:recommendation_received, _event}, 5_000
+    assert_receive {:activity_received, _event}, 5_000
     # The feed row lands on another process after the event; poll it.
     eventually(fn -> render_all.() == [1, 2, 3] end)
     await_supervised_tasks()
   end
 
   test "own deletions the relay lacks are published after its EOSE" do
-    {:ok, rec} = Recommendations.recommend(title(7), "mine")
-    {:ok, _gone} = Recommendations.delete(rec.id)
+    {:ok, rec} = Activities.recommend(title(7), "mine")
+    {:ok, _gone} = Activities.delete(rec.id)
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
 
@@ -183,8 +200,8 @@ defmodule MediaCentaur.Recommendations.SyncTest do
   end
 
   test "a relay refusing an own event is logged by what was refused" do
-    {:ok, rec} = Recommendations.recommend(title(7), "mine")
-    {:ok, _gone} = Recommendations.delete(rec.id)
+    {:ok, rec} = Activities.recommend(title(7), "mine")
+    {:ok, _gone} = Activities.delete(rec.id)
     relay = FakeRelay.start(accept: false, reason: "blocked: kind 5 is not stored by this relay")
     {:ok, _row} = Social.add_relay(relay.url)
 
@@ -195,7 +212,7 @@ defmodule MediaCentaur.Recommendations.SyncTest do
   end
 
   test "a relay refusing an own recommendation is logged as such" do
-    {:ok, _rec} = Recommendations.recommend(title(7), "mine")
+    {:ok, _rec} = Activities.recommend(title(7), "mine")
 
     relay =
       FakeRelay.start(
@@ -230,13 +247,19 @@ defmodule MediaCentaur.Recommendations.SyncTest do
 
   test "a friend's deletion arriving on the feed hides their recommendation" do
     now = System.os_time(:second)
-    {:ok, _rec} = Recommendations.ingest(friend_event_at(4, now - 10))
-    deletion = Event.sign(Translation.to_deletion(@friend_pubkey, :movie, 4, "x"), @friend_secret)
+    {:ok, _rec} = Activities.ingest(friend_event_at(4, now - 10))
+
+    deletion =
+      Event.sign(
+        Translation.to_deletion(:recommendation, @friend_pubkey, :movie, 4, "x"),
+        @friend_secret
+      )
+
     relay = FakeRelay.start(events: [deletion])
     {:ok, _row} = Social.add_relay(relay.url)
 
-    assert_receive {:recommendation_deleted, _event}, 5_000
-    assert Recommendations.list_feed() == []
+    assert_receive {:activity_deleted, _event}, 5_000
+    assert Activities.list_feed() == []
     await_supervised_tasks()
   end
 end

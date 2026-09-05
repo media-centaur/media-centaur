@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   `{:in_library, owner_id}` (links to the library detail), `{:state,
   acquisition_state}` (Planning / Downloading / Needs review — a fact,
   not a verb), `:download`, or `:track`. `scoped?` says the download
-  carries the series scope menu. `sender`, `note`, `recommended_at` and
+  carries the series scope menu. `sender`, `note`, `acted_at` and
   `own?` are the feed provenance and nil on a watchlist-born detail
   without one; `sender` is nil on an own recommendation (the modal
   reads `own?`).
@@ -34,9 +34,9 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :on_watchlist?,
     :sender,
     :note,
-    :recommended_at,
+    :acted_at,
     :own?,
-    :recommendation_id,
+    :activity_id,
     :preview
   ]
 
@@ -56,9 +56,9 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           on_watchlist?: boolean(),
           sender: String.t() | nil,
           note: String.t() | nil,
-          recommended_at: DateTime.t() | nil,
+          acted_at: DateTime.t() | nil,
           own?: boolean() | nil,
-          recommendation_id: Ecto.UUID.t() | nil,
+          activity_id: Ecto.UUID.t() | nil,
           preview: TitlePreview.t() | nil
         }
 end

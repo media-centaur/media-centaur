@@ -15,8 +15,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   Builds the detail for a title from the facts the host resolved:
   `library_owner_id`, `on_watchlist?`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
-  `backdrop_url`, `sender`, `note`, `recommended_at`, `own?`,
-  `recommendation_id`, `preview`. The primary action is the watchlist row's
+  `backdrop_url`, `sender`, `note`, `acted_at`, `own?`,
+  `activity_id`, `preview`. The primary action is the watchlist row's
   three-state rule with the acquisition state folded in between In
   library and Download.
   """
@@ -32,9 +32,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       on_watchlist?: Map.fetch!(facts, :on_watchlist?),
       sender: Map.get(facts, :sender),
       note: Map.get(facts, :note),
-      recommended_at: Map.get(facts, :recommended_at),
+      acted_at: Map.get(facts, :acted_at),
       own?: Map.get(facts, :own?),
-      recommendation_id: Map.get(facts, :recommendation_id),
+      activity_id: Map.get(facts, :activity_id),
       preview: Map.get(facts, :preview)
     }
   end

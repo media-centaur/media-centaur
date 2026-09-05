@@ -112,10 +112,10 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
       <:body>
         <div :if={@detail} class="space-y-4 px-1 pt-2">
           <p :if={@detail.own?} class="text-xs text-base-content/55">
-            You recommended this · {Format.relative_ago(@detail.recommended_at)}
+            You recommended this · {Format.relative_ago(@detail.acted_at)}
           </p>
           <p :if={@detail.sender} class="text-xs text-base-content/55">
-            Recommended by {@detail.sender} · {Format.relative_ago(@detail.recommended_at)}
+            Recommended by {@detail.sender} · {Format.relative_ago(@detail.acted_at)}
           </p>
           <p :if={@detail.note} class="text-sm">{@detail.note}</p>
           <PreviewBody.preview_body :if={@preview} preview={@preview} />

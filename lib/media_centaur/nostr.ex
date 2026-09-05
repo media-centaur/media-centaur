@@ -8,7 +8,7 @@ defmodule MediaCentaur.Nostr do
   maps; `Connection` adds the wire, and speaks NIP-01 frames plus the
   NIP-42 `AUTH` handshake. Nothing here knows what an event means —
   the domain that gives them meaning is
-  `MediaCentaur.Recommendations`; the relay list and the connections
+  `MediaCentaur.Activities`; the relay list and the connections
   keyed by it are `MediaCentaur.Social`.
 
   Crypto is `bitcoinex` (pure Elixir): secp256k1 keys, BIP-340 Schnorr

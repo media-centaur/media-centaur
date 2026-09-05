@@ -1,8 +1,8 @@
-defmodule MediaCentaur.Recommendations.TranslationTest do
+defmodule MediaCentaur.Activities.TranslationTest do
   use ExUnit.Case, async: true
 
   alias MediaCentaur.Nostr.Event
-  alias MediaCentaur.Recommendations.Translation
+  alias MediaCentaur.Activities.Translation
   alias MediaCentaur.Secret
   alias MediaCentaur.TMDB.Title
 
@@ -22,11 +22,12 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
   end
 
   test "to_event stamps the content schema version" do
-    assert %{"v" => 1} = Jason.decode!(Translation.to_event(title(), nil, @pubkey).content)
+    assert %{"v" => 1} =
+             Jason.decode!(Translation.to_event(:recommendation, title(), [note: nil], @pubkey).content)
   end
 
   test "from_event accepts an absent version and drops an unknown one" do
-    signed = Event.sign(Translation.to_event(title(), "note", @pubkey), @secret)
+    signed = Event.sign(Translation.to_event(:recommendation, title(), [note: "note"], @pubkey), @secret)
     content = Jason.decode!(signed.content)
 
     legacy = Event.sign(%{signed | content: Jason.encode!(Map.delete(content, "v"))}, @secret)
@@ -38,7 +39,7 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
 
   describe "deletion" do
     test "to_deletion names the signer's own address and the withdrawn event" do
-      event = Translation.to_deletion(@pubkey, :movie, 603, "abc")
+      event = Translation.to_deletion(:recommendation, @pubkey, :movie, 603, "abc")
 
       assert event.kind == 5
       assert Event.tag_value(event, "a") == "32160:#{@pubkey}:tmdb:movie:603"
@@ -47,23 +48,23 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
     end
 
     test "to_deletion without a known event id carries no e tag" do
-      event = Translation.to_deletion(@pubkey, :movie, 603, nil)
+      event = Translation.to_deletion(:recommendation, @pubkey, :movie, 603, nil)
       assert Event.tag_value(event, "a") == "32160:#{@pubkey}:tmdb:movie:603"
       assert Event.tag_value(event, "e") == nil
     end
 
     test "to_event and to_deletion take the wire time and the domain time apart" do
       event =
-        Translation.to_event(title(), nil, @pubkey,
+        Translation.to_event(:recommendation, title(), [note: nil], @pubkey,
           created_at: 1_700_000_000,
-          recommended_at: 1_600_000_000
+          acted_at: 1_600_000_000
         )
 
       assert event.created_at == 1_700_000_000
       assert %{"recommended_at" => 1_600_000_000} = Jason.decode!(event.content)
 
       deletion =
-        Translation.to_deletion(@pubkey, :movie, 603, "abc",
+        Translation.to_deletion(:recommendation, @pubkey, :movie, 603, "abc",
           created_at: 1_700_000_001,
           deleted_at: 1_600_000_001
         )
@@ -74,18 +75,18 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
 
     test "both default to now, on the wire and in the payload" do
       before = System.os_time(:second)
-      event = Translation.to_event(title(), nil, @pubkey)
+      event = Translation.to_event(:recommendation, title(), [note: nil], @pubkey)
       assert event.created_at >= before
       assert Jason.decode!(event.content)["recommended_at"] == event.created_at
 
-      deletion = Translation.to_deletion(@pubkey, :movie, 603, nil)
+      deletion = Translation.to_deletion(:recommendation, @pubkey, :movie, 603, nil)
       assert Event.tag_value(deletion, "deleted_at") == Integer.to_string(deletion.created_at)
     end
 
     test "from_deletion takes deleted_at from the tag and falls back to created_at" do
       tagged =
         Event.sign(
-          Translation.to_deletion(@pubkey, :movie, 603, nil,
+          Translation.to_deletion(:recommendation, @pubkey, :movie, 603, nil,
             created_at: 1_700_000_001,
             deleted_at: 1_600_000_001
           ),
@@ -98,7 +99,7 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
       bare =
         Event.sign(
           %{
-            Translation.to_deletion(@pubkey, :movie, 603, nil)
+            Translation.to_deletion(:recommendation, @pubkey, :movie, 603, nil)
             | tags: [["a", "32160:#{@pubkey}:tmdb:movie:603"]],
               created_at: 1_700_000_001
           },
@@ -109,7 +110,8 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
     end
 
     test "from_deletion round-trips a signed deletion into tombstone attrs" do
-      signed = Event.sign(Translation.to_deletion(@pubkey, :tv_series, 42, "abc"), @secret)
+      signed =
+        Event.sign(Translation.to_deletion(:recommendation, @pubkey, :tv_series, 42, "abc"), @secret)
 
       assert {:ok, attrs} = Translation.from_deletion(signed)
       assert attrs.author_pubkey == @pubkey
@@ -121,27 +123,37 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
 
     test "from_deletion refuses another signer's address, a bad coordinate, and the wrong kind" do
       other = String.duplicate("a", 64)
-      foreign = Event.sign(Translation.to_deletion(other, :movie, 603, "abc"), @secret)
+      foreign = Event.sign(Translation.to_deletion(:recommendation, other, :movie, 603, "abc"), @secret)
       assert {:error, :not_author} = Translation.from_deletion(foreign)
 
       bad =
         Event.sign(
-          %{Translation.to_deletion(@pubkey, :movie, 603, "abc") | tags: [["a", "1:x:y"]]},
+          %{
+            Translation.to_deletion(:recommendation, @pubkey, :movie, 603, "abc")
+            | tags: [["a", "1:x:y"]]
+          },
           @secret
         )
 
       assert {:error, :bad_address} = Translation.from_deletion(bad)
 
-      missing = Event.sign(%{Translation.to_deletion(@pubkey, :movie, 603, "abc") | tags: []}, @secret)
+      missing =
+        Event.sign(
+          %{Translation.to_deletion(:recommendation, @pubkey, :movie, 603, "abc") | tags: []},
+          @secret
+        )
+
       assert {:error, :bad_address} = Translation.from_deletion(missing)
 
-      recommendation = Event.sign(Translation.to_event(title(), nil, @pubkey), @secret)
+      recommendation =
+        Event.sign(Translation.to_event(:recommendation, title(), [note: nil], @pubkey), @secret)
+
       assert {:error, :wrong_kind} = Translation.from_deletion(recommendation)
     end
   end
 
   test "to_event builds an addressable kind-32160 event with the title snapshot and note" do
-    event = Translation.to_event(title(), "Watch it twice.", @pubkey)
+    event = Translation.to_event(:recommendation, title(), [note: "Watch it twice."], @pubkey)
 
     assert event.kind == 32_160
     assert event.pubkey == @pubkey
@@ -160,11 +172,16 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
   end
 
   test "a nil note serializes as null" do
-    assert %{"note" => nil} = Jason.decode!(Translation.to_event(title(), nil, @pubkey).content)
+    assert %{"note" => nil} =
+             Jason.decode!(Translation.to_event(:recommendation, title(), [note: nil], @pubkey).content)
   end
 
   test "from_event round-trips a signed event into attrs" do
-    signed = Event.sign(Translation.to_event(title(), "Watch it twice.", @pubkey), @secret)
+    signed =
+      Event.sign(
+        Translation.to_event(:recommendation, title(), [note: "Watch it twice."], @pubkey),
+        @secret
+      )
 
     assert {:ok, attrs} = Translation.from_event(signed)
     assert attrs.event_id == signed.id
@@ -176,12 +193,12 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
              attrs.title
 
     assert attrs.note == "Watch it twice."
-    assert attrs.recommended_at == DateTime.from_unix!(signed.created_at)
+    assert attrs.acted_at == DateTime.from_unix!(signed.created_at)
     assert attrs.raw_event == Event.to_map(signed)
   end
 
   test "from_event rejects the wrong kind, a bad address, mismatched identity, and junk content" do
-    good = Event.sign(Translation.to_event(title(), nil, @pubkey), @secret)
+    good = Event.sign(Translation.to_event(:recommendation, title(), [note: nil], @pubkey), @secret)
 
     assert {:error, :wrong_kind} = Translation.from_event(%{good | kind: 1})
     assert {:error, :bad_address} = Translation.from_event(%{good | tags: [["d", "imdb:tt1"]]})
@@ -214,17 +231,18 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
   test "from_event takes recommended_at from the content and falls back to created_at" do
     stamped =
       Event.sign(
-        Translation.to_event(title(), nil, @pubkey,
+        Translation.to_event(:recommendation, title(), [note: nil], @pubkey,
           created_at: 1_700_000_000,
-          recommended_at: 1_600_000_000
+          acted_at: 1_600_000_000
         ),
         @secret
       )
 
-    assert {:ok, %{recommended_at: ~U[2020-09-13 12:26:40Z], created_at: 1_700_000_000}} =
+    assert {:ok, %{acted_at: ~U[2020-09-13 12:26:40Z], created_at: 1_700_000_000}} =
              Translation.from_event(stamped)
 
-    bare = Translation.to_event(title(), nil, @pubkey, created_at: 1_700_000_000)
+    bare =
+      Translation.to_event(:recommendation, title(), [note: nil], @pubkey, created_at: 1_700_000_000)
 
     with_content = fn fun ->
       Event.sign(
@@ -234,7 +252,7 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
     end
 
     without = with_content.(&Map.delete(&1, "recommended_at"))
-    assert {:ok, %{recommended_at: ~U[2023-11-14 22:13:20Z]}} = Translation.from_event(without)
+    assert {:ok, %{acted_at: ~U[2023-11-14 22:13:20Z]}} = Translation.from_event(without)
 
     wrong = with_content.(&Map.put(&1, "recommended_at", "yesterday"))
     assert {:error, :bad_content} = Translation.from_event(wrong)
@@ -244,8 +262,11 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
     over_cap = String.duplicate("n", 501)
     at_cap = String.duplicate("n", 500)
 
-    over_event = Event.sign(Translation.to_event(title(), over_cap, @pubkey), @secret)
-    at_event = Event.sign(Translation.to_event(title(), at_cap, @pubkey), @secret)
+    over_event =
+      Event.sign(Translation.to_event(:recommendation, title(), [note: over_cap], @pubkey), @secret)
+
+    at_event =
+      Event.sign(Translation.to_event(:recommendation, title(), [note: at_cap], @pubkey), @secret)
 
     assert {:error, :bad_content} = Translation.from_event(over_event)
     assert {:ok, %{note: ^at_cap}} = Translation.from_event(at_event)
@@ -253,7 +274,7 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
 
   test "from_event rejects a title name over the cap" do
     long_title = Title.new!(%{tmdb_id: 603, media_type: :movie, name: String.duplicate("n", 301)})
-    event = Event.sign(Translation.to_event(long_title, nil, @pubkey), @secret)
+    event = Event.sign(Translation.to_event(:recommendation, long_title, [note: nil], @pubkey), @secret)
 
     assert {:error, :bad_content} = Translation.from_event(event)
   end
@@ -267,7 +288,7 @@ defmodule MediaCentaur.Recommendations.TranslationTest do
         overview: String.duplicate("n", 2001)
       })
 
-    event = Event.sign(Translation.to_event(long_title, nil, @pubkey), @secret)
+    event = Event.sign(Translation.to_event(:recommendation, long_title, [note: nil], @pubkey), @secret)
 
     assert {:error, :bad_content} = Translation.from_event(event)
   end

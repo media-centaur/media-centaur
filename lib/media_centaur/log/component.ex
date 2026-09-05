@@ -92,10 +92,10 @@ defmodule MediaCentaur.Log.Component do
     "apps" => :apps,
     "settings" => :settings,
     # The relay socket is its own component; the roster and the
-    # recommendation sync are the social graph.
+    # activity sync are the social graph.
     "nostr" => :nostr,
     "social" => :social,
-    "recommendations" => :social,
+    "activities" => :social,
     # Infrastructure the user never names. Self-update lives here too:
     # its logs have always said :system, and the crash table now agrees.
     "application" => :system,

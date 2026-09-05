@@ -201,7 +201,7 @@ defmodule MediaCentaur.Console.EntryTest do
       for {module, component} <- [
             {MediaCentaur.Nostr.Connection, :nostr},
             {MediaCentaur.Social.Connections.Owner, :social},
-            {MediaCentaur.Recommendations.Sync, :social}
+            {MediaCentaur.Activities.Sync, :social}
           ] do
         meta = %{crash_reason: {%RuntimeError{message: "boom"}, [{module, :handle_info, 2, []}]}}
 

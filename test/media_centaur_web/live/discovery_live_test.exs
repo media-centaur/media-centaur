@@ -12,8 +12,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Library
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
-  alias MediaCentaur.Recommendations
-  alias MediaCentaur.Recommendations.Translation
+  alias MediaCentaur.Activities
+  alias MediaCentaur.Activities.Translation
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings
@@ -203,7 +203,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     defp friend_event(tmdb_id, note) do
       title = Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie #{tmdb_id}"})
-      Event.sign(Translation.to_event(title, note, @friend_pubkey), @friend_secret)
+
+      Event.sign(
+        Translation.to_event(:recommendation, title, [note: note], @friend_pubkey),
+        @friend_secret
+      )
     end
 
     test "empty state names the prerequisites, then the quiet empty state", %{conn: conn} do
@@ -221,7 +225,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "rows show the title, who and when, the note, and add to the watchlist", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
+      {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
 
       {:ok, view, _html} = live(conn, "/discovery")
 
@@ -244,7 +248,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert_patch(view, "/discovery")
       assert has_element?(view, "#feed-#{rec.id}", "On watchlist")
 
-      assert [%{item: %{source: :friend, recommendation_id: rec_id, note: "Watch it."}}] =
+      assert [%{item: %{source: :friend, activity_id: rec_id, note: "Watch it."}}] =
                Discovery.list_watchlist()
 
       assert rec_id == rec.id
@@ -254,7 +258,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "a title the library has shows In library and links to it", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, rec} = Recommendations.ingest(friend_event(777, nil))
+      {:ok, rec} = Activities.ingest(friend_event(777, nil))
 
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
@@ -271,7 +275,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, view, _html} = live(conn, "/discovery")
 
-      {:ok, rec} = Recommendations.ingest(friend_event(778, "live"))
+      {:ok, rec} = Activities.ingest(friend_event(778, "live"))
       render_until(view, fn _html -> has_element?(view, "#feed-#{rec.id}") end)
 
       await_supervised_tasks()
@@ -279,7 +283,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "the tab strip counts the feed", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, _rec} = Recommendations.ingest(friend_event(777, nil))
+      {:ok, _rec} = Activities.ingest(friend_event(777, nil))
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Recommendations")
@@ -290,7 +294,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "an own recommendation reads You, not from, and still counts", %{conn: conn} do
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
-      {:ok, rec} = Recommendations.recommend(title, "mine")
+      {:ok, rec} = Activities.recommend(title, "mine")
 
       {:ok, view, _html} = live(conn, "/discovery")
       view |> element("#feed-scope-own") |> render_click()
@@ -323,9 +327,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "Yours shows own rows with Delete; Incoming hides them; delete withdraws", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, theirs} = Recommendations.ingest(friend_event(777, nil))
+      {:ok, theirs} = Activities.ingest(friend_event(777, nil))
       title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
-      {:ok, mine} = Recommendations.recommend(title, "mine")
+      {:ok, mine} = Activities.recommend(title, "mine")
 
       {:ok, view, _html} = live(conn, "/discovery")
       assert has_element?(view, "#feed-#{theirs.id}")
@@ -347,7 +351,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute has_element?(view, "#feed-#{mine.id}")
       assert render(view) =~ "Recommendation withdrawn"
       assert render(view) =~ "Titles you recommend from their detail page show up here."
-      assert Recommendations.list_sent() == []
+      assert Activities.list_sent() == []
 
       await_supervised_tasks()
     end
@@ -359,19 +363,25 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       event =
         Event.sign(
-          %{Translation.to_event(title, nil, @friend_pubkey) | created_at: now - 5},
+          %{
+            Translation.to_event(:recommendation, title, [note: nil], @friend_pubkey)
+            | created_at: now - 5
+          },
           @friend_secret
         )
 
-      {:ok, rec} = Recommendations.ingest(event)
+      {:ok, rec} = Activities.ingest(event)
 
       {:ok, view, _html} = live(conn, "/discovery")
       assert has_element?(view, "#feed-#{rec.id}")
 
       deletion =
-        Event.sign(Translation.to_deletion(@friend_pubkey, :movie, 779, rec.event_id), @friend_secret)
+        Event.sign(
+          Translation.to_deletion(:recommendation, @friend_pubkey, :movie, 779, rec.event_id),
+          @friend_secret
+        )
 
-      {:ok, _gone} = Recommendations.ingest(deletion)
+      {:ok, _gone} = Activities.ingest(deletion)
       render_until(view, fn _html -> not has_element?(view, "#feed-#{rec.id}") end)
 
       await_supervised_tasks()
@@ -567,12 +577,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "a friend-sourced watchlist row says who recommended it", %{conn: conn} do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
+      {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
 
       {:ok, _} =
         Discovery.add_to_watchlist(rec.title, %{
           source: :friend,
-          recommendation_id: rec.id,
+          activity_id: rec.id,
           note: rec.note
         })
 
@@ -584,12 +594,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "a row whose friend is gone shows no marker", %{conn: conn} do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, rec} = Recommendations.ingest(friend_event(777, "Watch it."))
+      {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
 
       {:ok, _} =
         Discovery.add_to_watchlist(rec.title, %{
           source: :friend,
-          recommendation_id: rec.id,
+          activity_id: rec.id,
           note: rec.note
         })
 

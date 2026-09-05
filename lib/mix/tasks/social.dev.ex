@@ -4,8 +4,8 @@ defmodule Mix.Tasks.Social.Dev do
 
   @moduledoc """
   The command line for the **dev friend**: a second Nostr identity, kept
-  in `priv/dev-social/friend.nsec`, that publishes recommendations to the
-  dev relay and reads back what the relay holds. It is how a Social
+  in `priv/dev-social/friend.nsec`, that publishes activities to the dev
+  relay and reads back what the relay holds. It is how a Social
   feature gets "the other user" during development. `just social` prints
   the full setup walkthrough.
 
@@ -15,7 +15,10 @@ defmodule Mix.Tasks.Social.Dev do
 
       mix social.dev npub
       mix social.dev recommend movie 603 --name "Sample Movie" --note "try it"
+      mix social.dev watched tv_series 1399 --name "Sample Show" --season 2 --episode 5
+      mix social.dev tracking movie 603 --name "Sample Movie"
       mix social.dev delete movie 603
+      mix social.dev delete watched tv_series 1399
       mix social.dev feed
   """
   use Mix.Task
@@ -25,7 +28,8 @@ defmodule Mix.Tasks.Social.Dev do
   alias MediaCentaur.Nostr.Filter
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Nostr.OneShot
-  alias MediaCentaur.Recommendations.Translation
+  alias MediaCentaur.Activities.Activity.Episode
+  alias MediaCentaur.Activities.Translation
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Format
 
@@ -41,7 +45,10 @@ defmodule Mix.Tasks.Social.Dev do
     year: :string,
     poster_path: :string,
     overview: :string,
-    note: :string
+    note: :string,
+    season: :integer,
+    episode: :integer,
+    episode_name: :string
   ]
 
   @usage """
@@ -58,12 +65,21 @@ defmodule Mix.Tasks.Social.Dev do
         Example:
           mix social.dev recommend movie 603 --name "Sample Movie" --note "try it"
 
-    mix social.dev delete <movie|tv_series> <tmdb_id>
-        Withdraw the friend's recommendation of a title (a kind 5 deletion).
+    mix social.dev watched <movie|tv_series> <tmdb_id> --name NAME [options]
+        Publish a watched activity as the friend. A TV series takes the episode finished:
+          --season N --episode N [--episode-name TEXT]
+        Title options as for recommend.
+
+    mix social.dev tracking <movie|tv_series> <tmdb_id> --name NAME [options]
+        Publish a tracking activity as the friend. Title options as for recommend.
+
+    mix social.dev delete [recommendation|watched|tracking] <movie|tv_series> <tmdb_id>
+        Withdraw one of the friend's activities (a kind 5 deletion); the kind
+        defaults to recommendation.
           --relay URL           default #{@default_relay}
 
     mix social.dev feed
-        List every recommendation and deletion the dev relay holds, newest first.
+        List every activity and deletion the dev relay holds, newest first.
 
   The friend's key lives in #{@default_dir}/friend.nsec (--dir to change).
   Run `just social` for the full setup walkthrough.
@@ -90,14 +106,17 @@ defmodule Mix.Tasks.Social.Dev do
   defp dispatch(["npub"], opts),
     do: opts |> secret() |> Keys.pubkey() |> Keys.to_npub() |> Mix.shell().info()
 
-  defp dispatch(["recommend", type, tmdb_id], opts), do: recommend(type, tmdb_id, opts)
-  defp dispatch(["delete", type, tmdb_id], opts), do: delete(type, tmdb_id, opts)
+  defp dispatch(["recommend", type, tmdb_id], opts), do: publish(:recommendation, type, tmdb_id, opts)
+  defp dispatch(["watched", type, tmdb_id], opts), do: publish(:watched, type, tmdb_id, opts)
+  defp dispatch(["tracking", type, tmdb_id], opts), do: publish(:tracking, type, tmdb_id, opts)
+  defp dispatch(["delete", type, tmdb_id], opts), do: delete(:recommendation, type, tmdb_id, opts)
+  defp dispatch(["delete", kind, type, tmdb_id], opts), do: delete(parse_kind(kind), type, tmdb_id, opts)
   defp dispatch(["feed"], opts), do: feed(opts)
   defp dispatch(_other, _opts), do: fail("Unknown command.")
 
-  # --- recommend ---------------------------------------------------------
+  # --- publish -----------------------------------------------------------
 
-  defp recommend(type, tmdb_id, opts) do
+  defp publish(kind, type, tmdb_id, opts) do
     media_type = parse_media_type(type)
     tmdb_id = parse_tmdb_id(tmdb_id)
 
@@ -118,13 +137,38 @@ defmodule Mix.Tasks.Social.Dev do
         overview: opts[:overview]
       })
 
-    event = title |> Translation.to_event(opts[:note], Keys.pubkey(secret)) |> Event.sign(secret)
+    payload = [note: opts[:note], episode: episode(kind, media_type, opts)]
+    event = kind |> Translation.to_event(title, payload, Keys.pubkey(secret)) |> Event.sign(secret)
 
     case OneShot.publish(relay, event, signer(secret), timeout_ms: @relay_timeout_ms) do
-      :ok -> Mix.shell().info("Published #{Translation.address(title)} as the friend to #{relay}")
-      {:error, reason} -> fail(relay_error(relay, reason))
+      :ok ->
+        Mix.shell().info("Published #{kind} #{Translation.address(title)} as the friend to #{relay}")
+
+      {:error, reason} ->
+        fail(relay_error(relay, reason))
     end
   end
+
+  # A watched TV series names the episode finished; every other kind
+  # carries none, and a movie's --season/--episode are ignored.
+  defp episode(:watched, :tv_series, opts) do
+    case {opts[:season], opts[:episode]} do
+      {season, episode} when is_integer(season) and is_integer(episode) ->
+        %Episode{season_number: season, episode_number: episode, name: opts[:episode_name]}
+
+      _missing ->
+        fail("--season and --episode are required for a watched TV series.")
+    end
+  end
+
+  defp episode(_kind, _media_type, _opts), do: nil
+
+  defp parse_kind("recommendation"), do: :recommendation
+  defp parse_kind("watched"), do: :watched
+  defp parse_kind("tracking"), do: :tracking
+
+  defp parse_kind(other),
+    do: fail("Kind must be recommendation, watched or tracking, got #{inspect(other)}.")
 
   defp parse_media_type("movie"), do: :movie
   defp parse_media_type("tv_series"), do: :tv_series
@@ -141,21 +185,23 @@ defmodule Mix.Tasks.Social.Dev do
 
   # The dev friend keeps no record of what it published, so the deletion
   # names the address alone (the `e` tag is optional in the contract).
-  defp delete(type, tmdb_id, opts) do
+  defp delete(kind, type, tmdb_id, opts) do
     media_type = parse_media_type(type)
     tmdb_id = parse_tmdb_id(tmdb_id)
     secret = secret(opts)
     relay = Keyword.get(opts, :relay, @default_relay)
 
     event =
-      secret
-      |> Keys.pubkey()
-      |> Translation.to_deletion(media_type, tmdb_id, nil)
+      kind
+      |> Translation.to_deletion(Keys.pubkey(secret), media_type, tmdb_id, nil)
       |> Event.sign(secret)
 
     case OneShot.publish(relay, event, signer(secret), timeout_ms: @relay_timeout_ms) do
-      :ok -> Mix.shell().info("Withdrew tmdb:#{media_type}:#{tmdb_id} as the friend from #{relay}")
-      {:error, reason} -> fail(relay_error(relay, reason))
+      :ok ->
+        Mix.shell().info("Withdrew #{kind} tmdb:#{media_type}:#{tmdb_id} as the friend from #{relay}")
+
+      {:error, reason} ->
+        fail(relay_error(relay, reason))
     end
   end
 
@@ -165,13 +211,13 @@ defmodule Mix.Tasks.Social.Dev do
     secret = secret(opts)
     relay = Keyword.get(opts, :relay, @default_relay)
     own_pubkey = Keys.pubkey(secret)
-    kinds = [Translation.kind(), Translation.deletion_kind()]
+    kinds = Translation.kinds() ++ [Translation.deletion_kind()]
 
     filters = [Filter.new(kinds: kinds)]
 
     case OneShot.query(relay, filters, signer(secret), timeout_ms: @relay_timeout_ms) do
       {:ok, []} ->
-        Mix.shell().info("The relay holds no recommendations.")
+        Mix.shell().info("The relay holds no activities.")
 
       {:ok, events} ->
         events
@@ -190,7 +236,7 @@ defmodule Mix.Tasks.Social.Dev do
 
     case Translation.from_deletion(event) do
       {:ok, attrs} ->
-        "#{author}  tmdb:#{attrs.media_type}:#{attrs.tmdb_id}  withdrawn  (#{time})"
+        "#{author}  #{attrs.kind}  tmdb:#{attrs.media_type}:#{attrs.tmdb_id}  withdrawn  (#{time})"
 
       {:error, reason} ->
         "#{author}  #{Event.tag_value(event, "a")}  <unreadable deletion: #{reason}>  (#{time})"
@@ -203,8 +249,19 @@ defmodule Mix.Tasks.Social.Dev do
 
     case Translation.from_event(event) do
       {:ok, attrs} ->
-        note = if attrs.note, do: "  — #{attrs.note}", else: ""
-        "#{author}  #{Translation.address(attrs.title)}  #{inspect(attrs.title.name)}#{note}  (#{time})"
+        detail =
+          case attrs do
+            %{note: note} when is_binary(note) ->
+              "  — #{note}"
+
+            %{episode: %Episode{season_number: season, episode_number: episode}} ->
+              "  S#{season}E#{episode}"
+
+            _plain ->
+              ""
+          end
+
+        "#{author}  #{attrs.kind}  #{Translation.address(attrs.title)}  #{inspect(attrs.title.name)}#{detail}  (#{time})"
 
       {:error, reason} ->
         "#{author}  #{Event.tag_value(event, "d")}  <unreadable: #{reason}>  (#{time})"
