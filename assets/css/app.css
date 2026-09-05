@@ -1619,6 +1619,18 @@ body:has(.modal-backdrop[data-state="open"]) {
   outline-color: var(--color-primary);
 }
 
+/* daisyUI's `.card` base carries `outline: 2px solid transparent`, so the
+   colour pre-set above painted a permanent primary edge on EVERY card in
+   keyboard/gamepad mode and the focused card's ring — same colour, same
+   width, 2px further out — stopped reading as a cursor (audit DS4). A
+   card draws no outline until it is focused; the focus rule above sets
+   width and offset itself. Selection is the inset box-shadow ring on the
+   card, never an outline (UIDR-020). */
+[data-input=keyboard] .card[data-nav-item]:not(:focus),
+[data-input=gamepad] .card[data-nav-item]:not(:focus) {
+  outline-width: 0;
+}
+
 /* Subsystem health tiles: gold focus highlight (keyboard/gamepad nav). The
    focused subsystem reads as the active card on the status board — a warmer,
    stronger cue than the default primary ring. Gold is an intentional
