@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Live.EntityModalDeleteFolderSafetyTest do
   `EntityModal.run_delete/1`'s `{:folder, path}` and `:all` branches now
   gate the recursive folder delete on
   `MediaCentaur.DeleteTargets.safe_to_delete_folder?/2` before calling
-  `FileEventHandler.delete_folder/2` — closing the gap where a folder
+  `Deletion.delete_folder/2` — closing the gap where a folder
   shared with another already-imported entity's files could be wiped
   wholesale. Split from `entity_modal_test.exs` (which is a plain
   `ExUnit.Case, async: true` for pure-function tests) because this needs

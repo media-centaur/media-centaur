@@ -9,7 +9,7 @@ defmodule MediaCentaur.Library.AbsenceSweeperTest do
   rows. Phase 6 of the library-presence-unification campaign moved
   TTL purge to `Library.AbsenceSweeper` operating on
   `Library.FilePresence`; the sweeper drives cascade cleanup
-  explicitly via `FileEventHandler.cleanup_removed_files/1` before
+  explicitly via `Deletion.cleanup_removed_files/1` before
   `FilePresence.delete_paths/1` (ADR-046).
 
   Asserts on observable state — `FilePresence` / `WatchedFile` /

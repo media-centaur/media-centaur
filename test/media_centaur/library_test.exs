@@ -1231,7 +1231,7 @@ defmodule MediaCentaur.LibraryTest do
     test "returns nil when the WatchedFile has been removed" do
       # Post-Phase-4 (library-presence-unification): "absence" is now
       # structural — no WatchedFile means absent. Per ADR-046, the
-      # application drives cascade cleanup via FileEventHandler before
+      # application drives cascade cleanup via Library.Deletion before
       # dropping the FilePresence row.
       movie = create_standalone_movie(%{name: "Absent File"})
       playable_item = create_playable_item_for_movie(movie)
@@ -1242,7 +1242,7 @@ defmodule MediaCentaur.LibraryTest do
           file_path: "/media/absent.mkv"
         })
 
-      MediaCentaur.Library.FileEventHandler.cleanup_removed_files([file.file_path])
+      MediaCentaur.Library.Deletion.cleanup_removed_files([file.file_path])
       MediaCentaur.Library.FilePresence.delete_paths([file.file_path])
 
       assert Library.Files.playable_file_path(playable_item.id) == nil

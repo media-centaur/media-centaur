@@ -10,6 +10,7 @@ defmodule MediaCentaur.Library do
       Containers,
       ContentUrls,
       ContinueWatchingProgress,
+      Deletion,
       EntityShape,
       EntityView,
       Episode,

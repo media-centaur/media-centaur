@@ -44,7 +44,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Settings.Config
-  alias MediaCentaur.Library.FileEventHandler
+  alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.Helpers
 
@@ -114,9 +114,9 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
 
       # Run entity cleanup BEFORE deleting FilePresence — the
       # Phase-3 FK cascade would otherwise remove WatchedFile / ExtraFile
-      # ahead of `FileEventHandler.cleanup_removed_files/1`, leaving no
+      # ahead of `Deletion.cleanup_removed_files/1`, leaving no
       # seed for the entity-cascade traversal.
-      entity_ids = FileEventHandler.cleanup_removed_files(expired_paths)
+      entity_ids = Deletion.cleanup_removed_files(expired_paths)
 
       # Cascade-delete is a no-op now (dependent rows already deleted
       # by cleanup_removed_files); this leaves the presence row itself
