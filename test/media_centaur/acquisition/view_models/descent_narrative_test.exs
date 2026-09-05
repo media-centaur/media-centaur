@@ -18,9 +18,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrativeTest do
   test "initial/1 narrates the strategy before any event lands" do
     view = DescentNarrative.initial(24)
 
-    assert view.headline ==
-             "Planning the search — broadest releases first, drilling down only for what's still missing."
-
     assert Enum.map(view.rows, &{&1.id, &1.state}) ==
              [series: :pending, seasons: :pending, episodes: :pending]
 
@@ -41,7 +38,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrativeTest do
         )
       )
 
-    assert view.headline == "Now searching season packs — 4 episodes still need coverage…"
     assert Enum.find(view.rows, &(&1.id == :seasons)).detail == "searching — 4 terms…"
   end
 
@@ -57,8 +53,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrativeTest do
           24
         )
       )
-
-    assert view.headline == "Now searching season packs — 1 episode still needs coverage…"
   end
 
   test "a done rung's detail says what it changed" do
@@ -77,7 +71,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrativeTest do
     rows = Map.new(view.rows, &{&1.id, &1.detail})
     assert rows[:series] == "nothing usable found"
     assert rows[:seasons] == "covered 23 episodes — 1 still missing"
-    assert view.headline == "Now hunting individual episodes — 1 episode still uncovered…"
   end
 
   test "a finished descent with skipped rungs explains the early stop" do
@@ -93,7 +86,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrativeTest do
         )
       )
 
-    assert view.headline == "Everything covered — the deeper searches weren't needed."
     assert Enum.find(view.rows, &(&1.id == :episodes)).detail == "not needed — already covered"
     assert Enum.find(view.rows, &(&1.id == :seasons)).detail == "covered everything that was left"
   end
@@ -111,7 +103,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrativeTest do
         )
       )
 
-    assert view.headline == "Search finished — 2 episodes couldn't be found anywhere."
     assert Enum.find(view.rows, &(&1.id == :episodes)).detail == "nothing usable found"
   end
 end

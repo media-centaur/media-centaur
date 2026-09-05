@@ -2859,7 +2859,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_param: plan_id,
           plan_stage: :board,
           plan_board: board,
-          plan_gap_verdict: plan_gap_verdict(plan, board, socket.assigns.search_health),
+          plan_gap_verdict: plan_verdict_for(socket, plan_id, plan, board),
           plan_descent: plan_descent_for(socket, plan_id, board),
           plan_error: nil,
           plan_last_activity: if(!switching_plan?, do: socket.assigns.plan_last_activity)
@@ -2897,6 +2897,26 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   # Keep a live-updated panel across board reloads; seed the itinerary
   # for a freshly-opened planning board; movies don't narrate.
+  # A planning TV board's verdict is the searching world (kept across
+  # re-reads of the same plan so a DescentStatus event's headline is
+  # not clobbered by the initial one); a ready board's is the diagnosis.
+  defp plan_verdict_for(socket, plan_id, plan, board) do
+    cond do
+      board.status == :planning and board.movie? ->
+        nil
+
+      board.status == :planning and socket.assigns.plan_param == plan_id and
+          match?(%GapVerdict{world: :searching}, socket.assigns.plan_gap_verdict) ->
+        socket.assigns.plan_gap_verdict
+
+      board.status == :planning ->
+        GapVerdict.searching_initial(board.wanted)
+
+      true ->
+        plan_gap_verdict(plan, board, socket.assigns.search_health)
+    end
+  end
+
   defp plan_descent_for(socket, plan_id, board) do
     cond do
       socket.assigns.plan_param == plan_id && socket.assigns.plan_descent ->
@@ -2941,7 +2961,10 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp maybe_note_plan_descent(socket, %PlanEvents.DescentStatus{} = status) do
     if socket.assigns.plan_param == status.plan_id do
-      assign(socket, plan_descent: DescentNarrative.build(status))
+      assign(socket,
+        plan_descent: DescentNarrative.build(status),
+        plan_gap_verdict: GapVerdict.searching(status) || socket.assigns.plan_gap_verdict
+      )
     else
       socket
     end

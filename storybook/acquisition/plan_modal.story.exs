@@ -183,8 +183,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           open: true,
           stage: :board,
           board: board(:planning),
+          gap_verdict: gap_verdict(:searching),
           descent: %DescentNarrative.View{
-            headline: "Now searching season packs — 2 episodes still need coverage…",
             rows: [
               %DescentNarrative.Row{
                 id: :series,
@@ -780,7 +780,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
 
   defp descent(:finished_below) do
     %DescentNarrative.View{
-      headline: "Search finished.",
       rows: [
         %DescentNarrative.Row{
           id: :series,
@@ -802,6 +801,18 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       ]
     }
+  end
+
+  defp gap_verdict(:searching) do
+    GapVerdict.searching(%MediaCentaur.Acquisition.PlanEvents.DescentStatus{
+      plan_id: "story",
+      wanted: 6,
+      stages: [
+        %{id: :series, state: :done, term_count: 1, residual_after: 2},
+        %{id: :seasons, state: :active, term_count: 4, residual_after: nil},
+        %{id: :episodes, state: :pending, term_count: nil, residual_after: nil}
+      ]
+    })
   end
 
   defp gap_verdict(:below_preference_tv) do

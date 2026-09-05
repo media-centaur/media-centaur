@@ -20,11 +20,18 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     freshness window.
   * `:nothing_stale` — zero raw results, but the knowledge is older
     than the freshness window; Search again is the remedy.
+  * `:searching` — the board is still planning: the headline says what
+    the descent is doing right now (`searching/1`, from a
+    `PlanEvents.DescentStatus`) or, before the first event, what it is
+    about to do (`searching_initial/1`). One verdict slot for the board
+    in every state — the expectation panel's rows (`DescentNarrative`)
+    sit beneath it and never headline (UIDR-029, audit DS24).
 
   Pure — the LiveView assigns the built struct (ADR-030).
   """
 
   alias MediaCentaur.Acquisition.Corpus
+  alias MediaCentaur.Acquisition.PlanEvents.DescentStatus
   alias MediaCentaur.Acquisition.ViewModels.GapEvidence
   alias MediaCentaur.Search.IndexerHealth
 
@@ -34,7 +41,13 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   defstruct [:world, :headline, :evidence_line, rejected_count: 0, show_rejected?: false]
 
   @type world ::
-          :blind | :below_preference | :no_evidence | :rejected | :nothing_live | :nothing_stale
+          :blind
+          | :below_preference
+          | :no_evidence
+          | :rejected
+          | :nothing_live
+          | :nothing_stale
+          | :searching
 
   @type t :: %__MODULE__{
           world: world(),
@@ -68,6 +81,57 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
         diagnose(evidence, gaps, movie?, now)
     end
   end
+
+  @planning_headline "Planning the search — broadest releases first, drilling down only for what's still missing."
+
+  @doc "The searching verdict before the first descent event — the strategy, as a promise."
+  @spec searching_initial(pos_integer()) :: t()
+  def searching_initial(_wanted), do: %__MODULE__{world: :searching, headline: @planning_headline}
+
+  @doc """
+  The searching verdict for a live descent snapshot: the active rung and
+  its residual. `nil` once the descent has finished — the ready board's
+  verdict (or its kept releases) speaks then.
+  """
+  @spec searching(DescentStatus.t()) :: t() | nil
+  def searching(%DescentStatus{stages: stages, wanted: wanted}) do
+    cond do
+      active = Enum.find(stages, &(&1.state == :active)) ->
+        %__MODULE__{
+          world: :searching,
+          headline: active_headline(active.id, residual_before_active(stages, wanted))
+        }
+
+      Enum.all?(stages, &(&1.state == :pending)) ->
+        %__MODULE__{world: :searching, headline: @planning_headline}
+
+      true ->
+        nil
+    end
+  end
+
+  defp active_headline(:series, _residual),
+    do: "First, looking for one release that covers the whole show…"
+
+  defp active_headline(:seasons, residual),
+    do: "Now searching season packs — #{count(residual, "episode")} still #{need(residual)} coverage…"
+
+  defp active_headline(:episodes, residual),
+    do: "Now hunting individual episodes — #{count(residual, "episode")} still uncovered…"
+
+  defp residual_before_active(stages, wanted) do
+    stages
+    |> Enum.take_while(&(&1.state != :active))
+    |> Enum.filter(&(&1.state == :done))
+    |> List.last()
+    |> case do
+      nil -> wanted
+      %{residual_after: residual} -> residual
+    end
+  end
+
+  defp need(1), do: "needs"
+  defp need(_quantity), do: "need"
 
   defp below_preference(evidence, %{units: units, releases: releases}, movie?, covered, now) do
     %__MODULE__{

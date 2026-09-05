@@ -1,11 +1,12 @@
 defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrative do
   @moduledoc """
   The plan board's expectation panel: renders a
-  `PlanEvents.DescentStatus` snapshot into a headline (what's
-  happening / what changed) plus one row per ladder rung (what to
-  expect from it). Pure — the LiveView only assigns the built view
-  (ADR-030). `initial/1` covers the moment before the first broadcast
-  lands, so the board narrates the strategy from its first paint.
+  `PlanEvents.DescentStatus` snapshot into one row per ladder rung
+  (what to expect from it). The board's headline for a planning plan is
+  `ViewModels.GapVerdict`'s `:searching` world — one sentence-maker per
+  board (UIDR-029) — so this panel never headlines. Pure — the LiveView
+  only assigns the built view (ADR-030). `initial/1` covers the moment
+  before the first broadcast lands.
   """
 
   alias MediaCentaur.Acquisition.PlanEvents.DescentStatus
@@ -27,12 +28,12 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrative do
   end
 
   defmodule View do
-    @moduledoc "The built panel: headline plus rung rows."
+    @moduledoc "The built panel: the rung rows."
 
-    @enforce_keys [:headline, :rows]
-    defstruct [:headline, :rows]
+    @enforce_keys [:rows]
+    defstruct [:rows]
 
-    @type t :: %__MODULE__{headline: String.t(), rows: [Row.t()]}
+    @type t :: %__MODULE__{rows: [Row.t()]}
   end
 
   @pending_stages [
@@ -50,61 +51,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrative do
   @doc "Renders one full snapshot into the panel view."
   @spec build(DescentStatus.t()) :: View.t()
   def build(%DescentStatus{} = status) do
-    %View{headline: headline(status), rows: rows(status)}
-  end
-
-  # -- headline ---------------------------------------------------------------
-
-  defp headline(%DescentStatus{stages: stages, wanted: wanted}) do
-    cond do
-      active = Enum.find(stages, &(&1.state == :active)) ->
-        active_headline(active.id, residual_before_active(stages, wanted))
-
-      Enum.all?(stages, &(&1.state == :pending)) ->
-        "Planning the search — broadest releases first, drilling down only for what's still missing."
-
-      true ->
-        finished_headline(stages)
-    end
-  end
-
-  defp active_headline(:series, _residual),
-    do: "First, looking for one release that covers the whole show…"
-
-  defp active_headline(:seasons, residual),
-    do: "Now searching season packs — #{count(residual, "episode")} still #{need(residual)} coverage…"
-
-  defp active_headline(:episodes, residual),
-    do: "Now hunting individual episodes — #{count(residual, "episode")} still uncovered…"
-
-  defp finished_headline(stages) do
-    last_done = stages |> Enum.filter(&(&1.state == :done)) |> List.last()
-    skipped? = Enum.any?(stages, &(&1.state == :skipped))
-
-    case {last_done, skipped?} do
-      {%{residual_after: 0}, true} ->
-        "Everything covered — the deeper searches weren't needed."
-
-      {%{residual_after: 0}, false} ->
-        "Everything covered."
-
-      {%{residual_after: missing}, _} ->
-        "Search finished — #{count(missing, "episode")} couldn't be found anywhere."
-
-      {nil, _} ->
-        "Search finished."
-    end
-  end
-
-  defp residual_before_active(stages, wanted) do
-    stages
-    |> Enum.take_while(&(&1.state != :active))
-    |> Enum.filter(&(&1.state == :done))
-    |> List.last()
-    |> case do
-      nil -> wanted
-      %{residual_after: residual} -> residual
-    end
+    %View{rows: rows(status)}
   end
 
   # -- rows -------------------------------------------------------------------
@@ -149,7 +96,4 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrative do
   end
 
   defp detail(%{state: :skipped}, _residual), do: "not needed — already covered"
-
-  defp need(1), do: "needs"
-  defp need(_quantity), do: "need"
 end

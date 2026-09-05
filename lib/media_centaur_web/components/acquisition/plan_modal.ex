@@ -104,7 +104,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :descent, :any,
     default: nil,
-    doc: "%DescentNarrative.View{} | nil — the board's expectation panel (TV plans)."
+    doc:
+      "%DescentNarrative.View{} | nil — the board's expectation rows (TV plans); the headline is `gap_verdict`'s searching world."
 
   attr :alternatives, :any,
     default: nil,
@@ -123,7 +124,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :gap_verdict, :any,
     default: nil,
     doc:
-      "`ViewModels.GapVerdict.t()` | nil — the gap banner's adaptive diagnosis (UIDR-022); nil while the board has no gaps."
+      "`ViewModels.GapVerdict.t()` | nil — the board's one verdict: the searching world while planning, the gap banner's adaptive diagnosis (UIDR-022) once ready; nil for a ready board with no gaps."
 
   attr :rejected, :any,
     default: nil,
@@ -734,7 +735,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :if={@descent && @board.status == :planning}
           class="glass-inset rounded-lg px-4 py-3 space-y-2"
         >
-          <p class="text-sm text-base-content/70">{@descent.headline}</p>
+          <%!-- The board's one verdict slot while planning (UIDR-029): the
+                searching world's headline, over the rung rows. --%>
+          <p :if={@gap_verdict} class="text-sm text-base-content/70">{@gap_verdict.headline}</p>
           <.descent_rows descent={@descent} />
         </div>
 

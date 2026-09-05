@@ -6,6 +6,78 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
 
   @now ~U[2026-08-11 12:00:00Z]
 
+  alias MediaCentaur.Acquisition.PlanEvents.DescentStatus
+
+  defp stage(id, state, attrs \\ []) do
+    %{
+      id: id,
+      state: state,
+      term_count: Keyword.get(attrs, :term_count),
+      residual_after: Keyword.get(attrs, :residual_after)
+    }
+  end
+
+  defp descent(stages, wanted), do: %DescentStatus{plan_id: "plan-1", wanted: wanted, stages: stages}
+
+  describe "the searching world (a planning board's one verdict slot — UIDR-029, audit DS24)" do
+    test "before any event lands it narrates the strategy" do
+      verdict = GapVerdict.searching_initial(6)
+
+      assert verdict.world == :searching
+      assert verdict.headline =~ "Planning the search"
+      assert verdict.evidence_line == nil
+    end
+
+    test "an active rung headlines what's happening with the live residual" do
+      status =
+        descent(
+          [
+            stage(:series, :done, residual_after: 4),
+            stage(:seasons, :active, term_count: 2),
+            stage(:episodes, :pending)
+          ],
+          6
+        )
+
+      assert GapVerdict.searching(status).headline ==
+               "Now searching season packs — 4 episodes still need coverage…"
+    end
+
+    test "a single-episode residual reads grammatically" do
+      status = descent([stage(:series, :done, residual_after: 1), stage(:seasons, :active)], 6)
+
+      assert GapVerdict.searching(status).headline ==
+               "Now searching season packs — 1 episode still needs coverage…"
+    end
+
+    test "the episodes rung names the hunt" do
+      status =
+        descent(
+          [
+            stage(:series, :done, residual_after: 3),
+            stage(:seasons, :done, residual_after: 1),
+            stage(:episodes, :active, term_count: 1)
+          ],
+          6
+        )
+
+      assert GapVerdict.searching(status).headline ==
+               "Now hunting individual episodes — 1 episode still uncovered…"
+    end
+
+    test "all rungs pending narrates the strategy" do
+      status =
+        descent([stage(:series, :pending), stage(:seasons, :pending), stage(:episodes, :pending)], 6)
+
+      assert GapVerdict.searching(status).headline =~ "Planning the search"
+    end
+
+    test "a finished descent has no searching verdict — the ready board's verdict takes over" do
+      status = descent([stage(:series, :done, residual_after: 0), stage(:seasons, :skipped)], 6)
+      assert GapVerdict.searching(status) == nil
+    end
+  end
+
   defp evidence(overrides) do
     searched_at = Map.get(overrides, :checked_at, DateTime.add(@now, -60, :second))
 
