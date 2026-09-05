@@ -746,20 +746,25 @@ git commit -m "feat(acquisition): DownloadScope — first-season and everything 
 
 ---
 
-### Task 6: `Plans.download_title/2`
+### Task 6: `Plans.plan_title/2`
 
-Spec decisions 9, 17, 19.
+Spec decisions 9, 17, 19 (amended: one asynchronous contract for both media types; the policy is an explicit option, so the context knows nothing about clicks).
 
 **Files:**
 - Modify: `lib/media_centaur/acquisition/plans.ex`
+- Modify: `test/support/tmdb_stubs.ex` (`stub_series_universe_for_targeting/0`)
 - Test: `test/media_centaur/acquisition/plans_test.exs`
 
-- [ ] **Step 1: Failing tests**
+- [ ] **Step 1: The shared TMDB fixture**
 
-Append a describe. It needs a TMDB stub for the series path; read `test/media_centaur/acquisition/targeting_test.exs` for the exact stub shape `Targeting.series_selection/1` expects (a `get_tv` payload with `seasons`, then per-season episode payloads) and reuse its helper by copying it — do not reach across test files.
+Add to `test/support/tmdb_stubs.ex` a `stub_series_universe_for_targeting/0` that makes `Targeting.series_selection("246810")` return season 1 with episodes 1–3 aired and season 2 with episode 1 aired, none in the library. Read `test/media_centaur/acquisition/targeting_test.exs` for the exact `get_tv` + per-season payload shape and move that builder here (one fixture, callers in this task and Task 13; update `targeting_test.exs` to call it too so the builder is not duplicated).
+
+- [ ] **Step 2: Failing tests**
+
+Append a describe to `test/media_centaur/acquisition/plans_test.exs`:
 
 ```elixir
-  describe "download_title/2" do
+  describe "plan_title/2" do
     import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
     alias MediaCentaur.ReleaseTracking
@@ -778,8 +783,9 @@ Append a describe. It needs a TMDB stub for the series path; read `test/media_ce
       Title.new!(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show", year: "2010"})
     end
 
-    test "a movie creates an automatic plan synchronously" do
-      assert :ok = Plans.download_title(movie_title())
+    test "a movie plans with the given policy" do
+      assert :ok = Plans.plan_title(movie_title(), approval_policy: "automatic")
+      await_supervised_tasks()
 
       [plan] = Plans.list_drafts()
       assert plan.tmdb_type == "movie"
@@ -789,10 +795,17 @@ Append a describe. It needs a TMDB stub for the series path; read `test/media_ce
       assert plan.origin == "manual"
     end
 
-    test "a series with :first_season plans season 1's pickable episodes, no tracking" do
-      stub_series_universe()   # copied from targeting_test: S1 with 3 aired episodes, S2 with 1
+    test "the policy defaults to review" do
+      assert :ok = Plans.plan_title(movie_title())
+      await_supervised_tasks()
 
-      assert :ok = Plans.download_title(show_title(), scope: :first_season)
+      assert [%{approval_policy: "review"}] = Plans.list_drafts()
+    end
+
+    test "a series with :first_season plans season 1's pickable episodes, no tracking" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      assert :ok = Plans.plan_title(show_title(), scope: :first_season, approval_policy: "automatic")
       await_supervised_tasks()
 
       [plan] = Plans.list_drafts()
@@ -802,9 +815,9 @@ Append a describe. It needs a TMDB stub for the series path; read `test/media_ce
     end
 
     test "a series with :everything plans every pickable episode, then tracks the title" do
-      stub_series_universe()
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
 
-      assert :ok = Plans.download_title(show_title(), scope: :everything)
+      assert :ok = Plans.plan_title(show_title(), scope: :everything)
       await_supervised_tasks()
 
       [plan] = Plans.list_drafts()
@@ -813,10 +826,10 @@ Append a describe. It needs a TMDB stub for the series path; read `test/media_ce
     end
 
     test "a series that is already tracked is not tracked twice" do
-      stub_series_universe()
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
       create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"})
 
-      assert :ok = Plans.download_title(show_title(), scope: :everything)
+      assert :ok = Plans.plan_title(show_title(), scope: :everything)
       await_supervised_tasks()
 
       assert [_plan] = Plans.list_drafts()
@@ -826,7 +839,7 @@ Append a describe. It needs a TMDB stub for the series path; read `test/media_ce
     test "a TMDB failure leaves no plan" do
       Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
 
-      assert :ok = Plans.download_title(show_title(), scope: :first_season)
+      assert :ok = Plans.plan_title(show_title(), scope: :first_season)
       await_supervised_tasks()
 
       assert Plans.list_drafts() == []
@@ -834,68 +847,66 @@ Append a describe. It needs a TMDB stub for the series path; read `test/media_ce
   end
 ```
 
-`stub_series_universe/0` must produce a `Targeting.series_selection("246810")` with season 1 episodes 1–3 aired and season 2 episode 1 aired, none in the library. Copy the TMDB payload builder from `targeting_test.exs` verbatim into this file as a private helper (the test module already has `Req.Test` in scope).
+- [ ] **Step 3: Run** — Expected: FAIL, `plan_title/2` undefined.
 
-- [ ] **Step 2: Run** — Expected: FAIL, `download_title/2` undefined.
-
-- [ ] **Step 3: Implement**
+- [ ] **Step 4: Implement**
 
 In `lib/media_centaur/acquisition/plans.ex` add aliases `MediaCentaur.Acquisition.Plans.DownloadScope`, `MediaCentaur.TMDB.Title`, and `require MediaCentaur.Log, as: Log` if not present. Then:
 
 ```elixir
   @doc """
-  The one-click download (spec 2026-09-05 §17): creates a plan for a
-  TMDB title with `approval_policy: "automatic"`, so the approval gate
-  commits it the moment it solves cleanly. Movies create synchronously.
-  Series need a targeting fetch, so the work runs on the context task
-  supervisor (it must outlive the calling LiveView, ADR-049) and this
-  returns as soon as it is queued; the plan row broadcasts on
-  `acquisition:updates` when it exists.
+  Plans a TMDB title from its snapshot alone (spec 2026-09-05 §17): the
+  door a surface that lists titles the library does not own uses, where
+  there is no picker. Runs on the context task supervisor — a series
+  needs a targeting fetch, and the work must outlive the calling
+  LiveView (ADR-049) — and returns as soon as it is queued; the plan row
+  broadcasts on `acquisition:updates` when it exists. Movies take the
+  same path so the contract is one shape.
 
-  Options (series only): `scope:` `:first_season` (default) or
-  `:everything` — see `DownloadScope`. `:everything` also starts
-  release tracking for the title so new episodes follow; a title that
-  is already tracked is left alone. The plan is created before tracking
-  so its units are not excluded as tracked.
+  Options: `approval_policy:` (`"automatic"` | `"review"`, default
+  review — the one-click download passes automatic); `scope:` (series
+  only) `:first_season` (default) or `:everything`, see `DownloadScope`.
+  `:everything` also starts release tracking for the title so new
+  episodes follow; an already-tracked title is left alone. The plan is
+  created before tracking so its units are not excluded as tracked.
 
-  A failure inside the async path (TMDB unreachable, nothing pickable)
-  is logged at warning on `:acquisition` and leaves no plan.
+  A failure inside the task (TMDB unreachable, nothing pickable) is
+  logged at warning on `:acquisition` and leaves no plan.
   """
-  @spec download_title(Title.t(), keyword()) :: :ok | {:error, term()}
-  def download_title(%Title{media_type: :movie} = title, _opts) do
-    with {:ok, _plan} <-
-           create_movie_plan(
-             %{tmdb_id: title.tmdb_id, title: title.name, year: title_year(title)},
-             approval_policy: "automatic"
-           ) do
-      :ok
-    end
-  end
-
-  def download_title(%Title{media_type: :tv_series} = title, opts) do
+  @spec plan_title(Title.t(), keyword()) :: :ok
+  def plan_title(%Title{} = title, opts \ []) do
+    policy = Keyword.get(opts, :approval_policy, "review")
     scope = Keyword.get(opts, :scope, :first_season)
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      download_series(title, scope)
+      do_plan_title(title, policy, scope)
     end)
 
     :ok
   end
 
-  def download_title(%Title{} = title), do: download_title(title, [])
+  defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope) do
+    case create_movie_plan(
+           %{tmdb_id: title.tmdb_id, title: title.name, year: title_year(title)},
+           approval_policy: policy
+         ) do
+      {:ok, _plan} -> :ok
+      {:error, reason} -> Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
+    end
+  end
 
-  defp download_series(%Title{} = title, scope) do
+  defp do_plan_title(%Title{media_type: :tv_series} = title, policy, scope) do
     with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
          units when units != [] <- DownloadScope.units(selection, scope),
-         {:ok, _plan} <- create_series_plan(selection, units, approval_policy: "automatic") do
+         {:ok, _plan} <- create_series_plan(selection, units, approval_policy: policy) do
       if scope == :everything, do: ensure_tracked(title)
       :ok
     else
       [] ->
-        Log.warning(:acquisition, "one-click download found nothing to plan — #{title.name}")
+        Log.warning(:acquisition, "nothing to plan — #{title.name}")
 
       {:error, reason} ->
-        Log.warning(:acquisition, "one-click download could not plan — #{title.name} — #{inspect(reason)}")
+        Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
     end
   end
 
@@ -916,24 +927,18 @@ In `lib/media_centaur/acquisition/plans.ex` add aliases `MediaCentaur.Acquisitio
   defp title_year(_title), do: nil
 ```
 
-`download_title/1` must be declared with a `@spec` and placed so Elixir does not warn about the default; write the two-arity clauses with `opts \\ []` in the head instead if the compiler complains:
+`Plans` may need `Targeting` and `ReleaseTracking` aliases; both are already used elsewhere in the file. If `mix compile` reports a Boundary violation, the dep is missing from `Acquisition`'s `use Boundary, deps: [...]` in `lib/media_centaur/acquisition.ex` — add it there, not with an exception.
 
-```elixir
-  def download_title(title, opts \\ [])
-```
+- [ ] **Step 5: Run**
 
-`Plans` already declares `use Boundary`? Check the `Acquisition` boundary in `lib/media_centaur/acquisition.ex` — `ReleaseTracking` and `TMDB` are existing deps (the drop planner uses `ReleaseTracking`; targeting uses `TMDB`). If `mix compile` reports a Boundary violation, the dep is missing from `Acquisition`'s `use Boundary, deps: [...]` — add it there, not with an exception.
-
-- [ ] **Step 4: Run**
-
-Run: `mise exec -- mix test test/media_centaur/acquisition/plans_test.exs`
+Run: `mise exec -- mix test test/media_centaur/acquisition/plans_test.exs test/media_centaur/acquisition/targeting_test.exs`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add lib/media_centaur/acquisition/plans.ex test/media_centaur/acquisition/plans_test.exs
-git commit -m "feat(acquisition): Plans.download_title/2 — the one-click plan"
+git add lib/media_centaur/acquisition/plans.ex test/media_centaur/acquisition/plans_test.exs test/media_centaur/acquisition/targeting_test.exs test/support/tmdb_stubs.ex
+git commit -m "feat(acquisition): Plans.plan_title/2 — plan a title from its snapshot"
 ```
 
 ---
@@ -1607,7 +1612,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   not a verb), `:download`, or `:track`. `scoped?` says the download
   carries the series scope menu. `sender`, `note`, `recommended_at` and
   `own?` are the feed provenance and nil on a watchlist-born detail
-  without one.
+  without one; `sender` is nil on an own recommendation (the modal
+  reads `own?`).
   """
 
   alias MediaCentaur.TMDB.Title
@@ -2147,39 +2153,149 @@ git commit -m "feat(discovery): title detail modal with the split download contr
 
 ---
 
-### Task 12: Rows become click targets with state markers
+### Task 12: One `TitleRow` for both tabs
 
-Spec decisions 14, 21.
+Spec decisions 14, 21 (amended: `FeedRow` and `WatchlistRow` were the same component with different markers; they collapse into one).
 
 **Files:**
-- Modify: `lib/media_centaur_web/components/discovery/watchlist_row.ex`
-- Modify: `lib/media_centaur_web/live/discovery_live/feed_row.ex`
-- Modify: `storybook/discovery/watchlist_row.story.exs`
+- Create: `lib/media_centaur_web/components/discovery/title_row.ex`
+- Create: `storybook/discovery/title_row.story.exs`
+- Delete: `lib/media_centaur_web/components/discovery/watchlist_row.ex`, `lib/media_centaur_web/live/discovery_live/feed_row.ex`, `storybook/discovery/watchlist_row.story.exs`
+- Modify: `lib/media_centaur_web/live/discovery_live/logic.ex` (`row_markers/1`)
+- Test: `test/media_centaur_web/live/discovery_live/logic_test.exs`
 
-- [ ] **Step 1: WatchlistRow**
+- [ ] **Step 1: Failing test — markers**
 
-Rewrite the component. Contract: `item` (WatchlistItem), `poster_url`, `from_nickname`, `library_owner_id`, `acquisition_state` (`:atom`, `values: [nil, :planning, :downloading, :needs_review]`, default nil). Drop `release_mode_available` and `today`. The card is a `<button type="button" phx-click="open_title" phx-value-ref={…} data-nav-item tabindex="0">` spanning the whole row, `id` unchanged (`watchlist-item-<type>-<id>`), and the markers slot shows, in this order, the first that applies: "In library" when `library_owner_id`, else the acquisition marker (`Logic.acquisition_marker/1`), plus `from <nickname>` when present. No inline actions remain. Moduledoc: "One watchlist entry as a whole-card click target opening the title detail modal; state is shown, never acted on here. `open_title` bubbles to `DiscoveryLive`."
+Append to `logic_test.exs`:
 
-Use `MediaCentaurWeb.DiscoveryLive.Logic.title_ref_param/1` for `phx-value-ref`. A `<button>` containing the `title_summary` block is valid; keep the button `class="glass-surface flex w-full items-start gap-4 rounded-xl px-4 py-3 text-left cursor-pointer"`.
+```elixir
+  describe "row_markers/1" do
+    test "in library wins, then the acquisition state, then provenance" do
+      assert Logic.row_markers(%{library_owner_id: "o", acquisition_state: :downloading, from_nickname: "Sample Friend", on_watchlist?: true}) ==
+               ["In library", "from Sample Friend"]
 
-- [ ] **Step 2: FeedRow**
+      assert Logic.row_markers(%{library_owner_id: nil, acquisition_state: :needs_review, from_nickname: nil, on_watchlist?: true}) ==
+               ["Needs review", "On watchlist"]
 
-Same treatment: the row is one button with `phx-click="open_title"` and `phx-value-ref`; markers: sender/when as today, then "In library" or the acquisition marker, then "On watchlist" when `on_watchlist?`. Remove the `action/1` and Delete button. `attr :row` doc gains `:acquisition_state`. Moduledoc updated to match.
+      assert Logic.row_markers(%{library_owner_id: nil, acquisition_state: nil, from_nickname: nil, on_watchlist?: false}) == []
+    end
+  end
+```
 
-- [ ] **Step 3: Story**
+Run: `mise exec -- mix test test/media_centaur_web/live/discovery_live/logic_test.exs` — Expected: FAIL.
 
-Rewrite `storybook/discovery/watchlist_row.story.exs` variations to the new contract: `default`, `in_library`, `planning`, `downloading`, `needs_review`, `with_poster`, `with_note`, `from_friend`. Drop `release_mode_available`/`today`.
+- [ ] **Step 2: `Logic.row_markers/1`**
 
-- [ ] **Step 4: Compile + story tests**
+```elixir
+  @doc """
+  The quiet text markers a Discovery row shows after its type and year,
+  in order: the library or acquisition state (one of them — In library
+  wins), then provenance (`from <nickname>`), then On watchlist. The feed
+  row's sender/when line is the host's, not a marker.
+  """
+  @spec row_markers(%{
+          library_owner_id: Ecto.UUID.t() | nil,
+          acquisition_state: acquisition_state(),
+          from_nickname: String.t() | nil,
+          on_watchlist?: boolean()
+        }) :: [String.t()]
+  def row_markers(facts) do
+    state =
+      cond do
+        facts.library_owner_id -> "In library"
+        marker = acquisition_marker(facts.acquisition_state) -> marker
+        true -> nil
+      end
 
-Run: `mise exec -- mix compile --warnings-as-errors && mise exec -- mix test test/storybook_compile_test.exs test/storybook_render_test.exs`
-Expected: PASS. `DiscoveryLive` still passes the removed attrs — Task 13 fixes it; if compilation fails on that, fold Step 1 of Task 13 in before committing.
+    provenance = facts.from_nickname && "from #{facts.from_nickname}"
+    watchlist = if facts.on_watchlist? and is_nil(facts.library_owner_id), do: "On watchlist"
 
-- [ ] **Step 5: Commit**
+    Enum.reject([state, provenance, watchlist], &is_nil/1)
+  end
+```
+
+The second test case: on the watchlist with `needs_review` shows both, because the state marker and the watchlist marker answer different questions. Adjust the first case's expectation if you decide "On watchlist" should also hide behind In library — the code above hides it (an owned title's watchlist membership is noise); keep the test and code agreeing.
+
+- [ ] **Step 3: The component**
+
+`lib/media_centaur_web/components/discovery/title_row.ex`:
+
+```elixir
+defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
+  @moduledoc """
+  One Discovery row — a recommendation on the feed or a watchlist entry —
+  as a whole-card click target opening the title detail modal (spec
+  2026-09-05 §14). The shared `title_summary/1` identity block, an
+  optional lead line (the feed's `from <nickname> · when` / `You · when`),
+  the quiet markers the host computed (`DiscoveryLive.Logic.row_markers/1`),
+  and the secondary text (a note) in place of the overview. State is
+  shown, never acted on here: every verb lives in the modal.
+
+  Pure rendering; `open_title` bubbles to `DiscoveryLive` with the
+  title's ref.
+  """
+
+  use Phoenix.Component
+
+  import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
+
+  alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.DiscoveryLive.Logic
+
+  attr :id, :string, required: true
+  attr :title, Title, required: true
+  attr :poster_url, :string, default: nil, doc: "resolved by the host via `LiveHelpers.title_poster_url/1`"
+  attr :lead, :string, default: nil, doc: "the feed's sender/when line; nil on the watchlist"
+  attr :markers, :list, default: [], doc: "quiet text markers from `Logic.row_markers/1`"
+  attr :secondary, :string, default: nil, doc: "a note that displaces the overview"
+
+  def title_row(assigns) do
+    ~H"""
+    <button
+      id={@id}
+      type="button"
+      class="glass-surface flex w-full cursor-pointer items-start gap-4 rounded-xl px-4 py-3 text-left"
+      data-component="title-row"
+      phx-click="open_title"
+      phx-value-ref={Logic.title_ref_param({@title.tmdb_id, @title.media_type})}
+      data-nav-item
+      tabindex="0"
+    >
+      <.title_summary title={@title} poster_url={@poster_url}>
+        <:markers>
+          <span :if={@lead} class="shrink-0 text-xs text-base-content/55">{@lead}</span>
+          <span :for={marker <- @markers} class="shrink-0 text-xs text-base-content/55">{marker}</span>
+        </:markers>
+        <:secondary :if={@secondary}>{@secondary}</:secondary>
+      </.title_summary>
+    </button>
+    """
+  end
+end
+```
+
+Check `title_summary/1`'s `markers` slot renders multiple children with spacing; if it expects one child, wrap the markers in one `<span class="flex gap-2">`.
+
+- [ ] **Step 4: Story**
+
+`storybook/discovery/title_row.story.exs` with variations `bare`, `in_library`, `planning`, `downloading`, `needs_review`, `from_friend_with_note` (lead `"from Sample Friend · 2 days ago"`, marker `"On watchlist"`, secondary note), `own_recommendation` (lead `"You · today"`), `with_poster` (`/images/sample-nosferatu-poster.jpg`). Build the `Title` the way the deleted watchlist_row story did. Delete the old story file.
+
+- [ ] **Step 5: Delete the old rows, compile, story tests**
 
 ```bash
-git add lib/media_centaur_web/components/discovery/watchlist_row.ex lib/media_centaur_web/live/discovery_live/feed_row.ex storybook/discovery/watchlist_row.story.exs
-git commit -m "feat(discovery): rows are click targets showing state, not actions"
+git rm lib/media_centaur_web/components/discovery/watchlist_row.ex lib/media_centaur_web/live/discovery_live/feed_row.ex storybook/discovery/watchlist_row.story.exs
+```
+
+`DiscoveryLive` still references both — Task 13 replaces the render; if `mix compile` fails here, do Task 13's render change before running:
+
+Run: `mise exec -- mix test test/media_centaur_web/live/discovery_live/logic_test.exs test/storybook_compile_test.exs test/storybook_render_test.exs`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add lib/media_centaur_web/components/discovery/title_row.ex storybook/discovery/title_row.story.exs lib/media_centaur_web/live/discovery_live/logic.ex test/media_centaur_web/live/discovery_live/logic_test.exs
+git commit -m "feat(discovery): one TitleRow for both tabs — click target, state markers, no verbs"
 ```
 
 ---
