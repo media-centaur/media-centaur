@@ -36,7 +36,7 @@ defmodule MediaCentaur.Library.ExtraFile do
   ingests (`link_extra_file/2`), so extras are "linked" the same way playable
   items are via `WatchedFile`. Extras imported before that path existed are
   backfilled by `Library.Files.backfill_extras/0`, run on boot
-  (`Maintenance.backfill_extra_files_on_boot/1`).
+  (`MediaCentaur.BootHeal.backfill_extra_files/1`).
   """
   use Ecto.Schema
   import Ecto.Changeset

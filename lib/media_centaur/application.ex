@@ -178,20 +178,10 @@ defmodule MediaCentaur.Application do
 
     env = Application.get_env(:media_centaur, :environment, :dev)
 
-    # Heal extra display names against the current parser rules — a parser fix
-    # shipped in an update reaches existing records on the next boot, no operator
-    # action. Network-free, idempotent, skipped under :test (see Maintenance).
-    MediaCentaur.Maintenance.heal_extra_names_on_boot(env)
-
-    # Backfill ExtraFile rows for extras imported before the ingest path wrote
-    # them, so they become "linked" and stop re-running through the pipeline on
-    # every rescan. Network-free, idempotent, skipped under :test.
-    MediaCentaur.Maintenance.backfill_extra_files_on_boot(env)
-
-    # Probe technical metadata (container title, duration, codecs) for files
-    # imported before the media-info feature. Local ffprobe only, idempotent,
-    # skipped under :test.
-    MediaCentaur.Maintenance.probe_media_info_on_boot(env)
+    # Network-free, idempotent backfills, skipped under :test — see BootHeal.
+    MediaCentaur.BootHeal.heal_extra_names(env)
+    MediaCentaur.BootHeal.backfill_extra_files(env)
+    MediaCentaur.BootHeal.probe_media_info(env)
 
     if should_start?(:start_watchers) do
       MediaCentaur.Watcher.Supervisor.start_watchers()
