@@ -5,9 +5,12 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   the row markers, and the `?title=` URL param's shape.
   """
 
+  alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Format
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
+  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
 
   @type acquisition_state :: :planning | :downloading | :needs_review | nil
 
@@ -15,8 +18,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   Builds the detail for a title from the facts the host resolved:
   `library_owner_id`, `on_watchlist?`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
-  `backdrop_url`, `sender`, `note`, `acted_at`, `own?`,
-  `activity_id`, `preview`. The primary action is the watchlist row's
+  `backdrop_url`, `kind`, `episode`, `sender`, `note`, `acted_at`,
+  `own?`, `activity_id`, `preview`. The primary action is the watchlist row's
   three-state rule with the acquisition state folded in between In
   library and Download.
   """
@@ -30,6 +33,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       primary: primary(title, facts),
       scoped?: title.media_type == :tv_series,
       on_watchlist?: Map.fetch!(facts, :on_watchlist?),
+      kind: Map.get(facts, :kind),
+      episode: Map.get(facts, :episode),
       sender: Map.get(facts, :sender),
       note: Map.get(facts, :note),
       acted_at: Map.get(facts, :acted_at),
@@ -52,6 +57,19 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
     Map.fetch!(facts, :release_mode_available) and
       MediaResults.release_status(title, Map.fetch!(facts, :today)) == :released
   end
+
+  @doc """
+  A feed row's lead line: who did what, and when — "Sam watched S02E05 ·
+  2h ago", "You recommended · yesterday".
+  """
+  @spec feed_lead(%{activity: Activity.t(), nickname: String.t() | nil, own?: boolean()}) :: String.t()
+  def feed_lead(%{own?: true, activity: activity}), do: lead("You", activity)
+  def feed_lead(%{nickname: nickname, activity: activity}), do: lead(nickname, activity)
+
+  defp lead(actor, %Activity{} = activity),
+    do:
+      ActivityWords.statement(actor, activity.kind, activity.episode) <>
+        " · " <> Format.relative_ago(activity.acted_at)
 
   @doc "The words a row or the modal shows for an acquisition state."
   @spec acquisition_marker(acquisition_state()) :: String.t() | nil

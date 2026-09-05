@@ -4,9 +4,10 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   surface for a TMDB title the library does not own, opened by a
   whole-card click on a feed row or a watchlist row. A tenant of the
   cinematic frame like the tracking title modal — backdrop, lockup,
-  type and year, overview, and on a feed-born detail the sender and
-  their note — rendered from the embedded `TMDB.Title` snapshot with no
-  network call on open.
+  type and year, overview, and on a feed-born detail who did what
+  (recommended, watched, started tracking) and a recommendation's note
+  — rendered from the embedded `TMDB.Title` snapshot with no network
+  call on open.
 
   The action row is the watchlist row's honest three-state rule lifted
   into the modal, with the acquisition state folded in: In library →
@@ -17,15 +18,15 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   opening "Download all" — reusing the `glass-menu` idiom the library
   sort control wears. Add to watchlist is the secondary, replaced by a
   quiet On watchlist once saved, at which point Remove from watchlist
-  appears as a quiet tertiary verb from either tab. Delete
-  recommendation is the other tertiary verb, on an own recommendation
-  only.
+  appears as a quiet tertiary verb from either tab. Delete <noun> is the
+  other tertiary verb, on an own activity only, named by its kind
+  (`ActivityWords.noun/1`).
 
   Pure rendering; every control bubbles to `DiscoveryLive`:
   `close_title`, `title_download` (`scope` for a series),
   `title_scope_toggle`, `title_scope_close`, `title_track`,
   `title_watchlist_add`, `title_watchlist_remove`,
-  `title_recommendation_delete`.
+  `title_activity_delete`.
 
   Nav: the backdrop is the `title_detail` overlay
   (`config.overlays.title_detail`): the action strip is the
@@ -38,6 +39,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   use MediaCentaurWeb, :html
 
   alias MediaCentaur.Format
+  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.PreviewBody
   alias MediaCentaurWeb.Components.Detail.TitleLayer
@@ -112,10 +114,14 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
       <:body>
         <div :if={@detail} class="space-y-4 px-1 pt-2">
           <p :if={@detail.own?} class="text-xs text-base-content/55">
-            You recommended this · {Format.relative_ago(@detail.acted_at)}
+            {ActivityWords.statement("You", @detail.kind, @detail.episode)} · {Format.relative_ago(
+              @detail.acted_at
+            )}
           </p>
           <p :if={@detail.sender} class="text-xs text-base-content/55">
-            Recommended by {@detail.sender} · {Format.relative_ago(@detail.acted_at)}
+            {ActivityWords.statement(@detail.sender, @detail.kind, @detail.episode)} · {Format.relative_ago(
+              @detail.acted_at
+            )}
           </p>
           <p :if={@detail.note} class="text-sm">{@detail.note}</p>
           <PreviewBody.preview_body :if={@preview} preview={@preview} />
@@ -261,7 +267,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   attr :detail, TitleDetail, required: true
 
   # Quiet tertiary verbs, each only when it applies: Remove when the
-  # title is on the watchlist, Delete for an own recommendation.
+  # title is on the watchlist, Delete for an own activity.
   defp tertiary(assigns) do
     ~H"""
     <span class="ml-auto flex items-center gap-3">
@@ -278,14 +284,14 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
       </button>
       <button
         :if={@detail.own?}
-        id="title-recommendation-delete"
+        id="title-activity-delete"
         type="button"
         class="cursor-pointer text-xs text-base-content/55 transition-colors hover:text-base-content/60"
-        phx-click="title_recommendation_delete"
+        phx-click="title_activity_delete"
         data-nav-item
         tabindex="0"
       >
-        Delete recommendation
+        Delete {ActivityWords.noun(@detail.kind)}
       </button>
     </span>
     """
