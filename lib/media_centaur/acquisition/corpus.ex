@@ -83,6 +83,39 @@ defmodule MediaCentaur.Acquisition.Corpus do
     now = DateTime.utc_now(:second)
     key = search_key(term, opts)
 
+    Repo.transaction(fn -> record_rows!(key, term, now, results) end)
+    :ok
+  end
+
+  # SQLite binds at most 32_766 variables per statement; 16 columns per row.
+  @insert_chunk 500
+
+  defp candidate_row(%SearchResult{} = result, key, now) do
+    %{
+      # `insert_all` skips the schema's `autogenerate: true`; without this
+      # the rows land with a null id.
+      id: Ecto.UUID.generate(),
+      search_key: key,
+      guid: result.guid,
+      title: result.title,
+      indexer_id: result.indexer_id,
+      indexer_name: result.indexer_name,
+      quality: quality_to_string(result.quality),
+      size_bytes: result.size_bytes,
+      seeders: result.seeders,
+      leechers: result.leechers,
+      publish_date: result.publish_date,
+      info_hash: result.info_hash,
+      magnet_url: result.magnet_url,
+      download_url: result.download_url,
+      first_seen_at: now,
+      last_seen_at: now,
+      inserted_at: now,
+      updated_at: now
+    }
+  end
+
+  defp record_rows!(key, term, now, results) do
     Repo.insert!(
       SearchRecord.changeset(%{
         search_key: key,
@@ -94,25 +127,17 @@ defmodule MediaCentaur.Acquisition.Corpus do
       conflict_target: :search_key
     )
 
-    Enum.each(results, fn %SearchResult{} = result ->
-      Repo.insert!(
-        Candidate.changeset(%{
-          search_key: key,
-          guid: result.guid,
-          title: result.title,
-          indexer_id: result.indexer_id,
-          indexer_name: result.indexer_name,
-          quality: quality_to_string(result.quality),
-          size_bytes: result.size_bytes,
-          seeders: result.seeders,
-          leechers: result.leechers,
-          publish_date: result.publish_date,
-          info_hash: result.info_hash,
-          magnet_url: result.magnet_url,
-          download_url: result.download_url,
-          first_seen_at: now,
-          last_seen_at: now
-        }),
+    # One statement per chunk instead of one autocommit per result — a
+    # broad search returns hundreds of rows and each autocommit took the
+    # SQLite write lock in turn (audit P5). `insert_all` bypasses the
+    # changeset, so rows are shaped by `candidate_row/3` from the typed
+    # `SearchResult`; the unique `(search_key, guid)` index drives the
+    # upsert exactly as before.
+    results
+    |> Enum.map(&candidate_row(&1, key, now))
+    |> Enum.chunk_every(@insert_chunk)
+    |> Enum.each(fn rows ->
+      Repo.insert_all(Candidate, rows,
         on_conflict:
           {:replace,
            [

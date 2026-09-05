@@ -310,7 +310,10 @@ defmodule MediaCentaurWeb.SettingsLive do
       acquisition_running: Acquisition.auto_grab_running?(),
       media_dirs: Config.media_dirs_entries(),
       exclude_dirs: Config.get(:exclude_dirs) || [],
-      missing_images_summary: Maintenance.missing_images_summary(),
+      # The per-image disk walk already ran in the Overview projection;
+      # read its result instead of walking every file on each mount
+      # (audit P4). A repair re-walks live in its own result handler.
+      missing_images_summary: MediaCentaur.Status.Views.overview().missing_images,
       blank_extra_names_count: Maintenance.blank_extra_names_count(),
       tmdb_test: load_test_result(:tmdb),
       prowlarr_test: load_test_result(:prowlarr),

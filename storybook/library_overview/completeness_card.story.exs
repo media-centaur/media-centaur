@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryOverview.CompletenessCard do
           overview:
             overview(
               missing_artwork_count: 12,
+              missing_images: %{total: 0, missing: 12, by_role: %{}},
               missing_metadata_count: 3,
               incomplete_season_count: 5
             )
@@ -48,6 +49,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryOverview.CompletenessCard do
       pending_review_count: 0,
       in_flight_count: 0,
       missing_artwork_count: 0,
+      missing_images: %{total: 0, missing: 0, by_role: %{}},
       missing_metadata_count: 0,
       incomplete_season_count: 0
     }

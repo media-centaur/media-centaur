@@ -84,6 +84,22 @@ defmodule MediaCentaur.Pipeline.ImageQueue do
   end
 
   @doc """
+  `reset_to_pending/1` for a batch, in one statement. Stamps `updated_at`
+  the way the per-row update does — the retry scheduler measures backoff
+  from it.
+  """
+  @spec reset_to_pending_all([ImageQueueEntry.t()]) :: {non_neg_integer(), nil}
+  def reset_to_pending_all([]), do: {0, nil}
+
+  def reset_to_pending_all(entries) when is_list(entries) do
+    ids = Enum.map(entries, & &1.id)
+
+    Repo.update_all(from(e in ImageQueueEntry, where: e.id in ^ids),
+      set: [status: "pending", updated_at: DateTime.utc_now(:second)]
+    )
+  end
+
+  @doc """
   Retention prune. Deletes `complete` entries not touched since
   `completed_cutoff` (their work is done; the row only existed to track
   the download) and entries of *any* status not touched since

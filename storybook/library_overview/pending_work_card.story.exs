@@ -40,6 +40,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryOverview.PendingWorkCard do
       pending_review_count: 0,
       in_flight_count: 0,
       missing_artwork_count: 0,
+      missing_images: %{total: 0, missing: 0, by_role: %{}},
       missing_metadata_count: 0,
       incomplete_season_count: 0
     }

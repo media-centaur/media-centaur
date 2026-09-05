@@ -41,6 +41,7 @@ defmodule MediaCentaur.Status do
   @spec load_overview() :: LibraryOverview.t()
   def load_overview do
     stats = library_stats()
+    missing_images = Maintenance.missing_images_summary()
 
     %LibraryOverview{
       movie_count: stats.by_type.movie,
@@ -50,7 +51,8 @@ defmodule MediaCentaur.Status do
       recently_added: Library.list_recently_added(limit: @recently_added_limit),
       pending_review_count: length(Review.list_pending_files_for_review()),
       in_flight_count: length(Pursuits.list_active()),
-      missing_artwork_count: Maintenance.missing_images_summary().missing,
+      missing_artwork_count: missing_images.missing,
+      missing_images: missing_images,
       missing_metadata_count: Completeness.missing_metadata_count(),
       incomplete_season_count: Completeness.incomplete_season_count()
     }

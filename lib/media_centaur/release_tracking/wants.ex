@@ -38,6 +38,26 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   alias MediaCentaur.ReleaseTracking.{Helpers, Item, Release, Want}
   alias MediaCentaur.Search.Quality
 
+  # Every `Want` column `insert_all/3` must carry: it bypasses schema
+  # defaults, so the applied changeset's struct (defaults included) is
+  # projected onto exactly these.
+  @want_columns [
+    :item_id,
+    :unit_key,
+    :season_number,
+    :episode_number,
+    :part_tmdb_id,
+    :title,
+    :air_date,
+    :status,
+    :provenance,
+    :wanted_since,
+    :last_searched_at,
+    :satisfied_at,
+    :satisfied_quality,
+    :dismissed_at
+  ]
+
   @doc """
   Idempotently reconciles the item's wants against its calendar and the
   library: opens wants for newly acquirable units, satisfies open wants
@@ -122,18 +142,8 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
       key = Want.unit_key(spec.season_number, spec.episode_number, spec.part_tmdb_id)
       is_nil(key) or MapSet.member?(existing_keys, key)
     end)
-    |> Enum.reduce(0, fn spec, opened ->
-      insert_result =
-        spec
-        |> Map.merge(%{item_id: item.id, provenance: :gap, wanted_since: now})
-        |> Want.create_changeset()
-        |> Repo.insert(on_conflict: :nothing)
-
-      case insert_result do
-        {:ok, _want} -> opened + 1
-        {:error, _changeset} -> opened
-      end
-    end)
+    |> Enum.map(&Map.merge(&1, %{item_id: item.id, provenance: :gap, wanted_since: now}))
+    |> insert_wants()
   end
 
   @doc """
@@ -208,25 +218,50 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     item
     |> want_candidates(releases)
     |> Enum.reject(&MapSet.member?(existing_keys, &1.unit_key))
-    |> Enum.count(fn candidate ->
-      insert_result =
-        %{
-          item_id: item.id,
-          season_number: candidate.season_number,
-          episode_number: candidate.episode_number,
-          part_tmdb_id: candidate.part_tmdb_id,
-          title: candidate.title,
-          air_date: candidate.air_date,
-          provenance: :calendar,
-          wanted_since: wanted_since_for(candidate.air_date, now)
-        }
-        |> Want.create_changeset()
-        # A concurrent sync racing on the unique (item_id, unit_key) index
-        # is benign — the want already exists, which is all we need.
-        |> Repo.insert(on_conflict: :nothing)
-
-      match?({:ok, _}, insert_result)
+    |> Enum.map(fn candidate ->
+      %{
+        item_id: item.id,
+        season_number: candidate.season_number,
+        episode_number: candidate.episode_number,
+        part_tmdb_id: candidate.part_tmdb_id,
+        title: candidate.title,
+        air_date: candidate.air_date,
+        provenance: :calendar,
+        wanted_since: wanted_since_for(candidate.air_date, now)
+      }
     end)
+    |> insert_wants()
+  end
+
+  # Validates each want through its changeset, then writes the batch in
+  # one statement. `on_conflict: :nothing` keeps a concurrent sync racing
+  # on the unique `(item_id, unit_key)` index benign — the want already
+  # exists, which is all we need. Returns the number of rows inserted
+  # (audit E55: one autocommit per want made a season sync N write locks).
+  defp insert_wants([]), do: 0
+
+  defp insert_wants(attrs_list) do
+    now = DateTime.utc_now(:second)
+
+    rows =
+      for attrs <- attrs_list,
+          {:ok, want} <- [Ecto.Changeset.apply_action(Want.create_changeset(attrs), :insert)] do
+        # `insert_all` skips the schema's `autogenerate: true` — mint the
+        # UUID here or the rows land with a null id.
+        want
+        |> Map.from_struct()
+        |> Map.take(@want_columns)
+        |> Map.merge(%{id: Ecto.UUID.generate(), inserted_at: now, updated_at: now})
+      end
+
+    case rows do
+      [] ->
+        0
+
+      rows ->
+        {count, _} = Repo.insert_all(Want, rows, on_conflict: :nothing)
+        count
+    end
   end
 
   defp want_candidates(%Item{media_type: :tv_series} = item, releases) do

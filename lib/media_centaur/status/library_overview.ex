@@ -23,6 +23,7 @@ defmodule MediaCentaur.Status.LibraryOverview do
     :pending_review_count,
     :in_flight_count,
     :missing_artwork_count,
+    :missing_images,
     :missing_metadata_count,
     :incomplete_season_count
   ]
@@ -35,9 +36,17 @@ defmodule MediaCentaur.Status.LibraryOverview do
     :pending_review_count,
     :in_flight_count,
     :missing_artwork_count,
+    :missing_images,
     :missing_metadata_count,
     :incomplete_season_count
   ]
+
+  @typedoc "`Library.ImageHealth.summary/1` — the per-role breakdown behind `missing_artwork_count`."
+  @type missing_images :: %{
+          total: non_neg_integer(),
+          missing: non_neg_integer(),
+          by_role: %{String.t() => non_neg_integer()}
+        }
 
   @type recent_item :: %{
           id: Ecto.UUID.t(),
@@ -55,6 +64,7 @@ defmodule MediaCentaur.Status.LibraryOverview do
           pending_review_count: non_neg_integer(),
           in_flight_count: non_neg_integer(),
           missing_artwork_count: non_neg_integer(),
+          missing_images: missing_images(),
           missing_metadata_count: non_neg_integer(),
           incomplete_season_count: non_neg_integer()
         }

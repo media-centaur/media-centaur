@@ -180,53 +180,71 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
       }
   end
 
+  # The target, its coverage rows, the unit attempts and the event are one
+  # fact: a grab landed. They commit together or not at all (audit P6);
+  # the `Prowlarr.grab` HTTP call that precedes this stays outside.
   defp land_acquired(pursuit, result, covered_units) do
     now = DateTime.utc_now(:second)
     torrent_hash = InfoHash.resolve(result)
 
-    {:ok, target} =
-      result
-      |> Target.acquired_changeset(
-        pursuit_id: pursuit.id,
-        origin: pursuit.origin,
-        torrent_hash: torrent_hash
-      )
-      |> Repo.insert()
+    {:ok, _} =
+      Repo.transaction(fn ->
+        {:ok, target} =
+          result
+          |> Target.acquired_changeset(
+            pursuit_id: pursuit.id,
+            origin: pursuit.origin,
+            torrent_hash: torrent_hash
+          )
+          |> Repo.insert()
 
-    Enum.each(covered_units, fn unit ->
-      {:ok, _coverage} =
-        Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id}))
+        Enum.each(covered_units, fn unit ->
+          {:ok, _coverage} =
+            Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id}))
 
-      {:ok, attempted} = Repo.update(Unit.record_attempt_changeset(unit, result.guid))
-      {:ok, _} = Repo.update(Unit.set_current_target_changeset(attempted, target.id))
-    end)
+          {:ok, attempted} = Repo.update(Unit.record_attempt_changeset(unit, result.guid))
+          {:ok, _} = Repo.update(Unit.set_current_target_changeset(attempted, target.id))
+        end)
 
-    {:ok, _event} =
-      Events.record(%ReleasePicked{
-        pursuit_id: pursuit.id,
-        pursuit_title: pursuit.title,
-        occurred_at: now,
-        release_title: result.title,
-        guid: result.guid,
-        indexer: result.indexer_name,
-        quality: MediaCentaur.Search.Quality.label(result.quality),
-        size_bytes: result.size_bytes
-      })
+        {:ok, _event} =
+          Events.record(%ReleasePicked{
+            pursuit_id: pursuit.id,
+            pursuit_title: pursuit.title,
+            occurred_at: now,
+            release_title: result.title,
+            guid: result.guid,
+            indexer: result.indexer_name,
+            quality: MediaCentaur.Search.Quality.label(result.quality),
+            size_bytes: result.size_bytes
+          })
+
+        target
+      end)
+
+    :ok
   end
 
+  # Same shape for the fallback: a seeking target per unit, its coverage
+  # row, the unit pointer and the PursueTarget job (an `oban_jobs` row in
+  # the same database) commit together.
   defp degrade_to_seeking(pursuit, covered_units) do
-    Enum.each(covered_units, fn unit ->
-      {:ok, target} =
-        %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
-        |> Target.create_changeset()
-        |> Repo.insert()
+    {:ok, _} =
+      Repo.transaction(fn ->
+        Enum.each(covered_units, fn unit ->
+          {:ok, target} =
+            %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
+            |> Target.create_changeset()
+            |> Repo.insert()
 
-      {:ok, _coverage} =
-        Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id}))
+          {:ok, _coverage} =
+            Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id}))
 
-      {:ok, _} = Repo.update(Unit.set_current_target_changeset(unit, target.id))
-      Oban.insert(PursueTarget.new(%{"target_id" => target.id}))
-    end)
+          {:ok, _} = Repo.update(Unit.set_current_target_changeset(unit, target.id))
+          {:ok, _job} = Oban.insert(PursueTarget.new(%{"target_id" => target.id}))
+        end)
+      end)
+
+    :ok
   end
 
   defp plan_units(plan_id) do

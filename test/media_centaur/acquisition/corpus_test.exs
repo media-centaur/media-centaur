@@ -59,6 +59,14 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
       assert [] = Corpus.candidates_for("Sample Title", [])
     end
 
+    test "recorded candidates carry ids (insert_all skips autogenerate)" do
+      Corpus.record!("Sample Show S01", [], [result("a"), result("b")])
+
+      ids = Enum.map(MediaCentaur.Repo.all(MediaCentaur.Acquisition.Corpus.Candidate), & &1.id)
+      assert length(ids) == 2
+      assert Enum.all?(ids, &is_binary/1)
+    end
+
     test "re-recording upserts: mutable fields refresh, no duplicate rows" do
       Corpus.record!("Sample Show S01E01", [], [result("guid-1", %{seeders: 5})])
       Corpus.record!("Sample Show S01E01", [], [result("guid-1", %{seeders: 50})])

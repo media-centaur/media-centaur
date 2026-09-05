@@ -64,27 +64,32 @@ defmodule MediaCentaur.Cache.Worker do
       :sync ->
         state.context.refresh_cache()
         schedule_tick(state)
-        {:ok, state}
+        {:ok, state, :hibernate}
     end
   end
 
+  # Every refresh builds the whole view in this process's heap and hands
+  # the result to ETS; the garbage stays resident until the next GC. With
+  # seven workers that was tens of MB of dead rebuild data at idle.
+  # Hibernating after each refresh releases it — the next message wakes
+  # the process at the cost of one small heap allocation (audit P7).
   @impl true
   def handle_continue(:prime, state) do
     state.context.refresh_cache()
     schedule_tick(state)
-    {:noreply, state}
+    {:noreply, state, :hibernate}
   end
 
   @impl true
   def handle_info(@interval_tick, state) do
     state.context.refresh_cache()
     schedule_tick(state)
-    {:noreply, state}
+    {:noreply, state, :hibernate}
   end
 
   def handle_info(message, state) do
     if state.context.relevant?(message), do: dispatch(state.context, message)
-    {:noreply, state}
+    {:noreply, state, :hibernate}
   end
 
   # If the context implements the optional `handle_message/1` callback,
