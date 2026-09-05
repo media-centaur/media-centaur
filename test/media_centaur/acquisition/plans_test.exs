@@ -789,4 +789,89 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert Plans.count_awaiting_review() == 1
     end
   end
+
+  describe "plan_title/2" do
+    import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
+
+    alias MediaCentaur.ReleaseTracking
+    alias MediaCentaur.TMDB.Title
+
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+      :ok
+    end
+
+    defp movie_title do
+      Title.new!(%{tmdb_id: 246_813, media_type: :movie, name: "Sample Movie", year: "2005"})
+    end
+
+    defp show_title do
+      Title.new!(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show", year: "2010"})
+    end
+
+    test "a movie plans with the given policy" do
+      assert :ok = Plans.plan_title(movie_title(), approval_policy: "automatic")
+      await_supervised_tasks()
+
+      [plan] = Plans.list_drafts()
+      assert plan.tmdb_type == "movie"
+      assert plan.tmdb_id == "246813"
+      assert plan.year == 2005
+      assert plan.approval_policy == "automatic"
+      assert plan.origin == "manual"
+    end
+
+    test "the policy defaults to review" do
+      assert :ok = Plans.plan_title(movie_title())
+      await_supervised_tasks()
+
+      assert [%{approval_policy: "review"}] = Plans.list_drafts()
+    end
+
+    test "a series with :first_season plans season 1's pickable episodes, no tracking" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      assert :ok = Plans.plan_title(show_title(), scope: :first_season, approval_policy: "automatic")
+      await_supervised_tasks()
+
+      [plan] = Plans.list_drafts()
+      assert plan.approval_policy == "automatic"
+
+      assert Enum.map(Plans.units_for(plan.id), &{&1.season_number, &1.episode_number}) ==
+               [{1, 1}, {1, 2}]
+
+      assert ReleaseTracking.get_item_by_tmdb(246_810, :tv_series) == nil
+    end
+
+    test "a series with :everything plans every pickable episode, then tracks the title" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      assert :ok = Plans.plan_title(show_title(), scope: :everything)
+      await_supervised_tasks()
+
+      [plan] = Plans.list_drafts()
+      assert length(Plans.units_for(plan.id)) == 3
+      assert %ReleaseTracking.Item{} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
+    end
+
+    test "a series that is already tracked is not tracked twice" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+      create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"})
+
+      assert :ok = Plans.plan_title(show_title(), scope: :everything)
+      await_supervised_tasks()
+
+      assert [_plan] = Plans.list_drafts()
+      assert length(Repo.all(ReleaseTracking.Item)) == 1
+    end
+
+    test "a TMDB failure leaves no plan" do
+      Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
+
+      assert :ok = Plans.plan_title(show_title(), scope: :first_season)
+      await_supervised_tasks()
+
+      assert Plans.list_drafts() == []
+    end
+  end
 end

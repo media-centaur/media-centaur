@@ -16,13 +16,16 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   import Ecto.Query
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.Acquisition.Jobs.RunPlan
   alias MediaCentaur.Acquisition.PlanEvents
-  alias MediaCentaur.Acquisition.Plans.{CommitPlan, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{CommitPlan, DownloadScope, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
   @type unit_choice :: {pos_integer(), pos_integer()}
@@ -92,6 +95,78 @@ defmodule MediaCentaur.Acquisition.Plans do
       [%{season_number: nil, episode_number: nil, label: title, position: 0}]
     )
   end
+
+  @doc """
+  Plans a TMDB title from its snapshot alone (spec 2026-09-05 §17): the
+  door a surface that lists titles the library does not own uses, where
+  there is no picker. Runs on the context task supervisor — a series
+  needs a targeting fetch, and the work must outlive the calling
+  LiveView (ADR-049) — and returns as soon as it is queued; the plan row
+  broadcasts on `acquisition:updates` when it exists. Movies take the
+  same path so the contract is one shape.
+
+  Options: `approval_policy:` (`"automatic"` | `"review"`, default
+  review — the one-click download passes automatic); `scope:` (series
+  only) `:first_season` (default) or `:everything`, see `DownloadScope`.
+  `:everything` also starts release tracking for the title so new
+  episodes follow; an already-tracked title is left alone. The plan is
+  created before tracking so its units are not excluded as tracked.
+
+  A failure inside the task (TMDB unreachable, nothing pickable) is
+  logged at warning on `:acquisition` and leaves no plan.
+  """
+  @spec plan_title(Title.t(), keyword()) :: :ok
+  def plan_title(%Title{} = title, opts \\ []) do
+    policy = Keyword.get(opts, :approval_policy, "review")
+    scope = Keyword.get(opts, :scope, :first_season)
+
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      do_plan_title(title, policy, scope)
+    end)
+
+    :ok
+  end
+
+  defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope) do
+    case create_movie_plan(
+           %{tmdb_id: title.tmdb_id, title: title.name, year: title_year(title)},
+           approval_policy: policy
+         ) do
+      {:ok, _plan} -> :ok
+      {:error, reason} -> Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
+    end
+  end
+
+  defp do_plan_title(%Title{media_type: :tv_series} = title, policy, scope) do
+    with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
+         units when units != [] <- DownloadScope.units(selection, scope),
+         {:ok, _plan} <- create_series_plan(selection, units, approval_policy: policy) do
+      if scope == :everything, do: ensure_tracked(title)
+      :ok
+    else
+      [] ->
+        Log.warning(:acquisition, "nothing to plan — #{title.name}")
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
+    end
+  end
+
+  defp ensure_tracked(%Title{} = title) do
+    case ReleaseTracking.get_item_by_tmdb(title.tmdb_id, :tv_series) do
+      nil -> ReleaseTracking.track_from_search(title)
+      _item -> :ok
+    end
+  end
+
+  defp title_year(%Title{year: year}) when is_binary(year) do
+    case Integer.parse(year) do
+      {parsed, ""} -> parsed
+      _other -> nil
+    end
+  end
+
+  defp title_year(_title), do: nil
 
   @doc """
   Creates a release-tracking drop plan (ADR-056 Phase 2) and starts the

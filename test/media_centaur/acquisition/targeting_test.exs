@@ -11,40 +11,7 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
     :ok
   end
 
-  defp stub_sample_show do
-    # Season routes first — `stub_routes` matches by path substring, and
-    # "/tv/246810" would otherwise swallow the season paths.
-    TmdbStubs.stub_routes([
-      {"/tv/246810/season/1",
-       TmdbStubs.season_detail(%{
-         "season_number" => 1,
-         "episodes" => [
-           %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01"},
-           %{"episode_number" => 2, "name" => "Second", "air_date" => "2020-01-08"}
-         ]
-       })},
-      {"/tv/246810/season/2",
-       TmdbStubs.season_detail(%{
-         "season_number" => 2,
-         "episodes" => [
-           %{"episode_number" => 1, "name" => "Return", "air_date" => "2021-01-01"},
-           # Far future — not aired.
-           %{"episode_number" => 2, "name" => "Finale", "air_date" => "2199-01-01"}
-         ]
-       })},
-      {"/tv/246810",
-       TmdbStubs.tv_detail(%{
-         "id" => 246_810,
-         "name" => "Sample Show",
-         "origin_country" => ["US"],
-         "seasons" => [
-           %{"season_number" => 0, "episode_count" => 1},
-           %{"season_number" => 1, "episode_count" => 2},
-           %{"season_number" => 2, "episode_count" => 2}
-         ]
-       })}
-    ])
-  end
+  defp stub_sample_show, do: TmdbStubs.stub_series_universe_for_targeting()
 
   describe "series_selection/1" do
     test "enumerates aired units per season, skipping specials" do

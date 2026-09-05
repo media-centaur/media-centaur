@@ -123,6 +123,48 @@ defmodule MediaCentaur.TmdbStubs do
     end)
   end
 
+  @doc """
+  The series targeting universe `Acquisition.Targeting.series_selection("246810")`
+  reads: Sample Show with season 1 (two aired episodes), season 2 (one
+  aired, one far-future) and a specials season the tv payload lists but
+  no route serves. Shared by the targeting, plan-title and Discovery
+  tests so one fixture describes the show.
+  """
+  def stub_series_universe_for_targeting do
+    # Season routes first — `stub_routes` matches by path substring, and
+    # "/tv/246810" would otherwise swallow the season paths.
+    stub_routes([
+      {"/tv/246810/season/1",
+       season_detail(%{
+         "season_number" => 1,
+         "episodes" => [
+           %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01"},
+           %{"episode_number" => 2, "name" => "Second", "air_date" => "2020-01-08"}
+         ]
+       })},
+      {"/tv/246810/season/2",
+       season_detail(%{
+         "season_number" => 2,
+         "episodes" => [
+           %{"episode_number" => 1, "name" => "Return", "air_date" => "2021-01-01"},
+           # Far future — not aired.
+           %{"episode_number" => 2, "name" => "Finale", "air_date" => "2199-01-01"}
+         ]
+       })},
+      {"/tv/246810",
+       tv_detail(%{
+         "id" => 246_810,
+         "name" => "Sample Show",
+         "origin_country" => ["US"],
+         "seasons" => [
+           %{"season_number" => 0, "episode_count" => 1},
+           %{"season_number" => 1, "episode_count" => 2},
+           %{"season_number" => 2, "episode_count" => 2}
+         ]
+       })}
+    ])
+  end
+
   def stub_get_collection(collection_id, data) do
     stub_endpoint("/collection/#{collection_id}", data)
   end
