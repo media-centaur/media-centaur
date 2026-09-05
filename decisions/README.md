@@ -105,3 +105,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 028 | 2026-08-19 | [Back enters the main menu; left stays in the page](user-interface/2026-08-19-028-back-enters-main-menu.md) | accepted |
 | 029 | 2026-08-31 | [The plan board narrates a diagnosis, not a procedure](user-interface/2026-08-31-029-plan-board-diagnosis.md) | accepted |
 | 030 | 2026-09-05 | [Follow-up pill and condition dot — the sidebar's two badge idioms](user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md) | accepted |
+| 031 | 2026-09-06 | [Friends carry the shelves; the feed is recommendations](user-interface/2026-09-06-031-friends-carry-shelves-feed-is-recommendations.md) | accepted |

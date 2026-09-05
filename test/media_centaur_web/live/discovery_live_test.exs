@@ -21,10 +21,19 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Settings.Preferences.DiscoveryVisibility
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.DiscoveryLive.RosterBlock
+  alias MediaCentaurWeb.DiscoveryLive.People
 
   setup do
     TmdbStubs.setup_tmdb_client()
+  end
+
+  # The ids of every element matching `selector`, in document order.
+  defp ids(view, selector) do
+    view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query(selector)
+    |> LazyHTML.attribute("id")
   end
 
   test "empty watchlist renders the empty state", %{conn: conn} do
@@ -122,28 +131,26 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   end
 
   describe "friends tab" do
-    test "shows the roster and points at Settings for identity and relays", %{conn: conn} do
+    @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
+    @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+
+    defp friend_card, do: "#person-" <> String.slice(@friend_pubkey, 0, 8)
+
+    defp signed(kind, title, opts) do
+      Event.sign(Translation.to_event(kind, title, opts, @friend_pubkey), @friend_secret)
+    end
+
+    test "shows the add form and points at Settings; no identity, no You card", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/friends")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Friends")
       assert has_element?(view, "#add-friend-form")
       assert has_element?(view, "#friends-settings-pointer a[href='/settings?section=social']")
+      refute has_element?(view, "#person-you")
       refute has_element?(view, "#identity-npub")
       refute has_element?(view, "#add-relay-form")
     end
 
-    test "the watchlist tab still renders and the strip shows both tabs", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/discovery/watchlist")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Watchlist")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Friends")
-    end
-  end
-
-  describe "friends tab — roster" do
-    @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
-
-    defp friend_row, do: "#friend-" <> String.slice(@friend_pubkey, 0, 8)
-
-    test "adds a friend by npub + name, lists them, and removes", %{conn: conn} do
+    test "adds a friend by npub + name, shows their card, and removes", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/friends")
       npub = Keys.to_npub(@friend_pubkey)
 
@@ -151,12 +158,14 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       |> form("#add-friend-form", %{"key" => npub, "nickname" => "Sample Friend"})
       |> render_submit()
 
-      assert has_element?(view, friend_row(), "Sample Friend")
-      assert has_element?(view, friend_row(), RosterBlock.short_npub(@friend_pubkey))
+      assert has_element?(view, friend_card() <> " h2", "Sample Friend")
+      assert has_element?(view, friend_card() <> " footer", People.short_npub(@friend_pubkey))
+      assert has_element?(view, friend_card(), "Nothing shared yet")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "1")
       assert [%{nickname: "Sample Friend"}] = Social.list_friends()
 
-      view |> element(friend_row() <> " button", "Remove") |> render_click()
-      refute has_element?(view, friend_row())
+      view |> element(friend_card() <> " button", "Remove friend") |> render_click()
+      refute has_element?(view, friend_card())
       assert Social.list_friends() == []
     end
 
@@ -183,17 +192,132 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "a roster change in another tab lands live", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/friends")
-      refute has_element?(view, friend_row())
+      refute has_element?(view, friend_card())
 
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      render_until(view, fn _html -> has_element?(view, friend_row(), "Sample Friend") end)
+      render_until(view, fn _html -> has_element?(view, friend_card(), "Sample Friend") end)
 
       :ok = Social.remove_friend(@friend_pubkey)
-      render_until(view, fn _html -> not has_element?(view, friend_row()) end)
+      render_until(view, fn _html -> not has_element?(view, friend_card()) end)
+    end
+
+    test "a friend's card carries their shelves and presence; a poster opens that act", %{conn: conn} do
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      show = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
+      episode = %Episode{season_number: 2, episode_number: 5, name: "The Fifth"}
+      {:ok, watched} = Activities.ingest(signed(:watched, show, episode: episode))
+      {:ok, tracked} = Activities.ingest(signed(:tracking, show, []))
+
+      movie = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie 777"})
+
+      {:ok, recommended} =
+        Activities.ingest(signed(:recommendation, movie, note: "Watch it.", sentiment: :love))
+
+      # The watched act is the newest, so it is the presence line.
+      backdate(tracked, :acted_at, ~U[2026-09-01 10:00:00Z])
+      backdate(recommended, :acted_at, ~U[2026-09-01 09:00:00Z])
+
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+
+      # You first, then the friend; the presence line is the newest act.
+      assert ids(view, "[data-component='person-card']") == ["person-you", "person-f9308a01"]
+
+      assert has_element?(
+               view,
+               friend_card() <> " [data-role='presence']",
+               "watched S02E05 of Sample Show"
+             )
+
+      assert has_element?(view, friend_card() <> "-watched-#{watched.id}")
+      assert has_element?(view, friend_card() <> "-#{tracked.id}", "Sample Show")
+      assert has_element?(view, friend_card() <> "-#{recommended.id}", "Sample Movie 777")
+      assert has_element?(view, friend_card() <> "-#{recommended.id} .text-love")
+
+      view |> element(friend_card() <> "-watched-#{watched.id}") |> render_click()
+      assert_patch(view, "/discovery/friends?title=tv_series-1399&activity=#{watched.id}")
+      assert render(view) =~ "Sample Friend watched S02E05"
+      refute has_element?(view, "#title-activity-delete")
+      render_hook(view, "close_title", %{})
+
+      # The recommendation opens with its note and the named pennant.
+      view |> element(friend_card() <> "-#{recommended.id}") |> render_click()
+      assert render(view) =~ "Sample Friend recommended"
+      assert render(view) =~ "Watch it."
+      assert has_element?(view, "#title-detail-modal .pennant[data-sentiment='love']", "Sample Friend")
+
+      await_supervised_tasks()
+    end
+
+    test "the You card shows what you broadcast and deletes it by kind", %{conn: conn} do
+      title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
+      {:ok, mine} = Activities.tracking(title)
+
+      {:ok, rec} =
+        Activities.recommend(
+          Title.new!(%{tmdb_id: 99, media_type: :movie, name: "Sample Movie 99"}),
+          :like,
+          "mine"
+        )
+
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      assert has_element?(view, "#person-you[data-own]", "How friends see you")
+      assert has_element?(view, "#person-you [data-role='presence']", "recommended Sample Movie 99")
+      refute has_element?(view, "#person-you footer")
+
+      view |> element("#person-you-#{rec.id}") |> render_click()
+      assert render(view) =~ "You recommended"
+      view |> element("#title-watchlist-add") |> render_click()
+      assert Discovery.on_watchlist?(99, :movie)
+      render_hook(view, "close_title", %{})
+
+      view |> element("#person-you-#{mine.id}") |> render_click()
+      view |> element("#title-activity-delete", "Delete tracking activity") |> render_click()
+      assert render(view) =~ "Tracking activity withdrawn"
+      refute has_element?(view, "#person-you-#{mine.id}")
+      assert Enum.map(Activities.list_sent(), & &1.kind) == [:recommendation]
+
+      await_supervised_tasks()
+    end
+
+    test "a You card with nothing shared says where sharing starts", %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      assert has_element?(view, "#person-you", "once sharing is on under Settings → Social")
+      refute has_element?(view, "#person-you", "How friends see you")
+    end
+
+    test "all N grows the strip in place", %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+
+      for tmdb_id <- 1..7 do
+        {:ok, _} =
+          Activities.ingest(
+            signed(
+              :watched,
+              Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie #{tmdb_id}"}),
+              []
+            )
+          )
+      end
+
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      assert has_element?(view, friend_card() <> "-watched-all", "all 7")
+
+      assert length(
+               ids(view, friend_card() <> " [data-role='watched-strip'] button[phx-value-activity]")
+             ) == 5
+
+      view |> element(friend_card() <> "-watched-all") |> render_click()
+      refute has_element?(view, friend_card() <> "-watched-all")
+
+      assert length(
+               ids(view, friend_card() <> " [data-role='watched-strip'] button[phx-value-activity]")
+             ) == 7
     end
   end
 
-  describe "feed tab" do
+  describe "recommendations tab" do
     @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
     @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
@@ -205,11 +329,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     @other_secret Secret.wrap(String.duplicate("0", 63) <> "2")
     @other_pubkey "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
 
-    defp other_event(tmdb_id, sentiment) do
+    defp other_event(tmdb_id, sentiment),
+      do: other_event(tmdb_id, nil, sentiment, System.os_time(:second))
+
+    defp other_event(tmdb_id, note, sentiment, created_at) do
       title = Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie #{tmdb_id}"})
 
       Event.sign(
-        Translation.to_event(:recommendation, title, [note: nil, sentiment: sentiment], @other_pubkey),
+        %{
+          Translation.to_event(:recommendation, title, [note: note, sentiment: sentiment], @other_pubkey)
+          | created_at: created_at
+        },
         @other_secret
       )
     end
@@ -225,15 +355,15 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "empty state names the prerequisites, then the quiet empty state", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Feed")
-      assert has_element?(view, "#feed-scope-incoming.zone-tab-active")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Recommendations")
       assert render(view) =~ "Add a relay under Settings → Social and a friend on the Friends tab"
 
       {:ok, _relay} = Social.add_relay("wss://relay.example")
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
       {:ok, view, _html} = live(conn, "/discovery")
-      assert render(view) =~ "Nothing from your friends yet."
+      assert render(view) =~ "What your friends recommend lands here."
+      refute render(view) =~ "Add a relay"
     end
 
     test "rows show the title, who and when, the note, and add to the watchlist", %{conn: conn} do
@@ -242,16 +372,20 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery")
 
-      assert has_element?(view, "#feed-#{rec.id}", "Sample Movie 777")
-      assert has_element?(view, "#feed-#{rec.id}", "Sample Friend recommended")
-      assert has_element?(view, "#feed-#{rec.id}", "Watch it.")
-      # The lead already says who, so the pennant is icon-only.
-      assert has_element?(view, "#feed-#{rec.id} .pennant[data-sentiment='like']")
-      refute has_element?(view, "#feed-#{rec.id} .pennant", "Sample Friend")
+      assert has_element?(view, "#recommendation-movie-777", "Sample Movie 777")
+      assert has_element?(view, "#recommendation-movie-777", "Sample Friend ·")
+      refute has_element?(view, "#recommendation-movie-777", "recommended")
+      assert has_element?(view, "#recommendation-movie-777", "Watch it.")
+      # The tab is recommendations, so the pennant names who and says how much.
+      assert has_element?(
+               view,
+               "#recommendation-movie-777 .pennant[data-sentiment='like']",
+               "Sample Friend"
+             )
 
       # The card opens the modal; Add to watchlist lives there and carries
       # the recommendation's provenance onto the item.
-      view |> element("#feed-#{rec.id}") |> render_click()
+      view |> element("#recommendation-movie-777") |> render_click()
       assert_patch(view, "/discovery?title=movie-777")
       assert render(view) =~ "Sample Friend recommended"
 
@@ -262,7 +396,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       render_hook(view, "close_title", %{})
       assert_patch(view, "/discovery")
-      assert has_element?(view, "#feed-#{rec.id}", "On watchlist")
+      assert has_element?(view, "#recommendation-movie-777", "On watchlist")
 
       assert [%{item: %{source: :friend, activity_id: rec_id, note: "Watch it."}}] =
                Discovery.list_watchlist()
@@ -272,16 +406,58 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
+    test "two friends on one title make one row, newest first, notes attributed", %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _other} = Social.add_friend(@other_pubkey, "Other Friend")
+      now = System.os_time(:second)
+      {:ok, _first} = Activities.ingest(friend_event(777, "Watch it."))
+      {:ok, _second} = Activities.ingest(other_event(777, "Agreed.", :love, now + 60))
+      {:ok, _quiet} = Activities.ingest(other_event(778, nil, :like, now - 600))
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert length(ids(view, "[data-component='title-row']")) == 2
+      assert has_element?(view, "#recommendation-movie-777", "Other Friend, Sample Friend ·")
+      assert has_element?(view, "#recommendation-movie-777", "Other Friend")
+      assert has_element?(view, "#recommendation-movie-777", "Agreed.")
+      assert has_element?(view, "#recommendation-movie-777", "Watch it.")
+
+      assert has_element?(
+               view,
+               "#recommendation-movie-777 .pennant[data-sentiment='love']",
+               "Other Friend"
+             )
+
+      assert has_element?(
+               view,
+               "#recommendation-movie-777 .pennant[data-sentiment='like']",
+               "Sample Friend"
+             )
+
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "2")
+
+      # The first row is the newest title.
+      assert ["recommendation-movie-777", "recommendation-movie-778"] =
+               ids(view, "[data-component='title-row']")
+
+      # The modal speaks for the newest recommendation and flies both pennants.
+      view |> element("#recommendation-movie-777") |> render_click()
+      assert render(view) =~ "Other Friend recommended"
+      assert has_element?(view, "#title-detail-modal .pennant[data-sentiment='like']", "Sample Friend")
+
+      await_supervised_tasks()
+    end
+
     test "a title the library has shows In library and links to it", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, rec} = Activities.ingest(friend_event(777, nil))
+      {:ok, _rec} = Activities.ingest(friend_event(777, nil))
 
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
       create_linked_file(%{movie_id: movie.id})
 
       {:ok, view, _html} = live(conn, "/discovery?title=movie-777")
-      assert has_element?(view, "#feed-#{rec.id}", "In library")
+      assert has_element?(view, "#recommendation-movie-777", "In library")
       assert has_element?(view, "#title-in-library[href='/library?selected=#{movie.id}']", "In library")
 
       await_supervised_tasks()
@@ -291,41 +467,48 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, view, _html} = live(conn, "/discovery")
 
-      {:ok, rec} = Activities.ingest(friend_event(778, "live"))
-      render_until(view, fn _html -> has_element?(view, "#feed-#{rec.id}") end)
+      {:ok, _rec} = Activities.ingest(friend_event(778, "live"))
+      render_until(view, fn _html -> has_element?(view, "#recommendation-movie-778") end)
 
       await_supervised_tasks()
     end
 
-    test "the tab strip counts the feed", %{conn: conn} do
+    test "the tab strip counts the titles", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _rec} = Activities.ingest(friend_event(777, nil))
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Feed")
-      assert has_element?(view, "[data-nav-zone='zone-tabs'] a .badge", "1")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a", "Recommendations")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge", "1")
 
       await_supervised_tasks()
     end
 
-    test "an own recommendation reads You, not from, and still counts", %{conn: conn} do
+    test "own activity, watched and tracking never make a row here", %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      show = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
+      episode = %Episode{season_number: 2, episode_number: 5, name: "The Fifth"}
+
+      {:ok, _watched} =
+        Activities.ingest(
+          Event.sign(
+            Translation.to_event(:watched, show, [episode: episode], @friend_pubkey),
+            @friend_secret
+          )
+        )
+
+      {:ok, _tracked} =
+        Activities.ingest(
+          Event.sign(Translation.to_event(:tracking, show, [], @friend_pubkey), @friend_secret)
+        )
+
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
-      {:ok, rec} = Activities.recommend(title, :like, "mine")
+      {:ok, _mine} = Activities.recommend(title, :like, "mine")
 
       {:ok, view, _html} = live(conn, "/discovery")
-      view |> element("#feed-scope-own") |> render_click()
-
-      assert has_element?(view, "#feed-#{rec.id}", "You recommended ·")
-      refute has_element?(view, "#feed-#{rec.id}", "Sample Friend")
-
-      # The tab badge counts incoming only; own rows count on the Yours scope.
-      refute has_element?(view, "[data-nav-zone='zone-tabs'] a .badge")
-      assert has_element?(view, "#feed-scope-own .badge", "1")
-
-      view |> element("#feed-#{rec.id}") |> render_click()
-      assert render(view) =~ "You recommended"
-      view |> element("#title-watchlist-add") |> render_click()
-      assert Discovery.on_watchlist?(999, :movie)
+      refute has_element?(view, "[data-component='title-row']")
+      refute has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge")
+      assert render(view) =~ "What your friends recommend lands here"
 
       await_supervised_tasks()
     end
@@ -339,79 +522,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert Process.alive?(view.pid)
       assert Discovery.list_watchlist() == []
-    end
-
-    test "watched and tracking rows say who did what, and an own one deletes by kind", %{conn: conn} do
-      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      show = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
-      episode = %Episode{season_number: 2, episode_number: 5, name: "The Fifth"}
-
-      {:ok, watched} =
-        Activities.ingest(
-          Event.sign(
-            Translation.to_event(:watched, show, [episode: episode], @friend_pubkey),
-            @friend_secret
-          )
-        )
-
-      {:ok, tracked} =
-        Activities.ingest(
-          Event.sign(Translation.to_event(:tracking, show, [], @friend_pubkey), @friend_secret)
-        )
-
-      # One title, two kinds — two rows; the ids differ.
-      refute watched.id == tracked.id
-
-      {:ok, mine} =
-        Activities.tracking(Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"}))
-
-      {:ok, view, _html} = live(conn, "/discovery")
-      assert has_element?(view, "#feed-#{watched.id}", "Sample Friend watched S02E05")
-      assert has_element?(view, "#feed-#{tracked.id}", "Sample Friend started tracking")
-
-      view |> element("#feed-#{watched.id}") |> render_click()
-      assert render(view) =~ "Sample Friend watched S02E05"
-      refute has_element?(view, "#title-activity-delete")
-      render_hook(view, "close_title", %{})
-
-      view |> element("#feed-scope-own") |> render_click()
-      assert has_element?(view, "#feed-#{mine.id}", "You started tracking")
-      view |> element("#feed-#{mine.id}") |> render_click()
-      view |> element("#title-activity-delete", "Delete tracking activity") |> render_click()
-      assert render(view) =~ "Tracking activity withdrawn"
-      refute has_element?(view, "#feed-#{mine.id}")
-      await_supervised_tasks()
-    end
-
-    test "Yours shows own rows with Delete; Incoming hides them; delete withdraws", %{conn: conn} do
-      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, theirs} = Activities.ingest(friend_event(777, nil))
-      title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
-      {:ok, mine} = Activities.recommend(title, :like, "mine")
-
-      {:ok, view, _html} = live(conn, "/discovery")
-      assert has_element?(view, "#feed-#{theirs.id}")
-      refute has_element?(view, "#feed-#{mine.id}")
-
-      # A friend's recommendation carries no Delete verb in its modal.
-      view |> element("#feed-#{theirs.id}") |> render_click()
-      refute has_element?(view, "#title-activity-delete")
-      render_hook(view, "close_title", %{})
-
-      view |> element("#feed-scope-own") |> render_click()
-      assert has_element?(view, "#feed-scope-own.zone-tab-active")
-      assert has_element?(view, "#feed-#{mine.id}", "You")
-      refute has_element?(view, "#feed-#{theirs.id}")
-
-      view |> element("#feed-#{mine.id}") |> render_click()
-      view |> element("#title-activity-delete", "Delete recommendation") |> render_click()
-      assert_patch(view, "/discovery")
-      refute has_element?(view, "#feed-#{mine.id}")
-      assert render(view) =~ "Recommendation withdrawn"
-      assert render(view) =~ "Titles you recommend from their detail page show up here"
-      assert Activities.list_sent() == []
-
-      await_supervised_tasks()
     end
 
     test "a friend's deletion removes their row without a reload", %{conn: conn} do
@@ -431,7 +541,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, rec} = Activities.ingest(event)
 
       {:ok, view, _html} = live(conn, "/discovery")
-      assert has_element?(view, "#feed-#{rec.id}")
+      assert has_element?(view, "#recommendation-movie-779")
 
       deletion =
         Event.sign(
@@ -440,7 +550,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         )
 
       {:ok, _gone} = Activities.ingest(deletion)
-      render_until(view, fn _html -> not has_element?(view, "#feed-#{rec.id}") end)
+      render_until(view, fn _html -> not has_element?(view, "#recommendation-movie-779") end)
 
       await_supervised_tasks()
     end
@@ -513,7 +623,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#title-detail-modal #title-download")
       refute html =~ "Every confirmation counts."
 
-      html = render_async(view)
+      # The stubbed detail fetch plus the preview build outrun the 100ms
+      # default under a loaded suite; the budget matches the other views'.
+      html = render_async(view, 1_000)
       assert html =~ "Every confirmation counts."
       assert has_element?(view, "#title-detail-modal [data-component='preview-body']")
       assert html =~ "sample-backdrop.jpg"

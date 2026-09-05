@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
   @moduledoc """
   One Discovery row — poster thumb, identity line, the host's lead line
-  and quiet markers, a note or the overview — as a whole-card click
+  and quiet markers, the notes or the overview — as a whole-card click
   target. Every verb lives in the title detail modal, so the row never
   grows or loses a control depending on where the title stands; only
   its markers change. `poster_url: nil` shows the icon fallback.
@@ -75,43 +75,49 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
         attributes: %{id: "row-needs-review", title: title(), markers: ["Needs review"]}
       },
       %Variation{
-        id: :from_friend_with_note,
+        id: :recommended_by_one,
         description:
-          "A feed row: the lead line says who and when, On watchlist is a marker, the " <>
-            "friend's note displaces the overview, and the pennant is icon-only because " <>
-            "the lead already names the friend.",
+          "A Recommendations row from one friend: the lead says who and when, On " <>
+            "watchlist is a marker, the note displaces the overview unattributed, and " <>
+            "the named pennant carries the sentiment.",
         attributes: %{
-          id: "row-from-friend",
+          id: "row-recommended-by-one",
           title: title(),
-          lead: "Sample Friend recommended · 2 days ago",
+          lead: "Sample Friend · 2d ago",
           markers: ["On watchlist"],
-          secondary: "Watch it before anyone spoils the ending.",
-          recommendations: [recommendation("Sample Friend", :love)],
-          named?: false
+          notes: [%{name: nil, text: "Watch it before anyone spoils the ending."}],
+          recommendations: [recommendation("Sample Friend", :love)]
         }
       },
       %Variation{
-        id: :own_recommendation,
-        description: "An own recommendation on the Yours scope: the lead reads You.",
+        id: :recommended_by_two,
+        description:
+          "Two friends on one title (UIDR-031): the lead names both newest first, " <>
+            "each note carries its name, and the mast stacks love above like.",
         attributes: %{
-          id: "row-own",
+          id: "row-recommended-by-two",
           title: title(),
-          lead: "You recommended · today",
-          recommendations: [recommendation(nil, :like)],
-          named?: false
-        }
-      },
-      %Variation{
-        id: :watchlist_recommended,
-        description: "A watchlist row has no lead, so the pennants carry the names — love above like.",
-        attributes: %{
-          id: "row-watchlist-recommended",
-          title: title(),
-          markers: ["In library"],
+          lead: "Sample Friend, Other Friend · 2d ago",
+          notes: [
+            %{name: "Sample Friend", text: "Watch it before anyone spoils the ending."},
+            %{name: "Other Friend", text: "Fine."}
+          ],
           recommendations: [
             recommendation("Other Friend", :like),
             recommendation("Sample Friend", :love)
           ]
+        }
+      },
+      %Variation{
+        id: :watchlist_with_note,
+        description:
+          "A watchlist row: no lead, the item's own note, and the pennants name who recommended it.",
+        attributes: %{
+          id: "row-watchlist-with-note",
+          title: title(),
+          markers: ["In library"],
+          notes: [%{name: nil, text: "For the weekend."}],
+          recommendations: [recommendation("Sample Friend", :love)]
         }
       },
       %Variation{

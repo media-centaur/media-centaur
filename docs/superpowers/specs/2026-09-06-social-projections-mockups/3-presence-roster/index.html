@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>3 · Presence roster</title><style>
+.list{padding:4px 0}
+.person{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid oklch(93% 0.01 264/.06)}
+.person:last-child{border-bottom:0}
+.person .name{font-weight:600;font-size:16px}
+.person .pres{font-size:13px;color:oklch(93% 0.01 264/.6)}
+.person .when{margin-left:auto;font-size:12px;flex:none}
+.person .chev{color:oklch(93% 0.01 264/.4);flex:none}
+.expand{background:oklch(93% 0.01 264/.03);padding:12px 14px 14px 58px;border-bottom:1px solid oklch(93% 0.01 264/.06)}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin:6px 0 10px}
+.line{font-size:13px;margin-top:4px}.line .sec{margin-right:8px}
+.acts{display:flex;gap:6px;margin-top:10px}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab">Recommendations<span class="n">3</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab active">Friends<span class="n">3</span></span></div>
+
+<div class="glass list">
+ <div class="person"><div class="avatar" style="--h:264">S</div><div><div class="name">You</div><div class="pres">watched S03E01 of Sample Show</div></div><span class="when dim">1h ago</span><span class="chev">▸</span></div>
+
+ <div class="person" style="background:oklch(93% 0.01 264/.03)"><div class="avatar" style="--h:20">B</div><div><div class="name">Bob</div><div class="pres">watched S02E05 of Sample Show</div></div><span class="when dim">2h ago</span><span class="chev">▾</span></div>
+ <div class="expand">
+  <div class="sec">Recently watched</div>
+  <div class="grid"><div class="poster sm" style="--h:20">Sample Show</div><div class="poster sm" style="--h:330">Movie H</div><div class="poster sm" style="--h:120">Movie A</div><div class="poster sm" style="--h:60">Show J</div><div class="poster sm" style="--h:250">Movie K</div><div class="poster sm" style="--h:200">Movie L</div><div class="poster sm" style="--h:40">Movie M</div><div class="inset" style="display:grid;place-items:center;font-size:11px" class="dim"><span class="dim">all 23</span></div></div>
+  <div class="line"><span class="sec">Tracking</span>Movie A · Sample Show <span class="dim">· 1 more</span></div>
+  <div class="line"><span class="sec">Recommended</span>Movie B <span class="pill love">♥ love</span></div>
+  <div class="acts"><span class="key" style="align-self:center">npub1q3f…k9z · added Aug 30</span><button class="btn ghost" style="margin-left:auto">Remove friend</button></div>
+ </div>
+
+ <div class="person"><div class="avatar" style="--h:150">A</div><div><div class="name">Alice</div><div class="pres">watched Movie D · recommended Show B</div></div><span class="when dim">3d ago</span><span class="chev">▸</span></div>
+ <div class="person"><div class="avatar" style="--h:90">C</div><div><div class="name">Cleo</div><div class="pres dim">nothing shared yet</div></div><span class="when dim">added yesterday</span><span class="chev">▸</span></div>
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn soft">Add friend</button></div>
+<p class="dim" style="font-size:12px;margin:14px 4px">Your identity and relays are under Settings → Social.</p>
+</div><div class="note">3 · presence roster, expand in place</div></body></html>

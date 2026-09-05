@@ -46,7 +46,7 @@ defmodule MediaCentaur.Activities.SyncTest do
     {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:activity_received, _event}, 5_000
-    assert [%{activity: %{tmdb_id: 1}, nickname: "Sample Friend"}] = Activities.list_feed()
+    assert [%{activity: %{tmdb_id: 1}, nickname: "Sample Friend"}] = Activities.list_activities()
     await_supervised_tasks()
   end
 
@@ -117,7 +117,7 @@ defmodule MediaCentaur.Activities.SyncTest do
 
     FakeRelay.push(relay, ["EVENT", "feed", Event.to_map(event)])
     refute_receive {:activity_received, _event}, 500
-    assert Activities.list_feed() == []
+    assert Activities.list_activities() == []
   end
 
   defp friend_event_at(id, created_at),
@@ -149,7 +149,7 @@ defmodule MediaCentaur.Activities.SyncTest do
     refute Map.has_key?(again, "since")
     refute_receive {:relay_in, ["REQ", "feed", %{"since" => _cursor}]}, 500
     refute_receive {:activity_received, _event}, 100
-    assert [%{activity: %{tmdb_id: 1}}] = Activities.list_feed()
+    assert [%{activity: %{tmdb_id: 1}}] = Activities.list_activities()
     await_supervised_tasks()
   end
 
@@ -178,7 +178,7 @@ defmodule MediaCentaur.Activities.SyncTest do
     refute Map.has_key?(live, "since")
 
     render_all = fn ->
-      Activities.list_feed() |> Enum.map(& &1.activity.tmdb_id) |> Enum.sort()
+      Activities.list_activities() |> Enum.map(& &1.activity.tmdb_id) |> Enum.sort()
     end
 
     assert_receive {:activity_received, _event}, 5_000
@@ -259,7 +259,7 @@ defmodule MediaCentaur.Activities.SyncTest do
     {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:activity_deleted, _event}, 5_000
-    assert Activities.list_feed() == []
+    assert Activities.list_activities() == []
     await_supervised_tasks()
   end
 end

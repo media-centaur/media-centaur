@@ -1,0 +1,58 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>2 · Shelves</title><style>
+.roster{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+.chip{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:99px}
+.chip .avatar{width:24px;height:24px;font-size:11px}
+.chip .key{margin-left:2px}
+.shelf{margin-bottom:26px}
+.shelf-h{display:flex;align-items:baseline;gap:10px;margin:0 4px 8px}
+.shelf-h .name{font-weight:600;font-size:19px}
+.shelf-h .avatar{width:28px;height:28px;font-size:12px;align-self:center}
+.shelf-h .what{color:oklch(93% 0.01 264/.6)}
+.shelf-h .when{margin-left:auto;font-size:12px}
+.rail{display:flex;gap:10px;overflow-x:auto;padding:2px 4px 6px;scrollbar-width:thin}
+.rail .poster{flex:none;width:96px}
+.rail .poster .tag{position:absolute;top:6px;left:6px;font-size:9px;padding:1px 5px;border-radius:99px;background:oklch(0% 0 0/.5)}
+.poster{position:relative}
+.sub{display:flex;gap:18px;margin:8px 4px 0;font-size:13px}
+.sub .sec{margin-right:6px}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab">Recommendations<span class="n">3</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab active">Friends<span class="n">3</span></span></div>
+
+<div class="roster">
+ <div class="chip glass" style="border-color:oklch(72% 0.14 264/.3)"><div class="avatar" style="--h:264">S</div>You</div>
+ <div class="chip glass"><div class="avatar" style="--h:20">B</div>Bob<span class="key">npub1q3f…</span><button class="btn ghost" style="padding:0 4px">×</button></div>
+ <div class="chip glass"><div class="avatar" style="--h:150">A</div>Alice<span class="key">npub1zz8…</span><button class="btn ghost" style="padding:0 4px">×</button></div>
+ <div class="chip glass"><div class="avatar" style="--h:90">C</div>Cleo<span class="key">npub1mm4…</span><button class="btn ghost" style="padding:0 4px">×</button></div>
+ <button class="btn soft" style="border-radius:99px">+ Add friend</button>
+</div>
+
+<div class="shelf">
+ <div class="shelf-h"><div class="avatar" style="--h:20">B</div><span class="name">Bob</span><span class="what">watched S02E05 of Sample Show</span><span class="when dim">2h ago</span></div>
+ <div class="rail">
+  <div class="poster" style="--h:20"><span class="tag">S02E05</span>Sample Show</div>
+  <div class="poster" style="--h:330">Movie H</div>
+  <div class="poster" style="--h:120">Movie A</div>
+  <div class="poster" style="--h:60"><span class="tag">S01E08</span>Show J</div>
+  <div class="poster" style="--h:250">Movie K</div>
+  <div class="poster" style="--h:200">Movie L</div>
+  <div class="poster" style="--h:40">Movie M</div>
+  <div class="poster" style="--h:100"><span class="tag">S04E02</span>Show N</div>
+ </div>
+ <div class="sub"><span><span class="sec">Tracking</span>Movie A · Sample Show <span class="dim">· 1 more</span></span><span><span class="sec">Recommended</span>Movie B <span class="pill love">♥ love</span></span></div>
+</div>
+
+<div class="shelf">
+ <div class="shelf-h"><div class="avatar" style="--h:150">A</div><span class="name">Alice</span><span class="what">watched Movie D</span><span class="when dim">3d ago</span></div>
+ <div class="rail"><div class="poster" style="--h:150">Movie D</div><div class="poster" style="--h:280"><span class="tag">S01E03</span>Show B</div></div>
+ <div class="sub"><span><span class="sec">Tracking</span>Show F</span><span><span class="sec">Recommended</span>Movie C <span class="pill like">👍 like</span> · Show B <span class="pill love">♥ love</span></span></div>
+</div>
+
+<div class="shelf">
+ <div class="shelf-h"><div class="avatar" style="--h:264">S</div><span class="name">You</span><span class="what">watched S03E01 of Sample Show</span><span class="when dim">1h ago</span></div>
+ <div class="rail"><div class="poster" style="--h:20"><span class="tag">S03E01</span>Sample Show</div><div class="poster" style="--h:200">Movie A</div><div class="poster" style="--h:90">Movie C</div><div class="poster" style="--h:300">Show B</div><div class="poster" style="--h:150">Movie D</div><div class="poster" style="--h:10">Movie P</div></div>
+ <div class="sub"><span><span class="sec">Tracking</span>Movie E · Show F · Show G <span class="dim">· 4 more</span></span><span><span class="sec">Recommended</span>Movie B <span class="pill love">♥ love</span> · Sample Show <span class="pill like">👍 like</span></span></div>
+</div>
+
+<div class="shelf"><div class="shelf-h"><div class="avatar" style="--h:90">C</div><span class="name">Cleo</span><span class="what dim">nothing shared yet</span></div></div>
+
+<p class="dim" style="font-size:12px;margin:14px 4px">Your identity and relays are under Settings → Social.</p>
+</div><div class="note">2 · shelves per friend</div></body></html>

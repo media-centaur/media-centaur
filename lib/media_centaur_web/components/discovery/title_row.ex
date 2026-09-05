@@ -1,12 +1,13 @@
 defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
   @moduledoc """
-  One Discovery row — a recommendation on the feed or a watchlist entry —
-  as a whole-card click target opening the title detail modal (spec
-  2026-09-05 §14). The shared `title_summary/1` identity block, an
-  optional lead line (the feed's `from <nickname> · when` / `You · when`),
-  the quiet markers the host computed (`DiscoveryLive.Logic.row_markers/1`),
-  and the secondary text (a note) in place of the overview. State is
-  shown, never acted on here: every verb lives in the modal.
+  One Discovery row — a title on the Recommendations tab or a watchlist
+  entry — as a whole-card click target opening the title detail modal
+  (spec 2026-09-05 §14). The shared `title_summary/1` identity block, an
+  optional lead line (the Recommendations tab's `<names> · when`), the
+  quiet markers the host computed (`DiscoveryLive.Logic.row_markers/1`),
+  and the notes in place of the overview: one unattributed note reads
+  plain, several carry their names (UIDR-031). State is shown, never
+  acted on here: every verb lives in the modal.
 
   Pure rendering; `open_title` bubbles to `DiscoveryLive` with the
   title's ref. The ref doubles as `data-entity-id`, the stable identity
@@ -31,17 +32,19 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
     default: nil,
     doc: "resolved by the host via `LiveHelpers.title_poster_url/1`"
 
-  attr :lead, :string, default: nil, doc: "the feed's sender/when line; nil on the watchlist"
+  attr :lead, :string,
+    default: nil,
+    doc: "the Recommendations tab's names/when line; nil on the watchlist"
+
   attr :markers, :list, default: [], doc: "quiet text markers from `Logic.row_markers/1`"
-  attr :secondary, :string, default: nil, doc: "a note that displaces the overview"
+
+  attr :notes, :list,
+    default: [],
+    doc: "`%{name: nil | String.t(), text}` notes displacing the overview; a lone nil name reads plain"
 
   attr :recommendations, :list,
     default: [],
     doc: "the title's `Activities.recommendations_for/1` rows — the pennants on the mast"
-
-  attr :named?, :boolean,
-    default: true,
-    doc: "pennants carry names; false on the Feed, whose lead already says who"
 
   def title_row(assigns) do
     ~H"""
@@ -63,15 +66,16 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
             {marker}
           </span>
         </:markers>
-        <:secondary :if={@secondary}>{@secondary}</:secondary>
+        <:secondary :if={@notes != []}>
+          <span :for={note <- @notes} class="block">
+            <span :if={note.name} class="font-medium text-base-content/70">{note.name}</span>
+            {note.text}
+          </span>
+        </:secondary>
       </.title_summary>
       <%!-- The mast bleeds into the row's right padding so the hoist
             meets the border; overflow-hidden clips it to the corners. --%>
-      <.recommendation_pennants
-        recommendations={@recommendations}
-        named?={@named?}
-        class="-mr-4 self-center"
-      />
+      <.recommendation_pennants recommendations={@recommendations} class="-mr-4 self-center" />
     </button>
     """
   end

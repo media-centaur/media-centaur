@@ -269,29 +269,38 @@ disagree with the owner about what a message meant.
 ## Web layer
 
 `MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
-(`:feed` at `/discovery`, `:watchlist`, `:friends`). The Feed tab has an
-Incoming / Yours scope (`feed_scope` assign; the tab badge counts incoming
-only), every row leads with who did what (`DiscoveryLive.ActivityWords`:
-"recommended", "watched S02E05", "started tracking"), and own rows carry
-Delete → `Activities.delete/1`.
-The tab's pieces are iteration-phase function components under
-`live/discovery_live/` (`roster_block`, `feed_row`, `recommend_modal`) — no
-stories and no input-system support yet; the hardening pass moves them under
-`components/` (spec decision 11), which is when MC0009 starts applying.
+(`:recommendations` at `/discovery`, `:watchlist`, `:friends`). Both social
+tabs project one enriched list — every live activity with its actor
+(`Activities.list_activities/0`) — two ways (UIDR-031):
+
+- **Recommendations** — `DiscoveryLive.RecommendationRows`: friends'
+  recommendations only, one row per title placed by its newest, the lead
+  naming every recommender, notes attributed when there are several.
+- **Friends** — `DiscoveryLive.People` folds the list into one
+  `Components.Discovery.Person` per friend and one for You (when an
+  identity exists), each with its watched / tracking / recommended
+  shelves and a presence line (`DiscoveryLive.ActivityWords.presence/3`);
+  `Components.Discovery.PersonCard` renders it. Every poster and name
+  opens the title modal with `?title=<ref>&activity=<id>` so the modal
+  speaks for that act; Delete on an own activity → `Activities.delete/1`
+  lives there. `DiscoveryLive.AddFriendBlock` is the add-friend form,
+  still an iteration-phase component under `live/discovery_live/`.
 
 Who recommended a title, and how much, is one component everywhere —
 `Components.Discovery.RecommendationPennant` — fed by
 `Activities.recommendations_for/1` on the watchlist rows, the Incoming
-search rows and both detail modals, and by the row itself on the Feed. See
+search rows and both detail modals, and by the row's own activities on the
+Recommendations tab. See
 `docs/plans/2026-09-05-recommendation-pennant.md` for the decisions.
 
 The joins the contexts may not make happen here:
 
-- **Feed rows** — `Activities.list_feed/0` returns the record plus the
-  friend's nickname (`own?: true`, `nickname: nil` for this identity's own).
-  `DiscoveryLive` adds `poster_url`, `library_owner_id`
-  (`Library.ExternalIds.tmdb_owners/1`) and `on_watchlist?`
-  (`Discovery.watchlisted_refs/0`).
+- **Activity rows** — `Activities.list_activities/0` returns the record plus
+  the friend's nickname (`own?: true`, `nickname: nil` for this identity's
+  own). `DiscoveryLive` adds `poster_url`, `library_owner_id`
+  (`Library.ExternalIds.tmdb_owners/1`), `on_watchlist?`
+  (`Discovery.watchlisted_refs/0`) and the acquisition state, then both
+  projections read from that one list.
 - **Watchlist rows** — the row stores only `activity_id`; the page resolves
   it to a nickname through `Activities.get_many/1` → `Social.list_friends/0`.
 
@@ -356,10 +365,10 @@ the recipes.
 | Recipe | Does |
 |---|---|
 | `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Friends. The relay goes under Settings → Social. Re-run to restart. |
-| `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up in your Feed. |
+| `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up under Recommendations and on the friend's card. |
 | `just social-watched tv_series 1399 --name "Sample Show" --season 2 --episode 5` | The friend finished an episode (kind 32161). |
 | `just social-tracking movie 603 --name "Sample Movie"` | The friend started tracking a release (kind 32162). |
-| `just social-delete movie 603` / `just social-delete watched tv_series 1399` | The friend withdraws an activity (kind 5); the row leaves your Feed. |
+| `just social-delete movie 603` / `just social-delete watched tv_series 1399` | The friend withdraws an activity (kind 5); it leaves the row and the friend's card. |
 | `just social-feed` | Everything the relay holds — activities and deletions — including what the dev app sent. |
 | `just social-status` / `social-down` / `social-reset` | Container state and NIP-11; stop; stop and forget data plus the friend's key. |
 

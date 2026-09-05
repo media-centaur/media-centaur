@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>1 · Friend cards</title><style>
+.card{padding:14px 16px;margin-bottom:12px}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.head .name{font-weight:600;font-size:18px;line-height:1.2}
+.head .avatar{width:40px;height:40px;font-size:16px}
+.head .status{margin-left:auto;text-align:right;font-size:12px}
+.strip{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:6px 0 12px}
+.row{display:flex;gap:8px;align-items:baseline;margin-top:6px;font-size:13px}
+.row .sec{width:90px;flex:none}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid oklch(93% 0.01 264/.07)}
+.more{display:grid;place-items:center;font-size:12px;color:oklch(93% 0.01 264/.6)}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab">Recommendations<span class="n">3</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab active">Friends<span class="n">3</span></span></div>
+
+<div class="card glass" style="border-color:oklch(72% 0.14 264/.25)">
+ <div class="head"><div class="avatar" style="--h:264">S</div><div><div class="name">You</div><div class="dim" style="font-size:12px">How friends see you · sharing watched and tracking</div></div>
+  <div class="status"><div>watched <b>S03E01</b> of Sample Show</div><div class="dim">1h ago</div></div></div>
+ <div class="sec">Recently watched</div>
+ <div class="strip"><div class="poster" style="--h:20">Sample Show</div><div class="poster" style="--h:200">Movie A</div><div class="poster" style="--h:90">Movie C</div><div class="poster" style="--h:300">Show B</div><div class="poster" style="--h:150">Movie D</div><div class="inset more">all 41</div></div>
+ <div class="row"><span class="sec">Tracking</span><span>Movie E · Show F · Show G <span class="dim">· 4 more</span></span></div>
+ <div class="row"><span class="sec">Recommended</span><span>Movie B <span class="pill love">♥ love</span> · Sample Show <span class="pill like">👍 like</span></span></div>
+</div>
+
+<div class="card glass">
+ <div class="head"><div class="avatar" style="--h:20">B</div><div><div class="name">Bob</div></div>
+  <div class="status"><div>watched <b>S02E05</b> of Sample Show</div><div class="dim">2h ago</div></div></div>
+ <div class="sec">Recently watched</div>
+ <div class="strip"><div class="poster" style="--h:20">Sample Show</div><div class="poster" style="--h:330">Movie H</div><div class="poster" style="--h:120">Movie A</div><div class="poster" style="--h:60">Show J</div><div class="poster" style="--h:250">Movie K</div><div class="inset more">all 23</div></div>
+ <div class="row"><span class="sec">Tracking</span><span>Movie A · Sample Show <span class="dim">· 1 more</span></span></div>
+ <div class="row"><span class="sec">Recommended</span><span>Movie B <span class="pill love">♥ love</span></span></div>
+ <div class="foot"><span class="dim" style="font-size:12px"><span class="key">npub1q3f…k9z</span> · added Aug 30</span><button class="btn ghost">Remove friend</button></div>
+</div>
+
+<div class="card glass">
+ <div class="head"><div class="avatar" style="--h:150">A</div><div><div class="name">Alice</div></div>
+  <div class="status"><div>watched <b>Movie D</b></div><div class="dim">3d ago</div></div></div>
+ <div class="sec">Recently watched</div>
+ <div class="strip"><div class="poster" style="--h:150">Movie D</div><div class="poster" style="--h:280">Show B</div><div class="inset more" style="opacity:.0"></div></div>
+ <div class="row"><span class="sec">Tracking</span><span>Show F</span></div>
+ <div class="row"><span class="sec">Recommended</span><span>Movie C <span class="pill like">👍 like</span> · Show B <span class="pill love">♥ love</span></span></div>
+ <div class="foot"><span class="dim" style="font-size:12px"><span class="key">npub1zz8…c2d</span> · added Sep 2</span><button class="btn ghost">Remove friend</button></div>
+</div>
+
+<div class="card glass">
+ <div class="head"><div class="avatar" style="--h:90">C</div><div><div class="name">Cleo</div></div>
+  <div class="status dim">Nothing shared yet</div></div>
+ <div class="foot" style="margin-top:0;padding-top:0;border:0"><span class="dim" style="font-size:12px"><span class="key">npub1mm4…7hq</span> · added yesterday</span><button class="btn ghost">Remove friend</button></div>
+</div>
+
+<div class="inset" style="padding:14px;text-align:center;font-size:13px" class="dim"><span class="dim">Add a friend by pasting their key.</span> <button class="btn soft" style="margin-left:8px">Add friend</button></div>
+<p class="dim" style="font-size:12px;margin:14px 4px">Your identity and relays are under Settings → Social.</p>
+</div><div class="note">1 · friend cards, poster strip</div></body></html>

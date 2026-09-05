@@ -9,6 +9,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery do
   def entry("recommendation_pennants"),
     do: [icon: {:fa, "flag-pennant", :thin}, name: "Recommendation pennant"]
 
+  def entry("person_card"), do: [icon: {:fa, "user", :thin}, name: "Person card"]
+
   def entry("title_detail_modal"),
     do: [icon: {:fa, "window-maximize", :thin}, name: "Title detail modal"]
 end

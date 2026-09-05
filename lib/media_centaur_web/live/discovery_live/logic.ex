@@ -2,15 +2,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   @moduledoc """
   Pure decisions for the Discovery page (ADR-030): the title detail
   view-model, the acquisition-state words the rows and the modal show,
-  the row markers, and the `?title=` URL param's shape.
+  the row markers, and the `?title=` URL param's shape. The two tab
+  projections live beside it: `RecommendationRows` and `People`.
   """
 
-  alias MediaCentaur.Activities.Activity
-  alias MediaCentaur.Format
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
-  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
 
   @type acquisition_state :: :planning | :downloading | :needs_review | nil
 
@@ -59,18 +57,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       MediaResults.release_status(title, Map.fetch!(facts, :today)) == :released
   end
 
-  @doc """
-  A feed row's lead line: who did what, and when — "Sam watched S02E05 ·
-  2h ago", "You recommended · yesterday".
-  """
-  @spec feed_lead(%{activity: Activity.t(), nickname: String.t() | nil, own?: boolean()}) :: String.t()
-  def feed_lead(%{own?: true, activity: activity}), do: lead("You", activity)
-  def feed_lead(%{nickname: nickname, activity: activity}), do: lead(nickname, activity)
-
-  defp lead(actor, %Activity{} = activity),
-    do:
-      ActivityWords.statement(actor, activity.kind, activity.episode) <>
-        " · " <> Format.relative_ago(activity.acted_at)
+  @doc "A watchlist note as the row's `notes`: one unattributed entry, or none."
+  @spec note_list(String.t() | nil) :: [%{name: nil, text: String.t()}]
+  def note_list(nil), do: []
+  def note_list(note), do: [%{name: nil, text: note}]
 
   @doc "The words a row or the modal shows for an acquisition state."
   @spec acquisition_marker(acquisition_state()) :: String.t() | nil

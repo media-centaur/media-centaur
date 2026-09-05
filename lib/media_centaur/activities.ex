@@ -30,10 +30,10 @@ defmodule MediaCentaur.Activities do
   Records are translated from signed events (`Translation`), kept one
   per author + kind + title (a newer event replaces the row), and synced
   with the relays by `Activities.Sync`. Knows nothing about the watchlist
-  or the library — the web layer joins those, which is why `list_feed/0`
+  or the library — the web layer joins those, which is why `list_activities/0`
   decorates rows with the friend's nickname and nothing else.
 
-  `list_feed/0` includes this identity's own activities alongside
+  `list_activities/0` includes this identity's own activities alongside
   received ones — `own?` and `nickname` tell a row apart; `nickname` is
   `nil` on an own row. Withdrawn rows (tombstones, see `Activity`) are
   excluded everywhere except `own_events/0`, which republishes their
@@ -63,7 +63,7 @@ defmodule MediaCentaur.Activities do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
-  @type feed_row :: %{activity: Activity.t(), nickname: String.t() | nil, own?: boolean()}
+  @type activity_row :: %{activity: Activity.t(), nickname: String.t() | nil, own?: boolean()}
 
   @doc "Subscribe the caller to activity events."
   @spec subscribe() :: :ok | {:error, term()}
@@ -193,8 +193,8 @@ defmodule MediaCentaur.Activities do
   (the Feed shows them as "You"). Before an identity exists nothing
   stored can be ours, so every row is a received one.
   """
-  @spec list_feed() :: [feed_row()]
-  def list_feed do
+  @spec list_activities() :: [activity_row()]
+  def list_activities do
     friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
     me = Identity.pubkey()
 
@@ -202,19 +202,19 @@ defmodule MediaCentaur.Activities do
     |> live()
     |> order_by(desc: :acted_at)
     |> Repo.all()
-    |> Enum.map(&feed_row(&1, me, friends))
+    |> Enum.map(&activity_row(&1, me, friends))
   end
 
   @doc """
   The live recommendations of the titles in `refs` by this identity and
-  by current friends, as `%{ref => [feed_row]}` — the rows in
-  `list_feed/0`'s shape, newest first, in one query plus one roster
+  by current friends, as `%{ref => [activity_row]}` — the rows in
+  `list_activities/0`'s shape, newest first, in one query plus one roster
   read. Refs nobody recommended are absent, and a former friend's
   recommendation is left out: a pennant names a friend. What every
   recommendation pennant is fed from.
   """
   @spec recommendations_for([{integer(), Title.media_type()}]) ::
-          %{optional({integer(), Title.media_type()}) => [feed_row()]}
+          %{optional({integer(), Title.media_type()}) => [activity_row()]}
   def recommendations_for([]), do: %{}
 
   def recommendations_for(refs) when is_list(refs) do
@@ -232,7 +232,7 @@ defmodule MediaCentaur.Activities do
       &(MapSet.member?(wanted, {&1.tmdb_id, &1.media_type}) and
           (&1.author_pubkey == me or is_map_key(friends, &1.author_pubkey)))
     )
-    |> Enum.group_by(&{&1.tmdb_id, &1.media_type}, &feed_row(&1, me, friends))
+    |> Enum.group_by(&{&1.tmdb_id, &1.media_type}, &activity_row(&1, me, friends))
   end
 
   @doc "Activities this install sent, newest first — none before an identity exists."
@@ -310,7 +310,7 @@ defmodule MediaCentaur.Activities do
   loading every row: how many activities this identity sent, how many it
   received, and when the newest received one landed. Before an identity
   exists nothing stored can be ours, so everything counts as received
-  (mirrors `list_feed/0`).
+  (mirrors `list_activities/0`).
   """
   @spec counts() :: %{
           sent: non_neg_integer(),
@@ -375,10 +375,10 @@ defmodule MediaCentaur.Activities do
     end
   end
 
-  defp feed_row(%Activity{author_pubkey: author} = activity, me, _friends) when author == me,
+  defp activity_row(%Activity{author_pubkey: author} = activity, me, _friends) when author == me,
     do: %{activity: activity, nickname: nil, own?: true}
 
-  defp feed_row(%Activity{} = activity, _me, friends),
+  defp activity_row(%Activity{} = activity, _me, friends),
     do: %{
       activity: activity,
       nickname: Map.get(friends, activity.author_pubkey, "a former friend"),

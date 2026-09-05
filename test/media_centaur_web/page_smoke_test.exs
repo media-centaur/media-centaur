@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/reconcile", "reconcile"},
           {"/console", "console"},
           {"/history", "watch history"},
-          {"/discovery", "discovery feed"},
+          {"/discovery", "discovery recommendations"},
           {"/discovery/watchlist", "discovery watchlist"},
           {"/discovery/friends", "discovery friends"},
           {"/guide", "guide index"},
@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     for {path, label} <- [
-          {"/discovery?title=movie-777", "discovery feed with the title modal"},
+          {"/discovery?title=movie-777", "discovery recommendations with the title modal"},
           {"/discovery/watchlist?title=movie-777", "discovery watchlist with the title modal"}
         ] do
       test "#{label} (#{path}) renders without crashing", %{conn: conn} do

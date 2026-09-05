@@ -1,10 +1,11 @@
 defmodule MediaCentaurWeb.DiscoveryLive.ActivityWords do
   @moduledoc """
-  The words for an activity's kind, in one place: the verb a feed row
-  and the title modal put after the actor ("recommended", "watched
-  S02E05", "started tracking"), the noun the delete verb and its flash
-  name ("recommendation", "watched activity", "tracking activity"), and
-  the statement that joins actor and verb.
+  The words for an activity's kind, in one place: the verb the title
+  modal puts after the actor ("recommended", "watched S02E05", "started
+  tracking"), the noun the delete verb and its flash name
+  ("recommendation", "watched activity", "tracking activity"), the
+  statement that joins actor and verb, and the presence sentence a
+  person card leads with ("watched S02E05 of Sample Show").
   """
 
   alias MediaCentaur.Activities.Activity
@@ -33,4 +34,14 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWords do
   """
   @spec statement(String.t(), Activity.kind(), Episode.t() | nil) :: String.t()
   def statement(actor, kind, episode), do: "#{actor} #{verb(kind, episode)}"
+
+  @doc """
+  The presence sentence: the verb and the title — "recommended Sample
+  Movie", "watched S02E05 of Sample Show", "started tracking Sample Show".
+  """
+  @spec presence(Activity.kind(), Episode.t() | nil, String.t()) :: String.t()
+  def presence(:watched, %Episode{} = episode, title_name),
+    do: verb(:watched, episode) <> " of " <> title_name
+
+  def presence(kind, episode, title_name), do: verb(kind, episode) <> " " <> title_name
 end
