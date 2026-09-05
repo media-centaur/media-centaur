@@ -54,7 +54,10 @@ social:
     @echo '   then Discovery → Friends → add a friend with the npub from step 1.'
     @echo '3. just social-recommend movie 603 --name "Sample Movie" --note "try it"'
     @echo '                               the friend recommends a title; it appears in your Feed'
+    @echo '   just social-watched tv_series 1399 --name "Sample Show" --season 2 --episode 5'
+    @echo '   just social-tracking movie 603 --name "Sample Movie"'
     @echo '4. just social-delete movie 603  the friend withdraws it; the row leaves your Feed'
+    @echo '   just social-delete watched tv_series 1399   (a kind other than recommendation)'
     @echo '5. just social-feed            everything the relay holds, including what you sent'
     @echo
     @echo 'Also: just social-status · just social-down · just social-reset (new friend key)'
@@ -96,7 +99,15 @@ social-status:
 social-recommend *args:
     mix social.dev recommend "$@"
 
-# The friend withdraws a recommendation: social-delete movie 603
+# The friend finished an episode or a movie: social-watched tv_series 1399 --name "Sample Show" --season 2 --episode 5
+social-watched *args:
+    mix social.dev watched "$@"
+
+# The friend started tracking a release: social-tracking movie 603 --name "Sample Movie"
+social-tracking *args:
+    mix social.dev tracking "$@"
+
+# The friend withdraws an activity: social-delete movie 603 · social-delete watched tv_series 1399
 social-delete *args:
     mix social.dev delete "$@"
 

@@ -1,6 +1,6 @@
 # Social activity feed: watched and tracking events
 
-**Status:** design, awaiting approval (2026-09-05)
+**Status:** approved and implemented 2026-09-05. As built, the context is `MediaCentaur.Activities` and the row `Activities.Activity` (plural context, singular record, mirroring the contexts around it); the topic is `activities:updates`. The feed row's and the modal's words live in `DiscoveryLive.ActivityWords`.
 
 Extends the social feed beyond recommendations with two more kinds of
 statement — a title watched to completion, a release newly tracked — each

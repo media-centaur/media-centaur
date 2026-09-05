@@ -80,7 +80,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.ReleaseTracking` | `release_tracking_*` tables | Periodic TMDB refresh of upcoming items in the user's library. |
 | `MediaCentaur.Discovery` | `watchlist_items` table | The local watchlist — title-level "I want to watch this" intent — and, in later iterations, the candidate sources that feed it (TMDB discover, list import, friend recommendations). Broadcasts on `discovery:updates`. |
 | `MediaCentaur.Social` | `relays` + `friends` tables, this install's Nostr identity in the sensitive `nostr_secret_key` config key, one live `Nostr.Connection` per relay | The friend network's configuration: `Social.Identity` (one secp256k1 keypair, generated the first time the Social tab is opened), `Relay`, `Friend`, and `Connections` (Registry + DynamicSupervisor + owner). Broadcasts on `social:updates`, and re-broadcasts every connection's messages on `social:connections`. See [docs/social.md](social.md). |
-| `MediaCentaur.Recommendations` | `recommendations` table | What this install sent its friends and what they sent it: kind-32160 events translated into rows (`Translation`), kept one per author + title, synced with the relays by `Recommendations.Sync`. Knows nothing about the watchlist or the library — the web layer joins those. Broadcasts on `recommendations:updates`. See [docs/social.md](social.md). |
+| `MediaCentaur.Activities` | `activities` table | What this install told its friends and what they told it: signed activity events — a title recommended (kind 32160), watched (32161), tracked (32162) — translated into rows (`Translation`), kept one per author + kind + title, synced with the relays by `Activities.Sync`; `Activities.Publisher` turns watch completions and manual tracking into activities behind the sharing toggles. Knows nothing about the watchlist — the web layer joins those. Broadcasts on `activities:updates`. See [docs/social.md](social.md). |
 | `MediaCentaur.Playback` | mpv session supervision, progress broadcasts | No DB tables — in-memory sessions. |
 | `MediaCentaur.Console` | `console_*` (filter/buffer-cap settings) + in-memory ring buffer + journal source | Drives the `/console` page and the Guake-style drawer. |
 | `MediaCentaur.Acquisition` | `acquisition_*` tables, Prowlarr + download-client drivers, Oban jobs. **Sub-namespace `Acquisition.Pursuits`** introduces a goal-level aggregate with append-only event log and a hybrid-autonomy decision pipeline (`Snapshot → Policy → Action → Command`); workers (`Pursuits.Watcher`, `Pursuits.IdentityVerifier`) orchestrate, commands execute. See [ADR-039](../decisions/architecture/2026-05-07-039-acquisition-pursuits.md). | Optional — gated by `MediaCentaur.Capabilities`. |
@@ -139,7 +139,7 @@ graph TD
     App --> MetadataStats[TMDB.MetadataStats]
     App --> WatcherSup[Watcher.Supervisor]
     App --> SocialConn[Social.Connections]
-    App --> RecSync[Recommendations.Sync]
+    App --> RecSync[Activities.Sync]
     App --> Coalescer[Library.BroadcastCoalescer]
     App --> Availability[Library.Availability]
     App --> PipelineSup[Pipeline.Supervisor]
