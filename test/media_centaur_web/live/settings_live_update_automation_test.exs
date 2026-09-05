@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
   alias MediaCentaur.SelfUpdate.UpdateChecker
 
   setup do
-    config_snapshot = :persistent_term.get({Config, :config})
     Application.put_env(:media_centaur, :environment, :prod)
 
     UpdateChecker.cache_result(
@@ -32,11 +31,9 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
        }}
     )
 
-    on_exit(fn ->
-      Application.put_env(:media_centaur, :environment, :test)
-      :persistent_term.put({Config, :config}, config_snapshot)
-      UpdateChecker.clear_cache()
-    end)
+    # Application env is the one piece of global state the sandbox does
+    # not restore; the :persistent_term writes above are.
+    on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
 
     :ok
   end

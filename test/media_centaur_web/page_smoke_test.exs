@@ -32,26 +32,32 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   # gate flakes on the tail (ADR-049 — no timing assertions on noisy
   # quantities). Ongoing mount-time measurement lives in `scripts/profile`.
 
-  for {path, label} <- [
-        {"/", "home"},
-        {"/library", "library browse"},
-        {"/status", "status"},
-        {"/status?subsystem=pipeline", "status subsystem drill-in"},
-        {"/status?subsystem=self_update", "status self_update drill-in"},
-        {"/status?subsystem=http", "status http drill-in"},
-        {"/status?subsystem=library", "status library drill-in"},
-        {"/status?subsystem=system", "status system drill-in"},
-        {"/status?subsystem=friends", "status friends drill-in"},
-        {"/settings", "settings"},
-        {"/setup", "setup tour"},
-        {"/review", "review"},
-        {"/reconcile", "reconcile"},
-        {"/console", "console"},
-        {"/history", "watch history"},
-        {"/discovery/watchlist", "discovery watchlist"},
-        {"/discovery/friends", "discovery friends"},
-        {"/apps", "apps"}
-      ] do
+  # Every board subsystem gets a drill-in smoke; the list comes from the
+  # board itself so a new subsystem (or a renamed key) cannot silently
+  # fall back to the bare page and pass.
+  @subsystem_routes for subsystem <- MediaCentaurWeb.StatusLive.HealthBoard.board_subsystems(),
+                        do: {"/status?subsystem=#{subsystem}", "status #{subsystem} drill-in"}
+
+  @guide_slug hd(MediaCentaur.Guide.chapters()).slug
+
+  for {path, label} <-
+        [
+          {"/", "home"},
+          {"/library", "library browse"},
+          {"/status", "status"},
+          {"/settings", "settings"},
+          {"/setup", "setup tour"},
+          {"/review", "review"},
+          {"/reconcile", "reconcile"},
+          {"/console", "console"},
+          {"/history", "watch history"},
+          {"/discovery", "discovery recommendations"},
+          {"/discovery/watchlist", "discovery watchlist"},
+          {"/discovery/friends", "discovery friends"},
+          {"/guide", "guide index"},
+          {"/guide/#{@guide_slug}", "guide chapter"},
+          {"/apps", "apps"}
+        ] ++ @subsystem_routes do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live_async!(conn, unquote(path))
       assert is_binary(html)
@@ -469,11 +475,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
   describe "/incoming (Prowlarr configured and tested)" do
     setup do
-      original = :persistent_term.get({Config, :config}, %{})
+      config = :persistent_term.get({Config, :config}, %{})
 
       :persistent_term.put(
         {Config, :config},
-        Map.merge(original, %{
+        Map.merge(config, %{
           prowlarr_url: "http://prowlarr.test",
           prowlarr_api_key: Secret.wrap("test-key")
         })
@@ -562,11 +568,6 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
       MediaCentaur.TestFactory.force_state(grouped_pursuit, "exhausted")
 
-      on_exit(fn ->
-        MediaCentaur.Capabilities.clear_test_result(:prowlarr)
-        :persistent_term.put({Config, :config}, original)
-      end)
-
       %{shelf_item: shelf_item, straggler_item: straggler_item}
     end
 
@@ -633,11 +634,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
   describe "/incoming?selected=:pursuit_id (pursuit detail modal)" do
     setup do
-      original = :persistent_term.get({Config, :config}, %{})
+      config = :persistent_term.get({Config, :config}, %{})
 
       :persistent_term.put(
         {Config, :config},
-        Map.merge(original, %{
+        Map.merge(config, %{
           prowlarr_url: "http://prowlarr.test",
           prowlarr_api_key: Secret.wrap("test-key")
         })
@@ -654,11 +655,6 @@ defmodule MediaCentaurWeb.PageSmokeTest do
             origin: "auto"
           })
         )
-
-      on_exit(fn ->
-        MediaCentaur.Capabilities.clear_test_result(:prowlarr)
-        :persistent_term.put({Config, :config}, original)
-      end)
 
       %{pursuit_id: pursuit.id}
     end

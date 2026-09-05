@@ -27,6 +27,7 @@ defmodule MediaCentaur.DataCase do
       import Ecto.Query
       import MediaCentaur.DataCase
       import MediaCentaur.TestFactory
+      import MediaCentaur.Eventually
     end
   end
 

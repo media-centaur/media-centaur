@@ -19,20 +19,14 @@ defmodule MediaCentaur.MaintenanceTest do
   import MediaCentaur.TestFactory
   import MediaCentaur.TmdbStubs
 
-  # TMDB/IMDB ids live on `library_external_ids` rows now
-  # (Library Schema v2 Phase 1 Task 6). Helpers to seed a container
-  # with a TMDB ExternalId attached, mirroring how Inbound writes
-  # them today.
+  # The factory routes `tmdb_id` to a `library_external_ids` row, the way
+  # Inbound writes them (Library Schema v2 Phase 1 Task 6).
   defp seed_movie_with_tmdb!(attrs, tmdb_id) when is_map(attrs) do
-    {:ok, movie} = attrs |> Movie.create_changeset() |> Repo.insert()
-    {:ok, _} = ExternalIds.put(:tmdb, movie, tmdb_id)
-    movie
+    create_standalone_movie(Map.put(attrs, :tmdb_id, tmdb_id))
   end
 
   defp seed_tv_series_with_tmdb!(attrs, tmdb_id) when is_map(attrs) do
-    {:ok, series} = attrs |> TVSeries.create_changeset() |> Repo.insert()
-    {:ok, _} = ExternalIds.put(:tmdb, series, tmdb_id)
-    series
+    create_tv_series(Map.put(attrs, :tmdb_id, tmdb_id))
   end
 
   defp reload_with_external_ids!(schema, id) do
@@ -266,11 +260,8 @@ defmodule MediaCentaur.MaintenanceTest do
     end
 
     test "skips movies without a tmdb_id" do
-      # No `ExternalIds.put` call — movie has no TMDB external_id row.
-      {:ok, _} =
-        %{name: "Sample Movie", cast: [], crew: []}
-        |> Movie.create_changeset()
-        |> Repo.insert()
+      # No `tmdb_id` — the movie has no TMDB external_id row.
+      create_standalone_movie(%{name: "Sample Movie", cast: [], crew: []})
 
       assert {:ok, %{updated: 0, skipped: 0, failed: 0}} = Maintenance.refresh_movie_credits()
     end
@@ -429,10 +420,7 @@ defmodule MediaCentaur.MaintenanceTest do
     end
 
     test "skips series without a tmdb_id" do
-      {:ok, _} =
-        %{name: "Sample Series", cast: [], crew: []}
-        |> TVSeries.create_changeset()
-        |> Repo.insert()
+      create_tv_series(%{name: "Sample Series", cast: [], crew: []})
 
       assert {:ok, %{updated: 0, skipped: 0, failed: 0}} = Maintenance.refresh_series_credits()
     end

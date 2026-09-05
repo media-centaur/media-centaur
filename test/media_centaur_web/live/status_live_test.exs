@@ -445,12 +445,4 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))
   end
-
-  defp eventually(fun, attempts \\ 50, delay_ms \\ 20) do
-    cond do
-      fun.() -> :ok
-      attempts > 0 -> Process.sleep(delay_ms) && eventually(fun, attempts - 1, delay_ms)
-      true -> flunk("eventually/3 condition never became true")
-    end
-  end
 end

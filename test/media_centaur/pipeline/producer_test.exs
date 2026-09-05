@@ -91,6 +91,8 @@ defmodule MediaCentaur.Pipeline.ProducerTest do
 
     test "retries with a delay while the watcher isn't running yet and attempts remain" do
       assert {:retry, delay} = DiscoveryProducer.reconcile_action(0, false)
+      # `is_integer(delay)` is proven by the type checker since Elixir 1.20
+      # (asserting it is a compile warning); the bound is the real check.
       assert delay > 0
     end
 

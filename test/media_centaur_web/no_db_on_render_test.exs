@@ -227,7 +227,6 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       MediaCentaur.Status.Views.Overview.refresh_cache()
       MediaCentaur.Status.Views.Storage.refresh_cache()
       MediaCentaurWeb.ShellBadges.refresh_cache()
-      on_exit(fn -> MediaCentaurWeb.ShellBadges.reset_cache() end)
 
       mount_and_assert(
         conn,

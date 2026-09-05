@@ -142,10 +142,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
         release_title: "Sample.Release.2024.1080p-GRP"
       })
 
-    {:ok, target} =
-      target
-      |> Target.record_download_changeset(%{torrent_hash: "original", content_path: "/orig.mkv"})
-      |> Repo.update()
+    target = force_attrs(target, torrent_hash: "original", content_path: "/orig.mkv")
 
     item = queue_item(%{id: "different", content_path: "/different.mkv"})
 

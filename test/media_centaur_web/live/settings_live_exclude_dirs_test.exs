@@ -16,17 +16,10 @@ defmodule MediaCentaurWeb.SettingsLiveExcludeDirsTest do
   setup do
     # Tests mutate Config via render_submit → Config.update/2 — that
     # writes to both `:persistent_term` (in-memory) and the DB
-    # `settings_entries` table. The sandbox rolls back the DB write
-    # per test; only the in-memory cache needs explicit restore here.
-    # Previously this on_exit also called `Config.update(:exclude_dirs, [])`,
-    # which is a DB write that races under concurrent load because
-    # on_exit runs in `ExUnit.OnExitHandler` — a process that doesn't
-    # own the test's sandbox connection. The persistent_term put below
-    # is pure in-memory ETS and is safe in on_exit.
-    original = :persistent_term.get({Config, :config})
-
-    on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
-
+    # `settings_entries` table. The SQL sandbox rolls back the row and
+    # `GlobalStateSandbox` restores the term before the next sync test —
+    # nothing to hand-roll here (a DB write in `on_exit` would also race:
+    # it runs in `ExUnit.OnExitHandler`, which owns no sandbox connection).
     :ok
   end
 

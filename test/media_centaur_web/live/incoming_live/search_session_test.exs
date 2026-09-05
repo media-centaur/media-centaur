@@ -1,6 +1,8 @@
 defmodule MediaCentaurWeb.IncomingLive.SearchSessionTest do
   use ExUnit.Case, async: true
 
+  import MediaCentaur.Eventually
+
   alias MediaCentaurWeb.IncomingLive.SearchSession
 
   describe "default state" do
@@ -566,39 +568,30 @@ defmodule MediaCentaurWeb.IncomingLive.SearchSessionTest do
       assert b.featured == nil
     end
 
-    defp wait_for_groups(name, count, attempts \\ 50) do
-      session = SearchSession.current(name)
-
-      cond do
-        length(session.groups) == count ->
-          session
-
-        attempts == 0 ->
-          flunk("timed out waiting for #{count} groups; got #{length(session.groups)}")
-
-        true ->
-          Process.sleep(10)
-          wait_for_groups(name, count, attempts - 1)
-      end
+    defp wait_for_groups(name, count) do
+      eventually(
+        fn ->
+          session = SearchSession.current(name)
+          length(session.groups) == count and session
+        end,
+        message: fn ->
+          "timed out waiting for #{count} groups; got #{length(SearchSession.current(name).groups)}"
+        end
+      )
     end
 
-    defp wait_for_status(name, term, status, attempts \\ 50) do
-      session = SearchSession.current(name)
-      group = Enum.find(session.groups, &(&1.term == term))
+    defp wait_for_status(name, term, status) do
+      group_for = fn -> Enum.find(SearchSession.current(name).groups, &(&1.term == term)) end
 
-      cond do
-        group && group.status == status ->
-          session
-
-        attempts == 0 ->
-          flunk(
-            "timed out waiting for #{term} → #{inspect(status)}; got #{inspect(group && group.status)}"
-          )
-
-        true ->
-          Process.sleep(10)
-          wait_for_status(name, term, status, attempts - 1)
-      end
+      eventually(
+        fn ->
+          group = group_for.()
+          group && group.status == status && SearchSession.current(name)
+        end,
+        message: fn ->
+          "timed out waiting for #{term} → #{inspect(status)}; got #{inspect(group_for.() && group_for.().status)}"
+        end
+      )
     end
   end
 end

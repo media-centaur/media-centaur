@@ -1,5 +1,6 @@
 defmodule MediaCentaur.ErrorReports.IssueUrlTest do
-  use ExUnit.Case, async: true
+  # `async: false` — one test writes application env (a shared value).
+  use ExUnit.Case, async: false
 
   alias MediaCentaur.ErrorReports.{Bucket, IssueUrl}
 

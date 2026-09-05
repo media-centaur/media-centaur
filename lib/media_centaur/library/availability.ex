@@ -136,16 +136,10 @@ defmodule MediaCentaur.Library.Availability do
   def subscribe, do: Topics.subscribe(Topics.library_availability())
 
   @doc false
-  # Public test-only helpers (hidden from docs). They exist so tests
-  # can reset the cache between cases without reaching into `:sys.*`
-  # (banned per ADR-026 `NoSysIntrospection`). NOT intended for
-  # runtime use — production state is driven by watcher broadcasts.
-  @spec __reset_for_test__() :: :ok
-  def __reset_for_test__, do: GenServer.call(__MODULE__, :__reset_for_test__)
-
-  @doc false
-  # Sync point for tests: any prior PubSub message in this GenServer's
-  # mailbox is guaranteed processed before the call returns.
+  # Sync point for tests (hidden from docs): any prior PubSub message in
+  # this GenServer's mailbox is guaranteed processed before the call
+  # returns. The state itself lives in `:persistent_term`, which
+  # `GlobalStateSandbox` restores before every sync test — no reset seam.
   @spec __sync_for_test__() :: :ok
   def __sync_for_test__, do: GenServer.call(__MODULE__, :__sync_for_test__)
 
@@ -168,13 +162,17 @@ defmodule MediaCentaur.Library.Availability do
     # Normalize to broadcast vocabulary so this module's state map and
     # `available?/1` predicate see only one set of values regardless of
     # whether the value came from the seed snapshot or a live update.
-    state =
+    # The map lives in `:persistent_term` only — `dir_status/0` reads it,
+    # this process writes it. Keeping a second copy in GenServer state
+    # let the two drift (a restored term next to a stale process map),
+    # so the process holds nothing.
+    seeded =
       Map.new(MediaCentaur.WatcherStatus.statuses(), fn %{dir: dir, state: status} ->
         {dir, broadcast_state(status)}
       end)
 
-    :persistent_term.put({__MODULE__, :state}, state)
-    {:ok, state}
+    :persistent_term.put({__MODULE__, :state}, seeded)
+    {:ok, nil}
   end
 
   defp broadcast_state(:watching), do: :available
@@ -183,24 +181,18 @@ defmodule MediaCentaur.Library.Availability do
 
   @impl true
   def handle_info({:dir_state_changed, dir, :media_dir, new_state}, state) do
-    updated = Map.put(state, dir, new_state)
-    :persistent_term.put({__MODULE__, :state}, updated)
+    :persistent_term.put({__MODULE__, :state}, Map.put(dir_status(), dir, new_state))
 
     Topics.publish(
       Topics.library_availability(),
       {:availability_changed, dir, new_state}
     )
 
-    {:noreply, updated}
+    {:noreply, state}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
 
   @impl true
-  def handle_call(:__reset_for_test__, _from, _state) do
-    :persistent_term.put({__MODULE__, :state}, %{})
-    {:reply, :ok, %{}}
-  end
-
   def handle_call(:__sync_for_test__, _from, state), do: {:reply, :ok, state}
 end

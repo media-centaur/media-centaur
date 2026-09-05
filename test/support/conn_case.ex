@@ -28,6 +28,7 @@ defmodule MediaCentaurWeb.ConnCase do
       import Plug.Conn
       import Phoenix.ConnTest
       import MediaCentaurWeb.ConnCase
+      import MediaCentaur.Eventually
     end
   end
 

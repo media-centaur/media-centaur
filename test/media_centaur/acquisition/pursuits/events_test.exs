@@ -1,23 +1,11 @@
 defmodule MediaCentaur.Acquisition.Pursuits.EventsTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Events, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Events}
   alias MediaCentaur.Acquisition.Pursuits.Events.{PursuitStarted, ReleasePicked, StallConfirmed}
   alias MediaCentaur.Topics
 
-  defp insert_pursuit do
-    {:ok, pursuit} =
-      Repo.insert(
-        Pursuit.create_changeset(%{
-          tmdb_id: "12345",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto"
-        })
-      )
-
-    pursuit
-  end
+  defp insert_pursuit, do: create_pursuit()
 
   describe "kind/0 + payload round-trip" do
     test "PursuitStarted round-trips through to_payload/from_payload" do

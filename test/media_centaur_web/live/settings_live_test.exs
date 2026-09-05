@@ -421,14 +421,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   end
 
   describe "media import — artwork resolution" do
-    setup do
-      # Config.update mutates the global :persistent_term map (not rolled back
-      # by the sandbox), so snapshot and restore it around each test.
-      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, config) end)
-      :ok
-    end
-
     test "saving the media-import form persists the artwork resolution", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
