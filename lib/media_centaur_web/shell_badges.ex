@@ -1,7 +1,14 @@
 defmodule MediaCentaurWeb.ShellBadges do
   @moduledoc """
-  The sidebar's "pending shell work" badges — one concept, four counts:
+  The sidebar's badge counts, carried into `Layouts.app` as one
+  `Counts` struct. Two idioms and nothing else (UIDR-030): **follow-up
+  pills** — items on a page waiting on a decision from the user, one
+  per entry that has a source — and the **condition dot** — something
+  is wrong right now. Five counts feed them:
 
+    * `:plans_awaiting_review` — draft plans in `ready`, waiting on a
+      person's approval (`Acquisition.Plans.count_awaiting_review/0`).
+      Drives the Incoming follow-up pill.
     * `:diagnostics_unseen` — unseen auto-detected incidents
       (`MediaCentaurWeb.DiagnosticsBadge.count/0`, which owns the
       `diagnostics_seen_at` marker).
@@ -12,10 +19,11 @@ defmodule MediaCentaurWeb.ShellBadges do
     * `:status_errors` — live error/critical buckets, i.e. exactly the
       condition that turns a Status-page tile red
       (`HealthBoard.tile_state/1` over `ErrorReports.list_buckets/0`).
-      Drives the persistent red dot on the Status nav icon. Distinct from
-      `:diagnostics_unseen`: that is a *discovery* badge (new since last
-      visit, cleared by `mark_seen`), this is a *current-condition* dot
-      that stays until the underlying errors are resolved or dismissed.
+      Drives the condition dot on the Status nav icon. Distinct from
+      `:diagnostics_unseen`: that is the Status follow-up pill (handled
+      by looking — cleared by `mark_seen`), this is a *current-condition*
+      dot that stays until the underlying errors are resolved or
+      dismissed.
 
   Replaces the former `DiagnosticsBadge`/`ReviewBadge` on_mount pair,
   which issued the three COUNT queries synchronously on **every**
@@ -26,6 +34,12 @@ defmodule MediaCentaurWeb.ShellBadges do
   pure read (instant-navigation campaign Phase 3).
 
   ## The hook's delivery contract
+
+  Plan changes reach the sidebar through the derived broadcast only —
+  the Worker refreshes on `PlanEvents.Changed` and the hook re-reads on
+  `{:shell_badges_updated}`; pages that need the source event
+  (`IncomingLive`, `DiscoveryLive`) subscribe to `acquisition:updates`
+  themselves, so this hook must not.
 
   The hook also owns the session-wide subscription to `review:updates` /
   `reconciliation:updates`. `ReviewLive` and `ReconcileLive` deliberately
@@ -45,6 +59,8 @@ defmodule MediaCentaurWeb.ShellBadges do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1]
 
+  alias MediaCentaur.Acquisition.PlanEvents
+  alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.ErrorReports
   alias MediaCentaur.Reconciliation
   alias MediaCentaur.Review
@@ -54,6 +70,34 @@ defmodule MediaCentaurWeb.ShellBadges do
   alias MediaCentaur.Topics
   alias MediaCentaurWeb.DiagnosticsBadge
   alias MediaCentaurWeb.StatusLive.HealthBoard
+
+  defmodule Counts do
+    @moduledoc """
+    The sidebar's badge counts — the one value `Layouts.app` takes as
+    `badges`. Two idioms and nothing else (UIDR-030):
+
+    * **Follow-up pills** — items on that page waiting on a decision from
+      the user; persist until handled, and each source defines handling.
+      `plans_awaiting_review` (Incoming), `review_pending +
+      mapping_pending` (Review), `diagnostics_unseen` (Status).
+    * **Condition dot** — something is wrong right now; persists until
+      resolved. `status_errors` (Status).
+    """
+
+    defstruct diagnostics_unseen: 0,
+              review_pending: 0,
+              mapping_pending: 0,
+              status_errors: 0,
+              plans_awaiting_review: 0
+
+    @type t :: %__MODULE__{
+            diagnostics_unseen: non_neg_integer(),
+            review_pending: non_neg_integer(),
+            mapping_pending: non_neg_integer(),
+            status_errors: non_neg_integer(),
+            plans_awaiting_review: non_neg_integer()
+          }
+  end
 
   @counts_key {__MODULE__, :counts}
 
@@ -65,6 +109,7 @@ defmodule MediaCentaurWeb.ShellBadges do
     Topics.subscribe(Topics.reconciliation_updates())
     Topics.subscribe(Topics.error_reports())
     Topics.subscribe(Topics.settings_updates())
+    Topics.subscribe(Topics.acquisition_updates())
     :ok
   end
 
@@ -76,6 +121,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   def relevant?({:buckets_changed, _buckets}), do: true
   # `mark_seen/0` advances the seen-marker via a Settings write.
   def relevant?({:setting_changed, "diagnostics_seen_at", _value}), do: true
+  def relevant?(%PlanEvents.Changed{}), do: true
   def relevant?(_message), do: false
 
   @impl MediaCentaur.Cache
@@ -91,15 +137,10 @@ defmodule MediaCentaurWeb.ShellBadges do
   end
 
   @doc """
-  The four badge counts. Reads the cached snapshot; falls back to the
-  live computation when no Worker has primed it (test mode / boot).
+  The badge counts. Reads the cached snapshot; falls back to the live
+  computation when no Worker has primed it (test mode / boot).
   """
-  @spec counts() :: %{
-          diagnostics_unseen: non_neg_integer(),
-          review_pending: non_neg_integer(),
-          mapping_pending: non_neg_integer(),
-          status_errors: non_neg_integer()
-        }
+  @spec counts() :: Counts.t()
   def counts do
     case :persistent_term.get(@counts_key, :unset) do
       :unset -> compute_counts()
@@ -110,13 +151,14 @@ defmodule MediaCentaurWeb.ShellBadges do
   @doc false
   # Test-only: clears the cached snapshot so later tests see live counts.
   defp compute_counts do
-    %{
+    %Counts{
       diagnostics_unseen: DiagnosticsBadge.count(),
       review_pending: Review.count_pending(),
       mapping_pending: Reconciliation.count_awaiting(),
       # HealthBoard.tile_state/1 is the canonical "tile turns red" rule —
       # reused here so the nav dot lights iff a Status-page tile is red.
-      status_errors: HealthBoard.tile_state(ErrorReports.list_buckets()).error_count
+      status_errors: HealthBoard.tile_state(ErrorReports.list_buckets()).error_count,
+      plans_awaiting_review: Plans.count_awaiting_review()
     }
   end
 
@@ -137,15 +179,7 @@ defmodule MediaCentaurWeb.ShellBadges do
     {:cont, socket}
   end
 
-  defp assign_counts(socket) do
-    counts = counts()
-
-    socket
-    |> assign(:diagnostics_unseen, counts.diagnostics_unseen)
-    |> assign(:review_pending, counts.review_pending)
-    |> assign(:mapping_pending, counts.mapping_pending)
-    |> assign(:status_errors, counts.status_errors)
-  end
+  defp assign_counts(socket), do: assign(socket, :badges, counts())
 
   # Source events re-read immediately (test mode computes live; in prod
   # the cached value may trail until the Worker's derived broadcast

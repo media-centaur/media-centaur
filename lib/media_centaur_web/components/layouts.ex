@@ -11,6 +11,8 @@ defmodule MediaCentaurWeb.Layouts do
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaurWeb.Components.FollowUpPill
+
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -34,47 +36,13 @@ defmodule MediaCentaurWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_path, :string, default: nil, doc: "the current request path for nav highlighting"
 
-  attr :diagnostics_unseen, :integer,
-    default: 0,
+  attr :badges, MediaCentaurWeb.ShellBadges.Counts,
+    default: %MediaCentaurWeb.ShellBadges.Counts{},
     doc: """
-    Count of unseen auto-detected open incidents, rendered as a discovery
-    badge on the Status nav item. Seeded app-wide by
-    `MediaCentaurWeb.ShellBadges` (default `live_session` on_mount) and
-    live-refreshed via the `shell:badges` derived topic.
-    """
-
-  attr :review_pending, :integer,
-    default: 0,
-    doc: """
-    Count of files awaiting identity review (`Review.count_pending/0`).
-    Together with `mapping_pending` it drives the sidebar Review entry:
-    hidden when both are zero, badged with the sum otherwise, targeting
-    /review while identity work exists and /reconcile when only mapping
-    work remains. Seeded app-wide by `MediaCentaurWeb.ShellBadges`
-    (default `live_session` on_mount) and live-refreshed via the
-    `review:updates` PubSub topic.
-    """
-
-  attr :mapping_pending, :integer,
-    default: 0,
-    doc: """
-    Count of files awaiting an episode-mapping decision
-    (`Reconciliation.count_awaiting/0`). See `review_pending` — seeded by
-    `MediaCentaurWeb.ShellBadges`, live-refreshed via the
-    `reconciliation:updates` PubSub topic.
-    """
-
-  attr :status_errors, :integer,
-    default: 0,
-    doc: """
-    Count of live error/critical buckets — the condition that turns a
-    Status-page tile red. Rendered as a persistent red dot on the Status
-    nav icon (visible in both the expanded and collapsed rail, unlike the
-    `ml-auto` count badge which the 52px rail clips). Seeded app-wide by
-    `MediaCentaurWeb.ShellBadges` and live-refreshed via the
-    `shell:badges` derived topic. Unlike `diagnostics_unseen` it is not
-    cleared by visiting /status — it stays until the errors are resolved
-    or dismissed.
+    The sidebar's badge counts, seeded app-wide by `MediaCentaurWeb.ShellBadges`
+    (default `live_session` on_mount) and live-refreshed via the `shell:badges`
+    derived topic. See `ShellBadges.Counts` for the two idioms — follow-up
+    pills and the condition dot (UIDR-030).
     """
 
   attr :show_discovery, :boolean,
@@ -185,6 +153,10 @@ defmodule MediaCentaurWeb.Layouts do
           >
             <.icon name="hero-inbox-arrow-down" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Incoming</span>
+            <FollowUpPill.follow_up_pill
+              id="sidebar-incoming-follow-up"
+              count={@badges.plans_awaiting_review}
+            />
           </.link>
           <.link
             :if={@show_apps}
@@ -212,20 +184,21 @@ defmodule MediaCentaurWeb.Layouts do
             <span class="relative inline-flex flex-shrink-0">
               <.icon name="hero-squares-2x2" class="size-5" />
               <span
-                :if={@status_errors > 0}
+                :if={@badges.status_errors > 0}
                 id="sidebar-status-error-dot"
-                class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-error"
+                class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-error"
                 aria-hidden="true"
               />
             </span>
             <span class="sidebar-label">Status</span>
-            <.badge :if={@diagnostics_unseen > 0} variant="error" size="xs" class="ml-auto">
-              {@diagnostics_unseen}
-            </.badge>
+            <FollowUpPill.follow_up_pill
+              id="sidebar-status-follow-up"
+              count={@badges.diagnostics_unseen}
+            />
           </.link>
           <.link
-            :if={@review_pending + @mapping_pending > 0}
-            navigate={if @review_pending > 0, do: "/review", else: "/reconcile"}
+            :if={@badges.review_pending + @badges.mapping_pending > 0}
+            navigate={if @badges.review_pending > 0, do: "/review", else: "/reconcile"}
             class={
               sidebar_link_class(@current_path, ["/review", "/reconcile"]) <>
                 " sidebar-link-system"
@@ -236,9 +209,10 @@ defmodule MediaCentaurWeb.Layouts do
           >
             <.icon name="hero-document-text" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Review</span>
-            <.badge variant="primary" size="xs" class="ml-auto">
-              {@review_pending + @mapping_pending}
-            </.badge>
+            <FollowUpPill.follow_up_pill
+              id="sidebar-review-follow-up"
+              count={@badges.review_pending + @badges.mapping_pending}
+            />
           </.link>
           <.link
             navigate="/settings"

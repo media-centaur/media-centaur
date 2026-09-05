@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.DiagnosticsBadge do
   incidents (`:log`/`:subsystem` newer than `diagnostics_seen_at`). Owns the
   `diagnostics_seen_at` Settings entry so `ErrorReports` needs no `Settings` dep.
 
-  The app-wide `:diagnostics_unseen` assign is seeded by the
+  The app-wide `:badges` assign (`diagnostics_unseen`) is seeded by the
   `MediaCentaurWeb.ShellBadges` on_mount hook, which reads this module's
   `count/0` through its cached projection.
   """

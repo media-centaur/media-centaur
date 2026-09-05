@@ -508,6 +508,20 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   transition: opacity 0.2s;
 }
 
+/* Follow-up pill (UIDR-030) — one element, two placements. Expanded rail:
+   at the row's end, vertically centred. 52px rail: anchored to the icon's
+   top-right corner so the count survives the label's fade and the rail's
+   overflow clip. `--sidebar-expanded` drives the switch, like every other
+   expanded-state property. The condition dot lives at the icon's
+   bottom-right, so the two never overlap. */
+.sidebar-follow-up {
+  position: absolute;
+  right: calc(0.125rem + 0.375rem * var(--sidebar-expanded));
+  top: calc(50% * var(--sidebar-expanded));
+  transform: translateY(calc(-50% * var(--sidebar-expanded)));
+  transition: top 0.25s ease, right 0.25s ease, transform 0.25s ease;
+}
+
 /* Collapse button chevron points at the action: « (collapse) while the
    rail is visually expanded, » (expand) while it shows as a rail. */
 .sidebar-collapse-icon {

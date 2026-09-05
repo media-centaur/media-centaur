@@ -141,7 +141,7 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(system_vitals: Vitals.snapshot())
     |> assign(acquisition_activity: build_acquisition_activity())
     |> assign(retention_by_subsystem: MediaCentaur.Retention.status_by_subsystem())
-    |> assign(diagnostics_unseen: 0)
+    |> update(:badges, &%{&1 | diagnostics_unseen: 0})
     |> assign(overview: Status.Views.overview())
     |> assign_storage_snapshot(Status.Views.storage())
     |> assign_self_update()
@@ -558,10 +558,7 @@ defmodule MediaCentaurWeb.StatusLive do
       show_apps={@show_apps}
       flash={@flash}
       current_path="/status"
-      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
-      status_errors={assigns[:status_errors] || 0}
-      review_pending={assigns[:review_pending] || 0}
-      mapping_pending={assigns[:mapping_pending] || 0}
+      badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
         <%!-- Persistent, form-heavy wizard — deliberately NOT a

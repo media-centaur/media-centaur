@@ -48,10 +48,7 @@ defmodule MediaCentaurWeb.GuideLive do
       show_apps={@show_apps}
       flash={@flash}
       current_path="/guide"
-      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
-      status_errors={assigns[:status_errors] || 0}
-      review_pending={assigns[:review_pending] || 0}
-      mapping_pending={assigns[:mapping_pending] || 0}
+      badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <div class="flex gap-8 max-w-[74rem]" data-page-behavior="guide" data-nav-default-zone="guide">
         <nav
