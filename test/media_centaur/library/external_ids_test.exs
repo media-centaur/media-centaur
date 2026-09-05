@@ -94,6 +94,26 @@ defmodule MediaCentaur.Library.ExternalIdsTest do
     end
   end
 
+  describe "movie_ids_for_tmdb_ids/1" do
+    test "maps each TMDB id string to the movie that carries it" do
+      movie_a = create_standalone_movie(%{name: "Movie A", tmdb_id: "100"})
+      movie_b = create_standalone_movie(%{name: "Movie B", tmdb_id: "200"})
+      create_standalone_movie(%{name: "Movie C", tmdb_id: "300"})
+      tv = create_tv_series(%{name: "Sample Show", tmdb_id: "400"})
+
+      assert ExternalIds.movie_ids_for_tmdb_ids(["100", "200", "400", "999"]) == %{
+               "100" => movie_a.id,
+               "200" => movie_b.id
+             }
+
+      refute Map.has_key?(ExternalIds.movie_ids_for_tmdb_ids(["400"]), tv.id)
+    end
+
+    test "is empty for an empty id list" do
+      assert ExternalIds.movie_ids_for_tmdb_ids([]) == %{}
+    end
+  end
+
   describe "tmdb_owners/1" do
     test "maps refs to owning presentable container ids; unknown refs are absent" do
       movie = create_standalone_movie(%{name: "Sample Movie"})

@@ -347,19 +347,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   end
 
   defp present_episodes(%Item{library_container_type: :tv_series, library_container_id: id})
-       when is_binary(id) do
-    Map.new(
-      Repo.all(
-        from(e in Library.Episode,
-          join: s in Library.Season,
-          on: e.season_id == s.id,
-          where: s.tv_series_id == ^id,
-          select: {s.season_number, e.episode_number, e.id}
-        )
-      ),
-      fn {season, episode, episode_id} -> {{season, episode}, episode_id} end
-    )
-  end
+       when is_binary(id), do: Library.Episodes.ids_by_season_episode(id)
 
   defp present_episodes(_unlinked_item), do: %{}
 
@@ -370,25 +358,15 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
       |> Enum.reject(&is_nil/1)
       |> Enum.map(&to_string/1)
 
-    if part_ids == [] do
-      %{}
-    else
-      Repo.all(
-        from(ext in Library.ExternalId,
-          where:
-            ext.owner_type == :movie and ext.source == "tmdb" and
-              ext.external_id in ^part_ids,
-          select: {ext.external_id, ext.owner_id}
-        )
-      )
-      |> Enum.flat_map(fn {external_id, movie_id} ->
-        case Helpers.parse_tmdb_id(external_id) do
-          {:ok, tmdb_id} -> [{tmdb_id, movie_id}]
-          :error -> []
-        end
-      end)
-      |> Map.new()
-    end
+    part_ids
+    |> Library.ExternalIds.movie_ids_for_tmdb_ids()
+    |> Enum.flat_map(fn {external_id, movie_id} ->
+      case Helpers.parse_tmdb_id(external_id) do
+        {:ok, tmdb_id} -> [{tmdb_id, movie_id}]
+        :error -> []
+      end
+    end)
+    |> Map.new()
   end
 
   defp satisfy!(want, quality) do
@@ -410,17 +388,12 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   # chain is incomplete or the name carries no quality marker — the
   # column is a hook for the future upgrades campaign, not a guarantee.
   defp quality_for_container(container_type, container_id) do
-    playable_item_id =
-      Repo.one(
-        from(p in Library.PlayableItem,
-          where: p.container_type == ^container_type and p.container_id == ^container_id,
-          order_by: [asc: p.position],
-          limit: 1,
-          select: p.id
-        )
-      )
+    first_playable_item =
+      container_type
+      |> Library.PlayableItems.list_for(container_id)
+      |> List.first()
 
-    with id when is_binary(id) <- playable_item_id,
+    with %{id: id} <- first_playable_item,
          path when is_binary(path) <- Library.Files.playable_file_path(id),
          quality when not is_nil(quality) <- Quality.parse(Path.basename(path)) do
       Atom.to_string(quality)

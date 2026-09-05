@@ -3,10 +3,8 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   Shared helper functions used by Scanner and Refresher.
   """
 
-  import Ecto.Query
   alias MediaCentaur.ReleaseTracking.Extractor
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
 
   @doc """
@@ -83,19 +81,7 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   def find_last_library_episode(nil), do: {0, 0}
 
   def find_last_library_episode(tv_series_id) do
-    result =
-      Repo.one(
-        from(e in MediaCentaur.Library.Episode,
-          join: s in MediaCentaur.Library.Season,
-          on: e.season_id == s.id,
-          where: s.tv_series_id == ^tv_series_id,
-          select: {s.season_number, e.episode_number},
-          order_by: [desc: s.season_number, desc: e.episode_number],
-          limit: 1
-        )
-      )
-
-    result || {0, 0}
+    MediaCentaur.Library.Episodes.last_season_episode(tv_series_id) || {0, 0}
   end
 
   @doc """

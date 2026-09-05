@@ -26,6 +26,45 @@ defmodule MediaCentaur.Library.Episodes do
   alias MediaCentaur.Library.{ContentUrls, Episode, PlayableItem, Season, WatchedFile, Writes}
   alias MediaCentaur.Repo
 
+  @doc """
+  Every episode of a TV series keyed by its `{season_number,
+  episode_number}` pair, valued by episode id. Episode rows, not linked
+  files — an episode the pipeline has recorded counts as present.
+  """
+  @spec ids_by_season_episode(Ecto.UUID.t()) :: %{
+          {non_neg_integer(), non_neg_integer()} => Ecto.UUID.t()
+        }
+  def ids_by_season_episode(tv_series_id) when is_binary(tv_series_id) do
+    Map.new(
+      Repo.all(
+        from(e in Episode,
+          join: s in Season,
+          on: e.season_id == s.id,
+          where: s.tv_series_id == ^tv_series_id,
+          select: {{s.season_number, e.episode_number}, e.id}
+        )
+      )
+    )
+  end
+
+  @doc """
+  The highest `{season_number, episode_number}` pair a TV series has an
+  episode row for, or `nil` when it has none.
+  """
+  @spec last_season_episode(Ecto.UUID.t()) :: {non_neg_integer(), non_neg_integer()} | nil
+  def last_season_episode(tv_series_id) when is_binary(tv_series_id) do
+    Repo.one(
+      from(e in Episode,
+        join: s in Season,
+        on: e.season_id == s.id,
+        where: s.tv_series_id == ^tv_series_id,
+        select: {s.season_number, e.episode_number},
+        order_by: [desc: s.season_number, desc: e.episode_number],
+        limit: 1
+      )
+    )
+  end
+
   @doc "Every `Episode` row."
   @spec list_all() :: [Episode.t()]
   def list_all, do: Repo.all(Episode)
