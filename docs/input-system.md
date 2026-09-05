@@ -62,7 +62,6 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `config.js` | Yes | All app-specific config: selectors, layouts, instance types, behaviors |
 | `index.js` | No | LiveView hook factory — imports core + config, exports `createInputHook()` |
 | `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory |
-| `home_behavior.js` | Yes | Home (`/`): hero scroll pinning. Shelves don't activate-on-focus |
 | `library_behavior.js` | Yes* | Library: CLEAR → filter, sort tracking |
 | `review_behavior.js` | Yes | Review: no page-specific hooks |
 | `settings_behavior.js` | Yes | Settings: activateOnFocus for sections |
@@ -73,7 +72,7 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 
 *Library behavior is pure when injected with mock DOM.
 
-Settings → Controls (v0.16.0) makes every entry in the Action Vocabulary table below **user-remappable**. The tables here document the *defaults* shipped in `MediaCentaur.Controls.Catalog`. User overrides are persisted under `controls.keyboard` / `controls.gamepad` in `Settings.Entry` and are pushed to the browser via `controls_bridge.js`, which swaps the key→action / button→action maps live on the running `KeyboardSource` and `GamepadSource` instances.
+Settings → Controls (v0.16.0) makes every entry in the Action Vocabulary table below **user-remappable**. The tables here document the *defaults* shipped in `MediaCentaur.Settings.Controls.Catalog`. User overrides are persisted under `controls.keyboard` / `controls.gamepad` in `Settings.Entry` and are pushed to the browser via `controls_bridge.js`, which swaps the key→action / button→action maps live on the running `KeyboardSource` and `GamepadSource` instances.
 
 ## Input Source Contract
 
@@ -324,9 +323,9 @@ layer out.
 - Grid left → nav graph target where a lateral edge exists (sections in the settings zone); otherwise a wall — the sidebar is BACK's job
 - Grid right → DRAWER (if open)
 - MENU up/down → nav graph target for that direction (if defined)
-- TOOLBAR up/down → nav graph target for that instance (the standard toolbar reaches zone_tabs/grid; the upcoming mini-month reaches actions/stragglers)
+- TOOLBAR up/down → nav graph target for that instance (`config.js` names them per page)
 - SHELF, any direction with no spatial neighbour → nav graph, then (left/right only) the sequence — see the SHELF section above; up/down with no neighbour and no graph edge is inert, and left at the left edge is a wall
-- Zone tabs / toolbar left at index 0 → nav graph left edge where one exists (the rail for the upcoming mini-month); otherwise a wall
+- Zone tabs / toolbar left at index 0 → nav graph left edge where one exists; otherwise a wall
 - Drawer left → GRID (rightmost column, same row)
 
 ## Directive Reference
@@ -349,7 +348,7 @@ layer out.
 
 | Attribute | Purpose | Values |
 |-----------|---------|--------|
-| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs`, `hero`, `continue`, `recently`, `coming_up`, upcoming: `rail`, `stragglers`, `actions`, `mini-month` |
+| `data-nav-zone` | Navigation zone container | per-page names declared in `config.js` (`grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs`, `hero`, `continue`, `recently`, `coming_up`, `manage_tools`, `detail_list`, …) — `config.js` is the authority |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) | — |
 | `data-nav-grid` | CSS grid container (column count detection) | — |
 | `data-entity-id` | Stable entity identifier on cards | UUID |
@@ -360,16 +359,15 @@ layer out.
 | `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head | (bare) |
 | `aria-expanded` | Disclosure state on a nav item. Standard markup, read directly rather than mirrored into a `data-` attribute | `true`, `false` |
 | `data-dismiss-event` | Custom event pushed on modal dismiss instead of `close_detail` | event name string |
-| `data-section-type` | Section identifier for page behavior `onAction` dispatch | `calendar`, `tracking`, `scan`, etc. |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
-| `data-page-behavior` | Page behavior to activate | `home`, `library`, `review`, `settings`, `status`, `download`, `watch-history` |
-| `data-nav-default-zone` | Default zone for pages without zone tabs | `home`, `library`, `settings`, `status`, `review`, `watch_history` |
+| `data-page-behavior` | Page behavior to activate | `apps`, `discovery`, `guide`, `incoming`, `library`, `reconcile`, `review`, `settings`, `setup`, `status` (Home and History run the default behaviour) |
+| `data-nav-default-zone` | Default zone for pages without zone tabs | a zone name from `config.js` (e.g. `home`, `library`, `settings`, `status`, `review`) |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
 | `data-input-editing` | Text input is in edit mode (set on `<html>`) | `true` or absent |
 | `data-sidebar` | Sidebar state (set on `<html>`) | `collapsed` |
-| `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library`, `upcoming` |
+| `data-nav-zone-value` | Zone identifier on a tab element — the zone it switches to | a zone name |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` | event name string |
 | `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from — grounding the user before the new items get walked | — |

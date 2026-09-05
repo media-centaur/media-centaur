@@ -84,7 +84,7 @@ The `Movie` schema serves both standalone movies and MovieSeries children. The `
 
 **External identifiers.** The `ExternalId` resource links each type record to TMDB IDs (and potentially IMDB, TVDB in the future). Stored as `{source, external_id}` per row.
 
-**File tracking.** `WatchedFile` links a video file path to its specific type record via the appropriate FK. Tracks presence state (`:complete` or `:absent`) for removable drive support.
+**File tracking.** `WatchedFile` links a video file path to a `PlayableItem` (`playable_item_id`), never to the type record directly. Presence on disk is `FilePresence`'s (ADR-045): a row per path the watcher has seen, swept by `Library.AbsenceSweeper` after `file_absence_ttl_days`.
 
 ## Entity Hierarchy
 
@@ -162,25 +162,31 @@ Artwork file. One per role per owner (entity, movie, or episode).
 
 **Roles:** `poster`, `backdrop`, `logo`, `thumb`
 
-### Identifier
+### ExternalId
 
-External service ID linking a type record to TMDB, IMDB, etc. Stored in `library_identifiers` with type-specific FKs.
+External service id for any owner. Stored in `library_external_ids` with the polymorphic `(owner_type, owner_id)` pair — there are no per-type FK columns. `Library.ExternalIds` is the API (`put/3`, `find_by_external_id/2`).
 
-**Key attributes:** `source` (e.g., `"tmdb"`, `"tmdb_collection"`), `external_id`
+**Key attributes:** `source` (`"tmdb"`, `"tmdb_collection"`, `"imdb"`), `external_id`, `owner_type`, `owner_id`
+
+### PlayableItem
+
+The playable leaf's identity: one row per movie / episode / video object, `(container_type, container_id)` naming the owner, `position` its ordinal. Files and progress hang off it, so a leaf's files and watch state survive the owner being re-shaped. `Library.PlayableItems` is the API.
 
 ### WatchedFile
 
-Links a video file on disk to its entity. Tracks file presence for removable drives.
+Links a video file on disk to its `PlayableItem`. `Library.Files` is the API.
 
-**Key attributes:** `file_path`, `state` (`:complete` / `:absent`), `media_dir`, `absent_since`
+**Key attributes:** `file_path`, `media_dir`, `playable_item_id`, `file_presence_id`
+
+### FilePresence
+
+The scan's ledger of every path the watcher has seen under a media directory, and the seat of "is this file on disk". `WatchedFile` and `ExtraFile` reference it by a plain column. The watcher stamps it on detection; `Library.AbsenceSweeper` purges rows absent past `file_absence_ttl_days` (drives confirmed available only) through `Library.Deletion`.
 
 ### WatchProgress
 
-Per-playable-item progress. Indexed by `(entity_id, season_number, episode_number)`.
+Per-playable-item progress, keyed by `playable_item_id`. Written by `Library.Progress` (in-memory hot state, flushed to rows by `Library.Progress.Worker`); read through `Library.Progress.get/1`.
 
-**Key attributes:** `season_number`, `episode_number`, `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`
-
-For standalone movies: `season_number = 0, episode_number = 0`. For movie series children: `season_number = 0, episode_number = ordinal`.
+**Key attributes:** `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`, `playable_item_id`
 
 > Settings (the per-installation key/value store) is its own bounded context — `MediaCentaur.Settings.Entry` — not part of `Library`. See [`architecture.md`](architecture.md#bounded-contexts).
 
@@ -188,7 +194,7 @@ For standalone movies: `season_number = 0, episode_number = 0`. For movie series
 
 `MediaCentaur.Library.Inbound` is the pipeline's entry point into the library. It is a PubSub-listener GenServer (subscribed to `pipeline:publish`) that handles `{:entity_published, event}` and `{:image_ready, attrs}` messages and:
 
-1. **Resolves** existing type records by TMDB identifier lookup via `Library.Identifier`
+1. **Resolves** existing type records by TMDB id via `Library.ExternalIds.find_by_external_id/2`
 2. **Creates** new records (and their children) if not found, with race-loss recovery on the unique `(source, external_id)` constraint
 3. **Links** to existing records if found — adds new seasons, episodes, MovieSeries children, extras
 4. **Moves** staged images from the staging directory to the final `images_dir/<record_id>/role.ext`
@@ -206,10 +212,10 @@ The pipeline never calls `Library.Inbound` directly; everything flows through Pu
 4. Delete orphaned top-level records (no remaining WatchedFiles)
 5. Delete cached image files
 
-**Deferred cleanup** (drive unavailable):
-1. Mark WatchedFiles as `:absent` with timestamp
-2. Periodic TTL check (every 24 hours)
-3. After `file_absence_ttl_days`, run full cleanup
+**Deferred cleanup** (file gone from an *available* drive):
+1. The `FilePresence` row stays, marked absent by the watcher's health check
+2. `Library.AbsenceSweeper` ticks daily and purges rows absent longer than `file_absence_ttl_days` — only for drives confirmed available, so an unmounted drive never loses its library
+3. Each purge runs `Library.Deletion.cleanup_removed_files/1`, the same cascade as an immediate deletion
 
 ## Availability
 
@@ -261,9 +267,14 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Library.Episode` | TV episode | `lib/media_centaur/library/episode.ex` |
 | `MediaCentaur.Library.Extra` | Bonus feature | `lib/media_centaur/library/extra.ex` |
 | `MediaCentaur.Library.Image` | Artwork | `lib/media_centaur/library/image.ex` |
-| `MediaCentaur.Library.ExternalId` | Identifier (TMDB, IMDB) — schema for `library_identifiers` | `lib/media_centaur/library/external_id.ex` |
-| `MediaCentaur.Library.WatchedFile` | File-to-record link | `lib/media_centaur/library/watched_file.ex` |
-| `MediaCentaur.Library.WatchProgress` | Playback progress | `lib/media_centaur/library/watch_progress.ex` |
+| `MediaCentaur.Library.ExternalId` | External id (TMDB, IMDB) — schema for `library_external_ids`; `Library.ExternalIds` is the API | `lib/media_centaur/library/external_id.ex` |
+| `MediaCentaur.Library.PlayableItem` | Playable-leaf identity; `Library.PlayableItems` is the API | `lib/media_centaur/library/playable_item.ex` |
+| `MediaCentaur.Library.FilePresence` | Scan ledger + on-disk presence | `lib/media_centaur/library/file_presence.ex` |
+| `MediaCentaur.Library.Files` | WatchedFile / ExtraFile rows and the file → top-level entity walk | `lib/media_centaur/library/files.ex` |
+| `MediaCentaur.Library.ImageCache` | Where artwork files live on disk (per-media-dir cache, staging, path resolution) | `lib/media_centaur/library/image_cache.ex` |
+| `MediaCentaur.Library.Views.*` | ETS read projections (Browse, Detail, ContinueWatching, …; ADR-041) | `lib/media_centaur/library/views/` |
+| `MediaCentaur.Library.WatchedFile` | File → PlayableItem link | `lib/media_centaur/library/watched_file.ex` |
+| `MediaCentaur.Library.WatchProgress` | Playback progress per PlayableItem; `Library.Progress` is the API | `lib/media_centaur/library/watch_progress.ex` |
 | `MediaCentaur.Library.TypeResolver` | UUID-to-type-record lookup | `lib/media_centaur/library/type_resolver.ex` |
 | `MediaCentaur.Library.EntityShape` | Normalize type records to common map shape | `lib/media_centaur/library/entity_shape.ex` |
 | `MediaCentaur.Library.EntityCascade` | Cascade-deletion order | `lib/media_centaur/library/entity_cascade.ex` |
@@ -278,4 +289,4 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Library.ChangeLog` | Library change recording | `lib/media_centaur/library/change_log.ex` |
 | `MediaCentaur.Review` | Review context | `lib/media_centaur/review.ex` |
 | `MediaCentaur.Review.PendingFile` | Pending review file | `lib/media_centaur/review/pending_file.ex` |
-| `MediaCentaur.Review.Intake` | Payload → PendingFile mapper | `lib/media_centaur/review/intake.ex` |
+| `MediaCentaur.Review.Intake` | `review:intake` reactor → `Review.add_pending_file/1` etc. | `lib/media_centaur/review/intake.ex` |

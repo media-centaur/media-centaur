@@ -72,15 +72,15 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 
 | Context | Owns | Notes |
 |---------|------|-------|
-| `MediaCentaur.Library` | `library_*` tables, entity facade, file-presence ownership (FilePresence + AbsenceSweeper, per ADR-045) | Type-specific schemas: Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchProgress, WatchedFile, ExtraFile, FilePresence. |
+| `MediaCentaur.Library` | `library_*` tables, entity facade, file-presence ownership (FilePresence + AbsenceSweeper, per ADR-045) | Type-specific schemas: Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, ExternalId, PlayableItem, WatchProgress, ExtraProgress, WatchedFile, ExtraFile, FilePresence, FileMediaInfo, MediaTrackOverride, ChangeEntry, Person. |
 | `MediaCentaur.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. ETS-backed in-flight set in `Pipeline.Discovery.InflightSet` dedupes duplicate file-detected events — file discovery in the pipeline, unrelated to the `MediaCentaur.Discovery` context below. |
 | `MediaCentaur.Review` | `review_*` table | Holds low-confidence matches awaiting human decision. |
 | `MediaCentaur.Watcher` | inotify supervision + filesystem observer, drive-mount detection, exclude-dir handling | No DB tables — pure filesystem observer that emits `{:file_detected, ...}` events. Library owns the presence record (ADR-045). |
 | `MediaCentaur.Settings` | `settings_*` table (key/value entries) | Shared infrastructure: any context may write its own keys via a declared `Settings` dep. |
 | `MediaCentaur.ReleaseTracking` | `release_tracking_*` tables | Periodic TMDB refresh of upcoming items in the user's library. |
 | `MediaCentaur.Discovery` | `watchlist_items` table | The local watchlist — title-level "I want to watch this" intent — and, in later iterations, the candidate sources that feed it (TMDB discover, list import, friend recommendations). Broadcasts on `discovery:updates`. |
-| `MediaCentaur.Social` | `relays` + `friends` tables, this install's Nostr identity in the sensitive `nostr_secret_key` config key, one live `Nostr.Connection` per relay | The friend network's configuration: `Social.Identity` (one secp256k1 keypair, generated the first time the Social tab is opened), `Relay`, `Friend`, and `Connections` (Registry + DynamicSupervisor + owner). Broadcasts on `social:updates`, and re-broadcasts every connection's messages on `social:connections`. See [docs/friends.md](friends.md). |
-| `MediaCentaur.Recommendations` | `recommendations` table | What this install sent its friends and what they sent it: kind-32160 events translated into rows (`Translation`), kept one per author + title, synced with the relays by `Recommendations.Sync`. Knows nothing about the watchlist or the library — the web layer joins those. Broadcasts on `recommendations:updates`. See [docs/friends.md](friends.md). |
+| `MediaCentaur.Social` | `relays` + `friends` tables, this install's Nostr identity in the sensitive `nostr_secret_key` config key, one live `Nostr.Connection` per relay | The friend network's configuration: `Social.Identity` (one secp256k1 keypair, generated the first time the Social tab is opened), `Relay`, `Friend`, and `Connections` (Registry + DynamicSupervisor + owner). Broadcasts on `social:updates`, and re-broadcasts every connection's messages on `social:connections`. See [docs/social.md](social.md). |
+| `MediaCentaur.Recommendations` | `recommendations` table | What this install sent its friends and what they sent it: kind-32160 events translated into rows (`Translation`), kept one per author + title, synced with the relays by `Recommendations.Sync`. Knows nothing about the watchlist or the library — the web layer joins those. Broadcasts on `recommendations:updates`. See [docs/social.md](social.md). |
 | `MediaCentaur.Playback` | mpv session supervision, progress broadcasts | No DB tables — in-memory sessions. |
 | `MediaCentaur.Console` | `console_*` (filter/buffer-cap settings) + in-memory ring buffer + journal source | Drives the `/console` page and the Guake-style drawer. |
 | `MediaCentaur.Acquisition` | `acquisition_*` tables, Prowlarr + download-client drivers, Oban jobs. **Sub-namespace `Acquisition.Pursuits`** introduces a goal-level aggregate with append-only event log and a hybrid-autonomy decision pipeline (`Snapshot → Policy → Action → Command`); workers (`Pursuits.Watcher`, `Pursuits.IdentityVerifier`) orchestrate, commands execute. See [ADR-039](../decisions/architecture/2026-05-07-039-acquisition-pursuits.md). | Optional — gated by `MediaCentaur.Capabilities`. |
@@ -102,7 +102,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.Guide` | Markdown guide book rendering | Static content; no DB tables. |
 | `MediaCentaur.Setup` | First-run tour state + probes | Reads Capabilities and IntegrationHealth. |
 | `MediaCentaur.Apps` | `apps` table, app launcher (Steam discovery, fire-and-forget spawn), `{data_dir}/images/apps/` art cache | Uniform App rows filled by add-time importers; artwork is disk-as-ledger, same idiom as TmdbArtwork. Nav entry gated by the `show_apps` preference. |
-| `MediaCentaur.Nostr` | Nostr protocol only: keys (`Keys`), NIP-01 events (`Event`), subscription filters (`Filter`), one relay WebSocket per URL (`Connection`, NIP-01 + NIP-42) | Pure protocol library — no context deps, no DB tables, no domain meaning. Crypto via `bitcoinex` (pure Elixir, no NIF). See [docs/friends.md](friends.md). |
+| `MediaCentaur.Nostr` | Nostr protocol only: keys (`Keys`), NIP-01 events (`Event`), subscription filters (`Filter`), one relay WebSocket per URL (`Connection`, NIP-01 + NIP-42) | Pure protocol library — no context deps, no DB tables, no domain meaning. Crypto via `bitcoinex` (pure Elixir, no NIF). See [docs/social.md](social.md). |
 
 ## Data Flow
 
@@ -136,7 +136,11 @@ graph TD
     App --> TaskSup[TaskSupervisor]
     App --> HttpSup[HttpClient.Supervisor<br/>Cache.Coordinator + Stats]
     App --> RateLimiter[TMDB.RateLimiter]
+    App --> MetadataStats[TMDB.MetadataStats]
     App --> WatcherSup[Watcher.Supervisor]
+    App --> SocialConn[Social.Connections]
+    App --> RecSync[Recommendations.Sync]
+    App --> Coalescer[Library.BroadcastCoalescer]
     App --> Availability[Library.Availability]
     App --> PipelineSup[Pipeline.Supervisor]
     App --> ImagePipelineSup[Pipeline.Image.Supervisor]
@@ -144,7 +148,10 @@ graph TD
     App --> AbsenceSweeper[Library.AbsenceSweeper]
     App --> FileEvents[Library.FileEventHandler]
     App --> SelfUpdater[SelfUpdate.Updater]
-    App --> Listeners[PubSub listeners<br/>Inbound, Intake, LibraryListener,<br/>Recorder, Acquisition]
+    App --> AutoApply[SelfUpdate.AutoApply]
+    App --> SearchSession[IncomingLive.SearchSession]
+    App --> Listeners[PubSub listeners<br/>Inbound, Intake, LibraryListener, Recorder,<br/>Acquisition.Reactor, Downloads.QueueMonitor,<br/>Pursuits.InboundListener]
+    App --> ShutdownMonitor[ErrorReports.ShutdownMonitor<br/>durable diagnostics only]
     App --> PlaybackSup[Playback.Supervisor]
     App --> Endpoint[Phoenix Endpoint]
 
@@ -161,7 +168,7 @@ graph TD
     SessionSup --> MpvSession[MpvSession per file]
 ```
 
-PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking.LibraryListener`, `WatchHistory.Recorder`, `Acquisition`) and the `ReleaseTracking.Refresher` timers are skipped in `:test` env — tests call the public functions directly. Watchers and the pipelines start in disabled state in tests; production toggles them via `services:<env>:start_watchers` / `start_pipeline` keys in `Settings`.
+PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking.LibraryListener`, `WatchHistory.Recorder`, `Acquisition.Reactor`, `Downloads.QueueMonitor`, `Pursuits.InboundListener`) and the `ReleaseTracking.Refresher` timers are skipped in `:test` env — tests call the public functions directly. Watchers and the pipelines start in disabled state in tests; production toggles them via `services:<env>:start_watchers` / `start_pipeline` keys in `Settings`.
 
 ## PubSub Topics
 

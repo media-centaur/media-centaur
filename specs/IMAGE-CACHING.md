@@ -88,7 +88,7 @@ Each media directory has its own image cache. By default, images are stored at `
 - One subdirectory per owner (entity, child movie, or episode), named by the owner's UUID.
 - Filename is `{role}.{ext}` — extension matches the source format (`.jpg` or `.png`).
 - The database stores relative paths (`{uuid}/{role}.{ext}`). The serializer resolves to absolute filesystem paths when needed.
-- Staging directories for in-progress downloads are created at `{images_dir}/partial-downloads/` (inside the image cache, not alongside it) and excluded from library scanning. See `MediaCentaur.Config.staging_base_for/1`. (No startup sweep exists today — downloads write via the `ImageFiles` facade and don't stage partial files there in practice.)
+- Staging directories for in-progress downloads are created at `{images_dir}/partial-downloads/` (inside the image cache, not alongside it) and excluded from library scanning. See `MediaCentaur.Library.ImageCache.staging_dir_for/1`. (No startup sweep exists today — downloads write via the `ImageFiles` facade and don't stage partial files there in practice.)
 
 ---
 
@@ -123,7 +123,7 @@ No caller writes an HTTP download inline. Resize targets per role are defined in
 
 - Query external APIs to get image URLs
 - Create `ImageObject` entries with `url` populated (remote TMDB URL) and `contentUrl: null`
-- Download images to `{images_dir}/{uuid}/{role}.{ext}`, where `images_dir` is resolved per media directory via `Config.images_dir_for/1`
+- Download images to `{images_dir}/{uuid}/{role}.{ext}`, where `images_dir` is resolved per media directory via `Library.ImageCache.dir_for/1` (`{media_dir}/.media-centaur/images` unless the entry sets `images_dir`)
 - Update `contentUrl` in the `ImageObject` entry with the local path after successful download
 - Never overwrite a locally modified image without user confirmation
 - Serve images over HTTP at `/media-images/*` (see [HTTP Endpoint](#http-endpoint) below)
