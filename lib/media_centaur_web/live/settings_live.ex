@@ -125,6 +125,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(exclude_dirs: [])
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
      |> assign(blank_extra_names_count: 0)
+     |> assign(controls_reset_armed: false)
      |> assign(tmdb_test: nil)
      |> assign(prowlarr_test: nil)
      |> assign(download_client_test: nil)
@@ -151,6 +152,7 @@ defmodule MediaCentaurWeb.SettingsLive do
        media_dir_delete_confirm: nil,
        scanning: false,
        clearing_database: false,
+       controls_reset_armed: false,
        clear_database_prompt: false,
        confirming_image_refresh: false,
        refreshing_images: false,
@@ -1161,9 +1163,18 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
+  # Resetting every binding has no undo: arm first (MC0027 tier 2).
+  def handle_event("controls:reset_all_arm", _params, socket) do
+    {:noreply, assign(socket, controls_reset_armed: true)}
+  end
+
+  def handle_event("controls:reset_all", _params, %{assigns: %{controls_reset_armed: false}} = socket) do
+    {:noreply, assign(socket, controls_reset_armed: true)}
+  end
+
   def handle_event("controls:reset_all", _params, socket) do
     :ok = Controls.reset_all()
-    {:noreply, socket}
+    {:noreply, assign(socket, controls_reset_armed: false)}
   end
 
   def handle_event("controls:reset_category", %{"category" => category}, socket) do
@@ -1843,6 +1854,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 bindings={@bindings}
                 glyph_style={@glyph_style}
                 listening={@listening}
+                controls_reset_armed={@controls_reset_armed}
               />
             </div>
           </div>
@@ -1932,7 +1944,12 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "controls"} = assigns) do
     ~H"""
-    <ControlsSection.render bindings={@bindings} glyph_style={@glyph_style} listening={@listening} />
+    <ControlsSection.render
+      bindings={@bindings}
+      glyph_style={@glyph_style}
+      listening={@listening}
+      reset_armed={@controls_reset_armed}
+    />
     """
   end
 

@@ -35,8 +35,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         page: 1,
         events: [],
         has_next: false,
-        deleting_event: nil,
-        deleted_event: nil,
+        remove_confirm: nil,
         reload_timer: nil
       )
 
@@ -105,59 +104,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
       <:overlays>
         <%!-- Deleting in-progress modal — persistent (no casual dismissal while
               the delete is running). --%>
-        <.modal
-          id="history-deleting-modal"
-          open={!is_nil(@deleting_event)}
-          dismiss={:persistent}
-          size={:sm}
-          panel_class="p-6 flex flex-col items-center gap-4"
-        >
-          <span class="loading loading-spinner loading-md text-base-content/50"></span>
-          <div class="text-center">
-            <p class="text-sm font-medium text-base-content/70">Removing from history…</p>
-            <p class="text-xs text-base-content/40 mt-1 truncate max-w-xs">
-              {@deleting_event && @deleting_event.title}
-            </p>
-          </div>
-        </.modal>
-
-        <%!-- Deleted summary modal — ephemeral. --%>
-        <.modal
-          id="history-deleted-modal"
-          open={!is_nil(@deleted_event)}
-          dismiss={:ephemeral}
-          on_close="dismiss_deleted_event"
-          size={:sm}
-          panel_class="p-6 space-y-4"
-        >
-          <div :if={@deleted_event}>
-            <div class="flex items-start gap-3">
-              <div class="rounded-full bg-error/10 p-2 shrink-0">
-                <.icon name="hero-trash-mini" class="size-4 text-error" />
-              </div>
-              <div class="min-w-0">
-                <h3 class="font-semibold">Removed from history</h3>
-                <p class="text-sm text-base-content/60 truncate mt-0.5">
-                  {@deleted_event.title}
-                </p>
-                <p class="text-xs text-base-content/40 mt-1">
-                  {type_label(@deleted_event.entity_type)}
-                </p>
-              </div>
-            </div>
-            <div class="flex justify-end">
-              <.button
-                variant="dismiss"
-                size="sm"
-                phx-click="dismiss_deleted_event"
-                data-nav-item
-                tabindex="0"
-              >
-                Close
-              </.button>
-            </div>
-          </div>
-        </.modal>
       </:overlays>
       <div
         class="max-w-5xl mx-auto space-y-6 py-6"
@@ -310,17 +256,23 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
             <span class="text-xs text-base-content/40 whitespace-nowrap shrink-0 tabular-nums w-16 text-right">
               {LibraryFormatters.format_human_duration(round(event.duration_seconds))}
             </span>
-            <.button
+            <.armed_button
+              armed={@remove_confirm == event.id}
+              arm="remove_event_prompt"
+              fire="remove_event"
+              armed_label="Click again to remove"
               variant="destructive_inline"
               size="xs"
-              class="text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
-              phx-click="remove_event"
+              class={[
+                "text-base-content/30 hover:text-error transition-opacity",
+                @remove_confirm != event.id &&
+                  "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+              ]}
               phx-value-id={event.id}
-              tabindex="0"
               aria-label="Remove from history"
             >
               <.icon name="hero-x-mark-mini" class="size-3" />
-            </.button>
+            </.armed_button>
           </div>
         </div>
 
@@ -399,11 +351,23 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     {:noreply, assign(socket, events: events, has_next: has_next)}
   end
 
+  # Removing an event has no undo: the row's button arms on the first
+  # click and fires on the second (MC0027 tier 2). A different row, or a
+  # reload, disarms.
   @impl true
+  def handle_event("remove_event_prompt", %{"id" => id}, socket) do
+    {:noreply, assign(socket, remove_confirm: id)}
+  end
+
+  def handle_event("remove_event", %{"id" => id}, %{assigns: %{remove_confirm: confirm}} = socket)
+      when confirm != id do
+    {:noreply, assign(socket, remove_confirm: id)}
+  end
+
   def handle_event("remove_event", %{"id" => id}, socket) do
     case WatchHistory.get_event(id) do
       nil ->
-        {:noreply, socket}
+        {:noreply, assign(socket, remove_confirm: nil)}
 
       event ->
         # `delete_event!` is a local sqlite delete + PubSub broadcast —
@@ -415,15 +379,14 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         # `{:watch_history_view_updated, :summary}` on the derived topic.
         WatchHistory.delete_event!(event)
 
-        socket = assign(socket, page: 1, deleted_event: event, deleting_event: nil)
+        socket = assign(socket, page: 1, remove_confirm: nil)
         {events, has_next} = fetch_page(socket)
-        {:noreply, assign(socket, events: events, has_next: has_next)}
-    end
-  end
 
-  @impl true
-  def handle_event("dismiss_deleted_event", _params, socket) do
-    {:noreply, assign(socket, deleted_event: nil)}
+        {:noreply,
+         socket
+         |> assign(events: events, has_next: has_next)
+         |> put_flash(:info, "Removed #{event.title} from history")}
+    end
   end
 
   @impl true

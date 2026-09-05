@@ -74,9 +74,12 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       :ok = Controls.subscribe()
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
-      view
-      |> element(~s|button[phx-click="controls:reset_all"]|)
-      |> render_click()
+      # The first click only arms (MC0027 tier 2); nothing is reset yet.
+      html = render_click(view, "controls:reset_all", %{})
+      assert html =~ "Click again to reset every binding"
+      refute_receive {:controls_changed, _}, 100
+
+      render_click(view, "controls:reset_all", %{})
 
       assert_receive {:controls_changed, map}
       assert map[:navigate_up].key == "ArrowUp"

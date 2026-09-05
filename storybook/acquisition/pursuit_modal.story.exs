@@ -65,6 +65,17 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
         attributes: %{open: false}
       },
       %Variation{
+        id: :cancel_armed,
+        description:
+          "Closed — modal lives in the DOM but is hidden via `data-state=\"closed\"`. " <>
+            "Click *Open modal* above to flip the variation's `open` assign and " <>
+            "exercise the open transition.",
+        attributes: %{
+          cancel_armed: true,
+          open: false
+        }
+      },
+      %Variation{
         id: :not_found,
         description:
           "Open with `not_found?` — the URL named a pursuit that no longer exists " <>

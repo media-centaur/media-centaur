@@ -37,6 +37,7 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(processing: MapSet.new())
      |> assign(selected_key: nil)
      |> assign(delete_confirm: nil)
+     |> assign(dismiss_confirm: nil)
      |> assign(search_open: nil)
      |> assign(search_query: "")
      |> assign(search_type: :movie)
@@ -100,6 +101,7 @@ defmodule MediaCentaurWeb.ReviewLive do
        socket
        |> assign(selected_key: group_key)
        |> assign(delete_confirm: nil)
+       |> assign(dismiss_confirm: nil)
        |> assign(search_open: nil)
        |> assign(search_query: "")
        |> assign(search_results: [])
@@ -120,12 +122,23 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
+  # Dismiss takes the arm gesture like delete: the first click arms this
+  # group (`dismiss_confirm`), the second fires. Selecting another item
+  # disarms (see select_item).
+  def handle_event("dismiss_prompt", %{"key" => key}, socket) do
+    {:noreply, assign(socket, dismiss_confirm: decode_key(key))}
+  end
+
   def handle_event("dismiss", %{"key" => key}, socket) do
     group_key = decode_key(key)
     group = socket.assigns.groups_by_key[group_key]
 
-    if group do
-      socket = assign(socket, processing: MapSet.put(socket.assigns.processing, group_key))
+    if group && socket.assigns.dismiss_confirm == group_key do
+      socket =
+        assign(socket,
+          processing: MapSet.put(socket.assigns.processing, group_key),
+          dismiss_confirm: nil
+        )
 
       {_dismissed, errors} = Review.dismiss_group(group.files)
 
@@ -140,7 +153,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
       {:noreply, socket}
     else
-      {:noreply, socket}
+      {:noreply, assign(socket, dismiss_confirm: group && group_key)}
     end
   end
 
@@ -515,6 +528,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               group={@groups_by_key[@selected_key]}
               processing={MapSet.member?(@processing, @selected_key)}
               delete_confirm={@delete_confirm}
+              dismiss_confirm={@dismiss_confirm}
               search_open={@search_open == @selected_key}
               search_query={@search_query}
               search_type={@search_type}
@@ -770,17 +784,19 @@ defmodule MediaCentaurWeb.ReviewLive do
           >
             Search TMDB
           </.button>
-          <.button
+          <.armed_button
+            armed={@dismiss_confirm == @group.key}
+            arm="dismiss_prompt"
+            fire="dismiss"
+            armed_label={
+              if @file_count > 1, do: "Click again to dismiss all", else: "Click again to dismiss"
+            }
             variant="dismiss"
-            size="sm"
-            phx-click="dismiss"
             phx-value-key={@encoded_key}
             disabled={@processing}
-            data-nav-item
-            tabindex="0"
           >
             {if @file_count > 1, do: "Dismiss All", else: "Dismiss"}
-          </.button>
+          </.armed_button>
           <.button
             variant="danger"
             size="sm"

@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
     {:ok,
      socket
      |> assign(loaded?: false, selected_tmdb: nil, review: nil, targets: %{}, episode_options: [])
-     |> assign(shows: [])}
+     |> assign(shows: [], dismiss_all_armed: false)}
   end
 
   @impl true
@@ -106,11 +106,22 @@ defmodule MediaCentaurWeb.ReconcileLive do
     {:noreply, socket |> apply_confirm(review, targets) |> load()}
   end
 
+  # Dismissing every awaiting file has no undo, so it takes the arm
+  # gesture (MC0027 tier 2): the first click arms, the second fires.
+  def handle_event("dismiss_all_arm", _params, socket) do
+    {:noreply, assign(socket, dismiss_all_armed: true)}
+  end
+
+  def handle_event("dismiss_all", _params, %{assigns: %{dismiss_all_armed: false}} = socket) do
+    {:noreply, assign(socket, dismiss_all_armed: true)}
+  end
+
   def handle_event("dismiss_all", _params, socket) do
     for file <- socket.assigns.review.awaiting_files, do: Reconciliation.dismiss_awaiting(file)
 
     {:noreply,
      socket
+     |> assign(dismiss_all_armed: false)
      |> put_flash(:info, "Dismissed #{length(socket.assigns.review.awaiting_files)} file(s).")
      |> load()}
   end
@@ -202,6 +213,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
           <div class="flex-1 min-h-0 overflow-y-auto thin-scrollbar" data-nav-zone="reconcile-detail">
             <.detail
               :if={@review}
+              dismiss_all_armed={@dismiss_all_armed}
               review={@review}
               targets={@targets}
               episode_options={@episode_options}
@@ -214,6 +226,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
   end
 
   attr :review, ShowReview, required: true
+  attr :dismiss_all_armed, :boolean, default: false, doc: "Dismiss all is one click from firing."
 
   attr :targets, :map,
     required: true,
@@ -244,9 +257,15 @@ defmodule MediaCentaurWeb.ReconcileLive do
           <.button variant="action" size="sm" phx-click="confirm" data-nav-item tabindex="0">
             Confirm matches
           </.button>
-          <.button variant="dismiss" size="sm" phx-click="dismiss_all" data-nav-item tabindex="0">
+          <.armed_button
+            armed={@dismiss_all_armed}
+            arm="dismiss_all_arm"
+            fire="dismiss_all"
+            armed_label="Click again to dismiss all"
+            variant="dismiss"
+          >
             Dismiss all
-          </.button>
+          </.armed_button>
         </div>
       </div>
 

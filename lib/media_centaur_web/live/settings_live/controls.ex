@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
 
   attr :glyph_style, :string, required: true
   attr :listening, :any, required: true, doc: "{kind, id} tuple or nil"
+  attr :reset_armed, :boolean, default: false, doc: "Reset all is one click from firing."
 
   def render(assigns) do
     assigns = assign(assigns, :groups, ControlsLogic.group_for_view(assigns.bindings))
@@ -29,15 +30,15 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
           <h2 class="text-2xl font-semibold">Controls</h2>
           <p class="text-base-content/60 mt-1">Customize keyboard and gamepad bindings.</p>
         </div>
-        <.button
+        <.armed_button
+          armed={@reset_armed}
+          arm="controls:reset_all_arm"
+          fire="controls:reset_all"
+          armed_label="Click again to reset every binding"
           variant="dismiss"
-          size="sm"
-          phx-click="controls:reset_all"
-          data-nav-item
-          tabindex="0"
         >
           Reset all to defaults
-        </.button>
+        </.armed_button>
       </div>
 
       <div class="flex items-center gap-2 mb-6">

@@ -128,6 +128,28 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     end
   end
 
+  describe "dismiss flow (click-to-confirm)" do
+    test "Dismiss arms on the first click and fires on the second", %{conn: conn} do
+      create_pending_file(%{parsed_title: "Dismissable Show", parsed_type: "tv"})
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      assert render_after_async_load(view) =~ "Dismissable Show"
+
+      key =
+        view
+        |> element("[phx-click='select_item']")
+        |> render()
+        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+
+      html = render_click(view, "dismiss", %{"key" => key})
+      assert html =~ "Click again to dismiss"
+      assert length(MediaCentaur.Review.list_pending_files_for_review()) == 1
+
+      render_click(view, "dismiss", %{"key" => key})
+      assert MediaCentaur.Review.list_pending_files_for_review() == []
+    end
+  end
+
   describe "delete flow (click-to-confirm)" do
     setup do
       media_dir =

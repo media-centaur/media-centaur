@@ -102,6 +102,19 @@ defmodule MediaCentaurWeb.Storybook.ReleaseTracking.TitleModal do
         attributes: %{open: true, detail: scheduled_detail(), today: @today}
       },
       %Variation{
+        id: :stop_tracking_armed,
+        description:
+          "A weekly show with releases ahead: the featured slot answers \"what's " <>
+            "next\" (tonight's episode, Will grab), then automation, the timeline " <>
+            "(landed entries keep their success label), activity, Stop tracking.",
+        attributes: %{
+          stop_tracking_armed: true,
+          open: true,
+          detail: scheduled_detail(),
+          today: @today
+        }
+      },
+      %Variation{
         id: :straggler_title,
         description:
           "A tracked title with nothing scheduled: the featured slot states the " <>
