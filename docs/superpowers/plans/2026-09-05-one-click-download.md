@@ -57,7 +57,7 @@ Spec decisions 1, "Data changes".
 - Modify: `lib/media_centaur/acquisition/plans/plan.ex`
 - Test: `test/media_centaur/acquisition/plans/plan_test.exs` (create if absent; check with `ls test/media_centaur/acquisition/plans/`)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```elixir
 defmodule MediaCentaur.Acquisition.Plans.PlanTest do
@@ -93,12 +93,12 @@ defmodule MediaCentaur.Acquisition.Plans.PlanTest do
 end
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `mise exec -- mix test test/media_centaur/acquisition/plans/plan_test.exs`
 Expected: FAIL — `approval_policy` is not a field (`get_field` returns nil, first test fails on `nil == "review"`).
 
-- [ ] **Step 3: Migration**
+- [x] **Step 3: Migration**
 
 ```elixir
 defmodule MediaCentaur.Repo.Migrations.AddPlanApprovalPolicy do
@@ -121,7 +121,7 @@ defmodule MediaCentaur.Repo.Migrations.AddPlanApprovalPolicy do
 end
 ```
 
-- [ ] **Step 4: Schema**
+- [x] **Step 4: Schema**
 
 In `lib/media_centaur/acquisition/plans/plan.ex`:
 
@@ -162,12 +162,12 @@ Add a public accessor for callers that need the vocabulary:
   def approval_policies, do: @approval_policies
 ```
 
-- [ ] **Step 5: Migrate and run**
+- [x] **Step 5: Migrate and run**
 
 Run: `mise exec -- mix ecto.migrate && mise exec -- mix test test/media_centaur/acquisition/plans/plan_test.exs`
 Expected: PASS (3 tests).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add priv/repo/migrations/20260905120000_add_plan_approval_policy.exs lib/media_centaur/acquisition/plans/plan.ex test/media_centaur/acquisition/plans/plan_test.exs
@@ -185,7 +185,7 @@ Spec decision 2.
 - Modify: `lib/media_centaur/acquisition/drop_planner.ex` (`plan_now/3` both clauses, `plan_tv_drop/5`, `plan_movie_drop/5`)
 - Test: `test/media_centaur/acquisition/plans_test.exs`, `test/media_centaur/acquisition/drop_planner_test.exs`
 
-- [ ] **Step 1: Failing tests — Plans**
+- [x] **Step 1: Failing tests — Plans**
 
 Append to `test/media_centaur/acquisition/plans_test.exs` inside the module, a new describe (use the file's existing `selection/0` helper and its Prowlarr stub setup):
 
@@ -215,7 +215,7 @@ Append to `test/media_centaur/acquisition/plans_test.exs` inside the module, a n
 
 If `Plans.fetch!/1` does not exist, use `{:ok, plan} = Plans.fetch(id)` instead — do not add a bang variant just for the test.
 
-- [ ] **Step 2: Failing tests — DropPlanner**
+- [x] **Step 2: Failing tests — DropPlanner**
 
 In `test/media_centaur/acquisition/drop_planner_test.exs`, extend the existing test `"due wants become one tracking plan per title, auto-committed as one pursuit"` with one assertion after `[plan] = Repo.all(Plans.Plan)`:
 
@@ -235,12 +235,12 @@ Find the existing `plan_item_now` test (grep `plan_item_now`) and add where it f
       assert plan.approval_policy == "review"
 ```
 
-- [ ] **Step 3: Run**
+- [x] **Step 3: Run**
 
 Run: `mise exec -- mix test test/media_centaur/acquisition/plans_test.exs test/media_centaur/acquisition/drop_planner_test.exs`
 Expected: the new assertions FAIL (`"review" == "automatic"` in the auto-mode test; the opt is ignored in "creators can stamp automatic").
 
-- [ ] **Step 4: Implement — Plans**
+- [x] **Step 4: Implement — Plans**
 
 In `create_series_plan/3` and `create_movie_plan/2`, add to the attrs map passed to `create_plan/2`:
 
@@ -252,7 +252,7 @@ Update both `@doc`s with one sentence: "`approval_policy:` (`\"automatic\"` | `\
 
 `create_tracking_plan/2` passes `plan_attrs` through; the drop planner supplies the key.
 
-- [ ] **Step 5: Implement — DropPlanner**
+- [x] **Step 5: Implement — DropPlanner**
 
 In both `plan_now/3` clauses (origin `"manual"` plan-now drafts) add to the plan attrs:
 
@@ -282,12 +282,12 @@ and the private helper near `bounds/2`:
 
 Update the DropPlanner moduledoc's pipeline sentence: "RunPlan → mode gate → CommitPlan" becomes "RunPlan → the approval gate (`Reactor.Handlers.plan_changed/1`, reading the stamped `approval_policy`) → CommitPlan".
 
-- [ ] **Step 6: Run**
+- [x] **Step 6: Run**
 
 Run: `mise exec -- mix test test/media_centaur/acquisition/plans_test.exs test/media_centaur/acquisition/drop_planner_test.exs`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/media_centaur/acquisition/plans.ex lib/media_centaur/acquisition/drop_planner.ex test/media_centaur/acquisition/plans_test.exs test/media_centaur/acquisition/drop_planner_test.exs
@@ -305,7 +305,7 @@ Spec decisions 3, 4, 5, 6.
 - Modify: `lib/media_centaur/acquisition/plans.ex` (`clean?/1`)
 - Create: `test/media_centaur/acquisition/reactor/handlers_test.exs`
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```elixir
 defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
@@ -428,12 +428,12 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
 end
 ```
 
-- [ ] **Step 2: Run**
+- [x] **Step 2: Run**
 
 Run: `mise exec -- mix test test/media_centaur/acquisition/reactor/handlers_test.exs`
 Expected: FAIL — "automatic + clean commits" stays `ready` (the gate ignores manual plans), `clean?/1` undefined.
 
-- [ ] **Step 3: `Plans.clean?/1`**
+- [x] **Step 3: `Plans.clean?/1`**
 
 In `lib/media_centaur/acquisition/plans.ex`, near `units_for/1`:
 
@@ -458,7 +458,7 @@ In `lib/media_centaur/acquisition/plans.ex`, near `units_for/1`:
   end
 ```
 
-- [ ] **Step 4: The gate**
+- [x] **Step 4: The gate**
 
 Replace `plan_changed/1`, `gate_tracking_plan/1`, `tracking_mode/1`, `approve_or_discard/1` in `lib/media_centaur/acquisition/reactor/handlers.ex` with:
 
@@ -554,12 +554,12 @@ Replace `plan_changed/1`, `gate_tracking_plan/1`, `tracking_mode/1`, `approve_or
 
 Keep `discard/1` as it is. Update the module's top moduledoc line from "the mode gate for tracking-born plans" to "the approval gate for every plan". Note the previous behaviour ("nil item → off") is preserved: a tracking plan whose item vanished discards.
 
-- [ ] **Step 5: Run gate + existing tracking tests**
+- [x] **Step 5: Run gate + existing tracking tests**
 
 Run: `mise exec -- mix test test/media_centaur/acquisition/reactor/handlers_test.exs test/media_centaur/acquisition/drop_planner_test.exs test/media_centaur/acquisition/plans_test.exs`
 Expected: PASS. If the "rejection stays ready" test fails because `create_pursuit` without a unit is not counted as a claim, add `state: "active"` and a unit via the factory's `@pursuit_unit_keys` (`season_number: nil, episode_number: nil`) — read `test/support/factory.ex:963-1060` before changing the test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/media_centaur/acquisition/reactor/handlers.ex lib/media_centaur/acquisition/plans.ex test/media_centaur/acquisition/reactor/handlers_test.exs
@@ -576,7 +576,7 @@ Spec decision 26 (the source half; the projection is Task 8).
 - Modify: `lib/media_centaur/acquisition/plans.ex`
 - Test: `test/media_centaur/acquisition/plans_test.exs`
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 Append to the "approval policy stamping" describe from Task 2:
 
@@ -595,9 +595,9 @@ Append to the "approval policy stamping" describe from Task 2:
     end
 ```
 
-- [ ] **Step 2: Run** — Expected: FAIL, undefined function.
+- [x] **Step 2: Run** — Expected: FAIL, undefined function.
 
-- [ ] **Step 3: Implement** (below `list_drafts/0`):
+- [x] **Step 3: Implement** (below `list_drafts/0`):
 
 ```elixir
   @doc """
@@ -612,9 +612,9 @@ Append to the "approval policy stamping" describe from Task 2:
   end
 ```
 
-- [ ] **Step 4: Run** — Expected: PASS.
+- [x] **Step 4: Run** — Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/media_centaur/acquisition/plans.ex test/media_centaur/acquisition/plans_test.exs
@@ -631,7 +631,7 @@ Spec decisions 8, 9.
 - Create: `lib/media_centaur/acquisition/plans/download_scope.ex`
 - Create: `test/media_centaur/acquisition/plans/download_scope_test.exs`
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```elixir
 defmodule MediaCentaur.Acquisition.Plans.DownloadScopeTest do
@@ -696,9 +696,9 @@ end
 
 Note the third test: `Targeting.default_units/1` includes season 0 when it has pickable aired episodes. The spec excludes specials from `first_season` only; `everything` keeps the picker default exactly, so a downloaded-everything series matches what approving the picker's default would fetch.
 
-- [ ] **Step 2: Run** — Expected: FAIL, module undefined.
+- [x] **Step 2: Run** — Expected: FAIL, module undefined.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```elixir
 defmodule MediaCentaur.Acquisition.Plans.DownloadScope do
@@ -735,9 +735,9 @@ defmodule MediaCentaur.Acquisition.Plans.DownloadScope do
 end
 ```
 
-- [ ] **Step 4: Run** — Expected: PASS (4 tests).
+- [x] **Step 4: Run** — Expected: PASS (4 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/media_centaur/acquisition/plans/download_scope.ex test/media_centaur/acquisition/plans/download_scope_test.exs
@@ -755,11 +755,11 @@ Spec decisions 9, 17, 19 (amended: one asynchronous contract for both media type
 - Modify: `test/support/tmdb_stubs.ex` (`stub_series_universe_for_targeting/0`)
 - Test: `test/media_centaur/acquisition/plans_test.exs`
 
-- [ ] **Step 1: The shared TMDB fixture**
+- [x] **Step 1: The shared TMDB fixture**
 
 Add to `test/support/tmdb_stubs.ex` a `stub_series_universe_for_targeting/0` that makes `Targeting.series_selection("246810")` return season 1 with episodes 1–3 aired and season 2 with episode 1 aired, none in the library. Read `test/media_centaur/acquisition/targeting_test.exs` for the exact `get_tv` + per-season payload shape and move that builder here (one fixture, callers in this task and Task 13; update `targeting_test.exs` to call it too so the builder is not duplicated).
 
-- [ ] **Step 2: Failing tests**
+- [x] **Step 2: Failing tests**
 
 Append a describe to `test/media_centaur/acquisition/plans_test.exs`:
 
@@ -847,9 +847,9 @@ Append a describe to `test/media_centaur/acquisition/plans_test.exs`:
   end
 ```
 
-- [ ] **Step 3: Run** — Expected: FAIL, `plan_title/2` undefined.
+- [x] **Step 3: Run** — Expected: FAIL, `plan_title/2` undefined.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 In `lib/media_centaur/acquisition/plans.ex` add aliases `MediaCentaur.Acquisition.Plans.DownloadScope`, `MediaCentaur.TMDB.Title`, and `require MediaCentaur.Log, as: Log` if not present. Then:
 
@@ -929,12 +929,12 @@ In `lib/media_centaur/acquisition/plans.ex` add aliases `MediaCentaur.Acquisitio
 
 `Plans` may need `Targeting` and `ReleaseTracking` aliases; both are already used elsewhere in the file. If `mix compile` reports a Boundary violation, the dep is missing from `Acquisition`'s `use Boundary, deps: [...]` in `lib/media_centaur/acquisition.ex` — add it there, not with an exception.
 
-- [ ] **Step 5: Run**
+- [x] **Step 5: Run**
 
 Run: `mise exec -- mix test test/media_centaur/acquisition/plans_test.exs test/media_centaur/acquisition/targeting_test.exs`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/media_centaur/acquisition/plans.ex test/media_centaur/acquisition/plans_test.exs test/media_centaur/acquisition/targeting_test.exs test/support/tmdb_stubs.ex
@@ -951,7 +951,7 @@ Spec decision 20 (amended: batched by refs, one query per load).
 - Create: `lib/media_centaur/acquisition/title_states.ex`
 - Create: `test/media_centaur/acquisition/title_states_test.exs`
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```elixir
 defmodule MediaCentaur.Acquisition.TitleStatesTest do
@@ -1008,9 +1008,9 @@ end
 
 If `force_state/2` does not accept a `Plan`, read `test/support/factory.ex` for `force_attrs/2` and use `force_attrs(plan, %{status: "planning"})`.
 
-- [ ] **Step 2: Run** — Expected: FAIL, module undefined.
+- [x] **Step 2: Run** — Expected: FAIL, module undefined.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```elixir
 defmodule MediaCentaur.Acquisition.TitleStates do
@@ -1077,9 +1077,9 @@ end
 
 A pursuit created without a tmdb_type of `"movie"`/`"tv"` (legacy `prowlarr_query` recipes have `tmdb_id: nil`) never matches `p.tmdb_id in ^ids`, so `ref/2` only sees the two literal types.
 
-- [ ] **Step 4: Run** — Expected: PASS (4 tests).
+- [x] **Step 4: Run** — Expected: PASS (4 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/media_centaur/acquisition/title_states.ex test/media_centaur/acquisition/title_states_test.exs
@@ -1096,7 +1096,7 @@ Spec decisions 23, 26.
 - Modify: `lib/media_centaur_web/shell_badges.ex`
 - Test: `test/media_centaur_web/shell_badges_test.exs`
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 In `test/media_centaur_web/shell_badges_test.exs` add to the "counts projection" describe:
 
@@ -1126,9 +1126,9 @@ In `test/media_centaur_web/shell_badges_test.exs` add to the "counts projection"
 
 Change the existing assertions in that file from map access to struct access where they read `counts.review_pending` — struct field access has the same syntax, so most lines need no change; `assert is_integer(counts.diagnostics_unseen)` stays.
 
-- [ ] **Step 2: Run** — Expected: FAIL (`ShellBadges.Counts` undefined; `relevant?` false).
+- [x] **Step 2: Run** — Expected: FAIL (`ShellBadges.Counts` undefined; `relevant?` false).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `lib/media_centaur_web/shell_badges.ex`:
 
@@ -1200,7 +1200,7 @@ The on_mount hook must also subscribe the LiveView to `acquisition:updates` for 
 
 `refresh/2`: unchanged clauses (they call `assign_counts/1`).
 
-- [ ] **Step 4: Run**
+- [x] **Step 4: Run**
 
 Run: `mise exec -- mix test test/media_centaur_web/shell_badges_test.exs`
 Expected: PASS. Compilation will now fail elsewhere (`Layouts.app` still expects four attrs and every page still passes them). Task 9 fixes that; do not commit a broken build — continue straight into Task 9 and commit both together.
@@ -1219,7 +1219,7 @@ Spec decisions 23, 24, 25 (amended: the pill anchors to the icon corner in the c
 - Modify: every `render/1` passing `diagnostics_unseen=`/`status_errors=`/`review_pending=`/`mapping_pending=` to `Layouts.app` (11 files — `grep -rln "review_pending={" lib`)
 - Test: `test/media_centaur_web/review_badge_test.exs`, `test/media_centaur_web/diagnostics_badge_test.exs`, new `test/media_centaur_web/incoming_badge_test.exs`
 
-- [ ] **Step 1: Failing test — Incoming pill**
+- [x] **Step 1: Failing test — Incoming pill**
 
 ```elixir
 defmodule MediaCentaurWeb.IncomingBadgeTest do
@@ -1269,9 +1269,9 @@ end
 
 Also update `test/media_centaur_web/review_badge_test.exs` and `test/media_centaur_web/diagnostics_badge_test.exs`: wherever they assert on the count badge element, target `[data-component="follow-up-pill"]` inside the entry. Read both files fully first; keep every existing assertion's meaning.
 
-- [ ] **Step 2: Run** — Expected: FAIL (compile error from Task 8 first, then missing pill).
+- [x] **Step 2: Run** — Expected: FAIL (compile error from Task 8 first, then missing pill).
 
-- [ ] **Step 3: The component**
+- [x] **Step 3: The component**
 
 `lib/media_centaur_web/components/follow_up_pill.ex`:
 
@@ -1331,7 +1331,7 @@ end
     </.badge>
 ```
 
-- [ ] **Step 4: CSS**
+- [x] **Step 4: CSS**
 
 In `assets/css/app.css` after the `.sidebar-label` rule:
 
@@ -1351,7 +1351,7 @@ In `assets/css/app.css` after the `.sidebar-label` rule:
 
 `.sidebar-link` already has `position: relative`. Verify visually in Step 9.
 
-- [ ] **Step 5: `Layouts.app`**
+- [x] **Step 5: `Layouts.app`**
 
 Replace the four count attrs with one:
 
@@ -1401,7 +1401,7 @@ Review entry — the `:if` and `navigate` read `@badges.review_pending` / `@badg
 
 Remove the now-unused `.badge` calls from the sidebar.
 
-- [ ] **Step 6: Every page's render**
+- [x] **Step 6: Every page's render**
 
 For each of the 11 files from `grep -rln "review_pending={" lib`, replace the four lines
 
@@ -1420,7 +1420,7 @@ with
 
 Pages outside the default `live_session` (setup) have no `:badges` assign; the fallback keeps them rendering. Grep for any other reader of the four assigns (`grep -rn "diagnostics_unseen\|status_errors\|review_pending\|mapping_pending" lib test storybook`) and update it — including the layouts story under `storybook/navigation/` if it passes those attrs.
 
-- [ ] **Step 7: Story**
+- [x] **Step 7: Story**
 
 `storybook/navigation/follow_up_pill.story.exs`:
 
@@ -1460,12 +1460,12 @@ defmodule MediaCentaurWeb.Storybook.Navigation.FollowUpPill do
 end
 ```
 
-- [ ] **Step 8: Compile, assets, tests**
+- [x] **Step 8: Compile, assets, tests**
 
 Run: `mise exec -- mix compile --warnings-as-errors && mise exec -- mix assets.build && mise exec -- mix test test/media_centaur_web/incoming_badge_test.exs test/media_centaur_web/review_badge_test.exs test/media_centaur_web/diagnostics_badge_test.exs test/media_centaur_web/shell_badges_test.exs test/media_centaur_web/page_smoke_test.exs test/storybook_compile_test.exs test/storybook_render_test.exs`
 Expected: PASS.
 
-- [ ] **Step 9: Real-browser check**
+- [x] **Step 9: Real-browser check**
 
 Restart the dev service (`systemctl --user restart media-centaur-dev`), then:
 
@@ -1475,7 +1475,7 @@ page-shot --url http://127.0.0.1:2160/history --viewport 1920x1080 --wait-ms 300
 
 Read the PNG: with the rail collapsed the Incoming/Review/Status pills (if any count is non-zero on the dev DB) sit at the icon's top-right corner and the Status dot, if lit, at the bottom-right. Hover-expand is not capturable headless; verify the expanded placement by evaluating the computed `right`/`top` of `.sidebar-follow-up` with `chromium-probe` after setting `document.documentElement.setAttribute("data-sidebar-hover","")`. If a count is zero on the dev DB, create a ready draft through the Incoming picker in the browser, check, then discard it.
 
-- [ ] **Step 10: Commit (Tasks 8 + 9 together)**
+- [x] **Step 10: Commit (Tasks 8 + 9 together)**
 
 ```bash
 git add lib/media_centaur_web/shell_badges.ex lib/media_centaur_web/components/follow_up_pill.ex lib/media_centaur_web/components/layouts.ex assets/css/app.css storybook/navigation/follow_up_pill.story.exs test/media_centaur_web/ lib/media_centaur_web/live
@@ -1493,7 +1493,7 @@ Spec decisions 12, 13, 21.
 - Create: `lib/media_centaur_web/live/discovery_live/logic.ex`
 - Create: `test/media_centaur_web/live/discovery_live/logic_test.exs`
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```elixir
 defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
@@ -1592,9 +1592,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
 end
 ```
 
-- [ ] **Step 2: Run** — Expected: FAIL, modules undefined.
+- [x] **Step 2: Run** — Expected: FAIL, modules undefined.
 
-- [ ] **Step 3: The struct**
+- [x] **Step 3: The struct**
 
 `lib/media_centaur_web/components/discovery/title_detail.ex`:
 
@@ -1657,7 +1657,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
 end
 ```
 
-- [ ] **Step 4: The logic**
+- [x] **Step 4: The logic**
 
 `lib/media_centaur_web/live/discovery_live/logic.ex`:
 
@@ -1742,9 +1742,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
 end
 ```
 
-- [ ] **Step 5: Run** — Expected: PASS.
+- [x] **Step 5: Run** — Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/media_centaur_web/components/discovery/title_detail.ex lib/media_centaur_web/live/discovery_live/logic.ex test/media_centaur_web/live/discovery_live/logic_test.exs
@@ -1764,13 +1764,13 @@ Spec decisions 7, 10, 12, 13, 14 (the tertiary verbs), 16.
 
 Load the `user-interface`, `storybook`, and `writing-copy` skills before this task. Copy is fixed here; the writing-copy pass may adjust words but not the set of controls.
 
-- [ ] **Step 1: The menu idiom gets a generic name**
+- [x] **Step 1: The menu idiom gets a generic name**
 
 The library sort dropdown's classes carry the sort control's identity. Rename them once so the scope menu and the sort menu share one idiom: in `assets/css/app.css` and `lib/media_centaur_web/components/library_cards.ex`, `.sort-dropdown` → `.glass-menu`, `.sort-dropdown-trigger` → `.glass-menu-trigger`, `.sort-dropdown-chevron` → `.glass-menu-chevron`, `.sort-dropdown-menu` → `.glass-menu-list`, `.sort-dropdown-item` → `.glass-menu-item`, `-active` / `-highlight` suffixes unchanged. Grep tests and E2E specs for `sort-dropdown` and update them. Update the CSS comment above the rules to describe the idiom (a quiet trigger with a chevron and a glass list beneath), not the sort control. The sort control's hand-rolled keyboard handling (`sort_key`, highlight index) stays as it is; its convergence on nav items is scheduled in the spec amendments.
 
 Run: `mise exec -- mix assets.build && mise exec -- mix test test/media_centaur_web/live/library_live_test.exs` — Expected: PASS.
 
-- [ ] **Step 2: The component**
+- [x] **Step 2: The component**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
@@ -2015,7 +2015,7 @@ Read `MediaCentaurWeb.Components.ReleaseTracking.TitleModal` for `media_icon/1` 
 
 If `.button` does not accept `shape="square"` combined with `size="sm"` gracefully, drop `shape` and keep the class.
 
-- [ ] **Step 3: Story**
+- [x] **Step 3: Story**
 
 `storybook/discovery/title_detail_modal.story.exs`:
 
@@ -2143,12 +2143,12 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
 end
 ```
 
-- [ ] **Step 4: Compile + storybook tests**
+- [x] **Step 4: Compile + storybook tests**
 
 Run: `mise exec -- mix compile --warnings-as-errors && mise exec -- mix test test/storybook_compile_test.exs test/storybook_render_test.exs`
 Expected: PASS. Fix any Credo MC0008/MC0009 complaint the precommit would raise (typed attrs — `TitleDetail` is a struct attr, which satisfies MC0008).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/media_centaur_web/components/discovery/title_detail_modal.ex storybook/discovery/title_detail_modal.story.exs assets/css/app.css lib/media_centaur_web/components/library_cards.ex test
@@ -2168,7 +2168,7 @@ Spec decisions 14, 21 (amended: `FeedRow` and `WatchlistRow` were the same compo
 - Modify: `lib/media_centaur_web/live/discovery_live/logic.ex` (`row_markers/1`)
 - Test: `test/media_centaur_web/live/discovery_live/logic_test.exs`
 
-- [ ] **Step 1: Failing test — markers**
+- [x] **Step 1: Failing test — markers**
 
 Append to `logic_test.exs`:
 
@@ -2188,7 +2188,7 @@ Append to `logic_test.exs`:
 
 Run: `mise exec -- mix test test/media_centaur_web/live/discovery_live/logic_test.exs` — Expected: FAIL.
 
-- [ ] **Step 2: `Logic.row_markers/1`**
+- [x] **Step 2: `Logic.row_markers/1`**
 
 ```elixir
   @doc """
@@ -2220,7 +2220,7 @@ Run: `mise exec -- mix test test/media_centaur_web/live/discovery_live/logic_tes
 
 The second test case: on the watchlist with `needs_review` shows both, because the state marker and the watchlist marker answer different questions. Adjust the first case's expectation if you decide "On watchlist" should also hide behind In library — the code above hides it (an owned title's watchlist membership is noise); keep the test and code agreeing.
 
-- [ ] **Step 3: The component**
+- [x] **Step 3: The component**
 
 `lib/media_centaur_web/components/discovery/title_row.ex`:
 
@@ -2280,11 +2280,11 @@ end
 
 Check `title_summary/1`'s `markers` slot renders multiple children with spacing; if it expects one child, wrap the markers in one `<span class="flex gap-2">`.
 
-- [ ] **Step 4: Story**
+- [x] **Step 4: Story**
 
 `storybook/discovery/title_row.story.exs` with variations `bare`, `in_library`, `planning`, `downloading`, `needs_review`, `from_friend_with_note` (lead `"from Sample Friend · 2 days ago"`, marker `"On watchlist"`, secondary note), `own_recommendation` (lead `"You · today"`), `with_poster` (`/images/sample-nosferatu-poster.jpg`). Build the `Title` the way the deleted watchlist_row story did. Delete the old story file.
 
-- [ ] **Step 5: Delete the old rows, compile, story tests**
+- [x] **Step 5: Delete the old rows, compile, story tests**
 
 ```bash
 git rm lib/media_centaur_web/components/discovery/watchlist_row.ex lib/media_centaur_web/live/discovery_live/feed_row.ex storybook/discovery/watchlist_row.story.exs
@@ -2295,7 +2295,7 @@ git rm lib/media_centaur_web/components/discovery/watchlist_row.ex lib/media_cen
 Run: `mise exec -- mix test test/media_centaur_web/live/discovery_live/logic_test.exs test/storybook_compile_test.exs test/storybook_render_test.exs`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/media_centaur_web/components/discovery/title_row.ex storybook/discovery/title_row.story.exs lib/media_centaur_web/live/discovery_live/logic.ex test/media_centaur_web/live/discovery_live/logic_test.exs
@@ -2313,7 +2313,7 @@ Spec decisions 14, 15, 17, 18, 19, 20, 21, 22.
 - Modify: `test/media_centaur_web/live/discovery_live_test.exs`
 - Modify: `test/media_centaur_web/page_smoke_test.exs`
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 Replace the tests in `discovery_live_test.exs` that exercise the removed row actions (`"remove deletes the item live"`, `"track action hands off to release tracking"`, the feed `"rows show … add to the watchlist"`, `"Yours shows own rows with Delete…"`, `"the watchlist row no longer offers Recommend"`) with modal-driven equivalents, and add the new ones. Keep every other test. The new block:
 
@@ -2464,9 +2464,9 @@ Page smoke: add to `test/media_centaur_web/page_smoke_test.exs` beside the disco
 
 with the fixture seeding a watchlist item for 777 (read the file's per-page setup pattern).
 
-- [ ] **Step 2: Run** — Expected: FAIL (events undefined, modal absent).
+- [x] **Step 2: Run** — Expected: FAIL (events undefined, modal absent).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `lib/media_centaur_web/live/discovery_live.ex`:
 
@@ -2712,12 +2712,12 @@ Watchlist:
 
 Moduledoc: rewrite the first two paragraphs to describe the two tabs as lists of whole-card click targets that open the title detail modal (`?title=`), where every verb lives; note the acquisition subscription and `TitleStates`.
 
-- [ ] **Step 4: Run**
+- [x] **Step 4: Run**
 
 Run: `mise exec -- mix test test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/live/discovery_live/logic_test.exs test/media_centaur_web/page_smoke_test.exs`
 Expected: PASS. The "acquisition events refresh" test relies on `Plans.create_movie_plan` broadcasting `PlanEvents.Changed` on `acquisition:updates` — confirm `Acquisition.subscribe/0` subscribes to that topic (read `lib/media_centaur/acquisition.ex:202`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/media_centaur_web/live/discovery_live.ex test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/page_smoke_test.exs test/support/tmdb_stubs.ex test/media_centaur/acquisition/plans_test.exs
@@ -2734,7 +2734,7 @@ Spec decisions 10, 16. Load the `input-system` skill first.
 - Modify: `assets/js/input/config.js`
 - Modify: `assets/js/input/__tests__/discovery_behavior.test.js` (or the config test file the skill names)
 
-- [ ] **Step 1: Failing bun test**
+- [x] **Step 1: Failing bun test**
 
 Add to the discovery behaviour test file:
 
@@ -2751,7 +2751,7 @@ test("the title_detail overlay has one body region", () => {
 
 Run: `bun test assets/js/input/` — Expected: FAIL.
 
-- [ ] **Step 2: Config**
+- [x] **Step 2: Config**
 
 In `config.js` `overlays`, after `plan`:
 
@@ -2767,13 +2767,13 @@ In `config.js` `overlays`, after `plan`:
 
 If overlays also need a `contextItems`/`alwaysPopulated` entry (compare how `plan_body` is listed elsewhere in the file), mirror it for `title_detail_body`.
 
-- [ ] **Step 3: Run** — `bun test assets/js/input/` — Expected: PASS. Then `mise exec -- mix assets.build`.
+- [x] **Step 3: Run** — `bun test assets/js/input/` — Expected: PASS. Then `mise exec -- mix assets.build`.
 
-- [ ] **Step 4: Trace**
+- [x] **Step 4: Trace**
 
 With the dev service restarted and a watchlist item present on the dev DB, run `mc-nav-trace` (see `~/scripts/agents/`, run with no args for usage) against `http://127.0.0.1:2160/discovery/watchlist`: DOWN to a row, SELECT opens the modal, LEFT/RIGHT walks the action row, the chevron SELECT opens the menu and DOWN reaches "Download all", BACK closes. Fix any clipped-focus report before committing. Clean up any plan or tracking item created on the dev DB while probing (`Plans.discard/1` via Tidewave, remove the tracking item on Incoming).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add assets/js/input/config.js assets/js/input/__tests__/discovery_behavior.test.js
@@ -2791,7 +2791,7 @@ Spec "Documentation", decision 27; spec amendments from Tasks 7 and 9.
 - Modify: `decisions/README.md`, `docs/GLOSSARY.md`, `decisions/architecture/2026-06-10-056-release-tracking-wants.md`, `docs/superpowers/specs/2026-09-05-one-click-download-design.md`
 - Modify (wiki repo): `../media-centaur.wiki/Discovery.md` (or the page named for Discovery — `ls ../media-centaur.wiki | grep -i discov`), `Searching-and-Downloading.md`, `Keyboard-and-Gamepad.md`
 
-- [ ] **Step 1: UIDR-030**
+- [x] **Step 1: UIDR-030**
 
 ```markdown
 ---
@@ -2843,11 +2843,11 @@ and one `relevant?/1` clause — never new chrome.
 
 Add the row to `decisions/README.md` (regenerate the index the way the README says; if it is hand-maintained, append `| 030 | 2026-09-05 | [Follow-up pill and condition dot — the sidebar's two badge idioms](user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md) | accepted |`).
 
-- [ ] **Step 2: Glossary**
+- [x] **Step 2: Glossary**
 
 `docs/GLOSSARY.md` — under **Acquisition** add rows for **Approval policy**, **Clean plan**, **Download scope**; under **UI and input system** add **Follow-up pill**, **Condition dot**, **Title detail modal**, **Acquisition state**. Wording from the spec's glossary, each row naming its owner module (`Plans.Plan`, `Plans.clean?/1`, `Plans.DownloadScope`, `Components.FollowUpPill`, `Layouts`, `Components.Discovery.TitleDetailModal`, `Acquisition.TitleStates`).
 
-- [ ] **Step 3: ADR-056 note**
+- [x] **Step 3: ADR-056 note**
 
 Append under its Consequences or a new "Amendments" heading:
 
@@ -2859,7 +2859,7 @@ ones. The mode-off veto remains a live read. See
 `docs/superpowers/specs/2026-09-05-one-click-download-design.md`.
 ```
 
-- [ ] **Step 4: Spec amendments**
+- [x] **Step 4: Spec amendments**
 
 Append to the spec:
 
@@ -2874,11 +2874,11 @@ Append to the spec:
 - §10: the sort dropdown's CSS became the generic `.glass-menu*` idiom both menus share. **Scheduled convergence:** the sort control's hand-rolled keyboard model (`sort_key`, highlight index) adopts nav items the next time the library toolbar is touched.
 ```
 
-- [ ] **Step 5: Wiki**
+- [x] **Step 5: Wiki**
 
 In `~/src/media-centaur/media-centaur.wiki`: the Discovery page gets a "Opening a title" section (card click, the modal, In library / Download / Track release, Add to watchlist, the series split "Download season 1" / "Download all" and that Download all also follows new episodes), and a "What happens after Download" paragraph (a release is searched for; a clean result starts the download by itself; anything that needs a decision parks on Downloads and the Incoming entry in the sidebar shows a count). `Searching-and-Downloading.md` gets the same parked-for-review sentence under its drafts section. `Keyboard-and-Gamepad.md` gets one line for the split control (chevron opens the menu, down/select picks). Commit with `git commit -m "wiki: discovery title modal, one-click download, follow-up pill"`. Do not push.
 
-- [ ] **Step 6: Commit (app repo)**
+- [x] **Step 6: Commit (app repo)**
 
 ```bash
 git add decisions docs
@@ -2889,13 +2889,13 @@ git commit -m "docs: UIDR-030 follow-up pill, glossary, ADR-056 amendment, spec 
 
 ### Task 16: Precommit, flake check, real-browser verification
 
-- [ ] **Step 1:** `mise exec -- mix precommit` — fix everything it reports (warnings are bugs; Credo MC0008/MC0009/MC0023/MC0024 in particular).
+- [x] **Step 1:** `mise exec -- mix precommit` — fix everything it reports (warnings are bugs; Credo MC0008/MC0009/MC0023/MC0024 in particular).
 
-- [ ] **Step 2:** `mise exec -- mix test test/media_centaur_web/live/discovery_live_test.exs test/media_centaur/acquisition/reactor/handlers_test.exs --repeat-until-failure 10` — Expected: no failure.
+- [x] **Step 2:** `mise exec -- mix test test/media_centaur_web/live/discovery_live_test.exs test/media_centaur/acquisition/reactor/handlers_test.exs --repeat-until-failure 10` — Expected: no failure.
 
-- [ ] **Step 3:** Restart `media-centaur-dev`. In the real browser (the owner's, or `mc-debug-browser`): open `/discovery/watchlist`, click a released movie card, click Download, watch the modal close and the flash appear, confirm the row shows Planning then either Downloading (when an indexer finds it) or Needs review with the Incoming pill lit. Approve or discard the plan on Incoming and confirm the pill clears. Clean up any test rows afterwards.
+- [x] **Step 3:** Restart `media-centaur-dev`. In the real browser (the owner's, or `mc-debug-browser`): open `/discovery/watchlist`, click a released movie card, click Download, watch the modal close and the flash appear, confirm the row shows Planning then either Downloading (when an indexer finds it) or Needs review with the Incoming pill lit. Approve or discard the plan on Incoming and confirm the pill clears. Clean up any test rows afterwards.
 
-- [ ] **Step 4:** Final commit if the precommit changed anything: `git commit -am "chore: precommit fixes for one-click download"`.
+- [x] **Step 4:** Final commit if the precommit changed anything: `git commit -am "chore: precommit fixes for one-click download"`.
 
 ---
 
