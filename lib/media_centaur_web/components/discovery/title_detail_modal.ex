@@ -165,34 +165,34 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   defp primary(%{detail: %{primary: :download, scoped?: true}} = assigns) do
     ~H"""
     <span class="inline-flex">
-        <.button
-          id="title-download"
-          variant="primary"
-          size="sm"
-          class="rounded-r-none"
-          phx-click="title_download"
-          phx-value-scope="first_season"
-          data-nav-item
-          tabindex="0"
-        >
-          Download season 1
-        </.button>
-        <.button
-          id="title-scope-toggle"
-          variant="primary"
-          size="sm"
-          shape="square"
-          class="rounded-l-none border-l border-primary-content/20"
-          phx-click="title_scope_toggle"
-          aria-label="More download options"
-          aria-expanded={to_string(@scope_menu_open)}
-          data-nav-item
-          tabindex="0"
-        >
-          <span class={["glass-menu-chevron", @scope_menu_open && "rotate-180"]}>
-            <.icon name="hero-chevron-down-mini" class="size-4" />
-          </span>
-        </.button>
+      <.button
+        id="title-download"
+        variant="primary"
+        size="sm"
+        class="rounded-r-none"
+        phx-click="title_download"
+        phx-value-scope="first_season"
+        data-nav-item
+        tabindex="0"
+      >
+        Download season 1
+      </.button>
+      <.button
+        id="title-scope-toggle"
+        variant="primary"
+        size="sm"
+        shape="square"
+        class="rounded-l-none border-l border-primary-content/20"
+        phx-click="title_scope_toggle"
+        aria-label="More download options"
+        aria-expanded={to_string(@scope_menu_open)}
+        data-nav-item
+        tabindex="0"
+      >
+        <span class={["glass-menu-chevron", @scope_menu_open && "rotate-180"]}>
+          <.icon name="hero-chevron-down-mini" class="size-4" />
+        </span>
+      </.button>
     </span>
     """
   end
