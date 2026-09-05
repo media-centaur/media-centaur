@@ -16,6 +16,7 @@ defmodule MediaCentaur.Reconciliation.Spine do
 
   alias MediaCentaur.Reconciliation.SpineNode
   alias MediaCentaur.TMDB
+  require MediaCentaur.Log, as: Log
 
   @spec assemble(integer() | String.t(), MapSet.t({integer(), integer()})) :: [SpineNode.t()]
   def assemble(tmdb_id, present_keys) do
@@ -28,7 +29,8 @@ defmodule MediaCentaur.Reconciliation.Spine do
         |> Enum.sort()
         |> Enum.flat_map(&season_nodes(tmdb_id, &1, present_keys))
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        log_tmdb_failure(reason, "show #{tmdb_id}")
         []
     end
   end
@@ -40,8 +42,25 @@ defmodule MediaCentaur.Reconciliation.Spine do
         |> Map.get("episodes", [])
         |> Enum.map(&node(season_number, &1, present_keys))
 
-      {:error, _reason} ->
+      {:error, reason} ->
+        log_tmdb_failure(reason, "show #{tmdb_id} season #{season_number}")
         []
+    end
+  end
+
+  # A silent `[]` here read as "no proposals" to the user; a rejected key
+  # is the case that must not hide (the same routing as Discovery's).
+  defp log_tmdb_failure(reason, what) do
+    if TMDB.Client.auth_failure?(reason) do
+      {:http_error, status, _} = reason
+
+      Log.error(
+        :pipeline,
+        "TMDB API key rejected (HTTP #{status}) — reconciliation spine for #{what} is empty; " <>
+          "fix Settings → TMDB"
+      )
+    else
+      Log.warning(:pipeline, "reconciliation — TMDB fetch failed for #{what}: #{inspect(reason)}")
     end
   end
 

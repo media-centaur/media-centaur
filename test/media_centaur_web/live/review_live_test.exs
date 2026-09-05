@@ -93,6 +93,41 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     end
   end
 
+  describe "search task failure" do
+    test "a crashed TMDB search clears searching and tells the user", %{conn: conn} do
+      create_pending_file(%{
+        parsed_title: "Crash Pending Show",
+        parsed_type: "tv",
+        season_number: 1,
+        episode_number: 1
+      })
+
+      # The task calls TMDB through its Req.Test stub; a stub that raises
+      # crashes the task, which reaches the LiveView as `{:exit, _}`.
+      Req.Test.stub(:tmdb, fn _conn -> raise "stub crashed" end)
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      key =
+        view
+        |> element("[phx-click='select_item']")
+        |> render()
+        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+
+      render_click(view, "open_search", %{"key" => key})
+
+      view
+      |> form("form[phx-submit='search']", %{"query" => "Crash Pending Show", "type" => "tv"})
+      |> render_submit()
+
+      html = render_async(view)
+
+      assert html =~ "TMDB search failed"
+      refute has_element?(view, "form[phx-submit='search'] button[disabled]")
+    end
+  end
+
   describe "delete flow (click-to-confirm)" do
     setup do
       media_dir =

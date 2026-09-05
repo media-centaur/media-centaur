@@ -316,17 +316,17 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       # start_async/3 (see EntityModal.apply_modal_params/2). Result lands
       # here and is applied only if the same entity is still selected.
       @impl true
-      def handle_async({:detail_files, entity_id}, {:ok, files}, socket) do
-        {:noreply, EntityModal.apply_detail_files(socket, entity_id, files)}
-      end
+      def handle_async({:detail_files, entity_id}, {:ok, files}, socket),
+        do: {:noreply, EntityModal.apply_detail_files(socket, entity_id, files)}
 
-      def handle_async({:delete, entity_id}, {:ok, result}, socket) do
-        {:noreply, EntityModal.apply_delete_result(socket, entity_id, result)}
-      end
+      def handle_async({:detail_files, entity_id}, {:exit, reason}, socket),
+        do: {:noreply, EntityModal.apply_detail_files_failure(socket, entity_id, reason)}
 
-      def handle_async({:delete, _entity_id}, {:exit, reason}, socket) do
-        {:noreply, EntityModal.apply_delete_crash(socket, reason)}
-      end
+      def handle_async({:delete, entity_id}, {:ok, result}, socket),
+        do: {:noreply, EntityModal.apply_delete_result(socket, entity_id, result)}
+
+      def handle_async({:delete, _entity_id}, {:exit, reason}, socket),
+        do: {:noreply, EntityModal.apply_delete_crash(socket, reason)}
 
       @before_compile EntityModal
     end
@@ -345,7 +345,19 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   """
   defmacro __before_compile__(_env) do
     quote do
-      def handle_async(_name, {:exit, _reason}, socket), do: {:noreply, socket}
+      # Last resort only — every task the modal or its host starts should
+      # have its own exit clause above. Say so in the log rather than
+      # vanish (audit DS16).
+      def handle_async(name, {:exit, reason}, socket) do
+        require MediaCentaur.Log
+
+        MediaCentaur.Log.warning(
+          :library,
+          "unhandled async exit #{inspect(name)} in #{inspect(__MODULE__)} — #{inspect(reason)}"
+        )
+
+        {:noreply, socket}
+      end
     end
   end
 
@@ -575,6 +587,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_presentation: nil,
       detail_view: :main,
       detail_files: [],
+      detail_files_status: :loaded,
       expanded_file_groups: nil,
       cast_filter: "",
       cast_limit: CastSelection.page_size(),
@@ -662,6 +675,13 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
     detail_files = if selection_changed, do: [], else: socket.assigns.detail_files
 
+    detail_files_status =
+      cond do
+        should_load_files? -> :loading
+        selection_changed -> :loaded
+        true -> socket.assigns.detail_files_status
+      end
+
     tracking_status =
       cond do
         selection_changed &&
@@ -685,6 +705,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         detail_presentation: if(selected_id, do: :modal),
         detail_view: detail_view,
         detail_files: detail_files,
+        detail_files_status: detail_files_status,
         expanded_seasons: expanded_seasons,
         tracking_status: tracking_status
       )
@@ -843,6 +864,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   attr :detail_view, :atom, required: true
   attr :detail_files, :list, required: true, doc: "list of file-info maps for the Files sub-view."
 
+  attr :detail_files_status, :atom,
+    values: [:loading, :loaded, :failed],
+    required: true,
+    doc: "state of the deferred file-info load behind `detail_files`."
+
   attr :expanded_file_groups, :any,
     required: true,
     doc:
@@ -919,6 +945,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       rematch_confirm={@rematch_confirm == @selected_entity_id}
       detail_view={@detail_view}
       detail_files={@detail_files}
+      detail_files_status={@detail_files_status}
       expanded_file_groups={@expanded_file_groups}
       cast_filter={@cast_filter}
       cast_limit={@cast_limit}
@@ -1454,7 +1481,24 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # in flight.
   def apply_detail_files(socket, entity_id, files) do
     if socket.assigns[:selected_entity_id] == entity_id do
-      Phoenix.Component.assign(socket, :detail_files, files)
+      Phoenix.Component.assign(socket, detail_files: files, detail_files_status: :loaded)
+    else
+      socket
+    end
+  end
+
+  @doc false
+  # The deferred file-info load crashed. The panel must say so rather than
+  # render "0 files, 0 B" as if that were true (audit DS16/DS21); a result
+  # for an entity the user has since left is dropped like a success would be.
+  def apply_detail_files_failure(socket, entity_id, reason) do
+    Log.error(
+      :library,
+      "detail files load crashed for #{Format.short_id(entity_id)} — #{inspect(reason)}"
+    )
+
+    if socket.assigns[:selected_entity_id] == entity_id do
+      Phoenix.Component.assign(socket, detail_files: [], detail_files_status: :failed)
     else
       socket
     end

@@ -93,6 +93,8 @@ defmodule MediaCentaur.Reconciliation do
 
   import Ecto.Query, only: [from: 2]
 
+  require MediaCentaur.Log, as: Log
+  alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Reconciliation.{Artifact, AwaitingFile, Engine, ShowReview, Spine}
   alias MediaCentaur.Repo
@@ -274,7 +276,14 @@ defmodule MediaCentaur.Reconciliation do
     {:ok, %{linked: linked, failed: length(results) - linked}}
   end
 
-  defp link_one(_tv_series_id, nil, _season, _episode, _title), do: :error
+  defp link_one(_tv_series_id, nil, season, episode, _title) do
+    Log.warning(
+      :pipeline,
+      "reconciliation — no awaiting file for #{Format.episode_label(season, episode)}; skipped"
+    )
+
+    :error
+  end
 
   defp link_one(tv_series_id, %AwaitingFile{} = file, season, episode_number, title) do
     with {:ok, episode} <- ensure_episode(tv_series_id, season, episode_number, title),
@@ -288,7 +297,14 @@ defmodule MediaCentaur.Reconciliation do
          {:ok, _resolved} <- resolve_awaiting(file) do
       :ok
     else
-      _ -> :error
+      {:error, reason} ->
+        Log.warning(
+          :pipeline,
+          "reconciliation — could not link #{Path.basename(file.file_path)} as " <>
+            "#{Format.episode_label(season, episode_number)}: #{inspect(reason)}"
+        )
+
+        :error
     end
   end
 
@@ -325,7 +341,7 @@ defmodule MediaCentaur.Reconciliation do
       {:error, %Ecto.Changeset{}} ->
         case Library.PlayableItems.list_for(:episode, episode.id) do
           [item | _] -> {:ok, item.id}
-          [] -> :error
+          [] -> {:error, :playable_item_missing}
         end
     end
   end
