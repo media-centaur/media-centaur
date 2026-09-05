@@ -104,3 +104,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 027 | 2026-08-17 | [Play affordances play in place — the modal is never a waystation](user-interface/2026-08-17-027-play-in-place.md) | accepted |
 | 028 | 2026-08-19 | [Back enters the main menu; left stays in the page](user-interface/2026-08-19-028-back-enters-main-menu.md) | accepted |
 | 029 | 2026-08-31 | [The plan board narrates a diagnosis, not a procedure](user-interface/2026-08-31-029-plan-board-diagnosis.md) | accepted |
+| 030 | 2026-09-05 | [Follow-up pill and condition dot — the sidebar's two badge idioms](user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md) | accepted |

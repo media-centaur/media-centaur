@@ -1,7 +1,7 @@
 # One-click download from Discovery — design
 
 **Date:** 2026-09-05
-**Status:** approved, not yet implemented
+**Status:** implemented 2026-09-05 (see Amendments)
 **Builds on:** `2026-08-18-watchlist-foundation-design.md`, `2026-09-02-friends-recommendations-design.md`, ADR-056 (release-tracking wants), UIDR-014 (plan flow modal), UIDR-016 (needs attention)
 
 ## Glossary
@@ -115,3 +115,13 @@ Underneath the presentation:
 - ADR-056 gets a note pointing at the approval policy column.
 - Moduledocs: `Plans.Plan`, `Reactor.Handlers`, `ShellBadges`, `DiscoveryLive`, the new modal and pill components.
 - `docs/GLOSSARY.md` receives the glossary terms above.
+
+## Amendments (implementation, 2026-09-05)
+
+- §20: `Acquisition.TitleStates.for_refs/1` takes the page's list of refs and returns a map, one query per table, instead of a per-title function.
+- §24: one CSS rule keyed off `--sidebar-expanded` places the pill (row's end expanded, icon's top-right collapsed); the Status condition dot moved to the icon's bottom-right.
+- §14: the tertiary verbs are "Remove from watchlist" (whenever the title is on the watchlist, from either tab) and "Delete recommendation" (own recommendation). The feed row and the watchlist row collapsed into one `TitleRow` component.
+- §17: the context function is `Plans.plan_title/2` with `approval_policy:` and `scope:` explicit; one asynchronous contract for movies and series.
+- §23: "persists until handled" means each source defines handling — the Status source's seen-marker is its definition.
+- §10: the sort dropdown's CSS became the generic `.glass-menu*` idiom both menus share. The scope menu is its own nav region (`title_detail_menu`, a TREE under the `title_detail_body` toolbar, reached by DOWN) because nav zones must not nest and a toolbar walks sideways. **Scheduled convergence:** the sort control's hand-rolled keyboard model (`sort_key`, highlight index) adopts nav items the next time the library toolbar is touched.
+- §16: the row's ref doubles as `data-entity-id`, which is what the input system's overlay-restore origin keys on; closing the modal lands back on the opening row.
