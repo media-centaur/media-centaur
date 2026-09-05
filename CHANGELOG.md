@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.8.3 — 2026-09-05
+
+### Fixed
+
+- **A misnumbered episode file no longer floods a season with placeholder rows.** When a file's episode number was far above the season's real episode count (a filename read as episode 1080, or numbered by absolute episode), the title's season list filled every number in between with a faint "Episode N" placeholder, thousands of them, and the page slowed to a crawl. Placeholders now stop at the episode count TMDB reports; a file or scheduled release numbered above it gets its own row at the end.
+
 ## v1.8.2 — 2026-09-05
 
 ### New
