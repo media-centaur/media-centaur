@@ -48,20 +48,20 @@ timeout), each passing in isolation. Sweep run 2026-09-04 against
 `7e1df187` (v1.7.3): 57 engineering, 10 performance, 42 documentation, 25
 design findings. Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 
-**2026-09-05, end of day — three lanes done, one open.** Engineering:
-closed except Stage E-10 (E34, deferred by the owner); E48 declined.
-Performance: done (P9, P10 declined). Documentation: done (D11
-unverified, D17 docs-site tiles need owner copy). Design: DS4 fixed;
-everything else awaits the owner's judgement (see *Resuming*). All of it
-is in **local, unpushed** commits `3c764d2d..f4735c57` (28 on `main`)
-plus one unpushed commit in `../media-centaur.wiki` (`9e4111f`). Last
-full `mix precommit`: green (6617 Elixir + 795 JS) once the Settings
-mount budget test primed the Overview projection.
+**2026-09-05, evening — all four lanes done; campaign ready to close.**
+Engineering: closed except Stage E-10 (E34, deferred by the owner); E48
+declined. Performance: done (P9, P10 declined). Documentation: done (D11
+unverified, D17 docs-site tiles need owner copy). Design: done on the
+owner's rulings — DS7, DS10 and DS20 declined, DS3/DS11 dropped, every
+other item landed (see *Decisions made*, 2026-09-05 design entries). All
+of it is in **local, unpushed** commits `3c764d2d..HEAD` on `main` plus
+one unpushed commit in `../media-centaur.wiki` (`9e4111f`). Last full
+`mix precommit` (2026-09-05 evening, after DS25): 6635/6637 Elixir — the two failures are the known load flakes (60 s page-smoke timeout on the TV detail mount; `Console.Buffer` settings persist racing a sandbox owner), both green alone.
 
-## Resuming — start here (handoff written 2026-09-05, end of day)
+## Resuming — start here (handoff written 2026-09-05, evening)
 
 **Reconcile first (ADR-042).** `git log 2ddd4b53..HEAD` is the day's
-work: 28+ commits on `main`, local and unpushed; `../media-centaur.wiki`
+work: ~40 commits on `main`, local and unpushed; `../media-centaur.wiki`
 has one unpushed commit. Confirm nothing was pushed or rebased since.
 **Do not push or tag without being asked.** Then pick up at *What's
 next*. Trust the stage sections below over any one-line summary — an
@@ -74,28 +74,26 @@ earlier handoff said "only E-5 remains" and cost a session a wrong claim.
 * Performance lane, all of it (P9, P10 declined).
 * Documentation lane, all of it (D11 unverified, D17 tiles deferred to
   the owner, D15/D31/D38/D41 declined).
-* **DS4** (Design lane) — fixed in `f4735c57`, regression
-  `test/e2e/library_cursor.spec.js`.
+* Design lane, all of it — DS7, DS10, DS20 declined; DS3, DS11 dropped;
+  the rest landed 2026-09-05 (rulings under *Decisions made*).
 
-### What's next: the Design lane, item by item, on the owner's call
+### What's next: close the campaign by destination
 
-The owner asked for the judgement items as a list and is ruling on
-them. Re-verify line numbers before touching anything. Do one item per
-commit, with a real-browser check (`page-shot` for look, Playwright
-under `test/e2e` for input contracts — browsers are now provisioned in
-`~/.cache/ms-playwright`).
+Nothing in the sweep is unassigned. What remains, bucketed:
 
-The list handed to the owner (2026-09-05): DS14 modal input contract,
-DS19 review search panel mouse-only, DS20 discovery scope toggles
-outside any zone, DS25 text contrast floor, DS15/DS18 destructive
-actions without the arm, DS1 accent bars, DS5 end-truncated paths,
-DS6 form dialogs `:ephemeral`, DS7 solid state badges, DS8 `:for` roots
-without ids, DS9 three primary buttons / Manage→Back, DS10
-`items-center`, DS24 two sentence-makers on the plan board, DS12 page
-header sizes, DS22 fresh-install empty state, DS2 page titles, DS13
-`z-index: 60`, DS23 history empty state; plus the owner's own note that
-the poster card's mouse hover ring may not be wanted. Record each ruling
-under *Decisions made* as it lands.
+| Item | Destination |
+|---|---|
+| Push and ship the ~40 local commits + the wiki commit | **owner's call** — a `/ship minor`; the CHANGELOG entry should name the new checks (MC0032–MC0034), the armed two-click destructive controls, the contrast floor, the page title, the empty states |
+| E34 / Stage E-10 (event god-modules) | deferred by the owner; reopen as its own campaign if ever |
+| D17 docs-site feature tiles (Discovery, Apps, friends) | owner copy |
+| D11 `docs/mpv.md` HDR recovery block | unverified against hardware; verify on the TV box |
+| Real-browser check of the Status pipeline tiles during an import | owed from Pass 2; do it during the next real import |
+| Follow-ups below (stale E2E routes, Deletion cascade, profiling baseline) | small, do when next in the area |
+
+Once the ship lands: reconcile `campaigns/README.md` and remove this file
+(ADR-042). The design rulings live in *Decisions made* and the amended
+UIDR-003; the module map below is the only thing worth carrying into a
+moduledoc or `docs/architecture.md` first.
 
 ### Follow-ups found on the way (not in the sweep)
 
@@ -144,6 +142,24 @@ under *Decisions made* as it lands.
   **DS16 is half-done**; the rest (logging the swallowed exit, the files
   sub-view's `:loading | {:ok,_} | :failed` assign) is Stage E-8.
 
+* **MC0034** — readable text in the web layer stays at
+  `text-base-content/55` or above; icons, spinners, separator glyphs,
+  placeholders and disabled states may go dimmer, recognised by a
+  same-line marker (`hero-`, `size-`, `loading`, `select-none`, `·`,
+  `placeholder:`, `disabled:`). A helper that only tints an icon carries
+  its `size-*` so the line says so.
+* **Destructive controls arm before they fire** — `<.armed_button>` in
+  `core_components.ex` is the one pattern (first click arms and relabels,
+  second fires, `aria-pressed` carries the state). Tests click the
+  `*_arm` event first.
+* **`<.modal>` owns the input contract** — it emits `data-detail-mode`
+  and `data-dismiss-event` from `@on_close`; every control inside is a
+  `data-nav-item`. Regression: `test/e2e/modal_contract.spec.js`
+  (keyboard project; the gamepad project's mock never flips the input
+  method in this harness — pre-existing, `settings.spec.js` shows the
+  same).
+* **`<.page_header>`** is the one page-title treatment; the generator's
+  `header/1` is gone.
 * **MC0004** now covers `GenServer.call/2` / `cast/2` in `test/` as well
   as `:sys.*`. A message the public API cannot produce gets a
   `__<verb>_for_test__` seam on the owning module (precedent:
@@ -334,6 +350,54 @@ across unrelated suites.
 ---
 
 # Engineering lane
+
+* `2026-09-05` — **Design lane rulings (owner).** DS20 (discovery scope
+  toggles / Friends tab nav zones) **declined**: Discovery is under active
+  development, no input-system effort there yet. Everything else on the
+  judgement list **approved and executed**, including the owner's own
+  note to drop the poster card's mouse hover ring. DS7 declined on the
+  way: the UIDR-002 amendment makes solid state chips legitimate. DS10
+  declined: no sites recorded and a heuristic grep found none. DS3/DS11
+  dropped as droppable.
+* `2026-09-05` — **DS4 decided:** keyboard/gamepad mode zeroes the
+  daisyUI `.card` outline on unfocused nav items; poster selection is an
+  inset ring. E2E `library_cursor.spec.js`.
+* `2026-09-05` — **DS14 decided:** `<.modal>` emits `data-detail-mode`
+  and `data-dismiss-event` itself; clear-database and recommend modals
+  gained `on_close`; nav items on every modal control. E2E
+  `modal_contract.spec.js` (keyboard only, see house rules).
+* `2026-09-05` — **DS15/DS18 decided:** one `armed_button/1` component;
+  reconcile Dismiss all, review Dismiss all, Reset all controls, history
+  Remove (post-hoc modals removed; flash instead), Stop tracking and
+  Cancel pursuit all arm before they fire.
+* `2026-09-05` — **DS9 decided:** the three primary buttons in System
+  settings drop to secondary; the Manage toggle keeps its label and
+  `aria-pressed` — **UIDR-003 amended**: a view control named for its
+  destination is the way out; it does not flip to Back.
+* `2026-09-05` — **DS24 decided:** `GapVerdict` gained a `:searching`
+  world; `DescentNarrative` renders rung rows only. One sentence-maker on
+  the plan board (UIDR-029).
+* `2026-09-05` — **DS12 decided:** `page_header/1` (`text-2xl`, bold,
+  tight; optional subtitle) on all eight page titles; container widths
+  stay per page (left-aligned; measures only for reading and form
+  columns). Generator `header/1` deleted.
+* `2026-09-05` — **DS22/DS23 decided:** Home and Watch History empty
+  states say what fills the place and carry one action (Add a media
+  directory → Settings › Library; Browse the library) as nav items in
+  the zone the filled page uses.
+* `2026-09-05` — **DS25 decided:** readable-text floor `/55`, MC0034
+  holds it; 385 lines swept; the user-interface skill's hierarchy now
+  reads `/80` primary, `/60` secondary, `/55` floor.
+* `2026-09-05` — DS1 (washes, not left borders), DS5 (`.truncate-left`
+  + `<bdo>`), DS6 (`dismiss={:persistent}` on form dialogs), DS8 (stable
+  ids on every `:for` root), DS2 (`page_title` everywhere), DS13
+  (`<.modal raised>` for z-60), DS19 (nav items on the review search
+  panel), the hover ring removal — all landed as specified.
+* `2026-09-05` — **Dev-server hot-reload race:** a `mix compile --force`
+  or credo run in the dev env crashed `media-centaur-dev` twice
+  (module unavailable → Refresher crash loop → app shutdown). Refresher
+  now has a 10 s first-tick floor; run checks with `MIX_ENV=test` and
+  restart the service if it dies.
 
 ## Stage E-1 — Movie approve rehydrates under the wrong corpus key
 
@@ -965,7 +1029,7 @@ storybook "dev-only", `touch_stream_entries`/`reset_stream` as helpers.
 amendment note, ADR-058 `superseded` vs `amended`, UIDR-021 no status.
 **D40 (M)** UIDR-015:85 "ADR-006" → UIDR-006. **D31/D41 (droppable)**.
 
-# Design lane (to elaborate when reached)
+# Design lane — **DONE 2026-09-05** (DS7, DS10, DS20 declined; DS3, DS11 dropped)
 
 Verified: one theme, Heroicons only, glass tiers respected, no hardcoded
 colors, clean consoles on all 13 routes, 24 of 29 UIDRs compliant in code.
@@ -1062,7 +1126,8 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
    Stage E-10 (deferred). E34 / Stage E-10 stay deferred.
 4. ~~Performance lane~~ — done 2026-09-05 (P9/P10 declined).
 5. ~~Documentation lane~~ — done 2026-09-05 (deferrals in the lane).
-6. **Design lane** — DS4 done; the rest item by item on the owner's rulings (list in *Resuming*).
+6. ~~Design lane~~ — done 2026-09-05 on the owner's rulings.
+7. **Close by destination** — the table under *Resuming*; the ship is the owner's call.
 
 ## Completion criteria
 
