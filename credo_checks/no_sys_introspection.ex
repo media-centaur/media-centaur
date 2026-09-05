@@ -6,8 +6,12 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospection do
     explanations: [
       check: """
       Tests must never use `:sys.get_state/1`, `:sys.replace_state/2`, or
-      similar GenServer introspection. Test through the module's public API
-      instead.
+      similar GenServer introspection, and must never drive a GenServer by
+      `GenServer.call/2` or `GenServer.cast/2` themselves. Test through the
+      module's public API instead. When a test genuinely needs a message
+      the public API cannot produce — a mailbox drain, an out-of-order
+      cast — the owning module exposes a `__<verb>_for_test__` seam and
+      the test calls that.
 
           # preferred — exercise public API
           MyServer.add(:foo)
@@ -15,7 +19,7 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospection do
 
           # NOT preferred
           state = :sys.get_state(MyServer)
-          assert state.count == 0
+          :ok = GenServer.call(MyServer, :sync)
 
       Source: ADR-026 (GenServer API encapsulation), CLAUDE.md "What We
       Never Test".
@@ -40,6 +44,11 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospection do
 
   defp traverse({{:., meta, [:sys, fun]}, _, _args} = ast, issues, issue_meta) when fun in @forbidden do
     {ast, [issue_for(issue_meta, ":sys.#{fun}", meta[:line]) | issues]}
+  end
+
+  defp traverse({{:., meta, [{:__aliases__, _, [:GenServer]}, fun]}, _, _args} = ast, issues, issue_meta)
+       when fun in [:call, :cast] do
+    {ast, [issue_for(issue_meta, "GenServer.#{fun}", meta[:line]) | issues]}
   end
 
   defp traverse(ast, issues, _issue_meta), do: {ast, issues}

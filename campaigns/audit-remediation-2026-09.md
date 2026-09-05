@@ -57,7 +57,7 @@ design findings. Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 E38, E39, E30, E35 — see the stage). Full `mix precommit`: 6593/6594
 Elixir + 795 JS; the one failure was the known
 `Nostr.ConnectionTest` retry-log flake, green in isolation. **The
-engineering lane is done except straggler E45**; the Performance,
+engineering lane is done** (E45 followed the same day); the Performance,
 Documentation and Design lanes remain.
 
 ## Resuming — start here (handoff written 2026-09-05)
@@ -91,15 +91,15 @@ being asked.
   E27. Commits and module map in the stage section. E34 stays deferred
   (Stage E-10).
 
-### What's next: straggler E45, then the Performance lane
+### What's next: the Performance lane
 
-**E45 (Stage E-7 test policy):** `test/media_centaur/library/progress_test.exs`
-drives `Library.Progress.Worker` by `GenServer.cast/call` against its own
-moduledoc — either give the worker a public seam the test can use, or
-extend MC0004 to catch the pattern. Discuss before resolving (working
-agreement).
+**E45 — done 2026-09-05** (owner chose seam + check): `Progress.Worker`
+gained `__sync_for_test__/1` and `__inject_record_for_test__/4`, the two
+test sites use them, and **MC0004 now also flags `GenServer.call/cast`
+in `test/`** — the rule the testing skill had claimed it enforced.
+The engineering lane is closed apart from Stage E-10 (deferred).
 
-Then the lanes in order: **Performance** (elaborate P1–P10 into stages;
+Next, the lanes in order: **Performance** (elaborate P1–P10 into stages;
 P3/P7 one-liners first, P1 last), **Documentation** (D-1 first),
 **Design** (DS-1, DS-2 first). Each lane's findings and evidence are
 below, unchanged since the sweep — re-verify line numbers before acting.
@@ -142,6 +142,11 @@ since E18.
   `@before_compile`, so a host LiveView can handle its own async failures.
   **DS16 is half-done**; the rest (logging the swallowed exit, the files
   sub-view's `:loading | {:ok,_} | :failed` assign) is Stage E-8.
+
+* **MC0004** now covers `GenServer.call/2` / `cast/2` in `test/` as well
+  as `:sys.*`. A message the public API cannot produce gets a
+  `__<verb>_for_test__` seam on the owning module (precedent:
+  `Availability.__reset_for_test__/0`, `Owner.__sync_for_test__/1`).
 
 **Incremental `mix compile` does not re-check Boundary for modules it
 did not recompile.** A missing `deps:`/`exports:` entry can pass an
@@ -270,6 +275,11 @@ across unrelated suites.
   parallel HTTP/Req task extended the E9 seam instead of competing with
   it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
   the single design, and MC0029 now enforces the construction seam.
+* `2026-09-05` — **E45 resolved as seam + check** (owner's pick of the
+  three options): test-only `__*_for_test__` seams on `Progress.Worker`,
+  and MC0004 extended to `GenServer.call/cast` in tests, shown red
+  against the old check before landing. Only the two `progress_test.exs`
+  sites existed.
 * `2026-09-05` — **Stage E-5 resolved** in eight commits (`40b63794`
   E40/E37/E27, `dbed960f` E32, `0f6f66e8` E29, `04e6f7e8` E31,
   `fda56205` E38, `f5ed36ea` E39, `2b864d0d` E30, `c723c6c8` E35).
@@ -370,7 +380,7 @@ repo already states in prose that a check could hold.
 * **E6 (L)** "DDR-015" cited in `router.ex:64`, `components/layouts.ex:175`,
   `incoming/status_pill.ex:6`, `incoming/shelf.ex:3`,
   `live/incoming_live.ex:3`, UIDR-017/018. The record is **UIDR-015**.
-* **E45 (M)** `test/media_centaur/library/progress_test.exs:111-112,253-257`
+* **E45 (M) — done 2026-09-05, see *Decisions made*.** `test/media_centaur/library/progress_test.exs:111-112,253-257`
   drives `Progress.Worker` via `GenServer.cast/call` while its own moduledoc
   (lines 12-14) denies it; MC0004 covers only `:sys`.
 
@@ -962,9 +972,8 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
 
 0. ~~Reconcile the Req client seam~~ — done, no divergence (2026-09-05).
 1. ~~Stages E-1 through E-5~~ — done (E-4's E14/E36 closed by Pass 2).
-2. **E45** (test drives `Progress.Worker` by `GenServer.call/cast`) —
-   discuss seam vs. MC0004 extension, then resolve. E34 and the rest of
-   Stage E-10 stay deferred by default.
+2. ~~E45~~ — done (seam + MC0004 extension, 2026-09-05). E34 and the
+   rest of Stage E-10 stay deferred by default.
 3. Elaborate the Performance lane into stages (P3/P7 one-liners first,
    P1 last) once the engineering lane is done or paused.
 4. Documentation lane, D-1 first (it is the cheapest and the README entry

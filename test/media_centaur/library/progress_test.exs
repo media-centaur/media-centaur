@@ -108,8 +108,8 @@ defmodule MediaCentaur.Library.ProgressTest do
 
       # Inject an out-of-order (older) cast directly, as the worker would
       # see one whose enqueue lagged behind a newer synchronous write.
-      :ok = GenServer.cast(Progress.Worker, {:record, playable_item.id, 10.0, 100.0})
-      :ok = GenServer.call(Progress.Worker, :sync)
+      :ok = Progress.Worker.__inject_record_for_test__(playable_item.id, 10.0, 100.0)
+      :ok = Progress.Worker.__sync_for_test__()
 
       assert %WatchProgress{position_seconds: 30.0} = Progress.get(playable_item.id)
     end
@@ -250,11 +250,10 @@ defmodule MediaCentaur.Library.ProgressTest do
            ]}
         )
 
-      :ok = GenServer.cast(worker_name, {:record, pi_id, 42.0, 100.0})
+      :ok = Progress.Worker.__inject_record_for_test__(worker_name, pi_id, 42.0, 100.0)
       # Wait until the cast has been processed (no DB write yet — flush
-      # interval is 60s). Using :sys.get_status would be implementation
-      # introspection; instead, sync via a benign call.
-      :ok = GenServer.call(worker_name, :sync)
+      # interval is 60s) without introspecting state.
+      :ok = Progress.Worker.__sync_for_test__(worker_name)
 
       assert nil == Repo.get_by(WatchProgress, playable_item_id: pi_id)
 
