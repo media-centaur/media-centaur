@@ -186,7 +186,11 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
   end
 
   test "the first failed attempt logs once; the retries that follow do not" do
-    url = "ws://127.0.0.1:1/"
+    # `capture_log` is global: a concurrent test dialling the same
+    # unreachable relay lands in this capture too. The path makes the
+    # URL, and so the logged line, this test's own.
+    url = "ws://127.0.0.1:1/#{System.unique_integer([:positive])}"
+    line = "could not connect to #{url}: connection refused"
 
     log =
       ExUnit.CaptureLog.capture_log(fn ->
@@ -196,8 +200,7 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
         assert_receive {:nostr, ^url, {:disconnected, _reason, 80}}, 2_000
       end)
 
-    assert log =~ "could not connect to #{url}: connection refused"
-    assert length(String.split(log, "could not connect to")) == 2
+    assert length(String.split(log, line)) == 2
   end
 
   test "a failed connect is logged for the console only — the Social probe owns the fault" do
