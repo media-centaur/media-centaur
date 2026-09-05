@@ -31,6 +31,8 @@ export const inputConfig = {
     plan_head: "[data-nav-zone='plan_head'] [data-nav-item]",
     plan_grid: "[data-nav-zone='plan_grid'] [data-nav-item]",
     plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
+    // The Discovery title detail modal's action row (spec 2026-09-05).
+    title_detail_body: "[data-nav-zone='title_detail_body'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
@@ -106,6 +108,9 @@ export const inputConfig = {
     plan_head: Context.TREE,
     plan_grid: Context.SHELF,
     plan_body: Context.TREE,
+    // The title detail modal's action row walks LEFT/RIGHT like the
+    // library detail's action row; the scope menu's item joins it when open.
+    title_detail_body: Context.TOOLBAR,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -167,6 +172,13 @@ export const inputConfig = {
         plan_grid: { up: ["plan_head"], down: ["plan_body"] },
         plan_body: { up: ["plan_grid", "plan_head"] },
       },
+    },
+    // The Discovery title detail modal (spec 2026-09-05). One region: the
+    // action row — primary, secondary, tertiary verbs, and the series scope
+    // menu's item when open — walked as one strip. BACK dismisses.
+    title_detail: {
+      entry: ["title_detail_body"],
+      layout: { title_detail_body: {} },
     },
   },
 
