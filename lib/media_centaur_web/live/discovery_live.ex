@@ -7,13 +7,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   on the current tab — refresh keeps it open, back closes it), where
   every verb lives: Download (the one-click plan, `Plans.plan_title/2`
   with `approval_policy: "automatic"`), Track release, Add to / Remove
-  from watchlist, Delete recommendation.
+  from watchlist, Delete (an own activity of any kind).
 
-  Recommendations (`/discovery`, the page's default) — what friends
-  recommended (**Incoming**, the default scope) or what this install
-  recommended (**Yours**), newest first. `Activities.list_feed/0`
+  Feed (`/discovery`, the page's default) — what friends recommended,
+  watched and started tracking (**Incoming**, the default scope) or
+  what this install did (**Yours**), newest first. `Activities.list_feed/0`
   carries the record and the friend's nickname; this page joins the
-  rest, because Recommendations knows nothing about the watchlist, the
+  rest, because Activities knows nothing about the watchlist, the
   library or acquisition: `Library.ExternalIds.tmdb_owners/1`,
   `Discovery.watchlisted_refs/0` and `Acquisition.TitleStates.for_refs/1`
   decide what each row shows.
@@ -47,7 +47,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Discovery
-  alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Activities
@@ -58,6 +57,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Discovery.{TitleDetail, TitleDetailModal, TitleRow}
   alias MediaCentaurWeb.Components.TabStrip.Tab
+  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.DiscoveryLive.Logic
   alias MediaCentaurWeb.DiscoveryLive.RosterBlock
 
@@ -178,6 +178,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       today: socket.assigns.today,
       poster_url: title_poster_url(title),
       backdrop_url: tmdb_cdn_url(title.backdrop_path, :w1280),
+      kind: feed_row && feed_row.activity.kind,
+      episode: feed_row && feed_row.activity.episode,
       sender: feed_row && !feed_row.own? && feed_row.nickname,
       note: (feed_row && feed_row.activity.note) || (watch_row && watch_row.item.note),
       acted_at: feed_row && feed_row.activity.acted_at,
@@ -282,27 +284,27 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   def handle_event(
-        "title_recommendation_delete",
+        "title_activity_delete",
         _params,
-        %{assigns: %{title_detail: %TitleDetail{activity_id: id}}} = socket
+        %{assigns: %{title_detail: %TitleDetail{activity_id: id, kind: kind}}} = socket
       )
       when is_binary(id) do
     case Activities.delete(id) do
-      {:ok, _rec} ->
+      {:ok, _activity} ->
         {:noreply,
          socket
          |> load_feed()
-         |> put_flash(:info, "Recommendation withdrawn")
+         |> put_flash(:info, String.capitalize(ActivityWords.noun(kind)) <> " withdrawn")
          |> push_patch(to: discovery_path(socket))}
 
       {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Only your own recommendations can be deleted")}
+        {:noreply, put_flash(socket, :error, "Only your own activity can be deleted")}
     end
   end
 
   # A modal event with no open modal (a stale click after a close) is a no-op.
   def handle_event(event, _params, socket)
-      when event in ~w(title_download title_track title_watchlist_add title_watchlist_remove title_recommendation_delete),
+      when event in ~w(title_download title_track title_watchlist_add title_watchlist_remove title_activity_delete),
       do: {:noreply, socket}
 
   def handle_event("feed_scope", %{"scope" => scope}, socket) when scope in ["incoming", "own"],
@@ -469,12 +471,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   defp tabs(feed, items),
     do: [
-      %Tab{
-        id: :recommendations,
-        label: "Recommendations",
-        navigate: "/discovery",
-        count: scope_count(feed, :incoming)
-      },
+      %Tab{id: :feed, label: "Feed", navigate: "/discovery", count: scope_count(feed, :incoming)},
       %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
       %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends"}
     ]
@@ -482,13 +479,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # Before a relay and a friend exist the feed cannot fill, so the empty
   # state names what is missing rather than implying nobody wrote.
   defp feed_empty_state(:own, _prereqs_met),
-    do: "Titles you recommend from their detail page show up here."
+    do:
+      "Titles you recommend from their detail page show up here, and what you share under Settings → Social."
 
   defp feed_empty_state(:incoming, true), do: "Nothing from your friends yet."
 
   defp feed_empty_state(:incoming, _prereqs_met),
     do:
-      "Recommendations from your friends land here. Add a relay under Settings → Social and a friend on the Friends tab."
+      "What your friends recommend, watch and track lands here. Add a relay under Settings → Social and a friend on the Friends tab."
 
   defp current_path(:friends), do: "/discovery/friends"
   defp current_path(:watchlist), do: "/discovery/watchlist"
@@ -504,11 +502,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       query -> base <> "?" <> query
     end
   end
-
-  defp feed_lead(%{own?: true, activity: rec}), do: "You · #{Format.relative_ago(rec.acted_at)}"
-
-  defp feed_lead(%{nickname: nickname, activity: rec}),
-    do: "from #{nickname} · #{Format.relative_ago(rec.acted_at)}"
 
   @impl true
   def render(assigns) do
@@ -541,7 +534,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
           <.tab_strip tabs={tabs(@feed, @items)} active={@live_action} />
 
-          <div :if={@live_action == :recommendations} class="space-y-3">
+          <div :if={@live_action == :feed} class="space-y-3">
             <%!-- Iteration-phase control (spec decision 11): no input-system
                   zone yet; the hardening pass gives it one. --%>
             <div class="flex gap-1 px-1">
@@ -574,7 +567,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 id={"feed-#{row.activity.id}"}
                 title={row.activity.title}
                 poster_url={row.poster_url}
-                lead={feed_lead(row)}
+                lead={Logic.feed_lead(row)}
                 markers={
                   Logic.row_markers(%{
                     library_owner_id: row.library_owner_id,

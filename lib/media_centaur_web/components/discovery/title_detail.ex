@@ -9,10 +9,10 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   `{:in_library, owner_id}` (links to the library detail), `{:state,
   acquisition_state}` (Planning / Downloading / Needs review — a fact,
   not a verb), `:download`, or `:track`. `scoped?` says the download
-  carries the series scope menu. `sender`, `note`, `acted_at` and
-  `own?` are the feed provenance and nil on a watchlist-born detail
-  without one; `sender` is nil on an own recommendation (the modal
-  reads `own?`).
+  carries the series scope menu. `kind`, `episode`, `sender`, `note`,
+  `acted_at` and `own?` are the feed provenance and nil on a
+  watchlist-born detail without one; `sender` is nil on an own activity
+  (the modal reads `own?`), `episode` is set on a watched series only.
 
   `preview` is the live TMDB-backed `Detail.TitlePreview` (backdrop,
   logo, tagline, metadata, facets, cast) the host fetches on open; nil
@@ -20,6 +20,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   modal dresses itself from the snapshot alone.
   """
 
+  alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
 
@@ -32,6 +34,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :primary,
     :scoped?,
     :on_watchlist?,
+    :kind,
+    :episode,
     :sender,
     :note,
     :acted_at,
@@ -54,6 +58,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           primary: primary(),
           scoped?: boolean(),
           on_watchlist?: boolean(),
+          kind: Activity.kind() | nil,
+          episode: Episode.t() | nil,
           sender: String.t() | nil,
           note: String.t() | nil,
           acted_at: DateTime.t() | nil,

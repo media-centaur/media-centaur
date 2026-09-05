@@ -7,6 +7,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Library.Person
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.Facet
@@ -110,6 +111,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
         attributes: %{
           detail:
             detail(movie(), %{
+              kind: :recommendation,
               sender: "Sample Friend",
               note: "Watch it before anyone spoils the ending.",
               acted_at: ~U[2026-09-01 10:00:00Z],
@@ -122,7 +124,36 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
         id: :own_recommendation,
         description: "An own recommendation carries Delete recommendation as the tertiary verb.",
         attributes: %{
-          detail: detail(movie(), %{own?: true, acted_at: ~U[2026-09-01 10:00:00Z]})
+          detail:
+            detail(movie(), %{kind: :recommendation, own?: true, acted_at: ~U[2026-09-01 10:00:00Z]})
+        }
+      },
+      %Variation{
+        id: :friend_watched,
+        description: "A friend finished an episode: the statement names it; no note.",
+        attributes: %{
+          detail:
+            detail(show(), %{
+              kind: :watched,
+              episode: %Episode{season_number: 2, episode_number: 5, name: "The Fifth"},
+              sender: "Sample Friend",
+              acted_at: ~U[2026-09-01 10:00:00Z],
+              own?: false,
+              primary: :track
+            })
+        }
+      },
+      %Variation{
+        id: :own_tracking,
+        description: "An own tracking activity carries Delete tracking activity as the tertiary verb.",
+        attributes: %{
+          detail:
+            detail(show(), %{
+              kind: :tracking,
+              own?: true,
+              acted_at: ~U[2026-09-01 10:00:00Z],
+              primary: :track
+            })
         }
       },
       %Variation{
