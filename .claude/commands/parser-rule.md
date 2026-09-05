@@ -10,25 +10,37 @@ The user says: $ARGUMENTS
 
 ## Step 1: Look up the entity and its files
 
-1. Use `mcp__tidewave__project_eval` to query the database via Ecto. Find `WatchedFile` rows whose parsed title matches the user's input (case-insensitive substring match):
+1. Use `mcp__tidewave__project_eval` to query the database via Ecto. Parse
+   results are not stored on imported files — a `WatchedFile` carries only
+   the path and its `PlayableItem` link — so find the **entity** by name,
+   then its files:
 
    ```elixir
    import Ecto.Query
-   alias MediaCentaur.{Repo, Library.WatchedFile}
+   alias MediaCentaur.{Repo, Library}
+   alias MediaCentaur.Library.{Movie, TVSeries, MovieSeries, VideoObject}
 
    pattern = "%" <> String.downcase("<user input>") <> "%"
 
-   from(w in WatchedFile,
-     where: fragment("lower(?) LIKE ?", w.parsed_title, ^pattern),
-     order_by: [asc: w.parsed_title, asc: w.parsed_year]
-   )
-   |> Repo.all()
+   entities =
+     for schema <- [Movie, TVSeries, MovieSeries, VideoObject],
+         record <- Repo.all(from(r in schema, where: fragment("lower(?) LIKE ?", r.name, ^pattern))),
+         do: record
+
+   for entity <- entities, file <- Library.Files.list_by_entity_id(entity.id) do
+     {entity.name, file.file_path, MediaCentaur.Parser.parse(file.file_path)}
+   end
    ```
 
+   Files still awaiting review keep their parse on `MediaCentaur.Review.PendingFile`
+   (`parsed_title`, `parsed_year`, `parsed_type`, `season_number`,
+   `episode_number`, `status`) — query that schema by `parsed_title` when the
+   title is not in the library yet.
+
 2. Show the user a summary of what was found:
-   - Distinct parsed titles grouped across the returned files
-   - Every `WatchedFile` row — show `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `season_number`, `episode_number`, and `state`
-   - If a row has a type-specific FK populated (`movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id`), fetch and display the associated entity's name for context.
+   - Each matched entity (type and name) and every file path under it
+   - For each path, what `MediaCentaur.Parser.parse/1` currently produces
+     (title, year, type, season, episode)
 
 3. Read `lib/media_centaur/parser.ex` and `test/media_centaur/parser_test.exs` for context.
 

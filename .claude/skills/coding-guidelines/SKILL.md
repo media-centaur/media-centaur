@@ -33,7 +33,7 @@ The split rule:
 
 | Consumer | Data source | Pattern |
 |---|---|---|
-| `MediaCentaur.Watcher.AbsencePolicy` | `MediaCentaur.Watcher.FilePresence` | TTL/lifecycle policy uses presence-tracking primitives. |
+| `MediaCentaur.Library.AbsenceSweeper` | `MediaCentaur.Library.FilePresence` | The TTL purge reads presence-tracking primitives. |
 | `MediaCentaur.Library.Availability` | `MediaCentaur.WatcherStatus` | Library reads watcher state through a boundary-neutral helper. |
 
 When in doubt: write the moduledoc you'd want to see for the new code
@@ -107,7 +107,7 @@ implicit runtime coupling into a declared one.
   Enforced by **MC0023**; its grandfather list is the rollout backlog.
 - For bulk operations, wrap in `Ecto.Multi` and assert on the transaction result.
 
-### Pipeline Stages (Parse, Search, FetchMetadata, DownloadImages, Ingest)
+### Pipeline Stages (Parse, Search, FetchMetadata, Ingest)
 
 - Call stage `run/1` or `Pipeline.process_payload/1` directly — no Broadway topology in tests.
 - Stub TMDB with `TmdbStubs` helpers (`stub_search_movie/1`, `stub_routes/1`, etc.) — never mock.

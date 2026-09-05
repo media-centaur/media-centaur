@@ -245,8 +245,8 @@ debug browser won't.
 
 Call functions directly on the running dev node:
 - `MediaCentaur.Diagnostics.log_recent(20)` — print recent entries
-- `MediaCentaur.Console.recent_entries(20)` — same data as `%Entry{}` structs
-- `MediaCentaur.Console.snapshot()` — entries + buffer cap + current filter
+- `MediaCentaur.Console.Buffer.recent(20)` — same data as `%Entry{}` structs
+- `MediaCentaur.Console.Buffer.snapshot()` — entries + buffer cap + current filter
 - `MediaCentaur.Diagnostics.playback()` — active playback state
 - `MediaCentaur.Diagnostics.services()` — watcher/pipeline/session counts
 - `MediaCentaur.Diagnostics.status()` — supervision tree health

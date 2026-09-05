@@ -65,8 +65,8 @@ LiveViews are thin wiring — mount, event dispatch, rendering. Any
 `if`/`case`/`cond`/`Enum` pipeline on domain data must be extracted into a public
 pure function and unit tested ([ADR-030]): same module for 1–3 small helpers, a
 dedicated helper module for larger clusters. Test with `async: true` and `build_*`
-factories — no database, no rendering. Examples: `file_absent?/1`,
-`episode_status/2`, `group_episodes_by_season/1`.
+factories — no database, no rendering. Examples: `HomeLive.Logic.select_hero/2`,
+`IncomingLive.PlanLogic.chosen_in_order/2`, `SettingsLive.MediaDirsLogic.default_images_dir_hint/1`.
 
 ## Async Ownership ([ADR-049])
 
@@ -92,8 +92,10 @@ test flakes, suspect an un-awaited async assign first.**
 asserts it renders — the cheapest net for render-path crashes (`KeyError`,
 `FunctionClauseError`) that pure-helper tests can't catch.
 
-- Every new route — and every zone of a multi-zone LiveView (`?zone=watching`,
-  `?zone=library`, `?zone=upcoming`) — gets an entry in the same change.
+- Every new route — and every URL-driven section of a LiveView
+  (`/settings?section=…`, `/status?subsystem=…`, `/discovery/*`) — gets an entry
+  in the same change. The Status drill-ins are generated from
+  `HealthBoard.board_subsystems/0`, so a new subsystem is covered automatically.
 - Seed enough fixture data to exercise non-trivial render branches. A new template
   branch (theatrical-movie variant, paused-download variant) means extending the
   fixture so it renders. Bar: "would a reasonable user see this in production?"
@@ -127,9 +129,10 @@ test "searches TMDB" do
 end
 ```
 
-**Isolation** ([ADR-016]) — `config/test.exs` sets `:image_downloader` to
-`NoopImageDownloader` (no HTTP or file I/O), `:skip_user_config` (no real TOML),
-and `:media_dirs, []`. Tests needing real paths create temp dirs via
+**Isolation** ([ADR-016]) — `config/test.exs` routes every outbound client
+(TMDB, Prowlarr, the download clients, the image CDN) to a `Req.Test` stub via
+`:req_test_stubs` (no HTTP; a missing stub fails loudly), sets `:skip_user_config`
+(no real TOML), and `:media_dirs, []`. Tests needing real paths create temp dirs via
 `System.tmp_dir!()` and override `:persistent_term`.
 
 **Global state is reset for you — do not hand-roll it.** The SQL sandbox rolls
@@ -150,7 +153,7 @@ new stateful child of `MediaCentaur.Supervisor` fails
 `global_state_sandbox_test.exs` until it's classified in `dispositions/0`.
 
 **Pipeline (Broadway)** — test-first, mandatory. Call stage functions directly
-(`run/1`, `Pipeline.process_payload/1`), never the Broadway topology. Test
+(`run/1`, `Pipeline.Import.process_payload/1`), never the Broadway topology. Test
 orchestration and state transitions, not leaf functions. Append-only ([ADR-027]).
 
 **Parser** — real observed paths only, one test per filename convention.

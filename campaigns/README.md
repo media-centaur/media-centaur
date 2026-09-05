@@ -29,26 +29,14 @@ Use [`template.md`](template.md) as a starter.
   per-upstream traffic, errors, latency, and cache effectiveness.
   Plan: `docs/plans/2026-09-04-http-client-cache-and-upstreams-panel.md`.
 * [`audit-remediation-2026-09.md`](audit-remediation-2026-09.md) —
-  **in-progress, started 2026-09-04.** Passes 1–4a done; Stage E-5
-  (context boundaries) is what remains of the engineering lane. Work off the four-audit sweep of
+  **in-progress, started 2026-09-04.** Works off the four-audit sweep of
   2026-09-04 (57 engineering / 10 performance / 42 documentation / 25
-  design findings) in discussable stages. Engineering lane first (E-1
-  movie-approve corpus key, E-2 precommit gaps, E-3 Schema-v2 leftovers,
-  …), then Performance (P1 detail-projection O(N²)), Documentation (skills
-  that misdirect, subsystem docs on retired contracts), Design (invisible
-  gamepad cursor on the library grid, modal input contract, text
-  contrast). Each stage carries its evidence and open questions; nothing
-  resolved yet.
-* [`friends-recommendations.md`](friends-recommendations.md) —
-  **design — unparked 2026-09-01.** Friends, with
-  send/receive show recommendations that one-click into the existing
-  acquisition path — no central server we operate, strong privacy/control.
-  Direction settled: **Nostr** (signed events = recs, followed pubkeys =
-  friends, relays = the pipe; free public relays *or* self-hosted private
-  relays — control on a slider), keypair identity, NIF Schnorr bundled in the
-  release (likely unnecessary: `bitcoinex` has pure-Elixir Schnorr). Q4
-  resolved: broadcast-first. Open: payload shape, privacy default, key/relay
-  UX. Resume at the open-questions section.
+  design findings) in discussable stages. Engineering lane closed except
+  Stage E-10 (deferred); Performance lane done (2026-09-05);
+  Documentation lane in progress; Design lane (invisible gamepad cursor
+  on the library grid, modal input contract, text contrast) still to
+  open. Each stage carries its evidence and decisions; the *Resuming*
+  section is the handoff.
 * [`showcase-comprehensive-coverage.md`](showcase-comprehensive-coverage.md) —
   **planning.** Expand the marketing showcase from well-covered static
   surfaces to the high-impact feature set that photographs well:
@@ -98,8 +86,9 @@ Use [`template.md`](template.md) as a starter.
   on a fresh Mint install — and our inability to reproduce any of them
   locally.
 * [`macos-platform-support.md`](macos-platform-support.md) —
-  resumed at Phase 5 (macOS impls). Seven Platform.* seams landed
-  on the Linux side; CI matrix on both OSes is green and strict
-  (`--warnings-as-errors`). Next up: `Autostart.Launchd`,
-  `DriveProbe.BsdDf`, `LogSource.Files`, darwin-arm64 in
-  `ReleaseArtifact`.
+  **Phases 1–6 shipped 2026-05-21**: all seven `Platform.*` seams have
+  Linux and macOS impls, CI is green on both OSes with
+  `--warnings-as-errors`, every tag builds `darwin-arm64`, and the
+  one-line installer supports Apple Silicon. Phase 7 (a real-Mac
+  install + self-update smoke) waits on hardware or the first macOS user
+  report — none has arrived.

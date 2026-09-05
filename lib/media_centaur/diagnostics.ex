@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Diagnostics do
   use Boundary,
     top_level?: true,
-    deps: [MediaCentaur.ErrorReports, MediaCentaur.Playback]
+    deps: [MediaCentaur.Console, MediaCentaur.ErrorReports, MediaCentaur.Playback]
 
   @moduledoc """
   Structured diagnostic functions for production troubleshooting.
@@ -21,6 +21,17 @@ defmodule MediaCentaur.Diagnostics do
     running = Enum.count(children, fn {_, pid, _, _} -> is_pid(pid) end)
     total = length(children)
     IO.puts("#{running}/#{total} children running")
+  end
+
+  @doc "Prints the N most recent console buffer entries (default 20), oldest first."
+  @spec log_recent(pos_integer()) :: :ok
+  def log_recent(count \\ 20) when is_integer(count) and count > 0 do
+    count
+    |> MediaCentaur.Console.Buffer.recent()
+    |> Enum.reverse()
+    |> Enum.each(fn entry ->
+      IO.puts("#{DateTime.to_iso8601(entry.timestamp)} [#{entry.level}] #{entry.component}: #{entry.message}")
+    end)
   end
 
   @doc "Active playback sessions and their state."

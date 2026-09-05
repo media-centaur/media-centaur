@@ -175,7 +175,7 @@ Modals are **never** conditionally rendered with `:if={}`. They stay in the DOM 
 - `.modal-backdrop`: full inset, z-50, dark overlay with blur, opacity transition
 - `.modal-panel`: centered, max 700px, scale+fade transition, inherits `color: var(--color-base-content)` ([UIDR-009])
 - `.modal-panel-sm`: smaller variant, 480px max
-- Event handlers (`phx-click-away`, `phx-window-keydown`) are conditionally bound with `@open && @on_close`
+- Dismissal: `phx-click` on the `.modal-backdrop` plus `phx-window-keydown` for Escape, both conditionally bound with `@open && @on_close`. Never `phx-click-away` on the panel — it installs a document-scoped listener that fires from overlays above the modal (Credo **MC0006**). The ephemeral/persistent dismissal mode goes through one seam ([UIDR-013]).
 
 **Why always-in-DOM:** `backdrop-filter: blur()` has a first-frame compositing cost. Conditional rendering causes visible flash on every open.
 
@@ -191,7 +191,7 @@ Start-truncation: filename (most identifying part) always visible, directory pre
 
 ### Durations ([UIDR-004])
 
-Display: `3h 48m` or `45m` (omit hours when zero). Space-separated, no leading zeros, no seconds. Storage remains ISO 8601. Use `format_iso_duration/1` from `LiveHelpers`.
+Display: `3h 48m` or `45m` (omit hours when zero). Space-separated, no leading zeros, no seconds. Storage stays in seconds. Use `MediaCentaur.Format.format_human_duration/1`; `Format.format_seconds/1` is the clock-style `H:MM:SS` for player overlays only.
 
 ### Progress Bars
 
@@ -227,7 +227,6 @@ Fixed left, 200px expanded / 52px collapsed. State via `data-sidebar` on `<html>
 
 - Links: `.sidebar-link` — muted by default, primary color when `.sidebar-link-active`
 - Labels: `.sidebar-label` — opacity 0 when collapsed
-- Theme toggle: pill (expanded) or cycle icon (collapsed)
 - Tooltips: `tooltip tooltip-right` on collapsed icons
 
 ### Zone Tabs
@@ -318,8 +317,28 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 007 | Sidebar: collapsible (200px/52px), replaced left-wall nav |
 | 008 | Flex rows: `align-items: baseline` for mixed text sizes |
 | 009 | Modal panels: explicit `color: var(--color-base-content)` inheritance |
-| 010 | Page redistribution: Home/Library/Upcoming/History split |
+| 010 | Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History |
 | 011 | Text on imagery: `.text-on-image` (body, text-shadow) + `.text-on-image-lg` (title/logo, filter:drop-shadow) |
+| 012 | Desktop-app rendering defaults — eager, sync, stable ids, no entrance animations (Credo MC0016) |
+| 013 | Modals declare an ephemeral or persistent dismissal mode through one seam |
+| 014 | Media-search front door — omnibox, coverage language, imagery discipline |
+| 015 | Upcoming + Downloads merged into one Incoming page |
+| 016 | Needs attention — one problem-only section for acquisition capability faults |
+| 017 | Coming Up depth is the house modal; unscheduled titles are rows |
+| 018 | Focus cursor and scroll behaviour |
+| 019 | The detail modal navigates as two regions; BACK peels containment |
+| 020 | Cursor treatment tiers — ring by default, soft fill where the ring collides |
+| 021 | Cinematic modal frame for TMDB-grounded modals; artwork promotion ladder |
+| 022 | Gap banner states the diagnosed world with its evidence |
+| 023 | Movie-first collection modal with a poster-rail picker |
+| 024 | Subject progress lives in the hero hairline, from one shared component |
+| 025 | Collections are filing, not content — activity surfaces speak in movies |
+| 026 | Re-selecting the current page in the main nav scrolls to the top |
+| 027 | Play affordances play in place — the modal is never a waystation |
+| 028 | Back enters the main menu; left stays in the page |
+| 029 | The plan board narrates a diagnosis, not a procedure |
+
+The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
 ## Component Inventory
 
@@ -337,16 +356,22 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `icon/1` | `core_components.ex` | Heroicon rendering | ✅ stub |
 | `app/1` | `layouts.ex` | Root layout (sidebar + content) |
 | `poster_card/1` | `library_cards.ex` | 2:3 poster grid card |
-| `cw_card/1` | `library_cards.ex` | 16:9 continue-watching backdrop card |
 | `toolbar/1` | `library_cards.ex` | Type tabs + sort + filter |
-| `detail_panel/1` | `detail_panel.ex` | Library detail modal (CinematicShell tenant) |
-| `season_list/1` | `detail_panel.ex` | TV episode accordion |
-| `cinematic_shell/1` | `cinematic_shell.ex` | Cinematic modal frame (pinned-block scroll system) |
-| `track_modal/1` | `track_modal.ex` | TMDB search + track modal |
-| `upcoming_zone/1` | `upcoming_cards.ex` | Calendar + release sections |
+| `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards |
+| `hero_card/1` | `hero_card.ex` | Home hero (Play + More info) |
+| `poster_row/1` | `poster_row.ex` | Horizontal poster shelf |
+| `detail_panel/1` | `detail_panel.ex` | Library detail modal (CinematicShell tenant); `detail/` holds its sub-views (Manage panel, seasons) |
+| `cinematic_shell/1` | `cinematic_shell.ex` | Cinematic modal frame (pinned-block scroll system, UIDR-021) |
+| `modal/1` | `modal.ex` | House modal frame with the UIDR-013 dismissal seam |
+| `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027) |
+| `progress_hairline/1` | `progress_hairline.ex` | Subject progress hairline (UIDR-024) |
+| `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
+| `coming_up_marquee/1` | `coming_up_marquee.ex` | Incoming's Coming Up shelf (UIDR-017) |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
 | `log_list/1` | `console_components.ex` | Monospace log stream |
 | `action_footer/1` | `console_components.ex` | Console controls |
+
+Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `discovery/`, `incoming/`, `release_tracking/`, `status_widgets/`, `tmdb/`. `ls lib/media_centaur_web/components` is the authority; every function component has a story (MC0009).
 
 ## Page Structure
 
@@ -354,19 +379,21 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 
 | Page | Path | Role |
 |------|------|------|
-| **Library** | `/` | Home page: Continue Watching, Library Browse, Upcoming zones |
-| **Status** | `/status` | Operational hub: library stats, pipeline, watchers, errors, storage |
+| **Home** | `/` | Hero + Continue Watching + shelves (UIDR-010) |
+| **Library** | `/library` | Browse grid with type tabs, sort and filter; detail modal |
+| **Incoming** | `/incoming` | Acquisition activity, plans and Coming Up (UIDR-015) |
+| **History** | `/history` | Watch history |
+| **Discovery** | `/discovery`, `/discovery/watchlist`, `/discovery/friends` | Recommendations, watchlist, friends |
+| **Apps** | `/apps` | App launcher |
 | **Review** | `/review` | Manual TMDB matching for pending files |
-| **Settings** | `/settings` | Services, preferences, configuration, danger zone |
+| **Reconcile** | `/reconcile` | Episode-mapping review |
+| **Status** | `/status`, `?subsystem=…` | Operational hub with per-subsystem drill-ins |
+| **Settings** | `/settings`, `?section=…` | Sections: acquisition, import, social, system, maintenance, danger zone |
+| **Setup** | `/setup` | First-run tour |
+| **Guide** | `/guide`, `/guide/:slug` | In-app guide book |
 | **Console** | `/console` | Full-page log viewer (also `` ` `` drawer on every page) |
 
-**Library** is the home page. Three zones share one LiveView, switching via `push_patch` ([UIDR-006]). DetailPanel is the library tenant of CinematicShell. Hero section (21:9 backdrop) is fixed; content list scrolls independently.
-
-**Status** is a single scrolling page: library stats, pipeline status, watcher health, TMDB rate limiter, recent errors, storage metrics, review summary, playback summary.
-
-**Review** uses master-detail layout: pending file list on the left, TMDB match comparison on the right.
-
-**Settings** uses sections nav + content grid: Services, Preferences, Configuration, Danger Zone.
+`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the library tenant of CinematicShell; `EntityModal` is the shared host behaviour Home, Library and Incoming `use` for it.
 
 ## Anti-Patterns
 

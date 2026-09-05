@@ -253,15 +253,21 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
     end
 
     test "GET /settings mounts within budget", %{conn: conn} do
+      # The Library-maintenance card reads the missing-images summary from
+      # the Overview projection (audit P4); in test mode no Cache.Worker
+      # runs, so prime it the way production boot does — otherwise the
+      # read falls through to the whole live aggregate.
+      MediaCentaur.Status.Views.Overview.refresh_cache()
+
       # Settings reads config + secret tables. Out of ADR-041 scope.
       # In test mode the SettingsCache isn't running so every
       # `Settings.get/1` call falls through to a DB read; the budget
       # tolerates that cold-path cost. In production a warm cache
       # collapses these to in-memory lookups.
       #
-      # The Library-maintenance card's two health probes
-      # (`missing_images_summary`, `blank_extra_names_count`) each run on
-      # the disconnected + connected mount = +4 bounded aggregates total;
+      # The Library-maintenance card's `blank_extra_names_count` probe runs
+      # on the disconnected + connected mount = +2 bounded aggregates (the
+      # missing-images summary is an ETS read of the primed projection);
       # the budget absorbs them plus settings_entries cache-miss jitter.
       #
       # ReviewBadge (session-wide on_mount) adds two bounded counts
