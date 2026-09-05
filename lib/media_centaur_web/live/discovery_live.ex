@@ -313,7 +313,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               <div
                 :if={scoped_feed(@feed, @feed_scope) == []}
                 id="feed-empty"
-                class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+                class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
               >
                 {feed_empty_state(@feed_scope, @feed_prereqs_met?)}
               </div>
@@ -324,7 +324,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
           <div :if={@live_action == :friends} class="space-y-4">
             <RosterBlock.roster_block friends={@friends} />
-            <p id="friends-settings-pointer" class="px-1 text-xs text-base-content/50">
+            <p id="friends-settings-pointer" class="px-1 text-xs text-base-content/55">
               Your identity and relays are under <.link
                 navigate={~p"/settings?section=social"}
                 class="link link-primary"
@@ -338,7 +338,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
             <div
               :if={@items == []}
               id="watchlist-empty"
-              class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+              class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
             >
               Nothing on your watchlist yet. Titles you save from a search land here.
             </div>

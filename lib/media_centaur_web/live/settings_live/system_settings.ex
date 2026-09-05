@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
         />
         <div class="min-w-0 space-y-1.5">
           <h2 class="text-xl font-semibold tracking-tight">Media Centaur</h2>
-          <p class="text-xs text-base-content/50">
+          <p class="text-xs text-base-content/55">
             MIT License &middot; &copy; 2026 Shawn McCool
           </p>
           <div class="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs font-mono text-base-content/60">
@@ -70,7 +70,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
             <p class="text-sm opacity-50 mt-0.5">
               Check GitHub for a newer release.
             </p>
-            <p class="text-xs text-base-content/50 mt-1.5">{@update_schedule_label}</p>
+            <p class="text-xs text-base-content/55 mt-1.5">{@update_schedule_label}</p>
           </div>
           <.button
             variant="secondary"
@@ -246,13 +246,13 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
                   Save
                 </.button>
               </form>
-              <p class="text-xs text-base-content/50 leading-relaxed">
+              <p class="text-xs text-base-content/55 leading-relaxed">
                 Media Centaur asks the GitHub Releases API whether a newer version exists. GitHub
                 allows about 60 unauthenticated requests an hour from your network, so checking more
                 often than every {@update_check_interval_floor} minutes risks temporary rate-limiting
                 with no benefit — releases are infrequent.
               </p>
-              <p class="text-xs text-base-content/40">{@last_checked_label}</p>
+              <p class="text-xs text-base-content/55">{@last_checked_label}</p>
             </div>
           </div>
 
@@ -264,13 +264,13 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
               checked={@auto_update_enabled}
               event="toggle_auto_update"
             />
-            <p class="text-xs text-base-content/50 leading-relaxed px-3.5">
+            <p class="text-xs text-base-content/55 leading-relaxed px-3.5">
               If something is playing, the update waits until playback ends, so your session is never
               interrupted. Leave this off to review the release and press Update now yourself.
             </p>
           </div>
 
-          <p class="text-xs text-base-content/50 leading-relaxed">
+          <p class="text-xs text-base-content/55 leading-relaxed">
             Updates are published on GitHub. Media Centaur downloads, verifies, and installs each
             release in place and then restarts to finish — usually under a minute, and your library
             and settings are preserved.
@@ -346,7 +346,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold">Health Check</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
+            <p class="text-sm text-base-content/55 mt-0.5">
               {overview_summary(@issue_count)}
             </p>
           </div>
@@ -380,7 +380,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold">Guide</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
+            <p class="text-sm text-base-content/55 mt-0.5">
               How Media Centaur works, chapter by chapter — including features you may not be using yet.
             </p>
           </div>
@@ -397,7 +397,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
       </div>
 
       <div :for={group <- @groups} class="p-5 rounded-lg glass-surface space-y-2">
-        <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+        <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
           {group.label}
         </h3>
 
@@ -523,7 +523,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
               :if={@service_status_output}
               class="glass-inset rounded-md p-3 text-[11px] font-mono text-base-content/80 overflow-x-auto thin-scrollbar max-h-80 overflow-y-auto whitespace-pre"
             ><%= @service_status_output %></pre>
-            <p :if={!@service_status_output} class="text-xs text-base-content/40 italic">
+            <p :if={!@service_status_output} class="text-xs text-base-content/55 italic">
               Loading…
             </p>
           </div>
@@ -620,8 +620,8 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
 
   defp overview_summary(n), do: "#{n} #{if n == 1, do: "item needs", else: "items need"} your attention."
 
-  defp overview_detail_class(:ok), do: "text-base-content/50"
-  defp overview_detail_class(:neutral), do: "text-base-content/50"
+  defp overview_detail_class(:ok), do: "text-base-content/55"
+  defp overview_detail_class(:neutral), do: "text-base-content/55"
   defp overview_detail_class(:warning), do: "text-warning"
   defp overview_detail_class(:error), do: "text-error"
 

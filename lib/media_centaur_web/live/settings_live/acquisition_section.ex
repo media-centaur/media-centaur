@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             <h2 class="text-lg font-semibold flex items-center gap-2">
               Prowlarr <.status_dot configured={@config[:prowlarr_api_key_configured?]} />
             </h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
+            <p class="text-sm text-base-content/55 mt-0.5">
               Indexer proxy that searches for media and forwards grabs.
             </p>
           </div>
@@ -64,7 +64,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
         <div class="space-y-3">
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
               URL
             </label>
             <input
@@ -78,7 +78,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
           </div>
 
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
               API Key
             </label>
             <input
@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
               Torrent Client
               <.status_dot configured={@config[:download_client_password_configured?]} />
             </h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
+            <p class="text-sm text-base-content/55 mt-0.5">
               Where Prowlarr forwards torrent grabs. Powers the Downloads page progress.
             </p>
           </div>
@@ -161,7 +161,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
         <div class="space-y-3">
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
               Type
             </label>
             <select
@@ -183,7 +183,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
           </div>
 
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
               URL
             </label>
             <input
@@ -194,7 +194,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
               data-nav-item
               tabindex="0"
             />
-            <p class="text-xs text-base-content/40 mt-1">
+            <p class="text-xs text-base-content/55 mt-1">
               Must be reachable from <em>this</em>
               machine. If you used <span class="font-mono">Detect from Prowlarr</span>, verify the URL —
               Prowlarr often returns Docker-internal hostnames (<span class="font-mono">qbittorrent:8080</span>)
@@ -204,7 +204,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
                 Username
               </label>
               <input
@@ -220,7 +220,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             </div>
 
             <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
                 Password
               </label>
               <input
@@ -280,7 +280,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
               Usenet Client
               <.status_dot configured={@config[:usenet_download_client_api_key_configured?]} />
             </h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
+            <p class="text-sm text-base-content/55 mt-0.5">
               Where Prowlarr forwards usenet grabs. SABnzbd repairs and unpacks;
               the finished file imports like any other download.
             </p>
@@ -299,7 +299,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
         <div class="space-y-3">
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
               Type
             </label>
             <select
@@ -318,7 +318,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
           </div>
 
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
               URL
             </label>
             <input
@@ -329,14 +329,14 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
               data-nav-item
               tabindex="0"
             />
-            <p class="text-xs text-base-content/40 mt-1">
+            <p class="text-xs text-base-content/55 mt-1">
               Must be reachable from <em>this</em>
               machine — Prowlarr-detected URLs are often Docker-internal hostnames.
             </p>
           </div>
 
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
               API Key
             </label>
             <input
@@ -401,7 +401,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <h2 class="text-lg font-semibold">Release tracking</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
+          <p class="text-sm text-base-content/55 mt-0.5">
             How often to poll TMDB for upcoming release dates.
           </p>
         </div>
@@ -418,7 +418,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
       </div>
 
       <div>
-        <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+        <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
           Refresh interval (hours)
         </label>
         <input
@@ -430,7 +430,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
           data-nav-item
           tabindex="0"
         />
-        <p class="text-xs text-base-content/40 mt-1">
+        <p class="text-xs text-base-content/55 mt-1">
           Changes take effect after the current refresh cycle completes.
         </p>
       </div>
@@ -468,7 +468,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <h2 class="text-lg font-semibold">Auto-acquisition defaults</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
+          <p class="text-sm text-base-content/55 mt-0.5">
             Applied when a tracked release becomes available. Per-item
             overrides on individual tracking entries take precedence.
           </p>
@@ -487,7 +487,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Default mode
           </label>
           <select
@@ -506,13 +506,13 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
               Off (notify only)
             </option>
           </select>
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             Applies to newly-tracked items. Existing items keep their per-item override.
           </p>
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             4K patience (hours)
           </label>
           <input
@@ -525,13 +525,13 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             data-nav-item
             tabindex="0"
           />
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             Wait this long for a 4K release before falling back to 1080p. Set to 0 to grab immediately.
           </p>
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Minimum quality (final fallback)
           </label>
           <select
@@ -550,7 +550,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Maximum quality
           </label>
           <select
@@ -569,7 +569,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Release size preference
           </label>
           <select
@@ -585,14 +585,14 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
               Save space (compact encodes first)
             </option>
           </select>
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             Decides between releases of the same resolution. Save space still grabs
             a remux when nothing smaller exists.
           </p>
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Maximum search attempts
           </label>
           <input
@@ -605,13 +605,13 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             data-nav-item
             tabindex="0"
           />
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             How many failed search cycles before giving up on a release.
           </p>
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Pack threshold (%)
           </label>
           <input
@@ -624,7 +624,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             data-nav-item
             tabindex="0"
           />
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             Grab a season or series pack only when you want at least this share of the
             episodes it contains. Below it, picking a few episodes grabs them individually
             and the pack is offered as a one-click choice.

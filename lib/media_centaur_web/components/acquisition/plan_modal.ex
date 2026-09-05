@@ -227,7 +227,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   # line beneath it.
   defp loading_stage(assigns) do
     ~H"""
-    <div class="p-6 flex items-center gap-2 text-sm text-base-content/50">
+    <div class="p-6 flex items-center gap-2 text-sm text-base-content/55">
       <span class="loading loading-spinner loading-xs"></span> Loading from TMDB…
     </div>
     """
@@ -300,7 +300,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           >
             None
           </.button>
-          <span class="ml-auto text-sm text-base-content/50 tabular-nums">
+          <span class="ml-auto text-sm text-base-content/55 tabular-nums">
             {@chosen_count} selected
           </span>
         </div>
@@ -328,7 +328,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           />
           <span>
             Also grab future episodes
-            <span class="block text-[11px] text-base-content/40">hands off to release tracking</span>
+            <span class="block text-[11px] text-base-content/55">hands off to release tracking</span>
           </span>
         </label>
         <div class="flex items-center gap-2">
@@ -390,7 +390,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           tabindex={if @state == :disabled, do: "-1", else: "0"}
         >
           <span class="text-sm font-medium">Season {@season.season_number}</span>
-          <span class="text-sm text-base-content/40">{season_meta(@season)}</span>
+          <span class="text-sm text-base-content/55">{season_meta(@season)}</span>
           <.icon
             :if={@state != :disabled}
             name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
@@ -423,7 +423,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <span class="min-w-0 flex-1 truncate text-sm">
             E{String.pad_leading(to_string(episode.episode_number), 2, "0")} · {episode.label}
           </span>
-          <span :if={episode.in_library?} class="flex-shrink-0 text-xs text-base-content/40">
+          <span :if={episode.in_library?} class="flex-shrink-0 text-xs text-base-content/55">
             In library
           </span>
           <span
@@ -433,12 +433,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           >
             Tracked
           </span>
-          <span :if={!episode.aired?} class="flex-shrink-0 text-xs text-base-content/40">
+          <span :if={!episode.aired?} class="flex-shrink-0 text-xs text-base-content/55">
             Unaired
           </span>
           <span
             :if={episode.aired? && !episode.in_library? && episode.air_date}
-            class="flex-shrink-0 text-xs text-base-content/30 tabular-nums"
+            class="flex-shrink-0 text-xs text-base-content/55 tabular-nums"
           >
             {episode.air_date}
           </span>
@@ -503,7 +503,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <MetadataRow.metadata_row badge_text="Movie" items={@movie.metadata_items} />
           <span class={[
             "flex-shrink-0 text-xs",
-            if(@movie.in_library?, do: "text-warning/80", else: "text-base-content/40")
+            if(@movie.in_library?, do: "text-warning/80", else: "text-base-content/55")
           ]}>
             {if @movie.in_library?, do: "Already in your library", else: "Not in your library"}
           </span>
@@ -559,7 +559,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   defp cast_strip(assigns) do
     ~H"""
     <div>
-      <h3 class="text-[0.65rem] uppercase tracking-wider text-base-content/40 font-semibold mb-2">
+      <h3 class="text-[0.65rem] uppercase tracking-wider text-base-content/55 font-semibold mb-2">
         Top cast
       </h3>
       <div class="flex gap-3 overflow-x-auto thin-scrollbar pb-1">
@@ -583,7 +583,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           </p>
           <p
             :if={person.character}
-            class="text-[10px] leading-tight text-base-content/40 line-clamp-1"
+            class="text-[10px] leading-tight text-base-content/55 line-clamp-1"
           >
             {person.character}
           </p>
@@ -636,7 +636,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <%!-- The title lives in the pinned lockup; this is the plan's
                 live status line. --%>
           <p class="text-sm text-on-image">
-            <span :if={@board.status == :planning} class="text-base-content/50">
+            <span :if={@board.status == :planning} class="text-base-content/55">
               <span class="loading loading-spinner loading-xs align-middle mr-1"></span>
               Planning · {@board.wanted} {if @board.movie?, do: "unit", else: "episodes"} wanted
             </span>
@@ -650,7 +650,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <p
             :if={@board.lower_quality_accepted?}
             id="plan-lower-quality-accepted"
-            class="mt-1 text-xs text-base-content/50"
+            class="mt-1 text-xs text-base-content/55"
           >
             Lower quality accepted for this show — it keeps using the best release there is.
             <.button
@@ -675,7 +675,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             class="space-y-1"
           >
             <p class="text-lg leading-snug text-base-content/90">{@gap_verdict.headline}</p>
-            <p :if={@gap_verdict.evidence_line} class="text-xs text-base-content/50">
+            <p :if={@gap_verdict.evidence_line} class="text-xs text-base-content/55">
               {@gap_verdict.evidence_line}
             </p>
           </div>
@@ -686,7 +686,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
             <span class="min-w-0 flex-1 text-sm">
               <span class="block text-warning/90">{@gap_verdict.headline}</span>
-              <span :if={@gap_verdict.evidence_line} class="block text-xs text-base-content/50 mt-1">
+              <span :if={@gap_verdict.evidence_line} class="block text-xs text-base-content/55 mt-1">
                 {@gap_verdict.evidence_line}
               </span>
             </span>
@@ -766,7 +766,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         class="px-6 pb-6 space-y-2"
       >
         <div :for={season <- @board.seasons} class="flex items-start gap-3">
-          <span class="flex-shrink-0 w-10 pt-2 text-sm text-base-content/40 tabular-nums">
+          <span class="flex-shrink-0 w-10 pt-2 text-sm text-base-content/55 tabular-nums">
             S{season.season_number}
           </span>
           <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1">
@@ -785,7 +785,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           id="plan-grid-caption"
           data-plan-caption
           aria-live="polite"
-          class="min-h-4 pl-13 text-xs text-base-content/50 truncate"
+          class="min-h-4 pl-13 text-xs text-base-content/55 truncate"
         >
         </p>
       </div>
@@ -793,7 +793,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       <div data-nav-zone="plan_body" class="flex flex-col">
         <div class="px-6 pb-6 space-y-6">
           <div :if={@board.releases != []} class="space-y-2">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Releases — {length(@board.releases)}
             </h3>
             <div :for={release <- @board.releases} class="space-y-2">
@@ -899,7 +899,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               <.icon name="hero-arrow-trending-down-mini" class="size-4 text-info flex-shrink-0" />
               <span class="min-w-0 flex-1 text-sm">
                 <span class="text-base-content/90">{below_preference_line(@board)}</span>
-                <span class="block text-xs text-base-content/50 mt-1">
+                <span class="block text-xs text-base-content/55 mt-1">
                   Taking them uses the best release there is, for this title only. Your quality preference for everything else stays as it is.
                 </span>
               </span>
@@ -944,11 +944,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           </div>
 
           <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
-          <p :if={@last_activity} class="text-sm text-base-content/40">{@last_activity}</p>
+          <p :if={@last_activity} class="text-sm text-base-content/55">{@last_activity}</p>
         </div>
 
         <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-between gap-4">
-          <span class="text-sm text-base-content/50 tabular-nums">
+          <span class="text-sm text-base-content/55 tabular-nums">
             {@board.covered} of {@board.wanted} covered · {length(@board.releases)}
             {if length(@board.releases) == 1, do: "release", else: "releases"}
             <span :if={@board.total_size_bytes}>· ≈ {format_size(@board.total_size_bytes)}</span>
@@ -1028,7 +1028,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       class="glass-inset rounded-lg px-4 py-3 ml-4 space-y-1 border border-base-content/10"
     >
       <div class="flex items-center justify-between gap-3 pb-1">
-        <h4 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
           Choose a release
         </h4>
         <.button
@@ -1056,10 +1056,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           aria-disabled="true"
         />
         <ReleaseFacts.release_facts entry={release_entry(@release)} />
-        <span class="flex-shrink-0 text-xs text-base-content/40">Current</span>
+        <span class="flex-shrink-0 text-xs text-base-content/55">Current</span>
       </div>
 
-      <p :if={@alternatives.items == []} class="text-xs text-base-content/40 py-1">
+      <p :if={@alternatives.items == []} class="text-xs text-base-content/55 py-1">
         Nothing else in the corpus yet — Find more runs this span's searches.
       </p>
 
@@ -1082,7 +1082,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           tabindex="0"
         />
         <ReleaseFacts.release_facts entry={alternative_entry(alternative)} />
-        <span :if={alternative.reason} class="flex-shrink-0 text-xs text-base-content/40">
+        <span :if={alternative.reason} class="flex-shrink-0 text-xs text-base-content/55">
           {alternative.reason}
         </span>
       </div>
@@ -1117,11 +1117,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       <span class={["size-1.5 rounded-full flex-shrink-0", descent_dot(row.state)]}></span>
       <span class={[
         "w-32 flex-shrink-0 text-base-content/60",
-        row.state == :skipped && "line-through text-base-content/30"
+        row.state == :skipped && "line-through text-base-content/55"
       ]}>
         {row.label}
       </span>
-      <span class="min-w-0 truncate text-base-content/40">{row.detail}</span>
+      <span class="min-w-0 truncate text-base-content/55">{row.detail}</span>
     </div>
     """
   end

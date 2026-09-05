@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   def collection_rail(assigns) do
     ~H"""
     <div class="px-4 pb-6" data-role="collection-rail">
-      <h3 class="mb-2 text-sm font-medium uppercase tracking-wider text-base-content/50">
+      <h3 class="mb-2 text-sm font-medium uppercase tracking-wider text-base-content/55">
         {@saga_label}
       </h3>
       <%!-- The home shelves' scroll system, wholesale: `.row-scroll`

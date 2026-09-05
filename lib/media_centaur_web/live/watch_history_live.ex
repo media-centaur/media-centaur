@@ -115,25 +115,25 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         <%!-- Stats --%>
         <div class="grid grid-cols-3 gap-4">
           <div class="glass-inset rounded-xl px-5 py-4">
-            <div class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">
+            <div class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-1">
               Titles Watched
             </div>
             <div class="text-3xl font-bold tabular-nums">{@stats.total_count}</div>
           </div>
           <div class="glass-inset rounded-xl px-5 py-4">
-            <div class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">
+            <div class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-1">
               Hours Watched
             </div>
             <div class="text-3xl font-bold tabular-nums">{format_hours(@stats.total_seconds)}</div>
           </div>
           <div class="glass-inset rounded-xl px-5 py-4">
-            <div class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">
+            <div class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-1">
               Current Streak
             </div>
             <div class="text-3xl font-bold tabular-nums">
-              {@stats.streak}<span class="text-base font-normal text-base-content/50 ml-0.5">d</span>
+              {@stats.streak}<span class="text-base font-normal text-base-content/55 ml-0.5">d</span>
             </div>
-            <div class="text-xs text-base-content/40 mt-1">
+            <div class="text-xs text-base-content/55 mt-1">
               {if @stats.streak == 0, do: "no active streak", else: "consecutive days"}
             </div>
           </div>
@@ -146,7 +146,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               (campaigns/instant-navigation.md Phase 2). --%>
         <div class="glass-inset rounded-xl p-4 overflow-x-auto w-fit">
           <div data-heatmap={heatmap_key(@filter_type)}>
-            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-3">
+            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-3">
               {heatmap_title(@filter_type)} — last 52 weeks
             </h2>
             <svg width="676" height="91" viewBox="0 0 676 91" xmlns="http://www.w3.org/2000/svg">
@@ -256,16 +256,16 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
                 {rewatch_count_for_event(event, @rewatch_counts)}×
               </.badge>
             </span>
-            <span class="text-xs text-base-content/50 whitespace-nowrap shrink-0">
+            <span class="text-xs text-base-content/55 whitespace-nowrap shrink-0">
               {type_label(event.entity_type)}
             </span>
-            <span class="text-xs text-base-content/40 whitespace-nowrap shrink-0">
+            <span class="text-xs text-base-content/55 whitespace-nowrap shrink-0">
               {format_completed_at(event.completed_at)}
             </span>
             <%!-- `Xh Ym`, the app-wide duration vocabulary (UIDR-004). The
                   clock-style `Format.format_seconds/1` belongs to player
                   overlays, where a scrub position is the point. --%>
-            <span class="text-xs text-base-content/40 whitespace-nowrap shrink-0 tabular-nums w-16 text-right">
+            <span class="text-xs text-base-content/55 whitespace-nowrap shrink-0 tabular-nums w-16 text-right">
               {LibraryFormatters.format_human_duration(round(event.duration_seconds))}
             </span>
             <.armed_button
@@ -276,7 +276,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               variant="destructive_inline"
               size="xs"
               class={[
-                "text-base-content/30 hover:text-error transition-opacity",
+                "text-base-content/55 hover:text-error transition-opacity",
                 @remove_confirm != event.id &&
                   "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
               ]}
@@ -304,7 +304,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
           >
             ← Previous
           </.button>
-          <span class="text-sm text-base-content/40">Page {@page}</span>
+          <span class="text-sm text-base-content/55">Page {@page}</span>
           <.button
             :if={@has_next}
             variant="dismiss"

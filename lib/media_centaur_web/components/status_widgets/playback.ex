@@ -48,9 +48,9 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
       >
         <div class="px-6 py-5">
           <div class="text-4xl font-extralight leading-none tracking-tight tabular-nums">
-            {@playback_activity.lifetime.hours}<span class="ml-1.5 text-base font-normal text-base-content/50">hrs</span>
+            {@playback_activity.lifetime.hours}<span class="ml-1.5 text-base font-normal text-base-content/55">hrs</span>
           </div>
-          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/40">
+          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/55">
             Watched, lifetime
           </div>
         </div>
@@ -58,18 +58,18 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
           <div class="text-4xl font-extralight leading-none tracking-tight tabular-nums">
             {@playback_activity.lifetime.titles}
           </div>
-          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/40">
+          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/55">
             Titles finished
           </div>
         </div>
         <div class="border-l border-base-content/10 px-6 py-5">
           <div class={[
             "text-4xl font-extralight leading-none tracking-tight tabular-nums",
-            @playback_activity.lifetime.streak == 0 && "text-base-content/40"
+            @playback_activity.lifetime.streak == 0 && "text-base-content/55"
           ]}>
             {@playback_activity.lifetime.streak}
           </div>
-          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/40">
+          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/55">
             Day streak
           </div>
         </div>
@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
               value={session.now_playing[:position_seconds] || 0}
               max={session.now_playing.duration_seconds}
             ></progress>
-            <span class="text-xs text-base-content/50 whitespace-nowrap tabular-nums">
+            <span class="text-xs text-base-content/55 whitespace-nowrap tabular-nums">
               {format_remaining(
                 session.now_playing.duration_seconds -
                   (session.now_playing[:position_seconds] || 0)
@@ -153,9 +153,9 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
           </div>
           <div class="min-w-0">
             <div class="truncate text-sm font-medium">{entry.primary}</div>
-            <div class="mt-0.5 truncate text-xs text-base-content/50">{entry.secondary}</div>
+            <div class="mt-0.5 truncate text-xs text-base-content/55">{entry.secondary}</div>
           </div>
-          <span class="shrink-0 text-xs text-base-content/40 tabular-nums">
+          <span class="shrink-0 text-xs text-base-content/55 tabular-nums">
             {time_ago(entry.at)}
           </span>
         </li>
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
       <p
         :if={@sessions == [] and @playback_activity.recent == []}
         data-component="playback-narrative"
-        class="mt-3 text-sm text-base-content/50"
+        class="mt-3 text-sm text-base-content/55"
       >
         Nothing watched yet.
       </p>
@@ -216,7 +216,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
   end
 
   defp playback_health(_idle, _count) do
-    %{label: "Idle", dot_class: "bg-base-content/30", text_class: "text-base-content/50"}
+    %{label: "Idle", dot_class: "bg-base-content/30", text_class: "text-base-content/55"}
   end
 
   # Stable iterator id (UIDR-012): completion timestamps are seconds apart.

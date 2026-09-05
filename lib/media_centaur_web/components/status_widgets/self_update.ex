@@ -65,14 +65,14 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
           class="mt-3 border-t border-base-content/10 pt-3"
           data-component="whats-new"
         >
-          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-2">
+          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-2">
             What's new in v{Map.get(@latest_release, :version, "")}
           </h3>
           <ReleaseNotes.release_notes body={Map.get(@latest_release, :body, "")} class="text-xs" />
         </div>
 
         <%!-- Check cadence + automatic install --%>
-        <div class="mt-3 text-xs text-base-content/50 space-y-0.5">
+        <div class="mt-3 text-xs text-base-content/55 space-y-0.5">
           <p>{SystemSection.last_checked_label(@last_check_at, @now)}</p>
           <p>
             <.settings_link section="system">
@@ -85,8 +85,8 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
             </.settings_link>
           </p>
           <.settings_link section="system" class="gap-2">
-            <span class="text-base-content/50">Automatic install</span>
-            <span class={if @auto_install?, do: "text-success", else: "text-base-content/40"}>
+            <span class="text-base-content/55">Automatic install</span>
+            <span class={if @auto_install?, do: "text-success", else: "text-base-content/55"}>
               {if @auto_install?, do: "on", else: "off"}
             </span>
           </.settings_link>
@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
           class="mt-3 border-t border-base-content/10 pt-3"
           data-component="update-history"
         >
-          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">
+          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-1">
             History
           </h3>
           <ul class="space-y-1">
@@ -112,7 +112,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
                     />
                     <span class="font-mono text-base-content/70">v{entry.version}</span>
                   </span>
-                  <span class="text-base-content/40">{history_date(entry.recorded_at)}</span>
+                  <span class="text-base-content/55">{history_date(entry.recorded_at)}</span>
                 </summary>
                 <div class="mt-1.5 mb-2 pl-5">
                   <ReleaseNotes.release_notes body={Map.get(entry, :notes_body)} class="text-xs" />
@@ -123,7 +123,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
                 class="flex items-center justify-between text-xs pl-5 py-0.5"
               >
                 <span class="font-mono text-base-content/70">v{entry.version}</span>
-                <span class="text-base-content/40">{history_date(entry.recorded_at)}</span>
+                <span class="text-base-content/55">{history_date(entry.recorded_at)}</span>
               </div>
             </li>
           </ul>
@@ -133,7 +133,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
         <div :if={apply_active?(@apply_phase)} class="mt-3 space-y-1" data-component="apply-progress">
           <div class="flex items-center justify-between text-xs">
             <span class="text-base-content/70">{SystemSection.apply_phase_label(@apply_phase)}</span>
-            <span :if={@apply_progress} class="font-mono text-base-content/50">
+            <span :if={@apply_progress} class="font-mono text-base-content/55">
               {@apply_progress}%
             </span>
           </div>

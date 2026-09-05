@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitGroup do
         <div class="min-w-0 flex-1 truncate text-sm font-medium">
           {@title}
         </div>
-        <div class="flex-shrink-0 text-xs text-base-content/50 tabular-nums">
+        <div class="flex-shrink-0 text-xs text-base-content/55 tabular-nums">
           {@count} {episode_word(@count)}
         </div>
         <div class={"flex-shrink-0 text-xs truncate max-w-[35%] #{PursuitStyle.severity_text_class(@severity)}"}>

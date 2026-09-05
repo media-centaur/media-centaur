@@ -13,9 +13,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitTimeline do
     <%!-- Flat section inside the modal panel. See `pursuit_header.ex`
           for the rationale. --%>
     <div class="space-y-3">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">History</h3>
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">History</h3>
       <%= if @vm.entries == [] do %>
-        <div class="text-sm text-base-content/50">No events yet.</div>
+        <div class="text-sm text-base-content/55">No events yet.</div>
       <% else %>
         <ol class="space-y-3">
           <li :for={entry <- @vm.entries} class="flex items-start gap-3">
@@ -26,12 +26,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitTimeline do
               </div>
               <div
                 :if={entry.detail}
-                class="text-xs text-base-content/50 truncate"
+                class="text-xs text-base-content/55 truncate"
                 title={entry.detail}
               >
                 {entry.detail}
               </div>
-              <div class="text-xs text-base-content/40 mt-0.5">{format_time(entry.occurred_at)}</div>
+              <div class="text-xs text-base-content/55 mt-0.5">{format_time(entry.occurred_at)}</div>
             </div>
           </li>
         </ol>

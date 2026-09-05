@@ -54,7 +54,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
     ~H"""
     <div class="glass-inset rounded-lg p-3 space-y-2">
       <div class="flex items-baseline justify-between gap-3">
-        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
           Coverage
         </h3>
         <span class="text-xs text-base-content/60 tabular-nums">
@@ -101,7 +101,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
             </span>
             <span
               :if={group.shared_release_title}
-              class="hidden sm:block ml-auto max-w-[40%] truncate text-xs text-base-content/40"
+              class="hidden sm:block ml-auto max-w-[40%] truncate text-xs text-base-content/55"
               title={group.shared_release_title}
             >
               {group.shared_release_title}
@@ -143,7 +143,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
       <span class="min-w-0 flex-1 truncate text-sm">{@unit.label}</span>
       <span
         :if={@unit.release_title && @unit.release_title != @hoisted_release}
-        class="hidden sm:block max-w-[40%] truncate text-xs text-base-content/40"
+        class="hidden sm:block max-w-[40%] truncate text-xs text-base-content/55"
         title={@unit.release_title}
       >
         {@unit.release_title}
@@ -190,5 +190,5 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
   defp state_text_class(%UnitBoard.Row{state: :active}), do: "text-base-content/60"
   defp state_text_class(%UnitBoard.Row{state: :satisfied}), do: "text-success"
   defp state_text_class(%UnitBoard.Row{state: :exhausted}), do: "text-error"
-  defp state_text_class(%UnitBoard.Row{state: :cancelled}), do: "text-base-content/40"
+  defp state_text_class(%UnitBoard.Row{state: :cancelled}), do: "text-base-content/55"
 end

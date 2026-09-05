@@ -53,12 +53,12 @@ defmodule MediaCentaurWeb.Components.IssueView do
 
         <div class="px-6 py-4 flex-1 min-h-0 overflow-y-auto space-y-4">
           <div :if={@bucket.sample_entries != []} class="space-y-1.5">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Recent log lines
             </h3>
             <div class="glass-inset rounded-lg px-3 py-2 text-xs font-mono text-base-content/60 space-y-1">
               <p :for={entry <- @bucket.sample_entries}>
-                <span class="text-base-content/40">
+                <span class="text-base-content/55">
                   {Calendar.strftime(entry.timestamp, "%H:%M:%S")}
                 </span>
                 {entry.message}

@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.HealthComponents do
         ]} />
         <span class="min-w-0 flex-1">
           <span class="block text-sm truncate">{@bucket.headline}</span>
-          <span class="block text-xs text-base-content/50 mt-0.5">
+          <span class="block text-xs text-base-content/55 mt-0.5">
             {@bucket.count}× · since {Calendar.strftime(@bucket.first_seen, "%b %-d, %H:%M")}
           </span>
         </span>
@@ -130,7 +130,7 @@ defmodule MediaCentaurWeb.HealthComponents do
     >
       <header class="mb-8 flex items-start justify-between gap-4 border-b border-base-content/10 pb-7">
         <div class="min-w-0">
-          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/55">
             <.icon name={@view.glyph} class="size-3.5 opacity-70" /> Subsystem
           </div>
           <h2 class="mt-2 text-3xl font-semibold tracking-tight">{@view.label}</h2>
@@ -156,7 +156,7 @@ defmodule MediaCentaurWeb.HealthComponents do
 
         <aside class="flex min-w-0 flex-col gap-3.5">
           <div class="glass-inset rounded-xl p-5">
-            <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+            <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
               Status
             </h3>
             <div class="mt-3.5 flex items-center gap-2">
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.HealthComponents do
               <span class={["text-sm font-medium", state_text_class(@view.state)]}>
                 {state_label(@view.state)}
               </span>
-              <span :if={@view.state != :ok} class="text-xs text-base-content/40">
+              <span :if={@view.state != :ok} class="text-xs text-base-content/55">
                 {HealthBoard.tile_summary(@view)}
               </span>
             </div>
@@ -172,7 +172,7 @@ defmodule MediaCentaurWeb.HealthComponents do
             <%!-- Composed all-clear: a deliberate confirmation, not floating copy. --%>
             <div
               :if={@buckets == []}
-              class="mt-3.5 flex items-start gap-2.5 border-t border-base-content/10 pt-3.5 text-sm text-base-content/50"
+              class="mt-3.5 flex items-start gap-2.5 border-t border-base-content/10 pt-3.5 text-sm text-base-content/55"
             >
               <span class="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-success/15">
                 <.icon name="hero-check-mini" class="size-3 text-success" />
@@ -182,7 +182,7 @@ defmodule MediaCentaurWeb.HealthComponents do
 
             <div :if={@buckets != []} class="mt-3.5 border-t border-base-content/10 pt-3.5">
               <div class="mb-2 flex items-center justify-between">
-                <h4 class="text-xs font-medium uppercase tracking-wider text-base-content/40">
+                <h4 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
                   Issues
                 </h4>
                 <.button
@@ -216,7 +216,7 @@ defmodule MediaCentaurWeb.HealthComponents do
             >
               Technical logs
             </summary>
-            <div class="space-y-0.5 border-t border-base-content/10 px-4 py-3 font-mono text-xs text-base-content/50">
+            <div class="space-y-0.5 border-t border-base-content/10 px-4 py-3 font-mono text-xs text-base-content/55">
               <p :for={line <- HealthBoard.log_lines(@buckets)}>{line}</p>
               <p :if={HealthBoard.log_lines(@buckets) == []}>No recent log lines.</p>
             </div>

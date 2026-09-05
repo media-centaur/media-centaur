@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
             "flex items-center gap-1.5 text-xs cursor-pointer rounded-md px-2 py-1 -my-1 transition-colors hover:bg-base-content/10",
             if(@all_episode_details_open,
               do: "text-base-content/70",
-              else: "text-base-content/40 hover:text-base-content/70"
+              else: "text-base-content/55 hover:text-base-content/70"
             )
           ]}
         >
@@ -154,7 +154,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         <span class="flex-1" />
         <span
           :if={@season.kind == :library && !season_complete?(@season)}
-          class="text-xs text-base-content/40 tabular-nums"
+          class="text-xs text-base-content/55 tabular-nums"
         >
           {season_progress_label(@season.watched_count, @season.total_count)}
         </span>
@@ -163,7 +163,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           name="hero-check-mini"
           class="size-3.5 self-center text-success"
         />
-        <span :if={@season.kind == :future} class="text-xs text-base-content/40">
+        <span :if={@season.kind == :future} class="text-xs text-base-content/55">
           upcoming
         </span>
       </button>
@@ -283,7 +283,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
       <div class="flex items-center gap-3 text-sm">
         <span class={[
           "w-6 flex-shrink-0 text-right font-mono text-xs tabular-nums",
-          if(@is_resume_target, do: "text-primary font-semibold", else: "text-base-content/50")
+          if(@is_resume_target, do: "text-primary font-semibold", else: "text-base-content/55")
         ]}>
           {@episode.episode_number}
         </span>
@@ -299,7 +299,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           phx-click="toggle_item_details"
           phx-value-item-id={@episode.id}
           data-nav-sub-item
-          class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/30 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
+          class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/55 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
           aria-expanded={to_string(@details_open)}
           aria-label={if @details_open, do: "Hide episode details", else: "Show episode details"}
         >
@@ -330,7 +330,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         <p
           :if={@episode.description}
           class={[
-            "text-xs text-base-content/50 leading-relaxed",
+            "text-xs text-base-content/55 leading-relaxed",
             blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
           ]}
         >
@@ -360,7 +360,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
       tabindex="0"
     >
       <div class="flex items-center gap-3 text-sm">
-        <span class="w-6 flex-shrink-0 text-right text-base-content/40 font-mono text-xs tabular-nums">
+        <span class="w-6 flex-shrink-0 text-right text-base-content/55 font-mono text-xs tabular-nums">
           {@item.episode_number}
         </span>
         <span class="flex-1 min-w-0 truncate text-base-content/70 italic">
@@ -389,7 +389,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     ~H"""
     <div id={@id} class="p-2 rounded opacity-60" data-role="upcoming-episode-row">
       <div class="flex items-center gap-3 text-sm">
-        <span class="w-6 flex-shrink-0 text-right text-base-content/40 font-mono text-xs tabular-nums">
+        <span class="w-6 flex-shrink-0 text-right text-base-content/55 font-mono text-xs tabular-nums">
           {@item.episode_number}
         </span>
         <span class="flex-1 min-w-0 truncate text-base-content/70">

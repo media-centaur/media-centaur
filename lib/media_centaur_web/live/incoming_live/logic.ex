@@ -502,7 +502,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   def state_text_class(:error), do: "text-error/80"
   def state_text_class(:paused), do: "text-warning/80"
   def state_text_class(:stalled), do: "text-warning/80"
-  def state_text_class(:queued), do: "text-base-content/50"
+  def state_text_class(:queued), do: "text-base-content/55"
   def state_text_class(_state), do: "text-base-content/60"
 
   @doc """
@@ -522,13 +522,13 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   class.
   """
   @spec health_text_class(Health.status() | nil) :: String.t()
-  def health_text_class(nil), do: "text-base-content/40"
+  def health_text_class(nil), do: "text-base-content/55"
 
   def health_text_class(status) do
     case Health.badge_variant(status) do
       "warning" -> "text-warning"
       "ghost" -> "text-base-content/60"
-      _ -> "text-base-content/40"
+      _ -> "text-base-content/55"
     end
   end
 
@@ -670,7 +670,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
 
   @doc "Text-color class for the expansion-preview line."
   def expansion_color({:error, _reason}), do: "text-error"
-  def expansion_color(_preview), do: "text-base-content/50"
+  def expansion_color(_preview), do: "text-base-content/55"
 
   @doc """
   Human labels for overlap-rejected units (`Plans.approve/1` →

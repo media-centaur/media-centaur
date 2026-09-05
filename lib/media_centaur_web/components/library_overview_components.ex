@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
       </div>
 
       <div :if={@overview.recently_added != []} class="space-y-2">
-        <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+        <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
           Recently added
         </h3>
         <div class="flex gap-2 overflow-x-auto thin-scrollbar pb-1">
@@ -83,7 +83,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
   def pending_work_card(assigns) do
     ~H"""
     <div class="glass-surface rounded-xl p-4 space-y-3" data-component="overview-pending">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
         Pending work
       </h3>
 
@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
         singular="file awaiting review"
         plural="files awaiting review"
         empty="No files awaiting review"
-        tone={if @overview.pending_review_count > 0, do: "text-warning", else: "text-base-content/40"}
+        tone={if @overview.pending_review_count > 0, do: "text-warning", else: "text-base-content/55"}
       />
 
       <.work_row
@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
   def completeness_card(assigns) do
     ~H"""
     <div class="glass-surface rounded-xl p-4 space-y-3" data-component="overview-completeness">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
         Completeness gaps
       </h3>
 
@@ -163,11 +163,11 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
   def storage_outlook_card(assigns) do
     ~H"""
     <div class="glass-surface rounded-xl p-4 space-y-3" data-component="overview-storage">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
         Storage outlook
       </h3>
 
-      <p :if={@drives == []} class="text-sm text-base-content/40">Measuring storage…</p>
+      <p :if={@drives == []} class="text-sm text-base-content/55">Measuring storage…</p>
 
       <div :for={drive <- @drives} class="space-y-1">
         <div class="flex items-baseline justify-between gap-2">
@@ -222,7 +222,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
     ~H"""
     <div>
       <div class="text-2xl font-semibold tabular-nums">{@value}</div>
-      <div class="text-xs uppercase tracking-wider text-base-content/50">{@label}</div>
+      <div class="text-xs uppercase tracking-wider text-base-content/55">{@label}</div>
     </div>
     """
   end
@@ -239,7 +239,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
     ~H"""
     <.link navigate={@href} class="flex items-center gap-3 group">
       <.icon name={@icon} class="size-5 shrink-0 text-base-content/55" />
-      <span :if={@count == 0} class="text-sm text-base-content/40">{@empty}</span>
+      <span :if={@count == 0} class="text-sm text-base-content/55">{@empty}</span>
       <span :if={@count > 0} class="text-sm">
         <span class={["font-semibold tabular-nums", @tone]}>{@count}</span>
         <span class="text-base-content/70">{pluralize(@count, @singular, @plural)}</span>

@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.Storybook.TMDB.TitleSummary do
             "markers as search rows render them.",
         attributes: %{title: title(%{}), poster_url: nil},
         slots: [
-          ~s|<:markers><span class="shrink-0 text-xs text-success/70">Tracked</span><span class="shrink-0 text-xs text-base-content/50">In library</span></:markers>|
+          ~s|<:markers><span class="shrink-0 text-xs text-success/70">Tracked</span><span class="shrink-0 text-xs text-base-content/55">In library</span></:markers>|
         ]
       },
       %Variation{

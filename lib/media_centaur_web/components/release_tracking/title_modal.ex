@@ -58,12 +58,12 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
       <:orientation>
         <div :if={@detail} class="px-6">
           <TitleLayer.lockup title={@detail.name} logo_url={@detail.logo_url} />
-          <p class="mt-3 flex items-center gap-2 pb-5 text-xs uppercase tracking-wider text-base-content/50 text-on-image">
+          <p class="mt-3 flex items-center gap-2 pb-5 text-xs uppercase tracking-wider text-base-content/55 text-on-image">
             <.icon name={media_icon(@detail.media_type)} class="size-4" />
             <span>{media_label(@detail.media_type)}</span>
             <span
               :if={@detail.tracking_since}
-              class="normal-case tracking-normal text-base-content/40"
+              class="normal-case tracking-normal text-base-content/55"
             >
               · Tracking since {tracking_since_label(@detail.tracking_since)}
             </span>
@@ -76,7 +76,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
                 straggler the same slot states the absence plainly — the
                 shape stays constant, so the surface is learnable. --%>
           <section class="space-y-2">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Next release
             </h3>
             <div
@@ -101,14 +101,14 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
             </div>
             <p
               :if={!@next_event}
-              class="glass-inset rounded-lg px-4 py-3 text-sm text-base-content/50"
+              class="glass-inset rounded-lg px-4 py-3 text-sm text-base-content/55"
             >
               Nothing scheduled — we'll list new releases here as soon as they're announced.
             </p>
           </section>
 
           <section :if={@detail.acquisition?} class="space-y-2">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Automation
             </h3>
             <label class="flex items-center justify-between gap-3">
@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
           </section>
 
           <section :if={@detail.timeline != []} class="space-y-2">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Releases
             </h3>
             <div class="space-y-1">
@@ -163,7 +163,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
           </section>
 
           <section :if={@detail.activity != []} class="space-y-2">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Recent activity
             </h3>
             <ul class="space-y-1.5">
@@ -172,7 +172,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
                 class="flex items-baseline justify-between gap-3 text-sm"
               >
                 <span class="text-base-content/70">{entry.text}</span>
-                <span class="shrink-0 text-xs tabular-nums text-base-content/30">{entry.at}</span>
+                <span class="shrink-0 text-xs tabular-nums text-base-content/55">{entry.at}</span>
               </li>
             </ul>
           </section>

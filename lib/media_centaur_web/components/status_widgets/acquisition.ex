@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
 
         <div :if={@acquisition_activity.configured?}>
           <%!-- Band 1 · Connectivity (the only coloured band) --%>
-          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
             Connectivity
           </h3>
           <div data-component="acquisition-connectivity" class="mt-2 space-y-2">
@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
               <span class="text-base-content/70 w-32 shrink-0">Download client</span>
               <span class={["size-2 rounded-full shrink-0", tone_chrome(@client.tone).dot]}></span>
               <span class={tone_chrome(@client.tone).text}>{@client.label}</span>
-              <span :if={@client.detail} class="ml-auto text-xs text-base-content/40 tabular-nums">
+              <span :if={@client.detail} class="ml-auto text-xs text-base-content/55 tabular-nums">
                 {@client.detail}
               </span>
             </div>
@@ -77,19 +77,19 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
               <div class="text-2xl font-semibold tabular-nums">
                 {@acquisition_activity.throughput.acquired}
               </div>
-              <div class="text-xs uppercase tracking-wider text-base-content/50">Acquired</div>
+              <div class="text-xs uppercase tracking-wider text-base-content/55">Acquired</div>
             </div>
             <div>
               <div class="text-2xl font-semibold tabular-nums">
                 {acq_rate_label(@acquisition_activity.throughput.success_rate)}
               </div>
-              <div class="text-xs uppercase tracking-wider text-base-content/50">Success</div>
+              <div class="text-xs uppercase tracking-wider text-base-content/55">Success</div>
             </div>
             <.link navigate={~p"/incoming"} class="block group">
               <div class="text-2xl font-semibold tabular-nums group-hover:text-primary">
                 {@acquisition_activity.throughput.active}
               </div>
-              <div class="text-xs uppercase tracking-wider text-base-content/50 group-hover:text-primary">
+              <div class="text-xs uppercase tracking-wider text-base-content/55 group-hover:text-primary">
                 Active
               </div>
             </.link>
@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
   defp tone_chrome(:ok), do: %{dot: "bg-success", text: "text-success"}
   defp tone_chrome(:warning), do: %{dot: "bg-warning", text: "text-warning"}
   defp tone_chrome(:error), do: %{dot: "bg-error", text: "text-error"}
-  defp tone_chrome(:muted), do: %{dot: "bg-base-content/30", text: "text-base-content/50"}
+  defp tone_chrome(:muted), do: %{dot: "bg-base-content/30", text: "text-base-content/55"}
 
   defp acq_client_status(:live, last), do: %{label: "Connected", tone: :ok, detail: poll_suffix(last)}
   defp acq_client_status(:initializing, _last), do: %{label: "Connecting…", tone: :muted, detail: nil}

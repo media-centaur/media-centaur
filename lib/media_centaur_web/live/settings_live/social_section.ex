@@ -38,14 +38,14 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
           <h2 class="text-lg font-semibold flex items-center gap-2">
             Social <.status_dot configured={any_connected?(@status)} />
           </h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
+          <p class="text-sm text-base-content/55 mt-0.5">
             Your identity and the relays your recommendations travel over. Friends are managed on the Discovery page.
           </p>
         </div>
 
         <div class="space-y-4">
           <.settings_card_header title="Your identity" />
-          <p class="text-xs text-base-content/50 max-w-[60ch]">
+          <p class="text-xs text-base-content/55 max-w-[60ch]">
             Friends add you by this key. Your recommendations are visible to anyone who can read the relays you configure.
           </p>
 
@@ -154,7 +154,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
 
         <div class="pt-5 border-t border-base-content/10 space-y-4">
           <.settings_card_header title="Relays" />
-          <p class="text-xs text-base-content/50 max-w-[60ch]">
+          <p class="text-xs text-base-content/55 max-w-[60ch]">
             The servers your recommendations are published to and read from. Your group's own relay first; public relays are more entries.
           </p>
 
@@ -170,7 +170,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               </span>
               <span
                 :if={last_error(@status[relay.url])}
-                class="min-w-0 max-w-48 truncate text-xs text-base-content/40"
+                class="min-w-0 max-w-48 truncate text-xs text-base-content/55"
                 title={last_error(@status[relay.url])}
               >
                 {last_error(@status[relay.url])}

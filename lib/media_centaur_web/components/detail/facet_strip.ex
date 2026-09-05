@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Components.Detail.FacetStrip do
         :for={facet <- @facets}
         class="flex flex-col gap-0.5 min-w-0 last:odd:col-span-2"
       >
-        <span class="text-[0.65rem] uppercase tracking-wider text-base-content/40 font-semibold">
+        <span class="text-[0.65rem] uppercase tracking-wider text-base-content/55 font-semibold">
           {facet.label}
         </span>
         <.facet_value facet={facet} />
@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.Components.Detail.FacetStrip do
         :for={facet <- @facets}
         class="flex flex-col gap-0.5 px-4 first:pl-0 last:pr-0 border-l border-base-content/[0.07] first:border-l-0 min-w-0"
       >
-        <span class="text-[0.65rem] uppercase tracking-wider text-base-content/40 font-semibold">
+        <span class="text-[0.65rem] uppercase tracking-wider text-base-content/55 font-semibold">
           {facet.label}
         </span>
         <.facet_value facet={facet} />
@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.Components.Detail.FacetStrip do
     ~H"""
     <span class="text-sm text-base-content/90 flex items-baseline gap-1.5">
       <span class="text-success font-semibold tabular-nums">★ {Float.round(@rating, 1)}</span>
-      <span :if={is_integer(@vote_count) && @vote_count > 0} class="text-xs text-base-content/45">
+      <span :if={is_integer(@vote_count) && @vote_count > 0} class="text-xs text-base-content/55">
         {format_votes(@vote_count)}
       </span>
     </span>

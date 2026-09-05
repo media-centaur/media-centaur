@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
     end
 
     test "is muted when there is no gap" do
-      assert StatusHelpers.gap_count_class(0) == "text-base-content/40"
+      assert StatusHelpers.gap_count_class(0) == "text-base-content/55"
     end
   end
 

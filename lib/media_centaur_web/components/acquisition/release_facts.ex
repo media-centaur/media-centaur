@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
     </span>
     <span
       :if={Quality.source_label(@entry.title)}
-      class="flex-shrink-0 text-xs text-base-content/50"
+      class="flex-shrink-0 text-xs text-base-content/55"
     >
       {Quality.source_label(@entry.title)}
     </span>
@@ -79,7 +79,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
     >
       ⚠ looks fake
     </span>
-    <span :if={@entry.size_bytes} class="flex-shrink-0 text-sm text-base-content/50 tabular-nums">
+    <span :if={@entry.size_bytes} class="flex-shrink-0 text-sm text-base-content/55 tabular-nums">
       {Format.format_size_decimal(@entry.size_bytes)}
     </span>
     <span
@@ -88,7 +88,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
     >
       ▲ {@entry.seeders}
     </span>
-    <span :if={@entry.indexer} class="flex-shrink-0 max-w-24 truncate text-xs text-base-content/40">
+    <span :if={@entry.indexer} class="flex-shrink-0 max-w-24 truncate text-xs text-base-content/55">
       {@entry.indexer}
     </span>
     """
@@ -101,7 +101,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
   @spec quality_color(atom() | String.t() | nil) :: String.t()
   def quality_color(quality) when quality in [:uhd_4k, "4K", "2160p"], do: "text-success"
   def quality_color(quality) when quality in [:hd_1080p, "1080p"], do: "text-info"
-  def quality_color(nil), do: "text-base-content/40"
+  def quality_color(nil), do: "text-base-content/55"
   def quality_color(_other), do: "text-base-content/60"
 
   @doc "Displayable quality label — atoms via `Quality.label/1`, strings as-is, nil honest."

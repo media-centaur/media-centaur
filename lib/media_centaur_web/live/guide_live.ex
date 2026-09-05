@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.GuideLive do
           style="max-height: calc(100 * var(--pvh) - 3rem)"
         >
           <div :for={{part, chapters} <- @parts}>
-            <div class="px-3 mb-1 text-xs font-medium uppercase tracking-wider text-base-content/45">
+            <div class="px-3 mb-1 text-xs font-medium uppercase tracking-wider text-base-content/55">
               {part}
             </div>
             <.link
@@ -93,7 +93,7 @@ defmodule MediaCentaurWeb.GuideLive do
           data-nav-zone="guide_outline"
           class="w-48 shrink-0 sticky top-6 self-start hidden xl:block"
         >
-          <div class="mb-2 text-xs font-medium uppercase tracking-wider text-base-content/45">
+          <div class="mb-2 text-xs font-medium uppercase tracking-wider text-base-content/55">
             On this page
           </div>
           <a

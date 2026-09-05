@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <h2 class="text-lg font-semibold">Media Import</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
+          <p class="text-sm text-base-content/55 mt-0.5">
             Controls how files are classified and matched during ingestion.
           </p>
         </div>
@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
 
       <div class="space-y-3">
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Extras folder names
           </label>
           <input
@@ -50,13 +50,13 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
             data-nav-item
             tabindex="0"
           />
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             Comma-separated folder names found within your media — files inside import as bonus content.
           </p>
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Ignored folder names
           </label>
           <input
@@ -68,14 +68,14 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
             data-nav-item
             tabindex="0"
           />
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             Comma-separated folder names ignored wherever they appear within your media.
             To exclude a specific path, use Library → Excluded directories.
           </p>
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Auto-approve threshold
           </label>
           <input
@@ -89,14 +89,14 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
             data-nav-item
             tabindex="0"
           />
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             TMDB matches scoring above this confidence (0.0–1.0) are approved
             automatically; the rest wait in Review.
           </p>
         </div>
 
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             Artwork resolution
           </label>
           <select
@@ -112,7 +112,7 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
               1080p — smaller files, ideal for 1080p displays
             </option>
           </select>
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             Resolution for downloaded background artwork (backdrops). Applies to
             newly fetched art; existing artwork keeps its size until refreshed.
             Posters and thumbnails are always stored at a display-appropriate size.

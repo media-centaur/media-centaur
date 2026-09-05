@@ -594,9 +594,9 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
     end
 
     test "non-degraded statuses fall back to the muted-faint class" do
-      assert Logic.health_text_class(:healthy) == "text-base-content/40"
-      assert Logic.health_text_class(:warming_up) == "text-base-content/40"
-      assert Logic.health_text_class(nil) == "text-base-content/40"
+      assert Logic.health_text_class(:healthy) == "text-base-content/55"
+      assert Logic.health_text_class(:warming_up) == "text-base-content/55"
+      assert Logic.health_text_class(nil) == "text-base-content/55"
     end
   end
 

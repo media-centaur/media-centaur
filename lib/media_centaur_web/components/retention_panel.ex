@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.RetentionPanel do
   def retention_panel(assigns) do
     ~H"""
     <div class="glass-inset rounded-xl p-5">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
         Data retention
       </h3>
       <div class="mt-2 divide-y divide-base-content/5">
@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.RetentionPanel do
                instead of overflowing the rail). --%>
           <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
             <span class="max-w-full shrink-0 text-sm text-base-content/80">{policy.label}</span>
-            <span class="max-w-full shrink-0 text-xs text-base-content/45">
+            <span class="max-w-full shrink-0 text-xs text-base-content/55">
               {sweep_summary(policy)}
             </span>
           </div>

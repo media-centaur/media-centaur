@@ -53,7 +53,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.ReleaseNotes do
 
     ~H"""
     <div class={["space-y-3 text-base-content/80", @class]}>
-      <p :if={@blocks == []} class="italic text-base-content/50">
+      <p :if={@blocks == []} class="italic text-base-content/55">
         No release notes available for this version yet.
       </p>
       <.block :for={block <- @blocks} block={block} />
@@ -74,7 +74,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.ReleaseNotes do
     ~H"""
     <h4
       :if={@level >= 3}
-      class="text-xs font-medium uppercase tracking-wider text-base-content/50 pt-1"
+      class="text-xs font-medium uppercase tracking-wider text-base-content/55 pt-1"
     >
       <.inline :for={node <- @inline} node={node} />
     </h4>

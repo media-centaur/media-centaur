@@ -104,7 +104,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.EventCard do
 
       <div class="min-w-0 flex-1">
         <div class="truncate text-sm font-medium">{@event.item_name}</div>
-        <div class="truncate text-xs text-base-content/50">{Present.what_drops(@event)}</div>
+        <div class="truncate text-xs text-base-content/55">{Present.what_drops(@event)}</div>
       </div>
 
       <div class="flex shrink-0 flex-col items-end gap-0.5 text-right">
@@ -143,7 +143,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.EventCard do
         <.icon name={Present.status_icon(@event.status)} class="size-4" />
         <span>{Present.status_label(@event.status)}</span>
       </span>
-      <span :if={Present.theatrical_note?(@event)} class="text-[11px] text-base-content/40">
+      <span :if={Present.theatrical_note?(@event)} class="text-[11px] text-base-content/55">
         we'll grab the digital release
       </span>
     </span>

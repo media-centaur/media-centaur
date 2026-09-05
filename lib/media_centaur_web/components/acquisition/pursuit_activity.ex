@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
             :if={length(@vm.downloads) > 1 || @vm.downloads_done > 0}
             class="flex items-baseline justify-between gap-3 text-xs"
           >
-            <span class="min-w-0 truncate font-mono text-base-content/50" title={entry.release_title}>
+            <span class="min-w-0 truncate font-mono text-base-content/55" title={entry.release_title}>
               {entry.release_title}
             </span>
             <span
@@ -141,7 +141,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
 
   defp staleness_class(:very_stale), do: "text-error"
   defp staleness_class(:stale), do: "text-warning"
-  defp staleness_class(_), do: "text-base-content/40"
+  defp staleness_class(_), do: "text-base-content/55"
 
   defp staleness_message(%{staleness: :fresh}), do: nil
   defp staleness_message(%{last_activity_at: nil}), do: nil

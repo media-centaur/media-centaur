@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.SettingsLive.Tmdb do
           <h2 class="text-lg font-semibold flex items-center gap-2">
             TMDB <.status_dot configured={@config[:tmdb_api_key_configured?]} />
           </h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
+          <p class="text-sm text-base-content/55 mt-0.5">
             The Movie Database API — required for metadata scraping and artwork.
           </p>
         </div>
@@ -41,7 +41,7 @@ defmodule MediaCentaurWeb.SettingsLive.Tmdb do
 
       <div class="space-y-3">
         <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
             API Key
           </label>
           <input
@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.SettingsLive.Tmdb do
             data-nav-item
             tabindex="0"
           />
-          <p class="text-xs text-base-content/40 mt-1">
+          <p class="text-xs text-base-content/55 mt-1">
             Don't have one yet? Request a free key at <a
               href="https://www.themoviedb.org/settings/api"
               target="_blank"

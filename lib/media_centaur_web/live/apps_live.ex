@@ -181,7 +181,7 @@ defmodule MediaCentaurWeb.AppsLive do
         <div
           :if={@apps == []}
           id="apps-empty"
-          class="mt-4 glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+          class="mt-4 glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
         >
           No apps yet. Open Manage to add a Steam game or any command.
         </div>
@@ -258,15 +258,15 @@ defmodule MediaCentaurWeb.AppsLive do
               </div>
 
               <div :if={@modal == :add && @add_tab == :steam} class="space-y-3">
-                <p :if={@steam_games == :unavailable} class="text-sm text-base-content/50">
+                <p :if={@steam_games == :unavailable} class="text-sm text-base-content/55">
                   Steam wasn't found on this machine. Use the Manual tab to add any app by command.
                 </p>
-                <p :if={@steam_games == []} class="text-sm text-base-content/50">
+                <p :if={@steam_games == []} class="text-sm text-base-content/55">
                   Steam is installed, but no games were found.
                 </p>
                 <p
                   :if={is_list(@steam_games) && @steam_games != []}
-                  class="text-sm text-base-content/50"
+                  class="text-sm text-base-content/55"
                 >
                   Installed games from your Steam library. Adding one launches it through Steam.
                 </p>

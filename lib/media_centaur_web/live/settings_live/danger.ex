@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.SettingsLive.Danger do
       <div class="flex items-start justify-between gap-4 pt-1">
         <div class="min-w-0">
           <p class="text-sm font-medium">Clear database</p>
-          <p class="text-xs text-base-content/50 mt-0.5">
+          <p class="text-xs text-base-content/55 mt-0.5">
             Permanently deletes all entities, files, images, and progress.
           </p>
         </div>

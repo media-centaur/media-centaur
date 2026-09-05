@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
       <form phx-submit="add_language" class="p-5 rounded-lg glass-surface space-y-4">
         <div>
           <h2 class="text-lg font-semibold">Languages you understand</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
+          <p class="text-sm text-base-content/55 mt-0.5">
             Add the languages you can follow without subtitles, most-preferred first.
             Used to pick audio you understand and which language to show subtitles in.
             Changes here save automatically.
@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
             id={"understood-lang-#{code}"}
             class="flex items-center gap-2 glass-inset rounded-lg px-3 py-2"
           >
-            <span class="w-5 text-xs tabular-nums text-base-content/40">{index + 1}</span>
+            <span class="w-5 text-xs tabular-nums text-base-content/55">{index + 1}</span>
             <span class="flex-1 text-sm">{Iso639.display_name(code)}</span>
             <.button
               type="button"
@@ -102,7 +102,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
             </.button>
           </li>
         </ol>
-        <p :if={@language_draft == []} class="text-sm text-base-content/40">
+        <p :if={@language_draft == []} class="text-sm text-base-content/55">
           No languages added yet — subtitles will always be shown until you add one.
         </p>
       </form>
@@ -111,7 +111,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold">Audio &amp; subtitles</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
+            <p class="text-sm text-base-content/55 mt-0.5">
               How tracks are picked automatically when playback starts. Per-show overrides
               (set by changing tracks during playback) always win over these.
             </p>
@@ -130,7 +130,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
 
         <div class="space-y-4">
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
               Audio preference
             </label>
             <select
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
                 Show subtitles
               </label>
               <select
@@ -189,7 +189,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
             </div>
 
             <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
                 Subtitle language
               </label>
               <select
@@ -214,7 +214,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
             </div>
 
             <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
                 Subtitle style
               </label>
               <select
@@ -236,7 +236,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
             </div>
 
             <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
                 Forced subtitles
               </label>
               <select

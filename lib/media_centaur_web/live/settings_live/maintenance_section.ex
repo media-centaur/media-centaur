@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
                 {@missing_images_summary.missing} missing
               </.badge>
             </p>
-            <p class="text-xs text-base-content/50 mt-0.5">
+            <p class="text-xs text-base-content/55 mt-0.5">
               <%= if @missing_images_summary.missing > 0 do %>
                 Finds {@missing_images_summary.missing} image file{if @missing_images_summary.missing ==
                                                                         1,
@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
                 {@blank_extra_names_count} blank
               </.badge>
             </p>
-            <p class="text-xs text-base-content/50 mt-0.5">
+            <p class="text-xs text-base-content/55 mt-0.5">
               Re-reads each bonus feature's name from its file path, healing blank or
               out-of-date names left by an earlier parsing bug. Network-free and safe to
               re-run — also picks up naming improvements after an update.
@@ -109,7 +109,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
         <div class="flex items-start justify-between gap-4 py-3">
           <div class="min-w-0">
             <p class="text-sm font-medium">Re-fetch backdrops</p>
-            <p class="text-xs text-base-content/50 mt-0.5">
+            <p class="text-xs text-base-content/55 mt-0.5">
               Re-downloads every backdrop at the current artwork resolution
               (Media Import → Artwork resolution) and clears the old cached copies to
               reclaim space. Use after changing the resolution to bring existing
@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
         <div class="flex items-start justify-between gap-4 py-3">
           <div class="min-w-0">
             <p class="text-sm font-medium">Refresh movie credits</p>
-            <p class="text-xs text-base-content/50 mt-0.5">
+            <p class="text-xs text-base-content/55 mt-0.5">
               Backfills cast, crew (director, writers, composer), and IMDb ids for movies imported before those fields existed. Skips movies that already have credits — safe to re-run.
             </p>
           </div>
@@ -152,7 +152,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
         <div class="flex items-start justify-between gap-4 py-3">
           <div class="min-w-0">
             <p class="text-sm font-medium">Refresh series credits</p>
-            <p class="text-xs text-base-content/50 mt-0.5">
+            <p class="text-xs text-base-content/55 mt-0.5">
               Backfills creators, aggregate cast, and IMDb ids for TV series imported before those fields existed. Skips series that already have credits — safe to re-run.
             </p>
           </div>
@@ -172,7 +172,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
         <div class="flex items-start justify-between gap-4 py-3">
           <div class="min-w-0">
             <p class="text-sm font-medium">Refresh movie subtitles</p>
-            <p class="text-xs text-base-content/50 mt-0.5">
+            <p class="text-xs text-base-content/55 mt-0.5">
               Detects subtitle tracks (embedded streams via ffprobe + sidecar files) for movies imported before subtitle detection shipped. Skips files that already have tracks — safe to re-run.
             </p>
           </div>
@@ -192,7 +192,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
         <div class="flex items-start justify-between gap-4 py-3">
           <div class="min-w-0">
             <p class="text-sm font-medium">Refresh image cache</p>
-            <p class="text-xs text-base-content/50 mt-0.5">
+            <p class="text-xs text-base-content/55 mt-0.5">
               Deletes all cached artwork and re-downloads from TMDB. May take a while.
             </p>
           </div>

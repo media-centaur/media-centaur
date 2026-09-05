@@ -200,7 +200,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
           >
             <.icon name="hero-photo-mini" class="size-4" /> Refresh artwork
           </.button>
-          <p :if={!@tmdb_ready} class="text-xs text-base-content/50">
+          <p :if={!@tmdb_ready} class="text-xs text-base-content/55">
             Rematch needs a working TMDB connection. Test it in <.link
               navigate="/settings?section=tmdb"
               class="link link-primary"
@@ -211,7 +211,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
               last line — all "which title is this", none worth a section. --%>
         <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs">
           <.external_id_link :for={ext_id <- @external_ids} ext_id={ext_id} entity_url={@entity.url} />
-          <span class="ml-auto flex items-baseline gap-1.5 text-base-content/30">
+          <span class="ml-auto flex items-baseline gap-1.5 text-base-content/55">
             <.icon name="hero-finger-print-mini" class="size-3 self-center" />
             <span class="font-mono select-all">{@entity.id}</span>
           </span>
@@ -221,7 +221,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
       <div data-nav-zone="manage_list" class="space-y-5">
         <p
           :if={@files_status == :loading}
-          class="text-xs text-base-content/40"
+          class="text-xs text-base-content/55"
           data-role="files-status"
         >
           Reading files…
@@ -231,10 +231,10 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         </p>
         <div :if={@files != [] and @files_status == :loaded}>
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
+            <span class="text-xs font-medium text-base-content/55 uppercase tracking-wide">
               Files
             </span>
-            <span class="text-xs text-base-content/40">
+            <span class="text-xs text-base-content/55">
               {file_summary(@file_count, @total_size)}
             </span>
           </div>
@@ -310,7 +310,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         <.icon name="hero-folder-mini" class="size-3.5 text-base-content/40 flex-shrink-0" />
         <span class="font-medium truncate">{@group.name}</span>
         <span class="flex-1" />
-        <span class="text-xs text-base-content/40 tabular-nums flex-shrink-0">
+        <span class="text-xs text-base-content/55 tabular-nums flex-shrink-0">
           {file_summary(length(@group.files), @group_size)}
         </span>
         <.button
@@ -414,7 +414,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         <span class="truncate font-mono text-xs text-base-content/80" title={@file_path}>
           {@filename}
         </span>
-        <span :if={@size} class="text-xs text-base-content/40 flex-shrink-0 ml-auto">
+        <span :if={@size} class="text-xs text-base-content/55 flex-shrink-0 ml-auto">
           {format_file_size(@size)}
         </span>
         <span :if={@absent} class="text-xs text-warning flex-shrink-0">absent</span>
@@ -442,7 +442,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
       </div>
       <div
         :if={@badges != [] || @added_at}
-        class="mt-1 ml-5 flex items-center gap-1.5 text-xs text-base-content/40"
+        class="mt-1 ml-5 flex items-center gap-1.5 text-xs text-base-content/55"
       >
         <%!-- Highlight HDR (a quality users actively care about) with the
               info-blue tint; everything else stays a quiet ghost chip. --%>
@@ -461,14 +461,14 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
             is visible right on the row. Display-only, no judgement. --%>
       <div :if={@media_info} class="mt-1 ml-5 space-y-0.5 text-xs">
         <div :if={@media_info.container_title} class="flex items-baseline gap-2 min-w-0">
-          <span class="uppercase tracking-wider text-base-content/40 shrink-0">
+          <span class="uppercase tracking-wider text-base-content/55 shrink-0">
             Container title
           </span>
           <span class="truncate text-base-content/60" title={@media_info.container_title}>
             {@media_info.container_title}
           </span>
         </div>
-        <div :if={@tech_line != ""} class="text-base-content/50">
+        <div :if={@tech_line != ""} class="text-base-content/55">
           {@tech_line}
         </div>
       </div>
@@ -486,7 +486,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
 
     ~H"""
     <span class="flex items-baseline gap-1.5">
-      <span class="text-base-content/40 uppercase tracking-wide text-[0.65rem]">{@label}</span>
+      <span class="text-base-content/55 uppercase tracking-wide text-[0.65rem]">{@label}</span>
       <%= if @url do %>
         <a
           href={@url}

@@ -279,7 +279,7 @@ defmodule MediaCentaurWeb.StatusHelpers do
   not a problem and stays quiet.
   """
   @spec gap_count_class(non_neg_integer()) :: String.t()
-  def gap_count_class(0), do: "text-base-content/40"
+  def gap_count_class(0), do: "text-base-content/55"
   def gap_count_class(count) when count > 0, do: "text-warning"
 
   @doc """

@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
   defp tone_class(:landed), do: "text-success border-success/35"
   defp tone_class(:in_pursuit), do: "text-info border-info/35"
   defp tone_class(:failed), do: "text-error border-error/40"
-  defp tone_class(:cancelled), do: "text-base-content/40 border-base-content/15"
+  defp tone_class(:cancelled), do: "text-base-content/55 border-base-content/15"
   defp tone_class(_neutral), do: "text-base-content/65 border-base-content/15"
 
   defp anchor_hover_class(:in_pursuit), do: "transition-colors hover:border-info/60 hover:text-info"

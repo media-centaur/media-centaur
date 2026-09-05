@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.ConsentComponents do
       </ul>
       <label class="flex flex-col gap-1">
         <span class="text-sm text-base-content/70">
-          In your own words, what happened? <span class="text-base-content/40">(optional)</span>
+          In your own words, what happened? <span class="text-base-content/55">(optional)</span>
         </span>
         <form
           id="consent-narrative-form"
@@ -112,7 +112,7 @@ defmodule MediaCentaurWeb.ConsentComponents do
         <span>I've reviewed this and I'm posting it publicly on GitHub.</span>
       </label>
       <details>
-        <summary class="text-xs text-base-content/50 cursor-pointer">
+        <summary class="text-xs text-base-content/55 cursor-pointer">
           View exactly what will be posted
         </summary>
         <pre class="mt-2 whitespace-pre-wrap font-mono text-xs text-base-content/60">{@final_text}</pre>

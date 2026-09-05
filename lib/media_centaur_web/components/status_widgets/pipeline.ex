@@ -57,11 +57,11 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
           style={@grid_columns}
         >
           <span></span>
-          <span class="text-xs text-base-content/50 uppercase tracking-wide">New Media</span>
-          <span class="text-xs text-base-content/40 uppercase tracking-wide">Status</span>
-          <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Rate</span>
-          <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Avg</span>
-          <span class="text-xs text-base-content/40 uppercase tracking-wide text-right">Slots</span>
+          <span class="text-xs text-base-content/55 uppercase tracking-wide">New Media</span>
+          <span class="text-xs text-base-content/55 uppercase tracking-wide">Status</span>
+          <span class="text-xs text-base-content/55 uppercase tracking-wide text-right">Rate</span>
+          <span class="text-xs text-base-content/55 uppercase tracking-wide text-right">Avg</span>
+          <span class="text-xs text-base-content/55 uppercase tracking-wide text-right">Slots</span>
         </div>
 
         <%!-- Content pipeline stages --%>
@@ -76,7 +76,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
         </div>
 
         <%!-- Images section --%>
-        <h3 class="text-xs text-base-content/50 uppercase tracking-wide mt-3">Images</h3>
+        <h3 class="text-xs text-base-content/55 uppercase tracking-wide mt-3">Images</h3>
 
         <%!-- Image pipeline row — same grid as content stages --%>
         <div
@@ -104,7 +104,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
             {format_duration(@image_stats.avg_duration_ms)}
           </span>
 
-          <span class="text-xs font-mono text-base-content/40 text-right">
+          <span class="text-xs font-mono text-base-content/55 text-right">
             {@image_stats.active_count}/{@image_concurrency}
           </span>
         </div>
@@ -115,7 +115,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
               @image_stats.queue_depth > 0 or
               (@retry_status && @retry_status.retrying_count > 0)
           }
-          class="flex items-center gap-3 text-xs text-base-content/50 ml-6"
+          class="flex items-center gap-3 text-xs text-base-content/55 ml-6"
         >
           <span :if={@image_stats.total_downloaded > 0}>
             {@image_stats.total_downloaded} downloaded
@@ -167,7 +167,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
         {format_duration(@data.avg_duration_ms)}
       </span>
 
-      <span class="text-xs font-mono text-base-content/40 text-right">
+      <span class="text-xs font-mono text-base-content/55 text-right">
         {@data.active_count}/{@concurrency}
       </span>
     </div>

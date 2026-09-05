@@ -2153,7 +2153,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  defp phase_text_class(:pending), do: "text-sm text-base-content/40"
+  defp phase_text_class(:pending), do: "text-sm text-base-content/55"
   defp phase_text_class(:active), do: "text-sm text-base-content font-medium"
   defp phase_text_class(:done), do: "text-sm text-base-content/70"
   defp phase_text_class(:failed), do: "text-sm text-error"
@@ -2252,7 +2252,7 @@ defmodule MediaCentaurWeb.SettingsLive do
           <p class="text-sm text-error">
             {SystemSection.apply_error_label(@apply_error)}
           </p>
-          <p class="text-xs text-base-content/50">
+          <p class="text-xs text-base-content/55">
             The running install is untouched.
           </p>
         </div>
@@ -2510,7 +2510,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
         <div>
           <label class="text-sm font-medium">
-            Name <span class="text-base-content/50">(optional)</span>
+            Name <span class="text-base-content/55">(optional)</span>
           </label>
           <input
             type="text"
@@ -2533,7 +2533,7 @@ defmodule MediaCentaurWeb.SettingsLive do
               class="library-filter w-full"
               placeholder="Leave blank to use the default"
             />
-            <p class="text-xs text-base-content/50">
+            <p class="text-xs text-base-content/55">
               If blank, artwork is cached at
               <code class="font-mono">
                 {MediaDirsLogic.default_images_dir_hint(@media_dir_dialog.entry["dir"])}

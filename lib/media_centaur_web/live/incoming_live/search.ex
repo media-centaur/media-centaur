@@ -41,7 +41,7 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
       <div class="flex justify-end">
         <button
           type="button"
-          class="text-xs text-base-content/30 transition-colors hover:text-base-content/60"
+          class="text-xs text-base-content/55 transition-colors hover:text-base-content/60"
           phx-click="clear_search"
           data-nav-item
           tabindex="0"
@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
         name={if @group.expanded?, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
         class="size-4 shrink-0 text-base-content/40"
       />
-      <span class="text-xs font-medium text-base-content/50 w-32 shrink-0 truncate">
+      <span class="text-xs font-medium text-base-content/55 w-32 shrink-0 truncate">
         {@group.term}
       </span>
       <.group_status_summary group={@group} />
@@ -104,7 +104,7 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
   defp group_status_summary(%{group: %{status: :loading}} = assigns) do
     ~H"""
     <span class="loading loading-spinner loading-xs text-base-content/40"></span>
-    <span class="flex-1 text-sm text-base-content/40">Searching…</span>
+    <span class="flex-1 text-sm text-base-content/55">Searching…</span>
     """
   end
 
@@ -118,7 +118,7 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
 
   defp group_status_summary(%{group: %{status: :abandoned}} = assigns) do
     ~H"""
-    <span class="flex-1 text-sm text-base-content/40">
+    <span class="flex-1 text-sm text-base-content/55">
       Search was interrupted — Retry to resume
     </span>
     """
@@ -126,7 +126,7 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
 
   defp group_status_summary(%{group: %{status: :ready, results: []}} = assigns) do
     ~H"""
-    <span class="flex-1 text-sm text-base-content/40">No results</span>
+    <span class="flex-1 text-sm text-base-content/55">No results</span>
     """
   end
 

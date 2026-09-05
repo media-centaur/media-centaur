@@ -33,11 +33,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
         </div>
         <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
       </div>
-      <p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 pb-5 text-xs uppercase tracking-wider text-base-content/50 text-on-image">
+      <p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 pb-5 text-xs uppercase tracking-wider text-base-content/55 text-on-image">
         <.icon name={type_icon(@vm.recipe)} class="size-4" />
         <span>{type_label(@vm.recipe)}</span>
         <span :if={scope(@vm.recipe)}>· {scope(@vm.recipe)}</span>
-        <span :if={@vm.criteria_summary} class="normal-case tracking-normal text-base-content/40">
+        <span :if={@vm.criteria_summary} class="normal-case tracking-normal text-base-content/55">
           · {@vm.criteria_summary}
         </span>
       </p>
@@ -63,14 +63,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
     <div :if={@release_subtitle || @vm.search_queries != []} class="space-y-2">
       <div
         :if={@release_subtitle}
-        class="text-xs font-mono text-base-content/50 truncate"
+        class="text-xs font-mono text-base-content/55 truncate"
         title={@release_subtitle}
       >
         {@release_subtitle}
       </div>
 
       <div :if={@vm.search_queries != []} class="text-xs text-base-content/60 space-y-0.5">
-        <div class="text-base-content/50">{search_label(@vm.search_queries)}</div>
+        <div class="text-base-content/55">{search_label(@vm.search_queries)}</div>
         <ul class="space-y-0.5">
           <li
             :for={query <- @vm.search_queries}

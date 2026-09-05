@@ -54,7 +54,7 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
     >
       <.title_summary title={@item.title} poster_url={@poster_url}>
         <:markers :if={@from_nickname}>
-          <span class="shrink-0 text-xs text-base-content/50">from {@from_nickname}</span>
+          <span class="shrink-0 text-xs text-base-content/55">from {@from_nickname}</span>
         </:markers>
         <:secondary :if={@item.note}>{@item.note}</:secondary>
       </.title_summary>
@@ -76,7 +76,7 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
         />
         <button
           type="button"
-          class="cursor-pointer text-xs text-base-content/30 transition-colors hover:text-base-content/60"
+          class="cursor-pointer text-xs text-base-content/55 transition-colors hover:text-base-content/60"
           phx-click="watchlist_remove"
           phx-value-tmdb-id={@item.tmdb_id}
           phx-value-media-type={@item.media_type}
