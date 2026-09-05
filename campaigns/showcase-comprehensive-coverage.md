@@ -168,6 +168,10 @@ surfaces, against the seeded state:
    the wiki pages whose features they illustrate (per CLAUDE.md
    keep-the-wiki-in-sync rule).
 3. `mix precommit` green; ship per the usual flow.
+4. `docs-site/index.html` feature tiles for Discovery/Watchlist, Apps and
+   friends — the README already carries the bullets; the tiles need
+   marketing copy from the owner (handed over from the 2026-09 audit,
+   finding D17, on 2026-09-05).
 
 ## Completion criteria
 
