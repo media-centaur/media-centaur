@@ -61,10 +61,18 @@ defmodule MediaCentaur.HttpClient do
     |> attach_cache(cache)
   end
 
+  # A stubbed client also gets Req's retry step switched off: a retry
+  # against an in-process stub is pure backoff sleep (1s + 2s + 4s per
+  # stubbed 5xx), and the stub returns the same answer every time.
   defp stub_route(opts, module) do
     case Application.get_env(:media_centaur, :req_test_stubs, %{}) do
-      %{^module => stub_name} -> Keyword.put_new(opts, :plug, {Req.Test, stub_name})
-      _ -> opts
+      %{^module => stub_name} ->
+        opts
+        |> Keyword.put_new(:plug, {Req.Test, stub_name})
+        |> Keyword.put_new(:retry, false)
+
+      _ ->
+        opts
     end
   end
 
