@@ -102,7 +102,8 @@ in `test/`** — the rule the testing skill had claimed it enforced.
 **Still open in the engineering lane** (re-verified 2026-09-05 against
 HEAD; an earlier handoff wrongly said only E-5 remained):
 
-* **Stage E-8 — silent failure paths.** E54 holds (`reconciliation.ex:290-291`
+* ~~**Stage E-8 — silent failure paths.**~~ Done 2026-09-05 (see the
+  stage). Original evidence kept below for the record: E54 held (`reconciliation.ex:290-291`
   `_ -> :error`, `:328`; zero `Log` calls in `reconciliation.ex` and
   `spine.ex`). DS17 holds (`review_live.ex:418` and
   `settings_live.ex:1608` catch-all `{:exit, _}` clauses). DS16's
@@ -306,6 +307,15 @@ across unrelated suites.
   parallel HTTP/Req task extended the E9 seam instead of competing with
   it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
   the single design, and MC0029 now enforces the construction seam.
+* `2026-09-05` — **Stage E-8 resolved.** The rejected-TMDB-key predicate
+  belongs to `TMDB.Client`, not Discovery. `EntityModal`'s files load
+  carries an explicit `:loading | :loaded | :failed` status rather than
+  changing the list's type, so `ManagePanel.files` stays a list and the
+  storybook matrix gains two states. Not changed, deliberately:
+  `Review.approve_group_async/2`'s error *count* (it feeds a
+  `GroupError` the review page shows) and
+  `SelfUpdate.Storage`'s unknown-classification fallback (already a
+  `Log.warning`).
 * `2026-09-05` — **E45 resolved as seam + check** (owner's pick of the
   three options): test-only `__*_for_test__` seams on `Progress.Worker`,
   and MC0004 extended to `GenServer.call/cast` in tests, shown red
@@ -719,7 +729,7 @@ records where every moved function went. `mix precommit` 6593/6594
 
 ---
 
-## Stage E-8 — Failure paths that go silent
+## Stage E-8 — Failure paths that go silent — **DONE 2026-09-05**
 
 Pairs with design lane **DS16/DS17**; resolve together.
 
@@ -741,6 +751,17 @@ Pairs with design lane **DS16/DS17**; resolve together.
 assign for the files sub-view. `Log.warning` at each Reconciliation
 branch (Discovery's 401/403 routing at `pipeline/discovery.ex:76-90` is
 the model).
+
+**Done 2026-09-05** in one commit after the E-5 series: `TMDB.Client.auth_failure?/1`
+owns the rejected-key predicate (Discovery delegates); Reconciliation
+and Spine log every formerly-silent branch under `:pipeline`
+(`"reconciliation" => :pipeline` in `Log.Component`); ReviewLive and
+SettingsLive have per-task exit clauses and no catch-all; EntityModal
+carries `detail_files_status` through `DetailPanel` to `ManagePanel`
+(`files_status`), with `files_loading`/`files_failed` story variations.
+`review.ex`'s error counts and `self_update/storage.ex`'s corrupt-date
+fallback were left: the first broadcasts a `GroupError` the UI shows,
+the second already logs a warning.
 
 ---
 
@@ -1004,8 +1025,8 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
 0. ~~Reconcile the Req client seam~~ — done, no divergence (2026-09-05).
 1. ~~Stages E-1 through E-5~~ — done (E-4's E14/E36 closed by Pass 2).
 2. ~~E45~~ — done (seam + MC0004 extension, 2026-09-05).
-3. **Stage E-8** (E54, DS16 rest, DS17, DS21), then **Stage E-7**, then
-   E48 and the two E-9 leftovers. E34 / Stage E-10 stay deferred.
+3. ~~Stage E-8~~ — done 2026-09-05. Then **Stage E-7**, then E48 and
+   the two E-9 leftovers. E34 / Stage E-10 stay deferred.
 4. Elaborate the Performance lane into stages (P3/P7 one-liners first,
    P1 last) once the engineering lane is done or paused.
 5. Documentation lane, D-1 first (it is the cheapest and the README entry
