@@ -1087,6 +1087,65 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
   end
 
+  describe "partial refresh — a changed series is rebuilt as one batch (audit P1)" do
+    setup do
+      on_exit_clear_table()
+      series = create_tv_series(%{name: "Sample Batch Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      add_present_episode = fn number ->
+        episode = create_episode(%{season_id: season.id, episode_number: number})
+        playable_item = create_playable_item_for_episode(episode)
+
+        create_linked_file(%{
+          playable_item_id: playable_item.id,
+          file_path: "/media/test/batch-s01e#{number}.mkv"
+        })
+
+        playable_item
+      end
+
+      %{series: series, add_present_episode: add_present_episode}
+    end
+
+    test "query count is invariant to the number of episodes in the series", %{
+      series: series,
+      add_present_episode: add_present_episode
+    } do
+      Enum.each(1..2, add_present_episode)
+      assert :ok = Detail.refresh_cache()
+      changed = {:entities_changed, %EntitiesChanged{entity_ids: [series.id]}}
+      baseline = count_queries(fn -> Detail.handle_message(changed) end)
+
+      Enum.each(3..8, add_present_episode)
+      grown = count_queries(fn -> Detail.handle_message(changed) end)
+
+      assert grown == baseline,
+             "partial refresh issued #{grown} queries for 8 episodes vs #{baseline} for 2 — " <>
+               "the per-row rebuild path is back (one context and one shared payload per entity)"
+    end
+
+    test "every row of the series is rebuilt and one message is broadcast", %{
+      series: series,
+      add_present_episode: add_present_episode
+    } do
+      first = add_present_episode.(1)
+      assert :ok = Detail.refresh_cache()
+      added = Enum.map(2..4, add_present_episode)
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
+      :ok = Detail.handle_message({:entities_changed, %EntitiesChanged{entity_ids: [series.id]}})
+
+      for playable_item <- [first | added] do
+        assert %DetailItem{playable_item_id: id, present?: true} = Views.detail(playable_item.id)
+        assert id == playable_item.id
+      end
+
+      assert_receive {:library_view_updated, :detail, :all}, 1_000
+      refute_received {:library_view_updated, :detail, _other}
+    end
+  end
+
   describe "refresh_cache/0 query efficiency (N+1 guard)" do
     test "query count is invariant to the number of episodes under a series" do
       on_exit_clear_table()
