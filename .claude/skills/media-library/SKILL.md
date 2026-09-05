@@ -13,7 +13,7 @@ description: "Triggers when user asks about their media library — searching ti
    alias MediaCentaur.Review.PendingFile
    import Ecto.Query
    ```
-3. **Prefer context functions** — `MediaCentaur.Library.fetch_tv_series_with_associations/1`, `fetch_movie_series_with_associations/1`, etc. are already preloaded correctly. Reach for `Repo` directly only when a context function doesn't fit.
+3. **Prefer context functions** — `MediaCentaur.Library.Containers.fetch_with_associations/2` and friends are already preloaded correctly. Reach for `Repo` directly only when a context function doesn't fit.
 
 ## Data Model Quick Reference
 
@@ -52,16 +52,17 @@ The library uses **type-specific tables** — there is NO single `Entity` table.
 
 Prefer these over raw `Repo` calls — they load the canonical preloads for each entity type:
 
-| Function | Returns | Preloads |
+The type is an argument, not part of the function name (`:tv_series | :movie_series | :movie | :video_object`).
+
+| Function | Returns | Notes |
 |---|---|---|
-| `Library.fetch_tv_series_with_associations/1` | `{:ok, %TVSeries{}}` or `{:error, :not_found}` | images, external_ids, extras, watched_files, seasons → (extras, episodes → (images, watch_progress)) |
-| `Library.fetch_movie_with_associations/1` | `{:ok, %Movie{}}` or `{:error, :not_found}` | images, external_ids, extras, watched_files, watch_progress |
-| `Library.fetch_movie_series_with_associations/1` | `{:ok, %MovieSeries{}}` or `{:error, :not_found}` | images, external_ids, extras, watched_files, movies → (images, watch_progress) |
-| `Library.get_*_with_associations!/1` | raising variants of the above (also `video_object`) | same |
-| `Library.fetch_watch_progress_by_fk/2` | `{:ok, %WatchProgress{}}` or `{:error, :not_found}` | — |
-| `Library.find_by_external_id/2` | entity struct or `nil` — e.g. `find_by_external_id(:movie, "12345")` | — |
-| `Library.list_watched_files_by_entity_id/1` | `[%WatchedFile{}]` for a top-level entity | — |
-| `Library.Browser.fetch_all_typed_entries/0` | `[%{entity, progress, progress_records}]` | Everything. Returns all entities wrapped with progress summary. |
+| `Library.Containers.fetch_with_associations/2` | `{:ok, record}` or `{:error, :not_found}` | e.g. `fetch_with_associations(:tv_series, id)` — the canonical preloads for the type (`Library.Containers.full_preloads/1`) |
+| `Library.Containers.get_with_associations!/2` | the record, or raises | raising variant |
+| `Library.ExternalIds.find_by_external_id/2` | record or `nil` — e.g. `find_by_external_id(:movie, "12345")` | TMDB id lookup; `:movie_series` looks up the `tmdb_collection` source |
+| `Library.Files.list_by_entity_id/1` | `[%WatchedFile{}]` for a top-level entity | walks `PlayableItem` for every leaf under it |
+| `Library.Progress.get/1` | `%WatchProgress{}` or `nil` | by `playable_item_id`; hot in-memory state first, then the row |
+| `Library.Views.detail/1` | `%DetailItem{}` or `nil` | the fully-built projection row by `playable_item_id` — what the detail modal reads |
+| `Library.Browser.fetch_all_typed_entries/1` | `[%{entity, progress, progress_records}]` | Everything. Returns all entities wrapped with progress summary. |
 
 ## Query Patterns
 
@@ -87,14 +88,14 @@ SQLite `LIKE` is case-insensitive on ASCII by default; the `lower(...)` wrapper 
 ### Get a TV series by UUID with full preloads
 
 ```elixir
-{:ok, tv} = MediaCentaur.Library.fetch_tv_series_with_associations("uuid-here")
+{:ok, tv} = MediaCentaur.Library.Containers.fetch_with_associations(:tv_series, "uuid-here")
 # tv.seasons → [%Season{episodes: [%Episode{images: [...], watch_progress: %WatchProgress{}}]}]
 ```
 
 ### Get a movie series (collection) by UUID
 
 ```elixir
-{:ok, ms} = MediaCentaur.Library.fetch_movie_series_with_associations("uuid-here")
+{:ok, ms} = MediaCentaur.Library.Containers.fetch_with_associations(:movie_series, "uuid-here")
 # ms.movies → [%Movie{images: [...], watch_progress: %WatchProgress{}}]
 ```
 
@@ -122,7 +123,7 @@ from(m in Movie,
 
 ```elixir
 # Per-type lookup (source is inferred: "tmdb", or "tmdb_collection" for :movie_series)
-MediaCentaur.Library.find_by_external_id(:movie, "12345")
+MediaCentaur.Library.ExternalIds.find_by_external_id(:movie, "12345")
 
 # Type unknown — find the ExternalId row, then resolve its owner
 from(e in ExternalId, where: e.source == "tmdb" and e.external_id == "12345") |> Repo.all()
@@ -177,7 +178,7 @@ from(q in MediaCentaur.Pipeline.ImageQueueEntry, where: q.status in ["pending", 
 
 ```elixir
 # Preferred — resolves the PlayableItem indirection for you:
-MediaCentaur.Library.list_watched_files_by_entity_id("uuid-here")
+MediaCentaur.Library.Files.list_by_entity_id("uuid-here")
 
 # Raw equivalent for an episode-level query:
 from(w in WatchedFile,

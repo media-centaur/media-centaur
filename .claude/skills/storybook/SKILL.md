@@ -55,7 +55,7 @@ Full long-form: [`docs/storybook.md`](../../../docs/storybook.md). Abridged:
 2. **Stories follow the contract.** Variations are struct/map literals matching typed `attr`s. If you can't story without faking context, fix the contract.
 3. **Every meaningful state.** Loading / empty / error / loaded; variant × size × shape. Use `VariationGroup` for matrices.
 4. **Same unit of work, story first.** Story updates ship in the same PR as the component change. For *existing* components, the story variation is edited *before* the component (see *Storybook-first* above).
-5. **Dev-only.** Mounted under `if Mix.env() == :dev`. Dep is `only: [:dev, :test]`.
+5. **Dev and test only.** Mounted under `if Mix.env() in [:dev, :test]` (the test env compiles and renders every story). Dep is `only: [:dev, :test]`.
 6. **Visuals only.** No assertions, no logic — that's `automated-testing`'s job.
 7. **Skill linkage.** `user-interface` recipes link to stories; stories cite UIDR numbers.
 8. **Skip when it doesn't fit.** Components needing `data-input` mode, sticky LiveView state, or PubSub — static example or no story.
@@ -68,8 +68,8 @@ Full long-form: [`docs/storybook.md`](../../../docs/storybook.md). Abridged:
 | **Sandbox class** | `sandbox_class: "media-centaur"` (already set in `lib/media_centaur_web/storybook.ex`) | The live app body also has `class="media-centaur"`. Our `body.media-centaur` gradient and `.glass-surface` rules apply consistently in both contexts. |
 | **CSS path** | `css_path: "/assets/css/app.css"` — share the real bundle | Components render with the actual theme. Avoid creating a parallel `storybook.css`. |
 | **Theme scoping** | `html.psb` resets to light; `.psb-variation-block .media-centaur` restores dark | Storybook chrome stays light/readable; component previews show our real theme. Don't touch this without reading [`references/sandboxing.md`](references/sandboxing.md). |
-| **Dep env** | `{:phoenix_storybook, "~> 1.0", only: [:dev, :test]}` | `import PhoenixStorybook.Router` inside `if Mix.env() == :dev` is still validated at compile time. `:test` inclusion makes that compile pass. |
-| **Backend module guard** | `if Mix.env() == :dev` wraps `defmodule MediaCentaurWeb.Storybook` | Without the guard, `:test` and `:prod` compile fails to find `PhoenixStorybook`. |
+| **Dep env** | `{:phoenix_storybook, "~> 1.3", only: [:dev, :test]}` | The router import and the storybook module are gated by `if Mix.env() in [:dev, :test]`; the test env needs the dep because `storybook_compile_test` / `storybook_render_test` load every story. |
+| **Backend module guard** | `if Mix.env() in [:dev, :test]` wraps `defmodule MediaCentaurWeb.Storybook` | Without the guard, a `:prod` compile fails to find `PhoenixStorybook`. |
 | **Tailwind source** | `assets/css/app.css` has `@source "../../storybook"` | Utilities used in stories must be scanned by Tailwind v4. New top-level dirs need the same treatment. |
 | **Formatter** | `.formatter.exs` includes `"storybook/**/*.exs"` | Stories format alongside the rest of the code. |
 | **Component coverage** | Every component module without a story must declare `@storybook_status :skip / :pending / :static_example` + `@storybook_reason "..."` | Enforced by `MediaCentaur.Credo.Checks.StorybookCoverage` (`mix precommit`). The reason lives next to the code so it can't drift. |
@@ -429,13 +429,13 @@ If you reach for fake context state (mocked PubSub, fake LiveView assigns) to ma
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `module PhoenixStorybook.Router is not loaded` in `MIX_ENV=test` | Dep was `only: :dev` | Make it `only: [:dev, :test]`. The router import inside `if Mix.env() == :dev` is still validated at compile time. |
+| `module PhoenixStorybook.Router is not loaded` in `MIX_ENV=test` | Dep was `only: :dev` | Make it `only: [:dev, :test]`; the router import is inside `if Mix.env() in [:dev, :test]`. |
 | `Storybook.X is not included in any boundary` | Module under `Storybook.*` namespace | Rename to `MediaCentaurWeb.Storybook.*`. |
 | Storybook chrome shows light-on-light text | Daisy `:root { color-scheme: dark }` leaks into storybook chrome | The `html.psb` override in `assets/css/app.css` resets this. Don't remove it. |
 | Component preview is light/unstyled | Theme override too aggressive — wiped variables for the whole storybook | The `html.psb .psb-variation-block .media-centaur` rule restores dark theme inside component previews specifically. Don't widen the selector to all `.media-centaur`; that re-darkens `:page` stories. |
 | Stories missing from sidebar | New `<area>` directory has no `_<area>.index.exs` | Create the index. Fall back to the auto-generated default by omitting it, but you lose icon control. |
 | Tailwind utility classes used in a story aren't generated | New top-level dir not in `@source` | Add `@source "../../<dir>"` to `assets/css/app.css`. |
-| Compilation error: `module PhoenixStorybook is not loaded` in `lib/media_centaur_web/storybook.ex` | The backend module isn't gated by `if Mix.env() == :dev` | Wrap the whole `defmodule` in `if Mix.env() == :dev do … end`. |
+| Compilation error: `module PhoenixStorybook is not loaded` in `lib/media_centaur_web/storybook.ex` | The backend module isn't gated by `if Mix.env() in [:dev, :test]` | Wrap the whole `defmodule` in `if Mix.env() in [:dev, :test] do … end`. |
 | Iframe spinner forever on a `:live_component` story with `def container, do: :iframe` | Live components in iframes use a real HTTP fetch and need the route to be reachable | Verify `storybook_assets()` scope is mounted in the router. |
 
 ## See also

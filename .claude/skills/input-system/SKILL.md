@@ -118,7 +118,7 @@ All config changes go in `config.js`:
 | `data-nav-zone` | Navigation zone container (`grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs`) |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) |
 | `data-nav-grid` | CSS grid container (column count detection) |
-| `data-page-behavior` | Page behavior to activate (`dashboard`, `library`, `review`, `settings`) |
+| `data-page-behavior` | Page behavior to activate — one per page root: `apps`, `discovery`, `guide`, `incoming`, `library`, `reconcile`, `review`, `settings`, `setup`, `status` |
 | `data-nav-default-zone` | Default zone for pages without zone tabs |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation |
 | `data-nav-transient-params` | On a page root: params stripped from the remembered URL (modal state, one-shot triggers) |
@@ -151,28 +151,27 @@ Tests use `bun:test`. Three mock factories in `core/__tests__/orchestrator.test.
 
 Pure modules (focus_context, nav_graph, spatial, actions) test directly — no mocks needed.
 
-## Runtime Debugging via Chrome DevTools MCP
+## Runtime Debugging
 
-The input system has built-in debug logging that is silent by default. Toggle it at runtime through the Chrome DevTools MCP — no rebuild needed.
+The input system has built-in debug logging that is silent by default. Toggle
+it at runtime — no rebuild needed. **Do not use the chrome-devtools MCP tools;
+they do not work on this machine.** The agent tooling in `~/scripts/agents/`
+is the door:
 
-**Enable/disable:**
-```
-evaluate_script: () => { window.__inputDebug = true; return "enabled" }
-evaluate_script: () => { window.__inputDebug = false; return "disabled" }
-```
+- **Trace a key sequence:** `mc-nav-trace` — the first tool for any
+  navigation question. It drives keys through the real pipeline and reports
+  which item holds focus after each step, flagging clipped focus.
+- **Evaluate JS in a live page:** `chromium-probe [--with-console] <url> '<expr>'`
+  — e.g. `chromium-probe --with-console http://127.0.0.1:2160/library
+  'window.__inputDebug = true; document.activeElement?.outerHTML'`. With
+  `--with-console` the `[input]` trace comes back with the result.
+- **Screenshot:** `page-shot --url <url> --viewport 1920x1080 --wait-ms 3000`,
+  then Read the PNG.
 
-**Read logs:** `list_console_messages` with `types: ["log"]`. All input debug messages are prefixed `[input]`.
-
-**Simulate input:** `press_key` sends keyboard events (e.g., `ArrowDown`, `ArrowUp`, `Enter`, `Escape`). This triggers the full input pipeline — key source → action → state machine → directive → DOM.
-
-**Visual verification:** `take_screenshot` captures the current viewport. Use to confirm focus rings, scroll position, and layout state after navigation.
-
-**Typical debug workflow:**
-1. `select_page` — pick the Media Centaur tab
-2. `evaluate_script` — enable `window.__inputDebug`
-3. `press_key` — simulate the failing input sequence
-4. `list_console_messages` — read the `[input]` trace
-5. `take_screenshot` — verify visual state
+Caveats: `chromium-probe` runs headless — there are no window-focus events and
+CSS transitions never settle, so assert on the state that drives an
+animation, not on animated property values. A synthetic keydown must target
+the focused element, not `document.body`, or `KeyboardSource` ignores it.
 
 **What the logs cover:**
 - Context transitions (`_setContext`) with caller stack trace
