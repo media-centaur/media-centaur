@@ -201,42 +201,40 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   # Merge the library episodes (with gap-filling) and the season's
   # releases into one ordered list. Release wins over Missing for the
   # same {season, episode} — richer data displaces the bare placeholder.
+  #
+  # Gap-filling stops at TMDB's episode count when it is known: a file
+  # or release numbered above it (a misparsed `E1080`, an absolute
+  # episode number) gets its own row, with no Missing placeholders
+  # between. Without a count, the highest known number is the ceiling.
   defp build_library_items(season, releases, progress_by_episode_id, resume_episode_key) do
     episode_map = Map.new(season.episodes || [], &{&1.episode_number, &1})
     release_map = Map.new(releases, &{&1.episode_number, &1})
+    known_numbers = Map.keys(episode_map) ++ Map.keys(release_map)
 
-    max_known_episode =
-      season.episodes
-      |> List.wrap()
-      |> Enum.map(& &1.episode_number)
-      |> Enum.max(fn -> 0 end)
-
-    max_known_release =
-      releases
-      |> Enum.map(& &1.episode_number)
-      |> Enum.max(fn -> 0 end)
-
-    upper = Enum.max([season.number_of_episodes || 0, max_known_episode, max_known_release])
-
-    if upper == 0 do
-      []
-    else
-      for n <- 1..upper do
-        cond do
-          episode = Map.get(episode_map, n) ->
-            build_library_item(episode, season.season_number, progress_by_episode_id, resume_episode_key)
-
-          release = Map.get(release_map, n) ->
-            build_upcoming_item(release)
-
-          true ->
-            %EpisodeListItem.Missing{
-              season_number: season.season_number,
-              episode_number: n
-            }
-        end
+    ceiling =
+      case season.number_of_episodes do
+        count when is_integer(count) and count > 0 -> count
+        _ -> Enum.max(known_numbers, fn -> 0 end)
       end
-    end
+
+    numbers =
+      Enum.uniq(Enum.to_list(1..ceiling//1) ++ Enum.sort(Enum.filter(known_numbers, &(&1 > ceiling))))
+
+    Enum.map(numbers, fn n ->
+      cond do
+        episode = Map.get(episode_map, n) ->
+          build_library_item(episode, season.season_number, progress_by_episode_id, resume_episode_key)
+
+        release = Map.get(release_map, n) ->
+          build_upcoming_item(release)
+
+        true ->
+          %EpisodeListItem.Missing{
+            season_number: season.season_number,
+            episode_number: n
+          }
+      end
+    end)
   end
 
   defp build_library_item(episode, season_number, progress_by_episode_id, resume_episode_key) do
