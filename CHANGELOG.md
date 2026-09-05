@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.9.0 — 2026-09-05
+
+### New
+
+- **Download a recommendation in one click.** On Discovery, every recommendation and watchlist row now opens a detail view: backdrop, logo, synopsis, director, rating, genres and top cast, plus who recommended it and their note. Press **Download** and the view closes while Media Centaur searches for a release; when it finds everything at your quality preference, the download starts by itself. **Track release** and **Add to watchlist** sit beside it, with Remove and Delete as quiet options where they apply.
+- **Series download season 1 by default.** The chevron next to Download offers **Download all**, which fetches every aired episode you don't have and follows the show so new episodes arrive on their own.
+- **The sidebar tells you when something is waiting on you.** A red count on **Incoming** shows how many download plans need a decision, and it stays until you approve or discard them. Review and Status use the same pill, so anything waiting on you reads the same way across the app.
+
+### Improved
+
+- **Rows show what is happening to a title.** Discovery rows say Planning, Downloading, Needs review, or In library, and update on their own as a search runs and when the file lands.
+- **Plans that need a decision park on Downloads.** A one-click download that finds a gap, only lower-quality releases, or a title already being downloaded becomes a draft there, with the same board to steer and approve. Release tracking's automatic plans keep their behaviour.
+- **The sidebar's Status dot moved** to the bottom corner of its icon so it never overlaps a count.
+
+### Migration safety
+
+- Adds one column to download plans (`approval_policy`, default *review*). Existing plans are unaffected; the update runs it automatically.
+
 ## v1.8.3 — 2026-09-05
 
 ### Fixed
