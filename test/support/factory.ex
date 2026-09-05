@@ -701,10 +701,12 @@ defmodule MediaCentaur.TestFactory do
     ensure_factory_playable_item(:movie, movie.id, movie.position || 1)
   end
 
-  # Factory-created Episodes use a synthetic season number (9001) and
-  # episode_number that won't collide with any explicit episode the
-  # test creates afterwards. Each factory WatchedFile gets a fresh
-  # episode_number so multiple calls don't share one episode.
+  # Factory-created Episodes live in a synthetic season (9001) so they
+  # never collide with an explicit episode the test creates. Within
+  # that season they are numbered sequentially: the series detail
+  # gap-fills every number below a season's highest episode, so a
+  # global counter here would render thousands of Missing rows and
+  # grow with every test that ran before.
   defp create_factory_episode_for_tv_series(tv_series_id) do
     {:ok, season} =
       Library.Seasons.find_or_create(%{
@@ -714,7 +716,7 @@ defmodule MediaCentaur.TestFactory do
         number_of_episodes: 0
       })
 
-    episode_number = System.unique_integer([:positive]) + 9000
+    episode_number = length(Library.Episodes.list_for_season(season.id)) + 1
 
     {:ok, episode} =
       Library.Episodes.find_or_create(%{
