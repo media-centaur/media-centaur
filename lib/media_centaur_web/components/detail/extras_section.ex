@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.Components.Detail.ExtrasSection do
 
     ~H"""
     <div :if={@extras != []} class={@class}>
-      <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Extras</span>
+      <span class="text-xs font-medium text-base-content/55 uppercase tracking-wide">Extras</span>
       <.extra_row
         :for={extra <- @extras}
         id={"extra-row-#{extra.id}"}

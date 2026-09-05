@@ -1023,7 +1023,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             data-nav-zone="drafts"
             class="space-y-3"
           >
-            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Draft plans
             </h2>
             <div class="grid grid-cols-1 gap-2">
@@ -1060,7 +1060,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                   class="absolute inset-0 pointer-events-none image-scrim-r"
                 >
                 </div>
-                <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40 z-[1]">
+                <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/55 z-[1]">
                   Draft
                 </span>
                 <div class="min-w-0 flex-1 pt-3 relative z-[1]">
@@ -1083,7 +1083,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             :if={
               @prowlarr_ready and !@download_client_ready and !@search_owns? and @zone == :activity
             }
-            class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
+            class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/55"
           >
             Connect a download client in
             <.link navigate="/settings?section=acquisition" class="link link-primary">
@@ -1098,7 +1098,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             class="space-y-3"
           >
             <div class="flex items-center justify-between gap-3">
-              <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+              <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
                 In flight
               </h2>
               <div :if={@download_client_ready} class="flex items-center gap-2">
@@ -1144,7 +1144,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           <p
             :if={!@search_owns? && @zone == :activity && @activity_empty?}
             data-component="zone-empty"
-            class="py-10 text-center text-sm text-base-content/40"
+            class="py-10 text-center text-sm text-base-content/55"
           >
             Nothing in flight — approved plans and their downloads appear here.
           </p>
@@ -1176,7 +1176,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       phx-click="switch_zone"
       phx-value-zone={@zone}
     >
-      {@label}<span :if={@count && @count > 0} class="ml-1.5 text-xs text-base-content/45">{@count}</span>
+      {@label}<span :if={@count && @count > 0} class="ml-1.5 text-xs text-base-content/55">{@count}</span>
     </a>
     """
   end

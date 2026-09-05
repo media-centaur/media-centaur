@@ -31,7 +31,7 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
     >
       <div>
         <span class="font-medium">{@label}</span>
-        <p class="text-xs text-base-content/50 mt-0.5">{@description}</p>
+        <p class="text-xs text-base-content/55 mt-0.5">{@description}</p>
       </div>
       <input
         type="checkbox"
@@ -86,7 +86,7 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
     <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
       <div class="min-w-0">
         <span class="font-medium">{@label}</span>
-        <p class="text-xs text-base-content/50 mt-0.5">{@description}</p>
+        <p class="text-xs text-base-content/55 mt-0.5">{@description}</p>
       </div>
       <div class="flex items-center gap-1 shrink-0" role="group">
         <button
@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
   def settings_card_header(assigns) do
     ~H"""
     <div class="flex items-baseline justify-between gap-4">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
         {@title}
       </h3>
       <div :if={@action != []} class="shrink-0">{render_slot(@action)}</div>
@@ -172,7 +172,7 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
     ]}>
       <div class={["min-w-0", @layout == :inline && "max-w-[46ch]"]}>
         <div class="text-sm font-medium">{@label}</div>
-        <p :if={@description} class="mt-0.5 text-xs text-base-content/50 max-w-[60ch]">
+        <p :if={@description} class="mt-0.5 text-xs text-base-content/55 max-w-[60ch]">
           {@description}
         </p>
       </div>

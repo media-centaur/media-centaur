@@ -101,14 +101,14 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
 
       <div
         :if={@sections == []}
-        class="scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
+        class="scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/55"
       >
         {HistoryLogic.empty_state(@filter)}
       </div>
 
       <div :if={@sections != []} class="space-y-4">
         <div :for={{label, entries} <- @sections}>
-          <h3 class="pb-1 text-xs font-medium uppercase tracking-wider text-base-content/40">
+          <h3 class="pb-1 text-xs font-medium uppercase tracking-wider text-base-content/55">
             {label}
           </h3>
           <%= for entry <- entries do %>
@@ -135,7 +135,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
       </div>
 
       <div :if={@storage_summary} class="flex items-center justify-end px-1">
-        <span class="inline-flex items-center gap-1.5 text-xs text-base-content/35">
+        <span class="inline-flex items-center gap-1.5 text-xs text-base-content/55">
           <.icon name="hero-circle-stack-mini" class="size-3.5" /> {@storage_summary}
         </span>
       </div>
@@ -166,7 +166,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
         {display_title(@vm)}
         <span
           :if={@vm.door == :query}
-          class="ml-2 text-[10px] uppercase tracking-wider text-base-content/30"
+          class="ml-2 text-[10px] uppercase tracking-wider text-base-content/55"
         >
           release search
         </span>
@@ -175,14 +175,14 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
         </.badge>
         <%!-- The sentence only where it informs — failures and partials
               carry diagnostics; Landed/Cancelled already said it. --%>
-        <span :if={@vm.state in [:exhausted, :partial]} class="ml-2 text-xs text-base-content/50">
+        <span :if={@vm.state in [:exhausted, :partial]} class="ml-2 text-xs text-base-content/55">
           {@vm.status.verb} — {@vm.status.description}
         </span>
       </span>
       <span class={["whitespace-nowrap text-xs", outcome_class(@vm.state)]}>
         {outcome_label(@vm.state)}
       </span>
-      <span class="min-w-20 whitespace-nowrap text-right text-xs text-base-content/35">
+      <span class="min-w-20 whitespace-nowrap text-right text-xs text-base-content/55">
         {when_label(@vm)}
       </span>
     </div>
@@ -215,13 +215,13 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
         class="size-3.5 self-center text-base-content/40"
       />
       <span class="min-w-0 truncate">{@data.title}</span>
-      <span class="whitespace-nowrap text-xs tabular-nums text-base-content/50">
+      <span class="whitespace-nowrap text-xs tabular-nums text-base-content/55">
         {@data.count} {episode_word(@data.count)}
       </span>
       <span class={["whitespace-nowrap text-xs", outcome_class(@data.state)]}>
         {outcome_label(@data.state)}
       </span>
-      <span class="min-w-20 whitespace-nowrap text-right text-xs text-base-content/35">
+      <span class="min-w-20 whitespace-nowrap text-right text-xs text-base-content/55">
         {if @latest, do: Format.relative_ago(@latest)}
       </span>
     </div>
@@ -248,7 +248,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
   defp outcome_class(:satisfied), do: "text-success/85"
   defp outcome_class(:partial), do: "text-warning/90"
   defp outcome_class(:exhausted), do: "text-error/90"
-  defp outcome_class(_state), do: "text-base-content/35"
+  defp outcome_class(_state), do: "text-base-content/55"
 
   defp when_label(%PursuitRow{updated_at: %DateTime{} = at}), do: Format.relative_ago(at)
   defp when_label(%PursuitRow{}), do: nil

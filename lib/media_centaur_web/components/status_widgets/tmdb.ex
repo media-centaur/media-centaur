@@ -58,12 +58,12 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Tmdb do
         </div>
 
         <div class="mt-4 pt-4 border-t border-base-content/10" data-component="metadata-activity">
-          <h3 class="text-xs text-base-content/50 uppercase tracking-wide mb-2">Metadata</h3>
+          <h3 class="text-xs text-base-content/55 uppercase tracking-wide mb-2">Metadata</h3>
 
-          <p :if={@metadata_stats.last_enriched_at} class="text-xs text-base-content/50">
+          <p :if={@metadata_stats.last_enriched_at} class="text-xs text-base-content/55">
             Last enriched {time_ago(@metadata_stats.last_enriched_at)} · {@metadata_stats.total} this session
           </p>
-          <p :if={!@metadata_stats.last_enriched_at} class="text-xs text-base-content/40">
+          <p :if={!@metadata_stats.last_enriched_at} class="text-xs text-base-content/55">
             No metadata fetched yet this session.
           </p>
 
@@ -73,11 +73,11 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Tmdb do
               id={enriched_row_id(entry)}
               class="flex items-baseline gap-2 text-xs"
             >
-              <span class="text-base-content/40 w-16 shrink-0">
+              <span class="text-base-content/55 w-16 shrink-0">
                 {metadata_kind_label(entry.kind)}
               </span>
               <span class="truncate text-base-content/70">{format_enriched_title(entry)}</span>
-              <span class="ml-auto text-base-content/40 shrink-0">{time_ago(entry.at)}</span>
+              <span class="ml-auto text-base-content/55 shrink-0">{time_ago(entry.at)}</span>
             </li>
           </ul>
 

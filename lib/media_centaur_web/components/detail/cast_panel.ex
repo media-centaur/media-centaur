@@ -347,7 +347,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
     >
       {@person.character}
     </p>
-    <p :if={@person.total_episode_count} class="mt-0.5 text-[11px] leading-tight text-base-content/40">
+    <p :if={@person.total_episode_count} class="mt-0.5 text-[11px] leading-tight text-base-content/55">
       {episode_count_label(@person.total_episode_count)}
     </p>
     """

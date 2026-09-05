@@ -540,7 +540,7 @@ defmodule MediaCentaurWeb.ReviewLive do
             />
             <div
               :if={!@selected_key || !@groups_by_key[@selected_key]}
-              class="glass-surface rounded-lg h-full flex flex-col items-center justify-center gap-3 text-base-content/30"
+              class="glass-surface rounded-lg h-full flex flex-col items-center justify-center gap-3 text-base-content/55"
             >
               <.icon name="hero-arrow-left" class="size-8" />
               <p class="text-sm">Select an item to review</p>
@@ -569,7 +569,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     <div class="flex-1 overflow-y-auto p-2 thin-scrollbar">
       <div
         :if={@movies != []}
-        class="text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-base-content/30 px-3 pt-3 pb-1.5"
+        class="text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-base-content/55 px-3 pt-3 pb-1.5"
       >
         Movies
       </div>
@@ -582,7 +582,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       />
       <div
         :if={@tv != []}
-        class="text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-base-content/30 px-3 pt-3 pb-1.5 mt-2"
+        class="text-[0.5625rem] font-semibold uppercase tracking-[0.06em] text-base-content/55 px-3 pt-3 pb-1.5 mt-2"
       >
         TV Series
       </div>
@@ -647,11 +647,11 @@ defmodule MediaCentaurWeb.ReviewLive do
         </div>
         <div
           :if={@file_count > 1}
-          class="text-[0.6875rem] text-base-content/40 mt-0.5"
+          class="text-[0.6875rem] text-base-content/55 mt-0.5"
         >
           {@file_count} episodes{if @file.season_number, do: " · S#{zero_pad(@file.season_number)}"}
         </div>
-        <div :if={@file_count == 1} class="text-xs text-base-content/50 mt-0.5">
+        <div :if={@file_count == 1} class="text-xs text-base-content/55 mt-0.5">
           {if @file.parsed_year, do: "#{@file.parsed_year} · "}{format_type(@file.parsed_type)}
         </div>
       </div>
@@ -727,7 +727,7 @@ defmodule MediaCentaurWeb.ReviewLive do
             <h2 class="text-lg font-semibold">{display_title(@group)}</h2>
             <p
               :if={@file_count == 1}
-              class="font-mono text-xs text-base-content/50 truncate-left mt-1"
+              class="font-mono text-xs text-base-content/55 truncate-left mt-1"
               title={relative_file_path(@file)}
             >
               <bdo dir="ltr">{relative_file_path(@file)}</bdo>
@@ -831,11 +831,11 @@ defmodule MediaCentaurWeb.ReviewLive do
   defp parsed_info(assigns) do
     ~H"""
     <div class="glass-inset rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
-      <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-base-content/40 shrink-0">
+      <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-base-content/55 shrink-0">
         Parsed
       </span>
       <span class="text-sm font-medium">{@file.parsed_title || "Unknown"}</span>
-      <span :if={@file.parsed_year} class="text-sm text-base-content/50">
+      <span :if={@file.parsed_year} class="text-sm text-base-content/55">
         ({@file.parsed_year})
       </span>
       <.badge variant="type">{format_type(@file.parsed_type)}</.badge>
@@ -851,7 +851,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   defp tmdb_match(assigns) do
     ~H"""
     <div class="glass-inset rounded-lg p-4">
-      <p class="text-[0.625rem] font-semibold uppercase tracking-[0.05em] text-base-content/40 mb-3">
+      <p class="text-[0.625rem] font-semibold uppercase tracking-[0.05em] text-base-content/55 mb-3">
         TMDB Match
       </p>
       <%= if @file.tmdb_id && !@tied do %>
@@ -872,11 +872,11 @@ defmodule MediaCentaurWeb.ReviewLive do
             <p class="text-sm font-medium">
               {@file.match_title || "TMDB ##{@file.tmdb_id}"}
             </p>
-            <p :if={@file.match_year} class="text-sm text-base-content/50">
+            <p :if={@file.match_year} class="text-sm text-base-content/55">
               ({@file.match_year})
             </p>
             <div :if={@file.confidence} class="mt-1">
-              <p class="text-xs text-base-content/50 mb-1">Confidence</p>
+              <p class="text-xs text-base-content/55 mb-1">Confidence</p>
               <div class="h-1.5 rounded-full bg-base-content/8 overflow-hidden max-w-48">
                 <div
                   class={["h-full rounded-full", confidence_bar_class(@file.confidence)]}
@@ -900,7 +900,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           </div>
         </div>
       <% else %>
-        <div class="flex flex-col items-center justify-center py-8 gap-2 text-base-content/30">
+        <div class="flex flex-col items-center justify-center py-8 gap-2 text-base-content/55">
           <.icon name="hero-question-mark-circle" class="size-10" />
           <p class="text-sm">
             {if @tied, do: "Multiple tied matches", else: "No results found"}
@@ -1031,7 +1031,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <.icon name="hero-magnifying-glass" class="size-5 text-base-content/60" />
-          <span class="text-[10px] font-semibold uppercase tracking-wide text-base-content/40">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-base-content/55">
             TMDB Search
           </span>
         </div>
@@ -1087,13 +1087,13 @@ defmodule MediaCentaurWeb.ReviewLive do
         </.button>
       </form>
 
-      <p class="text-xs text-base-content/50">
+      <p class="text-xs text-base-content/55">
         {if @type == :tv,
           do: "Search by show name only — season and episode numbers are stripped automatically.",
           else: "Search by movie title. Year is optional and will be ignored."}
       </p>
 
-      <p :if={@results == [] && @searched} class="text-sm text-base-content/50">
+      <p :if={@results == [] && @searched} class="text-sm text-base-content/55">
         No results found. Try a simpler title — leave out years, seasons, and episode numbers.
       </p>
 

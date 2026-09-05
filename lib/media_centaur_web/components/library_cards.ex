@@ -95,7 +95,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
         <div class="text-sm font-medium leading-tight line-clamp-2">
           {@entry.name || "Untitled"}
         </div>
-        <div class="mt-0.5 text-xs text-base-content/50">
+        <div class="mt-0.5 text-xs text-base-content/55">
           {format_type(@entry.kind)}<span :if={@entry.year}> · {@entry.year}</span>
         </div>
       </div>

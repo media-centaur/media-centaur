@@ -178,7 +178,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
 
   defp duration_text(%{duration_seconds: seconds} = assigns) when is_integer(seconds) and seconds > 0 do
     ~H"""
-    <span class="text-base-content/40 text-xs">
+    <span class="text-base-content/55 text-xs">
       {format_human_duration(@duration_seconds)}
     </span>
     """

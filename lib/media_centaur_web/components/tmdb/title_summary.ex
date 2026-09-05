@@ -53,7 +53,7 @@ defmodule MediaCentaurWeb.Components.TMDB.TitleSummary do
           <span class="truncate text-sm font-semibold">{@title.name}</span>
           <%!-- Quiet text, not colored chips — type is metadata; color
                 stays reserved for interaction and state. --%>
-          <span class="shrink-0 text-xs text-base-content/50">
+          <span class="shrink-0 text-xs text-base-content/55">
             {if @title.media_type == :movie, do: "Movie", else: "TV"}<span :if={@title.year}> · {@title.year}</span>
           </span>
           {render_slot(@markers)}

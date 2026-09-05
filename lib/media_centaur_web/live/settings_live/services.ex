@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <h2 class="text-lg font-semibold">Services</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
+          <p class="text-sm text-base-content/55 mt-0.5">
             Start or stop background services. State persists across restarts.
           </p>
         </div>

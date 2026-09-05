@@ -43,7 +43,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
             when the card has them — keeps the search anchored to actual
             strings the user can verify, including while loading. --%>
       <div :if={@vm.search_queries != []} class="text-xs text-base-content/60 space-y-0.5">
-        <div class="text-base-content/50">{search_label(@vm.search_queries)}</div>
+        <div class="text-base-content/55">{search_label(@vm.search_queries)}</div>
         <ul class="space-y-0.5">
           <li
             :for={query <- @vm.search_queries}

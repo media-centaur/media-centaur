@@ -66,7 +66,7 @@ One dark theme via the daisyUI plugin (`name: "dark"`, `default: true`, `themes:
 | Warning (amber) | Attention, risky, paused |
 | Error (clear red) | Failed, destructive, critical |
 | Info (cool blue) | Informational, TV type badge |
-| Base content | Text hierarchy via opacity (`/60`, `/40`, `/20`) |
+| Base content | Text hierarchy via opacity: `/80` primary, `/60` secondary, `/55` the floor for anything read as text (MC0034). `/40` and below only for icons, separator glyphs, placeholders and disabled controls. |
 
 ## Glassmorphism (Three Tiers)
 
@@ -150,7 +150,7 @@ Sizes: `"xs"`, `"sm"` (default), `"md"`.
 ```html
 <%!-- Standard card --%>
 <div class="glass-surface rounded-xl p-4 space-y-3">
-  <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Title</h3>
+  <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Title</h3>
   <%!-- content --%>
 </div>
 
@@ -206,7 +206,7 @@ Display: `3h 48m` or `45m` (omit hours when zero). Space-separated, no leading z
 ### Section Headers
 
 ```html
-<h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Section Name</h3>
+<h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Section Name</h3>
 ```
 
 Muted, small, uppercase tracking — consistent across all card/section headers.

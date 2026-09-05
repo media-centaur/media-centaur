@@ -167,7 +167,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
       </div>
       <span
         :if={@vm.door == :query}
-        class="flex-shrink-0 text-[10px] uppercase tracking-wider text-base-content/30"
+        class="flex-shrink-0 text-[10px] uppercase tracking-wider text-base-content/55"
       >
         release search
       </span>
@@ -248,7 +248,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         </span>
         <%!-- The release name is what tells three otherwise-identical
               strips apart on a multi-download pursuit. --%>
-        <span :if={@download.title} class="min-w-0 truncate text-xs text-base-content/50">
+        <span :if={@download.title} class="min-w-0 truncate text-xs text-base-content/55">
           {@download.title}
         </span>
         <%!-- Facts cluster right, beside the cancel affordance — a
@@ -258,16 +258,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         <span :if={@download.progress_pct} class="text-xs text-base-content/60 tabular-nums">
           {round(@download.progress_pct)}%
         </span>
-        <span :if={@download.eta} class="text-xs text-base-content/40 tabular-nums">
+        <span :if={@download.eta} class="text-xs text-base-content/55 tabular-nums">
           ETA {@download.eta}
         </span>
         <span
           :if={@download.size_bytes}
-          class="flex-shrink-0 text-xs text-base-content/40 tabular-nums"
+          class="flex-shrink-0 text-xs text-base-content/55 tabular-nums"
         >
           {Format.format_size_decimal(@download.size_bytes)}
         </span>
-        <span :if={@download.client} class="flex-shrink-0 text-xs text-base-content/40">
+        <span :if={@download.client} class="flex-shrink-0 text-xs text-base-content/55">
           {@download.client}
         </span>
         <%!-- When the download client is lagging/offline these figures are
@@ -281,7 +281,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
           variant="destructive_inline"
           size="xs"
           shape="circle"
-          class="text-base-content/40 hover:text-error"
+          class="text-base-content/55 hover:text-error"
           phx-click="cancel_download_prompt"
           phx-value-id={@queue_item_id}
           phx-value-title={@cancel_title}

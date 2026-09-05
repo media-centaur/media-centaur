@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Components.Detail.TrackOverrideBadge do
       <div class="flex items-center gap-2 min-w-0">
         <.icon name="hero-language-mini" class="size-4 text-base-content/50 shrink-0" />
         <div class="min-w-0">
-          <div class="text-xs uppercase tracking-wider text-base-content/50">Remembered tracks</div>
+          <div class="text-xs uppercase tracking-wider text-base-content/55">Remembered tracks</div>
           <div class="text-sm text-base-content truncate">{Enum.join(@segments, " · ")}</div>
         </div>
       </div>

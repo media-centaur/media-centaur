@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
             placeholder="Why they should watch it (optional)"
             class="textarea textarea-bordered w-full text-sm"
           ></textarea>
-          <p class="text-xs text-base-content/50">{relay_line(@relay_counts)}</p>
+          <p class="text-xs text-base-content/55">{relay_line(@relay_counts)}</p>
           <div class="flex justify-end gap-2">
             <.button
               id="recommend-cancel"

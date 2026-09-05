@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Library do
         <.storage_outlook_card drives={@storage_drives} at_risk={@at_risk} />
       </div>
     </div>
-    <p :if={!@overview} class="text-sm text-base-content/40">Loading library overview…</p>
+    <p :if={!@overview} class="text-sm text-base-content/55">Loading library overview…</p>
     """
   end
 end

@@ -44,17 +44,17 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
             <div class="text-2xl font-semibold tabular-nums">
               {format_bytes_iec(@system_vitals.memory.total)}
             </div>
-            <div class="text-xs uppercase tracking-wider text-base-content/50">Memory</div>
+            <div class="text-xs uppercase tracking-wider text-base-content/55">Memory</div>
           </div>
           <div>
             <div class="text-2xl font-semibold tabular-nums">{@system_vitals.process_count}</div>
-            <div class="text-xs uppercase tracking-wider text-base-content/50">Processes</div>
+            <div class="text-xs uppercase tracking-wider text-base-content/55">Processes</div>
           </div>
           <div>
             <div class="text-2xl font-semibold tabular-nums">
               {format_bytes_iec(@system_vitals.db.size_bytes)}
             </div>
-            <div class="text-xs uppercase tracking-wider text-base-content/50">Database</div>
+            <div class="text-xs uppercase tracking-wider text-base-content/55">Database</div>
           </div>
         </div>
 
@@ -64,23 +64,23 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
           class="mt-3 pt-3 border-t border-base-content/10 grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs"
         >
           <div class="flex items-baseline gap-2">
-            <span class="text-base-content/50">Schedulers</span>
+            <span class="text-base-content/55">Schedulers</span>
             <span class="tabular-nums text-base-content/80">{@system_vitals.schedulers}</span>
           </div>
           <div class="flex items-baseline gap-2">
-            <span class="text-base-content/50">Run queue</span>
+            <span class="text-base-content/55">Run queue</span>
             <span class={["tabular-nums", vital_value_class(@rq_tone)]}>
               {@system_vitals.run_queue}
             </span>
           </div>
           <div class="flex items-baseline gap-2">
-            <span class="text-base-content/50">Processes</span>
+            <span class="text-base-content/55">Processes</span>
             <span class={["tabular-nums", vital_value_class(@proc_tone)]}>
               {@system_vitals.process_count} / {@system_vitals.process_limit}
             </span>
           </div>
           <div class="flex items-baseline gap-2">
-            <span class="text-base-content/50">WAL</span>
+            <span class="text-base-content/55">WAL</span>
             <span class="tabular-nums text-base-content/80">
               {format_bytes_iec(@system_vitals.db.wal_bytes)}
             </span>
@@ -88,7 +88,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
         </div>
 
         <%!-- Host / build footer (quiet) --%>
-        <div data-component="system-host" class="mt-3 text-xs text-base-content/40">
+        <div data-component="system-host" class="mt-3 text-xs text-base-content/55">
           OTP {@system_vitals.host.otp} · Elixir {@system_vitals.host.elixir} · {@system_vitals.host.os}
         </div>
       </div>

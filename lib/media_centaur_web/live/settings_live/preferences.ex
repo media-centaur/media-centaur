@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <h2 class="text-lg font-semibold">Preferences</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
+          <p class="text-sm text-base-content/55 mt-0.5">
             Personal display and browsing preferences.
           </p>
         </div>

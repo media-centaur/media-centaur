@@ -30,14 +30,14 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
     <div class="card glass-inset" data-testid="http-widget">
       <div class="card-body">
         <h2 class="card-title text-lg">Outbound requests</h2>
-        <p class="text-xs text-base-content/50">
+        <p class="text-xs text-base-content/55">
           Last {@http_stats.window_minutes} minutes, with session totals in grey. Requests are what went out; Cache is what was answered here instead.
         </p>
 
         <div class="overflow-x-auto" data-component="http-upstreams">
           <table class="table table-sm">
             <thead>
-              <tr class="text-base-content/50">
+              <tr class="text-base-content/55">
                 <th>Upstream</th>
                 <th class="text-right">Requests</th>
                 <th class="text-right">Errors</th>
@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
                   <span class="text-base-content/80">{row.label}</span>
                   <span
                     :if={row.id == :tmdb and @rate_limiter}
-                    class="ml-2 font-mono text-xs text-base-content/40"
+                    class="ml-2 font-mono text-xs text-base-content/55"
                     data-component="tmdb-rate-budget"
                   >
                     {@rate_limiter.used}/{@rate_limiter.total} slots
@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
         </div>
 
         <details :if={@http_stats.recent != []} class="mt-3" data-component="http-recent">
-          <summary class="cursor-pointer text-xs uppercase tracking-wide text-base-content/50">
+          <summary class="cursor-pointer text-xs uppercase tracking-wide text-base-content/55">
             Recent requests
           </summary>
           <ul class="mt-2 space-y-0.5 font-mono text-xs">
@@ -84,14 +84,14 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
               id={recent_row_id(entry)}
               class="flex items-baseline gap-2"
             >
-              <span class="text-base-content/40 shrink-0">{Calendar.strftime(entry.at, "%H:%M:%S")}</span>
+              <span class="text-base-content/55 shrink-0">{Calendar.strftime(entry.at, "%H:%M:%S")}</span>
               <span class="text-base-content/60 shrink-0">{upstream_label(entry.upstream)}</span>
               <span class="truncate text-base-content/80">
                 {entry.method |> to_string() |> String.upcase()} {entry.path}
               </span>
               <span class={["ml-auto shrink-0", outcome_class(entry)]}>{outcome_label(entry)}</span>
-              <span class="text-base-content/40 shrink-0 tabular-nums">{entry.duration_ms}ms</span>
-              <span class="text-base-content/40 shrink-0">{cache_label(entry.cache)}</span>
+              <span class="text-base-content/55 shrink-0 tabular-nums">{entry.duration_ms}ms</span>
+              <span class="text-base-content/55 shrink-0">{cache_label(entry.cache)}</span>
             </li>
           </ul>
         </details>

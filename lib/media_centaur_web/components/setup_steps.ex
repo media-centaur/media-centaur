@@ -129,7 +129,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
   defp requirements(assigns) do
     ~H"""
     <div class="glass-inset rounded-lg p-4 mb-5">
-      <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-2">
+      <p class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-2">
         What you'll need
       </p>
       <ul class="space-y-1.5">
@@ -341,11 +341,11 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
         </li>
       </ul>
 
-      <p :if={dirs_list(@result) == []} class="text-sm text-base-content/50 italic">
+      <p :if={dirs_list(@result) == []} class="text-sm text-base-content/55 italic">
         No media directories yet — add one or more below.
       </p>
 
-      <p :if={dirs_list(@result) != []} class="text-xs text-base-content/50">
+      <p :if={dirs_list(@result) != []} class="text-xs text-base-content/55">
         Add as many as you like — movies and TV can live in separate folders.
       </p>
 
@@ -402,7 +402,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
       </p>
 
       <div class="glass-inset rounded-lg p-4 mb-5">
-        <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-2">
+        <p class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-2">
           What the tour covers
         </p>
         <ol class="space-y-1.5 text-sm text-base-content/70">
@@ -416,15 +416,15 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           <li><span class="font-medium text-base-content/90">mpv</span> — the media player</li>
           <li>
             <span class="font-medium text-base-content/90">ffprobe</span>
-            <span class="text-base-content/40">(optional)</span> — embedded subtitles
+            <span class="text-base-content/55">(optional)</span> — embedded subtitles
           </li>
           <li>
             <span class="font-medium text-base-content/90">Prowlarr</span>
-            <span class="text-base-content/40">(optional)</span> — in-app search
+            <span class="text-base-content/55">(optional)</span> — in-app search
           </li>
           <li>
             <span class="font-medium text-base-content/90">Download client</span>
-            <span class="text-base-content/40">(optional)</span> — grab progress
+            <span class="text-base-content/55">(optional)</span> — grab progress
           </li>
         </ol>
       </div>

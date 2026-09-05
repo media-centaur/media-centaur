@@ -75,10 +75,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
       />
 
       <div :if={!@hero} class="flex items-baseline justify-between gap-3 text-xs">
-        <span :if={@mode == :media} class="text-base-content/40">
+        <span :if={@mode == :media} class="text-base-content/55">
           Type a movie or show — Media Centaur plans the downloads
         </span>
-        <span :if={@mode == :release} class="flex flex-wrap items-center gap-x-3 text-base-content/40">
+        <span :if={@mode == :release} class="flex flex-wrap items-center gap-x-3 text-base-content/55">
           <span>Syntax:</span>
           <code class="font-mono px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60">
             {"{a,b,c}"}
@@ -93,7 +93,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
         <button
           type="button"
-          class="flex items-center gap-1 text-base-content/50 hover:text-base-content/80 transition-colors flex-shrink-0"
+          class="flex items-center gap-1 text-base-content/55 hover:text-base-content/80 transition-colors flex-shrink-0"
           phx-click="omnibox_mode"
           phx-value-mode={if @mode == :media, do: "release", else: "media"}
           data-nav-item
@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           :if={@query != ""}
           id="omnibox-media-clear"
           type="button"
-          class="absolute right-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-base-content/40 transition-colors hover:text-base-content/80"
+          class="absolute right-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-base-content/55 transition-colors hover:text-base-content/80"
           phx-click={
             JS.dispatch("omnibox:clear-input", to: "#omnibox-media-input")
             |> JS.push("omnibox_clear")
@@ -215,7 +215,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           :if={@session.query != ""}
           id="omnibox-release-clear"
           type="button"
-          class="absolute right-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-base-content/40 transition-colors hover:text-base-content/80"
+          class="absolute right-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-base-content/55 transition-colors hover:text-base-content/80"
           phx-click={
             JS.dispatch("omnibox:clear-input", to: "#omnibox-release-input")
             |> JS.push("clear_search")
@@ -245,7 +245,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     <div class="flex flex-col items-center gap-2 text-xs">
       <span
         :if={@mode == :release && @session}
-        class="flex flex-wrap items-center justify-center gap-x-3 text-base-content/40"
+        class="flex flex-wrap items-center justify-center gap-x-3 text-base-content/55"
       >
         <span>Syntax:</span>
         <code class="font-mono px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60">
@@ -259,12 +259,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         </span>
       </span>
 
-      <p :if={@release_mode_available} class="text-center text-sm text-base-content/35">
+      <p :if={@release_mode_available} class="text-center text-sm text-base-content/55">
         <.mode_hint_name active={@mode == :media} mode="media" label="Search titles" /> to add or plan
         <span class="mx-1.5 opacity-60">·</span>
         <.mode_hint_name active={@mode == :release} mode="release" label="search releases" /> directly
       </p>
-      <p :if={!@release_mode_available} class="text-center text-sm text-base-content/35">
+      <p :if={!@release_mode_available} class="text-center text-sm text-base-content/55">
         <span class="font-medium text-base-content/70">Search titles</span> to track their releases
       </p>
     </div>
@@ -281,7 +281,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     <button
       :if={!@active}
       type="button"
-      class="cursor-pointer font-medium text-base-content/40 underline decoration-base-content/20 underline-offset-2 transition-colors hover:text-base-content/70"
+      class="cursor-pointer font-medium text-base-content/55 underline decoration-base-content/20 underline-offset-2 transition-colors hover:text-base-content/70"
       phx-click="omnibox_mode"
       phx-value-mode={@mode}
       data-nav-item

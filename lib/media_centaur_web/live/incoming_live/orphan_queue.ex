@@ -27,10 +27,10 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
     ~H"""
     <section data-nav-zone="other_downloads" class="scrim-surface rounded-xl overflow-hidden">
       <div class="px-4 py-2 border-b border-base-content/5">
-        <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+        <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
           Other downloads
         </h2>
-        <p class="mt-0.5 text-[11px] text-base-content/40">
+        <p class="mt-0.5 text-[11px] text-base-content/55">
           Torrents in your client that don't match any active pursuit.
         </p>
       </div>
@@ -59,14 +59,14 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
       >
         {Logic.state_label(@item.state)}
       </.badge>
-      <span :if={@item.timeleft} class="text-xs text-base-content/40 tabular-nums">
+      <span :if={@item.timeleft} class="text-xs text-base-content/55 tabular-nums">
         {@item.timeleft}
       </span>
       <.button
         variant="destructive_inline"
         size="xs"
         shape="circle"
-        class="text-base-content/40 hover:text-error"
+        class="text-base-content/55 hover:text-error"
         phx-click="cancel_download_prompt"
         phx-value-id={@item.id}
         phx-value-title={@item.title}

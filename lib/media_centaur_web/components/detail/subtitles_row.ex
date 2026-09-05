@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
 
     ~H"""
     <div :if={@languages != []} class="flex items-baseline gap-3 text-sm">
-      <h3 class="text-xs font-semibold uppercase tracking-wider text-base-content/50 shrink-0">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-base-content/55 shrink-0">
         Subtitles
       </h3>
       <p :if={!@folded?} class="text-base-content/80 leading-relaxed min-w-0">

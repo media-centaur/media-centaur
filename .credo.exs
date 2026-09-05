@@ -316,7 +316,12 @@
           # response cache, and the test stub routing all hang off it. Added
           # by the http-client-unification campaign; the moduledoc is the
           # rule's spec.
-          {MediaCentaur.Credo.Checks.OutboundHttpSeam, []}
+          {MediaCentaur.Credo.Checks.OutboundHttpSeam, []},
+          # MC0034 holds readable text in the web layer at
+          # `text-base-content/55` or above — the dark theme's contrast floor
+          # for small text. Icons, spinners, separators, placeholders and
+          # disabled states may go dimmer (audit DS25).
+          {MediaCentaur.Credo.Checks.ReadableTextContrast, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

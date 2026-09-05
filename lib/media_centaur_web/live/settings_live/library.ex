@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
           </:action>
         </.settings_card_header>
 
-        <p class="text-xs text-base-content/50 max-w-[60ch]">
+        <p class="text-xs text-base-content/55 max-w-[60ch]">
           Where cached posters and backdrops are stored. Defaults next to the database.
         </p>
 
@@ -91,7 +91,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
               <% end %>
               <div
                 :if={MediaDirsLogic.show_images_dir?(entry)}
-                class="text-xs text-base-content/50 flex gap-1 min-w-0"
+                class="text-xs text-base-content/55 flex gap-1 min-w-0"
                 title={entry["images_dir"]}
               >
                 <span class="shrink-0">Images cached at</span>
@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
         </ul>
 
         <div class="mt-1 pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-          <p class="text-xs text-base-content/50 min-w-0 max-w-[60ch]">
+          <p class="text-xs text-base-content/55 min-w-0 max-w-[60ch]">
             Scan to pick up moved or added files — moves are re-linked automatically.
           </p>
           <div class="flex items-center gap-2 shrink-0">
@@ -180,7 +180,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
 
       <div class="glass-surface rounded-xl p-5 space-y-3">
         <.settings_card_header title="Excluded directories" />
-        <p class="text-xs text-base-content/50 max-w-[60ch]">
+        <p class="text-xs text-base-content/55 max-w-[60ch]">
           Specific paths inside your media directories that are never scanned.
           To ignore folders by name wherever they appear, use Media Import → Ignored folder names.
         </p>
@@ -208,7 +208,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
           </li>
         </ul>
 
-        <div :if={@exclude_dirs == []} class="text-xs text-base-content/50 py-2">
+        <div :if={@exclude_dirs == []} class="text-xs text-base-content/55 py-2">
           No excluded directories.
         </div>
 

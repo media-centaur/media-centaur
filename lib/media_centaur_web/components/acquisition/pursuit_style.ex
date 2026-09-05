@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitStyle do
   def state_badge(%{state: :exhausted} = assigns), do: state_text(assigns, "text-error/80", "Exhausted")
 
   def state_badge(%{state: :cancelled} = assigns),
-    do: state_text(assigns, "text-base-content/40", "Cancelled")
+    do: state_text(assigns, "text-base-content/55", "Cancelled")
 
   defp state_text(assigns, color, label) do
     assigns = Phoenix.Component.assign(assigns, color: color, label: label)

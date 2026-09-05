@@ -105,7 +105,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
               >
                 {format_bytes_iec(drive.used_bytes)} / {format_bytes_iec(drive.total_bytes)}
               </span>
-              <span :if={!health.dir_exists} class="text-xs text-base-content/40 shrink-0">
+              <span :if={!health.dir_exists} class="text-xs text-base-content/55 shrink-0">
                 —
               </span>
               <span class={["text-xs shrink-0", dir_status_text_class(status)]}>
@@ -129,7 +129,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
 
             <div
               :if={status == :watching && last_scan}
-              class="mt-1 text-xs text-base-content/50"
+              class="mt-1 text-xs text-base-content/55"
               data-component="last-scan-row"
             >
               Last scan {time_ago(last_scan.at)} · {format_scan_counts(last_scan)}
@@ -196,7 +196,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
           <% db_role = Enum.find(@db_drive.roles, &(&1.label == "Database")) %>
           <code
             :if={db_role}
-            class="text-xs truncate-left text-base-content/50 mt-1 block ml-2"
+            class="text-xs truncate-left text-base-content/55 mt-1 block ml-2"
             title={db_role.path}
           >
             <bdo dir="ltr">{db_role.path}</bdo>

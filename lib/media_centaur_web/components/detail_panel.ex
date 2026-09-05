@@ -297,7 +297,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         >
           <.icon
             name={tracking_icon(@tracking_status)}
-            class={"size-5 #{tracking_color(@tracking_status)}"}
+            class={tracking_icon_class(@tracking_status)}
           />
         </.button>
       </:hero_actions>
@@ -382,7 +382,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                         away from the play cluster; a first-class nav
                         item so the toolbar walk reaches it. --%>
                   <span :if={@member_view} class="ml-auto flex items-center gap-2">
-                    <span class="text-xs text-base-content/40">Watched</span>
+                    <span class="text-xs text-base-content/55">Watched</span>
                     <PlayableRow.watched_toggle
                       event="toggle_watched"
                       state={@member_view.member.state}
@@ -590,9 +590,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp tracking_icon(:ignored), do: "hero-bell-slash"
   defp tracking_icon(_), do: "hero-bell"
 
-  defp tracking_color(:watching), do: "text-info"
-  defp tracking_color(:ignored), do: "text-base-content/30"
-  defp tracking_color(_), do: "text-base-content/20"
+  defp tracking_icon_class(:watching), do: "size-5 text-info"
+  defp tracking_icon_class(:ignored), do: "size-5 text-base-content/30"
+  defp tracking_icon_class(_), do: "size-5 text-base-content/20"
 
   defp tracking_title(:watching), do: "Tracking new releases — click to ignore"
   defp tracking_title(:ignored), do: "Ignoring new releases — click to track"

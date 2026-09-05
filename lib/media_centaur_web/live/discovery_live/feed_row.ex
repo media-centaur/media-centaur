@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedRow do
     >
       <.title_summary title={@recommendation.title} poster_url={@row.poster_url}>
         <:markers>
-          <span class="shrink-0 text-xs text-base-content/40">
+          <span class="shrink-0 text-xs text-base-content/55">
             <%= if @row.own? do %>
               You · {Format.relative_ago(@recommendation.recommended_at)}
             <% else %>
@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedRow do
         <button
           :if={@row.own?}
           type="button"
-          class="cursor-pointer text-xs text-base-content/30 transition-colors hover:text-base-content/60"
+          class="cursor-pointer text-xs text-base-content/55 transition-colors hover:text-base-content/60"
           phx-click="feed_delete"
           phx-value-id={@recommendation.id}
           data-nav-item
@@ -88,7 +88,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedRow do
 
   defp action(%{row: %{on_watchlist?: true}} = assigns) do
     ~H"""
-    <span class="text-xs text-base-content/30">On watchlist</span>
+    <span class="text-xs text-base-content/55">On watchlist</span>
     """
   end
 

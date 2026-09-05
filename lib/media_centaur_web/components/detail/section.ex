@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Components.Detail.Section do
   def section(assigns) do
     ~H"""
     <div class="space-y-2">
-      <div class="text-[0.7rem] uppercase tracking-wider text-base-content/50 font-semibold">
+      <div class="text-[0.7rem] uppercase tracking-wider text-base-content/55 font-semibold">
         {@title}
       </div>
       {render_slot(@inner_block)}

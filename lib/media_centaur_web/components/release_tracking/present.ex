@@ -43,7 +43,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
   def tone_text_class(:success), do: "text-success"
   def tone_text_class(:info), do: "text-info"
   def tone_text_class(:muted), do: "text-warning/70"
-  def tone_text_class(:neutral), do: "text-base-content/50"
+  def tone_text_class(:neutral), do: "text-base-content/55"
 
   @doc "Tailwind background class for a status tone (the shelf release dot)."
   @spec tone_dot_class(tone()) :: String.t()

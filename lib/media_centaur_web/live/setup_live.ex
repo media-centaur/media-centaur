@@ -415,7 +415,7 @@ defmodule MediaCentaurWeb.SetupLive do
               loading="eager"
               decoding="sync"
             />
-            <p class="mt-3 text-xs font-medium uppercase tracking-widest text-base-content/40">
+            <p class="mt-3 text-xs font-medium uppercase tracking-widest text-base-content/55">
               Media Centaur · Setup
             </p>
           </div>
@@ -431,7 +431,7 @@ defmodule MediaCentaurWeb.SetupLive do
               >
               </div>
             </div>
-            <span class="shrink-0 text-xs text-base-content/50">
+            <span class="shrink-0 text-xs text-base-content/55">
               Step {@step_index} of {@total}
             </span>
           </div>

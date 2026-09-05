@@ -35,14 +35,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.CellVocabulary do
   @doc "Treatment classes for a full-size board cell (w-9 grid cell)."
   @spec cell_treatment(state()) :: String.t()
   def cell_treatment(:searching),
-    do: "border border-dashed border-base-content/25 text-base-content/40 animate-pulse"
+    do: "border border-dashed border-base-content/25 text-base-content/55 animate-pulse"
 
   def cell_treatment(:claimed), do: "bg-primary/25 border border-primary/60 text-base-content/80"
   def cell_treatment(:claimed_fused), do: "bg-primary/20 text-base-content/80 rounded"
   def cell_treatment(:landed), do: "bg-success/25 border border-success/60 text-base-content/80"
   def cell_treatment(:below_preference), do: "border border-info/40 text-base-content/60"
   def cell_treatment(:gap), do: "border border-warning/50 text-warning/80"
-  def cell_treatment(:excluded), do: "bg-base-content/5 text-base-content/25 line-through"
+  def cell_treatment(:excluded), do: "bg-base-content/5 text-base-content/55 line-through"
 
   @doc """
   Treatment classes for a tiny pursuit-card segment (w-2 square) — same

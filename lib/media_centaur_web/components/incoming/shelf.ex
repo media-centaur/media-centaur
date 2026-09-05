@@ -133,7 +133,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
           tabindex="0"
         >
           <span class="w-24 shrink-0"></span>
-          <span class="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-base-content/35 whitespace-nowrap">
+          <span class="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-base-content/55 whitespace-nowrap">
             <.icon
               name="hero-chevron-right-mini"
               class={"size-3 transition-transform#{if @stragglers_expanded?, do: " rotate-90"}"}
@@ -169,7 +169,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
       >
         {@card.date_label}
       </span>
-      <span :if={!@card.date_label} class="w-24 shrink-0 text-xs font-medium text-base-content/30">
+      <span :if={!@card.date_label} class="w-24 shrink-0 text-xs font-medium text-base-content/55">
         —
       </span>
 
@@ -194,7 +194,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
 
       <div class="min-w-0 flex-1">
         <div class="truncate text-sm font-semibold">{@card.title}</div>
-        <div :if={subtitle_line(@card)} class="truncate text-xs text-base-content/50">
+        <div :if={subtitle_line(@card)} class="truncate text-xs text-base-content/55">
           {subtitle_line(@card)}
         </div>
       </div>

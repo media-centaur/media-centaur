@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
       class="mx-auto w-full max-w-3xl space-y-2"
     >
       <div class="flex items-center justify-between gap-3 px-1" data-nav-zone="toolbar">
-        <span class="flex items-center gap-2 text-xs text-base-content/40">
+        <span class="flex items-center gap-2 text-xs text-base-content/55">
           <.scope_chip
             scope={:upcoming}
             label="Upcoming"
@@ -105,7 +105,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         <button
           id="media-results-clear"
           type="button"
-          class="cursor-pointer text-xs text-base-content/30 transition-colors hover:text-base-content/60"
+          class="cursor-pointer text-xs text-base-content/55 transition-colors hover:text-base-content/60"
           phx-click={
             Phoenix.LiveView.JS.dispatch("omnibox:clear-input", to: "#omnibox-media-input")
             |> Phoenix.LiveView.JS.push("omnibox_clear")
@@ -119,14 +119,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
       <div
         :if={!@searching? && @results == []}
-        class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+        class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
       >
         Nothing found on TMDB.
       </div>
 
       <div
         :if={!@searching? && @results != [] && @visible == []}
-        class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+        class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
       >
         No {if @scope == :upcoming, do: "upcoming", else: "released"} titles in these results.
       </div>
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         "cursor-pointer rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
         @active && "border-primary/50 bg-primary/10 text-primary",
         !@active &&
-          "border-base-content/15 text-base-content/50 hover:border-base-content/30 hover:text-base-content/70"
+          "border-base-content/15 text-base-content/55 hover:border-base-content/30 hover:text-base-content/70"
       ]}
       phx-click="omnibox_scope"
       phx-value-scope={@scope}
@@ -230,7 +230,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
             <span :if={@tracked?} class="shrink-0 text-xs text-success/70">Tracked</span>
             <%!-- Quiet neutral, deliberately unlike Tracked's success tint —
                 in-library is metadata here, not a state this page owns. --%>
-            <span :if={@in_library?} class="shrink-0 text-xs text-base-content/50">In library</span>
+            <span :if={@in_library?} class="shrink-0 text-xs text-base-content/55">In library</span>
           </:markers>
         </.title_summary>
 
@@ -249,7 +249,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         class={[
           "flex cursor-pointer items-center self-stretch px-2 transition-colors",
           @watchlisted? && "text-primary",
-          !@watchlisted? && "text-base-content/30 hover:text-base-content/60"
+          !@watchlisted? && "text-base-content/55 hover:text-base-content/60"
         ]}
         phx-click="watchlist_toggle"
         phx-value-tmdb-id={@result.tmdb_id}

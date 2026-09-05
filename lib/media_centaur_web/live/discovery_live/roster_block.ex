@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RosterBlock do
     <section class="glass-surface rounded-xl p-5 space-y-4" data-component="roster-block">
       <div class="space-y-1">
         <h2 class="text-sm font-semibold">Friends</h2>
-        <p class="text-xs text-base-content/50">
+        <p class="text-xs text-base-content/55">
           People whose recommendations you read. Add a friend with the key they give you; the name is only for you.
         </p>
       </div>
@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RosterBlock do
           class="flex items-center gap-3 rounded-md bg-base-content/5 px-3 py-2"
         >
           <span class="min-w-0 flex-1 truncate text-sm font-medium">{friend.nickname}</span>
-          <code class="shrink-0 text-xs text-base-content/50">{short_npub(friend.pubkey)}</code>
+          <code class="shrink-0 text-xs text-base-content/55">{short_npub(friend.pubkey)}</code>
           <.button
             variant="dismiss"
             size="xs"

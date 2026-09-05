@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.SettingsLive.Playback do
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold">Playback</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
+            <p class="text-sm text-base-content/55 mt-0.5">
               MPV player configuration.
             </p>
           </div>
@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.SettingsLive.Playback do
 
         <div class="space-y-3">
           <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 flex items-center gap-1.5 mb-1.5">
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 flex items-center gap-1.5 mb-1.5">
               <span>MPV path</span>
               <.path_status :if={@config[:mpv_path]} path={@config[:mpv_path]} kind={:executable} />
             </label>
@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.SettingsLive.Playback do
 
           <div class="grid grid-cols-[1fr_auto] gap-3">
             <div class="min-w-0">
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 flex items-center gap-1.5 mb-1.5">
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 flex items-center gap-1.5 mb-1.5">
                 <span>IPC socket directory</span>
                 <.path_status
                   :if={@config[:mpv_socket_dir]}
@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.SettingsLive.Playback do
             </div>
 
             <div class="w-36">
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
                 Timeout (ms)
               </label>
               <input

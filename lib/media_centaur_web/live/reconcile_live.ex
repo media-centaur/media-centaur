@@ -174,7 +174,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
           mapping_count={assigns[:mapping_pending] || 0}
         />
 
-        <p class="text-sm text-base-content/50">
+        <p class="text-sm text-base-content/55">
           Files whose release numbering doesn't line up with the episode list. Confirm where each one belongs.
         </p>
 
@@ -206,7 +206,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
               ]}
             >
               <div class="font-medium truncate">{show.title}</div>
-              <div class="text-xs text-base-content/50">{show.count} file(s) waiting</div>
+              <div class="text-xs text-base-content/55">{show.count} file(s) waiting</div>
             </button>
           </div>
 
@@ -249,7 +249,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-lg font-semibold">{@review.series_title || "Unknown show"}</h2>
-          <p :if={@recommended} class="text-sm text-base-content/50">
+          <p :if={@recommended} class="text-sm text-base-content/55">
             {@recommended.rationale}
           </p>
         </div>
@@ -279,7 +279,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
             <div class="truncate-left text-sm font-mono" title={row.file_path}>
               <bdo dir="ltr">{row.file_path}</bdo>
             </div>
-            <div class="text-xs text-base-content/40">release labelled {row.claimed}</div>
+            <div class="text-xs text-base-content/55">release labelled {row.claimed}</div>
           </div>
           <.icon name="hero-arrow-right-mini" class="size-4 text-base-content/30 shrink-0" />
           <form id={"override-#{row.id}"} phx-change="override" class="shrink-0">
@@ -303,7 +303,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
       </div>
 
       <div :if={@alternatives != []} class="space-y-2">
-        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
           Other interpretations
         </h3>
         <div
@@ -313,11 +313,11 @@ defmodule MediaCentaurWeb.ReconcileLive do
           <div class="min-w-0">
             <div class="text-sm font-medium">
               {ReconcileView.humanize_model(alt.model)}
-              <span class="text-base-content/40 font-normal">
+              <span class="text-base-content/55 font-normal">
                 · {ReconcileView.confidence_pct(alt.confidence)}
               </span>
             </div>
-            <div class="text-xs text-base-content/50 truncate">{alt.rationale}</div>
+            <div class="text-xs text-base-content/55 truncate">{alt.rationale}</div>
           </div>
           <.button
             variant="neutral"

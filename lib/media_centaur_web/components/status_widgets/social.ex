@@ -58,13 +58,13 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
           >
             <span class="font-mono text-base-content/80">{row.host}</span>
             <span class="text-base-content/70">{row.label}</span>
-            <span :if={row.details != []} class="text-base-content/50">
+            <span :if={row.details != []} class="text-base-content/55">
               {Enum.join(row.details, " · ")}
             </span>
           </li>
         </ul>
 
-        <div class="mt-3 space-y-0.5 text-xs text-base-content/50">
+        <div class="mt-3 space-y-0.5 text-xs text-base-content/55">
           <p>{@friend_count} friends · {@sent_count} sent · {@received_count} received</p>
           <p :if={@last_received_at}>Last received {Format.relative_ago(@last_received_at)}</p>
         </div>

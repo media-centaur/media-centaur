@@ -145,7 +145,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
     ~H"""
     <div class="px-6 pt-5 pb-3">
       <h2 class="text-base font-semibold">Report this problem to the developer</h2>
-      <p class="text-xs text-base-content/50 mt-0.5">Step {@step} of 3</p>
+      <p class="text-xs text-base-content/55 mt-0.5">Step {@step} of 3</p>
     </div>
 
     <div class="px-6 flex-1 min-h-0 overflow-y-auto">

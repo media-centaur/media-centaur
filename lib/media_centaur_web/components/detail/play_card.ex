@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayCard do
         :if={!@available}
         variant="dismiss"
         size="sm"
-        class="text-base-content/40 cursor-not-allowed pointer-events-none"
+        class="text-base-content/55 cursor-not-allowed pointer-events-none"
         title="Storage offline — check that your media drive is mounted"
       >
         <.icon name="hero-cloud-arrow-down-mini" class="size-4 opacity-60" /> Offline
