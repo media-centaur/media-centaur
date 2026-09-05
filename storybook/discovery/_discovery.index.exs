@@ -4,5 +4,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery do
   def folder_open?, do: false
   def folder_icon, do: {:fa, "compass", :light, "psb:mr-1"}
 
-  def entry("watchlist_row"), do: [icon: {:fa, "bookmark", :thin}, name: "Watchlist row"]
+  def entry("title_row"), do: [icon: {:fa, "bookmark", :thin}, name: "Title row"]
+
+  def entry("title_detail_modal"),
+    do: [icon: {:fa, "window-maximize", :thin}, name: "Title detail modal"]
 end
