@@ -298,7 +298,9 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # DiscoveryVisibility (session-wide on_mount) adds one settings key
       # on each mount phase = +2 cache-miss reads.
       # AppsVisibility (session-wide on_mount) adds one more = +2.
-      mount_and_assert(conn, "/setup", 23, "Initial setup wizard — minimal reads")
+      # ShellBadges' Incoming follow-up pill (UIDR-030) adds one bounded
+      # count (plans awaiting review) on each mount phase = +2 aggregates.
+      mount_and_assert(conn, "/setup", 25, "Initial setup wizard — minimal reads")
     end
 
     test "GET /review mounts within budget", %{conn: conn} do
