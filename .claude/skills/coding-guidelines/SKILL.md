@@ -87,55 +87,10 @@ Exporting matters: subscribers pattern-match the structs, so the owning
 context's `use Boundary` must `exports:` them — a typed payload turns an
 implicit runtime coupling into a declared one.
 
-## Test Patterns by Domain
+## Testing
 
-### Ecto Schemas (Movie, TVSeries, MovieSeries, VideoObject, WatchedFile, WatchProgress, Image)
-
-- Use `DataCase` (not async — SQLite limitation).
-- Use `create_*` factory helpers to persist via the relevant context module
-  (`MediaCentaur.Library`, `MediaCentaur.Review`, `MediaCentaur.ReleaseTracking`,
-  `MediaCentaur.Settings`).
-- Test through the context's public API against the real database — never stub
-  the data layer.
-- **Never build state with a `Repo` write.** `Repo.insert/update/delete` in a
-  test is setup, and inline setup skips the changeset, so the test can assert
-  against a row the app could never produce. Use `TestFactory`: `create_*` to
-  insert, `force_attrs/2` / `backdate/3` / `force_state/2` / `force_where/2`
-  when you deliberately need a state the public API refuses to produce.
-  **`Repo` *reads* are fine** — `Repo.get!/2`, `Repo.all/1`, `Repo.aggregate/3`
-  to confirm a row landed is exactly what an integration assertion should do.
-  Enforced by **MC0023**; its grandfather list is the rollout backlog.
-- For bulk operations, wrap in `Ecto.Multi` and assert on the transaction result.
-
-### Pipeline Stages (Parse, Search, FetchMetadata, Ingest)
-
-- Call stage `run/1` or `Pipeline.process_payload/1` directly — no Broadway topology in tests.
-- Stub TMDB with `TmdbStubs` helpers (`stub_search_movie/1`, `stub_routes/1`, etc.) — never mock.
-- Images use `NoopImageDownloader` via config — no HTTP or file I/O.
-- Test orchestration and state transitions, not leaf functions (Parser, Mapper have their own suites).
-- **Never delete or weaken pipeline tests.**
-
-### Pure Functions (Parser, Serializer, Mapper, Confidence, Resume)
-
-- Use `async: true` with `ExUnit.Case`.
-- Use `build_*` factory helpers — plain structs, no database.
-
-### LiveView Logic Extraction (Mandatory)
-
-Extract all non-trivial LiveView/component logic into public pure functions and unit test them ([ADR-030]). LiveViews are thin wiring. Any `if`/`case`/`cond` on domain data → extracted function with a test.
-
-### What NOT to Test
-
-- GenServer internals (Watcher, Config, MpvSession).
-- Rendered HTML — no `render_component`. Integration tests (mount, patch, events) are fine.
-- HTML **attributes** via `=~` — use `has_element?(view, selector)` instead; it
-  parses the document, so it can't match the wrong element (**MC0024**).
-  Asserting on user-visible copy with `=~` is fine and expected.
-- External API calls in normal runs — tag `@tag :external` and exclude.
-
-## Factory
-
-All tests use `MediaCentaur.TestFactory`. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
-
-- `build_*` — pure structs for async tests (fast, no I/O).
-- `create_*` — persisted via context-module functions for DataCase tests.
+The test policy lives in one place — the `automated-testing` skill: test-first
+for bug fixes and features, the factory (`MediaCentaur.TestFactory`, never
+inline `Repo` writes — MC0023), `TmdbStubs` / `Req.Test` for every outbound
+client, page smoke tests per route, ADR-030 LiveView logic extraction, and
+what is never tested. Load it before writing a test; do not restate it here.

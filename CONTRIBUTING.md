@@ -16,7 +16,7 @@ Thanks for your interest. This is a small project with a specific scope (see [No
 git clone https://github.com/media-centaur/media-centaur.git
 cd media-centaur
 mix setup          # install deps, create DB, run migrations, build assets
-mix phx.server     # start dev server at http://localhost:1080
+mix phx.server     # start dev server at http://localhost:2160 (the dev TOML's port; bare fallback 1080)
 ```
 
 Requirements: Elixir 1.20+, Erlang/OTP 27+, SQLite3, mpv, inotify-tools. See [README.md#requirements](README.md#requirements) for distro-specific install commands.
@@ -25,7 +25,7 @@ Requirements: Elixir 1.20+, Erlang/OTP 27+, SQLite3, mpv, inotify-tools. See [RE
 
 ```bash
 mix test           # run the test suite
-mix precommit      # full pre-commit: compile (warnings-as-errors), format, credo --strict, sobelow, deps.audit, test
+mix precommit      # the merge gate — see CLAUDE.md § Static Analysis for what it runs
 ```
 
 JavaScript tests for the input system run with **bun** (not vitest or npx):

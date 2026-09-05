@@ -62,7 +62,7 @@ System design, data model, integration patterns, and engineering standards. Thes
 | 055 | 2026-06-09 | [Composite pursuits — units carry the attempt thread](architecture/2026-06-09-055-composite-pursuits.md) | accepted |
 | 056 | 2026-06-10 | [Release-tracking wants — tracks emit plan-based pursuits](architecture/2026-06-10-056-release-tracking-wants.md) | accepted |
 | 057 | 2026-06-14 | [Derived data is recomputable, never frozen](architecture/2026-06-14-057-derived-data-is-recomputable.md) | accepted |
-| 058 | 2026-06-17 | [Canonical episode identity — one TMDB-anchored vocabulary, ambiguity only at the edges](architecture/2026-06-17-058-canonical-episode-identity.md) | superseded |
+| 058 | 2026-06-17 | [Canonical episode identity — one TMDB-anchored vocabulary, ambiguity only at the edges](architecture/2026-06-17-058-canonical-episode-identity.md) | amended |
 | 059 | 2026-07-12 | [Versions split into cuts (PlayableItem) and renditions (WatchedFile)](architecture/2026-07-12-059-cuts-vs-renditions.md) | accepted |
 | 060 | 2026-08-06 | [Events publish through a per-topic `Events` chokepoint, over a `Topics` transport](architecture/2026-08-06-060-event-publication-idiom.md) | accepted |
 | 061 | 2026-08-16 | [Release quality: gates bound, ladders order, a profile chooses — size is never a signal](architecture/2026-08-16-061-source-quality-ladder.md) | accepted |
@@ -84,7 +84,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 006 | 2026-03-09 | [Library two-zone layout with zone-dependent detail shells](user-interface/2026-03-09-006-library-zone-architecture.md) | accepted |
 | 008 | 2026-03-15 | [Flex rows with mixed-size text use baseline alignment](user-interface/2026-03-15-008-flex-row-text-baseline-alignment.md) | accepted |
 | 009 | 2026-04-06 | [Modal panels must set explicit text color](user-interface/2026-04-06-009-modal-panel-color-inheritance.md) | accepted |
-| 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) |  |
+| 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) | accepted |
 | 011 | 2026-05-12 | [Text and logos over imagery use shared `.text-on-image*` utilities](user-interface/2026-05-12-011-text-on-imagery.md) | accepted |
 | 012 | 2026-05-20 | [Desktop-app rendering defaults — eager, sync, stable, immutable](user-interface/2026-05-20-012-desktop-app-rendering-defaults.md) | accepted |
 | 013 | 2026-06-08 | [Modals declare an ephemeral or persistent dismissal mode through one seam](user-interface/2026-06-08-013-modal-dismissal-modes.md) | accepted |
