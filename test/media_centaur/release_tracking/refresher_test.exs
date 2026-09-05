@@ -1,6 +1,7 @@
 defmodule MediaCentaur.ReleaseTracking.RefresherTest do
   use MediaCentaur.DataCase, async: false
 
+  import ExUnit.CaptureLog
   import MediaCentaur.TmdbStubs
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Refresher
@@ -129,6 +130,34 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
 
       reloaded = ReleaseTracking.get_item(item.id)
       assert reloaded.name == "Solo Movie"
+    end
+  end
+
+  describe "a timer tick that fails" do
+    test "is logged and leaves the Refresher running for the next tick" do
+      pid = start_supervised!(Refresher)
+
+      log =
+        capture_log(fn ->
+          assert :error = Refresher.__tick_for_test__(fn -> raise "sweep exploded" end)
+        end)
+
+      assert Process.alive?(pid)
+      assert log =~ "release tracking: test tick failed"
+      assert log =~ "sweep exploded"
+    end
+
+    test "an exit inside the tick is contained the same way" do
+      pid = start_supervised!(Refresher)
+
+      log =
+        capture_log(fn ->
+          assert :error = Refresher.__tick_for_test__(fn -> exit(:db_gone) end)
+        end)
+
+      assert Process.alive?(pid)
+      assert log =~ "release tracking: test tick failed"
+      assert log =~ "db_gone"
     end
   end
 
