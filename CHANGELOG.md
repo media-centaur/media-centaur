@@ -4,6 +4,34 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.8.2 — 2026-09-05
+
+### New
+
+- **Destructive actions ask twice, in place.** Dismiss all on Reconcile, Dismiss on Review, Reset all in Settings › Controls, removing a Watch History row, Stop tracking in a title's dialog, and Cancel pursuit now arm on the first click and fire on the second; any other click stands them down. Watch History no longer deletes a row first and explains afterwards.
+- **Empty pages say what fills them.** An empty Home offers Add a media directory; an empty Watch History offers Browse the library. Both work with the d-pad.
+
+### Improved
+
+- **Every dialog works with a controller.** The clear-database, recommend, manage-apps and history dialogs used to trap the d-pad. Every dialog is now the active overlay while it is open, its controls are reachable, and Back closes it. Review's search and candidate buttons are reachable too.
+- **The cursor is unmistakable.** In keyboard or controller mode only the focused poster draws an outline. The mouse hover ring on posters is gone; the play overlay is the hover cue.
+- **Dimmed text stays readable.** Secondary text across the app keeps a minimum contrast; only icons, separators, placeholders and disabled controls go fainter.
+- **Long paths truncate from the start** so the part that differs stays visible, with the full path in the tooltip — media directories, excluded paths, drives, and the setup tour.
+- **Tiles signal trouble with a tinted wash** instead of a coloured edge bar, on the acquisition tile and the health tiles.
+- **Typing in a dialog survives a stray click.** The manage-apps and media-directory dialogs stay open until you close them.
+- **Lists keep their place across updates.** Review groups, search results, episode rows, extras and cast cards no longer jump when data changes underneath them.
+- **Browser tabs carry the page name** on every page, and the System section keeps one primary button, Update now. The Manage toggle keeps its label with a pressed state instead of flipping to Back.
+- **Faster and quieter.** A changed series rebuilds its detail rows in one pass instead of once per episode; the app holds the database write lock far less when idle; opening Settings no longer walks every image on disk; idle memory is lower.
+- **Failures say what failed.** A rejected TMDB key is logged naming Settings › TMDB; a crashed search or connection test clears its spinner and tells you; a title's Manage panel shows "Reading files…" or a failure line instead of "0 files, 0 B" while it works.
+
+### Fixed
+
+- **A failing release-tracking sweep could take the whole app down.** When a sweep hit an error, the tracker crashed, restarted, and crashed again until the app gave up and shut itself down. A failed sweep is now logged and the next sweep simply retries.
+
+### Migration safety
+
+- No database migration runs on update.
+
 ## v1.8.1 — 2026-09-05
 
 ### Fixed
