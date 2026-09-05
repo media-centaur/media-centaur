@@ -67,10 +67,6 @@ defmodule MediaCentaur.Credo.Checks.NoRepoSetupInTests do
   @grandfathered [
     "test/media_centaur/acquisition/plans_test.exs",
     "test/media_centaur/acquisition/pursuits/commands/terminal_commands_test.exs",
-    "test/media_centaur/acquisition/pursuits/download_identity_test.exs",
-    "test/media_centaur/acquisition/pursuits/events_test.exs",
-    "test/media_centaur/acquisition/pursuits/inbound_listener_test.exs",
-    "test/media_centaur/acquisition/pursuits/throughput_test.exs",
     "test/media_centaur/acquisition/pursuits/watcher_test.exs",
     "test/media_centaur/acquisition/pursuits_test.exs",
     "test/media_centaur/acquisition/tracking_handoffs_test.exs",
@@ -83,7 +79,6 @@ defmodule MediaCentaur.Credo.Checks.NoRepoSetupInTests do
     "test/media_centaur/library/views/detail_test.exs",
     "test/media_centaur/library/views/search_test.exs",
     "test/media_centaur/library/watch_progress_test.exs",
-    "test/media_centaur/maintenance_test.exs",
     "test/media_centaur/watch_history/event_test.exs",
     "test/media_centaur_web/live/incoming_live_pursuit_modal_test.exs",
     "test/media_centaur_web/live/incoming_live_test.exs",

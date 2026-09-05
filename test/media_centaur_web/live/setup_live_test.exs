@@ -12,16 +12,6 @@ defmodule MediaCentaurWeb.SetupLiveTest do
 
   alias MediaCentaur.Settings.Config
 
-  setup do
-    original = :persistent_term.get({Config, :config})
-
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original)
-    end)
-
-    :ok
-  end
-
   describe "mount + render" do
     test "renders the welcome step by default", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/setup")

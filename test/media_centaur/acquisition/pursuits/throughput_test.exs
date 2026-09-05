@@ -1,27 +1,17 @@
 defmodule MediaCentaur.Acquisition.Pursuits.ThroughputTest do
   use MediaCentaur.DataCase, async: true
 
-  alias MediaCentaur.Acquisition.Pursuits.Pursuit
   alias MediaCentaur.Acquisition.Pursuits.Throughput
-  alias MediaCentaur.Repo
 
   defp insert_pursuit(state) do
-    {:ok, pursuit} =
-      %{
-        recipe_type: "tmdb",
-        tmdb_id: Integer.to_string(System.unique_integer([:positive])),
-        tmdb_type: "movie",
-        title: "Movie A",
-        origin: "auto"
-      }
-      |> Pursuit.create_changeset()
-      |> Repo.insert()
-
-    if state == "active" do
-      pursuit
-    else
-      pursuit |> Ecto.Changeset.change(state: state) |> Repo.update!()
-    end
+    create_pursuit(%{
+      recipe_type: "tmdb",
+      tmdb_id: Integer.to_string(System.unique_integer([:positive])),
+      tmdb_type: "movie",
+      title: "Movie A",
+      origin: "auto",
+      state: state
+    })
   end
 
   describe "empty/0" do

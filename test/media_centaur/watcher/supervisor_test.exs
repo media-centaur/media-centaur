@@ -4,6 +4,9 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
   alias MediaCentaur.Repo
   alias MediaCentaur.Watcher.Supervisor, as: WatcherSupervisor
 
+  import MediaCentaur.Eventually
+  import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
+
   setup do
     # Start a sandbox owner in shared mode so watcher Tasks can access the DB.
     # Using start_owner! (not checkout) creates a separate process that stays
@@ -21,11 +24,11 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
     # Stop any existing watchers, then start fresh with our temp dir
     WatcherSupervisor.stop_watchers()
     WatcherSupervisor.start_watchers()
-    wait_for_watchers()
+    eventually(fn -> WatcherSupervisor.statuses() != [] end)
 
     on_exit(fn ->
       WatcherSupervisor.stop_watchers()
-      drain_task_supervisor()
+      await_supervised_tasks()
       Ecto.Adapters.SQL.Sandbox.stop_owner(sandbox_owner)
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, original_config)
       File.rm_rf!(tmp_dir)
@@ -46,7 +49,7 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
 
       assert result == :callback_result
 
-      wait_for_watchers()
+      eventually(fn -> WatcherSupervisor.statuses() != [] end)
       assert [%{dir: _, state: _}] = WatcherSupervisor.statuses()
     end
 
@@ -57,23 +60,8 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
         end)
       end
 
-      wait_for_watchers()
+      eventually(fn -> WatcherSupervisor.statuses() != [] end)
       assert [%{dir: _, state: _}] = WatcherSupervisor.statuses()
-    end
-  end
-
-  defp wait_for_watchers(attempts \\ 20) do
-    if WatcherSupervisor.statuses() == [] and attempts > 0 do
-      Process.sleep(50)
-      wait_for_watchers(attempts - 1)
-    end
-  end
-
-  # Wait for all tasks spawned by watchers to finish before revoking the sandbox.
-  defp drain_task_supervisor(attempts \\ 20) do
-    if Task.Supervisor.children(MediaCentaur.TaskSupervisor) != [] and attempts > 0 do
-      Process.sleep(50)
-      drain_task_supervisor(attempts - 1)
     end
   end
 end

@@ -165,8 +165,8 @@ defmodule MediaCentaur.Recommendations.SyncTest do
     end
 
     assert_receive {:recommendation_received, _event}, 5_000
-    Process.sleep(100)
-    assert render_all.() == [1, 2, 3]
+    # The feed row lands on another process after the event; poll it.
+    eventually(fn -> render_all.() == [1, 2, 3] end)
     await_supervised_tasks()
   end
 
@@ -214,28 +214,18 @@ defmodule MediaCentaur.Recommendations.SyncTest do
   # The verdict arrives after the EVENT frame the test saw, on another
   # process; the console buffer (batched, hence the flush) is the
   # observable, polled to a deadline.
-  defp assert_logged(regex, deadline_ms \\ 2_000) do
-    deadline = System.monotonic_time(:millisecond) + deadline_ms
-
-    assert logged?(regex, deadline),
-           "expected a console line matching #{inspect(regex)}, buffer holds: " <>
-             inspect(Enum.map(Console.Buffer.recent(), & &1.message))
-  end
-
-  defp logged?(regex, deadline) do
-    Console.Buffer.flush()
-
-    cond do
-      Enum.any?(Console.Buffer.recent(), &Regex.match?(regex, &1.message)) ->
-        true
-
-      System.monotonic_time(:millisecond) > deadline ->
-        false
-
-      true ->
-        Process.sleep(20)
-        logged?(regex, deadline)
-    end
+  defp assert_logged(regex, timeout_ms \\ 2_000) do
+    eventually(
+      fn ->
+        Console.Buffer.flush()
+        Enum.any?(Console.Buffer.recent(), &Regex.match?(regex, &1.message))
+      end,
+      timeout: timeout_ms,
+      message: fn ->
+        "expected a console line matching #{inspect(regex)}, buffer holds: " <>
+          inspect(Enum.map(Console.Buffer.recent(), & &1.message))
+      end
+    )
   end
 
   test "a friend's deletion arriving on the feed hides their recommendation" do

@@ -115,17 +115,15 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   describe "debounce on entities_changed" do
     test "five rapid broadcasts trigger only one reload after the debounce window", %{conn: conn} do
       # Regression guard: rapid :entities_changed messages must be debounced
-      # (500ms) rather than triggering assign_all on every message. Five
-      # messages in quick succession should result in exactly one :reload_home
-      # being processed — verifiable by the page rendering correctly after the
-      # window and not crashing from concurrent data loads.
+      # (500ms) rather than triggering assign_all on every message. The
+      # coalescing itself is pinned by `LiveHelpers.debounce/4`'s unit tests;
+      # this proves the page survives the burst — `render/1` is a sync round
+      # trip, so every message above has been handled when it returns.
       {:ok, view, _html} = live_async!(conn, "/")
 
       for _ <- 1..5 do
         send(view.pid, {:entities_changed, %MediaCentaur.Library.Events.EntitiesChanged{entity_ids: []}})
       end
-
-      Process.sleep(600)
 
       assert render(view) =~ "Continue Watching" or
                render(view) =~ "Your home page will populate"

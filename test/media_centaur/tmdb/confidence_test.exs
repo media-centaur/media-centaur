@@ -10,17 +10,17 @@ defmodule MediaCentaur.TMDB.ConfidenceTest do
 
   test "year bonus raises score" do
     # Use a slightly different title so the base Jaro distance is < 1.0, leaving room for bonuses
-    result = %{"title" => "Inception", "release_date" => "2010-07-16"}
-    with_year = Confidence.score("Inception Film", 2010, result, "title", "release_date", false)
-    without_year = Confidence.score("Inception Film", nil, result, "title", "release_date", false)
+    result = %{"title" => "Sample Film", "release_date" => "2010-07-16"}
+    with_year = Confidence.score("Sample Film Title", 2010, result, "title", "release_date", false)
+    without_year = Confidence.score("Sample Film Title", nil, result, "title", "release_date", false)
     assert with_year > without_year
   end
 
   test "position bonus raises score" do
     # Use a slightly different title so the base Jaro distance is < 1.0, leaving room for bonuses
-    result = %{"title" => "Inception", "release_date" => "2010-07-16"}
-    top = Confidence.score("Inception Film", 2010, result, "title", "release_date", true)
-    not_top = Confidence.score("Inception Film", 2010, result, "title", "release_date", false)
+    result = %{"title" => "Sample Film", "release_date" => "2010-07-16"}
+    top = Confidence.score("Sample Film Title", 2010, result, "title", "release_date", true)
+    not_top = Confidence.score("Sample Film Title", 2010, result, "title", "release_date", false)
     assert top > not_top
   end
 

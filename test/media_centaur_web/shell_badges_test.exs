@@ -14,11 +14,6 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
   alias MediaCentaur.Topics
   alias MediaCentaurWeb.ShellBadges
 
-  setup do
-    on_exit(fn -> ShellBadges.reset_cache() end)
-    :ok
-  end
-
   describe "counts projection" do
     test "refresh_cache stores counts readable via counts/0" do
       create_pending_file()

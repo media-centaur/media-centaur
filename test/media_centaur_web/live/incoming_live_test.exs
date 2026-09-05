@@ -2661,16 +2661,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "five rapid grab-event broadcasts trigger only one activity reload after the debounce window",
          %{conn: conn} do
       # Regression guard: TargetEvents and related events must be debounced
-      # (500ms) rather than calling load_activity on every message. Five events
-      # in quick succession must result in one :reload_activity — the page must
-      # render correctly after the window without crashing.
+      # (500ms) rather than calling load_activity on every message. Coalescing
+      # is pinned by `LiveHelpers.debounce/4`'s tests; `render/1` is a sync
+      # round trip, so the burst has been handled when it returns.
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
 
       for _ <- 1..5 do
         send(view.pid, %TargetEvents.Picked{target: %Target{}})
       end
-
-      Process.sleep(600)
 
       assert render(view) =~ "Incoming"
     end
@@ -3013,9 +3011,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         send(view.pid, {:target_failed, %{id: Ecto.UUID.generate(), reason: "boom"}})
       end
 
-      Process.sleep(600)
-
-      # No crash, page still renders History zone.
+      # No crash, page still renders History zone (`render/1` is a sync round trip).
       assert render(view) =~ "Incoming"
     end
 
@@ -3026,8 +3022,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       send(view.pid, {:target_picked, %{id: Ecto.UUID.generate()}})
       send(view.pid, {:target_armed, %{id: Ecto.UUID.generate()}})
       send(view.pid, {:target_snoozed, %{id: Ecto.UUID.generate()}})
-
-      Process.sleep(600)
 
       assert render(view) =~ "Incoming"
     end
@@ -3040,27 +3034,17 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   # it a poll would pass before the groups were even created. Deterministic
   # stand-in for a settle sleep; returns the session.
   defp await_session_groups(status, timeout \\ 1_000) do
-    deadline = System.monotonic_time(:millisecond) + timeout
-    do_await_session_groups(status, deadline)
-  end
-
-  defp do_await_session_groups(status, deadline) do
-    session = SearchSession.current()
-
-    cond do
-      session.groups != [] and Enum.all?(session.groups, &(&1.status == status)) ->
-        session
-
-      System.monotonic_time(:millisecond) >= deadline ->
-        flunk(
-          "search-session groups never all reached #{inspect(status)}; " <>
-            "got #{inspect(Enum.map(session.groups, & &1.status))}"
-        )
-
-      true ->
-        Process.sleep(10)
-        do_await_session_groups(status, deadline)
-    end
+    eventually(
+      fn ->
+        session = SearchSession.current()
+        session.groups != [] and Enum.all?(session.groups, &(&1.status == status)) and session
+      end,
+      timeout: timeout,
+      message: fn ->
+        "search-session groups never all reached #{inspect(status)}; " <>
+          "got #{inspect(Enum.map(SearchSession.current().groups, & &1.status))}"
+      end
+    )
   end
 
   # ---------------------------------------------------------------------------
@@ -3275,8 +3259,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
           {:entities_changed, %MediaCentaur.Library.Events.EntitiesChanged{entity_ids: []}}
         )
       end
-
-      Process.sleep(600)
 
       assert render(view) =~ "Reload Show"
     end

@@ -55,7 +55,7 @@ defmodule MediaCentaur.Watcher.ExcludeDirsTest do
 
     test "returns false when path is unrelated to exclude dirs" do
       prepared = ExcludeDirs.prepare(["/videos/Captures", "/videos/staging"])
-      refute ExcludeDirs.excluded?("/videos/Movies/Inception.mkv", prepared)
+      refute ExcludeDirs.excluded?("/videos/Movies/Sample.Movie.mkv", prepared)
     end
 
     test "returns true when any one of multiple exclude dirs matches" do

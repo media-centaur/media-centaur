@@ -190,8 +190,8 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
         send(view.pid, {:watch_event_created, event})
       end
 
-      Process.sleep(600)
-
+      # Coalescing is pinned by `LiveHelpers.debounce/4`'s tests; `render/1`
+      # is a sync round trip, so the burst has been handled when it returns.
       assert render(view) =~ "Watch History"
     end
   end

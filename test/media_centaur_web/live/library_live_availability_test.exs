@@ -32,12 +32,6 @@ defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
   # messages have been handled.
   defp render_after_broadcasts(view), do: render(view)
 
-  setup do
-    :ok = Availability.__reset_for_test__()
-    on_exit(fn -> Availability.__reset_for_test__() end)
-    :ok
-  end
-
   describe "offline banner" do
     test "not shown when every dir is :watching", %{conn: conn} do
       broadcast_dir_state("/mnt/videos", :watching)

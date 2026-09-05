@@ -36,10 +36,9 @@ defmodule MediaCentaurWeb.ShellBadges do
   ## Test mode
 
   No Worker runs under ExUnit; `counts/0` falls back to the live
-  computation, so hook-mounted pages see fresh-DB semantics. Tests that
-  exercise `refresh_cache/0` directly must `reset_cache/0` in `on_exit`
-  — a leaked `:persistent_term` snapshot would shadow live counts for
-  every later test in the VM.
+  computation, so hook-mounted pages see fresh-DB semantics. A test that
+  exercises `refresh_cache/0` leaves a `:persistent_term` snapshot behind;
+  `GlobalStateSandbox` erases it before the next sync test.
   """
   @behaviour MediaCentaur.Cache
 
@@ -110,11 +109,6 @@ defmodule MediaCentaurWeb.ShellBadges do
 
   @doc false
   # Test-only: clears the cached snapshot so later tests see live counts.
-  def reset_cache do
-    :persistent_term.erase(@counts_key)
-    :ok
-  end
-
   defp compute_counts do
     %{
       diagnostics_unseen: DiagnosticsBadge.count(),

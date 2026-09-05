@@ -44,10 +44,7 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     # executes. Restored on exit.
     Application.put_env(:media_centaur, :environment, :prod)
 
-    on_exit(fn ->
-      Application.put_env(:media_centaur, :environment, :test)
-      UpdateChecker.clear_cache()
-    end)
+    on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
 
     :ok
   end

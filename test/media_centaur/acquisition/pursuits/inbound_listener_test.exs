@@ -3,23 +3,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListenerTest do
 
   import Ecto.Query
 
-  alias MediaCentaur.Acquisition.Pursuits.{InboundListener, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.InboundListener
 
-  defp insert_pursuit(overrides) do
-    attrs =
-      Map.merge(
-        %{
-          tmdb_id: "12345",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto"
-        },
-        overrides
-      )
-
-    {:ok, pursuit} = Repo.insert(Pursuit.create_changeset(attrs))
-    pursuit
-  end
+  defp insert_pursuit(overrides), do: create_pursuit(overrides)
 
   defp set_state(pursuit, new_state) do
     force_state(pursuit, new_state)

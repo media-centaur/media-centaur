@@ -85,7 +85,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
   @dispositions %{
     MediaCentaur.Repo => {:sandboxed, "Ecto SQL sandbox, per-test owner"},
     MediaCentaur.Library.Availability =>
-      {:sandboxed, "state lives in :persistent_term — restored by restore!/0"},
+      {:sandboxed, "the per-dir map lives only in :persistent_term — restored by restore!/0"},
     MediaCentaur.TaskSupervisor => {:sandboxed, "orphans drained in DataCase teardown"},
     MediaCentaur.Console.Buffer => {:reset, "ring buffer; unscoped log assertions false-match"},
     MediaCentaurWeb.IncomingLive.SearchSession =>

@@ -22,15 +22,6 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
   # Poll-with-deadline on a deterministic predicate (ADR-049 — never a fixed
   # settle sleep). Used to wait for an async-logged entry to actually land in
   # the global buffer before forcing its batch out.
-  defp wait_until(fun, deadline_ms \\ 2_000)
-
-  defp wait_until(_fun, deadline_ms) when deadline_ms <= 0,
-    do: flunk("wait_until: predicate never became true")
-
-  defp wait_until(fun, deadline_ms) do
-    if fun.(), do: :ok, else: Process.sleep(10) && wait_until(fun, deadline_ms - 10)
-  end
-
   test "mounts when navigating to the home page (sticky child)", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/")
     assert html =~ "console-sticky-root"
@@ -55,7 +46,7 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
     # under full-suite load (the source of a pre-existing flake). Wait until the
     # entry has actually landed in the (global) buffer, then force the batch out,
     # so the broadcast and the LV re-render below are deterministic.
-    wait_until(fn ->
+    eventually(fn ->
       Enum.any?(Console.snapshot().entries, &(&1.message == "integration test entry"))
     end)
 
