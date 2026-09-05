@@ -55,11 +55,14 @@ defmodule MediaCentaur.Library.Views.Detail do
   ## Broadcast contract
 
   Emits `{:library_view_updated, :detail, playable_item_id}` on the
-  `library:views` topic for each row touched. The 3-tuple shape lets
-  DetailLive subscribe to only its current PlayableItem and ignore
-  unrelated updates. This is intentionally distinct from Browse's
-  2-tuple `{:library_view_updated, :browse}`, which discriminates the
-  whole-table refresh.
+  `library:views` topic when exactly one row was rebuilt, and
+  `{:library_view_updated, :detail, :all}` once per full rebuild **or per
+  batch of rows** (a series import touches every episode row in one
+  message, not one per row). The 3-tuple shape lets a subscriber ignore
+  another row's update; `:all` means re-read whatever you hold. This is
+  intentionally distinct from Browse's 2-tuple
+  `{:library_view_updated, :browse}`, which discriminates the whole-table
+  refresh.
   """
   @behaviour MediaCentaur.Cache
 
@@ -168,7 +171,7 @@ defmodule MediaCentaur.Library.Views.Detail do
         :ok
 
       playable_item_ids ->
-        Enum.each(playable_item_ids, &rebuild_row/1)
+        rebuild_rows(playable_item_ids)
         # Also sweep rows whose PlayableItems no longer exist for the
         # given container ids (e.g. partial deletion).
         Enum.each(ids, fn container_id ->
@@ -191,6 +194,46 @@ defmodule MediaCentaur.Library.Views.Detail do
   end
 
   def handle_message(_msg), do: :ok
+
+  # One batch for every changed row, built the way the full rebuild is
+  # built: one context for the set, one shared entity payload per grouping
+  # key, one canonical recompute per key, one broadcast. The previous
+  # per-row path rebuilt a context and re-inserted the entity payload for
+  # every episode of an importing series — ~10 queries and a full ETS copy
+  # of the cast and season tree per row, N times per flush (audit P1).
+  defp rebuild_rows(playable_item_ids) do
+    old_keys = Enum.flat_map(playable_item_ids, &canonical_keys_for_stored_row/1)
+    playable_items = Repo.all(from(p in PlayableItem, where: p.id in ^playable_item_ids))
+    context = build_context(playable_items)
+
+    built =
+      playable_items
+      |> Enum.group_by(&grouping_key(&1, context))
+      |> Enum.flat_map(fn {entity_key, items} ->
+        shared = build_shared_entity_data(entity_key)
+
+        items
+        |> Enum.map(&build_item(&1, shared, entity_key, context))
+        |> Enum.reject(&is_nil/1)
+      end)
+
+    built_ids = MapSet.new(built, & &1.playable_item_id)
+    for id <- playable_item_ids, not MapSet.member?(built_ids, id), do: :ets.delete(@table, id)
+
+    {lights, shared_entries} = built |> Enum.map(&deflate/1) |> Enum.unzip()
+    shared_entries |> Enum.uniq_by(&elem(&1, 0)) |> Enum.each(&:ets.insert(@shared_table, &1))
+    Enum.each(lights, &:ets.insert(@table, {&1.playable_item_id, &1}))
+
+    new_keys =
+      built |> Enum.flat_map(&canonical_entries_for_row/1) |> Enum.map(fn {key, _, _} -> key end)
+
+    (old_keys ++ new_keys) |> Enum.uniq() |> Enum.each(&recompute_canonical_for_key/1)
+
+    case playable_item_ids do
+      [only] -> broadcast_row(only)
+      _many -> broadcast_row(:all)
+    end
+  end
 
   @doc """
   Read the projection for a single `playable_item_id`. Returns the
@@ -821,33 +864,6 @@ defmodule MediaCentaur.Library.Views.Detail do
   defp display_container(:movie, :movie, %Movie{} = movie), do: %{movie | movie_series: nil}
   defp display_container(_type, _presented_as, container), do: container
 
-  defp rebuild_row(playable_item_id) do
-    old_keys = canonical_keys_for_stored_row(playable_item_id)
-
-    case build_item_for_playable_item_id(playable_item_id) do
-      nil ->
-        :ets.delete(@table, playable_item_id)
-        Enum.each(old_keys, &recompute_canonical_for_key/1)
-        broadcast_row(playable_item_id)
-
-      %DetailItem{} = item ->
-        {light, shared_entry} = deflate(item)
-        :ets.insert(@shared_table, shared_entry)
-        :ets.insert(@table, {playable_item_id, light})
-
-        new_keys =
-          item
-          |> canonical_entries_for_row()
-          |> Enum.map(fn {key, _sort, _pi_id} -> key end)
-
-        (old_keys ++ new_keys)
-        |> Enum.uniq()
-        |> Enum.each(&recompute_canonical_for_key/1)
-
-        broadcast_row(playable_item_id)
-    end
-  end
-
   defp delete_row(playable_item_id) do
     affected_keys = canonical_keys_for_stored_row(playable_item_id)
     :ets.delete(@table, playable_item_id)
@@ -936,8 +952,8 @@ defmodule MediaCentaur.Library.Views.Detail do
     |> Enum.reject(&(&1 in live_ids))
   end
 
-  # `playable_item_id` is a row UUID for partial refreshes, or `:all` when
-  # the whole table was rebuilt.
+  # `playable_item_id` is a row UUID when one row changed, or `:all` for a
+  # full rebuild and for a batch of rows.
   defp broadcast_row(playable_item_id) do
     Topics.publish(
       Topics.library_views(),

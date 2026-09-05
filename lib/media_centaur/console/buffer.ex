@@ -163,7 +163,8 @@ defmodule MediaCentaur.Console.Buffer do
       filter: filter,
       persist_ref: nil,
       pending: [],
-      flush_ref: nil
+      flush_ref: nil,
+      overflow: 0
     }
 
     {:ok, state}
@@ -176,17 +177,26 @@ defmodule MediaCentaur.Console.Buffer do
   # insert per line on every open page while that navigation was in
   # flight (campaigns/instant-navigation.md Phase 5). The buffer itself
   # is updated immediately — only the broadcast batches.
+  #
+  # Trimming to the cap on every append walked `cap` entries per log line
+  # (audit P8). The list may now run over the cap by up to a quarter and
+  # is trimmed once per that many appends; every read takes the cap, so
+  # the overflow is never observable.
   @impl true
   def handle_cast({:append, entry}, state) do
-    new_entries = Enum.take([entry | state.entries], state.cap)
-
-    state = %{state | entries: new_entries, pending: [entry | state.pending]}
-    {:noreply, schedule_flush(state)}
+    state = %{state | entries: [entry | state.entries], pending: [entry | state.pending]}
+    {:noreply, state |> trim_if_over() |> schedule_flush()}
   end
+
+  defp trim_if_over(%{overflow: overflow, cap: cap} = state) when overflow >= max(div(cap, 4), 1) do
+    %{state | entries: Enum.take(state.entries, cap), overflow: 0}
+  end
+
+  defp trim_if_over(state), do: %{state | overflow: state.overflow + 1}
 
   @impl true
   def handle_call({:recent, nil}, _from, state) do
-    {:reply, state.entries, state}
+    {:reply, Enum.take(state.entries, state.cap), state}
   end
 
   def handle_call({:recent, n}, _from, state) when is_integer(n) do
@@ -194,7 +204,7 @@ defmodule MediaCentaur.Console.Buffer do
   end
 
   def handle_call(:snapshot, _from, state) do
-    snapshot = %{entries: state.entries, cap: state.cap, filter: state.filter}
+    snapshot = %{entries: Enum.take(state.entries, state.cap), cap: state.cap, filter: state.filter}
     {:reply, snapshot, state}
   end
 
@@ -208,12 +218,12 @@ defmodule MediaCentaur.Console.Buffer do
     # resurrect rows the UI just emptied.
     if state.flush_ref, do: Process.cancel_timer(state.flush_ref)
     broadcast(:buffer_cleared)
-    {:reply, :ok, %{state | entries: [], pending: [], flush_ref: nil}}
+    {:reply, :ok, %{state | entries: [], pending: [], flush_ref: nil, overflow: 0}}
   end
 
   def handle_call({:resize, n}, _from, state) do
     new_entries = Enum.take(state.entries, n)
-    new_state = %{state | cap: n, entries: new_entries}
+    new_state = %{state | cap: n, entries: new_entries, overflow: 0}
     broadcast({:buffer_resized, n})
     new_state = schedule_persist(new_state)
     {:reply, :ok, new_state}
