@@ -51,9 +51,9 @@ defmodule MediaCentaur.IntegrationHealth do
   use Boundary,
     deps: [
       MediaCentaur.TMDB,
-      MediaCentaur.Acquisition,
       MediaCentaur.Capabilities,
-      MediaCentaur.Downloads
+      MediaCentaur.Downloads,
+      MediaCentaur.Search
     ],
     exports: [Status, Verifier]
 

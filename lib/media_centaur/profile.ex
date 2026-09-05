@@ -4,7 +4,6 @@ defmodule MediaCentaur.Profile do
       MediaCentaur.Library,
       MediaCentaur.ReleaseTracking,
       MediaCentaur.Settings,
-      MediaCentaur.Watcher,
       MediaCentaur.WatchHistory
     ],
     exports: [Suite]

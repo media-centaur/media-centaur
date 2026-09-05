@@ -1,7 +1,6 @@
 defmodule MediaCentaur.Search do
   use Boundary,
     deps: [
-      MediaCentaur.Capabilities,
       MediaCentaur.ErrorReports,
       MediaCentaur.HttpClient,
       MediaCentaur.Settings
@@ -47,11 +46,9 @@ defmodule MediaCentaur.Search do
     points; `MediaCentaur.Acquisition.search/2` gates them on
     configuration for grab callers.
 
-  ## Boundary deps
-
-  ```
-  Search → Capabilities, Settings
-  ```
+  The `use Boundary` declaration above is the dependency list; the
+  configured-gate on Prowlarr lives with the callers (`Acquisition`,
+  `IntegrationHealth`), not here.
 
   Search holds **no durable state** — every value flowing through
   this boundary is a runtime struct. `acquisition_grabs` and the

@@ -97,6 +97,8 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Acquisition.TargetEvents
+  require PursuitEvents
+  require TargetEvents
   alias MediaCentaur.Acquisition.ViewModels
 
   alias MediaCentaur.Acquisition.ViewModels.{
@@ -2220,24 +2222,22 @@ defmodule MediaCentaurWeb.IncomingLive do
     do: {:noreply, maybe_note_plan_descent(socket, event)}
 
   # The two event families are open sets (one struct per kind), so their
-  # membership is a predicate rather than a head.
-  def handle_info(%struct{} = event, socket) do
-    cond do
-      TargetEvents.event?(struct) ->
-        {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
-
-      PursuitEvents.event?(struct) ->
-        socket =
-          socket
-          |> debounce(:pursuits_reload_timer, :reload_pursuits, 500)
-          |> maybe_reload_modal_for_event(event)
-
-        {:noreply, socket}
-
-      true ->
-        {:noreply, socket}
-    end
+  # membership is a guard rather than one head per kind.
+  def handle_info(%struct{}, socket) when TargetEvents.is_event(struct) do
+    {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
   end
+
+  def handle_info(%struct{} = event, socket) when PursuitEvents.is_event(struct) do
+    socket =
+      socket
+      |> debounce(:pursuits_reload_timer, :reload_pursuits, 500)
+      |> maybe_reload_modal_for_event(event)
+
+    {:noreply, socket}
+  end
+
+  # Any other struct broadcast on a subscribed topic is not this page's.
+  def handle_info(%_{}, socket), do: {:noreply, socket}
 
   def handle_info(:reload_pursuits, socket) do
     {:noreply, socket |> load_pursuit_rows() |> build_view()}

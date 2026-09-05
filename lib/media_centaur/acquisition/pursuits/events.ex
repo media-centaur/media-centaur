@@ -122,6 +122,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Events do
   @spec event?(module()) :: boolean()
   def event?(module) when is_atom(module), do: module in @event_modules
 
+  @doc "Guard form of `event?/1`, for a `handle_info(%struct{}, _) when is_event(struct)` head."
+  defguard is_event(module) when module in @event_modules
+
   @doc """
   Deletes pursuit events that occurred before `cutoff`. Returns the number
   of rows removed. Used by the retention sweep — the pursuit ledger itself

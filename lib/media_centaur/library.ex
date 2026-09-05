@@ -9,6 +9,7 @@ defmodule MediaCentaur.Library do
       Completeness,
       Containers,
       ContentUrls,
+      ContinueWatchingProgress,
       EntityShape,
       EntityView,
       Episode,
@@ -66,8 +67,7 @@ defmodule MediaCentaur.Library do
       Views.HeroCandidatesItem,
       Views.RecentlyAdded,
       Views.RecentlyAddedItem,
-      WatchedFile,
-      Writes
+      WatchedFile
     ]
 
   @moduledoc """
