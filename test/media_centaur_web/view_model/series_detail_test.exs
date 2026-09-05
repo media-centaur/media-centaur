@@ -99,6 +99,63 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
                items
     end
 
+    test "an episode numbered far above the TMDB count gets its own row, with no placeholders between" do
+      # A misparsed filename (E1080) must not gap-fill a thousand rows.
+      season = season_with_episodes(1, 3, [1, 2, 1080])
+      tv = build_tv_series(%{seasons: [season]})
+
+      view_model =
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil, nil)
+
+      [%SeasonView{items: items}] = view_model.seasons
+
+      assert [
+               %EpisodeListItem.Library{episode: %{episode_number: 1}},
+               %EpisodeListItem.Library{episode: %{episode_number: 2}},
+               %EpisodeListItem.Missing{episode_number: 3},
+               %EpisodeListItem.Library{episode: %{episode_number: 1080}}
+             ] = items
+    end
+
+    test "a release numbered far above the TMDB count gets its own row, with no placeholders between" do
+      season = season_with_episodes(1, 3, [1, 2, 3])
+      tv = build_tv_series(%{seasons: [season]})
+
+      releases = [
+        release_map(%{season_number: 1, episode_number: 4, released: false}),
+        release_map(%{season_number: 1, episode_number: 9, released: false})
+      ]
+
+      view_model =
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, :watching, nil)
+
+      [%SeasonView{items: items}] = view_model.seasons
+
+      assert [
+               %EpisodeListItem.Library{},
+               %EpisodeListItem.Library{},
+               %EpisodeListItem.Library{},
+               %EpisodeListItem.Upcoming{episode_number: 4},
+               %EpisodeListItem.Upcoming{episode_number: 9}
+             ] = items
+    end
+
+    test "without a TMDB count, gaps below the highest known episode are still filled" do
+      season = season_with_episodes(1, nil, [1, 3])
+      tv = build_tv_series(%{seasons: [season]})
+
+      view_model =
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil, nil)
+
+      [%SeasonView{items: items}] = view_model.seasons
+
+      assert [
+               %EpisodeListItem.Library{episode: %{episode_number: 1}},
+               %EpisodeListItem.Missing{episode_number: 2},
+               %EpisodeListItem.Library{episode: %{episode_number: 3}}
+             ] = items
+    end
+
     test "release in a season not in library becomes a future-season bucket" do
       season1 = season_with_episodes(1, 3, [1, 2, 3])
       tv = build_tv_series(%{seasons: [season1]})
