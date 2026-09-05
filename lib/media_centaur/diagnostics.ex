@@ -30,7 +30,9 @@ defmodule MediaCentaur.Diagnostics do
     |> MediaCentaur.Console.Buffer.recent()
     |> Enum.reverse()
     |> Enum.each(fn entry ->
-      IO.puts("#{DateTime.to_iso8601(entry.timestamp)} [#{entry.level}] #{entry.component}: #{entry.message}")
+      IO.puts(
+        "#{DateTime.to_iso8601(entry.timestamp)} [#{entry.level}] #{entry.component}: #{entry.message}"
+      )
     end)
   end
 
