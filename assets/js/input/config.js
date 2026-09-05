@@ -33,6 +33,7 @@ export const inputConfig = {
     plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
     // The Discovery title detail modal's action row (spec 2026-09-05).
     title_detail_body: "[data-nav-zone='title_detail_body'] [data-nav-item]",
+    title_detail_menu: "[data-nav-zone='title_detail_menu'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
@@ -111,6 +112,9 @@ export const inputConfig = {
     // The title detail modal's action row walks LEFT/RIGHT like the
     // library detail's action row; the scope menu's item joins it when open.
     title_detail_body: Context.TOOLBAR,
+    // The series scope menu, present only while open: a one-item vertical
+    // list under the strip.
+    title_detail_menu: Context.TREE,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -173,12 +177,16 @@ export const inputConfig = {
         plan_body: { up: ["plan_grid", "plan_head"] },
       },
     },
-    // The Discovery title detail modal (spec 2026-09-05). One region: the
-    // action row — primary, secondary, tertiary verbs, and the series scope
-    // menu's item when open — walked as one strip. BACK dismisses.
+    // The Discovery title detail modal (spec 2026-09-05): the action strip
+    // (primary, secondary, tertiary verbs) over the series scope menu, which
+    // exists only while open — DOWN enters it, UP climbs back. No `back`
+    // edges: BACK dismisses from anywhere.
     title_detail: {
-      entry: ["title_detail_body"],
-      layout: { title_detail_body: {} },
+      entry: ["title_detail_body", "title_detail_menu"],
+      layout: {
+        title_detail_body: { down: ["title_detail_menu"] },
+        title_detail_menu: { up: ["title_detail_body"] },
+      },
     },
   },
 

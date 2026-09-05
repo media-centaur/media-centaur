@@ -470,7 +470,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           scope_menu_open={@scope_menu_open}
         />
       </:overlays>
-      <div class="relative" data-page-behavior="discovery" data-nav-default-zone="discovery">
+      <%!-- `title` is modal state: stripped from the remembered URL so
+            leaving the section closes the modal rather than reopening it
+            on return. --%>
+      <div
+        class="relative"
+        data-page-behavior="discovery"
+        data-nav-default-zone="discovery"
+        data-nav-transient-params="title"
+      >
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <.page_header title="Discovery" class="px-1" />
 
