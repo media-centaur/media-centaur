@@ -327,7 +327,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           :for={dir <- dirs_list(@result)}
           class="flex items-center justify-between gap-2 p-2 rounded bg-base-content/5"
         >
-          <code class="font-mono text-sm">{dir}</code>
+          <code class="font-mono text-sm truncate-left min-w-0" title={dir}><bdo dir="ltr">{dir}</bdo></code>
           <.button
             variant="dismiss"
             size="xs"

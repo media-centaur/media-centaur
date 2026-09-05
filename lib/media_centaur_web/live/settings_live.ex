@@ -2449,7 +2449,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     <.modal
       id="media-dir-dialog"
       open={!is_nil(@media_dir_dialog)}
-      dismiss={:ephemeral}
+      dismiss={:persistent}
       on_close="media_dir:close"
       size={:sm}
       panel_class="p-6"
