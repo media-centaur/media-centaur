@@ -4,6 +4,25 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.10.0 — 2026-09-05
+
+### New
+
+- **Share what you watch and what you track.** Two switches under **Settings › Social › Sharing**, both off until you turn them on. **Share what you watch** tells your friends when you finish a movie or an episode; on a series they see the latest episode you finished, not every one. **Share what you track** tells them when you start tracking a release. Recommending always shares, as before. Each switch shares from the moment it is on, not what came before; turning one off stops new messages and leaves what was already sent until you delete it from the Feed.
+- **The Feed shows who did what.** Discovery's Recommendations tab is now **Feed**, and every row leads with the act — *Sam recommended*, *Sam watched S02E05*, *Sam started tracking* — and how long ago. The title view says the same, and on your own rows the Delete option names what it withdraws.
+
+### Improved
+
+- **Friends' watched and tracked titles open like any other.** A row from the Feed opens the same title view with Download, Track release, and Add to watchlist, so a friend finishing a show is one click from your own copy.
+
+### Relay note
+
+- Watched and tracking messages need [social-relay](https://github.com/media-centaur/social-relay) **v0.4.0 or later**. Until a relay is upgraded it refuses them (the relay row under Settings › Social shows the reason) and Media Centaur sends them again on its own once it is.
+
+### Migration safety
+
+- Renames the recommendations table to *activities* and adds a *kind* column, so existing recommendations are kept as they are; the watchlist's provenance column is renamed to match. The update runs it automatically, nothing to do by hand.
+
 ## v1.9.0 — 2026-09-05
 
 ### New
