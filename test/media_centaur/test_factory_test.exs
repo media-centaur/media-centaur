@@ -10,6 +10,24 @@ defmodule MediaCentaur.TestFactoryTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Acquisition.Pursuits
+  alias MediaCentaur.Library
+
+  describe "create_linked_file/1 for a TV series" do
+    test "numbers each factory episode sequentially within the factory season" do
+      tv = create_tv_series(%{name: "Sample Show"})
+      create_linked_file(%{tv_series_id: tv.id, file_path: "/media/test/Sample.Show.a.mkv"})
+      create_linked_file(%{tv_series_id: tv.id, file_path: "/media/test/Sample.Show.b.mkv"})
+
+      [factory_season] = Library.Seasons.list_for_tv_series(tv.id)
+
+      episode_numbers =
+        factory_season.id |> Library.Episodes.list_for_season() |> Enum.map(& &1.episode_number)
+
+      # A global counter would number these in the thousands, and the
+      # series detail gap-fills every number below the highest episode.
+      assert Enum.sort(episode_numbers) == [1, 2]
+    end
+  end
 
   describe "backdate/3" do
     test "moves a timestamp into the past, past the changeset that would reject it" do
