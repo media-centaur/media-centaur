@@ -146,7 +146,13 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               </div>
             </div>
             <div class="flex justify-end">
-              <.button variant="dismiss" size="sm" phx-click="dismiss_deleted_event">
+              <.button
+                variant="dismiss"
+                size="sm"
+                phx-click="dismiss_deleted_event"
+                data-nav-item
+                tabindex="0"
+              >
                 Close
               </.button>
             </div>

@@ -16,6 +16,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   alias MediaCentaur.TMDB.Client
 
   @last_swept_at_key "release_tracking:last_swept_at"
+  @first_tick_floor_ms to_timeout(second: 10)
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -49,8 +50,24 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
   @impl true
   def init(_opts) do
-    schedule_sweep(RefreshSchedule.next_delay_ms(last_swept_at(), sweep_interval_ms()))
-    schedule_refresh(RefreshSchedule.next_delay_ms(last_refresh_completed_at(), refresh_interval_ms()))
+    # A floor on the first tick: a Refresher restarted by its supervisor
+    # after a crash must not tick straight into the same transient and
+    # burn the restart budget (see `RefreshSchedule`).
+    floor = [floor_ms: @first_tick_floor_ms]
+
+    schedule_sweep(
+      RefreshSchedule.next_delay_ms(last_swept_at(), sweep_interval_ms(), DateTime.utc_now(), floor)
+    )
+
+    schedule_refresh(
+      RefreshSchedule.next_delay_ms(
+        last_refresh_completed_at(),
+        refresh_interval_ms(),
+        DateTime.utc_now(),
+        floor
+      )
+    )
+
     {:ok, %{}}
   end
 

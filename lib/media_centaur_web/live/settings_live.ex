@@ -2394,6 +2394,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       id="clear-database-modal"
       open={@open}
       dismiss={:persistent}
+      on_close="cancel_clear_database"
       size={:sm}
       panel_class="p-6 space-y-4"
       role="dialog"

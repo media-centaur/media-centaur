@@ -997,6 +997,8 @@ defmodule MediaCentaurWeb.ReviewLive do
               phx-value-title={candidate["title"]}
               phx-value-year={candidate["year"]}
               phx-value-poster-path={candidate["poster_path"]}
+              data-nav-item
+              tabindex="0"
             >
               Select
             </.button>
@@ -1057,7 +1059,14 @@ defmodule MediaCentaurWeb.ReviewLive do
             <option value="tv" selected={@type == :tv}>TV</option>
           </select>
         </div>
-        <.button type="submit" variant="primary" size="sm" disabled={@searching}>
+        <.button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={@searching}
+          data-nav-item
+          tabindex="0"
+        >
           {if @searching, do: "Searching...", else: "Search"}
         </.button>
       </form>
@@ -1112,6 +1121,8 @@ defmodule MediaCentaurWeb.ReviewLive do
             phx-value-title={result.title}
             phx-value-year={result.year}
             phx-value-poster-path={result.poster_path}
+            data-nav-item
+            tabindex="0"
           >
             Select
           </.button>

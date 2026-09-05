@@ -3038,8 +3038,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       on_close="cancel_download_cancel"
       size={:sm}
       panel_class="p-6"
-      data-detail-mode={!is_nil(@cancel_confirm) && "modal"}
-      data-dismiss-event="cancel_download_cancel"
       raised
     >
       <div :if={@cancel_confirm}>
@@ -3091,8 +3089,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       on_close="plan_discard_cancel"
       size={:sm}
       panel_class="p-6"
-      data-detail-mode={@open && "modal"}
-      data-dismiss-event="plan_discard_cancel"
       raised
     >
       <div :if={@open}>
