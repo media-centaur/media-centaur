@@ -50,17 +50,23 @@ design findings. Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 
 **Pass 4 part one done 2026-09-05** — Stage E-2's precommit items
 (D13, E52, E42, E53) and Stage E-3's E56 dead-code batch, in commits
-`3c764d2d`, `9dc0fb83` and `6200e014`. Full `mix precommit` green: 6578
-Elixir + 795 JS tests, zero failures and none of the usual flakes.
-**Stage E-5 (E29–E42) is what remains of the engineering lane**, with two
-of its open questions already answered by the owner (below).
+`3c764d2d`, `9dc0fb83` and `6200e014`.
+
+**Pass 4 part two done 2026-09-05 — Stage E-5 resolved**, eight local,
+**unpushed** commits `40b63794..c723c6c8` (E40/E37/E27, E32, E29, E31,
+E38, E39, E30, E35 — see the stage). Full `mix precommit`: 6593/6594
+Elixir + 795 JS; the one failure was the known
+`Nostr.ConnectionTest` retry-log flake, green in isolation. **The
+engineering lane is done except straggler E45**; the Performance,
+Documentation and Design lanes remain.
 
 ## Resuming — start here (handoff written 2026-09-05)
 
 **Reconcile first (ADR-042), but the expensive parts are already done.**
-`git log 3c764d2d^..HEAD` is this session's work: four commits on `main`,
-**local and unpushed**. Confirm nothing was pushed or rebased since, then
-pick up at *What's next* below. Do not push or tag without being asked.
+`git log 3c764d2d^..HEAD` is the 2026-09-05 work: thirteen commits on
+`main`, **local and unpushed**. Confirm nothing was pushed or rebased
+since, then pick up at *What's next* below. Do not push or tag without
+being asked.
 
 ### Closed — do not re-audit these
 
@@ -79,86 +85,47 @@ pick up at *What's next* below. Do not push or tag without being asked.
   Pass 2 closed them; the stage text below still lists them as evidence.
 * **E33, E41, E42, E52, E53, E56, D13, E49** — done. E33's
   `Watcher.record_seen/1` was *kept*: the showcase seeder still calls it.
+* **E6** — closed in `a661eea7` (Pass 1); no `DDR-015` citation remains.
+  The earlier handoff listed it as a straggler in error.
+* **Stage E-5, all of it** — E29, E30, E31, E32, E35, E37, E38, E39, E40,
+  E27. Commits and module map in the stage section. E34 stays deferred
+  (Stage E-10).
 
-### What's next: Stage E-5 — context boundaries
+### What's next: straggler E45, then the Performance lane
 
-The last engineering stage. Findings E29, E30, E31, E32, E35, E37, E38,
-E39, E40 and E27. **E34 stays deferred** (Stage E-10, owner's call).
+**E45 (Stage E-7 test policy):** `test/media_centaur/library/progress_test.exs`
+drives `Library.Progress.Worker` by `GenServer.cast/call` against its own
+moduledoc — either give the worker a public seam the test can use, or
+extend MC0004 to catch the pattern. Discuss before resolving (working
+agreement).
 
-**Two open questions are already answered — do not re-ask:**
-
-* **E35 → amend the doc, don't build the projections.** Rewrite
-  `docs/architecture.md`'s "composition only" claim to describe the Status
-  page that exists: it composes tiles from subsystem reads, using
-  projections where they exist. Eleven new projections for reads that
-  aren't hot is not worth it.
-* **E39 → do all three splits** as part of the stage: `Review.Search`,
-  `Watcher.Rescan`, and `Plans` / `Plans.Board` / `Plans.Alternatives`
-  (`plans.ex` is 886 lines and earns it most).
-
-**Evidence re-verified 2026-09-05 against HEAD** — the audit's original
-line numbers had drifted, these are current:
-
-* **E29 (H)** ReleaseTracking queries Library schemas at eight sites while
-  `release_tracking.ex:28` says "Fully isolated from the Library context":
-  `wants.ex:353,354,415`, `helpers.ex:88,89`,
-  `refresher.ex:417,418,447`. (`TVSeries` is a site the original evidence
-  missed.) Approach: Library exposes
-  `present_episode_ids_for_series/1`, `movie_ids_for_tmdb_ids/1`,
-  `last_episode_for_series/1`, `container_ids_existing/2`.
-* **E30 (M)** `refresher.ex:481` `do_auto_track_tv_series/3` does TMDB
-  HTTP reachable from `handle_info` (`:68,:75,:82,:90`), blocking the
-  GenServer during imports. Approach: `ReleaseTracking.LibraryListener`
-  plus an Oban job for the network work.
-* **E31 (M)** `maintenance.ex:12` says "Operator-driven destructive
-  operations" but the module also runs credits refresh, subtitle backfill
-  and boot heals (`heal_extra_names_on_boot/1` at `:589`,
-  `backfill_extra_files_on_boot/1` at `:611`). Its `use Boundary` deps
-  (`:2-8`) list Library/Pipeline/Subtitles/TMDB/Watcher but **not Review**,
-  while `:49` aliases `MediaCentaur.Review.PendingFile` — a bare module
-  atom slips it past Boundary. Approach: `Library.Maintenance.clear_all/0`
-  + `Review.clear_all/0`; boot heals to `Library.BootHeal`.
-* **E32 (M)** `library/file_event_handler.ex` is a GenServer (`:17`)
-  hosting plain `delete_file/1` (`:44`), `delete_files/1` (`:59`) and
-  `delete_folder/2` (`:93`) called straight from the web layer. Approach:
-  `Library.Files.delete_*` (or `Library.Deletion`).
-* **E35 (M)** `status_live.ex` holds 12 subscriptions and reads eleven
-  subsystems directly; only `overview`/`storage` go through `Status.Views`
-  (`:143,:144,:411,:415`), and `status.ex:50` reads
-  `Library.list_recently_added/1` from the DB rather than a projection.
-  **Resolution is the doc amend above.**
-* **E37 (L)** `self_update.ex` re-exports five `Platform.Autostart`
-  functions consumed only by `settings_live.ex`.
-* **E38 (L-M)** `settings/config.ex` owns image-directory layout —
-  `images_dir_for/1` (`:373`), `image_dirs_needing_monitoring/0` (`:384`),
-  `staging_base_for/1` (`:400`), `resolve_image_path/1` (`:407`) — and
-  `apps/artwork.ex` reaches into `Library.Image.web_path/1`.
-* **E39 (L-M)** The three splits above.
-* **E40 (L)** Boundary hatches and dead declarations, all confirmed:
-  `continue_watching_progress.ex:16` `use Boundary, top_level?: true,
-  check: [in: false, out: false]`; `search.ex` declares `Capabilities`
-  and `profile.ex` declares `Watcher` with no use of either;
-  `integration_health.ex:54` depends on all of Acquisition for one
-  function; `library.ex` exports `Writes`, which nothing outside its own
-  file references.
-* **E27 (L)** `incoming_live.ex:2225` `handle_info` dispatches on struct
-  via `cond`.
-
-**Verification for the stage:** `mix boundaries` + `mix precommit`; each
-moduledoc names one thing.
-
-### Then
-
-Stage E-2 stragglers **E6** (the "DDR-015" citations in `router.ex`,
-`components/layouts.ex`, `incoming/status_pill.ex`, `incoming/shelf.ex`,
-`live/incoming_live.ex`, UIDR-017/018 — the record is **UIDR-015**) and
-**E45** (`progress_test.exs` drives `Progress.Worker` by
-`GenServer.cast/call` against its own moduledoc; seam or extend MC0004).
-Then the Performance, Documentation and Design lanes, in that order.
+Then the lanes in order: **Performance** (elaborate P1–P10 into stages;
+P3/P7 one-liners first, P1 last), **Documentation** (D-1 first),
+**Design** (DS-1, DS-2 first). Each lane's findings and evidence are
+below, unchanged since the sweep — re-verify line numbers before acting.
 
 Still owed from Pass 2: a real-browser check of the Status page pipeline
 tiles during an import on the dev server (`127.0.0.1:2160`), event-driven
 since E18.
+
+### Module map after Stage E-5 (so nobody re-derives it)
+
+| Was | Now |
+|---|---|
+| `Library.FileEventHandler.delete_*` / `cleanup_removed_files` | `Library.Deletion` (handler is PubSub-only) |
+| ReleaseTracking's Library schema queries | `Library.Episodes.ids_by_season_episode/1`, `last_season_episode/1`; `Library.Containers.existing_ids/2`, `list_tv_series/2`; `Library.ExternalIds.movie_ids_for_tmdb_ids/1` |
+| `Maintenance.*_on_boot/1` | `MediaCentaur.BootHeal` |
+| `Maintenance.clear_database/0` internals | `Review.clear_all/0` + `Library.EntityCascade.destroy_all!/0` |
+| `Settings.Config.images_dir_for/1`, `staging_base_for/1`, `image_dirs_needing_monitoring/0`, `resolve_image_path/1` | `Library.ImageCache.dir_for/1`, `staging_dir_for/1`, `dirs_outside_media_dir/0`, `resolve_path/1`; Config's `:media_dir_images` holds **explicit overrides only** |
+| `Library.Image.web_path/1` | `MediaCentaur.ImageFiles.web_path/1` |
+| `Review.search_tmdb/2` | `Review.Search.tmdb/2` |
+| `Review.Intake.create_pending_file/1`, `complete_review/1`, `receive_files_for_review/1` | `Review.add_pending_file/1`, `complete_review/1`, `add_files_for_review/1` |
+| `Watcher.Supervisor.scan/0`, `rescan_unlinked/0` (+`_async`) | `Watcher.Rescan.*`; `Supervisor.watchers/0` lists `{dir, pid}` |
+| `Plans.board_for/1` | `Plans.Board.build/1` |
+| `Plans.alternatives_for/1`, `search_alternatives/1`, `gap_evidence/1`, `choose_rejected/2`, `choose_release/2` | `Plans.Alternatives.for_unit/1`, `search/1`, `gap_evidence/1`, `choose_rejected/2`, `choose_release/2`; `Plans.fetch_unit/1` public |
+| `Refresher` library-event handlers | `ReleaseTracking.LibraryListener` → `ReleaseTracking.library_entities_changed/1` (`LibraryLinks.refresh_for/1` + `complete_movie_tracking_for/1` inline, `AutoTrackJob` → `AutoTrack.run/1` on the `:acquisition` queue) |
+| `SelfUpdate.service_*` re-exports | callers use `Platform.Autostart` directly |
+| `TargetEvents.event?/1` / `Pursuits.Events.event?/1` in a `cond` | `is_event/1` guards on `handle_info` heads |
 
 ### House rules this campaign added — respect them
 
@@ -175,6 +142,12 @@ since E18.
   `@before_compile`, so a host LiveView can handle its own async failures.
   **DS16 is half-done**; the rest (logging the swallowed exit, the files
   sub-view's `:loading | {:ok,_} | :failed` assign) is Stage E-8.
+
+**Incremental `mix compile` does not re-check Boundary for modules it
+did not recompile.** A missing `deps:`/`exports:` entry can pass an
+incremental compile and only surface on `mix compile --force` (it
+happened twice in Stage E-5). Force-compile once before committing any
+change that adds a cross-context reference.
 
 Known suite flakes (pass alone, fail under load): Nostr connection and
 one-shot timeouts, `Mix.Tasks.Social.DevTest` relay timeout, "Database
@@ -297,6 +270,19 @@ across unrelated suites.
   parallel HTTP/Req task extended the E9 seam instead of competing with
   it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
   the single design, and MC0029 now enforces the construction seam.
+* `2026-09-05` — **Stage E-5 resolved** in eight commits (`40b63794`
+  E40/E37/E27, `dbed960f` E32, `0f6f66e8` E29, `04e6f7e8` E31,
+  `fda56205` E38, `f5ed36ea` E39, `2b864d0d` E30, `c723c6c8` E35).
+  Decisions inside the stage: `Config.media_dir_images` now stores only
+  explicit `images_dir` overrides, `Library.ImageCache` owns the default
+  layout; the `/media-images/` prefix belongs to `ImageFiles`, not a
+  Library schema; Config's TOML-parsing tests reimplemented the parser
+  in the test file and were rewritten against `Config.load!/0` (the
+  "legacy `media_dir` key" test was fictional — Config never supported
+  that key — and was deleted); auto-track network work runs on the
+  `:acquisition` Oban queue; `Plans.fetch_unit/1` became public so
+  `Plans.Alternatives` could share it. **E6 found already closed** in
+  `a661eea7`.
 * `2026-09-04` — **Declined for now:** the three Settings-key separator
   styles (Pass 1 minor). Renaming persisted keys needs a data migration
   for a cosmetic gain; revisit if a fourth style appears. **E34**
@@ -546,7 +532,7 @@ Prowlarr key and both clear the stale test result.
 
 ---
 
-## Stage E-5 — Context boundaries that drifted from their moduledocs — **NEXT**
+## Stage E-5 — Context boundaries that drifted from their moduledocs — **DONE 2026-09-05**
 
 **Why.** Boundary is honest where it is declared; these are the places the
 declaration or the moduledoc claims a design the code lacks.
@@ -616,6 +602,12 @@ rest are in the *Resuming* section — the audit's originals have drifted.
 
 **Verification.** `mix boundaries` + `mix precommit`; each moduledoc names
 one thing.
+
+**Done 2026-09-05.** Commits `40b63794` (E40, E37, E27), `dbed960f`
+(E32), `0f6f66e8` (E29), `04e6f7e8` (E31), `fda56205` (E38), `f5ed36ea`
+(E39), `2b864d0d` (E30), `c723c6c8` (E35). The module map in *Resuming*
+records where every moved function went. `mix precommit` 6593/6594
+(known Nostr flake, green alone) + 795 JS.
 
 ---
 
@@ -968,14 +960,11 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
 
 ## Next steps
 
-0. **Reconcile the Req client seam with the parallel Req task.** Compare
-   that task's result against commit `0a40c933` (E8/E9/E11): which side
-   owns client construction, the test stub seam, and integration saves.
-   Determine the gap and converge on one design; nothing else in this
-   campaign depends on which side wins.
-1. **Stage E-1** — discuss the two open questions, then red-first test +
-   fix.
-2. Stage E-2, E-3 in order; E-4 through E-9 as agreed.
+0. ~~Reconcile the Req client seam~~ — done, no divergence (2026-09-05).
+1. ~~Stages E-1 through E-5~~ — done (E-4's E14/E36 closed by Pass 2).
+2. **E45** (test drives `Progress.Worker` by `GenServer.call/cast`) —
+   discuss seam vs. MC0004 extension, then resolve. E34 and the rest of
+   Stage E-10 stay deferred by default.
 3. Elaborate the Performance lane into stages (P3/P7 one-liners first,
    P1 last) once the engineering lane is done or paused.
 4. Documentation lane, D-1 first (it is the cheapest and the README entry
