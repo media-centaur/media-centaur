@@ -113,7 +113,8 @@ HEAD; an earlier handoff wrongly said only E-5 remained):
   (`manage_panel.ex:96,272` sums an empty list while loading) holds.
   Recommended next: user-visible bugs, and it pairs with the design
   lane's DS16/17.
-* **Stage E-7 — test policy.** E44's six `Process.sleep(600)` hold
+* ~~**Stage E-7 — test policy.**~~ Done 2026-09-05 (see the stage).
+  Original evidence for the record: E44's six `Process.sleep(600)` hold
   (`home_live_test.exs:128`, `watch_history_live_test.exs:193`,
   `incoming_live_test.exs:2673,3016,3030,3279`); E47's hand-rolled
   `on_exit` restores hold; E50 holds (`issue_url_test.exs:2` async with
@@ -307,6 +308,12 @@ across unrelated suites.
   parallel HTTP/Req task extended the E9 seam instead of competing with
   it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
   the single design, and MC0029 now enforces the construction seam.
+* `2026-09-05` — **Stage E-7 resolved.** ADR-027 restore declared moot
+  (type checker proves the integer clause). MC0023's remaining
+  grandfathered files stay because the factory has no builder for a
+  bare `Target` on an existing pursuit or for plan rows — adding those
+  builders is the next shrink, not a sweep of `force_*` calls.
+  `Availability`'s state is `:persistent_term` only, so no reset seam.
 * `2026-09-05` — **Stage E-8 resolved.** The rejected-TMDB-key predicate
   belongs to `TMDB.Client`, not Discovery. `EntityModal`'s files load
   carries an explicit `:loading | :loaded | :failed` status rather than
@@ -703,7 +710,7 @@ records where every moved function went. `mix precommit` 6593/6594
 
 ---
 
-## Stage E-7 — Test policy
+## Stage E-7 — Test policy — **DONE 2026-09-05**
 
 **Evidence.**
 * **E43 (M)** `test/media_centaur_web/page_smoke_test.exs:39-43` mounts
@@ -726,6 +733,19 @@ records where every moved function went. `mix precommit` 6593/6594
 * ADR-027: `0dbb5a21` loosened `assert is_integer(delay) and delay > 0` in
   `test/media_centaur/pipeline/producer_test.exs` — restore.
 * Five private poll-with-deadline helpers → one `TestSupport.eventually/2`.
+
+**Done 2026-09-05** in one commit. `MediaCentaur.Eventually.eventually/2`
+(imported by both cases) replaced seven poll loops. The ADR-027 item is
+**moot**: `assert is_integer(delay) and delay > 0` is a compile warning
+under Elixir 1.20's type checker (the integer half is proven), so
+`0dbb5a21`'s loosening was toolchain-forced, not a weakening — the
+assertion keeps the bound and says why. E51: five files left the MC0023
+grandfather list; `pursuits_test`, `watcher_test`,
+`terminal_commands_test` (bare `Target` inserts on an existing pursuit —
+no factory builder), `plans_test` (a `delete_all` standing in for
+retention) and `tracking_handoffs_test` (nine plan-row writes) stay
+until builders exist. E47 found `Availability` keeping its map in both
+GenServer state and `:persistent_term`; it is term-only now.
 
 ---
 
@@ -1025,8 +1045,8 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
 0. ~~Reconcile the Req client seam~~ — done, no divergence (2026-09-05).
 1. ~~Stages E-1 through E-5~~ — done (E-4's E14/E36 closed by Pass 2).
 2. ~~E45~~ — done (seam + MC0004 extension, 2026-09-05).
-3. ~~Stage E-8~~ — done 2026-09-05. Then **Stage E-7**, then E48 and
-   the two E-9 leftovers. E34 / Stage E-10 stay deferred.
+3. ~~Stage E-8, Stage E-7~~ — done 2026-09-05. Then **E48** and the
+   two E-9 leftovers. E34 / Stage E-10 stay deferred.
 4. Elaborate the Performance lane into stages (P3/P7 one-liners first,
    P1 last) once the engineering lane is done or paused.
 5. Documentation lane, D-1 first (it is the cheapest and the README entry
