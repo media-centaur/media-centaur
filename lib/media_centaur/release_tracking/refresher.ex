@@ -1,13 +1,15 @@
 defmodule MediaCentaur.ReleaseTracking.Refresher do
   @moduledoc """
-  GenServer that periodically refreshes TMDB data for all tracked items.
+  The two release-tracking timers: the TMDB refresh cycle for every
+  watched item (`refresh_all/0`, every `release_tracking_refresh_interval_hours`)
+  and the want-ledger sweep (`sweep_now/0`, every
+  `release_tracking_sweep_interval_minutes`). Reacting to library
+  changes is `ReleaseTracking.LibraryListener`'s job.
   """
   use GenServer
 
-  import Ecto.Query
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Differ, Helpers, RefreshSchedule}
   alias MediaCentaur.Settings
@@ -45,20 +47,8 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     do_sweep()
   end
 
-  @doc "Update tracking items when library entities change. Testable without GenServer."
-  def refresh_item_tracking_for(entity_ids) do
-    update_last_episodes_for(entity_ids)
-  end
-
-  @doc "Auto-track new library entities with active TMDB status. Testable without GenServer."
-  def auto_track_new_entities(entity_ids) do
-    Enum.each(find_trackable_tv_series(entity_ids), &auto_track_tv_series/1)
-  end
-
   @impl true
   def init(_opts) do
-    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.library_updates())
-    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.library_deletions())
     schedule_sweep(RefreshSchedule.next_delay_ms(last_swept_at(), sweep_interval_ms()))
     schedule_refresh(RefreshSchedule.next_delay_ms(last_refresh_completed_at(), refresh_interval_ms()))
     {:ok, %{}}
@@ -75,20 +65,6 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   def handle_info(:sweep, state) do
     do_sweep()
     schedule_sweep(sweep_interval_ms())
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:entities_changed, %{entity_ids: entity_ids}}, state) do
-    update_last_episodes_for(entity_ids)
-    auto_track_new_entities(entity_ids)
-    ReleaseTracking.complete_movie_tracking_for(entity_ids)
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_info({:containers_deleted, %{container_ids: container_ids}}, state) do
-    ReleaseTracking.detach_library_containers(container_ids)
     {:noreply, state}
   end
 
@@ -321,206 +297,5 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
         :ok
     end
-  end
-
-  defp link_unlinked_items(entity_ids) do
-    tmdb_mappings = Library.ExternalIds.tmdb_ids_for_tv_series(entity_ids)
-
-    Enum.each(tmdb_mappings, fn {tv_series_id, tmdb_id_str} ->
-      with {:ok, tmdb_id} <- Helpers.parse_tmdb_id(tmdb_id_str) do
-        from(i in ReleaseTracking.Item,
-          where:
-            i.tmdb_id == ^tmdb_id and i.media_type == :tv_series and
-              is_nil(i.library_container_id)
-        )
-        |> MediaCentaur.Repo.all()
-        |> Enum.each(fn item ->
-          case ReleaseTracking.update_item(item, %{
-                 library_container_type: :tv_series,
-                 library_container_id: tv_series_id
-               }) do
-            {:ok, _} ->
-              Log.info(
-                :acquisition,
-                "linked tracking item #{item.name} to library entity #{tv_series_id}"
-              )
-
-            {:error, changeset} ->
-              Log.info(
-                :acquisition,
-                "failed to link tracking item #{item.name}: #{inspect(changeset.errors)}"
-              )
-          end
-        end)
-      end
-    end)
-  end
-
-  defp update_last_episodes_for(entity_ids) do
-    link_unlinked_items(entity_ids)
-
-    items =
-      MediaCentaur.Repo.all(
-        from(i in ReleaseTracking.Item, where: i.library_container_id in ^entity_ids)
-      )
-
-    existing_ids = batch_existing_container_ids(items)
-
-    Enum.each(items, fn item ->
-      if library_container_exists?(item, existing_ids) do
-        if item.media_type == :tv_series do
-          {season, episode} = Helpers.find_last_library_episode(item.library_container_id)
-
-          if season != item.last_library_season || episode != item.last_library_episode do
-            case ReleaseTracking.update_item(item, %{
-                   last_library_season: season,
-                   last_library_episode: episode
-                 }) do
-              {:ok, updated_item} ->
-                ReleaseTracking.mark_in_library_releases(updated_item)
-                ReleaseTracking.sync_wants(updated_item)
-
-              {:error, changeset} ->
-                Log.info(
-                  :acquisition,
-                  "failed to update tracking item #{item.name}: #{inspect(changeset.errors)}"
-                )
-            end
-          end
-        end
-      else
-        Log.info(:acquisition, "removing tracking item #{item.name} — library container deleted")
-        ReleaseTracking.delete_item(item)
-      end
-    end)
-  end
-
-  # One IN-query per relevant table instead of one Repo.get per item — this
-  # function is called from `handle_info({:entities_changed, ...})` so it
-  # blocks the GenServer mailbox for the duration of the work.
-  defp batch_existing_container_ids(items) do
-    {tv_ids, movie_series_ids} =
-      Enum.reduce(items, {[], []}, fn
-        %{library_container_type: :tv_series, library_container_id: id}, {tvs, movies}
-        when not is_nil(id) ->
-          {[id | tvs], movies}
-
-        %{library_container_type: :movie_series, library_container_id: id}, {tvs, movies}
-        when not is_nil(id) ->
-          {tvs, [id | movies]}
-
-        _, acc ->
-          acc
-      end)
-
-    %{
-      tv_series: Library.Containers.existing_ids(:tv_series, tv_ids),
-      movie_series: Library.Containers.existing_ids(:movie_series, movie_series_ids)
-    }
-  end
-
-  defp library_container_exists?(%{library_container_type: :tv_series, library_container_id: id}, %{
-         tv_series: set
-       }) do
-    MapSet.member?(set, id)
-  end
-
-  defp library_container_exists?(%{library_container_type: :movie_series, library_container_id: id}, %{
-         movie_series: set
-       }) do
-    MapSet.member?(set, id)
-  end
-
-  defp library_container_exists?(_, _), do: true
-
-  @active_tv_statuses [:returning, :in_production, :planned]
-
-  defp find_trackable_tv_series(entity_ids) do
-    active = Library.Containers.list_tv_series(entity_ids, status: @active_tv_statuses)
-    tmdb_ids = Map.new(Library.ExternalIds.tmdb_ids_for_tv_series(Enum.map(active, & &1.id)))
-
-    active
-    |> Enum.flat_map(fn tv ->
-      case Map.fetch(tmdb_ids, tv.id) do
-        {:ok, tmdb_id} -> [%{tv_series_id: tv.id, tmdb_id: tmdb_id, name: tv.name}]
-        :error -> []
-      end
-    end)
-    |> Enum.reject(fn %{tmdb_id: tmdb_id} ->
-      case Helpers.parse_tmdb_id(tmdb_id) do
-        {:ok, tmdb_id_int} -> ReleaseTracking.get_item_by_tmdb(tmdb_id_int, :tv_series) != nil
-        :error -> false
-      end
-    end)
-  end
-
-  defp auto_track_tv_series(%{tv_series_id: tv_series_id, tmdb_id: tmdb_id_str, name: name}) do
-    case Helpers.parse_tmdb_id(tmdb_id_str) do
-      {:ok, tmdb_id} ->
-        do_auto_track_tv_series(tv_series_id, tmdb_id, name)
-
-      :error ->
-        Log.info(
-          :acquisition,
-          "auto-track skipped for #{name}: unparseable TMDB id #{inspect(tmdb_id_str)}"
-        )
-    end
-  end
-
-  defp do_auto_track_tv_series(tv_series_id, tmdb_id, name) do
-    case Client.get_tv(tmdb_id) do
-      {:ok, response} ->
-        {last_season, last_episode} = Helpers.find_last_library_episode(tv_series_id)
-        releases = Helpers.fetch_tv_releases(tmdb_id, last_season, last_episode, response)
-
-        {:ok, item} =
-          ReleaseTracking.track_item(%{
-            tmdb_id: tmdb_id,
-            media_type: :tv_series,
-            name: response["name"] || name,
-            source: :library,
-            library_container_type: :tv_series,
-            library_container_id: tv_series_id,
-            last_refreshed_at: DateTime.utc_now(),
-            origin_country: response["origin_country"],
-            last_library_season: last_season,
-            last_library_episode: last_episode
-          })
-
-        ReleaseTracking.replace_releases!(item, releases, &ReleaseTracking.persist_release!/2)
-
-        ReleaseTracking.mark_in_library_releases(item)
-        ReleaseTracking.sync_wants(item)
-
-        ReleaseTracking.create_event!(%{
-          item_id: item.id,
-          item_name: item.name,
-          event_type: :began_tracking,
-          description: "Now tracking #{item.name}"
-        })
-
-        Helpers.download_images_async(item, tmdb_id, response)
-
-        broadcast_tracking_update([item.id])
-
-        Log.info(
-          :acquisition,
-          "auto-tracked #{item.name} (TMDB #{tmdb_id}) — source: library"
-        )
-
-      {:error, reason} ->
-        Log.info(:acquisition, "auto-track failed for #{name} (TMDB #{tmdb_id}): #{inspect(reason)}")
-    end
-  end
-
-  # Image backfill (poster/backdrop/logo) lives in
-  # `ReleaseTracking.Helpers` — shared with Scanner so both onboard the
-  # full role set idempotently.
-
-  defp broadcast_tracking_update(item_ids) do
-    MediaCentaur.Topics.publish(
-      MediaCentaur.Topics.release_tracking_updates(),
-      {:releases_updated, item_ids}
-    )
   end
 end

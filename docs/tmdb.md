@@ -54,7 +54,7 @@ Saving any field in the TMDB section clears the stored test result, so the UI co
 
 When adding a new TMDB-dependent feature, render its affordance behind `Capabilities.tmdb_ready?/0` rather than directly checking key presence — that's the only way to pick up the "configured but untested" state correctly.
 
-TMDB is consumed by three contexts: the Pipeline (Discovery + Import + Image downloads), `ReleaseTracking.Refresher`, and `Review.Rematch`. Capability readiness applies to all three.
+TMDB is consumed by three contexts: the Pipeline (Discovery + Import + Image downloads), `ReleaseTracking` (the `Refresher` timers and `AutoTrack`), and `Review.Rematch`. Capability readiness applies to all three.
 
 ## How It Works
 

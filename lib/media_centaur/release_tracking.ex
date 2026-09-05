@@ -10,6 +10,7 @@ defmodule MediaCentaur.ReleaseTracking do
     ],
     exports: [
       Item,
+      LibraryListener,
       Release,
       Event,
       Want,
@@ -35,6 +36,8 @@ defmodule MediaCentaur.ReleaseTracking do
   import Ecto.Query
 
   alias MediaCentaur.Repo
+
+  alias MediaCentaur.ReleaseTracking.{AutoTrackJob, LibraryLinks}
 
   alias MediaCentaur.ReleaseTracking.{
     Acquisition,
@@ -100,7 +103,7 @@ defmodule MediaCentaur.ReleaseTracking do
   item pointing at one of `container_ids`. Returns the number of items
   detached.
 
-  Called when a library container is cascade-destroyed (the Refresher
+  Called when a library container is cascade-destroyed (`LibraryListener`
   reacts to `:containers_deleted`): the container reference has no FK, so
   without this the item would dangle against a deleted UUID forever.
   Tracking itself is intentionally kept — the user still follows the
@@ -144,6 +147,24 @@ defmodule MediaCentaur.ReleaseTracking do
     broadcast_releases_updated([item_id])
     broadcast_item_removed(tmdb_id, tmdb_type)
     result
+  end
+
+  @doc """
+  Everything release tracking does when library entities change
+  (`LibraryListener` calls this for every `entities_changed`): the
+  database-side reconciliation runs inline — `LibraryLinks.refresh_for/1`
+  and `complete_movie_tracking_for/1` — and the TMDB-side auto-tracking
+  is enqueued as an `AutoTrackJob`, so an import never waits on the
+  network.
+  """
+  @spec library_entities_changed([Ecto.UUID.t()]) :: :ok
+  def library_entities_changed([]), do: :ok
+
+  def library_entities_changed(entity_ids) when is_list(entity_ids) do
+    LibraryLinks.refresh_for(entity_ids)
+    complete_movie_tracking_for(entity_ids)
+    {:ok, _job} = AutoTrackJob.enqueue(entity_ids)
+    :ok
   end
 
   @doc """
