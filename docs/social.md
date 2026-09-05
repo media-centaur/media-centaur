@@ -235,7 +235,10 @@ stamp (a withdrawal made offline). Re-reading is idempotent.
    the wording; `Connections` only keeps the reason as the relay row's last
    error. A relay refusing a deletion with `blocked: kind 5 is not stored by
    this relay` is a `social-relay` older than v0.3.0; one refusing kind 32161
-   or 32162 is older than v0.4.0.
+   or 32162 is older than v0.4.0 — and, because its deletion parser only
+   knows a 32160 coordinate, that relay refuses the *deletion* of a watched
+   or tracking activity with `blocked: only the author may delete an event`.
+   Both are re-sent on every connect until it is upgraded.
 
 `ingest/1` rejects anything not signed by the identity or a key on the roster, so
 a relay that hands over the whole world still yields only what you follow.
