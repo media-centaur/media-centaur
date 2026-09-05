@@ -41,6 +41,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   alias MediaCentaur.Format
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.Components.CinematicShell
+  alias MediaCentaurWeb.Components.Discovery.RecommendationPennant
   alias MediaCentaurWeb.Components.Detail.PreviewBody
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
@@ -65,6 +66,12 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
       data-nav-overlay={@detail != nil && "title_detail"}
       data-dismiss-event="close_title"
     >
+      <:hero_mast :if={@detail && @detail.recommendations != []}>
+        <RecommendationPennant.recommendation_pennants
+          recommendations={@detail.recommendations}
+          on_image
+        />
+      </:hero_mast>
       <:orientation>
         <div :if={@detail} class="px-6">
           <TitleLayer.lockup

@@ -7,6 +7,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Library.Person
   alias MediaCentaur.TMDB.Title
@@ -42,6 +43,21 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
       release_date: ~D[2012-01-01],
       overview: "A sample series overview."
     })
+  end
+
+  defp recommendation(title, nickname, sentiment) do
+    %{
+      activity: %Activity{
+        kind: :recommendation,
+        sentiment: sentiment,
+        tmdb_id: title.tmdb_id,
+        media_type: title.media_type,
+        title: title,
+        acted_at: ~U[2026-09-01 10:00:00Z]
+      },
+      nickname: nickname,
+      own?: is_nil(nickname)
+    }
   end
 
   defp detail(title, overrides) do
@@ -116,7 +132,24 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
               note: "Watch it before anyone spoils the ending.",
               acted_at: ~U[2026-09-01 10:00:00Z],
               own?: false,
-              on_watchlist?: true
+              on_watchlist?: true,
+              recommendations: [recommendation(movie(), "Sample Friend", :love)]
+            })
+        }
+      },
+      %Variation{
+        id: :recommended_by_two,
+        description:
+          "Two friends with different sentiments: the pennants stack on the hero's right " <>
+            "edge under the actions, love above like, the like body dark glass over the art.",
+        attributes: %{
+          detail:
+            detail(movie(), %{
+              on_watchlist?: true,
+              recommendations: [
+                recommendation(movie(), "Other Friend", :like),
+                recommendation(movie(), "Sample Friend", :love)
+              ]
             })
         }
       },

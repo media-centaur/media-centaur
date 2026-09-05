@@ -1,6 +1,8 @@
 defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
   @moduledoc """
-  The Recommend modal: the title being recommended, an optional note, the
+  The Recommend modal: the title being recommended, the sentiment as two
+  pennants (like preselected, love the stronger word) — the choice is a
+  preview of exactly what the friend will see — an optional note, the
   relay state, Send and Cancel. Persistent — a stray backdrop click must
   not discard a half-written note — so Cancel is the only way out.
 
@@ -11,9 +13,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
   """
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.Components.Discovery.RecommendationPennant,
+    only: [recommendation_pennants: 1]
+
   import MediaCentaurWeb.Components.Modal, only: [modal: 1]
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
+  alias MediaCentaur.Activities.Activity
   alias MediaCentaur.TMDB.Title
 
   attr :subject, Title, default: nil, doc: "the title being recommended; nil = closed"
@@ -42,6 +48,26 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
         <h2 class="text-sm font-semibold">Recommend to your friends</h2>
         <.title_summary title={@subject} poster_url={@poster_url} />
         <form id="recommend-form" phx-submit="recommend_send" class="space-y-3">
+          <%!-- The radio is visually hidden; the label is the nav item and
+                a click on it checks the radio, which is what Select sends. --%>
+          <fieldset class="flex items-center gap-3" aria-label="How much">
+            <label
+              :for={sentiment <- Activity.sentiments()}
+              id={"recommend-sentiment-#{sentiment}"}
+              class="pennant-choice"
+              data-nav-item
+              tabindex="0"
+            >
+              <input
+                type="radio"
+                name="sentiment"
+                value={sentiment}
+                checked={sentiment == :like}
+                class="sr-only"
+              />
+              <.recommendation_pennants recommendations={[preview(sentiment)]} />
+            </label>
+          </fieldset>
           <textarea
             name="note"
             rows="3"
@@ -78,6 +104,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
     </.modal>
     """
   end
+
+  # The choice shows the pennant the friend will see, in the sender's
+  # own place: a "You" row of that sentiment.
+  defp preview(sentiment),
+    do: %{activity: %Activity{kind: :recommendation, sentiment: sentiment}, nickname: nil, own?: true}
 
   defp relay_line({_connected, 0}), do: "No relay configured — it will send when you add one"
   defp relay_line({connected, total}), do: "Connected to #{connected} of #{total} relays"

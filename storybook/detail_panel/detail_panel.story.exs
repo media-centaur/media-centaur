@@ -234,6 +234,46 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
+        id: :movie_recommended,
+        description:
+          "The same movie two friends recommended: the pennants fly from the hero's " <>
+            "right edge under the actions, love above like, the like body dark glass.",
+        attributes: %{
+          entity: sample_movie_entity(),
+          progress: nil,
+          resume: nil,
+          progress_records: [],
+          available: true,
+          tmdb_ready: true,
+          expanded_seasons: MapSet.new(),
+          tracking_status: :watching,
+          recommendations: [
+            %{
+              activity: %MediaCentaur.Activities.Activity{
+                kind: :recommendation,
+                sentiment: :like,
+                tmdb_id: 603,
+                media_type: :movie,
+                acted_at: ~U[2026-09-01 10:00:00Z]
+              },
+              nickname: "Other Friend",
+              own?: false
+            },
+            %{
+              activity: %MediaCentaur.Activities.Activity{
+                kind: :recommendation,
+                sentiment: :love,
+                tmdb_id: 603,
+                media_type: :movie,
+                acted_at: ~U[2026-09-01 10:00:00Z]
+              },
+              nickname: "Sample Friend",
+              own?: false
+            }
+          ]
+        }
+      },
+      %Variation{
         id: :movie_with_progress,
         description:
           "Same movie, mid-watch — `progress` carries `episode_position_seconds` " <>

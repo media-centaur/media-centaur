@@ -14,6 +14,10 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   watchlist-born detail without one; `sender` is nil on an own activity
   (the modal reads `own?`), `episode` is set on a watched series only.
 
+  `recommendations` are the title's `Activities.recommendations_for/1`
+  rows — every friend's (and an own) recommendation, for the hero's
+  pennants; empty when nobody recommended it.
+
   `preview` is the live TMDB-backed `Detail.TitlePreview` (backdrop,
   logo, tagline, metadata, facets, cast) the host fetches on open; nil
   until it lands, or when TMDB is not configured, in which case the
@@ -41,7 +45,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :acted_at,
     :own?,
     :activity_id,
-    :preview
+    :preview,
+    recommendations: []
   ]
 
   @type primary ::
@@ -65,6 +70,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           acted_at: DateTime.t() | nil,
           own?: boolean() | nil,
           activity_id: Ecto.UUID.t() | nil,
+          recommendations: [map()],
           preview: TitlePreview.t() | nil
         }
 end

@@ -109,6 +109,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   }
 
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Activities
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library.ExternalIds
 
@@ -172,6 +173,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     if connected?(socket) do
       MediaCentaur.Library.subscribe()
       ReleaseTracking.subscribe()
+      Activities.subscribe()
       if prowlarr?, do: subscribe_acquisition()
     end
 
@@ -224,6 +226,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_scope: :all,
          in_library_refs: MapSet.new(),
          tracked_refs: MapSet.new(),
+         recommendations_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
          plan_selection: nil,
@@ -246,6 +249,9 @@ defmodule MediaCentaurWeb.IncomingLive do
        )
      )}
   end
+
+  defp recommendations_for_results(rows),
+    do: Activities.recommendations_for(Enum.map(rows, &{&1.tmdb_id, &1.media_type}))
 
   defp subscribe_acquisition do
     Acquisition.subscribe()
@@ -967,6 +973,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             watchlisted_refs={@watchlisted_refs}
             in_library_refs={@in_library_refs}
             tracked_refs={@tracked_refs}
+            recommendations_by_ref={@recommendations_by_ref}
           />
 
           <Search.search_zone
@@ -2179,6 +2186,18 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, build_view(socket)}
   end
 
+  # A recommendation arriving or withdrawn while results are up re-reads
+  # the pennants for exactly those results.
+  def handle_info({tag, _event}, socket)
+      when tag in [:activity_received, :activity_sent, :activity_deleted] do
+    {:noreply,
+     assign(
+       socket,
+       :recommendations_by_ref,
+       recommendations_for_results(socket.assigns.omnibox_results)
+     )}
+  end
+
   def handle_info({:run_search_one, query}, socket) do
     Acquisition.run_search_one_async(query, &SearchSession.record_search_result/2)
     {:noreply, socket}
@@ -2443,7 +2462,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: rows,
          omnibox_searching?: false,
          in_library_refs: in_library_refs,
-         tracked_refs: ReleaseTracking.tracked_refs()
+         tracked_refs: ReleaseTracking.tracked_refs(),
+         recommendations_by_ref: recommendations_for_results(rows)
        )}
     else
       {:noreply, socket}

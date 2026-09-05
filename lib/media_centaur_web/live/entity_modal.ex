@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   require MediaCentaur.Log, as: Log
   require Phoenix.LiveView
 
-  alias MediaCentaur.{Discovery, Format, Library, Playback, ReleaseTracking}
+  alias MediaCentaur.{Activities, Discovery, Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentaur.TMDB.Title
@@ -379,6 +379,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       Library.subscribe()
       Playback.subscribe()
       ReleaseTracking.subscribe()
+      Activities.subscribe()
     end
 
     socket =
@@ -434,6 +435,13 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # partial id, and partial refreshes are genuinely one-at-a-time. What this
   # clause must never do again is refresh once per row in the library, which
   # is what the old per-row rebuild fan-out caused.
+  # A recommendation arriving or withdrawn re-reads the open subject's
+  # pennants; nothing else about the entry changes.
+  def handle_modal_pubsub({tag, _event}, socket)
+      when tag in [:activity_received, :activity_sent, :activity_deleted] do
+    {:cont, assign_recommendations(socket)}
+  end
+
   def handle_modal_pubsub({:library_view_updated, :detail, _id}, socket) do
     if socket.assigns[:selected_entity_id] do
       {:cont, refresh_selected_entry(socket)}
@@ -598,6 +606,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       delete_confirm: nil,
       deleting: nil,
       tracking_status: nil,
+      recommendations: [],
       playback: %{}
     )
   end
@@ -710,6 +719,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         tracking_status: tracking_status
       )
       |> Phoenix.Component.assign(per_selection_assigns(socket.assigns, selection_changed))
+      |> assign_recommendations()
 
     if should_load_files?, do: start_async_files_load(socket, selected_id), else: socket
   end
@@ -910,6 +920,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   attr :tracking_status, :atom, required: true
 
+  attr :recommendations, :list,
+    required: true,
+    doc:
+      "the open subject's `Activities.recommendations_for/1` rows, kept by the modal's `:recommendations` assign — the hero pennants. Required so a host cannot mount the modal without them."
+
   attr :availability_map, :map,
     default: %{},
     doc: "`%{entity_id => boolean}` from `MediaCentaurWeb.LibraryAvailability.availability_map/1`."
@@ -962,6 +977,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       }
       recommend?={@show_discovery}
       tracking_status={@tracking_status}
+      recommendations={@recommendations}
       available={
         @selected_entry == nil ||
           Map.get(@availability_map, @selected_entry.entity.id, true)
@@ -1286,6 +1302,22 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       nil -> false
       ref -> MapSet.member?(watchlisted_refs, ref)
     end
+  end
+
+  # The open subject's recommendations — the same subject the watchlist
+  # toggle and Recommend act on, so a collection shows the selected
+  # member's pennants. Empty when nothing is open or the subject has no
+  # TMDB identity.
+  defp assign_recommendations(socket) do
+    recommendations =
+      case watchlist_ref(
+             watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
+           ) do
+        nil -> []
+        ref -> Map.get(Activities.recommendations_for([ref]), ref, [])
+      end
+
+    Phoenix.Component.assign(socket, :recommendations, recommendations)
   end
 
   # The entity the watchlist toggle acts on: the open entity, except in a

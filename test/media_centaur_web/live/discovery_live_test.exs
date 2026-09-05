@@ -202,11 +202,23 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       :ok
     end
 
-    defp friend_event(tmdb_id, note) do
+    @other_secret Secret.wrap(String.duplicate("0", 63) <> "2")
+    @other_pubkey "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
+
+    defp other_event(tmdb_id, sentiment) do
       title = Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie #{tmdb_id}"})
 
       Event.sign(
-        Translation.to_event(:recommendation, title, [note: note], @friend_pubkey),
+        Translation.to_event(:recommendation, title, [note: nil, sentiment: sentiment], @other_pubkey),
+        @other_secret
+      )
+    end
+
+    defp friend_event(tmdb_id, note, sentiment \\ :like) do
+      title = Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie #{tmdb_id}"})
+
+      Event.sign(
+        Translation.to_event(:recommendation, title, [note: note, sentiment: sentiment], @friend_pubkey),
         @friend_secret
       )
     end
@@ -233,6 +245,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#feed-#{rec.id}", "Sample Movie 777")
       assert has_element?(view, "#feed-#{rec.id}", "Sample Friend recommended")
       assert has_element?(view, "#feed-#{rec.id}", "Watch it.")
+      # The lead already says who, so the pennant is icon-only.
+      assert has_element?(view, "#feed-#{rec.id} .pennant[data-sentiment='like']")
+      refute has_element?(view, "#feed-#{rec.id} .pennant", "Sample Friend")
 
       # The card opens the modal; Add to watchlist lives there and carries
       # the recommendation's provenance onto the item.
@@ -295,7 +310,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "an own recommendation reads You, not from, and still counts", %{conn: conn} do
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
-      {:ok, rec} = Activities.recommend(title, "mine")
+      {:ok, rec} = Activities.recommend(title, :like, "mine")
 
       {:ok, view, _html} = live(conn, "/discovery")
       view |> element("#feed-scope-own") |> render_click()
@@ -372,7 +387,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, theirs} = Activities.ingest(friend_event(777, nil))
       title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
-      {:ok, mine} = Activities.recommend(title, "mine")
+      {:ok, mine} = Activities.recommend(title, :like, "mine")
 
       {:ok, view, _html} = live(conn, "/discovery")
       assert has_element?(view, "#feed-#{theirs.id}")
@@ -630,8 +645,44 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         })
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
-      assert has_element?(view, "#watchlist-item-movie-777", "from Sample Friend")
+
+      assert has_element?(
+               view,
+               "#watchlist-item-movie-777 .pennant[data-sentiment='like']",
+               "Sample Friend"
+             )
+
       assert has_element?(view, "#watchlist-item-movie-777", "Watch it.")
+      await_supervised_tasks()
+    end
+
+    test "a love arriving later stacks a second pennant above the like without a reload", %{conn: conn} do
+      {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _other} = Social.add_friend(@other_pubkey, "Other Friend")
+      {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
+      {:ok, _} = Discovery.add_to_watchlist(rec.title)
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+
+      assert has_element?(
+               view,
+               "#watchlist-item-movie-777 .pennant[data-sentiment='like']",
+               "Sample Friend"
+             )
+
+      {:ok, _love} = Activities.ingest(other_event(777, :love))
+
+      render_until(view, fn _html ->
+        has_element?(view, "#watchlist-item-movie-777 .pennant[data-sentiment='love']", "Other Friend")
+      end)
+
+      assert has_element?(
+               view,
+               "#watchlist-item-movie-777 .pennant-mast .pennant:first-child[data-sentiment='love']"
+             )
+
+      view |> element("#watchlist-item-movie-777") |> render_click()
+      assert has_element?(view, "#title-detail-modal .pennant[data-sentiment='love']", "Other Friend")
       await_supervised_tasks()
     end
 
@@ -650,7 +701,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       assert has_element?(view, "#watchlist-item-movie-777")
-      refute has_element?(view, "#watchlist-item-movie-777", "from Sample Friend")
+      refute has_element?(view, "#watchlist-item-movie-777 .pennant")
       await_supervised_tasks()
     end
   end

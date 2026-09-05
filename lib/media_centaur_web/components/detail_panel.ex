@@ -34,6 +34,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     only: [format_type: 1, format_human_duration: 1]
 
   alias MediaCentaurWeb.Components.CinematicShell
+  alias MediaCentaurWeb.Components.Discovery.RecommendationPennant
   alias MediaCentaurWeb.Components.Detail.CastPanel
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.CollectionRail
@@ -117,6 +118,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :deleting, :any, default: nil, doc: @doc_deleting
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
+
+  attr :recommendations, :list,
+    default: [],
+    doc: "the subject's `Activities.recommendations_for/1` rows — the pennants on the hero's right edge."
+
   attr :tmdb_ready, :boolean, default: true
 
   attr :letterboxd_links, :boolean,
@@ -286,6 +292,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       data-detail-nested={@open && to_string(Logic.nested_view?(@entity, @detail_view))}
       data-nav-overlay={@open && "detail"}
     >
+      <:hero_mast :if={@recommendations != []}>
+        <RecommendationPennant.recommendation_pennants recommendations={@recommendations} on_image />
+      </:hero_mast>
       <:hero_actions :if={@tracking_status}>
         <.button
           variant="dismiss"

@@ -108,25 +108,22 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
   end
 
   describe "row_markers/1" do
-    test "in library wins, then the acquisition state, then provenance" do
+    test "in library wins, then the acquisition state" do
       assert Logic.row_markers(%{
                library_owner_id: "o",
                acquisition_state: :downloading,
-               from_nickname: "Sample Friend",
                on_watchlist?: true
-             }) == ["In library", "from Sample Friend"]
+             }) == ["In library"]
 
       assert Logic.row_markers(%{
                library_owner_id: nil,
                acquisition_state: :needs_review,
-               from_nickname: nil,
                on_watchlist?: true
              }) == ["Needs review", "On watchlist"]
 
       assert Logic.row_markers(%{
                library_owner_id: nil,
                acquisition_state: nil,
-               from_nickname: nil,
                on_watchlist?: false
              }) == []
     end
