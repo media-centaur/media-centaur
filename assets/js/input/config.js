@@ -304,7 +304,7 @@ export const inputConfig = {
     review:    ["review-list", "review-detail", "zone_tabs", "sidebar"],
     reconcile: ["reconcile-list", "reconcile-detail", "zone_tabs", "sidebar"],
     incoming:  ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
-    watch_history: ["toolbar", "grid", "sidebar"],
+    watch_history: ["grid", "toolbar", "sidebar"],
     discovery: ["grid", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],

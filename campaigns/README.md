@@ -33,10 +33,11 @@ Use [`template.md`](template.md) as a starter.
   ready to close.** Works off the four-audit sweep of 2026-09-04 (57
   engineering / 10 performance / 42 documentation / 25 design findings).
   Engineering closed except Stage E-10 (deferred by the owner);
-  Performance, Documentation and Design done. 38 local, unpushed commits
-  on `main` plus one in the wiki await the owner's ship; the *Resuming*
-  section holds the close-by-destination table and the file goes once
-  the ship lands (ADR-042).
+  Performance, Documentation and Design done; the stale-E2E follow-up
+  cleared 2026-09-05. ~40 local, unpushed commits on `main` plus one in
+  the wiki await the owner's ship; the *Resuming* section holds the
+  close-by-destination table (one new owner question: the `Refresher`
+  crash-loop escalation) and the file goes once the ship lands (ADR-042).
 * [`showcase-comprehensive-coverage.md`](showcase-comprehensive-coverage.md) —
   **planning.** Expand the marketing showcase from well-covered static
   surfaces to the high-impact feature set that photographs well:

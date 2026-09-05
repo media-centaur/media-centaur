@@ -58,6 +58,17 @@ of it is in **local, unpushed** commits `3c764d2d..HEAD` on `main` plus
 one unpushed commit in `../media-centaur.wiki` (`9e4111f`). Last full
 `mix precommit` (2026-09-05 evening, after DS25): 6635/6637 Elixir — the two failures are the known load flakes (60 s page-smoke timeout on the TV detail mount; `Console.Buffer` settings persist racing a sandbox owner), both green alone.
 
+**2026-09-05, later — follow-ups cleared; two findings for the owner.**
+The stale E2E specs are repointed and rewritten to the current navigation
+design (UIDR-028 BACK-to-sidebar, UIDR-019 `detail_actions`); the
+keyboard project is green with no skips on `library.spec.js` and
+`watch_history.spec.js`. Two things surfaced on the way and are recorded
+under *Follow-ups* below: the dev server died four times today because
+the Claude shell's stale PATH compiles `_build/dev` on a different
+OTP than the service (environment, fixed by `mise exec --`), and the
+crash it exposed — `Refresher` crash-looping into an application
+shutdown — is an open robustness question for the owner, not yet fixed.
+
 ## Resuming — start here (handoff written 2026-09-05, evening)
 
 **Reconcile first (ADR-042).** `git log 2ddd4b53..HEAD` is the day's
@@ -88,19 +99,56 @@ Nothing in the sweep is unassigned. What remains, bucketed:
 | D17 docs-site feature tiles (Discovery, Apps, friends) | owner copy |
 | D11 `docs/mpv.md` HDR recovery block | unverified against hardware; verify on the TV box |
 | Real-browser check of the Status pipeline tiles during an import | owed from Pass 2; do it during the next real import |
-| Follow-ups below (stale E2E routes, Deletion cascade, profiling baseline) | small, do when next in the area |
+| Follow-ups below (Deletion cascade, profiling baseline) | small, do when next in the area |
+| `Refresher` sweep failure escalates to an application shutdown | **owner's call** — see *Follow-ups*; a design question (isolate the sweep vs. accept the floor) before any code |
 
 Once the ship lands: reconcile `campaigns/README.md` and remove this file
 (ADR-042). The design rulings live in *Decisions made* and the amended
-UIDR-003; the module map below is the only thing worth carrying into a
-moduledoc or `docs/architecture.md` first.
+UIDR-003. The module map below is already carried by the code: every
+"now" module has a moduledoc, and `docs/library.md`, `docs/watcher.md`,
+`docs/pipeline.md` name `Deletion`, `ImageCache`, `Rescan`, `BootHeal`
+(verified 2026-09-05) — nothing blocks deleting this file.
 
 ### Follow-ups found on the way (not in the sweep)
 
-* `test/e2e/library.spec.js` navigates to `/` and
-  `watch_history.spec.js` to `/watch-history`; the pages moved to
-  `/library` and `/history` (UIDR-010/015), so those specs skip or fail.
-  Repoint them and make the skips loud.
+* ~~`test/e2e/library.spec.js` navigates to `/` and
+  `watch_history.spec.js` to `/watch-history`~~ — done 2026-09-05.
+  Repointed to `/library` and `/history`, zone-tab tests moved to
+  `/incoming` (the one page with a tab strip), every skip carries a
+  reason, and the expectations now follow UIDR-028 (LEFT walls at the
+  edge, BACK enters the sidebar) and UIDR-019 (SELECT lands on
+  `detail_actions`). `cursorStartPriority.watch_history` was reordered to
+  grid-first: the orchestrator only consults the list when the machine's
+  default context (grid) is empty, so the toolbar-first entry was dead
+  text; runtime behaviour is unchanged. The **gamepad E2E project fails
+  wholesale in this harness** (all of `gamepad-specific.spec.js` too) —
+  pre-existing, the mock never registers; `modal_contract.spec.js` skips
+  it with that reason. Fix the mock or retire the project; do not skip
+  spec by spec.
+* **Dev server killed by toolchain ping-pong (environment, 2026-09-05).**
+  A Claude Bash shell inherits a PATH with
+  `mise/installs/elixir/1.20.3-otp-28/bin` ahead of the shims, so a bare
+  `mix credo` / `mix compile` rebuilds `_build/dev` for OTP 28; the
+  service (1.20.4 / OTP 29 via `mise exec`) then recompiles all 778
+  files inside the running BEAM, and any GenServer that ticks during the
+  purge window hits `UndefinedFunctionError … module is not available`.
+  Four shutdowns today (07:55, 10:51, 11:04, 11:15), each preceded by a
+  full recompile in the service log. Every `mix` in a Claude shell goes
+  through `mise exec --`; `MIX_ENV=test` alone is not enough (credo runs
+  in dev).
+* **`ReleaseTracking.Refresher` turns one failing sweep into an
+  application shutdown — owner's design call.** `handle_info(:sweep)`
+  runs `do_sweep/0` in the GenServer; a raise crashes the process, the
+  supervisor restarts it, and with an overdue `last_swept_at` the next
+  tick fires at the floor. The 10 s first-tick floor (2026-09-05) buys
+  ~100 s against `max_restarts: 10, max_seconds: 30` on the root
+  supervisor; today's 6-minute purge window blew through the pre-floor
+  code in one second. Options: (a) run the sweep body under
+  `try/rescue` and log the failure (the process survives, the tick keeps
+  its cadence — E-8's "failure paths say what failed" pattern); (b) run it
+  as an Oban job (`AutoTrackJob` precedent, retries and the Oban tile for
+  free) and keep the GenServer as a pure scheduler; (c) accept the floor.
+  Recommend (a) now, (b) when the sweep grows. Not implemented.
 * `Library.Deletion`'s per-episode cascade loops (E55 remainder) — bulk
   by id if it ever shows up in a profile.
 * The profiling baseline (`priv/profiling/baseline-small.*`) predates
@@ -1128,6 +1176,8 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
 5. ~~Documentation lane~~ — done 2026-09-05 (deferrals in the lane).
 6. ~~Design lane~~ — done 2026-09-05 on the owner's rulings.
 7. **Close by destination** — the table under *Resuming*; the ship is the owner's call.
+8. ~~E2E follow-up~~ — done 2026-09-05; `Refresher` escalation question
+   added to the table for the owner.
 
 ## Completion criteria
 

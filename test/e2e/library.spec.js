@@ -1,21 +1,22 @@
 /**
  * Library page E2E tests — the most complex page.
  *
- * Tests grid spatial navigation, grid ↔ toolbar transitions, zone tabs,
- * drawer/modal lifecycle, focus memory, filter input, and empty grid fallback.
+ * Tests grid spatial navigation, grid ↔ toolbar transitions, drawer/modal
+ * lifecycle, focus memory, filter input, and empty grid fallback on `/library`,
+ * plus zone-tab cycling on `/incoming` (the one page with a tab strip).
  */
 import { test, expect } from "./fixtures/input-method.js"
 import { expectContext, expectFocusInZone, getFocusedNavItem, getFocusedIndex, getZoneItemCount, establishFocus } from "./helpers/input.js"
-import { waitForGridItems, waitForSettle } from "./helpers/liveview.js"
+import { waitForSettle } from "./helpers/liveview.js"
 
 test.describe("library grid spatial navigation", () => {
   test.beforeEach(async ({ navigateTo }) => {
-    await navigateTo("/")
+    await navigateTo("/library")
   })
 
   test("arrow down moves focus to next row", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount < 2) { test.skip(); return }
+    test.skip(gridCount < 2, "needs at least two library entries")
 
     await expectContext(page, "grid")
     const before = await getFocusedIndex(page)
@@ -29,7 +30,7 @@ test.describe("library grid spatial navigation", () => {
 
   test("arrow up moves focus to previous row", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount < 2) { test.skip(); return }
+    test.skip(gridCount < 2, "needs at least two library entries")
 
     // Move down first, then up
     await inputAction("NAVIGATE_DOWN")
@@ -44,7 +45,7 @@ test.describe("library grid spatial navigation", () => {
 
   test("arrow right moves to next item in row", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount < 2) { test.skip(); return }
+    test.skip(gridCount < 2, "needs at least two library entries")
 
     const first = await getFocusedNavItem(page)
     await inputAction("NAVIGATE_RIGHT")
@@ -53,26 +54,37 @@ test.describe("library grid spatial navigation", () => {
     expect(second).not.toBe(first)
   })
 
-  test("arrow left from first column → sidebar", async ({ page, inputAction }) => {
+  test("left at the first column is a wall (UIDR-028)", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount === 0) { test.skip(); return }
+    test.skip(gridCount === 0, "needs at least one library entry")
 
-    // Ensure we're on the first item (column 0) by going to sidebar and back
-    // This guarantees focus is on the leftmost column
+    // The cursor starts on the first entry (column 0)
+    await expectContext(page, "grid")
+    expect(await getFocusedIndex(page)).toBe(0)
+
     await inputAction("NAVIGATE_LEFT")
+    await expectContext(page, "grid")
+    expect(await getFocusedIndex(page)).toBe(0)
+  })
+
+  test("BACK from the grid enters the sidebar; right returns to the same entry", async ({ page, inputAction }) => {
+    const gridCount = await getZoneItemCount(page, "grid")
+    test.skip(gridCount < 2, "needs at least two library entries")
+
+    await inputAction("NAVIGATE_RIGHT")
+    const origin = await getFocusedNavItem(page)
+
+    await inputAction("BACK")
     await expectContext(page, "sidebar")
 
     await inputAction("NAVIGATE_RIGHT")
     await expectContext(page, "grid")
-
-    // Now left should transition to sidebar (wall at column 0)
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
+    expect(await getFocusedNavItem(page)).toBe(origin)
   })
 
   test("down from bottom row → wall (stays in grid)", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount === 0) { test.skip(); return }
+    test.skip(gridCount === 0, "needs at least one library entry")
 
     // Navigate to last item by pressing down many times
     for (let i = 0; i < 50; i++) {
@@ -85,55 +97,38 @@ test.describe("library grid spatial navigation", () => {
 
   test("right from last column → wall (stays)", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount === 0) { test.skip(); return }
+    test.skip(gridCount === 0, "needs at least one library entry")
 
     // Navigate to rightmost column
     for (let i = 0; i < 20; i++) {
       await inputAction("NAVIGATE_RIGHT")
     }
 
-    // Should still be in grid (wall or drawer, depending on drawer state)
-    const context = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    expect(["grid", "drawer"]).toContain(context)
+    // Should still be in grid (wall)
+    await expectContext(page, "grid")
   })
 })
 
 test.describe("library grid ↔ toolbar transitions", () => {
   test.beforeEach(async ({ navigateTo }) => {
-    // Use library zone which has a toolbar
-    await navigateTo("/?zone=library")
+    await navigateTo("/library")
   })
 
-  test("up from top row of grid → toolbar or zone_tabs", async ({ page, inputAction }) => {
+  test("up from top row of grid → toolbar", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount === 0) { test.skip(); return }
+    test.skip(gridCount === 0, "needs at least one library entry")
 
-    // Ensure we're on the first row by navigating to sidebar and back
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
-    await inputAction("NAVIGATE_RIGHT")
-
-    // May land on grid, toolbar, or zone_tabs depending on cursor start
-    const startContext = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    if (startContext !== "grid") { test.skip(); return }
+    // The cursor starts on the first row
+    await expectContext(page, "grid")
 
     await inputAction("NAVIGATE_UP")
-
-    // Should transition to toolbar or zone_tabs
-    const context = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    expect(["toolbar", "zone_tabs"]).toContain(context)
+    await expectContext(page, "toolbar")
   })
 
   test("down from toolbar → grid top row", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
     const toolbarCount = await getZoneItemCount(page, "toolbar")
-    if (gridCount === 0 || toolbarCount === 0) { test.skip(); return }
+    test.skip(gridCount === 0 || toolbarCount === 0, "needs a library entry and a toolbar")
 
     // Navigate up to toolbar first
     await inputAction("NAVIGATE_UP")
@@ -144,30 +139,29 @@ test.describe("library grid ↔ toolbar transitions", () => {
     await expectContext(page, "grid")
   })
 
-  test("left from toolbar → sidebar", async ({ page, inputAction }) => {
+  test("left at the toolbar's first control is a wall; BACK enters the sidebar", async ({ page, inputAction }) => {
     const toolbarCount = await getZoneItemCount(page, "toolbar")
-    if (toolbarCount === 0) { test.skip(); return }
+    test.skip(toolbarCount === 0, "library toolbar zone missing")
 
-    // Navigate up to toolbar
     await inputAction("NAVIGATE_UP")
-    const context = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    if (context !== "toolbar") { test.skip(); return }
+    await expectContext(page, "toolbar")
 
     await inputAction("NAVIGATE_LEFT")
+    await expectContext(page, "toolbar")
+
+    await inputAction("BACK")
     await expectContext(page, "sidebar")
   })
 })
 
-test.describe("library zone tabs", () => {
+test.describe("incoming zone tabs", () => {
   test.beforeEach(async ({ navigateTo }) => {
-    await navigateTo("/")
+    await navigateTo("/incoming")
   })
 
   test("zone tab switch resets grid content", async ({ page, inputAction }) => {
     const tabCount = await getZoneItemCount(page, "zone-tabs")
-    if (tabCount < 2) { test.skip(); return }
+    test.skip(tabCount < 2, "needs at least two zone tabs")
 
     // Switch zone with ] key / RB
     await inputAction("ZONE_NEXT")
@@ -183,7 +177,7 @@ test.describe("library zone tabs", () => {
 
   test("zone tab switch with [ / LB works", async ({ page, inputAction }) => {
     const tabCount = await getZoneItemCount(page, "zone-tabs")
-    if (tabCount < 2) { test.skip(); return }
+    test.skip(tabCount < 2, "needs at least two zone tabs")
 
     // Switch forward then backward
     await inputAction("ZONE_NEXT")
@@ -193,34 +187,28 @@ test.describe("library zone tabs", () => {
     await inputAction("ZONE_PREV")
     await waitForSettle(page, 500)
 
-    // Should still be on the library page
-    await expect(page).toHaveURL(/\/$/)
+    // Should still be on the Incoming page
+    await expect(page).toHaveURL(/\/incoming/)
   })
 })
 
-test.describe("library drawer/modal", () => {
+test.describe("library detail overlay", () => {
   test.beforeEach(async ({ navigateTo }) => {
-    await navigateTo("/")
+    await navigateTo("/library")
   })
 
-  test("select on grid item → opens detail overlay", async ({ page, inputAction }) => {
+  test("select on grid item → opens the detail overlay on its actions row (UIDR-019)", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount === 0) { test.skip(); return }
+    test.skip(gridCount === 0, "needs at least one library entry")
 
     await expectContext(page, "grid")
     await inputAction("SELECT")
-    await waitForSettle(page, 500)
-
-    // Should be in drawer or modal context, OR still in grid if no detail view exists
-    const context = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    expect(["drawer", "modal", "grid"]).toContain(context)
+    await expectContext(page, "detail_actions")
   })
 
   test("escape from overlay → focus returns to originating grid item", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount === 0) { test.skip(); return }
+    test.skip(gridCount === 0, "needs at least one library entry")
 
     // Select second item if possible
     if (gridCount >= 2) {
@@ -228,18 +216,11 @@ test.describe("library drawer/modal", () => {
     }
     const originItem = await getFocusedNavItem(page)
 
-    // Open overlay
+    // Open overlay; BACK from the actions row dismisses it
     await inputAction("SELECT")
-    await waitForSettle(page, 500)
+    await expectContext(page, "detail_actions")
 
-    const context = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    if (!["drawer", "modal"].includes(context)) { test.skip(); return }
-
-    // Close overlay
     await inputAction("BACK")
-    await waitForSettle(page, 300)
 
     // Focus should return to the originating item
     await expectContext(page, "grid")
@@ -249,23 +230,15 @@ test.describe("library drawer/modal", () => {
 
   test("vertical navigation within overlay", async ({ page, inputAction }) => {
     const gridCount = await getZoneItemCount(page, "grid")
-    if (gridCount === 0) { test.skip(); return }
+    test.skip(gridCount === 0, "needs at least one library entry")
 
     await inputAction("SELECT")
-    await waitForSettle(page, 500)
+    await expectContext(page, "detail_actions")
 
-    const context = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    if (!["drawer", "modal"].includes(context)) { test.skip(); return }
-
-    // Navigate within the overlay
-    const first = await getFocusedNavItem(page)
+    // Down leaves the actions row for the body region below it
     await inputAction("NAVIGATE_DOWN")
-    const second = await getFocusedNavItem(page)
-
-    // May or may not change depending on number of items
-    expect(second).toBeTruthy()
+    await expect(page.locator("html")).toHaveAttribute("data-nav-context", /^detail_/)
+    expect(await getFocusedNavItem(page)).toBeTruthy()
   })
 })
 
@@ -273,12 +246,12 @@ test.describe("library filter input [keyboard-only]", () => {
   test.beforeEach(async ({ navigateTo, inputMethod }) => {
     // Filter tests are keyboard-only — text input doesn't apply to gamepad
     test.skip(inputMethod === "gamepad", "keyboard-only test")
-    await navigateTo("/?zone=library")
+    await navigateTo("/library")
   })
 
   test("focus filter → arrows still navigate (not editing)", async ({ page, inputAction }) => {
     const toolbarCount = await getZoneItemCount(page, "toolbar")
-    if (toolbarCount === 0) { test.skip(); return }
+    test.skip(toolbarCount === 0, "library toolbar zone missing")
 
     // Navigate to toolbar (which contains the filter input)
     await inputAction("NAVIGATE_UP")
@@ -287,7 +260,7 @@ test.describe("library filter input [keyboard-only]", () => {
     const context = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
-    if (context !== "toolbar") { test.skip(); return }
+    test.skip(context !== "toolbar", "up from the grid did not reach the toolbar")
 
     // Arrow keys should still navigate, not start editing
     await inputAction("NAVIGATE_LEFT")
@@ -302,7 +275,7 @@ test.describe("library filter input [keyboard-only]", () => {
 
   test("escape from filter clears and exits", async ({ page, inputAction }) => {
     const toolbarCount = await getZoneItemCount(page, "toolbar")
-    if (toolbarCount === 0) { test.skip(); return }
+    test.skip(toolbarCount === 0, "library toolbar zone missing")
 
     // Navigate to toolbar
     await inputAction("NAVIGATE_UP")
@@ -322,7 +295,7 @@ test.describe("library filter input [keyboard-only]", () => {
 
 test.describe("library empty grid fallback", () => {
   test("system handles empty grid gracefully", async ({ page, navigateTo, inputAction }) => {
-    await navigateTo("/")
+    await navigateTo("/library")
 
     // Even if grid is empty, navigation shouldn't throw
     await inputAction("NAVIGATE_DOWN")
