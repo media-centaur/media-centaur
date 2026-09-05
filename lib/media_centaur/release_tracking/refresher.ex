@@ -414,17 +414,9 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       end)
 
     %{
-      tv_series: load_existing_ids(MediaCentaur.Library.TVSeries, tv_ids),
-      movie_series: load_existing_ids(MediaCentaur.Library.MovieSeries, movie_series_ids)
+      tv_series: Library.Containers.existing_ids(:tv_series, tv_ids),
+      movie_series: Library.Containers.existing_ids(:movie_series, movie_series_ids)
     }
-  end
-
-  defp load_existing_ids(_schema, []), do: MapSet.new()
-
-  defp load_existing_ids(schema, ids) do
-    from(s in schema, where: s.id in ^ids, select: s.id)
-    |> MediaCentaur.Repo.all()
-    |> MapSet.new()
   end
 
   defp library_container_exists?(%{library_container_type: :tv_series, library_container_id: id}, %{
@@ -444,19 +436,16 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   @active_tv_statuses [:returning, :in_production, :planned]
 
   defp find_trackable_tv_series(entity_ids) do
-    from(tv in MediaCentaur.Library.TVSeries,
-      join: ext in MediaCentaur.Library.ExternalId,
-      on:
-        ext.owner_id == tv.id and ext.owner_type == :tv_series and
-          ext.source == "tmdb",
-      where: tv.id in ^entity_ids and tv.status in ^@active_tv_statuses,
-      select: %{
-        tv_series_id: tv.id,
-        tmdb_id: ext.external_id,
-        name: tv.name
-      }
-    )
-    |> MediaCentaur.Repo.all()
+    active = Library.Containers.list_tv_series(entity_ids, status: @active_tv_statuses)
+    tmdb_ids = Map.new(Library.ExternalIds.tmdb_ids_for_tv_series(Enum.map(active, & &1.id)))
+
+    active
+    |> Enum.flat_map(fn tv ->
+      case Map.fetch(tmdb_ids, tv.id) do
+        {:ok, tmdb_id} -> [%{tv_series_id: tv.id, tmdb_id: tmdb_id, name: tv.name}]
+        :error -> []
+      end
+    end)
     |> Enum.reject(fn %{tmdb_id: tmdb_id} ->
       case Helpers.parse_tmdb_id(tmdb_id) do
         {:ok, tmdb_id_int} -> ReleaseTracking.get_item_by_tmdb(tmdb_id_int, :tv_series) != nil

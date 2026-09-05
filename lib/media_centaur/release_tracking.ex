@@ -25,7 +25,9 @@ defmodule MediaCentaur.ReleaseTracking do
   @moduledoc """
   Bounded context for tracking upcoming movie and TV releases via TMDB.
 
-  Fully isolated from the Library context — owns its own tables and images.
+  Owns its own tables and images. Reads the library only through
+  `MediaCentaur.Library.*` public functions, never its schemas — a
+  tracked item points at a library container by id and type.
   TMDB-facing search and track-from-search onboarding live in the
   `ReleaseTracking.Acquisition` sub-module (this context delegates to it).
   """

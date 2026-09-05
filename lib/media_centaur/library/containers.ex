@@ -120,6 +120,39 @@ defmodule MediaCentaur.Library.Containers do
   def list(type) when type in @types, do: Repo.all(schema(type))
 
   @doc """
+  The subset of `ids` that still name a container of `type`. One IN
+  query, for callers holding foreign references (release-tracking items)
+  that may have outlived the container.
+  """
+  @spec existing_ids(t(), [Ecto.UUID.t()]) :: MapSet.t(Ecto.UUID.t())
+  def existing_ids(_type, []), do: MapSet.new()
+
+  def existing_ids(type, ids) when type in @types and is_list(ids) do
+    schema = schema(type)
+
+    from(s in schema, where: s.id in ^ids, select: s.id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc """
+  The `TVSeries` rows among `ids`, optionally narrowed by
+  `status: [statuses]`.
+  """
+  @spec list_tv_series([Ecto.UUID.t()], status: [atom()]) :: [TVSeries.t()]
+  def list_tv_series(ids, opts \\ []) when is_list(ids) do
+    query = from(tv in TVSeries, where: tv.id in ^ids)
+
+    query =
+      case Keyword.fetch(opts, :status) do
+        {:ok, statuses} -> where(query, [tv], tv.status in ^statuses)
+        :error -> query
+      end
+
+    Repo.all(query)
+  end
+
+  @doc """
   Fetches a container by id, materialising `:content_url` for the leaf
   types.
   """

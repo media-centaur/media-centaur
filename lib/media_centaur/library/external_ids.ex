@@ -285,6 +285,25 @@ defmodule MediaCentaur.Library.ExternalIds do
   end
 
   @doc """
+  Maps each TMDB id string in `tmdb_ids` to the id of the movie carrying
+  it. Ids the library has no movie for are absent. Inverse of
+  `tmdb_ids_for_movies/1`.
+  """
+  @spec movie_ids_for_tmdb_ids([String.t()]) :: %{String.t() => Ecto.UUID.t()}
+  def movie_ids_for_tmdb_ids([]), do: %{}
+
+  def movie_ids_for_tmdb_ids(tmdb_ids) when is_list(tmdb_ids) do
+    Map.new(
+      Repo.all(
+        from(ext in ExternalId,
+          where: ext.owner_type == :movie and ext.source == "tmdb" and ext.external_id in ^tmdb_ids,
+          select: {ext.external_id, ext.owner_id}
+        )
+      )
+    )
+  end
+
+  @doc """
   Bulk "does the library have this TMDB title" — maps each
   `{tmdb_id, media_type}` ref to the owning container's id; refs the
   library has no *presentable* container for are absent from the result.
