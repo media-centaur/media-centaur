@@ -62,7 +62,7 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     # unit's quality floor when nothing acceptable was found — the
     # planner's "lower quality available" verdict, stamped at solve
     # time so the board's offer survives corpus expiry. The candidates
-    # themselves are served live from the corpus (`Plans.alternatives_for/1`);
+    # themselves are served live from the corpus (`Plans.Alternatives.for_unit/1`);
     # only the verdict is denormalized. 0 = a genuinely bare unfound.
     field :below_floor_count, :integer, default: 0
     field :excluded_release_guids, {:array, :string}, default: []

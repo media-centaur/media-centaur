@@ -733,7 +733,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert unit.status == "unfound"
       assert unit.below_floor_count == 2
 
-      board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.board_for(fetched) end)
+      board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.Board.build(fetched) end)
       assert board.gaps == []
       refute board.lower_quality_accepted?
 
@@ -853,7 +853,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert unit.status == "found"
       assert unit.assigned_guid == "sd-e1"
 
-      board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.board_for(fetched) end)
+      board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.Board.build(fetched) end)
       assert board.lower_quality_accepted?
       assert board.below_preference == nil
 
@@ -862,7 +862,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       assert MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_810, :tv_series).min_quality == nil
 
-      board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.board_for(fetched) end)
+      board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.Board.build(fetched) end)
       refute board.lower_quality_accepted?
     end
   end

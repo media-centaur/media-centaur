@@ -226,7 +226,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       start_async(socket, :tmdb_search, fn ->
         outcome =
           try do
-            Review.search_tmdb(query, type)
+            Review.Search.tmdb(query, type)
           catch
             kind, reason -> {:error, {kind, reason}}
           end

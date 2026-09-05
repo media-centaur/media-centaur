@@ -3,7 +3,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
   Display contract for the planning coverage board (UIDR-014) — the
   live view of a draft plan: unit cells in season rows, the chosen
   releases beneath, the gaps, overlap warnings, and the approval
-  summary. Built by `MediaCentaur.Acquisition.Plans.board_for/1`;
+  summary. Built by `MediaCentaur.Acquisition.Plans.Board.build/1`;
   re-built on every `PlanEvents.Changed` (the durable plan rows are
   the state of record).
   """
@@ -123,7 +123,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     below the quality preference, totalled into one summary — one row,
     however many episodes it covers. Counts are the planner's
     solve-time verdict (durable on the units); candidates are listed
-    live via `Plans.alternatives_for/1`. `unit_id`/`unit_label` are set
+    live via `Plans.Alternatives.for_unit/1`. `unit_id`/`unit_label` are set
     only when a single unit is below preference (the movie case, or one
     stray episode) so the row can open that unit's picker directly.
     Never presented as a bare "not available" gap.

@@ -31,7 +31,7 @@ defmodule MediaCentaur.Library.DeletionTest do
     test "also deletes the FilePresence row for the removed file" do
       # Regression: leaving the presence row behind after a title is
       # deleted (via the LiveView delete flow, which routes through this
-      # function) meant `Watcher.Supervisor.rescan_unlinked/0` would later
+      # function) meant `Watcher.Rescan.rescan_unlinked/0` would later
       # treat it as "stranded" and resurrect the deleted title from a
       # file that no longer exists.
       movie =

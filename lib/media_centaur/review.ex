@@ -4,6 +4,7 @@ defmodule MediaCentaur.Review do
     exports: [
       PendingFile,
       Rematch,
+      Search,
       # Subscribers to `review:updates` pattern-match these payloads, so
       # they are part of the context's published surface (ADR-060). Same
       # precedent as `Library.Events` / `Events.EntitiesChanged`.
@@ -32,13 +33,13 @@ defmodule MediaCentaur.Review do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Parser
   alias MediaCentaur.Review.Events
+  alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
   alias MediaCentaur.Review.Events.GroupApproved
   alias MediaCentaur.Review.Events.GroupError
   alias MediaCentaur.Topics
-  alias MediaCentaur.TMDB.Client
-  alias MediaCentaur.DateUtil
 
   @doc "Subscribe the caller to review process events."
   @spec subscribe() :: :ok | {:error, term()}
@@ -116,6 +117,65 @@ defmodule MediaCentaur.Review do
   end
 
   def find_or_create_pending_file!(attrs), do: Repo.bang!(find_or_create_pending_file(attrs))
+
+  @doc """
+  Adds a file to the review queue from pre-normalized attributes and
+  broadcasts `FileAdded`. Idempotent on `file_path` — a second call
+  returns the existing record.
+  """
+  @spec add_pending_file(map()) :: {:ok, PendingFile.t()} | {:error, term()}
+  def add_pending_file(attrs) do
+    with {:ok, pending_file} <- find_or_create_pending_file(attrs) do
+      Events.broadcast(%FileAdded{pending_file_id: pending_file.id})
+      {:ok, pending_file}
+    end
+  end
+
+  @doc """
+  Adds files handed back by a rematch — each `%{file_path, media_dir}`
+  is parsed for its metadata first. Returns `{:ok, count}` of files
+  added; one that fails to save is logged and skipped.
+  """
+  @spec add_files_for_review([map()]) :: {:ok, non_neg_integer()}
+  def add_files_for_review(files) do
+    added =
+      Enum.count(files, fn file ->
+        case add_pending_file(parsed_pending_attrs(file)) do
+          {:ok, _pending_file} ->
+            true
+
+          {:error, reason} ->
+            Log.warning(:review, "failed to create pending file for rematch — #{inspect(reason)}")
+            false
+        end
+      end)
+
+    Log.info(:review, "rematch — created #{added} pending files")
+    {:ok, added}
+  end
+
+  @doc """
+  Removes a file from the review queue once its import has finished and
+  broadcasts `FileReviewed`. `:ok` even when the record is already gone.
+  """
+  @spec complete_review(Ecto.UUID.t()) :: :ok
+  def complete_review(pending_file_id) do
+    case fetch_pending_file(pending_file_id) do
+      {:ok, pending_file} ->
+        destroy_pending_file!(pending_file)
+        broadcast_reviewed(pending_file_id)
+
+      {:error, :not_found} ->
+        :ok
+    end
+  end
+
+  defp parsed_pending_attrs(file) do
+    file.file_path
+    |> Parser.parse()
+    |> PendingFile.parsed_attrs()
+    |> Map.merge(%{file_path: file.file_path, media_directory: file.media_dir})
+  end
 
   def approve_pending_file(pending_file) do
     Repo.update(PendingFile.approve_changeset(pending_file))
@@ -364,44 +424,6 @@ defmodule MediaCentaur.Review do
       match_poster_path: poster_path,
       confidence: 1.0
     })
-  end
-
-  def search_tmdb(query, type) do
-    Log.info(:review, "manual search — #{query} (#{type})")
-    search_fn = if type == :tv, do: &Client.search_tv/2, else: &Client.search_movie/2
-    title_key = if type == :tv, do: "name", else: "title"
-    year_key = if type == :tv, do: "first_air_date", else: "release_date"
-    cleaned_query = clean_search_query(query)
-
-    case search_fn.(cleaned_query, nil) do
-      {:ok, results} ->
-        normalized =
-          results
-          |> Enum.take(10)
-          |> Enum.map(fn result ->
-            %{
-              tmdb_id: to_string(result["id"]),
-              title: result[title_key],
-              year: DateUtil.extract_year(result[year_key]),
-              overview: result["overview"],
-              poster_path: result["poster_path"]
-            }
-          end)
-
-        {:ok, normalized}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp clean_search_query(query) do
-    query
-    |> String.replace(~r/[Ss]\d{1,2}[Ee]\d{1,2}/, "")
-    |> String.replace(~r/[Ss]eason\s*\d+/i, "")
-    |> String.replace(~r/[Ee]pisode\s*\d+/i, "")
-    |> String.replace(~r/[Ee]\d{2,}/, "")
-    |> String.trim()
   end
 
   defp broadcast_reviewed(file_id) do

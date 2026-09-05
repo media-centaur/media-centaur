@@ -79,7 +79,7 @@ defmodule MediaCentaur.DataCase do
   # The web layer no longer spawns fire-and-forget tasks (ADR-049 /
   # MC0019), but context-layer background work — searches, library
   # maintenance, rescans (`Acquisition.run_search_one_async/2`,
-  # `Maintenance.*_async/1`, `Watcher.Supervisor.scan_async/0`, …) —
+  # `Maintenance.*_async/1`, `Watcher.Rescan.scan_async/0`, …) —
   # legitimately runs under the global supervisor and can outlive a
   # test. The drain bounds that to O(grace) per orphaned child.
   @task_drain_grace_ms 100

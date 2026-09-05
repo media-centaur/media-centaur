@@ -10,6 +10,7 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Recommendations,
       MediaCentaur.Settings.Controls,
       MediaCentaur.Library,
+      MediaCentaur.BootHeal,
       MediaCentaur.Maintenance,
       MediaCentaur.Pipeline,
       MediaCentaur.Review,

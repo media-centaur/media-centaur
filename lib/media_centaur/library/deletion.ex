@@ -107,7 +107,7 @@ defmodule MediaCentaur.Library.Deletion do
   Returns a list of affected entity IDs (for broadcasting).
 
   Also drops the `Library.FilePresence` row for each path — a file gone from
-  disk has nothing left for `Watcher.Supervisor.rescan_unlinked/0` to recover,
+  disk has nothing left for `Watcher.Rescan.rescan_unlinked/0` to recover,
   and leaving the row behind let a later reconciliation pass resurrect a
   deleted title from a path that no longer exists (the incident this guards
   against). `AbsenceSweeper.purge_expired/1` also calls this before its own

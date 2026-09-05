@@ -210,7 +210,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
       end
 
       def handle_event("rescan_library", _params, socket) do
-        MediaCentaur.Watcher.Supervisor.scan_async()
+        MediaCentaur.Watcher.Rescan.scan_async()
         {:noreply, socket}
       end
 

@@ -1,23 +1,17 @@
 defmodule MediaCentaur.Review.Intake do
   @moduledoc """
-  Subscribes to `"review:intake"` and manages PendingFile lifecycle.
+  Reacts to the `"review:intake"` topic — the pipeline and the rematch
+  flow handing files to Review — by calling the matching `Review`
+  function:
 
-  Handles three event types:
-
-  - `{:needs_review, attrs}` — creates a PendingFile for human review
-  - `{:review_completed, id}` — destroys a PendingFile after import finishes
-  - `{:files_for_review, files}` — creates PendingFiles from a rematch (files
-    are parsed to extract metadata)
+  - `{:needs_review, attrs}` → `Review.add_pending_file/1`
+  - `{:review_completed, id}` → `Review.complete_review/1`
+  - `{:files_for_review, files}` → `Review.add_files_for_review/1`
   """
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Parser
   alias MediaCentaur.Review
-  alias MediaCentaur.Review.Events
-  alias MediaCentaur.Review.Events.FileAdded
-  alias MediaCentaur.Review.Events.FileReviewed
-  alias MediaCentaur.Review.PendingFile
   alias MediaCentaur.Topics
 
   def start_link(_opts) do
@@ -30,120 +24,25 @@ defmodule MediaCentaur.Review.Intake do
     {:ok, %{}}
   end
 
-  # ---------------------------------------------------------------------------
-  # Public API
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  Creates a PendingFile from a plain map of pre-normalized attributes.
-
-  Uses find_or_create for idempotency — a second call with the same file_path
-  returns the existing record. Broadcasts a `FileAdded` event on
-  `"review:updates"` on success.
-  """
-  @spec create_pending_file(map()) :: {:ok, struct()} | {:error, term()}
-  def create_pending_file(attrs) do
-    with {:ok, pending_file} <- Review.find_or_create_pending_file(attrs) do
-      Events.broadcast(%FileAdded{pending_file_id: pending_file.id})
-
-      {:ok, pending_file}
-    end
-  end
-
-  @doc """
-  Destroys a PendingFile by ID and broadcasts a `FileReviewed` event on
-  `"review:updates"`. Returns `:ok` even if the record was already removed.
-  """
-  @spec complete_review(Ecto.UUID.t()) :: :ok
-  def complete_review(pending_file_id) do
-    case Review.fetch_pending_file(pending_file_id) do
-      {:ok, pending_file} ->
-        Review.destroy_pending_file!(pending_file)
-
-        Events.broadcast(%FileReviewed{pending_file_id: pending_file_id})
-
-      {:error, :not_found} ->
-        :ok
-    end
-
-    :ok
-  end
-
-  @doc """
-  Creates PendingFiles from a list of file maps (from a rematch).
-
-  Each file map has `:file_path` and `:media_dir`. The file path is parsed
-  to extract metadata, then a PendingFile is created and broadcast.
-
-  Returns `{:ok, count}` with the number of PendingFiles created.
-  """
-  @spec receive_files_for_review([map()]) :: {:ok, non_neg_integer()}
-  def receive_files_for_review(files) do
-    pending_files =
-      Enum.reject(
-        Enum.map(files, fn file ->
-          attrs = build_pending_attrs(file)
-
-          case create_pending_file(attrs) do
-            {:ok, pending_file} ->
-              pending_file
-
-            {:error, reason} ->
-              Log.warning(
-                :review,
-                "failed to create pending file for rematch — #{inspect(reason)}"
-              )
-
-              nil
-          end
-        end),
-        &is_nil/1
-      )
-
-    Log.info(:review, "rematch — created #{length(pending_files)} pending files")
-
-    {:ok, length(pending_files)}
-  end
-
-  # ---------------------------------------------------------------------------
-  # Callbacks
-  # ---------------------------------------------------------------------------
-
   @impl true
   def handle_info({:needs_review, attrs}, state) do
-    case create_pending_file(attrs) do
-      {:ok, _} ->
-        :ok
-
-      {:error, reason} ->
-        Log.warning(:review, "failed to create pending file — #{inspect(reason)}")
+    case Review.add_pending_file(attrs) do
+      {:ok, _} -> :ok
+      {:error, reason} -> Log.warning(:review, "failed to create pending file — #{inspect(reason)}")
     end
 
     {:noreply, state}
   end
 
-  @impl true
   def handle_info({:review_completed, pending_file_id}, state) do
-    complete_review(pending_file_id)
+    Review.complete_review(pending_file_id)
     {:noreply, state}
   end
 
-  @impl true
   def handle_info({:files_for_review, files}, state) do
-    receive_files_for_review(files)
+    Review.add_files_for_review(files)
     {:noreply, state}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
-
-  # ---------------------------------------------------------------------------
-  # Private — file path parsing for rematch
-  # ---------------------------------------------------------------------------
-
-  defp build_pending_attrs(file) do
-    file.file_path
-    |> Parser.parse()
-    |> PendingFile.parsed_attrs()
-    |> Map.merge(%{file_path: file.file_path, media_directory: file.media_dir})
-  end
 end
