@@ -265,6 +265,11 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
       {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
+
+      # Cancel is a two-click control (MC0027 tier 2): the first click arms
+      # it and changes nothing; the second fires.
+      render_click(view, "cancel_pursuit_arm", %{})
+      assert Repo.reload(pursuit).state == "active"
       render_click(view, "cancel_pursuit", %{})
 
       # The command's PubSub broadcasts trigger handle_info DB work in
