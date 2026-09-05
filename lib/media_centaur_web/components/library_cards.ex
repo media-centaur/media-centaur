@@ -192,7 +192,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
         </div>
 
         <div
-          class="sort-dropdown"
+          class="glass-menu"
           phx-click="toggle_sort"
           phx-click-away="close_sort"
           phx-keydown="sort_key"
@@ -201,19 +201,19 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
           data-captures-keys={@sort_open}
           tabindex="0"
         >
-          <div class="sort-dropdown-trigger">
+          <div class="glass-menu-trigger">
             {sort_label(@sort_order)}
-            <span class={["sort-dropdown-chevron", @sort_open && "rotate-180"]}>
+            <span class={["glass-menu-chevron", @sort_open && "rotate-180"]}>
               <.icon name="hero-chevron-down-mini" class="size-4" />
             </span>
           </div>
-          <ul :if={@sort_open} class="sort-dropdown-menu glass-surface">
+          <ul :if={@sort_open} class="glass-menu-list glass-surface">
             <li
               :for={{{value, label}, index} <- Enum.with_index(@sort_options)}
               class={[
-                "sort-dropdown-item",
-                @sort_order == value && "sort-dropdown-item-active",
-                @sort_highlight == index && "sort-dropdown-item-highlight"
+                "glass-menu-item",
+                @sort_order == value && "glass-menu-item-active",
+                @sort_highlight == index && "glass-menu-item-highlight"
               ]}
               phx-click="sort"
               phx-value-sort={value}

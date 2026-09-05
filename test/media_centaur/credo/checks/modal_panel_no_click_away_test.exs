@@ -32,7 +32,7 @@ defmodule MediaCentaur.Credo.Checks.ModalPanelNoClickAwayTest do
 
         def dropdown(assigns) do
           ~H"""
-          <div class="sort-dropdown" phx-click-away="close_sort">
+          <div class="glass-menu" phx-click-away="close_sort">
             menu items
           </div>
           """

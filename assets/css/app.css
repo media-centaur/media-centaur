@@ -1316,8 +1316,11 @@ body:has(.modal-backdrop[data-state="open"]) {
   box-shadow: 0 1px 2px oklch(0% 0 0 / 0.18);
 }
 
-/* Sort dropdown — custom replacement for native <select> */
-.sort-dropdown {
+/* Glass menu — the house dropdown idiom: a quiet trigger with a chevron
+   and a glass list beneath it, LiveView-owned open state. Worn by the
+   library sort control and the Discovery title modal's download-scope
+   menu. */
+.glass-menu {
   position: relative;
 }
 
@@ -1327,7 +1330,7 @@ body:has(.modal-backdrop[data-state="open"]) {
    A faint hover/open background is the only container it ever grows.
    Content-width (no fixed width) since there's no box edge to keep steady;
    height locked to 2.25rem to share the toolbar rail line with the tabs. */
-.sort-dropdown-trigger {
+.glass-menu-trigger {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -1341,14 +1344,14 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: background 150ms, color 150ms;
 }
 
-.sort-dropdown-trigger:hover,
-.sort-dropdown[data-captures-keys="true"] .sort-dropdown-trigger {
+.glass-menu-trigger:hover,
+.glass-menu[data-captures-keys="true"] .glass-menu-trigger {
   background: oklch(from var(--color-base-content) l c h / 0.08);
   color: oklch(from var(--color-base-content) l c h / 0.9);
 }
 
 /* Sort chevron rotation */
-.sort-dropdown-chevron {
+.glass-menu-chevron {
   display: inline-flex;
   width: 1rem;
   height: 1rem;
@@ -1356,7 +1359,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: transform 150ms ease-out;
 }
 
-.sort-dropdown-menu {
+.glass-menu-list {
   position: absolute;
   top: calc(100% + 0.25rem);
   left: 0;
@@ -1368,7 +1371,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   z-index: 50;
 }
 
-.sort-dropdown-item {
+.glass-menu-item {
   padding: 0.375rem 0.75rem;
   border-radius: 0.375rem;
   font-size: 0.875rem;
@@ -1378,16 +1381,16 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: background 0.1s, color 0.1s;
 }
 
-.sort-dropdown-item:hover {
+.glass-menu-item:hover {
   background: oklch(from var(--color-base-content) l c h / 0.1);
   color: oklch(from var(--color-base-content) l c h / 0.9);
 }
 
-.sort-dropdown-item-active {
+.glass-menu-item-active {
   color: var(--color-primary);
 }
 
-.sort-dropdown-item-highlight {
+.glass-menu-item-highlight {
   background: oklch(from var(--color-base-content) l c h / 0.1);
   color: oklch(from var(--color-base-content) l c h / 0.9);
 }
