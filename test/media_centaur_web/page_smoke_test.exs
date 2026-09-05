@@ -64,6 +64,35 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
+  # The Discovery title detail modal is URL-driven (`?title=`); a watchlist
+  # item for the ref makes the modal render on both title tabs.
+  describe "/discovery with the title modal open" do
+    setup do
+      {:ok, _item} =
+        MediaCentaur.Discovery.add_to_watchlist(
+          MediaCentaur.TMDB.Title.new!(%{
+            tmdb_id: 777,
+            media_type: :movie,
+            name: "Sample Movie",
+            release_date: ~D[2010-01-01]
+          })
+        )
+
+      :ok
+    end
+
+    for {path, label} <- [
+          {"/discovery?title=movie-777", "discovery recommendations with the title modal"},
+          {"/discovery/watchlist?title=movie-777", "discovery watchlist with the title modal"}
+        ] do
+      test "#{label} (#{path}) renders without crashing", %{conn: conn} do
+        assert {:ok, view, html} = live_async!(conn, unquote(path))
+        assert is_binary(html)
+        assert Phoenix.LiveViewTest.has_element?(view, "#title-detail-modal")
+      end
+    end
+  end
+
   # The library overview is the Library subsystem's drill-in Activity widget
   # (`/status?subsystem=library`). This seeds a library so the populated render
   # branches are exercised: the recently-added poster strip (glance card), a

@@ -10,7 +10,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
   defp movie(overrides \\ %{}) do
     Title.new!(
       Map.merge(
-        %{tmdb_id: 777, media_type: :movie, name: "Sample Movie", year: "2010", release_date: ~D[2010-03-05]},
+        %{
+          tmdb_id: 777,
+          media_type: :movie,
+          name: "Sample Movie",
+          year: "2010",
+          release_date: ~D[2010-03-05]
+        },
         overrides
       )
     )
@@ -52,7 +58,12 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
       assert Logic.title_detail(movie(), facts()).primary == :download
 
       show =
-        Title.new!(%{tmdb_id: 42, media_type: :tv_series, name: "Sample Show", release_date: ~D[2010-01-01]})
+        Title.new!(%{
+          tmdb_id: 42,
+          media_type: :tv_series,
+          name: "Sample Show",
+          release_date: ~D[2010-01-01]
+        })
 
       detail = Logic.title_detail(show, facts())
       assert detail.primary == :download

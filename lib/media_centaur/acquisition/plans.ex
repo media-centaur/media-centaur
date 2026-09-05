@@ -132,8 +132,11 @@ defmodule MediaCentaur.Acquisition.Plans do
            %{tmdb_id: title.tmdb_id, title: title.name, year: title_year(title)},
            approval_policy: policy
          ) do
-      {:ok, _plan} -> :ok
-      {:error, reason} -> Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
+      {:ok, _plan} ->
+        :ok
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
     end
   end
 

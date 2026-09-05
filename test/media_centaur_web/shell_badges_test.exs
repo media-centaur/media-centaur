@@ -67,13 +67,20 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
       )
 
       {:ok, _plan} =
-        MediaCentaur.Acquisition.Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
+        MediaCentaur.Acquisition.Plans.create_movie_plan(%{
+          tmdb_id: "777",
+          title: "Sample Movie",
+          year: 2005
+        })
 
       assert %ShellBadges.Counts{plans_awaiting_review: 1} = ShellBadges.counts()
     end
 
     test "relevant?/1 accepts a plan status change" do
-      assert ShellBadges.relevant?(%MediaCentaur.Acquisition.PlanEvents.Changed{plan_id: "id", status: "ready"})
+      assert ShellBadges.relevant?(%MediaCentaur.Acquisition.PlanEvents.Changed{
+               plan_id: "id",
+               status: "ready"
+             })
     end
 
     test "relevant?/1 accepts the source events feeding the counts" do

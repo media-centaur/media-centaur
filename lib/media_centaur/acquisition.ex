@@ -26,6 +26,7 @@ defmodule MediaCentaur.Acquisition do
       Plans.Board,
       Plans.Plan,
       Targeting,
+      TitleStates,
       Targeting.Selection,
       Targeting.Season,
       Targeting.Episode,
