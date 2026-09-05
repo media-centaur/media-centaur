@@ -16,6 +16,17 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
   moment planning starts — a refresh or restart mid-planning loses
   nothing (design decision 2026-06-09) — and `pursuit_id` is the
   committed pursuit's provenance pointer.
+
+  ## Approval policy
+
+  `approval_policy` names who commits the plan once it is `ready`:
+  `automatic` — the Reactor gate (`Reactor.Handlers.plan_changed/1`)
+  commits it when the result qualifies (a clean plan for a manual plan,
+  any found unit for a tracking plan); `review` — the plan parks as a
+  draft on Downloads until a person approves it. Stamped at creation by
+  whoever creates the plan (the drop planner from the item's auto-grab
+  mode, the picker and plan-now as `review`, one-click downloads as
+  `automatic`) and never derived from `origin` at read time.
   """
 
   use Ecto.Schema
@@ -28,6 +39,7 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
   @statuses ~w(planning ready committed discarded)
   @tmdb_types ~w(movie tv)
   @origins ~w(manual tracking)
+  @approval_policies ~w(automatic review)
 
   schema "acquisition_plans" do
     field :status, :string, default: "planning"
@@ -56,11 +68,16 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     # item for collection parts).
     field :origin, :string, default: "manual"
     field :tracking_item_id, Ecto.UUID
+    field :approval_policy, :string, default: "review"
 
     timestamps()
   end
 
   @type t :: %__MODULE__{}
+
+  @doc "The approval policy values."
+  @spec approval_policies() :: [String.t()]
+  def approval_policies, do: @approval_policies
 
   @doc "Builds a new plan in `planning`."
   def create_changeset(attrs) do
@@ -75,11 +92,13 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
       :span_sizes,
       :grab_future,
       :origin,
-      :tracking_item_id
+      :tracking_item_id,
+      :approval_policy
     ])
     |> validate_required([:tmdb_id, :tmdb_type, :title])
     |> validate_inclusion(:tmdb_type, @tmdb_types)
     |> validate_inclusion(:origin, @origins)
+    |> validate_inclusion(:approval_policy, @approval_policies)
   end
 
   @doc """
