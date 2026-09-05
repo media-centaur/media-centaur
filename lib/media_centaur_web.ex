@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.DeleteTargets,
       MediaCentaur.Discovery,
       MediaCentaur.Social,
-      MediaCentaur.Recommendations
+      MediaCentaur.Activities
     ],
     exports: [Endpoint]
 

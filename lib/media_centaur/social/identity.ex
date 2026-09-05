@@ -5,7 +5,7 @@ defmodule MediaCentaur.Social.Identity do
   wrapped at rest and in memory); the public key is derived on read.
 
   Generated on first use (`ensure/0`) — called by the Settings Social section when
-  opened, and by `Recommendations.recommend/2` when a user recommends a
+  opened, and by `Activities.recommend/2` when a user recommends a
   title before ever opening the tab. Replaced only by `import_nsec/1`.
   Both broadcast `Social.Events.IdentityChanged` so relay connections
   re-sign.

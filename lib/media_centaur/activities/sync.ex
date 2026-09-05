@@ -1,14 +1,14 @@
-defmodule MediaCentaur.Recommendations.Sync do
+defmodule MediaCentaur.Activities.Sync do
   @moduledoc """
-  Keeps recommendations in step with the relays — the app's side of the
+  Keeps activities in step with the relays — the app's side of the
   *Reading and sync* section of `docs/social-protocol.md`. Consumes
   `social:connections`:
 
     * `:connected` for a relay → subscribe `"feed"` (authors = friends ++
-      self, kinds 32160 and 5, `limit` = the page size) and `"own:<url>"`
-      (authors = [self], both kinds) on that relay; collect the event ids
+      self, every activity kind and 5, `limit` = the page size) and
+      `"own:<url>"` (authors = [self], same kinds) on that relay; collect the event ids
       the relay sends on the own sub.
-    * `{:event, "feed", event}` → `Recommendations.ingest/1` (verified,
+    * `{:event, "feed", event}` → `Activities.ingest/1` (verified,
       friend or self, newest wins; a deletion tombstones).
     * `{:eose, "feed"}` → if the page came back full, ask for the next
       one (`until` = one second before the oldest seen); after a short
@@ -18,7 +18,7 @@ defmodule MediaCentaur.Recommendations.Sync do
       event it did not send — recommendations of live rows, deletions of
       withdrawn ones. A per-relay diff, not a blanket re-publish.
     * `{:ok, id, false, reason}` → log the refusal by what was refused
-      (`Recommendations.own_event_kind/1`): a relay refusing a deletion
+      (`Activities.own_event_kind/1`): a relay refusing a deletion
       is the one that has not been upgraded to carry the contract. The
       connection keeps the reason as the relay row's last error.
 
@@ -41,7 +41,7 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   Paging steps `until` back by one second, so more than `page_limit`
   events sharing one second lose the excess; the alternative is an
-  endless page. Gated off under `:test` (`:start_recommendations_sync`);
+  endless page. Gated off under `:test` (`:start_activities_sync`);
   tests start it by hand against `Nostr.FakeRelay`, with `page_limit:`
   lowered to exercise paging.
   """
@@ -53,8 +53,8 @@ defmodule MediaCentaur.Recommendations.Sync do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Filter
-  alias MediaCentaur.Recommendations
-  alias MediaCentaur.Recommendations.Translation
+  alias MediaCentaur.Activities
+  alias MediaCentaur.Activities.Translation
 
   @default_page_limit 500
   @feed Connections.feed_sub_id()
@@ -91,7 +91,7 @@ defmodule MediaCentaur.Recommendations.Sync do
     state = if sub_id == own_sub(url), do: mark_seen(state, url, event.id), else: state
     state = if sub_id == @feed, do: note_page_event(state, url, event), else: state
 
-    case Recommendations.ingest(event) do
+    case Activities.ingest(event) do
       {:ok, _rec} ->
         :ok
 
@@ -117,7 +117,7 @@ defmodule MediaCentaur.Recommendations.Sync do
   def handle_info({:relay_connection, url, {:ok, event_id, false, reason}}, state) do
     Log.warning(
       :social,
-      "#{url} rejected #{refused(Recommendations.own_event_kind(event_id))}: #{reason}"
+      "#{url} rejected #{refused(Activities.own_event_kind(event_id))}: #{reason}"
     )
 
     {:noreply, state}
@@ -166,6 +166,8 @@ defmodule MediaCentaur.Recommendations.Sync do
   # --- own events ------------------------------------------------------------
 
   defp refused(:recommendation), do: "a recommendation"
+  defp refused(:watched), do: "a watched activity"
+  defp refused(:tracking), do: "a tracking activity"
   defp refused(:deletion), do: "a deletion"
   defp refused(nil), do: "an event"
 
@@ -173,7 +175,7 @@ defmodule MediaCentaur.Recommendations.Sync do
     do: %{state | seen: Map.update(state.seen, url, MapSet.new([event_id]), &MapSet.put(&1, event_id))}
 
   defp publish_missing(url, seen) do
-    missing = Enum.reject(Recommendations.own_events(), &MapSet.member?(seen, &1.id))
+    missing = Enum.reject(Activities.own_events(), &MapSet.member?(seen, &1.id))
     for event <- missing, do: Connections.publish(url, event)
 
     if missing != [],
@@ -194,7 +196,7 @@ defmodule MediaCentaur.Recommendations.Sync do
 
   defp own_filter, do: Filter.new(authors: Enum.reject([Identity.pubkey()], &is_nil/1), kinds: kinds())
 
-  defp kinds, do: [Translation.kind(), Translation.deletion_kind()]
+  defp kinds, do: Translation.kinds() ++ [Translation.deletion_kind()]
 
   defp own_sub(url), do: "own:" <> url
 end

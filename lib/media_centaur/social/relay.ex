@@ -4,7 +4,7 @@ defmodule MediaCentaur.Social.Relay do
   lowercase scheme and host, no userinfo, path defaults to `/`).
   Connection state is runtime (`Social.Connections.status/0`), never
   stored, and neither is any sync position: every connect reads the relay
-  from the start (`Recommendations.Sync`).
+  from the start (`Activities.Sync`).
   """
 
   use Ecto.Schema

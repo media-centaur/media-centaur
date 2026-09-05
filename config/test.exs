@@ -70,15 +70,15 @@ config :media_centaur, :req_test_stubs, %{
 }
 
 config :media_centaur, :skip_user_config, true
+# The recommendations relay sync would subscribe every FakeRelay a test
+# stands up; sync_test starts its own by hand, as connections_test does.
+config :media_centaur, :start_activities_sync, false
 config :media_centaur, :start_pipeline, false
 # Skip mpv socket recovery — otherwise the recovery task scans
 # `mpv_socket_dir` (a real /tmp path on dev machines) and attaches to live
 # mpv instances, leaking the user's playback session into every LiveView
 # test that subscribes to playback events.
 config :media_centaur, :start_playback_recovery, false
-# The recommendations relay sync would subscribe every FakeRelay a test
-# stands up; sync_test starts its own by hand, as connections_test does.
-config :media_centaur, :start_recommendations_sync, false
 config :media_centaur, :start_relay_connections, false
 config :media_centaur, :start_watchers, false
 

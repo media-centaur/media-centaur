@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
           facts(%{
             sender: "Sample Friend",
             note: "Watch it",
-            recommended_at: ~U[2026-09-01 10:00:00Z],
+            acted_at: ~U[2026-09-01 10:00:00Z],
             own?: false
           })
         )

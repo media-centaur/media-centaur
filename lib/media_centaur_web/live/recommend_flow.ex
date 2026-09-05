@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   entity-keyed store (`LiveHelpers.image_url/2`), which the TMDB-identity
   resolver `LiveHelpers.title_poster_url/1` cannot see.
 
-  Send goes through `Recommendations.recommend/2`, which stores and
+  Send goes through `Activities.recommend/2`, which stores and
   publishes; the flash names whether a relay was connected at the time,
   because with none the recommendation is real but has gone nowhere yet.
   A note over 500 characters is rejected without closing the modal, so
@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   import Phoenix.LiveView, only: [put_flash: 3]
 
   alias MediaCentaur.Social.Connections
-  alias MediaCentaur.Recommendations
+  alias MediaCentaur.Activities
   alias MediaCentaur.TMDB.Title
 
   @type socket :: Phoenix.LiveView.Socket.t()
@@ -80,7 +80,7 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   """
   @spec submit(socket(), String.t() | nil) :: socket()
   def submit(%{assigns: %{recommend_subject: %Title{} = title}} = socket, note) do
-    case Recommendations.recommend(title, note) do
+    case Activities.recommend(title, note) do
       {:ok, _rec} ->
         socket |> close() |> put_flash(:info, sent_message())
 

@@ -59,7 +59,7 @@ defmodule MediaCentaur.Topics do
   | `discovery:updates` | `Discovery.Events` | `{:watchlist_item_added, _}`, `{:watchlist_item_removed, _}` |
   | `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_removed, _}` |
   | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — re-broadcast of `Nostr.Connection` owner messages |
-  | `recommendations:updates` | `Recommendations.Events` | `{:recommendation_received, _}`, `{:recommendation_sent, _}`, `{:recommendation_deleted, _}` |
+  | `activities:updates` | `Activities.Events` | `{:activity_received, _}`, `{:activity_sent, _}`, `{:activity_deleted, _}` |
   | `apps:updates` | `Apps.Events` | `{:app_artwork_cached, _}` — async CDN art landed |
   | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:file_reviewed, _}`, `{:group_approved, _}`, `{:group_error, _}` — typed structs, ADR-060's worked example |
   | `pipeline:input`, `:matched`, `:images`, `:publish` | `Pipeline` | per-stage progress |
@@ -168,7 +168,7 @@ defmodule MediaCentaur.Topics do
   def discovery_updates, do: "discovery:updates"
   def social_updates, do: "social:updates"
   def social_connections, do: "social:connections"
-  def recommendations_updates, do: "recommendations:updates"
+  def activities_updates, do: "activities:updates"
   def apps_updates, do: "apps:updates"
   def settings_updates, do: "settings:updates"
   def config_updates, do: "config:updates"

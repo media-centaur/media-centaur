@@ -162,7 +162,7 @@ config :media_centaur, :tmdb_artwork_hold_providers, [
   MediaCentaur.ReleaseTracking.TmdbArtworkHolds,
   MediaCentaur.Acquisition.TmdbArtworkHolds,
   MediaCentaur.Discovery.TmdbArtworkHolds,
-  MediaCentaur.Recommendations.TmdbArtworkHolds
+  MediaCentaur.Activities.TmdbArtworkHolds
 ]
 
 config :media_centaur,

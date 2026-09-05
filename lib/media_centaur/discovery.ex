@@ -28,7 +28,7 @@ defmodule MediaCentaur.Discovery do
 
   @doc """
   Adds a title to the watchlist. `attrs` may carry `:source`, `:note`
-  and — for a `:friend`-sourced item — `:recommendation_id`. Idempotent — re-adding an existing `(tmdb_id, media_type)`
+  and — for a `:friend`-sourced item — `:activity_id`. Idempotent — re-adding an existing `(tmdb_id, media_type)`
   returns the existing item unchanged, including when a concurrent
   insert wins the race (unique-constraint branch).
   """

@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   Recommendations (`/discovery`, the page's default) — what friends
   recommended (**Incoming**, the default scope) or what this install
-  recommended (**Yours**), newest first. `Recommendations.list_feed/0`
+  recommended (**Yours**), newest first. `Activities.list_feed/0`
   carries the record and the friend's nickname; this page joins the
   rest, because Recommendations knows nothing about the watchlist, the
   library or acquisition: `Library.ExternalIds.tmdb_owners/1`,
@@ -20,8 +20,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   The watchlist — title-level intent, triaged. Rows come from
   `Discovery.list_watchlist/0` (library presence derived live). A row
-  added from the feed carries a bare `recommendation_id`, and this page
-  turns it into `from <nickname>` (`Recommendations.get_many/1` →
+  added from the feed carries a bare `activity_id`, and this page
+  turns it into `from <nickname>` (`Activities.get_many/1` →
   `Social.list_friends/0`) — the join neither context may make.
 
   Every row carries its acquisition state (Planning / Downloading /
@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
-  alias MediaCentaur.Recommendations
+  alias MediaCentaur.Activities
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Social
   alias MediaCentaur.TMDB.Client, as: TMDBClient
@@ -70,7 +70,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       Discovery.subscribe()
       Library.subscribe()
       Social.subscribe()
-      Recommendations.subscribe()
+      Activities.subscribe()
       Acquisition.subscribe()
     end
 
@@ -124,7 +124,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp find_title(socket, ref) do
     case {watch_row(socket, ref), feed_row(socket, ref)} do
       {%{item: item}, _feed} -> item.title
-      {nil, %{recommendation: rec}} -> rec.title
+      {nil, %{activity: rec}} -> rec.title
       {nil, nil} -> nil
     end
   end
@@ -135,7 +135,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp feed_row(socket, ref) do
     Enum.find(
       socket.assigns.feed,
-      &({&1.recommendation.tmdb_id, &1.recommendation.media_type} == ref)
+      &({&1.activity.tmdb_id, &1.activity.media_type} == ref)
     )
   end
 
@@ -179,10 +179,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       poster_url: title_poster_url(title),
       backdrop_url: tmdb_cdn_url(title.backdrop_path, :w1280),
       sender: feed_row && !feed_row.own? && feed_row.nickname,
-      note: (feed_row && feed_row.recommendation.note) || (watch_row && watch_row.item.note),
-      recommended_at: feed_row && feed_row.recommendation.recommended_at,
+      note: (feed_row && feed_row.activity.note) || (watch_row && watch_row.item.note),
+      acted_at: feed_row && feed_row.activity.acted_at,
       own?: feed_row && feed_row.own?,
-      recommendation_id: feed_row && feed_row.recommendation.id,
+      activity_id: feed_row && feed_row.activity.id,
       preview: preview
     })
   end
@@ -259,8 +259,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
       ) do
     attrs =
-      if detail.recommendation_id && !detail.own?,
-        do: %{source: :friend, recommendation_id: detail.recommendation_id, note: detail.note},
+      if detail.activity_id && !detail.own?,
+        do: %{source: :friend, activity_id: detail.activity_id, note: detail.note},
         else: %{}
 
     case Discovery.add_to_watchlist(detail.title, attrs) do
@@ -284,10 +284,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_event(
         "title_recommendation_delete",
         _params,
-        %{assigns: %{title_detail: %TitleDetail{recommendation_id: id}}} = socket
+        %{assigns: %{title_detail: %TitleDetail{activity_id: id}}} = socket
       )
       when is_binary(id) do
-    case Recommendations.delete(id) do
+    case Activities.delete(id) do
       {:ok, _rec} ->
         {:noreply,
          socket
@@ -332,7 +332,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   def handle_info({tag, _event}, socket)
-      when tag in [:recommendation_received, :recommendation_sent, :recommendation_deleted] do
+      when tag in [:activity_received, :activity_sent, :activity_deleted] do
     {:noreply, load_feed(socket)}
   end
 
@@ -353,7 +353,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # The watchlist row's decoration: Discovery owns the item and library
   # presence; the poster and the provenance nickname are joined here,
-  # because Discovery stores only the bare `recommendation_id` and knows
+  # because Discovery stores only the bare `activity_id` and knows
   # nothing about Recommendations or Social.
   defp load_items(socket) do
     rows = Discovery.list_watchlist()
@@ -363,7 +363,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       Enum.map(rows, fn %{item: item} = row ->
         Map.merge(row, %{
           poster_url: title_poster_url(item.title),
-          from_nickname: Map.get(nicknames, item.recommendation_id)
+          from_nickname: Map.get(nicknames, item.activity_id)
         })
       end)
 
@@ -372,13 +372,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     |> stamp_acquisition_states()
   end
 
-  # `%{recommendation_id => nickname}` for the friend-sourced rows, in one
+  # `%{activity_id => nickname}` for the friend-sourced rows, in one
   # recommendations query and one roster read. A recommendation or a
   # friend that is gone simply has no entry, so the row shows no marker.
   defp from_nicknames(rows) do
-    ids = rows |> Enum.map(& &1.item.recommendation_id) |> Enum.reject(&is_nil/1)
+    ids = rows |> Enum.map(& &1.item.activity_id) |> Enum.reject(&is_nil/1)
 
-    case Recommendations.get_many(ids) do
+    case Activities.get_many(ids) do
       recommendations when map_size(recommendations) == 0 ->
         %{}
 
@@ -396,15 +396,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # nickname; watchlist and library presence are derived here, live, from
   # the contexts that own them.
   defp load_feed(socket) do
-    rows = Recommendations.list_feed()
+    rows = Activities.list_feed()
 
     owners =
-      ExternalIds.tmdb_owners(Enum.map(rows, &{&1.recommendation.tmdb_id, &1.recommendation.media_type}))
+      ExternalIds.tmdb_owners(Enum.map(rows, &{&1.activity.tmdb_id, &1.activity.media_type}))
 
     watchlisted = Discovery.watchlisted_refs()
 
     feed =
-      Enum.map(rows, fn %{recommendation: rec} = row ->
+      Enum.map(rows, fn %{activity: rec} = row ->
         ref = {rec.tmdb_id, rec.media_type}
 
         Map.merge(row, %{
@@ -427,7 +427,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp stamp_acquisition_states(socket) do
     refs =
       Enum.map(socket.assigns.items, &{&1.item.tmdb_id, &1.item.media_type}) ++
-        Enum.map(socket.assigns.feed, &{&1.recommendation.tmdb_id, &1.recommendation.media_type})
+        Enum.map(socket.assigns.feed, &{&1.activity.tmdb_id, &1.activity.media_type})
 
     states = TitleStates.for_refs(Enum.uniq(refs))
 
@@ -444,7 +444,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         &Map.put(
           &1,
           :acquisition_state,
-          Map.get(states, {&1.recommendation.tmdb_id, &1.recommendation.media_type})
+          Map.get(states, {&1.activity.tmdb_id, &1.activity.media_type})
         )
       )
     end)
@@ -505,11 +505,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     end
   end
 
-  defp feed_lead(%{own?: true, recommendation: rec}),
-    do: "You · #{Format.relative_ago(rec.recommended_at)}"
+  defp feed_lead(%{own?: true, activity: rec}), do: "You · #{Format.relative_ago(rec.acted_at)}"
 
-  defp feed_lead(%{nickname: nickname, recommendation: rec}),
-    do: "from #{nickname} · #{Format.relative_ago(rec.recommended_at)}"
+  defp feed_lead(%{nickname: nickname, activity: rec}),
+    do: "from #{nickname} · #{Format.relative_ago(rec.acted_at)}"
 
   @impl true
   def render(assigns) do
@@ -572,8 +571,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
               <TitleRow.title_row
                 :for={row <- scoped_feed(@feed, @feed_scope)}
-                id={"feed-#{row.recommendation.id}"}
-                title={row.recommendation.title}
+                id={"feed-#{row.activity.id}"}
+                title={row.activity.title}
                 poster_url={row.poster_url}
                 lead={feed_lead(row)}
                 markers={
@@ -584,7 +583,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                     on_watchlist?: row.on_watchlist?
                   })
                 }
-                secondary={row.recommendation.note}
+                secondary={row.activity.note}
               />
             </div>
           </div>

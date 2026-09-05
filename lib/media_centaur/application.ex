@@ -7,7 +7,7 @@ defmodule MediaCentaur.Application do
     deps: [
       MediaCentaur.Capabilities,
       MediaCentaur.Social,
-      MediaCentaur.Recommendations,
+      MediaCentaur.Activities,
       MediaCentaur.Settings.Controls,
       MediaCentaur.Library,
       MediaCentaur.BootHeal,
@@ -91,7 +91,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.Watcher.Supervisor,
           MediaCentaur.Social.Connections
         ] ++
-        recommendations_sync_children() ++
+        activities_sync_children() ++
         [
           MediaCentaur.Library.BroadcastCoalescer,
           MediaCentaur.Library.Availability,
@@ -266,9 +266,9 @@ defmodule MediaCentaur.Application do
   # Gated like the relay-connection owner it rides on: under :test the
   # sync would subscribe every FakeRelay a test stands up, so sync_test
   # starts its own by hand.
-  defp recommendations_sync_children do
-    if Application.get_env(:media_centaur, :start_recommendations_sync, true),
-      do: [MediaCentaur.Recommendations.Sync],
+  defp activities_sync_children do
+    if Application.get_env(:media_centaur, :start_activities_sync, true),
+      do: [MediaCentaur.Activities.Sync],
       else: []
   end
 

@@ -12,7 +12,7 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
   `source` is the provenance seam every future candidate source extends
   (`:import`, …); directed recommendations later add nullable
   sender/recipient columns — no dead columns until then. A `:friend`
-  item names the recommendation it came from in `recommendation_id` — a
+  item names the recommendation it came from in `activity_id` — a
   bare uuid, because Discovery and Recommendations are independent
   contexts; the web layer resolves the nickname from the
   recommendation's author. A `:manual` item carries none, and the
@@ -31,7 +31,7 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
           title: Title.t(),
           source: :manual | :friend,
           note: String.t() | nil,
-          recommendation_id: Ecto.UUID.t() | nil
+          activity_id: Ecto.UUID.t() | nil
         }
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
@@ -43,16 +43,16 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
     embeds_one :title, Title
     field :source, Ecto.Enum, values: [:manual, :friend], default: :manual
     field :note, :string
-    field :recommendation_id, Ecto.UUID
+    field :activity_id, Ecto.UUID
 
     timestamps()
   end
 
-  @doc "A new row for `title`; `attrs` may carry `:source`, `:note` and `:recommendation_id`."
+  @doc "A new row for `title`; `attrs` may carry `:source`, `:note` and `:activity_id`."
   @spec create_changeset(Title.t(), map()) :: Ecto.Changeset.t()
   def create_changeset(%Title{} = title, attrs \\ %{}) do
     %__MODULE__{}
-    |> cast(attrs, [:source, :note, :recommendation_id])
+    |> cast(attrs, [:source, :note, :activity_id])
     |> put_embed(:title, title)
     |> put_change(:tmdb_id, title.tmdb_id)
     |> put_change(:media_type, title.media_type)
@@ -64,12 +64,12 @@ defmodule MediaCentaur.Discovery.WatchlistItem do
   # Provenance pairing: a friend-sourced item names its recommendation; a
   # manual one carries none.
   defp validate_provenance(changeset) do
-    case {get_field(changeset, :source), get_field(changeset, :recommendation_id)} do
+    case {get_field(changeset, :source), get_field(changeset, :activity_id)} do
       {:friend, nil} ->
-        add_error(changeset, :recommendation_id, "is required for a friend-sourced item")
+        add_error(changeset, :activity_id, "is required for a friend-sourced item")
 
       {:manual, id} when not is_nil(id) ->
-        add_error(changeset, :recommendation_id, "only a friend-sourced item carries one")
+        add_error(changeset, :activity_id, "only a friend-sourced item carries one")
 
       _ok ->
         changeset
