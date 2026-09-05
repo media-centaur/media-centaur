@@ -5,6 +5,12 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   and the want-ledger sweep (`sweep_now/0`, every
   `release_tracking_sweep_interval_minutes`). Reacting to library
   changes is `ReleaseTracking.LibraryListener`'s job.
+
+  A tick owns its failure: a raise or exit inside the refresh cycle or
+  the sweep is logged with its stack and the timer keeps its cadence, so
+  a transient (a module mid-reload, a database mid-migration) costs one
+  tick, not the process — and not the application, once the supervisor's
+  restart budget would have gone.
   """
   use GenServer
 
@@ -73,22 +79,58 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
   @impl true
   def handle_info(:refresh, state) do
-    do_refresh_all()
+    tick("refresh cycle", &do_refresh_all/0)
     schedule_refresh(refresh_interval_ms())
     {:noreply, state}
   end
 
   @impl true
   def handle_info(:sweep, state) do
-    do_sweep()
+    tick("sweep", &do_sweep/0)
     schedule_sweep(sweep_interval_ms())
     {:noreply, state}
   end
 
   @impl true
   def handle_cast(:refresh_all, state) do
-    do_refresh_all()
+    tick("refresh cycle", &do_refresh_all/0)
     {:noreply, state}
+  end
+
+  @doc false
+  def __tick_for_test__(fun) when is_function(fun, 0) do
+    GenServer.call(__MODULE__, {:__tick_for_test__, fun})
+  end
+
+  @impl true
+  def handle_call({:__tick_for_test__, fun}, _from, state) do
+    {:reply, tick("test tick", fun), state}
+  end
+
+  # Runs one timer tick in the Refresher. A raise here used to crash the
+  # process; with an overdue timestamp the restarted server ticked again
+  # at the floor, and ten crashes inside the root supervisor's window
+  # took the whole application down (2026-09-05). Contain it: log what
+  # failed, answer :error, let the next tick retry.
+  defp tick(name, fun) do
+    fun.()
+    :ok
+  rescue
+    error ->
+      Log.error(
+        :acquisition,
+        "release tracking: #{name} failed — #{Exception.format(:error, error, __STACKTRACE__)}"
+      )
+
+      :error
+  catch
+    :exit, reason ->
+      Log.error(
+        :acquisition,
+        "release tracking: #{name} failed — #{Exception.format_exit(reason)}"
+      )
+
+      :error
   end
 
   defp do_refresh_all do
