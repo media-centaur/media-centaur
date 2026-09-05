@@ -15,13 +15,9 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
-  alias MediaCentaur.Format
-  alias MediaCentaur.Library.Person
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Search.IndexerHealth
-  alias MediaCentaur.TMDB.Mapper
-  alias MediaCentaurWeb.IncomingLive.MoviePreview
-  alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
 
   @type unit :: {pos_integer(), pos_integer()}
 
@@ -197,90 +193,6 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   end
 
   @doc """
-  Builds the `:movie_confirm` stage's detail-shaped preview from a raw
-  TMDB movie payload.
-
-  Derivation reuses `TMDB.Mapper.movie_attrs/3` (the exact mapping the
-  import pipeline runs) and `Mapper.image_list/1` for absolute artwork
-  URLs, so the preview can never drift from what ingestion would record.
-  Facets are assembled by the same `Detail.Logic.facets_for/2` the owned
-  movie detail panel uses; cast becomes `Library.Person` structs capped
-  to the top billing. Absent/blank fields collapse to `nil`/empty.
-
-  `upcoming?` compares the canonical release date against `today`: a
-  missing or future date means the movie isn't out yet, and the stage
-  offers *Track release* instead of assuming there is something to
-  download. Out today counts as out.
-  """
-  @spec movie_preview(map(), boolean(), Date.t()) :: MoviePreview.t()
-  def movie_preview(tmdb_movie, in_library?, today \\ Date.utc_today()) do
-    tmdb_id = tmdb_movie["id"]
-    attrs = Mapper.movie_attrs(tmdb_id, tmdb_movie, nil)
-    images = Map.new(Mapper.image_list(tmdb_movie), &{&1.role, &1.url})
-
-    %MoviePreview{
-      tmdb_id: to_string(tmdb_id),
-      title: attrs.name,
-      year: attrs.date_published && attrs.date_published.year,
-      tagline: attrs.tagline,
-      overview: presence(attrs.description),
-      backdrop_url: images["backdrop"],
-      logo_url: images["logo"],
-      poster_url: images["poster"],
-      metadata_items: movie_metadata_items(attrs),
-      facets: DetailLogic.facets_for(:movie, attrs),
-      cast: movie_cast(attrs.cast),
-      in_library?: in_library?,
-      upcoming?: upcoming?(attrs.date_published, today)
-    }
-  end
-
-  defp upcoming?(nil, _today), do: true
-  defp upcoming?(%Date{} = release_date, today), do: Date.after?(release_date, today)
-
-  # Non-facet row items: year and runtime plus certification and country,
-  # mirroring the owned detail panel's metadata row. Rating, director,
-  # language, studio, and genres live in the facet strip, never here.
-  defp movie_metadata_items(attrs) do
-    Enum.reject(
-      [
-        Format.year(attrs.date_published),
-        runtime_label(attrs.duration_seconds),
-        attrs.content_rating,
-        attrs.country_code
-      ],
-      &(is_nil(&1) or &1 == "")
-    )
-  end
-
-  defp runtime_label(seconds) when is_integer(seconds) and seconds > 0,
-    do: MediaCentaurWeb.LibraryFormatters.format_human_duration(seconds)
-
-  defp runtime_label(_seconds), do: nil
-
-  # The top-billed few — a compact confirmation strip, not the full
-  # detail-panel cast grid. Mapper already sorts by billing order.
-  @cast_preview_limit 10
-  defp movie_cast(cast) when is_list(cast) do
-    cast
-    |> Enum.take(@cast_preview_limit)
-    |> Enum.map(fn person ->
-      %Person{
-        name: person["name"],
-        character: person["character"],
-        profile_path: person["profile_path"],
-        tmdb_person_id: person["tmdb_person_id"],
-        order: person["order"]
-      }
-    end)
-  end
-
-  defp movie_cast(_cast), do: []
-
-  defp presence(value) when is_binary(value) and value != "", do: value
-  defp presence(_value), do: nil
-
-  @doc """
   The plan modal's shell backdrop — one cinematic identity following the
   request through every stage (UIDR-014). Sources, in the order each
   stage trusts them:
@@ -346,7 +258,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   def lockup(:targeting, %{identity: %Title{} = identity}),
     do: %{title: identity.name, logo_url: nil, tagline: nil}
 
-  def lockup(:movie_confirm, %{movie: %MoviePreview{} = movie}),
+  def lockup(:movie_confirm, %{movie: %TitlePreview{} = movie}),
     do: %{title: movie.title, logo_url: movie.logo_url, tagline: movie.tagline}
 
   def lockup(:board, %{board: %PlanBoard{} = board} = sources),
@@ -358,7 +270,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   # whichever earlier stage of this session knew it.
   defp carried_logo(sources) do
     case sources do
-      %{movie: %MoviePreview{logo_url: url}} when is_binary(url) -> url
+      %{movie: %TitlePreview{logo_url: url}} when is_binary(url) -> url
       %{selection: %Targeting.Selection{logo_path: path}} when is_binary(path) -> tmdb_logo_url(path)
       _ -> nil
     end
@@ -370,7 +282,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   defp selection_backdrop(%Targeting.Selection{backdrop_path: path}), do: tmdb_backdrop_url(path)
   defp selection_backdrop(_absent), do: nil
 
-  defp movie_backdrop(%MoviePreview{} = movie), do: movie.backdrop_url || movie.poster_url
+  defp movie_backdrop(%TitlePreview{} = movie), do: movie.backdrop_url || movie.poster_url
   defp movie_backdrop(_absent), do: nil
 
   defp artwork_backdrop(%{backdrop_url: url}) when is_binary(url), do: url

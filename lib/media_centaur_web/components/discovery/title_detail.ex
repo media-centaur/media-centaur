@@ -13,9 +13,15 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   `own?` are the feed provenance and nil on a watchlist-born detail
   without one; `sender` is nil on an own recommendation (the modal
   reads `own?`).
+
+  `preview` is the live TMDB-backed `Detail.TitlePreview` (backdrop,
+  logo, tagline, metadata, facets, cast) the host fetches on open; nil
+  until it lands, or when TMDB is not configured, in which case the
+  modal dresses itself from the snapshot alone.
   """
 
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
 
   @enforce_keys [:ref, :title, :primary, :scoped?, :on_watchlist?]
   defstruct [
@@ -30,7 +36,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :note,
     :recommended_at,
     :own?,
-    :recommendation_id
+    :recommendation_id,
+    :preview
   ]
 
   @type primary ::
@@ -51,6 +58,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           note: String.t() | nil,
           recommended_at: DateTime.t() | nil,
           own?: boolean() | nil,
-          recommendation_id: Ecto.UUID.t() | nil
+          recommendation_id: Ecto.UUID.t() | nil,
+          preview: TitlePreview.t() | nil
         }
 end

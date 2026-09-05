@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   alias MediaCentaur.Library.Person
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Search.IndexerHealth
-  alias MediaCentaurWeb.IncomingLive.MoviePreview
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Detail.Facet
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PlanModal.plan_modal/1
@@ -105,7 +105,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         attributes: %{
           open: true,
           stage: :movie_confirm,
-          movie: %MoviePreview{
+          movie: %TitlePreview{
+            media_type: :movie,
             tmdb_id: "777",
             title: "Sample Movie",
             tagline: "Every confirmation counts.",
@@ -144,7 +145,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           open: true,
           stage: :movie_confirm,
           backdrop_url: @sample_backdrop,
-          movie: %MoviePreview{
+          movie: %TitlePreview{
+            media_type: :movie,
             tmdb_id: "779",
             title: "Sample Movie",
             tagline: "Coming next year.",
@@ -165,7 +167,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         attributes: %{
           open: true,
           stage: :movie_confirm,
-          movie: %MoviePreview{
+          movie: %TitlePreview{
+            media_type: :movie,
             tmdb_id: "778",
             title: "Sample Movie",
             in_library?: true

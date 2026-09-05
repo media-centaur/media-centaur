@@ -129,7 +129,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
   alias MediaCentaurWeb.Components.ReleaseTracking.{Detail, Present, TitleModal}
-  alias MediaCentaurWeb.IncomingLive.MoviePreview
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
@@ -499,7 +499,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   # The plan modal's current identity, whichever stage holds it —
   # `{tmdb_id :: integer, media_type, name}` or nil when nothing usable.
-  defp tracked_plan_identity(%{plan_movie: %MoviePreview{} = movie}) when movie.title != nil do
+  defp tracked_plan_identity(%{plan_movie: %TitlePreview{} = movie}) when movie.title != nil do
     case Integer.parse(movie.tmdb_id) do
       {tmdb_id, ""} -> {tmdb_id, :movie, movie.title}
       _other -> nil
@@ -2810,7 +2810,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             :not_found -> false
           end
 
-        {:movie, PlanLogic.movie_preview(movie, in_library?)}
+        {:movie, TitlePreview.movie(movie, in_library?)}
 
       {:error, reason} ->
         {:error, reason}
