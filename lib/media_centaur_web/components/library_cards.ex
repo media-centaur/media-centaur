@@ -51,7 +51,6 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       tabindex="0"
       class={[
         "card glass-surface cursor-pointer overflow-hidden poster-card",
-        "hover:ring-1 hover:ring-base-content/20",
         @selected && "ring-2 ring-inset ring-primary"
       ]}
     >

@@ -66,6 +66,18 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.Modal do
         slots: [body()]
       },
       %Variation{
+        id: :raised_open,
+        description:
+          "`raised` — a modal stacked above another open modal (a confirm inside a picker) sits at z-index 60.",
+        attributes: %{
+          id: "story-modal-raised",
+          open: true,
+          dismiss: :persistent,
+          raised: true
+        },
+        slots: ["<p class=\"p-6\">A confirm stacked above the modal underneath.</p>"]
+      },
+      %Variation{
         id: :closed,
         description: "Closed — still in the DOM, hidden via `data-state=\"closed\"`.",
         attributes: %{

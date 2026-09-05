@@ -23,6 +23,8 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    socket = assign(socket, page_title: "Review")
+
     # No Review.subscribe() here — MediaCentaurWeb.ShellBadges (default
     # live_session on_mount) already subscribes every LiveView to
     # review:updates; a second subscribe would double-deliver each message.
@@ -559,6 +561,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       </div>
       <.list_item
         :for={group <- @movies}
+        id={"review-group-#{:erlang.phash2(group.key)}"}
         group={group}
         selected={group.key == @selected_key}
         processing={MapSet.member?(@processing, group.key)}
@@ -571,6 +574,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       </div>
       <.list_item
         :for={group <- @tv}
+        id={"review-group-#{:erlang.phash2(group.key)}"}
         group={group}
         selected={group.key == @selected_key}
         processing={MapSet.member?(@processing, group.key)}
@@ -593,6 +597,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
     ~H"""
     <div
+      id={@id}
       class={[
         "flex items-center gap-3 py-2 px-3 rounded-md cursor-pointer transition-[background,opacity] duration-150 border border-transparent relative hover:bg-base-content/6",
         @selected && "bg-primary/12 !border-primary/25"
@@ -906,7 +911,11 @@ defmodule MediaCentaurWeb.ReviewLive do
       </.button>
       <div :if={@expanded} class="glass-inset rounded-lg p-3">
         <ul class="space-y-1">
-          <li :for={file <- @group.files} class="flex items-center gap-2">
+          <li
+            :for={file <- @group.files}
+            id={"review-file-#{file.id}"}
+            class="flex items-center gap-2"
+          >
             <.badge
               :if={file.season_number && file.episode_number}
               variant="ghost"
@@ -940,6 +949,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div
           :for={candidate <- @candidates}
+          id={"review-candidate-#{candidate["id"]}"}
           class="glass-surface p-3 rounded-lg flex flex-col hover:border-primary transition-colors"
         >
           <div class="flex gap-3">
@@ -1065,6 +1075,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       <div :if={@results != []} class="space-y-2">
         <div
           :for={result <- @results}
+          id={"review-result-#{result.tmdb_id}"}
           class="glass-surface p-3 rounded-lg flex items-center gap-3 hover:border-primary transition-colors"
         >
           <div :if={result.poster_path} class="shrink-0">

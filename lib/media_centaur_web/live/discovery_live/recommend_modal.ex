@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
       dismiss={:persistent}
       size={:sm}
       panel_class="p-6"
-      style="z-index: 60;"
+      raised
     >
       <div :if={@subject} class="space-y-4">
         <h2 class="text-sm font-semibold">Recommend to your friends</h2>

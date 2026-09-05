@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.ConsolePageLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, console_mount(socket)}
+    {:ok, socket |> assign(page_title: "Console") |> console_mount()}
   end
 
   @impl true

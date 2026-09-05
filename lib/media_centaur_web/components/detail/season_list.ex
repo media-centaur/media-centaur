@@ -171,6 +171,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
       <div :if={@expanded} class="mt-1">
         <.season_item
           :for={item <- @season.items}
+          id={"episode-#{@entity_id}-#{@season.season_number}-#{item_episode_number(item)}"}
           item={item}
           details_open={
             @all_episode_details_open ||
@@ -207,9 +208,12 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   attr :spoiler_free, :boolean, default: false
   attr :available, :boolean, default: true
 
+  attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
+
   defp season_item(%{item: %EpisodeListItem.Library{}} = assigns) do
     ~H"""
     <.episode_row
+      id={@id}
       item={@item}
       details_open={@details_open}
       entity_id={@entity_id}
@@ -222,13 +226,13 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   defp season_item(%{item: %EpisodeListItem.Missing{}} = assigns) do
     ~H"""
-    <.missing_episode_row item={@item} />
+    <.missing_episode_row id={@id} item={@item} />
     """
   end
 
   defp season_item(%{item: %EpisodeListItem.Upcoming{}} = assigns) do
     ~H"""
-    <.upcoming_episode_row item={@item} />
+    <.upcoming_episode_row id={@id} item={@item} />
     """
   end
 
@@ -250,6 +254,8 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   # Dense one-line row (2026-08-04 orientation design): number · title ·
   # runtime · watched toggle. Synopsis + thumbnail render only behind the
   # per-row disclosure — the list is an index, not a reading surface.
+  attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
+
   defp episode_row(assigns) do
     assigns =
       assigns
@@ -262,6 +268,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
     ~H"""
     <div
+      id={@id}
       class={[
         "px-2 py-1.5 rounded cursor-pointer hover:bg-base-content/5",
         row_class(@state, @is_resume_target)
@@ -341,9 +348,12 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     required: true,
     doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Missing{}`"
 
+  attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
+
   defp missing_episode_row(assigns) do
     ~H"""
     <div
+      id={@id}
       class="p-2 rounded opacity-30"
       data-role="missing-episode-row"
       data-nav-item
@@ -373,9 +383,11 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     required: true,
     doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Upcoming{}`"
 
+  attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
+
   defp upcoming_episode_row(assigns) do
     ~H"""
-    <div class="p-2 rounded opacity-60" data-role="upcoming-episode-row">
+    <div id={@id} class="p-2 rounded opacity-60" data-role="upcoming-episode-row">
       <div class="flex items-center gap-3 text-sm">
         <span class="w-6 flex-shrink-0 text-right text-base-content/40 font-mono text-xs tabular-nums">
           {@item.episode_number}
@@ -402,4 +414,8 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     do: watched == total and (total || 0) > 0
 
   defp season_progress_label(watched, total), do: "#{total - watched} remaining"
+
+  # The three item kinds carry the episode number in two places.
+  defp item_episode_number(%{episode: %{episode_number: number}}), do: number
+  defp item_episode_number(%{episode_number: number}), do: number
 end
