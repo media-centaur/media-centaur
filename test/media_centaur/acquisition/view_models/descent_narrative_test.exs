@@ -41,20 +41,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrativeTest do
     assert Enum.find(view.rows, &(&1.id == :seasons)).detail == "searching — 4 terms…"
   end
 
-  test "a single-episode residual reads grammatically" do
-    view =
-      DescentNarrative.build(
-        status(
-          [
-            stage(:series, :done, residual_after: 1),
-            stage(:seasons, :active, term_count: 2),
-            stage(:episodes, :pending)
-          ],
-          24
-        )
-      )
-  end
-
   test "a done rung's detail says what it changed" do
     view =
       DescentNarrative.build(
