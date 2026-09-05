@@ -56,9 +56,10 @@ design findings. Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 **unpushed** commits `40b63794..c723c6c8` (E40/E37/E27, E32, E29, E31,
 E38, E39, E30, E35 — see the stage). Full `mix precommit`: 6593/6594
 Elixir + 795 JS; the one failure was the known
-`Nostr.ConnectionTest` retry-log flake, green in isolation. **The
-engineering lane is done** (E45 followed the same day); the Performance,
-Documentation and Design lanes remain.
+`Nostr.ConnectionTest` retry-log flake, green in isolation. **Correction
+(same day):** the engineering lane is *not* done — Stages E-7 and E-8,
+E48 and two E-9 leftovers are open; see *What's next*. The
+Performance, Documentation and Design lanes follow.
 
 ## Resuming — start here (handoff written 2026-09-05)
 
@@ -91,15 +92,45 @@ being asked.
   E27. Commits and module map in the stage section. E34 stays deferred
   (Stage E-10).
 
-### What's next: the Performance lane
+### What's next: Stage E-8, then E-7, then the lanes
 
 **E45 — done 2026-09-05** (owner chose seam + check): `Progress.Worker`
 gained `__sync_for_test__/1` and `__inject_record_for_test__/4`, the two
 test sites use them, and **MC0004 now also flags `GenServer.call/cast`
 in `test/`** — the rule the testing skill had claimed it enforced.
-The engineering lane is closed apart from Stage E-10 (deferred).
 
-Next, the lanes in order: **Performance** (elaborate P1–P10 into stages;
+**Still open in the engineering lane** (re-verified 2026-09-05 against
+HEAD; an earlier handoff wrongly said only E-5 remained):
+
+* **Stage E-8 — silent failure paths.** E54 holds (`reconciliation.ex:290-291`
+  `_ -> :error`, `:328`; zero `Log` calls in `reconciliation.ex` and
+  `spine.ex`). DS17 holds (`review_live.ex:418` and
+  `settings_live.ex:1608` catch-all `{:exit, _}` clauses). DS16's
+  `EntityModal` half is done; the files sub-view's
+  `:loading | {:ok, _} | :failed` assign and the swallowed-exit log are
+  not (`entity_modal.ex:348` still `{:noreply, socket}`). DS21
+  (`manage_panel.ex:96,272` sums an empty list while loading) holds.
+  Recommended next: user-visible bugs, and it pairs with the design
+  lane's DS16/17.
+* **Stage E-7 — test policy.** E44's six `Process.sleep(600)` hold
+  (`home_live_test.exs:128`, `watch_history_live_test.exs:193`,
+  `incoming_live_test.exs:2673,3016,3030,3279`); E47's hand-rolled
+  `on_exit` restores hold; E50 holds (`issue_url_test.exs:2` async with
+  `put_env` at `:91`; `recommendations/sync_test.exs:168,236` sleeps);
+  E51 (MC0023 grandfather list, now `no_repo_setup_in_tests.ex`) to
+  re-check; the ADR-027 loosening (`producer_test.exs:94`
+  `assert delay > 0`) still stands; seven private poll helpers exist
+  (`grep -rl "defp wait_until\|defp eventually\|defp poll_until\|defp wait_for" test`).
+  E43: `page_smoke_test.exs:44` still mounts `?subsystem=friends` —
+  confirm the board's key before changing it.
+* **E48** (ADR-030 extractions, listed under Stage E-4) — not touched by
+  Passes 1–3; re-verify the five sites when reached.
+* **E-9 leftovers:** `acquisition.ex:99` and `acquisition/target.ex:7`
+  still cite `current_target_id`. The glossary (E1/D36) is done — 64
+  rows including the acquisition family.
+* **E34 / Stage E-10** deferred (owner's call).
+
+After the engineering lane, the lanes in order: **Performance** (elaborate P1–P10 into stages;
 P3/P7 one-liners first, P1 last), **Documentation** (D-1 first),
 **Design** (DS-1, DS-2 first). Each lane's findings and evidence are
 below, unchanged since the sweep — re-verify line numbers before acting.
@@ -972,13 +1003,14 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
 
 0. ~~Reconcile the Req client seam~~ — done, no divergence (2026-09-05).
 1. ~~Stages E-1 through E-5~~ — done (E-4's E14/E36 closed by Pass 2).
-2. ~~E45~~ — done (seam + MC0004 extension, 2026-09-05). E34 and the
-   rest of Stage E-10 stay deferred by default.
-3. Elaborate the Performance lane into stages (P3/P7 one-liners first,
+2. ~~E45~~ — done (seam + MC0004 extension, 2026-09-05).
+3. **Stage E-8** (E54, DS16 rest, DS17, DS21), then **Stage E-7**, then
+   E48 and the two E-9 leftovers. E34 / Stage E-10 stay deferred.
+4. Elaborate the Performance lane into stages (P3/P7 one-liners first,
    P1 last) once the engineering lane is done or paused.
-4. Documentation lane, D-1 first (it is the cheapest and the README entry
+5. Documentation lane, D-1 first (it is the cheapest and the README entry
    is actively misleading a resuming session).
-5. Design lane, DS-1 and DS-2 first.
+6. Design lane, DS-1 and DS-2 first.
 
 ## Completion criteria
 
