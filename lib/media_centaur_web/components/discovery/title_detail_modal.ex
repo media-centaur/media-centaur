@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
               <ul
                 :if={@scope_menu_open}
                 id="title-scope-menu"
-                class="glass-menu-list glass-surface"
+                class="glass-menu-list glass-menu-list--content glass-surface"
                 data-nav-zone="title_detail_menu"
               >
                 <li
