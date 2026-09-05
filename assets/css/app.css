@@ -1371,6 +1371,13 @@ body:has(.modal-backdrop[data-state="open"]) {
   z-index: 50;
 }
 
+/* A list anchored to a wider container than its trigger (the title
+   modal's action strip) sizes to its own content instead of the anchor. */
+.glass-menu-list--content {
+  min-width: 0;
+  width: max-content;
+}
+
 .glass-menu-item {
   padding: 0.375rem 0.75rem;
   border-radius: 0.375rem;
