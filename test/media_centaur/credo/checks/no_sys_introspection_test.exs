@@ -33,6 +33,49 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospectionTest do
     end
   end
 
+  describe "GenServer messaging from tests" do
+    test "GenServer.call in a test is reported" do
+      ~S'''
+      defmodule MyTest do
+        use ExUnit.Case
+
+        test "drives the server by message" do
+          :ok = GenServer.call(MyServer, :sync)
+        end
+      end
+      '''
+      |> to_source_file("test/my_test.exs")
+      |> run_check(NoSysIntrospection)
+      |> assert_issue()
+    end
+
+    test "GenServer.cast in a test is reported" do
+      ~S'''
+      defmodule MyTest do
+        use ExUnit.Case
+
+        test "drives the server by message" do
+          :ok = GenServer.cast(MyServer, {:record, 1})
+        end
+      end
+      '''
+      |> to_source_file("test/my_test.exs")
+      |> run_check(NoSysIntrospection)
+      |> assert_issue()
+    end
+
+    test "a __for_test__ seam in lib/ is where the message belongs" do
+      ~S'''
+      defmodule MyServer do
+        def __sync_for_test__(server \\ __MODULE__), do: GenServer.call(server, :sync)
+      end
+      '''
+      |> to_source_file("lib/my_server.ex")
+      |> run_check(NoSysIntrospection)
+      |> refute_issues()
+    end
+  end
+
   describe "violations (positive cases)" do
     test ":sys.get_state in test is reported" do
       ~S'''

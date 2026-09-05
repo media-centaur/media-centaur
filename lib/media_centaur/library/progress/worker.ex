@@ -96,6 +96,26 @@ defmodule MediaCentaur.Library.Progress.Worker do
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
+  @doc """
+  Test seam: blocks until every message ahead of it in `server`'s mailbox
+  has been processed. A benign call, so a test can wait for prior casts
+  without introspecting state (MC0004).
+  """
+  @spec __sync_for_test__(GenServer.server()) :: :ok
+  def __sync_for_test__(server \\ __MODULE__), do: GenServer.call(server, :sync)
+
+  @doc """
+  Test seam: delivers a raw `{:record, …}` cast to `server`, bypassing
+  `Library.Progress.record/3`'s synchronous ETS write — the shape of a
+  cast whose enqueue lagged behind a newer public write. Exists so the
+  reorder regression can be reproduced without a test owning the
+  message format.
+  """
+  @spec __inject_record_for_test__(GenServer.server(), Ecto.UUID.t(), float(), float()) :: :ok
+  def __inject_record_for_test__(server \\ __MODULE__, playable_item_id, position, duration) do
+    GenServer.cast(server, {:record, playable_item_id, position, duration})
+  end
+
   # --- GenServer callbacks ---
 
   @impl true

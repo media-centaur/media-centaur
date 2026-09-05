@@ -31,7 +31,8 @@ loosened bounds). If a test fails after a code change, fix the code.
 
 **Test through the public interface** ([ADR-026]). Never promote `defp` to `def`
 for testability; never use `:sys.get_state` or `GenServer.call/cast` from outside
-the owning module (MC0004). Extract testable logic into pure function modules.
+the owning module (MC0004); a message the public API cannot produce gets a
+`__<verb>_for_test__` seam on the owner. Extract testable logic into pure function modules.
 
 **No abbreviations, tests included** — `file` not `wf`, `movie` not `e` (MC0002).
 
