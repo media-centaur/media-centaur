@@ -845,10 +845,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       flash={@flash}
       current_path="/incoming"
       full_width
-      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
-      status_errors={assigns[:status_errors] || 0}
-      review_pending={assigns[:review_pending] || 0}
-      mapping_pending={assigns[:mapping_pending] || 0}
+      badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
         <.cancel_confirmation cancel_confirm={@cancel_confirm} />

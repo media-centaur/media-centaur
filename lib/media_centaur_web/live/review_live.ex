@@ -450,10 +450,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       show_apps={@show_apps}
       flash={@flash}
       current_path="/review"
-      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
-      status_errors={assigns[:status_errors] || 0}
-      review_pending={assigns[:review_pending] || 0}
-      mapping_pending={assigns[:mapping_pending] || 0}
+      badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <div
         class="flex flex-col h-full gap-4"
@@ -490,8 +487,8 @@ defmodule MediaCentaurWeb.ReviewLive do
 
         <.review_tabs
           active={:identity}
-          identity_count={assigns[:review_pending] || 0}
-          mapping_count={assigns[:mapping_pending] || 0}
+          identity_count={@badges.review_pending}
+          mapping_count={@badges.mapping_pending}
         />
 
         <%!-- Empty state --%>

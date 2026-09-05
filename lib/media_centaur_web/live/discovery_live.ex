@@ -278,10 +278,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       show_apps={@show_apps}
       flash={@flash}
       current_path={current_path(@live_action)}
-      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
-      status_errors={assigns[:status_errors] || 0}
-      review_pending={assigns[:review_pending] || 0}
-      mapping_pending={assigns[:mapping_pending] || 0}
+      badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays></:overlays>
       <div class="relative" data-page-behavior="discovery" data-nav-default-zone="discovery">

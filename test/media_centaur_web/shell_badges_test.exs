@@ -54,6 +54,28 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
       assert_receive {:shell_badges_updated}
     end
 
+    test "counts/0 returns a Counts struct carrying plans_awaiting_review" do
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
+
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentaur.Settings.Config, :config},
+        config
+        |> Map.put(:prowlarr_url, "http://prowlarr.test")
+        |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
+      )
+
+      {:ok, _plan} =
+        MediaCentaur.Acquisition.Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2005})
+
+      assert %ShellBadges.Counts{plans_awaiting_review: 1} = ShellBadges.counts()
+    end
+
+    test "relevant?/1 accepts a plan status change" do
+      assert ShellBadges.relevant?(%MediaCentaur.Acquisition.PlanEvents.Changed{plan_id: "id", status: "ready"})
+    end
+
     test "relevant?/1 accepts the source events feeding the counts" do
       assert ShellBadges.relevant?({:file_added, %FileAdded{pending_file_id: "id"}})
       assert ShellBadges.relevant?({:file_reviewed, %FileReviewed{pending_file_id: "id"}})

@@ -141,10 +141,7 @@ defmodule MediaCentaurWeb.AppsLive do
       show_apps={@show_apps}
       flash={@flash}
       current_path="/apps"
-      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
-      status_errors={assigns[:status_errors] || 0}
-      review_pending={assigns[:review_pending] || 0}
-      mapping_pending={assigns[:mapping_pending] || 0}
+      badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <div class="relative" data-page-behavior="apps" data-nav-default-zone="apps">
         <div data-nav-zone="toolbar">
