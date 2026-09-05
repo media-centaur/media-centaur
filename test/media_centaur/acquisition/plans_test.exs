@@ -775,5 +775,18 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert {:ok, %{approval_policy: "automatic"}} = Plans.fetch(series.id)
       assert {:ok, %{approval_policy: "automatic"}} = Plans.fetch(movie.id)
     end
+
+    test "count_awaiting_review/0 counts ready drafts of any origin" do
+      assert Plans.count_awaiting_review() == 0
+
+      # Nothing found → the movie plan solves to ready with a gap.
+      {:ok, _plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      assert Plans.count_awaiting_review() == 1
+
+      {:ok, ready} = Plans.create_movie_plan(%{tmdb_id: "246814", title: "Sample Movie B", year: 2006})
+      {:ok, ready} = Plans.fetch(ready.id)
+      {:ok, _discarded} = Plans.discard(ready)
+      assert Plans.count_awaiting_review() == 1
+    end
   end
 end

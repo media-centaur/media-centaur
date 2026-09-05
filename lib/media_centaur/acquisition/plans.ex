@@ -254,6 +254,17 @@ defmodule MediaCentaur.Acquisition.Plans do
     |> Repo.all()
   end
 
+  @doc """
+  How many plans are waiting on a person: status `ready`, any origin.
+  The Incoming follow-up pill's source (`MediaCentaurWeb.ShellBadges`).
+  """
+  @spec count_awaiting_review() :: non_neg_integer()
+  def count_awaiting_review do
+    Plan
+    |> where([p], p.status == "ready")
+    |> Repo.aggregate(:count)
+  end
+
   # ---------------------------------------------------------------------------
   # Feedback verbs
   # ---------------------------------------------------------------------------
