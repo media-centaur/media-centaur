@@ -26,7 +26,7 @@
 |---|---|---|
 | `priv/repo/migrations/20260905120000_add_plan_approval_policy.exs` | the column | 1 |
 | `lib/media_centaur/acquisition/plans/plan.ex` | schema field + validation | 1 |
-| `lib/media_centaur/acquisition/plans.ex` | stamping via opts, `clean?/1`, `count_awaiting_review/0`, `download_title/2` | 2, 3, 4, 6 |
+| `lib/media_centaur/acquisition/plans.ex` | stamping via opts, `clean?/1`, `count_awaiting_review/0`, `plan_title/2` | 2, 3, 4, 6 |
 | `lib/media_centaur/acquisition/drop_planner.ex` | stamps from the item's mode | 2 |
 | `lib/media_centaur/acquisition/reactor/handlers.ex` | the gate reads the column | 3 |
 | `lib/media_centaur/acquisition/plans/download_scope.ex` | pure: first-season / everything unit selection | 5 |
@@ -35,14 +35,14 @@
 | `lib/media_centaur_web/components/follow_up_pill.ex` | the one pill component | 9 |
 | `lib/media_centaur_web/components/layouts.ex` | `badges` attr, pill on three entries, dot moves | 9 |
 | every LiveView `render/1` that calls `Layouts.app` | pass `badges` | 9 |
-| `assets/css/app.css` | pill placement in both rail widths | 9 |
+| `assets/css/app.css` | pill placement in both rail widths; `.sort-dropdown-*` → `.glass-menu-*` | 9, 11 |
 | `lib/media_centaur_web/components/discovery/title_detail.ex` | view-model struct | 10 |
 | `lib/media_centaur_web/live/discovery_live/logic.ex` | pure builders for the view-model and row markers | 10 |
 | `lib/media_centaur_web/components/discovery/title_detail_modal.ex` | the modal + split download control | 11 |
-| `lib/media_centaur_web/components/discovery/watchlist_row.ex`, `lib/media_centaur_web/live/discovery_live/feed_row.ex` | click-target rows with state markers | 12 |
+| `lib/media_centaur_web/components/discovery/title_row.ex` (replaces `watchlist_row.ex` and `feed_row.ex`) | one click-target row with state markers | 12 |
 | `lib/media_centaur_web/live/discovery_live.ex` | URL-driven modal, events, acquisition subscription | 13 |
 | `assets/js/input/config.js` | `title_detail` overlay | 14 |
-| `storybook/discovery/title_detail_modal.story.exs`, `storybook/navigation/follow_up_pill.story.exs`, existing row stories | contracts | 9, 11, 12 |
+| `storybook/discovery/title_detail_modal.story.exs`, `storybook/navigation/follow_up_pill.story.exs`, `storybook/discovery/title_row.story.exs` | contracts | 9, 11, 12 |
 | `test/media_centaur_web/page_smoke_test.exs` | `?title=` entries | 13 |
 | `decisions/user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md`, `decisions/README.md`, `docs/GLOSSARY.md`, ADR-056 note, wiki | records | 15 |
 
@@ -713,7 +713,7 @@ defmodule MediaCentaur.Acquisition.Plans.DownloadScope do
   * `:everything` — the picker's default (`Targeting.default_units/1`):
     every pickable episode, specials included.
 
-  Pure; the caller (`Plans.download_title/2`) owns the TMDB fetch, the
+  Pure; the caller (`Plans.plan_title/2`) owns the TMDB fetch, the
   plan creation and, for `:everything`, the tracking hand-off.
   """
 
@@ -1281,9 +1281,9 @@ defmodule MediaCentaurWeb.Components.FollowUpPill do
   The sidebar follow-up pill (UIDR-030): a count of items on that page
   waiting on a decision from the user. One variant, one size, one
   placement rule. Renders nothing at zero — silence is the healthy
-  state. It persists until the items are handled, never merely until
-  the page is visited (the Status unseen count is the one source with
-  a visit-cleared marker, and that marker is the source's business).
+  state. It persists until the items are handled, and each source
+  defines handling: approve or discard a plan, review a file, look at
+  an incident (the Status source's seen-marker is its definition).
 
   Placement is one CSS rule (`.sidebar-follow-up`) keyed off the rail's
   `--sidebar-expanded` switch: at the row's end when the rail is open,
@@ -1631,8 +1631,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :note,
     :recommended_at,
     :own?,
-    :recommendation_id,
-    watchlisted_item?: false
+    :recommendation_id
   ]
 
   @type primary ::
@@ -1653,8 +1652,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           note: String.t() | nil,
           recommended_at: DateTime.t() | nil,
           own?: boolean() | nil,
-          recommendation_id: Ecto.UUID.t() | nil,
-          watchlisted_item?: boolean()
+          recommendation_id: Ecto.UUID.t() | nil
         }
 end
 ```
@@ -1682,7 +1680,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   `library_owner_id`, `on_watchlist?`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
   `backdrop_url`, `sender`, `note`, `recommended_at`, `own?`,
-  `recommendation_id`, `watchlisted_item?`. The primary action is the
+  `recommendation_id`. The primary action is the
   watchlist row's three-state rule with the acquisition state folded in
   between In library and Download.
   """
@@ -1700,8 +1698,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       note: Map.get(facts, :note),
       recommended_at: Map.get(facts, :recommended_at),
       own?: Map.get(facts, :own?),
-      recommendation_id: Map.get(facts, :recommendation_id),
-      watchlisted_item?: Map.get(facts, :watchlisted_item?, false)
+      recommendation_id: Map.get(facts, :recommendation_id)
     }
   end
 
@@ -1763,11 +1760,17 @@ Spec decisions 7, 10, 12, 13, 14 (the tertiary verbs), 16.
 **Files:**
 - Create: `lib/media_centaur_web/components/discovery/title_detail_modal.ex`
 - Create: `storybook/discovery/title_detail_modal.story.exs`
-- Modify: `assets/css/app.css` (the split control reuses `.sort-dropdown-*`; add only what the split needs)
+- Modify: `assets/css/app.css`, `lib/media_centaur_web/components/library_cards.ex` (rename `.sort-dropdown*` to the generic `.glass-menu*` idiom both menus share)
 
 Load the `user-interface`, `storybook`, and `writing-copy` skills before this task. Copy is fixed here; the writing-copy pass may adjust words but not the set of controls.
 
-- [ ] **Step 1: The component**
+- [ ] **Step 1: The menu idiom gets a generic name**
+
+The library sort dropdown's classes carry the sort control's identity. Rename them once so the scope menu and the sort menu share one idiom: in `assets/css/app.css` and `lib/media_centaur_web/components/library_cards.ex`, `.sort-dropdown` → `.glass-menu`, `.sort-dropdown-trigger` → `.glass-menu-trigger`, `.sort-dropdown-chevron` → `.glass-menu-chevron`, `.sort-dropdown-menu` → `.glass-menu-list`, `.sort-dropdown-item` → `.glass-menu-item`, `-active` / `-highlight` suffixes unchanged. Grep tests and E2E specs for `sort-dropdown` and update them. Update the CSS comment above the rules to describe the idiom (a quiet trigger with a chevron and a glass list beneath), not the sort control. The sort control's hand-rolled keyboard handling (`sort_key`, highlight index) stays as it is; its convergence on nav items is scheduled in the spec amendments.
+
+Run: `mise exec -- mix assets.build && mise exec -- mix test test/media_centaur_web/live/library_live_test.exs` — Expected: PASS.
+
+- [ ] **Step 2: The component**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
@@ -1788,9 +1791,10 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   Download is a split control — "Download season 1" plus a chevron
   opening "Download all" — reusing the library sort dropdown's
   LiveView-owned menu idiom. Add to watchlist is the secondary,
-  replaced by a quiet On watchlist once saved. Remove from watchlist
-  and Delete recommendation are the quiet tertiary verbs, each present
-  only when it applies.
+  replaced by a quiet On watchlist once saved, at which point Remove
+  from watchlist appears as a quiet tertiary verb from either tab.
+  Delete recommendation is the other tertiary verb, on an own
+  recommendation only.
 
   Pure rendering; every control bubbles to `DiscoveryLive`:
   `close_title`, `title_download` (`scope`), `title_scope_toggle`,
@@ -1891,7 +1895,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
 
   defp primary(%{detail: %{primary: :download, scoped?: true}} = assigns) do
     ~H"""
-    <span class="sort-dropdown" phx-click-away="title_scope_close" data-captures-keys={@scope_menu_open}>
+    <span class="glass-menu" phx-click-away="title_scope_close" data-captures-keys={@scope_menu_open}>
       <span class="inline-flex">
         <.button
           id="title-download"
@@ -1920,9 +1924,9 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
           <.icon name="hero-chevron-down-mini" class={["size-4", @scope_menu_open && "rotate-180"]} />
         </.button>
       </span>
-      <ul :if={@scope_menu_open} id="title-scope-menu" class="sort-dropdown-menu glass-surface">
+      <ul :if={@scope_menu_open} id="title-scope-menu" class="glass-menu-list glass-surface">
         <li
-          class="sort-dropdown-item"
+          class="glass-menu-item"
           phx-click="title_download"
           phx-value-scope="everything"
           data-nav-item
@@ -1937,7 +1941,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
 
   defp primary(%{detail: %{primary: :download}} = assigns) do
     ~H"""
-    <.button id="title-download" variant="primary" size="sm" phx-click="title_download" phx-value-scope="movie" data-nav-item tabindex="0">
+    <.button id="title-download" variant="primary" size="sm" phx-click="title_download" data-nav-item tabindex="0">
       Download
     </.button>
     """
@@ -1969,13 +1973,13 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
 
   attr :detail, TitleDetail, required: true
 
-  # Quiet tertiary verbs, each only when it applies: Remove for a
-  # watchlist-born detail, Delete for an own recommendation.
+  # Quiet tertiary verbs, each only when it applies: Remove when the
+  # title is on the watchlist, Delete for an own recommendation.
   defp tertiary(assigns) do
     ~H"""
     <span class="ml-auto flex items-center gap-3">
       <button
-        :if={@detail.watchlisted_item?}
+        :if={@detail.on_watchlist?}
         id="title-watchlist-remove"
         type="button"
         class="cursor-pointer text-xs text-base-content/55 transition-colors hover:text-base-content/60"
@@ -2011,7 +2015,7 @@ Read `MediaCentaurWeb.Components.ReleaseTracking.TitleModal` for `media_icon/1` 
 
 If `.button` does not accept `shape="square"` combined with `size="sm"` gracefully, drop `shape` and keep the class.
 
-- [ ] **Step 2: Story**
+- [ ] **Step 3: Story**
 
 `storybook/discovery/title_detail_modal.story.exs`:
 
@@ -2106,7 +2110,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
         id: :own_recommendation,
         description: "An own recommendation carries Delete recommendation as the tertiary verb.",
         attributes: %{
-          detail: detail(movie(), %{sender: "You", own?: true, recommended_at: ~U[2026-09-01 10:00:00Z]})
+          detail: detail(movie(), %{own?: true, recommended_at: ~U[2026-09-01 10:00:00Z]})
         }
       },
       %Variation{
@@ -2130,25 +2134,25 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
         attributes: %{detail: detail(movie(), %{primary: :track})}
       },
       %Variation{
-        id: :watchlist_born,
-        description: "Opened from the watchlist tab: Remove from watchlist is the tertiary verb.",
-        attributes: %{detail: detail(movie(), %{on_watchlist?: true, watchlisted_item?: true})}
+        id: :on_watchlist,
+        description: "On the watchlist, from either tab: On watchlist replaces Add, and Remove from watchlist is the tertiary verb.",
+        attributes: %{detail: detail(movie(), %{on_watchlist?: true})}
       }
     ]
   end
 end
 ```
 
-- [ ] **Step 3: Compile + storybook tests**
+- [ ] **Step 4: Compile + storybook tests**
 
 Run: `mise exec -- mix compile --warnings-as-errors && mise exec -- mix test test/storybook_compile_test.exs test/storybook_render_test.exs`
 Expected: PASS. Fix any Credo MC0008/MC0009 complaint the precommit would raise (typed attrs — `TitleDetail` is a struct attr, which satisfies MC0008).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add lib/media_centaur_web/components/discovery/title_detail_modal.ex storybook/discovery/title_detail_modal.story.exs assets/css/app.css
-git commit -m "feat(discovery): title detail modal with the split download control"
+git add lib/media_centaur_web/components/discovery/title_detail_modal.ex storybook/discovery/title_detail_modal.story.exs assets/css/app.css lib/media_centaur_web/components/library_cards.ex test
+git commit -m "feat(discovery): title detail modal with the split download control; glass-menu idiom"
 ```
 
 ---
@@ -2362,6 +2366,7 @@ Replace the tests in `discovery_live_test.exs` that exercise the removed row act
 
       assert_patch(view, "/discovery/watchlist")
       assert render(view) =~ "Finding a release for Sample Movie"
+      await_supervised_tasks()
       [plan] = Plans.list_drafts()
       assert plan.approval_policy == "automatic"
       # Nothing found → the plan is ready with a gap → Needs review on the row.
@@ -2369,7 +2374,7 @@ Replace the tests in `discovery_live_test.exs` that exercise the removed row act
     end
 
     test "a series Download offers season 1 and the scope menu's Download all", %{conn: conn} do
-      TmdbStubs.stub_series_universe_for_targeting()   # see note below
+      TmdbStubs.stub_series_universe_for_targeting()
       show = Title.new!(%{tmdb_id: 42, media_type: :tv_series, name: "Sample Show", year: "2010", release_date: ~D[2010-01-01]})
       {:ok, _} = Discovery.add_to_watchlist(show)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-42")
@@ -2448,7 +2453,7 @@ Replace the tests in `discovery_live_test.exs` that exercise the removed row act
   end
 ```
 
-Helper notes: `receive_recommendation_from_friend/3` and `recommend_as_self/2` are the names to give private helpers extracted from the file's existing feed tests (they already build a friend + signed event, and call `Recommendations.recommend/2`); read those tests and extract, do not duplicate. `TmdbStubs.stub_series_universe_for_targeting/0` does not exist — add it to `test/support/tmdb_stubs.ex` with the same payload used in Task 6's `stub_series_universe/0`, and make Task 6 use it too (one fixture, two callers). Add `alias MediaCentaur.Acquisition.Plans` to the test module.
+Helper notes: `receive_recommendation_from_friend/3` and `recommend_as_self/2` are the names to give private helpers extracted from the file's existing feed tests (they already build a friend + signed event, and call `Recommendations.recommend/2`); read those tests and extract, do not duplicate. `TmdbStubs.stub_series_universe_for_targeting/0` is the fixture Task 6 added. Add `alias MediaCentaur.Acquisition.Plans` to the test module. The "acquisition events refresh" test's "Needs review" assertion targets the row id `#watchlist-item-movie-777`, which the host passes to `TitleRow`; feed rows keep `feed-<recommendation id>`.
 
 Page smoke: add to `test/media_centaur_web/page_smoke_test.exs` beside the discovery entries:
 
@@ -2465,7 +2470,7 @@ with the fixture seeding a watchlist item for 777 (read the file's per-page setu
 
 In `lib/media_centaur_web/live/discovery_live.ex`:
 
-Aliases: add `MediaCentaur.Acquisition`, `MediaCentaur.Acquisition.{PlanEvents, Plans, TitleStates}`, `MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents`, `MediaCentaurWeb.Components.Discovery.TitleDetailModal`, `MediaCentaurWeb.DiscoveryLive.Logic`, `MediaCentaur.TMDB.Title`. Import `MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1, tmdb_cdn_url: 2]`.
+Aliases: add `MediaCentaur.Acquisition`, `MediaCentaur.Acquisition.{PlanEvents, Plans, TitleStates}`, `MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents`, `MediaCentaurWeb.Components.Discovery.{TitleDetail, TitleDetailModal, TitleRow}`, `MediaCentaurWeb.DiscoveryLive.Logic`, `MediaCentaur.TMDB.Title`; remove the `FeedRow` and `WatchlistRow` aliases. Import `MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1, tmdb_cdn_url: 2]`.
 
 `mount/3`: add `Acquisition.subscribe()` inside `connected?`; assign `title_detail: nil, scope_menu_open: false, today: Date.utc_today()`.
 
@@ -2516,27 +2521,26 @@ Building the detail joins the row facts already loaded:
     Logic.title_detail(title, %{
       library_owner_id: (watch_row && watch_row.library_owner_id) || (feed_row && feed_row.library_owner_id),
       on_watchlist?: watch_row != nil or (feed_row != nil and feed_row.on_watchlist?),
-      acquisition_state: Map.get(socket.assigns.title_states, ref),
+      acquisition_state: (watch_row && watch_row.acquisition_state) || (feed_row && feed_row.acquisition_state),
       release_mode_available: socket.assigns.prowlarr_ready,
       today: socket.assigns.today,
       poster_url: title_poster_url(title),
       backdrop_url: tmdb_cdn_url(title.backdrop_path, :w1280),
-      sender: feed_row && (if feed_row.own?, do: "You", else: feed_row.nickname),
+      sender: feed_row && !feed_row.own? && feed_row.nickname,
       note: (feed_row && feed_row.recommendation.note) || (watch_row && watch_row.item.note),
       recommended_at: feed_row && feed_row.recommendation.recommended_at,
       own?: feed_row && feed_row.own?,
-      recommendation_id: feed_row && feed_row.recommendation.id,
-      watchlisted_item?: watch_row != nil
+      recommendation_id: feed_row && feed_row.recommendation.id
     })
   end
 ```
 
 Check `tmdb_cdn_url/2`'s accepted widths (`@tmdb_cdn_widths` in `LiveHelpers`); use the largest listed backdrop width.
 
-Acquisition state per row: add `load_title_states/1` called at the end of both `load_items/1` and `load_feed/1` (it reads both lists), assigning `:title_states` (`TitleStates.for_refs/1` over the union of refs) and stamping `acquisition_state: Map.get(states, ref)` onto each item row and feed row. Then refresh the open detail if any:
+Acquisition state per row: add `stamp_acquisition_states/1` called at the end of both `load_items/1` and `load_feed/1` (it reads both lists), stamping `acquisition_state` onto each item row and feed row from one `TitleStates.for_refs/1` read over the union of refs. The rows are the one representation — there is no separate states assign. Then refresh the open detail if any:
 
 ```elixir
-  defp load_title_states(socket) do
+  defp stamp_acquisition_states(socket) do
     refs =
       Enum.map(socket.assigns.items, &{&1.item.tmdb_id, &1.item.media_type}) ++
         Enum.map(socket.assigns.feed, &{&1.recommendation.tmdb_id, &1.recommendation.media_type})
@@ -2544,7 +2548,6 @@ Acquisition state per row: add `load_title_states/1` called at the end of both `
     states = TitleStates.for_refs(Enum.uniq(refs))
 
     socket
-    |> assign(:title_states, states)
     |> update(:items, fn items ->
       Enum.map(items, &Map.put(&1, :acquisition_state, Map.get(states, {&1.item.tmdb_id, &1.item.media_type})))
     end)
@@ -2560,7 +2563,7 @@ Acquisition state per row: add `load_title_states/1` called at the end of both `
     do: assign(socket, :title_detail, build_title_detail(socket, detail.title))
 ```
 
-`mount/3` must assign `feed: []`, `items: []`, `title_states: %{}` before the loaders so `load_title_states/1` can read both lists on the first pass (order: `assign(...) |> load_items() |> load_feed()` where each loader ends with `load_title_states/1`).
+`mount/3` must assign `feed: []`, `items: []` before the loaders so `stamp_acquisition_states/1` can read both lists on the first pass (order: `assign(...) |> load_items() |> load_feed()` where each loader ends with `stamp_acquisition_states/1`).
 
 Events (replace `watchlist_remove`, `watchlist_track`, `feed_delete`, `feed_add_to_watchlist` with the modal's):
 
@@ -2577,20 +2580,20 @@ Events (replace `watchlist_remove`, `watchlist_track`, `feed_delete`, `feed_add_
   def handle_event("title_scope_close", _params, socket),
     do: {:noreply, assign(socket, :scope_menu_open, false)}
 
-  def handle_event("title_download", %{"scope" => scope}, %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket)
-      when scope in ~w(first_season everything movie) do
-    opts = if scope == "movie", do: [], else: [scope: String.to_existing_atom(scope)]
+  # Movies send no scope; a series sends first_season or everything.
+  def handle_event("title_download", params, %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket) do
+    scope =
+      case params do
+        %{"scope" => scope} when scope in ~w(first_season everything) -> [scope: String.to_existing_atom(scope)]
+        _movie -> []
+      end
 
-    case Plans.download_title(detail.title, opts) do
-      :ok ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Finding a release for #{detail.title.name}")
-         |> push_patch(to: discovery_path(socket))}
+    :ok = Plans.plan_title(detail.title, [approval_policy: "automatic"] ++ scope)
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Could not start that download")}
-    end
+    {:noreply,
+     socket
+     |> put_flash(:info, "Finding a release for #{detail.title.name}")
+     |> push_patch(to: discovery_path(socket))}
   end
 
   def handle_event("title_track", _params, %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket) do
@@ -2654,9 +2657,9 @@ The path helper keeps the tab:
 `handle_info`: the watchlist clauses re-run both loaders as today (the loaders now stamp states). Add acquisition:
 
 ```elixir
-  def handle_info(%PlanEvents.Changed{}, socket), do: {:noreply, load_title_states(socket)}
+  def handle_info(%PlanEvents.Changed{}, socket), do: {:noreply, stamp_acquisition_states(socket)}
 
-  def handle_info(%struct{}, socket) when PursuitEvents.is_event(struct), do: {:noreply, load_title_states(socket)}
+  def handle_info(%struct{}, socket) when PursuitEvents.is_event(struct), do: {:noreply, stamp_acquisition_states(socket)}
 ```
 
 Check `PursuitEvents.is_event/1` is a public guard (IncomingLive uses it); place these clauses above the catch-all `handle_info(_message, socket)`. `PlanEvents.SearchActivity`/`DescentStatus` structs also arrive on the topic and fall to the catch-all.
@@ -2669,18 +2672,41 @@ Render: add the modal to the overlays slot and pass the new row attrs:
       </:overlays>
 ```
 
-Feed rows: `<FeedRow.feed_row :for={row <- scoped_feed(@feed, @feed_scope)} row={row} />` (unchanged call; the row reads `row.acquisition_state`). Watchlist rows:
+Both tabs render `TitleRow`. Feed:
 
 ```heex
-            <WatchlistRow.watchlist_row
-              :for={row <- @items}
-              item={row.item}
-              library_owner_id={row.library_owner_id}
+            <TitleRow.title_row
+              :for={row <- scoped_feed(@feed, @feed_scope)}
+              id={"feed-#{row.recommendation.id}"}
+              title={row.recommendation.title}
               poster_url={row.poster_url}
-              from_nickname={row.from_nickname}
-              acquisition_state={row.acquisition_state}
+              lead={feed_lead(row)}
+              markers={Logic.row_markers(%{library_owner_id: row.library_owner_id, acquisition_state: row.acquisition_state, from_nickname: nil, on_watchlist?: row.on_watchlist?})}
+              secondary={row.recommendation.note}
             />
 ```
+
+with
+
+```elixir
+  defp feed_lead(%{own?: true, recommendation: rec}), do: "You · #{Format.relative_ago(rec.recommended_at)}"
+  defp feed_lead(%{nickname: nickname, recommendation: rec}), do: "from #{nickname} · #{Format.relative_ago(rec.recommended_at)}"
+```
+
+Watchlist:
+
+```heex
+            <TitleRow.title_row
+              :for={row <- @items}
+              id={"watchlist-item-#{row.item.media_type}-#{row.item.tmdb_id}"}
+              title={row.item.title}
+              poster_url={row.poster_url}
+              markers={Logic.row_markers(%{library_owner_id: row.library_owner_id, acquisition_state: row.acquisition_state, from_nickname: row.from_nickname, on_watchlist?: false})}
+              secondary={row.item.note}
+            />
+```
+
+(A watchlist row never says "On watchlist" about itself — `on_watchlist?: false` there is the tab's own fact.)
 
 `@prowlarr_ready` stays an assign (the detail builder reads it); find where it is set today (`grep -n prowlarr_ready lib/media_centaur_web/live/discovery_live.ex`) and keep that.
 
@@ -2787,8 +2813,9 @@ own chrome.
 Chosen option: two named idioms and no others.
 
 * **Follow-up pill** — a count of items on that page waiting on a
-  decision from the user. Persists until the items are handled, never
-  merely until the page is visited. One component
+  decision from the user. Persists until the items are handled, and each
+  source defines handling: approve or discard a plan, review a file,
+  look at an incident. One component
   (`MediaCentaurWeb.Components.FollowUpPill`), one variant (error), one
   size, one placement rule: the row's end in the expanded rail, the
   icon's top-right corner in the 52px rail. Sources today: Incoming
@@ -2841,7 +2868,10 @@ Append to the spec:
 
 - §20: `Acquisition.TitleStates.for_refs/1` takes the page's list of refs and returns a map, one query per table, instead of a per-title function.
 - §24: one CSS rule keyed off `--sidebar-expanded` places the pill (row's end expanded, icon's top-right collapsed); the Status condition dot moved to the icon's bottom-right.
-- §14: the tertiary verbs are "Remove from watchlist" (watchlist-born detail) and "Delete recommendation" (own recommendation).
+- §14: the tertiary verbs are "Remove from watchlist" (whenever the title is on the watchlist, from either tab) and "Delete recommendation" (own recommendation). The feed row and the watchlist row collapsed into one `TitleRow` component.
+- §17: the context function is `Plans.plan_title/2` with `approval_policy:` and `scope:` explicit; one asynchronous contract for movies and series.
+- §23: "persists until handled" means each source defines handling — the Status source's seen-marker is its definition.
+- §10: the sort dropdown's CSS became the generic `.glass-menu*` idiom both menus share. **Scheduled convergence:** the sort control's hand-rolled keyboard model (`sort_key`, highlight index) adopts nav items the next time the library toolbar is touched.
 ```
 
 - [ ] **Step 5: Wiki**
@@ -2879,4 +2909,4 @@ git commit -m "docs: UIDR-030 follow-up pill, glossary, ADR-056 amendment, spec 
 ## Self-review
 
 - Spec coverage: §1–6 → Tasks 1–3; §7–11 → Tasks 5, 6, 11; §12–16 → Tasks 10–14; §17–19 → Task 6, 13; §20–22 → Tasks 7, 12, 13; §23–27 → Tasks 8, 9, 15; data changes → Task 1; testing → every task; documentation → Task 15.
-- Names used consistently: `approval_policy` (`"automatic"`/`"review"`), `Plans.clean?/1`, `Plans.count_awaiting_review/0`, `Plans.download_title/2` (`scope: :first_season | :everything`), `Plans.DownloadScope.units/2`, `TitleStates.for_refs/1`, `ShellBadges.Counts` / `badges` attr, `FollowUpPill.follow_up_pill/1`, `TitleDetail`, `Logic.title_detail/2`, `Logic.acquisition_marker/1`, `Logic.parse_title_ref/1`, `Logic.title_ref_param/1`, `TitleDetailModal.title_detail_modal/1`, events `open_title`/`close_title`/`title_download`/`title_scope_toggle`/`title_scope_close`/`title_track`/`title_watchlist_add`/`title_watchlist_remove`/`title_recommendation_delete`, overlay `title_detail` / region `title_detail_body`.
+- Names used consistently: `approval_policy` (`"automatic"`/`"review"`), `Plans.clean?/1`, `Plans.count_awaiting_review/0`, `Plans.plan_title/2` (`approval_policy:`, `scope: :first_season | :everything`), `Plans.DownloadScope.units/2`, `TitleStates.for_refs/1`, `ShellBadges.Counts` / `badges` attr, `FollowUpPill.follow_up_pill/1`, `TitleDetail`, `Logic.title_detail/2`, `Logic.acquisition_marker/1`, `Logic.parse_title_ref/1`, `Logic.title_ref_param/1`, `Logic.row_markers/1`, `TitleRow.title_row/1`, `TitleDetailModal.title_detail_modal/1`, events `open_title`/`close_title`/`title_download`/`title_scope_toggle`/`title_scope_close`/`title_track`/`title_watchlist_add`/`title_watchlist_remove`/`title_recommendation_delete`, overlay `title_detail` / region `title_detail_body`.
