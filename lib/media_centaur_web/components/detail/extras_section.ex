@@ -43,6 +43,7 @@ defmodule MediaCentaurWeb.Components.Detail.ExtrasSection do
       <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Extras</span>
       <.extra_row
         :for={extra <- @extras}
+        id={"extra-row-#{extra.id}"}
         extra={extra}
         progress={Map.get(@extra_progress_by_id, extra.id)}
         entity_id={@entity_id}
@@ -61,6 +62,7 @@ defmodule MediaCentaurWeb.Components.Detail.ExtrasSection do
     default: nil,
     doc: "`MediaCentaur.Library.WatchProgress.t() | nil` for this extra."
 
+  attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
 
@@ -69,7 +71,7 @@ defmodule MediaCentaurWeb.Components.Detail.ExtrasSection do
     assigns = assign(assigns, :state, state)
 
     ~H"""
-    <div class="py-0.5 pr-3" data-role="extra-row">
+    <div id={@id} class="py-0.5 pr-3" data-role="extra-row">
       <div
         class={[
           "flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2",

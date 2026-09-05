@@ -160,6 +160,8 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    socket = assign(socket, page_title: "Incoming")
+
     # No capability redirect: this page is the first acquisition surface
     # that renders without Prowlarr (forecast-only). Capability gating is
     # render-level, enforced once inside `View.build/1`. Forecast topics are
@@ -3038,7 +3040,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       panel_class="p-6"
       data-detail-mode={!is_nil(@cancel_confirm) && "modal"}
       data-dismiss-event="cancel_download_cancel"
-      style="z-index: 60;"
+      raised
     >
       <div :if={@cancel_confirm}>
         <h3 class="text-lg font-bold text-error">Cancel download?</h3>
@@ -3091,7 +3093,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       panel_class="p-6"
       data-detail-mode={@open && "modal"}
       data-dismiss-event="plan_discard_cancel"
-      style="z-index: 60;"
+      raised
     >
       <div :if={@open}>
         <h3 class="text-lg font-bold text-error">Discard plan?</h3>

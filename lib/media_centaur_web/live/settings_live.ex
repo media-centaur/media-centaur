@@ -89,6 +89,8 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    socket = assign(socket, page_title: "Settings")
+
     # `Settings.subscribe()` is auto-wired by SpoilerFreeAware. The single
     # subscription delivers every `:setting_changed` message — the trait
     # handles the spoiler_free key via attach_hook, and this LiveView's

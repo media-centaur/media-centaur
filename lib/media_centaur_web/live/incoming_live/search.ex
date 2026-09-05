@@ -49,7 +49,11 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
           Clear search
         </button>
       </div>
-      <div :for={group <- @session.groups} class="space-y-1">
+      <div
+        :for={group <- @session.groups}
+        id={"search-group-#{:erlang.phash2(group.term)}"}
+        class="space-y-1"
+      >
         <.group_header group={group} />
         <.group_actions :if={action_visible?(group)} group={group} />
         <.group_alternatives
@@ -181,6 +185,7 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
     <div class="ml-6 space-y-1">
       <button
         :for={result <- @group.results}
+        id={"search-result-#{:erlang.phash2({@group.term, result.guid})}"}
         type="button"
         class={[
           "glass-surface rounded-lg w-full px-4 py-2 flex items-center gap-3 text-left text-sm",

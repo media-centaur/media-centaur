@@ -244,7 +244,11 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   defp card_grid(assigns) do
     ~H"""
     <div id={@id} class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-      <.card :for={person <- @cast} person={person} />
+      <.card
+        :for={person <- @cast}
+        id={"cast-#{@id}-#{:erlang.phash2({person.tmdb_person_id, person.name})}"}
+        person={person}
+      />
     </div>
     """
   end
@@ -271,6 +275,8 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
     """
   end
 
+  attr :id, :string, required: true, doc: "stable DOM id for the card (UIDR-012)."
+
   attr :person, :map,
     required: true,
     doc:
@@ -278,7 +284,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   defp card(assigns) do
     ~H"""
-    <div>
+    <div id={@id}>
       <.card_inner person={@person} />
     </div>
     """

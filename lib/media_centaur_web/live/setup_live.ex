@@ -30,6 +30,8 @@ defmodule MediaCentaurWeb.SetupLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    socket = assign(socket, page_title: "Setup")
+
     if connected?(socket), do: IntegrationHealth.subscribe()
 
     {:ok,

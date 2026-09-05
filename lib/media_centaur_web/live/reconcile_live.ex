@@ -26,6 +26,8 @@ defmodule MediaCentaurWeb.ReconcileLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    socket = assign(socket, page_title: "Reconcile")
+
     # No Reconciliation.subscribe() here — MediaCentaurWeb.ShellBadges
     # (default live_session on_mount) already subscribes every LiveView to
     # reconciliation:updates; a second subscribe would double-deliver each

@@ -13,6 +13,8 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    socket = assign(socket, page_title: "History")
+
     if connected?(socket) do
       # Source topic — drives the paginated events-list refresh.
       WatchHistory.subscribe()
