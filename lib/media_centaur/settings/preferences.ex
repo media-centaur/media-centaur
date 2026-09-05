@@ -15,6 +15,8 @@ defmodule MediaCentaur.Settings.Preferences do
       LetterboxdLinks,
       LibraryBackdrop,
       LibraryCardInfo,
+      ShareTracking,
+      ShareWatched,
       SpoilerFree,
       UIScale
     ]

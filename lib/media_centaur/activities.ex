@@ -1,10 +1,14 @@
 defmodule MediaCentaur.Activities do
   use Boundary,
     deps: [
-      MediaCentaur.Social,
+      MediaCentaur.Library,
       MediaCentaur.Nostr,
+      MediaCentaur.ReleaseTracking,
+      MediaCentaur.Settings.Preferences,
+      MediaCentaur.Social,
       MediaCentaur.TMDB,
-      MediaCentaur.TmdbArtwork
+      MediaCentaur.TmdbArtwork,
+      MediaCentaur.WatchHistory
     ],
     exports: [
       Activity,

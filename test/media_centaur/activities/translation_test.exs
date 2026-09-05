@@ -2,6 +2,7 @@ defmodule MediaCentaur.Activities.TranslationTest do
   use ExUnit.Case, async: true
 
   alias MediaCentaur.Nostr.Event
+  alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Activities.Translation
   alias MediaCentaur.Secret
   alias MediaCentaur.TMDB.Title
@@ -295,5 +296,88 @@ defmodule MediaCentaur.Activities.TranslationTest do
 
   test "max_note_length/0 is the inbound note cap" do
     assert Translation.max_note_length() == 500
+  end
+
+  describe "watched and tracking kinds" do
+    defp show, do: Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
+    defp episode, do: %Episode{season_number: 2, episode_number: 5, name: "The Fifth"}
+
+    test "every activity kind has its own number in the addressable block" do
+      assert Enum.sort(Translation.kinds()) == [32_160, 32_161, 32_162]
+      assert Translation.kind(:recommendation) == 32_160
+      assert Translation.kind(:watched) == 32_161
+      assert Translation.kind(:tracking) == 32_162
+    end
+
+    test "a watched TV series names the episode and round-trips it" do
+      event =
+        Translation.to_event(:watched, show(), [episode: episode()], @pubkey, acted_at: 1_600_000_000)
+
+      assert event.kind == 32_161
+      assert [["d", "tmdb:tv_series:1399"]] = event.tags
+
+      assert %{
+               "watched_at" => 1_600_000_000,
+               "episode" => %{"season_number" => 2, "episode_number" => 5, "name" => "The Fifth"}
+             } =
+               Jason.decode!(event.content)
+
+      refute Map.has_key?(Jason.decode!(event.content), "note")
+
+      assert {:ok, attrs} = Translation.from_event(Event.sign(event, @secret))
+      assert attrs.kind == :watched
+      assert attrs.note == nil
+      assert %Episode{season_number: 2, episode_number: 5, name: "The Fifth"} = attrs.episode
+      assert attrs.acted_at == ~U[2020-09-13 12:26:40Z]
+    end
+
+    test "a watched movie carries no episode" do
+      event = Translation.to_event(:watched, title(), [], @pubkey)
+      assert %{"episode" => nil} = Jason.decode!(event.content)
+      assert {:ok, %{kind: :watched, episode: nil}} = Translation.from_event(Event.sign(event, @secret))
+    end
+
+    test "an episode on a movie, or a malformed episode, is bad content" do
+      with_episode = fn title, episode ->
+        good = Translation.to_event(:watched, title, [], @pubkey)
+        content = good.content |> Jason.decode!() |> Map.put("episode", episode) |> Jason.encode!()
+        Event.sign(%{good | content: content}, @secret)
+      end
+
+      assert {:error, :bad_content} =
+               Translation.from_event(
+                 with_episode.(title(), %{"season_number" => 1, "episode_number" => 1})
+               )
+
+      assert {:error, :bad_content} =
+               Translation.from_event(with_episode.(show(), %{"season_number" => 1}))
+
+      assert {:error, :bad_content} = Translation.from_event(with_episode.(show(), "S01E01"))
+    end
+
+    test "a tracking activity carries the title and its time only" do
+      event = Translation.to_event(:tracking, show(), [], @pubkey, acted_at: 1_600_000_000)
+      assert event.kind == 32_162
+
+      assert %{"tracked_at" => 1_600_000_000, "title" => %{"tmdb_id" => 1399}} =
+               content = Jason.decode!(event.content)
+
+      refute Map.has_key?(content, "note")
+      refute Map.has_key?(content, "episode")
+
+      assert {:ok, %{kind: :tracking, note: nil, episode: nil, acted_at: ~U[2020-09-13 12:26:40Z]}} =
+               Translation.from_event(Event.sign(event, @secret))
+    end
+
+    test "a deletion names the kind it withdraws" do
+      deletion = Translation.to_deletion(:watched, @pubkey, :tv_series, 1399, nil)
+      assert [["a", "32161:" <> _rest] | _tags] = deletion.tags
+
+      assert {:ok, %{kind: :watched, tmdb_id: 1399, media_type: :tv_series}} =
+               Translation.from_deletion(Event.sign(deletion, @secret))
+
+      foreign_kind = %{deletion | tags: [["a", "30000:#{@pubkey}:tmdb:tv_series:1399"]]}
+      assert {:error, :bad_address} = Translation.from_deletion(Event.sign(foreign_kind, @secret))
+    end
   end
 end

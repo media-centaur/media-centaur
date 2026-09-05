@@ -1,4 +1,4 @@
-defmodule MediaCentaur.RecommendationsTest do
+defmodule MediaCentaur.ActivitiesTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
@@ -12,6 +12,7 @@ defmodule MediaCentaur.RecommendationsTest do
   alias MediaCentaur.Activities.Events.Received
   alias MediaCentaur.Activities.Events.Sent
   alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Activities.Translation
   alias MediaCentaur.Secret
   alias MediaCentaur.TmdbStubs
@@ -414,6 +415,66 @@ defmodule MediaCentaur.RecommendationsTest do
 
       forged = %{friend_deletion(title(), System.os_time(:second)) | sig: String.duplicate("0", 128)}
       assert {:error, _reason} = Activities.ingest(forged)
+    end
+  end
+
+  describe "watched/2 and tracking/1" do
+    defp show, do: Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
+    defp episode(number), do: %Episode{season_number: 1, episode_number: number, name: nil}
+
+    test "watched stores the episode and a later episode replaces the row" do
+      Activities.subscribe()
+
+      assert {:ok, %Activity{kind: :watched} = first} = Activities.watched(show(), episode(1))
+      assert %Episode{season_number: 1, episode_number: 1} = first.episode
+      assert_receive {:activity_sent, %Sent{kind: :watched, id: first_id}}, 500
+      assert first_id == first.id
+
+      assert {:ok, %Activity{id: ^first_id} = second} = Activities.watched(show(), episode(2))
+      assert second.episode.episode_number == 2
+      assert Activity.event_created_at(second) > Activity.event_created_at(first)
+      assert [%Activity{kind: :watched, id: ^first_id}] = Activities.list_sent()
+    end
+
+    test "a watched movie has no episode, and kinds are separate rows for one title" do
+      assert {:ok, %Activity{kind: :watched, episode: nil}} = Activities.watched(title(), nil)
+      assert {:ok, %Activity{kind: :tracking}} = Activities.tracking(title())
+      assert {:ok, %Activity{kind: :recommendation}} = Activities.recommend(title(), nil)
+
+      kinds = Activities.list_sent() |> Enum.map(& &1.kind) |> Enum.sort()
+      assert kinds == [:recommendation, :tracking, :watched]
+    end
+
+    test "delete withdraws a watched row under its own kind" do
+      Activities.subscribe()
+      {:ok, watched} = Activities.watched(show(), episode(3))
+
+      assert {:ok, %Activity{deleted_at: %DateTime{}} = tombstone} = Activities.delete(watched.id)
+      assert {:ok, deletion} = Event.from_map(tombstone.deletion_event)
+      assert Event.tag_value(deletion, "a") == "32161:#{Identity.pubkey()}:tmdb:tv_series:1399"
+      assert_receive {:activity_deleted, %Deleted{kind: :watched}}, 500
+      assert Activities.list_sent() == []
+    end
+
+    test "a friend's watched event is ingested with its kind" do
+      Activities.subscribe()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sam")
+
+      event =
+        Event.sign(
+          Translation.to_event(:watched, show(), [episode: episode(4)], @friend_pubkey),
+          @friend_secret
+        )
+
+      assert {:ok, %Activity{kind: :watched, episode: %Episode{episode_number: 4}}} =
+               Activities.ingest(event)
+
+      assert_receive {:activity_received, %Received{kind: :watched}}, 500
+
+      assert [%{activity: %Activity{kind: :watched}, nickname: "Sam", own?: false}] =
+               Activities.list_feed()
+
+      await_supervised_tasks()
     end
   end
 end

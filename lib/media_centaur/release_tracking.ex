@@ -13,6 +13,8 @@ defmodule MediaCentaur.ReleaseTracking do
       LibraryListener,
       Release,
       Event,
+      Events,
+      Events.TrackingStarted,
       Want,
       Views,
       Views.ComingUp,
@@ -42,6 +44,7 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.ReleaseTracking.{
     Acquisition,
     Event,
+    Events,
     Helpers,
     Item,
     Release,
@@ -61,8 +64,24 @@ defmodule MediaCentaur.ReleaseTracking do
 
   # --- Items ---
 
+  @doc """
+  Creates a tracking item. A `source: :manual` item — a person's act —
+  broadcasts `Events.TrackingStarted` with the title snapshot the item
+  holds; a `:library` item (the scan's) is silent.
+  """
+  @spec track_item(map()) :: {:ok, Item.t()} | {:error, Ecto.Changeset.t()}
   def track_item(attrs) do
-    Repo.insert(Item.create_changeset(attrs))
+    with {:ok, item} <- Repo.insert(Item.create_changeset(attrs)) do
+      if item.source == :manual, do: broadcast_tracking_started(item)
+      {:ok, item}
+    end
+  end
+
+  defp broadcast_tracking_started(%Item{} = item) do
+    Events.broadcast(%Events.TrackingStarted{
+      item_id: item.id,
+      title: Title.new!(%{tmdb_id: item.tmdb_id, media_type: item.media_type, name: item.name})
+    })
   end
 
   def ignore_item(%Item{} = item) do
