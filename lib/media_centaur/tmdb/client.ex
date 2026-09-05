@@ -42,6 +42,15 @@ defmodule MediaCentaur.TMDB.Client do
   @type opts :: [client: Req.Request.t(), reload: boolean()]
 
   @doc """
+  True when a client error means the configured API key was rejected
+  (HTTP 401/403) rather than a transient failure — callers route these
+  to a `Log.error` naming Settings → TMDB, since no retry will fix them.
+  """
+  @spec auth_failure?(term()) :: boolean()
+  def auth_failure?({:http_error, status, _}) when status in [401, 403], do: true
+  def auth_failure?(_), do: false
+
+  @doc """
   A `Req` client for the TMDB API, built from the configured key on every
   call so a saved key is live immediately.
   """

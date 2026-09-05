@@ -1605,9 +1605,23 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_flash(:error, "Scan failed. Check the console for details.")}
   end
 
-  def handle_async(name, {:exit, reason}, socket) do
-    Log.warning(:settings, "settings async #{inspect(name)} failed — #{inspect(reason)}")
-    {:noreply, socket}
+  # A crashed connection test must clear its `*_testing` flag; leaving it
+  # true strands the button on "Testing…" (audit DS17). One clause per
+  # test so nothing falls through to a silent catch-all.
+  for {result_key, flag, label} <- [
+        {:tmdb_test_result, :tmdb_testing, "TMDB"},
+        {:prowlarr_test_result, :prowlarr_testing, "Prowlarr"},
+        {:download_client_test_result, :download_client_testing, "Download client"},
+        {:usenet_client_test_result, :usenet_client_testing, "Usenet client"}
+      ] do
+    def handle_async(unquote(result_key), {:exit, reason}, socket) do
+      Log.warning(:settings, "#{unquote(label)} connection test exited — #{inspect(reason)}")
+
+      {:noreply,
+       socket
+       |> assign(unquote(flag), false)
+       |> put_flash(:error, "#{unquote(label)} test failed. Check the console for details.")}
+    end
   end
 
   defp normalize_bind_value(:keyboard, value) when is_binary(value), do: value

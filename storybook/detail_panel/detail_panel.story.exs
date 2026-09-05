@@ -395,6 +395,43 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           tmdb_ready: true,
           detail_view: :info,
           detail_files: sample_detail_files(),
+          detail_files_status: :loaded,
+          expanded_seasons: MapSet.new()
+        }
+      },
+      %Variation{
+        id: :info_view_files_loading,
+        description:
+          "The Manage sheet while the deferred file-info load is still running " <>
+            "— a status line where the ledger will be, no Delete all (DS21).",
+        attributes: %{
+          entity: sample_movie_entity(),
+          progress: nil,
+          resume: nil,
+          progress_records: [],
+          available: true,
+          tmdb_ready: true,
+          detail_view: :info,
+          detail_files: [],
+          detail_files_status: :loading,
+          expanded_seasons: MapSet.new()
+        }
+      },
+      %Variation{
+        id: :info_view_files_failed,
+        description:
+          "The Manage sheet after the file-info load crashed — the panel says " <>
+            "so rather than rendering an empty inventory as fact (DS16).",
+        attributes: %{
+          entity: sample_movie_entity(),
+          progress: nil,
+          resume: nil,
+          progress_records: [],
+          available: true,
+          tmdb_ready: true,
+          detail_view: :info,
+          detail_files: [],
+          detail_files_status: :failed,
           expanded_seasons: MapSet.new()
         }
       },

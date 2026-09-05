@@ -12,6 +12,24 @@ defmodule MediaCentaur.Reconciliation.ConfirmTest do
     :ok
   end
 
+  describe "confirm/2 failure paths" do
+    import ExUnit.CaptureLog
+
+    test "a target for an unknown awaiting file counts as failed and is logged" do
+      seed_show()
+      review = Reconciliation.resolve_show(42)
+
+      log =
+        capture_log(fn ->
+          assert {:ok, %{linked: 0, failed: 1}} =
+                   Reconciliation.confirm(review, %{Ecto.UUID.generate() => {1, 3}})
+        end)
+
+      assert log =~ "reconciliation"
+      assert log =~ "S01E03"
+    end
+  end
+
   defp seed_show do
     series = create_tv_series(%{name: "Sample Show", tmdb_id: "42"})
     season = create_season(%{tv_series_id: series.id, season_number: 1, name: "Season 1"})

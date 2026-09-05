@@ -82,6 +82,13 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
       "`MediaCentaur.Library.EntityView`. Read for `:id`, `:url`, `:external_ids`, `:watched_files` (probed media info), and movie `:subtitle_tracks`."
 
   attr :files, :list, default: [], doc: @doc_files
+
+  attr :files_status, :atom,
+    values: [:loading, :loaded, :failed],
+    default: :loaded,
+    doc:
+      "state of the load behind `files`. `:loading` and `:failed` render a status line in place of the ledger and hide Delete all — an empty list is only \"no files\" once the load has finished."
+
   attr :rematch_confirm, :boolean, default: false
   attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
   attr :deleting, :any, default: nil, doc: @doc_deleting
@@ -138,7 +145,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
       >
         <div class="flex flex-wrap items-center gap-2">
           <.button
-            :if={@files != []}
+            :if={@files != [] and @files_status == :loaded}
             variant="danger"
             size="sm"
             phx-click="delete_all_prompt"
@@ -212,7 +219,17 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
       </div>
 
       <div data-nav-zone="manage_list" class="space-y-5">
-        <div :if={@files != []}>
+        <p
+          :if={@files_status == :loading}
+          class="text-xs text-base-content/40"
+          data-role="files-status"
+        >
+          Reading files…
+        </p>
+        <p :if={@files_status == :failed} class="text-xs text-error/80" data-role="files-status">
+          Couldn't read this entry's files. Check the console for details.
+        </p>
+        <div :if={@files != [] and @files_status == :loaded}>
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
               Files

@@ -415,9 +415,15 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
-  def handle_async(name, {:exit, reason}, socket) do
-    Log.warning(:review, "review async #{inspect(name)} failed — #{inspect(reason)}")
-    {:noreply, socket}
+  # A crashed search must clear `searching`; leaving it true strands the
+  # panel on a disabled Search button (audit DS17).
+  def handle_async(:tmdb_search, {:exit, reason}, socket) do
+    Log.warning(:review, "TMDB search task exited — #{inspect(reason)}")
+
+    {:noreply,
+     socket
+     |> assign(search_results: [], searching: false, searched: true)
+     |> put_flash(:error, "TMDB search failed")}
   end
 
   @impl true

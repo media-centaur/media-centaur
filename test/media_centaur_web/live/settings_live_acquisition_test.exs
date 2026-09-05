@@ -122,6 +122,27 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       assert Config.get(:prowlarr_url) == "http://prowlarr.example.com:9696"
     end
 
+    test "a crashed connection test clears the testing flag and tells the user", %{conn: conn} do
+      Req.Test.stub(:prowlarr, fn _conn -> raise "stub crashed" end)
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view
+      |> form("#settings-prowlarr", %{
+        "prowlarr_url" => "http://prowlarr.example.com:9696",
+        "prowlarr_api_key" => "secret-key-123"
+      })
+      |> render_submit(%{"_action" => "test"})
+
+      html = render_async(view)
+
+      assert html =~ "Prowlarr test failed"
+
+      refute has_element?(
+               view,
+               "#settings-prowlarr button[type='submit'][name='_action'][value='test'][disabled]"
+             )
+    end
+
     test "failed test does not revert the typed-in URL", %{conn: conn} do
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 

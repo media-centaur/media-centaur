@@ -10,6 +10,27 @@ defmodule MediaCentaur.Reconciliation.SpineTest do
     :ok
   end
 
+  describe "assemble/2 when TMDB fails" do
+    import ExUnit.CaptureLog
+
+    test "a rejected API key yields no nodes and says so in the log" do
+      TmdbStubs.stub_tmdb_error("/tv/99", 401)
+
+      log = capture_log(fn -> assert Spine.assemble(99, MapSet.new()) == [] end)
+
+      assert log =~ "TMDB API key rejected"
+    end
+
+    test "any other TMDB failure is logged, not swallowed" do
+      TmdbStubs.stub_tmdb_error("/tv/98", 500)
+
+      log = capture_log(fn -> assert Spine.assemble(98, MapSet.new()) == [] end)
+
+      assert log =~ "reconciliation"
+      assert log =~ "98"
+    end
+  end
+
   # NOTE: stub_routes matches by substring, so the season path must precede
   # the bare /tv/:id path (the latter is a prefix of the former).
   defp stub_show(tmdb_id, seasons, episodes_by_season) do

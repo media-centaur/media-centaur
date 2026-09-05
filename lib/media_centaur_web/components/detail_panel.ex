@@ -103,6 +103,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :detail_files, :list, default: [], doc: @doc_detail_files
 
+  attr :detail_files_status, :atom,
+    values: [:loading, :loaded, :failed],
+    default: :loaded,
+    doc: "state of the deferred load behind `detail_files`; forwarded to the Manage panel."
+
   attr :expanded_file_groups, :any,
     default: nil,
     doc:
@@ -461,6 +466,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             <ManagePanel.manage_panel
               entity={@entity}
               files={@detail_files}
+              files_status={@detail_files_status}
               rematch_confirm={@rematch_confirm}
               delete_confirm={@delete_confirm}
               deleting={@deleting}

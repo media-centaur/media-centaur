@@ -94,6 +94,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.ManagePanel do
         attributes: %{
           entity: @entity,
           files: season_files(),
+          files_status: :loaded,
           tmdb_ready: true
         }
       },
@@ -188,6 +189,30 @@ defmodule MediaCentaurWeb.Storybook.Detail.ManagePanel do
           entity: @entity,
           files: season_files(),
           tmdb_ready: false
+        }
+      },
+      %Variation{
+        id: :files_loading,
+        description:
+          "The deferred file-info load is still running — a status line " <>
+            "stands in for the ledger and Delete all; never \"0 files\".",
+        attributes: %{
+          entity: @entity,
+          files: [],
+          files_status: :loading,
+          tmdb_ready: true
+        }
+      },
+      %Variation{
+        id: :files_failed,
+        description:
+          "The file-info load crashed — the panel says so instead of " <>
+            "presenting an empty inventory as fact (DS16/DS21).",
+        attributes: %{
+          entity: @entity,
+          files: [],
+          files_status: :failed,
+          tmdb_ready: true
         }
       },
       %Variation{

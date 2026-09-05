@@ -254,6 +254,7 @@ defmodule MediaCentaurWeb.HomeLive do
           cast_filter={@cast_filter}
           cast_limit={@cast_limit}
           detail_files={@detail_files}
+          detail_files_status={@detail_files_status}
           expanded_file_groups={@expanded_file_groups}
           expanded_seasons={@expanded_seasons}
           expanded_item_details={@expanded_item_details}

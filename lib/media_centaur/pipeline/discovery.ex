@@ -71,8 +71,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
   immediately obvious in the Console drawer.
   """
   @spec auth_failure?(term()) :: boolean()
-  def auth_failure?({:http_error, status, _}) when status in [401, 403], do: true
-  def auth_failure?(_), do: false
+  defdelegate auth_failure?(reason), to: MediaCentaur.TMDB.Client
 
   defp log_failure(reason, file_path) do
     basename = Path.basename(file_path)
