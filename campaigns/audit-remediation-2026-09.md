@@ -61,7 +61,7 @@ one unpushed commit in `../media-centaur.wiki` (`9e4111f`). Last full
 ## Resuming — start here (handoff written 2026-09-05, evening)
 
 **Reconcile first (ADR-042).** `git log 2ddd4b53..HEAD` is the day's
-work: ~40 commits on `main`, local and unpushed; `../media-centaur.wiki`
+work: 38 commits on `main` (`git log 2ddd4b53..HEAD`), local and unpushed; `../media-centaur.wiki`
 has one unpushed commit. Confirm nothing was pushed or rebased since.
 **Do not push or tag without being asked.** Then pick up at *What's
 next*. Trust the stage sections below over any one-line summary — an
@@ -83,7 +83,7 @@ Nothing in the sweep is unassigned. What remains, bucketed:
 
 | Item | Destination |
 |---|---|
-| Push and ship the ~40 local commits + the wiki commit | **owner's call** — a `/ship minor`; the CHANGELOG entry should name the new checks (MC0032–MC0034), the armed two-click destructive controls, the contrast floor, the page title, the empty states |
+| Push and ship the 38 local commits + the wiki commit | **owner's call** — a `/ship minor`; the CHANGELOG entry should name the new checks (MC0032–MC0034), the armed two-click destructive controls, the contrast floor, the page title, the empty states |
 | E34 / Stage E-10 (event god-modules) | deferred by the owner; reopen as its own campaign if ever |
 | D17 docs-site feature tiles (Discovery, Apps, friends) | owner copy |
 | D11 `docs/mpv.md` HDR recovery block | unverified against hardware; verify on the TV box |

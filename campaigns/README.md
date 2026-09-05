@@ -29,14 +29,14 @@ Use [`template.md`](template.md) as a starter.
   per-upstream traffic, errors, latency, and cache effectiveness.
   Plan: `docs/plans/2026-09-04-http-client-cache-and-upstreams-panel.md`.
 * [`audit-remediation-2026-09.md`](audit-remediation-2026-09.md) —
-  **in-progress, started 2026-09-04.** Works off the four-audit sweep of
-  2026-09-04 (57 engineering / 10 performance / 42 documentation / 25
-  design findings) in discussable stages. Engineering lane closed except
-  Stage E-10 (deferred); Performance lane done (2026-09-05);
-  Documentation lane in progress; Design lane (invisible gamepad cursor
-  on the library grid, modal input contract, text contrast) still to
-  open. Each stage carries its evidence and decisions; the *Resuming*
-  section is the handoff.
+  **in-progress, started 2026-09-04; all four lanes done 2026-09-05,
+  ready to close.** Works off the four-audit sweep of 2026-09-04 (57
+  engineering / 10 performance / 42 documentation / 25 design findings).
+  Engineering closed except Stage E-10 (deferred by the owner);
+  Performance, Documentation and Design done. 38 local, unpushed commits
+  on `main` plus one in the wiki await the owner's ship; the *Resuming*
+  section holds the close-by-destination table and the file goes once
+  the ship lands (ADR-042).
 * [`showcase-comprehensive-coverage.md`](showcase-comprehensive-coverage.md) —
   **planning.** Expand the marketing showcase from well-covered static
   surfaces to the high-impact feature set that photographs well:
