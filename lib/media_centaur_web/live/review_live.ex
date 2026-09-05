@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   import MediaCentaurWeb.ReviewHelpers
 
   alias MediaCentaur.DeleteTargets
-  alias MediaCentaur.Library.FileEventHandler
+  alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Review
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
@@ -300,7 +300,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
     case DeleteTargets.resolve_folder_target(paths) do
       {:folder, dir} ->
-        case FileEventHandler.delete_folder(dir, paths) do
+        case Deletion.delete_folder(dir, paths) do
           {:ok, _entity_ids} ->
             Review.destroy_pending_files(files)
             {length(files), 0}

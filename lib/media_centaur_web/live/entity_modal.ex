@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   require Phoenix.LiveView
 
   alias MediaCentaur.{Discovery, Format, Library, Playback, ReleaseTracking}
-  alias MediaCentaur.Library.FileEventHandler
+  alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.CastSelection
@@ -1464,7 +1464,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def run_delete(%{delete_confirm: delete_confirm, detail_files: detail_files, media_dirs: media_dirs}) do
     case delete_confirm do
       {:file, file_path} ->
-        FileEventHandler.delete_file(file_path)
+        Deletion.delete_file(file_path)
 
       {:folder, folder_path} ->
         file_paths =
@@ -1477,7 +1477,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         # ELSE already in the library also lives under it before the
         # recursive `rm -rf` — see `MediaCentaur.DeleteTargets`.
         if MediaCentaur.DeleteTargets.safe_to_delete_folder?(folder_path, file_paths) do
-          FileEventHandler.delete_folder(folder_path, file_paths)
+          Deletion.delete_folder(folder_path, file_paths)
         else
           {:error, "folder also contains other library content"}
         end
@@ -1494,12 +1494,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
           if !group.is_media_dir and
                MediaCentaur.DeleteTargets.safe_to_delete_folder?(group.dir, file_paths) do
-            FileEventHandler.delete_folder(group.dir, file_paths)
+            Deletion.delete_folder(group.dir, file_paths)
           else
             # A media directory root, or a folder that also holds other
             # already-imported content, can't be `rm -rf`'d wholesale — fall
             # back to deleting just this entity's own files in it.
-            FileEventHandler.delete_files(file_paths)
+            Deletion.delete_files(file_paths)
           end
         end)
 

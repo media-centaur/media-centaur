@@ -1,143 +1,18 @@
 defmodule MediaCentaur.Library.FileEventHandler do
   @moduledoc """
-  Handles file removal events and cleans up library records.
-
-  Two entry points:
-  - **PubSub** (`{:files_removed, paths}`): triggered by inotify deletions
-    or TTL expiration in `Library.AbsenceSweeper`. Spawns a task to run the
-    cleanup cascade.
-  - **Direct** (`delete_file/1`, `delete_files/1`, `delete_folder/2`):
-    called from LiveView for user-initiated deletions. Deletes from disk,
-    then runs the same cleanup cascade — once per call, not per file.
-
-  The cleanup cascade groups removed files by entity, deletes matching
-  child records (episodes, movies, extras, images), and cascades to full
-  entity deletion when no WatchedFiles remain.
+  Reacts to `{:files_removed, paths}` on the library file-events topic —
+  inotify deletions and `Library.AbsenceSweeper` TTL expiry — by running
+  `Library.Deletion.cleanup_removed_files/1` off the subscriber process
+  and broadcasting the affected entities.
   """
   use GenServer
   require MediaCentaur.Log, as: Log
-  import Ecto.Query
 
-  alias MediaCentaur.Repo
-  alias MediaCentaur.Library
-  alias MediaCentaur.Library.{EntityCascade, FilePresence, WatchedFile}
-  alias MediaCentaur.Library.Helpers
-
-  import EntityCascade,
-    only: [bulk_destroy: 2, delete_images: 1, delete_playable_items: 2, destroy_progress: 1]
+  alias MediaCentaur.Library.{Deletion, Helpers}
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
-
-  # ---------------------------------------------------------------------------
-  # Public API — direct file operations (called from LiveView)
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  Deletes a single file from disk and cleans up its library records.
-
-  `:enoent` (file already gone) is treated as success — the library cleanup
-  still runs to remove DB records.
-  """
-  @spec delete_file(String.t()) :: {:ok, [String.t()]} | {:error, atom()}
-  def delete_file(file_path), do: delete_files([file_path])
-
-  @doc """
-  Deletes a batch of files from disk and cleans up their library records
-  in **one** pass — a single cleanup cascade and a single
-  `entities_changed` broadcast for the whole batch, instead of paying the
-  per-file cascade N times (the cost that made multi-file deletes hold
-  the UI's "Deleting…" state for seconds).
-
-  Per-file `:enoent` is treated as success — the records still need
-  cleaning. Any other rm failure leaves that file out of the cleanup and
-  fails the batch with the first failure's reason, **after** the rest of
-  the batch has been deleted and cleaned.
-  """
-  @spec delete_files([String.t()]) :: {:ok, [String.t()]} | {:error, atom()}
-  def delete_files(file_paths) do
-    {removed_paths, failures} =
-      Enum.reduce(file_paths, {[], []}, fn file_path, {removed, failed} ->
-        case File.rm(file_path) do
-          :ok ->
-            Log.info(:library, "deleted file — #{file_path}")
-            {[file_path | removed], failed}
-
-          {:error, :enoent} ->
-            Log.info(:library, "cleaned up records — file already absent: #{file_path}")
-            {[file_path | removed], failed}
-
-          {:error, reason} ->
-            Log.warning(:library, "failed to delete file — #{file_path}: #{reason}")
-            {removed, [reason | failed]}
-        end
-      end)
-
-    {:ok, entity_ids} = cleanup_and_broadcast(Enum.reverse(removed_paths))
-
-    case Enum.reverse(failures) do
-      [] -> {:ok, entity_ids}
-      [first_reason | _rest] -> {:error, first_reason}
-    end
-  end
-
-  @doc """
-  Deletes a folder and all its contents from disk, then cleans up library
-  records for all WatchedFiles that were under that folder.
-
-  `file_paths` must be collected *before* deletion because `rm -rf` does not
-  generate per-file inotify events.
-  """
-  @spec delete_folder(String.t(), [String.t()]) :: {:ok, [String.t()]} | {:error, any()}
-  def delete_folder(folder_path, file_paths) do
-    media_dirs = MediaCentaur.Settings.Config.get(:media_dirs) || []
-
-    if folder_path in media_dirs do
-      Log.warning(:library, "refused to delete media directory — #{folder_path}")
-      {:error, :media_directory}
-    else
-      delete_folder_unsafe(folder_path, file_paths)
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # Public API — cleanup (called directly in tests, via PubSub in production)
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  Immediately cleans up all library records associated with the given file paths.
-  Returns a list of affected entity IDs (for broadcasting).
-
-  Also drops the `Library.FilePresence` row for each path — a file gone from
-  disk has nothing left for `Watcher.Supervisor.rescan_unlinked/0` to recover,
-  and leaving the row behind let a later reconciliation pass resurrect a
-  deleted title from a path that no longer exists (the incident this guards
-  against). `AbsenceSweeper.purge_expired/1` also calls this before its own
-  `FilePresence.delete_paths/1` — redundant with the call here, but harmless
-  (deleting an already-gone row is a no-op).
-  """
-  @spec cleanup_removed_files([String.t()]) :: [String.t()]
-  def cleanup_removed_files([]), do: []
-
-  def cleanup_removed_files(file_paths) do
-    watched_files = Library.Files.list_by_paths(file_paths)
-
-    entity_ids =
-      if watched_files == [] do
-        []
-      else
-        do_cleanup(watched_files, file_paths)
-      end
-
-    FilePresence.delete_paths(file_paths)
-
-    entity_ids
-  end
-
-  # ---------------------------------------------------------------------------
-  # GenServer callbacks
-  # ---------------------------------------------------------------------------
 
   @impl true
   def init(_) do
@@ -150,7 +25,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
     Log.info(:library, "processing removal — #{length(file_paths)} files")
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      entity_ids = cleanup_removed_files(file_paths)
+      entity_ids = Deletion.cleanup_removed_files(file_paths)
       Helpers.broadcast_entities_changed(entity_ids)
     end)
 
@@ -158,150 +33,4 @@ defmodule MediaCentaur.Library.FileEventHandler do
   end
 
   def handle_info(_message, state), do: {:noreply, state}
-
-  # ---------------------------------------------------------------------------
-  # Cleanup cascade
-  # ---------------------------------------------------------------------------
-
-  defp do_cleanup(watched_files, file_paths) do
-    file_path_set = MapSet.new(file_paths)
-
-    watched_files
-    |> Enum.group_by(&Library.Files.top_level_entity_id/1)
-    |> Enum.reject(fn {entity_id, _files} -> is_nil(entity_id) end)
-    |> Enum.flat_map(fn {entity_id, files} ->
-      cleanup_entity_files(entity_id, files, file_path_set)
-    end)
-    |> Enum.uniq()
-  end
-
-  defp cleanup_entity_files(entity_id, watched_files, removed_paths) do
-    removed_file_paths =
-      watched_files
-      |> MapSet.new(& &1.file_path)
-      |> MapSet.intersection(removed_paths)
-
-    seasons = delete_children_for_paths(entity_id, removed_file_paths)
-
-    # WatchedFile records cleaned up after children to avoid FK violations
-    files_to_delete = Enum.filter(watched_files, &MapSet.member?(removed_paths, &1.file_path))
-
-    if files_to_delete != [] do
-      ids = Enum.map(files_to_delete, & &1.id)
-      # `ids` is derived from `removed_paths`, which arrives via the
-      # {:files_removed, paths} broadcast. The two emitters of that
-      # broadcast — `Library.AbsenceSweeper.purge_expired/1` and the
-      # watcher's inotify deletion flush — are themselves availability-
-      # safe (the policy filters on `:media_dir in ^available_dirs`,
-      # and inotify only fires for files whose drive is mounted by
-      # definition). So the destructive op here inherits the upstream
-      # filter and doesn't need its own.
-      # credo:disable-for-next-line MediaCentaur.Credo.Checks.DestructiveFileQuery
-      Repo.delete_all(from(w in WatchedFile, where: w.id in ^ids))
-    end
-
-    # Check if entity is now orphaned (no remaining WatchedFiles)
-    remaining_files = Library.Files.list_by_entity_id(entity_id)
-
-    if remaining_files == [] do
-      delete_entity_cascade(entity_id)
-    else
-      cleanup_empty_seasons(seasons)
-    end
-
-    [entity_id]
-  end
-
-  defp delete_children_for_paths(entity_id, removed_paths) do
-    seasons = Library.Seasons.list_for_tv_series(entity_id)
-
-    Enum.each(seasons, fn season ->
-      matched_episodes =
-        Enum.filter(
-          Library.Episodes.list_for_season(season.id, load: [:images, :watch_progress]),
-          &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
-        )
-
-      Enum.each(matched_episodes, fn episode ->
-        destroy_progress(episode)
-        delete_images(episode.images || [])
-        delete_playable_items(:episode, episode.id)
-      end)
-
-      bulk_destroy(matched_episodes, Library.Episode)
-    end)
-
-    matched_movies =
-      Enum.filter(
-        Library.Containers.list_child_movies(entity_id, load: [:images, :watch_progress, :external_ids]),
-        &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
-      )
-
-    Enum.each(matched_movies, fn movie ->
-      destroy_progress(movie)
-      delete_images(movie.images || [])
-      # ExternalId rows reference the movie via `movie_id` FK — delete
-      # them before the Movie row or the cascade trips the FK constraint
-      # (Library Schema v2 Phase 1 Task 6 made ExternalId the sole home
-      # for TMDB/IMDB ids, so every matched movie has at least the
-      # TMDB row attached).
-      bulk_destroy(movie.external_ids || [], Library.ExternalId)
-    end)
-
-    bulk_destroy(matched_movies, Library.Movie)
-
-    matched_extras =
-      Enum.filter(
-        Library.Extras.list_for_owner(entity_id),
-        &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
-      )
-
-    bulk_destroy(matched_extras, Library.Extra)
-
-    seasons
-  end
-
-  defp cleanup_empty_seasons(seasons) do
-    Enum.each(seasons, fn season ->
-      if Library.Episodes.list_for_season(season.id) == [] do
-        bulk_destroy(Library.Extras.list_for_season(season.id), Library.Extra)
-        Library.Seasons.destroy!(season)
-      end
-    end)
-  end
-
-  defp delete_entity_cascade(entity_id) do
-    if Library.Files.list_by_entity_id(entity_id) == [] do
-      EntityCascade.destroy!(entity_id)
-    else
-      Log.info(
-        :library,
-        "skipped cascade — entity #{MediaCentaur.Format.short_id(entity_id)} gained files during cleanup"
-      )
-
-      :ok
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # Internal
-  # ---------------------------------------------------------------------------
-
-  defp delete_folder_unsafe(folder_path, file_paths) do
-    case File.rm_rf(folder_path) do
-      {:ok, _removed} ->
-        Log.info(:library, "deleted folder — #{folder_path}")
-        cleanup_and_broadcast(file_paths)
-
-      {:error, reason, _failed_path} ->
-        Log.warning(:library, "failed to delete folder — #{folder_path}: #{reason}")
-        {:error, reason}
-    end
-  end
-
-  defp cleanup_and_broadcast(file_paths) do
-    entity_ids = cleanup_removed_files(file_paths)
-    Helpers.broadcast_entities_changed(entity_ids)
-    {:ok, entity_ids}
-  end
 end

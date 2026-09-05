@@ -406,7 +406,7 @@ defmodule MediaCentaur.Watcher do
 
       # Post-Phase-7: presence rows aren't marked absent inline anymore —
       # the `{:files_removed, paths}` broadcast triggers
-      # `Library.FileEventHandler` which runs the entity-cleanup cascade
+      # `Library.FileEventHandler`, which runs `Library.Deletion`'s cleanup cascade
       # and deletes the `Library.FilePresence` rows (FK cascade-deletes
       # the dependent `WatchedFile` / `ExtraFile`).
       MediaCentaur.Topics.publish(

@@ -27,7 +27,7 @@ defmodule MediaCentaur.Review do
   import Ecto.Query
 
   alias MediaCentaur.Repo
-  alias MediaCentaur.Library.FileEventHandler
+  alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Review.PendingFile
 
   require MediaCentaur.Log, as: Log
@@ -236,9 +236,9 @@ defmodule MediaCentaur.Review do
   @doc """
   Destroys the `PendingFile` records for `files` without touching disk —
   for when the caller has already deleted the containing folder directly
-  (via `MediaCentaur.Library.FileEventHandler.delete_folder/2`, guarded
+  (via `MediaCentaur.Library.Deletion.delete_folder/2`, guarded
   by `MediaCentaur.DeleteTargets.resolve_folder_target/1`). This only
-  cleans up the DB record Review alone owns; `FileEventHandler` has no
+  cleans up the DB record Review alone owns; `Deletion` has no
   concept of a `PendingFile`.
   """
   @spec destroy_pending_files([PendingFile.t()]) :: :ok
@@ -299,7 +299,7 @@ defmodule MediaCentaur.Review do
 
   @doc """
   Deletes the underlying file from disk (and its `Library.FilePresence`
-  row, via `FileEventHandler.delete_file/1` — the same primitive the
+  row, via `Deletion.delete_file/1` — the same primitive the
   entity detail page uses), then destroys the `PendingFile` record
   entirely. Unlike `dismiss/1` (which only flips `status: :dismissed`
   and leaves everything else in place), this removes the clutter for a
@@ -307,7 +307,7 @@ defmodule MediaCentaur.Review do
   """
   @spec delete_pending_file(PendingFile.t()) :: {:ok, PendingFile.t()} | {:error, term()}
   def delete_pending_file(pending_file) do
-    case FileEventHandler.delete_file(pending_file.file_path) do
+    case Deletion.delete_file(pending_file.file_path) do
       {:ok, _entity_ids} ->
         result = destroy_pending_file(pending_file)
 

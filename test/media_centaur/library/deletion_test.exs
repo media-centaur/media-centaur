@@ -1,8 +1,8 @@
-defmodule MediaCentaur.Library.FileEventHandlerTest do
+defmodule MediaCentaur.Library.DeletionTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{FileEventHandler, FilePresence, PlayableItem}
+  alias MediaCentaur.Library.{Deletion, FilePresence, PlayableItem}
   alias MediaCentaur.Repo
 
   describe "cleanup_removed_files/1" do
@@ -21,7 +21,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
           media_dir: "/media/movies"
         })
 
-      entity_ids = FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie.mkv"])
+      entity_ids = Deletion.cleanup_removed_files(["/media/movies/sample_movie.mkv"])
 
       assert entity_ids == [movie.id]
       assert Library.Files.list_all() == []
@@ -53,7 +53,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
                "/media/movies/deleted_movie.mkv"
              )
 
-      FileEventHandler.cleanup_removed_files(["/media/movies/deleted_movie.mkv"])
+      Deletion.cleanup_removed_files(["/media/movies/deleted_movie.mkv"])
 
       refute MapSet.member?(
                FilePresence.list_paths_for_media_dir("/media/movies"),
@@ -102,7 +102,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
           media_dir: "/media/tv"
         })
 
-      entity_ids = FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
+      entity_ids = Deletion.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       assert entity_ids == [tv_series.id]
 
@@ -155,7 +155,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       playable_item_id = file1.playable_item_id
 
-      FileEventHandler.cleanup_removed_files(["/media/tv/leak/s01e01.mkv"])
+      Deletion.cleanup_removed_files(["/media/tv/leak/s01e01.mkv"])
 
       assert {:error, _} = Library.Episodes.fetch(ep1.id)
       assert Repo.get(PlayableItem, playable_item_id) == nil
@@ -217,7 +217,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       # on DELETE FROM library_episodes, because library_watch_progress.episode_id
       # still referenced ep1.
       entity_ids =
-        FileEventHandler.cleanup_removed_files(["/media/tv/pluribus/s01e01.mkv"])
+        Deletion.cleanup_removed_files(["/media/tv/pluribus/s01e01.mkv"])
 
       assert entity_ids == [tv_series.id]
       assert {:error, _} = Library.Episodes.fetch(ep1.id)
@@ -275,7 +275,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
           media_dir: "/media/tv"
         })
 
-      FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
+      Deletion.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       # Season 1 should be gone (empty), season 2 should remain
       assert {:error, _} = Library.Seasons.fetch(season.id)
@@ -309,7 +309,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
           media_dir: "/media/tv"
         })
 
-      FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
+      Deletion.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       assert Library.Seasons.list_all() == []
       assert Library.Episodes.list_all() == []
@@ -367,7 +367,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
           media_dir: "/media/movies"
         })
 
-      FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie_one.mkv"])
+      Deletion.cleanup_removed_files(["/media/movies/sample_movie_one.mkv"])
 
       # Movie 1 is gone, series and other movies remain
       assert {:error, _} = Library.Containers.fetch(:movie, movie1.id)
@@ -404,7 +404,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
           media_dir: "/media/movies"
         })
 
-      FileEventHandler.cleanup_removed_files(["/media/movies/Extras/bts.mkv"])
+      Deletion.cleanup_removed_files(["/media/movies/Extras/bts.mkv"])
 
       # Extra is gone, movie entity remains
       assert {:error, _} = Library.Extras.fetch(extra.id)
@@ -454,7 +454,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         })
 
       entity_ids =
-        FileEventHandler.cleanup_removed_files([
+        Deletion.cleanup_removed_files([
           "/media/tv/bb/s01e01.mkv",
           "/media/tv/bb/s01e02.mkv"
         ])
@@ -466,7 +466,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
     end
 
     test "returns empty list when no matching files found" do
-      assert FileEventHandler.cleanup_removed_files(["/nonexistent/file.mkv"]) == []
+      assert Deletion.cleanup_removed_files(["/nonexistent/file.mkv"]) == []
     end
 
     test "deletes episode images from database" do
@@ -518,7 +518,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
           media_dir: "/media/tv"
         })
 
-      FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
+      Deletion.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       # Episode image should be gone
       assert Library.Images.list_all() == []
@@ -549,7 +549,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
 
-      assert {:ok, entity_ids} = FileEventHandler.delete_files([path_a, path_b])
+      assert {:ok, entity_ids} = Deletion.delete_files([path_a, path_b])
       assert Enum.sort(entity_ids) == Enum.sort([movie_a.id, movie_b.id])
 
       refute File.exists?(path_a)
@@ -570,7 +570,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       movie = create_entity(%{type: :movie, name: "Gone Movie", content_url: absent_path})
       create_linked_file(%{movie_id: movie.id, file_path: absent_path, media_dir: tmp_dir})
 
-      assert {:ok, [entity_id]} = FileEventHandler.delete_files([absent_path])
+      assert {:ok, [entity_id]} = Deletion.delete_files([absent_path])
       assert entity_id == movie.id
       assert Library.Files.list_all() == []
     end
@@ -584,7 +584,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       stubborn_path = Path.join(tmp_dir, "not_a_file")
       File.mkdir_p!(Path.join(stubborn_path, "child"))
 
-      assert {:error, _reason} = FileEventHandler.delete_files([stubborn_path, good_path])
+      assert {:error, _reason} = Deletion.delete_files([stubborn_path, good_path])
 
       refute File.exists?(good_path)
       assert File.dir?(stubborn_path)

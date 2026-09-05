@@ -197,7 +197,7 @@ The pipeline never calls `Library.Inbound` directly; everything flows through Pu
 
 ## File Tracking
 
-`Library.FileEventHandler` (GenServer) subscribes to PubSub for file events:
+`Library.FileEventHandler` (GenServer) subscribes to PubSub for file-removal events and hands each batch to `Library.Deletion.cleanup_removed_files/1`:
 
 **Immediate cleanup** (file deleted):
 1. Delete WatchedFile records
@@ -219,17 +219,17 @@ This is the v0.20.0 fix for the silent-failure mode where pressing Play on an un
 
 ## Deletion
 
-`Library.Removal` provides UI-initiated file and folder deletion from the detail modal's info page.
+`Library.Deletion` provides UI-initiated file and folder deletion (`delete_file/1`, `delete_files/1`, `delete_folder/2`) from the detail modal's info page and from Review.
 
 **Per-file deletion:**
 1. `File.rm(path)` — `:enoent` (already absent) treated as success
-2. `FileEventHandler.cleanup_removed_files([path])` — removes WatchedFile, child records (episode/movie/extra matched by `content_url`), cascades record deletion if orphaned
+2. `Deletion.cleanup_removed_files([path])` — removes WatchedFile, child records (episode/movie/extra matched by `content_url`), cascades record deletion if orphaned
 3. Broadcasts `{:entities_changed, entity_ids}`
 
 **Folder deletion:**
 1. Pre-collect all WatchedFile paths under the folder (prefix match) — critical because `rm -rf` does not generate per-file inotify events
 2. `File.rm_rf(folder_path)` — removes entire directory tree
-3. `FileEventHandler.cleanup_removed_files(collected_paths)` — explicit cleanup with pre-collected paths
+3. `Deletion.cleanup_removed_files(collected_paths)` — explicit cleanup with pre-collected paths
 4. Broadcasts `{:entities_changed, entity_ids}`
 
 **Cascade deletion:** When the last file for a top-level record is removed, `EntityCascade.destroy!/1` runs the FK-safe deletion order: watch progress → extras → episodes → seasons → movies → images → image directories → identifiers → top-level record.
@@ -273,7 +273,8 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Library.ProgressTracker` | Resume-target / completion bookkeeping | `lib/media_centaur/library/progress_tracker.ex` |
 | `MediaCentaur.Library.LastActivity` | "Recently watched" / activity ordering helper | `lib/media_centaur/library/last_activity.ex` |
 | `MediaCentaur.Library.Helpers` | PubSub broadcast helpers | `lib/media_centaur/library/helpers.ex` |
-| `MediaCentaur.Library.FileEventHandler` | File presence tracking, cleanup | `lib/media_centaur/library/file_event_handler.ex` |
+| `MediaCentaur.Library.FileEventHandler` | Reacts to file-removal events | `lib/media_centaur/library/file_event_handler.ex` |
+| `MediaCentaur.Library.Deletion` | Disk deletes + record-cleanup cascade | `lib/media_centaur/library/deletion.ex` |
 | `MediaCentaur.Library.ChangeLog` | Library change recording | `lib/media_centaur/library/change_log.ex` |
 | `MediaCentaur.Review` | Review context | `lib/media_centaur/review.ex` |
 | `MediaCentaur.Review.PendingFile` | Pending review file | `lib/media_centaur/review/pending_file.ex` |

@@ -326,7 +326,7 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
       assert [%BrowseItem{name: "Will Be Gone"}] = Views.browse()
 
       # Library has no public delete_movie/1 today (cascade deletes flow
-      # from FileEventHandler when files disappear). For the projection
+      # from Library.Deletion when files disappear). For the projection
       # contract test it's the *absence* in the next refresh that
       # matters, not the deletion path — Repo.delete! is the most direct
       # way to simulate the post-delete DB state. Tests may touch Repo
