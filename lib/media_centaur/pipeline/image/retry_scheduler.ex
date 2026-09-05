@@ -75,15 +75,16 @@ defmodule MediaCentaur.Pipeline.Image.RetryScheduler do
           entry.retry_count >= @max_retries
         end)
 
-      # Mark exhausted entries as permanent
+      # Mark exhausted entries as permanent — one statement for the batch
+      # (audit E55), one log line per entry so each gives up out loud.
       Enum.each(exhausted, fn entry ->
         Log.info(
           :pipeline,
           "retry scheduler: giving up on #{entry.role} for #{entry.owner_id} after #{entry.retry_count} attempts"
         )
-
-        ImageQueue.update_status(entry, :permanent)
       end)
+
+      ImageQueue.update_statuses(exhausted, :permanent)
 
       # Filter retryable entries by backoff elapsed
       ready =
@@ -95,9 +96,7 @@ defmodule MediaCentaur.Pipeline.Image.RetryScheduler do
 
       # Reset to pending and broadcast per entity
       if ready != [] do
-        Enum.each(ready, fn entry ->
-          ImageQueue.reset_to_pending(entry)
-        end)
+        ImageQueue.reset_to_pending_all(ready)
 
         ready
         |> Enum.uniq_by(fn entry -> entry.entity_id end)

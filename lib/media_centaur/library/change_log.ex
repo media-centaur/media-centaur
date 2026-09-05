@@ -7,7 +7,6 @@ defmodule MediaCentaur.Library.ChangeLog do
   """
   import Ecto.Query
 
-  alias MediaCentaur.Library
   alias MediaCentaur.Library.ChangeEntry
   alias MediaCentaur.Repo
 
@@ -34,12 +33,18 @@ defmodule MediaCentaur.Library.ChangeLog do
   Deletes entries beyond the most recent #{@max_entries}.
   """
   def prune do
-    all_entries = Library.ChangeLog.list_recent_changes(@max_entries + 50, nil)
-    overflow = Enum.drop(all_entries, @max_entries)
+    # A COUNT on a ≤100-row table instead of loading 150 rows on every
+    # insert (audit E55); the delete runs only past the cap, as one
+    # statement keyed by the newest rows' ids.
+    if Repo.aggregate(ChangeEntry, :count) > @max_entries do
+      keep =
+        from(c in ChangeEntry,
+          order_by: [{:desc, c.inserted_at}, {:desc, fragment("rowid")}],
+          limit: @max_entries,
+          select: c.id
+        )
 
-    if overflow != [] do
-      ids = Enum.map(overflow, & &1.id)
-      Repo.delete_all(from(c in ChangeEntry, where: c.id in ^ids))
+      Repo.delete_all(from(c in ChangeEntry, where: c.id not in subquery(keep)))
     end
 
     :ok

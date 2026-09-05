@@ -71,6 +71,13 @@ config :media_centaur, Oban,
   # since the heavy download/resize runs in the Broadway image pipeline.
   # maintenance: low-priority housekeeping (retention sweep).
   queues: [acquisition: 3, self_update: 1, images: 2, maintenance: 1],
+  # The stager promotes `scheduled` jobs to `available`. At Oban's 1 s
+  # default it takes SQLite's single write lock once a second forever,
+  # idle or not, for a table that is empty most of the day. Ten seconds is
+  # the most a scheduled job (a snoozed PursueTarget, a delayed check) now
+  # waits past its time; `Oban.insert/1` of an immediately-available job
+  # is unaffected — producers are notified, not polled (audit P3).
+  stage_interval: to_timeout(second: 10),
   plugins: [
     # Finished jobs (completed/cancelled/discarded) are deleted after 7 days
     # — the Lite (SQLite) engine has no built-in retention, so without this
