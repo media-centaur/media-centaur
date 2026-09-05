@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
 
     ~H"""
     <div
-      class={["card glass-inset border-l-3", acq_border_class(@tone)]}
+      class={["card glass-inset", acq_wash_class(@tone)]}
       data-testid="acquisition-widget"
     >
       <div class="card-body">
@@ -143,7 +143,9 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Acquisition do
     end
   end
 
-  defp acq_border_class(:error), do: "border-error/60"
-  defp acq_border_class(:warning), do: "border-warning/60"
-  defp acq_border_class(_), do: "border-base-content/10"
+  # A faint wash over the whole card, never an edge bar: colour is the
+  # signal, the card stays one shape (house rule, no accent bars).
+  defp acq_wash_class(:error), do: "bg-error/5"
+  defp acq_wash_class(:warning), do: "bg-warning/5"
+  defp acq_wash_class(_), do: nil
 end

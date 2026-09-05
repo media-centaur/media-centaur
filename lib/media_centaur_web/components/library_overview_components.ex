@@ -171,7 +171,9 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
 
       <div :for={drive <- @drives} class="space-y-1">
         <div class="flex items-baseline justify-between gap-2">
-          <span class="text-sm truncate">{drive_label(drive)}</span>
+          <span class="text-sm truncate-left" title={drive_label(drive)}>
+            <bdo dir="ltr">{drive_label(drive)}</bdo>
+          </span>
           <span class="text-xs font-mono text-base-content/60 shrink-0">
             {format_bytes_iec(drive.used_bytes)} / {format_bytes_iec(drive.total_bytes)}
           </span>

@@ -33,8 +33,8 @@ defmodule MediaCentaurWeb.HealthComponents do
       tabindex="0"
       class={[
         "glass-surface rounded-xl p-4 text-left w-full flex items-start gap-3 cursor-pointer transition-colors",
-        @view.state == :error && "border-l-2 border-error",
-        @view.state == :warning && "border-l-2 border-warning"
+        @view.state == :error && "bg-error/5",
+        @view.state == :warning && "bg-warning/5"
       ]}
     >
       <.icon name={@view.glyph} class="size-5 shrink-0 text-base-content/65 mt-0.5" />

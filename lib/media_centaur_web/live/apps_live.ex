@@ -211,7 +211,7 @@ defmodule MediaCentaurWeb.AppsLive do
         <.modal
           id="apps-manage-modal"
           open={@modal_open?}
-          dismiss={:ephemeral}
+          dismiss={:persistent}
           on_close="close_modal"
           size={if @steam_picker?, do: :md, else: :sm}
           panel_class="p-5 space-y-4"

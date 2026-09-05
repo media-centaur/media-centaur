@@ -296,7 +296,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
           </p>
         </div>
         <.button
-          variant="primary"
+          variant="secondary"
           size="sm"
           class="shrink-0"
           navigate={~p"/settings?section=tmdb"}
@@ -324,7 +324,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
         </div>
         <div class="flex gap-2 shrink-0">
           <.button
-            variant="primary"
+            variant="secondary"
             size="sm"
             navigate={~p"/setup"}
             data-nav-item

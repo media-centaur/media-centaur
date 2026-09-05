@@ -116,7 +116,7 @@ Sizes: `"xs"`, `"sm"`, `"md"` (default), `"lg"`. Shapes: `"circle"`, `"square"` 
 
 **Never** use solid-fill semantic buttons (`btn-success`, `btn-error` alone) — text washes out on glass.
 
-**Standard labels.** Use `"More info"` (not `"Details"`, `"More"`, or `"Info"`) for the secondary action that *opens* an entity's detail view from a card or hero — the hero CTA pair is always **Play** + **More info**. *Inside* the detail modal, the secondary toggle is **Manage** (cog icon), flipping to **Back** (arrow-left icon) when the manage sub-view is open. See [UIDR-003].
+**Standard labels.** Use `"More info"` (not `"Details"`, `"More"`, or `"Info"`) for the secondary action that *opens* an entity's detail view from a card or hero — the hero CTA pair is always **Play** + **More info**. *Inside* the detail modal, the secondary toggle is **Manage** (cog icon); it keeps that label while the sub-view is open (`aria-pressed`), and the way out is the view control named for its destination ("Overview", "Episodes"). See [UIDR-003].
 
 ### Badges ([UIDR-002])
 

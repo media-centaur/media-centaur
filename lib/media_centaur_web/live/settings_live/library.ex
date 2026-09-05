@@ -81,18 +81,21 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
             <div class="min-w-0 flex-1 space-y-0.5">
               <%= if entry["name"] && entry["name"] != "" do %>
                 <div class="font-medium truncate">{entry["name"]}</div>
-                <div class="text-sm text-base-content/60 truncate" title={entry["dir"]}>
-                  {entry["dir"]}
+                <div class="text-sm text-base-content/60 truncate-left" title={entry["dir"]}>
+                  <bdo dir="ltr">{entry["dir"]}</bdo>
                 </div>
               <% else %>
-                <div class="font-medium truncate" title={entry["dir"]}>{entry["dir"]}</div>
+                <div class="font-medium truncate-left" title={entry["dir"]}>
+                  <bdo dir="ltr">{entry["dir"]}</bdo>
+                </div>
               <% end %>
               <div
                 :if={MediaDirsLogic.show_images_dir?(entry)}
-                class="text-xs text-base-content/50 truncate"
+                class="text-xs text-base-content/50 flex gap-1 min-w-0"
                 title={entry["images_dir"]}
               >
-                Images cached at {entry["images_dir"]}
+                <span class="shrink-0">Images cached at</span>
+                <span class="truncate-left"><bdo dir="ltr">{entry["images_dir"]}</bdo></span>
               </div>
             </div>
 
@@ -187,7 +190,9 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
             :for={path <- @exclude_dirs}
             class="glass-inset rounded-lg p-3 flex items-center gap-3"
           >
-            <span class="flex-1 min-w-0 text-sm truncate" title={path}>{path}</span>
+            <span class="flex-1 min-w-0 text-sm truncate-left" title={path}>
+              <bdo dir="ltr">{path}</bdo>
+            </span>
             <.button
               variant="destructive_inline"
               size="sm"
