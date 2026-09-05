@@ -55,43 +55,133 @@ Elixir + 795 JS tests, zero failures and none of the usual flakes.
 **Stage E-5 (E29–E42) is what remains of the engineering lane**, with two
 of its open questions already answered by the owner (below).
 
-## Resuming (reconciled 2026-09-05)
+## Resuming — start here (handoff written 2026-09-05)
 
-The 2026-09-04 handoff's first two items are **closed**:
+**Reconcile first (ADR-042), but the expensive parts are already done.**
+`git log 3c764d2d^..HEAD` is this session's work: four commits on `main`,
+**local and unpushed**. Confirm nothing was pushed or rebased since, then
+pick up at *What's next* below. Do not push or tag without being asked.
 
-1. **Reconcile** — `git log a661eea7^..HEAD` is intact and now pushed;
-   nothing was rebased. The campaign's work shipped in v1.8.0/v1.8.1.
-2. **HTTP convergence — no divergence to resolve.** The HTTP campaign
-   built *on* `0a40c933`'s design rather than replacing it:
-   `MediaCentaur.HttpClient.new/2` is the one client-construction seam
-   (now Credo-enforced by MC0029), `config :media_centaur, :req_test_stubs`
-   is the test stub seam, `Capabilities.save_integration/2` is the one
-   save path, `Capabilities.configured?/1` the one configured predicate,
-   `invalidate_client/0` has zero occurrences, and `Acquisition.Config`
-   stays deleted. E8/E9/E11 hold as ratified.
+### Closed — do not re-audit these
 
-**Pass 4 remaining scope:**
+* **The 2026-09-04 handoff's HTTP-convergence item.** No divergence
+  existed: the parallel Req task built *on* `0a40c933` rather than
+  replacing it. `HttpClient.new/2` is the one client-construction seam
+  (Credo MC0029), `config :media_centaur, :req_test_stubs` the test stub
+  seam, `Capabilities.save_integration/2` the one save path,
+  `Capabilities.configured?/1` the one configured predicate;
+  `invalidate_client/0` has zero occurrences and `Acquisition.Config`
+  stays deleted. **E8/E9/E11 hold as ratified.**
+* **E14 and E36** — verified closed 2026-09-05. All seven contexts
+  (Acquisition, Downloads, HttpClient, Search, SelfUpdate, Social, TMDB)
+  declare `@behaviour ...IncidentContext`, and the `function_exported?`
+  structural probing is gone from `error_reports/incident_context.ex`.
+  Pass 2 closed them; the stage text below still lists them as evidence.
+* **E33, E41, E42, E52, E53, E56, D13, E49** — done. E33's
+  `Watcher.record_seen/1` was *kept*: the showcase seeder still calls it.
 
-* **Stage E-5** (E29–E42) — context boundaries. Verified still live
-  2026-09-05: `release_tracking/wants.ex:390,391,452`, `helpers.ex:88,89`
-  and `refresher.ex:418` query Library schemas while
-  `release_tracking.ex:28` claims "Fully isolated from the Library
-  context". Owner answers already banked: **E35 → amend
-  `docs/architecture.md`** to describe the Status page that exists rather
-  than build eleven projections for reads that are not hot; **E39 → do all
-  three splits** (`Review.Search`, `Watcher.Rescan`,
-  `Plans`/`Plans.Board`/`Plans.Alternatives`) as part of the stage.
-* Stage E-2 and Stage E-3's E56 are **Done** — see below.
+### What's next: Stage E-5 — context boundaries
 
-3. Same loop for each: verify the cited file:line, bring open questions,
-   implement test-first, `mix precommit`, record, stop.
-4. Still owed from Pass 2: a real-browser check of the Status page
-   pipeline tiles during an import on the dev server (`127.0.0.1:2160`),
-   which are event-driven since E18.
+The last engineering stage. Findings E29, E30, E31, E32, E35, E37, E38,
+E39, E40 and E27. **E34 stays deferred** (Stage E-10, owner's call).
+
+**Two open questions are already answered — do not re-ask:**
+
+* **E35 → amend the doc, don't build the projections.** Rewrite
+  `docs/architecture.md`'s "composition only" claim to describe the Status
+  page that exists: it composes tiles from subsystem reads, using
+  projections where they exist. Eleven new projections for reads that
+  aren't hot is not worth it.
+* **E39 → do all three splits** as part of the stage: `Review.Search`,
+  `Watcher.Rescan`, and `Plans` / `Plans.Board` / `Plans.Alternatives`
+  (`plans.ex` is 886 lines and earns it most).
+
+**Evidence re-verified 2026-09-05 against HEAD** — the audit's original
+line numbers had drifted, these are current:
+
+* **E29 (H)** ReleaseTracking queries Library schemas at eight sites while
+  `release_tracking.ex:28` says "Fully isolated from the Library context":
+  `wants.ex:353,354,415`, `helpers.ex:88,89`,
+  `refresher.ex:417,418,447`. (`TVSeries` is a site the original evidence
+  missed.) Approach: Library exposes
+  `present_episode_ids_for_series/1`, `movie_ids_for_tmdb_ids/1`,
+  `last_episode_for_series/1`, `container_ids_existing/2`.
+* **E30 (M)** `refresher.ex:481` `do_auto_track_tv_series/3` does TMDB
+  HTTP reachable from `handle_info` (`:68,:75,:82,:90`), blocking the
+  GenServer during imports. Approach: `ReleaseTracking.LibraryListener`
+  plus an Oban job for the network work.
+* **E31 (M)** `maintenance.ex:12` says "Operator-driven destructive
+  operations" but the module also runs credits refresh, subtitle backfill
+  and boot heals (`heal_extra_names_on_boot/1` at `:589`,
+  `backfill_extra_files_on_boot/1` at `:611`). Its `use Boundary` deps
+  (`:2-8`) list Library/Pipeline/Subtitles/TMDB/Watcher but **not Review**,
+  while `:49` aliases `MediaCentaur.Review.PendingFile` — a bare module
+  atom slips it past Boundary. Approach: `Library.Maintenance.clear_all/0`
+  + `Review.clear_all/0`; boot heals to `Library.BootHeal`.
+* **E32 (M)** `library/file_event_handler.ex` is a GenServer (`:17`)
+  hosting plain `delete_file/1` (`:44`), `delete_files/1` (`:59`) and
+  `delete_folder/2` (`:93`) called straight from the web layer. Approach:
+  `Library.Files.delete_*` (or `Library.Deletion`).
+* **E35 (M)** `status_live.ex` holds 12 subscriptions and reads eleven
+  subsystems directly; only `overview`/`storage` go through `Status.Views`
+  (`:143,:144,:411,:415`), and `status.ex:50` reads
+  `Library.list_recently_added/1` from the DB rather than a projection.
+  **Resolution is the doc amend above.**
+* **E37 (L)** `self_update.ex` re-exports five `Platform.Autostart`
+  functions consumed only by `settings_live.ex`.
+* **E38 (L-M)** `settings/config.ex` owns image-directory layout —
+  `images_dir_for/1` (`:373`), `image_dirs_needing_monitoring/0` (`:384`),
+  `staging_base_for/1` (`:400`), `resolve_image_path/1` (`:407`) — and
+  `apps/artwork.ex` reaches into `Library.Image.web_path/1`.
+* **E39 (L-M)** The three splits above.
+* **E40 (L)** Boundary hatches and dead declarations, all confirmed:
+  `continue_watching_progress.ex:16` `use Boundary, top_level?: true,
+  check: [in: false, out: false]`; `search.ex` declares `Capabilities`
+  and `profile.ex` declares `Watcher` with no use of either;
+  `integration_health.ex:54` depends on all of Acquisition for one
+  function; `library.ex` exports `Writes`, which nothing outside its own
+  file references.
+* **E27 (L)** `incoming_live.ex:2225` `handle_info` dispatches on struct
+  via `cond`.
+
+**Verification for the stage:** `mix boundaries` + `mix precommit`; each
+moduledoc names one thing.
+
+### Then
+
+Stage E-2 stragglers **E6** (the "DDR-015" citations in `router.ex`,
+`components/layouts.ex`, `incoming/status_pill.ex`, `incoming/shelf.ex`,
+`live/incoming_live.ex`, UIDR-017/018 — the record is **UIDR-015**) and
+**E45** (`progress_test.exs` drives `Progress.Worker` by
+`GenServer.cast/call` against its own moduledoc; seam or extend MC0004).
+Then the Performance, Documentation and Design lanes, in that order.
+
+Still owed from Pass 2: a real-browser check of the Status page pipeline
+tiles during an import on the dev server (`127.0.0.1:2160`), event-driven
+since E18.
+
+### House rules this campaign added — respect them
+
+* **MC0032** — one *top-level* module per `lib/` file. Nested submodules
+  are the house pattern and stay legal.
+* **MC0033** — a `Log.*` tag must equal its context's component per
+  `MediaCentaur.Log.Component`. Add a context to that table rather than
+  fighting the check. Adding a *component* also needs a `.chip-<name>` in
+  `assets/css/app.css` and a `mix assets.build` (watchers are off).
+* **Renumbered checks:** RawBadgeClass **MC0010**, DestructiveFileQuery
+  **MC0030**, PursuitStateContract **MC0031**. MC0008 is typed component
+  attrs, MC0015 is row-mutation-in-schema-migration.
+* `EntityModal`'s blanket `handle_async` exit clause is now injected by
+  `@before_compile`, so a host LiveView can handle its own async failures.
+  **DS16 is half-done**; the rest (logging the swallowed exit, the files
+  sub-view's `:loading | {:ok,_} | :failed` assign) is Stage E-8.
 
 Known suite flakes (pass alone, fail under load): Nostr connection and
 one-shot timeouts, `Mix.Tasks.Social.DevTest` relay timeout, "Database
-busy" in `IncomingLiveTest` setup, a 60 s page-smoke timeout.
+busy" in `IncomingLiveTest` setup, a 60 s page-smoke timeout. None
+appeared in the 2026-09-05 full run. **Do not run two `mix test` runs
+concurrently** — they share the test DB and produce ~25 bogus failures
+across unrelated suites.
 
 ## Decisions made
 
@@ -456,7 +546,7 @@ Prowlarr key and both clear the stale test result.
 
 ---
 
-## Stage E-5 — Context boundaries that drifted from their moduledocs
+## Stage E-5 — Context boundaries that drifted from their moduledocs — **NEXT**
 
 **Why.** Boundary is honest where it is declared; these are the places the
 declaration or the moduledoc claims a design the code lacks.
@@ -514,11 +604,15 @@ declaration or the moduledoc claims a design the code lacks.
 JournalSource → `Platform.Autostart`, then `@behaviour IncidentContext`
 on all six. Status: finish the projection migration or amend the doc.
 
-**Open questions for the owner**
-* Status page: one projection per tile (finish ADR-041) or amend
-  `docs/architecture.md` to describe what exists?
-* E39's three splits (`Review.Search`, `Watcher.Rescan`,
-  `Plans`/`Plans.Board`/`Plans.Alternatives`) — all now, or on next touch?
+**Both open questions answered 2026-09-05 — do not re-ask.**
+* **E35 → amend `docs/architecture.md`.** Describe the Status page that
+  exists rather than building eleven projections for reads that aren't hot.
+* **E39 → all three splits now**, as part of this stage.
+
+**E14 and E36 in the evidence above are already closed** (verified
+2026-09-05): all seven contexts declare `@behaviour IncidentContext` and
+the `function_exported?` probing is gone. Current line numbers for the
+rest are in the *Resuming* section — the audit's originals have drifted.
 
 **Verification.** `mix boundaries` + `mix precommit`; each moduledoc names
 one thing.
