@@ -144,7 +144,7 @@ graph TD
     App --> AbsenceSweeper[Library.AbsenceSweeper]
     App --> FileEvents[Library.FileEventHandler]
     App --> SelfUpdater[SelfUpdate.Updater]
-    App --> Listeners[PubSub listeners<br/>Inbound, Intake, Refresher,<br/>Recorder, Acquisition]
+    App --> Listeners[PubSub listeners<br/>Inbound, Intake, LibraryListener,<br/>Recorder, Acquisition]
     App --> PlaybackSup[Playback.Supervisor]
     App --> Endpoint[Phoenix Endpoint]
 
@@ -161,7 +161,7 @@ graph TD
     SessionSup --> MpvSession[MpvSession per file]
 ```
 
-PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking.Refresher`, `WatchHistory.Recorder`, `Acquisition`) are skipped in `:test` env — tests call the public functions directly. Watchers and the pipelines start in disabled state in tests; production toggles them via `services:<env>:start_watchers` / `start_pipeline` keys in `Settings`.
+PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking.LibraryListener`, `WatchHistory.Recorder`, `Acquisition`) and the `ReleaseTracking.Refresher` timers are skipped in `:test` env — tests call the public functions directly. Watchers and the pipelines start in disabled state in tests; production toggles them via `services:<env>:start_watchers` / `start_pipeline` keys in `Settings`.
 
 ## PubSub Topics
 
