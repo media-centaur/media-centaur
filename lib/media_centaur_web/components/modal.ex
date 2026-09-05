@@ -31,6 +31,11 @@ defmodule MediaCentaurWeb.Components.Modal do
   attr :open, :boolean, default: false
   attr :dismiss, :atom, values: [:ephemeral, :persistent], required: true
 
+  # Input-system contract (audit DS14): while open, a modal with an
+  # `on_close` event is the active overlay — `data-detail-mode="modal"`
+  # scopes the d-pad to its `[data-nav-item]`s and BACK pushes
+  # `data-dismiss-event`. A modal without `on_close` (a progress spinner)
+  # is not an overlay: it has nothing to navigate and no way to close.
   attr :on_close, :string,
     default: nil,
     doc: "event fired on backdrop click + Escape. Required for `:ephemeral`; ignored for `:persistent`."
@@ -61,6 +66,8 @@ defmodule MediaCentaurWeb.Components.Modal do
       id={@id}
       class={["modal-backdrop", @raised && "z-[60]"]}
       data-state={if @open, do: "open", else: "closed"}
+      data-detail-mode={@open && @on_close && "modal"}
+      data-dismiss-event={@on_close}
       phx-click={@close_event}
       phx-window-keydown={@close_event}
       phx-key={@dismiss == :ephemeral && "Escape"}

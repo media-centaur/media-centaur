@@ -33,6 +33,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
       id="recommend-modal"
       open={!is_nil(@subject)}
       dismiss={:persistent}
+      on_close="recommend_cancel"
       size={:sm}
       panel_class="p-6"
       raised
@@ -56,10 +57,21 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
               variant="dismiss"
               size="sm"
               phx-click="recommend_cancel"
+              data-nav-item
+              tabindex="0"
             >
               Cancel
             </.button>
-            <.button id="recommend-send" type="submit" variant="neutral" size="sm">Send</.button>
+            <.button
+              id="recommend-send"
+              type="submit"
+              variant="neutral"
+              size="sm"
+              data-nav-item
+              tabindex="0"
+            >
+              Send
+            </.button>
           </div>
         </form>
       </div>

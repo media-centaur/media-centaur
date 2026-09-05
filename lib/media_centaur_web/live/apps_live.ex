@@ -222,7 +222,14 @@ defmodule MediaCentaurWeb.AppsLive do
                 <h2 class="text-lg font-semibold">
                   {if @editing?, do: "Edit app", else: "Add app"}
                 </h2>
-                <.button variant="dismiss" size="sm" shape="square" phx-click="close_modal">
+                <.button
+                  variant="dismiss"
+                  size="sm"
+                  shape="square"
+                  phx-click="close_modal"
+                  data-nav-item
+                  tabindex="0"
+                >
                   <.icon name="hero-x-mark" class="size-4" />
                 </.button>
               </div>
@@ -233,6 +240,8 @@ defmodule MediaCentaurWeb.AppsLive do
                   size="sm"
                   phx-click="set_add_tab"
                   phx-value-tab="steam"
+                  data-nav-item
+                  tabindex="0"
                 >
                   Steam
                 </.button>
@@ -241,6 +250,8 @@ defmodule MediaCentaurWeb.AppsLive do
                   size="sm"
                   phx-click="set_add_tab"
                   phx-value-tab="manual"
+                  data-nav-item
+                  tabindex="0"
                 >
                   Manual
                 </.button>
@@ -289,10 +300,19 @@ defmodule MediaCentaurWeb.AppsLive do
                   placeholder="e.g. minecraft-launcher"
                 />
                 <div class="flex justify-end gap-2">
-                  <.button variant="dismiss" size="sm" type="button" phx-click="close_modal">
+                  <.button
+                    variant="dismiss"
+                    size="sm"
+                    type="button"
+                    phx-click="close_modal"
+                    data-nav-item
+                    tabindex="0"
+                  >
                     Cancel
                   </.button>
-                  <.button variant="primary" size="sm" type="submit">Save</.button>
+                  <.button variant="primary" size="sm" type="submit" data-nav-item tabindex="0">
+                    Save
+                  </.button>
                 </div>
               </.form>
             </div>

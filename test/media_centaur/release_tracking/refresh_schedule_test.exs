@@ -20,6 +20,15 @@ defmodule MediaCentaur.ReleaseTracking.RefreshScheduleTest do
       assert RefreshSchedule.next_delay_ms(twenty_five_hours_ago, to_timeout(day: 1)) == 0
     end
 
+    test "never schedules sooner than the floor — a restarted loop must not tick at once" do
+      now = ~U[2026-09-05 12:00:00Z]
+      overdue = ~U[2026-09-05 10:00:00Z]
+
+      assert RefreshSchedule.next_delay_ms(nil, 60_000, now, floor_ms: 5_000) == 5_000
+      assert RefreshSchedule.next_delay_ms(overdue, 60_000, now, floor_ms: 5_000) == 5_000
+      assert RefreshSchedule.next_delay_ms(now, 60_000, now, floor_ms: 5_000) == 60_000
+    end
+
     test "returns the remaining ms when partial interval has elapsed" do
       now = ~U[2026-06-12 12:00:00.000Z]
       five_minutes_ago = DateTime.add(now, -5 * 60, :second)
