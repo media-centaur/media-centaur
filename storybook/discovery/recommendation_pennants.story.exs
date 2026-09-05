@@ -51,11 +51,6 @@ defmodule MediaCentaurWeb.Storybook.Discovery.RecommendationPennant do
         attributes: %{recommendations: [row("Sample Friend", :love)]}
       },
       %Variation{
-        id: :icon_only,
-        description: "The Feed drops the name — its lead line already says who.",
-        attributes: %{recommendations: [row("Sample Friend", :love)], named?: false}
-      },
-      %Variation{
         id: :own,
         description: "Your own recommendation reads You.",
         attributes: %{recommendations: [row(nil, :like)]}

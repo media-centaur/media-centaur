@@ -5,9 +5,8 @@ defmodule MediaCentaurWeb.Components.Discovery.RecommendationPennant do
   — the mast. One pennant per sentiment, love (a filled heart on the rose
   fill) above like (a thumbs up on a neutral tint). A named pennant
   carries up to two nicknames and then a count ("Nick, Sam", "Nick +2");
-  an own recommendation reads "You". Icon-only where the surface already
-  says who (the Feed lead). Every pennant carries the full sentence as a
-  tooltip.
+  an own recommendation reads "You". Every pennant carries the full
+  sentence as a tooltip.
 
   Fed the `Activities.recommendations_for/1` rows for one title; the
   grouping (`pennants/1`), the label and the tooltip are pure. The mast
@@ -26,9 +25,7 @@ defmodule MediaCentaurWeb.Components.Discovery.RecommendationPennant do
 
   attr :recommendations, :list,
     required: true,
-    doc: "`Activities.feed_row/0` rows of kind recommendation for one title; empty renders nothing"
-
-  attr :named?, :boolean, default: true, doc: "false drops the names — the surface already says who"
+    doc: "`Activities.activity_row/0` rows of kind recommendation for one title; empty renders nothing"
 
   attr :label, :string,
     default: nil,
@@ -51,14 +48,13 @@ defmodule MediaCentaurWeb.Components.Discovery.RecommendationPennant do
         class={[
           "pennant",
           "pennant-#{pennant.sentiment}",
-          !@named? && "pennant-icon-only",
           @on_image && "pennant-on-image"
         ]}
         title={tooltip(pennant)}
         data-sentiment={pennant.sentiment}
       >
         <.icon name={glyph(pennant.sentiment)} class="size-3.5" />
-        <span :if={@named?}>{@label || label(pennant)}</span>
+        <span>{@label || label(pennant)}</span>
       </span>
     </span>
     """

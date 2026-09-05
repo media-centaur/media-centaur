@@ -2870,8 +2870,8 @@ body:has(.modal-backdrop[data-state="open"]) {
    A flag flying inward from the right edge of a row or hero (the mast).
    The mast is a flex column hugging that edge; a row bleeds it into its
    own right padding under overflow-hidden so the hoist meets the border.
-   The point is the clip-path. One shape at every width: icon-only on the
-   Feed, named elsewhere, stacked love-above-like for several friends. */
+   The point is the clip-path. One shape at every width, stacked
+   love-above-like for several friends. */
 .pennant-mast {
   display: inline-flex;
   flex-direction: column;
@@ -2896,13 +2896,14 @@ body:has(.modal-backdrop[data-state="open"]) {
   background: oklch(from var(--color-base-content) l c h / 0.12);
 }
 
-.pennant-icon-only {
-  padding: 0 9px 0 15px;
-}
-
 .pennant-love {
   color: oklch(98% 0.01 12);
   background: var(--color-love);
+}
+
+/* The love glyph as text — a person card's Recommended row. */
+.text-love {
+  color: var(--color-love);
 }
 
 /* Over imagery the neutral tint has nothing to sit on. */

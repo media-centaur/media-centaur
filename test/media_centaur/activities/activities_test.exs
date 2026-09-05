@@ -64,7 +64,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert [%Activity{id: ^id}] = Activities.list_sent()
 
       assert [%{activity: %Activity{id: ^id}, nickname: nil, own?: true}] =
-               Activities.list_feed()
+               Activities.list_activities()
 
       await_supervised_tasks()
     end
@@ -184,7 +184,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert_receive {:activity_received, %Received{author_pubkey: @friend_pubkey}}, 500
 
       assert [%{activity: %Activity{note: "Great."}, nickname: "Sample Friend"}] =
-               Activities.list_feed()
+               Activities.list_activities()
 
       await_supervised_tasks()
     end
@@ -199,7 +199,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert :ignored = Activities.ingest(friend_event(title(), "stale", 1_699_999_000))
       assert :ignored = Activities.ingest(friend_event(title(), "two", 1_700_000_100))
-      assert [%{activity: %{note: "two"}}] = Activities.list_feed()
+      assert [%{activity: %{note: "two"}}] = Activities.list_activities()
 
       await_supervised_tasks()
     end
@@ -214,7 +214,7 @@ defmodule MediaCentaur.ActivitiesTest do
       # valid, the signature is not this event's.
       other = friend_event(title(604), "y", 1_700_000_000)
       assert {:error, :bad_signature} = Activities.ingest(%{event | sig: other.sig})
-      assert Activities.list_feed() == []
+      assert Activities.list_activities() == []
     end
 
     test "own events arriving from a relay are stored once and shown as own" do
@@ -224,7 +224,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert :ignored = Activities.ingest(event)
 
       assert [%{activity: %Activity{id: id}, nickname: nil, own?: true}] =
-               Activities.list_feed()
+               Activities.list_activities()
 
       assert id == rec.id
 
@@ -238,7 +238,7 @@ defmodule MediaCentaur.ActivitiesTest do
     {:ok, _two} = Activities.ingest(friend_event(title(2), "b", 1_700_000_500))
 
     assert [%{activity: %{tmdb_id: 2}}, %{activity: %{tmdb_id: 1}}] =
-             Activities.list_feed()
+             Activities.list_activities()
 
     await_supervised_tasks()
   end
@@ -249,7 +249,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
     {:ok, _rec} = Activities.ingest(friend_event(title(), "hi", 1_700_000_000))
 
-    assert [%{activity: %{note: "hi"}}] = Activities.list_feed()
+    assert [%{activity: %{note: "hi"}}] = Activities.list_activities()
     assert Activities.list_sent() == []
     assert Activities.own_events() == []
 
@@ -316,7 +316,7 @@ defmodule MediaCentaur.ActivitiesTest do
                Activities.delete(rec.id)
 
       assert Activity.deleted?(gone)
-      assert Activities.list_feed() == []
+      assert Activities.list_activities() == []
       assert Activities.list_sent() == []
       assert %{sent: 0, received: 0} = Activities.counts()
 
@@ -418,7 +418,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
       # Older on the wire is the stale copy, whatever the payload says.
       assert :ignored = Activities.ingest(friend_event(title(), "c", now - 5, now + 5_000))
-      assert [%{activity: %{note: "b"}}] = Activities.list_feed()
+      assert [%{activity: %{note: "b"}}] = Activities.list_activities()
       await_supervised_tasks()
     end
 
@@ -457,15 +457,15 @@ defmodule MediaCentaur.ActivitiesTest do
 
       id = rec.id
       assert_receive {:activity_deleted, %Deleted{id: ^id, author_pubkey: @friend_pubkey}}, 500
-      assert Activities.list_feed() == []
+      assert Activities.list_activities() == []
 
       # The withdrawn recommendation coming back off another relay stays hidden.
       assert :ignored = Activities.ingest(friend_event(title(), "theirs", now - 10))
-      assert Activities.list_feed() == []
+      assert Activities.list_activities() == []
 
       # A newer recommendation revives it.
       assert {:ok, _revived} = Activities.ingest(friend_event(title(), "again", now + 10))
-      assert [%{activity: %{note: "again"}}] = Activities.list_feed()
+      assert [%{activity: %{note: "again"}}] = Activities.list_activities()
       await_supervised_tasks()
     end
 
@@ -474,7 +474,7 @@ defmodule MediaCentaur.ActivitiesTest do
       {:ok, _rec} = Activities.ingest(friend_event(title(), "theirs", now))
 
       assert :ignored = Activities.ingest(friend_deletion(title(), now - 10))
-      assert [_row] = Activities.list_feed()
+      assert [_row] = Activities.list_activities()
 
       assert :ignored = Activities.ingest(friend_deletion(title(99), now))
       await_supervised_tasks()
@@ -545,7 +545,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert_receive {:activity_received, %Received{kind: :watched}}, 500
 
       assert [%{activity: %Activity{kind: :watched}, nickname: "Sam", own?: false}] =
-               Activities.list_feed()
+               Activities.list_activities()
 
       await_supervised_tasks()
     end
