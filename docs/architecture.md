@@ -215,4 +215,5 @@ Protocol specifications live in [`specs/`](../specs/):
 | `MediaCentaur.ImageFiles` | Shared image download + libvips resize service | `lib/media_centaur/image_files.ex` |
 | `MediaCentaur.Log` | Component-tagged thinking-log macros | `lib/media_centaur/log.ex` |
 | `MediaCentaur.Storage` | Disk usage measurement | `lib/media_centaur/storage.ex` |
-| `MediaCentaur.Maintenance` | Operator-driven destructive operations (clear DB, refresh image cache, repair missing images) | `lib/media_centaur/maintenance.ex` |
+| `MediaCentaur.Maintenance` | Operator-run library maintenance (clear DB, rebuild/repair artwork, credits and subtitle backfills) | `lib/media_centaur/maintenance.ex` |
+| `MediaCentaur.BootHeal` | Boot-time idempotent backfills (extra names, ExtraFile rows, media-info probe) | `lib/media_centaur/boot_heal.ex` |

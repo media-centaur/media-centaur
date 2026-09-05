@@ -81,6 +81,7 @@ defmodule MediaCentaur.Log.Component do
     # Library data and its lifecycle. Retention deletes library rows;
     # maintenance repairs them.
     "library" => :library,
+    "boot_heal" => :library,
     "maintenance" => :library,
     "retention" => :library,
     "subtitles" => :library,

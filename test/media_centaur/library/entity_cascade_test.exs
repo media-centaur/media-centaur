@@ -4,6 +4,36 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
   alias MediaCentaur.Library
   alias MediaCentaur.Library.EntityCascade
   alias MediaCentaur.Library.PlayableItem
+  alias MediaCentaur.Repo
+
+  describe "destroy_all!/0" do
+    test "empties every library table in FK-safe order, presence ledger included" do
+      tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
+      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "4556"})
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+
+      create_linked_file(%{
+        movie_id: movie.id,
+        media_dir: "/media/test",
+        file_path: "/media/test/sample.mkv"
+      })
+
+      assert Repo.aggregate(PlayableItem, :count) > 0
+
+      assert :ok = EntityCascade.destroy_all!()
+
+      for schema <- [
+            Library.TVSeries,
+            Library.Movie,
+            Library.ExternalId,
+            Library.WatchedFile,
+            Library.FilePresence,
+            PlayableItem
+          ] do
+        assert Repo.aggregate(schema, :count) == 0, "#{inspect(schema)} not emptied"
+      end
+    end
+  end
 
   describe "destroy!/1" do
     test "cascade deletes a TV series with seasons, episodes, images, and external IDs" do

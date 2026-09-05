@@ -14,6 +14,17 @@ defmodule MediaCentaur.ReviewTest do
     %{media_dir: media_dir}
   end
 
+  describe "clear_all/0" do
+    test "destroys every pending file, whatever its status" do
+      create_pending_file()
+      dismissed = create_pending_file()
+      {:ok, _} = Review.dismiss_pending_file(dismissed)
+
+      assert :ok = Review.clear_all()
+      assert Review.list_pending_files() == []
+    end
+  end
+
   describe "delete_pending_file/1" do
     test "removes the file from disk, its FilePresence row, and the PendingFile row", %{
       media_dir: media_dir

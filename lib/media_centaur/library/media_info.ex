@@ -61,7 +61,7 @@ defmodule MediaCentaur.Library.MediaInfo do
   Backfill sweep: probes every file presence with no media-info row yet —
   files imported before this feature, or whose probe failed. Idempotent
   and network-free; run from the boot heal
-  (`Maintenance.probe_media_info_on_boot/1`).
+  (`MediaCentaur.BootHeal.probe_media_info/1`).
 
   A sweep that filled anything broadcasts `entities_changed` once. The
   boot sweep finishes *after* the detail projection's boot build, so

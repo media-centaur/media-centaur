@@ -3,21 +3,24 @@ defmodule MediaCentaur.Maintenance do
     deps: [
       MediaCentaur.Library,
       MediaCentaur.Pipeline,
+      MediaCentaur.Review,
       MediaCentaur.Subtitles,
       MediaCentaur.TMDB,
       MediaCentaur.Watcher
     ]
 
   @moduledoc """
-  Operator-driven destructive operations — Settings → Maintenance and
-  Settings → Danger Zone. These actions intentionally cross context
-  boundaries (purge Library schemas, clear image cache, repair missing
-  images) so they are owned here rather than in `Settings`, which is
-  defined as shared key/value infrastructure with no domain logic.
+  Operator-run library maintenance — the actions behind Settings →
+  Maintenance and Settings → Danger Zone: clear the database, rebuild or
+  repair artwork, backfill credits, subtitles and extra names.
 
-  See [ADR-029](../decisions/architecture/2026-03-26-029-data-decoupling.md):
-  Settings is intentionally one-directional. Cross-context orchestration
-  belongs in a dedicated context, not bolted onto a configuration store.
+  Each action orchestrates across contexts (Library rows, Review rows,
+  TMDB fetches, image files on disk), which is why it is owned here
+  rather than in `Settings` — shared key/value infrastructure with no
+  domain logic, see
+  [ADR-029](../decisions/architecture/2026-03-26-029-data-decoupling.md).
+  The unattended versions of the backfills run from
+  `MediaCentaur.BootHeal`.
   """
   import Ecto.Query
 
@@ -29,24 +32,15 @@ defmodule MediaCentaur.Maintenance do
   alias MediaCentaur.Library.Image
 
   alias MediaCentaur.Library.{
-    Episode,
-    Extra,
-    ExtraFile,
-    ExtraProgress,
     ExternalId,
     ExternalIds,
-    FilePresence,
     Movie,
     MovieSeries,
-    PlayableItem,
-    Season,
     TVSeries,
     VideoObject,
-    WatchProgress,
     WatchedFile
   }
 
-  alias MediaCentaur.Review.PendingFile
   alias MediaCentaur.TMDB.{Client, Mapper}
 
   # --- Async variants (ADR-049) ---
@@ -136,9 +130,8 @@ defmodule MediaCentaur.Maintenance do
       Log.info(:library, "clearing database")
       entity_ids = collect_all_entity_ids()
 
-      Enum.each(resources_in_delete_order(), fn schema ->
-        Repo.delete_all(schema)
-      end)
+      MediaCentaur.Review.clear_all()
+      Library.EntityCascade.destroy_all!()
 
       media_dirs = Config.get(:media_dirs) || []
 
@@ -574,102 +567,6 @@ defmodule MediaCentaur.Maintenance do
   @spec blank_extra_names_count() :: non_neg_integer()
   def blank_extra_names_count do
     MediaCentaur.Library.Extras.count_blank_names()
-  end
-
-  @doc """
-  Boot-time auto-heal: runs the re-derive sweep in the background so a parser-rule
-  improvement shipped in an update reaches existing records on the next restart,
-  with no operator action. Network-free and idempotent, so running it on every
-  boot is effectively a no-op unless a rule changed.
-
-  Skipped under `:test` — the sweep writes to the DB, and a boot-spawned task runs
-  outside the test's sandbox-owned process (an ownership error waiting to happen).
-  Test coverage for the sweep itself lives in `ExtraRederiveTest`.
-  """
-  @spec heal_extra_names_on_boot(atom()) :: :skipped | :started
-  def heal_extra_names_on_boot(:test), do: :skipped
-
-  def heal_extra_names_on_boot(_env) do
-    run_async(fn ->
-      {:ok, summary} = rederive_extra_names()
-
-      if summary.updated > 0 do
-        Log.info(:library, "boot re-derive healed #{summary.updated} extra name(s)")
-      end
-    end)
-
-    :started
-  end
-
-  @doc """
-  Boot-time backfill: creates `ExtraFile` rows for extras imported before the
-  ingest path wrote them (ExtraFile-unification / Schema v2 "Task G"), so they
-  become "linked" and stop being re-emitted by `rescan_unlinked`. Network-free,
-  idempotent. Skipped under `:test` (a boot-spawned task runs outside the
-  sandbox-owned process); `Library.Files.backfill_extras/0` is tested directly.
-  """
-  @spec backfill_extra_files_on_boot(atom()) :: :skipped | :started
-  def backfill_extra_files_on_boot(:test), do: :skipped
-
-  def backfill_extra_files_on_boot(_env) do
-    run_async(fn ->
-      %{created: created} = MediaCentaur.Library.Files.backfill_extras()
-
-      if created > 0 do
-        Log.info(:library, "boot ExtraFile backfill linked #{created} extra file(s)")
-      end
-    end)
-
-    :started
-  end
-
-  @doc """
-  Boot-time backfill: probes technical metadata (`Library.MediaProbe`)
-  for files that have no `FileMediaInfo` row yet — pre-feature imports
-  and files whose earlier probe failed. Network-free, idempotent,
-  recomputable (ADR-057). Skipped under `:test`;
-  `Library.MediaInfo.probe_missing/0` is tested directly.
-  """
-  @spec probe_media_info_on_boot(atom()) :: :skipped | :started
-  def probe_media_info_on_boot(:test), do: :skipped
-
-  def probe_media_info_on_boot(_env) do
-    run_async(fn ->
-      %{probed: probed, skipped: skipped} = MediaCentaur.Library.MediaInfo.probe_missing()
-
-      if probed > 0 or skipped > 0 do
-        Log.info(:library, "boot media-info probe filled #{probed} file(s), #{skipped} skipped")
-      end
-    end)
-
-    :started
-  end
-
-  defp resources_in_delete_order do
-    [
-      PendingFile,
-      ExtraProgress,
-      WatchProgress,
-      ExtraFile,
-      Extra,
-      Image,
-      Episode,
-      ExternalId,
-      Movie,
-      Season,
-      WatchedFile,
-      # FilePresence is the scan's skip-ledger (the watcher startup scan
-      # skips any path already present here). The file rows above
-      # (WatchedFile / ExtraFile) reference it by a plain column with no DB
-      # cascade, so deleting them leaves orphaned presence rows that make a
-      # post-clear rescan a no-op — the library can't be rebuilt from disk
-      # without a reboot. Wipe it too so "Clear database" is a true reset.
-      FilePresence,
-      PlayableItem,
-      TVSeries,
-      MovieSeries,
-      VideoObject
-    ]
   end
 
   defp collect_all_entity_ids do

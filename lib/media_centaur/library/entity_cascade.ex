@@ -50,14 +50,57 @@ defmodule MediaCentaur.Library.EntityCascade do
 
   alias MediaCentaur.Library.{
     ChangeLog,
+    Episode,
     Events,
     Extra,
+    ExtraFile,
+    ExtraProgress,
     ExternalId,
+    FilePresence,
     Image,
     MediaTrackOverride,
+    Movie,
+    MovieSeries,
     PlayableItem,
-    TypeResolver
+    Season,
+    TVSeries,
+    TypeResolver,
+    VideoObject,
+    WatchProgress,
+    WatchedFile
   }
+
+  # Whole-library delete order: children before the rows they reference.
+  @tables_in_delete_order [
+    ExtraProgress,
+    WatchProgress,
+    ExtraFile,
+    Extra,
+    Image,
+    Episode,
+    ExternalId,
+    Movie,
+    Season,
+    WatchedFile,
+    FilePresence,
+    PlayableItem,
+    TVSeries,
+    MovieSeries,
+    VideoObject
+  ]
+
+  @doc """
+  Empties every library table in FK-safe order — the whole-library
+  degenerate of the per-container cascade, for `Maintenance.clear_database/0`.
+  Image files on disk are the caller's to remove; `FilePresence` is wiped
+  too, since it is the scan's skip-ledger and a surviving row would make
+  the post-clear rescan skip the file it names.
+  """
+  @spec destroy_all!() :: :ok
+  def destroy_all! do
+    Enum.each(@tables_in_delete_order, &Repo.delete_all/1)
+    :ok
+  end
 
   @doc """
   Destroys a container UUID and its full subtree of children + supporting

@@ -52,6 +52,17 @@ defmodule MediaCentaur.Review do
 
   def list_pending_files, do: Repo.all(PendingFile)
 
+  @doc """
+  Destroys every `PendingFile` row, whatever its status. The Review half
+  of `MediaCentaur.Maintenance.clear_database/0`; nothing on disk is
+  touched.
+  """
+  @spec clear_all() :: :ok
+  def clear_all do
+    Repo.delete_all(PendingFile)
+    :ok
+  end
+
   def fetch_pending_file(id) do
     case Repo.get(PendingFile, id) do
       nil -> {:error, :not_found}
