@@ -286,6 +286,7 @@ defmodule MediaCentaur.Application do
       MediaCentaur.ReleaseTracking.Refresher,
       MediaCentaur.ReleaseTracking.LibraryListener,
       MediaCentaur.WatchHistory.Recorder,
+      MediaCentaur.Activities.Publisher,
       MediaCentaur.Acquisition.Reactor,
       MediaCentaur.Downloads.QueueMonitor,
       MediaCentaur.Acquisition.Pursuits.InboundListener

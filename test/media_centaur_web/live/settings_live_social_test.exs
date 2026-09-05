@@ -8,6 +8,8 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
+  alias MediaCentaur.Settings.Preferences.ShareTracking
+  alias MediaCentaur.Settings.Preferences.ShareWatched
   alias MediaCentaurWeb.SettingsLive.SocialSection
 
   @section "/settings?section=social"
@@ -132,6 +134,36 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       Events.broadcast_connection(@relay_url, {:auth, {:failed, "not on the allowlist"}})
       render_until(view, fn _html -> has_element?(view, relay_row(), "Rejected") end)
       assert has_element?(view, relay_row(), "not on the allowlist")
+    end
+  end
+
+  describe "sharing" do
+    test "both toggles start off and flip their preference", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, @section)
+      refute ShareWatched.enabled?()
+      refute ShareTracking.enabled?()
+      refute has_element?(view, "#social-sharing [phx-click='toggle_share_watched'] input:checked")
+      refute has_element?(view, "#social-sharing [phx-click='toggle_share_tracking'] input:checked")
+
+      view |> element("#social-sharing [phx-click='toggle_share_watched']") |> render_click()
+      assert ShareWatched.enabled?()
+      refute ShareTracking.enabled?()
+      assert has_element?(view, "#social-sharing [phx-click='toggle_share_watched'] input:checked")
+
+      view |> element("#social-sharing [phx-click='toggle_share_tracking']") |> render_click()
+      assert ShareTracking.enabled?()
+      assert has_element?(view, "#social-sharing [phx-click='toggle_share_tracking'] input:checked")
+
+      view |> element("#social-sharing [phx-click='toggle_share_watched']") |> render_click()
+      refute ShareWatched.enabled?()
+      refute has_element?(view, "#social-sharing [phx-click='toggle_share_watched'] input:checked")
+    end
+
+    test "a stored preference renders as on", %{conn: conn} do
+      ShareTracking.set(true)
+      {:ok, view, _html} = live_async!(conn, @section)
+      assert has_element?(view, "#social-sharing [phx-click='toggle_share_tracking'] input:checked")
+      refute has_element?(view, "#social-sharing [phx-click='toggle_share_watched'] input:checked")
     end
   end
 end

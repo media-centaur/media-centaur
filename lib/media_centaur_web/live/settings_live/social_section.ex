@@ -2,12 +2,14 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   @moduledoc """
   The Social section of the Settings page — this install's identity (npub
   with a copy control, the secret key behind a disclosure with reveal and
-  copy, and the two-click import that replaces the identity) and the
-  relays it publishes to and reads from (live connection state, add by
-  URL, remove). `SettingsLive` delegates to `render/1` and hosts the
-  handlers: `reveal_nsec`, `hide_nsec`, `import_nsec`, `add_relay`,
-  `remove_relay`. The friend roster stays on the Discovery page's Social
-  tab.
+  copy, and the two-click import that replaces the identity), the relays
+  it publishes to and reads from (live connection state, add by URL,
+  remove), and the sharing toggles that decide which of the user's acts
+  become activities for friends (watched, tracking; recommending always
+  is). `SettingsLive` delegates to `render/1` and hosts the handlers:
+  `reveal_nsec`, `hide_nsec`, `import_nsec`, `add_relay`, `remove_relay`,
+  `toggle_share_watched`, `toggle_share_tracking`. The friend roster
+  stays on the Discovery page's Friends tab.
 
   The import textarea renders `import_draft`, so the arming click keeps
   what was pasted and a finished import clears it.
@@ -30,6 +32,9 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
     required: true,
     doc: "`Social.Connections.status/0` — `%{url => %{state: atom, last_error: String.t() | nil}}`"
 
+  attr :share_watched?, :boolean, required: true, doc: "the `share_watched` preference"
+  attr :share_tracking?, :boolean, required: true, doc: "the `share_tracking` preference"
+
   def render(assigns) do
     ~H"""
     <div id="settings-social" class="space-y-4">
@@ -39,7 +44,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             Social <.status_dot configured={any_connected?(@status)} />
           </h2>
           <p class="text-sm text-base-content/55 mt-0.5">
-            Your identity and the relays your recommendations travel over. Friends are managed on the Discovery page.
+            Your identity, the relays your activity travels over, and what you share. Friends are managed on the Discovery page.
           </p>
         </div>
 
@@ -155,7 +160,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
         <div class="pt-5 border-t border-base-content/10 space-y-4">
           <.settings_card_header title="Relays" />
           <p class="text-xs text-base-content/55 max-w-[60ch]">
-            The servers your recommendations are published to and read from. Your group's own relay first; public relays are more entries.
+            The servers your activity is published to and read from. Your group's own relay first; public relays are more entries.
           </p>
 
           <ul :if={@relays != []} class="space-y-2">
@@ -203,6 +208,28 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               Add relay
             </.button>
           </form>
+        </div>
+
+        <div id="social-sharing" class="pt-5 border-t border-base-content/10 space-y-4">
+          <.settings_card_header title="Sharing" />
+          <p class="text-xs text-base-content/55 max-w-[60ch]">
+            Recommending always shares. Each of these shares from the moment it is switched on; what was sent before stays until you delete it from the Feed.
+          </p>
+
+          <div class="space-y-1">
+            <.settings_row
+              label="Share what you watch"
+              description="Friends see a movie or an episode when you finish it."
+              checked={@share_watched?}
+              event="toggle_share_watched"
+            />
+            <.settings_row
+              label="Share what you track"
+              description="Friends see a release when you start tracking it."
+              checked={@share_tracking?}
+              event="toggle_share_tracking"
+            />
+          </div>
         </div>
       </section>
     </div>

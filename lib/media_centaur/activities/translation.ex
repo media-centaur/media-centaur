@@ -42,7 +42,7 @@ defmodule MediaCentaur.Activities.Translation do
 
   @kinds %{recommendation: 32_160, watched: 32_161, tracking: 32_162}
   @kind_names Map.new(@kinds, fn {name, number} -> {number, name} end)
-  @kind_numbers Map.values(@kinds)
+  @kind_numbers @kinds |> Map.values() |> Enum.sort()
   @deletion_kind 5
   @content_version 1
   @max_note 500
