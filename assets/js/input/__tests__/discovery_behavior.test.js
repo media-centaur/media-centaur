@@ -14,11 +14,15 @@ describe("discovery behavior", () => {
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
 
-  test("the title_detail overlay is one toolbar region — the modal's action row", () => {
+  test("the title_detail overlay is the action strip over the scope menu, DOWN/UP between them", () => {
     expect(inputConfig.overlays.title_detail).toEqual({
-      entry: ["title_detail_body"],
-      layout: { title_detail_body: {} },
+      entry: ["title_detail_body", "title_detail_menu"],
+      layout: {
+        title_detail_body: { down: ["title_detail_menu"] },
+        title_detail_menu: { up: ["title_detail_body"] },
+      },
     })
     expect(inputConfig.contextSelectors.title_detail_body).toBe("[data-nav-zone='title_detail_body'] [data-nav-item]")
+    expect(inputConfig.contextSelectors.title_detail_menu).toBe("[data-nav-zone='title_detail_menu'] [data-nav-item]")
   })
 })

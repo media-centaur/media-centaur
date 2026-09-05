@@ -27,8 +27,12 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   `title_watchlist_add`, `title_watchlist_remove`,
   `title_recommendation_delete`.
 
-  Nav: the backdrop is the `title_detail` overlay with one body region
-  (`config.overlays.title_detail`); every control is a nav item.
+  Nav: the backdrop is the `title_detail` overlay
+  (`config.overlays.title_detail`): the action strip is the
+  `title_detail_body` TOOLBAR, and the open scope menu is the
+  `title_detail_menu` TREE beneath it, reached by DOWN — a sibling of
+  the strip in the DOM, because nav zones must not nest. Every control
+  is a nav item.
   """
 
   use MediaCentaurWeb, :html
@@ -66,13 +70,35 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
               · {@detail.title.year}
             </span>
           </p>
-          <div
-            class="mt-4 flex flex-wrap items-center gap-3 pb-5"
-            data-nav-zone="title_detail_body"
-          >
-            <.primary detail={@detail} scope_menu_open={@scope_menu_open} />
-            <.secondary detail={@detail} />
-            <.tertiary detail={@detail} />
+          <%!-- The scope menu is a sibling of the action strip, not a child:
+                nav zones must not nest, and the menu is its own region
+                (`title_detail_menu`, reached by DOWN from the strip). The
+                wrapper is the `.glass-menu` anchor, so the list opens under
+                the strip's first control — the split Download button. --%>
+          <div class="mt-4 pb-5">
+            <div class="glass-menu" phx-click-away="title_scope_close">
+              <div class="flex flex-wrap items-center gap-3" data-nav-zone="title_detail_body">
+                <.primary detail={@detail} scope_menu_open={@scope_menu_open} />
+                <.secondary detail={@detail} />
+                <.tertiary detail={@detail} />
+              </div>
+              <ul
+                :if={@scope_menu_open}
+                id="title-scope-menu"
+                class="glass-menu-list glass-surface"
+                data-nav-zone="title_detail_menu"
+              >
+                <li
+                  class="glass-menu-item"
+                  phx-click="title_download"
+                  phx-value-scope="everything"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Download all
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </:orientation>
@@ -138,8 +164,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
 
   defp primary(%{detail: %{primary: :download, scoped?: true}} = assigns) do
     ~H"""
-    <span class="glass-menu" phx-click-away="title_scope_close" data-captures-keys={@scope_menu_open}>
-      <span class="inline-flex">
+    <span class="inline-flex">
         <.button
           id="title-download"
           variant="primary"
@@ -168,18 +193,6 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
             <.icon name="hero-chevron-down-mini" class="size-4" />
           </span>
         </.button>
-      </span>
-      <ul :if={@scope_menu_open} id="title-scope-menu" class="glass-menu-list glass-surface">
-        <li
-          class="glass-menu-item"
-          phx-click="title_download"
-          phx-value-scope="everything"
-          data-nav-item
-          tabindex="0"
-        >
-          Download all
-        </li>
-      </ul>
     </span>
     """
   end

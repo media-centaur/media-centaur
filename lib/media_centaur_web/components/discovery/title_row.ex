@@ -9,7 +9,9 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
   shown, never acted on here: every verb lives in the modal.
 
   Pure rendering; `open_title` bubbles to `DiscoveryLive` with the
-  title's ref.
+  title's ref. The ref doubles as `data-entity-id`, the stable identity
+  the input system records as the overlay-restore origin, so closing the
+  modal lands the cursor back on the row that opened it.
   """
 
   use Phoenix.Component
@@ -39,6 +41,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
       data-component="title-row"
       phx-click="open_title"
       phx-value-ref={Logic.title_ref_param({@title.tmdb_id, @title.media_type})}
+      data-entity-id={Logic.title_ref_param({@title.tmdb_id, @title.media_type})}
       data-nav-item
       tabindex="0"
     >
