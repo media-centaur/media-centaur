@@ -347,7 +347,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       view |> element("#detail-recommend") |> render_click()
       assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
       assert has_element?(view, "#recommend-sentiment-like input[checked]")
-      assert has_element?(view, "#recommend-sentiment-love .pennant[data-sentiment='love']", "You")
+      assert has_element?(view, "#recommend-sentiment-like .pennant[data-sentiment='like']", "Like")
+      assert has_element?(view, "#recommend-sentiment-love .pennant[data-sentiment='love']", "Love")
 
       view |> form("#recommend-form", %{"sentiment" => "love", "note" => ""}) |> render_submit()
       assert [%{tmdb_id: 777, note: nil, sentiment: :love}] = MediaCentaur.Activities.list_sent()
