@@ -14,6 +14,8 @@ defmodule MediaCentaur.Storage do
   """
 
   alias MediaCentaur.Settings.Config
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Platform.DriveProbe
 
   @type role :: %{label: String.t(), path: String.t()}
@@ -38,7 +40,7 @@ defmodule MediaCentaur.Storage do
 
     role_paths =
       Enum.flat_map(media_dirs, fn dir ->
-        [{dir, "Media dir"}, {Config.images_dir_for(dir), "Image cache"}]
+        [{dir, "Media dir"}, {ImageCache.dir_for(dir), "Image cache"}]
       end)
 
     role_paths =

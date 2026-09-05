@@ -13,7 +13,6 @@ defmodule MediaCentaur.Apps.Artwork do
   """
 
   alias MediaCentaur.ImageFiles
-  alias MediaCentaur.Library.Image
   alias MediaCentaur.Settings.Config
 
   @subdir "images/apps"
@@ -80,7 +79,7 @@ defmodule MediaCentaur.Apps.Artwork do
     case File.stat(on_disk_path(role, app_id)) do
       {:ok, %{mtime: mtime}} ->
         version = :calendar.datetime_to_gregorian_seconds(mtime)
-        Image.web_path(relative_path(role, app_id)) <> "?v=#{version}"
+        ImageFiles.web_path(relative_path(role, app_id)) <> "?v=#{version}"
 
       {:error, _missing} ->
         nil

@@ -9,7 +9,7 @@ defmodule MediaCentaur.Library.ImageHealth do
   """
   import Ecto.Query
 
-  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Library.Image
   alias MediaCentaur.Repo
 
@@ -28,7 +28,7 @@ defmodule MediaCentaur.Library.ImageHealth do
   the owning entity's id and type.
   """
   @spec list_missing(resolver()) :: [missing_entry()]
-  def list_missing(resolver \\ &Config.resolve_image_path/1) do
+  def list_missing(resolver \\ &ImageCache.resolve_path/1) do
     resolver
     |> rows_with_presence()
     |> Enum.flat_map(fn
@@ -42,7 +42,7 @@ defmodule MediaCentaur.Library.ImageHealth do
   `list_missing/1` — keep in mind this runs a disk check per image row.
   """
   @spec count_missing(resolver()) :: non_neg_integer()
-  def count_missing(resolver \\ &Config.resolve_image_path/1) do
+  def count_missing(resolver \\ &ImageCache.resolve_path/1) do
     resolver
     |> rows_with_presence()
     |> Enum.count(fn {_image, present?} -> not present? end)
@@ -59,7 +59,7 @@ defmodule MediaCentaur.Library.ImageHealth do
           missing: non_neg_integer(),
           by_role: %{String.t() => non_neg_integer()}
         }
-  def summary(resolver \\ &Config.resolve_image_path/1) do
+  def summary(resolver \\ &ImageCache.resolve_path/1) do
     Enum.reduce(
       rows_with_presence(resolver),
       %{total: 0, missing: 0, by_role: %{}},

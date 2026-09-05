@@ -27,6 +27,8 @@ defmodule MediaCentaur.Maintenance do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Settings.Config
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Repo
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Image
@@ -136,7 +138,7 @@ defmodule MediaCentaur.Maintenance do
       media_dirs = Config.get(:media_dirs) || []
 
       Enum.each(media_dirs, fn dir ->
-        clear_directory(Config.images_dir_for(dir))
+        clear_directory(ImageCache.dir_for(dir))
       end)
 
       Library.broadcast_entities_changed(entity_ids)
@@ -158,7 +160,7 @@ defmodule MediaCentaur.Maintenance do
     media_dirs = Config.get(:media_dirs) || []
 
     Enum.each(media_dirs, fn dir ->
-      clear_directory(Config.images_dir_for(dir))
+      clear_directory(ImageCache.dir_for(dir))
     end)
 
     now = DateTime.utc_now()

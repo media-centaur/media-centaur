@@ -30,6 +30,8 @@ defmodule MediaCentaur.Status.Views.Storage do
   @behaviour MediaCentaur.Cache
 
   alias MediaCentaur.Settings.Config
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Library.AbsenceSweeper
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Status.Views.StorageSnapshot
@@ -99,7 +101,7 @@ defmodule MediaCentaur.Status.Views.Storage do
     media_dirs = Config.get(:media_dirs) || []
 
     Enum.map(media_dirs, fn dir ->
-      image_dir = Config.images_dir_for(dir)
+      image_dir = ImageCache.dir_for(dir)
 
       %{
         dir: dir,

@@ -77,6 +77,8 @@ defmodule MediaCentaur.Showcase do
   """
 
   alias MediaCentaur.Settings.Config
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Library
@@ -1075,7 +1077,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp perform_inline_download(owner_id, owner_type, role, extension, url, media_dir) do
-    images_root = Config.images_dir_for(media_dir)
+    images_root = ImageCache.dir_for(media_dir)
     dest = Path.join([images_root, owner_id, "#{role}.#{extension}"])
 
     case MediaCentaur.ImageFiles.download(url, dest, upstream: :tmdb_images) do
@@ -1134,7 +1136,7 @@ defmodule MediaCentaur.Showcase do
 
     with primary when is_binary(primary) <- List.first(media_dirs),
          true <- File.exists?(fixture) do
-      images_root = Config.images_dir_for(primary)
+      images_root = ImageCache.dir_for(primary)
       dest = Path.join([images_root, episode.id, "thumb.jpg"])
       File.mkdir_p!(Path.dirname(dest))
       File.cp!(fixture, dest)

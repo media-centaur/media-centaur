@@ -17,6 +17,23 @@ defmodule MediaCentaur.ImageFiles do
 
   alias MediaCentaur.HttpClient
 
+  @web_prefix "/media-images/"
+
+  @doc """
+  Web URL for an image file's relative path, as served by
+  `MediaCentaurWeb.Plugs.ImageServer` at `/media-images/*` — library
+  artwork, TMDB artwork holds and app art alike.
+
+  The single owner of that route prefix — build image `src` URLs through
+  here rather than hand-interpolating `"/media-images/\#{path}"`, which
+  drifts across call sites and couples every builder to the string.
+  `nil` in → `nil` out, so callers can forward an optional path without
+  a guard.
+  """
+  @spec web_path(String.t() | nil) :: String.t() | nil
+  def web_path(nil), do: nil
+  def web_path(relative_path) when is_binary(relative_path), do: @web_prefix <> relative_path
+
   @doc """
   Downloads an image from `url`, optionally resizes it, and writes to `dest_path`.
 

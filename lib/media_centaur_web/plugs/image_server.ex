@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
 
   alias MediaCentaur.Settings.Config
 
+  alias MediaCentaur.Library.ImageCache
   # {width, height} in SVG units — the viewBox shape is what makes the
   # placeholder swap in seamlessly for the missing asset.
   @placeholder_dims %{
@@ -94,12 +95,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   end
 
   defp locate_file(relative) do
-    media_dirs = Config.get(:media_dirs) || []
-
-    Enum.find_value(media_dirs, fn dir ->
-      candidate = Path.join(Config.images_dir_for(dir), relative)
-      if File.regular?(candidate), do: candidate
-    end) || find_in_data_dir(relative)
+    ImageCache.resolve_path(relative) || find_in_data_dir(relative)
   end
 
   # Configured app-data root — covers tracking-item images written by

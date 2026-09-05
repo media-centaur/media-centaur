@@ -354,11 +354,10 @@ defmodule MediaCentaur.Settings.Config do
     dirs = Enum.map(entries, & &1["dir"])
 
     images_map =
-      Map.new(entries, fn entry ->
-        dir = entry["dir"]
-        images_dir = entry["images_dir"] || default_images_dir(dir)
-        {dir, images_dir}
-      end)
+      Map.new(
+        Enum.filter(entries, &is_binary(&1["images_dir"])),
+        fn entry -> {entry["dir"], entry["images_dir"]} end
+      )
 
     config =
       :persistent_term.get({__MODULE__, :config})
@@ -366,53 +365,6 @@ defmodule MediaCentaur.Settings.Config do
       |> Map.put(:media_dir_images, images_map)
 
     :persistent_term.put({__MODULE__, :config}, config)
-  end
-
-  @doc "Returns the images directory for the given media directory."
-  @spec images_dir_for(String.t()) :: String.t()
-  def images_dir_for(media_directory) do
-    get(:media_dir_images)[media_directory] ||
-      default_images_dir(media_directory)
-  end
-
-  @doc """
-  Returns `{media_dir, image_dir}` pairs where the image directory is NOT
-  a subdirectory of its media directory and therefore needs independent
-  health monitoring.
-  """
-  @spec image_dirs_needing_monitoring() :: [{String.t(), String.t()}]
-  def image_dirs_needing_monitoring do
-    media_dirs = get(:media_dirs) || []
-
-    Enum.flat_map(media_dirs, fn media_dir ->
-      image_dir = images_dir_for(media_dir)
-
-      if String.starts_with?(image_dir, media_dir <> "/") do
-        []
-      else
-        [{media_dir, image_dir}]
-      end
-    end)
-  end
-
-  @doc "Returns the staging base directory for in-progress image downloads."
-  @spec staging_base_for(String.t()) :: String.t()
-  def staging_base_for(media_directory) do
-    images_dir = images_dir_for(media_directory)
-    Path.join(images_dir, "partial-downloads")
-  end
-
-  @doc "Resolves a relative image content_url to an absolute filesystem path."
-  @spec resolve_image_path(String.t() | nil) :: String.t() | nil
-  def resolve_image_path(nil), do: nil
-
-  def resolve_image_path(relative_content_url) do
-    media_dirs = get(:media_dirs) || []
-
-    Enum.find_value(media_dirs, fn dir ->
-      candidate = Path.join(images_dir_for(dir), relative_content_url)
-      if File.regular?(candidate), do: candidate
-    end)
   end
 
   defp load_config do
@@ -527,7 +479,9 @@ defmodule MediaCentaur.Settings.Config do
     })
   end
 
-  # Supports plain string lists and inline table arrays.
+  # Supports plain string lists and inline table arrays. `media_dir_images`
+  # carries only explicit `images_dir` overrides; the default layout is
+  # `Library.ImageCache`'s.
   defp resolve_media_dirs(toml, defaults) do
     case toml_media_dirs(toml) do
       dirs when is_list(dirs) and dirs != [] ->
@@ -558,21 +512,20 @@ defmodule MediaCentaur.Settings.Config do
       Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
         case entry do
           dir when is_binary(dir) ->
-            dir = expand(dir)
-            {[dir | dirs], Map.put(images_map, dir, default_images_dir(dir))}
+            {[expand(dir) | dirs], images_map}
 
-          %{"dir" => dir} = table ->
+          %{"dir" => dir, "images_dir" => images_dir} when is_binary(images_dir) ->
             dir = expand(dir)
-            images_dir = expand(table["images_dir"] || default_images_dir(dir))
-            {[dir | dirs], Map.put(images_map, dir, images_dir)}
+            {[dir | dirs], Map.put(images_map, dir, expand(images_dir))}
+
+          %{"dir" => dir} ->
+            {[expand(dir) | dirs], images_map}
         end
       end)
 
     # `dirs` was prepended in the reduce; restore the source order.
     {Enum.reverse(dirs), images_map}
   end
-
-  defp default_images_dir(media_dir), do: Path.join(media_dir, ".media-centaur/images")
 
   defp expand(path) when is_binary(path), do: Path.expand(path)
   defp expand(path), do: path

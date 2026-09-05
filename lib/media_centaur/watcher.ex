@@ -62,6 +62,8 @@ defmodule MediaCentaur.Watcher do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Settings.Config
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Library
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.WatchedFile
@@ -585,8 +587,8 @@ defmodule MediaCentaur.Watcher do
 
   defp load_exclude_dirs(media_dir) do
     configured = Config.get(:exclude_dirs) || []
-    images_dir = Config.images_dir_for(media_dir)
-    staging_base = Config.staging_base_for(media_dir)
+    images_dir = ImageCache.dir_for(media_dir)
+    staging_base = ImageCache.staging_dir_for(media_dir)
 
     auto_excludes =
       Enum.filter([images_dir, staging_base], &String.starts_with?(&1, media_dir <> "/"))

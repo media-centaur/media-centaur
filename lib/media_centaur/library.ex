@@ -28,6 +28,7 @@ defmodule MediaCentaur.Library do
       FilePresence,
       Files,
       Image,
+      ImageCache,
       ImageHealth,
       Images,
       MediaInfo,

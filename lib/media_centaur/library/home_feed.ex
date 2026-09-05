@@ -12,6 +12,8 @@ defmodule MediaCentaur.Library.HomeFeed do
 
   import Ecto.Query
 
+  alias MediaCentaur.ImageFiles
+
   alias MediaCentaur.Library.{
     ContinueWatchingProgress,
     Episode,
@@ -507,7 +509,7 @@ defmodule MediaCentaur.Library.HomeFeed do
   defp shape_recently_added_record(record) do
     poster_url =
       case Enum.find(record.images || [], &(&1.role == "poster")) do
-        %{content_url: url} when is_binary(url) -> Image.web_path(url)
+        %{content_url: url} when is_binary(url) -> ImageFiles.web_path(url)
         _ -> nil
       end
 
@@ -552,7 +554,7 @@ defmodule MediaCentaur.Library.HomeFeed do
 
   defp image_url(images, role) do
     case Enum.find(images || [], &(&1.role == role)) do
-      %{content_url: url} when is_binary(url) -> Image.web_path(url)
+      %{content_url: url} when is_binary(url) -> ImageFiles.web_path(url)
       _ -> nil
     end
   end
