@@ -13,8 +13,6 @@ defmodule MediaCentaur.Library.ContinueWatchingProgress do
   Public for unit-testing — the contract is small and surprising
   enough to be worth crystallising.
   """
-  use Boundary, top_level?: true, check: [in: false, out: false]
-
   @typedoc """
   Minimum shape required by `compute_pct/1` and the maximum shape this
   module reads from. Extra keys are ignored.

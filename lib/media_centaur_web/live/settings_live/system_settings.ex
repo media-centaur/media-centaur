@@ -439,7 +439,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
   attr :service_state, :map,
     required: true,
     doc:
-      "OS-neutral autostart state from `MediaCentaur.SelfUpdate.service_state/0` (`Platform.Autostart.state/0`) — keys `:under_supervisor`, `:supervisor_available`, `:unit_name`, `:unit_installed`, `:active`, `:enabled`."
+      "OS-neutral autostart state from `MediaCentaur.Platform.Autostart.state/0` — keys `:under_supervisor`, `:supervisor_available`, `:unit_name`, `:unit_installed`, `:active`, `:enabled`."
 
   attr :service_status_visible, :boolean, default: false
 

@@ -9,7 +9,9 @@ defmodule MediaCentaur.IntegrationHealth.Verifier do
   :integration_health_verifier, MyMock)` (see the `verifier/0` getter).
   """
 
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.Downloads.DownloadClient.Dispatcher
+  alias MediaCentaur.Search.Prowlarr
 
   @type id :: MediaCentaur.IntegrationHealth.Status.id()
 
@@ -25,11 +27,12 @@ defmodule MediaCentaur.IntegrationHealth.Verifier do
     end
   end
 
+  # Gate on configuration here rather than through `Acquisition`: the
+  # probe is Search's client plus Capabilities' predicate, and pulling
+  # in the whole Acquisition context for that one gate was the only
+  # reason IntegrationHealth depended on it.
   def run(:prowlarr) do
-    case MediaCentaur.Acquisition.test_prowlarr() do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
-    end
+    if Capabilities.configured?(:prowlarr), do: Prowlarr.ping(), else: {:error, :not_configured}
   end
 
   # Route through the two-slot Dispatcher rather than hardcoding one

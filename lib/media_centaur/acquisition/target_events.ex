@@ -80,4 +80,7 @@ defmodule MediaCentaur.Acquisition.TargetEvents do
   """
   @spec event?(module()) :: boolean()
   def event?(module) when is_atom(module), do: module in @event_modules
+
+  @doc "Guard form of `event?/1`, for a `handle_info(%struct{}, _) when is_event(struct)` head."
+  defguard is_event(module) when module in @event_modules
 end

@@ -26,6 +26,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.{Capabilities, SelfUpdate, Settings, Version}
+  alias MediaCentaur.Platform.Autostart
 
   alias MediaCentaurWeb.Live.SettingsLive.{
     Overview,
@@ -316,7 +317,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       download_client_test: load_test_result(:download_client),
       usenet_client_test: load_test_result(:usenet_download_client),
       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
-      service_state: SelfUpdate.service_state(),
+      service_state: Autostart.state(),
       bindings: Controls.get(),
       glyph_style: Controls.glyph_style(),
       # cached_scale/0 (not scale/0) so the picker reflects exactly what the
@@ -424,7 +425,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("service_execute", %{"action" => "restart"}, socket) do
-    case SelfUpdate.service_restart() do
+    case Autostart.restart() do
       :ok ->
         {:noreply,
          socket
@@ -443,7 +444,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("service_execute", %{"action" => "stop"}, socket) do
-    case SelfUpdate.service_stop() do
+    case Autostart.stop() do
       :ok ->
         {:noreply,
          socket
@@ -466,7 +467,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
     output =
       if visible and is_nil(socket.assigns.service_status_output) do
-        case SelfUpdate.service_status_output() do
+        case Autostart.status_output() do
           {:ok, text} -> text
           {:error, reason} -> "Failed to read systemctl status: #{inspect(reason)}"
         end
