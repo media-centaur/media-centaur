@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Settings.ConfigTest do
   @moduledoc """
-  Tests for Config: images_dir_for/1, staging_base_for/1, and
-  media_dirs parsing (plain strings, inline tables, legacy media_dir).
+  Tests for Config: image_resolution/0, update-check keys, config_path/0
+  and media_dirs parsing (plain strings, inline tables, legacy media_dir).
   """
   use ExUnit.Case, async: false
 
@@ -15,33 +15,6 @@ defmodule MediaCentaur.Settings.ConfigTest do
     end)
 
     %{original_config: original}
-  end
-
-  # ---------------------------------------------------------------------------
-  # images_dir_for/1
-  # ---------------------------------------------------------------------------
-
-  describe "images_dir_for/1" do
-    test "returns configured images_dir when media dir is in the map" do
-      config = %{media_dir_images: %{"/mnt/media" => "/mnt/cache/images"}}
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.images_dir_for("/mnt/media") == "/mnt/cache/images"
-    end
-
-    test "returns default when media dir is not in the map" do
-      config = %{media_dir_images: %{}}
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.images_dir_for("/mnt/media") == "/mnt/media/.media-centaur/images"
-    end
-
-    test "returns default for unknown dir even when map has other entries" do
-      config = %{media_dir_images: %{"/mnt/movies" => "/mnt/movies/.cache"}}
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.images_dir_for("/mnt/tv") == "/mnt/tv/.media-centaur/images"
-    end
   end
 
   # ---------------------------------------------------------------------------
@@ -70,113 +43,6 @@ defmodule MediaCentaur.Settings.ConfigTest do
       assert Config.image_resolution() == "1080p"
     after
       Process.delete(:image_resolution_override)
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # staging_base_for/1
-  # ---------------------------------------------------------------------------
-
-  describe "staging_base_for/1" do
-    test "returns sibling of images dir" do
-      config = %{media_dir_images: %{"/mnt/media" => "/mnt/media/.media-centaur/images"}}
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.staging_base_for("/mnt/media") ==
-               "/mnt/media/.media-centaur/images/partial-downloads"
-    end
-
-    test "works with custom images_dir" do
-      config = %{media_dir_images: %{"/mnt/media" => "/mnt/cache/artwork/images"}}
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.staging_base_for("/mnt/media") ==
-               "/mnt/cache/artwork/images/partial-downloads"
-    end
-
-    test "works for unconfigured media dir using default" do
-      config = %{media_dir_images: %{}}
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.staging_base_for("/mnt/media") ==
-               "/mnt/media/.media-centaur/images/partial-downloads"
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # resolve_image_path/1
-  # ---------------------------------------------------------------------------
-
-  describe "resolve_image_path/1" do
-    setup do
-      tmp_dir = Path.join(System.tmp_dir!(), "config_resolve_#{Ecto.UUID.generate()}")
-      images_dir = Path.join(tmp_dir, ".media-centaur/images")
-      File.mkdir_p!(images_dir)
-
-      on_exit(fn -> File.rm_rf!(tmp_dir) end)
-
-      %{tmp_dir: tmp_dir, images_dir: images_dir}
-    end
-
-    test "returns nil for nil input" do
-      assert Config.resolve_image_path(nil) == nil
-    end
-
-    test "returns absolute path when file exists in media dir", %{
-      tmp_dir: tmp_dir,
-      images_dir: images_dir
-    } do
-      uuid = Ecto.UUID.generate()
-      entity_dir = Path.join(images_dir, uuid)
-      File.mkdir_p!(entity_dir)
-      image_path = Path.join(entity_dir, "poster.jpg")
-      File.write!(image_path, "fake image")
-
-      config = %{
-        media_dirs: [tmp_dir],
-        media_dir_images: %{tmp_dir => images_dir}
-      }
-
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.resolve_image_path("#{uuid}/poster.jpg") == image_path
-    end
-
-    test "returns nil when file does not exist" do
-      config = %{
-        media_dirs: ["/nonexistent/dir"],
-        media_dir_images: %{"/nonexistent/dir" => "/nonexistent/dir/.media-centaur/images"}
-      }
-
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.resolve_image_path("missing-uuid/poster.jpg") == nil
-    end
-
-    test "finds file in correct media dir among multiple", %{images_dir: images_dir} do
-      second_dir = Path.join(System.tmp_dir!(), "config_resolve_second_#{Ecto.UUID.generate()}")
-      second_images = Path.join(second_dir, ".media-centaur/images")
-      File.mkdir_p!(second_images)
-
-      uuid = Ecto.UUID.generate()
-      entity_dir = Path.join(second_images, uuid)
-      File.mkdir_p!(entity_dir)
-      image_path = Path.join(entity_dir, "backdrop.jpg")
-      File.write!(image_path, "fake image")
-
-      on_exit(fn -> File.rm_rf!(second_dir) end)
-
-      # The first media dir's images_dir won't have this file
-      first_dir = Path.dirname(Path.dirname(images_dir))
-
-      config = %{
-        media_dirs: [first_dir, second_dir],
-        media_dir_images: %{first_dir => images_dir, second_dir => second_images}
-      }
-
-      :persistent_term.put({Config, :config}, config)
-
-      assert Config.resolve_image_path("#{uuid}/backdrop.jpg") == image_path
     end
   end
 
@@ -270,23 +136,45 @@ defmodule MediaCentaur.Settings.ConfigTest do
   # ---------------------------------------------------------------------------
 
   describe "TOML parsing" do
+    # Loads a real TOML through `Config.load!/0` by pointing the override
+    # env var at it — the same path a `MEDIA_CENTAUR_CONFIG_OVERRIDE`
+    # instance takes — with the test env's `:skip_user_config` lifted for
+    # the duration.
     setup do
       toml_dir = Path.join(System.tmp_dir!(), "config_test_#{Ecto.UUID.generate()}")
       File.mkdir_p!(toml_dir)
       toml_path = Path.join(toml_dir, "media-centaur.toml")
 
-      on_exit(fn -> File.rm_rf!(toml_dir) end)
+      original_override = System.get_env("MEDIA_CENTAUR_CONFIG_OVERRIDE")
+      original_skip = Application.get_env(:media_centaur, :skip_user_config)
+      original_raw = Application.get_env(:media_centaur, :__raw_toml_media_dirs)
+
+      System.put_env("MEDIA_CENTAUR_CONFIG_OVERRIDE", toml_path)
+      Application.put_env(:media_centaur, :skip_user_config, false)
+
+      on_exit(fn ->
+        File.rm_rf!(toml_dir)
+
+        case original_override do
+          nil -> System.delete_env("MEDIA_CENTAUR_CONFIG_OVERRIDE")
+          value -> System.put_env("MEDIA_CENTAUR_CONFIG_OVERRIDE", value)
+        end
+
+        Application.put_env(:media_centaur, :skip_user_config, original_skip)
+        Application.put_env(:media_centaur, :__raw_toml_media_dirs, original_raw)
+      end)
 
       %{toml_path: toml_path}
     end
 
     test "plain string media_dirs", %{toml_path: toml_path} do
       File.write!(toml_path, ~s(media_dirs = ["/mnt/movies", "/mnt/tv"]\n))
-      load_toml!(toml_path)
+      :ok = Config.load!()
 
       assert Config.get(:media_dirs) == ["/mnt/movies", "/mnt/tv"]
-      assert Config.get(:media_dir_images)["/mnt/movies"] == "/mnt/movies/.media-centaur/images"
-      assert Config.get(:media_dir_images)["/mnt/tv"] == "/mnt/tv/.media-centaur/images"
+      # Only explicit `images_dir` overrides are stored; the default layout
+      # is `Library.ImageCache`'s.
+      assert Config.get(:media_dir_images) == %{}
     end
 
     test "inline table with images_dir", %{toml_path: toml_path} do
@@ -300,85 +188,10 @@ defmodule MediaCentaur.Settings.ConfigTest do
       """
 
       File.write!(toml_path, toml)
-      load_toml!(toml_path)
+      :ok = Config.load!()
 
       assert Config.get(:media_dirs) == ["/mnt/movies", "/mnt/tv"]
-      assert Config.get(:media_dir_images)["/mnt/movies"] == "/mnt/cache/movie-images"
-      assert Config.get(:media_dir_images)["/mnt/tv"] == "/mnt/tv/.media-centaur/images"
+      assert Config.get(:media_dir_images) == %{"/mnt/movies" => "/mnt/cache/movie-images"}
     end
-
-    test "legacy media_dir key", %{toml_path: toml_path} do
-      File.write!(toml_path, ~s(media_dir = "/mnt/legacy"\n))
-      load_toml!(toml_path)
-
-      assert Config.get(:media_dirs) == ["/mnt/legacy"]
-      assert Config.get(:media_dir_images)["/mnt/legacy"] == "/mnt/legacy/.media-centaur/images"
-    end
-  end
-
-  # ---------------------------------------------------------------------------
-  # Helpers
-  # ---------------------------------------------------------------------------
-
-  # Temporarily override the config path to load a test TOML file.
-  # We can't change @config_path, so we decode + merge manually,
-  # mimicking load!/0 but with our custom TOML path.
-  defp load_toml!(toml_path) do
-    {:ok, contents} = File.read(toml_path)
-    {:ok, toml} = Toml.decode(contents)
-
-    # Build a minimal defaults map — only the keys merge_toml needs.
-    defaults = %{
-      database_path: nil,
-      media_dirs: [],
-      media_dir_images: %{},
-      tmdb_api_key: nil,
-      auto_approve_threshold: nil,
-      mpv_path: "/usr/bin/mpv",
-      mpv_socket_dir: "/tmp",
-      mpv_socket_timeout_ms: 5000,
-      exclude_dirs: [],
-      extras_dirs: []
-    }
-
-    # Call merge_toml via the module — but it's private. We need to go through
-    # the public interface. Since we can't call load! with a custom path,
-    # we replicate the merge logic here.
-    {media_dirs, media_dir_images} = resolve_media_dirs_from_toml(toml, defaults)
-
-    config = %{defaults | media_dirs: media_dirs, media_dir_images: media_dir_images}
-    :persistent_term.put({Config, :config}, config)
-  end
-
-  defp resolve_media_dirs_from_toml(toml, defaults) do
-    case toml["media_dirs"] do
-      dirs when is_list(dirs) and dirs != [] ->
-        parse_media_dirs(dirs)
-
-      _ ->
-        case toml["media_dir"] do
-          dir when is_binary(dir) ->
-            {[dir], %{dir => Path.join(dir, ".media-centaur/images")}}
-
-          _ ->
-            {defaults.media_dirs, defaults.media_dir_images}
-        end
-    end
-  end
-
-  defp parse_media_dirs(raw_list) do
-    then(
-      Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
-        case entry do
-          dir when is_binary(dir) ->
-            {[dir | dirs], Map.put(images_map, dir, Path.join(dir, ".media-centaur/images"))}
-
-          %{"dir" => dir} = table ->
-            images_dir = table["images_dir"] || Path.join(dir, ".media-centaur/images")
-            {[dir | dirs], Map.put(images_map, dir, images_dir)}
-        end
-      end),
-      fn {dirs, images_map} -> {Enum.reverse(dirs), images_map} end
-    )
   end
 end

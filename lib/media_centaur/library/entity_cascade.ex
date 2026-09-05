@@ -45,6 +45,8 @@ defmodule MediaCentaur.Library.EntityCascade do
   import Ecto.Query
 
   alias MediaCentaur.Settings.Config
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.{Format, Repo}
   alias MediaCentaur.Library
 
@@ -298,7 +300,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   defp delete_image_file(%Image{content_url: nil}), do: :ok
 
   defp delete_image_file(%Image{content_url: content_url}) do
-    case Config.resolve_image_path(content_url) do
+    case ImageCache.resolve_path(content_url) do
       nil -> :ok
       path -> File.rm(path)
     end
@@ -315,7 +317,7 @@ defmodule MediaCentaur.Library.EntityCascade do
         end)
 
     Enum.each(media_dirs, fn dir ->
-      images_dir = Config.images_dir_for(dir)
+      images_dir = ImageCache.dir_for(dir)
 
       Enum.each(uuids, fn uuid ->
         uuid_dir = Path.join(images_dir, uuid)

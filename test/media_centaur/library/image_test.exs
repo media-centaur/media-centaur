@@ -2,6 +2,8 @@ defmodule MediaCentaur.Library.ImageTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Settings.Config
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Library
 
   describe "upsert_image/2 replaced-file cleanup" do
@@ -14,7 +16,7 @@ defmodule MediaCentaur.Library.ImageTest do
       on_exit(fn -> File.rm_rf!(media_dir) end)
 
       movie = create_entity(%{type: :movie, name: "Test Movie"})
-      images_dir = Config.images_dir_for(media_dir)
+      images_dir = ImageCache.dir_for(media_dir)
       old_relative_url = "#{movie.id}/poster.jpg"
       old_path = Path.join(images_dir, old_relative_url)
       File.mkdir_p!(Path.dirname(old_path))
@@ -48,7 +50,7 @@ defmodule MediaCentaur.Library.ImageTest do
       on_exit(fn -> File.rm_rf!(media_dir) end)
 
       movie = create_entity(%{type: :movie, name: "Test Movie"})
-      images_dir = Config.images_dir_for(media_dir)
+      images_dir = ImageCache.dir_for(media_dir)
       relative_url = "#{movie.id}/poster.jpg"
       path = Path.join(images_dir, relative_url)
       File.mkdir_p!(Path.dirname(path))

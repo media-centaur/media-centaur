@@ -42,7 +42,6 @@ defmodule MediaCentaur.TmdbArtwork do
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.ImageFiles
-  alias MediaCentaur.Library.Image
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Mapper
 
@@ -141,7 +140,7 @@ defmodule MediaCentaur.TmdbArtwork do
 
   defp role_url(role, type, id) do
     if File.exists?(on_disk_path(role, type, id)) do
-      Image.web_path(relative_path(role, type, id))
+      ImageFiles.web_path(relative_path(role, type, id))
     end
   end
 

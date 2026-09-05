@@ -41,7 +41,8 @@ defmodule MediaCentaur.Settings.ConfigMediaDirsTest do
       assert :ok = Config.put_media_dirs(entries)
 
       assert Config.get(:media_dirs) == ["/mnt/a"]
-      assert Config.get(:media_dir_images) == %{"/mnt/a" => Path.join("/mnt/a", ".media-centaur/images")}
+      # No override → no entry; `Library.ImageCache` supplies the default.
+      assert Config.get(:media_dir_images) == %{}
 
       assert_receive {:config_updated, :media_dirs, ^entries}
     end
@@ -120,10 +121,7 @@ defmodule MediaCentaur.Settings.ConfigMediaDirsTest do
       assert :ok = Config.refresh_media_dirs_from_settings()
       assert Config.get(:media_dirs) == ["/mnt/a", "/mnt/b"]
 
-      assert Config.get(:media_dir_images) == %{
-               "/mnt/a" => Path.join("/mnt/a", ".media-centaur/images"),
-               "/mnt/b" => "/mnt/ssd"
-             }
+      assert Config.get(:media_dir_images) == %{"/mnt/b" => "/mnt/ssd"}
     end
   end
 end

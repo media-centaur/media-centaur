@@ -12,6 +12,7 @@ defmodule MediaCentaur.Library.Posters do
 
   import Ecto.Query
 
+  alias MediaCentaur.ImageFiles
   alias MediaCentaur.Library.Episode
   alias MediaCentaur.Library.Image
   alias MediaCentaur.Repo
@@ -82,7 +83,7 @@ defmodule MediaCentaur.Library.Posters do
       )
       |> Repo.all()
       |> Enum.map(fn {owner_id, content_url} ->
-        {{owner_type, owner_id}, Image.web_path(content_url)}
+        {{owner_type, owner_id}, ImageFiles.web_path(content_url)}
       end)
     end)
     |> Map.new()

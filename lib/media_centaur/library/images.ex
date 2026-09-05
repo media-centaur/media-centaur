@@ -14,7 +14,10 @@ defmodule MediaCentaur.Library.Images do
 
   import Ecto.Query
 
+  alias MediaCentaur.ImageFiles
   alias MediaCentaur.Library.Image
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Repo
 
   @doc "Every `Image` row."
@@ -84,7 +87,7 @@ defmodule MediaCentaur.Library.Images do
         )
       )
 
-    Map.new(rows, fn {entity_id, content_url} -> {entity_id, Image.web_path(content_url)} end)
+    Map.new(rows, fn {entity_id, content_url} -> {entity_id, ImageFiles.web_path(content_url)} end)
   end
 
   defp delete_replaced_file(attrs, conflict_target) when is_list(conflict_target) do
@@ -93,7 +96,7 @@ defmodule MediaCentaur.Library.Images do
     with false <- Enum.any?(lookup, fn {_key, value} -> is_nil(value) end),
          %Image{content_url: old_url} when is_binary(old_url) <- Repo.get_by(Image, lookup),
          new_url when new_url != old_url <- Map.get(attrs, :content_url),
-         old_path when is_binary(old_path) <- MediaCentaur.Settings.Config.resolve_image_path(old_url) do
+         old_path when is_binary(old_path) <- ImageCache.resolve_path(old_url) do
       File.rm(old_path)
     else
       _no_replaced_file -> :ok

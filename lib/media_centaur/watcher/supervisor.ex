@@ -10,6 +10,8 @@ defmodule MediaCentaur.Watcher.Supervisor do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Settings.Config
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Library
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
@@ -164,13 +166,13 @@ defmodule MediaCentaur.Watcher.Supervisor do
   Starts a DirMonitor for each image directory that needs independent monitoring.
   """
   def start_image_dir_monitors do
-    pairs = Config.image_dirs_needing_monitoring()
+    pairs = ImageCache.dirs_outside_media_dir()
     Enum.each(pairs, &start_image_monitor/1)
   end
 
   @doc """
   Reconciles running image-dir monitors with the desired set computed
-  from `Config.image_dirs_needing_monitoring/0`. Called by
+  from `ImageCache.dirs_outside_media_dir/0`. Called by
   `Watcher.ConfigListener` whenever media_dirs change so that editing
   `images_dir` on a watch entry takes effect without an app restart.
   """
@@ -179,7 +181,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
     actions =
       MediaCentaur.Watcher.Reconciler.diff_image_monitors(
         currently_running_image_pairs(),
-        Config.image_dirs_needing_monitoring()
+        ImageCache.dirs_outside_media_dir()
       )
 
     Enum.each(actions.to_stop, &stop_image_monitor/1)

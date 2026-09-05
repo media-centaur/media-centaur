@@ -24,6 +24,8 @@ defmodule MediaCentaur.Pipeline.Import do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Parser
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{FetchMetadata, Ingest}
   alias MediaCentaur.Storage
@@ -87,7 +89,7 @@ defmodule MediaCentaur.Pipeline.Import do
   end
 
   defp check_disk_space(media_directory) do
-    images_dir = MediaCentaur.Settings.Config.images_dir_for(media_directory)
+    images_dir = ImageCache.dir_for(media_directory)
     # df works on parent even if images_dir doesn't exist yet
     path = if File.dir?(images_dir), do: images_dir, else: media_directory
 

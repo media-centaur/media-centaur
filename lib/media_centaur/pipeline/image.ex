@@ -17,6 +17,8 @@ defmodule MediaCentaur.Pipeline.Image do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Library
+
+  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Pipeline.{ImageQueue, ImageProcessor}
   alias MediaCentaur.Topics
 
@@ -39,7 +41,7 @@ defmodule MediaCentaur.Pipeline.Image do
 
     extension = ImageProcessor.output_extension(entry.role)
     relative_path = "#{owner_id}/#{entry.role}.#{extension}"
-    images_dir = MediaCentaur.Settings.Config.images_dir_for(media_dir)
+    images_dir = ImageCache.dir_for(media_dir)
     dest_path = Path.join(images_dir, relative_path)
 
     telemetry_metadata = %{role: entry.role, entity_id: entity_id}

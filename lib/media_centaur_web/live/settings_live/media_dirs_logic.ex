@@ -54,10 +54,10 @@ defmodule MediaCentaurWeb.SettingsLive.MediaDirsLogic do
   """
   @spec default_images_dir_hint(String.t() | nil) :: String.t()
   def default_images_dir_hint(dir) when is_binary(dir) and dir != "" do
-    Path.join(dir, ".media-centaur/images")
+    MediaCentaur.Library.ImageCache.default_dir_for(dir)
   end
 
-  def default_images_dir_hint(_), do: "<media dir>/.media-centaur/images"
+  def default_images_dir_hint(_), do: MediaCentaur.Library.ImageCache.default_dir_for("<media dir>")
 
   @spec saveable?(map()) :: boolean()
   def saveable?(%{errors: errors}), do: errors == []
