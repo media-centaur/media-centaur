@@ -67,6 +67,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
   attr :on_close, :string, default: "close_pursuit"
   attr :on_cancel, :string, default: "cancel_pursuit"
+  attr :on_cancel_arm, :string, default: "cancel_pursuit_arm"
+  attr :cancel_armed, :boolean, default: false, doc: "Cancel pursuit is one click from firing."
 
   attr :on_change_target, :string,
     default: "request_decision",
@@ -124,6 +126,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
             vm={@status}
             client_url={@client_url}
             on_cancel={@on_cancel}
+            on_cancel_arm={@on_cancel_arm}
+            cancel_armed={@cancel_armed}
             on_request_decision={@on_request_decision}
           />
 
@@ -131,6 +135,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
             :if={@decision_card}
             vm={@decision_card}
             on_cancel={@on_cancel}
+            on_cancel_arm={@on_cancel_arm}
+            cancel_armed={@cancel_armed}
           />
 
           <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />

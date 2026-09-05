@@ -34,6 +34,10 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
   attr :detail, Detail, default: nil, doc: "The title's detail view-model; nil while closed."
   attr :today, Date, required: true
 
+  attr :stop_tracking_armed, :boolean,
+    default: false,
+    doc: "Stop tracking is one click from firing for this title (host-owned arm state)."
+
   def title_modal(assigns) do
     assigns =
       assign(assigns, :next_event, assigns.detail && next_event(assigns.detail.timeline, assigns.today))
@@ -174,17 +178,18 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
           </section>
 
           <div class="border-t border-base-content/10 py-4">
-            <button
-              type="button"
-              class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-error/80 hover:text-error"
-              data-nav-item
-              tabindex="0"
-              phx-click="stop_tracking"
+            <.armed_button
+              armed={@stop_tracking_armed}
+              arm="stop_tracking_arm"
+              fire="stop_tracking"
+              armed_label="Click again to stop tracking"
+              variant="destructive_inline"
+              class="px-0"
               phx-value-item-id={@detail.item_id}
             >
               <.icon name="hero-x-circle-mini" class="size-4" />
               <span>Stop tracking</span>
-            </button>
+            </.armed_button>
           </div>
         </div>
       </:body>

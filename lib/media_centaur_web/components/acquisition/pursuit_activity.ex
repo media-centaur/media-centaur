@@ -9,12 +9,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1, armed_button: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitStatus
 
   attr :vm, PursuitStatus, required: true
   attr :on_cancel, :string, default: nil
+  attr :on_cancel_arm, :string, default: nil, doc: "event that arms Cancel pursuit (first click)."
+  attr :cancel_armed, :boolean, default: false, doc: "Cancel pursuit is one click from firing."
   attr :on_request_decision, :string, default: nil
 
   attr :client_url, :string,
@@ -105,16 +107,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
         >
           Pick a different release
         </.button>
-        <.button
+        <.armed_button
           :if={:cancel in @vm.available_actions and @on_cancel}
+          armed={@cancel_armed}
+          arm={@on_cancel_arm || @on_cancel}
+          fire={@on_cancel}
+          armed_label="Click again to cancel the pursuit"
           variant="dismiss"
-          size="sm"
-          phx-click={@on_cancel}
-          data-nav-item
-          tabindex="0"
         >
           Cancel pursuit
-        </.button>
+        </.armed_button>
       </div>
 
       <div :if={staleness_message(@vm)} class={"text-xs #{staleness_class(@vm.staleness)}"}>

@@ -213,6 +213,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          pursuits_reload_timer: nil,
          reload_timer: nil,
          selected_pursuit_id: nil,
+         cancel_pursuit_armed: nil,
+         stop_tracking_armed: nil,
          pursuit_detail: nil,
          omnibox_mode: :media,
          omnibox_query: "",
@@ -882,8 +884,14 @@ defmodule MediaCentaurWeb.IncomingLive do
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
           client_url={pursuit_client_url(@pursuit_detail)}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
+          cancel_armed={@selected_pursuit_id != nil and @cancel_pursuit_armed == @selected_pursuit_id}
         />
-        <TitleModal.title_modal open={@detail != nil} detail={@detail} today={@today} />
+        <TitleModal.title_modal
+          open={@detail != nil}
+          detail={@detail}
+          today={@today}
+          stop_tracking_armed={@detail != nil and @stop_tracking_armed == @detail.item_id}
+        />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
             (like `library`/`home`), not a context within it — the nav graph
@@ -1841,7 +1849,25 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, assign(socket, detail: build_detail(socket, item_id))}
   end
 
+  # Stop tracking has no undo: the title modal's button arms on the first
+  # click (keyed by item, so another title is never armed) and fires on
+  # the second (MC0027 tier 2).
+  def handle_event("stop_tracking_arm", %{"item-id" => item_id}, socket) do
+    {:noreply, assign(socket, stop_tracking_armed: item_id)}
+  end
+
+  def handle_event(
+        "stop_tracking",
+        %{"item-id" => item_id},
+        %{assigns: %{stop_tracking_armed: armed}} = socket
+      )
+      when armed != item_id do
+    {:noreply, assign(socket, stop_tracking_armed: item_id)}
+  end
+
   def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
+    socket = assign(socket, stop_tracking_armed: nil)
+
     case ReleaseTracking.get_item(item_id) do
       nil ->
         {:noreply, socket}
@@ -1938,7 +1964,24 @@ defmodule MediaCentaurWeb.IncomingLive do
   # Pursuit detail modal — manual actions. All four operate on
   # `selected_pursuit_id`; the open modal is the implicit target.
 
+  # Cancelling a pursuit has no undo: arm first, keyed by pursuit so a
+  # modal opened on another pursuit is never armed (MC0027 tier 2).
+  def handle_event("cancel_pursuit_arm", _params, socket) do
+    {:noreply, assign(socket, cancel_pursuit_armed: socket.assigns.selected_pursuit_id)}
+  end
+
+  def handle_event(
+        "cancel_pursuit",
+        _params,
+        %{assigns: %{cancel_pursuit_armed: armed, selected_pursuit_id: selected}} = socket
+      )
+      when armed != selected or is_nil(selected) do
+    {:noreply, assign(socket, cancel_pursuit_armed: selected)}
+  end
+
   def handle_event("cancel_pursuit", _params, socket) do
+    socket = assign(socket, cancel_pursuit_armed: nil)
+
     case Cancel.execute(%{
            pursuit_id: socket.assigns.selected_pursuit_id,
            cancelled_by: :user,

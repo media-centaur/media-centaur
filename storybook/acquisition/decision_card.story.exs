@@ -29,7 +29,24 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             loading?: true,
             search_queries: ["Sample Movie 2010"]
           },
-          on_cancel: "noop"
+          on_cancel: "noop",
+          on_cancel_arm: "noop"
+        }
+      },
+      %Variation{
+        id: :cancel_armed,
+        description: "Searching Prowlarr for fresh alternatives",
+        attributes: %{
+          cancel_armed: true,
+          vm: %DecisionCard{
+            pursuit_id: "story-loading",
+            prompt: "Download stalled for 24+ hours — pick an alternative release.",
+            alternatives: [],
+            loading?: true,
+            search_queries: ["Sample Movie 2010"]
+          },
+          on_cancel: "noop",
+          on_cancel_arm: "noop"
         }
       },
       %Variation{
@@ -43,7 +60,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             loading?: false,
             search_queries: ["Sample Movie 2010"]
           },
-          on_cancel: "noop"
+          on_cancel: "noop",
+          on_cancel_arm: "noop"
         }
       },
       %Variation{
@@ -66,7 +84,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             loading?: false,
             search_queries: ["Sample Movie 2010"]
           },
-          on_cancel: "noop"
+          on_cancel: "noop",
+          on_cancel_arm: "noop"
         }
       },
       %Variation{
@@ -113,7 +132,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             ],
             loading?: false
           },
-          on_cancel: "noop"
+          on_cancel: "noop",
+          on_cancel_arm: "noop"
         }
       }
     ]

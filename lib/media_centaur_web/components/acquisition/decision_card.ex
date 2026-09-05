@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1, armed_button: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.{Alternative, DecisionCard}
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
@@ -23,6 +23,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
         "renders in the action row alongside Search Prowlarr again. The Decision card " <>
         "is the single home for all decision-related actions when the pursuit is " <>
         "awaiting a decision — the Activity card is suppressed in that case by the modal."
+
+  attr :on_cancel_arm, :string, default: nil, doc: "event that arms Cancel pursuit (first click)."
+  attr :cancel_armed, :boolean, default: false, doc: "Cancel pursuit is one click from firing."
 
   def decision_card(assigns) do
     ~H"""
@@ -78,16 +81,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
         :if={!@vm.loading? && (@on_cancel || @vm.alternatives == [])}
         class="flex justify-end gap-2 pt-1"
       >
-        <.button
+        <.armed_button
           :if={@on_cancel}
+          armed={@cancel_armed}
+          arm={@on_cancel_arm || @on_cancel}
+          fire={@on_cancel}
+          armed_label="Click again to cancel the pursuit"
           variant="dismiss"
-          size="sm"
-          phx-click={@on_cancel}
-          data-nav-item
-          tabindex="0"
         >
           Cancel pursuit
-        </.button>
+        </.armed_button>
         <.button
           :if={@vm.alternatives == []}
           variant="action"

@@ -191,6 +191,51 @@ defmodule MediaCentaurWeb.CoreComponents do
   defp shape_classes("square"), do: "btn-square"
 
   @doc """
+  A destructive action behind the house arm gesture (MC0027 tier 2): the
+  first click arms the button (`arm` event), the second click on the same
+  armed button fires it (`fire` event). Any other interaction the host
+  treats as a change of mind disarms it (the host owns the `armed`
+  assign). The armed state relabels the button and turns it danger.
+
+      <.armed_button
+        armed={@dismiss_all_armed}
+        arm="dismiss_all_arm"
+        fire="dismiss_all"
+        armed_label="Click again to dismiss all"
+        variant="dismiss"
+      >
+        Dismiss all
+      </.armed_button>
+  """
+  attr :armed, :boolean, required: true, doc: "host-owned: the first click has landed."
+  attr :arm, :string, required: true, doc: "event the first click pushes."
+  attr :fire, :string, required: true, doc: "event the second click pushes, while armed."
+  attr :armed_label, :string, required: true, doc: "label shown while armed — say what fires."
+  attr :variant, :string, default: "danger", values: ~w(danger risky dismiss destructive_inline)
+  attr :size, :string, default: "sm", values: ~w(xs sm md lg)
+  attr :class, :any, default: nil
+  attr :rest, :global, include: ~w(disabled)
+  slot :inner_block, required: true, doc: "the idle label."
+
+  def armed_button(assigns) do
+    ~H"""
+    <.button
+      variant={if @armed, do: "danger", else: @variant}
+      size={@size}
+      class={@class}
+      phx-click={if @armed, do: @fire, else: @arm}
+      data-armed={@armed && "true"}
+      aria-pressed={to_string(@armed)}
+      data-nav-item
+      tabindex="0"
+      {@rest}
+    >
+      {if @armed, do: @armed_label, else: render_slot(@inner_block)}
+    </.button>
+    """
+  end
+
+  @doc """
   Renders a badge.
 
   Use `variant` and `size` rather than raw daisyUI `badge-*` classes — the

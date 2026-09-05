@@ -113,6 +113,29 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
     end
   end
 
+  describe "removing an event" do
+    test "the row's remove arms on the first click, fires on the second, and flashes", %{
+      conn: conn
+    } do
+      movie = create_movie(%{name: "Sample Removable Movie"})
+
+      event =
+        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Removable Movie"})
+
+      {:ok, view, _html} = live_async!(conn, "/history")
+      render_after_async_load(view)
+
+      html = render_click(view, "remove_event", %{"id" => event.id})
+      assert html =~ "Click again to remove"
+      assert MediaCentaur.WatchHistory.get_event(event.id), "the first click must only arm"
+
+      html = render_click(view, "remove_event", %{"id" => event.id})
+      assert MediaCentaur.WatchHistory.get_event(event.id) == nil
+      assert html =~ "Removed Sample Removable Movie from history"
+      refute has_element?(view, "#history-deleted-modal")
+    end
+  end
+
   describe "type filter" do
     test "filter_type event narrows the event list to movies only", %{conn: conn} do
       create_watch_event(%{entity_type: :movie, title: "A Movie"})

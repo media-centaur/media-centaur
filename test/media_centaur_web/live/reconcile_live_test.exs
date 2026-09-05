@@ -59,6 +59,19 @@ defmodule MediaCentaurWeb.ReconcileLiveTest do
     file
   end
 
+  test "Dismiss all arms on the first click and fires on the second (MC0027 tier 2)", %{conn: conn} do
+    seed_show()
+    divert_file()
+    {:ok, view, _html} = live(conn, "/reconcile")
+
+    html = render_click(view, "dismiss_all", %{})
+    assert html =~ "Click again to dismiss all"
+    assert length(Reconciliation.list_awaiting()) == 1, "the first click must only arm"
+
+    render_click(view, "dismiss_all", %{})
+    assert Reconciliation.list_awaiting() == []
+  end
+
   test "empty queue renders the explainer, not a crash", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/reconcile")
 
@@ -114,7 +127,8 @@ defmodule MediaCentaurWeb.ReconcileLiveTest do
 
     {:ok, view, _html} = live(conn, "/reconcile")
 
-    html = view |> element("button", "Dismiss all") |> render_click()
+    view |> element("button", "Dismiss all") |> render_click()
+    html = view |> element("button", "Click again to dismiss all") |> render_click()
 
     assert html =~ "Dismissed 1 file(s)"
     assert Reconciliation.list_awaiting() == []

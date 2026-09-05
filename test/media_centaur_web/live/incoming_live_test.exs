@@ -3214,6 +3214,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/incoming")
 
+      # Stop tracking is armed by the first request (MC0027 tier 2) …
+      render_hook(view, "stop_tracking", %{"item-id" => item.id})
+      assert MediaCentaur.ReleaseTracking.get_item(item.id), "the first click must only arm"
+
+      # … and fires on the second.
       result = render_hook(view, "stop_tracking", %{"item-id" => item.id})
 
       assert result =~ "Stopped tracking"
