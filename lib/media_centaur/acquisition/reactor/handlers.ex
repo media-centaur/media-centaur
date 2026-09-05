@@ -12,7 +12,7 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   ## Public surface
 
   - `tracking_sweep_completed/0` — run the drop planner tick (ADR-056).
-  - `plan_changed/1` — the mode gate for tracking-born plans.
+  - `plan_changed/1` — the approval gate for every plan.
 
   Pure dispatch + Acquisition-context side effects. No GenServer state.
   """
@@ -36,47 +36,62 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   end
 
   @doc """
-  The mode gate for tracking-born plans (ADR-056 Q3): when a tracking
-  plan finishes solving, decide its fate from the item's effective
-  auto-grab mode —
+  The approval gate (spec 2026-09-05; ADR-056 Q3 for the tracking
+  rules): when any plan finishes solving, decide its fate from the
+  stamped `approval_policy` —
 
-  * zero found units → delete the draft (the wants remain the durable
-    intent; an automated tick that found nothing has no record value)
-  * `ask` → leave it `ready`; the draft card on Downloads is the
+  * tracking plan, zero found units → delete the draft (the wants
+    remain the durable intent; an automated tick that found nothing
+    has no record value)
+  * tracking plan whose item's mode is now `off` (or whose item is
+    gone) → discard. The one live read left: off is a kill switch, not
+    a policy, so a mid-solve flip still wins.
+  * `review` → leave it `ready`; the draft card on Downloads is the
     steering surface
-  * `off` (flipped mid-flight) → discard
-  * otherwise (auto) → approve; an overlap or nothing-to-grab rejection
-    discards (claims will exclude those units next tick)
+  * `automatic`, tracking origin → approve when at least one unit was
+    found; the want ledger retries the remainder next tick. An
+    approval rejection discards (claims exclude those units next tick).
+  * `automatic`, manual origin → approve only a clean plan
+    (`Plans.clean?/1`); anything else stays `ready` for a person,
+    because nothing retries a manual plan's remainder. An approval
+    rejection (overlap, nothing to grab) also stays `ready`, logged.
 
-  Non-tracking plans and non-ready transitions are ignored.
+  Non-ready transitions are ignored.
   """
   @spec plan_changed(PlanEvents.Changed.t()) :: :ok
   def plan_changed(%PlanEvents.Changed{status: "ready", plan_id: plan_id}) do
     case Plans.fetch(plan_id) do
-      {:ok, %Plan{origin: "tracking", status: "ready"} = plan} -> gate_tracking_plan(plan)
+      {:ok, %Plan{status: "ready"} = plan} -> gate(plan)
       _other -> :ok
     end
   end
 
   def plan_changed(%PlanEvents.Changed{}), do: :ok
 
-  defp gate_tracking_plan(plan) do
+  defp gate(%Plan{origin: "tracking"} = plan) do
     found = plan.id |> Plans.units_for() |> Enum.count(&(&1.status == "found"))
 
     cond do
       found == 0 -> Plans.delete_tracking_draft(plan)
-      tracking_mode(plan) == "ask" -> :ok
-      tracking_mode(plan) == "off" -> discard(plan)
+      tracking_item_off?(plan) -> discard(plan)
+      plan.approval_policy == "review" -> :ok
       true -> approve_or_discard(plan)
     end
 
     :ok
   end
 
-  defp tracking_mode(plan) do
+  defp gate(%Plan{approval_policy: "automatic"} = plan) do
+    if Plans.clean?(plan), do: approve_or_park(plan)
+    :ok
+  end
+
+  defp gate(%Plan{}), do: :ok
+
+  defp tracking_item_off?(plan) do
     case plan.tracking_item_id && ReleaseTracking.get_item(plan.tracking_item_id) do
-      nil -> "off"
-      item -> AutoGrabSettings.effective_mode(item.auto_grab_mode, AutoGrabSettings.load())
+      nil -> true
+      item -> AutoGrabSettings.effective_mode(item.auto_grab_mode, AutoGrabSettings.load()) == "off"
     end
   end
 
@@ -92,6 +107,19 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
         )
 
         discard(plan)
+    end
+  end
+
+  defp approve_or_park(plan) do
+    case Plans.approve(plan) do
+      {:ok, committed} ->
+        Log.info(:acquisition, "plan auto-committed — #{committed.title}")
+
+      {:error, reason} ->
+        Log.warning(
+          :acquisition,
+          "plan auto-approve rejected, parked for review — #{plan.title} — #{inspect(reason)}"
+        )
     end
   end
 

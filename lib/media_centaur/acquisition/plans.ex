@@ -226,6 +226,25 @@ defmodule MediaCentaur.Acquisition.Plans do
     |> Repo.all()
   end
 
+  @doc """
+  Whether a solved plan is clean: every wanted unit (every unit not
+  excluded) was found within the plan's quality bounds — no gaps, no
+  below-preference units, no pack offers. The approval gate's
+  qualifying test for a manual plan with `approval_policy: "automatic"`.
+  Reads the units directly so the context stays free of the board
+  view-model.
+  """
+  @spec clean?(Plan.t()) :: boolean()
+  def clean?(%Plan{id: plan_id}) do
+    plan_id
+    |> units_for()
+    |> Enum.reject(&(&1.status == "excluded"))
+    |> case do
+      [] -> false
+      wanted -> Enum.all?(wanted, &(&1.status == "found"))
+    end
+  end
+
   @doc "Draft plans still in flight (planning or ready), newest first."
   @spec list_drafts() :: [Plan.t()]
   def list_drafts do
