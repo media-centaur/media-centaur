@@ -3,7 +3,9 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   The release-tracking drop→plan pipeline (ADR-056 Phase 2): per
   cadence tick, per tracked title, batches the wants that are **open ∧
   unclaimed ∧ search-due** into one tracking plan and lets the regular
-  plan machinery (RunPlan → mode gate → CommitPlan) take it from there.
+  plan machinery (RunPlan → the approval gate,
+  `Reactor.Handlers.plan_changed/1`, reading the stamped
+  `approval_policy` → CommitPlan) take it from there.
 
   Batch is **state, not delta** — every tick re-derives from current
   open-want state, so the pipeline is self-healing: a missed tick, a
@@ -116,6 +118,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                origin_country: item.origin_country,
                tracking_item_id: item.id,
                origin: "manual",
+               approval_policy: "review",
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
              },
              unit_specs
@@ -153,6 +156,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
               year: want.air_date && want.air_date.year,
               tracking_item_id: item.id,
               origin: "manual",
+              approval_policy: "review",
               criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
             },
             [
@@ -230,6 +234,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                title: item.name,
                origin_country: item.origin_country,
                tracking_item_id: item.id,
+               approval_policy: approval_policy(item, settings),
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
              },
              unit_specs
@@ -275,6 +280,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                title: want.title || item.name,
                year: want.air_date && want.air_date.year,
                tracking_item_id: item.id,
+               approval_policy: approval_policy(item, settings),
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
              },
              [unit_spec]
@@ -316,6 +322,16 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
     |> Enum.reduce(%{}, fn {season, episode, guids}, acc ->
       Map.update(acc, {season, episode}, guids || [], &Enum.uniq(&1 ++ (guids || [])))
     end)
+  end
+
+  # The item's mode at creation decides the policy (spec 2026-09-05 §2):
+  # ask parks for a person, every other grabbing mode lets the gate
+  # commit. `off` items never reach here (`plan_item/4` guards it).
+  defp approval_policy(%Item{} = item, settings) do
+    case AutoGrabSettings.effective_mode(item.auto_grab_mode, settings) do
+      "ask" -> "review"
+      _grabbing_mode -> "automatic"
+    end
   end
 
   defp bounds(item, settings) do

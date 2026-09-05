@@ -131,6 +131,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       [plan] = Repo.all(Plans.Plan)
       assert plan.status == "committed"
       assert plan.origin == "tracking"
+      assert plan.approval_policy == "automatic"
       assert plan.tracking_item_id == item.id
       assert plan.pursuit_id == pursuit.id
 
@@ -225,6 +226,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       [plan] = Plans.list_drafts()
       assert plan.status == "ready"
       assert plan.origin == "tracking"
+      assert plan.approval_policy == "review"
 
       tick_and_gate()
 
@@ -345,6 +347,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       {:ok, :planned} = DropPlanner.plan_item_now(item.id)
       [draft] = Plans.list_drafts()
       assert draft.origin == "manual"
+      assert draft.approval_policy == "review"
 
       Handlers.tracking_sweep_completed()
 

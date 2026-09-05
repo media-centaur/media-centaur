@@ -31,6 +31,8 @@ defmodule MediaCentaur.Acquisition.Plans do
   Creates a draft plan for a series selection and the user's chosen
   units, then starts the autonomous planning run. Units carry their
   picker labels so the board reads like the picker did.
+  `approval_policy:` (`"automatic"` | `"review"`, default review) names
+  who commits the plan once ready — see `Plan`.
   """
   @spec create_series_plan(Targeting.Selection.t(), [unit_choice()], keyword()) ::
           {:ok, Plan.t()} | {:error, term()}
@@ -63,13 +65,18 @@ defmodule MediaCentaur.Acquisition.Plans do
         origin_country: selection.origin_country,
         criteria: Keyword.get(opts, :criteria, %{}),
         span_sizes: Targeting.aired_counts(selection),
-        grab_future: Keyword.get(opts, :grab_future, false)
+        grab_future: Keyword.get(opts, :grab_future, false),
+        approval_policy: Keyword.get(opts, :approval_policy, "review")
       },
       unit_specs
     )
   end
 
-  @doc "Creates a single-unit movie plan and starts the planning run."
+  @doc """
+  Creates a single-unit movie plan and starts the planning run.
+  `approval_policy:` (`"automatic"` | `"review"`, default review) names
+  who commits the plan once ready — see `Plan`.
+  """
   @spec create_movie_plan(map(), keyword()) :: {:ok, Plan.t()} | {:error, term()}
   def create_movie_plan(%{tmdb_id: tmdb_id, title: title} = attrs, opts \\ []) do
     create_plan(
@@ -79,7 +86,8 @@ defmodule MediaCentaur.Acquisition.Plans do
         title: title,
         year: Map.get(attrs, :year),
         criteria: Keyword.get(opts, :criteria, %{}),
-        grab_future: Keyword.get(opts, :grab_future, false)
+        grab_future: Keyword.get(opts, :grab_future, false),
+        approval_policy: Keyword.get(opts, :approval_policy, "review")
       },
       [%{season_number: nil, episode_number: nil, label: title, position: 0}]
     )

@@ -754,4 +754,26 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert unit.assigned_guid == "movie-apos"
     end
   end
+
+  describe "approval policy stamping" do
+    test "picker plans default to review" do
+      {:ok, series} = Plans.create_series_plan(selection(), [{1, 1}])
+      {:ok, movie} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert {:ok, %{approval_policy: "review"}} = Plans.fetch(series.id)
+      assert {:ok, %{approval_policy: "review"}} = Plans.fetch(movie.id)
+    end
+
+    test "creators can stamp automatic" do
+      {:ok, series} = Plans.create_series_plan(selection(), [{1, 1}], approval_policy: "automatic")
+
+      {:ok, movie} =
+        Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005},
+          approval_policy: "automatic"
+        )
+
+      assert {:ok, %{approval_policy: "automatic"}} = Plans.fetch(series.id)
+      assert {:ok, %{approval_policy: "automatic"}} = Plans.fetch(movie.id)
+    end
+  end
 end
