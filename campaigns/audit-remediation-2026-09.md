@@ -92,7 +92,7 @@ being asked.
   E27. Commits and module map in the stage section. E34 stays deferred
   (Stage E-10).
 
-### What's next: the Documentation lane (D-1 first), then Design
+### What's next: the Design lane — an owner conversation first
 
 **E45 — done 2026-09-05** (owner chose seam + check): `Progress.Worker`
 gained `__sync_for_test__/1` and `__inject_record_for_test__/4`, the two
@@ -308,6 +308,12 @@ across unrelated suites.
   parallel HTTP/Req task extended the E9 seam instead of competing with
   it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
   the single design, and MC0029 now enforces the construction seam.
+* `2026-09-05` — **Documentation lane resolved** (see the lane). Copies
+  of code facts became pointers where a code authority exists
+  (`config.js`, `router.ex`, `decisions/README.md`, `HealthBoard`,
+  `CLAUDE.md` § Static Analysis). `ADR-058` is `amended`, not
+  `superseded`. The wiki's nine "entity"s are "entry"/"title" per the
+  vocabulary rule; "floor" left the Settings copy.
 * `2026-09-05` — **Performance lane resolved** (see the lane). **E48
   declined:** the five ADR-030 sites are orchestration with one call per
   branch; the claimed StatusLive/EntityModal duplication handles playback
@@ -895,7 +901,20 @@ rebaseline before the next `scripts/profile` diff.
 
 Suggested order: P3, P7 (one-liners) → P2+E18, P4 → P5, P6, E55 → P1.
 
-# Documentation lane (to elaborate when reached)
+# Documentation lane — **DONE 2026-09-05** (deferrals listed)
+
+Resolved in four commits (`3f212918` D-1/D-2, `675a6297` D-3,
+`d3a262f4` D-4/D-5, plus the wiki commit in `../media-centaur.wiki`).
+**Deferred / declined:** **D17's docs-site tiles** for Discovery and
+Apps need feature pages and marketing copy — owner's call, not a doc
+fix (README got the bullets). **D11** (`docs/mpv.md` HDR block + menu)
+not verified: `contrib/mpv/mpv.conf` is not at the path the doc implies;
+re-check against the shipped mpv config when someone touches it. **D29's
+triage table** kept — the "skip" rows have no stories on disk, so the
+table is true. **D35** already marked the release section disabled.
+**D15, D31, D38, D41 declined** (droppable). `Diagnostics.log_recent/1`
+was *added* (D22): two callers named it and nothing else could serve.
+
 
 Forcing-function surfaces are current (wiki to the day, `decisions/README.md`,
 config docs). Everything else describes the app as of roughly April–June
@@ -1069,8 +1088,7 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
    correct)~~ — 2026-09-05. The engineering lane is closed apart from
    Stage E-10 (deferred). E34 / Stage E-10 stay deferred.
 4. ~~Performance lane~~ — done 2026-09-05 (P9/P10 declined).
-5. Documentation lane, D-1 first (it is the cheapest and the README entry
-   is actively misleading a resuming session).
+5. ~~Documentation lane~~ — done 2026-09-05 (deferrals in the lane).
 6. Design lane, DS-1 and DS-2 first.
 
 ## Completion criteria
