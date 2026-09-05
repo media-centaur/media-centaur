@@ -3,7 +3,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapEvidence do
   The durable evidence behind a plan's gap verdict (UIDR-022): which
   ladder searches have corpus records, what they returned, and — for
   movie plans — every raw candidate with the reason the run rejected
-  it. Built by `Plans.gap_evidence/1` from the search corpus, never
+  it. Built by `Plans.Alternatives.gap_evidence/1` from the search corpus, never
   from the transient activity ticker, so a re-opened board shows the
   same evidence days later. Cleanup rides corpus retention.
   """

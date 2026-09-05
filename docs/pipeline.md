@@ -162,7 +162,7 @@ If Stats crashes, the pipelines in its supervisor restart (clean telemetry re-at
 
 Watchers and pipelines can be independently stopped/started via config (`start_watchers`, `start_pipeline`).
 
-**Startup reconciliation (ADR-023):** When `Discovery.Producer` starts, it sends itself `:reconcile` and triggers `Watcher.Supervisor.scan()` under the Task.Supervisor. This re-detects files that appeared while the pipeline was down so no work is lost across restarts.
+**Startup reconciliation (ADR-023):** When `Discovery.Producer` starts, it sends itself `:reconcile` and triggers `Watcher.Rescan.scan()` under the Task.Supervisor. This re-detects files that appeared while the pipeline was down so no work is lost across restarts.
 
 ---
 

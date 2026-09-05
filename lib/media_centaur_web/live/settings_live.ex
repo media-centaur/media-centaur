@@ -586,7 +586,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply,
      socket
      |> assign(scanning: true)
-     |> start_async(:scan, fn -> MediaCentaur.Watcher.Supervisor.scan() end)}
+     |> start_async(:scan, fn -> MediaCentaur.Watcher.Rescan.scan() end)}
   end
 
   def handle_event("cancel_scan", _params, socket) do
@@ -862,7 +862,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       # by an earlier TMDB auth failure. Re-emit `:file_detected` for
       # any present watcher_files row with no library link so the
       # pipeline gets another chance.
-      MediaCentaur.Watcher.Supervisor.rescan_unlinked_async()
+      MediaCentaur.Watcher.Rescan.rescan_unlinked_async()
     end
 
     socket = assign(socket, config: load_config(), tmdb_test: load_test_result(:tmdb))

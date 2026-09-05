@@ -8,7 +8,7 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
   `library_watched_files`) sat forever after a restart.
 
   Post-Phase-7 of the library-presence-unification campaign,
-  `Watcher.Supervisor.rescan_unlinked/0` walks `library_file_presences`
+  `Watcher.Rescan.rescan_unlinked/0` walks `library_file_presences`
   (the watcher_files table is gone) and re-emits
   `{:file_detected, ...}` for any presence row that has no matching
   `library_watched_files` link *and still exists on disk*, so the next
@@ -30,7 +30,7 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
 
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Topics
-  alias MediaCentaur.Watcher.Supervisor, as: WatcherSupervisor
+  alias MediaCentaur.Watcher.Rescan
 
   setup do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.pipeline_input())
@@ -61,7 +61,7 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: linked_path, media_dir: media_dir, movie_id: movie.id})
 
-      assert {:ok, 1} = WatcherSupervisor.rescan_unlinked()
+      assert {:ok, 1} = Rescan.rescan_unlinked()
 
       assert_receive {:file_detected, %{path: ^stranded_path, media_dir: ^media_dir}}, 500
       refute_receive {:file_detected, %{path: ^linked_path}}, 100
@@ -73,19 +73,19 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
       movie = create_movie(%{name: "Sample Movie B"})
       create_linked_file(%{file_path: linked_path, media_dir: media_dir, movie_id: movie.id})
 
-      assert {:ok, 0} = WatcherSupervisor.rescan_unlinked()
+      assert {:ok, 0} = Rescan.rescan_unlinked()
       refute_receive {:file_detected, _}, 100
     end
 
     test "returns {:ok, 0} when library_file_presences is empty" do
-      assert {:ok, 0} = WatcherSupervisor.rescan_unlinked()
+      assert {:ok, 0} = Rescan.rescan_unlinked()
       refute_receive {:file_detected, _}, 100
     end
 
     test "emits one event per stranded row across multiple files", %{media_dir: media_dir} do
       paths = for n <- ["a", "b", "c"], do: write_stranded_file!(media_dir, "#{n}.mkv")
 
-      assert {:ok, 3} = WatcherSupervisor.rescan_unlinked()
+      assert {:ok, 3} = Rescan.rescan_unlinked()
 
       Enum.each(paths, fn path ->
         assert_receive {:file_detected, %{path: ^path, media_dir: ^media_dir}}, 500
@@ -102,7 +102,7 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
       gone_path = Path.join(media_dir, "deleted.mkv")
       FilePresence.stamp(gone_path, media_dir)
 
-      assert {:ok, 0} = WatcherSupervisor.rescan_unlinked()
+      assert {:ok, 0} = Rescan.rescan_unlinked()
       refute_receive {:file_detected, %{path: ^gone_path}}, 100
     end
 
@@ -113,7 +113,7 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
       gone_path = Path.join(media_dir, "deleted.mkv")
       FilePresence.stamp(gone_path, media_dir)
 
-      assert {:ok, 1} = WatcherSupervisor.rescan_unlinked()
+      assert {:ok, 1} = Rescan.rescan_unlinked()
 
       assert_receive {:file_detected, %{path: ^stranded_path, media_dir: ^media_dir}}, 500
       refute_receive {:file_detected, %{path: ^gone_path}}, 100

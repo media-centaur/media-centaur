@@ -83,8 +83,8 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
         Log.info(:pipeline, "triggered watcher rescan — startup reconciliation")
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-          MediaCentaur.Watcher.Supervisor.scan()
-          MediaCentaur.Watcher.Supervisor.rescan_unlinked()
+          MediaCentaur.Watcher.Rescan.scan()
+          MediaCentaur.Watcher.Rescan.rescan_unlinked()
         end)
 
       {:retry, delay_ms} ->

@@ -1374,7 +1374,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("plan_show_alternatives", %{"unit-id" => unit_id}, socket) do
-    case Plans.alternatives_for(unit_id) do
+    case Plans.Alternatives.for_unit(unit_id) do
       {:ok, items} ->
         {:noreply,
          assign(socket, plan_alternatives: %{unit_id: unit_id, items: items, searching?: false})}
@@ -1390,7 +1390,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         {:noreply,
          socket
          |> assign(plan_alternatives: Map.put(open, :searching?, true))
-         |> start_async(:plan_find_more, fn -> {unit_id, Plans.search_alternatives(unit_id)} end)}
+         |> start_async(:plan_find_more, fn -> {unit_id, Plans.Alternatives.search(unit_id)} end)}
 
       _other ->
         {:noreply, socket}
@@ -1408,7 +1408,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     with %{plan_id: plan_id} = board <- socket.assigns.plan_board,
          unit_id when is_binary(unit_id) <- PlanLogic.movie_gap_unit_id(board),
          {:ok, plan} <- Plans.fetch(plan_id) do
-      items = plan |> Plans.gap_evidence() |> PlanLogic.rejected_items()
+      items = plan |> Plans.Alternatives.gap_evidence() |> PlanLogic.rejected_items()
       {:noreply, assign(socket, plan_rejected: %{unit_id: unit_id, items: items})}
     else
       _no_movie_gap -> {:noreply, socket}
@@ -1420,7 +1420,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("plan_choose_rejected", %{"unit-id" => unit_id, "guid" => guid}, socket) do
-    case Plans.choose_rejected(unit_id, guid) do
+    case Plans.Alternatives.choose_rejected(unit_id, guid) do
       {:ok, _plan} ->
         {:noreply, assign(socket, plan_rejected: nil)}
 
@@ -1431,7 +1431,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("plan_choose_release", %{"unit-id" => unit_id, "guid" => guid}, socket) do
-    case Plans.choose_release(unit_id, guid) do
+    case Plans.Alternatives.choose_release(unit_id, guid) do
       {:ok, _plan} ->
         {:noreply, assign(socket, plan_alternatives: nil)}
 
@@ -2788,7 +2788,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         end
 
       GapVerdict.build(
-        Plans.gap_evidence(plan),
+        Plans.Alternatives.gap_evidence(plan),
         gaps: board.gaps,
         movie?: board.movie?,
         search_health: search_health,
@@ -2803,7 +2803,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp open_plan_board(socket, plan_id) do
     case Plans.fetch(plan_id) do
       {:ok, plan} ->
-        board = Plans.board_for(plan)
+        board = Plans.Board.build(plan)
         # Live activity is per-plan and session-only (no persisted history):
         # switching to a different plan must drop the previous plan's ticker
         # line rather than let it linger as if it described this one.

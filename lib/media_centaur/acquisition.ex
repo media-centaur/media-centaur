@@ -22,6 +22,8 @@ defmodule MediaCentaur.Acquisition do
       PlanEvents.DescentStatus,
       PlanEvents.SearchActivity,
       Plans,
+      Plans.Alternatives,
+      Plans.Board,
       Plans.Plan,
       Targeting,
       Targeting.Selection,

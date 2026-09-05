@@ -1,7 +1,7 @@
-defmodule MediaCentaur.Review.IntakeTest do
+defmodule MediaCentaur.ReviewIntakeTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Review.Intake
+  alias MediaCentaur.Review
   alias MediaCentaur.Review.Events.FileAdded
   alias MediaCentaur.Review.Events.FileReviewed
   alias MediaCentaur.TestFactory
@@ -37,11 +37,11 @@ defmodule MediaCentaur.Review.IntakeTest do
     Map.merge(defaults, overrides)
   end
 
-  describe "create_pending_file/1" do
+  describe "add_pending_file/1" do
     test "creates PendingFile from plain map attrs" do
       attrs = build_attrs()
 
-      assert {:ok, pending_file} = Intake.create_pending_file(attrs)
+      assert {:ok, pending_file} = Review.add_pending_file(attrs)
 
       assert pending_file.file_path == "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv"
       assert pending_file.media_directory == "/media/movies"
@@ -69,7 +69,7 @@ defmodule MediaCentaur.Review.IntakeTest do
           candidates: []
         })
 
-      assert {:ok, pending_file} = Intake.create_pending_file(attrs)
+      assert {:ok, pending_file} = Review.add_pending_file(attrs)
 
       assert pending_file.file_path == "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv"
       assert pending_file.parsed_title == "Sample Movie"
@@ -100,7 +100,7 @@ defmodule MediaCentaur.Review.IntakeTest do
 
       attrs = build_attrs(%{candidates: candidates})
 
-      assert {:ok, pending_file} = Intake.create_pending_file(attrs)
+      assert {:ok, pending_file} = Review.add_pending_file(attrs)
 
       assert length(pending_file.candidates) == 2
       [first, second] = pending_file.candidates
@@ -127,8 +127,8 @@ defmodule MediaCentaur.Review.IntakeTest do
     test "find_or_create idempotency — same file_path returns same record" do
       attrs = build_attrs()
 
-      assert {:ok, first} = Intake.create_pending_file(attrs)
-      assert {:ok, second} = Intake.create_pending_file(attrs)
+      assert {:ok, first} = Review.add_pending_file(attrs)
+      assert {:ok, second} = Review.add_pending_file(attrs)
 
       assert first.id == second.id
     end
@@ -137,7 +137,7 @@ defmodule MediaCentaur.Review.IntakeTest do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
 
       attrs = build_attrs()
-      assert {:ok, pending_file} = Intake.create_pending_file(attrs)
+      assert {:ok, pending_file} = Review.add_pending_file(attrs)
 
       assert_receive {:file_added, %FileAdded{pending_file_id: id}}
       assert id == pending_file.id
@@ -169,7 +169,7 @@ defmodule MediaCentaur.Review.IntakeTest do
           ]
         })
 
-      assert {:ok, pending_file} = Intake.create_pending_file(attrs)
+      assert {:ok, pending_file} = Review.add_pending_file(attrs)
 
       assert pending_file.parsed_title == "Sample Show"
       assert pending_file.parsed_type == "extra"
@@ -181,7 +181,7 @@ defmodule MediaCentaur.Review.IntakeTest do
     end
   end
 
-  describe "receive_files_for_review/1" do
+  describe "add_files_for_review/1" do
     test "parses file paths and creates PendingFiles with metadata" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
 
@@ -189,7 +189,7 @@ defmodule MediaCentaur.Review.IntakeTest do
         %{file_path: "/media/movies/Sample Movie 2049 (2017).mkv", media_dir: "/media/movies"}
       ]
 
-      assert {:ok, 1} = Intake.receive_files_for_review(files)
+      assert {:ok, 1} = Review.add_files_for_review(files)
 
       [pending] = MediaCentaur.Review.list_pending_files_for_review()
       assert pending.file_path == "/media/movies/Sample Movie 2049 (2017).mkv"
@@ -212,7 +212,7 @@ defmodule MediaCentaur.Review.IntakeTest do
         %{file_path: "/media/tv/Sitcom (2001)/Season 1/Sitcom S01E02.mkv", media_dir: "/media/tv"}
       ]
 
-      assert {:ok, 2} = Intake.receive_files_for_review(files)
+      assert {:ok, 2} = Review.add_files_for_review(files)
 
       pending_files = MediaCentaur.Review.list_pending_files_for_review()
       assert length(pending_files) == 2
@@ -231,8 +231,8 @@ defmodule MediaCentaur.Review.IntakeTest do
         %{file_path: "/media/movies/Sample Movie (2010).mkv", media_dir: "/media/movies"}
       ]
 
-      assert {:ok, 1} = Intake.receive_files_for_review(files)
-      assert {:ok, 1} = Intake.receive_files_for_review(files)
+      assert {:ok, 1} = Review.add_files_for_review(files)
+      assert {:ok, 1} = Review.add_files_for_review(files)
 
       # Still only one PendingFile
       assert length(MediaCentaur.Review.list_pending_files_for_review()) == 1
@@ -244,7 +244,7 @@ defmodule MediaCentaur.Review.IntakeTest do
       pending_file = TestFactory.create_pending_file()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
 
-      assert :ok = Intake.complete_review(pending_file.id)
+      assert :ok = Review.complete_review(pending_file.id)
 
       assert_receive {:file_reviewed, %FileReviewed{pending_file_id: id}}
       assert id == pending_file.id
@@ -253,7 +253,7 @@ defmodule MediaCentaur.Review.IntakeTest do
     end
 
     test "handles already-removed PendingFile gracefully" do
-      assert :ok = Intake.complete_review(Ecto.UUID.generate())
+      assert :ok = Review.complete_review(Ecto.UUID.generate())
     end
   end
 end

@@ -108,7 +108,7 @@ Why device-id tracking matters: inotify watches inodes, not paths. If a watcher 
 
 ### Manual Scan
 
-The dashboard provides a "Scan directories" button that calls `Watcher.Supervisor.scan/0`. This walks all watched directories recursively, detecting video files not yet tracked in the database. Each new file enters the pipeline normally.
+The dashboard provides a "Scan directories" button that calls `Watcher.Rescan.scan/0`. This walks all watched directories recursively, detecting video files not yet tracked in the database. Each new file enters the pipeline normally.
 
 ## PubSub Events
 

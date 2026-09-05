@@ -248,7 +248,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       # alternatives order by the same ladder, seeders notwithstanding.
       assert unit.assigned_guid == "src-remux"
 
-      {:ok, alternatives} = Plans.alternatives_for(unit.id)
+      {:ok, alternatives} = Plans.Alternatives.for_unit(unit.id)
       assert Enum.map(alternatives, & &1.guid) == ["src-webdl", "src-encode"]
     end
   end
@@ -264,7 +264,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert [unit] = Plans.units_for(plan.id)
       assert unit.status == "unfound"
 
-      board = Plans.board_for(plan)
+      board = Plans.Board.build(plan)
 
       assert %PlanBoard.BelowPreference{units: 1, releases: 3, unit_label: "Sample Movie"} =
                board.below_preference
@@ -283,7 +283,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
       assert [unit] = Plans.units_for(created.id)
 
-      {:ok, alternatives} = Plans.alternatives_for(unit.id)
+      {:ok, alternatives} = Plans.Alternatives.for_unit(unit.id)
 
       assert Enum.map(alternatives, &{&1.guid, &1.quality}) == [
                {"bf-720p", "720p"},
@@ -293,7 +293,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       # Grabbing one is a deliberate user pick — the floor does not
       # apply, and the assignment carries the display quality.
-      assert {:ok, _plan} = Plans.choose_release(unit.id, "bf-720p")
+      assert {:ok, _plan} = Plans.Alternatives.choose_release(unit.id, "bf-720p")
 
       assert [grabbed] = Plans.units_for(created.id)
       assert grabbed.status == "found"
@@ -301,7 +301,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert grabbed.assigned_quality == "720p"
 
       {:ok, reloaded} = Plans.fetch(created.id)
-      assert Plans.board_for(reloaded).below_preference == nil
+      assert Plans.Board.build(reloaded).below_preference == nil
     end
   end
 
@@ -421,7 +421,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       units = Plans.units_for(plan.id)
       assert Enum.all?(units, &(&1.status == "unfound"))
 
-      board = Plans.board_for(plan)
+      board = Plans.Board.build(plan)
 
       # One offer for the pack, not one per unfound unit.
       assert [offer] = board.offers
@@ -431,10 +431,10 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert offer.size_bytes == 9_400_000_000
 
       # Grabbing the offer claims every unit the pack covers.
-      assert {:ok, _plan} = Plans.choose_release(offer.unit_id, offer.guid)
+      assert {:ok, _plan} = Plans.Alternatives.choose_release(offer.unit_id, offer.guid)
       regrabbed = Plans.units_for(plan.id)
       assert Enum.all?(regrabbed, &(&1.assigned_guid == "pack-s1"))
-      assert Plans.board_for(plan).offers == []
+      assert Plans.Board.build(plan).offers == []
     end
 
     test "the swap picker: find-more live-fills the unit's terms consult-first, suspicious flagged not hidden, choice reassigns" do
@@ -500,10 +500,10 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       # The descent stopped at the season rung, so the corpus holds
       # nothing deeper — the picker starts honest and empty.
-      assert {:ok, []} = Plans.alternatives_for(first_unit.id)
+      assert {:ok, []} = Plans.Alternatives.for_unit(first_unit.id)
 
       # "Find more" live-fills exactly the unit's never-searched terms.
-      {:ok, alternatives} = Plans.search_alternatives(first_unit.id)
+      {:ok, alternatives} = Plans.Alternatives.search(first_unit.id)
 
       # Clean candidate first; the bait visible but flagged and sorted
       # last — and it was never auto-picked despite 999 seeders.
@@ -523,11 +523,11 @@ defmodule MediaCentaur.Acquisition.PlansTest do
         end
       end)
 
-      assert {:ok, again} = Plans.search_alternatives(first_unit.id)
+      assert {:ok, again} = Plans.Alternatives.search(first_unit.id)
       assert Enum.map(again, & &1.guid) == Enum.map(alternatives, & &1.guid)
 
       # Deliberate choice reassigns exactly the units the choice covers.
-      assert {:ok, _plan} = Plans.choose_release(first_unit.id, "e1-uhd")
+      assert {:ok, _plan} = Plans.Alternatives.choose_release(first_unit.id, "e1-uhd")
 
       units = Plans.units_for(plan.id)
       chosen_unit = Enum.find(units, &(&1.episode_number == 1))
@@ -539,7 +539,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       # The narrowing choice created containment overlap: the pack still
       # physically contains E01. The board flags it, CTA aimed at the pack.
       {:ok, plan} = Plans.fetch(plan.id)
-      board = Plans.board_for(plan)
+      board = Plans.Board.build(plan)
       assert [overlap] = board.overlaps
       assert overlap.exclude_guid == "pack-s1"
       assert overlap.description =~ "download twice"
@@ -557,7 +557,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert {:ok, _plan} = Plans.exclude_release(overlap.exclude_unit_id, overlap.exclude_guid)
 
       {:ok, plan} = Plans.fetch(plan.id)
-      assert Plans.board_for(plan).overlaps == []
+      assert Plans.Board.build(plan).overlaps == []
 
       units = Plans.units_for(plan.id)
       assert Enum.find(units, &(&1.episode_number == 1)).assigned_guid == "e1-uhd"

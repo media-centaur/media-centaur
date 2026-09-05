@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
+defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Acquisition.Plans
@@ -105,9 +105,9 @@ defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
       {plan, unit} = create_gap_movie()
 
       assert unit.status == "unfound"
-      assert Plans.board_for(plan).gaps == ["Sample Movie"]
+      assert Plans.Board.build(plan).gaps == ["Sample Movie"]
 
-      evidence = Plans.gap_evidence(plan)
+      evidence = Plans.Alternatives.gap_evidence(plan)
 
       assert [
                %GapEvidence.Search{term: "Sample Movie 1990", result_count: 2},
@@ -131,14 +131,14 @@ defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
       {:ok, _plan} = Plans.exclude_release(unit.id, "other-1")
       {:ok, plan} = Plans.fetch(plan.id)
 
-      evidence = Plans.gap_evidence(plan)
+      evidence = Plans.Alternatives.gap_evidence(plan)
       assert %{reason: :excluded} = Enum.find(evidence.rejected, &(&1.guid == "other-1"))
     end
 
     test "zero raw results yields searched terms with empty rejection" do
       {plan, _unit} = create_gap_movie()
 
-      evidence = Plans.gap_evidence(plan)
+      evidence = Plans.Alternatives.gap_evidence(plan)
 
       assert Enum.map(evidence.searches, &{&1.term, &1.result_count}) == [
                {"Sample Movie 1990", 0},
@@ -155,7 +155,7 @@ defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
       {plan, unit} = create_gap_movie()
       assert unit.status == "unfound"
 
-      evidence = Plans.gap_evidence(plan)
+      evidence = Plans.Alternatives.gap_evidence(plan)
       assert evidence.searches == []
       assert evidence.checked_at == nil
     end
@@ -191,7 +191,7 @@ defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
       {:ok, created} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
       {:ok, plan} = Plans.fetch(created.id)
 
-      evidence = Plans.gap_evidence(plan)
+      evidence = Plans.Alternatives.gap_evidence(plan)
 
       assert Enum.map(evidence.searches, & &1.term) == [
                "Sample Show",
@@ -211,9 +211,9 @@ defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
       stub_rejected_movie()
       {plan, unit} = create_gap_movie()
 
-      assert {:ok, _plan} = Plans.choose_rejected(unit.id, "other-1")
+      assert {:ok, _plan} = Plans.Alternatives.choose_rejected(unit.id, "other-1")
 
-      board = Plans.board_for(elem(Plans.fetch(plan.id), 1))
+      board = Plans.Board.build(elem(Plans.fetch(plan.id), 1))
       assert board.covered == 1
       assert [%{guid: "other-1"}] = board.releases
       assert board.gaps == []
@@ -223,14 +223,15 @@ defmodule MediaCentaur.Acquisition.PlansGapEvidenceTest do
       {:ok, created} = Plans.create_series_plan(selection(), [{1, 1}])
       [unit | _rest] = Plans.units_for(created.id)
 
-      assert {:error, :movie_only} = Plans.choose_rejected(unit.id, "any-guid")
+      assert {:error, :movie_only} = Plans.Alternatives.choose_rejected(unit.id, "any-guid")
     end
 
     test "refuses a guid the corpus does not know" do
       stub_rejected_movie()
       {_plan, unit} = create_gap_movie()
 
-      assert {:error, :alternative_unavailable} = Plans.choose_rejected(unit.id, "no-such-guid")
+      assert {:error, :alternative_unavailable} =
+               Plans.Alternatives.choose_rejected(unit.id, "no-such-guid")
     end
   end
 

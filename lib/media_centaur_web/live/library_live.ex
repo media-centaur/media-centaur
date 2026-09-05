@@ -215,7 +215,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply,
      socket
      |> assign(scanning: true)
-     |> start_async(:scan, fn -> MediaCentaur.Watcher.Supervisor.scan() end)}
+     |> start_async(:scan, fn -> MediaCentaur.Watcher.Rescan.scan() end)}
   end
 
   # Result of the owned scan. A crash reaches the `{:exit, _}` clause, so
