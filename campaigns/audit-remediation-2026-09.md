@@ -48,98 +48,66 @@ timeout), each passing in isolation. Sweep run 2026-09-04 against
 `7e1df187` (v1.7.3): 57 engineering, 10 performance, 42 documentation, 25
 design findings. Criticals: P1; DS4, DS14, DS15, DS16, DS25.
 
-**Pass 4 part one done 2026-09-05** — Stage E-2's precommit items
-(D13, E52, E42, E53) and Stage E-3's E56 dead-code batch, in commits
-`3c764d2d`, `9dc0fb83` and `6200e014`.
+**2026-09-05, end of day — three lanes done, one open.** Engineering:
+closed except Stage E-10 (E34, deferred by the owner); E48 declined.
+Performance: done (P9, P10 declined). Documentation: done (D11
+unverified, D17 docs-site tiles need owner copy). Design: DS4 fixed;
+everything else awaits the owner's judgement (see *Resuming*). All of it
+is in **local, unpushed** commits `3c764d2d..f4735c57` (28 on `main`)
+plus one unpushed commit in `../media-centaur.wiki` (`9e4111f`). Last
+full `mix precommit`: green (6617 Elixir + 795 JS) once the Settings
+mount budget test primed the Overview projection.
 
-**Pass 4 part two done 2026-09-05 — Stage E-5 resolved**, eight local,
-**unpushed** commits `40b63794..c723c6c8` (E40/E37/E27, E32, E29, E31,
-E38, E39, E30, E35 — see the stage). Full `mix precommit`: 6593/6594
-Elixir + 795 JS; the one failure was the known
-`Nostr.ConnectionTest` retry-log flake, green in isolation. **Correction
-(same day):** the engineering lane is *not* done — Stages E-7 and E-8,
-E48 and two E-9 leftovers are open; see *What's next*. The
-Performance, Documentation and Design lanes follow.
+## Resuming — start here (handoff written 2026-09-05, end of day)
 
-## Resuming — start here (handoff written 2026-09-05)
-
-**Reconcile first (ADR-042), but the expensive parts are already done.**
-`git log 3c764d2d^..HEAD` is the 2026-09-05 work: thirteen commits on
-`main`, **local and unpushed**. Confirm nothing was pushed or rebased
-since, then pick up at *What's next* below. Do not push or tag without
-being asked.
+**Reconcile first (ADR-042).** `git log 2ddd4b53..HEAD` is the day's
+work: 28+ commits on `main`, local and unpushed; `../media-centaur.wiki`
+has one unpushed commit. Confirm nothing was pushed or rebased since.
+**Do not push or tag without being asked.** Then pick up at *What's
+next*. Trust the stage sections below over any one-line summary — an
+earlier handoff said "only E-5 remains" and cost a session a wrong claim.
 
 ### Closed — do not re-audit these
 
-* **The 2026-09-04 handoff's HTTP-convergence item.** No divergence
-  existed: the parallel Req task built *on* `0a40c933` rather than
-  replacing it. `HttpClient.new/2` is the one client-construction seam
-  (Credo MC0029), `config :media_centaur, :req_test_stubs` the test stub
-  seam, `Capabilities.save_integration/2` the one save path,
-  `Capabilities.configured?/1` the one configured predicate;
-  `invalidate_client/0` has zero occurrences and `Acquisition.Config`
-  stays deleted. **E8/E9/E11 hold as ratified.**
-* **E14 and E36** — verified closed 2026-09-05. All seven contexts
-  (Acquisition, Downloads, HttpClient, Search, SelfUpdate, Social, TMDB)
-  declare `@behaviour ...IncidentContext`, and the `function_exported?`
-  structural probing is gone from `error_reports/incident_context.ex`.
-  Pass 2 closed them; the stage text below still lists them as evidence.
-* **E33, E41, E42, E52, E53, E56, D13, E49** — done. E33's
-  `Watcher.record_seen/1` was *kept*: the showcase seeder still calls it.
-* **E6** — closed in `a661eea7` (Pass 1); no `DDR-015` citation remains.
-  The earlier handoff listed it as a straggler in error.
-* **Stage E-5, all of it** — E29, E30, E31, E32, E35, E37, E38, E39, E40,
-  E27. Commits and module map in the stage section. E34 stays deferred
-  (Stage E-10).
+* Engineering Stages E-1 … E-9, E45, E48 (declined), the E-9
+  "leftovers" (verified correct); E34 / Stage E-10 deferred.
+* Performance lane, all of it (P9, P10 declined).
+* Documentation lane, all of it (D11 unverified, D17 tiles deferred to
+  the owner, D15/D31/D38/D41 declined).
+* **DS4** (Design lane) — fixed in `f4735c57`, regression
+  `test/e2e/library_cursor.spec.js`.
 
-### What's next: the Design lane — an owner conversation first
+### What's next: the Design lane, item by item, on the owner's call
 
-**E45 — done 2026-09-05** (owner chose seam + check): `Progress.Worker`
-gained `__sync_for_test__/1` and `__inject_record_for_test__/4`, the two
-test sites use them, and **MC0004 now also flags `GenServer.call/cast`
-in `test/`** — the rule the testing skill had claimed it enforced.
+The owner asked for the judgement items as a list and is ruling on
+them. Re-verify line numbers before touching anything. Do one item per
+commit, with a real-browser check (`page-shot` for look, Playwright
+under `test/e2e` for input contracts — browsers are now provisioned in
+`~/.cache/ms-playwright`).
 
-**Still open in the engineering lane** (re-verified 2026-09-05 against
-HEAD; an earlier handoff wrongly said only E-5 remained):
+The list handed to the owner (2026-09-05): DS14 modal input contract,
+DS19 review search panel mouse-only, DS20 discovery scope toggles
+outside any zone, DS25 text contrast floor, DS15/DS18 destructive
+actions without the arm, DS1 accent bars, DS5 end-truncated paths,
+DS6 form dialogs `:ephemeral`, DS7 solid state badges, DS8 `:for` roots
+without ids, DS9 three primary buttons / Manage→Back, DS10
+`items-center`, DS24 two sentence-makers on the plan board, DS12 page
+header sizes, DS22 fresh-install empty state, DS2 page titles, DS13
+`z-index: 60`, DS23 history empty state; plus the owner's own note that
+the poster card's mouse hover ring may not be wanted. Record each ruling
+under *Decisions made* as it lands.
 
-* ~~**Stage E-8 — silent failure paths.**~~ Done 2026-09-05 (see the
-  stage). Original evidence kept below for the record: E54 held (`reconciliation.ex:290-291`
-  `_ -> :error`, `:328`; zero `Log` calls in `reconciliation.ex` and
-  `spine.ex`). DS17 holds (`review_live.ex:418` and
-  `settings_live.ex:1608` catch-all `{:exit, _}` clauses). DS16's
-  `EntityModal` half is done; the files sub-view's
-  `:loading | {:ok, _} | :failed` assign and the swallowed-exit log are
-  not (`entity_modal.ex:348` still `{:noreply, socket}`). DS21
-  (`manage_panel.ex:96,272` sums an empty list while loading) holds.
-  Recommended next: user-visible bugs, and it pairs with the design
-  lane's DS16/17.
-* ~~**Stage E-7 — test policy.**~~ Done 2026-09-05 (see the stage).
-  Original evidence for the record: E44's six `Process.sleep(600)` hold
-  (`home_live_test.exs:128`, `watch_history_live_test.exs:193`,
-  `incoming_live_test.exs:2673,3016,3030,3279`); E47's hand-rolled
-  `on_exit` restores hold; E50 holds (`issue_url_test.exs:2` async with
-  `put_env` at `:91`; `recommendations/sync_test.exs:168,236` sleeps);
-  E51 (MC0023 grandfather list, now `no_repo_setup_in_tests.ex`) to
-  re-check; the ADR-027 loosening (`producer_test.exs:94`
-  `assert delay > 0`) still stands; seven private poll helpers exist
-  (`grep -rl "defp wait_until\|defp eventually\|defp poll_until\|defp wait_for" test`).
-  E43: `page_smoke_test.exs:44` still mounts `?subsystem=friends` —
-  confirm the board's key before changing it.
-* **E48** (ADR-030 extractions, listed under Stage E-4) — not touched by
-  Passes 1–3; re-verify the five sites when reached.
-* **E-9 leftovers:** `acquisition.ex:99` and `acquisition/target.ex:7`
-  still cite `current_target_id`. The glossary (E1/D36) is done — 64
-  rows including the acquisition family.
-* **E34 / Stage E-10** deferred (owner's call).
+### Follow-ups found on the way (not in the sweep)
 
-After the engineering lane, the lanes in order: **Performance** (elaborate P1–P10 into stages;
-P3/P7 one-liners first, P1 last), **Documentation** (D-1 first),
-**Design** (DS-1, DS-2 first). Each lane's findings and evidence are
-below, unchanged since the sweep — re-verify line numbers before acting.
-
-Still owed from Pass 2: a real-browser check of the Status page pipeline
-tiles during an import on the dev server (`127.0.0.1:2160`), event-driven
-since E18.
+* `test/e2e/library.spec.js` navigates to `/` and
+  `watch_history.spec.js` to `/watch-history`; the pages moved to
+  `/library` and `/history` (UIDR-010/015), so those specs skip or fail.
+  Repoint them and make the skips loud.
+* `Library.Deletion`'s per-episode cascade loops (E55 remainder) — bulk
+  by id if it ever shows up in a profile.
+* The profiling baseline (`priv/profiling/baseline-small.*`) predates
+  the toolchain update; rebaseline before the next `scripts/profile`
+  diff.
 
 ### Module map after Stage E-5 (so nobody re-derives it)
 
@@ -308,6 +276,11 @@ across unrelated suites.
   parallel HTTP/Req task extended the E9 seam instead of competing with
   it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
   the single design, and MC0029 now enforces the construction seam.
+* `2026-09-05` — **DS4 fixed as the audit recommended** (owner saw it
+  in the running app first): cards draw no outline until focused; the
+  library selection ring is inset. Playwright browsers were provisioned
+  for the regression spec; the two stale E2E routes are a follow-up.
+  Owner's rulings on the remaining design items are pending.
 * `2026-09-05` — **Documentation lane resolved** (see the lane). Copies
   of code facts became pointers where a code authority exists
   (`config.js`, `router.ex`, `decisions/README.md`, `HealthBoard`,
@@ -1089,7 +1062,7 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
    Stage E-10 (deferred). E34 / Stage E-10 stay deferred.
 4. ~~Performance lane~~ — done 2026-09-05 (P9/P10 declined).
 5. ~~Documentation lane~~ — done 2026-09-05 (deferrals in the lane).
-6. Design lane, DS-1 and DS-2 first.
+6. **Design lane** — DS4 done; the rest item by item on the owner's rulings (list in *Resuming*).
 
 ## Completion criteria
 
