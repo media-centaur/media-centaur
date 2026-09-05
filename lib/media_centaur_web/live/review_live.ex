@@ -462,7 +462,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       >
         <%!-- Header with stats chips --%>
         <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold">Review</h1>
+          <.page_header title="Review" />
           <div :if={@total_files > 0} class="flex items-center gap-2">
             <span class="px-3 py-1 rounded-full text-xs font-semibold bg-warning/15 text-warning">
               {@total_files} pending

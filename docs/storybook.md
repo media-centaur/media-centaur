@@ -105,7 +105,7 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `core_components.icon/1` | ✅ covered | Sizes + colors + motion |
 | `core_components.input/1` | ✅ covered | Each input type, error/no-error |
 | `core_components.flash/1` | ✅ covered | Each level |
-| `core_components.header/1` | ✅ covered | Header recipes |
+| `core_components.page_header/1` | ✅ covered | Title only, title + subtitle |
 | `core_components.list/1` | ✅ covered | Description list |
 | `core_components.table/1` | ✅ covered | Empty/loaded/long-row states |
 | `detail.facet_strip/1` | ✅ covered | Facet row above metadata |

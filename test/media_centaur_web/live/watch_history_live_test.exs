@@ -68,12 +68,12 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
       assert html =~ "Watch History"
     end
 
-    test "mounts with empty state when no events", %{conn: conn} do
+    test "mounts with a designed empty state when no events (audit DS23)", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/history")
 
-      # Verify the page is up and the render cycle completes without crashing
       rendered = render(view)
-      assert rendered =~ "Watch History"
+      assert rendered =~ "Every finished watch lands here"
+      assert has_element?(view, "a[href='/library'][data-nav-item]")
     end
 
     test "mounts and renders completion events from the database", %{conn: conn} do

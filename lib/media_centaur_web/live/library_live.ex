@@ -384,12 +384,11 @@ defmodule MediaCentaurWeb.LibraryLive do
         <div class="page-side-dim" aria-hidden="true"></div>
 
         <div class="relative z-[1]">
-          <header class="mb-5">
-            <h1 class="text-3xl font-bold tracking-tight">Library</h1>
-            <p class="mt-1 text-sm text-base-content/60">
+          <.page_header title="Library" class="mb-5">
+            <:subtitle>
               {count_label(@counts.movies, "movie")} · {count_label(@counts.tv, "show")}
-            </p>
-          </header>
+            </:subtitle>
+          </.page_header>
 
           <%!-- Storage offline banner --%>
           <LibraryCards.storage_offline_banner :if={@offline_summary} summary={@offline_summary} />

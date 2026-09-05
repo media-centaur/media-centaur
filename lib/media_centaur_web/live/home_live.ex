@@ -240,9 +240,25 @@ defmodule MediaCentaurWeb.HomeLive do
               @hero == nil and @continue_items == [] and @coming_up_marquee.hero == nil and
                 @recently_added == []
             }
-            class="text-center py-16 text-base-content/50"
+            data-nav-zone="hero"
+            class="mx-auto max-w-lg py-16 text-center space-y-4"
           >
-            <p>Your home page will populate as you add media and watch.</p>
+            <.icon name="hero-film" class="size-10 mx-auto text-base-content/30" />
+            <h2 class="text-xl font-semibold tracking-tight">Point it at your media</h2>
+            <p class="text-sm text-base-content/60">
+              This page fills itself once files are found: a hero for what to watch next, the
+              titles you are partway through, new episodes on the way and what was added last.
+              Nothing is here yet because no media directory has been scanned.
+            </p>
+            <.button
+              variant="primary"
+              size="sm"
+              navigate={~p"/settings?section=library"}
+              data-nav-item
+              tabindex="0"
+            >
+              Add a media directory
+            </.button>
           </div>
         </div>
 

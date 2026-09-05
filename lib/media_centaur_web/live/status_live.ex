@@ -597,7 +597,7 @@ defmodule MediaCentaurWeb.StatusLive do
 
         <div class="relative z-[1] space-y-6">
           <div data-nav-zone="toolbar" class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold">Status</h1>
+            <.page_header title="Status" />
             <div class="flex-1"></div>
             <.button
               variant="outline"
