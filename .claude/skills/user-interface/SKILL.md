@@ -350,7 +350,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `button/1` | `core_components.ex` | Links and buttons (default: soft primary) | ✅ seed |
 | `badge/1` | `core_components.ex` | Metric / type / state chip (UIDR-002) | ✅ |
 | `input/1` | `core_components.ex` | Form fields with label + errors | ✅ stub |
-| `header/1` | `core_components.ex` | Page title bar with actions slot | ✅ stub |
+| `page_header/1` | `core_components.ex` | The one page-title treatment (`<h1>` + subtitle line, audit DS12) | ✅ |
 | `table/1` | `core_components.ex` | Zebra-striped data tables | ✅ stub |
 | `list/1` | `core_components.ex` | Key-value display list | ✅ stub |
 | `icon/1` | `core_components.ex` | Heroicon rendering | ✅ stub |

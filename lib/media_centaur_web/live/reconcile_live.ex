@@ -166,7 +166,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
         data-page-behavior="reconcile"
         data-nav-default-zone="reconcile"
       >
-        <h1 class="text-2xl font-bold">Review</h1>
+        <.page_header title="Review" />
 
         <.review_tabs
           active={:mapping}

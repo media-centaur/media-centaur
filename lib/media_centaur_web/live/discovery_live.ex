@@ -286,7 +286,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       <:overlays></:overlays>
       <div class="relative" data-page-behavior="discovery" data-nav-default-zone="discovery">
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
-          <h1 class="px-1 text-lg font-semibold">Discovery</h1>
+          <.page_header title="Discovery" class="px-1" />
 
           <.tab_strip tabs={tabs(@feed, @items)} active={@live_action} />
 

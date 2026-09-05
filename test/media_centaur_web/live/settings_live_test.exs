@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
   test "renders the page header with a title and subtitle", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, ~p"/settings")
-    assert has_element?(view, "h1.text-3xl", "Settings")
+    assert has_element?(view, "h1.text-2xl", "Settings")
     assert has_element?(view, "header p", "Services, preferences, and configuration")
   end
 

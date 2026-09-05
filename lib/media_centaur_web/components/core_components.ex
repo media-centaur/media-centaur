@@ -236,6 +236,31 @@ defmodule MediaCentaurWeb.CoreComponents do
   end
 
   @doc """
+  The page's title, one size on every page (audit DS12): `text-2xl`,
+  bold, tight tracking. Pages keep their own layout around it — a
+  toolbar zone, a flex row with actions, a measure — this component only
+  owns the `<h1>` and its optional subtitle line.
+
+      <.page_header title="Library">
+        <:subtitle>{count_label(@counts.movies, "movie")}</:subtitle>
+      </.page_header>
+  """
+  attr :title, :string, required: true
+  attr :class, :any, default: nil, doc: "extra classes on the wrapping `<header>`."
+  slot :subtitle, doc: "one muted line under the title."
+
+  def page_header(assigns) do
+    ~H"""
+    <header class={@class}>
+      <h1 class="text-2xl font-bold tracking-tight">{@title}</h1>
+      <p :for={subtitle <- @subtitle} class="mt-1 text-sm text-base-content/60">
+        {render_slot(subtitle)}
+      </p>
+    </header>
+    """
+  end
+
+  @doc """
   Renders a badge.
 
   Use `variant` and `size` rather than raw daisyUI `badge-*` classes — the
@@ -475,29 +500,6 @@ defmodule MediaCentaurWeb.CoreComponents do
       <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
-    """
-  end
-
-  @doc """
-  Renders a header with title.
-  """
-  slot :inner_block, required: true
-  slot :subtitle
-  slot :actions
-
-  def header(assigns) do
-    ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
-      <div>
-        <h1 class="text-lg font-semibold leading-8">
-          {render_slot(@inner_block)}
-        </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
-          {render_slot(@subtitle)}
-        </p>
-      </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
-    </header>
     """
   end
 

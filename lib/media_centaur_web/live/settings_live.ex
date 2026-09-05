@@ -1744,12 +1744,9 @@ defmodule MediaCentaurWeb.SettingsLive do
         <div class="page-side-dim page-side-dim-calm" aria-hidden="true"></div>
 
         <div class="relative z-[1] space-y-6">
-          <header>
-            <h1 class="text-3xl font-bold tracking-tight">Settings</h1>
-            <p class="mt-1 text-sm text-base-content/60">
-              Services, preferences, and configuration
-            </p>
-          </header>
+          <.page_header title="Settings">
+            <:subtitle>Services, preferences, and configuration</:subtitle>
+          </.page_header>
 
           <%!-- Header spans full width so its title aligns with the other
                 pages; the nav + content row is capped at a comfortable measure

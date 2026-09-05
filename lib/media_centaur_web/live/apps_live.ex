@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.AppsLive do
       <div class="relative" data-page-behavior="apps" data-nav-default-zone="apps">
         <div data-nav-zone="toolbar">
           <div class="flex items-baseline justify-between">
-            <h1 class="text-lg font-semibold">Apps</h1>
+            <.page_header title="Apps" />
             <div class="flex items-center gap-2">
               <.button
                 :if={@manage}

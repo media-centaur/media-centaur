@@ -110,7 +110,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         data-page-behavior="watch-history"
         data-nav-default-zone="watch_history"
       >
-        <h1 class="text-2xl font-bold">Watch History</h1>
+        <.page_header title="Watch History" />
 
         <%!-- Stats --%>
         <div class="grid grid-cols-3 gap-4">
@@ -219,9 +219,21 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         </div>
 
         <%!-- Event list --%>
-        <p :if={@events == []} class="text-center text-base-content/40 py-16">
-          Nothing watched yet.
-        </p>
+        <div
+          :if={@events == []}
+          data-nav-zone="grid"
+          class="mx-auto max-w-lg py-16 text-center space-y-4"
+        >
+          <.icon name="hero-clock" class="size-10 mx-auto text-base-content/30" />
+          <h2 class="text-xl font-semibold tracking-tight">Every finished watch lands here</h2>
+          <p class="text-sm text-base-content/60">
+            Each movie and episode you finish becomes a row with when you watched it and how
+            many times, and the heatmap above fills in by day.
+          </p>
+          <.button variant="secondary" size="sm" navigate={~p"/library"} data-nav-item tabindex="0">
+            Browse the library
+          </.button>
+        </div>
 
         <div
           :if={@events != []}
