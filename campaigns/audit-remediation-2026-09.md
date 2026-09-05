@@ -92,7 +92,7 @@ being asked.
   E27. Commits and module map in the stage section. E34 stays deferred
   (Stage E-10).
 
-### What's next: Stage E-8, then E-7, then the lanes
+### What's next: the Documentation lane (D-1 first), then Design
 
 **E45 — done 2026-09-05** (owner chose seam + check): `Progress.Worker`
 gained `__sync_for_test__/1` and `__inject_record_for_test__/4`, the two
@@ -308,6 +308,12 @@ across unrelated suites.
   parallel HTTP/Req task extended the E9 seam instead of competing with
   it; `HttpClient.new/2` + `:req_test_stubs` + `save_integration/2` is
   the single design, and MC0029 now enforces the construction seam.
+* `2026-09-05` — **Performance lane resolved** (see the lane). **E48
+  declined:** the five ADR-030 sites are orchestration with one call per
+  branch; the claimed StatusLive/EntityModal duplication handles playback
+  sessions vs. the selected entry — different state. **E-9 leftovers
+  verified correct:** `unit.current_target_id` exists (ADR-055 moved it
+  to `Unit`); both docs already say `unit.`.
 * `2026-09-05` — **Stage E-7 resolved.** ADR-027 restore declared moot
   (type checker proves the integer clause). MC0023's remaining
   grandfathered files stay because the factory has no builder for a
@@ -827,7 +833,21 @@ event prefix; a `%PlanState{}` struct for IncomingLive's plan cluster.
 
 ---
 
-# Performance lane (to elaborate when reached)
+# Performance lane — **DONE 2026-09-05** (P9, P10 declined)
+
+Resolved in two commits (`bd3acec2` P3/P4/P5/P6/P7/E55, `4797950c`
+P1/P8); P2 had gone with E18. Decisions: Oban `stage_interval` 10 s (a
+scheduled job waits at most 10 s past its time; immediately-available
+jobs are notified, not polled); the Overview projection carries the
+per-role missing-images summary and Settings reads it; `insert_all`
+skips application-side UUID generation, so both batch paths mint ids
+and a test pins it; the Detail projection broadcasts the row id for a
+single row and `:all` for a batch (moduledoc updated). E55's
+per-episode cascade in `Library.Deletion` was left as is — it is
+correctness-sensitive and not on a hot path. **P9 and P10 declined**
+(droppable per the sweep). The profiling baseline is still stale;
+rebaseline before the next `scripts/profile` diff.
+
 
 Runtime snapshot 2026-09-04: 787 processes, 169 MB, 0 LiveViews, all
 queues 0; 17 series / 732 episodes / 28 movies / 800 images; every hot
@@ -1045,10 +1065,10 @@ on 10 of 13 pages — assign `page_title` everywhere. **DS13 (Minor)**
 0. ~~Reconcile the Req client seam~~ — done, no divergence (2026-09-05).
 1. ~~Stages E-1 through E-5~~ — done (E-4's E14/E36 closed by Pass 2).
 2. ~~E45~~ — done (seam + MC0004 extension, 2026-09-05).
-3. ~~Stage E-8, Stage E-7~~ — done 2026-09-05. Then **E48** and the
-   two E-9 leftovers. E34 / Stage E-10 stay deferred.
-4. Elaborate the Performance lane into stages (P3/P7 one-liners first,
-   P1 last) once the engineering lane is done or paused.
+3. ~~Stage E-8, Stage E-7, E48 (declined), E-9 leftovers (already
+   correct)~~ — 2026-09-05. The engineering lane is closed apart from
+   Stage E-10 (deferred). E34 / Stage E-10 stay deferred.
+4. ~~Performance lane~~ — done 2026-09-05 (P9/P10 declined).
 5. Documentation lane, D-1 first (it is the cheapest and the README entry
    is actively misleading a resuming session).
 6. Design lane, DS-1 and DS-2 first.
