@@ -183,3 +183,13 @@ it is the one datum painful to backfill.
 Rollout, use-case inventory, and phase sequencing:
 `campaigns/release-tracking-plan-convergence.md` (completed and removed —
 see git history).
+
+## Amendments
+
+**2026-09-05.** The mode gate's decision is now stamped on the plan as
+`approval_policy` (`automatic` | `review`) at creation and read by
+`Reactor.Handlers.plan_changed/1` for every plan, not only tracking
+ones (the drop planner stamps from the item's mode; the picker and
+plan-now stamp `review`; the Discovery one-click download stamps
+`automatic`). The mode-off veto remains a live read. See
+`docs/superpowers/specs/2026-09-05-one-click-download-design.md`.
