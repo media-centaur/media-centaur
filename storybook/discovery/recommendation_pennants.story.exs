@@ -83,6 +83,11 @@ defmodule MediaCentaurWeb.Storybook.Discovery.RecommendationPennant do
         attributes: %{recommendations: [row("Other Friend", :like), row("Sample Friend", :love)]}
       },
       %Variation{
+        id: :labelled,
+        description: "A fixed label in place of the names — the Recommend modal's Like / Love choice.",
+        attributes: %{recommendations: [row(nil, :love)], label: "Love"}
+      },
+      %Variation{
         id: :on_image,
         description: "Over imagery the like body is dark glass; love keeps its fill.",
         attributes: %{

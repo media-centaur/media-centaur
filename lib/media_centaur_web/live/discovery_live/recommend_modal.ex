@@ -65,7 +65,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
                 checked={sentiment == :like}
                 class="sr-only"
               />
-              <.recommendation_pennants recommendations={[preview(sentiment)]} />
+              <.recommendation_pennants
+                recommendations={[preview(sentiment)]}
+                label={sentiment_word(sentiment)}
+              />
             </label>
           </fieldset>
           <textarea
@@ -105,10 +108,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
     """
   end
 
-  # The choice shows the pennant the friend will see, in the sender's
-  # own place: a "You" row of that sentiment.
+  # The choice shows the pennant the friend will see, worded as the
+  # choice itself rather than as the sender's name.
   defp preview(sentiment),
     do: %{activity: %Activity{kind: :recommendation, sentiment: sentiment}, nickname: nil, own?: true}
+
+  defp sentiment_word(:like), do: "Like"
+  defp sentiment_word(:love), do: "Love"
 
   defp relay_line({_connected, 0}), do: "No relay configured — it will send when you add one"
   defp relay_line({connected, total}), do: "Connected to #{connected} of #{total} relays"

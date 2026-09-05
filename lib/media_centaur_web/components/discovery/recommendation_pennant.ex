@@ -29,6 +29,11 @@ defmodule MediaCentaurWeb.Components.Discovery.RecommendationPennant do
     doc: "`Activities.feed_row/0` rows of kind recommendation for one title; empty renders nothing"
 
   attr :named?, :boolean, default: true, doc: "false drops the names — the surface already says who"
+
+  attr :label, :string,
+    default: nil,
+    doc: "replaces the names on every pennant — the Recommend modal's choice reads Like / Love"
+
   attr :on_image, :boolean, default: false, doc: "over imagery the like body is dark glass"
   attr :class, :string, default: nil
 
@@ -53,7 +58,7 @@ defmodule MediaCentaurWeb.Components.Discovery.RecommendationPennant do
         data-sentiment={pennant.sentiment}
       >
         <.icon name={glyph(pennant.sentiment)} class="size-3.5" />
-        <span :if={@named?}>{label(pennant)}</span>
+        <span :if={@named?}>{@label || label(pennant)}</span>
       </span>
     </span>
     """
