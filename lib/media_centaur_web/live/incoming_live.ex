@@ -2405,15 +2405,19 @@ defmodule MediaCentaurWeb.IncomingLive do
     socket = assign(socket, plan_approving?: false)
 
     case outcome do
-      {:ok, committed} ->
+      {:ok, _committed} ->
         {:noreply,
          socket
          |> assign(plan_drafts: load_drafts())
          |> build_view()
          |> put_flash(:info, "Pursuit started.")
-         # The new pursuit is Activity content — land there under the
-         # opened pursuit modal, so closing it shows In flight.
-         |> push_patch(to: "/incoming?selected=#{committed.pursuit_id}&zone=activity")}
+         # Approving is the end of the user's involvement: the pursuit runs
+         # on its own from here. So close the modal rather than replacing
+         # the plan board with a pursuit board — landing on Activity puts
+         # the in-flight row in front of them, and clicking it is how you
+         # ask for detail. Opening a second modal over someone who just
+         # finished a task makes them dismiss something to get out.
+         |> push_patch(to: "/incoming?zone=activity")}
 
       {:error, {:overlap, units}} ->
         {:noreply,
