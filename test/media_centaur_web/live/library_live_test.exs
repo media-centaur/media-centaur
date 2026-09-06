@@ -68,6 +68,47 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "page atmosphere" do
+    test "backdrop preference on with artwork: the band is the HeroBackdrop hook's canvas",
+         %{conn: conn} do
+      {:ok, _} =
+        MediaCentaur.Settings.find_or_create_entry(%{
+          key: "library_backdrop",
+          value: %{"enabled" => true}
+        })
+
+      movie = create_standalone_movie(%{name: "Sample Movie", description: "A synopsis"})
+      create_linked_file(%{movie_id: movie.id})
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "backdrop",
+        content_url: "#{movie.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      # hero_candidates reads a global ETS projection; refresh it from this
+      # test's sandboxed rows and drop it afterwards so nothing leaks.
+      MediaCentaur.Library.Views.HeroCandidates.refresh_cache()
+
+      on_exit(fn ->
+        case :ets.whereis(:library_view_hero_candidates) do
+          :undefined -> :ok
+          _ref -> :ets.delete(:library_view_hero_candidates)
+        end
+      end)
+
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      assert has_element?(
+               view,
+               ~s|.page-atmosphere canvas[phx-hook="HeroBackdrop"][data-src="/media-images/#{movie.id}/backdrop.jpg"]|
+             )
+
+      refute has_element?(view, ".page-atmosphere img")
+    end
+  end
+
   describe "sort=watched" do
     setup do
       # Creation order (Never → Yesterday → LastWeek) makes the default

@@ -329,4 +329,24 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       assert "/media-images/" <> _ = title_poster_url(title)
     end
   end
+
+  # The page heroes (Home backdrop, Library and Incoming atmosphere bands) are
+  # painted by the HeroBackdrop hook from a decoded-bitmap cache keyed by URL.
+  # The hook, the `<link rel="prefetch">` hints, and the idle warm-up all key
+  # on this one function's output, so it must be the master URL untouched.
+  describe "hero_backdrop_src/1" do
+    test "is the master URL, byte-identical to the warmup hint" do
+      url = "/media-images/abc/backdrop.jpg"
+      assert hero_backdrop_src(url) == url
+    end
+
+    test "keeps an existing ?v= cache-buster so a bump is a new cache key" do
+      url = "/media-images/abc/backdrop.jpg?v=7"
+      assert hero_backdrop_src(url) == url
+    end
+
+    test "passes nil through so callers can :if on the result" do
+      assert hero_backdrop_src(nil) == nil
+    end
+  end
 end

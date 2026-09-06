@@ -938,12 +938,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           class="page-atmosphere page-atmosphere-deep"
           aria-hidden="true"
         >
-          <img
-            src={sized_image_url(@page_backdrop, :full_bleed)}
-            alt=""
-            loading="eager"
-            decoding="sync"
-          />
+          <MediaCentaurWeb.Components.HeroBackdrop.hero_backdrop backdrop_url={@page_backdrop} />
         </div>
         <%!-- The scrim is unconditional; its ramp follows the image. With the
               backdrop showing, the high variant starts the dim at the very

@@ -22,15 +22,16 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`instant-hero-backdrop.md`](instant-hero-backdrop.md) —
-  **planning.** Make the Home hero backdrop paint in the mount frame on
-  every return, at master resolution. Diagnosed 2026-09-06: bytes are
-  cached and the prefetch hints match, but every live navigation rebuilds
-  the `<img>` and re-decodes a 3840×2160 master (~50 ms), which is the
-  fill-in the eye catches. Bounded derivatives and format changes declined
-  (owner wants the look untouched). Phase 1 switches the media-center shell
-  from Vivaldi to Chromium (housekeeping, and a profilable target); Phase 2
-  explores a JS-owned `ImageBitmap` cache painted to a canvas, adopted only
-  if profiling in the real shell shows the gain. No code yet.
+  **in-progress, owner check remaining.** Home, Library, and Incoming hero
+  backdrops now paint in the mount frame on every return, at master
+  resolution: a JS-owned `ImageBitmap` cache survives live navigation and a
+  canvas hook draws from it ([UIDR-032](../decisions/user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md)).
+  Measured in the real shell before/after: a 32–50 ms hero decode on 4 of 5
+  returns with the page painted without it, versus the picture in the first
+  frame with no decode. The media-center shell moved from Vivaldi to
+  Chromium 152 (launcher outside the repo). Committed locally, not pushed.
+  Remaining: owner confirms remote/gamepad input and the look on the TV,
+  then removes the Vivaldi profile and ships.
 * [`indexer-id-search.md`](indexer-id-search.md) —
   **planning, unblocked.** Identify a title by identifier rather than by name,
   replacing identity reverse-engineered from parsed release titles with a

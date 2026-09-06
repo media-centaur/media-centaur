@@ -365,12 +365,7 @@ defmodule MediaCentaurWeb.LibraryLive do
               a full hero. Masked + dimmed by `.page-atmosphere`. Off when the
               user disables the Library backdrop preference. --%>
         <div :if={@hero_backdrop && @library_backdrop} class="page-atmosphere" aria-hidden="true">
-          <img
-            src={sized_image_url(@hero_backdrop, :full_bleed)}
-            alt=""
-            loading="eager"
-            decoding="sync"
-          />
+          <MediaCentaurWeb.Components.HeroBackdrop.hero_backdrop backdrop_url={@hero_backdrop} />
         </div>
         <%!-- Same fixed dark scrim the home page uses (left-weighted + a
               vertical dim that holds down the page) so the library reads as a

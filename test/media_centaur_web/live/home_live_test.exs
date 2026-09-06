@@ -508,6 +508,26 @@ defmodule MediaCentaurWeb.HomeLiveTest do
              )
     end
 
+    # The hero backdrop is a canvas the HeroBackdrop hook paints from a
+    # decoded-bitmap cache in app.js, which survives live navigation — so a
+    # return to Home draws the 4K master in the mount frame instead of
+    # re-decoding it. `data-src` is the cache key and must equal the URL the
+    # root layout's warmup hint carries (`hero_backdrop_src/1` on both sides).
+    test "hero backdrop is the HeroBackdrop hook's canvas keyed by the master URL",
+         %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      expected_src =
+        MediaCentaurWeb.LiveHelpers.hero_backdrop_src("/media-images/#{movie.id}/backdrop.jpg")
+
+      assert has_element?(
+               view,
+               ~s|.page-backdrop canvas#hero-backdrop[phx-hook="HeroBackdrop"][data-src="#{expected_src}"]|
+             )
+
+      refute has_element?(view, ".page-backdrop img")
+    end
+
     test "hero Play plays directly — no modal round-trip", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, "/")
 

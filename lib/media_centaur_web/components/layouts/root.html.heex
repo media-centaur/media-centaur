@@ -24,10 +24,20 @@
           campaigns/instant-navigation.md Phase 4). Rendered once — the
           root layout survives live navigation. --%>
     <link
-      :for={url <- MediaCentaurWeb.ArtworkWarmup.urls()}
+      :for={url <- MediaCentaurWeb.ArtworkWarmup.poster_urls()}
       rel="prefetch"
       as="image"
       href={url}
+    />
+    <%!-- The page heroes, marked so app.js pre-decodes them into the
+          HeroBackdrop bitmap cache at idle (assets/js/hooks/hero_backdrop.js):
+          bytes in the HTTP cache still cost a 4K decode on every visit. --%>
+    <link
+      :for={url <- MediaCentaurWeb.ArtworkWarmup.hero_backdrop_urls()}
+      rel="prefetch"
+      as="image"
+      href={url}
+      data-hero-backdrop
     />
     <script>
       (() => {

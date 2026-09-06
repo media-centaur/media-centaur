@@ -91,6 +91,25 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
       for url <- expected, do: assert(url in urls)
     end
 
+    # The HeroBackdrop hook keys its decoded-bitmap cache by URL, and app.js
+    # pre-decodes the hero list at idle. Both sides must go through
+    # `hero_backdrop_src/1` — a hint that differs by a byte warms nothing.
+    test "hero_backdrop_urls/0 is exactly what each hero page's canvas asks the hook for" do
+      for index <- 1..10, do: seed_hero_candidate("Warmup Canvas #{index}")
+
+      candidates = MediaCentaur.Library.Views.hero_candidates()
+
+      expected =
+        0..(HomeLogic.hero_pages() - 1)
+        |> Enum.map(
+          &LiveHelpers.hero_backdrop_src(HomeLogic.select_page_hero(candidates, &1).backdrop_url)
+        )
+        |> Enum.uniq()
+
+      assert ArtworkWarmup.hero_backdrop_urls() == expected
+      for url <- expected, do: assert(url in ArtworkWarmup.urls())
+    end
+
     test "does not fail when no candidate qualifies" do
       movie = create_movie(%{name: "Backdropless Sample Movie"})
       create_linked_file(%{movie_id: movie.id})
@@ -109,6 +128,21 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
 
       assert html =~ ~s(rel="prefetch")
       assert html =~ LiveHelpers.poster_src("/media-images/#{movie.id}/poster.jpg")
+    end
+
+    test "marks the hero backdrop hints so app.js can pre-decode them at idle", %{conn: conn} do
+      for index <- 1..3, do: seed_hero_candidate("Warmup Marker #{index}")
+
+      html = conn |> get("/history") |> html_response(200)
+
+      marked =
+        html
+        |> LazyHTML.from_document()
+        |> LazyHTML.query(~s|link[rel="prefetch"][data-hero-backdrop]|)
+        |> LazyHTML.attribute("href")
+
+      assert marked == ArtworkWarmup.hero_backdrop_urls()
+      assert marked != []
     end
   end
 end

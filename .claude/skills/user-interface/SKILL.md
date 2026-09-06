@@ -31,6 +31,8 @@ Enforced by `MediaCentaur.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading=
 <img src={@hero.backdrop_url} loading="eager" decoding="sync" fetchpriority="high" />
 ```
 
+**Exception — page hero backdrops** (Home backdrop, Library and Incoming atmosphere bands): render `<HeroBackdrop.hero_backdrop backdrop_url={...} />`, a canvas painted by the `HeroBackdrop` hook from a decoded-bitmap cache that survives live navigation ([UIDR-032]). A 4K `<img>` here re-decoded on every return and Chromium painted the page without it first.
+
 **Stable iterator ids.** Every `:for`'d root element gets `id={"<component>-#{item.entity_id}"}` so morphdom preserves it across renders. Without ids, items are torn down and rebuilt on every patch, replaying the decode/paint cycle.
 
 ```html
@@ -353,6 +355,9 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 027 | Play affordances play in place — the modal is never a waystation |
 | 028 | Back enters the main menu; left stays in the page |
 | 029 | The plan board narrates a diagnosis, not a procedure |
+| 030 | Follow-up pill and condition dot — the sidebar's two badge idioms |
+| 031 | Friends carry the shelves; the feed is recommendations |
+| 032 | Page hero backdrops paint from a decoded-bitmap cache (canvas + `HeroBackdrop` hook; amends 012) |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
