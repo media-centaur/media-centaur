@@ -45,7 +45,12 @@ defmodule MediaCentaurWeb.Components.Modal do
 
   attr :raised, :boolean,
     default: false,
-    doc: "stacks this backdrop above an already-open modal (z-index 60 instead of the backdrop's 50)."
+    doc:
+      "stacks this backdrop above an already-open modal — a confirmation belonging to it. " <>
+        "Sets `modal-backdrop--raised` (z-index 55, between modals at 50 and the console " <>
+        "overlay at 60). NOT a `z-*` utility: `.modal-backdrop` is unlayered CSS and " <>
+        "Tailwind utilities are in `@layer utilities`, so a utility loses the cascade and " <>
+        "the confirmation renders behind the modal it belongs to."
 
   attr :rest, :global, doc: "extra attrs forwarded onto the backdrop (e.g. data-* hooks)."
   slot :inner_block, required: true
@@ -64,7 +69,7 @@ defmodule MediaCentaurWeb.Components.Modal do
     ~H"""
     <div
       id={@id}
-      class={["modal-backdrop", @raised && "z-[60]"]}
+      class={["modal-backdrop", @raised && "modal-backdrop--raised"]}
       data-state={if @open, do: "open", else: "closed"}
       data-detail-mode={@open && @on_close && "modal"}
       data-dismiss-event={@on_close}

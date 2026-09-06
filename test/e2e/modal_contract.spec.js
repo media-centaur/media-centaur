@@ -42,3 +42,35 @@ test.describe("generic modal input contract", () => {
     await expect(backdrop).not.toHaveAttribute("data-detail-mode", "modal")
   })
 })
+
+/**
+ * `raised` must actually raise.
+ *
+ * The stacking is asserted in a real browser because the failure mode was a
+ * cascade one, invisible to any markup assertion: the class was applied and
+ * did nothing. `.modal-backdrop` is written unlayered in app.css while
+ * Tailwind's utilities live in `@layer utilities`, and unlayered declarations
+ * beat layered ones at equal specificity — so a `z-*` utility silently lost to
+ * the base `z-index: 50`, every backdrop tied, and DOM order decided. On
+ * Incoming the confirmations are rendered before the modals they belong to, so
+ * a discard confirm opened *behind* the plan modal with no way to reach it.
+ *
+ * Every backdrop is in the DOM regardless of open state, so this needs no
+ * fixture data.
+ */
+test.describe("raised modals stack above ordinary ones", () => {
+  test("a raised confirm outranks the modal it is opened over", async ({ page, navigateTo }) => {
+    await navigateTo("/incoming")
+    await waitForInputSystem(page)
+
+    const zIndexOf = (id) =>
+      page.locator(`#${id}`).evaluate((el) => parseInt(getComputedStyle(el).zIndex, 10))
+
+    const planModal = await zIndexOf("plan-modal")
+    const discardConfirm = await zIndexOf("plan-discard-modal")
+    const cancelConfirm = await zIndexOf("cancel-download-modal")
+
+    expect(discardConfirm).toBeGreaterThan(planModal)
+    expect(cancelConfirm).toBeGreaterThan(planModal)
+  })
+})

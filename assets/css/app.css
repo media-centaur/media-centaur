@@ -593,6 +593,22 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: opacity 200ms ease-in, visibility 0s 200ms;
 }
 
+/* A confirmation opened over an already-open modal (discard a plan, cancel a
+   download, recommend from a detail view).
+
+   Deliberately a plain rule and NOT a `z-*` utility. `.modal-backdrop` above is
+   unlayered, while Tailwind's utilities live in `@layer utilities`, and an
+   unlayered declaration beats a layered one at equal specificity — so a utility
+   is applied to the element and silently loses to the `z-index: 50` above. Every
+   backdrop then ties and paint order falls to DOM order, which put Incoming's
+   confirmations *behind* the modals they belong to.
+
+   Sits between modals (50) and `.console-overlay` (60), which stays above
+   everything. */
+.modal-backdrop--raised {
+  z-index: 55;
+}
+
 .modal-backdrop[data-state="open"] {
   opacity: 1;
   visibility: visible;
