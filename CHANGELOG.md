@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.11.0 — 2026-09-06
+
+### New
+
+- **Friends have their own cards.** Discovery's Friends tab is now one card per person, with **You** first. Each card leads with the person's latest act — *watched S02E05 of Sample Show · 2h ago* — then a **Recently watched** strip of posters (**all N** shows the rest in place), the releases they are **Tracking**, and what they **Recommended** with a thumbs up or a heart. Every poster and title opens the same view as everywhere else, with Download, Track release and Add to watchlist. The friend's key, when you added them, and **Remove friend** sit in the card's footer.
+- **Your card shows what your friends see.** What you recommended and, once sharing is on, what you watched and tracked. Open one of your own titles to delete it, which withdraws it from every relay and your friends' cards. This replaces the Feed's **Yours** scope.
+- **Like or Love.** Recommending a title now asks how much: pick **Like** or **Love** in the Recommend dialog. Wherever a recommended title appears — Recommendations rows, watchlist rows, search results on Incoming, and the title views — a pennant flies from the right edge with the friend's name and a thumbs up or a heart on rose, several friends stacked with Love above Like.
+
+### Improved
+
+- **The Feed is Recommendations again.** The first Discovery tab lists only what your friends recommend, one row per title, the most recently recommended first. When two friends recommend the same title it is one row that names both, carries each friend's note, and moves to the top. Their watched and tracked titles are no longer rows in a timeline; they live on the friend's card, so a friend who shares what they watch can never bury a recommendation. The Incoming / Yours switch is gone.
+
 ## v1.10.0 — 2026-09-05
 
 ### New
