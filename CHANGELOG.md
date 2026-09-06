@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.12.0 — 2026-09-06
+
+### Improved
+
+- **Movie searches take the best release available, not the first acceptable one.** A film often circulates under two different years — release groups tag it with whichever year their source used — so searching the title with its year finds only part of what exists. Media Centaur used to stop there as soon as it found anything meeting your quality preference, which meant copies published under the other year were never looked at. That is usually where the 4K releases are. Both searches now run and the best result across them wins, so a plan arrives already holding the best copy instead of asking you to open the swap picker and read through a list. The same applies to titles Media Centaur is tracking for you in the background, where nobody is there to go looking.
+- **Searches only ask for the kind of thing you're looking for.** A movie search used to come back with anime episodes, ebooks, comics and music that happened to share a word with the title, and those filled the indexer's result limit before the real releases were reached. Searches now name the category they want, so a search that returned well over a hundred results returns only the few dozen that are actually the film — with nothing genuine lost.
+- **Approving a plan closes it and puts you back on Activity.** Approving used to replace the plan with a pursuit window, so finishing a task left another window open over you. The download is under way and proceeds on its own; the in-flight row is on Activity to click into whenever you want the detail.
+- **Discarding a plan is two clicks on the button itself.** Discard now arms and relabels to *Click again to discard* instead of opening a dialog on top of the plan. Anything else you touch cancels it.
+- **Same-quality releases are ranked by how often they've been grabbed.** Seeder counts don't exist on Usenet, so releases of equal resolution and source used to be picked in whatever order they arrived. Media Centaur now falls back to the indexer's grab count, which is the closest equivalent.
+
+### Fixed
+
+- **Confirmations no longer open behind the window they belong to.** Discarding a plan or cancelling a download opened its confirmation *underneath* the plan window, where you could neither see nor click it — and the window on top swallowed every click, so there was no way to finish or back out. Both are reachable again.
+
+### Upgrade note
+
+This release adds two fields to the search cache and the upgrade runs by itself — there's nothing for you to do. Cached searches from before the upgrade are re-fetched the next time they're needed.
+
 ## v1.11.0 — 2026-09-06
 
 ### New
