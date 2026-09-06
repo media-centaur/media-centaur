@@ -274,6 +274,8 @@ Plain text links with animated underline. `.zone-tab-active` expands underline f
 
 All interactive elements need `data-nav-item` and `tabindex="0"` for gamepad/keyboard navigation. See the `input-system` skill for full details.
 
+**Except iteration-phase surfaces**, which ship mouse-only until their hardening pass. A surface whose template comment or spec says the design is still moving ("iteration-phase", "the hardening pass gives it one") gets no nav zones, attributes, config entries or key-trace verification until that pass, or until the owner asks — nav wiring is per-geometry and is rewritten with every layout change.
+
 **Key rules:**
 - Zone containers: `data-nav-zone="zone-name"` — must not nest
 - Grid containers: add `data-nav-grid` for column detection
