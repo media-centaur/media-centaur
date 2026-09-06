@@ -85,6 +85,41 @@ defmodule MediaCentaur.Search.ProwlarrTest do
 
       assert {:error, _} = Prowlarr.search("some movie")
     end
+
+    # Measured against Prowlarr 2.4.0: `GET /api/v1/search` honours only
+    # `q` under the generic search type, so the `year` we used to send was
+    # inert (`year=1850` returned results identical to no year at all) —
+    # Prowlarr ignores unknown params silently, which is why it looked
+    # harmless. `categories` DOES filter, and it is what keeps a search
+    # from spending the indexer's 100-result page on books and anime.
+    defp captured_params(query, opts) do
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        send(test_pid, {:params, URI.decode_query(conn.query_string)})
+        Req.Test.json(conn, [])
+      end)
+
+      {:ok, _results} = Prowlarr.search(query, opts)
+      assert_receive {:params, params}
+      params
+    end
+
+    test "a movie search asks for the movie category" do
+      assert %{"categories" => "2000"} = captured_params("Sample Movie", categories: :movie)
+    end
+
+    test "a TV search asks for the TV category" do
+      assert %{"categories" => "5000"} = captured_params("Sample Show", categories: :tv)
+    end
+
+    test "a search with no category asks for none — a user-typed query routes itself" do
+      refute Map.has_key?(captured_params("Sample Movie", []), "categories")
+    end
+
+    test "never sends a year parameter — the endpoint has no such field" do
+      refute Map.has_key?(captured_params("Sample Movie", categories: :movie), "year")
+    end
   end
 
   describe "grab/1" do

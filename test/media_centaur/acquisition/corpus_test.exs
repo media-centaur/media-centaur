@@ -50,12 +50,12 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
       assert second.indexer_name == "indexer-a"
     end
 
-    test "search opts are part of the key — same term, different type, different corpus" do
-      Corpus.record!("Sample Title", [year: 2010], [result("guid-2010")])
-      Corpus.record!("Sample Title", [year: 2011], [result("guid-2011")])
+    test "search opts are part of the key — same term, different category, different corpus" do
+      Corpus.record!("Sample Title", [categories: :movie], [result("guid-movie")])
+      Corpus.record!("Sample Title", [categories: :tv], [result("guid-tv")])
 
-      assert [%{guid: "guid-2010"}] = Corpus.candidates_for("Sample Title", year: 2010)
-      assert [%{guid: "guid-2011"}] = Corpus.candidates_for("Sample Title", year: 2011)
+      assert [%{guid: "guid-movie"}] = Corpus.candidates_for("Sample Title", categories: :movie)
+      assert [%{guid: "guid-tv"}] = Corpus.candidates_for("Sample Title", categories: :tv)
       assert [] = Corpus.candidates_for("Sample Title", [])
     end
 

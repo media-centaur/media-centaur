@@ -10,6 +10,13 @@ defmodule MediaCentaur.HttpClient.Stats do
   handler id derives from the registered name so per-test instances
   attach independently.
 
+  Pass `attach: false` to start an instance that is fed **only** by
+  direct `handle_telemetry/4` calls. Telemetry dispatch is global, so an
+  attached instance receives every HTTP request the VM makes — including,
+  in an `async: true` test, requests made by concurrently running tests.
+  An instance driven with hand-built samples must therefore not attach,
+  or its snapshot is shared with the rest of the suite.
+
   ## Snapshot shape
 
       %{
@@ -88,13 +95,18 @@ defmodule MediaCentaur.HttpClient.Stats do
 
   @impl true
   def init(opts) do
-    name = Keyword.get(opts, :name, __MODULE__)
-    handler_id = "http-stats-#{inspect(name)}"
-    :telemetry.detach(handler_id)
+    handler_id =
+      if Keyword.get(opts, :attach, true) do
+        name = Keyword.get(opts, :name, __MODULE__)
+        handler_id = "http-stats-#{inspect(name)}"
+        :telemetry.detach(handler_id)
 
-    :telemetry.attach(handler_id, Instrument.stop_event(), &__MODULE__.handle_telemetry/4, %{
-      stats: self()
-    })
+        :telemetry.attach(handler_id, Instrument.stop_event(), &__MODULE__.handle_telemetry/4, %{
+          stats: self()
+        })
+
+        handler_id
+      end
 
     {:ok, %{samples: [], session: %{}, recent: [], handler_id: handler_id}}
   end
@@ -141,7 +153,7 @@ defmodule MediaCentaur.HttpClient.Stats do
 
   @impl true
   def terminate(_reason, state) do
-    :telemetry.detach(state.handler_id)
+    if state.handler_id, do: :telemetry.detach(state.handler_id)
     :ok
   end
 

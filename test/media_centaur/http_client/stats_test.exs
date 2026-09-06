@@ -7,7 +7,11 @@ defmodule MediaCentaur.HttpClient.StatsTest do
 
   setup do
     name = :"http_stats_test_#{System.unique_integer([:positive])}"
-    pid = start_supervised!({Stats, name: name})
+    # `attach: false` — telemetry dispatch is global, so an attached
+    # instance also counts requests made by concurrently running async
+    # tests, and an exact-match assertion on `recent` then fails at
+    # random. This instance is fed only by `record/2` below.
+    pid = start_supervised!({Stats, name: name, attach: false})
     %{stats: pid, name: name}
   end
 

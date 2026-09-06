@@ -23,6 +23,22 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
 
   @type search_term :: String.t()
 
+  @doc """
+  The Prowlarr/corpus options every one of this plan's terms is searched
+  with — the category its media type implies, so a title never spends
+  the indexer's result page on the books, music and anime that merely
+  share a word with it.
+
+  These options are part of the corpus key, so the plan runner, the
+  alternatives picker and the commit path must all pass **these** when
+  addressing a plan's terms. That is why they live here beside the terms
+  rather than being rebuilt per caller: the three drifting is exactly how
+  one term ends up cached under two keys.
+  """
+  @spec search_opts(Plan.t()) :: keyword()
+  def search_opts(%Plan{tmdb_type: "movie"}), do: [categories: :movie]
+  def search_opts(%Plan{tmdb_type: "tv"}), do: [categories: :tv]
+
   @doc "Every ladder term for the plan's wanted `{season, episode}` units."
   @spec for_plan(Plan.t(), [{pos_integer(), pos_integer()}]) :: [search_term()]
   def for_plan(%Plan{tmdb_type: "movie"} = plan, _wanted), do: movie_terms(plan)

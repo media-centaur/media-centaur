@@ -3,11 +3,12 @@ defmodule MediaCentaur.Search.QueryBuilder do
   Builds an ordered list of Prowlarr search queries from a
   `Search.Criteria` struct.
 
-  Returns `[{query_string, opts}]` ordered best-to-worst — the worker
-  tries each in turn until one yields acceptable results. Opts may
-  carry `:type` (`:movie` or `:tv`) and `:year` (movies only — episode
-  release titles do not embed the show's first-air year, so adding it
-  usually shrinks results unhelpfully).
+  Returns `[{query_string, opts}]`. Opts carry `:categories`
+  (`:movie` or `:tv`) for TMDB criteria and nothing for a user-typed
+  query. The order is precise-to-broad, but it is the *caller* that
+  decides what to do with it: a movie's queries are alternate phrasings
+  of one want and every one is searched, while TV's are a narrowing
+  ladder walked only as far as coverage requires.
 
   ## Criteria variants
 
@@ -15,10 +16,10 @@ defmodule MediaCentaur.Search.QueryBuilder do
     movies, `title SxxEyy` / `title Season N` for TV). One or more
     concrete query strings, no brace expansion.
   - `:prowlarr_query` → the user-typed `manual_query`, expanded via
-    `QueryExpander` (brace syntax allowed). No type/year hints
-    (Prowlarr's category routing is the user's responsibility). Every
-    result is considered a match — the worker routes through the
-    decision card for the user to pick.
+    `QueryExpander` (brace syntax allowed). No category hint —
+    Prowlarr's routing is the user's responsibility. Every result is
+    considered a match, and the worker routes through the decision card
+    for the user to pick.
 
   Pure function module — no I/O, no DB. Caller projects its
   domain-specific shape (e.g. `Acquisition.Pursuits.Recipe`) into
@@ -28,15 +29,15 @@ defmodule MediaCentaur.Search.QueryBuilder do
   alias MediaCentaur.Search.{CourQueries, Criteria, QueryExpander, QueryTerm}
   alias MediaCentaur.Format
 
-  @type opt :: {:type, :movie | :tv} | {:year, integer()}
+  @type opt :: {:categories, :movie | :tv}
   @type query :: {String.t(), [opt()]}
 
   @spec build(Criteria.t()) :: [query()]
   def build(%Criteria{type: :tmdb, tmdb_type: :movie} = criteria),
-    do: criteria |> sanitize_title() |> build_movie()
+    do: criteria |> sanitize_title() |> build_movie() |> with_categories(:movie)
 
   def build(%Criteria{type: :tmdb, tmdb_type: :tv} = criteria),
-    do: criteria |> sanitize_title() |> build_tv()
+    do: criteria |> sanitize_title() |> build_tv() |> with_categories(:tv)
 
   def build(%Criteria{type: :prowlarr_query} = criteria), do: build_prowlarr_query(criteria)
 
@@ -52,7 +53,7 @@ defmodule MediaCentaur.Search.QueryBuilder do
   # theatrical), so the year query alone can miss every release of the
   # right movie. The worker tries queries in order.
   defp build_movie(%Criteria{title: title, year: year}) when is_integer(year) do
-    [{"#{title} #{year}", [year: year]}, {title, []}]
+    [{"#{title} #{year}", []}, {title, []}]
   end
 
   # Later-cour residual: the first-run `Season N` query is wrong (it
@@ -93,6 +94,13 @@ defmodule MediaCentaur.Search.QueryBuilder do
   defp build_tv(%Criteria{title: title, season_number: nil, episode_number: nil}) do
     [{title, []}]
   end
+
+  # Every TMDB-derived query is scoped to the category its type implies,
+  # so an unfiltered title never spends the indexer's result page on the
+  # books, music and anime that merely share a word with it. A user-typed
+  # query gets none — routing a manual search is the user's business.
+  defp with_categories(queries, kind),
+    do: Enum.map(queries, fn {query, opts} -> {query, Keyword.put(opts, :categories, kind)} end)
 
   defp build_prowlarr_query(%Criteria{manual_query: nil}), do: []
 
