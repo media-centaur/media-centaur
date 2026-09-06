@@ -109,6 +109,27 @@ defmodule MediaCentaur.Nostr.Connection do
   @spec status(GenServer.server()) :: status()
   def status(server), do: GenServer.call(server, :status)
 
+  @doc """
+  Injects an already-decoded WebSocket frame as if the relay had sent
+  it, bypassing the socket and `Mint.WebSocket` entirely (ADR-026's
+  test seam).
+
+  What an inbound frame *means* — which owner message an `EVENT`, `OK`
+  or `CLOSED` produces, and that a malformed or hostile one produces
+  none without taking the process down — does not depend on the
+  transport that carried it. Driving those over a real socket buys no
+  extra coverage and costs a scheduling race, because the assertions
+  then need wall-clock budgets that a loaded machine can miss.
+  Transport behaviour itself — the upgrade, reconnect, ping/pong,
+  backoff — still gets a real socket.
+
+  Synchronous, so the caller knows the frame has been handled and can
+  assert on the owner's mailbox with no timeout at all.
+  """
+  @spec __inject_frame_for_test__(GenServer.server(), tuple()) :: :ok
+  def __inject_frame_for_test__(server, frame),
+    do: GenServer.call(server, {:__inject_frame_for_test__, frame})
+
   # --- lifecycle ---------------------------------------------------------
 
   @impl true
@@ -131,6 +152,9 @@ defmodule MediaCentaur.Nostr.Connection do
 
   @impl true
   def handle_call(:status, _from, state), do: {:reply, state.status, state}
+
+  def handle_call({:__inject_frame_for_test__, frame}, _from, state),
+    do: {:reply, :ok, handle_frame(frame, state)}
 
   # `send_raw/2` drops the frame when there is no socket, so a publish while
   # disconnected is a no-op rather than a queued write.
