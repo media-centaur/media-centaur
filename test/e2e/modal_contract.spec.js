@@ -56,7 +56,8 @@ test.describe("generic modal input contract", () => {
  * a discard confirm opened *behind* the plan modal with no way to reach it.
  *
  * Every backdrop is in the DOM regardless of open state, so this needs no
- * fixture data.
+ * fixture data. The plan discard no longer has a modal at all — it is the
+ * MC0027 arm gesture now — so the download cancel is the probe.
  */
 test.describe("raised modals stack above ordinary ones", () => {
   test("a raised confirm outranks the modal it is opened over", async ({ page, navigateTo }) => {
@@ -67,10 +68,10 @@ test.describe("raised modals stack above ordinary ones", () => {
       page.locator(`#${id}`).evaluate((el) => parseInt(getComputedStyle(el).zIndex, 10))
 
     const planModal = await zIndexOf("plan-modal")
-    const discardConfirm = await zIndexOf("plan-discard-modal")
+    const pursuitModal = await zIndexOf("pursuit-modal")
     const cancelConfirm = await zIndexOf("cancel-download-modal")
 
-    expect(discardConfirm).toBeGreaterThan(planModal)
     expect(cancelConfirm).toBeGreaterThan(planModal)
+    expect(cancelConfirm).toBeGreaterThan(pursuitModal)
   })
 })

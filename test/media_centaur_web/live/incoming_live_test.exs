@@ -1011,7 +1011,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#plan-draft-#{plan.id}")
     end
 
-    test "discarding a draft plan requires confirmation", %{conn: conn} do
+    test "discarding a draft plan takes two clicks, and anything else disarms it", %{conn: conn} do
       stub_plan_tmdb()
 
       {:ok, plan} =
@@ -1025,25 +1025,35 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert_patch(view, "/incoming?plan=#{plan.id}&zone=activity")
 
-      # The footer button only prompts — the plan is untouched.
+      # First click only arms: the control relabels, the plan is untouched
+      # (MC0027 tier 2 — no overlay, so nothing can open behind anything).
       html =
         view
         |> element("button[phx-click='plan_discard_prompt']")
         |> render_click()
 
-      assert html =~ "Discard plan?"
+      assert html =~ "Click again to discard"
       {:ok, untouched} = Plans.fetch(plan.id)
       refute untouched.status == "discarded"
 
-      # Keep — the confirmation closes, the draft survives.
+      # Any other interaction reads as a change of mind and disarms it.
       html =
         view
-        |> element("button[phx-click='plan_discard_cancel']")
+        |> element("button[phx-click='plan_search_again']")
         |> render_click()
 
-      refute html =~ "Discard plan?"
+      refute html =~ "Click again to discard"
       {:ok, kept} = Plans.fetch(plan.id)
       refute kept.status == "discarded"
+
+      # And a disarmed second click cannot fire: the control is back to
+      # arming, so the plan still survives.
+      view
+      |> element("button[phx-click='plan_discard_prompt']")
+      |> render_click()
+
+      {:ok, still_there} = Plans.fetch(plan.id)
+      refute still_there.status == "discarded"
     end
 
     test "gaps row offers the live track-later handoff (ADR-056)", %{conn: conn} do

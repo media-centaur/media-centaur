@@ -228,6 +228,23 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       },
       %Variation{
+        id: :board_discard_armed,
+        description:
+          "Discard armed — the first click landed, so the footer control relabels and turns " <>
+            "danger. Losing a draft is costly but recoverable, so it is the house arm gesture " <>
+            "rather than an overlay (MC0027 tier 2): nothing can open behind the modal it " <>
+            "belongs to, because nothing opens at all.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:ready),
+          gap_verdict: gap_verdict(:tv_nothing),
+          last_activity: "9 searches · 6 from corpus",
+          discard_armed: true
+        }
+      },
+      %Variation{
         id: :board_gaps_search_blind,
         description:
           "The gap search ran while search was blind (every enabled indexer backed off, " <>
