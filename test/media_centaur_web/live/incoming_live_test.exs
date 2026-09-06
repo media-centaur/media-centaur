@@ -598,7 +598,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ "Drama"
     end
 
-    test "the whole door: pick → picker defaults → plan → board → approve → pursuit modal", %{
+    test "the whole door: pick → picker defaults → plan → board → approve → back to Activity", %{
       conn: conn
     } do
       stub_plan_tmdb()
@@ -663,10 +663,12 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       _ = render_async(view, 2_000)
       _ = render(view)
 
-      # Approval hands off to the pursuit modal — the board became the pursuit.
+      # Approval closes the modal and lands on Activity. The plan is
+      # committed and proceeds on its own; the in-flight row is there to
+      # click into for detail, rather than a modal opening over the user.
       {:ok, plan} = Plans.fetch(draft.id)
       assert plan.status == "committed"
-      assert_patch(view, "/incoming?selected=#{plan.pursuit_id}&zone=activity")
+      assert_patch(view, "/incoming?zone=activity")
 
       units = Units.for_pursuit(plan.pursuit_id)
       assert length(units) == 2
