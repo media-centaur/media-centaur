@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`instant-hero-backdrop.md`](instant-hero-backdrop.md) —
+  **planning.** Make the Home hero backdrop paint in the mount frame on
+  every return, at master resolution. Diagnosed 2026-09-06: bytes are
+  cached and the prefetch hints match, but every live navigation rebuilds
+  the `<img>` and re-decodes a 3840×2160 master (~50 ms), which is the
+  fill-in the eye catches. Bounded derivatives and format changes declined
+  (owner wants the look untouched). Phase 1 switches the media-center shell
+  from Vivaldi to Chromium (housekeeping, and a profilable target); Phase 2
+  explores a JS-owned `ImageBitmap` cache painted to a canvas, adopted only
+  if profiling in the real shell shows the gain. No code yet.
 * [`indexer-id-search.md`](indexer-id-search.md) —
   **planning, unblocked.** Identify a title by identifier rather than by name,
   replacing identity reverse-engineered from parsed release titles with a
