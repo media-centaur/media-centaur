@@ -18,9 +18,9 @@ matcher can only paper over.
 
 ## Status
 
-Planning, no code. Blocked on one unanswered question (step 1 below) — the
-probe that would have answered it was invalidated when the only enabled
-indexer entered back-off during the investigation that opened this campaign.
+Planning, no code. **Unblocked 2026-09-06** — the probe is done and the answer
+splits the campaign into a cheap phase worth doing and an expensive one that
+may not be.
 
 ## Decisions made
 
@@ -32,6 +32,21 @@ indexer entered back-off during the investigation that opened this campaign.
   Any id search must therefore also set the matching search type, which is why
   earlier `imdbId` probes appeared to do nothing. Measured on Prowlarr
   2.4.0.5397; recorded in the `Search.Prowlarr` moduledoc.
+* `2026-09-06` — **The aggregated `/api/v1/search` ignores `imdbId`.** A
+  deliberately wrong id returns byte-identical results to the correct one,
+  with the indexer healthy before and after both requests. Same shape as the
+  `year` finding: Prowlarr accepts the parameter and drops it.
+* `2026-09-06` — **The per-indexer Newznab route honours it.**
+  `GET /{indexerId}/api?t=movie&imdbid=…&apikey=…` — the route Radarr and
+  Sonarr consume — returned 51 items all carrying the film's id, against 100
+  unrelated items for a bogus id. It is also *more complete* than our text
+  path: 51 releases where title matching over the aggregated search verified
+  49. So exact search is real, but only by bypassing Prowlarr's fan-out.
+* `2026-09-06` — **Split into two phases on that basis.** Identity
+  *verification* using ids already present in aggregated responses needs no
+  query change, no fan-out change and no extra requests, and captures most of
+  the value. Identity *querying* needs us to own the fan-out. Phase 1 is
+  clearly worth it; Phase 2 is a real trade and may be declined.
 * `2026-09-06` — Not adopting `limit` as a companion lever. Indexers advertise
   a `limitsMax` (100 typical) and Prowlarr pages upstream to satisfy a larger
   one, so raising it multiplies requests against rate-limiting indexers.
@@ -39,41 +54,50 @@ indexer entered back-off during the investigation that opened this campaign.
 
 ## Next steps
 
-1. **Answer the blocking question.** On a rested indexer, probe
-   `type=movie` + `imdbId` against a known film, with a control query before
-   and after and an `/api/v1/indexerstatus` check after **every** request — a
-   `200 []` means "no results" *or* "every indexer is backed off", and an
-   unvalidated empty result is worthless. If the aggregated endpoint does not
-   honour it, this campaign closes here.
-2. **Decide the fallback contract.** One search fans out to every enabled
-   indexer, and `searchParams` differ per indexer. Establish whether an id
-   query loses coverage on indexers that only accept `q`, and if so whether the
-   design is id-plus-text (two searches, union) or id-only for capable
-   indexers. This is the real architectural question, not the plumbing.
-3. **Carry the identifiers.** `Library.ExternalIds` already stores tmdb / imdb
-   / tvdb per container; `acquisition_plans` and `acquisition_pursuits` carry
-   only `tmdb_id`. TMDB supplies `imdb_id` and `Tmdb.Mapper` already extracts
-   it. Migration plus capture at plan/pursuit creation.
-4. **Use the ids we already receive.** `SearchResult` discards `imdbId` /
-   `tmdbId` / `tvdbId` from every response. Capturing them lets `TitleMatcher`
-   short-circuit to an exact verdict — and, just as valuable, turn a
-   *mismatched* id into a definite rejection, which title parsing cannot do.
-5. **Route the query.** `QueryBuilder` emits the id-shaped query and search
-   type where the criteria carry an id; `Prowlarr.search/3` forwards it.
-   Corpus keys must include whatever changes the result set.
+### Phase 1 — verify identity by id (no query change, no extra requests)
+
+1. **Capture the ids we already receive.** `SearchResult` discards `imdbId` /
+   `tmdbId` / `tvdbId` from every aggregated response. Capture them, and
+   round-trip them through the corpus (a column, as `grabs` and `protocol`
+   just were — the corpus claims to carry every `SearchResult` field).
+2. **Carry the identifiers on the want.** `Library.ExternalIds` already stores
+   tmdb / imdb / tvdb per container; `acquisition_plans` and
+   `acquisition_pursuits` carry only `tmdb_id`. TMDB supplies `imdb_id` and
+   `Tmdb.Mapper` already extracts it. Migration plus capture at creation.
+3. **Teach `TitleMatcher` to prefer the id.** A matching id is a verdict, not
+   evidence. A *mismatching* id is a rejection — something title parsing can
+   never assert. The ±1-year tolerance then applies only to results carrying
+   no id at all. Expect this to change what the matcher accepts; it needs the
+   existing matcher tests green plus new ones for the three cases.
+
+### Phase 2 — query by id (owns the fan-out; decide before starting)
+
+4. **Decide whether it is worth it.** Per-indexer querying means one request
+   per enabled indexer instead of one aggregated call, merging results
+   ourselves, gating on each indexer's declared `movieSearchParams` /
+   `tvSearchParams`, and probably parsing Newznab XML rather than Prowlarr's
+   JSON. Open question that changes the cost: does Prowlarr's `/{id}/api`
+   honour `&o=json`? Measure the actual coverage gain first — it was 51
+   releases against 49 on one film, which may not justify any of it.
+5. **If yes, route the query.** `QueryBuilder` emits the id-shaped query for
+   criteria that carry an id and for indexers that accept one, with the text
+   query as the fallback for those that do not. Corpus keys must include
+   whatever changes the result set.
 
 ## Completion criteria
 
-* A movie plan with a known IMDb id searches by id, and its results are
-  identity-verified by id rather than by parsed title and year.
-* A TV pursuit for a known season/episode searches by TVDB id plus season and
-  episode where the indexer supports it.
-* Coverage is provably not reduced on indexers that accept only `q` — a
-  regression test pins the fallback.
-* `TitleMatcher` treats a mismatched id as a rejection, and the ±1-year
-  tolerance applies only to results that carry no id at all.
-* The `Search.Prowlarr` moduledoc's "exact ID search exists and is not used
-  yet" paragraph is either deleted or rewritten as the shipped contract.
+Phase 1 (the committed scope):
+
+* `SearchResult` carries the ids the indexer sends, and they survive the
+  corpus round-trip.
+* Plans and pursuits carry an IMDb id where TMDB supplies one.
+* `TitleMatcher` treats a matching id as a verdict and a mismatching id as a
+  rejection; the ±1-year tolerance applies only to id-less results.
+* No regression in what the matcher accepts for results that carry no id.
+
+Phase 2 is complete when it is either shipped against the criteria written at
+the time, or **explicitly declined in this file with the reason** — an
+undecided Phase 2 left dangling is exactly the drift ADR-042 warns about.
 
 ## Pointers
 
@@ -84,3 +108,5 @@ indexer entered back-off during the investigation that opened this campaign.
 * `lib/media_centaur/library/external_ids.ex` — where we already keep them.
 * `GET /api/v1/indexer/<id>` — `searchParams` / `movieSearchParams` /
   `tvSearchParams` / `limitsMax` per indexer.
+* `GET /{indexerId}/api?t=movie&imdbid=…&apikey=…` — the per-indexer Newznab
+  route that actually honours ids. Phase 2 only.

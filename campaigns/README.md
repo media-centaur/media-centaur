@@ -22,15 +22,18 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`indexer-id-search.md`](indexer-id-search.md) —
-  **planning.** Ask indexers for a title by identifier instead of by name:
-  `imdbId` on a movie search, `tvdbId` + `season` + `ep` on a TV search, where
-  the indexer declares support. Replaces reverse-engineering identity from
-  parsed release titles with a ±1-year tolerance, and kills year-drift at the
-  source. Blocked on one probe — whether the aggregated `/api/v1/search`
-  honours an id query — which needs a rested indexer and a health check after
-  every request, since `200 []` means both "no results" and "everyone is
-  backed off". The real design question is the fan-out: one search hits every
-  enabled indexer and their `searchParams` differ. No code yet.
+  **planning, unblocked.** Identify a title by identifier rather than by name,
+  replacing identity reverse-engineered from parsed release titles with a
+  ±1-year tolerance. Probed 2026-09-06: the aggregated `/api/v1/search`
+  **ignores** `imdbId` (a bogus id returns byte-identical results, same shape
+  as the inert `year`), while the per-indexer Newznab route Radarr consumes
+  **honours** it and is more complete besides — 51 releases against the 49 our
+  title matching verified. Split accordingly. **Phase 1** verifies identity
+  using the ids already present in aggregated responses: no query change, no
+  fan-out change, no extra requests, and a mismatching id becomes a rejection
+  that title parsing can never assert. **Phase 2** would query by id, which
+  means owning the fan-out Prowlarr exists to provide, and may be declined.
+  No code yet.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and
