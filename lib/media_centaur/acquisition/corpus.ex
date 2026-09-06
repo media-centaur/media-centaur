@@ -87,7 +87,7 @@ defmodule MediaCentaur.Acquisition.Corpus do
     :ok
   end
 
-  # SQLite binds at most 32_766 variables per statement; 16 columns per row.
+  # SQLite binds at most 32_766 variables per statement; 18 columns per row.
   @insert_chunk 500
 
   defp candidate_row(%SearchResult{} = result, key, now) do
@@ -104,7 +104,9 @@ defmodule MediaCentaur.Acquisition.Corpus do
       size_bytes: result.size_bytes,
       seeders: result.seeders,
       leechers: result.leechers,
+      grabs: result.grabs,
       publish_date: result.publish_date,
+      protocol: protocol_to_string(result.protocol),
       info_hash: result.info_hash,
       magnet_url: result.magnet_url,
       download_url: result.download_url,
@@ -148,7 +150,9 @@ defmodule MediaCentaur.Acquisition.Corpus do
              :size_bytes,
              :seeders,
              :leechers,
+             :grabs,
              :publish_date,
+             :protocol,
              :info_hash,
              :magnet_url,
              :download_url,
@@ -260,6 +264,14 @@ defmodule MediaCentaur.Acquisition.Corpus do
   defp quality_from_string("hd_1080p"), do: :hd_1080p
   defp quality_from_string(_quality), do: nil
 
+  defp protocol_to_string(:torrent), do: "torrent"
+  defp protocol_to_string(:usenet), do: "usenet"
+  defp protocol_to_string(_protocol), do: nil
+
+  defp protocol_from_string("torrent"), do: :torrent
+  defp protocol_from_string("usenet"), do: :usenet
+  defp protocol_from_string(_protocol), do: nil
+
   defp to_search_result(%Candidate{} = candidate) do
     %SearchResult{
       title: candidate.title,
@@ -270,7 +282,9 @@ defmodule MediaCentaur.Acquisition.Corpus do
       size_bytes: candidate.size_bytes,
       seeders: candidate.seeders,
       leechers: candidate.leechers,
+      grabs: candidate.grabs,
       publish_date: candidate.publish_date,
+      protocol: protocol_from_string(candidate.protocol),
       info_hash: candidate.info_hash,
       magnet_url: candidate.magnet_url,
       download_url: candidate.download_url

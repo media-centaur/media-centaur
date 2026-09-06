@@ -8,12 +8,13 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   an invariant pinned by the test suite.
 
   TV terms run broad-to-narrow: the series title, `Title Season N` +
-  `Title SNN` per season, `Title SNNENN` per episode. Movies run
-  precise-to-broad: `Title year`, then the year-less `Title` (release
-  years drift — festival premiere vs theatrical). Every title is
-  sanitized via `Search.QueryTerm` (scene names carry no apostrophes).
-  All terms pair with the Prowlarr `type` opt — the corpus keys on
-  term + type.
+  `Title SNN` per season, `Title SNNENN` per episode — a narrowing
+  ladder, walked only as far as coverage requires. Movie terms are not a
+  ladder at all: `Title year` and the year-less `Title` are alternate
+  phrasings of the same want, and the runner searches both and picks the
+  best of the union. Their order still matters, because an exact tie
+  keeps the earlier (year-matched) candidate. Every title is sanitized
+  via `Search.QueryTerm` (scene names carry no apostrophes).
   """
 
   alias MediaCentaur.Acquisition.Plans.{Plan, PlanUnit}
@@ -64,10 +65,12 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   end
 
   @doc """
-  The movie rungs, precise-to-broad: `Title year`, then the year-less
-  `Title`. Release names carry whichever year the group's source used
-  (festival premiere vs theatrical), so the year term alone can miss
-  every release of the right movie. No year → one term.
+  A movie's terms, precise first: `Title year`, then the year-less
+  `Title`. Release groups tag a film with whichever year their source
+  used (festival premiere vs theatrical), so the year term routinely
+  matches a handful of releases while better copies sit only behind the
+  year-less one — which is why the runner searches both rather than
+  stopping at the first that hits. No year → one term.
   """
   @spec movie_terms(Plan.t()) :: [search_term()]
   def movie_terms(%Plan{tmdb_type: "movie", year: nil} = plan), do: [title(plan)]

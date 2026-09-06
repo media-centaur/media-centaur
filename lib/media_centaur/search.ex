@@ -17,6 +17,7 @@ defmodule MediaCentaur.Search do
       QueryTerm,
       Quality,
       ReleaseCoverage,
+      ReleasePreference,
       ReleaseRedFlags,
       SearchResult,
       TitleMatcher

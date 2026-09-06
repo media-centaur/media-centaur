@@ -361,6 +361,99 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
+  describe "movie best-of-both-terms" do
+    # Year-drift shape: a film whose TMDB year is a year later than the
+    # one most release groups tagged it with. The year term then matches
+    # only the handful of releases named for the TMDB year, while every
+    # 4K remux sits behind the year-less term. Halting on the first
+    # acceptable pick made the year term's lone 1080p win by default, so
+    # the quality ceiling was decided by which term the year happened to
+    # match rather than by what actually exists.
+
+    defp stub_year_drifted_movie do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [
+          release("Sample.Movie.2005.1080p.BluRay.DDP.5.1.H.265-GRP", "year-1080p", %{
+            seeders: 30,
+            size: 9_000_000_000
+          })
+        ],
+        "Sample Movie" => [
+          release("Sample.Movie.2004.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-GRP", "drift-4k", %{
+            seeders: 4,
+            size: 61_000_000_000
+          })
+        ]
+      })
+    end
+
+    test "a better release behind the year-less term beats the year term's acceptable pick" do
+      stub_year_drifted_movie()
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "drift-4k"
+    end
+
+    test "both movie terms are searched even when the first yields an acceptable pick" do
+      stub_year_drifted_movie()
+
+      {:ok, _plan} =
+        Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert_receive {:searched, "Sample Movie 2005"}
+      assert_receive {:searched, "Sample Movie"}
+    end
+
+    test "the year term wins an exact tie — precision breaks equal candidates" do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [
+          release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "year-term", %{
+            seeders: 7,
+            size: 4_000_000_000
+          })
+        ],
+        "Sample Movie" => [
+          release("Sample.Movie.2004.1080p.WEB-DL.H.264-OTHER", "broad-term", %{
+            seeders: 7,
+            size: 4_000_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.assigned_guid == "year-term"
+    end
+
+    test "grabs break a tie when the indexer reports no seeders (usenet)" do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [],
+        "Sample Movie" => [
+          release("Sample.Movie.2005.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-LOW", "few-grabs", %{
+            seeders: nil,
+            grabs: 96,
+            size: 56_000_000_000
+          }),
+          release("Sample.Movie.2005.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-HIGH", "many-grabs", %{
+            seeders: nil,
+            grabs: 322,
+            size: 61_000_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "many-grabs"
+    end
+  end
+
   describe "movie below-floor releases" do
     # The Magician (2005) shape: genuine releases of the film exist, all
     # below the quality floor (≤720p or no resolution token). The unit
