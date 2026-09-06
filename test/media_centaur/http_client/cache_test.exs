@@ -272,10 +272,18 @@ defmodule MediaCentaur.HttpClient.CacheTest do
 
     test "a failed leader fails its followers without storing anything", %{stub: stub, client: client} do
       test_pid = self()
+      # A gate process holds every admitted request in flight until the
+      # test opens it, then releases latecomers immediately. The earlier
+      # version had the stub send itself to the test and released only the
+      # FIRST blocked pid it saw — so whenever the single-flight election
+      # admitted a second request (a scheduling race, more likely on a
+      # loaded machine) that request was never released and its task hung
+      # until `Task.await` timed out.
+      gate = start_supervised!({Task, fn -> hold_then_release(false, []) end}, id: :cache_gate)
 
       Req.Test.stub(stub, fn conn ->
         send(test_pid, {:stub_hit, conn.method, conn.request_path, conn.req_headers})
-        send(test_pid, {:stub_blocked, self()})
+        send(gate, {:blocked, self()})
 
         receive do
           :release -> :ok
@@ -293,8 +301,7 @@ defmodule MediaCentaur.HttpClient.CacheTest do
         end
 
       assert_receive {:stub_hit, _, "/tv/8", _}
-      assert_receive {:stub_blocked, leader}
-      send(leader, :release)
+      send(gate, :open)
 
       for task <- tasks do
         assert {:error, %Req.TransportError{reason: :econnrefused}} = Task.await(task)
@@ -349,6 +356,23 @@ defmodule MediaCentaur.HttpClient.CacheTest do
 
       assert {:ok, %{status: 200, body: %{"ok" => true}}} = Req.get(client, url: "/movie/1")
       assert Cache.stats(client) == %{entries: 0}
+    end
+  end
+
+  # Holds blocked stub processes until `:open`, then releases every one
+  # that has arrived and every one that arrives afterwards.
+  defp hold_then_release(open?, blocked) do
+    receive do
+      {:blocked, pid} when open? ->
+        send(pid, :release)
+        hold_then_release(true, blocked)
+
+      {:blocked, pid} ->
+        hold_then_release(false, [pid | blocked])
+
+      :open ->
+        Enum.each(blocked, &send(&1, :release))
+        hold_then_release(true, [])
     end
   end
 end

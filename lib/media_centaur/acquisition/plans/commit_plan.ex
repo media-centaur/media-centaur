@@ -33,7 +33,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
   alias MediaCentaur.Acquisition.PlanEvents
-  alias MediaCentaur.Acquisition.Plans.{Claims, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{Claims, LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Pursuits.Commands.Start
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.ReleasePicked
@@ -55,7 +55,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
     with :ok <- ensure_grabbable(found_units),
          :ok <- ensure_no_overlap(plan, found_units),
          {:ok, pursuit} <- create_pursuit(plan, found_units) do
-      grab_assignments(pursuit, found_units)
+      grab_assignments(plan, pursuit, found_units)
 
       {:ok, committed} = Repo.update(Plan.committed_changeset(plan, pursuit.id))
       broadcast(committed)
@@ -127,7 +127,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   defp pursuit_origin(%Plan{origin: "tracking"}), do: "auto"
   defp pursuit_origin(%Plan{}), do: "manual"
 
-  defp grab_assignments(pursuit, found_units) do
+  defp grab_assignments(%Plan{} = plan, pursuit, found_units) do
     pursuit_units = Units.for_pursuit(pursuit.id)
 
     units_by_key =
@@ -141,7 +141,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
         |> Enum.map(&Map.get(units_by_key, {&1.season_number, &1.episode_number}))
         |> Enum.reject(&is_nil/1)
 
-      result = rehydrate(hd(group))
+      result = rehydrate(plan, hd(group))
 
       case Prowlarr.grab(result) do
         :ok ->
@@ -164,11 +164,16 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   # is the rehydration source — the full grab-ready struct with infohash,
   # size and protocol. The denormalized assignment fields are the fallback
   # when the candidate aged out of retention between ready and approve.
-  defp rehydrate(%PlanUnit{} = unit) do
+  defp rehydrate(%Plan{} = plan, %PlanUnit{} = unit) do
+    opts = LadderTerms.search_opts(plan)
+
     corpus_hit =
       case unit.assigned_term do
-        nil -> nil
-        term -> term |> Corpus.candidates_for() |> Enum.find(&(&1.guid == unit.assigned_guid))
+        nil ->
+          nil
+
+        term ->
+          term |> Corpus.candidates_for(opts) |> Enum.find(&(&1.guid == unit.assigned_guid))
       end
 
     corpus_hit ||

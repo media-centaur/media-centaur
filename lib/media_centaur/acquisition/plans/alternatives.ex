@@ -74,9 +74,11 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   def search(plan_unit_id) do
     with {:ok, unit} <- Plans.fetch_unit(plan_unit_id),
          {:ok, plan} <- Plans.fetch(unit.plan_id) do
+      opts = LadderTerms.search_opts(plan)
+
       plan
       |> LadderTerms.for_unit(unit)
-      |> Enum.each(&Corpus.search/1)
+      |> Enum.each(&Corpus.search(&1, opts))
 
       for_unit(plan_unit_id)
     end
@@ -99,10 +101,11 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
       |> Enum.filter(&(&1.status == "unfound"))
 
     terms = evidence_terms(plan, gap_units)
+    opts = LadderTerms.search_opts(plan)
 
     searches =
       for term <- terms,
-          record = Corpus.record_for(term, []),
+          record = Corpus.record_for(term, opts),
           record != nil do
         %GapEvidence.Search{
           term: term,
@@ -113,7 +116,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
 
     raw =
       terms
-      |> Enum.flat_map(&Corpus.candidates_for/1)
+      |> Enum.flat_map(&Corpus.candidates_for(&1, opts))
       |> Enum.uniq_by(& &1.guid)
 
     %GapEvidence{
@@ -205,11 +208,13 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   defp rejected_choosable(%Plan{}), do: {:error, :not_ready}
 
   defp find_raw_candidate(plan, unit, guid) do
+    opts = LadderTerms.search_opts(plan)
+
     plan
     |> LadderTerms.for_unit(unit)
     |> Enum.find_value(fn term ->
       term
-      |> Corpus.candidates_for()
+      |> Corpus.candidates_for(opts)
       |> Enum.find(&(&1.guid == guid))
       |> case do
         nil -> nil
@@ -266,11 +271,13 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   # All identity-verified corpus candidates that can cover this unit,
   # as {result, scope} pairs (movies carry the :movie pseudo-scope).
   defp unit_candidates(plan, unit) do
+    opts = LadderTerms.search_opts(plan)
+
     plan
     |> LadderTerms.for_unit(unit)
     |> Enum.flat_map(fn term ->
       term
-      |> Corpus.candidates_for()
+      |> Corpus.candidates_for(opts)
       |> Enum.map(&{term, &1})
     end)
     |> Enum.uniq_by(fn {_term, result} -> result.guid end)
@@ -284,12 +291,14 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   end
 
   defp find_candidate(plan, unit, guid) do
+    opts = LadderTerms.search_opts(plan)
+
     plan
     |> LadderTerms.for_unit(unit)
     |> Enum.find_value({:error, :alternative_unavailable}, fn term ->
       candidate =
         term
-        |> Corpus.candidates_for()
+        |> Corpus.candidates_for(opts)
         |> Enum.find(&(&1.guid == guid))
 
       with %{} <- candidate,

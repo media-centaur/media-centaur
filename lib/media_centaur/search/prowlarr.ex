@@ -8,7 +8,7 @@ defmodule MediaCentaur.Search.Prowlarr do
 
   | Operation | Method + path           | Notes                              |
   |-----------|-------------------------|------------------------------------|
-  | Search    | `GET  /api/v1/search`   | params: `query`, `type`, `year`    |
+  | Search    | `GET  /api/v1/search`   | params: `query`, `type`, `categories` |
   | Grab      | `POST /api/v1/search`   | body: `{guid, indexerId}`          |
 
   ## Gotcha — grab is NOT `/api/v1/release`
@@ -17,6 +17,35 @@ defmodule MediaCentaur.Search.Prowlarr do
   Prowlarr does not. Prowlarr's grab is `POST /api/v1/search` with the
   release as the JSON body. Posting to `/api/v1/release` returns HTTP 405
   Method Not Allowed. Easy mistake from muscle memory — don't repeat it.
+
+  ## Gotcha — the generic search type honours only `q`
+
+  Each indexer declares its supported parameters, readable at
+  `GET /api/v1/indexer/<id>` as `searchParams` / `movieSearchParams` /
+  `tvSearchParams`. Under `type=search` that list is just `["q"]`, and
+  **Prowlarr ignores unknown query params silently** — so a parameter it
+  does not support is indistinguishable from one you never sent. We used
+  to send `year`, which did nothing: `year=1850` returns results
+  identical to no year at all. The year only ever narrowed anything as a
+  literal token inside `q`, which is why a release tagged 2020 was
+  invisible to a query containing 2021.
+
+  `categories` **is** honoured, and it is the lever that matters. An
+  unfiltered movie query spends the indexer's result page on anime, TV,
+  ebooks, comics and music that merely share a word with the title;
+  filtering to the movie category cut one observed search from 134
+  results to 49 with no true match lost.
+
+  Do not reach for `limit` to fix truncation. Indexers advertise a
+  `limitsMax` (100 is typical) and Prowlarr pages upstream to satisfy a
+  larger one, so raising it multiplies requests against indexers that
+  rate-limit and back off. Narrow with `categories` instead.
+
+  Exact ID search exists and is not used yet: movies accept `imdbId`, TV
+  accepts `tvdbId` + `season` + `ep`, both only under the matching search
+  type. Adopting it needs those identifiers carried on plans and pursuits
+  and care for indexers whose capabilities differ, since one search fans
+  out to all of them.
 
   ## What Prowlarr does NOT expose
 
@@ -107,7 +136,7 @@ defmodule MediaCentaur.Search.Prowlarr do
   end
 
   def search(query, opts \\ [], client \\ default_client()) do
-    params = [query: query, type: "search"] ++ maybe_year(opts)
+    params = [query: query, type: "search"] ++ maybe_categories(opts)
     Log.info(:acquisition, "prowlarr search — #{query}")
 
     case Req.get(client, url: "/api/v1/search", params: params) do
@@ -296,10 +325,15 @@ defmodule MediaCentaur.Search.Prowlarr do
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value
 
-  defp maybe_year(opts) do
-    case Keyword.get(opts, :year) do
+  # Newznab top-level category ids. Callers speak `:movie` / `:tv` — the
+  # numbers are this adapter's business, and the parent id covers its
+  # children (2045 Movies/UHD, 5070 TV/Anime, …).
+  @categories %{movie: 2000, tv: 5000}
+
+  defp maybe_categories(opts) do
+    case Keyword.get(opts, :categories) do
       nil -> []
-      year -> [year: year]
+      kind -> [categories: Map.fetch!(@categories, kind)]
     end
   end
 end

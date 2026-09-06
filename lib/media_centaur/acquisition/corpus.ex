@@ -34,10 +34,16 @@ defmodule MediaCentaur.Acquisition.Corpus do
 
   # Opts that change what an indexer returns — part of the corpus key.
   # Everything else (e.g. :force) is corpus-internal.
-  # The only search option that changes what an indexer returns. (`:type`
-  # was once keyed too, but Prowlarr's search never received it, so two keys
-  # held one identical result set — and the commit path guessed which.)
-  @keyed_opts [:year]
+  #
+  # `:categories` is the only one left. Two predecessors were removed
+  # after measurement: `:type` never reached Prowlarr at all, and `:year`
+  # reached it but was ignored (the generic search type honours only
+  # `q`). Both nonetheless split the key space, so one movie cached into
+  # two rows depending on which subsystem asked and neither could see the
+  # other's knowledge. Anything keyed here MUST be passed identically by
+  # every caller reading the same term — `LadderTerms.search_opts/1` and
+  # `QueryBuilder` are the two places that decide it.
+  @keyed_opts [:categories]
 
   @doc """
   Consult-first search. A fresh corpus key returns its candidates with

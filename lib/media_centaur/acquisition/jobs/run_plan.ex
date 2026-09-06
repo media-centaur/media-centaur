@@ -566,8 +566,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   # ---------------------------------------------------------------------------
 
   defp search(plan, term, force?) do
-    served_from = if not force? and Corpus.fresh?(term, []), do: :corpus, else: :live
-    outcome = Corpus.search(term, force: force?)
+    opts = LadderTerms.search_opts(plan)
+    served_from = if not force? and Corpus.fresh?(term, opts), do: :corpus, else: :live
+    outcome = Corpus.search(term, Keyword.put(opts, :force, force?))
 
     activity =
       case outcome do

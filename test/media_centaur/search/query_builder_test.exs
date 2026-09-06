@@ -4,7 +4,7 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
   alias MediaCentaur.Search.{Criteria, QueryBuilder}
 
   describe "build/1 — movie" do
-    test "year query first, year-less fallback second (release years drift)" do
+    test "year query first, year-less second (release years drift)" do
       criteria = %Criteria{
         type: :tmdb,
         tmdb_type: :movie,
@@ -12,11 +12,21 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
         year: 2010
       }
 
-      assert [{query, opts}, {fallback_query, fallback_opts}] = QueryBuilder.build(criteria)
+      assert [{query, opts}, {broader_query, broader_opts}] = QueryBuilder.build(criteria)
       assert query == "Sample Movie 2010"
-      assert Keyword.get(opts, :year) == 2010
-      assert fallback_query == "Sample Movie"
-      refute Keyword.has_key?(fallback_opts, :year)
+      assert broader_query == "Sample Movie"
+      # Both are searched — they are alternate phrasings of one want, not
+      # a ladder — so both carry the same category scope.
+      assert Keyword.get(opts, :categories) == :movie
+      assert Keyword.get(broader_opts, :categories) == :movie
+    end
+
+    test "never sends a year opt — the search endpoint has no such parameter" do
+      criteria = %Criteria{type: :tmdb, tmdb_type: :movie, title: "Sample Movie", year: 2010}
+
+      assert Enum.all?(QueryBuilder.build(criteria), fn {_query, opts} ->
+               not Keyword.has_key?(opts, :year)
+             end)
     end
 
     test "strips apostrophes from constructed queries (scene names carry none)" do
@@ -34,7 +44,7 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
       assert [{"Samples Show S01E02", _opts}] = QueryBuilder.build(episode)
     end
 
-    test "omits year and year-opt when year is nil" do
+    test "omits the year token from the query when the year is nil" do
       criteria = %Criteria{
         type: :tmdb,
         tmdb_type: :movie,
@@ -44,7 +54,7 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
 
       assert [{query, opts}] = QueryBuilder.build(criteria)
       assert query == "Sample Movie"
-      refute Keyword.has_key?(opts, :year)
+      assert Keyword.get(opts, :categories) == :movie
     end
   end
 
