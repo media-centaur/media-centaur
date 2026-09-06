@@ -7,6 +7,15 @@ defmodule MediaCentaur.HttpClient.CacheTest do
 
   @stop_event [:media_centaur, :http, :request, :stop]
 
+  # Positive waits are on concurrent tasks and telemetry round-trips.
+  # `assert_receive` returns the instant the message lands, so a generous
+  # ceiling costs nothing when the test passes and only bounds how long a real
+  # failure takes to report — whereas the 100ms default loses its race with a
+  # loaded scheduler and fails as a phantom bug in the cache. Every
+  # `refute_receive` below keeps its own (short) budget: a negative wait is
+  # paid in full on every single run.
+  @wait_ms 15_000
+
   setup context do
     name = :"http_cache_test_#{System.unique_integer([:positive])}"
     stub = :"http_cache_stub_#{System.unique_integer([:positive])}"
@@ -65,11 +74,11 @@ defmodule MediaCentaur.HttpClient.CacheTest do
       assert {:ok, %{status: 200, body: %{"id" => 1}}} = Req.get(client, url: "/movie/1")
       assert {:ok, %{status: 200, body: %{"id" => 1}}} = Req.get(client, url: "/movie/1")
 
-      assert_receive {:stub_hit, "GET", "/movie/1", _headers}
+      assert_receive {:stub_hit, "GET", "/movie/1", _headers}, @wait_ms
       refute_receive {:stub_hit, _method, _path, _headers}
 
-      assert_receive {:http_stop, %{cache: :miss, status: 200}}
-      assert_receive {:http_stop, %{cache: :hit, status: 200}}
+      assert_receive {:http_stop, %{cache: :miss, status: 200}}, @wait_ms
+      assert_receive {:http_stop, %{cache: :hit, status: 200}}, @wait_ms
       assert Cache.stats(client) == %{entries: 1}
     end
 
@@ -82,7 +91,7 @@ defmodule MediaCentaur.HttpClient.CacheTest do
       assert {:ok, _} =
                Req.get(client, url: "/search", params: [api_key: "two", year: 2010, query: "sample"])
 
-      assert_receive {:stub_hit, _, "/search", _}
+      assert_receive {:stub_hit, _, "/search", _}, @wait_ms
       refute_receive {:stub_hit, _, _, _}
     end
 
@@ -92,8 +101,8 @@ defmodule MediaCentaur.HttpClient.CacheTest do
       assert {:ok, _} = Req.get(client, url: "/search", params: [query: "one"])
       assert {:ok, _} = Req.get(client, url: "/search", params: [query: "two"])
 
-      assert_receive {:stub_hit, _, "/search", _}
-      assert_receive {:stub_hit, _, "/search", _}
+      assert_receive {:stub_hit, _, "/search", _}, @wait_ms
+      assert_receive {:stub_hit, _, "/search", _}, @wait_ms
     end
   end
 
@@ -104,8 +113,8 @@ defmodule MediaCentaur.HttpClient.CacheTest do
       assert {:ok, _} = Req.get(client, url: "/movie/1")
       assert {:ok, _} = Req.get(client, url: "/movie/1")
 
-      assert_receive {:stub_hit, _, _, _}
-      assert_receive {:stub_hit, _, _, _}
+      assert_receive {:stub_hit, _, _, _}, @wait_ms
+      assert_receive {:stub_hit, _, _, _}, @wait_ms
       assert Cache.stats(client) == %{entries: 0}
     end
 
@@ -115,8 +124,8 @@ defmodule MediaCentaur.HttpClient.CacheTest do
       assert {:ok, _} = Req.get(client, url: "/movie/1")
       assert {:ok, _} = Req.get(client, url: "/movie/1")
 
-      assert_receive {:stub_hit, _, _, _}
-      assert_receive {:stub_hit, _, _, _}
+      assert_receive {:stub_hit, _, _, _}, @wait_ms
+      assert_receive {:stub_hit, _, _, _}, @wait_ms
     end
 
     test "a non-200 response", %{stub: stub, client: client} do
@@ -137,9 +146,9 @@ defmodule MediaCentaur.HttpClient.CacheTest do
       assert {:ok, _} = Req.post(client, url: "/search", json: %{q: 1})
       assert {:ok, _} = Req.post(client, url: "/search", json: %{q: 1})
 
-      assert_receive {:stub_hit, "POST", _, _}
-      assert_receive {:stub_hit, "POST", _, _}
-      assert_receive {:http_stop, %{cache: :uncached}}
+      assert_receive {:stub_hit, "POST", _, _}, @wait_ms
+      assert_receive {:stub_hit, "POST", _, _}, @wait_ms
+      assert_receive {:http_stop, %{cache: :uncached}}, @wait_ms
     end
   end
 
@@ -168,20 +177,20 @@ defmodule MediaCentaur.HttpClient.CacheTest do
 
       # max-age=0: stored, and stale immediately.
       assert {:ok, %{status: 200, body: %{"version" => 1}}} = Req.get(client, url: "/movie/1")
-      assert_receive {:stub_hit, "GET", "/movie/1", headers}
+      assert_receive {:stub_hit, "GET", "/movie/1", headers}, @wait_ms
       refute List.keymember?(headers, "if-none-match", 0)
 
       # Stale: revalidate. The caller sees a 200 with the stored body, not the 304.
       assert {:ok, %{status: 200, body: %{"version" => 1}}} = Req.get(client, url: "/movie/1")
-      assert_receive {:stub_hit, "GET", "/movie/1", headers}
+      assert_receive {:stub_hit, "GET", "/movie/1", headers}, @wait_ms
       assert {"if-none-match", ~s(W/"v1")} in headers
-      assert_receive {:http_stop, %{cache: :miss, status: 200}}
-      assert_receive {:http_stop, %{cache: :revalidate, status: 304}}
+      assert_receive {:http_stop, %{cache: :miss, status: 200}}, @wait_ms
+      assert_receive {:http_stop, %{cache: :revalidate, status: 304}}, @wait_ms
 
       # The 304 renewed freshness for 60s: now a hit.
       assert {:ok, %{status: 200, body: %{"version" => 1}}} = Req.get(client, url: "/movie/1")
       refute_receive {:stub_hit, _, _, _}
-      assert_receive {:http_stop, %{cache: :hit}}
+      assert_receive {:http_stop, %{cache: :hit}}, @wait_ms
     end
 
     test "a stale entry answered with a 200 is replaced", %{stub: stub, client: client} do
@@ -200,8 +209,8 @@ defmodule MediaCentaur.HttpClient.CacheTest do
 
       assert {:ok, %{body: %{"version" => 1}}} = Req.get(client, url: "/movie/1")
       assert {:ok, %{body: %{"version" => 2}}} = Req.get(client, url: "/movie/1")
-      assert_receive {:stub_hit, _, _, _}
-      assert_receive {:stub_hit, _, _, headers}
+      assert_receive {:stub_hit, _, _, _}, @wait_ms
+      assert_receive {:stub_hit, _, _, headers}, @wait_ms
       assert {"if-none-match", ~s(W/"v1")} in headers
     end
   end
@@ -222,12 +231,12 @@ defmodule MediaCentaur.HttpClient.CacheTest do
 
       assert {:ok, %{body: %{"version" => 1}}} = Req.get(client, url: "/tv/1")
       assert {:ok, %{body: %{"version" => 2}}} = Req.get(client, url: "/tv/1", reload: true)
-      assert_receive {:http_stop, %{cache: :miss}}
-      assert_receive {:http_stop, %{cache: :reload, status: 200}}
+      assert_receive {:http_stop, %{cache: :miss}}, @wait_ms
+      assert_receive {:http_stop, %{cache: :reload, status: 200}}, @wait_ms
 
       # The reload's body is what the cache now serves.
       assert {:ok, %{body: %{"version" => 2}}} = Req.get(client, url: "/tv/1")
-      assert_receive {:http_stop, %{cache: :hit}}
+      assert_receive {:http_stop, %{cache: :hit}}, @wait_ms
     end
   end
 
@@ -256,8 +265,8 @@ defmodule MediaCentaur.HttpClient.CacheTest do
           end)
         end
 
-      assert_receive {:stub_hit, _, "/tv/7", _}
-      assert_receive {:stub_blocked, leader}
+      assert_receive {:stub_hit, _, "/tv/7", _}, @wait_ms
+      assert_receive {:stub_blocked, leader}, @wait_ms
       refute_receive {:stub_hit, _, _, _}, 50
 
       # Exactly one request is on the wire; release it.
@@ -300,7 +309,7 @@ defmodule MediaCentaur.HttpClient.CacheTest do
           end)
         end
 
-      assert_receive {:stub_hit, _, "/tv/8", _}
+      assert_receive {:stub_hit, _, "/tv/8", _}, @wait_ms
       send(gate, :open)
 
       for task <- tasks do
@@ -323,8 +332,8 @@ defmodule MediaCentaur.HttpClient.CacheTest do
       assert {:ok, _} = Req.get(client, url: "/movie/3")
       assert {:ok, _} = Req.get(client, url: "/movie/1")
 
-      for _ <- 1..3, do: assert_receive({:stub_hit, _, _, _})
-      assert_receive {:stub_hit, _, "/movie/1", _}
+      for _ <- 1..3, do: assert_receive({:stub_hit, _, _, _}, @wait_ms)
+      assert_receive {:stub_hit, _, "/movie/1", _}, @wait_ms
       refute_receive {:stub_hit, _, _, _}
     end
 
