@@ -16,14 +16,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   The whole card is a `phx-click="select_pursuit"` button-shaped div that
   opens the pursuit detail modal on `/download`. The cancel button is
   its own `data-nav-item` so keyboard/gamepad input can target it
-  independently.
+  independently. Cancelling deletes one torrent and is recoverable by
+  downloading it again, so it is the house arm gesture rather than an
+  overlay (MC0027 tier 2) — the host owns which row is armed and passes
+  it as `cancel_armed_id`.
   """
 
   use Phoenix.Component
 
   import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1]
 
-  import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [armed_button: 1, badge: 1, icon: 1]
 
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaur.Acquisition.ViewModels.{DownloadProgress, PursuitRow}
@@ -51,6 +54,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
     default: nil,
     doc:
       "Staleness qualifier from `Logic.telemetry_age_label/1` (e.g. \"last seen 4m ago\"), or nil when telemetry is fresh. Appended to the download footer so its live figures aren't presented as current when the client is lagging/offline."
+
+  attr :cancel_armed_id, :string,
+    default: nil,
+    doc:
+      "Host-owned: the queue-item id whose cancel is one click from firing (MC0027 tier 2). Only the matching strip's control shows its armed label."
 
   attr :density, :atom,
     default: :full,
@@ -104,6 +112,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
           download={paired.download}
           queue_item_id={paired.queue_item_id}
           cancel_title={@vm.release_title || @vm.title}
+          cancel_armed_id={@cancel_armed_id}
           telemetry_age={@telemetry_age}
           bare
         />
@@ -142,6 +151,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         download={paired.download}
         queue_item_id={paired.queue_item_id}
         cancel_title={@vm.release_title || @vm.title}
+        cancel_armed_id={@cancel_armed_id}
         telemetry_age={@telemetry_age}
       />
     </div>
@@ -230,6 +240,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   attr :download, DownloadProgress, required: true
   attr :queue_item_id, :string, required: true
   attr :cancel_title, :string, required: true
+  attr :cancel_armed_id, :string, default: nil
   attr :telemetry_age, :string, default: nil
 
   attr :bare, :boolean,
@@ -276,21 +287,24 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         <span :if={@telemetry_age} class="text-xs text-warning/80 tabular-nums">
           · {@telemetry_age}
         </span>
-        <.button
+        <%!-- No `shape="circle"`: the armed state relabels the control,
+              and a fixed circle would clip the label it grows into. --%>
+        <.armed_button
           :if={@queue_item_id}
+          armed={@cancel_armed_id == @queue_item_id}
+          arm="cancel_download_prompt"
+          fire="cancel_download_confirm"
+          armed_label="Click again to cancel"
           variant="destructive_inline"
           size="xs"
-          shape="circle"
           class="text-base-content/55 hover:text-error"
-          phx-click="cancel_download_prompt"
           phx-value-id={@queue_item_id}
           phx-value-title={@cancel_title}
           title="Cancel and delete"
-          data-nav-item
-          tabindex="0"
+          aria-label="Cancel download"
         >
           <.icon name="hero-x-mark-mini" class="size-4" />
-        </.button>
+        </.armed_button>
       </div>
 
       <div
