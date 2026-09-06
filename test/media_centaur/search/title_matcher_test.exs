@@ -3,8 +3,8 @@ defmodule MediaCentaur.Search.TitleMatcherTest do
 
   alias MediaCentaur.Search.{Criteria, SearchResult, TitleMatcher}
 
-  defp result(title) do
-    %SearchResult{title: title, guid: "g", indexer_id: 1}
+  defp result(title, attrs \\ %{}) do
+    struct(%SearchResult{title: title, guid: "g", indexer_id: 1}, attrs)
   end
 
   defp tv_criteria(attrs) do
@@ -200,6 +200,114 @@ defmodule MediaCentaur.Search.TitleMatcherTest do
     test "prowlarr_query criteria never coverage-match (no canonical title to verify)" do
       criteria = %Criteria{type: :prowlarr_query, title: "n/a"}
       assert :no_match = TitleMatcher.coverage(result("Sample.Show.S01.COMPLETE.1080p"), criteria)
+    end
+  end
+
+  describe "external ids — identity by id rather than by parsing" do
+    test "a matching IMDb id carries a release whose name parsing cannot" do
+      # Tracker-prefixed name plus a year three off the canonical one:
+      # both the title check and the ±1-year tolerance would reject it.
+      criteria = movie_criteria(%{title: "Sample Movie", year: 2010, imdb_id: "tt1727587"})
+
+      assert TitleMatcher.matches?(
+               result("www.Sample-Tracker.org - Smpl.Mv.2013.1080p.BluRay-GRP", %{imdb_id: "tt1727587"}),
+               criteria
+             )
+    end
+
+    test "a mismatching IMDb id rejects what the title alone would accept" do
+      criteria = movie_criteria(%{title: "Sample Movie", year: 2010, imdb_id: "tt1727587"})
+
+      refute TitleMatcher.matches?(
+               result("Sample.Movie.2010.1080p.BluRay.x264-GROUP", %{imdb_id: "tt0133093"}),
+               criteria
+             )
+    end
+
+    test "one id agreeing outweighs another disagreeing" do
+      criteria =
+        movie_criteria(%{title: "Sample Movie", year: 2010, imdb_id: "tt1727587", tmdb_id: "45745"})
+
+      assert TitleMatcher.matches?(
+               result("Whatever.2013.1080p-GRP", %{imdb_id: "tt1727587", tmdb_id: "999999"}),
+               criteria
+             )
+    end
+
+    test "an id-less result keeps the title and ±1-year treatment" do
+      criteria = movie_criteria(%{title: "Sample Movie", year: 2010, imdb_id: "tt1727587"})
+
+      assert TitleMatcher.matches?(result("Sample.Movie.2011.1080p.BluRay-GRP"), criteria)
+      refute TitleMatcher.matches?(result("Other.Movie.2010.1080p.BluRay-GRP"), criteria)
+    end
+
+    test "criteria carrying no id fall back to the title, whatever the result declares" do
+      criteria = movie_criteria(%{title: "Sample Movie", year: 2010})
+
+      assert TitleMatcher.matches?(
+               result("Sample.Movie.2010.1080p.BluRay-GRP", %{imdb_id: "tt0133093"}),
+               criteria
+             )
+    end
+
+    test "a matching id still does not excuse the wrong episode — identity is not scope" do
+      criteria =
+        tv_criteria(%{title: "Sample Show", season_number: 1, episode_number: 1, tvdb_id: "121361"})
+
+      assert TitleMatcher.matches?(
+               result("www.Tracker.org - Smpl.Shw.S01E01.1080p.WEB-DL", %{tvdb_id: "121361"}),
+               criteria
+             )
+
+      refute TitleMatcher.matches?(
+               result("www.Tracker.org - Smpl.Shw.S01E05.1080p.WEB-DL", %{tvdb_id: "121361"}),
+               criteria
+             )
+    end
+
+    test "a mismatching TVDB id rejects an otherwise perfect episode match" do
+      criteria =
+        tv_criteria(%{title: "Sample Show", season_number: 1, episode_number: 1, tvdb_id: "121361"})
+
+      refute TitleMatcher.matches?(
+               result("Sample.Show.S01E01.1080p.WEB-DL.x264-GROUP", %{tvdb_id: "999999"}),
+               criteria
+             )
+    end
+
+    test "a matching id does not turn an episode release into a movie" do
+      criteria = movie_criteria(%{title: "Sample Movie", imdb_id: "tt1727587"})
+
+      refute TitleMatcher.matches?(
+               result("Sample.Movie.S01E01.1080p.WEB-DL", %{imdb_id: "tt1727587"}),
+               criteria
+             )
+    end
+
+    test "coverage/2 verifies a pack by id when its prefix would not match" do
+      criteria = tv_criteria(%{title: "Sample Show", tvdb_id: "121361"})
+
+      assert {:ok, {:season, 2}} =
+               TitleMatcher.coverage(
+                 result("Smpl.Shw.S02.COMPLETE.1080p.WEB-DL", %{tvdb_id: "121361"}),
+                 criteria
+               )
+
+      assert {:ok, {:episode, 2, 3}} =
+               TitleMatcher.coverage(
+                 result("Smpl.Shw.S02E03.1080p.WEB-DL", %{tvdb_id: "121361"}),
+                 criteria
+               )
+    end
+
+    test "coverage/2 rejects a mismatching id whatever the prefix says" do
+      criteria = tv_criteria(%{title: "Sample Show", tvdb_id: "121361"})
+
+      assert :no_match =
+               TitleMatcher.coverage(
+                 result("Sample.Show.S02.COMPLETE.1080p.WEB-DL", %{tvdb_id: "999999"}),
+                 criteria
+               )
     end
   end
 

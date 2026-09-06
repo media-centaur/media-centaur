@@ -115,7 +115,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
         ]
       })
 
-      item = create_tracked_show()
+      item = create_tracked_show(%{imdb_id: "tt0903747", tvdb_id: "81189"})
       create_aired_release(item, 1, 1, @last_month)
       create_aired_release(item, 1, 2, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
@@ -125,6 +125,11 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       pursuit = sole_pursuit()
       assert pursuit.origin == "auto"
       assert pursuit.tmdb_id == "246810"
+
+      # The automated path carries the title's identity too, so an
+      # unattended grab can be verified against the ids indexers declare.
+      assert pursuit.imdb_id == "tt0903747"
+      assert pursuit.tvdb_id == "81189"
       assert length(Units.for_pursuit(pursuit.id)) == 2
 
       # Plan provenance: origin + back-pointer to the tracking item.
@@ -149,7 +154,13 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
         ]
       })
 
-      item = create_tracking_item(%{tmdb_id: 1000, media_type: :movie, name: "Sample Saga"})
+      item =
+        create_tracking_item(%{
+          tmdb_id: 1000,
+          media_type: :movie,
+          name: "Sample Saga",
+          imdb_id: "tt0137523"
+        })
 
       ReleaseTracking.create_release!(%{
         item_id: item.id,
@@ -167,6 +178,10 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert pursuit.tmdb_type == "movie"
       assert pursuit.tmdb_id == "2002"
       assert pursuit.title == "Sample Saga Part II"
+
+      # A collection part is a different film from the item, so the
+      # item's own IMDb id would be the wrong identity to claim.
+      assert pursuit.imdb_id == nil
     end
   end
 

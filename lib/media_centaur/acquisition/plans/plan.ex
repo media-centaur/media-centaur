@@ -50,6 +50,13 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     # TMDB origin_country ISO codes (TV only) — lets the matcher accept
     # scene country tags on same-title remakes. Nil on pre-existing rows.
     field :origin_country, {:array, :string}
+    # How TMDB spells this title elsewhere, snapshotted at creation.
+    # Indexers declare the same ids on their results, so the matcher can
+    # settle identity by comparison rather than by parsing a release
+    # name. Nil where TMDB supplied none — the title heuristic then
+    # decides, as it always did.
+    field :imdb_id, :string
+    field :tvdb_id, :string
     field :criteria, :map, default: %{}
     # Per-season aired-episode counts captured from the targeting
     # selection (`%{"1" => 24, "2" => 18}`), keyed by season number
@@ -88,6 +95,8 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
       :title,
       :year,
       :origin_country,
+      :imdb_id,
+      :tvdb_id,
       :criteria,
       :span_sizes,
       :grab_future,

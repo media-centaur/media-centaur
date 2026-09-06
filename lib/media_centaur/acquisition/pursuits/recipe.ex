@@ -13,7 +13,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
 
     * `:tmdb` — TMDB-typed lookup. Populated: `title`, `tmdb_id`,
       `tmdb_type` (`:movie | :tv`), optional `season_number` /
-      `episode_number` (TV) or `year` (movies).
+      `episode_number` (TV) or `year` (movies), plus the `imdb_id` /
+      `tvdb_id` spellings indexers declare on their results.
     * `:prowlarr_query` — free-form Prowlarr query. Populated:
       `title`, `manual_query` (brace syntax allowed; expanded by
       `QueryExpander`).
@@ -37,6 +38,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
     :episode_number,
     :year,
     :manual_query,
+    :imdb_id,
+    :tvdb_id,
     origin_country: []
   ]
 
@@ -52,6 +55,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
           episode_number: integer() | nil,
           year: integer() | nil,
           manual_query: String.t() | nil,
+          imdb_id: String.t() | nil,
+          tvdb_id: String.t() | nil,
           origin_country: [String.t()]
         }
 
@@ -65,6 +70,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
       season_number: pursuit.season_number,
       episode_number: pursuit.episode_number,
       year: pursuit.year,
+      imdb_id: pursuit.imdb_id,
+      tvdb_id: pursuit.tvdb_id,
       origin_country: pursuit.origin_country || []
     }
   end
@@ -118,6 +125,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
       season_number: recipe.season_number,
       episode_number: recipe.episode_number,
       year: recipe.year,
+      imdb_id: recipe.imdb_id,
+      tmdb_id: recipe.tmdb_id,
+      tvdb_id: recipe.tvdb_id,
       origin_country: recipe.origin_country
     }
   end

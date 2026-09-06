@@ -51,6 +51,56 @@ defmodule MediaCentaur.Search.SearchResultTest do
       assert SearchResult.from_prowlarr(unknown).protocol == nil
     end
 
+    test "captures the external ids the indexer sends" do
+      raw = %{
+        "title" => "Sample.Release.2024.1080p-GRP",
+        "guid" => "g8",
+        "indexerId" => 1,
+        "imdbId" => 1_727_587,
+        "tmdbId" => 45_745,
+        "tvdbId" => 121_361
+      }
+
+      result = SearchResult.from_prowlarr(raw)
+
+      assert result.imdb_id == "tt1727587"
+      assert result.tmdb_id == "45745"
+      assert result.tvdb_id == "121361"
+    end
+
+    test "pads a short IMDb id to the seven digits the tt spelling uses" do
+      raw = %{"title" => "Sample.Release", "guid" => "g9", "indexerId" => 1, "imdbId" => 133_093}
+
+      assert SearchResult.from_prowlarr(raw).imdb_id == "tt0133093"
+    end
+
+    test "reads zero and a missing field as no id at all" do
+      zeroed = %{
+        "title" => "Sample.Release",
+        "guid" => "g10",
+        "indexerId" => 1,
+        "imdbId" => 0,
+        "tmdbId" => 0,
+        "tvdbId" => 0
+      }
+
+      missing = %{"title" => "Sample.Release", "guid" => "g11", "indexerId" => 1}
+
+      for raw <- [zeroed, missing] do
+        result = SearchResult.from_prowlarr(raw)
+
+        assert result.imdb_id == nil
+        assert result.tmdb_id == nil
+        assert result.tvdb_id == nil
+      end
+    end
+
+    test "accepts an IMDb id the indexer already spelled with its tt prefix" do
+      raw = %{"title" => "Sample.Release", "guid" => "g12", "indexerId" => 1, "imdbId" => "tt1727587"}
+
+      assert SearchResult.from_prowlarr(raw).imdb_id == "tt1727587"
+    end
+
     test "scrubs invalid UTF-8 bytes from the title at the boundary" do
       # Indexers ship scene titles with mangled encodings; JSON decoding
       # passes the raw bytes through. Every downstream consumer (unicode

@@ -50,6 +50,17 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
       assert second.indexer_name == "indexer-a"
     end
 
+    test "external ids survive the round-trip — the matcher's exact identity gate" do
+      Corpus.record!("Sample Movie", [], [
+        result("guid-ids", %{imdb_id: "tt1727587", tmdb_id: "45745", tvdb_id: "121361"})
+      ])
+
+      assert [%SearchResult{} = candidate] = Corpus.candidates_for("Sample Movie")
+      assert candidate.imdb_id == "tt1727587"
+      assert candidate.tmdb_id == "45745"
+      assert candidate.tvdb_id == "121361"
+    end
+
     test "search opts are part of the key — same term, different category, different corpus" do
       Corpus.record!("Sample Title", [categories: :movie], [result("guid-movie")])
       Corpus.record!("Sample Title", [categories: :tv], [result("guid-tv")])

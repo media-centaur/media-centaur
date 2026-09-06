@@ -59,9 +59,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     Plans
   }
 
-  alias MediaCentaur.Acquisition.Plans.{LadderTerms, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{LadderTerms, MatchCriteria, Plan, PlanUnit}
   alias MediaCentaur.Repo
-  alias MediaCentaur.Search.{CourCoverage, CourQueries, Criteria, Quality, ReleaseCoverage}
+  alias MediaCentaur.Search.{CourCoverage, CourQueries, Quality, ReleaseCoverage}
   alias MediaCentaur.Search.{ReleasePreference, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Topics
 
@@ -399,16 +399,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     end
   end
 
-  defp series_criteria(plan) do
-    %Criteria{
-      type: :tmdb,
-      title: plan.title,
-      tmdb_type: :tv,
-      season_number: nil,
-      episode_number: nil,
-      origin_country: plan.origin_country || []
-    }
-  end
+  defp series_criteria(plan), do: MatchCriteria.from(plan)
 
   defp assignment_attrs(assignment, terms_by_guid) do
     %{
@@ -441,7 +432,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   defp run_movie(plan, units, force?) do
     excluded = units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
 
-    criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :movie, year: plan.year}
+    criteria = MatchCriteria.from(plan)
     plan_prefs = prefs(plan)
 
     # A movie plan has one unit; its floor override (patience

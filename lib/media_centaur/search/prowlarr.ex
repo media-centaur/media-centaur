@@ -41,11 +41,24 @@ defmodule MediaCentaur.Search.Prowlarr do
   larger one, so raising it multiplies requests against indexers that
   rate-limit and back off. Narrow with `categories` instead.
 
-  Exact ID search exists and is not used yet: movies accept `imdbId`, TV
-  accepts `tvdbId` + `season` + `ep`, both only under the matching search
-  type. Adopting it needs those identifiers carried on plans and pursuits
-  and care for indexers whose capabilities differ, since one search fans
-  out to all of them.
+  ## Gotcha — the aggregated search ignores id parameters
+
+  Newznab indexers accept `imdbId` on a movie search and `tvdbId` on a TV
+  search, but **this endpoint drops them**: a deliberately wrong
+  `imdbId` returns byte-identical results to the correct one, with the
+  indexer healthy before and after. Same shape as the `year` finding —
+  accepted, silently discarded. The per-indexer route Radarr and Sonarr
+  consume (`GET /{indexerId}/api?t=movie&imdbid=…&apikey=…`) does honour
+  them, but reaching it means owning the fan-out across indexers with
+  differing declared capabilities.
+
+  What the aggregated endpoint *does* give us is ids on the way back:
+  every result carries `imdbId` / `tmdbId` / `tvdbId` as integers (`0`
+  meaning absent, IMDb without its `tt` prefix). `SearchResult` captures
+  them and `Search.TitleMatcher` settles identity by comparison rather
+  than by parsing the release name — exact where parsing is a heuristic,
+  and free. Newznab indexers populate them; public torrent indexers
+  largely do not, so the title path remains the fallback.
 
   ## What Prowlarr does NOT expose
 

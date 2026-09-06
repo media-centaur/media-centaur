@@ -11,10 +11,10 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.CoverageGuard
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaur.Acquisition.Plans.{LadderTerms, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{LadderTerms, MatchCriteria, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Repo
-  alias MediaCentaur.Search.{Criteria, Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
+  alias MediaCentaur.Search.{Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
 
   @doc """
   The choosable alternatives for one plan unit — corpus candidates
@@ -141,7 +141,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
 
   defp rejected_candidates(%Plan{tmdb_type: "movie"} = plan, gap_units, raw) do
     excluded = gap_units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
-    criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :movie, year: plan.year}
+    criteria = MatchCriteria.from(plan)
 
     for result <- raw,
         reason = rejection_reason(result, excluded, criteria),
@@ -311,17 +311,12 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   end
 
   defp verify(%Plan{tmdb_type: "movie"} = plan, _unit, result) do
-    criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :movie, year: plan.year}
+    criteria = MatchCriteria.from(plan)
     if TitleMatcher.matches?(result, criteria), do: {:ok, :movie}, else: :no_match
   end
 
   defp verify(%Plan{tmdb_type: "tv"} = plan, unit, result) do
-    criteria = %Criteria{
-      type: :tmdb,
-      title: plan.title,
-      tmdb_type: :tv,
-      origin_country: plan.origin_country || []
-    }
+    criteria = MatchCriteria.from(plan)
 
     with {:ok, scope} <- TitleMatcher.coverage(result, criteria),
          true <- ReleaseCoverage.covers?(scope, unit.season_number, unit.episode_number),

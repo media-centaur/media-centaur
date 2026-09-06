@@ -93,7 +93,7 @@ defmodule MediaCentaur.Acquisition.Corpus do
     :ok
   end
 
-  # SQLite binds at most 32_766 variables per statement; 18 columns per row.
+  # SQLite binds at most 32_766 variables per statement; 23 columns per row.
   @insert_chunk 500
 
   defp candidate_row(%SearchResult{} = result, key, now) do
@@ -113,6 +113,9 @@ defmodule MediaCentaur.Acquisition.Corpus do
       grabs: result.grabs,
       publish_date: result.publish_date,
       protocol: protocol_to_string(result.protocol),
+      imdb_id: result.imdb_id,
+      tmdb_id: result.tmdb_id,
+      tvdb_id: result.tvdb_id,
       info_hash: result.info_hash,
       magnet_url: result.magnet_url,
       download_url: result.download_url,
@@ -159,6 +162,9 @@ defmodule MediaCentaur.Acquisition.Corpus do
              :grabs,
              :publish_date,
              :protocol,
+             :imdb_id,
+             :tmdb_id,
+             :tvdb_id,
              :info_hash,
              :magnet_url,
              :download_url,
@@ -291,6 +297,9 @@ defmodule MediaCentaur.Acquisition.Corpus do
       grabs: candidate.grabs,
       publish_date: candidate.publish_date,
       protocol: protocol_from_string(candidate.protocol),
+      imdb_id: candidate.imdb_id,
+      tmdb_id: candidate.tmdb_id,
+      tvdb_id: candidate.tvdb_id,
       info_hash: candidate.info_hash,
       magnet_url: candidate.magnet_url,
       download_url: candidate.download_url

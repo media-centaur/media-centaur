@@ -30,6 +30,9 @@ defmodule MediaCentaur.Acquisition.Corpus.Candidate do
     field :grabs, :integer
     field :publish_date, :string
     field :protocol, :string
+    field :imdb_id, :string
+    field :tmdb_id, :string
+    field :tvdb_id, :string
     field :info_hash, :string
     field :magnet_url, :string
     field :download_url, :string
@@ -43,8 +46,8 @@ defmodule MediaCentaur.Acquisition.Corpus.Candidate do
 
   @cast_fields ~w(
     search_key guid title indexer_id indexer_name quality size_bytes
-    seeders leechers grabs publish_date protocol info_hash magnet_url
-    download_url first_seen_at last_seen_at
+    seeders leechers grabs publish_date protocol imdb_id tmdb_id tvdb_id
+    info_hash magnet_url download_url first_seen_at last_seen_at
   )a
 
   @doc "Builds an upsertable row for one discovered release."
