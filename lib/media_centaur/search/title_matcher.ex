@@ -37,13 +37,16 @@ defmodule MediaCentaur.Search.TitleMatcher do
 
     * media type — TV criteria only accept parsed TV releases, movie
       criteria only accept parsed movies
-    * normalised show/movie title — case-folded, alphanumerics only,
+    * normalised show/movie title — `Search.TitleForm.compare/1`:
+      diacritics folded to ASCII, case-folded, alphanumerics only,
       whitespace collapsed (so `Sample's Show Twelve` matches
-      `Samples.Show.Twelve`). A trailing scene country tag
+      `Samples.Show.Twelve`, and `Amélie` matches `Amelie`). A trailing scene country tag
       (`Sample.Show.US.S01E01`) is accepted only when the criteria's
       `origin_country` includes it — release groups append the tag to
       disambiguate same-title remakes, so a mismatched or unverifiable
-      tag means the release is (or may be) the other show
+      tag means the release is (or may be) the other show. When the
+      criteria carry an `original_title` (TMDB's canonical title is a
+      localised one), a release named with either title matches
     * season + episode — episode-keyed criteria require both to match
       exactly; season-pack criteria require season match and reject
       results that pin a specific episode
@@ -59,7 +62,7 @@ defmodule MediaCentaur.Search.TitleMatcher do
   Pure module — no I/O, no DB.
   """
 
-  alias MediaCentaur.Search.{Criteria, ReleaseCoverage, SearchResult}
+  alias MediaCentaur.Search.{Criteria, ReleaseCoverage, SearchResult, TitleForm}
   alias MediaCentaur.Parser
 
   # Tokens that begin a release's scope/quality tail — everything before
@@ -159,7 +162,7 @@ defmodule MediaCentaur.Search.TitleMatcher do
     case Regex.split(@scope_tail, title, parts: 2) do
       [prefix, _tail] ->
         prefix
-        |> normalize()
+        |> TitleForm.compare()
         |> String.replace(@trailing_year, "")
         |> String.trim()
         |> title_verified?(criteria, identity)
@@ -173,8 +176,18 @@ defmodule MediaCentaur.Search.TitleMatcher do
   # one the normalized title has to carry it.
   defp title_verified?(_parsed_title, %Criteria{}, :match), do: true
 
-  defp title_verified?(parsed_title, %Criteria{} = criteria, _identity),
-    do: title_matches?(parsed_title, criteria.title, criteria.origin_country)
+  defp title_verified?(parsed_title, %Criteria{} = criteria, _identity) do
+    criteria
+    |> candidate_titles()
+    |> Enum.any?(&title_matches?(parsed_title, &1, criteria.origin_country))
+  end
+
+  # TMDB's canonical title plus, when it differs, the title in the
+  # work's original language — a foreign release is named either way.
+  defp candidate_titles(%Criteria{original_title: original} = criteria) when is_binary(original),
+    do: [criteria.title, original]
+
+  defp candidate_titles(%Criteria{} = criteria), do: [criteria.title]
 
   defp matches_criteria?(
          %Parser.Result{type: :tv} = parsed,
@@ -195,18 +208,17 @@ defmodule MediaCentaur.Search.TitleMatcher do
   defp matches_criteria?(
          %Parser.Result{type: :movie} = parsed,
          %Criteria{tmdb_type: :movie} = criteria,
-         _identity
+         identity
        ) do
-    title_matches?(parsed.title, criteria.title, criteria.origin_country) and
-      year_matches?(parsed.year, criteria.year)
+    title_verified?(parsed.title, criteria, identity) and year_matches?(parsed.year, criteria.year)
   end
 
   defp matches_criteria?(_parsed, _criteria, _identity), do: false
 
   defp title_matches?(parsed_title, expected_title, origin_countries)
        when is_binary(parsed_title) and is_binary(expected_title) do
-    parsed = normalize(parsed_title)
-    expected = normalize(expected_title)
+    parsed = TitleForm.compare(parsed_title)
+    expected = TitleForm.compare(expected_title)
 
     parsed == expected or origin_tagged_match?(parsed, expected, origin_countries)
   end
@@ -238,12 +250,4 @@ defmodule MediaCentaur.Search.TitleMatcher do
   # ±1: release names carry whichever year the group's source used —
   # festival premiere vs theatrical release routinely differ by one.
   defp year_matches?(parsed_year, expected_year), do: abs(parsed_year - expected_year) <= 1
-
-  defp normalize(title) do
-    title
-    |> String.downcase()
-    |> String.replace(~r/['']/u, "")
-    |> String.replace(~r/[^a-z0-9]+/, " ")
-    |> String.trim()
-  end
 end

@@ -61,6 +61,32 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTermsTest do
                  LadderTerms.episode_terms(plan(), wanted)
     end
 
+    test "a movie's original title is one more phrasing, broadest last" do
+      movie_plan = %Plan{
+        title: "Sample Movie",
+        tmdb_type: "movie",
+        year: 2010,
+        original_title: "Le Fabuleux Destin de Sample"
+      }
+
+      assert LadderTerms.for_plan(movie_plan, []) == [
+               "Sample Movie 2010",
+               "Sample Movie",
+               "Le Fabuleux Destin de Sample"
+             ]
+    end
+
+    test "an original title matching the canonical one adds no term" do
+      movie_plan = %Plan{
+        title: "Amélie",
+        tmdb_type: "movie",
+        year: 2001,
+        original_title: "Amelie"
+      }
+
+      assert LadderTerms.for_plan(movie_plan, []) == ["Amelie 2001", "Amelie"]
+    end
+
     test "movie plans descend from the year term to the year-less term" do
       # Release years drift (festival premiere vs theatrical) — the
       # year-less rung keeps a wrong year from becoming a silent miss.

@@ -155,6 +155,7 @@ defmodule MediaCentaur.TmdbStubs do
        tv_detail(%{
          "id" => 246_810,
          "name" => "Sample Show",
+         "original_name" => "Beispielserie",
          "origin_country" => ["US"],
          "seasons" => [
            %{"season_number" => 0, "episode_count" => 1},

@@ -203,6 +203,59 @@ defmodule MediaCentaur.Search.TitleMatcherTest do
     end
   end
 
+  describe "accented titles" do
+    test "an accented TMDB title matches the ASCII name the scene uses" do
+      criteria = movie_criteria(%{title: "Amélie", year: 2001})
+
+      assert TitleMatcher.matches?(result("Amelie.2001.1080p.BluRay.x264-GROUP"), criteria)
+    end
+
+    test "a series with an accented title matches its episodes and packs" do
+      episode = tv_criteria(%{title: "Filipiñana", season_number: 1, episode_number: 2})
+      assert TitleMatcher.matches?(result("Filipinana.S01E02.1080p.WEB-DL"), episode)
+
+      pack = tv_criteria(%{title: "Filipiñana"})
+      assert {:ok, {:season, 1}} = TitleMatcher.coverage(result("Filipinana.S01.COMPLETE.1080p"), pack)
+    end
+
+    test "folding does not collapse two genuinely different titles" do
+      criteria = movie_criteria(%{title: "Amélie", year: 2001})
+
+      refute TitleMatcher.matches?(result("Amigo.2001.1080p.BluRay-GROUP"), criteria)
+    end
+  end
+
+  describe "the original title as an alternate name" do
+    test "a release named with the film's original title matches" do
+      criteria =
+        movie_criteria(%{
+          title: "Sample Movie",
+          year: 2001,
+          original_title: "Le Fabuleux Destin de Sample"
+        })
+
+      assert TitleMatcher.matches?(result("Le.Fabuleux.Destin.de.Sample.2001.1080p.BluRay"), criteria)
+      # The canonical title still matches — the alternate is additional.
+      assert TitleMatcher.matches?(result("Sample.Movie.2001.1080p.BluRay"), criteria)
+    end
+
+    test "a series pack and episode named with the original title match" do
+      criteria = tv_criteria(%{title: "Sample Show", original_title: "Beispielserie"})
+
+      assert {:ok, {:season, 1}} =
+               TitleMatcher.coverage(result("Beispielserie.S01.COMPLETE.1080p"), criteria)
+
+      assert {:ok, {:episode, 1, 2}} =
+               TitleMatcher.coverage(result("Beispielserie.S01E02.1080p.WEB-DL"), criteria)
+    end
+
+    test "an unrelated title is still rejected" do
+      criteria = movie_criteria(%{title: "Sample Movie", year: 2001, original_title: "Beispielfilm"})
+
+      refute TitleMatcher.matches?(result("Other.Movie.2001.1080p.BluRay"), criteria)
+    end
+  end
+
   describe "external ids — identity by id rather than by parsing" do
     test "a matching IMDb id carries a release whose name parsing cannot" do
       # Tracker-prefixed name plus a year three off the canonical one:

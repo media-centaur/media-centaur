@@ -78,6 +78,19 @@ defmodule MediaCentaur.TMDB.Mapper do
   end
 
   @doc """
+  The work's title in its original language — `original_title` on a
+  movie payload, `original_name` on a series one. Nil when TMDB carries
+  none or it is blank.
+
+  Kept here rather than read inline by callers because the two payload
+  shapes spell it differently, and a caller that guesses wrong finds
+  nothing rather than failing.
+  """
+  @spec original_title(map()) :: String.t() | nil
+  def original_title(payload) when is_map(payload),
+    do: presence(payload["original_title"] || payload["original_name"])
+
+  @doc """
   Extracts season attributes from TMDB season data.
   """
   def season_attrs(entity_id, season_data) do

@@ -180,4 +180,72 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
       assert [{"Sample Show Season 1", _}, {"Sample Show S01", _}] = QueryBuilder.build(criteria)
     end
   end
+
+  describe "accented titles" do
+    test "the outbound query carries the ASCII spelling the indexer indexes" do
+      criteria = %Criteria{type: :tmdb, title: "Amélie", tmdb_type: :movie, year: 2001}
+
+      assert QueryBuilder.build(criteria) == [
+               {"Amelie 2001", [categories: :movie]},
+               {"Amelie", [categories: :movie]}
+             ]
+    end
+
+    test "a series' ladder queries are folded too" do
+      criteria = %Criteria{type: :tmdb, title: "Filipiñana", tmdb_type: :tv, season_number: 1}
+
+      assert QueryBuilder.build(criteria) == [
+               {"Filipinana Season 1", [categories: :tv]},
+               {"Filipinana S01", [categories: :tv]}
+             ]
+    end
+  end
+
+  describe "the original title as an alternate query" do
+    test "a movie asks for its original title too, broadest last" do
+      criteria = %Criteria{
+        type: :tmdb,
+        title: "Sample Movie",
+        tmdb_type: :movie,
+        year: 2001,
+        original_title: "Le Fabuleux Destin de Sample"
+      }
+
+      assert QueryBuilder.build(criteria) == [
+               {"Sample Movie 2001", [categories: :movie]},
+               {"Sample Movie", [categories: :movie]},
+               {"Le Fabuleux Destin de Sample", [categories: :movie]}
+             ]
+    end
+
+    test "an original title that folds to the canonical one costs no extra search" do
+      criteria = %Criteria{
+        type: :tmdb,
+        title: "Amélie",
+        tmdb_type: :movie,
+        year: 2001,
+        original_title: "Amelie"
+      }
+
+      assert QueryBuilder.build(criteria) == [
+               {"Amelie 2001", [categories: :movie]},
+               {"Amelie", [categories: :movie]}
+             ]
+    end
+
+    test "TV queries are unchanged — the ladder is a narrowing structure, not a list of phrasings" do
+      criteria = %Criteria{
+        type: :tmdb,
+        title: "Sample Show",
+        tmdb_type: :tv,
+        season_number: 1,
+        original_title: "Beispielserie"
+      }
+
+      assert QueryBuilder.build(criteria) == [
+               {"Sample Show Season 1", [categories: :tv]},
+               {"Sample Show S01", [categories: :tv]}
+             ]
+    end
+  end
 end

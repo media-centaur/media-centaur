@@ -115,7 +115,13 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
         ]
       })
 
-      item = create_tracked_show(%{imdb_id: "tt0903747", tvdb_id: "81189"})
+      item =
+        create_tracked_show(%{
+          imdb_id: "tt0903747",
+          tvdb_id: "81189",
+          original_title: "Beispielserie"
+        })
+
       create_aired_release(item, 1, 1, @last_month)
       create_aired_release(item, 1, 2, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
@@ -130,6 +136,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       # unattended grab can be verified against the ids indexers declare.
       assert pursuit.imdb_id == "tt0903747"
       assert pursuit.tvdb_id == "81189"
+      assert pursuit.original_title == "Beispielserie"
       assert length(Units.for_pursuit(pursuit.id)) == 2
 
       # Plan provenance: origin + back-pointer to the tracking item.

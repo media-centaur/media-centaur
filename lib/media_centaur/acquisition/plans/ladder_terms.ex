@@ -10,16 +10,17 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   TV terms run broad-to-narrow: the series title, `Title Season N` +
   `Title SNN` per season, `Title SNNENN` per episode — a narrowing
   ladder, walked only as far as coverage requires. Movie terms are not a
-  ladder at all: `Title year` and the year-less `Title` are alternate
-  phrasings of the same want, and the runner searches both and picks the
-  best of the union. Their order still matters, because an exact tie
+  ladder at all: `Title year`, the year-less `Title` and — when the film
+  has a different original-language title — that title are alternate
+  phrasings of the same want, and the runner searches all of them and
+  picks the best of the union. Their order still matters, because an exact tie
   keeps the earlier (year-matched) candidate. Every title is sanitized
   via `Search.QueryTerm` (scene names carry no apostrophes).
   """
 
   alias MediaCentaur.Acquisition.Plans.{Plan, PlanUnit}
   alias MediaCentaur.Format
-  alias MediaCentaur.Search.QueryTerm
+  alias MediaCentaur.Search.TitleForm
 
   @type search_term :: String.t()
 
@@ -89,11 +90,24 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   stopping at the first that hits. No year → one term.
   """
   @spec movie_terms(Plan.t()) :: [search_term()]
-  def movie_terms(%Plan{tmdb_type: "movie", year: nil} = plan), do: [title(plan)]
+  def movie_terms(%Plan{tmdb_type: "movie", year: nil} = plan),
+    do: [title(plan)] ++ original_title_term(plan)
 
   def movie_terms(%Plan{tmdb_type: "movie"} = plan) do
-    ["#{title(plan)} #{plan.year}", title(plan)]
+    ["#{title(plan)} #{plan.year}", title(plan)] ++ original_title_term(plan)
   end
 
-  defp title(plan), do: QueryTerm.sanitize(plan.title)
+  # A foreign film is released under either name, so its original title
+  # is one more phrasing of the same want — broadest, hence last. Only
+  # when it is genuinely a different title: for the great majority it
+  # folds to the canonical one and costs no extra indexer request.
+  defp original_title_term(%Plan{original_title: original} = plan) when is_binary(original) do
+    folded = TitleForm.query(original)
+
+    if TitleForm.compare(folded) == TitleForm.compare(plan.title), do: [], else: [folded]
+  end
+
+  defp original_title_term(%Plan{}), do: []
+
+  defp title(plan), do: TitleForm.query(plan.title)
 end

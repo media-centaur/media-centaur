@@ -24,6 +24,7 @@ defmodule MediaCentaur.Search.Criteria do
     :imdb_id,
     :tmdb_id,
     :tvdb_id,
+    :original_title,
     origin_country: []
   ]
 
@@ -51,6 +52,11 @@ defmodule MediaCentaur.Search.Criteria do
           imdb_id: String.t() | nil,
           tmdb_id: String.t() | nil,
           tvdb_id: String.t() | nil,
+          # The title in its original language, when TMDB's canonical
+          # `title` is a localised one. Release groups name a foreign
+          # title either way, so the matcher accepts both and the movie
+          # query builder asks for both.
+          original_title: String.t() | nil,
           # TMDB `origin_country` ISO codes for the show (TV only, e.g.
           # `["US"]`). Lets `TitleMatcher` accept scene country tags
           # (`Title.US.S01`) that release groups append to disambiguate

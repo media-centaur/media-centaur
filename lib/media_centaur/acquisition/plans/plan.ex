@@ -57,6 +57,9 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     # decides, as it always did.
     field :imdb_id, :string
     field :tvdb_id, :string
+    # The title in its original language, when TMDB's canonical title is
+    # a localised one. A foreign release is named either way.
+    field :original_title, :string
     field :criteria, :map, default: %{}
     # Per-season aired-episode counts captured from the targeting
     # selection (`%{"1" => 24, "2" => 18}`), keyed by season number
@@ -97,6 +100,7 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
       :origin_country,
       :imdb_id,
       :tvdb_id,
+      :original_title,
       :criteria,
       :span_sizes,
       :grab_future,

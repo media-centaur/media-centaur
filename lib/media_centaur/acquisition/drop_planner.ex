@@ -118,6 +118,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                origin_country: item.origin_country,
                imdb_id: item.imdb_id,
                tvdb_id: item.tvdb_id,
+               original_title: item.original_title,
                tracking_item_id: item.id,
                origin: "manual",
                approval_policy: "review",
@@ -159,6 +160,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
               # Only when the want IS the tracked film: a collection part
               # is a different film, and the item's id would name it wrong.
               imdb_id: solo_movie_imdb_id(item, want),
+              original_title: solo_movie_original_title(item, want),
               tracking_item_id: item.id,
               origin: "manual",
               approval_policy: "review",
@@ -184,8 +186,14 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   # A solo movie's want carries the item's own TMDB id; a collection
   # part carries the part's, and we hold no IMDb id for that part.
   defp solo_movie_imdb_id(%Item{} = item, want) do
-    if to_string(want.part_tmdb_id) == to_string(item.tmdb_id), do: item.imdb_id
+    if solo_movie?(item, want), do: item.imdb_id
   end
+
+  defp solo_movie_original_title(%Item{} = item, want) do
+    if solo_movie?(item, want), do: item.original_title
+  end
+
+  defp solo_movie?(%Item{} = item, want), do: to_string(want.part_tmdb_id) == to_string(item.tmdb_id)
 
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
@@ -246,6 +254,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                origin_country: item.origin_country,
                imdb_id: item.imdb_id,
                tvdb_id: item.tvdb_id,
+               original_title: item.original_title,
                tracking_item_id: item.id,
                approval_policy: approval_policy(item, settings),
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
