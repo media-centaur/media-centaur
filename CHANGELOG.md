@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.13.0 — 2026-09-06
+
+### Improved
+
+- **Releases are matched by the id the indexer states, not by reading their name.** Deciding whether a search result really is the title you asked for used to mean reading its name and allowing a year either side, since release groups tag a film with whichever year their source used. Indexers already say which film or show each release belongs to, and that now decides it: a release carrying the right id counts even when its name is mangled or prefixed with a tracker's address, and one carrying another title's id is turned down however convincing its name looks. Names are still read for the releases that carry no id, which is most of what public torrent indexers return.
+- **Foreign titles are searched under their original name as well.** A film listed under an English name is often published under its original one, or the reverse. Where the two genuinely differ a movie search now asks for both, and a release named either way is recognised as the film you wanted.
+- **Cancelling a download is two clicks on the button itself.** Cancel arms and relabels to *Click again to cancel* instead of opening a dialog over the download; anything else you touch cancels it. Discard changed the same way in the last release.
+
+### Fixed
+
+- **Titles written with an accent find their releases again.** A title like *Amélie* went to the indexer exactly as it is written, and indexers treat *é* and *e* as different words — one search returned four results where the plain spelling returns thirty-eight. The few that did come back were then turned down anyway, because the accented letter did not match the plain one in the release name either. Both the search and the match now fold to plain letters first.
+
+### Upgrade note
+
+This release adds fields to plans, downloads, tracked titles and the search cache, and drops some that were no longer used. The upgrade runs by itself — there is nothing for you to do. Tracked titles fill in their new fields the next time they refresh, and searches cached before the upgrade are fetched again when they're next needed.
+
 ## v1.12.0 — 2026-09-06
 
 ### Improved
