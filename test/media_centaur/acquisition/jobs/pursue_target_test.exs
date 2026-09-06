@@ -35,4 +35,88 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
       end
     end
   end
+
+  describe "movie search — best of every query, not the first that hits" do
+    # Same defect as the plan runner's movie ladder, on the unattended
+    # path: the movie queries are alternate phrasings of ONE want, so
+    # halting on the first that yields an acceptable release let the year
+    # term decide the quality ceiling. Nobody clicks "Find more" on a
+    # snooze-retry loop, so an auto-grabbed movie kept the worse copy
+    # permanently.
+
+    defp stub_movie_queries(results_by_query) do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+            Req.Test.json(conn, Map.get(results_by_query, query, []))
+
+          {"POST", "/api/v1/search"} ->
+            Req.Test.json(conn, %{"approved" => true})
+        end
+      end)
+    end
+
+    defp movie_release(title, guid, attrs) do
+      Map.merge(
+        %{"title" => title, "guid" => guid, "indexerId" => 1, "indexer" => "indexer-a"},
+        Map.new(attrs, fn {key, value} -> {to_string(key), value} end)
+      )
+    end
+
+    test "grabs the better release found behind the year-less query" do
+      stub_movie_queries(%{
+        "Sample Movie 2005" => [
+          movie_release("Sample.Movie.2005.1080p.BluRay.H.264-GRP", "year-1080p", %{seeders: 40})
+        ],
+        "Sample Movie" => [
+          movie_release(
+            "Sample.Movie.2004.2160p.BluRay.REMUX.HEVC.DTS-HD.MA.5.1-GRP",
+            "drift-4k",
+            %{seeders: 3}
+          )
+        ]
+      })
+
+      {_pursuit, target} =
+        create_pursuit_with_target(%{
+          state: "seeking",
+          status: "seeking",
+          title: "Sample Movie",
+          year: 2005
+        })
+
+      PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      assert MediaCentaur.Repo.reload!(target).prowlarr_guid == "drift-4k"
+    end
+
+    test "grabs break a tie when the indexer reports no seeders (usenet)" do
+      stub_movie_queries(%{
+        "Sample Movie 2005" => [],
+        "Sample Movie" => [
+          movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-LOW", "few-grabs", %{grabs: 12}),
+          movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-HIGH", "many-grabs", %{grabs: 480})
+        ]
+      })
+
+      {_pursuit, target} =
+        create_pursuit_with_target(%{
+          state: "seeking",
+          status: "seeking",
+          title: "Sample Movie",
+          year: 2005
+        })
+
+      PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      assert MediaCentaur.Repo.reload!(target).prowlarr_guid == "many-grabs"
+    end
+  end
 end

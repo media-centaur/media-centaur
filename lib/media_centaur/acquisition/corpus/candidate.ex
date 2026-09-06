@@ -6,8 +6,8 @@ defmodule MediaCentaur.Acquisition.Corpus.Candidate do
 
   Carries every `Search.SearchResult` field so a candidate can be
   rehydrated into the exact struct `Prowlarr.grab/1` accepts. Mutable
-  health facts (`seeders`, `leechers`, `size_bytes`) refresh on every
-  re-observation; `first_seen_at` is write-once provenance.
+  health facts (`seeders`, `leechers`, `grabs`, `size_bytes`) refresh on
+  every re-observation; `first_seen_at` is write-once provenance.
   """
 
   use Ecto.Schema
@@ -27,7 +27,9 @@ defmodule MediaCentaur.Acquisition.Corpus.Candidate do
     field :size_bytes, :integer
     field :seeders, :integer
     field :leechers, :integer
+    field :grabs, :integer
     field :publish_date, :string
+    field :protocol, :string
     field :info_hash, :string
     field :magnet_url, :string
     field :download_url, :string
@@ -41,8 +43,8 @@ defmodule MediaCentaur.Acquisition.Corpus.Candidate do
 
   @cast_fields ~w(
     search_key guid title indexer_id indexer_name quality size_bytes
-    seeders leechers publish_date info_hash magnet_url download_url
-    first_seen_at last_seen_at
+    seeders leechers grabs publish_date protocol info_hash magnet_url
+    download_url first_seen_at last_seen_at
   )a
 
   @doc "Builds an upsertable row for one discovered release."

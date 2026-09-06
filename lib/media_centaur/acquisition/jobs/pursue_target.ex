@@ -66,7 +66,9 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     Prowlarr,
     Quality,
     QueryBuilder,
+    ReleasePreference,
     ReleaseRedFlags,
+    SearchResult,
     TitleMatcher
   }
 
@@ -149,10 +151,10 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       "acquisition search — #{target.title} (attempt #{target.attempt_count + 1})"
     )
 
-    bounds = effective_bounds(pursuit)
+    prefs = effective_prefs(pursuit)
     criteria = pursuit |> Recipe.for_unit(unit) |> Recipe.to_criteria() |> with_cour_run(pursuit, unit)
 
-    case search_until_match(target, unit, criteria, QueryBuilder.build(criteria), bounds) do
+    case search_until_match(unit, criteria, QueryBuilder.build(criteria), prefs) do
       {:ok, best} -> handle_found(target, pursuit, best)
       {:needs_decision, _results} -> handle_needs_decision(target, pursuit, unit)
       {:no_match, outcome} -> handle_no_results(target, pursuit, outcome)
@@ -183,12 +185,15 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   # quality-floor elevation (ADR-056 Q4) — the worker serves query-door
   # pursuits and failed-grab degradation, where the user already picked
   # the release, so a time-based floor has no meaning here.
-  defp effective_bounds(%Pursuit{} = pursuit) do
+  defp effective_prefs(%Pursuit{} = pursuit) do
     settings = AutoGrabSettings.load()
     criteria = pursuit.criteria || %{}
-    min = Map.get(criteria, "min_quality") || settings.default_min_quality
-    max = Map.get(criteria, "max_quality") || settings.default_max_quality
-    {min, max}
+
+    %{
+      min_quality: Map.get(criteria, "min_quality") || settings.default_min_quality,
+      max_quality: Map.get(criteria, "max_quality") || settings.default_max_quality,
+      size_preference: settings.size_preference
+    }
   end
 
   @outcome_rank %{
@@ -198,10 +203,16 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     "grab_failed" => 2
   }
 
-  defp search_until_match(target, unit, criteria, queries, bounds) do
-    case criteria.type do
-      :tmdb -> search_until_tmdb_match(target, unit, criteria, queries, bounds)
-      :prowlarr_query -> search_until_any_result(queries)
+  # Movie queries are alternate phrasings of ONE want; TV queries are a
+  # narrowing ladder over a unit that is either covered or not. So movies
+  # exhaust every query and keep the best, while TV still stops at the
+  # first query that satisfies the unit. The two function names carry the
+  # difference.
+  defp search_until_match(unit, criteria, queries, prefs) do
+    case {criteria.type, criteria.tmdb_type} do
+      {:prowlarr_query, _tmdb_type} -> search_until_any_result(queries)
+      {:tmdb, :movie} -> search_best_tmdb_match(unit, criteria, queries, prefs)
+      {:tmdb, _tmdb_type} -> search_until_tmdb_match(unit, criteria, queries, prefs)
     end
   end
 
@@ -209,14 +220,14 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   # searched within the freshness window serves from durable knowledge
   # with zero indexer traffic — the snooze-retry loop is exactly the
   # automated caller the citizenship gate exists for.
-  defp search_until_tmdb_match(_target, unit, criteria, queries, bounds) do
+  defp search_until_tmdb_match(unit, criteria, queries, prefs) do
     Enum.reduce_while(queries, {:no_match, "no_results"}, fn {query, opts}, acc ->
       case Corpus.search(query, opts) do
         {:ok, []} ->
           {:cont, acc}
 
         {:ok, results} ->
-          case best_match(results, unit, criteria, bounds) do
+          case best_match(results, unit, criteria, prefs) do
             {:found, best} -> {:halt, {:ok, best}}
             {:none, outcome} -> {:cont, keep_more_informative(acc, outcome)}
           end
@@ -225,6 +236,42 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
           {:halt, {:error, reason}}
       end
     end)
+  end
+
+  # A movie's queries are `Title year` then the bare `Title`: release
+  # groups tag a film with whichever year their source used, so the year
+  # query routinely matches a handful of releases while every better copy
+  # sits behind the year-less one. Halting on the first query that hit let
+  # the year decide the quality ceiling — and nobody clicks "Find more" on
+  # an unattended retry loop, so the worse copy stuck permanently. Ties
+  # keep the earlier query's candidate (`ReleasePreference.better_of/3`),
+  # so the year-matched term still wins against an equal candidate from
+  # the broader one.
+  defp search_best_tmdb_match(unit, criteria, queries, prefs) do
+    queries
+    |> Enum.reduce_while({{:no_match, "no_results"}, nil}, fn {query, opts}, {outcome, best} ->
+      case Corpus.search(query, opts) do
+        {:ok, []} ->
+          {:cont, {outcome, best}}
+
+        {:ok, results} ->
+          case best_match(results, unit, criteria, prefs) do
+            {:found, candidate} ->
+              {:cont, {outcome, ReleasePreference.better_of(best, candidate, prefs.size_preference)}}
+
+            {:none, degraded} ->
+              {:cont, {keep_more_informative(outcome, degraded), best}}
+          end
+
+        {:error, reason} ->
+          {:halt, {{:error, reason}, best}}
+      end
+    end)
+    |> case do
+      {{:error, _reason} = error, _best} -> error
+      {_outcome, %SearchResult{} = best} -> {:ok, best}
+      {outcome, nil} -> outcome
+    end
   end
 
   defp search_until_any_result(queries) do
@@ -250,7 +297,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   # preserved by upgrading the outcome the first time we see a
   # title-matching but quality-unacceptable result. Exclusions come
   # from the unit's thread (ADR-055).
-  defp best_match(results, unit, criteria, {min, max}) do
+  defp best_match(results, unit, criteria, prefs) do
     excluded = MapSet.new(unit.tried_release_guids || [])
 
     results
@@ -265,22 +312,16 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
         is_nil(criteria) or not TitleMatcher.matches?(result, criteria) ->
           acc
 
-        not Quality.acceptable?(result.quality, min, max) ->
+        not Quality.acceptable?(result.quality, prefs.min_quality, prefs.max_quality) ->
           {best, "no_acceptable_quality"}
 
         true ->
-          rank = Quality.rank(result.quality)
-
-          case best do
-            nil -> {{rank, result}, outcome}
-            {br, _} when rank > br -> {{rank, result}, outcome}
-            _ -> acc
-          end
+          {ReleasePreference.better_of(best, result, prefs.size_preference), outcome}
       end
     end)
     |> case do
       {nil, outcome} -> {:none, outcome}
-      {{_rank, result}, _outcome} -> {:found, result}
+      {%SearchResult{} = result, _outcome} -> {:found, result}
     end
   end
 

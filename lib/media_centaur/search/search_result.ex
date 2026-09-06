@@ -17,6 +17,12 @@ defmodule MediaCentaur.Search.SearchResult do
     :size_bytes,
     :seeders,
     :leechers,
+    # How many times the indexer has served this release. The usenet
+    # analogue of `seeders`: a usenet result carries no swarm, so a
+    # seeders-only popularity signal is permanently nil on a usenet
+    # indexer and every tie falls to pool order. `ReleasePreference`
+    # reads whichever of the two the protocol actually populates.
+    :grabs,
     :indexer_name,
     :publish_date,
     # Torrent identity, when the indexer exposes it. Captured at grab
@@ -47,6 +53,7 @@ defmodule MediaCentaur.Search.SearchResult do
           size_bytes: integer() | nil,
           seeders: integer() | nil,
           leechers: integer() | nil,
+          grabs: integer() | nil,
           indexer_name: String.t() | nil,
           publish_date: String.t() | nil,
           info_hash: String.t() | nil,
@@ -68,6 +75,7 @@ defmodule MediaCentaur.Search.SearchResult do
       size_bytes: raw["size"],
       seeders: raw["seeders"],
       leechers: raw["leechers"],
+      grabs: raw["grabs"],
       indexer_name: raw["indexer"],
       publish_date: raw["publishDate"],
       info_hash: raw["infoHash"],

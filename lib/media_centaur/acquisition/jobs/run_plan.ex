@@ -29,8 +29,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   (found / unfound) and the plan transitions to `ready` for the user's
   steering pass.
 
-  Movie plans skip the ladder: one term, best acceptable result by
-  quality-then-seeders (`TitleMatcher.matches?/2` identity). When
+  Movie plans skip the coverage ladder. Their terms are alternate
+  phrasings of one want rather than a narrowing ladder, so **every** term
+  is searched and the pick is the best of the union, ordered by
+  `Search.ReleasePreference` (`TitleMatcher.matches?/2` identity). When
   nothing acceptable exists but identity-verified releases do, the unit
   lands unfound carrying `below_floor_count` — the "lower quality
   available" verdict the board turns into an offer instead of a bare
@@ -60,7 +62,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   alias MediaCentaur.Acquisition.Plans.{LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{CourCoverage, CourQueries, Criteria, Quality, ReleaseCoverage}
-  alias MediaCentaur.Search.{ReleaseRedFlags, TitleMatcher}
+  alias MediaCentaur.Search.{ReleasePreference, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Topics
 
   @rung_ids [:series, :seasons, :episodes]
@@ -459,17 +461,26 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     }
 
     # Same residual discipline as the TV ladder: the broader (year-less)
-    # term is searched only when the year term yields nothing acceptable.
-    # Alongside the pick, every walked rung accumulates the identity-
-    # verified releases *below* the floor (by guid — rungs overlap): when
-    # nothing acceptable exists, that count is the "lower quality
-    # available" verdict the unit carries instead of a bare unfound.
+    # Unlike the TV ladder, the movie terms are **alternate phrasings of
+    # one want**, not a narrowing ladder: there is a single unit, so
+    # "covered" happens on the first hit and stopping there would let
+    # whichever term the year happened to match decide the quality
+    # ceiling. Release groups tag a film with whichever year their source
+    # used, so the year term routinely matches a handful of releases while
+    # every better copy sits behind the year-less one. Every term is
+    # therefore searched and the pick is the best of the union — the only
+    # early exit is the user discarding the plan.
+    #
+    # Alongside the pick, every rung accumulates the identity-verified
+    # releases *below* the floor (by guid — rungs overlap): when nothing
+    # acceptable exists, that count is the "lower quality available"
+    # verdict the unit carries instead of a bare unfound.
     {best, below_floor_guids} =
       plan
       |> LadderTerms.for_plan([])
-      |> Enum.reduce_while({nil, MapSet.new()}, fn term, {_best, below_floor_guids} = acc ->
+      |> Enum.reduce_while({nil, MapSet.new()}, fn term, acc ->
         if still_planning?(plan) do
-          movie_term_step(plan, term, below_floor_guids, movie_context)
+          {:cont, movie_term_step(plan, term, acc, movie_context)}
         else
           {:halt, acc}
         end
@@ -482,7 +493,12 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     end
   end
 
-  defp movie_term_step(plan, term, below_floor_guids, %{
+  # Folds one term's results into the running {best, below_floor_guids}.
+  # `ReleasePreference.better_of/3` keeps the incumbent on an exact tie,
+  # so walking the terms precise-before-broad makes the year-matched
+  # candidate win ties against an equal one from the bare title — the
+  # likelier identity, for free, with no extra tiebreak component.
+  defp movie_term_step(plan, term, {best, below_floor_guids}, %{
          criteria: criteria,
          excluded: excluded,
          min_quality: min_quality,
@@ -501,11 +517,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     pick =
       matched
       |> Enum.filter(&Quality.acceptable?(&1.quality, min_quality, plan_prefs.max_quality))
-      |> Enum.max_by(
-        &{Quality.rank(&1.quality),
-         Quality.source_rank(Quality.source(&1.title), plan_prefs.size_preference), &1.seeders || 0},
-        fn -> nil end
-      )
+      |> ReleasePreference.best(plan_prefs.size_preference)
 
     below_floor_guids =
       matched
@@ -513,9 +525,16 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       |> MapSet.new(& &1.guid)
       |> MapSet.union(below_floor_guids)
 
-    case pick do
-      nil -> {:cont, {nil, below_floor_guids}}
-      result -> {:halt, {{result, term}, below_floor_guids}}
+    {best_of_terms(best, pick, term, plan_prefs.size_preference), below_floor_guids}
+  end
+
+  defp best_of_terms(best, nil, _term, _size_preference), do: best
+  defp best_of_terms(nil, pick, term, _size_preference), do: {pick, term}
+
+  defp best_of_terms({incumbent, incumbent_term}, pick, term, size_preference) do
+    case ReleasePreference.better_of(incumbent, pick, size_preference) do
+      ^incumbent -> {incumbent, incumbent_term}
+      winner -> {winner, term}
     end
   end
 
