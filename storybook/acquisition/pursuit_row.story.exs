@@ -241,6 +241,32 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
             }
           },
           %Variation{
+            id: :matched_cancel_armed,
+            description:
+              "Cancel armed — the first click landed, so the strip's control relabels and turns " <>
+                "danger. Deleting one torrent is recoverable by downloading it again, so it is " <>
+                "the house arm gesture rather than an overlay (MC0027 tier 2). The control drops " <>
+                "its circle shape here so the armed label has room.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Movie",
+                  release_title: "Sample.Movie.2010.1080p.WEB-DL",
+                  status: any_action()
+                ),
+              download: %DownloadProgress{
+                state: :downloading,
+                title: "Sample.Movie.2010.1080p.WEB-DL",
+                progress_pct: 42.0,
+                size_bytes: 4_200_000_000,
+                size_left_bytes: 2_400_000_000,
+                eta: "12m",
+                client: "qBittorrent"
+              },
+              queue_item_id: "hash-downloading",
+              cancel_armed_id: "hash-downloading"
+            }
+          },
+          %Variation{
             id: :matched_stalled,
             attributes: %{
               vm:

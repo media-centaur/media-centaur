@@ -2342,7 +2342,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     alias MediaCentaur.Downloads.QueueItem
 
-    test "confirming the modal calls qBittorrent delete and clears the row", %{conn: conn} do
+    test "the second click calls qBittorrent delete and clears the row", %{conn: conn} do
       delete_counter = :counters.new(1, [:atomics])
 
       Req.Test.stub(:qbittorrent, fn conn ->
@@ -2391,15 +2391,17 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ "Movie.Test.2024"
       assert has_element?(view, "[phx-click='cancel_download_prompt']")
 
-      # Open the confirmation modal.
+      # First click only arms the control — no overlay opens, and nothing
+      # has been deleted yet (MC0027 tier 2).
       html =
         view
         |> element("button[phx-click='cancel_download_prompt']")
         |> render_click()
 
-      assert html =~ "Cancel download?"
+      assert html =~ "Click again to cancel"
+      assert :counters.get(delete_counter, 1) == 0
 
-      # Confirm — fires the qBittorrent delete and optimistically drops the row.
+      # Second click fires the qBittorrent delete and optimistically drops the row.
       html =
         view
         |> element("button[phx-click='cancel_download_confirm']")
@@ -2407,7 +2409,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert :counters.get(delete_counter, 1) == 1
       refute has_element?(view, "[phx-value-id='aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111']")
-      refute html =~ "Cancel download?"
+      refute html =~ "Click again to cancel"
     end
 
     test "ghost row from a stale snapshot does not reappear after cancel", %{conn: conn} do
@@ -2461,7 +2463,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "[phx-value-id='abcd1234abcd1234abcd1234abcd1234abcd1234']")
     end
 
-    test "dismissing the modal does not call qBittorrent delete", %{conn: conn} do
+    test "another interaction disarms the cancel, and a disarmed click cannot delete",
+         %{conn: conn} do
       delete_counter = :counters.new(1, [:atomics])
 
       Req.Test.stub(:qbittorrent, fn conn ->
@@ -2510,14 +2513,22 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         |> element("button[phx-click='cancel_download_prompt']")
         |> render_click()
 
-      assert html =~ "Cancel download?"
+      assert html =~ "Click again to cancel"
 
+      # Touching anything else reads as a change of mind and disarms it.
       html =
         view
-        |> element("button[phx-click='cancel_download_cancel']")
+        |> element("a[phx-click='switch_zone'][phx-value-zone='activity']")
         |> render_click()
 
-      refute html =~ "Cancel download?"
+      refute html =~ "Click again to cancel"
+
+      # So the next click on the control arms again rather than firing —
+      # the torrent is still there.
+      view
+      |> element("button[phx-click='cancel_download_prompt']")
+      |> render_click()
+
       assert :counters.get(delete_counter, 1) == 0
     end
 
@@ -2573,11 +2584,16 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ ~s|id="orphan-bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222"|
       assert html =~ ~s|id="orphan-hash-c"|
 
+      # The arm and the fire are the same button, so both clicks target it
+      # by the row's id.
       view
       |> element("button[phx-value-id='bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222']")
       |> render_click()
 
-      html = view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
+      html =
+        view
+        |> element("button[phx-value-id='bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222']")
+        |> render_click()
 
       # The middle row's id is gone, and the surviving rows keep their ids
       # so morphdom can match them by id rather than morphing positionally.

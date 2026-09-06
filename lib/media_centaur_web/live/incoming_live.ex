@@ -159,27 +159,35 @@ defmodule MediaCentaurWeb.IncomingLive do
   # open — the faster cadence costs nothing when nobody is watching.
   @storage_refresh_ms 30_000
 
+  # The two-click gestures this page owns: discarding a draft plan and
+  # cancelling a download. Both are MC0027 tier 2 — work is lost but the
+  # user can start over — so neither gets an overlay.
+  @armed_gesture_events ~w(
+    plan_discard_prompt plan_discard_confirm
+    cancel_download_prompt cancel_download_confirm
+  )
+
   # MC0027's arm gesture requires that any other interaction reads as a
-  # change of mind. The plan board has seventeen events, and asking each to
+  # change of mind. This page has dozens of events, and asking each to
   # remember to disarm is how it would eventually stop being true — so one
-  # hook owns it: everything except the arm itself clears the armed state
-  # before the real handler runs.
-  defp disarm_discard_on_other_events(socket) do
-    Phoenix.LiveView.attach_hook(socket, :disarm_plan_discard, :handle_event, fn
-      event, _params, socket when event in ~w(plan_discard_prompt plan_discard_confirm) ->
-        # The gesture's own two events pass through untouched. `confirm`
-        # especially: it is guarded on the armed flag, so disarming ahead of
-        # it would make the second click a silent no-op.
+  # hook owns it: everything except the gestures themselves clears both
+  # armed states before the real handler runs.
+  defp disarm_gestures_on_other_events(socket) do
+    Phoenix.LiveView.attach_hook(socket, :disarm_gestures, :handle_event, fn
+      event, _params, socket when event in @armed_gesture_events ->
+        # The gestures' own events pass through untouched. The `confirm`
+        # halves especially: each is guarded on its armed state, so
+        # disarming ahead of one would make the second click a silent no-op.
         {:cont, socket}
 
       _event, _params, socket ->
-        {:cont, assign(socket, plan_discard_armed?: false)}
+        {:cont, assign(socket, plan_discard_armed?: false, cancel_confirm: nil)}
     end)
   end
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = socket |> assign(page_title: "Incoming") |> disarm_discard_on_other_events()
+    socket = socket |> assign(page_title: "Incoming") |> disarm_gestures_on_other_events()
 
     # No capability redirect: this page is the first acquisition surface
     # that renders without Prowlarr (forecast-only). Capability gating is
@@ -872,7 +880,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
-        <.cancel_confirmation cancel_confirm={@cancel_confirm} />
         <PlanModal.plan_modal
           open={@plan_param != nil}
           stage={@plan_stage}
@@ -1146,6 +1153,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                 download={download}
                 downloads={downloads}
                 queue_item_id={qid}
+                cancel_armed_id={@cancel_confirm && @cancel_confirm.id}
                 telemetry_age={@telemetry_age}
               />
               <.grouped_compact_rows entries={@active_compact} />
@@ -1161,7 +1169,11 @@ defmodule MediaCentaurWeb.IncomingLive do
             storage_drives={if(@storage_mode == :calm, do: @storage_drives, else: [])}
           />
 
-          <OrphanQueue.orphan_zone :if={!@search_owns? && @zone == :activity} items={@orphan_queue} />
+          <OrphanQueue.orphan_zone
+            :if={!@search_owns? && @zone == :activity}
+            items={@orphan_queue}
+            cancel_armed_id={@cancel_confirm && @cancel_confirm.id}
+          />
 
           <p
             :if={!@search_owns? && @zone == :activity && @activity_empty?}
@@ -1306,10 +1318,6 @@ defmodule MediaCentaurWeb.IncomingLive do
           put_flash(socket, :error, "Could not cancel “#{title}”.")
       end
 
-    {:noreply, assign(socket, cancel_confirm: nil)}
-  end
-
-  def handle_event("cancel_download_cancel", _params, socket) do
     {:noreply, assign(socket, cancel_confirm: nil)}
   end
 
@@ -3117,60 +3125,6 @@ defmodule MediaCentaurWeb.IncomingLive do
           />
       <% end %>
     <% end %>
-    """
-  end
-
-  # ---------------------------------------------------------------------------
-  # Cancel-confirmation modal — kept on the parent because the
-  # confirm/cancel events flip parent socket assigns (`pending_cancels`).
-  # ---------------------------------------------------------------------------
-
-  attr :cancel_confirm, :any,
-    required: true,
-    doc:
-      "transient cancel-confirmation state — `nil` or a `%{id, title}` map. Heterogeneous nil-or-map shape; `:any` is intentional."
-
-  defp cancel_confirmation(assigns) do
-    ~H"""
-    <.modal
-      id="cancel-download-modal"
-      open={!is_nil(@cancel_confirm)}
-      dismiss={:ephemeral}
-      on_close="cancel_download_cancel"
-      size={:sm}
-      panel_class="p-6"
-      raised
-    >
-      <div :if={@cancel_confirm}>
-        <h3 class="text-lg font-bold text-error">Cancel download?</h3>
-        <p class="mt-2 text-sm text-base-content/70">
-          The torrent and any downloaded files will be deleted from qBittorrent.
-        </p>
-        <div class="mt-3 rounded-lg bg-base-content/5 p-3 text-sm break-words">
-          {@cancel_confirm.title}
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <.button
-            variant="dismiss"
-            size="sm"
-            phx-click="cancel_download_cancel"
-            data-nav-item
-            tabindex="0"
-          >
-            Keep
-          </.button>
-          <.button
-            variant="danger"
-            size="sm"
-            phx-click="cancel_download_confirm"
-            data-nav-item
-            tabindex="0"
-          >
-            Cancel download
-          </.button>
-        </div>
-      </div>
-    </.modal>
     """
   end
 end

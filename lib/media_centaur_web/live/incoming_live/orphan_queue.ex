@@ -6,13 +6,14 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
   Rare in normal use (auto-grabs and manual grabs both create pursuits),
   but kept visible so a sideloaded torrent or a title-match miss is not
   invisible. Each row offers the same cancel affordance as the in-card
-  download footer (dispatched as `cancel_download_prompt` to the parent
-  LiveView).
+  download footer — the house arm gesture (MC0027 tier 2), dispatched as
+  `cancel_download_prompt` then `cancel_download_confirm` to the parent
+  LiveView, which owns `cancel_armed_id`.
   """
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [armed_button: 1, badge: 1, icon: 1]
 
   alias MediaCentaur.Downloads.QueueItem
   alias MediaCentaurWeb.IncomingLive.Logic
@@ -20,6 +21,10 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
   attr :items, :list,
     required: true,
     doc: "List of unmatched `MediaCentaur.Downloads.QueueItem.t()` — render `nil`/empty as no section."
+
+  attr :cancel_armed_id, :string,
+    default: nil,
+    doc: "Host-owned: the queue-item id whose cancel is one click from firing (MC0027 tier 2)."
 
   def orphan_zone(%{items: []} = assigns), do: ~H""
 
@@ -36,13 +41,14 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
       </div>
 
       <div>
-        <.orphan_row :for={item <- @items} item={item} />
+        <.orphan_row :for={item <- @items} item={item} cancel_armed_id={@cancel_armed_id} />
       </div>
     </section>
     """
   end
 
   attr :item, QueueItem, required: true
+  attr :cancel_armed_id, :string, default: nil
 
   defp orphan_row(assigns) do
     ~H"""
@@ -62,20 +68,23 @@ defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
       <span :if={@item.timeleft} class="text-xs text-base-content/55 tabular-nums">
         {@item.timeleft}
       </span>
-      <.button
+      <%!-- No `shape="circle"`: the armed state relabels the control,
+            and a fixed circle would clip the label it grows into. --%>
+      <.armed_button
+        armed={@cancel_armed_id == @item.id}
+        arm="cancel_download_prompt"
+        fire="cancel_download_confirm"
+        armed_label="Click again to cancel"
         variant="destructive_inline"
         size="xs"
-        shape="circle"
         class="text-base-content/55 hover:text-error"
-        phx-click="cancel_download_prompt"
         phx-value-id={@item.id}
         phx-value-title={@item.title}
         title="Cancel and delete"
-        data-nav-item
-        tabindex="0"
+        aria-label="Cancel download"
       >
         <.icon name="hero-x-mark-mini" class="size-4" />
-      </.button>
+      </.armed_button>
     </div>
     """
   end
