@@ -254,6 +254,19 @@ defmodule MediaCentaurWeb.LiveHelpers do
   @spec poster_src(String.t() | nil) :: String.t() | nil
   def poster_src(poster_url), do: sized_image_url(poster_url, @poster_width)
 
+  @doc """
+  The `src` every page hero backdrop is painted from: the master, untouched.
+
+  Home's backdrop and the Library and Incoming atmosphere bands render
+  through `Components.HeroBackdrop`, whose hook keys a decoded-bitmap cache
+  by this URL; `ArtworkWarmup` marks the same URLs on the root layout's
+  prefetch hints so `app.js` can pre-decode them at idle. One function on
+  both sides, for the same reason as `poster_src/1`: a key that differs by a
+  byte is a miss, and the hero decodes on every visit again.
+  """
+  @spec hero_backdrop_src(String.t() | nil) :: String.t() | nil
+  def hero_backdrop_src(backdrop_url), do: sized_image_url(backdrop_url, :full_bleed)
+
   # The artwork file is rewritten in place on a TMDB re-scrape (same
   # `<owner_id>/<role>.<ext>` path), so a bare URL would let the browser
   # serve stale bytes for up to an hour (ImageServer's unversioned

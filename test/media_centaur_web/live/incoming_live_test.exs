@@ -3383,6 +3383,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, "/incoming")
 
       assert has_element?(view, ".page-atmosphere")
+      assert has_element?(view, ~s|.page-atmosphere canvas[phx-hook="HeroBackdrop"][data-src]|)
       assert has_element?(view, ".page-side-dim.page-side-dim-high")
       refute has_element?(view, ".page-side-dim-calm")
     end

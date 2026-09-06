@@ -27,6 +27,7 @@ defmodule MediaCentaurWeb.HomeLive do
   alias MediaCentaurWeb.Components.{
     ComingUpMarquee,
     ContinueWatchingRow,
+    HeroBackdrop,
     HeroCard,
     PosterRow
   }
@@ -124,13 +125,7 @@ defmodule MediaCentaurWeb.HomeLive do
               entire page height so row titles sit on the same calm band.
               Both escape main's `px-6 py-6` padding and scroll with the page. --%>
         <div :if={@hero && @hero.backdrop_url} class="page-backdrop" aria-hidden="true">
-          <img
-            src={sized_image_url(@hero.backdrop_url, :full_bleed)}
-            alt=""
-            loading="eager"
-            decoding="sync"
-            fetchpriority="high"
-          />
+          <HeroBackdrop.hero_backdrop backdrop_url={@hero.backdrop_url} />
         </div>
         <div :if={@hero} class="page-side-dim" aria-hidden="true"></div>
 

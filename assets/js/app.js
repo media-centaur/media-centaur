@@ -29,6 +29,7 @@ import {LogTail} from "./hooks/log_tail"
 import {CopyButton} from "./hooks/copy_button"
 import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
+import {HeroBackdrop, heroBitmapCache, warmHeroBackdrops} from "./hooks/hero_backdrop"
 import {SidebarTooltip} from "./hooks/sidebar_tooltip"
 import {pinReserve, sheetMaxRise} from "./hooks/detail_scroll_geometry"
 import {DetailBodyScroll} from "./hooks/detail_body_scroll"
@@ -48,6 +49,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     CopyButton,
     MouseAutofocus,
     FlashAutoDismiss,
+    HeroBackdrop,
     SidebarTooltip,
     PlanGridCaption,
     // Publishes the detail scroller's measured geometry as CSS vars for
@@ -296,3 +298,15 @@ if (process.env.NODE_ENV === "development") {
   })
 }
 
+// Pre-decode the page hero backdrops into the HeroBackdrop bitmap cache once
+// the launch is quiet. The root layout marks their prefetch hints; the URLs
+// are the hook's cache keys (`hero_backdrop_src/1` on both sides), so the
+// first visit to Home, Library, or Incoming paints its 4K hero from cache.
+const heroHints = Array.from(
+  document.querySelectorAll('link[rel="prefetch"][data-hero-backdrop]'),
+  (link) => link.getAttribute("href")
+)
+const whenIdle = window.requestIdleCallback
+  ? (callback) => window.requestIdleCallback(callback, {timeout: 4000})
+  : (callback) => setTimeout(callback, 1500)
+whenIdle(() => warmHeroBackdrops(heroHints, heroBitmapCache))

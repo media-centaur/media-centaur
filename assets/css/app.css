@@ -1847,7 +1847,8 @@ body:has(.modal-backdrop[data-state="open"]) {
   height: 36rem;
 }
 
-.page-atmosphere img {
+.page-atmosphere img,
+.page-atmosphere canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1856,7 +1857,8 @@ body:has(.modal-backdrop[data-state="open"]) {
   object-position: center 25%;
 }
 
-.page-backdrop img {
+.page-backdrop img,
+.page-backdrop canvas {
   position: absolute;
   inset: 0;
   width: 100%;
