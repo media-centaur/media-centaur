@@ -71,6 +71,8 @@ defmodule MediaCentaur.Acquisition.Targeting do
     `imdb_id` / `tvdb_id` are how TMDB spells the series elsewhere
     (`TMDB.Identifiers`) — the plan snapshots them so the matcher can
     settle identity against the ids indexers declare on their results.
+    `original_title` is the series' original-language name, which a
+    release is as likely to be named after as the localised one.
     """
 
     @enforce_keys [:tmdb_id, :title, :seasons, :tracked?]
@@ -78,6 +80,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
       :tmdb_id,
       :imdb_id,
       :tvdb_id,
+      :original_title,
       :title,
       :poster_path,
       :backdrop_path,
@@ -91,6 +94,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
             tmdb_id: String.t(),
             imdb_id: String.t() | nil,
             tvdb_id: String.t() | nil,
+            original_title: String.t() | nil,
             title: String.t(),
             poster_path: String.t() | nil,
             backdrop_path: String.t() | nil,
@@ -121,6 +125,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
          tmdb_id: tmdb_id,
          imdb_id: identifiers.imdb_id,
          tvdb_id: identifiers.tvdb_id,
+         original_title: TMDB.Mapper.original_title(tv),
          title: tv["name"],
          poster_path: tv["poster_path"],
          backdrop_path: tv["backdrop_path"],

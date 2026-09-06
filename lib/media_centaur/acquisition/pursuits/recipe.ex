@@ -40,6 +40,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
     :manual_query,
     :imdb_id,
     :tvdb_id,
+    :original_title,
     origin_country: []
   ]
 
@@ -57,6 +58,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
           manual_query: String.t() | nil,
           imdb_id: String.t() | nil,
           tvdb_id: String.t() | nil,
+          original_title: String.t() | nil,
           origin_country: [String.t()]
         }
 
@@ -72,6 +74,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
       year: pursuit.year,
       imdb_id: pursuit.imdb_id,
       tvdb_id: pursuit.tvdb_id,
+      original_title: pursuit.original_title,
       origin_country: pursuit.origin_country || []
     }
   end
@@ -128,6 +131,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
       imdb_id: recipe.imdb_id,
       tmdb_id: recipe.tmdb_id,
       tvdb_id: recipe.tvdb_id,
+      original_title: recipe.original_title,
       origin_country: recipe.origin_country
     }
   end

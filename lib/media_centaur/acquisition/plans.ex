@@ -25,8 +25,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
-  alias MediaCentaur.TMDB.Identifiers
-  alias MediaCentaur.TMDB.Title
+  alias MediaCentaur.TMDB.{Client, Identifiers, Mapper, Title}
   alias MediaCentaur.Topics
 
   @type unit_choice :: {pos_integer(), pos_integer()}
@@ -69,6 +68,7 @@ defmodule MediaCentaur.Acquisition.Plans do
         origin_country: selection.origin_country,
         imdb_id: selection.imdb_id,
         tvdb_id: selection.tvdb_id,
+        original_title: selection.original_title,
         criteria: Keyword.get(opts, :criteria, %{}),
         span_sizes: Targeting.aired_counts(selection),
         grab_future: Keyword.get(opts, :grab_future, false),
@@ -83,10 +83,10 @@ defmodule MediaCentaur.Acquisition.Plans do
   `approval_policy:` (`"automatic"` | `"review"`, default review) names
   who commits the plan once ready — see `Plan`.
 
-  `attrs` may carry `:imdb_id` — the caller holding a TMDB detail
-  payload already knows it (`TMDB.Identifiers`), and the plan snapshots
-  it so the matcher can settle identity against the ids indexers
-  declare.
+  `attrs` may carry `:imdb_id` and `:original_title` — the caller
+  holding a TMDB detail payload already knows both, and the plan
+  snapshots them so the matcher can settle identity against the ids
+  indexers declare and accept either of the film's names.
   """
   @spec create_movie_plan(map(), keyword()) :: {:ok, Plan.t()} | {:error, term()}
   def create_movie_plan(%{tmdb_id: tmdb_id, title: title} = attrs, opts \\ []) do
@@ -97,6 +97,7 @@ defmodule MediaCentaur.Acquisition.Plans do
         title: title,
         year: Map.get(attrs, :year),
         imdb_id: Map.get(attrs, :imdb_id),
+        original_title: Map.get(attrs, :original_title),
         criteria: Keyword.get(opts, :criteria, %{}),
         grab_future: Keyword.get(opts, :grab_future, false),
         approval_policy: Keyword.get(opts, :approval_policy, "review")
@@ -137,20 +138,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope) do
-    # A search-result snapshot carries no external ids, so this door is
-    # the one that has to ask. Best-effort: `Identifiers.fetch/3` answers
-    # with empty ids rather than failing the plan.
-    identifiers = Identifiers.fetch(:movie, title.tmdb_id)
-
-    case create_movie_plan(
-           %{
-             tmdb_id: title.tmdb_id,
-             title: title.name,
-             year: title_year(title),
-             imdb_id: identifiers.imdb_id
-           },
-           approval_policy: policy
-         ) do
+    case create_movie_plan(movie_plan_attrs(title), approval_policy: policy) do
       {:ok, _plan} ->
         :ok
 
@@ -171,6 +159,25 @@ defmodule MediaCentaur.Acquisition.Plans do
 
       {:error, reason} ->
         Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
+    end
+  end
+
+  # A search-result snapshot carries neither the film's external ids nor
+  # its original title, so this door is the one that has to ask — the
+  # only one that holds no TMDB payload already. Best-effort: an
+  # unreachable TMDB leaves them out rather than failing the plan.
+  defp movie_plan_attrs(%Title{} = title) do
+    attrs = %{tmdb_id: title.tmdb_id, title: title.name, year: title_year(title)}
+
+    case Client.get_movie(title.tmdb_id) do
+      {:ok, payload} ->
+        Map.merge(attrs, %{
+          imdb_id: Identifiers.from_payload(:movie, payload).imdb_id,
+          original_title: Mapper.original_title(payload)
+        })
+
+      {:error, _reason} ->
+        attrs
     end
   end
 

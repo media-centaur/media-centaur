@@ -14,7 +14,7 @@ defmodule MediaCentaur.Search do
       Prowlarr,
       QueryBuilder,
       QueryExpander,
-      QueryTerm,
+      TitleForm,
       Quality,
       ReleaseCoverage,
       ReleasePreference,

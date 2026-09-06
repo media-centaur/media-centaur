@@ -117,6 +117,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
       origin_country: plan.origin_country,
       imdb_id: plan.imdb_id,
       tvdb_id: plan.tvdb_id,
+      original_title: plan.original_title,
       origin: pursuit_origin(plan),
       criteria: plan.criteria,
       units: unit_specs

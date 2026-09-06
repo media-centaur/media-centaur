@@ -13,6 +13,7 @@ defmodule MediaCentaur.ReleaseTracking.AutoTrack do
   alias MediaCentaur.ReleaseTracking.Helpers
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Identifiers
+  alias MediaCentaur.TMDB.Mapper
 
   @active_tv_statuses [:returning, :in_production, :planned]
 
@@ -77,6 +78,7 @@ defmodule MediaCentaur.ReleaseTracking.AutoTrack do
             origin_country: response["origin_country"],
             imdb_id: identifiers.imdb_id,
             tvdb_id: identifiers.tvdb_id,
+            original_title: Mapper.original_title(response),
             last_library_season: last_season,
             last_library_episode: last_episode
           })

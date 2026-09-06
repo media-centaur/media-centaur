@@ -26,7 +26,7 @@ defmodule MediaCentaur.Search.QueryBuilder do
   `Criteria` via the caller's own `to_criteria/1`.
   """
 
-  alias MediaCentaur.Search.{CourQueries, Criteria, QueryExpander, QueryTerm}
+  alias MediaCentaur.Search.{CourQueries, Criteria, QueryExpander, TitleForm}
   alias MediaCentaur.Format
 
   @type opt :: {:categories, :movie | :tv}
@@ -41,20 +41,34 @@ defmodule MediaCentaur.Search.QueryBuilder do
 
   def build(%Criteria{type: :prowlarr_query} = criteria), do: build_prowlarr_query(criteria)
 
-  # Constructed queries only — scene names carry no apostrophes, so a
-  # verbatim TMDB title can miss every release of the right title.
-  # User-typed manual queries pass through untouched.
-  defp sanitize_title(criteria), do: %{criteria | title: QueryTerm.sanitize(criteria.title)}
+  # Constructed queries only — scene names carry neither apostrophes nor
+  # accented letters, so a verbatim TMDB title can miss almost every
+  # release of the right title. User-typed queries pass through untouched.
+  defp sanitize_title(criteria), do: %{criteria | title: TitleForm.query(criteria.title)}
 
-  defp build_movie(%Criteria{title: title, year: nil}), do: [{title, []}]
+  defp build_movie(%Criteria{title: title, year: nil} = criteria),
+    do: [{title, []}] ++ original_title_query(criteria)
 
   # Year query first, year-less fallback second — release names carry
   # whichever year the group's source used (festival premiere vs
   # theatrical), so the year query alone can miss every release of the
   # right movie. The worker tries queries in order.
-  defp build_movie(%Criteria{title: title, year: year}) when is_integer(year) do
-    [{"#{title} #{year}", []}, {title, []}]
+  defp build_movie(%Criteria{title: title, year: year} = criteria) when is_integer(year) do
+    [{"#{title} #{year}", []}, {title, []}] ++ original_title_query(criteria)
   end
+
+  # A foreign film is released under either name, so its original title
+  # is one more phrasing of the same want — broadest, hence last. Only
+  # when it is genuinely a different title: for the great majority it
+  # folds to the canonical one and costs no extra indexer request.
+  defp original_title_query(%Criteria{original_title: original, title: title})
+       when is_binary(original) do
+    folded = TitleForm.query(original)
+
+    if TitleForm.compare(folded) == TitleForm.compare(title), do: [], else: [{folded, []}]
+  end
+
+  defp original_title_query(%Criteria{}), do: []
 
   # Later-cour residual: the first-run `Season N` query is wrong (it
   # surfaces the first-run pack the coverage guard refused), so emit the

@@ -21,6 +21,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   alias MediaCentaur.Settings
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Identifiers
+  alias MediaCentaur.TMDB.Mapper
 
   @last_swept_at_key "release_tracking:last_swept_at"
   @first_tick_floor_ms to_timeout(second: 10)
@@ -279,7 +280,8 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       # response carries none of these and keeps the stored values.
       origin_country: response["origin_country"] || item.origin_country,
       imdb_id: identifiers.imdb_id || item.imdb_id,
-      tvdb_id: identifiers.tvdb_id || item.tvdb_id
+      tvdb_id: identifiers.tvdb_id || item.tvdb_id,
+      original_title: Mapper.original_title(response) || item.original_title
     })
   end
 

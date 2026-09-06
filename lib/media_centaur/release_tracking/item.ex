@@ -45,6 +45,9 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     # against the ids indexers declare. Self-heals on refresh.
     field :imdb_id, :string
     field :tvdb_id, :string
+    # The title in its original language, when TMDB's canonical title is
+    # a localised one. Self-heals on refresh.
+    field :original_title, :string
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
     field :dismiss_released_before, :date
@@ -96,6 +99,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :origin_country,
       :imdb_id,
       :tvdb_id,
+      :original_title,
       :last_library_season,
       :last_library_episode
     ])
@@ -117,6 +121,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :origin_country,
       :imdb_id,
       :tvdb_id,
+      :original_title,
       :last_library_season,
       :last_library_episode,
       :dismiss_released_before

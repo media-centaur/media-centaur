@@ -30,6 +30,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       tmdb_id: "246810",
       imdb_id: "tt0903747",
       tvdb_id: "81189",
+      original_title: "Beispielserie",
       title: "Sample Show",
       tracked?: false,
       seasons: [
@@ -781,6 +782,19 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert plan.imdb_id == "tt0137523"
     end
 
+    test "a movie plan snapshots the film's original-language title" do
+      stub_ladder_results()
+
+      assert {:ok, plan} =
+               Plans.create_movie_plan(%{
+                 tmdb_id: "246813",
+                 title: "Sample Movie",
+                 original_title: "Beispielfilm"
+               })
+
+      assert plan.original_title == "Beispielfilm"
+    end
+
     test "the committed pursuit inherits the plan's identity" do
       stub_ladder_results()
 
@@ -790,6 +804,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       assert pursuit.imdb_id == "tt0903747"
       assert pursuit.tvdb_id == "81189"
+      assert pursuit.original_title == "Beispielserie"
     end
   end
 

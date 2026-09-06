@@ -18,8 +18,10 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   air year.
 
   `imdb_id` / `tvdb_id` are how TMDB spells the title elsewhere
-  (`TMDB.Identifiers`) — carried so the plan the confirm stage creates
-  knows the identity indexers declare on their own results.
+  (`TMDB.Identifiers`), and `original_title` is its original-language
+  name — carried so the plan the confirm stage creates knows the
+  identity indexers declare on their own results, and both names a
+  foreign release may be published under.
 
   `upcoming?` says the title isn't out anywhere yet — its canonical date
   is missing or still ahead. It gates the *Track release* verb: watching
@@ -44,6 +46,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
           tmdb_id: String.t(),
           imdb_id: String.t() | nil,
           tvdb_id: String.t() | nil,
+          original_title: String.t() | nil,
           title: String.t() | nil,
           year: integer() | nil,
           tagline: String.t() | nil,
@@ -63,6 +66,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
             tmdb_id: nil,
             imdb_id: nil,
             tvdb_id: nil,
+            original_title: nil,
             title: nil,
             year: nil,
             tagline: nil,
@@ -96,6 +100,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
       media_type: :movie,
       tmdb_id: to_string(tmdb_id),
       imdb_id: attrs.imdb_id,
+      original_title: Mapper.original_title(tmdb_movie),
       title: attrs.name,
       year: attrs.date_published && attrs.date_published.year,
       tagline: attrs.tagline,
@@ -124,6 +129,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
       tmdb_id: to_string(tmdb_id),
       imdb_id: identifiers.imdb_id,
       tvdb_id: identifiers.tvdb_id,
+      original_title: Mapper.original_title(tmdb_show),
       title: attrs.name,
       year: attrs.date_published && attrs.date_published.year,
       tagline: attrs.tagline,

@@ -78,6 +78,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
     # against the ids indexers declare, not just the release name.
     field :imdb_id, :string
     field :tvdb_id, :string
+    # The title in its original language, when TMDB's canonical title is
+    # a localised one — copied from the plan at commit.
+    field :original_title, :string
     # Prowlarr-query recipe field (populated when recipe_type = "prowlarr_query").
     field :manual_query, :string
 
@@ -101,7 +104,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
 
   @cast_fields ~w(
     recipe_type tmdb_id tmdb_type title year season_number episode_number
-    origin_country imdb_id tvdb_id origin manual_query criteria
+    origin_country imdb_id tvdb_id original_title origin manual_query criteria
   )a
 
   @doc """

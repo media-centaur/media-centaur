@@ -27,6 +27,7 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       # on their results, carried onto the plan the picker creates.
       assert selection.imdb_id == "tt0903747"
       assert selection.tvdb_id == "81189"
+      assert selection.original_title == "Beispielserie"
 
       # Season 0 (specials) is excluded.
       assert Enum.map(selection.seasons, & &1.season_number) == [1, 2]
