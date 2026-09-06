@@ -10,6 +10,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Extractor, Helpers}
   alias MediaCentaur.TMDB.Client
+  alias MediaCentaur.TMDB.Identifiers
 
   def scan do
     candidates = Library.ExternalIds.list_tmdb_entities()
@@ -120,6 +121,8 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
          response,
          opts \\ []
        ) do
+    identifiers = Identifiers.from_payload(media_type, response)
+
     {:ok, item} =
       ReleaseTracking.track_item(%{
         tmdb_id: tmdb_id,
@@ -130,6 +133,8 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         library_container_id: container_id,
         last_refreshed_at: DateTime.utc_now(),
         origin_country: response["origin_country"],
+        imdb_id: identifiers.imdb_id,
+        tvdb_id: identifiers.tvdb_id,
         last_library_season: Keyword.get(opts, :last_library_season, 0),
         last_library_episode: Keyword.get(opts, :last_library_episode, 0)
       })

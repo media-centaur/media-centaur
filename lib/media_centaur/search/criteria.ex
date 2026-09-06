@@ -21,6 +21,9 @@ defmodule MediaCentaur.Search.Criteria do
     :year,
     :manual_query,
     :run,
+    :imdb_id,
+    :tmdb_id,
+    :tvdb_id,
     origin_country: []
   ]
 
@@ -40,6 +43,14 @@ defmodule MediaCentaur.Search.Criteria do
           # cour-aware query generation (`QueryBuilder`). Nil / first run
           # → the regular `Season N` queries.
           run: map() | nil,
+          # External identity of the wanted title, as TMDB spells it —
+          # the exact answer `TitleMatcher` prefers over parsing a
+          # release name. Nil where TMDB supplied none (or the plan
+          # predates the resolve seam), which leaves the title + year
+          # heuristic in charge for that criteria.
+          imdb_id: String.t() | nil,
+          tmdb_id: String.t() | nil,
+          tvdb_id: String.t() | nil,
           # TMDB `origin_country` ISO codes for the show (TV only, e.g.
           # `["US"]`). Lets `TitleMatcher` accept scene country tags
           # (`Title.US.S01`) that release groups append to disambiguate

@@ -3,7 +3,13 @@ defmodule MediaCentaur.TMDB.Mapper do
   Maps raw TMDB API response data into domain-ready attribute maps
   suitable for creating library records. Isolates the TMDB JSON structure
   from the domain model.
+
+  External ids come from `TMDB.Identifiers`, which owns where TMDB puts
+  them (top level for a movie, the appended `external_ids` block for a
+  series) so ingestion and acquisition read the same answer.
   """
+
+  alias MediaCentaur.TMDB.Identifiers
 
   @doc """
   Extracts domain attributes for a movie entity from TMDB movie data.
@@ -18,7 +24,7 @@ defmodule MediaCentaur.TMDB.Mapper do
     %{
       type: :movie,
       tmdb_id: to_string(tmdb_id),
-      imdb_id: presence(movie["imdb_id"]),
+      imdb_id: Identifiers.from_payload(:movie, movie).imdb_id,
       name: movie["title"],
       description: movie["overview"],
       date_published: canonical_release_date(movie),
@@ -51,7 +57,7 @@ defmodule MediaCentaur.TMDB.Mapper do
     %{
       type: :tv_series,
       tmdb_id: to_string(tmdb_id),
-      imdb_id: extract_tv_imdb_id(show),
+      imdb_id: Identifiers.from_payload(:tv, show).imdb_id,
       name: show["name"],
       description: show["overview"],
       date_published: parse_date(show["first_air_date"]),
@@ -70,9 +76,6 @@ defmodule MediaCentaur.TMDB.Mapper do
       crew: extract_creators(show["created_by"])
     }
   end
-
-  defp extract_tv_imdb_id(%{"external_ids" => %{"imdb_id" => imdb_id}}), do: presence(imdb_id)
-  defp extract_tv_imdb_id(_), do: nil
 
   @doc """
   Extracts season attributes from TMDB season data.

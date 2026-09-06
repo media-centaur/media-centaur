@@ -17,6 +17,10 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   indexer query matches how releases are tagged; for a series the first
   air year.
 
+  `imdb_id` / `tvdb_id` are how TMDB spells the title elsewhere
+  (`TMDB.Identifiers`) — carried so the plan the confirm stage creates
+  knows the identity indexers declare on their own results.
+
   `upcoming?` says the title isn't out anywhere yet — its canonical date
   is missing or still ahead. It gates the *Track release* verb: watching
   for a release only makes sense while there is one to wait for.
@@ -30,6 +34,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Library.Person
+  alias MediaCentaur.TMDB.Identifiers
   alias MediaCentaur.TMDB.Mapper
   alias MediaCentaurWeb.Components.Detail.Facet
   alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
@@ -37,6 +42,8 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   @type t :: %__MODULE__{
           media_type: :movie | :tv_series,
           tmdb_id: String.t(),
+          imdb_id: String.t() | nil,
+          tvdb_id: String.t() | nil,
           title: String.t() | nil,
           year: integer() | nil,
           tagline: String.t() | nil,
@@ -54,6 +61,8 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   @enforce_keys [:media_type, :tmdb_id, :in_library?]
   defstruct media_type: :movie,
             tmdb_id: nil,
+            imdb_id: nil,
+            tvdb_id: nil,
             title: nil,
             year: nil,
             tagline: nil,
@@ -86,6 +95,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
     %__MODULE__{
       media_type: :movie,
       tmdb_id: to_string(tmdb_id),
+      imdb_id: attrs.imdb_id,
       title: attrs.name,
       year: attrs.date_published && attrs.date_published.year,
       tagline: attrs.tagline,
@@ -106,11 +116,14 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   def tv(tmdb_show, in_library?, today \\ Date.utc_today()) do
     tmdb_id = tmdb_show["id"]
     attrs = Mapper.tv_attrs(tmdb_id, tmdb_show)
+    identifiers = Identifiers.from_payload(:tv, tmdb_show)
     images = Map.new(Mapper.image_list(tmdb_show), &{&1.role, &1.url})
 
     %__MODULE__{
       media_type: :tv_series,
       tmdb_id: to_string(tmdb_id),
+      imdb_id: identifiers.imdb_id,
+      tvdb_id: identifiers.tvdb_id,
       title: attrs.name,
       year: attrs.date_published && attrs.date_published.year,
       tagline: attrs.tagline,

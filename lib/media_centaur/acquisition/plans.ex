@@ -25,6 +25,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
+  alias MediaCentaur.TMDB.Identifiers
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
@@ -66,6 +67,8 @@ defmodule MediaCentaur.Acquisition.Plans do
         tmdb_type: "tv",
         title: selection.title,
         origin_country: selection.origin_country,
+        imdb_id: selection.imdb_id,
+        tvdb_id: selection.tvdb_id,
         criteria: Keyword.get(opts, :criteria, %{}),
         span_sizes: Targeting.aired_counts(selection),
         grab_future: Keyword.get(opts, :grab_future, false),
@@ -79,6 +82,11 @@ defmodule MediaCentaur.Acquisition.Plans do
   Creates a single-unit movie plan and starts the planning run.
   `approval_policy:` (`"automatic"` | `"review"`, default review) names
   who commits the plan once ready — see `Plan`.
+
+  `attrs` may carry `:imdb_id` — the caller holding a TMDB detail
+  payload already knows it (`TMDB.Identifiers`), and the plan snapshots
+  it so the matcher can settle identity against the ids indexers
+  declare.
   """
   @spec create_movie_plan(map(), keyword()) :: {:ok, Plan.t()} | {:error, term()}
   def create_movie_plan(%{tmdb_id: tmdb_id, title: title} = attrs, opts \\ []) do
@@ -88,6 +96,7 @@ defmodule MediaCentaur.Acquisition.Plans do
         tmdb_type: "movie",
         title: title,
         year: Map.get(attrs, :year),
+        imdb_id: Map.get(attrs, :imdb_id),
         criteria: Keyword.get(opts, :criteria, %{}),
         grab_future: Keyword.get(opts, :grab_future, false),
         approval_policy: Keyword.get(opts, :approval_policy, "review")
@@ -128,8 +137,18 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope) do
+    # A search-result snapshot carries no external ids, so this door is
+    # the one that has to ask. Best-effort: `Identifiers.fetch/3` answers
+    # with empty ids rather than failing the plan.
+    identifiers = Identifiers.fetch(:movie, title.tmdb_id)
+
     case create_movie_plan(
-           %{tmdb_id: title.tmdb_id, title: title.name, year: title_year(title)},
+           %{
+             tmdb_id: title.tmdb_id,
+             title: title.name,
+             year: title_year(title),
+             imdb_id: identifiers.imdb_id
+           },
            approval_policy: policy
          ) do
       {:ok, _plan} ->

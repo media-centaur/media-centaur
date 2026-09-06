@@ -40,6 +40,11 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     # TMDB origin_country ISO codes (TV only) — self-heals on refresh
     # for rows created before the column existed.
     field :origin_country, {:array, :string}
+    # How TMDB spells this title elsewhere (`TMDB.Identifiers`), handed
+    # to the drop planner's plans so an unattended grab can be verified
+    # against the ids indexers declare. Self-heals on refresh.
+    field :imdb_id, :string
+    field :tvdb_id, :string
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
     field :dismiss_released_before, :date
@@ -89,6 +94,8 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :library_container_id,
       :last_refreshed_at,
       :origin_country,
+      :imdb_id,
+      :tvdb_id,
       :last_library_season,
       :last_library_episode
     ])
@@ -108,6 +115,8 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :library_container_id,
       :last_refreshed_at,
       :origin_country,
+      :imdb_id,
+      :tvdb_id,
       :last_library_season,
       :last_library_episode,
       :dismiss_released_before

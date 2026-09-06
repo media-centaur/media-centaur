@@ -116,6 +116,8 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                tmdb_type: "tv",
                title: item.name,
                origin_country: item.origin_country,
+               imdb_id: item.imdb_id,
+               tvdb_id: item.tvdb_id,
                tracking_item_id: item.id,
                origin: "manual",
                approval_policy: "review",
@@ -154,6 +156,9 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
               tmdb_type: "movie",
               title: want.title || item.name,
               year: want.air_date && want.air_date.year,
+              # Only when the want IS the tracked film: a collection part
+              # is a different film, and the item's id would name it wrong.
+              imdb_id: solo_movie_imdb_id(item, want),
               tracking_item_id: item.id,
               origin: "manual",
               approval_policy: "review",
@@ -174,6 +179,12 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
       {:ok, :planned}
     end
+  end
+
+  # A solo movie's want carries the item's own TMDB id; a collection
+  # part carries the part's, and we hold no IMDb id for that part.
+  defp solo_movie_imdb_id(%Item{} = item, want) do
+    if to_string(want.part_tmdb_id) == to_string(item.tmdb_id), do: item.imdb_id
   end
 
   defp plan_item(item_id, wants, settings, now) do
@@ -233,6 +244,8 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                tmdb_type: "tv",
                title: item.name,
                origin_country: item.origin_country,
+               imdb_id: item.imdb_id,
+               tvdb_id: item.tvdb_id,
                tracking_item_id: item.id,
                approval_policy: approval_policy(item, settings),
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}

@@ -31,6 +31,7 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
            "number_of_seasons" => 6,
            "poster_path" => "/bb.jpg",
            "origin_country" => ["US"],
+           "external_ids" => %{"imdb_id" => "tt0903747", "tvdb_id" => 81_189},
            "next_episode_to_air" => %{
              "air_date" => "2026-06-15",
              "season_number" => 6,
@@ -51,6 +52,11 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
       assert hd(items).library_container_type == :tv_series
       assert hd(items).library_container_id == tv_series.id
       assert hd(items).origin_country == ["US"]
+
+      # How TMDB spells the series elsewhere — handed to the drop
+      # planner's plans so an unattended grab is verified by id.
+      assert hd(items).imdb_id == "tt0903747"
+      assert hd(items).tvdb_id == "81189"
     end
 
     test "tracks a TV series with gap episodes since last library episode" do

@@ -28,6 +28,8 @@ defmodule MediaCentaur.Acquisition.PlansTest do
   defp selection do
     %Targeting.Selection{
       tmdb_id: "246810",
+      imdb_id: "tt0903747",
+      tvdb_id: "81189",
       title: "Sample Show",
       tracked?: false,
       seasons: [
@@ -755,6 +757,42 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     end
   end
 
+  describe "external identity on the plan" do
+    test "a series plan snapshots how TMDB spells the show elsewhere" do
+      stub_ladder_results()
+
+      assert {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+
+      assert plan.imdb_id == "tt0903747"
+      assert plan.tvdb_id == "81189"
+    end
+
+    test "a movie plan snapshots the film's IMDb id" do
+      stub_ladder_results()
+
+      assert {:ok, plan} =
+               Plans.create_movie_plan(%{
+                 tmdb_id: "246813",
+                 title: "Sample Movie",
+                 year: 2005,
+                 imdb_id: "tt0137523"
+               })
+
+      assert plan.imdb_id == "tt0137523"
+    end
+
+    test "the committed pursuit inherits the plan's identity" do
+      stub_ladder_results()
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      {:ok, plan} = Plans.fetch(plan.id)
+      {:ok, pursuit} = Plans.approve(plan)
+
+      assert pursuit.imdb_id == "tt0903747"
+      assert pursuit.tvdb_id == "81189"
+    end
+  end
+
   describe "approval policy stamping" do
     test "picker plans default to review" do
       {:ok, series} = Plans.create_series_plan(selection(), [{1, 1}])
@@ -819,6 +857,18 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert plan.year == 2005
       assert plan.approval_policy == "automatic"
       assert plan.origin == "manual"
+    end
+
+    test "a movie resolves its IMDb id from TMDB — the snapshot carries none" do
+      MediaCentaur.TmdbStubs.stub_get_movie("246813", %{
+        "title" => "Sample Movie",
+        "imdb_id" => "tt0137523"
+      })
+
+      assert :ok = Plans.plan_title(movie_title())
+      await_supervised_tasks()
+
+      assert [%{imdb_id: "tt0137523"}] = Plans.list_drafts()
     end
 
     test "the policy defaults to review" do

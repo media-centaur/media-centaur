@@ -73,6 +73,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
     # TMDB origin_country ISO codes (TV only) — copied from the plan at
     # commit so the auto-grab matcher accepts scene country tags.
     field :origin_country, {:array, :string}
+    # How TMDB spells this title elsewhere — copied from the plan at
+    # commit so every re-search the watcher drives can settle identity
+    # against the ids indexers declare, not just the release name.
+    field :imdb_id, :string
+    field :tvdb_id, :string
     # Prowlarr-query recipe field (populated when recipe_type = "prowlarr_query").
     field :manual_query, :string
 
@@ -96,7 +101,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
 
   @cast_fields ~w(
     recipe_type tmdb_id tmdb_type title year season_number episode_number
-    origin_country origin manual_query criteria
+    origin_country imdb_id tvdb_id origin manual_query criteria
   )a
 
   @doc """

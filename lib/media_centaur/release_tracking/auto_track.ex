@@ -12,6 +12,7 @@ defmodule MediaCentaur.ReleaseTracking.AutoTrack do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Helpers
   alias MediaCentaur.TMDB.Client
+  alias MediaCentaur.TMDB.Identifiers
 
   @active_tv_statuses [:returning, :in_production, :planned]
 
@@ -61,6 +62,7 @@ defmodule MediaCentaur.ReleaseTracking.AutoTrack do
     case Client.get_tv(tmdb_id) do
       {:ok, response} ->
         {last_season, last_episode} = Helpers.find_last_library_episode(tv_series_id)
+        identifiers = Identifiers.from_payload(:tv, response)
         releases = Helpers.fetch_tv_releases(tmdb_id, last_season, last_episode, response)
 
         {:ok, item} =
@@ -73,6 +75,8 @@ defmodule MediaCentaur.ReleaseTracking.AutoTrack do
             library_container_id: tv_series_id,
             last_refreshed_at: DateTime.utc_now(),
             origin_country: response["origin_country"],
+            imdb_id: identifiers.imdb_id,
+            tvdb_id: identifiers.tvdb_id,
             last_library_season: last_season,
             last_library_episode: last_episode
           })

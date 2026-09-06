@@ -1,13 +1,14 @@
 defmodule MediaCentaur.TMDB do
   use Boundary,
     deps: [MediaCentaur.ErrorReports, MediaCentaur.HttpClient],
-    exports: [Client, Confidence, Mapper, MetadataStats, RateLimiter, Title, TitleSearch]
+    exports: [Client, Confidence, Identifiers, Mapper, MetadataStats, RateLimiter, Title, TitleSearch]
 
   @moduledoc """
   Boundary anchor for the TMDB external-integration adapter.
 
   TMDB owns no domain data and broadcasts no PubSub events. It exposes
-  `Client` (HTTP), `Confidence` (scoring), `Mapper` (TMDB → domain attrs), and
+  `Client` (HTTP), `Confidence` (scoring), `Mapper` (TMDB → domain attrs),
+  `Identifiers` (how a title spells itself on IMDb / TVDB), and
   `MetadataStats` for use by Pipeline, Library, and Review. `Title` is the
   app-wide title value — an embedded schema every title-carrying context
   (release tracking, discovery (watchlist), and the web layer) reuses — and

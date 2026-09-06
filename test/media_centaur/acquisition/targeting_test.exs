@@ -23,6 +23,11 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       assert selection.title == "Sample Show"
       refute selection.tracked?
 
+      # How TMDB spells the series elsewhere — the ids indexers declare
+      # on their results, carried onto the plan the picker creates.
+      assert selection.imdb_id == "tt0903747"
+      assert selection.tvdb_id == "81189"
+
       # Season 0 (specials) is excluded.
       assert Enum.map(selection.seasons, & &1.season_number) == [1, 2]
 

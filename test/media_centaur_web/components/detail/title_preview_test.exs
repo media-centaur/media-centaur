@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreviewTest do
     tmdb_movie = %{
       "id" => 550,
       "title" => "Sample Movie",
+      "imdb_id" => "tt0137523",
       "tagline" => "Every confirmation counts.",
       "release_date" => "1999-10-15",
       "overview" => "A sample movie overview.",
@@ -52,6 +53,9 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreviewTest do
 
     assert %TitlePreview{media_type: :movie} = preview
     assert preview.tmdb_id == "550"
+    # Carried so the plan the confirm stage creates knows the film's
+    # identity the way indexers spell it.
+    assert preview.imdb_id == "tt0137523"
     assert preview.title == "Sample Movie"
     assert preview.tagline == "Every confirmation counts."
     assert preview.overview == "A sample movie overview."
@@ -159,6 +163,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreviewTest do
 
     assert %TitlePreview{media_type: :movie} = preview
     assert preview.tmdb_id == "550"
+    assert preview.imdb_id == nil
     assert preview.title == "Sample Movie"
     assert preview.year == nil
     assert preview.overview == nil

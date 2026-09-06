@@ -207,6 +207,7 @@ defmodule MediaCentaur.TmdbStubs do
       %{
         "id" => 550,
         "title" => "Sample Movie",
+        "imdb_id" => "tt0137523",
         "release_date" => "1999-10-15",
         "poster_path" => "/pB8BM7pdSp6B6Ih7QI4S2t0POD5.jpg",
         "overview" => "A sample movie overview."
@@ -233,6 +234,7 @@ defmodule MediaCentaur.TmdbStubs do
       %{
         "id" => 550,
         "title" => "Sample Movie",
+        "imdb_id" => "tt0137523",
         "overview" => "A sample movie overview.",
         "release_date" => "1999-10-15",
         "runtime" => 139,
@@ -305,6 +307,7 @@ defmodule MediaCentaur.TmdbStubs do
         "genres" => [%{"id" => 18, "name" => "Drama"}],
         "poster_path" => "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
         "backdrop_path" => "/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+        "external_ids" => %{"imdb_id" => "tt0903747", "tvdb_id" => 81_189},
         "images" => %{"logos" => []}
       },
       overrides

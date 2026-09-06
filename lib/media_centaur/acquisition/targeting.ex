@@ -18,6 +18,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TMDB
+  alias MediaCentaur.TMDB.Identifiers
 
   defmodule Episode do
     @moduledoc """
@@ -66,11 +67,17 @@ defmodule MediaCentaur.Acquisition.Targeting do
     `logo_path` are raw TMDB paths (the `get_tv` detail rides images
     along) so the plan modal can wear the series' cinematic identity —
     the same dress the movie fast path gets from its preview.
+
+    `imdb_id` / `tvdb_id` are how TMDB spells the series elsewhere
+    (`TMDB.Identifiers`) — the plan snapshots them so the matcher can
+    settle identity against the ids indexers declare on their results.
     """
 
     @enforce_keys [:tmdb_id, :title, :seasons, :tracked?]
     defstruct [
       :tmdb_id,
+      :imdb_id,
+      :tvdb_id,
       :title,
       :poster_path,
       :backdrop_path,
@@ -82,6 +89,8 @@ defmodule MediaCentaur.Acquisition.Targeting do
 
     @type t :: %__MODULE__{
             tmdb_id: String.t(),
+            imdb_id: String.t() | nil,
+            tvdb_id: String.t() | nil,
             title: String.t(),
             poster_path: String.t() | nil,
             backdrop_path: String.t() | nil,
@@ -105,9 +114,13 @@ defmodule MediaCentaur.Acquisition.Targeting do
 
     with {:ok, tv} <- TMDB.Client.get_tv(tmdb_id, client: client),
          {:ok, seasons} <- load_seasons(tmdb_id, tv, client) do
+      identifiers = Identifiers.from_payload(:tv, tv)
+
       {:ok,
        %Selection{
          tmdb_id: tmdb_id,
+         imdb_id: identifiers.imdb_id,
+         tvdb_id: identifiers.tvdb_id,
          title: tv["name"],
          poster_path: tv["poster_path"],
          backdrop_path: tv["backdrop_path"],
