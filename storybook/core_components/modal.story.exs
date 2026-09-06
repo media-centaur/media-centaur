@@ -68,7 +68,8 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.Modal do
       %Variation{
         id: :raised_open,
         description:
-          "`raised` — a modal stacked above another open modal (a confirm inside a picker) sits at z-index 60.",
+          "`raised` — a confirmation stacked above the modal it belongs to. Sits at z-index 55, " <>
+            "between ordinary modals (50) and the console overlay (60).",
         attributes: %{
           id: "story-modal-raised",
           open: true,
