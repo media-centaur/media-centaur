@@ -21,6 +21,25 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`indexer-id-search.md`](indexer-id-search.md) —
+  **planning.** Ask indexers for a title by identifier instead of by name:
+  `imdbId` on a movie search, `tvdbId` + `season` + `ep` on a TV search, where
+  the indexer declares support. Replaces reverse-engineering identity from
+  parsed release titles with a ±1-year tolerance, and kills year-drift at the
+  source. Blocked on one probe — whether the aggregated `/api/v1/search`
+  honours an id query — which needs a rested indexer and a health check after
+  every request, since `200 []` means both "no results" and "everyone is
+  backed off". The real design question is the fan-out: one search hits every
+  enabled indexer and their `searchParams` differ. No code yet.
+* [`serial-test-audit.md`](serial-test-audit.md) —
+  **planning.** Cut suite wall time by moving tests out of the serial phase
+  where nothing forces them there. The serial phase is 45% of the tests and
+  ~80% of the wall time; `DataCase` is serial because SQLite is, but 38 plain
+  `ExUnit.Case, async: false` files are serial by decision. Each is either
+  justified in a comment or converted. Prefer the fix that costs no wall time
+  (raise a positive `assert_receive` ceiling; never a `refute_receive` one).
+  `mix test --slowest` is not valid input — under load it inflates by
+  contention. No code yet.
 * [`http-client-unification.md`](http-client-unification.md) —
   **shipped v1.8.0 2026-09-04**, one follow-up open (collapse the four
   mirrored stats GenServers onto one base). Every outbound HTTP request
