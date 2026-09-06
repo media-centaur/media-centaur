@@ -159,9 +159,27 @@ defmodule MediaCentaurWeb.IncomingLive do
   # open — the faster cadence costs nothing when nobody is watching.
   @storage_refresh_ms 30_000
 
+  # MC0027's arm gesture requires that any other interaction reads as a
+  # change of mind. The plan board has seventeen events, and asking each to
+  # remember to disarm is how it would eventually stop being true — so one
+  # hook owns it: everything except the arm itself clears the armed state
+  # before the real handler runs.
+  defp disarm_discard_on_other_events(socket) do
+    Phoenix.LiveView.attach_hook(socket, :disarm_plan_discard, :handle_event, fn
+      event, _params, socket when event in ~w(plan_discard_prompt plan_discard_confirm) ->
+        # The gesture's own two events pass through untouched. `confirm`
+        # especially: it is guarded on the armed flag, so disarming ahead of
+        # it would make the second click a silent no-op.
+        {:cont, socket}
+
+      _event, _params, socket ->
+        {:cont, assign(socket, plan_discard_armed?: false)}
+    end)
+  end
+
   @impl true
   def mount(_params, _session, socket) do
-    socket = assign(socket, page_title: "Incoming")
+    socket = socket |> assign(page_title: "Incoming") |> disarm_discard_on_other_events()
 
     # No capability redirect: this page is the first acquisition surface
     # that renders without Prowlarr (forecast-only). Capability gating is
@@ -242,7 +260,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_descent: nil,
          plan_alternatives: nil,
          plan_approving?: false,
-         plan_discard_confirm?: false,
+         plan_discard_armed?: false,
          plan_identity: nil,
          plan_artwork: nil,
          plan_drafts: []
@@ -855,7 +873,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     >
       <:overlays>
         <.cancel_confirmation cancel_confirm={@cancel_confirm} />
-        <.plan_discard_confirmation open={@plan_discard_confirm?} board={@plan_board} />
         <PlanModal.plan_modal
           open={@plan_param != nil}
           stage={@plan_stage}
@@ -872,6 +889,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           descent={@plan_descent}
           alternatives={@plan_alternatives}
           approving={@plan_approving?}
+          discard_armed={@plan_discard_armed?}
           search_health={@search_health}
           gap_verdict={@plan_gap_verdict}
           rejected={@plan_rejected}
@@ -1514,19 +1532,15 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("plan_discard_prompt", _params, socket) do
-    {:noreply, assign(socket, plan_discard_confirm?: true)}
+    {:noreply, assign(socket, plan_discard_armed?: true)}
   end
 
-  def handle_event("plan_discard_cancel", _params, socket) do
-    {:noreply, assign(socket, plan_discard_confirm?: false)}
-  end
-
-  def handle_event("plan_discard_confirm", _params, %{assigns: %{plan_discard_confirm?: false}} = socket) do
+  def handle_event("plan_discard_confirm", _params, %{assigns: %{plan_discard_armed?: false}} = socket) do
     {:noreply, socket}
   end
 
   def handle_event("plan_discard_confirm", _params, socket) do
-    socket = assign(socket, plan_discard_confirm?: false)
+    socket = assign(socket, plan_discard_armed?: false)
 
     with %{plan_id: plan_id} <- socket.assigns.plan_board,
          {:ok, plan} <- Plans.fetch(plan_id),
@@ -2760,7 +2774,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_descent: nil,
           plan_alternatives: nil,
           plan_error: nil,
-          plan_discard_confirm?: false,
+          plan_discard_armed?: false,
           plan_identity: nil,
           plan_artwork: nil
         )
@@ -3153,57 +3167,6 @@ defmodule MediaCentaurWeb.IncomingLive do
             tabindex="0"
           >
             Cancel download
-          </.button>
-        </div>
-      </div>
-    </.modal>
-    """
-  end
-
-  # Discard-confirmation modal — kept on the parent for the same reason
-  # as cancel-confirmation: the confirm/cancel events flip parent socket
-  # assigns, and discarding a solved-and-steered draft is destructive.
-
-  attr :open, :boolean, required: true
-  attr :board, MediaCentaur.Acquisition.ViewModels.PlanBoard, default: nil
-
-  defp plan_discard_confirmation(assigns) do
-    ~H"""
-    <.modal
-      id="plan-discard-modal"
-      open={@open}
-      dismiss={:ephemeral}
-      on_close="plan_discard_cancel"
-      size={:sm}
-      panel_class="p-6"
-      raised
-    >
-      <div :if={@open}>
-        <h3 class="text-lg font-bold text-error">Discard plan?</h3>
-        <p class="mt-2 text-sm text-base-content/70">
-          The draft plan and any release choices you made will be lost. Nothing has been grabbed.
-        </p>
-        <div :if={@board} class="mt-3 rounded-lg bg-base-content/5 p-3 text-sm break-words">
-          {@board.title}
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <.button
-            variant="dismiss"
-            size="sm"
-            phx-click="plan_discard_cancel"
-            data-nav-item
-            tabindex="0"
-          >
-            Keep
-          </.button>
-          <.button
-            variant="danger"
-            size="sm"
-            phx-click="plan_discard_confirm"
-            data-nav-item
-            tabindex="0"
-          >
-            Discard plan
           </.button>
         </div>
       </div>

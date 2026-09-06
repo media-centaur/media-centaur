@@ -130,6 +130,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     doc:
       "%{unit_id, items: [PlanBoard.Alternative.t()]} | nil — the open rejected-results panel (UIDR-022, movie boards only)."
 
+  attr :discard_armed, :boolean,
+    default: false,
+    doc: "host-owned: Discard's first click has landed (MC0027 tier 2 — no overlay)."
+
   attr :on_close, :string, default: "close_plan"
 
   def plan_modal(assigns) do
@@ -210,6 +214,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           search_health={@search_health}
           gap_verdict={@gap_verdict}
           rejected={@rejected}
+          discard_armed={@discard_armed}
           on_close={@on_close}
         />
       </:body>
@@ -564,6 +569,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "%{unit_id, items} | nil — typed at the public attr."
 
+  attr :discard_armed, :boolean, required: true
+
   attr :on_close, :string, required: true
 
   defp board_stage(assigns) do
@@ -906,16 +913,22 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             >
               Stop searching
             </.button>
-            <.button
+            <%!-- Discarding loses the draft and the release choices, and
+                 nothing has been grabbed — costly but recoverable, so the
+                 house arm gesture rather than an overlay (MC0027 tier 2).
+                 A confirmation modal here also had to out-stack the modal
+                 it belonged to, which is a problem it need not have. --%>
+            <.armed_button
               :if={@board.status == :ready}
+              armed={@discard_armed}
+              arm="plan_discard_prompt"
+              fire="plan_discard_confirm"
+              armed_label="Click again to discard"
               variant="dismiss"
               size="sm"
-              phx-click="plan_discard_prompt"
-              data-nav-item
-              tabindex="0"
             >
               Discard
-            </.button>
+            </.armed_button>
             <.button
               :if={@board.status == :ready && @board.releases != []}
               variant="primary"
