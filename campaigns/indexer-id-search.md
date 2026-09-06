@@ -131,6 +131,31 @@ which is worth doing only if collection parts turn out to mismatch in practice.
    query as the fallback for those that do not. Corpus keys must include
    whatever changes the result set.
 
+## Adjacent work shipped alongside (2026-09-06)
+
+Reviewing what else TMDB could give the search turned up a defect on the
+same surface, fixed in the following commit rather than left for later:
+
+* **Accented titles were losing releases on both sides.** TMDB writes
+  `Amélie`; the scene writes `Amelie`. The query went out verbatim (4 results
+  against 38 for the folded spelling) and the matcher's normalisation turned
+  `amélie` into `am lie`, so every ASCII-named release was rejected. One of the
+  17 titles tracked on this machine was affected. `Search.QueryTerm` became
+  `Search.TitleForm`, owning both the query form and the comparison form so the
+  two cannot drift.
+* **A work's original-language title is now carried and used.** Snapshotted on
+  plans, pursuits and tracking items beside the external ids; the matcher
+  accepts a release named with either title, and a movie search asks for both
+  when they genuinely differ after folding. TV queries still use one title —
+  the ladder is a narrowing structure and doubling every rung is a cost
+  decision of its own, noted here rather than taken silently.
+
+Measured and **declined** while looking: Prowlarr's `files` and `indexerFlags`
+are empty on a usenet indexer; punctuation beyond diacritics is tokenised away
+by the indexer (`Mission: Impossible Fallout` and the colon-less form both
+return 100); TMDB `alternative_titles` is 20-plus entries of mostly other
+scripts — noise as query terms for one TMDB request per title.
+
 ## Completion criteria
 
 Phase 1 (the committed scope) — **all met, 2026-09-06**:
