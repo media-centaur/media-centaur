@@ -389,47 +389,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
   end
 
-  describe "stragglers (tracked, nothing scheduled yet)" do
-    test "returns watching items that have no dated release" do
-      scheduled = tv_item(%{tmdb_id: 1, name: "Scheduled"})
-
-      scheduled = %{
-        scheduled
-        | releases: [
-            TestFactory.build_tracking_release(%{air_date: ~D[2026-06-20], item_id: scheduled.id})
-          ]
-      }
-
-      hiatus = tv_item(%{tmdb_id: 2, name: "Hiatus"})
-
-      undated = movie_item(%{tmdb_id: 3, name: "Undated"})
-
-      undated = %{
-        undated
-        | releases: [TestFactory.build_tracking_release(%{air_date: nil, item_id: undated.id})]
-      }
-
-      stragglers = UpcomingFeed.stragglers([scheduled, hiatus, undated])
-      names = Enum.map(stragglers, & &1.name)
-
-      assert "Hiatus" in names
-      assert "Undated" in names
-      refute "Scheduled" in names
-    end
-
-    test "carries item id, name, and media type; artwork resolves from the TmdbArtwork cache" do
-      item = movie_item(%{tmdb_id: 9, name: "Awaiting"})
-
-      assert [straggler] = UpcomingFeed.stragglers([item])
-      assert straggler.item_id == item.id
-      assert straggler.name == "Awaiting"
-      assert straggler.media_type == :movie
-      # Nothing cached in this unit env — URL resolution itself is
-      # TmdbArtwork's contract, covered in tmdb_artwork_test.exs.
-      assert straggler.backdrop_url == nil
-    end
-  end
-
   describe "stale past releases (the forecast is about the future)" do
     test "a past theatrical release is dropped from the forecast" do
       item = movie_item()
@@ -602,7 +561,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert overflow == 0
     end
 
-    test "excludes unscheduled events (they are stragglers, not shelf cards)" do
+    test "excludes unscheduled events (the title detail's timeline carries those, not the shelf)" do
       item = tv_item()
 
       releases = [

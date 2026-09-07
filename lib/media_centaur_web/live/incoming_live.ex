@@ -215,7 +215,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          subscribed_acquisition?: prowlarr? and connected?(socket),
          today: today,
          shelf_expanded?: false,
-         stragglers_expanded?: false,
          view: %View{shelf: %View.ShelfSection{}},
          grab_status_by_key: %{},
          auto_grab_default_mode: AutoGrabSettings.load().default_mode,
@@ -400,7 +399,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     view =
       View.build(%{
         releases: releases,
-        watching_items: ReleaseTracking.list_active_items(),
         pursuit_rows: socket.assigns.pursuit_rows,
         drafts: socket.assigns.plan_drafts,
         today: socket.assigns.today,
@@ -952,8 +950,6 @@ defmodule MediaCentaurWeb.IncomingLive do
             :if={!@search_owns? && @zone == :coming_up}
             cards={@shelf_cards}
             overflow_count={@view.shelf.overflow_count}
-            stragglers={@view.shelf.stragglers}
-            stragglers_expanded?={@stragglers_expanded?}
           />
 
           <section
@@ -1738,13 +1734,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_event("expand_shelf", _params, socket) do
     {:noreply, socket |> assign(shelf_expanded?: true) |> build_view()}
-  end
-
-  # The "Not scheduled yet" section's grow-in-place toggle. Pure display
-  # state — collapsed is the calm default on every fresh visit, so there
-  # is nothing to persist.
-  def handle_event("toggle_stragglers", _params, socket) do
-    {:noreply, assign(socket, stragglers_expanded?: !socket.assigns.stragglers_expanded?)}
   end
 
   # --- Forecast detail / tracking events ---

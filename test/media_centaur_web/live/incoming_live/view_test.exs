@@ -43,7 +43,6 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
     Map.merge(
       %{
         releases: [],
-        watching_items: [],
         pursuit_rows: [],
         drafts: [],
         today: @today,
@@ -164,7 +163,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
       assert [%Card{kind: :season_drop, subtitle: "S3", episode_count: 8}] = view.shelf.cards
     end
 
-    test "overflow and stragglers ride along" do
+    test "overflow rides along" do
       releases =
         for n <- 1..9 do
           release(tv_item(%{tmdb_id: n, name: "Show #{n}"}), %{
@@ -175,61 +174,10 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
           })
         end
 
-      straggler = %{
-        id: "straggler-item",
-        name: "The Golem",
-        media_type: :movie,
-        tmdb_id: 424_242,
-        releases: [%{air_date: nil}]
-      }
-
-      view = View.build(inputs(%{releases: releases, watching_items: [straggler]}))
+      view = View.build(inputs(%{releases: releases}))
 
       assert length(view.shelf.cards) == 6
       assert view.shelf.overflow_count == 3
-      assert [%Card{title: "The Golem"}] = view.shelf.stragglers
-    end
-
-    test "stragglers map into shelf Cards: undated, tracked, media type as subtitle" do
-      straggler = %{
-        id: "straggler-item",
-        name: "The Golem",
-        media_type: :movie,
-        tmdb_id: 424_242,
-        releases: []
-      }
-
-      view = View.build(inputs(%{watching_items: [straggler]}))
-
-      assert [
-               %Card{
-                 key: "straggler-straggler-item",
-                 item_id: "straggler-item",
-                 title: "The Golem",
-                 subtitle: "Movie",
-                 date_label: nil,
-                 status: :tracked,
-                 kind: :title
-               } = card
-             ] = view.shelf.stragglers
-
-      # Nothing cached in this unit env — artwork resolution is
-      # TmdbArtwork's contract, covered in tmdb_artwork_test.exs.
-      assert card.art_url == nil
-    end
-
-    test "a TV straggler carries the series subtitle" do
-      straggler = %{
-        id: "tv-straggler",
-        name: "Sample Show",
-        media_type: :tv_series,
-        tmdb_id: 424_242,
-        releases: [%{air_date: nil}]
-      }
-
-      view = View.build(inputs(%{watching_items: [straggler]}))
-
-      assert [%Card{subtitle: "TV series", status: :tracked, art_url: nil}] = view.shelf.stragglers
     end
   end
 
