@@ -115,16 +115,6 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
 
       assert ReleaseTracking.open_wants_for_item(item.id) == []
     end
-
-    test "skips ignored items entirely" do
-      item = create_tv_item()
-      create_episode_release(item)
-      {:ok, ignored} = ReleaseTracking.disarm(item)
-
-      :ok = ReleaseTracking.sync_wants(ignored)
-
-      assert ReleaseTracking.open_wants_for_item(item.id) == []
-    end
   end
 
   describe "sync_wants/1 — movie wants" do
@@ -317,18 +307,16 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
   end
 
   describe "queries" do
-    test "list_open_wants/0 returns wants of watching items only" do
-      watching = create_tv_item(%{tmdb_id: 111, name: "Watching Show"})
-      create_episode_release(watching)
-      :ok = ReleaseTracking.sync_wants(watching)
+    test "list_open_wants/0 returns every open want — a tracked title is a followed one" do
+      followed = create_tv_item(%{tmdb_id: 111, name: "Followed Show"})
+      create_episode_release(followed)
+      :ok = ReleaseTracking.sync_wants(followed)
 
-      later_ignored = create_tv_item(%{tmdb_id: 222, name: "Ignored Show"})
-      create_episode_release(later_ignored)
-      :ok = ReleaseTracking.sync_wants(later_ignored)
-      {:ok, _} = ReleaseTracking.disarm(later_ignored)
-
+      # There is no "ignored item" to exclude any more: a tracked title
+      # exists exactly while its rung follows releases, so the wants on
+      # the table all belong to titles a person is following.
       open = ReleaseTracking.list_open_wants()
-      assert Enum.map(open, & &1.item_id) == [watching.id]
+      assert Enum.map(open, & &1.item_id) == [followed.id]
     end
   end
 

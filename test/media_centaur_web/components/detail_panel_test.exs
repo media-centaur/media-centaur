@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     end
 
     test "true for a tracked movie series — the tracking block sits under the list" do
-      tracking = %MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail{mode: :global}
+      tracking = %MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail{}
       assert DetailPanel.scrollable_content?(%{type: :movie_series, extras: []}, :main, tracking)
     end
 

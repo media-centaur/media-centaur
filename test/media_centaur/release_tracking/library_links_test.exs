@@ -83,7 +83,7 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinksTest do
   end
 
   describe "refresh_for/1 — episode progress" do
-    test "removes tracking item when library entity is deleted" do
+    test "a deleted library entity unlinks the tracked title, and the rung keeps it" do
       tv_series = create_tv_series(%{name: "Cancelled Show"})
 
       item =
@@ -92,13 +92,34 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinksTest do
           media_type: :tv_series,
           name: "Cancelled Show",
           library_container_type: :tv_series,
-          library_container_id: tv_series.id
+          library_container_id: tv_series.id,
+          rung: :grab
         })
 
-      # Delete the library entity
       MediaCentaur.Library.Containers.destroy(tv_series)
 
       # Simulate PubSub event — call the function directly since GenServer isn't running in test
+      LibraryLinks.refresh_for([tv_series.id])
+
+      kept = ReleaseTracking.get_item(item.id)
+      assert kept, "losing the files says nothing about whether the person still wants the releases"
+      assert kept.library_container_id == nil
+    end
+
+    test "a deleted library entity drops a tracked title nobody asked for" do
+      tv_series = create_tv_series(%{name: "Unasked Show"})
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 9998,
+          media_type: :tv_series,
+          name: "Unasked Show",
+          library_container_type: :tv_series,
+          library_container_id: tv_series.id,
+          rung: nil
+        })
+
+      MediaCentaur.Library.Containers.destroy(tv_series)
       LibraryLinks.refresh_for([tv_series.id])
 
       assert ReleaseTracking.get_item(item.id) == nil

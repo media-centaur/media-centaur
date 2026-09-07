@@ -1,7 +1,6 @@
 defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
   alias MediaCentaurWeb.ViewModel.SeasonView
   alias MediaCentaurWeb.ViewModel.SeriesDetail
@@ -9,7 +8,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
   # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
   defp record_present(_file), do: :ok
 
-  describe "build/4 — pure composition" do
+  describe "build/3 — pure composition" do
     test "no releases: items mirror library episodes with gap-fill" do
       season = season_with_episodes(1, 5, [1, 2, 3, 5])
       tv = build_tv_series(%{seasons: [season]})
@@ -22,7 +21,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
             progress_records: []
           },
           [],
-          nil,
           nil
         )
 
@@ -51,7 +49,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         SeriesDetail.build(
           %{entity: tv, progress: nil, progress_records: []},
           releases,
-          :global,
           nil
         )
 
@@ -79,7 +76,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         SeriesDetail.build(
           %{entity: tv, progress: nil, progress_records: []},
           releases,
-          :global,
           nil
         )
 
@@ -105,7 +101,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       tv = build_tv_series(%{seasons: [season]})
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil, nil)
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil)
 
       [%SeasonView{items: items}] = view_model.seasons
 
@@ -127,7 +123,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       ]
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, :global, nil)
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, nil)
 
       [%SeasonView{items: items}] = view_model.seasons
 
@@ -145,7 +141,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       tv = build_tv_series(%{seasons: [season]})
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil, nil)
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil)
 
       [%SeasonView{items: items}] = view_model.seasons
 
@@ -169,7 +165,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         SeriesDetail.build(
           %{entity: tv, progress: nil, progress_records: []},
           releases,
-          :global,
           nil
         )
 
@@ -192,7 +187,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       ]
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, :global, nil)
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, nil)
 
       [%SeasonView{items: items}] = view_model.seasons
       assert Enum.map(items, & &1.episode_number) == [1, 2, 3]
@@ -212,7 +207,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       ]
 
       view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, :global, nil)
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, nil)
 
       [%SeasonView{items: [item]}] = view_model.seasons
 
@@ -234,7 +229,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         SeriesDetail.build(
           %{entity: tv, progress: nil, progress_records: progress_records},
           [],
-          :global,
           nil
         )
 
@@ -258,7 +252,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         SeriesDetail.build(
           %{entity: tv, progress: nil, progress_records: []},
           [],
-          :global,
           resume_target
         )
 
@@ -286,7 +279,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         SeriesDetail.build(
           %{entity: tv, progress: nil, progress_records: progress_records},
           [],
-          :global,
           nil
         )
 
@@ -296,23 +288,11 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       assert %EpisodeListItem.Library{state: :unwatched} = item3
     end
 
-    test "tracking_mode field passes through unchanged" do
-      tv = build_tv_series(%{seasons: []})
-
-      view_model =
-        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], :none, nil)
-
-      assert view_model.tracking_mode == :none
-
-      view_model = SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil, nil)
-      assert view_model.tracking_mode == nil
-    end
-
     test "season with no episodes and zero number_of_episodes produces empty items" do
       season = build_season(%{season_number: 1, number_of_episodes: 0, episodes: []})
       tv = build_tv_series(%{seasons: [season]})
 
-      view_model = SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil, nil)
+      view_model = SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil)
 
       [%SeasonView{items: []}] = view_model.seasons
     end
@@ -342,7 +322,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       tv = create_tv_series_with_one_episode("Sample Series")
 
       assert {:ok, view_model} = SeriesDetail.compose(tv.id)
-      assert view_model.tracking_mode == nil
       assert [%SeasonView{kind: :library, items: items}] = view_model.seasons
       assert Enum.all?(items, &match?(%EpisodeListItem.Library{}, &1))
     end
@@ -367,7 +346,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       })
 
       assert {:ok, view_model} = SeriesDetail.compose(tv.id)
-      assert view_model.tracking_mode == :global
 
       assert [
                %SeasonView{kind: :library, season_number: 1},
@@ -375,32 +353,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
              ] = view_model.seasons
 
       assert %EpisodeListItem.Upcoming{episode_number: 1, sub_status: :unaired} = item
-    end
-
-    test "a disarmed Item yields no upcoming rows even when releases exist" do
-      tv = create_tv_series_with_one_episode("Ignored Series", tmdb_id: "555555")
-
-      item =
-        create_tracking_item(%{
-          tmdb_id: 555_555,
-          name: "Ignored Series",
-          library_container_type: :tv_series,
-          library_container_id: tv.id
-        })
-
-      {:ok, _} = ReleaseTracking.disarm(item)
-
-      create_tracking_release(%{
-        item_id: item.id,
-        air_date: Date.add(Date.utc_today(), 7),
-        season_number: 2,
-        episode_number: 1
-      })
-
-      assert {:ok, view_model} = SeriesDetail.compose(tv.id)
-      # Just the library season — no future bucket because the Item is ignored.
-      assert [%SeasonView{kind: :library}] = view_model.seasons
-      assert view_model.tracking_mode == :none
     end
   end
 

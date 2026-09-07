@@ -931,7 +931,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       assert [_plan] = Plans.list_drafts()
       assert %ReleaseTracking.Item{} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
-      assert Discovery.on_watchlist?(246_810, :tv_series)
+      assert Discovery.listed?(246_810, :tv_series)
     end
 
     test "`track: true` on an already-followed series does not follow it twice" do

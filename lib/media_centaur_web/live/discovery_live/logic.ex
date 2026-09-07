@@ -6,7 +6,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   projections live beside it: `RecommendationRows` and `People`.
   """
 
-  alias MediaCentaur.ReleaseTracking.{Item, Release}
+  alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
@@ -16,7 +17,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
 
   @doc """
   Builds the detail for a title from the facts the host resolved:
-  `library_owner_id`, `on_watchlist?`, `acquisition_state`,
+  `library_owner_id`, `rung`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
   `backdrop_url`, `logo_url`, `tracking`, `acquisition?`,
   `lower_quality_accepted?`, `default_grab_mode`, `kind`, `episode`, `sender`, `note`, `acted_at`,
@@ -35,7 +36,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       logo_url: Map.get(facts, :logo_url),
       primary: primary(title, facts),
       scoped?: title.media_type == :tv_series,
-      on_watchlist?: Map.fetch!(facts, :on_watchlist?),
+      rung: Map.fetch!(facts, :rung),
       tracking: Map.get(facts, :tracking),
       acquisition?: Map.get(facts, :acquisition?, false),
       lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
@@ -83,7 +84,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   in order: the library or acquisition state (one of them — In library
   wins), then On watchlist (never for an owned title — membership is
   noise once the file is there), then — a watchlist row's — the tracking
-  mode when the title is armed (`tracking_mode` + `default_grab_mode`,
+  rung when the title is followed (`rung` + `default_grab_mode`,
   Default resolved to what it does; never for an owned title, whose
   tracking is the library detail's) and the next release date when the
   facts carry one (`next_air_date` + `today`). Who recommended the title
@@ -93,8 +94,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   @spec row_markers(%{
           required(:library_owner_id) => Ecto.UUID.t() | nil,
           required(:acquisition_state) => acquisition_state(),
-          required(:on_watchlist?) => boolean(),
-          optional(:tracking_mode) => Item.tracking_mode() | nil,
+          required(:rung) => TitleIntent.rung() | nil,
+          optional(:rung) => TitleIntent.rung() | nil,
           optional(:default_grab_mode) => String.t(),
           optional(:next_air_date) => Date.t() | nil,
           optional(:today) => Date.t()
@@ -107,11 +108,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
         true -> nil
       end
 
-    watchlist = if facts.on_watchlist? and is_nil(facts.library_owner_id), do: "On watchlist"
-
     tracking =
       if is_nil(facts.library_owner_id),
-        do: tracking_marker(Map.get(facts, :tracking_mode), Map.get(facts, :default_grab_mode))
+        do: rung_marker(Map.get(facts, :rung), Map.get(facts, :default_grab_mode))
 
     next =
       case Map.get(facts, :next_air_date) do
@@ -119,21 +118,22 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
         nil -> nil
       end
 
-    Enum.reject([state, watchlist, tracking, next], &is_nil/1)
+    Enum.reject([state, tracking, next], &is_nil/1)
   end
 
-  # Off and never-tracked have nothing to say; Default says what it
+  # Off says nothing — the row would not be here. List says only that it
+  # is on the list, which the row already is. Default says what it
   # resolves to, so the row never asks the reader to know the setting.
-  defp tracking_marker(mode, _default) when mode in [nil, :none], do: nil
-  defp tracking_marker(:watch, _default), do: "Tracking: Watch"
-  defp tracking_marker(:ask, _default), do: "Tracking: Ask"
-  defp tracking_marker(:grab, _default), do: "Tracking: Grab"
+  defp rung_marker(rung, _default) when rung in [nil, :list], do: nil
+  defp rung_marker(:follow, _default), do: "Tracking: Follow"
+  defp rung_marker(:ask, _default), do: "Tracking: Ask"
+  defp rung_marker(:grab, _default), do: "Tracking: Grab"
 
-  defp tracking_marker(:global, default) do
-    case Item.grab_mode(:global, default) do
+  defp rung_marker(:default, default) do
+    case TitleIntent.grab_mode(:default, default) do
       "all_releases" -> "Tracking: Grab"
       "ask" -> "Tracking: Ask"
-      _off -> "Tracking: Watch"
+      _off -> "Tracking: Follow"
     end
   end
 

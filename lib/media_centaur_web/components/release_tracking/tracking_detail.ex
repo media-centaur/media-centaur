@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   @moduledoc """
-  The tracked-title half of a title's detail: its tracking mode, its
+  The tracked-title half of a title's detail: its
   release timeline, recent per-title activity, the per-title quality
   acceptance and when tracking began — plus the facts the two shared
-  components need to say honestly what each mode does right now (`today`,
+  components need to say honestly what the title will do right now (`today`,
   `acquisition?`, `default_grab_mode`) and the `ref` param every control
   click carries. `nil` for a title that has never been tracked.
 
@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   """
 
   alias MediaCentaur.Acquisition
+  alias MediaCentaur.Discovery
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
@@ -24,7 +25,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   defstruct [
     :item_id,
     :ref,
-    :mode,
     :tracking_since,
     :today,
     acquisition?: false,
@@ -38,7 +38,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   @type t :: %__MODULE__{
           item_id: Ecto.UUID.t(),
           ref: String.t(),
-          mode: Item.tracking_mode(),
           tracking_since: DateTime.t() | nil,
           today: Date.t(),
           acquisition?: boolean(),
@@ -75,6 +74,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
     feed =
       UpcomingFeed.build(releases, %{
         today: context.today,
+        rungs: %{{item.tmdb_id, item.media_type} => Discovery.rung(item.tmdb_id, item.media_type)},
         acquisition_ready?: context.acquisition_ready?,
         auto_grab_default_mode: context.auto_grab_default_mode,
         grab_status_by_key: grab_status_by_key(releases, context.acquisition_ready?)
@@ -83,7 +83,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
     %__MODULE__{
       item_id: item.id,
       ref: TitleRef.param({item.tmdb_id, item.media_type}),
-      mode: item.tracking_mode,
       tracking_since: item.inserted_at,
       today: context.today,
       acquisition?: context.acquisition_ready?,

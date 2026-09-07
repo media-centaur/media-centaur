@@ -11,6 +11,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery do
 
   def entry("person_card"), do: [icon: {:fa, "user", :thin}, name: "Person card"]
 
+  def entry("intent_control"), do: [icon: {:fa, "sliders", :thin}, name: "Intent control"]
+
   def entry("title_detail_modal"),
     do: [icon: {:fa, "window-maximize", :thin}, name: "Title detail modal"]
 end

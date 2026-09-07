@@ -169,7 +169,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # (grab) modal.
       assert_patch(view, "/incoming?title=movie-424242")
       assert has_element?(view, "#title-detail-modal[data-state='open']", "Sample Movie")
-      assert has_element?(view, "#title-tracking-mode[data-mode='none']")
+      assert has_element?(view, "#title-tracking-mode[data-rung='off']")
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       await_supervised_tasks()
@@ -1585,10 +1585,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       # Arming from there tracks it; the row flips to Tracked on the broadcast.
-      view |> element("#title-tracking-mode-watch") |> render_click()
+      view |> element("#title-tracking-mode-follow") |> render_click()
       await_supervised_tasks()
-      assert %{tracking_mode: :watch} = ReleaseTracking.get_item_by_tmdb(888, :movie)
-      assert MediaCentaur.Discovery.on_watchlist?(888, :movie)
+      assert Discovery.rung(888, :movie) == :follow
+      assert ReleaseTracking.get_item_by_tmdb(888, :movie)
+      assert MediaCentaur.Discovery.listed?(888, :movie)
     end
 
     test "an already-tracked title carries the Tracked marker from the ref set", %{conn: conn} do
@@ -1692,14 +1693,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       render_async(view, 2_000)
 
       view |> element("[id^='omnibox-watchlist-']") |> render_click()
-      assert [{777, :movie}] = MapSet.to_list(Discovery.watchlisted_refs())
+      assert %{{777, :movie} => :list} = Discovery.rungs()
 
       # The handler assigns nothing itself — the flipped icon proves the
       # WatchlistAware PubSub refresh made the round trip.
       assert has_element?(view, "[id^='omnibox-watchlist-'][aria-pressed='true']")
 
       view |> element("[id^='omnibox-watchlist-']") |> render_click()
-      assert Discovery.watchlisted_refs() == MapSet.new()
+      assert Discovery.rungs() == %{}
       assert has_element?(view, "[id^='omnibox-watchlist-'][aria-pressed='false']")
 
       # add_to_watchlist fires a supervised artwork task — drive it to
@@ -3232,7 +3233,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       opened = render(view)
       assert opened =~ "Detail Show"
       refute opened =~ "Stop tracking"
-      assert has_element?(view, "#title-tracking-mode[data-mode='global']")
+      assert has_element?(view, "#title-tracking-mode[data-rung='default']")
       assert has_element?(view, "#title-release-timeline-next")
 
       render_hook(view, "close_title", %{})
@@ -3257,21 +3258,23 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "tracking management" do
-    test "the control moves a tracked title's mode; Off disarms and keeps the row", %{conn: conn} do
+    test "the control moves the rung; Off deletes the tracked title and its row", %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Mode Show"})
 
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      view |> element("#title-tracking-mode-watch") |> render_click()
-      assert ReleaseTracking.get_item(item.id).tracking_mode == :watch
+      view |> element("#title-tracking-mode-follow") |> render_click()
+      assert Discovery.rung(item.tmdb_id, item.media_type) == :follow
 
       view |> element("#title-tracking-mode-grab") |> render_click()
-      assert ReleaseTracking.get_item(item.id).tracking_mode == :grab
+      assert Discovery.rung(item.tmdb_id, item.media_type) == :grab
 
-      view |> element("#title-tracking-mode-none") |> render_click()
-      assert ReleaseTracking.get_item(item.id).tracking_mode == :none
-      assert has_element?(view, "#title-tracking-mode[data-mode='none']")
-      # Disarmed is inert: no timeline, and the row leaves Coming up.
+      view |> element("#title-tracking-mode-off") |> render_click()
+      assert Discovery.rung(item.tmdb_id, item.media_type) == nil
+      refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
+      # Nothing is tracked, so there is no timeline and no Coming up row —
+      # and this page knows titles through the forecast, so the modal has
+      # nothing left to render either.
       refute has_element?(view, "#title-release-timeline")
       refute has_element?(view, "#shelf-#{item.id}")
     end

@@ -37,7 +37,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
 
-  @enforce_keys [:ref, :title, :primary, :scoped?, :on_watchlist?]
+  @enforce_keys [:ref, :title, :primary, :scoped?]
   defstruct [
     :ref,
     :title,
@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :logo_url,
     :primary,
     :scoped?,
-    :on_watchlist?,
+    :rung,
     :tracking,
     :kind,
     :episode,
@@ -76,7 +76,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           logo_url: String.t() | nil,
           primary: primary(),
           scoped?: boolean(),
-          on_watchlist?: boolean(),
+          rung: MediaCentaur.Discovery.TitleIntent.rung() | nil,
           tracking: TrackingDetail.t() | nil,
           acquisition?: boolean(),
           lower_quality_accepted?: boolean(),

@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
   alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.MovieListItem
 
-  describe "build/4 — pure composition" do
+  describe "build/3 — pure composition" do
     test "library items are chronological, content-bearing movies only" do
       movie_b = build_movie(%{name: "Movie B", date_published: ~D[2012-06-01], content_url: "/m/b.mkv"})
       movie_a = build_movie(%{name: "Movie A", date_published: ~D[2010-06-01], content_url: "/m/a.mkv"})
@@ -15,7 +15,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           [],
-          nil,
           nil
         )
 
@@ -45,7 +44,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: progress_records},
           [],
-          nil,
           nil
         )
 
@@ -67,7 +65,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           [],
-          nil,
           resume_target
         )
 
@@ -90,7 +87,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :global,
           nil
         )
 
@@ -114,7 +110,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :global,
           nil
         )
 
@@ -143,7 +138,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :global,
           nil
         )
 
@@ -164,32 +158,17 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :global,
           nil
         )
 
       assert [%MovieListItem.Upcoming{sub_status: :aired_not_in_library}] = view_model.movies
     end
 
-    test "tracking_mode passes through unchanged" do
-      collection = build_movie_series(%{movies: []})
-
-      view_model =
-        CollectionDetail.build(
-          %{entity: collection, progress: nil, progress_records: []},
-          [],
-          :none,
-          nil
-        )
-
-      assert view_model.tracking_mode == :none
-    end
-
     test "no movies and no releases produce an empty item list" do
       collection = build_movie_series(%{movies: []})
 
       view_model =
-        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil, nil)
+        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil)
 
       assert view_model.movies == []
     end
@@ -207,7 +186,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :global,
           nil
         )
 
@@ -225,8 +203,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
                %MovieListItem.Library{state: :unwatched},
                %MovieListItem.Upcoming{title: "Next Part"}
              ] = updated.movies
-
-      assert updated.tracking_mode == :global
     end
   end
 
@@ -242,7 +218,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       create_present_member(collection, "Member Two", ~D[2012-01-01])
 
       assert {:ok, view_model} = CollectionDetail.compose(collection.id)
-      assert view_model.tracking_mode == nil
 
       assert [
                %MovieListItem.Library{movie: %{name: "Member One"}},
@@ -273,7 +248,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       })
 
       assert {:ok, view_model} = CollectionDetail.compose(collection.id)
-      assert view_model.tracking_mode == :global
 
       assert [
                %MovieListItem.Library{},
@@ -305,7 +279,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
               air_date: Date.add(Date.utc_today(), 90)
             })
           ],
-          :global,
           resume_target
         )
 
@@ -335,7 +308,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       collection = build_movie_series(%{movies: [movie]})
 
       view_model =
-        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil, nil)
+        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil)
 
       assert %MovieListItem.Library{movie: %{name: "Only Part"}} =
                CollectionDetail.select_member(view_model, nil)
@@ -345,7 +318,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       collection = build_movie_series(%{movies: []})
 
       view_model =
-        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil, nil)
+        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil)
 
       assert CollectionDetail.select_member(view_model, nil) == nil
     end

@@ -1,12 +1,20 @@
 defmodule MediaCentaur.Discovery do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.TmdbArtwork, MediaCentaur.TMDB],
-    exports: [WatchlistItem, Events, Events.ItemAdded, Events.ItemRemoved]
+    exports: [TitleIntent, Events, Events.RungChanged]
 
   @moduledoc """
-  Bounded context for discovery: the local watchlist — title-level
-  "I want to watch this" intent — and, in later iterations, the candidate
-  sources that feed it (TMDB discover, list import, friend recommendations).
+  Bounded context for discovery: the **title intents** a person holds —
+  one record per title, carrying the rung that says what the app should
+  do about that title's releases — and, in later iterations, the
+  candidate sources that feed them (TMDB discover, list import, friend
+  recommendations).
+
+  A record here is the only authored thing in the whole tracking story.
+  Discovery stores the rung and knows nothing about what it causes: no
+  calendars, no wants, no grabs. `ReleaseTracking.set_rung/3` is the one
+  write path, because deriving the machinery needs to see both sides, and
+  the dependency runs that way (ADR-065 §6/§7).
 
   Accepts `MediaCentaur.TMDB.Title` at the boundary — the app-wide title
   value every candidate source produces (converged 2026-09-02; see
@@ -15,107 +23,157 @@ defmodule MediaCentaur.Discovery do
 
   import Ecto.Query
 
-  alias MediaCentaur.Discovery.{Events, WatchlistItem}
+  alias MediaCentaur.Discovery.{Events, TitleIntent}
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
-  @doc "Subscribe the caller to watchlist update events."
+  @type media_type :: :movie | :tv_series
+  @type ref :: {integer(), media_type()}
+
+  @doc "Subscribe the caller to title-intent update events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe, do: Topics.subscribe(Topics.discovery_updates())
 
   @doc """
-  Adds a title to the watchlist. `attrs` may carry `:source`, `:note`
-  and — for a `:friend`-sourced item — `:activity_id`. Idempotent — re-adding an existing `(tmdb_id, media_type)`
-  returns the existing item unchanged, including when a concurrent
-  insert wins the race (unique-constraint branch).
+  Puts `title` at `rung`, creating the record or moving the existing one.
+  `attrs` may carry `:source`, `:note` and — for a `:friend`-sourced
+  record — `:activity_id`; they apply on creation only, since provenance
+  is about where a title first came from.
+
+  This is Discovery's write, not the app's: raising a rung has
+  consequences Discovery must not know about, so callers go through
+  `ReleaseTracking.set_rung/3`.
   """
-  @spec add_to_watchlist(Title.t(), map()) :: {:ok, WatchlistItem.t()} | {:error, Ecto.Changeset.t()}
-  def add_to_watchlist(%Title{} = title, attrs \\ %{}) do
-    case get_item(title.tmdb_id, title.media_type) do
-      %WatchlistItem{} = existing ->
-        {:ok, existing}
+  @spec put_rung(Title.t(), TitleIntent.rung(), map()) ::
+          {:ok, TitleIntent.t()} | {:error, Ecto.Changeset.t()}
+  def put_rung(%Title{} = title, rung, attrs \\ %{}) do
+    case get_intent(title.tmdb_id, title.media_type) do
+      %TitleIntent{} = existing ->
+        existing
+        |> TitleIntent.rung_changeset(rung, title)
+        |> Repo.update()
+        |> announce()
 
       nil ->
         title
-        |> WatchlistItem.create_changeset(attrs)
+        |> TitleIntent.create_changeset(rung, attrs)
         |> Repo.insert()
         |> case do
-          {:ok, item} ->
-            ensure_artwork_async(item)
-
-            Events.broadcast(%Events.ItemAdded{
-              item_id: item.id,
-              tmdb_id: item.tmdb_id,
-              media_type: item.media_type
-            })
-
-            {:ok, item}
+          {:ok, intent} ->
+            ensure_artwork_async(intent)
+            announce({:ok, intent})
 
           {:error, %Ecto.Changeset{errors: errors} = changeset} ->
-            # Concurrent add won the race exactly when a unique constraint
-            # fired (constraint metadata, not field name — a future
-            # validation on :tmdb_id must not be mistaken for the race);
-            # re-fetch so idempotency holds under contention too.
-            unique_violation? =
-              Enum.any?(errors, fn {_field, {_msg, meta}} -> meta[:constraint] == :unique end)
-
-            if unique_violation?,
-              do: {:ok, get_item(title.tmdb_id, title.media_type)},
+            # A concurrent write won the race exactly when a unique
+            # constraint fired (constraint metadata, not field name — a
+            # future validation on :tmdb_id must not be mistaken for the
+            # race); move the winner to the rung this call asked for.
+            if unique_violation?(errors),
+              do: put_rung(title, rung, attrs),
               else: {:error, changeset}
         end
     end
   end
 
-  @doc "Removes a title from the watchlist. Absent refs are a no-op."
-  @spec remove_from_watchlist(integer(), :movie | :tv_series) :: :ok
-  def remove_from_watchlist(tmdb_id, media_type) do
-    case get_item(tmdb_id, media_type) do
+  @doc "Forgets a title entirely — the Off rung. Absent refs are a no-op."
+  @spec forget(integer(), media_type()) :: :ok
+  def forget(tmdb_id, media_type) do
+    case get_intent(tmdb_id, media_type) do
       nil ->
         :ok
 
-      item ->
-        Repo.delete(item)
-        Events.broadcast(%Events.ItemRemoved{tmdb_id: tmdb_id, media_type: media_type})
+      intent ->
+        Repo.delete(intent)
+
+        Events.broadcast(%Events.RungChanged{
+          tmdb_id: tmdb_id,
+          media_type: media_type,
+          rung: nil
+        })
+
         :ok
     end
   end
 
+  @doc "The title's record, or nil when it is Off."
+  @spec get_intent(integer(), media_type()) :: TitleIntent.t() | nil
+  def get_intent(tmdb_id, media_type) do
+    Repo.one(from(i in TitleIntent, where: i.tmdb_id == ^tmdb_id and i.media_type == ^media_type))
+  end
+
+  @doc "The title's rung, or nil when it is Off."
+  @spec rung(integer(), media_type()) :: TitleIntent.rung() | nil
+  def rung(tmdb_id, media_type) do
+    Repo.one(
+      from(i in TitleIntent,
+        where: i.tmdb_id == ^tmdb_id and i.media_type == ^media_type,
+        select: i.rung
+      )
+    )
+  end
+
   @doc """
-  All watchlist items, newest first, each with the owning library
+  The grab decision for a title, resolved from its rung against the
+  global default. The one question acquisition asks about a title, so it
+  asks it here rather than modelling the ladder itself.
+  """
+  @spec grab_mode(integer(), media_type(), String.t()) :: String.t()
+  def grab_mode(tmdb_id, media_type, default),
+    do: TitleIntent.grab_mode(rung(tmdb_id, media_type), default)
+
+  @doc "Whether the title is on the list at all — any rung above Off."
+  @spec listed?(integer(), media_type()) :: boolean()
+  def listed?(tmdb_id, media_type), do: not is_nil(rung(tmdb_id, media_type))
+
+  @doc """
+  Every title intent, newest first, each with the owning library
   container's id (nil when the library doesn't know the title) — derived
   live via `Library.ExternalIds.tmdb_owners/1`, never stored.
   """
-  @spec list_watchlist() :: [%{item: WatchlistItem.t(), library_owner_id: Ecto.UUID.t() | nil}]
-  def list_watchlist do
-    items = Repo.all(from(w in WatchlistItem, order_by: [desc: w.inserted_at]))
-    owners = ExternalIds.tmdb_owners(Enum.map(items, &{&1.tmdb_id, &1.media_type}))
+  @spec list_intents() :: [%{intent: TitleIntent.t(), library_owner_id: Ecto.UUID.t() | nil}]
+  def list_intents do
+    intents = Repo.all(from(i in TitleIntent, order_by: [desc: i.inserted_at]))
+    owners = ExternalIds.tmdb_owners(Enum.map(intents, &{&1.tmdb_id, &1.media_type}))
 
-    Enum.map(items, fn item ->
-      %{item: item, library_owner_id: Map.get(owners, {item.tmdb_id, item.media_type})}
+    Enum.map(intents, fn intent ->
+      %{intent: intent, library_owner_id: Map.get(owners, {intent.tmdb_id, intent.media_type})}
     end)
   end
 
-  @spec on_watchlist?(integer(), :movie | :tv_series) :: boolean()
-  def on_watchlist?(tmdb_id, media_type), do: not is_nil(get_item(tmdb_id, media_type))
-
-  @doc "The `{tmdb_id, media_type}` ref set — bulk decoration for search rows."
-  @spec watchlisted_refs() :: MapSet.t({integer(), :movie | :tv_series})
-  def watchlisted_refs do
-    MapSet.new(Repo.all(from(w in WatchlistItem, select: {w.tmdb_id, w.media_type})))
+  @doc """
+  Every listed title's rung, as `{tmdb_id, media_type} => rung` — bulk
+  decoration for search rows and list rows, which show the rung rather
+  than a yes/no.
+  """
+  @spec rungs() :: %{ref() => TitleIntent.rung()}
+  def rungs do
+    Map.new(Repo.all(from(i in TitleIntent, select: {{i.tmdb_id, i.media_type}, i.rung})))
   end
 
-  defp get_item(tmdb_id, media_type) do
-    Repo.one(from(w in WatchlistItem, where: w.tmdb_id == ^tmdb_id and w.media_type == ^media_type))
+  defp announce({:ok, %TitleIntent{} = intent} = result) do
+    Events.broadcast(%Events.RungChanged{
+      tmdb_id: intent.tmdb_id,
+      media_type: intent.media_type,
+      rung: intent.rung
+    })
+
+    result
   end
 
-  # Watchlist items persist, so their artwork moves from TMDB-hotlink to
+  defp announce(result), do: result
+
+  defp unique_violation?(errors) do
+    Enum.any?(errors, fn {_field, {_msg, meta}} -> meta[:constraint] == :unique end)
+  end
+
+  # Listed titles persist, so their artwork moves from TMDB-hotlink to
   # the local referenced tier. Network — context-layer task (ADR-049).
-  defp ensure_artwork_async(item) do
+  defp ensure_artwork_async(intent) do
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      TmdbArtwork.ensure(item.media_type, item.tmdb_id)
+      TmdbArtwork.ensure(intent.media_type, intent.tmdb_id)
     end)
 
     :ok

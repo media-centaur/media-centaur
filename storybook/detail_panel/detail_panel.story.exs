@@ -395,11 +395,11 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         attributes: tv_series_untracked_attrs()
       },
       %Variation{
-        id: :tv_series_disarmed,
+        id: :tv_series_off,
         description:
-          "Tracked but turned Off (UIDR-035): under the seasons only the tracking-mode " <>
-            "control at Off — no timeline, no activity, because a disarmed row is inert.",
-        attributes: %{tv_series_attrs() | tracking: tracking(%{mode: :none})}
+          "An owned series nobody follows (UIDR-035): under the seasons only the ladder " <>
+            "control at Off — no timeline, no activity, because nothing is tracked.",
+        attributes: %{tv_series_attrs() | tracking: nil, rung: nil}
       },
       %Variation{
         id: :movie_series,
@@ -701,6 +701,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       available: true,
       tmdb_ready: true,
       tracking: tracking(%{}),
+      rung: :default,
+      title_ref: "tv_series-42",
+      default_grab_mode: "all_releases",
+      acquisition?: true,
       expanded_seasons: MapSet.new([1]),
       seasons_view: build_library_only_seasons_view(entity, progress_records, {1, 2})
     }
@@ -856,7 +860,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail{
         item_id: "sample-item",
         ref: "tv_series-42",
-        mode: :global,
         tracking_since: ~U[2026-03-14 12:00:00Z],
         today: ~D[2026-08-03],
         acquisition?: true,

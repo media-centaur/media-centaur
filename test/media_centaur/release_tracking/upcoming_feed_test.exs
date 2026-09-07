@@ -13,18 +13,25 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
   @today ~D[2026-06-14]
 
   # A context where acquisition is live and the global default auto-grabs
-  # everything — the common "trusting automation" posture.
+  # everything — the common "trusting automation" posture. Every title in
+  # it sits at Default unless a test says otherwise, so the global default
+  # is what decides.
   defp armed_context(overrides \\ %{}) do
     Map.merge(
       %{
         today: @today,
         acquisition_ready?: true,
         auto_grab_default_mode: "all_releases",
+        rungs: %{{1001, :tv_series} => :default, {2002, :movie} => :default},
         grab_status_by_key: %{}
       },
       overrides
     )
   end
+
+  # The rung map for one item, for the tests that pin a title's own rung
+  # rather than leaning on the global default.
+  defp at_rung(item, rung), do: %{rungs: %{{item.tmdb_id, item.media_type} => rung}}
 
   defp tv_item(overrides \\ %{}) do
     TestFactory.build_tracking_item(
@@ -262,14 +269,14 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
 
     test "when auto-grab won't fire, both dates stay neutral :upcoming" do
-      item = movie_item(%{tracking_mode: :watch})
+      item = movie_item()
 
       releases = [
         release(item, %{title: "digital", air_date: days(3), release_type: "digital"}),
         release(item, %{title: "physical", air_date: days(40), release_type: "physical"})
       ]
 
-      feed = UpcomingFeed.build(releases, armed_context())
+      feed = UpcomingFeed.build(releases, armed_context(at_rung(item, :follow)))
 
       assert find_event(feed, "digital").status == :upcoming
       assert find_event(feed, "physical").status == :upcoming
@@ -314,17 +321,17 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert find_event(feed, "ep").status == :upcoming
     end
 
-    test "item opted out of auto-grab (mode \"off\") → neutral :upcoming" do
-      item = tv_item(%{tracking_mode: :watch})
+    test "a title at Follow keeps the calendar and grabs nothing → neutral :upcoming" do
+      item = tv_item()
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([episode], armed_context())
+      feed = UpcomingFeed.build([episode], armed_context(at_rung(item, :follow)))
 
       assert find_event(feed, "ep").status == :upcoming
     end
 
-    test ~s(global default "off" + item "global" → neutral :upcoming) do
-      item = tv_item(%{tracking_mode: :global})
+    test ~s(global default "off" + a title at Default → neutral :upcoming) do
+      item = tv_item()
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
       feed = UpcomingFeed.build([episode], armed_context(%{auto_grab_default_mode: "off"}))
@@ -332,8 +339,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert find_event(feed, "ep").status == :upcoming
     end
 
-    test ~s(item "global" inherits an "all_releases" default → :armed) do
-      item = tv_item(%{tracking_mode: :global})
+    test ~s(a title at Default inherits an "all_releases" default → :armed) do
+      item = tv_item()
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
       feed = UpcomingFeed.build([episode], armed_context(%{auto_grab_default_mode: "all_releases"}))
@@ -341,11 +348,11 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert find_event(feed, "ep").status == :armed
     end
 
-    test "\"ask\" mode is not full-auto → neutral :upcoming" do
-      item = tv_item(%{tracking_mode: :ask})
+    test "Ask is not full-auto → neutral :upcoming" do
+      item = tv_item()
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([episode], armed_context())
+      feed = UpcomingFeed.build([episode], armed_context(at_rung(item, :ask)))
 
       assert find_event(feed, "ep").status == :upcoming
     end

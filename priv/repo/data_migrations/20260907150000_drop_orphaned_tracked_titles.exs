@@ -31,6 +31,19 @@ defmodule MediaCentaur.Repo.DataMigrations.DropOrphanedTrackedTitles do
   (`release_tracking_releases`, `release_tracking_events`,
   `release_tracking_wants`) go with their item via the schema's FKs.
 
+  ## Superseded before it could reach every install
+
+  Data migrations run *after* schema migrations, and
+  `TitleIntentsHoldTheRung` (2026-09-07) both drops `tracking_mode` and
+  sweeps a strict superset of these rows — every tracked title with no
+  title intent. On an install that had not already run this one, the
+  column is gone by the time this is reached, so the guard below stops
+  rather than failing on SQL it can no longer express.
+
+  The sweep itself is untouched: what it did on the installs that ran it
+  is exactly what it did. The guard only recognises that the question is
+  no longer askable.
+
   [ADR-065]: `decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md`
   """
   use Ecto.Migration
@@ -46,7 +59,9 @@ defmodule MediaCentaur.Repo.DataMigrations.DropOrphanedTrackedTitles do
     )
   """
 
-  def up, do: sweep(repo())
+  def up do
+    if askable?(repo()), do: sweep(repo()), else: :ok
+  end
 
   def down, do: :ok
 
@@ -54,5 +69,12 @@ defmodule MediaCentaur.Repo.DataMigrations.DropOrphanedTrackedTitles do
   def sweep(repo) do
     repo.query!(@sweep, [])
     :ok
+  end
+
+  # The sweep names `tracking_mode` and `watchlist_items`; the later
+  # schema migration removes both.
+  defp askable?(repo) do
+    %{rows: rows} = repo.query!("PRAGMA table_info(release_tracking_items)", [])
+    Enum.any?(rows, fn [_cid, name | _rest] -> name == "tracking_mode" end)
   end
 end

@@ -161,7 +161,7 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       item =
         create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"})
 
-      {:ok, item} = MediaCentaur.ReleaseTracking.set_tracking_mode(item, mode)
+      create_intent_for(item, mode)
 
       create_tracking_release(%{
         item_id: item.id,
@@ -194,9 +194,9 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       assert Targeting.default_units(selection) == [{1, 1}, {1, 2}]
     end
 
-    test "mode off means no subtraction — media search is the expected path" do
+    test "a rung that never grabs means no subtraction — media search is the expected path" do
       stub_sample_show()
-      track_with_want(:watch)
+      track_with_want(:follow)
 
       {:ok, selection} = Targeting.series_selection("246810")
 

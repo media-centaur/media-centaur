@@ -885,6 +885,17 @@ defmodule MediaCentaur.TestFactory do
     struct(ReleaseTracking.Event, Map.merge(defaults, overrides))
   end
 
+  @doc """
+  Creates a tracked title *and* the title intent it is derived from,
+  because a tracked title with no record behind it is a state the app
+  cannot produce — `set_rung/3` writes both, and everything that reads a
+  title's behaviour reads the rung.
+
+  `:rung` picks where the record sits (default `:default`, which follows
+  the global auto-grab setting). Pass `rung: nil` for the deliberately
+  unreachable shape — a tracked title nobody asked for — which is what
+  the reconcile and migration tests are about.
+  """
   def create_tracking_item(attrs \\ %{}) do
     defaults = %{
       tmdb_id: :rand.uniform(999_999),
@@ -892,7 +903,11 @@ defmodule MediaCentaur.TestFactory do
       name: "Test Tracked Series"
     }
 
-    {:ok, item} = ReleaseTracking.track_item(Map.merge(defaults, attrs))
+    {rung, attrs} = Map.pop(attrs, :rung, :default)
+    attrs = Map.merge(defaults, attrs)
+
+    {:ok, item} = ReleaseTracking.track_item(attrs)
+    if rung, do: create_intent_for(item, rung)
     item
   end
 
@@ -901,23 +916,42 @@ defmodule MediaCentaur.TestFactory do
   end
 
   # ---------------------------------------------------------------------------
-  # Discovery (watchlist)
+  # Discovery (title intents)
   # ---------------------------------------------------------------------------
 
   @doc """
-  Adds a title to the watchlist through the context, so provenance
+  Puts a title on the ladder through the context, so provenance
   validation and the identity derivation run exactly as in the app.
+
+  Writes the record only — `:rung` defaults to `:list`. A test that wants
+  the *machinery* a rung derives goes through
+  `ReleaseTracking.set_rung/3`, which is the app's one write path.
   """
-  def create_watchlist_item(attrs \\ %{}) do
+  def create_title_intent(attrs \\ %{}) do
     tmdb_id = Map.get(attrs, :tmdb_id, :rand.uniform(999_999))
     media_type = Map.get(attrs, :media_type, :tv_series)
     name = Map.get(attrs, :name, "Sample Show")
+    rung = Map.get(attrs, :rung, :list)
 
     title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
-    item_attrs = Map.drop(attrs, [:tmdb_id, :media_type, :name])
+    intent_attrs = Map.drop(attrs, [:tmdb_id, :media_type, :name, :rung])
 
-    {:ok, item} = MediaCentaur.Discovery.add_to_watchlist(title, item_attrs)
-    item
+    {:ok, intent} = MediaCentaur.Discovery.put_rung(title, rung, intent_attrs)
+    intent
+  end
+
+  @doc """
+  Puts an already-created tracked title's own ref on the ladder at
+  `rung` — the record side of a title whose machinery a test built
+  directly with `create_tracking_item/1`.
+  """
+  def create_intent_for(%{tmdb_id: tmdb_id, media_type: media_type} = item, rung) do
+    create_title_intent(%{
+      tmdb_id: tmdb_id,
+      media_type: media_type,
+      name: Map.get(item, :name) || "Sample Show",
+      rung: rung
+    })
   end
 
   # ---------------------------------------------------------------------------

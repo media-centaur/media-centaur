@@ -16,13 +16,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) and `&activity=<id>` |
-  | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_scope_*`, `title_download`, `title_watchlist_add` / `_remove`, `title_activity_delete`, `set_tracking_mode`, `reset_lower_quality` |
+  | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_scope_*`, `title_download`, `title_activity_delete`, `set_rung`, `reset_lower_quality` |
   | `:handle_async` | the live TMDB preview (`{:title_preview, ref}`) |
   | `:handle_info` | refreshes the open detail on `:releases_updated`, watchlist and library changes, then continues so the host's own clauses run |
 
   Hosts MUST NOT call `ReleaseTracking.subscribe/0` themselves. A host
-  that also uses `WatchlistAware` must `use` this module *first*: hooks
-  run in attach order and `WatchlistAware` halts the watchlist messages.
+  that also uses `IntentAware` must `use` this module *first*: hooks
+  run in attach order and `IntentAware` halts the watchlist messages.
 
   Beyond the `use`, the host implements two callbacks:
 
@@ -38,16 +38,16 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   half (`TrackingDetail`) — are read here from their owning contexts:
   local reads, milliseconds (ADR-051).
 
-  ## Setting a mode
+  ## Setting a rung
 
-  `set_tracking_mode` is the arming surface's one event (ADR-065). On a
-  tracked title above Off it moves the mode. Choosing Off disarms
-  (`ReleaseTracking.disarm/1`), which keeps the row as the durable
-  record. Raising an untracked or disarmed title arms it
-  (`ReleaseTracking.arm/2`), which lists it on the watchlist as part of
-  the act — the control's copy states that beforehand. A first arm
-  fetches the calendar from TMDB, so it runs async and the modal
-  catches up on the `:releases_updated` broadcast.
+  `set_rung` is the modal's one intent event, and there is no other:
+  listing, following and stopping are all one ladder now, so the separate
+  watchlist add/remove events are gone. `ReleaseTracking.set_rung/3`
+  writes the person's intent and derives everything from it, including
+  deleting the tracked title when the rung drops below Follow or to Off.
+  A raise onto Follow or above with no calendar yet fetches from TMDB, so
+  it runs async and the modal catches up on the `:releases_updated`
+  broadcast.
   """
 
   import Phoenix.Component, only: [assign: 2, assign: 3, update: 3]
@@ -59,9 +59,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Activities
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Discovery
+  alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.TMDB.Client, as: TMDBClient
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
@@ -80,8 +80,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @callback title_detail_path(socket :: Phoenix.LiveView.Socket.t(), query :: keyword()) ::
               String.t()
 
-  @modal_events ~w(title_scope_toggle title_scope_close title_download title_watchlist_add title_watchlist_remove title_activity_delete)
-  @modes ~w(none watch ask grab global)
+  @modal_events ~w(title_scope_toggle title_scope_close title_download title_activity_delete)
+  @rungs ~w(off list follow ask grab default)
 
   defmacro __using__(_opts) do
     quote do
@@ -167,7 +167,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
     facts = %{
       library_owner_id: Map.get(ExternalIds.tmdb_owners([ref]), ref),
-      on_watchlist?: Discovery.on_watchlist?(title.tmdb_id, title.media_type),
+      rung: Discovery.rung(title.tmdb_id, title.media_type),
       lower_quality_accepted?:
         DownloadParams.lower_quality_accepted?(TitleDownloadParams.get(title.tmdb_id, title.media_type)),
       acquisition_state: Map.get(TitleStates.for_refs([ref]), ref),
@@ -236,7 +236,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # --- PubSub ---
 
-  @refresh_on [:releases_updated, :watchlist_item_added, :watchlist_item_removed, :entities_changed]
+  @refresh_on [:releases_updated, :title_intent_changed, :entities_changed]
 
   def handle_title_info({tag, _payload}, socket) when tag in @refresh_on,
     do: {:cont, refresh_title_detail(socket)}
@@ -293,35 +293,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
      |> push_close()}
   end
 
-  # Adding is free — no tracked title (ADR-065). A feed-born detail
-  # carries the recommendation's provenance onto the entry.
-  def handle_title_event(
-        "title_watchlist_add",
-        _params,
-        %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
-      ) do
-    attrs =
-      if detail.activity_id && !detail.own?,
-        do: %{source: :friend, activity_id: detail.activity_id, note: detail.note},
-        else: %{}
-
-    case Discovery.add_to_watchlist(detail.title, attrs) do
-      {:ok, _item} -> {:halt, refresh_title_detail(socket)}
-      {:error, _changeset} -> {:halt, put_flash(socket, :error, "Could not add that to your watchlist")}
-    end
-  end
-
-  # De-listing is its own act, unrelated to the mode (ADR-065); the
-  # WatchlistListener reconciles the tracked title.
-  def handle_title_event(
-        "title_watchlist_remove",
-        _params,
-        %{assigns: %{title_detail: %TitleDetail{ref: {tmdb_id, media_type}}}} = socket
-      ) do
-    Discovery.remove_from_watchlist(tmdb_id, media_type)
-    {:halt, push_close(socket)}
-  end
-
   def handle_title_event(
         "title_activity_delete",
         _params,
@@ -340,11 +311,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
-  def handle_title_event("set_tracking_mode", %{"choice" => choice, "ref" => param}, socket)
-      when choice in @modes do
+  def handle_title_event("set_rung", %{"choice" => choice, "ref" => param}, socket)
+      when choice in @rungs do
     case title_for_param(socket, param) do
       %Title{} = title ->
-        {:halt, socket |> apply_mode(title, String.to_existing_atom(choice)) |> refresh_title_detail()}
+        socket = apply_rung(socket, title, rung_atom(choice), provenance(socket.assigns.title_detail))
+        {:halt, refresh_title_detail(socket)}
 
       nil ->
         {:halt, socket}
@@ -365,6 +337,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def handle_title_event(event, _params, socket) when event in @modal_events, do: {:halt, socket}
 
   def handle_title_event(_event, _params, socket), do: {:cont, socket}
+
+  # A feed-born detail carries the recommendation's provenance onto the
+  # record the raise creates — who sent it, and what they said. It applies
+  # on creation only, so re-raising an existing record leaves it alone.
+  defp provenance(%TitleDetail{activity_id: id, own?: own?, note: note}) when is_binary(id) and not own?,
+    do: %{source: :friend, activity_id: id, note: note}
+
+  defp provenance(_detail), do: %{}
 
   defp download_flash(name, false), do: "Finding a release for #{name}"
 
@@ -393,30 +373,32 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
-  defp apply_mode(socket, %Title{} = title, mode) do
-    case {ReleaseTracking.get_item_by_tmdb(title.tmdb_id, title.media_type), mode} do
-      {nil, :none} ->
-        socket
+  # Raising onto a rung that follows releases needs the calendar, which is
+  # a TMDB fetch — so a title that has none yet is set asynchronously and
+  # the modal catches up on the broadcast. Every other move is local.
+  defp apply_rung(socket, %Title{} = title, :off, _attrs) do
+    {:ok, nil} = ReleaseTracking.set_rung(title, :off)
+    socket
+  end
 
-      {%Item{} = item, :none} ->
-        {:ok, _item} = ReleaseTracking.disarm(item)
-        socket
+  defp apply_rung(socket, %Title{} = title, rung, attrs) do
+    needs_calendar? =
+      TitleIntent.follows_releases?(rung) and
+        is_nil(ReleaseTracking.get_item_by_tmdb(title.tmdb_id, title.media_type))
 
-      # Already armed: the mode moves, nothing else changes.
-      {%Item{tracking_mode: current} = item, mode} when current != :none ->
-        {:ok, _item} = ReleaseTracking.set_tracking_mode(item, mode)
-        socket
-
-      # Disarmed: re-arming is the act again — lists it, announces it —
-      # and the calendar is already here, so it lands synchronously.
-      {%Item{} = _disarmed, mode} ->
-        {:ok, _item} = ReleaseTracking.arm(title, %{tracking_mode: mode})
-        socket
-
-      # Never tracked: the first arm fetches the calendar from TMDB.
-      {nil, mode} ->
-        ReleaseTracking.arm_async(title, %{tracking_mode: mode})
-        put_flash(socket, :info, "Tracking #{title.name} — releases will appear under Coming up.")
+    if needs_calendar? do
+      ReleaseTracking.set_rung_async(title, rung, attrs)
+      put_flash(socket, :info, "Tracking #{title.name} — releases will appear under Coming up.")
+    else
+      {:ok, _intent} = ReleaseTracking.set_rung(title, rung, attrs)
+      socket
     end
   end
+
+  defp rung_atom("off"), do: :off
+  defp rung_atom("list"), do: :list
+  defp rung_atom("follow"), do: :follow
+  defp rung_atom("ask"), do: :ask
+  defp rung_atom("grab"), do: :grab
+  defp rung_atom("default"), do: :default
 end

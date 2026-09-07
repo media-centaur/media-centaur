@@ -163,7 +163,7 @@ defmodule MediaCentaur.Acquisition.Plans do
       # the series is the separate act the third scope entry names, and
       # it arms rather than tracks quietly, so the title is listed as
       # part of it (ADR-065).
-      if track?, do: ReleaseTracking.arm(title)
+      if track?, do: ReleaseTracking.set_rung(title, :follow)
       :ok
     else
       [] ->

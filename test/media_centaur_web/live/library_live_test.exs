@@ -353,12 +353,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       view |> element("#detail-watchlist-toggle") |> render_click()
 
-      assert Discovery.on_watchlist?(605, :movie)
+      assert Discovery.listed?(605, :movie)
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true']")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
 
-      refute Discovery.on_watchlist?(605, :movie)
+      refute Discovery.listed?(605, :movie)
       assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
 
       await_supervised_tasks()
@@ -469,7 +469,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       view |> element("#detail-watchlist-toggle") |> render_click()
 
-      assert Discovery.on_watchlist?(606, :tv_series)
+      assert Discovery.listed?(606, :tv_series)
 
       await_supervised_tasks()
     end
@@ -498,8 +498,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # The toggle acts on the member the panel shows (the default first
       # part), not the collection or any other member — pins the
       # gate-vs-action agreement through `watchlist_subject/2`.
-      assert Discovery.on_watchlist?(607, :movie)
-      refute Discovery.on_watchlist?(608, :movie)
+      assert Discovery.listed?(607, :movie)
+      refute Discovery.listed?(608, :movie)
 
       await_supervised_tasks()
     end

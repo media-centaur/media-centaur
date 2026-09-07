@@ -2,6 +2,7 @@ defmodule MediaCentaur.Acquisition do
   use Boundary,
     deps: [
       MediaCentaur.Capabilities,
+      MediaCentaur.Discovery,
       MediaCentaur.Downloads,
       MediaCentaur.ErrorReports,
       MediaCentaur.HttpClient,

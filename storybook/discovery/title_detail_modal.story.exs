@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
         title: title,
         primary: :download,
         scoped?: title.media_type == :tv_series,
-        on_watchlist?: false,
+        rung: nil,
         acquisition?: true,
         default_grab_mode: "ask"
       },
@@ -99,7 +99,6 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
     struct!(
       %TrackingDetail{
         item_id: "sample-show",
-        mode: :watch,
         tracking_since: ~U[2026-03-14 12:00:00Z],
         timeline: [
           episode("s02e05", 2, 5, @today, :upcoming),
@@ -175,7 +174,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
               note: "Watch it before anyone spoils the ending.",
               acted_at: ~U[2026-09-01 10:00:00Z],
               own?: false,
-              on_watchlist?: true,
+              rung: :follow,
               recommendations: [recommendation(movie(), "Sample Friend", :love)]
             })
         }
@@ -189,7 +188,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
           today: @today,
           detail:
             detail(movie(), %{
-              on_watchlist?: true,
+              rung: :follow,
               recommendations: [
                 recommendation(movie(), "Other Friend", :like),
                 recommendation(movie(), "Sample Friend", :love)
@@ -271,7 +270,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
             "recent activity, then the overview.",
         attributes: %{
           today: @today,
-          detail: detail(show(), %{primary: nil, on_watchlist?: true, tracking: tracking(%{})})
+          detail: detail(show(), %{primary: nil, rung: :follow, tracking: tracking(%{})})
         }
       },
       %Variation{
@@ -284,11 +283,10 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
           detail:
             detail(show(), %{
               primary: nil,
-              on_watchlist?: true,
+              rung: :grab,
               lower_quality_accepted?: true,
               tracking:
                 tracking(%{
-                  mode: :grab,
                   timeline: [
                     episode("s02e05", 2, 5, @today, :armed),
                     episode("s02e06", 2, 6, ~D[2026-08-11], :armed)
@@ -298,19 +296,13 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
         }
       },
       %Variation{
-        id: :disarmed,
+        id: :off,
         description:
-          "A title a person turned Off: the control shows Off and nothing else of " <>
-            "tracking — no timeline, no activity, no Tracking since — because the row " <>
-            "is inert (ADR-065).",
+          "A title that is not on the ladder: the control shows Off and there is no " <>
+            "tracking half at all, because nothing is stored for it.",
         attributes: %{
           today: @today,
-          detail:
-            detail(show(), %{
-              primary: nil,
-              on_watchlist?: true,
-              tracking: tracking(%{mode: :none})
-            })
+          detail: detail(show(), %{primary: nil, rung: nil, tracking: nil})
         }
       },
       %Variation{
@@ -323,17 +315,18 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
           detail:
             detail(show(), %{
               primary: nil,
-              on_watchlist?: true,
               acquisition?: false,
-              tracking: tracking(%{mode: :global})
+              rung: :default,
+              tracking: tracking(%{})
             })
         }
       },
       %Variation{
-        id: :on_watchlist,
+        id: :listed,
         description:
-          "On the watchlist, from either tab: On watchlist replaces Add, and Remove from watchlist is the tertiary verb.",
-        attributes: %{today: @today, detail: detail(movie(), %{on_watchlist?: true})}
+          "On the list at List: the ladder control carries that state, and the strip " <>
+            "has no Add/Remove verbs of its own any more.",
+        attributes: %{today: @today, detail: detail(movie(), %{rung: :list})}
       }
     ]
   end

@@ -19,6 +19,7 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Discovery
   alias MediaCentaur.Acquisition.{AutoGrabSettings, DropPlanner, ModeReconciler, PlanEvents, Plans}
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.ReleaseTracking
@@ -90,8 +91,12 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
 
   defp tracking_item_off?(plan) do
     case plan.tracking_item_id && ReleaseTracking.get_item(plan.tracking_item_id) do
-      nil -> true
-      item -> AutoGrabSettings.effective_mode(item.tracking_mode, AutoGrabSettings.load()) == "off"
+      nil ->
+        true
+
+      item ->
+        Discovery.grab_mode(item.tmdb_id, item.media_type, AutoGrabSettings.load().default_mode) ==
+          "off"
     end
   end
 

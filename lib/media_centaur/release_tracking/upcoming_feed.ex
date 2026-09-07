@@ -48,8 +48,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:upcoming` — tracked and dated, but not auto-grabbing (neutral).
   """
 
+  alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
@@ -288,9 +288,14 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
   # Honest "armed": a grab only fires when acquisition is live AND the effective
   # auto-grab mode is the full-auto posture. Anything else reads as :upcoming.
+  # Pure: the rung comes in on the context, keyed by title, exactly as
+  # `auto_grab_default_mode` does. Looking it up here would make a
+  # presentation module read the database.
   defp will_auto_grab?(item, context) do
+    rung = Map.get(context[:rungs] || %{}, {item.tmdb_id, item.media_type})
+
     context.acquisition_ready? and
-      Item.grab_mode(item.tracking_mode, context.auto_grab_default_mode) == "all_releases"
+      TitleIntent.grab_mode(rung, context.auto_grab_default_mode) == "all_releases"
   end
 
   # A forecast is about the future. A *past* release earns a spot while the

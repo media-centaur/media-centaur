@@ -138,7 +138,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   defp do_refresh_all do
     Log.info(:acquisition, "release tracking: starting refresh cycle")
 
-    items = ReleaseTracking.list_active_items()
+    items = ReleaseTracking.list_all_items()
 
     # Phase 1: parallel TMDB fetches (network I/O). Safe to parallelize
     # because nothing writes to the DB yet.
@@ -306,7 +306,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   defp do_sweep do
     Log.info(:acquisition, "release tracking: sweep")
 
-    Enum.each(ReleaseTracking.list_active_items(), fn item ->
+    Enum.each(ReleaseTracking.list_all_items(), fn item ->
       # The sweep is the want ledger's heartbeat (ADR-056): idempotent
       # sync per tick means the ledger self-backfills on first deploy
       # and self-heals after any missed seam.

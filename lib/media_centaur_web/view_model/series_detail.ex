@@ -23,7 +23,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   alias MediaCentaur.Library.Views.DetailItem
   alias MediaCentaur.Playback.ResumeTarget
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
   alias MediaCentaurWeb.ViewModel.SeasonView
 
@@ -39,7 +38,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     :entity,
     :progress,
     :progress_records,
-    :tracking_mode,
     :seasons,
     :extras,
     :resume_target,
@@ -53,7 +51,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
           entity: map(),
           progress: map() | nil,
           progress_records: list(),
-          tracking_mode: Item.tracking_mode() | nil,
           seasons: [SeasonView.t()],
           extras: list(),
           resume_target: map() | nil,
@@ -71,7 +68,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   Reads the Library half from `MediaCentaur.Library.Views.Detail`
   (Pillar-2 ETS projection, microsecond reads in production; falls
   back to a live build in test mode). Cross-context overlays
-  (ReleaseTracking releases, tracking_mode) compose at this layer
+  (ReleaseTracking releases) compose at this layer
   per ADR-029, mirroring the HomeLive pattern.
 
   Computes the resume target via `MediaCentaur.Playback.ResumeTarget`
@@ -102,14 +99,13 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     releases =
       ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :tv_series)
 
-    tracking_mode = lookup_tracking_mode(entity)
     resume_target = ResumeTarget.compute(entity, progress_records)
-    {:ok, build(entry, releases, tracking_mode, resume_target)}
+    {:ok, build(entry, releases, resume_target)}
   end
 
   @doc """
   Pure: builds a `%SeriesDetail{}` from a loaded library entry, the
-  releases relevant to it, the tracking mode (`ReleaseTracking.tracking_status/1`), and the precomputed
+  releases relevant to it, and the precomputed
   resume target.
 
   Releases are expected to be `MediaCentaur.ReleaseTracking.Release.t()`
@@ -118,8 +114,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   No database access. Tests construct the inputs as fixtures.
   """
-  @spec build(map(), [map()], Item.tracking_mode() | nil, map() | nil) :: t()
-  def build(entry, releases, tracking_mode, resume_target) do
+  @spec build(map(), [map()], map() | nil) :: t()
+  def build(entry, releases, resume_target) do
     seasons = entry.entity.seasons || []
     releases_by_season = Enum.group_by(releases, & &1.season_number)
     library_season_numbers = MapSet.new(seasons, & &1.season_number)
@@ -146,7 +142,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       entity: entry.entity,
       progress: entry.progress,
       progress_records: entry.progress_records,
-      tracking_mode: tracking_mode,
       seasons: library_seasons ++ future_seasons,
       extras: entry.entity.extras || [],
       resume_target: resume_target,
@@ -160,7 +155,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   per-episode `state` and `is_resume_target` flags stay current
   without a fresh DB query.
 
-  Pure: reuses the cached `releases` and `tracking_mode` on the
+  Pure: reuses the cached `releases` on the
   existing struct.
   """
   @spec with_progress(t(), map() | nil, list(), map() | nil) :: t()
@@ -171,7 +166,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       progress_records: progress_records
     }
 
-    build(entry, sd.releases || [], sd.tracking_mode, resume_target)
+    build(entry, sd.releases || [], resume_target)
   end
 
   # --- Library season construction ---
@@ -328,20 +323,4 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
        when is_integer(season) and is_integer(episode), do: {season, episode}
 
   defp resume_target_episode_key(_), do: nil
-
-  defp lookup_tracking_mode(%{external_ids: external_ids, type: :tv_series})
-       when is_list(external_ids) do
-    case Enum.find(external_ids, &match?(%{source: "tmdb"}, &1)) do
-      %{external_id: tmdb_id_str} ->
-        case Integer.parse(tmdb_id_str) do
-          {tmdb_id, ""} -> ReleaseTracking.tracking_status({tmdb_id, :tv_series})
-          _ -> nil
-        end
-
-      _ ->
-        nil
-    end
-  end
-
-  defp lookup_tracking_mode(_), do: nil
 end

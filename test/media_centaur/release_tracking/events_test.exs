@@ -1,119 +1,83 @@
 defmodule MediaCentaur.ReleaseTracking.EventsTest do
+  @moduledoc """
+  Creating a tracked title is machinery and is silent; a person raising a
+  rung onto Follow is the act, and announces. The announcement follows
+  the act, not the row — which is why the row needs no provenance field
+  to say where it came from.
+  """
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
-  import MediaCentaur.TestFactory
+  import MediaCentaur.TmdbStubs
 
+  alias MediaCentaur.Discovery
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Events.TrackingStarted
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
 
-  # ADR-065: creating a tracked title is machinery and is silent; arming is
-  # a person's act and announces. The announcement follows the act, not the
-  # row — which is why `source` could be removed with nothing lost.
-
   setup do
     TmdbStubs.setup_tmdb_client()
     TmdbStubs.setup_artwork_cache()
+    stub_series_universe_for_targeting()
     ReleaseTracking.subscribe()
     :ok
   end
 
-  test "arming announces TrackingStarted with the title it holds" do
-    item = create_tracking_item(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
-    title = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
+  defp show(tmdb_id), do: Title.new!(%{tmdb_id: tmdb_id, media_type: :tv_series, name: "Sample Show"})
 
-    {:ok, armed} = ReleaseTracking.arm(title)
+  test "crossing onto Follow announces TrackingStarted with the title it holds" do
+    {:ok, _intent} = ReleaseTracking.set_rung(show(246_810), :follow)
     await_supervised_tasks()
 
-    assert armed.id == item.id
+    item = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
 
     assert_receive {:tracking_started, %TrackingStarted{item_id: item_id, title: %Title{} = announced}},
                    500
 
     assert item_id == item.id
-    assert %Title{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"} = announced
+    assert %Title{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"} = announced
   end
 
-  test "arming puts the title on the watchlist — the invariant, kept by the act itself" do
-    create_tracking_item(%{tmdb_id: 1400, media_type: :tv_series, name: "Sample Show"})
-    title = Title.new!(%{tmdb_id: 1400, media_type: :tv_series, name: "Sample Show"})
-
-    {:ok, _armed} = ReleaseTracking.arm(title)
+  test "the record is written by the same act — there is no second step to forget" do
+    {:ok, _intent} = ReleaseTracking.set_rung(show(246_810), :follow)
     await_supervised_tasks()
 
-    assert MediaCentaur.Discovery.on_watchlist?(1400, :tv_series)
+    assert Discovery.listed?(246_810, :tv_series)
+    assert Discovery.rung(246_810, :tv_series) == :follow
   end
 
-  test "arming an already-armed title does not overwrite the mode the person set" do
-    item = create_tracking_item(%{tmdb_id: 1401, media_type: :tv_series, name: "Sample Show"})
-    {:ok, _} = ReleaseTracking.set_tracking_mode(item, :grab)
-    title = Title.new!(%{tmdb_id: 1401, media_type: :tv_series, name: "Sample Show"})
+  test "moving between following rungs announces nothing — following already began" do
+    {:ok, _} = ReleaseTracking.set_rung(show(246_810), :follow)
+    await_supervised_tasks()
+    assert_receive {:tracking_started, %TrackingStarted{}}, 500
 
-    {:ok, armed} = ReleaseTracking.arm(title)
+    {:ok, intent} = ReleaseTracking.set_rung(show(246_810), :grab)
     await_supervised_tasks()
 
-    assert armed.tracking_mode == :grab
+    assert intent.rung == :grab
+    refute_receive {:tracking_started, _event}, 100
   end
 
-  test "arming with a chosen mode lands on that mode, tracked or not" do
-    item = create_tracking_item(%{tmdb_id: 1404, media_type: :tv_series, name: "Sample Show"})
-    title = Title.new!(%{tmdb_id: 1404, media_type: :tv_series, name: "Sample Show"})
+  test "dropping off the ladder and back on announces again" do
+    {:ok, _} = ReleaseTracking.set_rung(show(246_810), :grab)
+    await_supervised_tasks()
+    assert_receive {:tracking_started, %TrackingStarted{}}, 500
 
-    {:ok, armed} = ReleaseTracking.arm(title, %{tracking_mode: :ask})
+    {:ok, nil} = ReleaseTracking.set_rung(show(246_810), :off)
+    {:ok, _} = ReleaseTracking.set_rung(show(246_810), :follow)
     await_supervised_tasks()
 
-    assert armed.id == item.id
-    assert armed.tracking_mode == :ask
+    assert_receive {:tracking_started, %TrackingStarted{}}, 500
   end
 
-  test "re-arming a disarmed title raises it to the watchlist seed and announces again" do
-    item = create_tracking_item(%{tmdb_id: 1405, media_type: :tv_series, name: "Sample Show"})
-    {:ok, _} = ReleaseTracking.disarm(item)
-    title = Title.new!(%{tmdb_id: 1405, media_type: :tv_series, name: "Sample Show"})
-
-    {:ok, armed} = ReleaseTracking.arm(title)
-    await_supervised_tasks()
-
-    assert armed.tracking_mode == :watch
-    assert_receive {:tracking_started, %TrackingStarted{item_id: item_id}}, 500
-    assert item_id == item.id
-  end
-
-  test "disarming and re-arming write the activity feed; a re-arm of an armed title writes nothing" do
-    item = create_tracking_item(%{tmdb_id: 1406, media_type: :tv_series, name: "Sample Show"})
-    title = Title.new!(%{tmdb_id: 1406, media_type: :tv_series, name: "Sample Show"})
-
-    {:ok, _} = ReleaseTracking.arm(title)
-    await_supervised_tasks()
-    assert Enum.map(ReleaseTracking.list_events_for_item(item.id), & &1.event_type) == []
-
-    {:ok, disarmed} = ReleaseTracking.disarm(item)
-    {:ok, _still} = ReleaseTracking.disarm(disarmed)
-
-    assert [%{event_type: :stopped_tracking, description: description}] =
-             ReleaseTracking.list_events_for_item(item.id)
-
-    assert description =~ "won't be picked up"
-
-    {:ok, _} = ReleaseTracking.arm(title, %{tracking_mode: :grab})
-    await_supervised_tasks()
-
-    assert [:began_tracking, :stopped_tracking] =
-             Enum.map(ReleaseTracking.list_events_for_item(item.id), & &1.event_type)
-
-    assert ReleaseTracking.get_item(item.id).tracking_mode == :grab
-  end
-
-  test "creating a tracked title is silent, whatever mode it is seeded with" do
-    for {tmdb_id, mode} <- [{1402, :watch}, {1403, :global}] do
+  test "creating a tracked title directly is silent — it is machinery, not an act" do
+    for tmdb_id <- [1402, 1403] do
       {:ok, _item} =
         ReleaseTracking.track_item(%{
           tmdb_id: tmdb_id,
           media_type: :tv_series,
-          name: "Sample Show",
-          tracking_mode: mode
+          name: "Sample Show"
         })
     end
 

@@ -21,10 +21,10 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   `glass-menu` idiom. Only the last of the three follows the series:
   a scope covers episodes that have aired, and what is still to come is
   a separate act. Add to
-  watchlist is the secondary, replaced by a quiet On watchlist once
-  saved, at which point Remove from watchlist appears as a quiet
-  tertiary verb. Delete <noun> is the other tertiary verb, on an own
-  activity only, named by its kind (`ActivityWords.noun/1`).
+  watchlist add/remove are gone as verbs: they were the bottom two rungs
+  of the ladder wearing a different control, and the ladder is one
+  control now. Delete <noun> is the one tertiary verb, on an own activity
+  only, named by its kind (`ActivityWords.noun/1`).
 
   Below the strip, for every title: the release timeline
   (`ReleaseTimeline`, while the title is tracked and armed), the
@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   `close_title`, `title_download` (`scope` for a series),
   `title_scope_toggle`, `title_scope_close`, `title_watchlist_add`,
   `title_watchlist_remove`, `title_activity_delete`,
-  `set_tracking_mode`, `reset_lower_quality`.
+  `set_rung`, `reset_lower_quality`.
 
   Nav: the backdrop is the `title_detail` overlay
   (`config.overlays.title_detail`): the action strip is the
@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
-  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingModeControl
+  alias MediaCentaurWeb.Components.Discovery.IntentControl
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.DiscoveryLive.Logic
   alias MediaCentaurWeb.TitleRef
@@ -108,7 +108,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
             <span :if={@detail.title.year} class="normal-case tracking-normal">
               · {@detail.title.year}
             </span>
-            <span :if={armed?(@tracking)} class="normal-case tracking-normal">
+            <span :if={followed?(@tracking)} class="normal-case tracking-normal">
               · Tracking since {tracking_since_label(@tracking.tracking_since)}
             </span>
           </p>
@@ -121,7 +121,6 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
             <div class="glass-menu" phx-click-away="title_scope_close">
               <div class="flex flex-wrap items-center gap-3" data-nav-zone="title_detail_body">
                 <.primary detail={@detail} scope_menu_open={@scope_menu_open} />
-                <.secondary detail={@detail} />
                 <.tertiary detail={@detail} />
               </div>
               <ul
@@ -175,25 +174,24 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
           </div>
 
           <ReleaseTimeline.release_timeline
-            :if={armed?(@tracking)}
+            :if={followed?(@tracking)}
             id="title-release-timeline"
             timeline={@tracking.timeline}
             today={@today}
           />
 
           <div data-nav-zone="title_detail_tracking">
-            <TrackingModeControl.tracking_mode_control
+            <IntentControl.intent_control
               id="title-tracking-mode"
               ref={@ref}
-              mode={@tracking && @tracking.mode}
+              rung={@detail.rung}
               default_grab_mode={@detail.default_grab_mode}
               acquisition?={@detail.acquisition?}
-              on_watchlist?={@detail.on_watchlist?}
               lower_quality_accepted?={@detail.lower_quality_accepted?}
             />
           </div>
 
-          <section :if={armed?(@tracking) and @tracking.activity != []} class="space-y-2">
+          <section :if={followed?(@tracking) and @tracking.activity != []} class="space-y-2">
             <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
               Recent activity
             </h3>
@@ -315,45 +313,12 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
 
   attr :detail, TitleDetail, required: true
 
-  defp secondary(%{detail: %{on_watchlist?: true}} = assigns) do
-    ~H"""
-    <span id="title-on-watchlist" class="text-sm text-base-content/55">On watchlist</span>
-    """
-  end
-
-  defp secondary(assigns) do
-    ~H"""
-    <.button
-      id="title-watchlist-add"
-      variant="secondary"
-      size="sm"
-      phx-click="title_watchlist_add"
-      data-nav-item
-      tabindex="0"
-    >
-      Add to watchlist
-    </.button>
-    """
-  end
-
-  attr :detail, TitleDetail, required: true
-
-  # Quiet tertiary verbs, each only when it applies: Remove when the
-  # title is on the watchlist, Delete for an own activity.
+  # The one quiet tertiary verb: Delete, for an own activity. Listing and
+  # de-listing were here as separate verbs until the ladder made them two
+  # rungs of the control below.
   defp tertiary(assigns) do
     ~H"""
     <span class="ml-auto flex items-center gap-3">
-      <button
-        :if={@detail.on_watchlist?}
-        id="title-watchlist-remove"
-        type="button"
-        class="cursor-pointer text-xs text-base-content/55 transition-colors hover:text-base-content/60"
-        phx-click="title_watchlist_remove"
-        data-nav-item
-        tabindex="0"
-      >
-        Remove from watchlist
-      </button>
       <button
         :if={@detail.own?}
         id="title-activity-delete"
@@ -370,10 +335,9 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   end
 
   @doc "Whether the title is tracked above Off — the timeline and activity are only worth showing then."
-  @spec armed?(TrackingDetail.t() | nil) :: boolean()
-  def armed?(nil), do: false
-  def armed?(%{mode: :none}), do: false
-  def armed?(%{mode: _mode}), do: true
+  @spec followed?(TrackingDetail.t() | nil) :: boolean()
+  def followed?(nil), do: false
+  def followed?(%TrackingDetail{}), do: true
 
   # The artwork ladder (UIDR-021): the local cached tier the host
   # resolved, else the live preview's backdrop (poster as its fallback),

@@ -41,7 +41,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffs do
       |> Repo.exists?()
 
     if grab_future? do
-      case ensure_tracked(pursuit.tmdb_id, pursuit.tmdb_type, pursuit.title) do
+      case ensure_followed(pursuit.tmdb_id, pursuit.tmdb_type, pursuit.title, :grab) do
         {:ok, item} ->
           Log.info(:acquisition, "grab-future handoff — now tracking #{item.name}")
 
@@ -67,7 +67,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffs do
   def track_plan_gaps(plan_id) do
     with %Plan{} = plan <- Repo.get(Plan, plan_id) || {:error, :not_found},
          [_ | _] = gaps <- unfound_units(plan.id),
-         {:ok, item} <- ensure_tracked(plan.tmdb_id, plan.tmdb_type, plan.title) do
+         {:ok, item} <- ensure_followed(plan.tmdb_id, plan.tmdb_type, plan.title, :follow) do
       specs = Enum.map(gaps, &gap_spec(plan, &1))
       opened = ReleaseTracking.open_gap_wants(item, specs)
 
@@ -112,18 +112,28 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffs do
     %{season_number: unit.season_number, episode_number: unit.episode_number, title: unit.label}
   end
 
-  defp ensure_tracked(tmdb_id, tmdb_type, title) do
+  # Raises the title onto `rung` when it is not followed yet, and answers
+  # with the tracked title either way — the handoffs need the row to hang
+  # wants on, but the rung is what actually decides it exists.
+  defp ensure_followed(tmdb_id, tmdb_type, title, rung) do
     tmdb_id_int = String.to_integer(tmdb_id)
     media_type = media_type_for(tmdb_type)
 
     case ReleaseTracking.get_item_by_tmdb(tmdb_id_int, media_type) do
-      nil ->
-        ReleaseTracking.track_from_search(
-          Title.new!(%{tmdb_id: tmdb_id_int, media_type: media_type, name: title})
-        )
-
-      item ->
+      %ReleaseTracking.Item{} = item ->
         {:ok, item}
+
+      nil ->
+        with {:ok, _intent} <-
+               ReleaseTracking.set_rung(
+                 Title.new!(%{tmdb_id: tmdb_id_int, media_type: media_type, name: title}),
+                 rung
+               ) do
+          case ReleaseTracking.get_item_by_tmdb(tmdb_id_int, media_type) do
+            %ReleaseTracking.Item{} = item -> {:ok, item}
+            nil -> {:error, :nothing_to_follow}
+          end
+        end
     end
   end
 

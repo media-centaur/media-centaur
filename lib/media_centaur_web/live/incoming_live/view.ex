@@ -104,6 +104,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
       today: inputs.today,
       acquisition_ready?: inputs.acquisition_ready?,
       auto_grab_default_mode: inputs.auto_grab_default_mode,
+      rungs: Map.get(inputs, :rungs, %{}),
       grab_status_by_key: if(inputs.acquisition_ready?, do: inputs.grab_status_by_key, else: %{})
     }
   end

@@ -52,7 +52,7 @@ defmodule MediaCentaur.DiscoveryRows do
       own?: Map.get(overrides, :own?, false),
       poster_url: Map.get(overrides, :poster_url),
       library_owner_id: Map.get(overrides, :library_owner_id),
-      on_watchlist?: Map.get(overrides, :on_watchlist?, false),
+      rung: Map.get(overrides, :rung),
       acquisition_state: Map.get(overrides, :acquisition_state)
     }
   end

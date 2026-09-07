@@ -69,13 +69,14 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   describe "/discovery with the title modal open" do
     setup do
       {:ok, _item} =
-        MediaCentaur.Discovery.add_to_watchlist(
+        MediaCentaur.Discovery.put_rung(
           MediaCentaur.TMDB.Title.new!(%{
             tmdb_id: 777,
             media_type: :movie,
             name: "Sample Movie",
             release_date: ~D[2010-01-01]
-          })
+          }),
+          :list
         )
 
       :ok

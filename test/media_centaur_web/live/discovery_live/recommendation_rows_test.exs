@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendationRowsTest do
             activity: %{tmdb_id: 1},
             poster_url: "/p.jpg",
             library_owner_id: 9,
-            on_watchlist?: true,
+            rung: :list,
             acquisition_state: :downloading
           })
         ],
@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendationRowsTest do
     assert %{
              poster_url: "/p.jpg",
              library_owner_id: 9,
-             on_watchlist?: true,
+             rung: :list,
              acquisition_state: :downloading
            } =
              row
