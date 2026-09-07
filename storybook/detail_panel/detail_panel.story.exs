@@ -49,8 +49,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        releases project a synthetic `kind: :future` SeasonView. Hits
        the no-watched-count branch on the season header.
     8. `:tv_series_untracked` — same library shape as 3 but
-       `tracking_status: nil`. Confirms the bell-icon affordance is
-       absent and no upcoming/future-season content renders.
+       `tracking: nil`. Confirms the tracking block is absent and no
+       upcoming/future-season content renders.
+    8b. `:tv_series_disarmed` — tracked but Off: the control alone,
+       no timeline, no activity (the row is inert, ADR-065).
     9. `:movie_series` — the movie-first collection modal (UIDR-023):
        the selected member (movie 2, in progress) renders the
        standalone-movie panel — member synopsis, Resume, the member's
@@ -128,9 +130,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       union (or `Ecto.Enum`-style atom + path payload struct) would
       let dialyzer catch the per-button match expressions in the
       template.
-    * `tracking_status: :atom, default: nil` — observed values are
-      `nil | :watching | :ignored | :unknown` (see `tracking_icon/1`
-      catch-all). Should be a typed enum.
     * `expanded_seasons: :any, default: nil` — really `MapSet.t() |
       nil`, with `nil` meaning "compute the default with
       `auto_expand_season/2`". Worth either documenting the
@@ -246,7 +245,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           available: true,
           tmdb_ready: true,
           expanded_seasons: MapSet.new(),
-          tracking_status: :watching,
+          tracking: tracking(%{}),
           recommendations: [
             %{
               activity: %MediaCentaur.Activities.Activity{
@@ -389,11 +388,18 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :tv_series_untracked,
         description:
-          "Same library shape as 3 but `tracking_status: nil`: the show isn't " <>
-            "tracked in `ReleaseTracking`, so the bell affordance in the hero " <>
-            "actions slot is absent and `seasons_view` carries no Upcoming items " <>
-            "or future seasons. Confirms no-regression for the untracked case.",
+          "Same library shape as 3 but `tracking: nil`: the show isn't tracked " <>
+            "in `ReleaseTracking`, so no tracking block follows the seasons and " <>
+            "`seasons_view` carries no Upcoming items or future seasons. " <>
+            "Confirms no-regression for the untracked case.",
         attributes: tv_series_untracked_attrs()
+      },
+      %Variation{
+        id: :tv_series_disarmed,
+        description:
+          "Tracked but turned Off (UIDR-035): under the seasons only the tracking-mode " <>
+            "control at Off — no timeline, no activity, because a disarmed row is inert.",
+        attributes: %{tv_series_attrs() | tracking: tracking(%{mode: :none})}
       },
       %Variation{
         id: :movie_series,
@@ -694,7 +700,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       progress_records: progress_records,
       available: true,
       tmdb_ready: true,
-      tracking_status: :watching,
+      tracking: tracking(%{}),
       expanded_seasons: MapSet.new([1]),
       seasons_view: build_library_only_seasons_view(entity, progress_records, {1, 2})
     }
@@ -837,15 +843,46 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       progress_records: [],
       available: true,
       tmdb_ready: true,
-      tracking_status: :watching,
+      tracking: tracking(%{}),
       expanded_seasons: MapSet.new([1]),
       seasons_view: [s1_future]
     }
   end
 
+  # The tracked-title half the tracking block renders (UIDR-035): armed at
+  # the app default with the next episode announced, and a short activity feed.
+  defp tracking(overrides) do
+    struct!(
+      %MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail{
+        item_id: "sample-item",
+        ref: "tv_series-42",
+        mode: :global,
+        tracking_since: ~U[2026-03-14 12:00:00Z],
+        today: ~D[2026-08-03],
+        acquisition?: true,
+        default_grab_mode: "all_releases",
+        timeline: [
+          %MediaCentaur.ReleaseTracking.UpcomingFeed.Event{
+            id: "s02e01",
+            item_id: "sample-item",
+            item_name: "Sample Show",
+            media_type: :tv_series,
+            kind: :episode,
+            season_number: 2,
+            episode_number: 1,
+            air_date: ~D[2026-08-10],
+            status: :armed
+          }
+        ],
+        activity: [%{text: "1 new episode announced", at: "2 days ago"}]
+      },
+      overrides
+    )
+  end
+
   defp tv_series_untracked_attrs do
     base = tv_series_attrs()
-    %{base | tracking_status: nil}
+    %{base | tracking: nil}
   end
 
   defp sample_tv_progress_records(entity) do

@@ -296,16 +296,16 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       assert %EpisodeListItem.Library{state: :unwatched} = item3
     end
 
-    test "tracking_status field passes through unchanged" do
+    test "tracking_mode field passes through unchanged" do
       tv = build_tv_series(%{seasons: []})
 
       view_model =
         SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], :none, nil)
 
-      assert view_model.tracking_status == :none
+      assert view_model.tracking_mode == :none
 
       view_model = SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil, nil)
-      assert view_model.tracking_status == nil
+      assert view_model.tracking_mode == nil
     end
 
     test "season with no episodes and zero number_of_episodes produces empty items" do
@@ -342,7 +342,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       tv = create_tv_series_with_one_episode("Sample Series")
 
       assert {:ok, view_model} = SeriesDetail.compose(tv.id)
-      assert view_model.tracking_status == nil
+      assert view_model.tracking_mode == nil
       assert [%SeasonView{kind: :library, items: items}] = view_model.seasons
       assert Enum.all?(items, &match?(%EpisodeListItem.Library{}, &1))
     end
@@ -367,7 +367,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       })
 
       assert {:ok, view_model} = SeriesDetail.compose(tv.id)
-      assert view_model.tracking_status == :global
+      assert view_model.tracking_mode == :global
 
       assert [
                %SeasonView{kind: :library, season_number: 1},
@@ -400,7 +400,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       assert {:ok, view_model} = SeriesDetail.compose(tv.id)
       # Just the library season — no future bucket because the Item is ignored.
       assert [%SeasonView{kind: :library}] = view_model.seasons
-      assert view_model.tracking_status == :none
+      assert view_model.tracking_mode == :none
     end
   end
 

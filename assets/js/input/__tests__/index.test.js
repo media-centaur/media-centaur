@@ -225,6 +225,16 @@ describe("Detail overlay cast region (real config)", () => {
       overlayLayout: inputConfig.overlays.detail.layout,
     })
 
+  test("the tracking block is a toolbar under the detail list: DOWN from the list enters it, UP climbs back (UIDR-035)", () => {
+    expect(inputConfig.instanceTypes.detail_tracking).toBe(Context.TOOLBAR)
+    expect(inputConfig.contextSelectors.detail_tracking).toBe("[data-nav-zone='detail_tracking'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry).toContain("detail_tracking")
+    const graph = openDetail({ detail_actions: 3, detail_list: 8, detail_tracking: 5, grid: 12, sidebar: 7 })
+    expect(graph.detail_list.down).toBe("detail_tracking")
+    expect(graph.detail_tracking.up).toBe("detail_list")
+    expect(graph.detail_tracking.back).toBe("detail_actions")
+  })
+
   test("the cast body is a shelf-typed region of the detail overlay", () => {
     expect(inputConfig.instanceTypes.detail_cast).toBe(Context.SHELF)
     expect(inputConfig.contextSelectors.detail_cast).toBe("[data-nav-zone='detail_cast'] [data-nav-item]")

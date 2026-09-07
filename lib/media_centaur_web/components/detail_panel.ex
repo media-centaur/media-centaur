@@ -48,6 +48,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Detail.ViewControls
   alias MediaCentaurWeb.Components.ProgressHairline
+  alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingModeControl
   alias MediaCentaurWeb.ViewModel.Orientation
 
   # --- Public API ---
@@ -117,7 +120,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
   attr :deleting, :any, default: nil, doc: @doc_deleting
   attr :spoiler_free, :boolean, default: false
-  attr :tracking_status, :atom, default: nil
+
+  attr :tracking, TrackingDetail,
+    default: nil,
+    doc:
+      "the tracked-title half (`TrackingDetail.load/2`) for a series or collection — the release timeline, the tracking-mode control and recent activity below the list (UIDR-035); nil renders none of it"
 
   attr :recommendations, :list,
     default: [],
@@ -208,7 +215,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     extra_progress_by_id = index_extra_progress(assigns.entity)
 
-    has_scrollable_content = scrollable_content?(assigns.entity, assigns.detail_view)
+    has_scrollable_content =
+      scrollable_content?(assigns.entity, assigns.detail_view, assigns.tracking)
 
     playback =
       if member_view do
@@ -295,21 +303,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <:hero_mast :if={@recommendations != []}>
         <RecommendationPennant.recommendation_pennants recommendations={@recommendations} on_image />
       </:hero_mast>
-      <:hero_actions :if={@tracking_status}>
-        <.button
-          variant="dismiss"
-          size="sm"
-          shape="circle"
-          class="opacity-60 hover:opacity-100 transition-opacity"
-          phx-click="toggle_tracking"
-          title={tracking_title(@tracking_status)}
-        >
-          <.icon
-            name={tracking_icon(@tracking_status)}
-            class={tracking_icon_class(@tracking_status)}
-          />
-        </.button>
-      </:hero_actions>
       <%!-- The pinned block's content: identity lockup + hairline +
             metadata + play controls + synopsis. The sticky wrapper and
             its backdrop backing belong to the frame (CinematicShell).
@@ -454,8 +447,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             `detail_list` so ledger activity can't clobber the episode
             list's cursor memory), while Cast is a
             `detail_cast` photo grid navigated by
-            geometry. One body zone at a time — nav zones must never nest.
-            See UIDR-019. --%>
+            geometry. The tracking block under the list is its own
+            `detail_tracking` strip — a sibling, because nav zones must
+            never nest. See UIDR-019. --%>
       <:body :if={@has_scrollable_content}>
         <%= case @detail_view do %>
           <% :cast -> %>
@@ -497,6 +491,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 available={@available}
               />
             </div>
+            <.tracking_block tracking={@tracking} on_watchlist?={@watchlisted?} />
         <% end %>
       </:body>
     </CinematicShell.cinematic_shell>
@@ -593,19 +588,58 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  # --- Tracking Status Helpers (used in Hero :actions slot) ---
+  # --- Tracking (UIDR-035) ---
 
-  defp tracking_icon(:watching), do: "hero-bell-solid"
-  defp tracking_icon(:ignored), do: "hero-bell-slash"
-  defp tracking_icon(_), do: "hero-bell"
+  # The tracked-title half of the document, after what you have: the
+  # release timeline (while armed — a disarmed title is inert), the
+  # tracking-mode control, recent activity. The same two shared
+  # components the title detail modal mounts, so an owned series with an
+  # announced season is described in one place. Hidden entirely when the
+  # title is not tracked; that is the whole state, not a gap.
+  attr :tracking, TrackingDetail, default: nil
+  attr :on_watchlist?, :boolean, required: true
 
-  defp tracking_icon_class(:watching), do: "size-5 text-info"
-  defp tracking_icon_class(:ignored), do: "size-5 text-base-content/30"
-  defp tracking_icon_class(_), do: "size-5 text-base-content/20"
+  defp tracking_block(%{tracking: nil} = assigns), do: ~H""
 
-  defp tracking_title(:watching), do: "Tracking new releases — click to ignore"
-  defp tracking_title(:ignored), do: "Ignoring new releases — click to track"
-  defp tracking_title(_), do: "Not tracking"
+  defp tracking_block(assigns) do
+    ~H"""
+    <div
+      id="detail-tracking"
+      class="space-y-6 border-t border-base-content/10 px-6 pb-6 pt-6"
+      data-nav-zone="detail_tracking"
+    >
+      <ReleaseTimeline.release_timeline
+        :if={@tracking.mode != :none}
+        id="detail-release-timeline"
+        timeline={@tracking.timeline}
+        today={@tracking.today}
+      />
+      <TrackingModeControl.tracking_mode_control
+        id="detail-tracking-mode"
+        ref={@tracking.ref}
+        mode={@tracking.mode}
+        default_grab_mode={@tracking.default_grab_mode}
+        acquisition?={@tracking.acquisition?}
+        on_watchlist?={@on_watchlist?}
+        lower_quality_accepted?={@tracking.lower_quality_accepted?}
+      />
+      <section :if={@tracking.mode != :none and @tracking.activity != []} class="space-y-2">
+        <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
+          Recent activity
+        </h3>
+        <ul class="space-y-1.5">
+          <li
+            :for={entry <- @tracking.activity}
+            class="flex items-baseline justify-between gap-3 text-sm"
+          >
+            <span class="text-base-content/70">{entry.text}</span>
+            <span class="shrink-0 text-xs tabular-nums text-base-content/55">{entry.at}</span>
+          </li>
+        </ul>
+      </section>
+    </div>
+    """
+  end
 
   # Leaf-only (movie / video_object): containers derive their hairline
   # fraction from `ViewModel.Orientation`; a leaf's comes from its
@@ -684,11 +718,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   image. Content-fit panels (bare movies) instead center with an
   upward optical bias. See the app.css comments on
   `.modal-panel--full` / `.modal-panel--cinematic`.
+
+  A tracked title always scrolls: the tracking block sits under the list.
   """
-  @spec scrollable_content?(map(), atom()) :: boolean()
-  def scrollable_content?(entity, detail_view) do
+  @spec scrollable_content?(map(), atom(), TrackingDetail.t() | nil) :: boolean()
+  def scrollable_content?(entity, detail_view, tracking \\ nil) do
     detail_view in [:info, :cast] ||
       entity.type == :tv_series ||
+      tracking != nil ||
       Logic.entity_extras(entity) != []
   end
 

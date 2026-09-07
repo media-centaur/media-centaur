@@ -19,6 +19,11 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
       refute DetailPanel.scrollable_content?(%{type: :movie_series, extras: []}, :main)
     end
 
+    test "true for a tracked movie series — the tracking block sits under the list" do
+      tracking = %MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail{mode: :global}
+      assert DetailPanel.scrollable_content?(%{type: :movie_series, extras: []}, :main, tracking)
+    end
+
     test "true for a movie series carrying entity-level extras" do
       extra = build_extra(%{owner_type: :movie_series})
       assert DetailPanel.scrollable_content?(%{type: :movie_series, extras: [extra]}, :main)
