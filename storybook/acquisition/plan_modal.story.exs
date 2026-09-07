@@ -69,8 +69,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             "cinematic shell as the movie confirm). Quick-action presets, tri-state season " <>
             "rows collapsed by default; season 1 expanded showing the episode drill-in: the " <>
             "in-library row greyed (shown, never hidden), the unaired row inert. The footer " <>
-            "carries Track only (follow future releases, download nothing) for an untracked " <>
-            "series — the retired Track modal's verb, re-homed.",
+            "carries Watch for releases (arm the title: on the watchlist, following its " <>
+            "releases, downloading nothing) for an untracked series.",
         attributes: %{
           open: true,
           stage: :targeting,
@@ -138,7 +138,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :movie_confirm_upcoming,
         description:
-          "A movie that isn't out yet — the footer adds Track release (release tracking " <>
+          "A movie that isn't out yet — the footer adds Watch for release (release tracking " <>
             "watches for it, nothing is grabbed now). This is the only state that verb " <>
             "appears in; once the movie is out there is no future release to wait for.",
         attributes: %{

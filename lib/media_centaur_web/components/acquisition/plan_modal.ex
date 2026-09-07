@@ -341,11 +341,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             variant="neutral"
             size="sm"
             phx-click="plan_track_only"
-            title="Follow future releases — download nothing now"
+            title="Adds it to your watchlist and follows its releases — download nothing now"
             data-nav-item
             tabindex="0"
           >
-            Track only
+            Watch for releases
           </.button>
           <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
             Cancel
@@ -514,11 +514,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           variant="neutral"
           size="sm"
           phx-click="plan_track_only"
-          title="Watch for this movie's release — download nothing now"
+          title="Adds it to your watchlist and watches for its release — download nothing now"
           data-nav-item
           tabindex="0"
         >
-          Track release
+          Watch for release
         </.button>
         <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
           Cancel

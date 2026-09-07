@@ -14,15 +14,17 @@ describe("discovery behavior", () => {
     expect(behavior.activateOnFocus ?? []).toEqual([])
   })
 
-  test("the title_detail overlay is the action strip over the scope menu, DOWN/UP between them", () => {
+  test("the title_detail overlay is the action strip over the scope menu over the tracking strip, DOWN/UP between them", () => {
     expect(inputConfig.overlays.title_detail).toEqual({
-      entry: ["title_detail_body", "title_detail_menu"],
+      entry: ["title_detail_body", "title_detail_menu", "title_detail_tracking"],
       layout: {
-        title_detail_body: { down: ["title_detail_menu"] },
-        title_detail_menu: { up: ["title_detail_body"] },
+        title_detail_body: { down: ["title_detail_menu", "title_detail_tracking"] },
+        title_detail_menu: { up: ["title_detail_body"], down: ["title_detail_tracking"] },
+        title_detail_tracking: { up: ["title_detail_menu", "title_detail_body"] },
       },
     })
     expect(inputConfig.contextSelectors.title_detail_body).toBe("[data-nav-zone='title_detail_body'] [data-nav-item]")
     expect(inputConfig.contextSelectors.title_detail_menu).toBe("[data-nav-zone='title_detail_menu'] [data-nav-item]")
+    expect(inputConfig.contextSelectors.title_detail_tracking).toBe("[data-nav-zone='title_detail_tracking'] [data-nav-item]")
   })
 })

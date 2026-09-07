@@ -71,10 +71,13 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     assert has_element?(view, "#watchlist-item-movie-777", "In library")
     refute html =~ "Track release"
 
-    # The verb lives in the modal: the unaired show offers Track release,
-    # the owned movie offers the library detail.
+    # The unaired show has nothing to download: no primary verb, and the
+    # tracking-mode control in its modal is the arming surface. The owned
+    # movie offers the library detail and no control: its detail is the
+    # library's.
     view |> element("#watchlist-item-tv_series-42") |> render_click()
-    assert has_element?(view, "#title-track", "Track release")
+    refute has_element?(view, "#title-download")
+    assert has_element?(view, "#title-tracking-mode-watch")
     render_hook(view, "close_title", %{})
 
     view |> element("#watchlist-item-movie-777") |> render_click()
@@ -700,7 +703,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert %ReleaseTracking.Item{} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
     end
 
-    test "Track release from the modal hands off to tracking", %{conn: conn} do
+    test "choosing a mode on an untracked title arms it — listed, tracked, at that mode", %{
+      conn: conn
+    } do
       TmdbStubs.stub_series_universe_for_targeting()
 
       upcoming =
@@ -714,11 +719,96 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _} = Discovery.add_to_watchlist(upcoming)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
 
-      view |> element("#title-track") |> render_click()
+      # Not tracked: the control reads Off, and nothing tracking-shaped shows.
+      assert has_element?(view, "#title-tracking-mode[data-mode='none']")
+      refute has_element?(view, "#title-release-timeline")
+
+      view |> element("#title-tracking-mode-ask") |> render_click()
       assert render(view) =~ "Tracking Sample Show"
 
       await_supervised_tasks()
-      assert %{tmdb_id: 246_810} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
+      assert %{tracking_mode: :ask} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
+
+      # The broadcast lands the timeline and the mode on the open modal
+      # and the row.
+      render_until(view, fn _html -> has_element?(view, "#title-tracking-mode[data-mode='ask']") end)
+      assert has_element?(view, "#title-release-timeline")
+      assert has_element?(view, "#watchlist-item-tv_series-246810", "Tracking: Ask")
+    end
+
+    test "choosing a mode on a tracked title moves it; Off disarms and keeps the row", %{conn: conn} do
+      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
+      assert has_element?(view, "#title-tracking-mode[data-mode='global']")
+
+      view |> element("#title-tracking-mode-grab") |> render_click()
+      assert ReleaseTracking.get_item(item.id).tracking_mode == :grab
+      assert has_element?(view, "#title-tracking-mode[data-mode='grab']")
+
+      view |> element("#title-tracking-mode-none") |> render_click()
+      assert ReleaseTracking.get_item(item.id).tracking_mode == :none
+      assert has_element?(view, "#title-tracking-mode[data-mode='none']")
+      refute has_element?(view, "#title-release-timeline")
+      await_supervised_tasks()
+    end
+
+    test "a watchlist row shows its mode as a marker and never a control; Off shows nothing", %{
+      conn: conn
+    } do
+      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      {:ok, _} = ReleaseTracking.set_tracking_mode(item, :watch)
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+
+      assert has_element?(view, "#watchlist-item-movie-777", "Tracking: Watch")
+      refute has_element?(view, "#watchlist-item-movie-777 [data-component='tracking-mode-control']")
+
+      {:ok, _} = ReleaseTracking.disarm(item)
+
+      render_until(view, fn _html ->
+        not has_element?(view, "#watchlist-item-movie-777", "Tracking:")
+      end)
+
+      await_supervised_tasks()
+    end
+
+    test "a watchlist row states its next release date", %{conn: conn} do
+      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), 1),
+        title: "Digital",
+        release_type: "digital",
+        released: false
+      })
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      assert has_element?(view, "#watchlist-item-movie-777", "Next: Tomorrow")
+      await_supervised_tasks()
+    end
+
+    test "the modal shows the timeline and activity for a tracked title", %{conn: conn} do
+      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), 3),
+        title: "Digital",
+        release_type: "digital",
+        released: false
+      })
+
+      {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
+
+      assert has_element?(view, "#title-release-timeline-next", "Digital release")
+      assert html =~ "Tracking since"
+      await_supervised_tasks()
     end
 
     test "Remove from watchlist deletes the item and closes", %{conn: conn} do

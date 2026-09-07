@@ -57,6 +57,55 @@ defmodule MediaCentaur.ReleaseTracking.EventsTest do
     assert armed.tracking_mode == :grab
   end
 
+  test "arming with a chosen mode lands on that mode, tracked or not" do
+    item = create_tracking_item(%{tmdb_id: 1404, media_type: :tv_series, name: "Sample Show"})
+    title = Title.new!(%{tmdb_id: 1404, media_type: :tv_series, name: "Sample Show"})
+
+    {:ok, armed} = ReleaseTracking.arm(title, %{tracking_mode: :ask})
+    await_supervised_tasks()
+
+    assert armed.id == item.id
+    assert armed.tracking_mode == :ask
+  end
+
+  test "re-arming a disarmed title raises it to the watchlist seed and announces again" do
+    item = create_tracking_item(%{tmdb_id: 1405, media_type: :tv_series, name: "Sample Show"})
+    {:ok, _} = ReleaseTracking.disarm(item)
+    title = Title.new!(%{tmdb_id: 1405, media_type: :tv_series, name: "Sample Show"})
+
+    {:ok, armed} = ReleaseTracking.arm(title)
+    await_supervised_tasks()
+
+    assert armed.tracking_mode == :watch
+    assert_receive {:tracking_started, %TrackingStarted{item_id: item_id}}, 500
+    assert item_id == item.id
+  end
+
+  test "disarming and re-arming write the activity feed; a re-arm of an armed title writes nothing" do
+    item = create_tracking_item(%{tmdb_id: 1406, media_type: :tv_series, name: "Sample Show"})
+    title = Title.new!(%{tmdb_id: 1406, media_type: :tv_series, name: "Sample Show"})
+
+    {:ok, _} = ReleaseTracking.arm(title)
+    await_supervised_tasks()
+    assert Enum.map(ReleaseTracking.list_events_for_item(item.id), & &1.event_type) == []
+
+    {:ok, disarmed} = ReleaseTracking.disarm(item)
+    {:ok, _still} = ReleaseTracking.disarm(disarmed)
+
+    assert [%{event_type: :stopped_tracking, description: description}] =
+             ReleaseTracking.list_events_for_item(item.id)
+
+    assert description =~ "won't be picked up"
+
+    {:ok, _} = ReleaseTracking.arm(title, %{tracking_mode: :grab})
+    await_supervised_tasks()
+
+    assert [:began_tracking, :stopped_tracking] =
+             Enum.map(ReleaseTracking.list_events_for_item(item.id), & &1.event_type)
+
+    assert ReleaseTracking.get_item(item.id).tracking_mode == :grab
+  end
+
   test "creating a tracked title is silent, whatever mode it is seeded with" do
     for {tmdb_id, mode} <- [{1402, :watch}, {1403, :global}] do
       {:ok, _item} =

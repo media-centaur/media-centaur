@@ -398,7 +398,8 @@ defmodule MediaCentaur.ReleaseTracking do
   runs this way; `Discovery` must stay free of tracking. The seeded mode
   is `Reasons.seed_mode(:watchlist)` — `:watch`, never the global
   default, because auto-grab is opt-in and arming must not start a
-  download.
+  download. `opts[:tracking_mode]` names the mode a person chose on the
+  control instead; a re-arm of a disarmed title takes the seed.
 
   Announces `Events.TrackingStarted` because this, unlike `track_item/1`,
   is a person's act.
@@ -406,11 +407,40 @@ defmodule MediaCentaur.ReleaseTracking do
   @spec arm(Title.t(), map()) :: {:ok, Item.t()} | {:error, term()}
   def arm(%Title{} = title, opts \\ %{}) do
     with {:ok, _entry} <- Discovery.add_to_watchlist(title),
-         {:ok, item} <- ensure_tracked(title, opts) do
+         {:ok, item} <- ensure_tracked(title, opts),
+         {:ok, item} <- apply_armed_mode(item, opts) do
       announce_tracking_started(item)
       {:ok, item}
     end
   end
+
+  # The mode the arm lands on. A person choosing one from the control
+  # gets exactly that; otherwise a fresh arm keeps its seed, and a
+  # re-arm of a disarmed title (the durable `:none`) takes the watchlist
+  # seed — the person just chose to track it again, which is the one
+  # raise that is theirs, not the system's.
+  defp apply_armed_mode(%Item{tracking_mode: :none} = item, opts) do
+    mode = Map.get(opts, :tracking_mode, Reasons.seed_mode(:watchlist))
+
+    with {:ok, armed} <- set_tracking_mode(item, mode) do
+      # A fresh track writes its own `:began_tracking` (`Acquisition`);
+      # re-arming a disarmed title is the same beat for the activity feed.
+      create_event!(%{
+        item_id: armed.id,
+        item_name: armed.name,
+        event_type: :began_tracking,
+        description: "Following releases of #{armed.name} again"
+      })
+
+      {:ok, armed}
+    end
+  end
+
+  defp apply_armed_mode(%Item{} = item, %{tracking_mode: mode})
+       when mode in [:watch, :ask, :grab, :global] and item.tracking_mode != mode,
+       do: set_tracking_mode(item, mode)
+
+  defp apply_armed_mode(%Item{} = item, _opts), do: {:ok, item}
 
   @doc """
   Disarms a title: sets its mode to `:none`, the durable record of a
@@ -419,7 +449,20 @@ defmodule MediaCentaur.ReleaseTracking do
   later drops, so re-acquiring the title cannot silently re-arm it.
   """
   @spec disarm(Item.t()) :: {:ok, Item.t()} | {:error, Ecto.Changeset.t()}
-  def disarm(%Item{} = item), do: set_tracking_mode(item, :none)
+  def disarm(%Item{tracking_mode: :none} = item), do: {:ok, item}
+
+  def disarm(%Item{} = item) do
+    with {:ok, disarmed} <- set_tracking_mode(item, :none) do
+      create_event!(%{
+        item_id: disarmed.id,
+        item_name: disarmed.name,
+        event_type: :stopped_tracking,
+        description: "New releases of #{disarmed.name} won't be picked up"
+      })
+
+      {:ok, disarmed}
+    end
+  end
 
   @doc """
   Fire-and-forget `arm/2`. Arming fetches the calendar from TMDB, so it
@@ -432,8 +475,8 @@ defmodule MediaCentaur.ReleaseTracking do
     :ok
   end
 
-  # Arming an already-tracked title is idempotent: it must not re-fetch
-  # the calendar, and above all must not overwrite a mode the person set.
+  # Arming an already-tracked title must not re-fetch the calendar, and —
+  # unless the person named a mode — must not overwrite one they set.
   defp ensure_tracked(%Title{} = title, opts) do
     case get_item_by_tmdb(title.tmdb_id, title.media_type) do
       nil -> Acquisition.track_from_search(title, opts)

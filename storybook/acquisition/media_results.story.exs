@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
   @moduledoc """
   The flat media-search answer sheet — TMDB results as page content
   below the omnibox (no floating overlay). Rows carry poster thumb,
-  identity line, overview, the row verb (Download / Track release), and
+  identity line, overview, the row verb (Download / More info), and
   a sibling bookmark toggle for the watchlist; rows the library already
   presents carry a quiet In library marker. The header row holds the
   search status and the Clear search reset.
@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         name: "Sample Upcoming Show",
         year: "2999",
         release_date: ~D[2999-03-01],
-        overview: "Already tracked and not yet out — the verb slot stays empty."
+        overview: "Already tracked and not yet out — More info opens the title detail."
       }
     ]
   end
