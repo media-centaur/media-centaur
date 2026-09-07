@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.15.1 — 2026-09-07
+
+### Improved
+
+- **Empty pages now tell you what lands there and give you the one action that fills them.** A page with nothing on it used to be whatever its author had written at the time — a centred panel on Home, a bare sentence on Library, a small grey band on Discovery and the Apps launcher, a tick on Review — and several of them did no more than observe that the place was empty, which the empty screen already showed. Every empty page now works the same way and answers the same two questions: what appears here, and what to do about it. The Discovery tabs and the Apps launcher, which previously offered no action at all, now take you where the action is.
+- **Watch History no longer shows an empty scoreboard.** Before your first finished watch the page stacked three zeroes, a blank year-long grid and a row of filters for nothing on top of the message explaining what the page is for. Those arrive once there is something to count. Filtering everything out is different — the filters stay, because they are what you adjust to get rows back, and there is a single *Clear filters* to undo it.
+- **The guide is offered where you are most likely to want it.** It was reachable from one place, Settings → System. It is now also on the last page of the setup tour and on Home before your library has anything in it.
+
+### Fixed
+
+- **The setup tour no longer strands you at the media-directories step.** A media folder and a working TMDB key were both required before the tour would go forward, and neither step offered a way past: *Next* stayed dim and the page carried no other links at all. Installing before your drives were mounted, or before you had a TMDB account, left nowhere to go. **Skip the tour** now sits in the header of every step and takes you to the summary, which lists what is still unconfigured with an *Edit* link for each and lets you finish regardless. Nothing is lost — everything the tour sets can be set later in Settings.
+- **The Status page no longer reports a fresh install as healthy.** All ten subsystem tiles showed a green dot and *No issues* on a machine where nothing had been set up, because the board counted only things that had gone wrong, and nothing had gone wrong for the plain reason that nothing had run. Opening Metadata showed *TMDB — not configured* in red next to the word *Healthy*. A subsystem that cannot start because something is missing now reads grey and *Not configured*, and opening it names the one setting that starts it. Green means set up and working.
+- **Searching for a title without a TMDB key says so.** Typing a film into the Incoming search on a machine with no TMDB key answered *Nothing found on TMDB* — which reads as "no such title", when in truth the search never ran. The page now names what is missing and links to the setting, and says it before you type rather than after.
+- **Home stops telling you to add a media folder you have already added.** Home's empty page always explained that nothing was there "because no media directory has been scanned" and pointed you at Settings, whether or not you had set one — which is exactly the state you are in the moment the setup tour finishes. It now tells the three cases apart: no folder yet, an import still running with a count of what is left, or folders set and nothing found, where it offers the scan on the spot.
+- **The TMDB setup step says which keys it takes.** The field was labelled *API key (v4 read-access token)*, though the shorter v3 key has always worked too.
+
 ## v1.15.0 — 2026-09-07
 
 ### Improved
