@@ -92,9 +92,14 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             data-nav-item
             tabindex="0"
           >
+            <%!-- 240, not the 160 the app's other small posters use: those
+                  are fixed-width thumbnails (`w-10`/`w-12`/`w-16`), this cell
+                  is fluid — one sixth of a `max-w-3xl` card, ~116px at the
+                  1920 composition, so ~232 device px on a 4K panel. 160 was
+                  sized as if this were a thumbnail too, and read soft. --%>
             <img
               :if={entry.poster_url}
-              src={sized_image_url(entry.poster_url, 160)}
+              src={sized_image_url(entry.poster_url, 240)}
               alt={entry.title.name}
               class="h-full w-full object-cover"
               loading="eager"
