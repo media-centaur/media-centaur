@@ -1079,8 +1079,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # Wired, not disabled — the click path itself (track creation +
       # gap wants) is covered synchronously in tracking_handoffs_test.
-      assert has_element?(view, "button[phx-click='plan_track_gaps']", "Track these later")
-      refute has_element?(view, "button[disabled]", "Track these later")
+      assert has_element?(view, "button[phx-click='plan_track_gaps']", "Track these")
+      refute has_element?(view, "button[disabled]", "Track these")
       # TV recourse is deferred — no escape hatch on aggregate gaps.
       refute has_element?(view, "button[phx-click='plan_show_rejected']")
     end
