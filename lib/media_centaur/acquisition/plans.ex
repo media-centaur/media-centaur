@@ -119,10 +119,15 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   Options: `approval_policy:` (`"automatic"` | `"review"`, default
   review — the one-click download passes automatic); `scope:` (series
-  only) `:first_season` (default) or `:everything`, see `DownloadScope`.
-  `:everything` also starts release tracking for the title so new
-  episodes follow; an already-tracked title is left alone. The plan is
-  created before tracking so its units are not excluded as tracked.
+  only) `:first_season` (default) or `:everything`, see `DownloadScope`;
+  and `track:` (series only, default `false`).
+
+  `scope:` and `track:` are separate questions on purpose. A scope covers
+  episodes that have *aired* — downloading them says nothing about what
+  is still to come — so following the series is its own act, named by its
+  own menu entry, and it arms (which lists the title, ADR-065) rather
+  than tracking quietly. The plan is created before the arm so its units
+  are not excluded as tracked.
 
   A failure inside the task (TMDB unreachable, nothing pickable) is
   logged at warning on `:acquisition` and leaves no plan.
@@ -131,15 +136,16 @@ defmodule MediaCentaur.Acquisition.Plans do
   def plan_title(%Title{} = title, opts \\ []) do
     policy = Keyword.get(opts, :approval_policy, "review")
     scope = Keyword.get(opts, :scope, :first_season)
+    track? = Keyword.get(opts, :track, false)
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      do_plan_title(title, policy, scope)
+      do_plan_title(title, policy, scope, track?)
     end)
 
     :ok
   end
 
-  defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope) do
+  defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope, _track?) do
     case create_movie_plan(movie_plan_attrs(title), approval_policy: policy) do
       {:ok, _plan} ->
         :ok
@@ -149,11 +155,15 @@ defmodule MediaCentaur.Acquisition.Plans do
     end
   end
 
-  defp do_plan_title(%Title{media_type: :tv_series} = title, policy, scope) do
+  defp do_plan_title(%Title{media_type: :tv_series} = title, policy, scope, track?) do
     with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
          units when units != [] <- DownloadScope.units(selection, scope),
          {:ok, _plan} <- create_series_plan(selection, units, approval_policy: policy) do
-      if scope == :everything, do: ensure_tracked(title)
+      # Downloading says nothing about what is still to come. Following
+      # the series is the separate act the third scope entry names, and
+      # it arms rather than tracks quietly, so the title is listed as
+      # part of it (ADR-065).
+      if track?, do: ReleaseTracking.arm(title)
       :ok
     else
       [] ->
@@ -180,13 +190,6 @@ defmodule MediaCentaur.Acquisition.Plans do
 
       {:error, _reason} ->
         attrs
-    end
-  end
-
-  defp ensure_tracked(%Title{} = title) do
-    case ReleaseTracking.get_item_by_tmdb(title.tmdb_id, :tv_series) do
-      nil -> ReleaseTracking.track_from_search(title)
-      _item -> :ok
     end
   end
 

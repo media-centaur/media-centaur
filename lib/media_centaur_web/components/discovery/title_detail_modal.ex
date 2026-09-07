@@ -17,7 +17,10 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   ready; otherwise no primary verb — there is no `Track`, because
   arming is the tracking-mode control's job (ADR-065). A series
   Download is a split control — "Download season 1" plus a chevron
-  opening "Download all" — reusing the `glass-menu` idiom. Add to
+  opening "Download all" and "Download all and track" — reusing the
+  `glass-menu` idiom. Only the last of the three follows the series:
+  a scope covers episodes that have aired, and what is still to come is
+  a separate act. Add to
   watchlist is the secondary, replaced by a quiet On watchlist once
   saved, at which point Remove from watchlist appears as a quiet
   tertiary verb. Delete <noun> is the other tertiary verb, on an own
@@ -135,6 +138,16 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
                   tabindex="0"
                 >
                   Download all
+                </li>
+                <li
+                  class="glass-menu-item"
+                  phx-click="title_download"
+                  phx-value-scope="everything"
+                  phx-value-track="true"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Download all and track
                 </li>
               </ul>
             </div>

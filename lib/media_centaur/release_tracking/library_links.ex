@@ -2,8 +2,8 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinks do
   @moduledoc """
   The link between a tracking item and the library container it follows —
   established by TMDB id, kept current as episodes land, dropped when
-  the container is deleted. Database-only; the TMDB side of onboarding
-  a library series is `ReleaseTracking.AutoTrack`.
+  the container is deleted. Database-only, and only ever a link: the
+  library never causes a title to be followed.
   """
   import Ecto.Query
   require MediaCentaur.Log, as: Log
