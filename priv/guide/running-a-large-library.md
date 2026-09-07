@@ -3,7 +3,7 @@ title: Running a large library
 nav_label: Large libraries
 part: Operating it
 slug: running-a-large-library
-order: 23
+order: 24
 ---
 Media Centaur is built to stay responsive at scale, but a few thousand files surface one
 system limit and one expectation worth setting. Nothing here is required for a small library.
