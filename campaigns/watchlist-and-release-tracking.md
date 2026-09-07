@@ -30,10 +30,12 @@ tracked titles (12 `global`, 1 `watch`), 9 watchlist rows, and **0 active
 tracked titles with no reason** — the invariant holds on real data. The old
 columns are gone from the table.
 
-**Phases 2–3 complete, unpushed** (`206eca0f`, `71a52275`): one title surface
+**All six phases landed 2026-09-07, unpushed; owner verification
+remaining.** Previously: **Phases 2–3 complete, unpushed** (`206eca0f`, `71a52275`): one title surface
 for everything without files, and the library detail mounting the same two
 components with the bell gone. The `:watching` / `:ignored` vocabulary is out of
-the app entirely. Phase 4 (retire the stragglers line) is in progress with Fable.
+the app entirely. Phase 4 retired the stragglers line (`7ff2e95f`) and Phase 5 rewrote the guide
+and wiki (`07b97886`, wiki `5d05c0e`).
 
 ## Decisions made
 
@@ -133,11 +135,28 @@ the app entirely. Phase 4 (retire the stragglers line) is in progress with Fable
    explicit scheduled convergence, not a silent one.
 4. ~~**Phase 3 — library detail**~~ Done 2026-09-07 (`71a52275`). Mounts the same two shared components;
    the bell is removed. The convergence point for Phase 2's debt.
-5. **Phase 4 — retire the stragglers line** (Fable). `UpcomingFeed.Straggler`
+5. ~~**Phase 4 — retire the stragglers line**~~ Done 2026-09-07 (`7ff2e95f`). `UpcomingFeed.Straggler`
    removed, Coming up reduced to the schedule, UIDR-017 amended.
-6. **Phase 5 — docs.** `priv/guide/release-tracking-and-upcoming.md` rewritten
+6. ~~**Phase 5 — docs.**~~ Done 2026-09-07 (`07b97886`; wiki `5d05c0e`). `priv/guide/release-tracking-and-upcoming.md` rewritten
    around the new vocabulary (it currently teaches Track-vs-watchlist), a guide
    page for the watchlist (there is none today), wiki sync, glossary elevation.
+
+## Remaining, by destination
+
+Per the closure convention, every leftover is bucketed rather than left implicit:
+
+* **Ship** — the whole campaign is committed on `main` and unpushed, awaiting
+  the owner's word. The CHANGELOG entry is the ship step's, and must say in plain
+  words that a series deleted from the library stops being tracked unless it was
+  armed: that is a live behaviour change on every existing install.
+* **Verify (closes the campaign)** — the owner uses the new watchlist, merged
+  title surface and library detail, on the desktop and on the TV with a
+  remote/gamepad. Nav zones were added for both
+  (`title_detail_tracking`, `detail_tracking`) but only mouse-verified, per
+  [[feedback-no-nav-work-during-volatile-design]]; run `mc-nav-trace` if a key
+  path misbehaves.
+* **Defer** — the two follow-ups below, and marketing screenshots (stale by
+  standing preference, not regenerated).
 
 ## Follow-ups found while building
 

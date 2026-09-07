@@ -22,19 +22,16 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`watchlist-and-release-tracking.md`](watchlist-and-release-tracking.md) —
-  **in-progress.** Collapse four representations of one idea — a watchlist entry, a
-  tracked title, `Item.status`, `Item.auto_grab_mode` — into one authored intent
-  and one derived machine, and the three title modals into two. A watchlist entry
-  is intent; a tracked title exists while a **tracking reason** holds (the library
-  owns an active container, or a person armed the entry). One **tracking mode**
-  (None/Watch/Ask/Grab/Global), set only by a person and never raised by the
-  system; auto-grab stays opt-in, so adding to the watchlist seeds Watch, not the
-  global default. Invariant: every tracked title is either owned or on the
-  watchlist — which is what lets the straggler line retire. Six phases; UI phases
-  use the Fable model. **Phases 0–1 done, unpushed** ([ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
-  [UIDR-035](../decisions/user-interface/2026-09-07-035-two-title-surfaces.md),
-  glossary, and the model cutover); Phase 2 (merge the two no-files title
-  surfaces) next. No visible change yet.
+  **all six phases landed 2026-09-07, unpushed; owner check remaining.** Four
+  representations of one idea collapsed into one authored intent and one derived
+  machine, and three title modals into two. A watchlist entry is intent; a tracked
+  title exists while a **tracking reason** holds, and the two reasons are not
+  equivalent — owning a title is a *default* that evaporates with the library,
+  arming it is an *act* that outlives it ([ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
+  [UIDR-035](../decisions/user-interface/2026-09-07-035-two-title-surfaces.md)).
+  One `tracking_mode`, never raised by the system; auto-grab stays opt-in; an
+  explicit Off is durable. Migrated on this machine, invariant verified on real
+  data. Remaining: the owner uses the new surfaces, on the desktop and on the TV.
 * [`instant-hero-backdrop.md`](instant-hero-backdrop.md) —
   **in-progress, owner check remaining.** Home, Library, and Incoming hero
   backdrops now paint in the mount frame on every return, at master
