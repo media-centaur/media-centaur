@@ -42,7 +42,7 @@ defmodule MediaCentaur.ReleaseTracking.AutoTrackTest do
       item = ReleaseTracking.get_item_by_tmdb(5555, :tv_series)
       assert item != nil
       assert item.name == "New Show"
-      assert item.source == :library
+      assert item.tracking_mode == :global
       assert item.library_container_type == :tv_series
       assert item.library_container_id == tv_series.id
 

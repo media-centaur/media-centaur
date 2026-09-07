@@ -397,7 +397,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     view =
       View.build(%{
         releases: releases,
-        watching_items: ReleaseTracking.list_watching_items(),
+        watching_items: ReleaseTracking.list_active_items(),
         pursuit_rows: socket.assigns.pursuit_rows,
         drafts: socket.assigns.plan_drafts,
         today: socket.assigns.today,
@@ -472,7 +472,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           backdrop_url: artwork.backdrop_url,
           logo_url: artwork.logo_url,
           acquisition?: acquisition?,
-          auto_grab: Present.auto_grab_summary(item.auto_grab_mode, default_mode, acquisition?),
+          auto_grab: Present.auto_grab_summary(item.tracking_mode, default_mode, acquisition?),
           lower_quality_accepted?: Item.lower_quality_accepted?(item),
           tracking_since: item.inserted_at,
           timeline: flatten_feed(feed),
@@ -1833,11 +1833,11 @@ defmodule MediaCentaurWeb.IncomingLive do
       default = socket.assigns.auto_grab_default_mode
 
       summary =
-        Present.auto_grab_summary(item.auto_grab_mode, default, Capabilities.acquisition_ready?())
+        Present.auto_grab_summary(item.tracking_mode, default, Capabilities.acquisition_ready?())
 
-      ReleaseTracking.update_auto_grab(item, %{
-        auto_grab_mode: if(summary.on?, do: "off", else: "all_releases")
-      })
+      # The toggle only ever moves between grabbing and not; it must never
+      # reach :none, which is the durable disarm and stops the calendar too.
+      ReleaseTracking.set_tracking_mode(item, if(summary.on?, do: :watch, else: :grab))
     end
 
     socket = build_view(socket)
@@ -1849,7 +1849,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # own criteria snapshot — the board's Undo is what re-solves a plan.
   def handle_event("reset_lower_quality", %{"item-id" => item_id}, socket) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id) do
-      ReleaseTracking.update_auto_grab(item, %{min_quality: nil})
+      ReleaseTracking.update_automation(item, %{min_quality: nil})
     end
 
     socket = build_view(socket)

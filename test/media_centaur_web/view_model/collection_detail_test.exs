@@ -90,7 +90,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :watching,
+          :global,
           nil
         )
 
@@ -114,7 +114,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :watching,
+          :global,
           nil
         )
 
@@ -143,7 +143,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :watching,
+          :global,
           nil
         )
 
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :watching,
+          :global,
           nil
         )
 
@@ -178,11 +178,11 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           [],
-          :ignored,
+          :none,
           nil
         )
 
-      assert view_model.tracking_status == :ignored
+      assert view_model.tracking_status == :none
     end
 
     test "no movies and no releases produce an empty item list" do
@@ -207,7 +207,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         CollectionDetail.build(
           %{entity: collection, progress: nil, progress_records: []},
           releases,
-          :watching,
+          :global,
           nil
         )
 
@@ -226,7 +226,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
                %MovieListItem.Upcoming{title: "Next Part"}
              ] = updated.movies
 
-      assert updated.tracking_status == :watching
+      assert updated.tracking_status == :global
     end
   end
 
@@ -273,7 +273,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       })
 
       assert {:ok, view_model} = CollectionDetail.compose(collection.id)
-      assert view_model.tracking_status == :watching
+      assert view_model.tracking_status == :global
 
       assert [
                %MovieListItem.Library{},
@@ -305,7 +305,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
               air_date: Date.add(Date.utc_today(), 90)
             })
           ],
-          :watching,
+          :global,
           resume_target
         )
 

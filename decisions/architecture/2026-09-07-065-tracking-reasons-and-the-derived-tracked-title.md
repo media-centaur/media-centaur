@@ -78,9 +78,16 @@ different owners, and conflating them is what produced four fields for one idea.
    evaporates with its last reason, because raising is the only direction that
    can surprise, and nothing here raises.
 
-6. **`Item.source` is removed**, and `Events.TrackingStarted` is broadcast by
-   `Discovery` when a person arms. The person's act belongs to the record the
-   person authored.
+6. **`Item.source` is removed.** `Events.TrackingStarted` moves off the
+   creation path and onto the arming path: `track_item/1` is silent, because
+   creating a tracked title is machinery, and `arm/2` announces, because arming
+   is a person's act. It is announced from `ReleaseTracking` rather than
+   `Discovery` — the dependency runs that way (7), and `Discovery` must stay
+   free of tracking. `ReleaseTracking.arm/2` is likewise where the act is
+   implemented: it puts the title on the watchlist and starts tracking it as one
+   operation, which is how the invariant is kept true at the only place that can
+   see both sides. "Arming is a watchlist act" is a statement about what the act
+   *does*, not about which context holds the function.
 
 7. **Dependency direction stays one-way.** `ReleaseTracking` gains a
    `WatchlistListener` mirroring the existing `LibraryListener` and adds

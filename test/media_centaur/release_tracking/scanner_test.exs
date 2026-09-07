@@ -47,7 +47,7 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
       assert results.tracked == 1
       assert results.skipped == 0
 
-      items = ReleaseTracking.list_watching_items()
+      items = ReleaseTracking.list_active_items()
       assert length(items) == 1
       assert hd(items).tmdb_id == 1396
       assert hd(items).library_container_type == :tv_series
@@ -103,7 +103,7 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
       {:ok, results} = Scanner.scan()
       assert results.tracked == 1
 
-      item = hd(ReleaseTracking.list_watching_items())
+      item = hd(ReleaseTracking.list_active_items())
       assert item.last_library_season == 2
       assert item.last_library_episode == 12
 
@@ -159,7 +159,7 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
       {:ok, results} = Scanner.scan()
 
       assert results.tracked == 1
-      items = ReleaseTracking.list_watching_items()
+      items = ReleaseTracking.list_active_items()
       assert hd(items).media_type == :movie
     end
 

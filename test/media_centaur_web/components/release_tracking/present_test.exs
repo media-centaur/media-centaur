@@ -75,27 +75,27 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.PresentTest do
 
   describe "auto_grab_summary/3" do
     test "no acquisition → off, honest label" do
-      summary = Present.auto_grab_summary("all_releases", "all_releases", false)
+      summary = Present.auto_grab_summary(:grab, "all_releases", false)
       refute summary.on?
       assert summary.label =~ "configured"
     end
 
     test "full-auto → on" do
-      summary = Present.auto_grab_summary("all_releases", "off", true)
+      summary = Present.auto_grab_summary(:grab, "off", true)
       assert summary.on?
       assert summary.label =~ "every release"
     end
 
     test "global inherits the default" do
-      assert Present.auto_grab_summary("global", "all_releases", true).on?
-      refute Present.auto_grab_summary("global", "off", true).on?
+      assert Present.auto_grab_summary(:global, "all_releases", true).on?
+      refute Present.auto_grab_summary(:global, "off", true).on?
     end
 
     test "ask and off are not on" do
-      refute Present.auto_grab_summary("ask", "all_releases", true).on?
-      assert Present.auto_grab_summary("ask", "all_releases", true).label =~ "Ask"
-      refute Present.auto_grab_summary("off", "all_releases", true).on?
-      assert Present.auto_grab_summary("off", "all_releases", true).label =~ "Not"
+      refute Present.auto_grab_summary(:ask, "all_releases", true).on?
+      assert Present.auto_grab_summary(:ask, "all_releases", true).label =~ "Ask"
+      refute Present.auto_grab_summary(:watch, "all_releases", true).on?
+      assert Present.auto_grab_summary(:watch, "all_releases", true).label =~ "Not"
     end
   end
 

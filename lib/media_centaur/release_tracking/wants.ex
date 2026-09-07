@@ -61,10 +61,11 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   @doc """
   Idempotently reconciles the item's wants against its calendar and the
   library: opens wants for newly acquirable units, satisfies open wants
-  whose unit is now present in the library. No-op for ignored items.
+  whose unit is now present in the library. No-op for a disarmed title
+  (`tracking_mode: :none`), which is inert by definition.
   """
   @spec sync_item(Item.t()) :: :ok
-  def sync_item(%Item{status: :ignored}), do: :ok
+  def sync_item(%Item{tracking_mode: :none}), do: :ok
 
   def sync_item(%Item{} = item) do
     releases = ReleaseTracking.list_releases_for_item(item.id)
@@ -106,7 +107,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
       from(w in Want,
         join: i in Item,
         on: i.id == w.item_id,
-        where: w.status == :open and i.status == :watching,
+        where: w.status == :open and i.tracking_mode != :none,
         order_by: [asc: w.air_date]
       )
     )

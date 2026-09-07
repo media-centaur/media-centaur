@@ -20,6 +20,7 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
   to nothing more than the column types.
   """
 
+  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.Settings
 
   @keys [
@@ -80,12 +81,18 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
     }
   end
 
-  @doc "Resolves an item's effective auto-grab mode."
-  @spec effective_mode(String.t() | nil, t()) :: mode()
-  def effective_mode(item_mode, %__MODULE__{} = settings) when item_mode in ["global", nil],
-    do: settings.default_mode
+  @doc """
+  Resolves a tracked title's `tracking_mode` into the grab decision this
+  context acts on.
 
-  def effective_mode(item_mode, %__MODULE__{}) when is_binary(item_mode), do: item_mode
+  Acquisition asks whether it may grab; it does not model tracking. The
+  two modes that keep a calendar without grabbing — `:none` (inert) and
+  `:watch` — are both simply "off" from here. `:global` defers to the
+  global default, live, which is what makes flipping the global switch
+  stop every title that has never been set explicitly.
+  """
+  @spec effective_mode(Item.tracking_mode() | nil, t()) :: mode()
+  def effective_mode(mode, %__MODULE__{} = settings), do: Item.grab_mode(mode, settings.default_mode)
 
   @doc "Resolves an item's effective minimum quality bound."
   @spec effective_min_quality(String.t() | nil, t()) :: quality()

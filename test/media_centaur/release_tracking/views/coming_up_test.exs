@@ -12,7 +12,7 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
   @table :release_tracking_view_coming_up
 
   defp seed_release(name, air_date, opts \\ []) do
-    item = create_tracking_item(%{name: name, status: :watching})
+    item = create_tracking_item(%{name: name, tracking_mode: :global})
 
     create_tracking_release(
       Map.merge(

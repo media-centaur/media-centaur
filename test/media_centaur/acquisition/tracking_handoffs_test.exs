@@ -83,7 +83,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
 
       item = ReleaseTracking.get_item_by_tmdb(42_001, :tv_series)
       assert item
-      assert item.status == :watching
+      assert item.tracking_mode == :watch
     end
 
     test "no handoff without the grab_future opt-in" do

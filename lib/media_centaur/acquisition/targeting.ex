@@ -223,7 +223,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
          %{} = item <- ReleaseTracking.get_item_by_tmdb(numeric_id, :tv_series),
          mode when mode != "off" <-
            MediaCentaur.Acquisition.AutoGrabSettings.effective_mode(
-             item.auto_grab_mode,
+             item.tracking_mode,
              MediaCentaur.Acquisition.AutoGrabSettings.load()
            ) do
       item.id

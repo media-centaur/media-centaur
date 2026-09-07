@@ -844,8 +844,7 @@ defmodule MediaCentaur.TestFactory do
       tmdb_id: :rand.uniform(999_999),
       media_type: :tv_series,
       name: "Test Tracked Series",
-      status: :watching,
-      source: :library,
+      tracking_mode: :global,
       library_container_type: nil,
       library_container_id: nil,
       last_refreshed_at: nil,
@@ -899,6 +898,26 @@ defmodule MediaCentaur.TestFactory do
 
   def create_tracking_release(attrs) do
     ReleaseTracking.create_release!(attrs)
+  end
+
+  # ---------------------------------------------------------------------------
+  # Discovery (watchlist)
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Adds a title to the watchlist through the context, so provenance
+  validation and the identity derivation run exactly as in the app.
+  """
+  def create_watchlist_item(attrs \\ %{}) do
+    tmdb_id = Map.get(attrs, :tmdb_id, :rand.uniform(999_999))
+    media_type = Map.get(attrs, :media_type, :tv_series)
+    name = Map.get(attrs, :name, "Sample Show")
+
+    title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
+    item_attrs = Map.drop(attrs, [:tmdb_id, :media_type, :name])
+
+    {:ok, item} = MediaCentaur.Discovery.add_to_watchlist(title, item_attrs)
+    item
   end
 
   # ---------------------------------------------------------------------------

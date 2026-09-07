@@ -91,7 +91,7 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   defp tracking_item_off?(plan) do
     case plan.tracking_item_id && ReleaseTracking.get_item(plan.tracking_item_id) do
       nil -> true
-      item -> AutoGrabSettings.effective_mode(item.auto_grab_mode, AutoGrabSettings.load()) == "off"
+      item -> AutoGrabSettings.effective_mode(item.tracking_mode, AutoGrabSettings.load()) == "off"
     end
   end
 

@@ -108,16 +108,27 @@ defmodule MediaCentaur.Activities.PublisherTest do
       assert Activities.list_sent() == []
     end
 
-    test "a manual tracking item becomes a tracking activity" do
+    test "arming a title becomes a tracking activity" do
       ShareTracking.set(true)
 
+      # ADR-065: the activity follows the person's act (arming), not the
+      # creation of the machinery row.
       {:ok, _item} =
         ReleaseTracking.track_item(%{
           tmdb_id: 1399,
           media_type: :tv_series,
           name: "Sample Show",
-          source: :manual
+          tracking_mode: :watch
         })
+
+      {:ok, _armed} =
+        ReleaseTracking.arm(
+          MediaCentaur.TMDB.Title.new!(%{
+            tmdb_id: 1399,
+            media_type: :tv_series,
+            name: "Sample Show"
+          })
+        )
 
       settle()
 

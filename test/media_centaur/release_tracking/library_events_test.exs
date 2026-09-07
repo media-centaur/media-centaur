@@ -42,7 +42,7 @@ defmodule MediaCentaur.ReleaseTracking.LibraryEventsTest do
 
       item = ReleaseTracking.get_item_by_tmdb(5555, :tv_series)
       assert item.library_container_id == tv_series.id
-      assert item.source == :library
+      assert item.tracking_mode == :global
     end
 
     test "is a no-op for an empty batch" do

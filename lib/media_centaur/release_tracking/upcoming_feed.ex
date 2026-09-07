@@ -47,6 +47,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   """
 
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
@@ -307,11 +308,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   # auto-grab mode is the full-auto posture. Anything else reads as :upcoming.
   defp will_auto_grab?(item, context) do
     context.acquisition_ready? and
-      effective_mode(item.auto_grab_mode, context.auto_grab_default_mode) == "all_releases"
+      Item.grab_mode(item.tracking_mode, context.auto_grab_default_mode) == "all_releases"
   end
-
-  defp effective_mode(mode, default) when mode in [nil, "global"], do: default
-  defp effective_mode(mode, _default) when is_binary(mode), do: mode
 
   # A forecast is about the future. A *past* release earns a spot only as a
   # meaningful beat: it just landed (closure), it's actively being grabbed, or

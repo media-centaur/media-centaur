@@ -204,7 +204,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       })
 
       item = create_tracked_show()
-      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{quality_4k_patience_hours: 24})
+      {:ok, item} = ReleaseTracking.update_automation(item, %{quality_4k_patience_hours: 24})
 
       # Aged want (patience long expired) and a day-of want (inside it).
       create_aired_release(item, 1, 1, @last_month)
@@ -238,7 +238,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       })
 
       item = create_tracked_show()
-      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "ask"})
+      {:ok, item} = ReleaseTracking.update_automation(item, %{tracking_mode: :ask})
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
@@ -257,7 +257,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
 
     test "off mode plans nothing" do
       item = create_tracked_show()
-      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      {:ok, item} = ReleaseTracking.update_automation(item, %{tracking_mode: :watch})
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
@@ -298,7 +298,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       episode_stub()
 
       item = create_tracked_show()
-      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "ask"})
+      {:ok, item} = ReleaseTracking.update_automation(item, %{tracking_mode: :ask})
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
@@ -306,7 +306,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       [parked] = Plans.list_drafts()
       assert parked.status == "ready"
 
-      {:ok, _item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      {:ok, _item} = ReleaseTracking.update_automation(item, %{tracking_mode: :watch})
       Handlers.tracking_sweep_completed()
 
       assert Plans.list_drafts() == []
@@ -334,7 +334,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
       {:ok, _pivoted} = AutoCancel.execute(%{pursuit_id: pursuit.id, reason: :zero_seeders})
 
-      {:ok, _item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      {:ok, _item} = ReleaseTracking.update_automation(item, %{tracking_mode: :watch})
       Handlers.tracking_sweep_completed()
 
       assert Repo.get!(Pursuit, pursuit.id).state == "cancelled"
@@ -352,7 +352,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       tick_and_gate()
       pursuit = sole_pursuit()
 
-      {:ok, _item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      {:ok, _item} = ReleaseTracking.update_automation(item, %{tracking_mode: :watch})
       Handlers.tracking_sweep_completed()
 
       assert Repo.get!(Pursuit, pursuit.id).state == "active"
@@ -362,7 +362,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       episode_stub()
 
       item = create_tracked_show()
-      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      {:ok, item} = ReleaseTracking.update_automation(item, %{tracking_mode: :watch})
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
@@ -380,14 +380,14 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       episode_stub()
 
       item = create_tracked_show()
-      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "ask"})
+      {:ok, item} = ReleaseTracking.update_automation(item, %{tracking_mode: :ask})
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
       tick_and_gate()
       assert [_parked] = Plans.list_drafts()
 
-      {:ok, _item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "global"})
+      {:ok, _item} = ReleaseTracking.update_automation(item, %{tracking_mode: :global})
 
       MediaCentaur.Settings.find_or_create_entry!(%{
         key: "auto_grab.default_mode",

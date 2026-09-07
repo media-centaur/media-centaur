@@ -210,17 +210,17 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       # --- Tracking ---
 
+      # The bell is a one-bit view of `tracking_mode` and is retired by
+      # UIDR-035; until the library detail mounts the real control
+      # (campaign Phase 3) it moves between the durable disarm and the
+      # app default, which is what its two states have always meant.
       def handle_event("toggle_tracking", _params, socket) do
         case {socket.assigns.tracking_status, EntityModal.find_tmdb_id(socket.assigns.selected_entry)} do
-          {:watching, {tmdb_id, media_type}} ->
+          {mode, {tmdb_id, media_type}} when not is_nil(mode) ->
+            next = EntityModal.toggled_tracking_mode(mode)
             item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
-            if item, do: MediaCentaur.ReleaseTracking.ignore_item(item)
-            {:noreply, assign(socket, tracking_status: :ignored)}
-
-          {:ignored, {tmdb_id, media_type}} ->
-            item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
-            if item, do: MediaCentaur.ReleaseTracking.watch_item(item)
-            {:noreply, assign(socket, tracking_status: :watching)}
+            if item, do: MediaCentaur.ReleaseTracking.set_tracking_mode(item, next)
+            {:noreply, assign(socket, tracking_status: next)}
 
           _ ->
             {:noreply, socket}
@@ -1455,6 +1455,19 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   def find_tmdb_id(_), do: nil
+
+  @doc """
+  The mode the library detail's bell moves to. A disarmed title returns to
+  the app default; anything armed disarms.
+
+  The bell is a one-bit view of `tracking_mode` and is retired by UIDR-035
+  once the library detail mounts the real control (campaign Phase 3);
+  this keeps its two states meaningful until then.
+  """
+  @spec toggled_tracking_mode(MediaCentaur.ReleaseTracking.Item.tracking_mode()) ::
+          MediaCentaur.ReleaseTracking.Item.tracking_mode()
+  def toggled_tracking_mode(:none), do: :global
+  def toggled_tracking_mode(_armed), do: :none
 
   @doc """
   Maps a `Pipeline.ImageRefresh.enqueue_refresh/2` result to a
