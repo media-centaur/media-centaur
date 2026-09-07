@@ -271,7 +271,11 @@ Per the closure convention, every leftover is bucketed rather than left implicit
   semantics surfaced by the merged modal, not introduced by it. Shipped in
   v1.16.0 unfixed, and still unfixed now that Phase 6 is abandoned — a standalone
   fix in `next_event/2` and `relative_day/2`, not a component patch. Do not paper
-  over it in the timeline component.
+  over it in the timeline component. The shelf half is fixed (2026-09-07): an
+  owned series in Global mode arms every episode it is missing, which put a
+  1998 episode on Coming up as "Tonight · Will grab"; `UpcomingFeed` now keeps
+  a past armed or landed release for a week only, and an older one is a
+  library gap. The timeline half above is still open.
 * **The timeline half-duplicates the seasons list on the library panel.** A
   series' announced episodes already appear as Upcoming rows inside its seasons;
   the timeline repeats their codes, but carries the per-release grab status and

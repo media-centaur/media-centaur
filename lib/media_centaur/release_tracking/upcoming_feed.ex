@@ -37,6 +37,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:armed` — a future release that **will** auto-grab when it drops (only
       when acquisition is ready AND the effective auto-grab mode is
       `"all_releases"`). Honest: never shown when a grab won't actually fire.
+      A past armed release stays only for a week after it dropped; older ones
+      are library gaps, not forecast beats (`forecast_worthy?/2`).
     * `:armed_fallback` — a movie's later acquirable date (its physical
       release after the digital one). The want ledger opens a single want per
       film, anchored on the earliest acquirable date, so only that date's
@@ -53,6 +55,10 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
 
   @bucket_order [:today, :this_week, :next_week, :later, :beyond]
+
+  # How long a past release stays a "just dropped" / "just landed" beat on the
+  # forecast before it is history (the ledger's) or a gap (the library's).
+  @recent_days 7
 
   @empty_buckets Map.new(@bucket_order, &{&1, []})
 
@@ -281,13 +287,23 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   end
 
   # A forecast is about the future. A *past* release earns a spot only as a
-  # meaningful beat: it just landed (closure), it's actively being grabbed, or
-  # it's armed to grab. Past theatrical dates (released, never enter the library,
-  # never grabbed) would otherwise linger forever as "Today" — drop them; the
-  # future digital date carries the title.
+  # meaningful beat: it's actively being grabbed (live, however old), or —
+  # within `@recent_days` — it just landed (closure) or it's armed and just
+  # dropped. The window is what makes those beats beats: an owned series in
+  # Global mode arms every episode it is missing, so without it a 1998 episode
+  # sat on Coming up as "Tonight · Will grab" for as long as it stayed missing.
+  # That is a library gap, shown as a missing episode in the library detail,
+  # not a forecast item. Past theatrical dates (released, never enter the
+  # library, never grabbed) are dropped outright; the future digital date
+  # carries the title.
   defp forecast_worthy?(%Event{air_date: date, status: status}, today) do
-    is_nil(date) or Date.compare(date, today) != :lt or
-      status in [:in_library, :under_pursuit, :armed]
+    cond do
+      is_nil(date) -> true
+      Date.compare(date, today) != :lt -> true
+      status == :under_pursuit -> true
+      status in [:in_library, :armed] -> Date.diff(today, date) <= @recent_days
+      true -> false
+    end
   end
 
   defp bucketize(events, today) do
