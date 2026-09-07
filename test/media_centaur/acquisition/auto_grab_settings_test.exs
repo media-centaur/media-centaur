@@ -63,24 +63,6 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettingsTest do
     end
   end
 
-  describe "effective_mode/2" do
-    setup do
-      {:ok, settings: %AutoGrabSettings{default_mode: "all_releases"}}
-    end
-
-    test "returns global default when item mode is 'global'", %{settings: settings} do
-      assert AutoGrabSettings.effective_mode(:global, settings) == "all_releases"
-    end
-
-    test "returns global default when item mode is nil", %{settings: settings} do
-      assert AutoGrabSettings.effective_mode(nil, settings) == "all_releases"
-    end
-
-    test "returns item override when set", %{settings: settings} do
-      assert AutoGrabSettings.effective_mode(:watch, settings) == "off"
-    end
-  end
-
   describe "effective_min_quality/2 + effective_max_quality/2" do
     setup do
       settings = %AutoGrabSettings{

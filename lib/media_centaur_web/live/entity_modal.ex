@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     in sync with PubSub events. **The host cannot forget to wire any of
     this — it is structurally impossible to mount the modal without it.**
   - Injects `handle_event/3` clauses for every modal interaction
-    (select / close / play / toggle_* / delete_* / rematch / set_tracking_mode).
+    (select / close / play / toggle_* / delete_* / rematch / set_rung).
   - Imports the `entity_modal/1` function component.
 
   Beyond the `use`, the host must:
@@ -30,9 +30,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   - Render `<.entity_modal ... />` once in the template.
   - Maintain these adjacent assigns (read by the modal renderer but owned
     by the host's surrounding context): `:media_dirs`, `:availability_map`,
-    `:tmdb_ready`, `:spoiler_free`, `:watchlisted_refs`. Most are kept in
+    `:tmdb_ready`, `:spoiler_free`, `:title_rungs`. Most are kept in
     sync via the `SpoilerFreeAware` / `CapabilitiesAware` /
-    `WatchlistAware` traits (see ADR-038).
+    `IntentAware` traits (see ADR-038).
 
   The on_mount hook subscribes for the host. Hosts MUST NOT call
   `Library.subscribe()` or `Playback.subscribe()` themselves — the
@@ -65,7 +65,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.DownloadParams
   alias MediaCentaur.Acquisition.TitleDownloadParams
-  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentaur.TMDB.Title
@@ -216,8 +215,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       # --- Tracking (UIDR-035) ---
 
-      def handle_event("set_tracking_mode", params, socket) do
-        {:noreply, EntityModal.handle_set_tracking_mode(params, socket)}
+      def handle_event("set_rung", params, socket) do
+        {:noreply, EntityModal.handle_set_rung(params, socket)}
       end
 
       def handle_event("reset_lower_quality", params, socket) do
@@ -603,7 +602,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       delete_confirm: nil,
       deleting: nil,
       tracking: nil,
+      rung: nil,
       lower_quality_accepted?: false,
+      default_grab_mode: AutoGrabSettings.load().default_mode,
+      acquisition?: Capabilities.acquisition_ready?(),
       recommendations: [],
       playback: %{}
     )
@@ -697,6 +699,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         do: lower_quality_accepted?(selected_entry),
         else: socket.assigns.lower_quality_accepted?
 
+    rung = if selection_changed, do: entry_rung(selected_entry), else: socket.assigns.rung
+
     socket =
       socket
       |> Phoenix.Component.assign(
@@ -709,6 +713,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         detail_files_status: detail_files_status,
         expanded_seasons: expanded_seasons,
         tracking: tracking,
+        rung: rung,
         lower_quality_accepted?: lower_quality_accepted?
       )
       |> Phoenix.Component.assign(per_selection_assigns(socket.assigns, selection_changed))
@@ -916,6 +921,19 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     doc:
       "the open subject's `TrackingDetail` or nil — the release timeline and tracking-mode control under the list (UIDR-035). Required so a host cannot mount the modal without it."
 
+  attr :rung, :atom,
+    required: true,
+    doc:
+      "the open title's rung, nil for Off — the ladder control's state, from the modal's `:rung` assign. Required so a host cannot mount the modal without it."
+
+  attr :default_grab_mode, :string,
+    required: true,
+    doc: "the global auto-grab default — what the ladder's Default rung resolves to right now."
+
+  attr :acquisition?, :boolean,
+    required: true,
+    doc: "an indexer and a download client are ready; without them the grab rungs download nothing."
+
   attr :lower_quality_accepted?, :boolean,
     required: true,
     doc:
@@ -934,10 +952,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   attr :spoiler_free, :boolean, default: false
   attr :letterboxd_links, :boolean, default: true
 
-  attr :watchlisted_refs, :any,
+  attr :title_rungs, :any,
     required: true,
     doc:
-      "`MapSet.t({tmdb_id, media_type})` from the host's `WatchlistAware` trait — drives the view controls' watchlist toggle. Required so a host cannot mount the modal without the trait."
+      "`%{{tmdb_id, media_type} => rung}` from the host's `IntentAware` trait — drives the view controls' list toggle. Required so a host cannot mount the modal without the trait."
 
   attr :show_discovery, :boolean,
     default: false,
@@ -969,13 +987,17 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       deleting={@deleting}
       spoiler_free={@spoiler_free}
       letterboxd_links={@letterboxd_links}
-      watchlisted?={
-        MediaCentaurWeb.Live.EntityModal.watchlisted?(
+      subject_rung={
+        MediaCentaurWeb.Live.EntityModal.subject_rung(
           @selected_entry,
           @selected_member_id,
-          @watchlisted_refs
+          @title_rungs
         )
       }
+      rung={@rung}
+      title_ref={MediaCentaurWeb.Live.EntityModal.title_ref(@selected_entry)}
+      default_grab_mode={@default_grab_mode}
+      acquisition?={@acquisition?}
       lower_quality_accepted?={@lower_quality_accepted?}
       recommend?={@show_discovery}
       tracking={@tracking}
@@ -1218,12 +1240,18 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def reset_track_override(socket), do: socket
 
   @doc """
-  Adds or removes the modal's watchlist subject on the watchlist — the
-  open entity, or for a collection the selected member's `:movie`-shaped
-  subject (the same subject the view controls render, via
-  `member_view/2`, so the button and the action can never disagree).
+  Toggles the modal's subject between Off and List — the open entity, or
+  for a collection the selected member's `:movie`-shaped subject (the
+  same subject the view controls render, via `member_view/2`, so the
+  button and the action can never disagree).
 
-  No assign update: hosts carry `:watchlisted_refs` via `WatchlistAware`,
+  Only the bottom of the ladder: a title already at Follow or above is
+  not toggled off by a bookmark click, because that would tear down its
+  calendar and wants as a side effect of a one-click affordance. The
+  control renders as a marker at those rungs and the modal's own ladder
+  is where they move.
+
+  No assign update: hosts carry `:title_rungs` via `IntentAware`,
   refreshed by the Discovery broadcast. No-op when the subject carries no
   TMDB id (the toggle isn't rendered then).
   """
@@ -1236,12 +1264,15 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         socket
 
       {tmdb_id, media_type} ->
-        if MapSet.member?(socket.assigns.watchlisted_refs, {tmdb_id, media_type}) do
-          Discovery.remove_from_watchlist(tmdb_id, media_type)
+        if Map.has_key?(socket.assigns.title_rungs, {tmdb_id, media_type}) do
+          ReleaseTracking.set_rung(
+            Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: subject.name}),
+            :off
+          )
         else
           # No poster_path on purpose: library subjects don't carry a TMDB
           # poster path — artwork arrives via Discovery's async TmdbArtwork.ensure.
-          Discovery.add_to_watchlist(
+          ReleaseTracking.set_rung(
             Title.new!(%{
               tmdb_id: tmdb_id,
               media_type: media_type,
@@ -1249,7 +1280,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
               year: watchlist_year(Map.get(subject, :date_published)),
               release_date: Map.get(subject, :date_published),
               overview: Map.get(subject, :description)
-            })
+            }),
+            :list
           )
         end
 
@@ -1294,15 +1326,37 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Whether the modal's watchlist subject is on the watchlist — the state
-  the view controls' bookmark toggle renders. Resolves the subject
-  exactly as `toggle_watchlist/1` does.
+  The rung the modal's list subject sits at, or nil for Off — the state
+  the view controls' bookmark renders. Resolves the subject exactly as
+  `toggle_watchlist/1` does.
   """
-  @spec watchlisted?(map() | nil, Ecto.UUID.t() | nil, MapSet.t()) :: boolean()
-  def watchlisted?(selected_entry, selected_member_id, watchlisted_refs) do
+  @spec subject_rung(map() | nil, Ecto.UUID.t() | nil, map()) :: TitleIntent.rung() | nil
+  def subject_rung(selected_entry, selected_member_id, title_rungs) do
     case watchlist_ref(watchlist_subject(selected_entry, selected_member_id)) do
-      nil -> false
-      ref -> MapSet.member?(watchlisted_refs, ref)
+      nil -> nil
+      ref -> Map.get(title_rungs, ref)
+    end
+  end
+
+  @doc """
+  The open title's `TitleRef` param, or nil when it carries no TMDB
+  identity — the ladder control's address for its clicks.
+  """
+  @spec title_ref(map() | nil) :: String.t() | nil
+  def title_ref(selected_entry) do
+    case find_tmdb_id(selected_entry) do
+      {_tmdb_id, _media_type} = ref -> MediaCentaurWeb.TitleRef.param(ref)
+      _no_identity -> nil
+    end
+  end
+
+  # The open title's own rung — what the ladder control shows. Distinct
+  # from `subject_rung/3`, which follows a collection down to the selected
+  # member; the ladder is about the entity the panel is showing.
+  defp entry_rung(selected_entry) do
+    case find_tmdb_id(selected_entry) do
+      {tmdb_id, media_type} -> Discovery.rung(tmdb_id, media_type)
+      _no_identity -> nil
     end
   end
 
@@ -1458,59 +1512,23 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   def find_tmdb_id(_), do: nil
 
-  @doc """
-  What a click on the library detail's tracking-mode control means for an
-  owned title (ADR-065), given the tracked title's current mode, the
-  subject's type and the chosen mode:
-
-    * `:disarm` — Off on an armed title (`ReleaseTracking.disarm/1`).
-    * `:set` — a mode change on an armed title, or any raise on a
-      collection: the library reason already holds, and the watchlist has
-      no collections to list.
-    * `:arm` — a raise from Off on a series: arming is a watchlist act,
-      so it lists the series too (`ReleaseTracking.arm/2`), which the
-      control's copy states beforehand.
-    * `:noop` — Off on an already-Off title.
-
-  The panel only renders the control for a tracked title, so there is
-  no never-tracked case here — the library scan creates the row.
-  """
-  @spec tracking_mode_action(Item.tracking_mode(), :tv_series | :movie, Item.tracking_mode()) ::
-          :disarm | :set | :arm | :noop
-  def tracking_mode_action(:none, _media_type, :none), do: :noop
-  def tracking_mode_action(_armed, _media_type, :none), do: :disarm
-  def tracking_mode_action(:none, :tv_series, _raised), do: :arm
-  def tracking_mode_action(_current, _media_type, _chosen), do: :set
-
-  @modes ~w(none watch ask grab global)
+  @rungs ~w(off list follow ask grab default)
 
   @doc false
-  def handle_set_tracking_mode(%{"choice" => choice, "ref" => param}, socket) when choice in @modes do
-    chosen = String.to_existing_atom(choice)
-
+  def handle_set_rung(%{"choice" => choice, "ref" => param}, socket) when choice in @rungs do
     with {:ok, {tmdb_id, media_type} = ref} <- TitleRef.parse(param),
-         ^ref <- find_tmdb_id(socket.assigns.selected_entry),
-         %Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
-      case tracking_mode_action(item.tracking_mode, media_type, chosen) do
-        :noop ->
-          :ok
+         ^ref <- find_tmdb_id(socket.assigns.selected_entry) do
+      title =
+        Title.new!(%{
+          tmdb_id: tmdb_id,
+          media_type: media_type,
+          name: socket.assigns.selected_entry.entity.name
+        })
 
-        :disarm ->
-          {:ok, _item} = ReleaseTracking.disarm(item)
-
-        :set ->
-          {:ok, _item} = ReleaseTracking.set_tracking_mode(item, chosen)
-
-        :arm ->
-          title =
-            Title.new!(%{
-              tmdb_id: tmdb_id,
-              media_type: media_type,
-              name: socket.assigns.selected_entry.entity.name
-            })
-
-          {:ok, _item} = ReleaseTracking.arm(title, %{tracking_mode: chosen})
-      end
+      # One ladder, one write. The decision table this replaced existed
+      # only because listing and following were two records that had to be
+      # kept in agreement.
+      ReleaseTracking.set_rung_async(title, rung_atom(choice))
 
       reload_tracking(socket)
     else
@@ -1518,7 +1536,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     end
   end
 
-  def handle_set_tracking_mode(_params, socket), do: socket
+  def handle_set_rung(_params, socket), do: socket
+
+  defp rung_atom("off"), do: :off
+  defp rung_atom("list"), do: :list
+  defp rung_atom("follow"), do: :follow
+  defp rung_atom("ask"), do: :ask
+  defp rung_atom("grab"), do: :grab
+  defp rung_atom("default"), do: :default
 
   @doc false
   def handle_reset_lower_quality(%{"ref" => param}, socket) do
@@ -1841,6 +1866,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
     Phoenix.Component.assign(socket,
       tracking: load_tracking(entry),
+      rung: entry_rung(entry),
       lower_quality_accepted?: lower_quality_accepted?(entry)
     )
   end

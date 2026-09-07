@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           release_mode_available: true,
           scope: :all,
           today: ~D[2026-08-02],
-          watchlisted_refs: MapSet.new([{777, :movie}]),
+          title_rungs: %{{777, :movie} => :list},
           in_library_refs: MapSet.new([{246_810, :tv_series}]),
           tracked_refs: MapSet.new([{246_810, :tv_series}, {779, :tv_series}]),
           recommendations_by_ref: %{

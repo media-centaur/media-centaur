@@ -561,8 +561,8 @@ defmodule MediaCentaur.Showcase do
       {:ok, [%{"id" => id, "title" => name} | _]} ->
         title = Title.new!(%{tmdb_id: id, media_type: :movie, name: name})
 
-        case ReleaseTracking.track_from_search(title) do
-          {:ok, _item} -> :ok
+        case ReleaseTracking.set_rung(title, :default) do
+          {:ok, _intent} -> :ok
           _ -> :error
         end
 
@@ -576,8 +576,8 @@ defmodule MediaCentaur.Showcase do
       {:ok, [%{"id" => id, "name" => name} | _]} ->
         title = Title.new!(%{tmdb_id: id, media_type: :tv_series, name: name})
 
-        case ReleaseTracking.track_from_search(title) do
-          {:ok, _item} -> :ok
+        case ReleaseTracking.set_rung(title, :default) do
+          {:ok, _intent} -> :ok
           _ -> :error
         end
 

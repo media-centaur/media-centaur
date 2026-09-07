@@ -3,6 +3,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
   import Ecto.Query
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.Onboarding
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.TMDB.Title
 
@@ -40,7 +41,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       assert item.tmdb_id == 1396
       assert item.media_type == :tv_series
-      assert item.tracking_mode == :global
     end
 
     test "enforces unique tmdb_id + media_type" do
@@ -96,42 +96,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       assert item.library_container_type == nil
       assert item.library_container_id == nil
-    end
-  end
-
-  describe "disarm/1 and set_tracking_mode/2" do
-    test "disarming records the durable stop; a person can arm it again" do
-      item = create_tracking_item(%{name: "Test Show"})
-      assert item.tracking_mode == :global
-
-      {:ok, disarmed} = ReleaseTracking.disarm(item)
-      assert disarmed.tracking_mode == :none
-
-      {:ok, rearmed} = ReleaseTracking.set_tracking_mode(disarmed, :global)
-      assert rearmed.tracking_mode == :global
-    end
-  end
-
-  describe "list_active_items/0" do
-    test "excludes disarmed titles — a :none item is inert" do
-      create_tracking_item(%{name: "Watching Show", tmdb_id: 100})
-      ignored = create_tracking_item(%{name: "Ignored Show", tmdb_id: 200})
-      ReleaseTracking.disarm(ignored)
-
-      items = ReleaseTracking.list_active_items()
-      assert length(items) == 1
-      assert hd(items).name == "Watching Show"
-    end
-  end
-
-  describe "tracking_status/1" do
-    test "returns status for tracked item" do
-      create_tracking_item(%{tmdb_id: 1396, media_type: :tv_series})
-      assert ReleaseTracking.tracking_status({1396, :tv_series}) == :global
-    end
-
-    test "returns nil for untracked item" do
-      assert ReleaseTracking.tracking_status({9999, :movie}) == nil
     end
   end
 
@@ -485,28 +449,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series) == []
     end
 
-    test "returns [] when the linked Item has status :ignored" do
-      tv = create_tv_series(%{name: "Ignored Show"})
-
-      item =
-        create_tracking_item(%{
-          name: "Ignored Show",
-          library_container_type: :tv_series,
-          library_container_id: tv.id
-        })
-
-      {:ok, _} = ReleaseTracking.disarm(item)
-
-      create_tracking_release(%{
-        item_id: item.id,
-        air_date: Date.add(Date.utc_today(), 7),
-        season_number: 2,
-        episode_number: 1
-      })
-
-      assert ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series) == []
-    end
-
     test "returns unaired (released: false) releases" do
       tv = create_tv_series(%{name: "Future Show"})
 
@@ -696,7 +638,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
-  describe "track_from_search/2" do
+  describe "Onboarding.onboard/2" do
     setup do
       MediaCentaur.TmdbStubs.setup_tmdb_client()
       :ok
@@ -721,7 +663,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       ])
 
       {:ok, item} =
-        ReleaseTracking.track_from_search(
+        Onboarding.onboard(
           Title.new!(%{
             tmdb_id: 5555,
             media_type: :tv_series,
@@ -732,7 +674,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
         )
 
       assert item.tmdb_id == 5555
-      assert item.tracking_mode == :watch
       assert item.last_library_season == 2
       assert item.last_library_episode == 5
 
@@ -771,7 +712,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       ])
 
       {:ok, item} =
-        ReleaseTracking.track_from_search(
+        Onboarding.onboard(
           Title.new!(%{
             tmdb_id: 6666,
             media_type: :tv_series,
@@ -811,7 +752,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       ])
 
       {:ok, item} =
-        ReleaseTracking.track_from_search(
+        Onboarding.onboard(
           Title.new!(%{
             tmdb_id: 9999,
             media_type: :movie,
@@ -823,7 +764,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       assert item.tmdb_id == 9999
       assert item.media_type == :movie
-      assert item.tracking_mode == :watch
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert length(releases) == 2
@@ -851,7 +791,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       ])
 
       {:ok, item} =
-        ReleaseTracking.track_from_search(
+        Onboarding.onboard(
           Title.new!(%{tmdb_id: 8888, media_type: :movie, name: "Mystery Film", poster_path: nil}),
           %{}
         )
@@ -884,9 +824,9 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       result =
         Title.new!(%{tmdb_id: 7777, media_type: :tv_series, name: "Sample Show", poster_path: nil})
 
-      {:ok, item} = ReleaseTracking.track_from_search(result, %{})
+      {:ok, item} = Onboarding.onboard(result, %{})
 
-      assert {:error, :already_tracked} = ReleaseTracking.track_from_search(result, %{})
+      assert {:error, :already_tracked} = Onboarding.onboard(result, %{})
 
       # The duplicate attempt must not disturb the existing item or its releases.
       assert ReleaseTracking.get_item_by_tmdb(7777, :tv_series).id == item.id
@@ -907,9 +847,9 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       result = Title.new!(%{tmdb_id: 6060, media_type: :movie, name: "Sample Movie", poster_path: nil})
 
-      {:ok, item} = ReleaseTracking.track_from_search(result, %{})
+      {:ok, item} = Onboarding.onboard(result, %{})
 
-      assert {:error, :already_tracked} = ReleaseTracking.track_from_search(result, %{})
+      assert {:error, :already_tracked} = Onboarding.onboard(result, %{})
       assert ReleaseTracking.get_item_by_tmdb(6060, :movie).id == item.id
     end
   end
@@ -954,31 +894,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
-  describe "set_tracking_mode/2" do
-    setup do
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.release_tracking_updates())
-      :ok
-    end
-
-    test "persists the mode and broadcasts :releases_updated" do
-      item = create_tracking_item(%{tmdb_id: 1111, media_type: :tv_series, name: "Pref"})
-
-      assert {:ok, updated} = ReleaseTracking.set_tracking_mode(item, :watch)
-      assert updated.tracking_mode == :watch
-
-      assert_received {:releases_updated, [_]}
-    end
-
-    test "rejects a mode outside the ladder" do
-      item = create_tracking_item(%{tmdb_id: 2222, media_type: :movie, name: "Bad mode"})
-
-      assert {:error, changeset} = ReleaseTracking.set_tracking_mode(item, :bogus)
-
-      refute changeset.valid?
-      assert {"is invalid", _} = changeset.errors[:tracking_mode]
-    end
-  end
-
   describe "list_releases_between/3" do
     test "returns empty list when no releases exist" do
       monday = ~D[2026-04-27]
@@ -987,7 +902,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
 
     test "returns releases with air_date within the window" do
-      item = create_tracking_item(%{name: "The Show", tracking_mode: :global})
+      item = create_tracking_item(%{name: "The Show"})
 
       create_tracking_release(%{
         item_id: item.id,
@@ -1043,21 +958,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       results = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
       assert length(results) == 2
-    end
-
-    test "excludes ignored items" do
-      item = create_tracking_item(%{name: "Ignored Show", tmdb_id: 77_700})
-      ReleaseTracking.disarm(item)
-
-      create_tracking_release(%{
-        item_id: item.id,
-        air_date: ~D[2026-04-28],
-        season_number: 1,
-        episode_number: 1
-      })
-
-      results = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
-      assert results == []
     end
 
     test "carries release_type so callers can label theatrical dates" do
@@ -1230,10 +1130,12 @@ defmodule MediaCentaur.ReleaseTrackingTest do
   end
 
   describe "detach_library_containers/1" do
-    # ADR-065: the library reason is a *default*, so it evaporates with the
-    # container. Before that decision this kept every item, and a series
-    # deleted from the library went on grabbing whether or not anyone asked.
-    test "a title only the library default was tracking stops being tracked" do
+    # Deleting a series from the library unlinks it and reconciles. The
+    # rung decides what survives: a title nobody follows goes, and a title
+    # a person put on the ladder keeps following it. That is the opposite
+    # of ADR-065's library reason, and deliberately so — only a person
+    # starts tracking, so only a person stops it.
+    test "a title nobody asked for stops being tracked" do
       container_id = Ecto.UUID.generate()
 
       item =
@@ -1241,14 +1143,15 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           tmdb_id: 6161,
           media_type: :tv_series,
           library_container_type: :tv_series,
-          library_container_id: container_id
+          library_container_id: container_id,
+          rung: nil
         })
 
       assert ReleaseTracking.detach_library_containers([container_id]) == 1
       refute ReleaseTracking.get_item(item.id)
     end
 
-    test "a title a person disarmed keeps its disarm after the container goes" do
+    test "a title a person follows keeps following it after the library drops it" do
       container_id = Ecto.UUID.generate()
 
       item =
@@ -1256,16 +1159,14 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           tmdb_id: 6163,
           media_type: :tv_series,
           library_container_type: :tv_series,
-          library_container_id: container_id
+          library_container_id: container_id,
+          rung: :grab
         })
-
-      {:ok, _disarmed} = ReleaseTracking.disarm(item)
 
       assert ReleaseTracking.detach_library_containers([container_id]) == 1
 
       kept = ReleaseTracking.get_item(item.id)
-      assert kept, "the disarm must survive — re-acquiring would silently re-arm"
-      assert kept.tracking_mode == :none
+      assert kept, "the rung is the person's; losing the files does not lower it"
       assert kept.library_container_id == nil
     end
 

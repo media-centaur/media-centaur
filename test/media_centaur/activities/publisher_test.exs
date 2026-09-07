@@ -117,17 +117,17 @@ defmodule MediaCentaur.Activities.PublisherTest do
         ReleaseTracking.track_item(%{
           tmdb_id: 1399,
           media_type: :tv_series,
-          name: "Sample Show",
-          tracking_mode: :watch
+          name: "Sample Show"
         })
 
-      {:ok, _armed} =
-        ReleaseTracking.arm(
+      {:ok, _intent} =
+        ReleaseTracking.set_rung(
           MediaCentaur.TMDB.Title.new!(%{
             tmdb_id: 1399,
             media_type: :tv_series,
             name: "Sample Show"
-          })
+          }),
+          :follow
         )
 
       settle()

@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   The social projections (UIDR-031) come from one list: every live
   activity with its actor (`Activities.list_activities/0`), enriched
   here with what Activities cannot know — `Library.ExternalIds.tmdb_owners/1`,
-  `Discovery.watchlisted_refs/0` and `Acquisition.TitleStates.for_refs/1`.
+  `Discovery.rungs/0` and `Acquisition.TitleStates.for_refs/1`.
 
   Recommendations (`/discovery`, the page's default) — friends'
   recommendations, one row per title (`RecommendationRows`), the
@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   row to In library when the file lands.
 
   Subscribes to Discovery directly (it needs the full item list, not the
-  `WatchlistAware` ref set — see that trait's moduledoc).
+  `IntentAware` rung map — see that trait's moduledoc).
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
@@ -184,7 +184,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   @impl true
-  def handle_info({tag, _event}, socket) when tag in [:watchlist_item_added, :watchlist_item_removed] do
+  def handle_info({:title_intent_changed, _event}, socket) do
     {:noreply, socket |> load_items() |> load_activities()}
   end
 
@@ -216,26 +216,29 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   def handle_info(_message, socket), do: {:noreply, socket}
 
-  # The watchlist row's decoration: Discovery owns the item and library
+  # The list row's decoration: Discovery owns the record and library
   # presence; the poster, the recommendations (the pennants) and the
-  # tracked title's mode and next date are joined here, because
-  # Discovery knows nothing about Activities or ReleaseTracking.
+  # tracked title's next date are joined here, because Discovery knows
+  # nothing about Activities or ReleaseTracking. The rung comes straight
+  # off the record — it is the authored fact, not something to look up.
   defp load_items(socket) do
-    rows = Discovery.list_watchlist()
+    rows = Discovery.list_intents()
 
     recommendations =
-      Activities.recommendations_for(Enum.map(rows, &{&1.item.tmdb_id, &1.item.media_type}))
+      Activities.recommendations_for(Enum.map(rows, &{&1.intent.tmdb_id, &1.intent.media_type}))
 
     tracked = Map.new(ReleaseTracking.list_all_items(), &{{&1.tmdb_id, &1.media_type}, &1})
 
     items =
-      Enum.map(rows, fn %{item: item} = row ->
-        tracked_item = Map.get(tracked, {item.tmdb_id, item.media_type})
+      Enum.map(rows, fn %{intent: intent} = row ->
+        tracked_item = Map.get(tracked, {intent.tmdb_id, intent.media_type})
 
-        Map.merge(row, %{
-          poster_url: title_poster_url(item.title),
-          recommendations: Map.get(recommendations, {item.tmdb_id, item.media_type}, []),
-          tracking_mode: tracked_item && tracked_item.tracking_mode,
+        row
+        |> Map.put(:item, intent)
+        |> Map.merge(%{
+          poster_url: title_poster_url(intent.title),
+          recommendations: Map.get(recommendations, {intent.tmdb_id, intent.media_type}, []),
+          rung: intent.rung,
           next_air_date: next_air_date(tracked_item, socket.assigns.today)
         })
       end)
@@ -245,9 +248,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     |> stamp_acquisition_states()
   end
 
-  # A disarmed title is inert (ADR-065): no next date, whatever its calendar says.
+  # No tracked title, no next date — the rung below Follow keeps no calendar.
   defp next_air_date(nil, _today), do: nil
-  defp next_air_date(%{tracking_mode: :none}, _today), do: nil
   defp next_air_date(item, today), do: Logic.next_air_date(item.releases, today)
 
   # The activity row's decoration: Activities owns the record and the
@@ -259,7 +261,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     owners =
       ExternalIds.tmdb_owners(Enum.map(rows, &{&1.activity.tmdb_id, &1.activity.media_type}))
 
-    watchlisted = Discovery.watchlisted_refs()
+    rungs = Discovery.rungs()
 
     activities =
       Enum.map(rows, fn %{activity: activity} = row ->
@@ -268,7 +270,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         Map.merge(row, %{
           poster_url: title_poster_url(activity.title),
           library_owner_id: Map.get(owners, ref),
-          on_watchlist?: MapSet.member?(watchlisted, ref)
+          rung: Map.get(rungs, ref)
         })
       end)
 
@@ -430,7 +432,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 Logic.row_markers(%{
                   library_owner_id: row.library_owner_id,
                   acquisition_state: row.acquisition_state,
-                  on_watchlist?: row.on_watchlist?
+                  rung: row.rung
                 })
               }
               notes={row.notes}
@@ -491,8 +493,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 Logic.row_markers(%{
                   library_owner_id: row.library_owner_id,
                   acquisition_state: row.acquisition_state,
-                  on_watchlist?: false,
-                  tracking_mode: row.tracking_mode,
+                  rung: row.rung,
                   default_grab_mode: @default_grab_mode,
                   next_air_date: row.next_air_date,
                   today: @today

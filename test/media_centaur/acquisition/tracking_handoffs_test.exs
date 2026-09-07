@@ -55,7 +55,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
   end
 
   describe "grab-future handoff (on completion)" do
-    test "a satisfied pursuit from a grab_future plan starts tracking the title" do
+    test "a satisfied pursuit from a grab_future plan follows the title at Grab" do
       stub_show(42_001, "Sample Future Show")
 
       {pursuit, target} =
@@ -83,7 +83,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
 
       item = ReleaseTracking.get_item_by_tmdb(42_001, :tv_series)
       assert item
-      assert item.tracking_mode == :watch
+      assert MediaCentaur.Discovery.rung(item.tmdb_id, item.media_type) == :grab
     end
 
     test "no handoff without the grab_future opt-in" do

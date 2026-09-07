@@ -43,23 +43,25 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   test "rows show state; the modal offers the honest action per state", %{conn: conn} do
     {:ok, _} =
-      Discovery.add_to_watchlist(
+      Discovery.put_rung(
         Title.new!(%{
           tmdb_id: 777,
           media_type: :movie,
           name: "Sample Movie",
           release_date: ~D[2020-01-01]
-        })
+        }),
+        :list
       )
 
     {:ok, _} =
-      Discovery.add_to_watchlist(
+      Discovery.put_rung(
         Title.new!(%{
           tmdb_id: 42,
           media_type: :tv_series,
           name: "Sample Show",
           release_date: ~D[2999-01-01]
-        })
+        }),
+        :list
       )
 
     # A presentable movie (container + linked file) owning TMDB id 777.
@@ -78,7 +80,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     # the mode is where you stop it.
     view |> element("#watchlist-item-tv_series-42") |> render_click()
     refute has_element?(view, "#title-download")
-    assert has_element?(view, "#title-tracking-mode-watch")
+    assert has_element?(view, "#title-tracking-mode-follow")
     render_hook(view, "close_title", %{})
 
     view |> element("#watchlist-item-movie-777") |> render_click()
@@ -91,7 +93,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
     {:ok, _} =
-      Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+      Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
     assert render(view) =~ "Sample Movie"
     await_supervised_tasks()
@@ -99,7 +101,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   test "library changes flip a row to In library without a reload", %{conn: conn} do
     {:ok, _} =
-      Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+      Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
     {:ok, view, html} = live(conn, "/discovery/watchlist")
     refute html =~ "In library"
@@ -115,7 +117,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   test "renders the Discovery heading and the Watchlist tab with its count", %{conn: conn} do
     {:ok, _} =
-      Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+      Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
     {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
@@ -272,8 +274,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       view |> element("#person-you-#{rec.id}") |> render_click()
       assert render(view) =~ "You recommended"
-      view |> element("#title-watchlist-add") |> render_click()
-      assert Discovery.on_watchlist?(99, :movie)
+      view |> element("#title-tracking-mode-list") |> render_click()
+      assert Discovery.listed?(99, :movie)
       render_hook(view, "close_title", %{})
 
       view |> element("#person-you-#{mine.id}") |> render_click()
@@ -400,17 +402,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert_patch(view, "/discovery?title=movie-777")
       assert render(view) =~ "Sample Friend recommended"
 
-      view |> element("#title-watchlist-add") |> render_click()
-      assert Discovery.on_watchlist?(777, :movie)
-      assert has_element?(view, "#title-on-watchlist")
-      assert has_element?(view, "#title-watchlist-remove")
+      view |> element("#title-tracking-mode-list") |> render_click()
+      assert Discovery.listed?(777, :movie)
+      assert has_element?(view, "#title-tracking-mode-list[aria-pressed='true']")
 
       render_hook(view, "close_title", %{})
       assert_patch(view, "/discovery")
-      assert has_element?(view, "#recommendation-movie-777", "On watchlist")
+      assert has_element?(view, "#recommendation-movie-777")
 
-      assert [%{item: %{source: :friend, activity_id: rec_id, note: "Watch it."}}] =
-               Discovery.list_watchlist()
+      assert [%{intent: %{source: :friend, activity_id: rec_id, note: "Watch it."}}] =
+               Discovery.list_intents()
 
       assert rec_id == rec.id
 
@@ -528,11 +529,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, view, _html} = live(conn, "/discovery?title=book-1")
 
-      refute has_element?(view, "#title-detail-modal #title-watchlist-add")
-      render_click(view, "title_watchlist_add", %{})
+      refute has_element?(view, "#title-detail-modal #title-tracking-mode")
+      render_click(view, "set_rung", %{"choice" => "list", "ref" => "movie-1"})
 
       assert Process.alive?(view.pid)
-      assert Discovery.list_watchlist() == []
+      assert Discovery.list_intents() == []
     end
 
     test "a friend's deletion removes their row without a reload", %{conn: conn} do
@@ -568,7 +569,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "neither the row nor the modal offers Recommend", %{conn: conn} do
       {:ok, _item} =
-        Discovery.add_to_watchlist(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}))
+        Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
       refute render(view) =~ "Recommend to your friends"
@@ -627,7 +628,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         })
       )
 
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
       {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       # Snapshot first: the modal is open before TMDB answers.
@@ -645,14 +646,14 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a watchlist card click opens the modal via the URL; close returns", %{conn: conn} do
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
       view |> element("#watchlist-item-movie-777") |> render_click()
 
       assert_patch(view, "/discovery/watchlist?title=movie-777")
       assert has_element?(view, "#title-detail-modal #title-download")
-      assert has_element?(view, "#title-detail-modal #title-watchlist-remove")
+      assert has_element?(view, "#title-detail-modal #title-tracking-mode")
 
       render_hook(view, "close_title", %{})
       assert_patch(view, "/discovery/watchlist")
@@ -661,7 +662,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "Download creates an automatic plan, closes the modal, flashes, and the row shows the state",
          %{conn: conn} do
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       view |> element("#title-download") |> render_click()
@@ -688,7 +689,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
           release_date: ~D[2010-01-01]
         })
 
-      {:ok, _} = Discovery.add_to_watchlist(show)
+      {:ok, _} = Discovery.put_rung(show, :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
 
       assert has_element?(view, "#title-download", "Download season 1")
@@ -722,7 +723,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
           release_date: ~D[2010-01-01]
         })
 
-      {:ok, _} = Discovery.add_to_watchlist(show)
+      {:ok, _} = Discovery.put_rung(show, :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
 
       view |> element("#title-scope-toggle") |> render_click()
@@ -733,7 +734,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert %ReleaseTracking.Item{} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
     end
 
-    test "choosing a mode on an untracked title arms it — listed, tracked, at that mode", %{
+    test "raising the rung on a listed title follows it — tracked, at that rung", %{
       conn: conn
     } do
       TmdbStubs.stub_series_universe_for_targeting()
@@ -746,57 +747,62 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
           release_date: ~D[2999-01-01]
         })
 
-      {:ok, _} = Discovery.add_to_watchlist(upcoming)
+      {:ok, _} = Discovery.put_rung(upcoming, :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
 
-      # Not tracked: the control reads Off, and nothing tracking-shaped shows.
-      assert has_element?(view, "#title-tracking-mode[data-mode='none']")
+      # Listed but not followed: the control reads List, and nothing
+      # tracking-shaped shows.
+      assert has_element?(view, "#title-tracking-mode[data-rung='list']")
       refute has_element?(view, "#title-release-timeline")
 
       view |> element("#title-tracking-mode-ask") |> render_click()
       assert render(view) =~ "Tracking Sample Show"
 
       await_supervised_tasks()
-      assert %{tracking_mode: :ask} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
+      assert Discovery.rung(246_810, :tv_series) == :ask
+      assert ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
 
       # The broadcast lands the timeline and the mode on the open modal
       # and the row.
-      render_until(view, fn _html -> has_element?(view, "#title-tracking-mode[data-mode='ask']") end)
+      render_until(view, fn _html -> has_element?(view, "#title-tracking-mode[data-rung='ask']") end)
       assert has_element?(view, "#title-release-timeline")
       assert has_element?(view, "#watchlist-item-tv_series-246810", "Tracking: Ask")
     end
 
-    test "choosing a mode on a tracked title moves it; Off disarms and keeps the row", %{conn: conn} do
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+    test "moving the rung on a followed title; Off deletes the record and the row", %{conn: conn} do
+      {:ok, _} = Discovery.put_rung(released_movie(), :default)
       item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
-      assert has_element?(view, "#title-tracking-mode[data-mode='global']")
+      assert has_element?(view, "#title-tracking-mode[data-rung='default']")
 
       view |> element("#title-tracking-mode-grab") |> render_click()
-      assert ReleaseTracking.get_item(item.id).tracking_mode == :grab
-      assert has_element?(view, "#title-tracking-mode[data-mode='grab']")
+      assert Discovery.rung(777, :movie) == :grab
+      assert has_element?(view, "#title-tracking-mode[data-rung='grab']")
 
-      view |> element("#title-tracking-mode-none") |> render_click()
-      assert ReleaseTracking.get_item(item.id).tracking_mode == :none
-      assert has_element?(view, "#title-tracking-mode[data-mode='none']")
+      view |> element("#title-tracking-mode-off") |> render_click()
+      assert Discovery.rung(777, :movie) == nil
+      refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title too"
       refute has_element?(view, "#title-release-timeline")
       await_supervised_tasks()
     end
 
-    test "a watchlist row shows its mode as a marker and never a control; Off shows nothing", %{
+    test "a list row shows its rung as a marker and never a control; List shows nothing", %{
       conn: conn
     } do
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
-      item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
-      {:ok, _} = ReleaseTracking.set_tracking_mode(item, :watch)
+      create_tracking_item(%{
+        tmdb_id: 777,
+        media_type: :movie,
+        name: "Sample Movie",
+        rung: :follow
+      })
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
-      assert has_element?(view, "#watchlist-item-movie-777", "Tracking: Watch")
-      refute has_element?(view, "#watchlist-item-movie-777 [data-component='tracking-mode-control']")
+      assert has_element?(view, "#watchlist-item-movie-777", "Tracking: Follow")
+      refute has_element?(view, "#watchlist-item-movie-777 [data-component='intent-control']")
 
-      {:ok, _} = ReleaseTracking.disarm(item)
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
 
       render_until(view, fn _html ->
         not has_element?(view, "#watchlist-item-movie-777", "Tracking:")
@@ -806,7 +812,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a watchlist row states its next release date", %{conn: conn} do
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
       item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       create_tracking_release(%{
@@ -823,7 +829,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "the modal shows the timeline and activity for a tracked title", %{conn: conn} do
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      {:ok, _} = Discovery.put_rung(released_movie(), :follow)
       item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       create_tracking_release(%{
@@ -841,20 +847,24 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
-    test "Remove from watchlist deletes the item and closes", %{conn: conn} do
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+    test "Off forgets the title and drops both its row and the modal on this page", %{
+      conn: conn
+    } do
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
-      view |> element("#title-watchlist-remove") |> render_click()
+      view |> element("#title-tracking-mode-off") |> render_click()
 
-      assert_patch(view, "/discovery/watchlist")
-      refute Discovery.on_watchlist?(777, :movie)
+      refute Discovery.listed?(777, :movie)
       refute has_element?(view, "#watchlist-item-movie-777")
+      # Nothing left to show: this page's titles *are* the list, so once
+      # the record is gone the modal has no title to render.
+      refute has_element?(view, "#title-tracking-mode")
       await_supervised_tasks()
     end
 
     test "acquisition events refresh the row state without a reload", %{conn: conn} do
-      {:ok, _} = Discovery.add_to_watchlist(released_movie())
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       refute has_element?(view, "#watchlist-item-movie-777", "Needs review")
 
@@ -876,7 +886,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
 
       {:ok, _} =
-        Discovery.add_to_watchlist(rec.title, %{
+        Discovery.put_rung(rec.title, :list, %{
           source: :friend,
           activity_id: rec.id,
           note: rec.note
@@ -898,7 +908,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _other} = Social.add_friend(@other_pubkey, "Other Friend")
       {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
-      {:ok, _} = Discovery.add_to_watchlist(rec.title)
+      {:ok, _} = Discovery.put_rung(rec.title, :list)
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
@@ -929,7 +939,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
 
       {:ok, _} =
-        Discovery.add_to_watchlist(rec.title, %{
+        Discovery.put_rung(rec.title, :list, %{
           source: :friend,
           activity_id: rec.id,
           note: rec.note

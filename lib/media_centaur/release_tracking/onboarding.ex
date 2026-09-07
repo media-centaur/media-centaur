@@ -1,37 +1,42 @@
-defmodule MediaCentaur.ReleaseTracking.Acquisition do
+defmodule MediaCentaur.ReleaseTracking.Onboarding do
   @moduledoc """
-  Track-from-search onboarding for release tracking
-  (`track_from_search/2`, `track_from_search_async/2`). Title search
-  itself lives in `MediaCentaur.TMDB.TitleSearch`.
+  Builds the machinery a followed title needs: fetches the title from
+  TMDB, creates the tracked-title row, seeds its calendar and wants, and
+  queues its artwork.
 
-  Split out of the `ReleaseTracking` context so the CRUD context isn't
-  also a search-and-onboard module. Persistence and event creation route
-  back through the context (`track_item`, `persist_release!`,
-  `create_release!`, `mark_in_library_releases`, `create_event!`,
-  `update_item`, `broadcast_releases_updated`), which own those concerns;
-  this module owns only the track-from-search flow.
+  Called from exactly one place — `ReleaseTracking.set_rung/3`, when a
+  rung of `:follow` or above finds no tracked title. It is a derivation
+  step, not an act: a person raising a rung is the act, and the context
+  announces that. Nothing here decides *whether* a title is followed.
+
+  It was `ReleaseTracking.Acquisition`, which collided with the
+  `MediaCentaur.Acquisition` context — two unrelated meanings for one
+  word. Title search itself lives in `MediaCentaur.TMDB.TitleSearch`.
+
+  Persistence and event creation route back through the context
+  (`track_item`, `persist_release!`, `create_release!`,
+  `mark_in_library_releases`, `create_event!`, `update_item`,
+  `broadcast_releases_updated`), which own those concerns.
   """
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Reasons, Release, Wants}
+  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Release, Wants}
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Title
 
-  # --- Track from search ---
-
   @doc """
-  Creates a tracking item from a search result. Used by the Track New Show modal.
+  Creates the tracked title for `title` and everything under it.
 
-  Accepts a `MediaCentaur.TMDB.Title` and options:
-  - For TV: %{start_season: n, start_episode: n} to set tracking offset
-  - For movies: %{} (no options needed)
+  `opts` may carry `:start_season` / `:start_episode` to scope the first
+  TV calendar fetch — `{0, 0}` (the default) means "only what is still to
+  come", and an explicit start includes what has already aired.
   """
-  @spec track_from_search(Title.t(), map()) :: {:ok, ReleaseTracking.Item.t()} | {:error, term()}
-  def track_from_search(%Title{} = title, opts \\ %{}) do
+  @spec onboard(Title.t(), map()) :: {:ok, ReleaseTracking.Item.t()} | {:error, term()}
+  def onboard(%Title{} = title, opts \\ %{}) do
     start_season = Map.get(opts, :start_season, 0)
     start_episode = Map.get(opts, :start_episode, 0)
 
-    case do_track_from_search(title, start_season, start_episode) do
+    case do_onboard(title, start_season, start_episode) do
       {:ok, item} ->
         ReleaseTracking.broadcast_releases_updated([item.id])
         {:ok, item}
@@ -41,23 +46,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
     end
   end
 
-  @doc """
-  Fire-and-forget `track_from_search/2`. Runs the (TMDB-fetching) tracking
-  on a supervised context-layer task — tracking must complete regardless of
-  the triggering LiveView's lifecycle (ADR-049: must-outlive background work
-  lives in the context, not a web-layer `start_child`). The resulting
-  `broadcast_releases_updated/1` keeps subscribers in sync.
-  """
-  @spec track_from_search_async(Title.t(), map()) :: :ok
-  def track_from_search_async(%Title{} = title, opts \\ %{}) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      track_from_search(title, opts)
-    end)
-
-    :ok
-  end
-
-  defp do_track_from_search(%Title{media_type: :tv_series} = title, start_season, start_episode) do
+  defp do_onboard(%Title{media_type: :tv_series} = title, start_season, start_episode) do
     case Client.get_tv(title.tmdb_id) do
       {:ok, response} ->
         all_releases =
@@ -75,7 +64,6 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
                tmdb_id: title.tmdb_id,
                media_type: :tv_series,
                name: response["name"] || title.name,
-               tracking_mode: Reasons.seed_mode(:watchlist),
                last_refreshed_at: DateTime.utc_now(),
                last_library_season: start_season,
                last_library_episode: start_episode
@@ -96,14 +84,13 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
     end
   end
 
-  defp do_track_from_search(%Title{media_type: :movie} = title, _start_season, _start_episode) do
+  defp do_onboard(%Title{media_type: :movie} = title, _start_season, _start_episode) do
     case Client.get_movie(title.tmdb_id) do
       {:ok, response} ->
         case ReleaseTracking.track_item(%{
                tmdb_id: title.tmdb_id,
                media_type: :movie,
                name: response["title"] || title.name,
-               tracking_mode: Reasons.seed_mode(:watchlist),
                last_refreshed_at: DateTime.utc_now()
              }) do
           {:ok, item} ->

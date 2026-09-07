@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
     Map.merge(
       %{
         library_owner_id: nil,
-        on_watchlist?: false,
+        rung: nil,
         acquisition_state: nil,
         release_mode_available: true,
         today: @today
@@ -79,9 +79,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
   end
 
   describe "title_detail/2 secondary and provenance" do
-    test "add to watchlist flips to on watchlist" do
-      refute Logic.title_detail(movie(), facts()).on_watchlist?
-      assert Logic.title_detail(movie(), facts(%{on_watchlist?: true})).on_watchlist?
+    test "the detail carries the title's rung, Off included" do
+      assert Logic.title_detail(movie(), facts()).rung == nil
+      assert Logic.title_detail(movie(), facts(%{rung: :grab})).rung == :grab
     end
 
     test "carries the feed provenance when given" do
@@ -114,45 +114,42 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
       assert Logic.row_markers(%{
                library_owner_id: "o",
                acquisition_state: :downloading,
-               on_watchlist?: true
+               rung: :list
              }) == ["In library"]
 
+      # List says only that it is on the list, which the row already is.
       assert Logic.row_markers(%{
                library_owner_id: nil,
                acquisition_state: :needs_review,
-               on_watchlist?: true
-             }) == ["Needs review", "On watchlist"]
+               rung: :list
+             }) == ["Needs review"]
 
       assert Logic.row_markers(%{
                library_owner_id: nil,
                acquisition_state: nil,
-               on_watchlist?: false
+               rung: nil
              }) == []
     end
   end
 
   describe "row_markers/1 tracking" do
-    test "an armed title states its mode, Default resolved; Off, never-tracked and owned say nothing" do
-      base = %{library_owner_id: nil, acquisition_state: nil, on_watchlist?: false}
+    test "a followed title states its rung, Default resolved; Off, List and owned say nothing" do
+      base = %{library_owner_id: nil, acquisition_state: nil, rung: nil}
 
-      assert Logic.row_markers(Map.merge(base, %{tracking_mode: :watch, default_grab_mode: "ask"})) ==
-               ["Tracking: Watch"]
+      assert Logic.row_markers(Map.merge(base, %{rung: :follow, default_grab_mode: "ask"})) ==
+               ["Tracking: Follow"]
 
-      assert Logic.row_markers(Map.merge(base, %{tracking_mode: :global, default_grab_mode: "ask"})) ==
+      assert Logic.row_markers(Map.merge(base, %{rung: :default, default_grab_mode: "ask"})) ==
                ["Tracking: Ask"]
 
-      assert Logic.row_markers(Map.merge(base, %{tracking_mode: :global, default_grab_mode: "off"})) ==
-               ["Tracking: Watch"]
+      assert Logic.row_markers(Map.merge(base, %{rung: :default, default_grab_mode: "off"})) ==
+               ["Tracking: Follow"]
 
-      assert Logic.row_markers(Map.merge(base, %{tracking_mode: :none, default_grab_mode: "ask"})) == []
-      assert Logic.row_markers(Map.merge(base, %{tracking_mode: nil, default_grab_mode: "ask"})) == []
+      assert Logic.row_markers(Map.merge(base, %{rung: :list, default_grab_mode: "ask"})) == []
+      assert Logic.row_markers(Map.merge(base, %{rung: nil, default_grab_mode: "ask"})) == []
 
       assert Logic.row_markers(
-               Map.merge(base, %{
-                 library_owner_id: "o",
-                 tracking_mode: :grab,
-                 default_grab_mode: "ask"
-               })
+               Map.merge(base, %{library_owner_id: "o", rung: :grab, default_grab_mode: "ask"})
              ) == ["In library"]
     end
   end
@@ -162,7 +159,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
       assert Logic.row_markers(%{
                library_owner_id: nil,
                acquisition_state: nil,
-               on_watchlist?: false,
+               rung: nil,
                next_air_date: Date.add(@today, 1),
                today: @today
              }) == ["Next: Tomorrow"]
@@ -170,7 +167,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
       assert Logic.row_markers(%{
                library_owner_id: nil,
                acquisition_state: :planning,
-               on_watchlist?: false,
+               rung: nil,
                next_air_date: nil,
                today: @today
              }) == ["Planning"]

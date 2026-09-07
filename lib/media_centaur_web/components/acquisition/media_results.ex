@@ -61,9 +61,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     default: nil,
     doc: "`Date.t()` the upcoming/released split compares against — nil means today (fixed in stories)."
 
-  attr :watchlisted_refs, :any,
-    default: MapSet.new(),
-    doc: "`{tmdb_id, media_type}` refs on the watchlist."
+  attr :title_rungs, :any,
+    default: %{},
+    doc: "`%{{tmdb_id, media_type} => rung}` — where each title sits on the ladder."
 
   attr :in_library_refs, :any,
     default: MapSet.new(),
@@ -171,7 +171,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
           result={result}
           status={release_status(result, @today)}
           release_mode_available={@release_mode_available}
-          watchlisted?={MapSet.member?(@watchlisted_refs, {result.tmdb_id, result.media_type})}
+          rung={Map.get(@title_rungs, {result.tmdb_id, result.media_type})}
           recommendations={Map.get(@recommendations_by_ref, {result.tmdb_id, result.media_type}, [])}
           in_library?={MapSet.member?(@in_library_refs, {result.tmdb_id, result.media_type})}
           tracked?={MapSet.member?(@tracked_refs, {result.tmdb_id, result.media_type})}
@@ -221,9 +221,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   attr :release_mode_available, :boolean, required: true
 
-  attr :watchlisted?, :boolean,
-    required: true,
-    doc: "Whether this title is on the watchlist — fills the bookmark."
+  attr :rung, :atom,
+    default: nil,
+    doc:
+      "The rung this title sits at, nil for Off — fills the bookmark. Above List the bookmark is a marker, not a toggle: a row click must not tear down a calendar."
 
   attr :in_library?, :boolean,
     required: true,
@@ -290,22 +291,20 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
           id={"omnibox-watchlist-#{@result.media_type}-#{@result.tmdb_id}"}
           type="button"
           class={[
-            "flex flex-1 cursor-pointer items-center px-2 transition-colors",
-            @watchlisted? && "text-primary",
-            !@watchlisted? && "text-base-content/55 hover:text-base-content/60"
+            "flex flex-1 items-center px-2 transition-colors",
+            @rung && "text-primary",
+            !@rung && "text-base-content/55 hover:text-base-content/60",
+            toggleable?(@rung) && "cursor-pointer"
           ]}
-          phx-click="watchlist_toggle"
+          phx-click={toggleable?(@rung) && "watchlist_toggle"}
           phx-value-tmdb-id={@result.tmdb_id}
           phx-value-media-type={@result.media_type}
-          aria-pressed={to_string(@watchlisted?)}
-          title={if @watchlisted?, do: "Remove from watchlist", else: "Add to watchlist"}
+          aria-pressed={to_string(@rung != nil)}
+          title={bookmark_label(@rung)}
           data-nav-item
           tabindex="0"
         >
-          <.icon
-            name={if @watchlisted?, do: "hero-bookmark-solid", else: "hero-bookmark"}
-            class="size-4"
-          />
+          <.icon name={if @rung, do: "hero-bookmark-solid", else: "hero-bookmark"} class="size-4" />
         </button>
       </div>
     </div>
@@ -353,4 +352,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   def scope(results, scope, today) when scope in [:upcoming, :released] do
     Enum.filter(results, &(release_status(&1, today) == scope))
   end
+
+  # The row bookmark works the bottom of the ladder only. Above List a
+  # click would destroy a calendar and its wants as a side effect of a
+  # one-click affordance, so it becomes a marker and the label says where
+  # the ladder lives.
+  defp toggleable?(rung), do: rung in [nil, :list]
+
+  defp bookmark_label(nil), do: "Add to your list"
+  defp bookmark_label(:list), do: "Remove from your list"
+  defp bookmark_label(_followed), do: "Tracking — change it in the title view"
 end

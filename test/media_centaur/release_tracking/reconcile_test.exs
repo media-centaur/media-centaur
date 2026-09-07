@@ -1,15 +1,25 @@
 defmodule MediaCentaur.ReleaseTracking.ReconcileTest do
+  @moduledoc """
+  `reconcile/2` is the *other* direction from `set_rung/3`: the library
+  moving underneath a rung nobody touched. It only ever drops, so it can
+  run from the library listener without racing a person's act.
+
+  The rule it applies is the whole of the derivation: a tracked title
+  exists while the person follows the title and there is still a future
+  to follow.
+  """
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
 
+  alias MediaCentaur.Discovery
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.TmdbStubs
 
-  # Adding to the watchlist promotes artwork on a context-owned task
+  # Putting a title on the ladder promotes artwork on a context-owned task
   # (ADR-049), which needs both the TMDB client and the artwork cache
-  # stubbed to stay offline. Each test that adds one drains the task
+  # stubbed to stay offline. Each test that writes one drains the task
   # before it ends, so nothing outlives the sandbox.
   setup do
     TmdbStubs.setup_tmdb_client()
@@ -17,73 +27,74 @@ defmodule MediaCentaur.ReleaseTracking.ReconcileTest do
     :ok
   end
 
-  # ADR-065. The library reason is a default and evaporates; the watchlist
-  # reason is an act and outlives it. These are the four cases the design
-  # conversation turned on.
-
-  defp tracked(attrs) do
-    create_tracking_item(Map.merge(%{tmdb_id: 7001, media_type: :tv_series, name: "Sample Show"}, attrs))
+  # `rung: nil` on purpose: these tests write the intent themselves (or
+  # deliberately write none), because the rung is the thing under test.
+  defp tracked(attrs \\ %{}) do
+    create_tracking_item(
+      Map.merge(%{tmdb_id: 7001, media_type: :tv_series, name: "Sample Show", rung: nil}, attrs)
+    )
   end
 
-  describe "reconcile/2 — losing the library reason" do
-    test "a series a person armed keeps tracking after the library drops it" do
-      create_watchlist_item(%{tmdb_id: 7001, media_type: :tv_series})
+  describe "reconcile/2 — the rung decides" do
+    test "a series the person follows keeps its tracked title" do
+      create_title_intent(%{tmdb_id: 7001, media_type: :tv_series, rung: :grab})
       await_supervised_tasks()
-      item = tracked(%{tracking_mode: :grab})
-
-      :ok = ReleaseTracking.reconcile(7001, :tv_series)
-
-      kept = ReleaseTracking.get_item(item.id)
-      assert kept, "an armed title must survive losing the library"
-      assert kept.tracking_mode == :grab, "and must keep the mode the person set"
-    end
-
-    test "a series only the app default was tracking stops" do
-      item = tracked(%{tracking_mode: :global})
-
-      :ok = ReleaseTracking.reconcile(7001, :tv_series)
-
-      refute ReleaseTracking.get_item(item.id)
-    end
-
-    test "a series still owned keeps tracking" do
-      container_id = Ecto.UUID.generate()
-
-      item =
-        tracked(%{
-          tracking_mode: :global,
-          library_container_type: :tv_series,
-          library_container_id: container_id
-        })
+      item = tracked()
 
       :ok = ReleaseTracking.reconcile(7001, :tv_series)
 
       assert ReleaseTracking.get_item(item.id)
     end
-  end
 
-  describe "reconcile/2 — the durable disarm" do
-    test "a deliberately disarmed title survives with no reason held" do
-      item = tracked(%{tracking_mode: :none})
+    test "a series the person only listed does not" do
+      create_title_intent(%{tmdb_id: 7001, media_type: :tv_series, rung: :list})
+      await_supervised_tasks()
+      item = tracked()
 
       :ok = ReleaseTracking.reconcile(7001, :tv_series)
 
-      kept = ReleaseTracking.get_item(item.id)
-      assert kept, "a disarm must never be lost — re-acquiring would silently re-arm"
-      assert kept.tracking_mode == :none
+      refute ReleaseTracking.get_item(item.id),
+             "List keeps no calendar, so it derives no tracked title"
     end
-  end
 
-  describe "reconcile/2 — de-listing" do
-    test "removing an unowned armed title from the watchlist stops tracking" do
-      create_watchlist_item(%{tmdb_id: 7001, media_type: :tv_series})
-      await_supervised_tasks()
-      item = tracked(%{tracking_mode: :watch})
+    test "a series with no record at all does not — nobody asked for it" do
+      item = tracked()
 
-      :ok = MediaCentaur.Discovery.remove_from_watchlist(7001, :tv_series)
       :ok = ReleaseTracking.reconcile(7001, :tv_series)
 
       refute ReleaseTracking.get_item(item.id)
+    end
+
+    test "a library container is not a reason on its own" do
+      item =
+        tracked(%{
+          library_container_type: :tv_series,
+          library_container_id: Ecto.UUID.generate()
+        })
+
+      :ok = ReleaseTracking.reconcile(7001, :tv_series)
+
+      refute ReleaseTracking.get_item(item.id),
+             "owning a series is a fact about the library, not a request to follow it"
+    end
+  end
+
+  describe "reconcile/2 — a film you own is complete" do
+    test "the tracked title goes even at a grabbing rung" do
+      movie = create_standalone_movie(%{name: "Owned Film"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "7002"})
+      create_linked_file(%{movie_id: movie.id})
+
+      create_title_intent(%{tmdb_id: 7002, media_type: :movie, rung: :grab, name: "Owned Film"})
+      await_supervised_tasks()
+
+      item =
+        create_tracking_item(%{tmdb_id: 7002, media_type: :movie, name: "Owned Film", rung: nil})
+
+      :ok = ReleaseTracking.reconcile(7002, :movie)
+
+      refute ReleaseTracking.get_item(item.id)
+      assert Discovery.rung(7002, :movie) == :grab, "the rung is the person's; nothing lowers it"
     end
   end
 

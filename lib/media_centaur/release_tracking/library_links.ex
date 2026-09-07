@@ -50,8 +50,9 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinks do
   Reconciles the tracking items that point at `entity_ids` with the
   library: links unlinked items whose TMDB id now has a library series,
   refreshes each linked item's last library episode (marking releases
-  in-library and syncing wants when it moved), and deletes items whose
-  container is gone.
+  in-library and syncing wants when it moved), and unlinks items whose
+  container is gone — leaving the rung to decide whether the title is
+  still followed.
   """
   @spec refresh_for([Ecto.UUID.t()]) :: :ok
   def refresh_for(entity_ids) do
@@ -85,8 +86,19 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinks do
           end
         end
       else
-        Log.info(:acquisition, "removing tracking item #{item.name} — library container deleted")
-        ReleaseTracking.delete_item(item)
+        # Unlink and let the rung decide. Deleting outright here was the
+        # last place the library could stop something a person had asked
+        # for — losing the files says nothing about whether they still
+        # want the releases.
+        Log.info(:acquisition, "unlinking #{item.name} — library container deleted")
+
+        {:ok, _unlinked} =
+          ReleaseTracking.update_item(item, %{
+            library_container_type: nil,
+            library_container_id: nil
+          })
+
+        ReleaseTracking.reconcile(item.tmdb_id, item.media_type)
       end
     end)
   end

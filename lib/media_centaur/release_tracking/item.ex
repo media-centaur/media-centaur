@@ -9,12 +9,10 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   because a tracked release maps to a series or a movie collection,
   not a specific episode or movie file.
 
-  `tracking_mode` is the one automation field ([ADR-065]) — it replaced
-  `status` and `auto_grab_mode`, which were two representations of one
-  idea. It is set only by a person, or seeded once at creation, and is
-  **never raised by the system**. There is no `source`: why a title is
-  tracked is a *reason*, queried from its owner (`Reasons`), not
-  write-once metadata that goes stale the moment a title has both causes.
+  It carries no authored field at all. What a person wants done about the
+  title is the rung on their `Discovery.TitleIntent`, and this row exists
+  exactly while that rung is `:follow` or above — so there is nothing
+  here to set, and nothing to keep in agreement with anything else.
 
   `media_type` is the kind of content (`:movie` or `:tv_series`) and
   drives release shape and grab orchestration; `library_container_type`
@@ -33,29 +31,12 @@ defmodule MediaCentaur.ReleaseTracking.Item do
 
   @container_types [:movie, :tv_series, :movie_series, :video_object]
 
-  @typedoc """
-  What the app does about a tracked title.
-
-    * `:none` — inert: no calendar refresh, no wants, invisible. The
-      durable record of a deliberate disarm, which survives with no
-      tracking reason held so that re-acquiring or re-listing the title
-      cannot silently re-arm it.
-    * `:watch` — keep the calendar, grab nothing.
-    * `:ask` — park a draft plan when a release drops.
-    * `:grab` — grab it.
-    * `:global` — follow the global auto-grab default, live. Only while
-      the mode has never been set explicitly: an explicit mode is a
-      concrete value and so is immune to a change of the global setting.
-  """
-  @type tracking_mode :: :none | :watch | :ask | :grab | :global
-
   @type t :: %__MODULE__{}
 
   schema "release_tracking_items" do
     field :tmdb_id, :integer
     field :media_type, Ecto.Enum, values: [:movie, :tv_series]
     field :name, :string
-    field :tracking_mode, Ecto.Enum, values: [:none, :watch, :ask, :grab, :global], default: :global
     field :library_container_type, Ecto.Enum, values: @container_types
     field :library_container_id, Ecto.UUID
     field :last_refreshed_at, :utc_datetime
@@ -80,30 +61,12 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     timestamps()
   end
 
-  @doc """
-  Resolves a `tracking_mode` into the grab decision the acquisition side
-  acts on: `"off"`, `"ask"` or `"all_releases"`.
-
-  The single representation of that mapping. Acquisition asks whether it
-  may grab; it does not model tracking, so the two modes that keep a
-  calendar without grabbing — `:none` (inert) and `:watch` — are both
-  simply off from there. `:global` defers to the global default, live,
-  which is what makes flipping the global switch stop every title whose
-  mode has never been set explicitly.
-  """
-  @spec grab_mode(tracking_mode() | nil, String.t()) :: String.t()
-  def grab_mode(mode, default) when mode in [nil, :global], do: default
-  def grab_mode(:grab, _default), do: "all_releases"
-  def grab_mode(:ask, _default), do: "ask"
-  def grab_mode(mode, _default) when mode in [:none, :watch], do: "off"
-
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [
       :tmdb_id,
       :media_type,
       :name,
-      :tracking_mode,
       :library_container_type,
       :library_container_id,
       :last_refreshed_at,
@@ -125,7 +88,6 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     item
     |> cast(attrs, [
       :name,
-      :tracking_mode,
       :library_container_type,
       :library_container_id,
       :last_refreshed_at,

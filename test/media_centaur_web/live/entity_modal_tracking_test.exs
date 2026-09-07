@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.EntityModalTrackingTest do
   @moduledoc """
-  The library detail's tracking block (UIDR-035): a tracked series shows
-  the release timeline and the tracking-mode control under its seasons;
-  the control moves the mode, Off disarms and hides the timeline, and a
-  raise from Off arms — which lists the series on the watchlist.
+  The library detail's tracking block (UIDR-035): the ladder control
+  always, and the release timeline while the series is followed. Moving
+  the rung is the one act; dropping below Follow deletes the tracked
+  title, which is why the timeline goes with it.
   """
 
   use MediaCentaurWeb.ConnCase, async: false
@@ -47,6 +47,13 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
       released: false
     })
 
+    create_title_intent(%{
+      tmdb_id: 424_242,
+      media_type: :tv_series,
+      name: "Tracked Fixture Show",
+      rung: :default
+    })
+
     {:ok, series: series, item: item}
   end
 
@@ -56,12 +63,12 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
 
     assert has_element?(view, "#detail-tracking[data-nav-zone='detail_tracking']")
     assert has_element?(view, "#detail-release-timeline-next", "S02E01")
-    assert has_element?(view, "#detail-tracking-mode[data-mode='global']")
+    assert has_element?(view, "#detail-tracking-mode[data-rung='default']")
     refute has_element?(view, "[phx-click='toggle_tracking']")
     refute html =~ "hero-bell"
   end
 
-  test "the control moves the mode; Off disarms and hides the timeline", %{
+  test "the control moves the rung; Off deletes the tracked title and its timeline", %{
     conn: conn,
     series: series,
     item: item
@@ -69,33 +76,42 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
 
     view |> element("#detail-tracking-mode-grab") |> render_click()
-    assert ReleaseTracking.get_item(item.id).tracking_mode == :grab
-    assert has_element?(view, "#detail-tracking-mode[data-mode='grab']")
+    await_supervised_tasks()
+    assert Discovery.rung(424_242, :tv_series) == :grab
+    assert has_element?(view, "#detail-tracking-mode[data-rung='grab']")
 
-    view |> element("#detail-tracking-mode-none") |> render_click()
-    assert ReleaseTracking.get_item(item.id).tracking_mode == :none
-    assert has_element?(view, "#detail-tracking-mode[data-mode='none']")
+    view |> element("#detail-tracking-mode-off") |> render_click()
+    await_supervised_tasks()
+
+    assert Discovery.rung(424_242, :tv_series) == nil
+    refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
+    assert has_element?(view, "#detail-tracking-mode[data-rung='off']")
     refute has_element?(view, "#detail-release-timeline")
   end
 
-  test "raising a disarmed series arms it — on the watchlist, at the chosen mode", %{
+  test "raising an unfollowed series from Off follows it and lists it", %{
     conn: conn,
-    series: series,
-    item: item
+    series: series
   } do
-    {:ok, _} = ReleaseTracking.disarm(item)
-    {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
+    {:ok, nil} =
+      ReleaseTracking.set_rung(
+        MediaCentaur.TMDB.Title.new!(%{
+          tmdb_id: 424_242,
+          media_type: :tv_series,
+          name: "Tracked Fixture Show"
+        }),
+        :off
+      )
 
-    # Off and unlisted: the copy states the consequence before the click.
-    assert has_element?(view, "#detail-tracking-mode-watchlist-note")
+    {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
+    assert has_element?(view, "#detail-tracking-mode[data-rung='off']")
 
     view |> element("#detail-tracking-mode-ask") |> render_click()
     await_supervised_tasks()
 
-    assert ReleaseTracking.get_item(item.id).tracking_mode == :ask
-    assert Discovery.on_watchlist?(424_242, :tv_series)
-    assert has_element?(view, "#detail-tracking-mode[data-mode='ask']")
-    assert has_element?(view, "#detail-release-timeline")
+    assert Discovery.rung(424_242, :tv_series) == :ask
+    assert Discovery.listed?(424_242, :tv_series)
+    assert has_element?(view, "#detail-tracking-mode[data-rung='ask']")
   end
 
   test "the per-title quality acceptance is shown and reset from the block", %{

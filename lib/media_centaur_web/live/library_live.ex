@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb.Live.LibraryCardInfoAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
-  use MediaCentaurWeb.Live.WatchlistAware
+  use MediaCentaurWeb.Live.IntentAware
 
   require MediaCentaur.Log, as: Log
 
@@ -486,12 +486,15 @@ defmodule MediaCentaurWeb.LibraryLive do
           deleting={@deleting}
           tracking={@tracking}
           lower_quality_accepted?={@lower_quality_accepted?}
+          rung={@rung}
+          default_grab_mode={@default_grab_mode}
+          acquisition?={@acquisition?}
           recommendations={@recommendations}
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
-          watchlisted_refs={@watchlisted_refs}
+          title_rungs={@title_rungs}
           show_discovery={@show_discovery}
         />
       </div>

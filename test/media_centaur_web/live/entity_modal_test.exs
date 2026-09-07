@@ -51,24 +51,4 @@ defmodule MediaCentaurWeb.Live.EntityModalTest do
       assert {:error, _message} = EntityModal.refresh_artwork_flash({:error, :boom})
     end
   end
-
-  describe "tracking_mode_action/3 — the library detail's control (UIDR-035)" do
-    test "Off on an armed title disarms; Off on Off is nothing" do
-      for mode <- [:watch, :ask, :grab, :global] do
-        assert EntityModal.tracking_mode_action(mode, :tv_series, :none) == :disarm
-      end
-
-      assert EntityModal.tracking_mode_action(:none, :tv_series, :none) == :noop
-    end
-
-    test "a mode change on an armed title just sets it" do
-      assert EntityModal.tracking_mode_action(:global, :tv_series, :grab) == :set
-      assert EntityModal.tracking_mode_action(:watch, :movie, :ask) == :set
-    end
-
-    test "raising a series from Off arms it — a watchlist act; a collection is only set" do
-      assert EntityModal.tracking_mode_action(:none, :tv_series, :watch) == :arm
-      assert EntityModal.tracking_mode_action(:none, :movie, :watch) == :set
-    end
-  end
 end

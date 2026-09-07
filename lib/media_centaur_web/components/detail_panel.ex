@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.ProgressHairline
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
-  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingModeControl
+  alias MediaCentaurWeb.Components.Discovery.IntentControl
   alias MediaCentaurWeb.ViewModel.Orientation
 
   # --- Public API ---
@@ -137,10 +137,28 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "the `letterboxd_links` setting — whether a movie subject's hero shows the Letterboxd page link."
 
-  attr :watchlisted?, :boolean,
-    default: false,
+  attr :subject_rung, :atom,
+    default: nil,
     doc:
-      "whether the panel's subject is on the watchlist — forwarded to the view controls' bookmark toggle. Compute via `EntityModal.watchlisted?/3`."
+      "the rung the panel's list subject sits at, nil for Off — forwarded to the view controls' bookmark. Compute via `EntityModal.subject_rung/3`."
+
+  attr :rung, :atom,
+    default: nil,
+    doc:
+      "the rung the panel's own title sits at, nil for Off — the ladder control's state. Distinct from `subject_rung`, which follows a collection down to its selected member."
+
+  attr :title_ref, :string,
+    default: nil,
+    doc:
+      "the panel title's `TitleRef` param, or nil when it has no TMDB identity — the ladder control's address. Compute via `EntityModal.title_ref/1`."
+
+  attr :default_grab_mode, :string,
+    default: "off",
+    doc: "the global auto-grab default — what the ladder's Default rung resolves to right now."
+
+  attr :acquisition?, :boolean,
+    default: false,
+    doc: "an indexer and a download client are ready; without them the grab rungs download nothing."
 
   attr :lower_quality_accepted?, :boolean,
     default: false,
@@ -378,7 +396,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                     entity={@controls_entity}
                     detail_view={@detail_view}
                     letterboxd_links={@letterboxd_links}
-                    watchlisted?={@watchlisted?}
+                    subject_rung={@subject_rung}
                     recommend?={@recommend?}
                   />
                   <%!-- Member watched toggle: acting on the *selected*
@@ -498,7 +516,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             </div>
             <.tracking_block
               tracking={@tracking}
-              on_watchlist?={@watchlisted?}
+              rung={@rung}
+              ref={@title_ref}
+              default_grab_mode={@default_grab_mode}
+              acquisition?={@acquisition?}
               lower_quality_accepted?={@lower_quality_accepted?}
             />
         <% end %>
@@ -599,17 +620,25 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # --- Tracking (UIDR-035) ---
 
-  # The tracked-title half of the document, after what you have: the
-  # release timeline (while armed — a disarmed title is inert), the
-  # tracking-mode control, recent activity. The same two shared
-  # components the title detail modal mounts, so an owned series with an
-  # announced season is described in one place. Hidden entirely when the
-  # title is not tracked; that is the whole state, not a gap.
+  # The tracking half of the document, after what you have: the release
+  # timeline and recent activity when the title is followed, and the
+  # ladder control always. The same shared components the title detail
+  # modal mounts, so an owned series with an announced season is
+  # described in one place.
+  #
+  # The control renders whether or not the title is followed — under one
+  # ladder, Off is a rung like any other, and hiding the control on an
+  # owned-but-unfollowed series would leave no way to start following it
+  # from the library. It needs a `ref`, so it is skipped only when the
+  # subject has no TMDB identity at all.
   attr :tracking, TrackingDetail, default: nil
-  attr :on_watchlist?, :boolean, required: true
+  attr :rung, :atom, default: nil
+  attr :ref, :string, default: nil
+  attr :default_grab_mode, :string, required: true
+  attr :acquisition?, :boolean, required: true
   attr :lower_quality_accepted?, :boolean, required: true
 
-  defp tracking_block(%{tracking: nil} = assigns), do: ~H""
+  defp tracking_block(%{tracking: nil, ref: nil} = assigns), do: ~H""
 
   defp tracking_block(assigns) do
     ~H"""
@@ -619,21 +648,21 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       data-nav-zone="detail_tracking"
     >
       <ReleaseTimeline.release_timeline
-        :if={@tracking.mode != :none}
+        :if={@tracking}
         id="detail-release-timeline"
         timeline={@tracking.timeline}
         today={@tracking.today}
       />
-      <TrackingModeControl.tracking_mode_control
+      <IntentControl.intent_control
+        :if={@ref}
         id="detail-tracking-mode"
-        ref={@tracking.ref}
-        mode={@tracking.mode}
-        default_grab_mode={@tracking.default_grab_mode}
-        acquisition?={@tracking.acquisition?}
-        on_watchlist?={@on_watchlist?}
+        ref={@ref}
+        rung={@rung}
+        default_grab_mode={@default_grab_mode}
+        acquisition?={@acquisition?}
         lower_quality_accepted?={@lower_quality_accepted?}
       />
-      <section :if={@tracking.mode != :none and @tracking.activity != []} class="space-y-2">
+      <section :if={@tracking && @tracking.activity != []} class="space-y-2">
         <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
           Recent activity
         </h3>

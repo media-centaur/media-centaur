@@ -22,7 +22,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       overlay it onto `DetailItem.Episode` / `DetailItem.MovieEntry`
       at render time (same pattern as `BrowseItem` in Phase 3.1).
     * **Cross-context overlays** — `ReleaseTracking` releases,
-      `Playback.MpvSession` now-playing, and `tracking_mode` are
+      `Playback.MpvSession` now-playing, and a title's rung are
       composed at the LiveView layer, not in the projection.
 
   ## Field set

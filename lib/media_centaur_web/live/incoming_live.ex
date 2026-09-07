@@ -80,9 +80,9 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   use MediaCentaurWeb, :live_view
   # TitleDetailHost first: its handle_info hook must see the watchlist
-  # messages WatchlistAware halts (hooks run in attach order).
+  # messages IntentAware halts (hooks run in attach order).
   use MediaCentaurWeb.Live.TitleDetailHost
-  use MediaCentaurWeb.Live.WatchlistAware
+  use MediaCentaurWeb.Live.IntentAware
 
   require MediaCentaur.Log, as: Log
 
@@ -112,7 +112,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Activities
-  alias MediaCentaur.Discovery
   alias MediaCentaur.Library.ExternalIds
 
   alias MediaCentaurWeb.IncomingLive.{
@@ -405,6 +404,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         prowlarr_ready?: Capabilities.prowlarr_ready?(),
         acquisition_ready?: acquisition?,
         auto_grab_default_mode: default_mode,
+        rungs: socket.assigns.title_rungs,
         grab_status_by_key: grab,
         shelf_expanded?: socket.assigns.shelf_expanded?
       })
@@ -882,7 +882,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             release_mode_available={@prowlarr_ready}
             metadata_available={@tmdb_ready}
             scope={@omnibox_scope}
-            watchlisted_refs={@watchlisted_refs}
+            title_rungs={@title_rungs}
             in_library_refs={@in_library_refs}
             tracked_refs={@tracked_refs}
             recommendations_by_ref={@recommendations_by_ref}
@@ -1641,23 +1641,29 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # No assign update here — the WatchlistAware PubSub hook refreshes
-  # `:watchlisted_refs` from the broadcast, same loop every other
-  # watchlist surface rides.
+  # The search row's bookmark toggles the bottom of the ladder only: it
+  # adds a title at List, and removes one that is still at List. A title
+  # a person has raised to Follow or above is not torn down by a row
+  # click — the row renders it as a marker instead (`MediaResults`).
+  #
+  # No assign update here — the IntentAware PubSub hook refreshes
+  # `:title_rungs` from the broadcast, same loop every other title
+  # surface rides.
   def handle_event("watchlist_toggle", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
       when media_type in ~w(movie tv_series) do
     ref = {String.to_integer(tmdb_id), String.to_existing_atom(media_type)}
 
-    if MapSet.member?(socket.assigns.watchlisted_refs, ref) do
-      Discovery.remove_from_watchlist(elem(ref, 0), elem(ref, 1))
-    else
-      case Enum.find(socket.assigns.omnibox_results, &({&1.tmdb_id, &1.media_type} == ref)) do
-        nil ->
-          :ok
+    case Map.get(socket.assigns.title_rungs, ref) do
+      :list ->
+        result = Enum.find(socket.assigns.omnibox_results, &({&1.tmdb_id, &1.media_type} == ref))
+        if result, do: ReleaseTracking.set_rung(result, :off)
 
-        result ->
-          Discovery.add_to_watchlist(result)
-      end
+      nil ->
+        result = Enum.find(socket.assigns.omnibox_results, &({&1.tmdb_id, &1.media_type} == ref))
+        if result, do: ReleaseTracking.set_rung(result, :list)
+
+      _followed ->
+        :ok
     end
 
     {:noreply, socket}
@@ -1753,9 +1759,8 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # Arm without grabbing, from inside the plan modal — the TV picker's
-  # and the movie confirm's "Watch for release(s)". Arming lists the
-  # title on the watchlist as part of the act (ADR-065). TV follows all
+  # Follow without grabbing, from inside the plan modal — the TV picker's
+  # and the movie confirm's "Watch for release(s)". TV follows all
   # upcoming episodes (the back catalog is exactly what the open picker
   # grabs); the async task and its TMDB enrichment are ReleaseTracking's.
   def handle_event("plan_track_only", _params, socket) do
@@ -1766,8 +1771,9 @@ defmodule MediaCentaurWeb.IncomingLive do
       {tmdb_id, media_type, name} ->
         scope = if media_type == :tv_series, do: %{start_season: 0, start_episode: 0}, else: %{}
 
-        ReleaseTracking.arm_async(
+        ReleaseTracking.set_rung_async(
           Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name}),
+          :follow,
           scope
         )
 

@@ -31,6 +31,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   alias MediaCentaur.Acquisition.{AutoGrabSettings, Plans, TitleDownloadParams, WantSchedule}
   alias MediaCentaur.Acquisition.Plans.Claims
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Discovery
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Item
@@ -197,7 +198,8 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
-         mode when mode != "off" <- AutoGrabSettings.effective_mode(item.tracking_mode, settings) do
+         mode when mode != "off" <-
+           Discovery.grab_mode(item.tmdb_id, item.media_type, settings.default_mode) do
       patience =
         AutoGrabSettings.effective_patience_hours(
           download_params(item).quality_4k_patience_hours,
@@ -355,7 +357,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   # ask parks for a person, every other grabbing mode lets the gate
   # commit. `off` items never reach here (`plan_item/4` guards it).
   defp approval_policy(%Item{} = item, settings) do
-    case AutoGrabSettings.effective_mode(item.tracking_mode, settings) do
+    case Discovery.grab_mode(item.tmdb_id, item.media_type, settings.default_mode) do
       "ask" -> "review"
       _grabbing_mode -> "automatic"
     end

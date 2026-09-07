@@ -35,6 +35,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Discovery
   alias MediaCentaur.Acquisition.{AutoGrabSettings, CancelReasons, Plans, Target, TargetStatus}
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.Acquisition.Pursuits.Commands.Cancel
@@ -127,7 +128,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
         off? =
           case ReleaseTracking.get_item(item_id) do
             nil -> false
-            item -> AutoGrabSettings.effective_mode(item.tracking_mode, settings) == "off"
+            item -> Discovery.grab_mode(item.tmdb_id, item.media_type, settings.default_mode) == "off"
           end
 
         {off?, Map.put(cache, item_id, off?)}
