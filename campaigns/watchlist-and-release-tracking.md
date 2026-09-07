@@ -15,10 +15,13 @@ wherever the title appears.
 
 ## Status
 
-**Phase 0 complete.** ADR-065, UIDR-035 and the four glossary terms are written;
-the design is in
-`docs/superpowers/specs/2026-09-07-watchlist-release-tracking-reconciliation-design.md`.
-Phase 1 (the model) is next. No code yet.
+**Phases 0 and 1 complete, unpushed.** The model is cut over: one
+`tracking_mode` replaces `status` + `auto_grab_mode`, `source` is gone,
+existence is reconciled from reasons, and `ReleaseTracking.arm/2` is the
+person's act. `mix precommit` green (6854 Elixir + 807 JS). No visible change
+yet — the UI still wears its old controls, wired to the new field.
+
+Phase 2 (merge the two no-files title surfaces) is next, and is Fable's.
 
 ## Decisions made
 
@@ -67,16 +70,24 @@ Phase 1 (the model) is next. No code yet.
    and five glossary terms (*watchlist entry*, *tracked title*, *tracking
    reason*, *tracking mode*, *arming* — none existed, which was the diagnosis in
    miniature). *Straggler* marked retired-pending-Phase-4.
-2. **Phase 1 — the model.** `tracking_mode` replaces `status` +
+2. ~~**Phase 1 — the model.**~~ Done 2026-09-07. `tracking_mode` replaces `status` +
    `auto_grab_mode`; `source` dropped; existence reconciled from reasons;
    `ReleaseTracking.WatchlistListener` mirroring `LibraryListener`;
    `TrackingStarted` broadcast moves to Discovery. `detach_library_containers/1`
    becomes a reconcile rather than a detach. Four paired migrations per the
    spec, including backfilling watchlist entries for `source: :manual` items —
    without it the invariant fails on first reconcile and manually tracked titles
-   are stranded. Decide the `Retention` policy for inert None rows (likely: never
-   pruned — pruning one re-arms the title). Existing controls keep working: the
-   bell writes `tracking_mode`. No visible change.
+   are stranded. Existing controls keep working: the bell writes `tracking_mode`
+   via `EntityModal.toggled_tracking_mode/1`. No visible change.
+
+   Landed beyond the plan: `Item.grab_mode/2` is now the single resolver of
+   mode → grab decision (it had been copied three ways, in `AutoGrabSettings`,
+   `Present` and `UpcomingFeed`, each reaching into `item.auto_grab_mode`
+   directly — the actual boundary violation under the duplication);
+   `list_watching_items/0` → `list_active_items/0`; a
+   `DropOrphanedTrackedTitles` data migration sweeps rows the old
+   keep-everything `detach` left behind. Inert `:none` rows are deliberately
+   never pruned — pruning one re-arms the title.
 3. **Phase 2 — merge the no-files surfaces** (Fable). `ReleaseTracking.TitleModal`
    absorbed into `Discovery.TitleDetailModal`; shared release-timeline and
    tracking-mode components extracted; watchlist rows gain the mode control;

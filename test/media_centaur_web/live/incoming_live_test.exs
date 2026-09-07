@@ -3280,17 +3280,17 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, "/incoming")
 
       render_hook(view, "toggle_auto_grab", %{"item-id" => item.id})
-      assert MediaCentaur.ReleaseTracking.get_item(item.id).auto_grab_mode == "off"
+      assert MediaCentaur.ReleaseTracking.get_item(item.id).tracking_mode == :watch
 
       render_hook(view, "toggle_auto_grab", %{"item-id" => item.id})
-      assert MediaCentaur.ReleaseTracking.get_item(item.id).auto_grab_mode == "all_releases"
+      assert MediaCentaur.ReleaseTracking.get_item(item.id).tracking_mode == :grab
     end
 
     test "the title modal surfaces the per-title lower-quality acceptance and resets it", %{
       conn: conn
     } do
       {item, _release} = tracked_with_release(%{name: "Accepted Show"})
-      {:ok, item} = MediaCentaur.ReleaseTracking.update_auto_grab(item, %{min_quality: "any"})
+      {:ok, item} = MediaCentaur.ReleaseTracking.update_automation(item, %{min_quality: "any"})
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=#{item.id}")
 

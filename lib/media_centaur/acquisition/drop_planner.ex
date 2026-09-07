@@ -197,7 +197,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
-         mode when mode != "off" <- AutoGrabSettings.effective_mode(item.auto_grab_mode, settings) do
+         mode when mode != "off" <- AutoGrabSettings.effective_mode(item.tracking_mode, settings) do
       patience = AutoGrabSettings.effective_patience_hours(item.quality_4k_patience_hours, settings)
       due = Enum.filter(wants, &WantSchedule.due?(&1, patience, now))
 
@@ -350,7 +350,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   # ask parks for a person, every other grabbing mode lets the gate
   # commit. `off` items never reach here (`plan_item/4` guards it).
   defp approval_policy(%Item{} = item, settings) do
-    case AutoGrabSettings.effective_mode(item.auto_grab_mode, settings) do
+    case AutoGrabSettings.effective_mode(item.tracking_mode, settings) do
       "ask" -> "review"
       _grabbing_mode -> "automatic"
     end

@@ -13,7 +13,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   """
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Release, Wants}
+  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Reasons, Release, Wants}
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Title
 
@@ -75,7 +75,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
                tmdb_id: title.tmdb_id,
                media_type: :tv_series,
                name: response["name"] || title.name,
-               source: :manual,
+               tracking_mode: Reasons.seed_mode(:watchlist),
                last_refreshed_at: DateTime.utc_now(),
                last_library_season: start_season,
                last_library_episode: start_episode
@@ -103,7 +103,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
                tmdb_id: title.tmdb_id,
                media_type: :movie,
                name: response["title"] || title.name,
-               source: :manual,
+               tracking_mode: Reasons.seed_mode(:watchlist),
                last_refreshed_at: DateTime.utc_now()
              }) do
           {:ok, item} ->

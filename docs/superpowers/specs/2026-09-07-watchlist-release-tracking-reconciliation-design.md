@@ -155,9 +155,11 @@ tracking state in the web layer, which the original watchlist spec already
 anticipated for in-flight decoration.
 
 **The social broadcast moves with the act.** `Events.TrackingStarted` fires from
-Discovery when a person arms, not from `ReleaseTracking.track_item`. The
-person's act belongs to the record the person authored. The `share_tracking`
-preference is unchanged.
+the arming path, not from `ReleaseTracking.track_item/1` — creating a tracked
+title is machinery; arming is a person's act. It stays inside `ReleaseTracking`,
+because the dependency runs that way and `Discovery` must stay free of tracking;
+`ReleaseTracking.arm/2` performs both halves of the act (list, then track) at the
+one place that can see both sides. The `share_tracking` preference is unchanged.
 
 ## UI
 

@@ -127,7 +127,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
         off? =
           case ReleaseTracking.get_item(item_id) do
             nil -> false
-            item -> AutoGrabSettings.effective_mode(item.auto_grab_mode, settings) == "off"
+            item -> AutoGrabSettings.effective_mode(item.tracking_mode, settings) == "off"
           end
 
         {off?, Map.put(cache, item_id, off?)}

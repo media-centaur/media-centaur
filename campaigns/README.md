@@ -31,9 +31,10 @@ Use [`template.md`](template.md) as a starter.
   system; auto-grab stays opt-in, so adding to the watchlist seeds Watch, not the
   global default. Invariant: every tracked title is either owned or on the
   watchlist — which is what lets the straggler line retire. Six phases; UI phases
-  use the Fable model. **Phase 0 done** ([ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
+  use the Fable model. **Phases 0–1 done, unpushed** ([ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
   [UIDR-035](../decisions/user-interface/2026-09-07-035-two-title-surfaces.md),
-  glossary); Phase 1 (the model) next. No code yet.
+  glossary, and the model cutover); Phase 2 (merge the two no-files title
+  surfaces) next. No visible change yet.
 * [`instant-hero-backdrop.md`](instant-hero-backdrop.md) —
   **in-progress, owner check remaining.** Home, Library, and Incoming hero
   backdrops now paint in the mount frame on every return, at master

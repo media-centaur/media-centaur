@@ -262,7 +262,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
 
     test "when auto-grab won't fire, both dates stay neutral :upcoming" do
-      item = movie_item(%{auto_grab_mode: "off"})
+      item = movie_item(%{tracking_mode: :watch})
 
       releases = [
         release(item, %{title: "digital", air_date: days(3), release_type: "digital"}),
@@ -315,7 +315,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
 
     test "item opted out of auto-grab (mode \"off\") → neutral :upcoming" do
-      item = tv_item(%{auto_grab_mode: "off"})
+      item = tv_item(%{tracking_mode: :watch})
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
       feed = UpcomingFeed.build([episode], armed_context())
@@ -324,7 +324,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
 
     test ~s(global default "off" + item "global" → neutral :upcoming) do
-      item = tv_item(%{auto_grab_mode: "global"})
+      item = tv_item(%{tracking_mode: :global})
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
       feed = UpcomingFeed.build([episode], armed_context(%{auto_grab_default_mode: "off"}))
@@ -333,7 +333,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
 
     test ~s(item "global" inherits an "all_releases" default → :armed) do
-      item = tv_item(%{auto_grab_mode: "global"})
+      item = tv_item(%{tracking_mode: :global})
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
       feed = UpcomingFeed.build([episode], armed_context(%{auto_grab_default_mode: "all_releases"}))
@@ -342,7 +342,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
 
     test "\"ask\" mode is not full-auto → neutral :upcoming" do
-      item = tv_item(%{auto_grab_mode: "ask"})
+      item = tv_item(%{tracking_mode: :ask})
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
       feed = UpcomingFeed.build([episode], armed_context())

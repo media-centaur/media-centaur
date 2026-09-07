@@ -2,6 +2,7 @@ defmodule MediaCentaur.ReleaseTracking do
   use Boundary,
     deps: [
       MediaCentaur.TMDB,
+      MediaCentaur.Discovery,
       MediaCentaur.Library,
       MediaCentaur.Retention,
       MediaCentaur.Search,
@@ -11,6 +12,8 @@ defmodule MediaCentaur.ReleaseTracking do
     exports: [
       Item,
       LibraryListener,
+      Reasons,
+      WatchlistListener,
       Release,
       Event,
       Events,
@@ -39,6 +42,9 @@ defmodule MediaCentaur.ReleaseTracking do
 
   alias MediaCentaur.Repo
 
+  alias MediaCentaur.Discovery
+  alias MediaCentaur.Library.ExternalIds
+
   alias MediaCentaur.ReleaseTracking.{AutoTrackJob, LibraryLinks}
 
   alias MediaCentaur.ReleaseTracking.{
@@ -47,6 +53,7 @@ defmodule MediaCentaur.ReleaseTracking do
     Events,
     Helpers,
     Item,
+    Reasons,
     Release,
     Wants
   }
@@ -65,31 +72,42 @@ defmodule MediaCentaur.ReleaseTracking do
   # --- Items ---
 
   @doc """
-  Creates a tracking item. A `source: :manual` item — a person's act —
-  broadcasts `Events.TrackingStarted` with the title snapshot the item
-  holds; a `:library` item (the scan's) is silent.
+  Creates a tracking item.
+
+  Silent by design: a tracked title is derived machinery, not a person's
+  act ([ADR-065]). The act is arming a watchlist entry, and `Discovery`
+  broadcasts `Events.TrackingStarted` for it — the announcement belongs
+  to the record the person authored, not to the machine it started.
   """
   @spec track_item(map()) :: {:ok, Item.t()} | {:error, Ecto.Changeset.t()}
   def track_item(attrs) do
-    with {:ok, item} <- Repo.insert(Item.create_changeset(attrs)) do
-      if item.source == :manual, do: broadcast_tracking_started(item)
-      {:ok, item}
-    end
+    Repo.insert(Item.create_changeset(attrs))
   end
 
-  defp broadcast_tracking_started(%Item{} = item) do
+  @doc """
+  Announces that a person started tracking `item`. Called by `Discovery`
+  when an arming lands, never by the creation path.
+  """
+  @spec announce_tracking_started(Item.t()) :: :ok
+  def announce_tracking_started(%Item{} = item) do
     Events.broadcast(%Events.TrackingStarted{
       item_id: item.id,
       title: Title.new!(%{tmdb_id: item.tmdb_id, media_type: item.media_type, name: item.name})
     })
   end
 
-  def ignore_item(%Item{} = item) do
-    Repo.update(Item.update_changeset(item, %{status: :ignored}))
-  end
-
-  def watch_item(%Item{} = item) do
-    Repo.update(Item.update_changeset(item, %{status: :watching}))
+  @doc """
+  Sets a tracked title's mode — the only way the mode ever moves, because
+  nothing but a person may change it ([ADR-065]). Broadcasts
+  `:releases_updated` so subscribed LiveViews refresh.
+  """
+  @spec set_tracking_mode(Item.t(), Item.tracking_mode()) ::
+          {:ok, Item.t()} | {:error, Ecto.Changeset.t()}
+  def set_tracking_mode(%Item{} = item, mode) do
+    with {:ok, updated} <- Repo.update(Item.update_changeset(item, %{tracking_mode: mode})) do
+      broadcast_releases_updated([updated.id])
+      {:ok, updated}
+    end
   end
 
   def update_item(%Item{} = item, attrs) do
@@ -97,15 +115,15 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   @doc """
-  Updates per-item auto-grab preferences and broadcasts `:releases_updated`
-  so subscribed LiveViews refresh.
+  Updates per-item automation preferences and broadcasts
+  `:releases_updated` so subscribed LiveViews refresh.
 
-  `attrs` may include `:auto_grab_mode`, `:min_quality`, `:max_quality`,
+  `attrs` may include `:tracking_mode`, `:min_quality`, `:max_quality`,
   `:quality_4k_patience_hours`, `:prefer_season_packs`. Validation lives
-  on `Item.auto_grab_changeset/2`.
+  on `Item.automation_changeset/2`.
   """
-  def update_auto_grab(%Item{} = item, attrs) do
-    case Repo.update(Item.auto_grab_changeset(item, attrs)) do
+  def update_automation(%Item{} = item, attrs) do
+    case Repo.update(Item.automation_changeset(item, attrs)) do
       {:ok, updated} ->
         broadcast_releases_updated([updated.id])
         {:ok, updated}
@@ -118,15 +136,21 @@ defmodule MediaCentaur.ReleaseTracking do
   def get_item(id), do: Repo.get(Item, id)
 
   @doc """
-  Nils the `(library_container_type, library_container_id)` link on every
-  item pointing at one of `container_ids`. Returns the number of items
-  detached.
+  Drops the library reason from every item pointing at one of
+  `container_ids`, then reconciles each. Returns the number of items
+  whose link was nilled.
 
   Called when a library container is cascade-destroyed (`LibraryListener`
   reacts to `:containers_deleted`): the container reference has no FK, so
   without this the item would dangle against a deleted UUID forever.
-  Tracking itself is intentionally kept — the user still follows the
-  title, and auto-tracking re-links the item if the entity returns.
+
+  The reconcile is the point ([ADR-065]). The library reason is a
+  *default* — the app tracked the title because you owned it — so it
+  evaporates with the container, and a title left with no reason stops
+  being tracked. A title a person armed has the watchlist reason and
+  keeps going at the mode they set; a disarmed one keeps its disarm.
+  Before ADR-065 this kept *every* item, so a deleted series went on
+  grabbing whether or not anyone had asked.
   """
   @spec detach_library_containers([Ecto.UUID.t()]) :: non_neg_integer()
   def detach_library_containers([]), do: 0
@@ -140,6 +164,8 @@ defmodule MediaCentaur.ReleaseTracking do
         0
 
       item_ids ->
+        refs = Repo.all(from(i in Item, where: i.id in ^item_ids, select: {i.tmdb_id, i.media_type}))
+
         {count, _} =
           Repo.update_all(
             from(i in Item, where: i.id in ^item_ids),
@@ -147,6 +173,7 @@ defmodule MediaCentaur.ReleaseTracking do
           )
 
         broadcast_releases_updated(item_ids)
+        reconcile_refs(refs)
         count
     end
   end
@@ -154,6 +181,58 @@ defmodule MediaCentaur.ReleaseTracking do
   def get_item_by_tmdb(tmdb_id, media_type) do
     Repo.get_by(Item, tmdb_id: tmdb_id, media_type: media_type)
   end
+
+  @doc """
+  Reconciles one title's tracked-title row against its tracking reasons
+  ([ADR-065]), dropping it when none holds.
+
+  A tracked title is derived, not authored, so this is the only place its
+  existence is decided. It never *creates* — the library scan and a
+  person's arming do that, each seeding its own mode (`Reasons.seed_mode/1`).
+  Reconcile only preserves or drops, which is why it can be called freely
+  from either listener without racing a creation.
+
+  [ADR-065]: `decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md`
+  """
+  @spec reconcile(integer(), :movie | :tv_series) :: :ok
+  def reconcile(tmdb_id, media_type) do
+    case get_item_by_tmdb(tmdb_id, media_type) do
+      nil -> :ok
+      item -> reconcile_item(item)
+    end
+  end
+
+  @doc "Reconciles every title in `refs`, a list of `{tmdb_id, media_type}`."
+  @spec reconcile_refs([{integer(), :movie | :tv_series}]) :: :ok
+  def reconcile_refs(refs) when is_list(refs) do
+    Enum.each(refs, fn {tmdb_id, media_type} -> reconcile(tmdb_id, media_type) end)
+  end
+
+  defp reconcile_item(%Item{} = item) do
+    facts = %{
+      mode: item.tracking_mode,
+      media_type: item.media_type,
+      library_reason?: not is_nil(item.library_container_id),
+      watchlist_reason?: Discovery.on_watchlist?(item.tmdb_id, item.media_type),
+      movie_in_library?: movie_in_library?(item)
+    }
+
+    if Reasons.retain?(facts) do
+      :ok
+    else
+      delete_item(item)
+      :ok
+    end
+  end
+
+  # A single film in the library is complete — nothing left to release.
+  # A `:movie` item linked to a MovieSeries tracks a TMDB *collection*,
+  # whose id lives in a different namespace and so never matches here.
+  defp movie_in_library?(%Item{media_type: :movie, tmdb_id: tmdb_id}) do
+    ExternalIds.tmdb_owners([{tmdb_id, :movie}]) != %{}
+  end
+
+  defp movie_in_library?(%Item{}), do: false
 
   # Artwork is deliberately NOT removed here: untracking releases the
   # item's hold, and the TmdbArtwork sweep ages the entry out after its
@@ -256,9 +335,16 @@ defmodule MediaCentaur.ReleaseTracking do
           {non_neg_integer(), non_neg_integer()}
   defdelegate find_last_library_episode(tv_series_id), to: Helpers
 
-  def list_watching_items do
+  @doc """
+  Every tracked title the machinery acts on — that is, every one whose
+  mode is above `:none`. A disarmed title is inert by definition
+  ([ADR-065]): it keeps no calendar and opens no wants, and exists only
+  to carry the disarm.
+  """
+  @spec list_active_items() :: [Item.t()]
+  def list_active_items do
     Repo.all(
-      from(i in Item, where: i.status == :watching, order_by: [asc: i.name], preload: [:releases])
+      from(i in Item, where: i.tracking_mode != :none, order_by: [asc: i.name], preload: [:releases])
     )
   end
 
@@ -269,7 +355,7 @@ defmodule MediaCentaur.ReleaseTracking do
   def tracking_status({tmdb_id, media_type}) do
     case Repo.get_by(Item, tmdb_id: tmdb_id, media_type: media_type) do
       nil -> nil
-      item -> item.status
+      item -> item.tracking_mode
     end
   end
 
@@ -298,6 +384,62 @@ defmodule MediaCentaur.ReleaseTracking do
   @doc "See `MediaCentaur.ReleaseTracking.Acquisition.track_from_search/2`."
   @spec track_from_search(Title.t(), map()) :: {:ok, Item.t()} | {:error, term()}
   def track_from_search(%Title{} = title, opts \\ %{}), do: Acquisition.track_from_search(title, opts)
+
+  @doc """
+  Arms a title: puts it on the watchlist and starts tracking it
+  ([ADR-065]).
+
+  This is the one act a person performs. It is *a watchlist act* — the
+  title lands on the list whichever surface the control was operated
+  from — which is what keeps the invariant true: every active tracked
+  title is either owned or on the watchlist.
+
+  It lives here rather than in `Discovery` only because the dependency
+  runs this way; `Discovery` must stay free of tracking. The seeded mode
+  is `Reasons.seed_mode(:watchlist)` — `:watch`, never the global
+  default, because auto-grab is opt-in and arming must not start a
+  download.
+
+  Announces `Events.TrackingStarted` because this, unlike `track_item/1`,
+  is a person's act.
+  """
+  @spec arm(Title.t(), map()) :: {:ok, Item.t()} | {:error, term()}
+  def arm(%Title{} = title, opts \\ %{}) do
+    with {:ok, _entry} <- Discovery.add_to_watchlist(title),
+         {:ok, item} <- ensure_tracked(title, opts) do
+      announce_tracking_started(item)
+      {:ok, item}
+    end
+  end
+
+  @doc """
+  Disarms a title: sets its mode to `:none`, the durable record of a
+  deliberate stop. The watchlist entry is untouched — de-listing is a
+  separate act ([ADR-065]) — and the row survives even if every reason
+  later drops, so re-acquiring the title cannot silently re-arm it.
+  """
+  @spec disarm(Item.t()) :: {:ok, Item.t()} | {:error, Ecto.Changeset.t()}
+  def disarm(%Item{} = item), do: set_tracking_mode(item, :none)
+
+  @doc """
+  Fire-and-forget `arm/2`. Arming fetches the calendar from TMDB, so it
+  runs on a supervised context-layer task — it must complete regardless of
+  the triggering LiveView's lifecycle (ADR-049).
+  """
+  @spec arm_async(Title.t(), map()) :: :ok
+  def arm_async(%Title{} = title, opts \\ %{}) do
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn -> arm(title, opts) end)
+    :ok
+  end
+
+  # Arming an already-tracked title is idempotent: it must not re-fetch
+  # the calendar, and above all must not overwrite a mode the person set.
+  defp ensure_tracked(%Title{} = title, opts) do
+    case get_item_by_tmdb(title.tmdb_id, title.media_type) do
+      nil -> Acquisition.track_from_search(title, opts)
+      %Item{} = existing -> {:ok, existing}
+    end
+  end
 
   @doc "See `MediaCentaur.ReleaseTracking.Acquisition.track_from_search_async/2`."
   @spec track_from_search_async(Title.t(), map()) :: :ok
@@ -388,7 +530,7 @@ defmodule MediaCentaur.ReleaseTracking do
         from(r in Release,
           join: i in assoc(r, :item),
           where:
-            i.status == :watching and
+            i.tracking_mode != :none and
               (r.in_library == false or
                  (r.in_library == true and not is_nil(r.in_library_at) and
                     r.in_library_at >= ^cutoff)),
@@ -457,7 +599,7 @@ defmodule MediaCentaur.ReleaseTracking do
         where:
           i.library_container_id == ^library_container_id and
             i.media_type == ^media_type and
-            i.status == :watching and
+            i.tracking_mode != :none and
             (is_nil(r.air_date) or r.air_date > ^today or r.in_library == false),
         order_by: [asc: r.season_number, asc: r.episode_number]
       )
@@ -671,7 +813,7 @@ defmodule MediaCentaur.ReleaseTracking do
         from(release in Release,
           join: item in assoc(release, :item),
           where:
-            item.status == :watching and
+            item.tracking_mode != :none and
               not is_nil(release.air_date) and
               release.air_date >= ^from_date and
               release.air_date <= ^to_date,

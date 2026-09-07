@@ -24,6 +24,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.Reasons
   alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.{Client, Identifiers, Mapper, Title}
   alias MediaCentaur.Topics
@@ -425,7 +426,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec accept_lower_quality(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
   def accept_lower_quality(%Plan{} = plan) do
     with {:ok, item} <- ensure_tracking_item(plan),
-         {:ok, _item} <- ReleaseTracking.update_auto_grab(item, %{min_quality: "any"}),
+         {:ok, _item} <- ReleaseTracking.update_automation(item, %{min_quality: "any"}),
          {:ok, snapshotted} <-
            Repo.update(
              Plan.criteria_changeset(plan, Map.put(plan.criteria || %{}, "min_quality", "any"))
@@ -443,7 +444,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec undo_lower_quality(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
   def undo_lower_quality(%Plan{} = plan) do
     with {:ok, item} <- ensure_tracking_item(plan),
-         {:ok, _item} <- ReleaseTracking.update_auto_grab(item, %{min_quality: nil}),
+         {:ok, _item} <- ReleaseTracking.update_automation(item, %{min_quality: nil}),
          {:ok, snapshotted} <-
            Repo.update(Plan.criteria_changeset(plan, Map.delete(plan.criteria || %{}, "min_quality"))) do
       replan(snapshotted)
@@ -459,7 +460,10 @@ defmodule MediaCentaur.Acquisition.Plans do
             tmdb_id: numeric_id,
             media_type: media_type,
             name: plan.title,
-            source: :manual,
+            # A plan's leftovers handed to tracking are downstream of a
+            # person's download, so they seed the arming mode, never the
+            # global default — auto-grab stays opt-in (ADR-065).
+            tracking_mode: Reasons.seed_mode(:watchlist),
             origin_country: plan.origin_country
           })
         else

@@ -8,7 +8,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
 
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers}
+  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Reasons}
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Identifiers
   alias MediaCentaur.TMDB.Mapper
@@ -129,7 +129,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         tmdb_id: tmdb_id,
         media_type: media_type,
         name: name,
-        source: :library,
+        tracking_mode: Reasons.seed_mode(:library),
         library_container_type: container_type,
         library_container_id: container_id,
         last_refreshed_at: DateTime.utc_now(),

@@ -51,4 +51,16 @@ defmodule MediaCentaurWeb.Live.EntityModalTest do
       assert {:error, _message} = EntityModal.refresh_artwork_flash({:error, :boom})
     end
   end
+
+  describe "toggled_tracking_mode/1 — the bell (retired by UIDR-035)" do
+    test "a disarmed title returns to the app default" do
+      assert EntityModal.toggled_tracking_mode(:none) == :global
+    end
+
+    test "every armed mode disarms" do
+      for mode <- [:watch, :ask, :grab, :global] do
+        assert EntityModal.toggled_tracking_mode(mode) == :none, "#{mode} should disarm"
+      end
+    end
+  end
 end

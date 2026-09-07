@@ -119,7 +119,7 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
     test "skips ignored items entirely" do
       item = create_tv_item()
       create_episode_release(item)
-      {:ok, ignored} = ReleaseTracking.ignore_item(item)
+      {:ok, ignored} = ReleaseTracking.disarm(item)
 
       :ok = ReleaseTracking.sync_wants(ignored)
 
@@ -325,7 +325,7 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
       later_ignored = create_tv_item(%{tmdb_id: 222, name: "Ignored Show"})
       create_episode_release(later_ignored)
       :ok = ReleaseTracking.sync_wants(later_ignored)
-      {:ok, _} = ReleaseTracking.ignore_item(later_ignored)
+      {:ok, _} = ReleaseTracking.disarm(later_ignored)
 
       open = ReleaseTracking.list_open_wants()
       assert Enum.map(open, & &1.item_id) == [watching.id]

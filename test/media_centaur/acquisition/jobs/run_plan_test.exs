@@ -904,10 +904,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
           tmdb_id: 246_810,
           media_type: :tv_series,
           name: "Sample Show",
-          source: :manual
+          tracking_mode: :watch
         })
 
-      {:ok, _item} = MediaCentaur.ReleaseTracking.update_auto_grab(item, %{min_quality: "any"})
+      {:ok, _item} = MediaCentaur.ReleaseTracking.update_automation(item, %{min_quality: "any"})
 
       stub_recording_searches(%{
         "Sample Show" => [
@@ -940,7 +940,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
       assert item.min_quality == "any"
-      assert item.status == :watching
+      assert item.tracking_mode == :watch
 
       assert [unit] = Plans.units_for(plan.id)
       assert unit.status == "found"

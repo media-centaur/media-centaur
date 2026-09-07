@@ -161,7 +161,7 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       item =
         create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"})
 
-      {:ok, item} = MediaCentaur.ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: mode})
+      {:ok, item} = MediaCentaur.ReleaseTracking.set_tracking_mode(item, mode)
 
       create_tracking_release(%{
         item_id: item.id,
@@ -177,7 +177,7 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
 
     test "an open want marks its episode tracked and leaves the defaults" do
       stub_sample_show()
-      track_with_want("all_releases")
+      track_with_want(:grab)
 
       {:ok, selection} = Targeting.series_selection("246810")
 
@@ -196,7 +196,7 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
 
     test "mode off means no subtraction — media search is the expected path" do
       stub_sample_show()
-      track_with_want("off")
+      track_with_want(:watch)
 
       {:ok, selection} = Targeting.series_selection("246810")
 

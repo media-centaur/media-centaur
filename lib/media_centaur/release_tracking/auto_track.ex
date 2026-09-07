@@ -11,6 +11,7 @@ defmodule MediaCentaur.ReleaseTracking.AutoTrack do
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Helpers
+  alias MediaCentaur.ReleaseTracking.Reasons
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Identifiers
   alias MediaCentaur.TMDB.Mapper
@@ -71,7 +72,7 @@ defmodule MediaCentaur.ReleaseTracking.AutoTrack do
             tmdb_id: tmdb_id,
             media_type: :tv_series,
             name: response["name"] || name,
-            source: :library,
+            tracking_mode: Reasons.seed_mode(:library),
             library_container_type: :tv_series,
             library_container_id: tv_series_id,
             last_refreshed_at: DateTime.utc_now(),

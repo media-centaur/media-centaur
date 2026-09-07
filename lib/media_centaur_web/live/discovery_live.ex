@@ -282,8 +282,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      |> push_patch(to: discovery_path(socket))}
   end
 
+  # Arming, not a bare track: the title lands on the watchlist as part of
+  # the act (ADR-065), which is what keeps every active tracked title on a
+  # list that shows it.
   def handle_event("title_track", _params, %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket) do
-    ReleaseTracking.track_from_search_async(detail.title)
+    ReleaseTracking.arm_async(detail.title)
 
     {:noreply,
      socket
