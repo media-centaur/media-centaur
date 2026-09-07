@@ -1,6 +1,8 @@
 defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
   use ExUnit.Case, async: true
 
+  import MediaCentaur.TestFactory, only: [build_tracking_release: 1]
+
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
   alias MediaCentaurWeb.DiscoveryLive.Logic
@@ -70,9 +72,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
       assert detail.scoped?
     end
 
-    test "upcoming, or no indexer, tracks the release" do
-      assert Logic.title_detail(movie(%{release_date: ~D[2999-01-01]}), facts()).primary == :track
-      assert Logic.title_detail(movie(), facts(%{release_mode_available: false})).primary == :track
+    test "upcoming, or no indexer, offers no verb — the tracking-mode control arms" do
+      assert Logic.title_detail(movie(%{release_date: ~D[2999-01-01]}), facts()).primary == nil
+      assert Logic.title_detail(movie(), facts(%{release_mode_available: false})).primary == nil
     end
   end
 
@@ -129,13 +131,64 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
     end
   end
 
-  describe "parse_title_ref/1" do
-    test "the URL param round-trips" do
-      assert Logic.parse_title_ref("movie-777") == {:ok, {777, :movie}}
-      assert Logic.parse_title_ref("tv_series-42") == {:ok, {42, :tv_series}}
-      assert Logic.parse_title_ref("book-1") == :error
-      assert Logic.parse_title_ref("movie-x") == :error
-      assert Logic.title_ref_param({777, :movie}) == "movie-777"
+  describe "row_markers/1 tracking" do
+    test "an armed title states its mode, Default resolved; Off, never-tracked and owned say nothing" do
+      base = %{library_owner_id: nil, acquisition_state: nil, on_watchlist?: false}
+
+      assert Logic.row_markers(Map.merge(base, %{tracking_mode: :watch, default_grab_mode: "ask"})) ==
+               ["Tracking: Watch"]
+
+      assert Logic.row_markers(Map.merge(base, %{tracking_mode: :global, default_grab_mode: "ask"})) ==
+               ["Tracking: Ask"]
+
+      assert Logic.row_markers(Map.merge(base, %{tracking_mode: :global, default_grab_mode: "off"})) ==
+               ["Tracking: Watch"]
+
+      assert Logic.row_markers(Map.merge(base, %{tracking_mode: :none, default_grab_mode: "ask"})) == []
+      assert Logic.row_markers(Map.merge(base, %{tracking_mode: nil, default_grab_mode: "ask"})) == []
+
+      assert Logic.row_markers(
+               Map.merge(base, %{
+                 library_owner_id: "o",
+                 tracking_mode: :grab,
+                 default_grab_mode: "ask"
+               })
+             ) == ["In library"]
+    end
+  end
+
+  describe "row_markers/1 next release" do
+    test "a watchlist row states its next date when it has one" do
+      assert Logic.row_markers(%{
+               library_owner_id: nil,
+               acquisition_state: nil,
+               on_watchlist?: false,
+               next_air_date: Date.add(@today, 1),
+               today: @today
+             }) == ["Next: Tomorrow"]
+
+      assert Logic.row_markers(%{
+               library_owner_id: nil,
+               acquisition_state: :planning,
+               on_watchlist?: false,
+               next_air_date: nil,
+               today: @today
+             }) == ["Planning"]
+    end
+  end
+
+  describe "next_air_date/2" do
+    test "the earliest dated release today or later that is not in the library" do
+      releases = [
+        build_tracking_release(%{air_date: Date.add(@today, 9)}),
+        build_tracking_release(%{air_date: Date.add(@today, 2)}),
+        build_tracking_release(%{air_date: Date.add(@today, -3)}),
+        build_tracking_release(%{air_date: @today, in_library: true}),
+        build_tracking_release(%{air_date: nil})
+      ]
+
+      assert Logic.next_air_date(releases, @today) == Date.add(@today, 2)
+      assert Logic.next_air_date([], @today) == nil
     end
   end
 end

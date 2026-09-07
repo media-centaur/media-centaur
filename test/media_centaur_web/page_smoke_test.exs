@@ -640,10 +640,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       conn: conn,
       shelf_item: shelf_item
     } do
-      assert {:ok, view, _html} = live_async!(conn, "/incoming?title=#{shelf_item.id}")
+      assert {:ok, view, _html} =
+               live_async!(conn, "/incoming?title=tv_series-#{shelf_item.tmdb_id}")
 
-      assert has_element?(view, "#title-modal[data-state=open]")
-      assert has_element?(view, "#title-modal", "Smoke Shelf Show")
+      assert has_element?(view, "#title-detail-modal[data-state=open]")
+      assert has_element?(view, "#title-detail-modal", "Smoke Shelf Show")
     end
 
     test "renders without crashing (?zone=history)", %{conn: conn} do

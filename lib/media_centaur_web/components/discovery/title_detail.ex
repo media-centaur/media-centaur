@@ -1,33 +1,41 @@
 defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   @moduledoc """
-  The title detail modal's view-model (spec 2026-09-05 §12–13): one
-  TMDB title the library does not own, with the facts the modal's
-  actions depend on already decided. Built by `DiscoveryLive.Logic.
-  title_detail/2`; rendered by `TitleDetailModal`.
+  The title detail modal's view-model (UIDR-035): one TMDB title without
+  files — watchlisted, tracked, in flight, or merely recommended — with
+  the facts the modal's controls depend on already decided. Built by
+  `DiscoveryLive.Logic.title_detail/2` from facts the
+  `TitleDetailHost` resolved; rendered by `TitleDetailModal`.
 
   `primary` is the one honest primary action for the title's state:
   `{:in_library, owner_id}` (links to the library detail), `{:state,
   acquisition_state}` (Planning / Downloading / Needs review — a fact,
-  not a verb), `:download`, or `:track`. `scoped?` says the download
-  carries the series scope menu. `kind`, `episode`, `sender`, `note`,
-  `acted_at` and `own?` are the feed provenance and nil on a
-  watchlist-born detail without one; `sender` is nil on an own activity
-  (the modal reads `own?`), `episode` is set on a watched series only.
+  not a verb), `:download`, or `nil` when there is nothing to download
+  yet — the tracking-mode control is the arming surface, so there is
+  no `Track` verb (ADR-065). `scoped?` says the download carries the
+  series scope menu.
 
-  `recommendations` are the title's `Activities.recommendations_for/1`
-  rows — every friend's (and an own) recommendation, for the hero's
-  pennants; empty when nobody recommended it.
+  `tracking` is the tracked-title half (`TrackingDetail`): nil for a
+  title that has never been tracked. `acquisition?` and
+  `default_grab_mode` are what the tracking-mode control needs to say
+  honestly what each mode does right now.
 
-  `preview` is the live TMDB-backed `Detail.TitlePreview` (backdrop,
-  logo, tagline, metadata, facets, cast) the host fetches on open; nil
-  until it lands, or when TMDB is not configured, in which case the
-  modal dresses itself from the snapshot alone.
+  `kind`, `episode`, `sender`, `note`, `acted_at` and `own?` are the
+  feed provenance and nil on a detail without one; `sender` is nil on
+  an own activity (the modal reads `own?`), `episode` is set on a
+  watched series only. `recommendations` are the title's
+  `Activities.recommendations_for/1` rows for the hero's pennants.
+
+  `preview` is the live TMDB-backed `Detail.TitlePreview` the host
+  fetches on open; nil until it lands, or when TMDB is not configured,
+  in which case the modal dresses itself from the snapshot and the
+  local artwork cache alone.
   """
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
 
   @enforce_keys [:ref, :title, :primary, :scoped?, :on_watchlist?]
   defstruct [
@@ -35,9 +43,11 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :title,
     :poster_url,
     :backdrop_url,
+    :logo_url,
     :primary,
     :scoped?,
     :on_watchlist?,
+    :tracking,
     :kind,
     :episode,
     :sender,
@@ -46,6 +56,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :own?,
     :activity_id,
     :preview,
+    acquisition?: false,
+    default_grab_mode: "off",
     recommendations: []
   ]
 
@@ -53,16 +65,20 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           {:in_library, Ecto.UUID.t()}
           | {:state, :planning | :downloading | :needs_review}
           | :download
-          | :track
+          | nil
 
   @type t :: %__MODULE__{
           ref: {integer(), Title.media_type()},
           title: Title.t(),
           poster_url: String.t() | nil,
           backdrop_url: String.t() | nil,
+          logo_url: String.t() | nil,
           primary: primary(),
           scoped?: boolean(),
           on_watchlist?: boolean(),
+          tracking: TrackingDetail.t() | nil,
+          acquisition?: boolean(),
+          default_grab_mode: String.t(),
           kind: Activity.kind() | nil,
           episode: Episode.t() | nil,
           sender: String.t() | nil,

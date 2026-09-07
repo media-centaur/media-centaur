@@ -24,8 +24,8 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   foreign release may be published under.
 
   `upcoming?` says the title isn't out anywhere yet — its canonical date
-  is missing or still ahead. It gates the *Track release* verb: watching
-  for a release only makes sense while there is one to wait for.
+  is missing or still ahead. It gates the *Watch for release* verb:
+  watching for a release only makes sense while there is one to wait for.
 
   `facets` are `Detail.Facet` structs (rendered by `Detail.FacetStrip`),
   `cast` are `Library.Person` structs (the library's cast shape), and the

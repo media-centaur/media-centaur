@@ -231,8 +231,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   attr :tracked?, :boolean,
     required: true,
-    doc:
-      "Whether release tracking already holds this title — the Tracked marker, and no verb when upcoming."
+    doc: "Whether release tracking already holds this title — the Tracked marker."
 
   attr :recommendations, :list,
     default: [],
@@ -313,16 +312,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     """
   end
 
-  # The row's one verb, honest per release status: a released title can
-  # be downloaded (or tracked without an indexer); an unreleased one can
-  # only be tracked — the host's `omnibox_pick` performs exactly this
-  # split. The verb names the goal, not the planning step it opens with.
-  # An already-tracked upcoming row affords nothing further, so the verb
-  # slot stays empty (the identity line carries the Tracked marker).
-  defp verb(true, :upcoming, _release_mode_available), do: nil
-  defp verb(false, :upcoming, _release_mode_available), do: "Track release"
+  # The row's one verb, honest per release status: a released title with
+  # an indexer can be downloaded — the host's `omnibox_pick` opens the
+  # plan flow. Anything else — not out yet, or no indexer — opens the
+  # title detail (UIDR-003's standard label for that), where the
+  # tracking-mode control is the arming surface; there is no `Track`
+  # verb (ADR-065). The verb names the goal, not the step it opens with.
   defp verb(_tracked?, :released, true), do: "Download"
-  defp verb(_tracked?, :released, false), do: "Track"
+  defp verb(_tracked?, _status, _release_mode_available), do: "More info"
 
   @doc """
   Whether the typed query is active — two or more characters after

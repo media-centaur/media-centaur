@@ -9,8 +9,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
   (info-only theatrical), `:neutral` (plain upcoming / unscheduled).
   """
 
-  alias MediaCentaur.ReleaseTracking.Item
-
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
 
   @type tone :: :success | :info | :muted | :neutral
@@ -85,23 +83,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
       1 -> "Tomorrow"
       diff when diff <= 6 -> "in #{diff} days"
       _ -> Calendar.strftime(date, "%b %-d")
-    end
-  end
-
-  @doc """
-  The auto-grab posture for a title's detail panel — `%{on?, label}`. Honest
-  about gating: with acquisition unconfigured nothing grabs regardless of mode.
-  """
-  @spec auto_grab_summary(Item.tracking_mode() | nil, String.t(), boolean()) ::
-          %{on?: boolean(), label: String.t()}
-  def auto_grab_summary(_tracking_mode, _default_mode, false = _acquisition?),
-    do: %{on?: false, label: "Acquisition not configured"}
-
-  def auto_grab_summary(tracking_mode, default_mode, true = _acquisition?) do
-    case Item.grab_mode(tracking_mode, default_mode) do
-      "all_releases" -> %{on?: true, label: "Auto-grabbing every release"}
-      "ask" -> %{on?: false, label: "Ask before grabbing"}
-      _off -> %{on?: false, label: "Not auto-grabbing"}
     end
   end
 

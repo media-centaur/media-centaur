@@ -79,6 +79,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   """
 
   use MediaCentaurWeb, :live_view
+  # TitleDetailHost first: its handle_info hook must see the watchlist
+  # messages WatchlistAware halts (hooks run in attach order).
+  use MediaCentaurWeb.Live.TitleDetailHost
   use MediaCentaurWeb.Live.WatchlistAware
 
   require MediaCentaur.Log, as: Log
@@ -122,13 +125,15 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
+  alias MediaCentaurWeb.Live.TitleDetailHost
+  alias MediaCentaurWeb.TitleRef
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TMDB.TitleSearch
 
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
-  alias MediaCentaurWeb.Components.ReleaseTracking.{Detail, Present, TitleModal}
+  alias MediaCentaurWeb.Components.Discovery.TitleDetailModal
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
@@ -194,9 +199,9 @@ defmodule MediaCentaurWeb.IncomingLive do
     # from (re-checked in `:capabilities_changed` for mid-session setup).
     prowlarr? = Capabilities.prowlarr_ready?()
 
+    # `release_tracking:updates` is TitleDetailHost's subscription.
     if connected?(socket) do
       MediaCentaur.Library.subscribe()
-      ReleaseTracking.subscribe()
       Activities.subscribe()
       if prowlarr?, do: subscribe_acquisition()
     end
@@ -209,7 +214,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          loaded?: false,
          subscribed_acquisition?: prowlarr? and connected?(socket),
          today: today,
-         detail: nil,
          shelf_expanded?: false,
          stragglers_expanded?: false,
          view: %View{shelf: %View.ShelfSection{}},
@@ -239,7 +243,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          reload_timer: nil,
          selected_pursuit_id: nil,
          cancel_pursuit_armed: nil,
-         stop_tracking_armed: nil,
          pursuit_detail: nil,
          omnibox_mode: :media,
          omnibox_query: "",
@@ -436,85 +439,29 @@ defmodule MediaCentaurWeb.IncomingLive do
     |> Map.new(fn {key, {pursuit, _target}} -> {key, %{pursuit_id: pursuit.id}} end)
   end
 
-  # --- Per-title detail (the title modal, UIDR-017) ---
+  # --- TitleDetailHost ---
 
-  defp build_detail(socket, item_id) do
-    case ReleaseTracking.get_item(item_id) do
+  # A ref this page knows: a tracked title (the Coming up rows), else a
+  # search result on screen (a pick that has nothing to download opens
+  # the title detail, where the tracking-mode control is the arming
+  # surface). No page-specific facts.
+  @impl TitleDetailHost
+  def resolve_title(socket, {tmdb_id, media_type} = ref, _params) do
+    case ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
+      %Item{} = item ->
+        {Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: item.name}), %{}}
+
       nil ->
-        nil
-
-      item ->
-        acquisition? = Capabilities.acquisition_ready?()
-        default_mode = socket.assigns.auto_grab_default_mode
-
-        releases =
-          item_id
-          |> ReleaseTracking.list_releases_for_item()
-          |> Enum.map(&%{&1 | item: item})
-
-        context = %{
-          today: socket.assigns.today,
-          acquisition_ready?: acquisition?,
-          auto_grab_default_mode: default_mode,
-          grab_status_by_key: socket.assigns.grab_status_by_key
-        }
-
-        feed = UpcomingFeed.build(releases, context)
-
-        # The referenced tier of the artwork ladder: a tracked item holds
-        # its TmdbArtwork cache entry, so these resolve locally.
-        artwork = MediaCentaur.TmdbArtwork.urls(item.media_type, item.tmdb_id)
-
-        %Detail{
-          item_id: item.id,
-          name: item.name,
-          media_type: item.media_type,
-          backdrop_url: artwork.backdrop_url,
-          logo_url: artwork.logo_url,
-          acquisition?: acquisition?,
-          auto_grab: Present.auto_grab_summary(item.tracking_mode, default_mode, acquisition?),
-          lower_quality_accepted?: Item.lower_quality_accepted?(item),
-          tracking_since: item.inserted_at,
-          timeline: flatten_feed(feed),
-          activity: build_activity(item_id)
-        }
+        case Enum.find(socket.assigns.omnibox_results, &(Title.ref(&1) == ref)) do
+          %Title{} = result -> {result, %{}}
+          nil -> nil
+        end
     end
   end
 
-  defp flatten_feed(%UpcomingFeed{buckets: buckets, unscheduled: unscheduled}) do
-    Enum.flat_map(UpcomingFeed.bucket_order(), &Map.get(buckets, &1, [])) ++ unscheduled
-  end
-
-  defp build_activity(item_id) do
-    item_id
-    |> ReleaseTracking.list_events_for_item(8)
-    |> Enum.map(&%{text: &1.description, at: MediaCentaur.Format.relative_ago(&1.inserted_at)})
-  end
-
-  # A media pick on the forecast-only page: track the title (movies grab no
-  # scope; shows start from the last library episode) and add its ref to
-  # `tracked_refs` so the row reads as done without a re-query. Takes the
-  # row the pick handler already matched on the full `{tmdb_id, media_type}`
-  # identity — movie and TV ids overlap, so the id alone names two titles.
-  defp track_picked_result(socket, nil), do: socket
-
-  defp track_picked_result(socket, %Title{} = picked) do
-    scope =
-      case picked.media_type do
-        :movie ->
-          %{}
-
-        :tv_series ->
-          {last_season, last_episode} = ReleaseTracking.find_last_library_episode(nil)
-          %{start_season: last_season, start_episode: last_episode}
-      end
-
-    ReleaseTracking.track_from_search_async(picked, scope)
-
-    assign(socket,
-      tracked_refs: MapSet.put(socket.assigns.tracked_refs, {picked.tmdb_id, picked.media_type})
-    )
-  end
+  @impl TitleDetailHost
+  def title_detail_path(socket, query),
+    do: incoming_path(socket, Map.new(query, fn {key, value} -> {to_string(key), value} end))
 
   # The plan modal's current identity, whichever stage holds it —
   # `{tmdb_id :: integer, media_type, name}` or nil when nothing usable.
@@ -607,7 +554,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> assign_zone(params, was_loaded?)
       |> maybe_load_history(was_loaded?)
       |> apply_pursuit_modal_params(params)
-      |> apply_title_modal_params(params)
       |> apply_plan_modal_params(params)
       |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
@@ -679,23 +625,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     else
       assign(socket, selected_pursuit_id: nil, pursuit_detail: nil, board_expanded_seasons: nil)
     end
-  end
-
-  # Drives the title modal off the `?title=<item_id>` URL param — the
-  # same idiom as the pursuit modal's `?selected=` (UIDR-017): back/
-  # forward closes/opens, refresh preserves state, the URL is shareable.
-  # An unknown id leaves the modal closed (build_detail returns nil).
-  defp apply_title_modal_params(socket, %{"title" => item_id})
-       when is_binary(item_id) and item_id != "" do
-    if socket.assigns.detail && socket.assigns.detail.item_id == item_id do
-      socket
-    else
-      assign(socket, detail: build_detail(socket, item_id))
-    end
-  end
-
-  defp apply_title_modal_params(socket, _params) do
-    if socket.assigns.detail == nil, do: socket, else: assign(socket, detail: nil)
   end
 
   # Path back to the page keeping the zone tab (default zone = clean
@@ -901,11 +830,10 @@ defmodule MediaCentaurWeb.IncomingLive do
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
           cancel_armed={@selected_pursuit_id != nil and @cancel_pursuit_armed == @selected_pursuit_id}
         />
-        <TitleModal.title_modal
-          open={@detail != nil}
-          detail={@detail}
+        <TitleDetailModal.title_detail_modal
+          detail={@title_detail}
+          scope_menu_open={@scope_menu_open}
           today={@today}
-          stop_tracking_armed={@detail != nil and @stop_tracking_armed == @detail.item_id}
         />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
@@ -1692,15 +1620,16 @@ defmodule MediaCentaurWeb.IncomingLive do
       end)
 
     cond do
-      not Capabilities.prowlarr_ready?() ->
-        # Forecast-only page: the hero promised tracking, so a pick tracks —
-        # never the plan (grab) flow. Same shape the track modal uses.
-        {:noreply, track_picked_result(socket, picked)}
+      picked == nil ->
+        {:noreply, socket}
 
-      picked && MediaResults.release_status(picked, Date.utc_today()) == :upcoming ->
-        # An unreleased title has nothing to grab — the row's verb says
-        # "Track release" and the pick does exactly that, in place.
-        {:noreply, track_picked_result(socket, picked)}
+      # Nothing to download — no indexer, or not out yet: the row's verb
+      # says More info, and the title detail is where the tracking-mode
+      # control arms it (UIDR-035). Never the plan (grab) flow.
+      not Capabilities.prowlarr_ready?() or
+          MediaResults.release_status(picked, Date.utc_today()) == :upcoming ->
+        {:noreply,
+         push_patch(socket, to: incoming_path(socket, %{"title" => TitleRef.param(Title.ref(picked))}))}
 
       true ->
         plan_type = if media_type == "movie", do: "movie", else: "tv"
@@ -1820,88 +1749,24 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   # --- Forecast detail / tracking events ---
 
+  # A Coming up row names its tracked item; the title detail is keyed by
+  # the title ref (UIDR-035), so the click resolves one into the other.
   def handle_event("select_event", %{"item-id" => item_id}, socket) do
-    {:noreply, push_patch(socket, to: incoming_path(socket, %{"title" => item_id}))}
-  end
-
-  def handle_event("close_detail", _params, socket) do
-    {:noreply, push_patch(socket, to: incoming_path(socket))}
-  end
-
-  def handle_event("toggle_auto_grab", %{"item-id" => item_id}, socket) do
-    with %Item{} = item <- ReleaseTracking.get_item(item_id) do
-      default = socket.assigns.auto_grab_default_mode
-
-      summary =
-        Present.auto_grab_summary(item.tracking_mode, default, Capabilities.acquisition_ready?())
-
-      # The toggle only ever moves between grabbing and not; it must never
-      # reach :none, which is the durable disarm and stops the calendar too.
-      ReleaseTracking.set_tracking_mode(item, if(summary.on?, do: :watch, else: :grab))
-    end
-
-    socket = build_view(socket)
-    {:noreply, assign(socket, detail: build_detail(socket, item_id))}
-  end
-
-  # The per-title acceptance's durable home is the tracking item (ADR-063
-  # §2); this is its reset outside any plan board. An open plan keeps its
-  # own criteria snapshot — the board's Undo is what re-solves a plan.
-  def handle_event("reset_lower_quality", %{"item-id" => item_id}, socket) do
-    with %Item{} = item <- ReleaseTracking.get_item(item_id) do
-      ReleaseTracking.update_automation(item, %{min_quality: nil})
-    end
-
-    socket = build_view(socket)
-    {:noreply, assign(socket, detail: build_detail(socket, item_id))}
-  end
-
-  # Stop tracking has no undo: the title modal's button arms on the first
-  # click (keyed by item, so another title is never armed) and fires on
-  # the second (MC0027 tier 2).
-  def handle_event("stop_tracking_arm", %{"item-id" => item_id}, socket) do
-    {:noreply, assign(socket, stop_tracking_armed: item_id)}
-  end
-
-  def handle_event(
-        "stop_tracking",
-        %{"item-id" => item_id},
-        %{assigns: %{stop_tracking_armed: armed}} = socket
-      )
-      when armed != item_id do
-    {:noreply, assign(socket, stop_tracking_armed: item_id)}
-  end
-
-  def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
-    socket = assign(socket, stop_tracking_armed: nil)
-
     case ReleaseTracking.get_item(item_id) do
+      %Item{tmdb_id: tmdb_id, media_type: media_type} ->
+        {:noreply,
+         push_patch(socket,
+           to: incoming_path(socket, %{"title" => TitleRef.param({tmdb_id, media_type})})
+         )}
+
       nil ->
         {:noreply, socket}
-
-      item ->
-        ReleaseTracking.create_event!(%{
-          item_id: item.id,
-          item_name: item.name,
-          event_type: :stopped_tracking,
-          description: "Stopped tracking #{item.name}"
-        })
-
-        ReleaseTracking.delete_item(item)
-
-        {:noreply,
-         socket
-         |> build_view()
-         |> put_flash(:info, "Stopped tracking #{item.name}")
-         # The URL still carries ?title= for the deleted item; patching
-         # home closes the modal through the same param-driven path as
-         # every other dismissal.
-         |> push_patch(to: incoming_path(socket))}
     end
   end
 
-  # Track without grabbing, from inside the plan modal — the TV picker's
-  # "Track only" and the movie confirm's "Track release". TV tracks all
+  # Arm without grabbing, from inside the plan modal — the TV picker's
+  # and the movie confirm's "Watch for release(s)". Arming lists the
+  # title on the watchlist as part of the act (ADR-065). TV follows all
   # upcoming episodes (the back catalog is exactly what the open picker
   # grabs); the async task and its TMDB enrichment are ReleaseTracking's.
   def handle_event("plan_track_only", _params, socket) do
@@ -1912,14 +1777,14 @@ defmodule MediaCentaurWeb.IncomingLive do
       {tmdb_id, media_type, name} ->
         scope = if media_type == :tv_series, do: %{start_season: 0, start_episode: 0}, else: %{}
 
-        ReleaseTracking.track_from_search_async(
+        ReleaseTracking.arm_async(
           Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name}),
           scope
         )
 
         {:noreply,
          socket
-         |> put_flash(:info, "Tracking #{name} — it will appear under Coming up.")
+         |> put_flash(:info, "Tracking #{name} — releases will appear under Coming up.")
          # Deliberately the plain path (= Coming up), not incoming_path/1:
          # the flash points there, and showing the new row beats describing it.
          |> push_patch(to: "/incoming")}

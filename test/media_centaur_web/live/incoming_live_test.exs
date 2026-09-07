@@ -133,7 +133,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "form[phx-change='query_change']")
     end
 
-    test "a media pick on the forecast-only page tracks the title, never the plan flow", %{
+    test "a media pick on the forecast-only page opens the title detail, never the plan flow", %{
       conn: conn
     } do
       Capabilities.clear_test_result(:prowlarr)
@@ -156,15 +156,18 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       render_async(view, 2_000)
 
-      html =
-        view
-        |> element("#omnibox-result-movie-424242")
-        |> render_click()
+      assert has_element?(view, "#omnibox-result-movie-424242", "More info")
 
-      # The pick's synchronous half marks the dropdown row as tracked and
-      # never opens the plan (grab) modal. The async tracking task itself
-      # is covered by the ReleaseTracking tests.
-      assert html =~ "Tracked"
+      view
+      |> element("#omnibox-result-movie-424242")
+      |> render_click()
+
+      # Nothing to download without an indexer: the pick opens the title
+      # detail, where the tracking-mode control arms it — never the plan
+      # (grab) modal.
+      assert_patch(view, "/incoming?title=movie-424242")
+      assert has_element?(view, "#title-detail-modal[data-state='open']", "Sample Movie")
+      assert has_element?(view, "#title-tracking-mode[data-mode='none']")
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       await_supervised_tasks()
@@ -478,7 +481,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute render(view) =~ "Sample Movie 2026"
     end
 
-    test "the TV picker offers Track only for an untracked series", %{conn: conn} do
+    test "the TV picker offers Watch for releases for an untracked series", %{conn: conn} do
       stub_plan_tmdb()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
@@ -497,7 +500,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       await_supervised_tasks()
     end
 
-    test "the movie confirm offers Track release for a movie that isn't out yet", %{
+    test "the movie confirm offers Watch for release for a movie that isn't out yet", %{
       conn: conn
     } do
       TmdbStubs.setup_tmdb_client()
@@ -515,7 +518,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       await_supervised_tasks()
     end
 
-    test "the movie confirm drops Track release once the movie is out", %{conn: conn} do
+    test "the movie confirm drops Watch for release once the movie is out", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
 
@@ -1523,9 +1526,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "[data-nav-zone='coming_up_list']")
     end
 
-    test "an upcoming row's verb is Track release — picking it tracks, never the plan flow", %{
-      conn: conn
-    } do
+    test "an upcoming row's verb is More info — picking it opens the title detail, never the plan flow",
+         %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
       TmdbStubs.stub_search_multi([
@@ -1552,20 +1554,35 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       render_async(view, 2_000)
 
       # The verb tells the truth per row: a released title can be
-      # downloaded; an unreleased one can only be tracked.
+      # downloaded; an unreleased one has only its detail, where the
+      # tracking-mode control arms it.
       assert has_element?(view, "#omnibox-result-movie-777", "Download")
-      assert has_element?(view, "#omnibox-result-movie-888", "Track release")
+      assert has_element?(view, "#omnibox-result-movie-888", "More info")
 
-      # Picking the upcoming row tracks it in place (the row flips to
-      # Tracked) — no plan modal, no navigation.
+      # The detail's preview and the arm's calendar both read the movie.
+      TmdbStubs.stub_get_movie(
+        888,
+        TmdbStubs.movie_detail(%{
+          "id" => 888,
+          "title" => "Upcoming Movie",
+          "release_date" => "2999-01-01"
+        })
+      )
+
+      # Picking the upcoming row opens the title detail — no plan modal.
       view
       |> element("#omnibox-result-movie-888")
       |> render_click()
 
-      assert has_element?(view, "#omnibox-result-movie-888", "Tracked")
-      refute has_element?(view, "#omnibox-result-movie-888", "Track release")
+      assert_patch(view, "/incoming?title=movie-888")
+      assert has_element?(view, "#title-detail-modal[data-state='open']", "Upcoming Movie")
+      refute has_element?(view, "#plan-modal[data-state='open']")
 
+      # Arming from there tracks it; the row flips to Tracked on the broadcast.
+      view |> element("#title-tracking-mode-watch") |> render_click()
       await_supervised_tasks()
+      assert %{tracking_mode: :watch} = MediaCentaur.ReleaseTracking.get_item_by_tmdb(888, :movie)
+      assert MediaCentaur.Discovery.on_watchlist?(888, :movie)
     end
 
     test "an already-tracked title carries the Tracked marker from the ref set", %{conn: conn} do
@@ -3195,7 +3212,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "title modal" do
-    test "select_event patches to ?title= and opens the modal; close_detail patches away", %{
+    test "select_event patches to ?title=<ref> and opens the modal; close_title patches away", %{
       conn: conn
     } do
       {item, _release} = tracked_with_release(%{name: "Detail Show"})
@@ -3203,32 +3220,33 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, "/incoming")
 
       render_hook(view, "select_event", %{"item-id" => item.id})
-      assert_patch(view, "/incoming?title=#{item.id}")
+      assert_patch(view, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-modal[data-state=open]")
+      assert has_element?(view, "#title-detail-modal[data-state=open]")
       opened = render(view)
       assert opened =~ "Detail Show"
-      assert opened =~ "Stop tracking"
+      refute opened =~ "Stop tracking"
+      assert has_element?(view, "#title-tracking-mode[data-mode='global']")
+      assert has_element?(view, "#title-release-timeline-next")
 
-      render_hook(view, "close_detail", %{})
+      render_hook(view, "close_title", %{})
       assert_patch(view, "/incoming")
-      assert has_element?(view, "#title-modal[data-state=closed]")
+      assert has_element?(view, "#title-detail-modal[data-state=closed]")
     end
 
     test "mounting with ?title= opens the modal directly (shareable URL)", %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Deep Link Show"})
 
-      {:ok, view, _html} = live_async!(conn, "/incoming?title=#{item.id}")
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-modal[data-state=open]")
+      assert has_element?(view, "#title-detail-modal[data-state=open]")
       assert render(view) =~ "Deep Link Show"
     end
 
-    test "an unknown ?title= id renders the page with the modal closed", %{conn: conn} do
-      {:ok, view, _html} =
-        live_async!(conn, "/incoming?title=#{Ecto.UUID.generate()}")
+    test "an unknown ?title= ref renders the page with the modal closed", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-424242")
 
-      assert has_element?(view, "#title-modal[data-state=closed]")
+      assert has_element?(view, "#title-detail-modal[data-state=closed]")
     end
 
     test "stragglers start collapsed behind the divider toggle; expanded rows open the same modal",
@@ -3253,12 +3271,12 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("#shelf-straggler-#{item.id}")
       |> render_click()
 
-      assert_patch(view, "/incoming?title=#{item.id}")
-      assert has_element?(view, "#title-modal[data-state=open]")
+      assert_patch(view, "/incoming?title=tv_series-#{item.tmdb_id}")
+      assert has_element?(view, "#title-detail-modal[data-state=open]")
       assert render(view) =~ "Hiatus Show"
 
       # Collapsing again hides the rows.
-      render_hook(view, "close_detail", %{})
+      render_hook(view, "close_title", %{})
 
       view
       |> element("[data-component=shelf-unscheduled-divider]")
@@ -3269,21 +3287,23 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "tracking management" do
-    test "toggle_auto_grab persists the item's auto-grab mode both ways", %{conn: conn} do
-      # A fresh item inherits mode "global"; with this file's acquisition-ready
-      # setup and the built-in "all_releases" default that reads as ON, so the
-      # first toggle persists an explicit "off" and the second flips it back on.
-      # (The old /upcoming variant of this test ran with acquisition absent,
-      # where every toggle landed on "all_releases".)
-      {item, _release} = tracked_with_release(%{name: "Toggle Show"})
+    test "the control moves a tracked title's mode; Off disarms and keeps the row", %{conn: conn} do
+      {item, _release} = tracked_with_release(%{name: "Mode Show"})
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      render_hook(view, "toggle_auto_grab", %{"item-id" => item.id})
+      view |> element("#title-tracking-mode-watch") |> render_click()
       assert MediaCentaur.ReleaseTracking.get_item(item.id).tracking_mode == :watch
 
-      render_hook(view, "toggle_auto_grab", %{"item-id" => item.id})
+      view |> element("#title-tracking-mode-grab") |> render_click()
       assert MediaCentaur.ReleaseTracking.get_item(item.id).tracking_mode == :grab
+
+      view |> element("#title-tracking-mode-none") |> render_click()
+      assert MediaCentaur.ReleaseTracking.get_item(item.id).tracking_mode == :none
+      assert has_element?(view, "#title-tracking-mode[data-mode='none']")
+      # Disarmed is inert: no timeline, and the row leaves Coming up.
+      refute has_element?(view, "#title-release-timeline")
+      refute has_element?(view, "#shelf-#{item.id}")
     end
 
     test "the title modal surfaces the per-title lower-quality acceptance and resets it", %{
@@ -3292,16 +3312,16 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {item, _release} = tracked_with_release(%{name: "Accepted Show"})
       {:ok, item} = MediaCentaur.ReleaseTracking.update_automation(item, %{min_quality: "any"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=#{item.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-lower-quality-accepted")
+      assert has_element?(view, "#title-tracking-mode-lower-quality")
 
       view
-      |> element("#title-lower-quality-accepted button[phx-click='reset_lower_quality']")
+      |> element("#title-tracking-mode-lower-quality button[phx-click='reset_lower_quality']")
       |> render_click()
 
       assert MediaCentaur.ReleaseTracking.get_item(item.id).min_quality == nil
-      refute has_element?(view, "#title-lower-quality-accepted")
+      refute has_element?(view, "#title-tracking-mode-lower-quality")
     end
 
     test "the title modal shows no acceptance row while the title inherits the default", %{
@@ -3309,26 +3329,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     } do
       {item, _release} = tracked_with_release(%{name: "Default Show"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=#{item.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "[phx-click='toggle_auto_grab']")
-      refute has_element?(view, "#title-lower-quality-accepted")
-    end
-
-    test "stop_tracking deletes the item and flashes", %{conn: conn} do
-      {item, _release} = tracked_with_release(%{name: "Stop Show"})
-
-      {:ok, view, _html} = live_async!(conn, "/incoming")
-
-      # Stop tracking is armed by the first request (MC0027 tier 2) …
-      render_hook(view, "stop_tracking", %{"item-id" => item.id})
-      assert MediaCentaur.ReleaseTracking.get_item(item.id), "the first click must only arm"
-
-      # … and fires on the second.
-      result = render_hook(view, "stop_tracking", %{"item-id" => item.id})
-
-      assert result =~ "Stopped tracking"
-      assert MediaCentaur.ReleaseTracking.get_item(item.id) == nil
+      assert has_element?(view, "#title-tracking-mode")
+      refute has_element?(view, "#title-tracking-mode-lower-quality")
     end
   end
 

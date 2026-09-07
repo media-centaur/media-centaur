@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Discovery.Person
   alias MediaCentaurWeb.Components.Discovery.Person.Entry
-  alias MediaCentaurWeb.DiscoveryLive.Logic
+  alias MediaCentaurWeb.TitleRef
 
   @strip_cap 5
   @row_cap 3
@@ -86,9 +86,9 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             class="relative aspect-[2/3] cursor-pointer overflow-hidden rounded-md bg-base-content/10"
             title={@person.name <> " watched " <> episode_and_title(entry)}
             phx-click="open_title"
-            phx-value-ref={Logic.title_ref_param(entry.ref)}
+            phx-value-ref={TitleRef.param(entry.ref)}
             phx-value-activity={entry.activity_id}
-            data-entity-id={Logic.title_ref_param(entry.ref)}
+            data-entity-id={TitleRef.param(entry.ref)}
             data-nav-item
             tabindex="0"
           >
@@ -193,9 +193,9 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             class="cursor-pointer hover:underline"
             title={@person.name <> " " <> @verb <> " " <> entry.title.name}
             phx-click="open_title"
-            phx-value-ref={Logic.title_ref_param(entry.ref)}
+            phx-value-ref={TitleRef.param(entry.ref)}
             phx-value-activity={entry.activity_id}
-            data-entity-id={Logic.title_ref_param(entry.ref)}
+            data-entity-id={TitleRef.param(entry.ref)}
             data-nav-item
             tabindex="0"
           >

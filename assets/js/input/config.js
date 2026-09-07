@@ -34,6 +34,7 @@ export const inputConfig = {
     // The Discovery title detail modal's action row (spec 2026-09-05).
     title_detail_body: "[data-nav-zone='title_detail_body'] [data-nav-item]",
     title_detail_menu: "[data-nav-zone='title_detail_menu'] [data-nav-item]",
+    title_detail_tracking: "[data-nav-zone='title_detail_tracking'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
@@ -120,6 +121,9 @@ export const inputConfig = {
     // The series scope menu, present only while open: a one-item vertical
     // list under the strip.
     title_detail_menu: Context.TREE,
+    // The tracking-mode strip in the body (Off · Watch · Ask · Grab ·
+    // Default, plus the acceptance Reset when set) walks LEFT/RIGHT.
+    title_detail_tracking: Context.TOOLBAR,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -182,15 +186,17 @@ export const inputConfig = {
         plan_body: { up: ["plan_grid", "plan_head"] },
       },
     },
-    // The Discovery title detail modal (spec 2026-09-05): the action strip
-    // (primary, secondary, tertiary verbs) over the series scope menu, which
-    // exists only while open — DOWN enters it, UP climbs back. No `back`
-    // edges: BACK dismisses from anywhere.
+    // The title detail modal (UIDR-035): the action strip (primary,
+    // secondary, tertiary verbs) over the series scope menu, which exists
+    // only while open, over the tracking-mode strip, which exists for any
+    // title the library does not own — DOWN descends, UP climbs back. No
+    // `back` edges: BACK dismisses from anywhere.
     title_detail: {
-      entry: ["title_detail_body", "title_detail_menu"],
+      entry: ["title_detail_body", "title_detail_menu", "title_detail_tracking"],
       layout: {
-        title_detail_body: { down: ["title_detail_menu"] },
-        title_detail_menu: { up: ["title_detail_body"] },
+        title_detail_body: { down: ["title_detail_menu", "title_detail_tracking"] },
+        title_detail_menu: { up: ["title_detail_body"], down: ["title_detail_tracking"] },
+        title_detail_tracking: { up: ["title_detail_menu", "title_detail_body"] },
       },
     },
   },

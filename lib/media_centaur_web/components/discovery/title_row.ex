@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
   plain, several carry their names (UIDR-031). State is shown, never
   acted on here: every verb lives in the modal.
 
-  Pure rendering; `open_title` bubbles to `DiscoveryLive` with the
+  Pure rendering; `open_title` bubbles to the host with the
   title's ref. The ref doubles as `data-entity-id`, the stable identity
   the input system records as the overlay-restore origin, so closing the
   modal lands the cursor back on the row that opened it.
@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.DiscoveryLive.Logic
+  alias MediaCentaurWeb.TitleRef
 
   attr :id, :string, required: true
   attr :title, Title, required: true
@@ -54,8 +54,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
       class="glass-surface flex w-full cursor-pointer items-start gap-4 overflow-hidden rounded-xl px-4 py-3 text-left"
       data-component="title-row"
       phx-click="open_title"
-      phx-value-ref={Logic.title_ref_param({@title.tmdb_id, @title.media_type})}
-      data-entity-id={Logic.title_ref_param({@title.tmdb_id, @title.media_type})}
+      phx-value-ref={TitleRef.param(Title.ref(@title))}
+      data-entity-id={TitleRef.param(Title.ref(@title))}
       data-nav-item
       tabindex="0"
     >

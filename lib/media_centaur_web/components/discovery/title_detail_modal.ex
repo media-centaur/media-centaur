@@ -1,57 +1,74 @@
 defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   @moduledoc """
-  The Discovery title detail modal (spec 2026-09-05 §12–16): the depth
-  surface for a TMDB title the library does not own, opened by a
-  whole-card click on a feed row or a watchlist row. A tenant of the
-  cinematic frame like the tracking title modal — backdrop, lockup,
-  type and year, overview, and on a feed-born detail who did what
-  (recommended, watched, started tracking) and a recommendation's note
-  — rendered from the embedded `TMDB.Title` snapshot with no network
-  call on open.
+  The title detail modal — the one depth surface for a title without
+  files (UIDR-035): watchlisted, tracked, in flight, or merely
+  recommended, on Discovery and on Incoming alike. A tenant of the
+  cinematic frame: backdrop, lockup, type and year, the action strip,
+  then — for a title the library does not own — the two shared tracking
+  components, the recent per-title activity, and the overview. Rendered
+  from the embedded `TMDB.Title` snapshot plus the local artwork cache,
+  with no network call on open; the live TMDB preview dresses it when
+  it lands.
 
-  The action row is the watchlist row's honest three-state rule lifted
-  into the modal, with the acquisition state folded in: In library →
-  the library detail; Planning / Downloading / Needs review → a stated
-  fact (Needs review links to Downloads); Download when the title is
-  released and an indexer is ready; Track release otherwise. A series
+  The action strip is the watchlist row's honest rule with the
+  acquisition state folded in: In library → the library detail;
+  Planning / Downloading / Needs review → a stated fact (Needs review
+  links to Incoming); Download when the title is out and an indexer is
+  ready; otherwise no primary verb — there is no `Track`, because
+  arming is the tracking-mode control's job (ADR-065). A series
   Download is a split control — "Download season 1" plus a chevron
-  opening "Download all" — reusing the `glass-menu` idiom the library
-  sort control wears. Add to watchlist is the secondary, replaced by a
-  quiet On watchlist once saved, at which point Remove from watchlist
-  appears as a quiet tertiary verb from either tab. Delete <noun> is the
-  other tertiary verb, on an own activity only, named by its kind
-  (`ActivityWords.noun/1`).
+  opening "Download all" — reusing the `glass-menu` idiom. Add to
+  watchlist is the secondary, replaced by a quiet On watchlist once
+  saved, at which point Remove from watchlist appears as a quiet
+  tertiary verb. Delete <noun> is the other tertiary verb, on an own
+  activity only, named by its kind (`ActivityWords.noun/1`).
 
-  Pure rendering; every control bubbles to `DiscoveryLive`:
+  Below the strip, for a title without files: the release timeline
+  (`ReleaseTimeline`, while the title is tracked and armed), the
+  tracking-mode control (`TrackingModeControl`, always — it is where an
+  untracked title gets armed), recent activity, then the preview body
+  or the snapshot overview. An owned title shows none of that: its
+  detail is the library's.
+
+  Pure rendering; every control bubbles to the `TitleDetailHost`:
   `close_title`, `title_download` (`scope` for a series),
-  `title_scope_toggle`, `title_scope_close`, `title_track`,
-  `title_watchlist_add`, `title_watchlist_remove`,
-  `title_activity_delete`.
+  `title_scope_toggle`, `title_scope_close`, `title_watchlist_add`,
+  `title_watchlist_remove`, `title_activity_delete`,
+  `set_tracking_mode`, `reset_lower_quality`.
 
   Nav: the backdrop is the `title_detail` overlay
   (`config.overlays.title_detail`): the action strip is the
-  `title_detail_body` TOOLBAR, and the open scope menu is the
-  `title_detail_menu` TREE beneath it, reached by DOWN — a sibling of
-  the strip in the DOM, because nav zones must not nest. Every control
-  is a nav item.
+  `title_detail_body` TOOLBAR, the open scope menu the
+  `title_detail_menu` TREE beneath it, and the tracking-mode strip the
+  `title_detail_tracking` TOOLBAR in the body — siblings in the DOM,
+  because nav zones must not nest.
   """
 
   use MediaCentaurWeb, :html
 
   alias MediaCentaur.Format
-  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.Components.CinematicShell
-  alias MediaCentaurWeb.Components.Discovery.RecommendationPennant
   alias MediaCentaurWeb.Components.Detail.PreviewBody
   alias MediaCentaurWeb.Components.Detail.TitleLayer
+  alias MediaCentaurWeb.Components.Discovery.RecommendationPennant
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
+  alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingModeControl
+  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.DiscoveryLive.Logic
+  alias MediaCentaurWeb.TitleRef
 
   attr :detail, TitleDetail, default: nil, doc: "the open title; nil = closed"
   attr :scope_menu_open, :boolean, default: false, doc: "the series scope menu is showing"
+  attr :today, Date, required: true
 
   def title_detail_modal(assigns) do
-    assigns = assign(assigns, :preview, assigns.detail && assigns.detail.preview)
+    assigns =
+      assigns
+      |> assign(:preview, assigns.detail && assigns.detail.preview)
+      |> assign(:ref, assigns.detail && TitleRef.param(assigns.detail.ref))
+      |> assign(:tracking, assigns.detail && assigns.detail.tracking)
 
     ~H"""
     <CinematicShell.cinematic_shell
@@ -61,7 +78,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
       on_close="close_title"
       present={@detail != nil}
       backdrop_url={backdrop_url(@detail, @preview)}
-      scroll_key={@detail && Logic.title_ref_param(@detail.ref)}
+      scroll_key={@ref}
       view_key={:main}
       data-nav-overlay={@detail != nil && "title_detail"}
       data-dismiss-event="close_title"
@@ -76,7 +93,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
         <div :if={@detail} class="px-6">
           <TitleLayer.lockup
             title={@detail.title.name}
-            logo_url={@preview && @preview.logo_url}
+            logo_url={(@preview && @preview.logo_url) || @detail.logo_url}
             tagline={@preview && @preview.tagline}
           />
           <p class="mt-3 flex items-center gap-2 text-xs uppercase tracking-wider text-base-content/55 text-on-image">
@@ -84,6 +101,9 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
             <span>{media_label(@detail.title.media_type)}</span>
             <span :if={@detail.title.year} class="normal-case tracking-normal">
               · {@detail.title.year}
+            </span>
+            <span :if={armed?(@tracking)} class="normal-case tracking-normal">
+              · Tracking since {tracking_since_label(@tracking.tracking_since)}
             </span>
           </p>
           <%!-- The scope menu is a sibling of the action strip, not a child:
@@ -119,18 +139,61 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
         </div>
       </:orientation>
       <:body>
-        <div :if={@detail} class="space-y-4 px-1 pt-2">
-          <p :if={@detail.own?} class="text-xs text-base-content/55">
-            {ActivityWords.statement("You", @detail.kind, @detail.episode)} · {Format.relative_ago(
-              @detail.acted_at
-            )}
-          </p>
-          <p :if={@detail.sender} class="text-xs text-base-content/55">
-            {ActivityWords.statement(@detail.sender, @detail.kind, @detail.episode)} · {Format.relative_ago(
-              @detail.acted_at
-            )}
-          </p>
-          <p :if={@detail.note} class="text-sm">{@detail.note}</p>
+        <div :if={@detail} class="space-y-6 px-1 pt-2">
+          <div
+            :if={@detail.own? || @detail.sender || @detail.note}
+            class="space-y-2"
+            id="title-provenance"
+          >
+            <p :if={@detail.own?} class="text-xs text-base-content/55">
+              {ActivityWords.statement("You", @detail.kind, @detail.episode)} · {Format.relative_ago(
+                @detail.acted_at
+              )}
+            </p>
+            <p :if={@detail.sender} class="text-xs text-base-content/55">
+              {ActivityWords.statement(@detail.sender, @detail.kind, @detail.episode)} · {Format.relative_ago(
+                @detail.acted_at
+              )}
+            </p>
+            <p :if={@detail.note} class="text-sm">{@detail.note}</p>
+          </div>
+
+          <%= if tracking_shown?(@detail) do %>
+            <ReleaseTimeline.release_timeline
+              :if={armed?(@tracking)}
+              id="title-release-timeline"
+              timeline={@tracking.timeline}
+              today={@today}
+            />
+
+            <div data-nav-zone="title_detail_tracking">
+              <TrackingModeControl.tracking_mode_control
+                id="title-tracking-mode"
+                ref={@ref}
+                mode={@tracking && @tracking.mode}
+                default_grab_mode={@detail.default_grab_mode}
+                acquisition?={@detail.acquisition?}
+                on_watchlist?={@detail.on_watchlist?}
+                lower_quality_accepted?={@tracking != nil and @tracking.lower_quality_accepted?}
+              />
+            </div>
+
+            <section :if={armed?(@tracking) and @tracking.activity != []} class="space-y-2">
+              <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
+                Recent activity
+              </h3>
+              <ul class="space-y-1.5">
+                <li
+                  :for={entry <- @tracking.activity}
+                  class="flex items-baseline justify-between gap-3 text-sm"
+                >
+                  <span class="text-base-content/70">{entry.text}</span>
+                  <span class="shrink-0 text-xs tabular-nums text-base-content/55">{entry.at}</span>
+                </li>
+              </ul>
+            </section>
+          <% end %>
+
           <PreviewBody.preview_body :if={@preview} preview={@preview} />
           <p :if={!@preview && @detail.title.overview} class="text-sm text-base-content/70">
             {@detail.title.overview}
@@ -233,20 +296,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
     """
   end
 
-  defp primary(%{detail: %{primary: :track}} = assigns) do
-    ~H"""
-    <.button
-      id="title-track"
-      variant="primary"
-      size="sm"
-      phx-click="title_track"
-      data-nav-item
-      tabindex="0"
-    >
-      Track release
-    </.button>
-    """
-  end
+  # Nothing to download yet: the tracking-mode control below is the act.
+  defp primary(%{detail: %{primary: nil}} = assigns), do: ~H""
 
   attr :detail, TitleDetail, required: true
 
@@ -304,12 +355,28 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
     """
   end
 
-  # The live preview's backdrop (poster as its fallback) once it lands;
-  # the snapshot's backdrop path, when it has one, until then.
+  @doc "The tracking sections belong to a title the library does not own — its detail is the library's."
+  @spec tracking_shown?(TitleDetail.t()) :: boolean()
+  def tracking_shown?(%TitleDetail{primary: {:in_library, _owner}}), do: false
+  def tracking_shown?(%TitleDetail{}), do: true
+
+  @doc "Whether the title is tracked above Off — the timeline and activity are only worth showing then."
+  @spec armed?(TrackingDetail.t() | nil) :: boolean()
+  def armed?(nil), do: false
+  def armed?(%{mode: :none}), do: false
+  def armed?(%{mode: _mode}), do: true
+
+  # The artwork ladder (UIDR-021): the local cached tier the host
+  # resolved, else the live preview's backdrop (poster as its fallback),
+  # else nothing — the frame paints its placeholder.
   defp backdrop_url(nil, _preview), do: nil
+  defp backdrop_url(%{backdrop_url: url}, _preview) when is_binary(url), do: url
   defp backdrop_url(_detail, %{backdrop_url: url}) when is_binary(url), do: url
   defp backdrop_url(_detail, %{poster_url: url}) when is_binary(url), do: url
-  defp backdrop_url(detail, _preview), do: detail.backdrop_url
+  defp backdrop_url(_detail, _preview), do: nil
+
+  defp tracking_since_label(nil), do: "recently"
+  defp tracking_since_label(datetime), do: Calendar.strftime(datetime, "%b %Y")
 
   defp media_icon(:tv_series), do: "hero-tv"
   defp media_icon(:movie), do: "hero-film"
