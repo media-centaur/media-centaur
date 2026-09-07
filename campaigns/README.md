@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`watchlist-and-release-tracking.md`](watchlist-and-release-tracking.md) —
-  **all six phases landed 2026-09-07, unpushed; owner check remaining.** Four
+  **phases 0–5 shipped in v1.16.0 2026-09-07; Phase 6 open, unplanned.** Four
   representations of one idea collapsed into one authored intent and one derived
   machine, and three title modals into two. A watchlist entry is intent; a tracked
   title exists while a **tracking reason** holds, and the two reasons are not
@@ -30,8 +30,11 @@ Use [`template.md`](template.md) as a starter.
   arming it is an *act* that outlives it ([ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
   [UIDR-035](../decisions/user-interface/2026-09-07-035-two-title-surfaces.md)).
   One `tracking_mode`, never raised by the system; auto-grab stays opt-in; an
-  explicit Off is durable. Migrated on this machine, invariant verified on real
-  data. Remaining: the owner uses the new surfaces, on the desktop and on the TV.
+  explicit Off is durable. **Phase 6 — "a title resolves to one surface"** — fixes
+  the surviving seam: an owned title opened from the watchlist gets a stub with an
+  `In library` hop. The brief argues it is an addressing problem, not a reason to
+  merge two components into ~3,300 lines. Plan it in a fresh session. Also
+  remaining: the owner uses the shipped surfaces on the desktop and on the TV.
 * [`instant-hero-backdrop.md`](instant-hero-backdrop.md) —
   **in-progress, owner check remaining.** Home, Library, and Incoming hero
   backdrops now paint in the mount frame on every return, at master

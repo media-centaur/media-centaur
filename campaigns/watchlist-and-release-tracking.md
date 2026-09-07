@@ -13,29 +13,40 @@ machine, and the three title modals that render them into two. A person should
 declare "I want to watch this" once, arm it once, and see the same control
 wherever the title appears.
 
+Phases 0–5 did that and shipped. **Phase 6 finishes the thought**: a title should
+also resolve to *one* surface, so opening it never lands somewhere that describes
+neither what you have nor what is coming.
+
 ## Status
 
-**Phases 0 and 1 complete, unpushed.** The model is cut over: one
-`tracking_mode` replaces `status` + `auto_grab_mode`, `source` is gone,
-existence is reconciled from reasons, and `ReleaseTracking.arm/2` is the
-person's act. `mix precommit` green (6854 Elixir + 807 JS). No visible change
-yet — the UI still wears its old controls, wired to the new field.
+**Phases 0–5 shipped in v1.16.0 (2026-09-07).** The model is one authored intent
+and one derived machine: `tracking_mode` replaces `status` + `auto_grab_mode`,
+`source` is gone, existence is reconciled from reasons, and
+`ReleaseTracking.arm/2` is the person's act. Three title modals became two. The
+`:watching` / `:ignored` vocabulary is out of the app, the stragglers line is
+retired, and the guide and wiki teach the new model.
 
-**Migrated on this machine 2026-09-07**, against the real library DB
+| Phase | | |
+|---|---|---|
+| 0 | records and vocabulary | [ADR-065], [UIDR-035], five glossary terms |
+| 1 | the model | `6740acb6` |
+| 2 | one title surface for everything without files | `206eca0f` |
+| 3 | library detail mounts the same components; the bell goes | `71a52275` |
+| 4 | Coming up is the schedule; stragglers retire | `7ff2e95f` |
+| 5 | guide and wiki | `07b97886`, wiki `5d05c0e` |
+
+**Migrated on this machine 2026-09-07** against the real library DB
 (`~/.local/share/media-centaur/media-centaur.db`, which the `media-centaur-dev`
 daily driver uses): Fae backup first (`media-center-db`, success), service
-stopped, `ecto.migrate` + `ecto.migrate_data`, service restarted and serving
-(`/incoming` and `/discovery/watchlist` both 200, logs clean). Result: 13
-tracked titles (12 `global`, 1 `watch`), 9 watchlist rows, and **0 active
-tracked titles with no reason** — the invariant holds on real data. The old
-columns are gone from the table.
+stopped, `ecto.migrate` + `ecto.migrate_data`, service restarted and serving.
+Result: 13 tracked titles (12 `global`, 1 `watch`), 9 watchlist rows, and **0
+active tracked titles with no reason** — the invariant holds on real data.
 
-**All six phases landed 2026-09-07, unpushed; owner verification
-remaining.** Previously: **Phases 2–3 complete, unpushed** (`206eca0f`, `71a52275`): one title surface
-for everything without files, and the library detail mounting the same two
-components with the bell gone. The `:watching` / `:ignored` vocabulary is out of
-the app entirely. Phase 4 retired the stragglers line (`7ff2e95f`) and Phase 5 rewrote the guide
-and wiki (`07b97886`, wiki `5d05c0e`).
+**Open: Phase 6, and the owner's check of the shipped surfaces.** Phase 6 is
+described below and is deliberately unplanned — plan it in a fresh session.
+
+[ADR-065]: ../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md
+[UIDR-035]: ../decisions/user-interface/2026-09-07-035-two-title-surfaces.md
 
 ## Decisions made
 
@@ -101,6 +112,13 @@ and wiki (`07b97886`, wiki `5d05c0e`).
   Verify a change against its own test surface repeated, and run one full
   precommit at a time.
 
+* `2026-09-07` — Shipped as **v1.16.0**. Assets verified, wiki pushed.
+* `2026-09-07` — **Phase 6 opened** by the owner: unify the watchlist and
+  release-tracking modals. Those two were already one (Phase 2); the surviving
+  seam is that an owned title opened from the watchlist gets a stub. Reframed as
+  "a title resolves to one surface" and left unplanned by decision — it gets its
+  own planning session.
+
 ## Next steps
 
 1. ~~**Phase 0 — records and vocabulary.**~~ Done 2026-09-07:
@@ -140,21 +158,98 @@ and wiki (`07b97886`, wiki `5d05c0e`).
 6. ~~**Phase 5 — docs.**~~ Done 2026-09-07 (`07b97886`; wiki `5d05c0e`). `priv/guide/release-tracking-and-upcoming.md` rewritten
    around the new vocabulary (it currently teaches Track-vs-watchlist), a guide
    page for the watchlist (there is none today), wiki sync, glossary elevation.
+7. **Phase 6 — a title resolves to one surface.** Raised by the owner after
+   v1.16.0 shipped; **unplanned by decision — plan it in a fresh session.** The
+   brief is below.
+
+## Phase 6 — a title resolves to one surface
+
+**Not planned. Do not start writing code from this section — it is the brief a
+planning session begins from.**
+
+### The defect
+
+UIDR-035 split the title surfaces by whether the title has files. That is right
+at the centre and wrong at the boundary. Open a title you *own* from the
+watchlist and you get a stub: hero, "Tracking since Aug 2026", TMDB metadata and
+cast, and an `In library →` button. No episodes, no release timeline, no
+tracking control. It knows you own it and knows it is tracked, and shows you
+neither. Verified live on `?title=tv_series-3219` (a series with ten seasons in
+the library) after v1.16.0.
+
+The `In library` primary action exists only to bridge that gap.
+
+### The framing
+
+The owner's words were "unify the watchlist modal and the release tracking
+modal". Those two were already unified in Phase 2 — `release_tracking/title_modal.ex`
+is deleted and both hosts open `Discovery.TitleDetailModal` through
+`TitleDetailHost`. So **frame the phase as "a title resolves to one surface",
+not "unify the modals"**: that names the actual defect and rules out the wrong
+fix.
+
+### The wrong fix, and why
+
+Merging `DetailPanel` into the title modal. `DetailPanel` is 751 lines and
+`EntityModal` 1809; the title surface is 386 + 410. The result is ~3,300 lines
+of one component that is mostly `if has_files`, in the most load-bearing UI in
+the app — exactly what UIDR-035 avoided. And there is little duplication left to
+collapse: the hero, release timeline and tracking-mode control are *already*
+shared components after Phase 3. That merge would be speculative abstraction,
+not de-duplication.
+
+### The likely fix
+
+The real defect is **addressing**, not components. Two identity spaces:
+
+| Surface | URL | Identity |
+|---|---|---|
+| Library detail | `?selected=<entity uuid>` | a Library entity |
+| Title detail | `?title=<tmdb ref>` | `{tmdb_id, media_type}` |
+
+An owned title has both, and the app currently makes the person traverse from
+one to the other by hand. So: **opening a title that has files resolves to the
+library surface.** `TitleDetailHost` already resolves the ref and already knows
+the library owner id — it uses that to render a link where it could route. One
+click from the watchlist, right destination, no stub, no hop.
+
+Falls out of it: the `In library` primary action disappears, and
+`TitleDetail.primary` loses a variant.
+
+### The counter-argument, for the planning session to weigh
+
+The coherent extreme is one surface for every title, with file-bound sections
+appearing when there are files — "one representation per idea" taken all the
+way, and a title would never change surface as it moves through the library.
+Defensible. The case against: the two surfaces answer different questions (*what
+do I have and how do I play it* vs *do I want this and what is coming*), so the
+merge buys coherence in the model at the cost of coherence in the code.
+
+### Open questions for planning
+
+* What does a bookmark to `?title=<ref>` do once the title is owned — redirect,
+  or render the library surface at that URL? A saved link should keep working.
+* Does the Discovery watchlist row navigate to `/library`, or open the library
+  detail in place on `/discovery`? The second keeps the person on their list.
+* Where does provenance go (who recommended it, the note) once an owned title
+  opens in the library — the library surface has no place for it today.
 
 ## Remaining, by destination
 
 Per the closure convention, every leftover is bucketed rather than left implicit:
 
-* **Ship** — the whole campaign is committed on `main` and unpushed, awaiting
-  the owner's word. The CHANGELOG entry is the ship step's, and must say in plain
-  words that a series deleted from the library stops being tracked unless it was
-  armed: that is a live behaviour change on every existing install.
+* **Ship** — done. v1.16.0, 2026-09-07: tag pushed, workflow green, both
+  tarballs and `SHA256SUMS` verified; wiki pushed (`5d05c0e`). The CHANGELOG
+  entry states in plain words that a series deleted from the library stops being
+  tracked unless it was armed — a live behaviour change on every existing
+  install — under `### Upgrade note`.
 * **Verify (closes the campaign)** — the owner uses the new watchlist, merged
   title surface and library detail, on the desktop and on the TV with a
   remote/gamepad. Nav zones were added for both
   (`title_detail_tracking`, `detail_tracking`) but only mouse-verified, per
   [[feedback-no-nav-work-during-volatile-design]]; run `mc-nav-trace` if a key
   path misbehaves.
+* **Plan** — Phase 6, above, in a fresh session.
 * **Defer** — the two follow-ups below, and marketing screenshots (stale by
   standing preference, not regenerated).
 
@@ -164,8 +259,9 @@ Per the closure convention, every leftover is bucketed rather than left implicit
   `next_event/2` skips past-dated releases, so the featured slot says "Nothing
   scheduled" while a row below it shows that release — and `relative_day/2`
   prints "Today" for any past date, so the row claims today. Pre-existing
-  semantics surfaced by the merged modal, not introduced by it. Fix in Phase 5
-  or as its own change; do not paper over it in the timeline component.
+  semantics surfaced by the merged modal, not introduced by it. Shipped in
+  v1.16.0 unfixed. Candidate for Phase 6, which is in that code anyway; do not
+  paper over it in the timeline component.
 * **The timeline half-duplicates the seasons list on the library panel.** A
   series' announced episodes already appear as Upcoming rows inside its seasons;
   the timeline repeats their codes, but carries the per-release grab status and
@@ -183,6 +279,9 @@ Per the closure convention, every leftover is bucketed rather than left implicit
 * No bell, no `Track` verb, no straggler line.
 * Guide and wiki describe one intent and one machine; glossary carries all four terms.
 * `mix precommit` green; migrations idempotent and CHANGELOG-mentioned.
+* Phase 6: opening a title never lands on a surface that describes neither what
+  you have nor what is coming — no stub, no `In library` hop.
+* The owner has used the shipped surfaces on the desktop and on the TV.
 
 ## Pointers
 
