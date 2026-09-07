@@ -279,8 +279,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       item = movie_item()
 
       releases = [
-        release(item, %{title: "digital", air_date: days(-60), released: true, release_type: "digital"}),
-        release(item, %{title: "physical", air_date: days(-5), released: true, release_type: "physical"})
+        release(item, %{title: "digital", air_date: days(-3), released: true, release_type: "digital"}),
+        release(item, %{title: "physical", air_date: days(-1), released: true, release_type: "physical"})
       ]
 
       feed = UpcomingFeed.build(releases, armed_context())
@@ -455,6 +455,80 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       feed = UpcomingFeed.build([episode], context)
 
       assert find_event(feed, "grabbing").status == :under_pursuit
+    end
+
+    test "an armed release that dropped within the last week is kept (it just dropped)" do
+      item = tv_item()
+
+      recent =
+        release(item, %{
+          title: "dropped-this-week",
+          air_date: days(-6),
+          released: true,
+          season_number: 1,
+          episode_number: 1
+        })
+
+      feed = UpcomingFeed.build([recent], armed_context())
+
+      assert [%{title: "dropped-this-week", status: :armed}] = feed.buckets.today
+    end
+
+    test "an armed release that aired long ago is a library gap, not a forecast beat" do
+      item = tv_item()
+
+      old =
+        release(item, %{
+          title: "aired-decades-ago",
+          air_date: days(-30),
+          released: true,
+          season_number: 10,
+          episode_number: 21
+        })
+
+      feed = UpcomingFeed.build([old], armed_context())
+
+      assert all_events(feed) == []
+    end
+
+    test "a release that landed long ago is history, not a closure beat" do
+      item = tv_item()
+
+      landed =
+        release(item, %{
+          title: "landed-long-ago",
+          air_date: days(-30),
+          released: true,
+          in_library: true,
+          season_number: 1,
+          episode_number: 1
+        })
+
+      feed = UpcomingFeed.build([landed], armed_context())
+
+      assert all_events(feed) == []
+    end
+
+    test "an old release under an active pursuit is still kept — the grab is live" do
+      item = tv_item()
+
+      episode =
+        release(item, %{
+          title: "still-grabbing",
+          air_date: days(-30),
+          released: true,
+          season_number: 1,
+          episode_number: 1
+        })
+
+      context =
+        armed_context(%{
+          grab_status_by_key: %{UpcomingFeed.release_key(episode) => %{pursuit_id: Ecto.UUID.generate()}}
+        })
+
+      feed = UpcomingFeed.build([episode], context)
+
+      assert find_event(feed, "still-grabbing").status == :under_pursuit
     end
   end
 
