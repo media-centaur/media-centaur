@@ -195,7 +195,14 @@ defmodule MediaCentaurWeb.CoreComponents do
   first click arms the button (`arm` event), the second click on the same
   armed button fires it (`fire` event). Any other interaction the host
   treats as a change of mind disarms it (the host owns the `armed`
-  assign). The armed state relabels the button and turns it danger.
+  assign).
+
+  The armed state is house-owned: it relabels the button, leads the label
+  with a warning glyph, turns it error-toned (`.btn[data-armed]` in
+  `app.css` — text, tint, border, single-line label, and a one-shot ring
+  pulse on arming) and ignores the idle `variant`. `class` styles the
+  **idle** control only — an icon-only trigger passes its muted resting
+  colour there without dimming the armed label it grows into.
 
       <.armed_button
         armed={@dismiss_all_armed}
@@ -213,7 +220,7 @@ defmodule MediaCentaurWeb.CoreComponents do
   attr :armed_label, :string, required: true, doc: "label shown while armed — say what fires."
   attr :variant, :string, default: "danger", values: ~w(danger risky dismiss destructive_inline)
   attr :size, :string, default: "sm", values: ~w(xs sm md lg)
-  attr :class, :any, default: nil
+  attr :class, :any, default: nil, doc: "utilities for the idle control only."
   attr :rest, :global, include: ~w(disabled)
   slot :inner_block, required: true, doc: "the idle label."
 
@@ -222,7 +229,7 @@ defmodule MediaCentaurWeb.CoreComponents do
     <.button
       variant={if @armed, do: "danger", else: @variant}
       size={@size}
-      class={@class}
+      class={if @armed, do: nil, else: @class}
       phx-click={if @armed, do: @fire, else: @arm}
       data-armed={@armed && "true"}
       aria-pressed={to_string(@armed)}
@@ -230,10 +237,18 @@ defmodule MediaCentaurWeb.CoreComponents do
       tabindex="0"
       {@rest}
     >
-      {if @armed, do: @armed_label, else: render_slot(@inner_block)}
+      <%= if @armed do %>
+        <.icon name="hero-exclamation-triangle-mini" class={armed_icon_size(@size)} />
+        {@armed_label}
+      <% else %>
+        {render_slot(@inner_block)}
+      <% end %>
     </.button>
     """
   end
+
+  defp armed_icon_size(size) when size in ["xs", "sm"], do: "size-3.5 shrink-0"
+  defp armed_icon_size(_size), do: "size-4 shrink-0"
 
   @doc """
   The page's title, one size on every page (audit DS12): `text-2xl`,
