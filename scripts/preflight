@@ -67,6 +67,23 @@ release_path="_build/prod/rel/media_centaur"
 banner "Release built at: $(pwd)/$release_path"
 "$release_path/bin/media_centaur" version
 
+# `mix release` writes a version-stamped app dir and tarball per build and
+# never removes the previous ones, so an unpruned _build/prod grows without
+# bound: on 2026-09-07 it held 195 versions back to 0.72.1 — 45G of stale
+# rel/lib plus 44G of tarballs, 89G total, against 71M of compile cache
+# actually worth keeping. `--clean` avoids that only by discarding the cache
+# too, which is why it isn't the default. Prune by version instead: no appup
+# or relup here (releases ship as tarballs and the updater flips a symlink),
+# so nothing needs a previous version's tree.
+# Same idiom as scripts/ship's mix_version() — no BEAM start needed.
+current_version="$(grep -E '^\s*version:' mix.exs | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+[ -n "$current_version" ] || { echo "could not read version from mix.exs"; exit 1; }
+banner "Pruning release artifacts older than $current_version"
+find "$release_path/lib" -maxdepth 1 -name 'media_centaur-*' \
+  ! -name "media_centaur-$current_version" -type d -exec rm -rf {} + 2>/dev/null || true
+find _build/prod -maxdepth 1 -name 'media_centaur-*.tar.gz' \
+  ! -name "media_centaur-$current_version.tar.gz" -delete 2>/dev/null || true
+
 # assets.deploy above wrote minified assets into priv/static, and the dev
 # server (asset watchers off) serves whatever sits there. Rebuild the dev
 # assets so a preflight run never leaves dev serving the prod artifact.

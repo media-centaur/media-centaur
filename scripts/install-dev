@@ -52,5 +52,15 @@ fi
 banner "Install complete"
 echo "  Source:  $source_dir"
 echo "  Unit:    $unit_dst"
+
+# The unit above was regenerated from scratch. Any machine-specific setting
+# lives in a drop-in; report it so an override is never invisible, and so the
+# reader knows the effective config is not just the file we wrote.
+dropin_dir="$unit_dst.d"
+if [ -d "$dropin_dir" ] && [ -n "$(ls -A "$dropin_dir" 2>/dev/null)" ]; then
+  echo "  Drop-ins (local overrides, NOT regenerated):"
+  for f in "$dropin_dir"/*; do echo "    $f"; done
+  echo "  Effective config: systemctl --user show $service_name"
+fi
 echo ""
 systemctl --user status "$service_name" --no-pager 2>/dev/null || echo "  Service is not running. Start with: systemctl --user start $service_name"
