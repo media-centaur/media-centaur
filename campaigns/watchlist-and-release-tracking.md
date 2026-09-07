@@ -139,6 +139,21 @@ the app entirely. Phase 4 (retire the stragglers line) is in progress with Fable
    around the new vocabulary (it currently teaches Track-vs-watchlist), a guide
    page for the watchlist (there is none today), wiki sync, glossary elevation.
 
+## Follow-ups found while building
+
+* **A past-dated release reads as two contradictory things on one surface.**
+  `next_event/2` skips past-dated releases, so the featured slot says "Nothing
+  scheduled" while a row below it shows that release — and `relative_day/2`
+  prints "Today" for any past date, so the row claims today. Pre-existing
+  semantics surfaced by the merged modal, not introduced by it. Fix in Phase 5
+  or as its own change; do not paper over it in the timeline component.
+* **The timeline half-duplicates the seasons list on the library panel.** A
+  series' announced episodes already appear as Upcoming rows inside its seasons;
+  the timeline repeats their codes, but carries the per-release grab status and
+  the pursuit deep-link, which the seasons do not. Mounted whole. If it reads as
+  noise in use, `release_timeline/1` can take a `list` attr and show the
+  featured next release alone.
+
 ## Completion criteria
 
 * `release_tracking_items` has one `tracking_mode` and no `status` or `source`.

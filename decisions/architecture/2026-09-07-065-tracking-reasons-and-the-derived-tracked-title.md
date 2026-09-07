@@ -99,6 +99,21 @@ The invariant that falls out, and which the migration must prove on real data:
 > **Every active tracked title — mode above None — is either owned or on the
 > watchlist.**
 
+### A collection has only the library reason
+
+The watchlist is keyed `{tmdb_id, media_type}` on *titles*. A tracked movie
+*collection* is keyed by the TMDB **collection** id under `media_type: :movie` —
+a different namespace — so listing one would write a watchlist entry claiming to
+be a film with that id, which resolves to a different film or to nothing.
+
+So **a collection is never armed as a watchlist act**: raising its mode is a
+plain mode change, and its tracked title rests on the library reason alone. That
+does not weaken the invariant, because a collection's tracked title is created by
+the library scan from a `MovieSeries` container and therefore always has that
+reason; when the container goes, the reconcile drops it, which is correct. A
+single film needs no such carve-out: it completes on arrival in the library, so
+an owned film has no tracked title at all.
+
 ### Consequences
 
 * Good, because deleting a series from the library now stops tracking it exactly
