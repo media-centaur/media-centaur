@@ -109,8 +109,11 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
       >
         <.page_header title="Watch History" />
 
-        <%!-- Stats --%>
-        <div class="grid grid-cols-3 gap-4">
+        <%!-- Stats, heatmap and filters are bookkeeping over the rows. With no
+              history at all they are three zeroes, an empty 52-week grid and a
+              filter for nothing, stacked above an empty state that already says
+              so — so they only render once there is something to count. --%>
+        <div :if={empty_reason(assigns) != :no_history} class="grid grid-cols-3 gap-4">
           <div class="glass-inset rounded-xl px-5 py-4">
             <div class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-1">
               Titles Watched
@@ -141,7 +144,10 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               payload (~276KB, the heaviest page in the app) to save a server
               swap the type filter performs anyway for the events list
               (campaigns/instant-navigation.md Phase 2). --%>
-        <div class="glass-inset rounded-xl p-4 overflow-x-auto w-fit">
+        <div
+          :if={empty_reason(assigns) != :no_history}
+          class="glass-inset rounded-xl p-4 overflow-x-auto w-fit"
+        >
           <div data-heatmap={heatmap_key(@filter_type)}>
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/55 mb-3">
               {heatmap_title(@filter_type)} — last 52 weeks
@@ -167,7 +173,11 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         </div>
 
         <%!-- Filters --%>
-        <div data-nav-zone="toolbar" class="flex flex-wrap items-center gap-3">
+        <div
+          :if={empty_reason(assigns) != :no_history}
+          data-nav-zone="toolbar"
+          class="flex flex-wrap items-center gap-3"
+        >
           <div role="group" class="join">
             <button
               :for={
@@ -216,21 +226,32 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         </div>
 
         <%!-- Event list --%>
-        <div
-          :if={@events == []}
+        <.empty_state
+          :if={empty_reason(assigns) == :no_history}
+          icon="hero-clock"
+          headline="Every finished watch lands here"
           data-nav-zone="grid"
-          class="mx-auto max-w-lg py-16 text-center space-y-4"
         >
-          <.icon name="hero-clock" class="size-10 mx-auto text-base-content/30" />
-          <h2 class="text-xl font-semibold tracking-tight">Every finished watch lands here</h2>
-          <p class="text-sm text-base-content/60">
-            Each movie and episode you finish becomes a row with when you watched it and how
-            many times, and the heatmap above fills in by day.
-          </p>
-          <.button variant="secondary" size="sm" navigate={~p"/library"} data-nav-item tabindex="0">
-            Browse the library
-          </.button>
-        </div>
+          Each movie and episode you finish becomes a row with when you watched it and how many
+          times, and a heatmap of your viewing by day.
+          <:action>
+            <.button variant="primary" size="sm" navigate={~p"/library"} data-nav-item tabindex="0">
+              Browse the library
+            </.button>
+          </:action>
+        </.empty_state>
+
+        <.empty_state
+          :if={empty_reason(assigns) == :no_matches}
+          headline="No watches match your current filters"
+          data-nav-zone="grid"
+        >
+          <:action>
+            <.button variant="dismiss" size="sm" phx-click="clear_filters" data-nav-item tabindex="0">
+              Clear filters
+            </.button>
+          </:action>
+        </.empty_state>
 
         <div
           :if={@events != []}
@@ -351,6 +372,15 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
       {:error, _} ->
         {:noreply, socket}
     end
+  end
+
+  # The `:no_matches` empty state offers one way back to rows, so it clears
+  # every filter rather than making the reader find which one is hiding them.
+  @impl true
+  def handle_event("clear_filters", _params, socket) do
+    socket = assign(socket, filter_type: nil, filter_search: "", filter_date: nil, page: 1)
+    {events, has_next} = fetch_page(socket)
+    {:noreply, assign(socket, events: events, has_next: has_next)}
   end
 
   @impl true
@@ -514,6 +544,31 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   def type_label(:movie), do: "Movie"
   def type_label(:episode), do: "Episode"
   def type_label(:video_object), do: "Video"
+
+  @doc """
+  Why the event list has no rows.
+
+    * `:none` — there are rows; no empty state.
+    * `:no_history` — nothing has ever been watched. The stats bar, heatmap
+      and filters are all bookkeeping over zero rows, so the page hides them
+      and shows the empty state alone.
+    * `:no_matches` — there is history, but the active filter hid it. The
+      chrome stays: it is what the reader adjusts to get rows back.
+
+  Keyed off the filters rather than a row count so it holds whether or not
+  the stats projection is itself filtered.
+  """
+  @spec empty_reason(%{
+          :events => list(),
+          :filter_type => atom(),
+          :filter_search => String.t(),
+          :filter_date => Date.t() | nil
+        }) :: :none | :no_history | :no_matches
+  def empty_reason(%{events: [_ | _]}), do: :none
+
+  def empty_reason(%{filter_type: nil, filter_search: "", filter_date: nil}), do: :no_history
+
+  def empty_reason(_state), do: :no_matches
 
   def format_hours(seconds) do
     hours = round(seconds / 3600)

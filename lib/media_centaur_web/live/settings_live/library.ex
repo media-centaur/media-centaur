@@ -148,7 +148,12 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
           </li>
         </ul>
 
-        <div class="mt-1 pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
+        <%!-- With no directories configured there is nothing to scan, so the
+              row would offer a control that cannot do anything. --%>
+        <div
+          :if={@media_dirs != []}
+          class="mt-1 pt-4 border-t border-base-content/10 flex items-center justify-between gap-4"
+        >
           <p class="text-xs text-base-content/55 min-w-0 max-w-[60ch]">
             Scan to pick up moved or added files — moves are re-linked automatically.
           </p>

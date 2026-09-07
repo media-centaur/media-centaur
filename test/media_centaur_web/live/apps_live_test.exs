@@ -32,9 +32,12 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       assert has_element?(view, "[data-app-id='#{app.id}']")
     end
 
-    test "empty state points at Manage", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/apps")
-      assert html =~ "No apps yet"
+    test "the empty state says what the page is for and offers the way in", %{conn: conn} do
+      {:ok, view, html} = live(conn, "/apps")
+
+      # It used to read "No apps yet" — a restatement of the empty screen.
+      assert html =~ "Launch anything from here"
+      assert has_element?(view, "#apps-empty-add")
     end
   end
 
@@ -65,7 +68,7 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       {:ok, view, _html} = live(conn, "/apps")
 
       view |> element("[phx-click='toggle_manage']") |> render_click()
-      view |> element("[phx-click='open_add']") |> render_click()
+      view |> element("[data-nav-zone=toolbar] [phx-click='open_add']") |> render_click()
       view |> element("[phx-click='set_add_tab'][phx-value-tab='manual']") |> render_click()
 
       view
@@ -81,7 +84,7 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       {:ok, view, _html} = live(conn, "/apps")
 
       view |> element("[phx-click='toggle_manage']") |> render_click()
-      view |> element("[phx-click='open_add']") |> render_click()
+      view |> element("[data-nav-zone=toolbar] [phx-click='open_add']") |> render_click()
       view |> element("[phx-click='set_add_tab'][phx-value-tab='manual']") |> render_click()
 
       html =
@@ -135,7 +138,7 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       {:ok, view, _html} = live(conn, "/apps?steam_root=#{URI.encode_www_form(root)}")
 
       view |> element("[phx-click='toggle_manage']") |> render_click()
-      view |> element("[phx-click='open_add']") |> render_click()
+      view |> element("[data-nav-zone=toolbar] [phx-click='open_add']") |> render_click()
 
       assert has_element?(view, "[phx-click='add_steam_game'][phx-value-app-id='100']")
 
@@ -168,7 +171,7 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       {:ok, view, _html} = live(conn, "/apps?steam_root=#{URI.encode_www_form(root)}")
 
       view |> element("[phx-click='toggle_manage']") |> render_click()
-      html = view |> element("[phx-click='open_add']") |> render_click()
+      html = view |> element("[data-nav-zone=toolbar] [phx-click='open_add']") |> render_click()
 
       assert html =~ "from your Steam library"
     end
@@ -179,7 +182,7 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       {:ok, view, _html} = live(conn, "/apps?steam_root=#{URI.encode_www_form(missing)}")
 
       view |> element("[phx-click='toggle_manage']") |> render_click()
-      html = view |> element("[phx-click='open_add']") |> render_click()
+      html = view |> element("[data-nav-zone=toolbar] [phx-click='open_add']") |> render_click()
 
       assert html =~ "Steam wasn&#39;t found"
     end

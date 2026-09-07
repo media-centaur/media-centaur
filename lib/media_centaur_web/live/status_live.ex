@@ -108,7 +108,21 @@ defmodule MediaCentaurWeb.StatusLive do
 
   # Keeps the board view-models in sync with the current `error_buckets`.
   defp assign_board(socket) do
-    assign(socket, board: HealthBoard.build_board(socket.assigns.error_buckets))
+    dormant = HealthBoard.dormant_components(prerequisite_flags())
+    assign(socket, board: HealthBoard.build_board(socket.assigns.error_buckets, dormant))
+  end
+
+  # Which configurable prerequisites this install actually has. Kept here
+  # rather than in `HealthBoard` so the board stays a pure view-model.
+  defp prerequisite_flags do
+    %{
+      media_dirs: Config.media_dirs_entries() != [],
+      tmdb: Capabilities.configured?(:tmdb),
+      acquisition:
+        Capabilities.configured?(:prowlarr) or Capabilities.configured?(:download_client) or
+          Capabilities.configured?(:usenet_download_client),
+      social: Social.list_relays() != []
+    }
   end
 
   # The full page state loads synchronously in handle_params — un-gated, so

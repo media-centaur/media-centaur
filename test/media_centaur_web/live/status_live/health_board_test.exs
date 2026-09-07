@@ -100,10 +100,10 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
   end
 
   describe "tile_state/1" do
-    defp severity_bucket(severity) do
+    defp severity_bucket(severity, component \\ :pipeline) do
       %MediaCentaur.ErrorReports.Bucket{
         fingerprint: "fp",
-        component: :pipeline,
+        component: component,
         normalized_message: "m",
         display_title: "t",
         severity: severity,
@@ -131,7 +131,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
     end
   end
 
-  describe "build_board/1" do
+  describe "build_board/2" do
     alias MediaCentaurWeb.StatusLive.SubsystemView
 
     test "returns one SubsystemView per board subsystem, in order, with label/glyph/state" do
@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
         }
       ]
 
-      views = HealthBoard.build_board(buckets)
+      views = HealthBoard.build_board(buckets, MapSet.new())
 
       assert length(views) == 10
       assert Enum.map(views, & &1.component) == HealthBoard.board_subsystems()
@@ -157,6 +157,67 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       import_view = Enum.find(views, &(&1.component == :pipeline))
       assert %SubsystemView{label: "Media import", state: :error, error_count: 1} = import_view
       assert "hero-" <> _ = import_view.glyph
+    end
+
+    test "an otherwise-healthy subsystem whose prerequisite is unconfigured reads dormant" do
+      views = HealthBoard.build_board([], MapSet.new([:tmdb, :acquisition]))
+
+      assert %SubsystemView{state: :dormant} = Enum.find(views, &(&1.component == :tmdb))
+      assert %SubsystemView{state: :dormant} = Enum.find(views, &(&1.component == :acquisition))
+      assert %SubsystemView{state: :ok} = Enum.find(views, &(&1.component == :library))
+    end
+
+    test "a real error outranks dormancy — an unconfigured subsystem that failed still reads error" do
+      buckets = [severity_bucket(:error, :tmdb)]
+
+      views = HealthBoard.build_board(buckets, MapSet.new([:tmdb]))
+
+      assert %SubsystemView{state: :error, error_count: 1} =
+               Enum.find(views, &(&1.component == :tmdb))
+    end
+  end
+
+  describe "dormant_components/1" do
+    test "media directories gate the two subsystems that read them" do
+      dormant =
+        HealthBoard.dormant_components(%{media_dirs: false, tmdb: true, acquisition: true, social: true})
+
+      assert :watcher in dormant
+      assert :pipeline in dormant
+      refute :tmdb in dormant
+    end
+
+    test "each remaining prerequisite gates its own subsystem" do
+      dormant =
+        HealthBoard.dormant_components(%{
+          media_dirs: true,
+          tmdb: false,
+          acquisition: false,
+          social: false
+        })
+
+      assert Enum.sort(dormant) == [:acquisition, :social, :tmdb]
+    end
+
+    test "a fully configured install has no dormant subsystems" do
+      assert Enum.empty?(
+               HealthBoard.dormant_components(%{
+                 media_dirs: true,
+                 tmdb: true,
+                 acquisition: true,
+                 social: true
+               })
+             )
+    end
+  end
+
+  describe "dormant_remedy/1" do
+    test "every subsystem that can go dormant names the one action that starts it" do
+      for component <- [:watcher, :pipeline, :tmdb, :acquisition, :social] do
+        remedy = HealthBoard.dormant_remedy(component)
+        assert is_binary(remedy) and remedy != ""
+        assert remedy =~ "Settings"
+      end
     end
   end
 
@@ -176,6 +237,10 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
 
     test "healthy reads calm" do
       assert HealthBoard.tile_summary(view(:ok, 0, 0)) == "No issues"
+    end
+
+    test "dormant names the state rather than claiming health" do
+      assert HealthBoard.tile_summary(view(:dormant, 0, 0)) == "Not configured"
     end
 
     test "pluralizes and joins non-zero severity counts" do

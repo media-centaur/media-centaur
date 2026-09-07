@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.StatusLive.SubsystemView do
           component: atom(),
           label: String.t(),
           glyph: String.t(),
-          state: :ok | :warning | :error,
+          state: :ok | :dormant | :warning | :error,
           error_count: non_neg_integer(),
           warning_count: non_neg_integer()
         }

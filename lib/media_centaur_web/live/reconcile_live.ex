@@ -171,21 +171,20 @@ defmodule MediaCentaurWeb.ReconcileLive do
           mapping_count={@badges.mapping_pending}
         />
 
-        <p class="text-sm text-base-content/55">
+        <p :if={@shows != []} class="text-sm text-base-content/55">
           Files whose release numbering doesn't line up with the episode list. Confirm where each one belongs.
         </p>
 
-        <div
+        <.empty_state
           :if={@shows == []}
-          class="glass-surface rounded-xl p-8 text-center"
+          icon="hero-queue-list"
+          headline="Episodes we could not place land here"
           data-nav-zone="reconcile-list"
         >
-          <p class="text-base-content/70">
-            When a download labels its episodes in a numbering we can't place on the show's episode list
-            (a separately-numbered cour, absolute numbering), the files land here instead of inventing a
-            season for them. You map them to the right episodes by hand.
-          </p>
-        </div>
+          When a download labels its episodes in a numbering we can't place on the show's episode
+          list — a separately-numbered cour, absolute numbering — the files wait here instead of
+          inventing a season for them. You map them to the right episodes by hand.
+        </.empty_state>
 
         <div :if={@shows != []} class="flex gap-4 flex-1 min-h-0">
           <div class="w-72 shrink-0 overflow-y-auto thin-scrollbar" data-nav-zone="reconcile-list">

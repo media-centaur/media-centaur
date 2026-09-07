@@ -160,7 +160,21 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           query: "zzzzz",
           results: [],
           searching?: false,
-          release_mode_available: true
+          release_mode_available: true,
+          metadata_available: true
+        }
+      },
+      %Variation{
+        id: :no_metadata_configured,
+        description:
+          "No TMDB key: the search cannot have found anything, so the row must not read as " <>
+            "\"that title does not exist\". It names the missing capability and links the fix.",
+        attributes: %{
+          query: "sample show",
+          results: [],
+          searching?: false,
+          release_mode_available: false,
+          metadata_available: false
         }
       },
       %Variation{

@@ -96,18 +96,6 @@ defmodule MediaCentaurWeb.LibraryLive do
      |> stream(:grid, [])}
   end
 
-  @doc """
-  True when at least one `media_dirs` entry is configured — used by
-  the empty-state branch to decide between "no media yet" (user hasn't
-  set up a library root) and "media_dirs configured but no files found".
-  """
-  def media_dirs_configured?(dirs \\ Config.get(:media_dirs)) do
-    case dirs do
-      list when is_list(list) and list != [] -> true
-      _ -> false
-    end
-  end
-
   @impl true
   def handle_params(params, _uri, socket) do
     was_loaded? = socket.assigns.loaded?
@@ -384,18 +372,52 @@ defmodule MediaCentaurWeb.LibraryLive do
               filter_text={@filter_text}
             />
 
-            <%!-- Genuinely-empty library: prompt to scan or configure. --%>
-            <div
-              :if={empty_grid_reason(@grid_count, @counts.all) == :library_empty}
-              class="py-8 text-center empty-state-enter space-y-3"
+            <%!-- Genuinely-empty library. The three reasons take three
+                  actions, so the copy names which one applies rather than
+                  stating a cause the page has not diagnosed. --%>
+            <.empty_state
+              :if={
+                empty_grid_reason(@grid_count, @counts.all) == :library_empty and
+                  not @media_dirs_configured
+              }
+              icon="hero-film"
+              headline="Point it at your media"
             >
-              <div :if={@media_dirs_configured} class="max-w-md mx-auto space-y-3">
-                <p class="text-base-content/80">No media yet.</p>
-                <p :if={@pipeline_queue_depth > 0} class="text-sm opacity-70">
-                  Ingesting {@pipeline_queue_depth} file{if @pipeline_queue_depth == 1,
-                    do: "",
-                    else: "s"}…
-                </p>
+              Media Centaur scans the directories you name here and identifies what it finds.
+              <:action>
+                <.button
+                  variant="primary"
+                  size="sm"
+                  navigate={~p"/settings?section=library"}
+                  data-nav-item
+                >
+                  Add a media directory
+                </.button>
+              </:action>
+            </.empty_state>
+
+            <.empty_state
+              :if={
+                empty_grid_reason(@grid_count, @counts.all) == :library_empty and
+                  @media_dirs_configured and @pipeline_queue_depth > 0
+              }
+              icon="hero-arrow-down-on-square-stack"
+              headline="Importing your media"
+            >
+              {@pipeline_queue_depth} file{if @pipeline_queue_depth == 1, do: "", else: "s"} to go.
+              Titles appear here as they are identified.
+            </.empty_state>
+
+            <.empty_state
+              :if={
+                empty_grid_reason(@grid_count, @counts.all) == :library_empty and
+                  @media_dirs_configured and @pipeline_queue_depth == 0
+              }
+              icon="hero-film"
+              headline="Nothing imported yet"
+            >
+              Your media directories are set, but no video files have been imported from them.
+              <:action>
                 <.button
                   variant="primary"
                   size="sm"
@@ -405,35 +427,21 @@ defmodule MediaCentaurWeb.LibraryLive do
                 >
                   {if @scanning, do: "Scanning…", else: "Scan media directories"}
                 </.button>
-              </div>
-              <div :if={not @media_dirs_configured} class="max-w-md mx-auto space-y-2">
-                <p class="text-base-content/80">
-                  No media yet — tell Media Centaur where your files live.
-                </p>
-                <.button
-                  variant="primary"
-                  size="sm"
-                  navigate={~p"/settings?section=library"}
-                  data-nav-item
-                >
-                  Configure library
-                </.button>
-              </div>
-            </div>
+              </:action>
+            </.empty_state>
 
             <%!-- Library has entries but the active filter hid them all:
                   offer to clear the filter, never to scan. --%>
-            <div
+            <.empty_state
               :if={empty_grid_reason(@grid_count, @counts.all) == :no_matches}
-              class="py-8 text-center empty-state-enter space-y-3"
+              headline={no_matches_label(@filter_text)}
             >
-              <div class="max-w-md mx-auto space-y-3">
-                <p class="text-base-content/80">{no_matches_label(@filter_text)}</p>
+              <:action>
                 <.button variant="dismiss" size="sm" phx-click="reset_filters" data-nav-item>
                   Clear filters
                 </.button>
-              </div>
-            </div>
+              </:action>
+            </.empty_state>
 
             <div :if={@grid_count > 0} data-nav-zone="grid" class="mt-4">
               <div

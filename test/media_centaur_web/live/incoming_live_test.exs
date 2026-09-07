@@ -1719,9 +1719,40 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#omnibox-result-movie-888", "In library")
     end
 
+    test "with no TMDB key the empty answer names the gap instead of blaming the query", %{
+      conn: conn
+    } do
+      # Regression: a fresh install answered every search with "Nothing found
+      # on TMDB.", which reads as "that title does not exist" when in fact the
+      # search never ran. TMDB is deliberately NOT enabled here.
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_search_multi([])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample show"})
+      |> render_change()
+
+      html = render_async(view, 2_000)
+
+      refute html =~ "Nothing found on TMDB."
+      assert html =~ "Searching titles needs a TMDB key"
+      assert has_element?(view, "a[href='/settings?section=tmdb']")
+    end
+
+    test "an unconfigured install says so before the reader types", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, ~p"/incoming")
+
+      assert html =~ "Searching titles needs a TMDB key"
+    end
+
     test "an exhausted query renders the honest empty answer; Clear search resets it", %{
       conn: conn
     } do
+      # "Nothing found" is a claim about the query, so it only holds when the
+      # search could run at all — with no key the surface says that instead.
+      enable_tmdb!()
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_search_multi([])
 

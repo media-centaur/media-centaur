@@ -341,10 +341,6 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
         </li>
       </ul>
 
-      <p :if={dirs_list(@result) == []} class="text-sm text-base-content/55 italic">
-        No media directories yet — add one or more below.
-      </p>
-
       <p :if={dirs_list(@result) != []} class="text-xs text-base-content/55">
         Add as many as you like — movies and TV can live in separate folders.
       </p>
@@ -482,6 +478,15 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
         </li>
       </ul>
 
+      <%!-- The guide is the best thing a new reader can be handed and was
+            reachable from exactly one place (Settings → System). This is the
+            moment they are most likely to want it. --%>
+      <p class="text-sm text-base-content/60">
+        The
+        <.link navigate="/guide" class="link link-primary" data-nav-item tabindex="0">guide</.link>
+        covers how Media Centaur identifies your files, plays them, and tracks what is coming.
+      </p>
+
       <footer class="flex justify-between mt-6 pt-4 border-t border-base-content/10">
         <.button variant="dismiss" size="sm" phx-click="setup:back" data-nav-item tabindex="0">
           Back
@@ -501,7 +506,8 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
     cond do
       ok == total -> "Everything is configured."
-      critical_unmet > 0 -> "#{critical_unmet} required step(s) still incomplete."
+      critical_unmet == 1 -> "1 required step is still incomplete."
+      critical_unmet > 1 -> "#{critical_unmet} required steps are still incomplete."
       true -> "#{ok} of #{total} configured. The rest are optional."
     end
   end

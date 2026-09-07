@@ -175,13 +175,26 @@ defmodule MediaCentaurWeb.AppsLive do
           </div>
         </div>
 
-        <div
+        <.empty_state
           :if={@apps == []}
           id="apps-empty"
-          class="mt-4 glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
+          icon="hero-rocket-launch"
+          headline="Launch anything from here"
         >
-          No apps yet. Open Manage to add a Steam game or any command.
-        </div>
+          Add a Steam game or any command you want to reach without leaving the couch.
+          <:action>
+            <.button
+              id="apps-empty-add"
+              variant="primary"
+              size="sm"
+              phx-click="open_add"
+              data-nav-item
+              tabindex="0"
+            >
+              Add an app
+            </.button>
+          </:action>
+        </.empty_state>
 
         <div :if={@apps != []} class="mt-4" data-nav-zone="grid">
           <div

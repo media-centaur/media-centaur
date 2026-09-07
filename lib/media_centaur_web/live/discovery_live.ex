@@ -502,13 +502,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends", count: length(friends)}
     ]
 
-  # Before a relay and a friend exist nothing can arrive, so the empty
-  # state names what is missing rather than implying nobody wrote.
-  defp recommendations_empty_state(true), do: "What your friends recommend lands here."
+  # Before a relay and a friend exist nothing can arrive, so the empty state
+  # names what is missing rather than implying nobody wrote. The two cases
+  # differ in what the reader can do next, which is why they are separate copy
+  # and why only one of them carries actions.
+  defp recommendations_empty_state(true), do: "Titles your friends recommend land here, newest first."
 
   defp recommendations_empty_state(_not_ready),
     do:
-      "What your friends recommend lands here. Add a relay under Settings → Social and a friend on the Friends tab."
+      "Media Centaur reaches your friends over a relay. Add one, then add a friend by the public key they give you."
 
   defp current_path(:friends), do: "/discovery/friends"
   defp current_path(:watchlist), do: "/discovery/watchlist"
@@ -557,13 +559,36 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           <.tab_strip tabs={tabs(@recommendations, @items, @friends)} active={@live_action} />
 
           <div :if={@live_action == :recommendations} class="space-y-2" data-nav-zone="grid">
-            <div
+            <.empty_state
               :if={@recommendations == []}
               id="recommendations-empty"
-              class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
+              icon="hero-users"
+              headline="Recommendations from friends land here"
             >
               {recommendations_empty_state(@recommendations_ready?)}
-            </div>
+              <:action :if={not @recommendations_ready?}>
+                <.button
+                  variant="primary"
+                  size="sm"
+                  navigate={~p"/settings?section=social"}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Add a relay
+                </.button>
+              </:action>
+              <:action :if={not @recommendations_ready?}>
+                <.button
+                  variant="dismiss"
+                  size="sm"
+                  navigate={~p"/discovery/friends"}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Add a friend
+                </.button>
+              </:action>
+            </.empty_state>
 
             <TitleRow.title_row
               :for={row <- @recommendations}
@@ -603,13 +628,26 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           </div>
 
           <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="grid">
-            <div
+            <.empty_state
               :if={@items == []}
               id="watchlist-empty"
-              class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
+              icon="hero-bookmark"
+              headline="Titles you save land here"
             >
-              Nothing on your watchlist yet. Titles you save from a search land here.
-            </div>
+              Bookmark a title from a search or its detail view and it is kept here until you
+              watch it.
+              <:action>
+                <.button
+                  variant="primary"
+                  size="sm"
+                  navigate={~p"/incoming"}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Search for a title
+                </.button>
+              </:action>
+            </.empty_state>
 
             <%!-- A watchlist row never says On watchlist about itself —
                   that is the tab's own fact. --%>

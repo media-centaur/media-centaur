@@ -491,18 +491,18 @@ defmodule MediaCentaurWeb.ReviewLive do
           mapping_count={@badges.mapping_pending}
         />
 
-        <%!-- Empty state --%>
-        <div :if={@groups == []} data-nav-zone="review-list">
-          <div
-            class="glass-surface rounded-2xl py-12 flex flex-col items-center justify-center gap-3"
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-check-circle" class="size-16 text-success/30" />
-            <h2 class="text-xl font-semibold">All clear</h2>
-            <p class="text-base-content/60">No files awaiting review.</p>
-          </div>
-        </div>
+        <%!-- Empty state. The copy explains what the queue is for rather than
+              confirming it is empty — the screen already shows that, and a new
+              user has never seen the queue populated. --%>
+        <.empty_state
+          :if={@groups == []}
+          icon="hero-check-circle"
+          headline="Files we could not place land here"
+          data-nav-zone="review-list"
+        >
+          When a file in your media directories cannot be matched to a title with confidence, it
+          waits here for you to pick the right one by hand.
+        </.empty_state>
 
         <%!-- Master-detail layout --%>
         <div :if={@groups != []} class="flex gap-6 flex-1 min-h-0 overflow-x-auto">

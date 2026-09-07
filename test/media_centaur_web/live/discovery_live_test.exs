@@ -356,14 +356,20 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "empty state names the prerequisites, then the quiet empty state", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Recommendations")
-      assert render(view) =~ "Add a relay under Settings → Social and a friend on the Friends tab"
+
+      # Unready: the copy explains the mechanism and both prerequisites are
+      # offered as actions rather than named in prose the reader has to parse.
+      assert render(view) =~ "Recommendations from friends land here"
+      assert render(view) =~ "Media Centaur reaches your friends over a relay"
+      assert has_element?(view, "#recommendations-empty a[href='/settings?section=social']")
+      assert has_element?(view, "#recommendations-empty a[href='/discovery/friends']")
 
       {:ok, _relay} = Social.add_relay("wss://relay.example")
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
       {:ok, view, _html} = live(conn, "/discovery")
-      assert render(view) =~ "What your friends recommend lands here."
-      refute render(view) =~ "Add a relay"
+      assert render(view) =~ "Titles your friends recommend land here"
+      refute has_element?(view, "#recommendations-empty a[href='/settings?section=social']")
     end
 
     test "rows show the title, who and when, the note, and add to the watchlist", %{conn: conn} do
@@ -508,7 +514,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, view, _html} = live(conn, "/discovery")
       refute has_element?(view, "[data-component='title-row']")
       refute has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge")
-      assert render(view) =~ "What your friends recommend lands here"
+      assert render(view) =~ "Recommendations from friends land here"
 
       await_supervised_tasks()
     end

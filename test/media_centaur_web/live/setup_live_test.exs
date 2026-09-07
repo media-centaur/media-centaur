@@ -91,7 +91,7 @@ defmodule MediaCentaurWeb.SetupLiveTest do
       end
 
       # Skip is intentionally absent on critical steps.
-      refute has_element?(view, "button", "Skip")
+      refute has_element?(view, "button[phx-click='setup:skip']")
     end
 
     test "skip advances on an optional unconfigured step", %{conn: conn} do
@@ -99,7 +99,7 @@ defmodule MediaCentaurWeb.SetupLiveTest do
 
       # Prowlarr is optional → Skip is rendered alongside Next and
       # bypasses the gate regardless of configuration state.
-      view |> element("button", "Skip") |> render_click()
+      view |> element("button[phx-click='setup:skip']") |> render_click()
       assert_patch(view, "/setup?step=download_client")
     end
 
@@ -114,7 +114,7 @@ defmodule MediaCentaurWeb.SetupLiveTest do
     test "skip advances like next", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/setup?step=ffprobe")
 
-      view |> element("button", "Skip") |> render_click()
+      view |> element("button[phx-click='setup:skip']") |> render_click()
 
       assert_patch(view, "/setup?step=prowlarr")
     end
@@ -126,7 +126,7 @@ defmodule MediaCentaurWeb.SetupLiveTest do
       # Skip moves to the summary step, which is the natural end of the
       # wizard. (Pre-gate this test clicked Next; the renaming reflects
       # the new design where Next means "configured and ready".)
-      view |> element("button", "Skip") |> render_click()
+      view |> element("button[phx-click='setup:skip']") |> render_click()
 
       assert_patch(view, "/setup?step=summary")
     end
@@ -167,6 +167,45 @@ defmodule MediaCentaurWeb.SetupLiveTest do
       |> render_submit()
 
       assert Config.get(:mpv_path) == executable
+    end
+  end
+
+  describe "escaping the tour" do
+    test "the media directories step still blocks Next", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=media_dirs")
+
+      # Required means required — this is the behaviour Skip the tour works
+      # around rather than removes.
+      assert has_element?(view, "button[phx-click='setup:next'][disabled]")
+      refute has_element?(view, "button[phx-click='setup:skip']")
+    end
+
+    test "Skip the tour reaches the summary from a blocked required step", %{conn: conn} do
+      # Regression: with no media directory and no TMDB key, Next was disabled,
+      # neither required step offered Skip, and the page carried no links at
+      # all — the reader could not enter the app by any route.
+      {:ok, view, _html} = live(conn, "/setup?step=media_dirs")
+
+      html = view |> element("button[phx-click='setup:skip_tour']") |> render_click()
+
+      assert html =~ "Setup summary"
+      assert html =~ "required steps are still incomplete"
+    end
+
+    test "the summary offers no Skip the tour — it is already the way out", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=summary")
+
+      refute has_element?(view, "button[phx-click='setup:skip_tour']")
+      assert has_element?(view, "button[phx-click='setup:next']", "Finish")
+    end
+
+    test "Finish from the summary works with required steps incomplete", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=summary")
+
+      assert {:error, {:live_redirect, %{to: "/library"}}} =
+               view |> element("button[phx-click='setup:next']", "Finish") |> render_click()
+
+      assert Config.get(:setup_wizard_dismissed) == true
     end
   end
 end

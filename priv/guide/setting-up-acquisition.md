@@ -43,7 +43,7 @@ rotate the VPN), `~/prowlarr-stack/uninstall`.
 
 ## Connecting Media Centaur
 
-Settings → Media → Acquisition:
+Settings → Acquisition:
 
 1. **Prowlarr** — enter the **URL** (e.g. `http://localhost:9696`) and **API key** (Prowlarr →
    Settings → General → Security → API Key), then **Test connection**. It must pass for

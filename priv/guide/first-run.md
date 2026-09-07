@@ -39,7 +39,7 @@ TMDB is free and the one required credential. To get a key:
 4. Copy either the **API Read Access Token** (v4) or the shorter **v3 key** — Media Centaur
    accepts both.
 
-Paste it into the TMDB step (or later under Settings → Media → TMDB) and test. You can also
+Paste it into the TMDB step (or later under Settings → TMDB) and test. You can also
 set `TMDB_API_KEY` in `~/.config/media-centaur/secrets.env` instead, which the service sources
 on start. TMDB's rate limit (about 50 requests/second) is far above anything the app does;
 its only requirement is attribution if you redistribute its artwork.

@@ -518,9 +518,19 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
 
     test "the scan trigger remains on the Library section", %{conn: conn} do
+      # The row only exists once there is something to scan — with no media
+      # directories it offered a control that could not do anything.
+      MediaCentaur.Settings.Config.put_media_dirs([%{"dir" => System.tmp_dir!()}])
+
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=library")
 
       assert has_element?(view, "[phx-click='scan']")
+    end
+
+    test "with no media directories there is no scan control to press", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=library")
+
+      refute has_element?(view, "[phx-click='scan']")
     end
   end
 
