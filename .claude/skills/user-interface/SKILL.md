@@ -122,6 +122,39 @@ Sizes: `"xs"`, `"sm"`, `"md"` (default), `"lg"`. Shapes: `"circle"`, `"square"` 
 
 **Standard labels.** Use `"More info"` (not `"Details"`, `"More"`, or `"Info"`) for the secondary action that *opens* an entity's detail view from a card or hero — the hero CTA pair is always **Play** + **More info**. *Inside* the detail modal, the secondary toggle is **Manage** (cog icon); it keeps that label while the sub-view is open (`aria-pressed`), and the way out is the view control named for its destination ("Overview", "Episodes"). See [UIDR-003].
 
+### Empty states ([UIDR-034])
+
+**Always** use `<.empty_state>`. A surface with nothing on it states the
+diagnosed reason it is empty and the one action that changes it — never
+"nothing here yet", which the empty screen already shows.
+
+A page that can be empty for more than one reason **diagnoses first**, in a
+pure function (`HomeLive.Logic.empty_reason/1`,
+`LibraryHelpers.empty_grid_reason/2`, `WatchHistoryLive.empty_reason/1`), then
+renders the matching copy. Never assert a cause the page cannot compute — that
+was the Home bug: "no media directory has been scanned" printed whether or not
+one was.
+
+```html
+<.empty_state icon="hero-film" headline="Point it at your media">
+  Home fills itself once files are found.
+  <:action>
+    <.button variant="primary" size="sm" navigate={~p"/settings?section=library"}>
+      Add a media directory
+    </.button>
+  </:action>
+</.empty_state>
+```
+
+Headline names what fills the place; the body carries the consequence; the
+`action` slot the way out (two buttons is the ceiling). Drop the icon on a tab
+body inside an already-titled page. Bookkeeping over zero rows — stat tiles, a
+blank heatmap, a filter for nothing — does not render above an empty state.
+
+A capability gap is a diagnosis too: a surface whose content all comes from an
+integration says so rather than reporting an empty result the query never had a
+chance to fill.
+
 ### Badges ([UIDR-002])
 
 **Always** use the `<.badge>` component with a `variant` and `size` for any `badge`-styled element. Raw `class="badge ..."` strings (and `class={["badge ...", ...]}` list expressions) in templates are flagged by `MediaCentaur.Credo.Checks.RawBadgeClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
@@ -361,6 +394,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 031 | Friends carry the shelves; the feed is recommendations |
 | 032 | Page hero backdrops paint from a decoded-bitmap cache (canvas + `HeroBackdrop` hook; amends 012) |
 | 033 | Home is the only page that carries artwork; every other page gets the scrim alone |
+| 034 | An empty surface states the diagnosed reason it is empty, via one `empty_state/1` |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
@@ -375,6 +409,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `badge/1` | `core_components.ex` | Metric / type / state chip (UIDR-002) | ✅ |
 | `input/1` | `core_components.ex` | Form fields with label + errors | ✅ stub |
 | `page_header/1` | `core_components.ex` | The one page-title treatment (`<h1>` + subtitle line, audit DS12) | ✅ |
+| `empty_state/1` | `core_components.ex` | The one empty-surface treatment (UIDR-034) | ✅ |
 | `table/1` | `core_components.ex` | Zebra-striped data tables | ✅ stub |
 | `list/1` | `core_components.ex` | Key-value display list | ✅ stub |
 | `icon/1` | `core_components.ex` | Heroicon rendering | ✅ stub |

@@ -108,3 +108,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 031 | 2026-09-06 | [Friends carry the shelves; the feed is recommendations](user-interface/2026-09-06-031-friends-carry-shelves-feed-is-recommendations.md) | accepted |
 | 032 | 2026-09-06 | [Page hero backdrops paint from a decoded-bitmap cache](user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md) | accepted |
 | 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted |
+| 034 | 2026-09-07 | [An empty surface states the diagnosed reason it is empty](user-interface/2026-09-07-034-empty-surfaces-state-a-diagnosed-reason.md) | accepted |
