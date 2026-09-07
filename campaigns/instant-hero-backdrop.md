@@ -43,10 +43,9 @@ keep the look untouched.
 ## Status
 
 Phase 1 done and verified except for physical input (owner check). Phase 2
-measured, prototyped, measured again, and **adopted**: shipped in the working
-tree as [UIDR-032](../decisions/user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md),
-committed locally, not pushed. The dev server and the shell are running the
-new code.
+measured, prototyped, measured again, and **adopted** as [UIDR-032](../decisions/user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md),
+shipped as **v1.14.0** on 2026-09-07. The dev server and the shell are running
+the new code.
 
 ### Baseline (media-center shell, Chromium 152, GPU raster, 2026-09-06)
 
@@ -100,6 +99,8 @@ master decode ~50 ms vs ~8 ms for a 1920 derivative; Home decodes 51 images,
   the image in composition, position, and colour (frame comparison).
 * `2026-09-07` — **Sticky-element alternative declined** for good: the
   bitmap cache gives the same result without touching page layout.
+* `2026-09-07` — **Shipped v1.14.0** (tag `v1.14.0`, changelog entry under
+  *Improved*). Owner ran `/ship minor` after reviewing the overnight work.
 
 ## Next steps
 
@@ -113,7 +114,7 @@ master decode ~50 ms vs ~8 ms for a 1920 derivative; Home decodes 51 images,
    reads exactly as before. Then browse a few pages and return to Home — the
    backdrop should be there in the first frame.
 3. Once satisfied: delete `~/.config/vivaldi-mediacenter` and
-   `~/scripts/media-centaur/run.vivaldi-backup`; push; ship as a patch.
+   `~/scripts/media-centaur/run.vivaldi-backup`. (Shipped v1.14.0 already.)
 4. Close the campaign (remove this file; git history is the archive).
 
 ## Completion criteria

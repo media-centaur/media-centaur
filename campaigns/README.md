@@ -29,9 +29,9 @@ Use [`template.md`](template.md) as a starter.
   Measured in the real shell before/after: a 32–50 ms hero decode on 4 of 5
   returns with the page painted without it, versus the picture in the first
   frame with no decode. The media-center shell moved from Vivaldi to
-  Chromium 152 (launcher outside the repo). Committed locally, not pushed.
+  Chromium 152 (launcher outside the repo). Shipped v1.14.0 2026-09-07.
   Remaining: owner confirms remote/gamepad input and the look on the TV,
-  then removes the Vivaldi profile and ships.
+  then removes the Vivaldi profile and closes the campaign.
 * [`indexer-id-search.md`](indexer-id-search.md) —
   **planning, unblocked.** Identify a title by identifier rather than by name,
   replacing identity reverse-engineered from parsed release titles with a
