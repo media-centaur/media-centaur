@@ -68,8 +68,10 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.PresentTest do
       assert Present.relative_day(Date.add(@today, 40), @today) =~ "Jul"
     end
 
-    test "a date already passed (linger window) reads as Today" do
-      assert Present.relative_day(Date.add(@today, -1), @today) == "Today"
+    test "a date already passed reads as how long ago, never as Today" do
+      assert Present.relative_day(Date.add(@today, -1), @today) == "Yesterday"
+      assert Present.relative_day(Date.add(@today, -5), @today) == "5 days ago"
+      assert Present.relative_day(Date.add(@today, -40), @today) =~ "May"
     end
   end
 

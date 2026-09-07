@@ -275,7 +275,10 @@ Per the closure convention, every leftover is bucketed rather than left implicit
   owned series in Global mode arms every episode it is missing, which put a
   1998 episode on Coming up as "Tonight · Will grab"; `UpcomingFeed` now keeps
   a past armed or landed release for a week only, and an older one is a
-  library gap. The timeline half above is still open.
+  library gap. The timeline half is fixed the same day: `next_event/2`
+  features the first dated release that has not landed (the feed already
+  bounds how far back that reaches), and `relative_day/2` reads a past date
+  as "Yesterday" / "N days ago", never "Today". Closed.
 * **The timeline half-duplicates the seasons list on the library panel.** A
   series' announced episodes already appear as Upcoming rows inside its seasons;
   the timeline repeats their codes, but carries the per-release grab status and

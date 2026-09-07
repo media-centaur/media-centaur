@@ -73,15 +73,20 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
   def theatrical_note?(%Event{}), do: false
 
   @doc ~S"""
-  Relative-day copy for an air date: "Today" (incl. the recent linger window),
-  "Tomorrow", "in N days" out to a week, else an abbreviated month-day.
+  Relative-day copy for an air date, symmetric about today: "Today",
+  "Tomorrow" / "Yesterday", "in N days" / "N days ago" out to a week either
+  way, else an abbreviated month-day. A past date never reads as "Today" —
+  the forecast keeps a release for a week after it drops, and that week must
+  read as elapsed time, not as a date that keeps arriving.
   """
   @spec relative_day(Date.t(), Date.t()) :: String.t()
   def relative_day(date, today) do
     case Date.diff(date, today) do
-      diff when diff <= 0 -> "Today"
+      0 -> "Today"
       1 -> "Tomorrow"
-      diff when diff <= 6 -> "in #{diff} days"
+      -1 -> "Yesterday"
+      diff when diff > 0 and diff <= 6 -> "in #{diff} days"
+      diff when diff < 0 and diff >= -6 -> "#{-diff} days ago"
       _ -> Calendar.strftime(date, "%b %-d")
     end
   end
