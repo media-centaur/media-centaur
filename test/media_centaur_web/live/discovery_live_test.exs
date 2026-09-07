@@ -73,8 +73,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     # The unaired show has nothing to download: no primary verb, and the
     # tracking-mode control in its modal is the arming surface. The owned
-    # movie offers the library detail and no control: its detail is the
-    # library's.
+    # movie offers the library detail for its files — and the same
+    # tracking-mode control, because an owned title is tracked too and
+    # the mode is where you stop it.
     view |> element("#watchlist-item-tv_series-42") |> render_click()
     refute has_element?(view, "#title-download")
     assert has_element?(view, "#title-tracking-mode-watch")
@@ -82,6 +83,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     view |> element("#watchlist-item-movie-777") |> render_click()
     assert has_element?(view, "#title-in-library[href='/library?selected=#{movie.id}']")
+    assert has_element?(view, "#title-tracking-mode")
     await_supervised_tasks()
   end
 

@@ -124,6 +124,21 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
       assert Enum.find(view.shelf.cards, &(&1.status == :in_pursuit)).pursuit_id == pursuit_id
     end
 
+    test "a past armed release reads Searching — the app is looking for it now, not waiting for a drop" do
+      old =
+        release(tv_item(), %{
+          title: "old",
+          air_date: ~D[1998-05-18],
+          released: true,
+          season_number: 10,
+          episode_number: 21
+        })
+
+      view = View.build(inputs(%{releases: [old]}))
+
+      assert [%Card{status: :searching}] = view.shelf.cards
+    end
+
     test "a movie whose release title just repeats the movie name gets no subtitle" do
       movie = movie_item(%{name: "Movie A"})
       releases = [release(movie, %{title: "Movie A", air_date: @today, release_type: "digital"})]

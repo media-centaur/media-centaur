@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
       title: event.item_name,
       subtitle: subtitle_for(event),
       date_label: UpcomingFeed.shelf_date_label(event, today),
-      status: pill_status(event.status),
+      status: pill_status(event, today),
       art_url: art_url(event),
       kind: event.kind,
       episode_count: event.episode_count
@@ -126,9 +126,16 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   # The Upcoming statuses and the pill union are distinct vocabularies on
   # purpose (forecast ≠ pursuit lifecycle); this is the one mapping between
   # them. `:unscheduled` never reaches the shelf (the title detail's timeline
-  # carries those).
+  # carries those). An armed release that already came out is one the want
+  # ledger is searching for now — "Will grab" is a promise about a drop that
+  # has already happened, so it reads Searching.
+  defp pill_status(%Event{status: :armed, air_date: date}, today) do
+    if Date.before?(date, today), do: :searching, else: :armed
+  end
+
+  defp pill_status(%Event{status: status}, _today), do: pill_status(status)
+
   defp pill_status(:under_pursuit), do: :in_pursuit
-  defp pill_status(:armed), do: :armed
   # A fallback date can't lead a title's shelf card (the earlier armed date
   # always sorts first and past armed dates are kept), but map it defensively.
   defp pill_status(:armed_fallback), do: :tracked

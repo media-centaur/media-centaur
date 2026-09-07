@@ -124,6 +124,12 @@ which stays as the record of a defect we are choosing to live with.
   title opens to, and the `In library` hop that bridges it, are accepted
   behaviour. UIDR-035's two-surface split stands as written, boundary included.
   The brief is kept below so the defect is recorded rather than rediscovered.
+* `2026-09-07` — **The stub gains the tracking-mode control.** Coming up and
+  the watchlist open an owned title to the stub, and the stub had no way to
+  stop the searching the row reported (the owner's rule above). The modal's
+  tracking sections now render for every title, owned included; the files
+  stay the library's, `In library` still bridges. This narrows the Phase 6
+  defect; it does not reopen the phase.
 
 ## Next steps
 
@@ -271,14 +277,16 @@ Per the closure convention, every leftover is bucketed rather than left implicit
   semantics surfaced by the merged modal, not introduced by it. Shipped in
   v1.16.0 unfixed, and still unfixed now that Phase 6 is abandoned — a standalone
   fix in `next_event/2` and `relative_day/2`, not a component patch. Do not paper
-  over it in the timeline component. The shelf half is fixed (2026-09-07): an
-  owned series in Global mode arms every episode it is missing, which put a
-  1998 episode on Coming up as "Tonight · Will grab"; `UpcomingFeed` now keeps
-  a past armed or landed release for a week only, and an older one is a
-  library gap. The timeline half is fixed the same day: `next_event/2`
-  features the first dated release that has not landed (the feed already
-  bounds how far back that reaches), and `relative_day/2` reads a past date
-  as "Yesterday" / "N days ago", never "Today". Closed.
+  over it in the timeline component. Fixed 2026-09-07, after one wrong turn:
+  an owned series in Global mode arms every episode it is missing, which put
+  a 1998 episode on Coming up as "Tonight · Will grab". The first fix hid a
+  past armed release after a week, which made the shelf lie the other way —
+  the want ledger was still searching weekly. The owner's rule: **if it is
+  still tracking, it is still listed; removing it from tracking is what
+  stops it.** So `UpcomingFeed` keeps a past armed release listed while it is
+  missing (landed ones for a week), the shelf dates it as elapsed time
+  ("5 days ago", "May 1998") with a Searching pill, `next_event/2` features
+  it, and `relative_day/2` never says "Today" for a past date. Closed.
 * **The timeline half-duplicates the seasons list on the library panel.** A
   series' announced episodes already appear as Upcoming rows inside its seasons;
   the timeline repeats their codes, but carries the per-release grab status and

@@ -23,12 +23,15 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   tertiary verb. Delete <noun> is the other tertiary verb, on an own
   activity only, named by its kind (`ActivityWords.noun/1`).
 
-  Below the strip, for a title without files: the release timeline
+  Below the strip, for every title: the release timeline
   (`ReleaseTimeline`, while the title is tracked and armed), the
   tracking-mode control (`TrackingModeControl`, always — it is where an
-  untracked title gets armed), recent activity, then the preview body
-  or the snapshot overview. An owned title shows none of that: its
-  detail is the library's.
+  untracked title gets armed, and where an owned one, tracked because
+  the library owns it (ADR-065), is stopped; Coming up and the watchlist
+  open owned titles here, so the control cannot live only on the library
+  detail), recent activity, then the preview body or the snapshot
+  overview. An owned title's files stay the library's — `In library`
+  bridges to them.
 
   Pure rendering; every control bubbles to the `TitleDetailHost`:
   `close_title`, `title_download` (`scope` for a series),
@@ -158,41 +161,39 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
             <p :if={@detail.note} class="text-sm">{@detail.note}</p>
           </div>
 
-          <%= if tracking_shown?(@detail) do %>
-            <ReleaseTimeline.release_timeline
-              :if={armed?(@tracking)}
-              id="title-release-timeline"
-              timeline={@tracking.timeline}
-              today={@today}
+          <ReleaseTimeline.release_timeline
+            :if={armed?(@tracking)}
+            id="title-release-timeline"
+            timeline={@tracking.timeline}
+            today={@today}
+          />
+
+          <div data-nav-zone="title_detail_tracking">
+            <TrackingModeControl.tracking_mode_control
+              id="title-tracking-mode"
+              ref={@ref}
+              mode={@tracking && @tracking.mode}
+              default_grab_mode={@detail.default_grab_mode}
+              acquisition?={@detail.acquisition?}
+              on_watchlist?={@detail.on_watchlist?}
+              lower_quality_accepted?={@tracking != nil and @tracking.lower_quality_accepted?}
             />
+          </div>
 
-            <div data-nav-zone="title_detail_tracking">
-              <TrackingModeControl.tracking_mode_control
-                id="title-tracking-mode"
-                ref={@ref}
-                mode={@tracking && @tracking.mode}
-                default_grab_mode={@detail.default_grab_mode}
-                acquisition?={@detail.acquisition?}
-                on_watchlist?={@detail.on_watchlist?}
-                lower_quality_accepted?={@tracking != nil and @tracking.lower_quality_accepted?}
-              />
-            </div>
-
-            <section :if={armed?(@tracking) and @tracking.activity != []} class="space-y-2">
-              <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
-                Recent activity
-              </h3>
-              <ul class="space-y-1.5">
-                <li
-                  :for={entry <- @tracking.activity}
-                  class="flex items-baseline justify-between gap-3 text-sm"
-                >
-                  <span class="text-base-content/70">{entry.text}</span>
-                  <span class="shrink-0 text-xs tabular-nums text-base-content/55">{entry.at}</span>
-                </li>
-              </ul>
-            </section>
-          <% end %>
+          <section :if={armed?(@tracking) and @tracking.activity != []} class="space-y-2">
+            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
+              Recent activity
+            </h3>
+            <ul class="space-y-1.5">
+              <li
+                :for={entry <- @tracking.activity}
+                class="flex items-baseline justify-between gap-3 text-sm"
+              >
+                <span class="text-base-content/70">{entry.text}</span>
+                <span class="shrink-0 text-xs tabular-nums text-base-content/55">{entry.at}</span>
+              </li>
+            </ul>
+          </section>
 
           <PreviewBody.preview_body :if={@preview} preview={@preview} />
           <p :if={!@preview && @detail.title.overview} class="text-sm text-base-content/70">
@@ -354,11 +355,6 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
     </span>
     """
   end
-
-  @doc "The tracking sections belong to a title the library does not own — its detail is the library's."
-  @spec tracking_shown?(TitleDetail.t()) :: boolean()
-  def tracking_shown?(%TitleDetail{primary: {:in_library, _owner}}), do: false
-  def tracking_shown?(%TitleDetail{}), do: true
 
   @doc "Whether the title is tracked above Off — the timeline and activity are only worth showing then."
   @spec armed?(TrackingDetail.t() | nil) :: boolean()
