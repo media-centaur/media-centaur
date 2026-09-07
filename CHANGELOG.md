@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.15.0 — 2026-09-07
+
+### Improved
+
+- **Artwork on a page now always means "this is what the page is about".** Home's backdrop is the picture of the title it is offering you, behind that title's name, synopsis and Play button. Library and Incoming had no such title — they showed a faded band of some *other* film's artwork, picked at random and rotated through the day, purely as decoration. Both bands are gone, along with the two *Library backdrop* and *Incoming backdrop* switches in Settings → Preferences that existed only to turn them off. Browse and Incoming keep the soft dark wash that gives every page its depth, so posters and rows now sit on flat dark and read at full contrast. Home's hero is untouched, and it still paints the instant the page does.
+
+### Fixed
+
+- **Posters are sharp again.** Every upright picture in Media Centaur — posters, the poster rails, the small artwork strips — was being served at two thirds of the size it was drawn at, then stretched back up by the browser. That is why posters looked soft and blocky, most visibly in the *Recently watched* strip on Discovery → Friends. Media Centaur asked its image resizer for a width and the resizer read it as the longest side, which is the same number for a wide backdrop and the wrong one for anything taller than it is wide. Upright artwork now arrives at the size it is actually drawn at.
+
+### Upgrade note
+
+Resized copies of your artwork are rebuilt at the correct size the first time each picture is shown, so posters sharpen up as you browse — there is nothing for you to do. The two backdrop switches are removed from Settings during the upgrade.
+
 ## v1.14.0 — 2026-09-07
 
 ### Improved
