@@ -21,10 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`tracking-is-a-persons-act.md`](tracking-is-a-persons-act.md) —
-  **decided 2026-09-07, unplanned.** A tracked title exists only because a
-  person turned tracking on; Off deletes it. Supersedes ADR-065's library
-  reason and durable disarm once planned. No code.
 * [`watchlist-and-release-tracking.md`](watchlist-and-release-tracking.md) —
   **phases 0–5 shipped in v1.16.0 2026-09-07; Phase 6 abandoned; owner check
   remaining.** Four representations of one idea collapsed into one authored
@@ -135,3 +131,12 @@ Use [`template.md`](template.md) as a starter.
   one-line installer supports Apple Silicon. Phase 7 (a real-Mac
   install + self-update smoke) waits on hardware or the first macOS user
   report — none has arrived.
+
+## Complete
+
+* [`tracking-is-a-persons-act.md`](tracking-is-a-persons-act.md) —
+  **complete 2026-09-07, unpushed.** One authored record per title
+  carrying the whole ladder (Off · List · Follow · Ask · Grab · Default);
+  the machinery is derived from it, and nothing but a person puts a title
+  on it. Supersedes ADR-065 §2/§4/§5 (ADR-066) and UIDR-035's separate
+  de-listing verb (UIDR-036).

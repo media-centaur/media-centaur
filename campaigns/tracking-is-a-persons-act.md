@@ -1,5 +1,5 @@
 ---
-status: planned
+status: complete
 started: 2026-09-07
 last_updated: 2026-09-07
 ---
@@ -14,9 +14,16 @@ bottom of the ladder deletes.
 
 ## Status
 
-Planned 2026-09-07. Design:
+Complete 2026-09-07, unpushed. Design:
 [`docs/superpowers/specs/2026-09-07-tracking-is-a-persons-act-design.md`](../docs/superpowers/specs/2026-09-07-tracking-is-a-persons-act-design.md).
-No code yet.
+
+| Phase | Commit | |
+|---|---|---|
+| 1 — download params leave release tracking | `190ff06f` | ✅ |
+| 2 — nothing starts tracking on its own | `b76e12c5` | ✅ |
+| 3 — one authored record, one ladder | `179736de` | ✅ |
+| 4 — the acts say what they do | `4578a292` | ✅ |
+| 5 — records and docs | this commit | ✅ |
 
 ## Decisions made
 
@@ -79,15 +86,18 @@ deletes a tracked title outright when its library container is gone,
 bypassing `Reasons` — so a title a person armed *and* owns is destroyed
 by deleting the library folder.
 
-## Next steps
+## Left over
 
-1. Write the implementation plan from the design doc.
-2. Phase 1 — download params leave release tracking.
+* Marketing screenshots still show the five-mode control and the separate
+  watchlist verbs. Not regenerated — stale marketing screenshots are
+  accepted here.
 
 ## Completion criteria
 
-* No code path creates a tracked title without a person asking for it.
-* Off deletes the record and its machinery.
-* One authored record, one rung, one control, one write path.
-* ADR-065 and UIDR-035 superseded where they conflict; glossary elevated
-  to `docs/GLOSSARY.md`.
+* ✅ No code path creates a tracked title without a person asking for it.
+* ✅ Off deletes the record and its machinery.
+* ✅ One authored record, one rung, one control, one write path.
+* ✅ [ADR-066](../decisions/architecture/2026-09-07-066-one-ladder-per-title.md)
+  and [UIDR-036](../decisions/user-interface/2026-09-07-036-one-control-per-title.md)
+  supersede ADR-065 and UIDR-035 where they conflict; the glossary is
+  updated in `docs/GLOSSARY.md`.

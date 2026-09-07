@@ -1,7 +1,12 @@
 ---
-status: accepted
+status: superseded in part
 date: 2026-09-07
 ---
+
+> **Superseded in part** by [ADR-066](2026-09-07-066-one-ladder-per-title.md):
+> §2 (tracking reasons), §4 (seeded modes), §5 (the durable disarm) and
+> the collection carve-out. §1, §3, §6 and §7 stand, restated there in
+> the vocabulary that replaced theirs.
 # A tracked title is derived from reasons; only a person sets its mode
 
 ## Context and Problem Statement
