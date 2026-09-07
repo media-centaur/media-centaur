@@ -4,6 +4,31 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.16.0 — 2026-09-07
+
+### New
+
+- **Your watchlist is now where you decide what happens to a title.** Open anything on it and a **Tracking** control sets one of five modes: *Off* (just remembered), *Watch* (new releases show up under Coming up), *Ask* (a release drops and a plan waits for your approval), *Grab* (a release drops and it downloads), or *Default* (follows your global auto-grab setting). Choosing a mode is what starts tracking a title, and it adds the title to your watchlist if it wasn't there — your list and the titles Media Centaur watches for are one thing now, not two.
+- **Turning tracking off is remembered.** Set a title to *Off* and it stays off — through deleting it from your library, acquiring it again later, or taking it off your watchlist and putting it back. Nothing but you turns it back on.
+- **Arming a title never starts a download by surprise.** A watchlist title you arm begins at *Watch*, whatever your global auto-grab setting says. Only a series Media Centaur picks up on its own, because you own it, follows the global default.
+
+### Improved
+
+- **A title keeps one page for its whole life.** Watchlisted, being downloaded, or sitting in your library — it used to change appearance and vocabulary at each step, across three different views. Now there are two: titles you have files for open in the library, everything else opens the same title view, and both carry the same release timeline and the same tracking control.
+- **An owned series finally shows what's coming.** Its library page now carries the release timeline and the tracking control alongside its episodes, instead of a bell that could only say on or off. The bell is gone; the control that replaced it shows all five modes and what each one will do.
+- **Coming up is the schedule and nothing else.** The collapsed "Not scheduled yet" line at the bottom is gone. Tracked titles with no announced date now live where you'd look for them anyway — on your watchlist, or in your library — each showing its tracking mode on the row.
+- **Watchlist rows tell you more at a glance.** Each row now reads its tracking mode and its next release date after the type and year, so you can see the state of the whole list without opening anything.
+
+### Fixed
+
+- **A series you delete from your library no longer keeps downloading.** Media Centaur used to go on tracking and grabbing new episodes of a deleted series indefinitely, whether or not you had ever asked it to. Now deleting a series stops it — unless you had armed that series yourself, in which case it stays on your watchlist and keeps going at the mode you set. Take it off the watchlist to stop it.
+
+### Upgrade note
+
+This release migrates your database. Tracked titles keep their settings: a title you had set to ignore new releases becomes *Off*, one with auto-grab off becomes *Watch*, *Ask* stays *Ask*, and auto-grab-everything becomes *Grab*. Titles you had tracked by hand are added to your watchlist so they stay where you can find them.
+
+One behaviour changes on upgrade, per the fix above: if you have a series that was deleted from your library but was still being tracked, and you never armed it yourself, it stops being tracked.
+
 ## v1.15.1 — 2026-09-07
 
 ### Improved
