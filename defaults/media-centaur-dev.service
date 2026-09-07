@@ -19,6 +19,11 @@ WorkingDirectory=/path/to/media-centaur/media-centaur
 ExecStartPre=-/usr/bin/systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE
 ExecStart=/usr/bin/mise exec -- mix phx.server
 Environment=MIX_ENV=dev
+# Make an application shutdown a process exit systemd can act on. Without
+# this Mix starts the app :temporary outside :prod, so the BEAM outlives an
+# app shutdown and the unit reports active(running) while serving nothing
+# (journal 2026-09-07 10:53). See the mix.exs :start_permanent comment.
+Environment=MIX_START_PERMANENT=1
 Environment=ELIXIR_ERL_OPTIONS="-name media_centaur_dev@127.0.0.1"
 # Point the dev instance at its own TOML for port, database, and socket
 # directories. Since the dev-only consolidation this is the sole instance

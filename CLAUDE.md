@@ -72,6 +72,23 @@ mix seed.review        # populate review UI test cases (one-shot, idempotent)
 
 > Use `MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8` to parallelize compilation.
 
+> **In an agent shell, never run `mix` directly — run `~/scripts/agents/agent-mix`.**
+> `media-centaur-dev` is the always-on daily driver and compiles into this
+> checkout's `_build/dev`. A second `mix` in the same checkout writes those
+> `.beam` files under the running VM; the server's code reloader then reloads
+> synchronously on the next request, and a large enough reload leaves GenServers
+> without their modules long enough that the OTP application shuts down. Since
+> OTP 28 that is easy to trigger — a compiled regex carries a per-VM reference,
+> so two Mix processes disagree about identical compile-time config and Mix
+> force-rebuilds everything (see `03f164fa`). `agent-mix` points `MIX_BUILD_ROOT`
+> at `~/.cache/agent-mix-build/<repo>`, outside the checkout so the dev server's
+> recursive inotify watcher never sees it either. `mix compile --force` against
+> the shared `_build` is what took the service down on 2026-09-07.
+>
+> Release builds (`scripts/preflight`, `scripts/ship`) are the exception: they
+> read `_build/prod/rel/...` by hard-coded path, and they build `:prod` so they
+> never race the `:dev` server. Run those the normal way.
+
 **Run `mix precommit` before finishing any change** and fix everything it reports. **Zero warnings policy** — every warning is a bug, including unused vars/aliases and log output indicating misconfigured stubs.
 
 ### Config overrides (isolated dev/demo instances)
