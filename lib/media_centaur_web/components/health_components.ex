@@ -43,6 +43,7 @@ defmodule MediaCentaurWeb.HealthComponents do
           <span class="font-medium truncate">{@view.label}</span>
           <span class={[
             "size-2 rounded-full shrink-0",
+            @view.state == :dormant && "bg-base-content/25",
             @view.state == :ok && "bg-success/55",
             @view.state == :warning && "bg-warning",
             @view.state == :error && "bg-error"
@@ -164,14 +165,26 @@ defmodule MediaCentaurWeb.HealthComponents do
               <span class={["text-sm font-medium", state_text_class(@view.state)]}>
                 {state_label(@view.state)}
               </span>
-              <span :if={@view.state != :ok} class="text-xs text-base-content/55">
+              <span :if={@view.state not in [:ok, :dormant]} class="text-xs text-base-content/55">
                 {HealthBoard.tile_summary(@view)}
               </span>
             </div>
 
-            <%!-- Composed all-clear: a deliberate confirmation, not floating copy. --%>
+            <%!-- Composed all-clear: a deliberate confirmation, not floating copy.
+                  A dormant subsystem has not earned it — nothing has run — so it
+                  gets the one action that starts it instead. --%>
             <div
-              :if={@buckets == []}
+              :if={@buckets == [] and @view.state == :dormant}
+              class="mt-3.5 flex items-start gap-2.5 border-t border-base-content/10 pt-3.5 text-sm"
+            >
+              <span class="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-base-content/10">
+                <.icon name="hero-minus-mini" class="size-3 text-base-content/50" />
+              </span>
+              <span class="text-base-content/65">{HealthBoard.dormant_remedy(@view.component)}</span>
+            </div>
+
+            <div
+              :if={@buckets == [] and @view.state != :dormant}
               class="mt-3.5 flex items-start gap-2.5 border-t border-base-content/10 pt-3.5 text-sm text-base-content/55"
             >
               <span class="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-success/15">
@@ -229,14 +242,17 @@ defmodule MediaCentaurWeb.HealthComponents do
 
   # Rail status line: color rides the dot and (when unhealthy) the label —
   # calm-when-healthy keeps the "Healthy" word in neutral ink.
+  defp state_dot_class(:dormant), do: "bg-base-content/25"
   defp state_dot_class(:ok), do: "bg-success/55"
   defp state_dot_class(:warning), do: "bg-warning"
   defp state_dot_class(:error), do: "bg-error"
 
+  defp state_text_class(:dormant), do: "text-base-content/55"
   defp state_text_class(:ok), do: "text-base-content/65"
   defp state_text_class(:warning), do: "text-warning"
   defp state_text_class(:error), do: "text-error"
 
+  defp state_label(:dormant), do: "Not configured"
   defp state_label(:ok), do: "Healthy"
   defp state_label(:warning), do: "Warning"
   defp state_label(:error), do: "Error"

@@ -72,15 +72,42 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     system: "Runtime health, plus anything not owned by another subsystem."
   }
 
+  # Which configurable prerequisite each subsystem needs before it can do any
+  # work at all. A subsystem absent from this map always runs (`:library`,
+  # `:system`), so it is never dormant.
+  @prerequisite %{
+    watcher: :media_dirs,
+    pipeline: :media_dirs,
+    tmdb: :tmdb,
+    acquisition: :acquisition,
+    social: :social
+  }
+
+  # The one action that takes a dormant subsystem out of dormancy. Named for
+  # the destination the reader has to reach, not for the mechanism.
+  @remedies %{
+    watcher: "Add a media directory under Settings → Library.",
+    pipeline: "Add a media directory under Settings → Library.",
+    tmdb: "Add a TMDB API key under Settings → TMDB.",
+    acquisition: "Connect Prowlarr and a download client under Settings → Acquisition.",
+    social: "Add a relay under Settings → Social."
+  }
+
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaurWeb.StatusLive.SubsystemView
 
   @spec board_subsystems() :: [atom()]
   def board_subsystems, do: @board_subsystems
 
-  @doc "Builds the ordered list of subsystem tile view-models from all buckets."
-  @spec build_board([Bucket.t()]) :: [SubsystemView.t()]
-  def build_board(buckets) do
+  @doc """
+  Builds the ordered list of subsystem tile view-models from all buckets.
+
+  `dormant` is the set from `dormant_components/1`. Dormancy only ever
+  replaces an otherwise-healthy tile: a subsystem that has actually failed
+  reports the failure, configured or not.
+  """
+  @spec build_board([Bucket.t()], MapSet.t(atom())) :: [SubsystemView.t()]
+  def build_board(buckets, dormant) do
     grouped = group_buckets(buckets)
 
     Enum.map(@board_subsystems, fn component ->
@@ -91,7 +118,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
         component: component,
         label: label(component),
         glyph: glyph(component),
-        state: state,
+        state: resolve_state(state, component, dormant),
         error_count: error_count,
         warning_count: warning_count
       }
@@ -143,8 +170,27 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   @spec description(atom()) :: String.t()
   def description(component), do: Map.fetch!(@descriptions, normalize(component))
 
+  @doc """
+  The subsystems that cannot do any work because their prerequisite is
+  unconfigured. `flags` carries one boolean per prerequisite named in
+  `@prerequisite` — `%{media_dirs: bool, tmdb: bool, acquisition: bool, social:
+  bool}` — supplied by the caller so this module stays pure.
+  """
+  @spec dormant_components(%{optional(atom()) => boolean()}) :: MapSet.t(atom())
+  def dormant_components(flags) do
+    for {component, prerequisite} <- @prerequisite,
+        not Map.get(flags, prerequisite, true),
+        into: MapSet.new(),
+        do: component
+  end
+
+  @doc "The one action that takes a dormant subsystem out of dormancy."
+  @spec dormant_remedy(atom()) :: String.t() | nil
+  def dormant_remedy(component), do: Map.get(@remedies, normalize(component))
+
   @doc "Plain-language one-line summary of a tile's state (e.g. `2 errors · 1 warning`)."
   @spec tile_summary(SubsystemView.t()) :: String.t()
+  def tile_summary(%SubsystemView{state: :dormant}), do: "Not configured"
   def tile_summary(%SubsystemView{state: :ok}), do: "No issues"
 
   def tile_summary(%SubsystemView{error_count: error_count, warning_count: warning_count}) do
@@ -164,6 +210,14 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
       "#{Calendar.strftime(timestamp, "%H:%M:%S")}  #{message}"
     end)
   end
+
+  # Dormancy is a statement about capability, not about failure, so it only
+  # stands in for `:ok`. Anything that actually went wrong outranks it.
+  defp resolve_state(:ok, component, dormant) do
+    if MapSet.member?(dormant, component), do: :dormant, else: :ok
+  end
+
+  defp resolve_state(state, _component, _dormant), do: state
 
   defp count_phrase(0, _word), do: nil
   defp count_phrase(1, word), do: "1 #{word}"

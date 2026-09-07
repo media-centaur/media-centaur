@@ -261,6 +261,59 @@ defmodule MediaCentaurWeb.CoreComponents do
   end
 
   @doc """
+  Renders the one empty-surface treatment.
+
+  A surface with nothing on it states the diagnosed reason it is empty and
+  the one action that changes it — the same stance the gap banner takes for
+  release coverage ([UIDR-022]). Every empty surface uses this component so
+  the treatment cannot drift into a per-page dialect: before it existed the
+  app carried four (centered hero, bare sentence, inset band, circled tick).
+
+  `headline` names what fills the place; the default slot carries the
+  consequence, and the `action` slot the way out. Never write "nothing here
+  yet" — an empty screen already says that. Pages that can be empty for more
+  than one reason diagnose the reason in a pure function first
+  (`LibraryHelpers.empty_grid_reason/2`, `HomeLive.Logic.empty_reason/1`) and
+  render the matching copy; the component never guesses.
+
+      <.empty_state icon="hero-film" headline="Point it at your media">
+        Home fills itself once files are found.
+        <:action>
+          <.button variant="primary" size="sm" navigate={~p"/settings"}>Add a media directory</.button>
+        </:action>
+      </.empty_state>
+  """
+  attr :headline, :string,
+    required: true,
+    doc: "what fills this place — not a restatement of the page title"
+
+  attr :icon, :string,
+    default: nil,
+    doc:
+      "heroicon name for the mark above the headline; omitted where the surface is a tab body rather than a page"
+
+  attr :class, :string, default: nil
+  attr :rest, :global, doc: "nav attributes (data-nav-zone, id) the host needs on the root"
+
+  slot :inner_block, doc: "the consequence — one or two sentences, reader-first"
+  slot :action, doc: "the way out — usually one button; two at most"
+
+  def empty_state(assigns) do
+    ~H"""
+    <div class={["mx-auto max-w-lg py-16 text-center space-y-4", @class]} {@rest}>
+      <.icon :if={@icon} name={@icon} class="size-10 mx-auto text-base-content/30" />
+      <h2 class="text-xl font-semibold tracking-tight">{@headline}</h2>
+      <p :if={@inner_block != []} class="text-sm text-base-content/60">
+        {render_slot(@inner_block)}
+      </p>
+      <div :if={@action != []} class="flex flex-wrap items-center justify-center gap-2">
+        {render_slot(@action)}
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a badge.
 
   Use `variant` and `size` rather than raw daisyUI `badge-*` classes — the

@@ -954,6 +954,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             results={@omnibox_results}
             searching?={@omnibox_searching?}
             release_mode_available={@prowlarr_ready}
+            metadata_available={@tmdb_ready}
             scope={@omnibox_scope}
             watchlisted_refs={@watchlisted_refs}
             in_library_refs={@in_library_refs}
@@ -967,6 +968,26 @@ defmodule MediaCentaurWeb.IncomingLive do
             any_loading?={@any_loading?}
             timeout_terms={@timeout_terms}
           />
+
+          <%!-- Every title on this page is looked up on TMDB, so with no key
+                the box above cannot answer. Said before the reader types
+                rather than after, in the same shape the download-client gap
+                uses further down. --%>
+          <p
+            :if={!@tmdb_ready and !@search_owns?}
+            class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/55"
+          >
+            Searching titles needs a TMDB key. Add one in
+            <.link
+              navigate="/settings?section=tmdb"
+              class="link link-primary"
+              data-nav-item
+              tabindex="0"
+            >
+              Settings
+            </.link>
+            and this box finds anything on The Movie Database.
+          </p>
 
           <%!-- Zone tabs (UIDR-006): the page's three calm views. Only
                 rendered when acquisition exists — forecast-only installs

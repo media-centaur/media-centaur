@@ -728,4 +728,24 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
       assert item.poster_url == "/media-images/ent-1/poster.jpg?v=3"
     end
   end
+
+  describe "empty_reason/1" do
+    test "no media directory configured is the only reason that blames configuration" do
+      assert Logic.empty_reason(%{media_dirs_configured?: false, pipeline_queue_depth: 0}) ==
+               :no_media_dirs
+
+      assert Logic.empty_reason(%{media_dirs_configured?: false, pipeline_queue_depth: 7}) ==
+               :no_media_dirs
+    end
+
+    test "directories configured with an import in flight reads as importing" do
+      assert Logic.empty_reason(%{media_dirs_configured?: true, pipeline_queue_depth: 7}) ==
+               :importing
+    end
+
+    test "directories configured with nothing in flight reads as nothing imported" do
+      assert Logic.empty_reason(%{media_dirs_configured?: true, pipeline_queue_depth: 0}) ==
+               :nothing_imported
+    end
+  end
 end

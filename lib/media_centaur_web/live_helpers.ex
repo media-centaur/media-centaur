@@ -6,6 +6,23 @@ defmodule MediaCentaurWeb.LiveHelpers do
   defdelegate format_seconds(seconds), to: MediaCentaur.Format
 
   @doc """
+  True when at least one `media_dirs` entry is configured.
+
+  The empty-state branch on Home and Library both turn on this — "no media
+  directory yet" and "directories are set but produced nothing" take different
+  copy and a different action, and a page that cannot tell them apart states a
+  cause it has not diagnosed. Tolerant of the shapes `Config.get/1` can return
+  before first boot writes the key.
+  """
+  @spec media_dirs_configured?(term()) :: boolean()
+  def media_dirs_configured?(dirs \\ MediaCentaur.Settings.Config.get(:media_dirs)) do
+    case dirs do
+      list when is_list(list) and list != [] -> true
+      _ -> false
+    end
+  end
+
+  @doc """
   Converts a param string to an already-interned atom, returning `default`
   (nil unless given) for anything unrecognized rather than raising.
 

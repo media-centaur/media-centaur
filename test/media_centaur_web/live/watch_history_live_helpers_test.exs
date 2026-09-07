@@ -134,4 +134,27 @@ defmodule MediaCentaurWeb.WatchHistoryLiveHelpersTest do
       assert result == current
     end
   end
+
+  describe "empty_reason/1" do
+    defp state(overrides) do
+      Map.merge(
+        %{events: [], filter_type: nil, filter_search: "", filter_date: nil},
+        Map.new(overrides)
+      )
+    end
+
+    test "rows present means no empty state at all" do
+      assert WatchHistoryLive.empty_reason(state(events: [:a])) == :none
+    end
+
+    test "no rows and no filter is a history that has never been written to" do
+      assert WatchHistoryLive.empty_reason(state([])) == :no_history
+    end
+
+    test "no rows with any filter active is the filter's doing, not an empty history" do
+      assert WatchHistoryLive.empty_reason(state(filter_type: :movie)) == :no_matches
+      assert WatchHistoryLive.empty_reason(state(filter_search: "abc")) == :no_matches
+      assert WatchHistoryLive.empty_reason(state(filter_date: ~D[2026-01-01])) == :no_matches
+    end
+  end
 end

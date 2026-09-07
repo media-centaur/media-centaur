@@ -93,6 +93,13 @@ defmodule MediaCentaurWeb.SetupLive do
   # incomplete step. Unlike Next, it never consults `Gate.check/3` —
   # otherwise an optional integration with no credentials would trap the
   # user (Next blocked, Skip blocked).
+  # Jumps to the summary rather than finishing outright: the reader still sees
+  # what is unconfigured, with an Edit link per item, before they land in an
+  # app that cannot do much yet.
+  def handle_event("setup:skip_tour", _params, socket) do
+    {:noreply, push_patch(socket, to: step_path(:summary))}
+  end
+
   def handle_event("setup:skip", _params, socket) do
     case advance(socket.assigns.current_step, +1) do
       :finish -> finish(socket)
@@ -420,6 +427,24 @@ defmodule MediaCentaurWeb.SetupLive do
             </p>
           </div>
 
+          <%!-- The wizard's exit. Next stays gated on the required steps — they
+                really are required — but a reader who does not have a media
+                directory or a TMDB key to hand had no way out of this page at
+                all: no Skip on those steps, and the page carries no other
+                links. This lands on the summary, which already states honestly
+                what is still incomplete and lets them finish anyway. --%>
+          <div :if={@current_step != :summary} class="mt-4 flex justify-end">
+            <.button
+              variant="dismiss"
+              size="xs"
+              phx-click="setup:skip_tour"
+              data-nav-item
+              tabindex="0"
+            >
+              Skip the tour
+            </.button>
+          </div>
+
           <div class="mt-5 flex items-center gap-3">
             <div data-setup-progress class="flex flex-1 gap-1.5">
               <div
@@ -566,20 +591,20 @@ defmodule MediaCentaurWeb.SetupLive do
             >
               themoviedb.org
             </.link>
-            and copy your v4 read-access token from <.link
+            and copy a key from <.link
               href="https://www.themoviedb.org/settings/api"
               target="_blank"
               rel="noopener"
               class="link link-primary"
-            >Settings → API</.link>.
+            >Settings → API</.link>. Either the v4 read-access token or the shorter v3 key works.
           </p>
           <label class="text-sm font-medium text-base-content/80 block">
-            API key (v4 read-access token)
+            API key
           </label>
           <input
             type="password"
             name="tmdb_api_key"
-            placeholder="paste your TMDB v4 read-access token"
+            placeholder="paste your TMDB v4 token or v3 key"
             class="input input-bordered input-sm w-full font-mono text-sm"
             data-nav-item
             tabindex="0"

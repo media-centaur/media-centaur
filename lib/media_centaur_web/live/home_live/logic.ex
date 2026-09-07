@@ -360,4 +360,26 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   # a render-layer concern, not a section reload.
 
   def section_reloaders(_), do: []
+
+  @doc """
+  Why Home has nothing to show.
+
+  Home used to assert one cause unconditionally ("no media directory has been
+  scanned") and point at Settings, which is wrong the moment a directory *is*
+  configured — the state every user is in the instant the setup tour finishes.
+  The three reasons take different actions, so the page diagnoses before it
+  renders.
+
+    * `:no_media_dirs` — nothing to scan; the fix is in Settings.
+    * `:importing` — files are in flight; the fix is to wait.
+    * `:nothing_imported` — directories are set and idle but produced nothing;
+      the fix is a scan.
+  """
+  @spec empty_reason(%{
+          :media_dirs_configured? => boolean(),
+          :pipeline_queue_depth => non_neg_integer()
+        }) :: :no_media_dirs | :importing | :nothing_imported
+  def empty_reason(%{media_dirs_configured?: false}), do: :no_media_dirs
+  def empty_reason(%{pipeline_queue_depth: depth}) when depth > 0, do: :importing
+  def empty_reason(_state), do: :nothing_imported
 end

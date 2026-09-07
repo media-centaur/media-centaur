@@ -53,6 +53,9 @@ defmodule MediaCentaurWeb.HomeLive do
       # `:library_view_updated` and `:release_tracking_view_updated`.
       Views.subscribe()
       ReleaseTrackingViews.subscribe()
+      # Drives the "Importing your media" empty-state reason; coalesced
+      # broadcasts, same source Library's empty state reads.
+      MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_stats())
     end
 
     socket =
@@ -64,6 +67,9 @@ defmodule MediaCentaurWeb.HomeLive do
       |> assign(:hero_timer, nil)
       |> assign(:availability_map, %{})
       |> assign(:media_dirs, MediaCentaur.Settings.Config.get(:media_dirs) || [])
+      |> assign(:media_dirs_configured?, media_dirs_configured?())
+      |> assign(:pipeline_queue_depth, 0)
+      |> assign(:scanning, false)
       # Bumped on every `:availability_changed` so /media-images/* URLs get a
       # fresh `?v=` and the browser refetches artwork that may have flipped
       # between placeholder and real file. See `Logic.with_image_version/2`.
@@ -227,31 +233,15 @@ defmodule MediaCentaurWeb.HomeLive do
           </section>
 
           <%!-- Empty state if everything is empty --%>
-          <div
+          <.home_empty_state
             :if={
               @hero == nil and @continue_items == [] and @coming_up_marquee.hero == nil and
                 @recently_added == []
             }
-            data-nav-zone="hero"
-            class="mx-auto max-w-lg py-16 text-center space-y-4"
-          >
-            <.icon name="hero-film" class="size-10 mx-auto text-base-content/30" />
-            <h2 class="text-xl font-semibold tracking-tight">Point it at your media</h2>
-            <p class="text-sm text-base-content/60">
-              This page fills itself once files are found: a hero for what to watch next, the
-              titles you are partway through, new episodes on the way and what was added last.
-              Nothing is here yet because no media directory has been scanned.
-            </p>
-            <.button
-              variant="primary"
-              size="sm"
-              navigate={~p"/settings?section=library"}
-              data-nav-item
-              tabindex="0"
-            >
-              Add a media directory
-            </.button>
-          </div>
+            media_dirs_configured?={@media_dirs_configured?}
+            pipeline_queue_depth={@pipeline_queue_depth}
+            scanning={@scanning}
+          />
         </div>
 
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
@@ -372,7 +362,46 @@ defmodule MediaCentaurWeb.HomeLive do
     {:noreply, update(socket, :image_version, &(&1 + 1))}
   end
 
+  # The empty state distinguishes "importing" from "nothing imported", so it
+  # needs the queue depth the same way Library's does.
+  def handle_info({:pipeline_stats_updated, :content}, socket) do
+    snapshot = MediaCentaur.Pipeline.Stats.get_snapshot()
+    depth = snapshot.discovery_queue_depth + snapshot.import_queue_depth
+    {:noreply, assign(socket, pipeline_queue_depth: depth)}
+  end
+
+  def handle_info({:pipeline_stats_updated, :image}, socket), do: {:noreply, socket}
+
+  def handle_info({:config_updated, :media_dirs, _entries}, socket) do
+    {:noreply, assign(socket, media_dirs_configured?: media_dirs_configured?())}
+  end
+
   def handle_info(message, socket), do: schedule_section_reloads(socket, message)
+
+  # Owned async (ADR-049, MC0019). Home is where a new user lands, so the
+  # `:nothing_imported` reason offers the scan in place rather than sending
+  # them to another page to find the same button.
+  @impl true
+  def handle_event("scan", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(scanning: true)
+     |> start_async(:scan, fn -> MediaCentaur.Watcher.Rescan.scan() end)}
+  end
+
+  @impl true
+  def handle_async(:scan, {:ok, {:ok, _count}}, socket) do
+    {:noreply, assign(socket, scanning: false)}
+  end
+
+  def handle_async(:scan, {:ok, {:error, _reason}}, socket) do
+    {:noreply, assign(socket, scanning: false)}
+  end
+
+  # A crash reaches here, so the "Scanning…" label always clears.
+  def handle_async(:scan, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, scanning: false)}
+  end
 
   defp schedule_section_reloads(socket, message) do
     socket =
@@ -486,4 +515,83 @@ defmodule MediaCentaurWeb.HomeLive do
   defp load_recently_added, do: Views.recently_added(limit: 30)
 
   defp load_hero_candidates, do: Views.hero_candidates()
+
+  attr :media_dirs_configured?, :boolean, required: true
+  attr :pipeline_queue_depth, :integer, required: true
+  attr :scanning, :boolean, required: true
+
+  # Home is empty for one of three reasons and each takes a different action.
+  # `Logic.empty_reason/1` decides which; the page never asserts a cause it has
+  # not diagnosed (it used to claim "no media directory has been scanned"
+  # unconditionally, which is wrong the moment one is configured).
+  defp home_empty_state(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :reason,
+        Logic.empty_reason(%{
+          media_dirs_configured?: assigns.media_dirs_configured?,
+          pipeline_queue_depth: assigns.pipeline_queue_depth
+        })
+      )
+
+    ~H"""
+    <.empty_state
+      :if={@reason == :no_media_dirs}
+      icon="hero-film"
+      headline="Point it at your media"
+      data-nav-zone="hero"
+    >
+      Home fills itself once files are found: a hero for what to watch next, the titles you are
+      partway through, new episodes on the way and what was added last.
+      <:action>
+        <.button
+          variant="primary"
+          size="sm"
+          navigate={~p"/settings?section=library"}
+          data-nav-item
+          tabindex="0"
+        >
+          Add a media directory
+        </.button>
+      </:action>
+      <:action>
+        <.button variant="dismiss" size="sm" navigate={~p"/guide"} data-nav-item tabindex="0">
+          Read the guide
+        </.button>
+      </:action>
+    </.empty_state>
+
+    <.empty_state
+      :if={@reason == :importing}
+      icon="hero-arrow-down-on-square-stack"
+      headline="Importing your media"
+      data-nav-zone="hero"
+    >
+      {@pipeline_queue_depth} file{if @pipeline_queue_depth == 1, do: "", else: "s"} to go. Titles
+      appear here as they are identified.
+    </.empty_state>
+
+    <.empty_state
+      :if={@reason == :nothing_imported}
+      icon="hero-film"
+      headline="Nothing imported yet"
+      data-nav-zone="hero"
+    >
+      Your media directories are set, but no video files have been imported from them.
+      <:action>
+        <.button
+          variant="primary"
+          size="sm"
+          phx-click="scan"
+          disabled={@scanning}
+          data-nav-item
+          tabindex="0"
+        >
+          {if @scanning, do: "Scanning…", else: "Scan media directories"}
+        </.button>
+      </:action>
+    </.empty_state>
+    """
+  end
 end

@@ -19,19 +19,27 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
     # (campaigns/instant-navigation.md Phase 2).
 
     test "renders exactly one heatmap variant", %{conn: conn} do
+      # The heatmap is bookkeeping over rows and hides when there are none.
+      movie = create_movie(%{name: "Heatmap Variant Movie"})
+      create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Heatmap Variant Movie"})
+
       {:ok, _view, html} = live_async!(conn, "/history")
 
       assert count_substrings(html, "data-heatmap=") == 1
       assert html =~ ~s(data-heatmap="all")
     end
 
-    test "zero-count cells ship no tooltip or click payload", %{conn: conn} do
-      # An empty history renders 365 zero cells; tooltip <title>s and
-      # phx-value-date on unclickable cells were ~40KB of dead payload.
+    test "a history that has never been written to ships no heatmap payload at all", %{conn: conn} do
+      # Zero cells used to carry ~40KB of dead tooltip/date payload, trimmed to
+      # nothing. A history with no rows now drops the whole grid: three zeroes,
+      # an empty 52-week block and a filter for nothing are not worth rendering
+      # above an empty state that already says the place is empty.
       {:ok, _view, html} = live_async!(conn, "/history")
 
+      assert count_substrings(html, "data-heatmap=") == 0
       assert count_substrings(html, "<title>") == 0
       assert count_substrings(html, "phx-value-date") == 0
+      assert html =~ "Every finished watch lands here"
     end
 
     test "active cells keep tooltip and date-filter payload", %{conn: conn} do
@@ -45,6 +53,9 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
     end
 
     test "type filter swaps the rendered heatmap variant", %{conn: conn} do
+      movie = create_movie(%{name: "Heatmap Filter Movie"})
+      create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Heatmap Filter Movie"})
+
       {:ok, view, _html} = live_async!(conn, "/history")
 
       html =
@@ -239,6 +250,28 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
       {:ok, _view, html} = live_async!(conn, "/history")
 
       refute html =~ "1×"
+    end
+  end
+
+  describe "empty states" do
+    test "a filter that hides every row keeps the chrome and offers one way back", %{conn: conn} do
+      movie = create_movie(%{name: "Filtered Out Movie"})
+      create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Filtered Out Movie"})
+
+      {:ok, view, _html} = live_async!(conn, "/history")
+
+      html =
+        view
+        |> element("input[type=search]")
+        |> render_change(%{"value" => "nothing matches this"})
+
+      assert html =~ "No watches match your current filters"
+      # The filters stay: they are what the reader adjusts to get rows back.
+      assert has_element?(view, "[data-nav-zone=toolbar]")
+      refute html =~ "Every finished watch lands here"
+
+      html = view |> element("button[phx-click=clear_filters]") |> render_click()
+      assert html =~ "Filtered Out Movie"
     end
   end
 end

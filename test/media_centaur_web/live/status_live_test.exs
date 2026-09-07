@@ -427,7 +427,8 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert [%{component: :social, state: :error}] =
                Enum.filter(
                  MediaCentaurWeb.StatusLive.HealthBoard.build_board(
-                   MediaCentaur.ErrorReports.list_buckets()
+                   MediaCentaur.ErrorReports.list_buckets(),
+                   MapSet.new()
                  ),
                  &(&1.component == :social)
                )

@@ -38,6 +38,28 @@ defmodule MediaCentaurWeb.ConnCase do
   end
 
   @doc """
+  Makes the TMDB capability read as ready: a key in config plus a passed
+  connection test, which is what `Capabilities.tmdb_ready?/0` requires.
+
+  Surfaces that look titles up on TMDB now branch on this — an empty search
+  result means "no such title" only when the search could actually run — so a
+  test asserting on the found-nothing copy has to say which world it is in.
+  Writes global state, so the calling test must be `async: false`
+  (`GlobalStateSandbox` restores both keys).
+  """
+  def enable_tmdb! do
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+    :persistent_term.put(
+      {MediaCentaur.Settings.Config, :config},
+      Map.put(config, :tmdb_api_key, MediaCentaur.Secret.wrap("test-key"))
+    )
+
+    MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
+    :ok
+  end
+
+  @doc """
   Mounts a LiveView like `Phoenix.LiveViewTest.live/2`, then drains its
   `start_async` operations via `render_async/1` before returning.
 

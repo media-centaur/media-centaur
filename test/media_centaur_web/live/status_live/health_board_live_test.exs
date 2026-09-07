@@ -5,6 +5,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
 
   alias MediaCentaur.Console.Entry
   alias MediaCentaur.ErrorReports.Buckets
+  alias MediaCentaur.Settings.Config
 
   test "renders a tile per subsystem and opens a drill-in on ?subsystem=", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/status")
@@ -122,6 +123,9 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
     # injected list in the view. Warnings logged by earlier tests can have
     # minted pipeline buckets there, so start from an empty snapshot.
     Buckets.dismiss(Enum.map(Buckets.list_buckets(), & &1.fingerprint))
+    # The all-clear is only offered to a subsystem that actually runs; the
+    # test env has no media directories, which would leave pipeline dormant.
+    Config.put_media_dirs([%{"dir" => System.tmp_dir!()}])
 
     {:ok, view, _html} = live(conn, ~p"/status?subsystem=pipeline")
     inject_bucket(view, "fp-dismiss-all")
@@ -130,6 +134,31 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
 
     refute has_element?(view, "#incident-fp-dismiss-all")
     assert has_element?(view, "#health-drill-in", "No issues")
+  end
+
+  describe "dormant subsystems" do
+    test "an unconfigured subsystem reads Not configured, not healthy", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/status?subsystem=tmdb")
+
+      assert has_element?(view, "#health-drill-in", "Not configured")
+      refute has_element?(view, "#health-drill-in", "Healthy")
+    end
+
+    test "a dormant drill-in names the one action that starts it", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/status?subsystem=tmdb")
+
+      assert has_element?(view, "#health-drill-in", "Add a TMDB API key under Settings")
+      refute has_element?(view, "#health-drill-in", "No issues")
+    end
+
+    test "configuring the prerequisite takes the subsystem out of dormancy", %{conn: conn} do
+      Config.put_media_dirs([%{"dir" => System.tmp_dir!()}])
+
+      {:ok, view, _html} = live(conn, ~p"/status?subsystem=pipeline")
+
+      assert has_element?(view, "#health-drill-in", "No issues")
+      refute has_element?(view, "#health-drill-in", "Not configured")
+    end
   end
 
   # The issue view is open when its footer Dismiss button (which carries the

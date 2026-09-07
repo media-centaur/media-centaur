@@ -47,6 +47,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     required: true,
     doc: "Whether an indexer is configured — flips the row verb between download and track."
 
+  attr :metadata_available, :boolean,
+    default: true,
+    doc:
+      "Whether TMDB is configured. Every row on this surface comes from TMDB, so with no key the search cannot return anything — the empty answer then names the missing capability instead of reporting a miss the query never had a chance to hit."
+
   attr :scope, :atom,
     default: :all,
     values: [:all, :upcoming, :released],
@@ -125,11 +130,32 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         </button>
       </div>
 
+      <%!-- Two different empty answers. "Nothing found" is a claim about the
+            query; it is only true when the search actually ran. --%>
       <div
-        :if={!@searching? && @results == []}
+        :if={!@searching? && @results == [] && @metadata_available}
         class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
       >
         Nothing found on TMDB.
+      </div>
+
+      <div
+        :if={!@searching? && @results == [] && !@metadata_available}
+        class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/55"
+      >
+        <p class="text-base-content/70">Searching titles needs a TMDB key.</p>
+        <p class="mt-1">
+          Media Centaur looks titles up on The Movie Database. Add a key and this search works,
+          along with artwork and release tracking.
+        </p>
+        <.link
+          navigate="/settings?section=tmdb"
+          class="mt-3 inline-block link link-primary"
+          data-nav-item
+          tabindex="0"
+        >
+          Add a TMDB key
+        </.link>
       </div>
 
       <div

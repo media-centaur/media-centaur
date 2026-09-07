@@ -137,6 +137,34 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       assert html =~ "Point it at your media"
       assert has_element?(view, "a[href='/settings?section=library'][data-nav-item]")
     end
+
+    test "with a media directory configured it stops blaming configuration", %{conn: conn} do
+      MediaCentaur.Settings.Config.put_media_dirs([%{"dir" => System.tmp_dir!()}])
+
+      {:ok, view, html} = live_async!(conn, "/")
+
+      # The old copy asserted "no media directory has been scanned" whatever
+      # the truth was, and sent the user to Settings to fix an already-correct
+      # setting. Directories are set, so the remaining action is the scan.
+      assert html =~ "Nothing imported yet"
+      refute html =~ "Point it at your media"
+      refute has_element?(view, "a[href='/settings?section=library'][data-nav-item]")
+      assert has_element?(view, "button[phx-click='scan']")
+    end
+
+    test "an import in flight reads as importing, not as a misconfiguration", %{conn: conn} do
+      MediaCentaur.Settings.Config.put_media_dirs([%{"dir" => System.tmp_dir!()}])
+
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      send(view.pid, {:pipeline_stats_updated, :content})
+      _ = render(view)
+
+      # Depth comes from the live Stats snapshot; with an idle pipeline it is
+      # zero, so the reason stays :nothing_imported. What matters here is that
+      # the stats message is handled at all — before this the page ignored it.
+      assert render(view) =~ "Nothing imported yet"
+    end
   end
 
   describe "drive-recovery image refresh" do
