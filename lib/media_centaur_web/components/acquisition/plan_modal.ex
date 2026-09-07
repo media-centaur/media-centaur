@@ -332,7 +332,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           />
           <span>
             Also grab future episodes
-            <span class="block text-[11px] text-base-content/55">hands off to release tracking</span>
+            <span class="block text-[11px] text-base-content/55">
+              tracks the show at Grab once this download finishes
+            </span>
           </span>
         </label>
         <div class="flex items-center gap-2">
@@ -654,11 +656,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               size="xs"
               class="flex-shrink-0"
               phx-click="plan_track_gaps"
-              title="Keep watching for these — opens gap wants on the title's tracking entry"
+              title="Track the missing units on this title — what happens to them then is the title's own setting"
               data-nav-item
               tabindex="0"
             >
-              Track these later
+              Track these
             </.button>
             <.button
               variant="neutral"

@@ -87,6 +87,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition
+  alias MediaCentaur.Discovery
+  alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher}
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
@@ -1408,28 +1410,25 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # The gap handoff (ADR-056): unfound units become gap wants on the
-  # title's tracking entry. Context-layer async — creating the track
+  # title's tracked title, which the handoff raises onto Follow if the
+  # person was not following it yet. Context-layer async — a first raise
   # fetches TMDB, which doesn't belong inline in an event handler.
+  #
+  # The flash says what the title's *own* rung will do with those wants,
+  # rather than promising a search: below Ask nothing searches, and the
+  # click alone is not a licence to raise a person's rung that far.
   def handle_event("plan_track_gaps", _params, socket) do
     case socket.assigns.plan_board do
-      %{plan_id: plan_id, gaps: gaps} when gaps != [] ->
+      %{plan_id: plan_id, gaps: gaps} = board when gaps != [] ->
+        rung = gap_rung(board)
         Acquisition.track_plan_gaps_async(plan_id)
-
-        {:noreply,
-         put_flash(
-           socket,
-           :info,
-           "Watching for #{length(gaps)} missing #{if length(gaps) == 1, do: "episode", else: "episodes"} — release tracking will keep looking"
-         )}
+        {:noreply, put_flash(socket, :info, gap_flash(length(gaps), rung))}
 
       _ ->
         {:noreply, socket}
     end
   end
 
-  # Approval submits real grabs (Prowlarr → indexer → download client) —
-  # seconds of network per release. Running it inline froze the LV, so it
-  # rides an owned async (ADR-049) behind an "Approving…" button state.
   def handle_event("plan_approve", _params, socket) do
     with false <- socket.assigns.plan_approving?,
          %{plan_id: plan_id} <- socket.assigns.plan_board do
@@ -2968,4 +2967,43 @@ defmodule MediaCentaurWeb.IncomingLive do
     <% end %>
     """
   end
+
+  # The rung the handoff will leave the title at: its own if it already
+  # has one that follows, else Follow, which is the least it needs to
+  # hold the wants at all.
+  defp gap_rung(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type}) do
+    with {numeric_id, ""} <- Integer.parse(to_string(tmdb_id)),
+         media_type when not is_nil(media_type) <- gap_media_type(tmdb_type),
+         rung when not is_nil(rung) <- Discovery.rung(numeric_id, media_type),
+         true <- TitleIntent.follows_releases?(rung) do
+      rung
+    else
+      _below_follow -> :follow
+    end
+  end
+
+  defp gap_rung(_board), do: :follow
+
+  defp gap_media_type("tv"), do: :tv_series
+  defp gap_media_type("movie"), do: :movie
+  defp gap_media_type(_other), do: nil
+
+  defp gap_flash(count, rung) do
+    noun = if count == 1, do: "episode", else: "episodes"
+
+    case rung do
+      :follow ->
+        "Tracking the #{count} missing #{noun} — they'll show under Coming up. Set Ask or Grab on the title to have them fetched."
+
+      :ask ->
+        "Tracking the #{count} missing #{noun} — a plan will wait for your approval when one turns up."
+
+      _grabbing ->
+        "Tracking the #{count} missing #{noun} — they'll be fetched when they turn up."
+    end
+  end
+
+  # Approval submits real grabs (Prowlarr → indexer → download client) —
+  # seconds of network per release. Running it inline froze the LV, so it
+  # rides an owned async (ADR-049) behind an "Approving…" button state.
 end

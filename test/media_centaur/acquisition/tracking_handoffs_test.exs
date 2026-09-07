@@ -1,6 +1,9 @@
 defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Acquisition.Plans.PlanUnit
+  alias MediaCentaur.Discovery
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.Acquisition.Pursuits.Commands.Satisfy
   alias MediaCentaur.Acquisition.TrackingHandoffs
@@ -54,6 +57,27 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
     plan
   end
 
+  defp ready_plan_with_gaps(tmdb_id, title) do
+    {:ok, plan} =
+      Repo.insert(Plan.create_changeset(%{tmdb_id: tmdb_id, tmdb_type: "tv", title: title}))
+
+    {:ok, plan} = Repo.update(Ecto.Changeset.change(plan, status: "ready"))
+
+    {:ok, unit} =
+      Repo.insert(
+        PlanUnit.create_changeset(%{
+          plan_id: plan.id,
+          season_number: 2,
+          episode_number: 1,
+          label: "S02E01",
+          position: 1
+        })
+      )
+
+    {:ok, _} = Repo.update(Ecto.Changeset.change(unit, status: "unfound"))
+    plan
+  end
+
   describe "grab-future handoff (on completion)" do
     test "a satisfied pursuit from a grab_future plan follows the title at Grab" do
       stub_show(42_001, "Sample Future Show")
@@ -83,7 +107,14 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
 
       item = ReleaseTracking.get_item_by_tmdb(42_001, :tv_series)
       assert item
-      assert MediaCentaur.Discovery.rung(item.tmdb_id, item.media_type) == :grab
+
+      # "Also grab future episodes" says grab, so it grabs. It used to
+      # land the title on Watch, whose grab mode is "off" — the drop
+      # planner skipped it and the checkbox never did what it said.
+      assert Discovery.rung(item.tmdb_id, item.media_type) == :grab
+
+      assert Discovery.grab_mode(item.tmdb_id, item.media_type, "off") ==
+               "all_releases"
     end
 
     test "no handoff without the grab_future opt-in" do
@@ -147,6 +178,42 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
     end
   end
 
+  describe "the gap handoff leaves the title able to hold its wants" do
+    test "a title nobody followed is raised to Follow, the least that keeps a calendar" do
+      stub_show(42_020, "Sample Gap Show")
+      plan = ready_plan_with_gaps("42020", "Sample Gap Show")
+
+      {:ok, opened} = TrackingHandoffs.track_plan_gaps(plan.id)
+      assert opened > 0
+
+      assert Discovery.rung(42_020, :tv_series) == :follow
+
+      item = ReleaseTracking.get_item_by_tmdb(42_020, :tv_series)
+      assert ReleaseTracking.open_wants_for_item(item.id) != []
+    end
+
+    test "a title the person already follows keeps the rung they chose" do
+      stub_show(42_021, "Sample Grabbing Show")
+
+      {:ok, _intent} =
+        ReleaseTracking.set_rung(
+          Title.new!(%{
+            tmdb_id: 42_021,
+            media_type: :tv_series,
+            name: "Sample Grabbing Show"
+          }),
+          :grab
+        )
+
+      plan = ready_plan_with_gaps("42021", "Sample Grabbing Show")
+
+      {:ok, _opened} = TrackingHandoffs.track_plan_gaps(plan.id)
+
+      assert Discovery.rung(42_021, :tv_series) == :grab,
+             "the handoff raises a title that was not followed; it never lowers one that was"
+    end
+  end
+
   describe "gap handoff (track what planning couldn't find)" do
     test "unfound units become gap-provenance wants on a (created) track" do
       stub_show(42_010, "Sample Gappy Show")
@@ -165,7 +232,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
       for {episode, status} <- [{1, "found"}, {2, "unfound"}, {3, "unfound"}] do
         {:ok, unit} =
           Repo.insert(
-            MediaCentaur.Acquisition.Plans.PlanUnit.create_changeset(%{
+            PlanUnit.create_changeset(%{
               plan_id: plan.id,
               season_number: 2,
               episode_number: episode,
@@ -204,7 +271,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
 
       {:ok, unit} =
         Repo.insert(
-          MediaCentaur.Acquisition.Plans.PlanUnit.create_changeset(%{
+          PlanUnit.create_changeset(%{
             plan_id: plan.id,
             season_number: 1,
             episode_number: 5,
