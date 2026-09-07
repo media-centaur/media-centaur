@@ -229,6 +229,27 @@ defmodule MediaCentaur.ImageFilesTest do
       assert width == 480
     end
 
+    test "constrains a portrait master by width, not by its longest side",
+         %{tmp_dir: tmp_dir} do
+      # `Image.thumbnail/3`'s length argument is the LONGEST side, so passing
+      # the requested width straight through fitted a 2:3 poster into a
+      # width x width box: `derivative(master, 240)` returned 160x240, and
+      # every portrait poster in the app was served at two thirds of the width
+      # its caller asked for. The landscape master the rest of this describe
+      # uses hides the bug — there, longest side and width are the same number.
+      master =
+        master_with(tmp_dir, "poster.jpg", 1000, 1500,
+          color: :blue,
+          suffix: ".jpg",
+          quality: 90
+        )
+
+      assert {:ok, derivative} = ImageFiles.derivative(master, 240)
+
+      {:ok, image} = Image.open(derivative)
+      assert {240, 360, _bands} = Image.shape(image)
+    end
+
     test "snaps an off-ladder width UP to the next tier", %{master: master} do
       # 400 → 480; 500 → 640. Snapping bounds the number of cached variants
       # per image while still covering DPR-driven srcset requests.

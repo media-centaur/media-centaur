@@ -108,7 +108,9 @@ defmodule MediaCentaur.ImageFiles do
   Returns a path to a width-constrained JPEG/PNG derivative of a local master
   image, generating and caching it on first request.
 
-  `requested_width` snaps UP to the fixed width ladder. The derivative is
+  `requested_width` constrains the **width** in every orientation — a 2:3
+  poster at 240 is 240x360, not the 160x240 that fitting it into a
+  240x240 box would give. It snaps UP to the fixed width ladder. The derivative is
   cached to disk and reused until the master is rewritten (a TMDB re-scrape
   bumps the master's mtime, which invalidates the cache). The output format
   matches the master's (so transparent logos keep their alpha).
@@ -147,16 +149,10 @@ defmodule MediaCentaur.ImageFiles do
   """
   @spec purge_derivatives_for(String.t()) :: non_neg_integer()
   def purge_derivatives_for(master_path) when is_binary(master_path) do
-    key = derivative_key(master_path)
-    root = derivative_root()
-
-    for width <- @derivative_widths, ext <- [".jpg", ".png"], reduce: 0 do
-      acc ->
-        case File.rm(Path.join(root, "#{key}-w#{width}#{ext}")) do
-          :ok -> acc + 1
-          _ -> acc
-        end
-    end
+    derivative_root()
+    |> Path.join("#{derivative_key(master_path)}-*")
+    |> Path.wildcard()
+    |> Enum.count(&(File.rm(&1) == :ok))
   end
 
   defp snap_width(requested) do
@@ -173,7 +169,12 @@ defmodule MediaCentaur.ImageFiles do
         _ -> ".jpg"
       end
 
-    Path.join(derivative_root(), "#{derivative_key(master_path)}-w#{width}#{ext}")
+    # `<key>-<n>w`, not the `<key>-w<n>` this used before the width fix: the
+    # old name marks a file constrained by its longest side, so the rename is
+    # what stops a stale portrait derivative from being served forever. Those
+    # files share the key prefix, so `purge_derivatives_for/1` sweeps both
+    # generations whenever a master is re-fetched.
+    Path.join(derivative_root(), "#{derivative_key(master_path)}-#{width}w#{ext}")
   end
 
   defp derivative_key(master_path) do
@@ -204,13 +205,21 @@ defmodule MediaCentaur.ImageFiles do
 
   defp build_derivative(master_path, width, cache_path) do
     with {:ok, image} <- open_file(master_path),
-         {master_width, _height, _bands} <- Image.shape(image) do
+         {master_width, master_height, _bands} <- Image.shape(image) do
       if master_width <= width do
         {:ok, master_path}
       else
         cache_path |> Path.dirname() |> File.mkdir_p!()
 
-        with {:ok, thumb} <- Image.thumbnail(image, width, resize: :down),
+        # `Image.thumbnail/3`'s integer argument is the LONGEST SIDE, not the
+        # width. Handing it `width` fits the master into a width x width box,
+        # which is the same thing for a landscape backdrop and two thirds of
+        # the asked-for width for a 2:3 poster. Passing the aspect-correct
+        # "<width>x<height>" makes the constraint the width in every
+        # orientation, which is what `?w=` claims and what callers size for.
+        height = round(width * master_height / master_width)
+
+        with {:ok, thumb} <- Image.thumbnail(image, "#{width}x#{height}", resize: :down),
              {:ok, _} <- Image.write(thumb, cache_path, derivative_write_opts(cache_path)) do
           {:ok, cache_path}
         end
