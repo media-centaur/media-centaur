@@ -12,9 +12,9 @@ Terms as this design uses them. Elevated to `docs/GLOSSARY.md` at completion.
 |---|---|
 | **Watchlist entry** | A person's authored record that they want to watch one title. `Discovery.WatchlistItem`, table `watchlist_items`. Added by a person, removed by a person, never by the system. Carries the embedded `TMDB.Title`, provenance (`:manual`/`:friend`, `note`, `activity_id`). Library presence is derived, never a membership rule. |
 | **Tracked title** | A title whose TMDB release calendar the app maintains. `ReleaseTracking.Item`, table `release_tracking_items`. Not authored — it exists while a **tracking reason** holds. |
-| **Tracking reason** | Why a title is tracked. Exactly two: the **library reason** (an owned, active container for the title) and the **watchlist reason** (a person armed a watchlist entry). |
+| **Tracking reason** | Why a title is tracked. Exactly two, and not equivalent: the **library reason** (an owned, active container — a *default*, which evaporates with its cause) and the **watchlist reason** (a person armed a watchlist entry — an *act*, which outlives the library). |
 | **Tracking mode** | What the app does about a tracked title: **None**, **Watch**, **Ask**, **Grab**, or **Global** (follow the global default until explicitly set). One field on the tracked title, replacing today's `Item.status` and `Item.auto_grab_mode`. |
-| **Arming** | Raising a watchlist entry's tracking mode above None. The act that creates a tracked title from a watchlist entry. |
+| **Arming** | Raising a title's tracking mode above None. A **watchlist act**: arming a title puts it on the watchlist, wherever the control was operated from. |
 | **Coming up** | The schedule projection over every tracked title with a dated release. Unchanged in kind by this design. |
 
 ## The problem
@@ -58,13 +58,19 @@ though nearly every neighbouring term does. That absence is the diagnosis.
 
 ### Reasons decide existence
 
-A tracked title exists while at least one tracking reason holds:
+The two reasons are **not** equivalent, and the design turns on the difference.
 
-1. **Library reason** — the library owns an active container for the title.
-2. **Watchlist reason** — a person armed the title's watchlist entry.
+1. **Library reason — a default.** The app tracks a title because the library
+   owns an active container for it. A default evaporates when its cause goes
+   away.
+2. **Watchlist reason — an act.** A person put the title on their watchlist and
+   armed it. **Arming is a watchlist act**: choosing to track a title puts it on
+   the watchlist. A tracked title with no watchlist entry is the app applying
+   its default, nothing more.
 
-Reasons are queried from their owners, never stored as a denormalized set.
-`Item.source` is removed.
+A tracked title exists while at least one reason holds, **or** while it carries
+an explicit disarm (below). Reasons are queried from their owners, never stored
+as a denormalized set. `Item.source` is removed.
 
 ### Tracking mode decides behaviour
 
@@ -92,20 +98,38 @@ immune to a global change.
 Adding a watchlist entry is free — it creates no tracked title. Arming is a
 second, deliberate act.
 
-### Removal
+### An explicit disarm is durable
 
-Removing a watchlist entry sets the tracking mode to None. The tracked title is
-then deleted **unless the library reason holds**, in which case the row survives
-carrying the disarm. So:
+A tracked title whose mode a person set to **None** survives even when no reason
+holds — inert: no calendar refresh, no wants, no Coming up row, invisible in
+every list. It exists only so that re-acquiring or re-listing the title later
+cannot silently re-arm what the person turned off. This is the strict form of
+"never raised by the system".
 
-- Un-listing an unowned title stops tracking it. Automatic *dis*-arming, always safe.
-- Un-listing an owned title leaves its disarm intact. Nothing re-arms.
+Every other mode evaporates with its last reason, because raising is the only
+direction that can surprise, and nothing here raises.
+
+### Losing a reason
+
+| Situation | What happens |
+|---|---|
+| Armed watchlist entry removed, title not owned | No reason left, the mode was raised not lowered — row deleted, tracking stops |
+| Armed watchlist entry removed, title owned | Library reason holds — tracking continues at the app default |
+| Library container deleted, title on the watchlist | Watchlist reason holds — **tracking continues at the mode the person set**. New releases still arrive |
+| Library container deleted, no watchlist entry | The app tracked it because it was owned; it is not — row deleted, tracking stops |
+| Mode set to None, then every reason lost | Row survives inert, carrying the disarm |
+
+The third row is the case today's code gets wrong in the opposite direction:
+`detach_library_containers/1` nulls the container pair and keeps *every* item,
+so a deleted series keeps tracking and grabbing whether or not anyone asked.
 
 ### The invariant
 
-> **Every tracked title is either owned or on the watchlist.**
+> **Every *active* tracked title — mode above None — is either owned or on the
+> watchlist.**
 
-This is what lets the UI retire the straggler concept: there is no tracked title
+Inert None rows are exempt. This is what lets the UI retire the straggler
+concept: a straggler is active-but-undated, and there is no active tracked title
 without a list that shows it.
 
 ## Storage and boundaries
@@ -196,18 +220,21 @@ mention.
 
 ## Open questions
 
-- **`MediaCentaur.Discovery` collides with `MediaCentaur.Pipeline.Discovery`**
-  (the filesystem scan stage). Adjacent to this work, not caused by it. Deferred
-  — raise before the context grows further.
-- **Residue:** an unowned title armed, then de-listed, loses its mode with its
-  row; re-adding starts from the Watch default. Not re-arming — it takes a
-  deliberate re-add — but it is the one place a disarm is not permanent. The fix
-  is keeping the row with reasons resolved to none and letting `Retention` prune
-  it. Left deleting; noted.
+- **Inert None rows accumulate.** One row per title a person ever deliberately
+  disarmed. Bounded by deliberate acts, so small, but `Retention` should be told
+  about them rather than left to discover them. Decide the policy in Phase 1:
+  most likely never pruned, since pruning one silently re-arms the title, which
+  is the whole thing this row exists to prevent.
+- **Arming from the library detail creates a watchlist entry.** A visible
+  consequence of an explicit act, and the point of "the watchlist is where you
+  arm" — but it must be stated by the control's copy, not inferred. Surfaced,
+  never silent.
 
 ## Decision records this warrants
 
-- **ADR-065** — tracking reasons and the derived tracked title: existence from
-  reasons, mode from a person, the invariant, and the removal of `Item.source`.
+- **ADR-065** — tracking reasons and the derived tracked title: the
+  default-versus-act asymmetry between the two reasons, the durable disarm,
+  existence from reasons, mode from a person, the invariant, and the removal of
+  `Item.source`.
 - **UIDR-035** — two title surfaces split by "has files", and the retirement of
   the straggler line (superseding that half of UIDR-017).

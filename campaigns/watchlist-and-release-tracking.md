@@ -34,15 +34,26 @@ No code yet.
   global default: adding something to your list must never start a download.
   Library auto-track seeds **Global**, preserving today's behaviour.
 * `2026-09-07` — Adding to the watchlist is free (no tracked title). Arming is a
-  second act. Removing an entry sets mode to None and deletes the tracked title
-  unless the library reason holds, in which case the disarm survives on the row.
-* `2026-09-07` — Invariant: **every tracked title is either owned or on the
-  watchlist.** This is what lets the straggler concept retire.
+  second act.
+* `2026-09-07` — **The two reasons are not equivalent.** The library reason is a
+  *default* and evaporates when the library stops owning the title; the
+  watchlist reason is an *act* and outlives it. **Arming is a watchlist act** —
+  choosing to track a title puts it on the watchlist, whatever surface the
+  control was operated from. So: delete a series from the library and tracking
+  continues iff a person had armed it; it stops if the global default was the
+  only thing tracking it. Today's `detach_library_containers/1` keeps *every*
+  item and so grabs forever regardless — a behaviour fix, not just a refactor.
+* `2026-09-07` — **An explicit disarm is durable.** A row at mode None survives
+  with no reason held — inert, invisible, no refresh, no wants — so re-acquiring
+  or re-listing a title can never silently re-arm what a person turned off.
+* `2026-09-07` — Invariant: **every *active* tracked title (mode above None) is
+  either owned or on the watchlist.** Inert None rows exempt. This is what lets
+  the straggler concept retire.
 * `2026-09-07` — Three title modals become two, split by "does this have files"
   rather than by which table it came from. The release timeline and the
   tracking-mode control become shared components mounted by both.
 * `2026-09-07` — `MediaCentaur.Discovery` / `MediaCentaur.Pipeline.Discovery`
-  name collision noted and **deferred** — adjacent, not caused by this work.
+  is **not** a collision — two contexts may use one word for different things.
 * `2026-09-07` — UI phases are implemented with the Fable model; context,
   schema and migration phases stay on Opus.
 
@@ -57,11 +68,13 @@ No code yet.
 2. **Phase 1 — the model.** `tracking_mode` replaces `status` +
    `auto_grab_mode`; `source` dropped; existence reconciled from reasons;
    `ReleaseTracking.WatchlistListener` mirroring `LibraryListener`;
-   `TrackingStarted` broadcast moves to Discovery. Four paired migrations per
-   the spec, including backfilling watchlist entries for `source: :manual`
-   items — without it the invariant fails on first reconcile and manually
-   tracked titles are stranded. Existing controls keep working: the bell writes
-   `tracking_mode`. No visible change.
+   `TrackingStarted` broadcast moves to Discovery. `detach_library_containers/1`
+   becomes a reconcile rather than a detach. Four paired migrations per the
+   spec, including backfilling watchlist entries for `source: :manual` items —
+   without it the invariant fails on first reconcile and manually tracked titles
+   are stranded. Decide the `Retention` policy for inert None rows (likely: never
+   pruned — pruning one re-arms the title). Existing controls keep working: the
+   bell writes `tracking_mode`. No visible change.
 3. **Phase 2 — merge the no-files surfaces** (Fable). `ReleaseTracking.TitleModal`
    absorbed into `Discovery.TitleDetailModal`; shared release-timeline and
    tracking-mode components extracted; watchlist rows gain the mode control;
@@ -80,7 +93,8 @@ No code yet.
 
 * `release_tracking_items` has one `tracking_mode` and no `status` or `source`.
 * A tracked title's existence is reconciled from reasons; nothing writes it directly.
-* The invariant holds on real data: no tracked title that is neither owned nor listed.
+* The invariant holds on real data: no *active* tracked title that is neither owned nor listed.
+* Deleting a series from the library stops tracking it unless a person armed it; an explicit disarm survives every list change.
 * Two title surfaces, both mounting the same release-timeline and tracking-mode components.
 * No bell, no `Track` verb, no straggler line.
 * Guide and wiki describe one intent and one machine; glossary carries all four terms.
