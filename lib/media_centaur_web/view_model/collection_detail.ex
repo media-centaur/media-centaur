@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   alias MediaCentaur.Library.Views.DetailItem
   alias MediaCentaur.Playback.ResumeTarget
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaurWeb.ViewModel.MovieListItem
 
   @enforce_keys [:entity, :movies]
@@ -36,7 +37,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     :entity,
     :progress,
     :progress_records,
-    :tracking_status,
+    :tracking_mode,
     :movies,
     :extras,
     :resume_target,
@@ -50,7 +51,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
           entity: map(),
           progress: map() | nil,
           progress_records: list(),
-          tracking_status: :watching | :ignored | nil,
+          tracking_mode: Item.tracking_mode() | nil,
           movies: [MovieListItem.t()],
           extras: list(),
           resume_target: map() | nil,
@@ -65,7 +66,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   Reads the Library half from `MediaCentaur.Library.Views.Detail`
   (Pillar-2 ETS projection, microsecond reads in production; falls back
   to a live build in test mode). Cross-context overlays (ReleaseTracking
-  releases, tracking_status) compose at this layer per ADR-029.
+  releases, tracking_mode) compose at this layer per ADR-029.
 
   Computes the resume target via `MediaCentaur.Playback.ResumeTarget`
   on the loaded entry, so callers don't have to thread it separately.
@@ -95,14 +96,14 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     releases =
       ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :movie)
 
-    tracking_status = lookup_tracking_status(entity)
+    tracking_mode = lookup_tracking_mode(entity)
     resume_target = ResumeTarget.compute(entity, progress_records)
-    build(entry, releases, tracking_status, resume_target)
+    build(entry, releases, tracking_mode, resume_target)
   end
 
   @doc """
   Pure: builds a `%CollectionDetail{}` from a loaded library entry, the
-  releases relevant to it, the tracking status, and the precomputed
+  releases relevant to it, the tracking mode (`ReleaseTracking.tracking_status/1`), and the precomputed
   resume target.
 
   Releases are expected to be `MediaCentaur.ReleaseTracking.Release.t()`
@@ -114,8 +115,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
   No database access. Tests construct the inputs as fixtures.
   """
-  @spec build(map(), [map()], :watching | :ignored | nil, map() | nil) :: t()
-  def build(entry, releases, tracking_status, resume_target) do
+  @spec build(map(), [map()], Item.tracking_mode() | nil, map() | nil) :: t()
+  def build(entry, releases, tracking_mode, resume_target) do
     progress_by_movie_id = index_progress_by_movie_id(entry.progress_records)
     resume_target_id = resume_target_id(resume_target)
 
@@ -144,7 +145,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
       entity: entry.entity,
       progress: entry.progress,
       progress_records: entry.progress_records,
-      tracking_status: tracking_status,
+      tracking_mode: tracking_mode,
       movies: library_items ++ upcoming_items(releases, library_tmdb_ids),
       extras: entry.entity.extras || [],
       resume_target: resume_target,
@@ -158,7 +159,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   per-movie `state` and `is_resume_target` flags stay current without a
   fresh DB query.
 
-  Pure: reuses the cached `releases` and `tracking_status` on the
+  Pure: reuses the cached `releases` and `tracking_mode` on the
   existing struct.
   """
   @spec with_progress(t(), map() | nil, list(), map() | nil) :: t()
@@ -169,7 +170,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
       progress_records: progress_records
     }
 
-    build(entry, collection_detail.releases || [], collection_detail.tracking_status, resume_target)
+    build(entry, collection_detail.releases || [], collection_detail.tracking_mode, resume_target)
   end
 
   # --- Member selection (UIDR-023 movie-first modal) ---
@@ -301,7 +302,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     |> Map.new()
   end
 
-  defp lookup_tracking_status(%{external_ids: external_ids, type: :movie_series})
+  defp lookup_tracking_mode(%{external_ids: external_ids, type: :movie_series})
        when is_list(external_ids) do
     case Enum.find(external_ids, &match?(%{source: "tmdb_collection"}, &1)) do
       %{external_id: tmdb_id_str} ->
@@ -315,5 +316,5 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     end
   end
 
-  defp lookup_tracking_status(_entity), do: nil
+  defp lookup_tracking_mode(_entity), do: nil
 end

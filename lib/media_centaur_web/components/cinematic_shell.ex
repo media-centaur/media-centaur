@@ -93,7 +93,7 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
 
   attr :rest, :global, doc: "forwarded to the modal backdrop (nav wiring: `data-nav-overlay` etc.)."
 
-  slot :hero_actions, doc: "top-right overlay in the hero window (tracking bell, etc.)."
+  slot :hero_actions, doc: "top-right overlay in the hero window."
 
   slot :hero_mast,
     doc: "pinned to the hero window's right edge under the actions — the recommendation pennants."

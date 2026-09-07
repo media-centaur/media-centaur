@@ -24,6 +24,7 @@ export const inputConfig = {
     manage_list: "[data-nav-zone='manage_list'] [data-nav-item]",
     detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
     detail_cast: "[data-nav-zone='detail_cast'] [data-nav-item]",
+    detail_tracking: "[data-nav-zone='detail_tracking'] [data-nav-item]",
     // The plan modal's regions (UIDR-029): head (status, verdict, their
     // controls) over the episode grid over the body (release rows,
     // decisions, footer). Each stage before the board puts everything in
@@ -108,6 +109,9 @@ export const inputConfig = {
     manage_list: Context.TREE,
     detail_list: Context.TREE,
     detail_cast: Context.SHELF,
+    // The tracking block under the detail list (UIDR-035): the mode strip
+    // and the acceptance Reset walk LEFT/RIGHT.
+    detail_tracking: Context.TOOLBAR,
     // The plan modal: two vertical lists around the episode grid. The grid's
     // arrangement carries its meaning (season rows, capsules for packs), so
     // it is a SHELF — geometry answers adjacency across wrapped rows and
@@ -145,7 +149,7 @@ export const inputConfig = {
   // a dead end.
   overlays: {
     detail: {
-      entry: ["detail_actions", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast"],
+      entry: ["detail_actions", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
       layout: {
         // manage_tools is the Manage sub-view's toolbar card — a horizontal
         // strip (Delete all, Rematch, Refresh artwork, ID links) that is its
@@ -160,16 +164,21 @@ export const inputConfig = {
         // (UIDR-023) — a TOOLBAR strip between the action row and the
         // body. Present only for collections; everywhere else the
         // candidate lists fall through past it.
-        detail_actions: { down: ["detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast"] },
+        detail_actions: {
+          down: ["detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
+        },
         detail_rail: {
           up: ["detail_actions"],
-          down: ["manage_tools", "manage_list", "detail_list", "detail_cast"],
+          down: ["manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
           back: ["detail_actions"],
         },
         manage_tools: { up: ["detail_rail", "detail_actions"], down: ["manage_list"], back: ["detail_actions"] },
         manage_list: { up: ["manage_tools"], back: ["detail_actions"] },
-        detail_list: { up: ["detail_rail", "detail_actions"], back: ["detail_actions"] },
+        detail_list: { up: ["detail_rail", "detail_actions"], down: ["detail_tracking"], back: ["detail_actions"] },
         detail_cast: { up: ["detail_rail", "detail_actions"], back: ["detail_actions"] },
+        // The tracking block follows the list (or stands alone in a
+        // collection without extras); UP climbs back through the list.
+        detail_tracking: { up: ["detail_list", "detail_rail", "detail_actions"], back: ["detail_actions"] },
       },
     },
     // The plan modal (UIDR-029). Regions stack vertically; a movie board has

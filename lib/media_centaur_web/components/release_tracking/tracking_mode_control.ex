@@ -12,8 +12,9 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingModeControl do
   to know which title). The host resolves what the click means: on a
   tracked title it moves the mode; on an untracked one it arms
   (`ReleaseTracking.arm/2`), which lists the title as part of the act —
-  a consequence the `:full` variant states in its copy when the title
-  is not yet on the watchlist, never inferred silently.
+  a consequence the copy states while the title is Off and not yet on
+  the watchlist (exactly when the next click would arm), never inferred
+  silently. Moving an armed title between modes lists nothing.
 
   Off is `:none`, the durable disarm: reversible, so it needs no
   two-click confirmation. Nothing here deletes.
@@ -63,7 +64,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingModeControl do
 
   attr :on_watchlist?, :boolean,
     required: true,
-    doc: "false states that choosing a mode adds the title to the watchlist"
+    doc: "false states, while the title is Off, that choosing a mode adds it to the watchlist"
 
   attr :lower_quality_accepted?, :boolean, default: false
 
@@ -95,7 +96,11 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingModeControl do
       <p :if={!@acquisition?} id={"#{@id}-acquisition-note"} class="text-xs text-base-content/55">
         Ask, Grab and Default download nothing until an indexer and a download client are set up under Settings → Acquisition.
       </p>
-      <p :if={!@on_watchlist?} id={"#{@id}-watchlist-note"} class="text-xs text-base-content/55">
+      <p
+        :if={!@on_watchlist? and @mode in [nil, :none]}
+        id={"#{@id}-watchlist-note"}
+        class="text-xs text-base-content/55"
+      >
         Choosing a mode adds this title to your watchlist.
       </p>
       <%!-- The per-title quality acceptance (ADR-063 §2) lives on the

@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     in sync with PubSub events. **The host cannot forget to wire any of
     this — it is structurally impossible to mount the modal without it.**
   - Injects `handle_event/3` clauses for every modal interaction
-    (select / close / play / toggle_* / delete_* / rematch / toggle_tracking).
+    (select / close / play / toggle_* / delete_* / rematch / set_tracking_mode).
   - Imports the `entity_modal/1` function component.
 
   Beyond the `use`, the host must:
@@ -61,7 +61,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   require MediaCentaur.Log, as: Log
   require Phoenix.LiveView
 
-  alias MediaCentaur.{Activities, Discovery, Format, Library, Playback, ReleaseTracking}
+  alias MediaCentaur.{Activities, Capabilities, Discovery, Format, Library, Playback, ReleaseTracking}
+  alias MediaCentaur.Acquisition.AutoGrabSettings
+  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentaur.TMDB.Title
@@ -69,7 +71,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.DetailPanel
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Live.RecommendFlow
+  alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
@@ -208,23 +212,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         {:noreply, put_flash(socket, level, message)}
       end
 
-      # --- Tracking ---
+      # --- Tracking (UIDR-035) ---
 
-      # The bell is a one-bit view of `tracking_mode` and is retired by
-      # UIDR-035; until the library detail mounts the real control
-      # (campaign Phase 3) it moves between the durable disarm and the
-      # app default, which is what its two states have always meant.
-      def handle_event("toggle_tracking", _params, socket) do
-        case {socket.assigns.tracking_status, EntityModal.find_tmdb_id(socket.assigns.selected_entry)} do
-          {mode, {tmdb_id, media_type}} when not is_nil(mode) ->
-            next = EntityModal.toggled_tracking_mode(mode)
-            item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type)
-            if item, do: MediaCentaur.ReleaseTracking.set_tracking_mode(item, next)
-            {:noreply, assign(socket, tracking_status: next)}
+      def handle_event("set_tracking_mode", params, socket) do
+        {:noreply, EntityModal.handle_set_tracking_mode(params, socket)}
+      end
 
-          _ ->
-            {:noreply, socket}
-        end
+      def handle_event("reset_lower_quality", params, socket) do
+        {:noreply, EntityModal.handle_reset_lower_quality(params, socket)}
       end
 
       # --- Watchlist ---
@@ -487,7 +482,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # library-entity-id resolver through the broadcast message.
   def handle_modal_pubsub({:releases_updated, _item_ids}, socket) do
     if release_overlay_selected?(socket) do
-      {:cont, refresh_selected_entry(socket)}
+      {:cont, socket |> refresh_selected_entry() |> reload_tracking()}
     else
       {:cont, socket}
     end
@@ -605,7 +600,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       rematch_confirm: nil,
       delete_confirm: nil,
       deleting: nil,
-      tracking_status: nil,
+      tracking: nil,
       recommendations: [],
       playback: %{}
     )
@@ -691,19 +686,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         true -> socket.assigns.detail_files_status
       end
 
-    tracking_status =
-      cond do
-        selection_changed &&
-            (match?(%SeriesDetail{}, selected_entry) || match?(%CollectionDetail{}, selected_entry)) ->
-          # Composer already resolved tracking_status; trust the struct.
-          selected_entry.tracking_status
-
-        selection_changed && selected_entry ->
-          load_tracking_status(selected_entry)
-
-        true ->
-          socket.assigns.tracking_status
-      end
+    tracking =
+      if selection_changed, do: load_tracking(selected_entry), else: socket.assigns.tracking
 
     socket =
       socket
@@ -716,7 +700,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         detail_files: detail_files,
         detail_files_status: detail_files_status,
         expanded_seasons: expanded_seasons,
-        tracking_status: tracking_status
+        tracking: tracking
       )
       |> Phoenix.Component.assign(per_selection_assigns(socket.assigns, selection_changed))
       |> assign_recommendations()
@@ -918,7 +902,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     doc:
       "in-flight async delete target — see `DetailPanel`'s `:deleting` contract. Required (no default) so a host can't silently drop it and lose the \"Deleting…\" feedback."
 
-  attr :tracking_status, :atom, required: true
+  attr :tracking, :any,
+    required: true,
+    doc:
+      "the open subject's `TrackingDetail` or nil — the release timeline and tracking-mode control under the list (UIDR-035). Required so a host cannot mount the modal without it."
 
   attr :recommendations, :list,
     required: true,
@@ -976,7 +963,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         )
       }
       recommend?={@show_discovery}
-      tracking_status={@tracking_status}
+      tracking={@tracking}
       recommendations={@recommendations}
       available={
         @selected_entry == nil ||
@@ -1457,17 +1444,80 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def find_tmdb_id(_), do: nil
 
   @doc """
-  The mode the library detail's bell moves to. A disarmed title returns to
-  the app default; anything armed disarms.
+  What a click on the library detail's tracking-mode control means for an
+  owned title (ADR-065), given the tracked title's current mode, the
+  subject's type and the chosen mode:
 
-  The bell is a one-bit view of `tracking_mode` and is retired by UIDR-035
-  once the library detail mounts the real control (campaign Phase 3);
-  this keeps its two states meaningful until then.
+    * `:disarm` — Off on an armed title (`ReleaseTracking.disarm/1`).
+    * `:set` — a mode change on an armed title, or any raise on a
+      collection: the library reason already holds, and the watchlist has
+      no collections to list.
+    * `:arm` — a raise from Off on a series: arming is a watchlist act,
+      so it lists the series too (`ReleaseTracking.arm/2`), which the
+      control's copy states beforehand.
+    * `:noop` — Off on an already-Off title.
+
+  The panel only renders the control for a tracked title, so there is
+  no never-tracked case here — the library scan creates the row.
   """
-  @spec toggled_tracking_mode(MediaCentaur.ReleaseTracking.Item.tracking_mode()) ::
-          MediaCentaur.ReleaseTracking.Item.tracking_mode()
-  def toggled_tracking_mode(:none), do: :global
-  def toggled_tracking_mode(_armed), do: :none
+  @spec tracking_mode_action(Item.tracking_mode(), :tv_series | :movie, Item.tracking_mode()) ::
+          :disarm | :set | :arm | :noop
+  def tracking_mode_action(:none, _media_type, :none), do: :noop
+  def tracking_mode_action(_armed, _media_type, :none), do: :disarm
+  def tracking_mode_action(:none, :tv_series, _raised), do: :arm
+  def tracking_mode_action(_current, _media_type, _chosen), do: :set
+
+  @modes ~w(none watch ask grab global)
+
+  @doc false
+  def handle_set_tracking_mode(%{"choice" => choice, "ref" => param}, socket) when choice in @modes do
+    chosen = String.to_existing_atom(choice)
+
+    with {:ok, {tmdb_id, media_type} = ref} <- TitleRef.parse(param),
+         ^ref <- find_tmdb_id(socket.assigns.selected_entry),
+         %Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
+      case tracking_mode_action(item.tracking_mode, media_type, chosen) do
+        :noop ->
+          :ok
+
+        :disarm ->
+          {:ok, _item} = ReleaseTracking.disarm(item)
+
+        :set ->
+          {:ok, _item} = ReleaseTracking.set_tracking_mode(item, chosen)
+
+        :arm ->
+          title =
+            Title.new!(%{
+              tmdb_id: tmdb_id,
+              media_type: media_type,
+              name: socket.assigns.selected_entry.entity.name
+            })
+
+          {:ok, _item} = ReleaseTracking.arm(title, %{tracking_mode: chosen})
+      end
+
+      reload_tracking(socket)
+    else
+      _stale_or_unknown -> socket
+    end
+  end
+
+  def handle_set_tracking_mode(_params, socket), do: socket
+
+  @doc false
+  def handle_reset_lower_quality(%{"ref" => param}, socket) do
+    with {:ok, {tmdb_id, media_type} = ref} <- TitleRef.parse(param),
+         ^ref <- find_tmdb_id(socket.assigns.selected_entry),
+         %Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
+      {:ok, _item} = ReleaseTracking.update_automation(item, %{min_quality: nil})
+      reload_tracking(socket)
+    else
+      _stale_or_unknown -> socket
+    end
+  end
+
+  def handle_reset_lower_quality(_params, socket), do: socket
 
   @doc """
   Maps a `Pipeline.ImageRefresh.enqueue_refresh/2` result to a
@@ -1735,13 +1785,25 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     Map.put(entry, :resume_target, ResumeTarget.compute(entry.entity, entry.progress_records))
   end
 
-  defp load_tracking_status(entry) do
+  # The tracked-title half for the open container (a series or a
+  # collection; a bare movie in the library is complete and never
+  # tracked — see `ReleaseTracking.Reasons`).
+  defp load_tracking(entry) do
     case find_tmdb_id(entry) do
-      {tmdb_id, media_type} ->
-        MediaCentaur.ReleaseTracking.tracking_status({tmdb_id, media_type})
+      {_tmdb_id, _media_type} = ref ->
+        TrackingDetail.load(ref, %{
+          today: Date.utc_today(),
+          acquisition_ready?: Capabilities.acquisition_ready?(),
+          auto_grab_default_mode: AutoGrabSettings.load().default_mode
+        })
 
       nil ->
         nil
     end
   end
+
+  defp reload_tracking(%{assigns: %{selected_entry: nil}} = socket), do: socket
+
+  defp reload_tracking(socket),
+    do: Phoenix.Component.assign(socket, :tracking, load_tracking(socket.assigns.selected_entry))
 end

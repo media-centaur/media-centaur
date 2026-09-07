@@ -171,7 +171,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       assert [%MovieListItem.Upcoming{sub_status: :aired_not_in_library}] = view_model.movies
     end
 
-    test "tracking_status passes through unchanged" do
+    test "tracking_mode passes through unchanged" do
       collection = build_movie_series(%{movies: []})
 
       view_model =
@@ -182,7 +182,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
           nil
         )
 
-      assert view_model.tracking_status == :none
+      assert view_model.tracking_mode == :none
     end
 
     test "no movies and no releases produce an empty item list" do
@@ -226,7 +226,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
                %MovieListItem.Upcoming{title: "Next Part"}
              ] = updated.movies
 
-      assert updated.tracking_status == :global
+      assert updated.tracking_mode == :global
     end
   end
 
@@ -242,7 +242,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       create_present_member(collection, "Member Two", ~D[2012-01-01])
 
       assert {:ok, view_model} = CollectionDetail.compose(collection.id)
-      assert view_model.tracking_status == nil
+      assert view_model.tracking_mode == nil
 
       assert [
                %MovieListItem.Library{movie: %{name: "Member One"}},
@@ -273,7 +273,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       })
 
       assert {:ok, view_model} = CollectionDetail.compose(collection.id)
-      assert view_model.tracking_status == :global
+      assert view_model.tracking_mode == :global
 
       assert [
                %MovieListItem.Library{},

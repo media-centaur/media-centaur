@@ -484,7 +484,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           rematch_confirm={@rematch_confirm}
           delete_confirm={@delete_confirm}
           deleting={@deleting}
-          tracking_status={@tracking_status}
+          tracking={@tracking}
           recommendations={@recommendations}
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}

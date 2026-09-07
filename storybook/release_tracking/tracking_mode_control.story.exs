@@ -47,7 +47,8 @@ defmodule MediaCentaurWeb.Storybook.ReleaseTracking.TrackingModeControl do
         id: :untracked,
         description:
           "A title never tracked and not yet on the watchlist (nil mode reads as Off): " <>
-            "the copy states that choosing a mode adds it to the watchlist.",
+            "the copy states that choosing a mode adds it to the watchlist — shown only " <>
+            "while Off, because only then does the next click arm.",
         attributes: base(%{mode: nil, on_watchlist?: false})
       },
       %Variation{

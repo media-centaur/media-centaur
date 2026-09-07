@@ -2,13 +2,14 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   @moduledoc """
   The tracked-title half of a title's detail: its tracking mode, its
   release timeline, recent per-title activity, the per-title quality
-  acceptance and when tracking began. `nil` for a title that has never
-  been tracked.
+  acceptance and when tracking began — plus the facts the two shared
+  components need to say honestly what each mode does right now (`today`,
+  `acquisition?`, `default_grab_mode`) and the `ref` param every control
+  click carries. `nil` for a title that has never been tracked.
 
   Loaded by `load/2` for any host that mounts the shared tracking
-  components (`ReleaseTimeline`, `TrackingModeControl`) — the title
-  detail modal now, the library detail panel from Phase 3 of the
-  watchlist-and-release-tracking campaign (UIDR-035). The reads are
+  components (`ReleaseTimeline`, `TrackingModeControl`): the title
+  detail modal and the library detail panel (UIDR-035). The reads are
   local and cheap (ADR-051): the item, its releases, its recent events,
   and — only when acquisition is ready — which of those releases are
   under an active pursuit.
@@ -18,12 +19,17 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
+  alias MediaCentaurWeb.TitleRef
 
   defstruct [
     :item_id,
+    :ref,
     :mode,
     :tracking_since,
+    :today,
     lower_quality_accepted?: false,
+    acquisition?: false,
+    default_grab_mode: "off",
     timeline: [],
     activity: []
   ]
@@ -32,9 +38,13 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
 
   @type t :: %__MODULE__{
           item_id: Ecto.UUID.t(),
+          ref: String.t(),
           mode: Item.tracking_mode(),
           tracking_since: DateTime.t() | nil,
+          today: Date.t(),
           lower_quality_accepted?: boolean(),
+          acquisition?: boolean(),
+          default_grab_mode: String.t(),
           timeline: [Event.t()],
           activity: [activity_entry()]
         }
@@ -74,9 +84,13 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
 
     %__MODULE__{
       item_id: item.id,
+      ref: TitleRef.param({item.tmdb_id, item.media_type}),
       mode: item.tracking_mode,
       tracking_since: item.inserted_at,
+      today: context.today,
       lower_quality_accepted?: Item.lower_quality_accepted?(item),
+      acquisition?: context.acquisition_ready?,
+      default_grab_mode: context.auto_grab_default_mode,
       timeline: flatten(feed),
       activity: activity(item.id)
     }
