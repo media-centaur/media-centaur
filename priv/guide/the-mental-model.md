@@ -3,7 +3,7 @@ title: The mental model
 nav_label: Mental model
 part: Operating it
 slug: the-mental-model
-order: 17
+order: 18
 ---
 Everything so far has described what the app does. This chapter is about how it's put
 together — enough of the shape that you can reason about it and predict how it behaves when
