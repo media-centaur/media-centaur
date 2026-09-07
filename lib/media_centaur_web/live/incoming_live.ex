@@ -79,7 +79,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   """
 
   use MediaCentaurWeb, :live_view
-  use MediaCentaurWeb.Live.IncomingBackdropAware
   use MediaCentaurWeb.Live.WatchlistAware
 
   require MediaCentaur.Log, as: Log
@@ -133,7 +132,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
-  alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
   alias MediaCentaur.Storage
 
@@ -221,7 +219,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          forecast_reload_timer: nil,
          storage_drives: [],
          search_health: IndexerHealth.cached(),
-         page_backdrop: page_backdrop(),
          search_session: %SearchSession{},
          active_queue: [],
          queue_connectivity: :initializing,
@@ -316,9 +313,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   # Synchronous first-render load of the four initial reads (search
   # session, download-client capability, active pursuit rows, history
   # rows). All local; running them inline keeps the first paint correct.
-  # Ambient page backdrop — same ETS-backed hero-candidate pool the
-  # home/library pages draw from, in the downloads page's own slot so
-  # no backdrop repeats across pages when the pool allows.
   # The activity card's "Open SABnzbd/qBittorrent" link on error states
   # — resolved here rather than in the pure status VM because it reads
   # live client config.
@@ -326,13 +320,6 @@ defmodule MediaCentaurWeb.IncomingLive do
        when protocol in [:torrent, :usenet], do: MediaCentaur.Downloads.client_web_url(protocol)
 
   defp pursuit_client_url(_detail), do: nil
-
-  defp page_backdrop do
-    case HomeLogic.select_page_hero(MediaCentaur.Library.Views.hero_candidates(), 2) do
-      %{backdrop_url: url} when is_binary(url) -> url
-      _ -> nil
-    end
-  end
 
   # Storage headroom loads off the mount path (measure_all shells out to
   # `df`, which can stall on sleeping media dirs) via owned async (ADR-049,
@@ -930,32 +917,10 @@ defmodule MediaCentaurWeb.IncomingLive do
         data-nav-default-zone="incoming"
         data-nav-transient-params="selected,title,plan,prowlarr_search"
       >
-        <%!-- Ambient movie image behind the page, same hero-candidate pool
-              as home/library. Off when the user disables the Incoming
-              backdrop preference. --%>
-        <div
-          :if={@page_backdrop && @incoming_backdrop}
-          class="page-atmosphere page-atmosphere-deep"
-          aria-hidden="true"
-        >
-          <MediaCentaurWeb.Components.HeroBackdrop.hero_backdrop backdrop_url={@page_backdrop} />
-        </div>
-        <%!-- The scrim is unconditional; its ramp follows the image. With the
-              backdrop showing, the high variant starts the dim at the very
-              top so the search area sits on settled dark. Without it, the
-              calm ramp gives the bare page the same quiet depth as
-              Settings/Status. --%>
-        <div
-          class={[
-            "page-side-dim",
-            if(@page_backdrop && @incoming_backdrop,
-              do: "page-side-dim-high",
-              else: "page-side-dim-calm"
-            )
-          ]}
-          aria-hidden="true"
-        >
-        </div>
+        <%!-- The calm ramp gives this search-first page the same quiet depth
+              as Settings/Status: it opens on a bare input with no dense block
+              to cover the standard ramp's harder edge. --%>
+        <div class="page-side-dim page-side-dim-calm" aria-hidden="true"></div>
 
         <%!-- No page header: the search input IS the page's headline (its
               placeholder carries the prompt), so a title above it read as

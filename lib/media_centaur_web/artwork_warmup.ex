@@ -16,11 +16,10 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
       mismatch is a cache miss and the hint is dead weight. This is
       structural, not a promise: posters go through
       `LiveHelpers.poster_src/1` — the same function every 2:3 poster
-      surface renders — and backdrops through `Logic.select_page_hero/3`,
-      the same pick the
-      pages make, through `LiveHelpers.hero_backdrop_src/1` — the cache
-      key the `HeroBackdrop` hook paints from. **Never re-derive a URL
-      here.** A new warmed surface exposes the function it renders with
+      surface renders — and the hero backdrop through
+      `Logic.select_hero/2`, the same pick Home makes, through
+      `LiveHelpers.hero_backdrop_src/1` — the cache key the
+      `HeroBackdrop` hook paints from. **Never re-derive a URL here.** A new warmed surface exposes the function it renders with
       and this module calls it.
     * **Reads are projection-only** (`Library.Views` ETS) — the root
       layout renders on the initial HTTP request, and this must add
@@ -48,11 +47,11 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
 
   @doc """
   Deduplicated first-screen artwork URLs: `poster_urls/0` plus
-  `hero_backdrop_urls/0`.
+  `hero_backdrop_url/0`.
   """
   @spec urls() :: [String.t()]
   def urls do
-    (poster_urls() ++ hero_backdrop_urls())
+    (poster_urls() ++ [hero_backdrop_url()])
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
   end
@@ -71,27 +70,22 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
   end
 
   @doc """
-  The hero backdrop each backdrop-bearing page is showing right now, through
+  The backdrop Home's hero is showing right now, through
   `LiveHelpers.hero_backdrop_src/1` — the cache key `Components.HeroBackdrop`
-  hands its hook. The root layout marks these hints with `data-hero-backdrop`
-  and `app.js` pre-decodes them at idle, so a byte of difference here means
+  hands its hook. The root layout marks the hint with `data-hero-backdrop`
+  and `app.js` pre-decodes it at idle, so a byte of difference here means
   the hero decodes on its first visit after all.
 
-  Only the current picks: the rotation means the eligible pool is far larger
-  than what any page will request before the next block, so warming the whole
-  pool would prefetch and decode dozens of images nobody looks at.
+  Only the current pick: the rotation means the eligible pool is far larger
+  than what Home will request before the next block, so warming the whole
+  pool would prefetch and decode dozens of images nobody looks at. Home is
+  the only surface that renders a backdrop.
   """
-  @spec hero_backdrop_urls() :: [String.t()]
-  def hero_backdrop_urls do
-    case Library.Views.hero_candidates() do
-      [] ->
-        []
-
-      candidates ->
-        0..(Logic.hero_pages() - 1)
-        |> Enum.map(&LiveHelpers.hero_backdrop_src(Logic.select_page_hero(candidates, &1).backdrop_url))
-        |> Enum.reject(&is_nil/1)
-        |> Enum.uniq()
+  @spec hero_backdrop_url() :: String.t() | nil
+  def hero_backdrop_url do
+    case Logic.select_hero(Library.Views.hero_candidates()) do
+      %{backdrop_url: url} -> LiveHelpers.hero_backdrop_src(url)
+      _ -> nil
     end
   end
 end

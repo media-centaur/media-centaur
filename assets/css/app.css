@@ -1813,50 +1813,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   overflow: hidden;
 }
 
-/* ── Library page atmosphere ──
-   A short, heavily-faded backdrop band behind the library header. Escapes
-   the page's 1.5rem padding (like `.page-backdrop`) so it bleeds to the
-   content edges, but is bounded in height and dimmed — the browse page
-   gets a sense of place without a full hero competing with the home page.
-
-   The fades are masks (band → transparent), not painted gradients toward
-   base-100: the body behind the band is a two-tone radial gradient, so
-   painting base-100 over a 0.7-opacity band leaves a visible step at the
-   band's bottom edge wherever content doesn't cover it. */
-.page-atmosphere {
-  position: absolute;
-  top: -1.5rem;
-  left: -1.5rem;
-  right: -1.5rem;
-  height: 22rem;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-  opacity: 0.7;
-  mask-image:
-    linear-gradient(to right, transparent 0%, oklch(0% 0 0 / 1) 55%),
-    linear-gradient(to bottom, oklch(0% 0 0 / 0.65) 0%, transparent 92%);
-  mask-composite: intersect;
-}
-
-/* Incoming variant — the search-first page has no header block holding the
-   band down, so the artwork reaches deeper before its fade-out and the
-   vertical dim starts higher, keeping the tab row and first list rows
-   readable over the image. */
-.page-atmosphere-deep {
-  height: 36rem;
-}
-
-.page-atmosphere img,
-.page-atmosphere canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 25%;
-}
-
 .page-backdrop img,
 .page-backdrop canvas {
   position: absolute;
@@ -1911,11 +1867,11 @@ body:has(.modal-backdrop[data-state="open"]) {
     );
 }
 
-/* Settings-only variant: the page is mostly bare below the section card,
-   so the base ramp (35% → 70%, 0.55) shows as a harsh band with nothing
-   covering it. Lower peak, longer slope — depth without a visible edge.
-   Must stay AFTER .page-side-dim — same specificity, source order
-   decides. */
+/* Sparse-page variant (Settings, Status, Incoming): those pages are
+   mostly bare below their first block, so the base ramp (35% → 70%,
+   0.55) shows as a harsh band with nothing covering it. Lower peak,
+   longer slope — depth without a visible edge. Must stay AFTER
+   .page-side-dim — same specificity, source order decides. */
 .page-side-dim-calm {
   background:
     linear-gradient(
@@ -1930,26 +1886,6 @@ body:has(.modal-backdrop[data-state="open"]) {
       transparent 20%,
       oklch(0% 0 0 / 0.35) 90%,
       oklch(0% 0 0 / 0.35) 100%
-    );
-}
-
-/* Incoming-only variant (paired with .page-side-dim on that page's
-   scrim): the vertical dim starts at the very top instead of waiting
-   until 35%, so the search area already sits on settled dark. Must stay
-   AFTER .page-side-dim — same specificity, source order decides. */
-.page-side-dim-high {
-  background:
-    linear-gradient(
-      to right,
-      oklch(0% 0 0 / 0.50) 0%,
-      transparent 35%,
-      transparent 100%
-    ),
-    linear-gradient(
-      to bottom,
-      transparent 0%,
-      oklch(0% 0 0 / 0.55) 30%,
-      oklch(0% 0 0 / 0.55) 100%
     );
 }
 
@@ -2172,9 +2108,8 @@ body:has(.modal-backdrop[data-state="open"]) {
 /* Edge fade — where a row still has content beyond the scrollport, the
    boundary card is sliced by the clip edge. A short fade at that edge turns
    the slice from "rendering fault" into "more this way". It is a mask, not a
-   painted gradient, for the same reason as `.page-atmosphere`: the body
-   behind is a two-tone radial gradient, so there is no single color to paint
-   toward without a visible step.
+   painted gradient: the body behind is a two-tone radial gradient, so there
+   is no single color to paint toward without a visible step.
 
    The fade must exist only where there IS more content: a faded last card at
    max scroll — or on a row too short to scroll at all — advertises content

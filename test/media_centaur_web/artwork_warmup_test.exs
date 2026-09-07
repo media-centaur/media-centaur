@@ -63,51 +63,33 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
     end
 
     # `urls/0` runs in the root layout on every page render, so it must warm
-    # only what is about to be drawn. Three pages show an ambient backdrop
-    # (home, library, incoming) and each picks one candidate on a rotation —
-    # warming the whole eligible pool would prefetch dozens of images no page
-    # will request before the rotation moves on.
-    test "warms only the backdrops the hero pages are currently showing" do
+    # only what is about to be drawn. Home's hero is the app's one backdrop
+    # surface and it picks one candidate on a rotation — warming the whole
+    # eligible pool would prefetch dozens of images nothing will request
+    # before the rotation moves on.
+    test "warms only the backdrop Home's hero is currently showing" do
       for index <- 1..10, do: seed_hero_candidate("Warmup Backdrop #{index}")
 
       backdrop_urls =
         Enum.filter(ArtworkWarmup.urls(), &String.contains?(&1, "/backdrop.jpg"))
 
-      assert length(backdrop_urls) == HomeLogic.hero_pages()
-    end
-
-    test "the warmed backdrops are exactly the current picks for each hero page" do
-      for index <- 1..10, do: seed_hero_candidate("Warmup Pick #{index}")
-
-      candidates = MediaCentaur.Library.Views.hero_candidates()
-
-      expected =
-        0..(HomeLogic.hero_pages() - 1)
-        |> Enum.map(&HomeLogic.select_page_hero(candidates, &1).backdrop_url)
-        |> Enum.uniq()
-
-      urls = ArtworkWarmup.urls()
-
-      for url <- expected, do: assert(url in urls)
+      assert length(backdrop_urls) == 1
     end
 
     # The HeroBackdrop hook keys its decoded-bitmap cache by URL, and app.js
-    # pre-decodes the hero list at idle. Both sides must go through
+    # pre-decodes the hint at idle. Both sides must go through
     # `hero_backdrop_src/1` — a hint that differs by a byte warms nothing.
-    test "hero_backdrop_urls/0 is exactly what each hero page's canvas asks the hook for" do
+    test "hero_backdrop_url/0 is exactly what Home's canvas asks the hook for" do
       for index <- 1..10, do: seed_hero_candidate("Warmup Canvas #{index}")
 
-      candidates = MediaCentaur.Library.Views.hero_candidates()
-
       expected =
-        0..(HomeLogic.hero_pages() - 1)
-        |> Enum.map(
-          &LiveHelpers.hero_backdrop_src(HomeLogic.select_page_hero(candidates, &1).backdrop_url)
-        )
-        |> Enum.uniq()
+        MediaCentaur.Library.Views.hero_candidates()
+        |> HomeLogic.select_hero()
+        |> Map.fetch!(:backdrop_url)
+        |> LiveHelpers.hero_backdrop_src()
 
-      assert ArtworkWarmup.hero_backdrop_urls() == expected
-      for url <- expected, do: assert(url in ArtworkWarmup.urls())
+      assert ArtworkWarmup.hero_backdrop_url() == expected
+      assert expected in ArtworkWarmup.urls()
     end
 
     test "does not fail when no candidate qualifies" do
@@ -141,7 +123,7 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
         |> LazyHTML.query(~s|link[rel="prefetch"][data-hero-backdrop]|)
         |> LazyHTML.attribute("href")
 
-      assert marked == ArtworkWarmup.hero_backdrop_urls()
+      assert marked == [ArtworkWarmup.hero_backdrop_url()]
       assert marked != []
     end
   end

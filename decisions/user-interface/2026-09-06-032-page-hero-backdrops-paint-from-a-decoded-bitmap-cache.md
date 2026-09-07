@@ -5,8 +5,10 @@ date: 2026-09-06
 # Page hero backdrops paint from a decoded-bitmap cache
 
 Amends [UIDR-012](2026-05-20-012-desktop-app-rendering-defaults.md) for one
-surface class: the full-viewport hero backdrops on Home, Library, and
-Incoming.
+surface class: the full-viewport hero backdrops, at the time on Home, Library
+and Incoming. [UIDR-033](2026-09-07-033-home-is-the-only-page-with-artwork.md)
+later removed the Library and Incoming bands, leaving Home's hero as the sole
+tenant; the mechanism below is unchanged.
 
 ## Context and Problem Statement
 
@@ -35,16 +37,17 @@ does not, so the decode can be paid once per hero rather than once per visit,
 at full master resolution.
 
 * `assets/js/hooks/hero_backdrop.js` owns an LRU of `ImageBitmap`s keyed by
-  URL, capacity three (one per backdrop-bearing page; ~33 MB each at 4K).
+  URL (~33 MB each at 4K). Capacity was three, one per backdrop-bearing page;
+  under UIDR-033 it is one.
 * `Components.HeroBackdrop.hero_backdrop/1` renders a `<canvas>` with the
   `HeroBackdrop` hook; on `mounted` a cache hit is drawn in the same task as
   the DOM patch, so it lands in the mount frame. A miss decodes off the main
   thread and draws when ready — the previous behaviour, without blocking.
 * `data-src` is `LiveHelpers.hero_backdrop_src/1` of the backdrop URL. The
-  root layout marks the same URLs on its prefetch hints
-  (`ArtworkWarmup.hero_backdrop_urls/0`, `data-hero-backdrop`) and `app.js`
-  pre-decodes them at idle, so the first visit is warm too. Byte-identical
-  keys on both sides are asserted in `artwork_warmup_test.exs`.
+  root layout marks the same URL on its prefetch hint
+  (`ArtworkWarmup.hero_backdrop_url/0`, `data-hero-backdrop`) and `app.js`
+  pre-decodes it at idle, so the first visit is warm too. Byte-identical keys
+  on both sides are asserted in `artwork_warmup_test.exs`.
 * Canvas is a replaced element like `<img>`; the page CSS (`object-fit`,
   `object-position`) applies unchanged. The `?v=` availability bump changes
   the URL, so invalidation is the key.

@@ -68,15 +68,9 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
-  describe "page atmosphere" do
-    test "backdrop preference on with artwork: the band is the HeroBackdrop hook's canvas",
+  describe "page artwork" do
+    test "the browse page carries the scrim only — no backdrop, even with candidates",
          %{conn: conn} do
-      {:ok, _} =
-        MediaCentaur.Settings.find_or_create_entry(%{
-          key: "library_backdrop",
-          value: %{"enabled" => true}
-        })
-
       movie = create_standalone_movie(%{name: "Sample Movie", description: "A synopsis"})
       create_linked_file(%{movie_id: movie.id})
 
@@ -88,7 +82,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       })
 
       # hero_candidates reads a global ETS projection; refresh it from this
-      # test's sandboxed rows and drop it afterwards so nothing leaks.
+      # test's sandboxed rows and drop it afterwards so nothing leaks. With
+      # the projection populated, a backdrop would render if one were wired.
       MediaCentaur.Library.Views.HeroCandidates.refresh_cache()
 
       on_exit(fn ->
@@ -100,12 +95,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/library")
 
-      assert has_element?(
-               view,
-               ~s|.page-atmosphere canvas[phx-hook="HeroBackdrop"][data-src="/media-images/#{movie.id}/backdrop.jpg"]|
-             )
-
-      refute has_element?(view, ".page-atmosphere img")
+      assert has_element?(view, ".page-side-dim")
+      refute has_element?(view, ~s|canvas[phx-hook="HeroBackdrop"]|)
     end
   end
 

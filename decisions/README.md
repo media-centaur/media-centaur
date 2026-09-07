@@ -107,3 +107,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 030 | 2026-09-05 | [Follow-up pill and condition dot — the sidebar's two badge idioms](user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md) | accepted |
 | 031 | 2026-09-06 | [Friends carry the shelves; the feed is recommendations](user-interface/2026-09-06-031-friends-carry-shelves-feed-is-recommendations.md) | accepted |
 | 032 | 2026-09-06 | [Page hero backdrops paint from a decoded-bitmap cache](user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md) | accepted |
+| 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted |

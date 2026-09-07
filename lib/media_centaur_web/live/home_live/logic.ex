@@ -46,51 +46,6 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     Enum.at(candidates, rem(blocks, length(candidates)))
   end
 
-  @doc """
-  Picks a *second* candidate, distinct from `select_hero/2`, so a page
-  showing both (the library backdrop alongside the home hero) reads as
-  two different images. Same #{@rotation_hours}-hour rotation, offset by
-  half the pool — for any pool of 2+ this always lands on a different
-  candidate than the primary pick, and still rotates over time.
-
-  When only one candidate is eligible the two unavoidably coincide;
-  returns that sole candidate. Returns `nil` for an empty list.
-  """
-  @spec select_alt_hero([map()], DateTime.t()) :: map() | nil
-  def select_alt_hero(candidates, now \\ DateTime.utc_now()) do
-    select_page_hero(candidates, 1, now)
-  end
-
-  # Pages that render an ambient backdrop, in slot order: 0 = home hero,
-  # 1 = library, 2 = downloads. Used to space the picks across the pool.
-  @hero_pages 3
-
-  @doc """
-  How many pages render an ambient backdrop. Slot indices for
-  `select_page_hero/3` run `0..hero_pages() - 1`.
-  """
-  @spec hero_pages() :: pos_integer()
-  def hero_pages, do: @hero_pages
-
-  @doc """
-  Page-keyed hero pick: every backdrop-bearing page gets its own slot so
-  no two pages show the same artwork whenever the pool allows
-  (`count >= #{@hero_pages}`). Slots are spaced evenly across the pool
-  and ride the same #{@rotation_hours}-hour rotation. Small pools
-  degrade gracefully: two candidates alternate, one is shared.
-  """
-  @spec select_page_hero([map()], non_neg_integer(), DateTime.t()) :: map() | nil
-  def select_page_hero(candidates, page_index, now \\ DateTime.utc_now())
-  def select_page_hero([], _page_index, _now), do: nil
-  def select_page_hero([single], _page_index, _now), do: single
-
-  def select_page_hero(candidates, page_index, %DateTime{} = now) do
-    blocks = div(DateTime.to_unix(now), @rotation_hours * 3600)
-    count = length(candidates)
-    spacing = max(div(count, @hero_pages), 1)
-    Enum.at(candidates, rem(blocks + page_index * spacing, count))
-  end
-
   @doc "Shape Library progress rows into ContinueWatchingRow items."
   @spec continue_watching_items([map()]) :: [ContinueWatchingRow.Item.t()]
   def continue_watching_items(progress_rows), do: shape_continue_watching(progress_rows, 0)

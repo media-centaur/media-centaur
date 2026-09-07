@@ -31,7 +31,9 @@ Enforced by `MediaCentaur.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading=
 <img src={@hero.backdrop_url} loading="eager" decoding="sync" fetchpriority="high" />
 ```
 
-**Exception — page hero backdrops** (Home backdrop, Library and Incoming atmosphere bands): render `<HeroBackdrop.hero_backdrop backdrop_url={...} />`, a canvas painted by the `HeroBackdrop` hook from a decoded-bitmap cache that survives live navigation ([UIDR-032]). A 4K `<img>` here re-decoded on every return and Chromium painted the page without it first.
+**Exception — the Home hero backdrop**, the app's one page-artwork surface ([UIDR-033]): render `<HeroBackdrop.hero_backdrop backdrop_url={...} />`, a canvas painted by the `HeroBackdrop` hook from a decoded-bitmap cache that survives live navigation ([UIDR-032]). A 4K `<img>` here re-decoded on every return and Chromium painted the page without it first.
+
+**Every other page carries the scrim only** — `.page-side-dim`, or `.page-side-dim-calm` on pages sparse enough that the standard ramp reads as a band (Settings, Status, Incoming). A page shows artwork when the artwork *is* the page's subject; decorative bands of an unrelated title are removed and don't come back ([UIDR-033]).
 
 **Stable iterator ids.** Every `:for`'d root element gets `id={"<component>-#{item.entity_id}"}` so morphdom preserves it across renders. Without ids, items are torn down and rebuilt on every patch, replaying the decode/paint cycle.
 
@@ -358,6 +360,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 030 | Follow-up pill and condition dot — the sidebar's two badge idioms |
 | 031 | Friends carry the shelves; the feed is recommendations |
 | 032 | Page hero backdrops paint from a decoded-bitmap cache (canvas + `HeroBackdrop` hook; amends 012) |
+| 033 | Home is the only page that carries artwork; every other page gets the scrim alone |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 

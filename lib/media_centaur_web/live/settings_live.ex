@@ -11,8 +11,6 @@ defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LibraryCardInfoAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
-  use MediaCentaurWeb.Live.LibraryBackdropAware
-  use MediaCentaurWeb.Live.IncomingBackdropAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
 
   # Settings is the only host for this flag (the consumer is the Playback
@@ -736,18 +734,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.spoiler_free
     MediaCentaur.Settings.Preferences.SpoilerFree.set(enabled)
     {:noreply, assign(socket, spoiler_free: enabled)}
-  end
-
-  def handle_event("toggle_library_backdrop", _params, socket) do
-    enabled = !socket.assigns.library_backdrop
-    MediaCentaur.Settings.Preferences.LibraryBackdrop.set(enabled)
-    {:noreply, assign(socket, library_backdrop: enabled)}
-  end
-
-  def handle_event("toggle_incoming_backdrop", _params, socket) do
-    enabled = !socket.assigns.incoming_backdrop
-    MediaCentaur.Settings.Preferences.IncomingBackdrop.set(enabled)
-    {:noreply, assign(socket, incoming_backdrop: enabled)}
   end
 
   def handle_event("set_ui_scale", %{"choice" => scale}, socket) do
@@ -1745,11 +1731,9 @@ defmodule MediaCentaurWeb.SettingsLive do
             scopes the ambient scrim, matching the library/downloads/upcoming
             page shell so the heading sits at the same height across pages. --%>
       <div class="relative" data-page-behavior="settings" data-nav-default-zone="settings">
-        <%!-- Scrim only — no `.page-atmosphere` image. Settings has no content
-              entity to source a hero from, so it gets the dimmed sense-of-place
-              of the other pages without a random backdrop competing with a
-              utility surface. The calm variant: the page is mostly bare, so
-              the standard ramp reads as a harsh band here. Fixed + behind
+        <%!-- The scrim gives the page the same dimmed sense of place every
+              other page has. The calm variant: Settings is mostly bare, so the
+              standard ramp reads as a harsh band here. Fixed + behind
               content (z-0). --%>
         <div class="page-side-dim page-side-dim-calm" aria-hidden="true"></div>
 
@@ -1823,8 +1807,6 @@ defmodule MediaCentaurWeb.SettingsLive do
                 letterboxd_links={@letterboxd_links}
                 show_discovery={@show_discovery}
                 show_apps={@show_apps}
-                library_backdrop={@library_backdrop}
-                incoming_backdrop={@incoming_backdrop}
                 tmdb_test={@tmdb_test}
                 tmdb_testing={@tmdb_testing}
                 prowlarr_test={@prowlarr_test}
@@ -1939,8 +1921,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     <Preferences.render
       spoiler_free={@spoiler_free}
       ui_scale={@ui_scale}
-      library_backdrop={@library_backdrop}
-      incoming_backdrop={@incoming_backdrop}
       show_card_info={@show_card_info}
       show_play_button={@show_play_button}
       auto_play_next_episode={@auto_play_next_episode}

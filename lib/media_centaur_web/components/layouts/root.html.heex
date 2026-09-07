@@ -29,11 +29,11 @@
       as="image"
       href={url}
     />
-    <%!-- The page heroes, marked so app.js pre-decodes them into the
+    <%!-- Home's hero backdrop, marked so app.js pre-decodes it into the
           HeroBackdrop bitmap cache at idle (assets/js/hooks/hero_backdrop.js):
           bytes in the HTTP cache still cost a 4K decode on every visit. --%>
     <link
-      :for={url <- MediaCentaurWeb.ArtworkWarmup.hero_backdrop_urls()}
+      :for={url <- List.wrap(MediaCentaurWeb.ArtworkWarmup.hero_backdrop_url())}
       rel="prefetch"
       as="image"
       href={url}

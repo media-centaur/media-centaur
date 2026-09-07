@@ -3,11 +3,12 @@ defmodule MediaCentaurWeb.Components.HeroBackdrop do
   The page hero backdrop: a `<canvas>` the `HeroBackdrop` hook paints from
   the decoded-bitmap cache in `app.js` (`assets/js/hooks/hero_backdrop.js`).
 
-  Home's backdrop and the Library and Incoming atmosphere bands all render
-  through this. The cache lives in JavaScript and survives live navigation,
-  so a return to a page draws the 4K master in the mount frame instead of
-  re-decoding it — the `<img>` it replaces was decoded again on every
-  visit, and Chromium painted the page without it in the meantime.
+  Home's hero backdrop renders through this — the one surface in the app
+  that carries page artwork. The cache lives in JavaScript and survives
+  live navigation, so a return to Home draws the 4K master in the mount
+  frame instead of re-decoding it — the `<img>` it replaces was decoded
+  again on every visit, and Chromium painted the page without it in the
+  meantime.
 
   `data-src` is the cache key. It is `LiveHelpers.hero_backdrop_src/1` of
   the backdrop URL — the same function `ArtworkWarmup` uses for the root
@@ -15,9 +16,9 @@ defmodule MediaCentaurWeb.Components.HeroBackdrop do
   difference between the two is a cache miss, so neither side may derive
   the URL on its own.
 
-  The host wraps this in its own positioned container (`.page-backdrop`,
-  `.page-atmosphere`); the page CSS sizes the canvas exactly as it sized
-  the image, since both are replaced elements.
+  The host wraps this in its own positioned container (`.page-backdrop`);
+  the page CSS sizes the canvas exactly as it sized the image, since both
+  are replaced elements.
   """
 
   Module.register_attribute(__MODULE__, :storybook_status, persist: true)
