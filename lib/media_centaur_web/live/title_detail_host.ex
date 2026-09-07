@@ -272,20 +272,24 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         params,
         %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
       ) do
+    # A closed set, mapped explicitly: `String.to_existing_atom/1` would
+    # depend on whether `DownloadScope` happens to be loaded yet.
     scope =
       case params do
-        %{"scope" => scope} when scope in ~w(first_season everything) ->
-          [scope: String.to_existing_atom(scope)]
-
-        _movie ->
-          []
+        %{"scope" => "first_season"} -> [scope: :first_season]
+        %{"scope" => "everything"} -> [scope: :everything]
+        _movie_or_unknown -> []
       end
 
-    :ok = Plans.plan_title(detail.title, [approval_policy: "automatic"] ++ scope)
+    # "Download all and track" is the one entry that also follows the
+    # series; the other two download and say nothing about the future.
+    track = if params["track"] == "true", do: [track: true], else: []
+
+    :ok = Plans.plan_title(detail.title, [approval_policy: "automatic"] ++ scope ++ track)
 
     {:halt,
      socket
-     |> put_flash(:info, "Finding a release for #{detail.title.name}")
+     |> put_flash(:info, download_flash(detail.title.name, track != []))
      |> push_close()}
   end
 
@@ -361,6 +365,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def handle_title_event(event, _params, socket) when event in @modal_events, do: {:halt, socket}
 
   def handle_title_event(_event, _params, socket), do: {:cont, socket}
+
+  defp download_flash(name, false), do: "Finding a release for #{name}"
+
+  defp download_flash(name, true), do: "Finding a release for #{name} — and tracking it for new episodes"
 
   defp push_close(socket), do: push_patch(socket, to: socket.view.title_detail_path(socket, []))
 

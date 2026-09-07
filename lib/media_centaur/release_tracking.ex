@@ -44,7 +44,7 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library.ExternalIds
 
-  alias MediaCentaur.ReleaseTracking.{AutoTrackJob, LibraryLinks}
+  alias MediaCentaur.ReleaseTracking.LibraryLinks
 
   alias MediaCentaur.ReleaseTracking.{
     Acquisition,
@@ -229,11 +229,16 @@ defmodule MediaCentaur.ReleaseTracking do
 
   @doc """
   Everything release tracking does when library entities change
-  (`LibraryListener` calls this for every `entities_changed`): the
-  database-side reconciliation runs inline — `LibraryLinks.refresh_for/1`
-  and `complete_movie_tracking_for/1` — and the TMDB-side auto-tracking
-  is enqueued as an `AutoTrackJob`, so an import never waits on the
-  network.
+  (`LibraryListener` calls this for every `entities_changed`): it
+  reconciles what a person already asked for against what the library now
+  holds — `LibraryLinks.refresh_for/1` links a followed title to the
+  container that arrived, and `complete_movie_tracking_for/1` closes out
+  a film that has nothing left to release.
+
+  It never starts following anything. A series appearing in the library
+  is a fact about the library, not a request; only a person puts a title
+  on the ladder (campaign `tracking-is-a-persons-act`). Both passes are
+  database-only, so an import never waits on the network.
   """
   @spec library_entities_changed([Ecto.UUID.t()]) :: :ok
   def library_entities_changed([]), do: :ok
@@ -241,7 +246,6 @@ defmodule MediaCentaur.ReleaseTracking do
   def library_entities_changed(entity_ids) when is_list(entity_ids) do
     LibraryLinks.refresh_for(entity_ids)
     complete_movie_tracking_for(entity_ids)
-    {:ok, _job} = AutoTrackJob.enqueue(entity_ids)
     :ok
   end
 
