@@ -285,10 +285,10 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
             detail(show(), %{
               primary: nil,
               on_watchlist?: true,
+              lower_quality_accepted?: true,
               tracking:
                 tracking(%{
                   mode: :grab,
-                  lower_quality_accepted?: true,
                   timeline: [
                     episode("s02e05", 2, 5, @today, :armed),
                     episode("s02e06", 2, 6, ~D[2026-08-11], :armed)

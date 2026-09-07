@@ -74,22 +74,11 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :last_library_episode, :integer, default: 0
     field :dismiss_released_before, :date
 
-    # Per-item quality preferences. Nullable fields inherit the global
-    # default when nil; the mode itself is `tracking_mode` above.
-    field :min_quality, :string
-    field :max_quality, :string
-    field :quality_4k_patience_hours, :integer
-    field :prefer_season_packs, :boolean, default: false
-
     has_many :releases, MediaCentaur.ReleaseTracking.Release
     has_many :events, MediaCentaur.ReleaseTracking.Event
 
     timestamps()
   end
-
-  # `min_quality` additionally admits "any" — the per-title "best
-  # available" acceptance (ADR-063 §2); it is not a ceiling value.
-  @quality_values ~w(hd_1080p uhd_4k)
 
   @doc """
   Resolves a `tracking_mode` into the grab decision the acquisition side
@@ -107,15 +96,6 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   def grab_mode(:grab, _default), do: "all_releases"
   def grab_mode(:ask, _default), do: "ask"
   def grab_mode(mode, _default) when mode in [:none, :watch], do: "off"
-
-  @doc """
-  Whether the title carries the per-title acceptance (ADR-063 §2): its
-  searches take the best release that exists instead of holding to the
-  quality preference. Set by "Take lower quality" on a plan board, reset
-  from the title's automation settings.
-  """
-  @spec lower_quality_accepted?(%__MODULE__{}) :: boolean()
-  def lower_quality_accepted?(%__MODULE__{min_quality: min_quality}), do: min_quality == "any"
 
   def create_changeset(attrs) do
     %__MODULE__{}
@@ -189,28 +169,5 @@ defmodule MediaCentaur.ReleaseTracking.Item do
           "must be set when library_container_type is set"
         )
     end
-  end
-
-  @doc """
-  Changeset for the per-item automation preferences: the tracking mode
-  and the quality bounds. Rejects unknown modes/qualities at the boundary
-  so the policy never has to handle malformed input.
-  """
-  def automation_changeset(item, attrs) do
-    item
-    |> cast(attrs, [
-      :tracking_mode,
-      :min_quality,
-      :max_quality,
-      :quality_4k_patience_hours,
-      :prefer_season_packs
-    ])
-    |> validate_required([:tracking_mode])
-    |> validate_inclusion(:min_quality, ["any" | @quality_values])
-    |> validate_inclusion(:max_quality, @quality_values)
-    |> validate_number(:quality_4k_patience_hours,
-      greater_than_or_equal_to: 0,
-      less_than_or_equal_to: 24 * 30
-    )
   end
 end

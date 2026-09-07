@@ -28,7 +28,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, Plans, WantSchedule}
+  alias MediaCentaur.Acquisition.{AutoGrabSettings, Plans, TitleDownloadParams, WantSchedule}
   alias MediaCentaur.Acquisition.Plans.Claims
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Format
@@ -198,7 +198,12 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
          mode when mode != "off" <- AutoGrabSettings.effective_mode(item.tracking_mode, settings) do
-      patience = AutoGrabSettings.effective_patience_hours(item.quality_4k_patience_hours, settings)
+      patience =
+        AutoGrabSettings.effective_patience_hours(
+          download_params(item).quality_4k_patience_hours,
+          settings
+        )
+
       due = Enum.filter(wants, &WantSchedule.due?(&1, patience, now))
 
       case item.media_type do
@@ -357,10 +362,19 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   end
 
   defp bounds(item, settings) do
+    params = download_params(item)
+
     {
-      AutoGrabSettings.effective_min_quality(item.min_quality, settings),
-      AutoGrabSettings.effective_max_quality(item.max_quality, settings)
+      AutoGrabSettings.effective_min_quality(params.min_quality, settings),
+      AutoGrabSettings.effective_max_quality(params.max_quality, settings)
     }
+  end
+
+  # The per-title download params are Acquisition's, keyed by TMDB
+  # identity — a tracked title is where they are *used*, never where they
+  # are kept.
+  defp download_params(%Item{tmdb_id: tmdb_id, media_type: media_type}) do
+    TitleDownloadParams.get(tmdb_id, media_type)
   end
 
   # The Q4 patience elevation: inside the window the unit demands the

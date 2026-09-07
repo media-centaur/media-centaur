@@ -1,6 +1,8 @@
 defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Acquisition.TitleDownloadParams
+  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Targeting
@@ -900,14 +902,17 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   describe "per-title quality bounds (ADR-063)" do
     test "a manual plan resolves a tracked title's any-minimum and assigns the lower-quality release" do
       {:ok, item} =
-        MediaCentaur.ReleaseTracking.track_item(%{
+        ReleaseTracking.track_item(%{
           tmdb_id: 246_810,
           media_type: :tv_series,
           name: "Sample Show",
           tracking_mode: :watch
         })
 
-      {:ok, _item} = MediaCentaur.ReleaseTracking.update_automation(item, %{min_quality: "any"})
+      {:ok, _params} =
+        TitleDownloadParams.put(item.tmdb_id, item.media_type, %{
+          min_quality: "any"
+        })
 
       stub_recording_searches(%{
         "Sample Show" => [
@@ -922,7 +927,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert unit.assigned_guid == "sd-e1"
     end
 
-    test "accept_lower_quality tracks the title, stores the acceptance, and re-solves to the lower-quality release" do
+    test "accept_lower_quality stores the acceptance, follows nothing, and re-solves to the lower-quality release" do
       stub_recording_searches(%{
         "Sample Show" => [
           release("Sample.Show.S02E01.DVDRip.x264", "sd-e1", %{seeders: 5, size: 300_000_000})
@@ -938,9 +943,12 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       {:ok, ready} = Plans.fetch(plan.id)
       {:ok, _plan} = Plans.accept_lower_quality(ready)
 
-      item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
-      assert item.min_quality == "any"
-      assert item.tracking_mode == :watch
+      assert TitleDownloadParams.get(246_810, :tv_series).min_quality ==
+               "any"
+
+      # The campaign's first rule: adjusting a quality floor is not a
+      # request to follow the show, and no longer creates a tracked title.
+      refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
 
       assert [unit] = Plans.units_for(plan.id)
       assert unit.status == "found"
@@ -953,7 +961,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       {:ok, accepted} = Plans.fetch(plan.id)
       {:ok, _plan} = Plans.undo_lower_quality(accepted)
 
-      assert MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_810, :tv_series).min_quality == nil
+      assert TitleDownloadParams.get(246_810, :tv_series).min_quality ==
+               nil
+
+      refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
 
       board = plan.id |> Plans.fetch() |> then(fn {:ok, fetched} -> Plans.Board.build(fetched) end)
       refute board.lower_quality_accepted?

@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   `library_owner_id`, `on_watchlist?`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
   `backdrop_url`, `logo_url`, `tracking`, `acquisition?`,
-  `default_grab_mode`, `kind`, `episode`, `sender`, `note`, `acted_at`,
+  `lower_quality_accepted?`, `default_grab_mode`, `kind`, `episode`, `sender`, `note`, `acted_at`,
   `own?`, `activity_id`, `recommendations`, `preview`. The primary
   action is In library, else the acquisition state, else Download when
   the title is out and an indexer is ready — else nothing: arming is
@@ -38,6 +38,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       on_watchlist?: Map.fetch!(facts, :on_watchlist?),
       tracking: Map.get(facts, :tracking),
       acquisition?: Map.get(facts, :acquisition?, false),
+      lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
       default_grab_mode: Map.get(facts, :default_grab_mode, "off"),
       kind: Map.get(facts, :kind),
       episode: Map.get(facts, :episode),

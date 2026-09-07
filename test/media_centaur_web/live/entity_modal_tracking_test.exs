@@ -103,7 +103,11 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     series: series,
     item: item
   } do
-    {:ok, _} = ReleaseTracking.update_automation(item, %{min_quality: "any"})
+    {:ok, _} =
+      MediaCentaur.Acquisition.TitleDownloadParams.put(item.tmdb_id, item.media_type, %{
+        min_quality: "any"
+      })
+
     {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
 
     assert has_element?(view, "#detail-tracking-mode-lower-quality")
@@ -112,7 +116,9 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     |> element("#detail-tracking-mode-lower-quality button[phx-click='reset_lower_quality']")
     |> render_click()
 
-    assert ReleaseTracking.get_item(item.id).min_quality == nil
+    assert MediaCentaur.Acquisition.TitleDownloadParams.get(item.tmdb_id, item.media_type).min_quality ==
+             nil
+
     refute has_element?(view, "#detail-tracking-mode-lower-quality")
   end
 
