@@ -106,23 +106,6 @@ defmodule MediaCentaurWeb.Storybook.Incoming.ShelfRow do
         }
       },
       %Variation{
-        id: :straggler,
-        description:
-          "A tracked title with nothing scheduled (UIDR-017): empty date slot rendered " <>
-            "as a muted em-dash so the columns stay aligned, media type as the subtitle, " <>
-            "neutral Tracked pill.",
-        attributes: %{
-          card: %Card{
-            key: "straggler-201",
-            item_id: 201,
-            title: "Sherlock Jr.",
-            subtitle: "Movie",
-            status: :tracked,
-            kind: :title
-          }
-        }
-      },
-      %Variation{
         id: :with_artwork,
         description:
           "With real art the placeholder gives way to an eager+sync thumb (fake URL — " <>

@@ -33,16 +33,16 @@ defmodule MediaCentaurWeb.IncomingLive.View do
 
   defmodule ShelfSection do
     @moduledoc """
-    The Coming up shelf: capped dated cards, what the cap hides, and the
-    tracked-but-unscheduled titles as rows of the same `Card` vocabulary
-    (UIDR-017) — schedule state is a property of a row, not a class split.
+    The Coming up shelf: capped dated cards and what the cap hides. The
+    schedule of dated releases, nothing else — a tracked title with no
+    announced date shows its mode where it lives, in the library or on the
+    watchlist (UIDR-035).
     """
-    defstruct cards: [], overflow_count: 0, stragglers: []
+    defstruct cards: [], overflow_count: 0
 
     @type t :: %__MODULE__{
             cards: [Card.t()],
-            overflow_count: non_neg_integer(),
-            stragglers: [Card.t()]
+            overflow_count: non_neg_integer()
           }
   end
 
@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   @doc """
   Build the page view from already-read facts:
 
-    * `:releases` / `:watching_items` — `ReleaseTracking` reads (items preloaded)
+    * `:releases` — the `ReleaseTracking` read (items preloaded)
     * `:pursuit_rows` / `:drafts` — acquisition reads (the History
       archive reads separately via `compute_history_rows`)
     * `:today`, `:acquisition_ready?`, `:auto_grab_default_mode`,
@@ -74,9 +74,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
     %View{
       shelf: %ShelfSection{
         cards: Enum.map(events, &card_from_event(&1, inputs.today)),
-        overflow_count: overflow_count,
-        stragglers:
-          inputs.watching_items |> UpcomingFeed.stragglers() |> Enum.map(&card_from_straggler/1)
+        overflow_count: overflow_count
       },
       in_flight: if(inputs.prowlarr_ready?, do: inputs.pursuit_rows, else: []),
       drafts: if(inputs.prowlarr_ready?, do: inputs.drafts, else: []),
@@ -127,7 +125,8 @@ defmodule MediaCentaurWeb.IncomingLive.View do
 
   # The Upcoming statuses and the pill union are distinct vocabularies on
   # purpose (forecast ≠ pursuit lifecycle); this is the one mapping between
-  # them. `:unscheduled` never reaches the shelf (stragglers carry those).
+  # them. `:unscheduled` never reaches the shelf (the title detail's timeline
+  # carries those).
   defp pill_status(:under_pursuit), do: :in_pursuit
   defp pill_status(:armed), do: :armed
   # A fallback date can't lead a title's shelf card (the earlier armed date
@@ -136,24 +135,6 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   defp pill_status(:theatrical_info), do: :in_theaters
   defp pill_status(:in_library), do: :landed
   defp pill_status(:upcoming), do: :tracked
-
-  # A straggler is the same row vocabulary with schedule facts absent:
-  # no date label (the shelf renders the muted em-dash), the media type
-  # as the caption, and the neutral Tracked pill.
-  defp card_from_straggler(%UpcomingFeed.Straggler{} = straggler) do
-    %Card{
-      key: "straggler-#{straggler.item_id}",
-      item_id: straggler.item_id,
-      title: straggler.name,
-      subtitle: media_label(straggler.media_type),
-      status: :tracked,
-      art_url: straggler.backdrop_url,
-      kind: :title
-    }
-  end
-
-  defp media_label(:tv_series), do: "TV series"
-  defp media_label(:movie), do: "Movie"
 
   defp subtitle_for(%Event{kind: :season_drop} = event), do: "S#{event.season_number}"
 

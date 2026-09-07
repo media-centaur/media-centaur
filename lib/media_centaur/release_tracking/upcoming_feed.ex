@@ -31,7 +31,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:theatrical_info` — a movie's theatrical date; informational, never
       auto-grabbed.
     * `:unscheduled` — tracked but no air date yet (lives in `unscheduled`, not
-      a time bucket).
+      a time bucket; the title detail's timeline lists it, the shelf never does).
     * `:under_pursuit` — released and being acquired now; carries `pursuit_id`
       so the UI can deep-link to Downloads.
     * `:armed` — a future release that **will** auto-grab when it drops (only
@@ -51,7 +51,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
-  alias MediaCentaur.ReleaseTracking.UpcomingFeed.Straggler
 
   @bucket_order [:today, :this_week, :next_week, :later, :beyond]
 
@@ -82,17 +81,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     ]
 
     @type t :: %Event{}
-  end
-
-  defmodule Straggler do
-    @moduledoc """
-    A tracked title with no dated release yet. Carries enough identity
-    (name, media type, backdrop) for the shelf to render it as a
-    first-class agenda row (UIDR-017).
-    """
-    defstruct [:item_id, :name, :media_type, :backdrop_url]
-
-    @type t :: %Straggler{}
   end
 
   @doc "The fixed relative-time bucket order (soonest first)."
@@ -133,25 +121,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       |> bucketize(context.today)
 
     %UpcomingFeed{buckets: bucketed, unscheduled: unscheduled}
-  end
-
-  @doc """
-  The "Tracking — nothing scheduled yet" stragglers: watching items with no
-  dated release (hiatus shows, movies with no announced date). Items must have
-  `:releases` preloaded.
-  """
-  @spec stragglers([map()]) :: [Straggler.t()]
-  def stragglers(watching_items) do
-    watching_items
-    |> Enum.filter(&no_dated_release?/1)
-    |> Enum.map(fn item ->
-      %Straggler{
-        item_id: item.id,
-        name: item.name,
-        media_type: item.media_type,
-        backdrop_url: MediaCentaur.TmdbArtwork.urls(item.media_type, item.tmdb_id).backdrop_url
-      }
-    end)
   end
 
   @doc """
@@ -339,10 +308,4 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   defp scheduled_events(%UpcomingFeed{buckets: buckets}) do
     Enum.flat_map(@bucket_order, &Map.get(buckets, &1, []))
   end
-
-  defp no_dated_release?(%{releases: releases}) when is_list(releases) do
-    Enum.all?(releases, &is_nil(&1.air_date))
-  end
-
-  defp no_dated_release?(_item), do: true
 end

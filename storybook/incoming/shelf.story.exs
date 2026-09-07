@@ -1,10 +1,9 @@
 defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
   @moduledoc """
   The Coming-up shelf — a nearness-ordered agenda list of date-led
-  rows, the horizon action row after the last entry, and the undated
-  straggler rows under a "Not scheduled yet" hairline (UIDR-017). No
-  section header: the zone tab (or, forecast-only, the rows
-  themselves) names the view.
+  rows and the horizon action row after the last entry: the schedule,
+  nothing else (UIDR-035). No section header: the zone tab (or,
+  forecast-only, the rows themselves) names the view.
   """
 
   use PhoenixStorybook.Story, :component
@@ -75,35 +74,6 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
     ]
   end
 
-  defp straggler_rows do
-    [
-      %Card{
-        key: "straggler-101",
-        item_id: 101,
-        title: "Sherlock Jr.",
-        subtitle: "Movie",
-        status: :tracked,
-        kind: :title
-      },
-      %Card{
-        key: "straggler-102",
-        item_id: 102,
-        title: "Safety Last!",
-        subtitle: "Movie",
-        status: :tracked,
-        kind: :title
-      },
-      %Card{
-        key: "straggler-103",
-        item_id: 103,
-        title: "A Trip to the Moon",
-        subtitle: "Movie",
-        status: :tracked,
-        kind: :title
-      }
-    ]
-  end
-
   # The same forecast with acquisition off: no will-grab / in-pursuit pills —
   # will-grab rows degrade to plain dated rows so nothing surviving implies
   # grabbing. Watch-only identity (in theaters) stays.
@@ -146,33 +116,6 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
           "More forecast than list: the horizon action grows the list in place " <>
             "(\"Show all N\") instead of claiming the horizon is empty.",
         attributes: %{cards: full_mix(), overflow_count: 4}
-      },
-      %Variation{
-        id: :stragglers_collapsed,
-        description:
-          "The default: tracked titles with nothing scheduled sit collapsed behind " <>
-            "the \"Not scheduled yet · N\" toggle row — quiet bookkeeping until asked " <>
-            "for (UIDR-017).",
-        attributes: %{cards: full_mix(), stragglers: straggler_rows()}
-      },
-      %Variation{
-        id: :stragglers_expanded,
-        description:
-          "Expanded: real rows under the hairline — empty date slot (muted em-dash " <>
-            "keeps the columns aligned), media type as the subtitle, neutral Tracked " <>
-            "pill; same anatomy, same click-through as dated rows.",
-        attributes: %{
-          cards: full_mix(),
-          stragglers: straggler_rows(),
-          stragglers_expanded?: true
-        }
-      },
-      %Variation{
-        id: :stragglers_only,
-        description:
-          "Nothing dated but titles still tracked: the toggle (and, expanded, the " <>
-            "rows) renders on its own — presence never depends on the schedule.",
-        attributes: %{cards: [], stragglers: straggler_rows(), stragglers_expanded?: true}
       }
     ]
   end

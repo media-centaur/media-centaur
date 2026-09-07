@@ -28,6 +28,16 @@ structure with direction 2's modal interior, because it is the only direction th
 serves all three governing values — one idiom for depth, everything tracked is
 actionable, and the agenda's calm stays intact:
 
+* *Amended 2026-09-07:* this half is superseded by
+  [UIDR-035](2026-09-07-035-two-title-surfaces.md). A straggler — a tracked title
+  with no announced date — was a row here only because no other list showed
+  tracked-but-undated titles. Under [ADR-065](../architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md)'s
+  invariant every active tracked title is either owned (its mode on the library
+  detail) or on the watchlist (its mode as a marker on its row), so the
+  "Not scheduled yet · N" line, `UpcomingFeed.Straggler` and the glossary term
+  are gone, and Coming up is the schedule of dated releases alone. The modal half
+  below stands, generalised: the one title modal became the two surfaces of
+  UIDR-035.
 * **Stragglers become first-class agenda rows** behind a quiet "Not scheduled yet · N"
   hairline toggle, **collapsed by default** (owner review pass: dormant titles are
   bookkeeping and shouldn't occupy the resting view — the ledger's grow-in-place
