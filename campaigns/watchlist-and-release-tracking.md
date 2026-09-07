@@ -13,9 +13,9 @@ machine, and the three title modals that render them into two. A person should
 declare "I want to watch this" once, arm it once, and see the same control
 wherever the title appears.
 
-Phases 0–5 did that and shipped. **Phase 6 finishes the thought**: a title should
-also resolve to *one* surface, so opening it never lands somewhere that describes
-neither what you have nor what is coming.
+Phases 0–5 did that and shipped. A sixth phase — a title resolving to *one*
+surface — was opened and then **abandoned**; the brief survives below as a record
+of a known, accepted defect.
 
 ## Status
 
@@ -42,8 +42,9 @@ stopped, `ecto.migrate` + `ecto.migrate_data`, service restarted and serving.
 Result: 13 tracked titles (12 `global`, 1 `watch`), 9 watchlist rows, and **0
 active tracked titles with no reason** — the invariant holds on real data.
 
-**Open: Phase 6, and the owner's check of the shipped surfaces.** Phase 6 is
-described below and is deliberately unplanned — plan it in a fresh session.
+**Open: the owner's check of the shipped surfaces.** That is the only thing left.
+Phase 6 was abandoned on 2026-09-07 before it was planned — see the brief below,
+which stays as the record of a defect we are choosing to live with.
 
 [ADR-065]: ../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md
 [UIDR-035]: ../decisions/user-interface/2026-09-07-035-two-title-surfaces.md
@@ -118,6 +119,11 @@ described below and is deliberately unplanned — plan it in a fresh session.
   seam is that an owned title opened from the watchlist gets a stub. Reframed as
   "a title resolves to one surface" and left unplanned by decision — it gets its
   own planning session.
+* `2026-09-07` — **Phase 6 abandoned entirely** by the owner, at the start of
+  that planning session and before any approach was chosen. The stub an owned
+  title opens to, and the `In library` hop that bridges it, are accepted
+  behaviour. UIDR-035's two-surface split stands as written, boundary included.
+  The brief is kept below so the defect is recorded rather than rediscovered.
 
 ## Next steps
 
@@ -158,14 +164,16 @@ described below and is deliberately unplanned — plan it in a fresh session.
 6. ~~**Phase 5 — docs.**~~ Done 2026-09-07 (`07b97886`; wiki `5d05c0e`). `priv/guide/release-tracking-and-upcoming.md` rewritten
    around the new vocabulary (it currently teaches Track-vs-watchlist), a guide
    page for the watchlist (there is none today), wiki sync, glossary elevation.
-7. **Phase 6 — a title resolves to one surface.** Raised by the owner after
-   v1.16.0 shipped; **unplanned by decision — plan it in a fresh session.** The
-   brief is below.
+7. ~~**Phase 6 — a title resolves to one surface.**~~ **Abandoned 2026-09-07**,
+   unplanned and unbuilt. Nothing here is outstanding. The brief below is a
+   record, not a queue.
 
-## Phase 6 — a title resolves to one surface
+## Phase 6 — a title resolves to one surface (abandoned)
 
-**Not planned. Do not start writing code from this section — it is the brief a
-planning session begins from.**
+**Abandoned 2026-09-07, before planning. Do not start writing code from this
+section.** It is kept because the defect it describes is real, verified live, and
+now accepted — a future reader should find it recorded here rather than discover
+it again from scratch. Reopening it is a fresh decision, not a resumption.
 
 ### The defect
 
@@ -249,9 +257,10 @@ Per the closure convention, every leftover is bucketed rather than left implicit
   (`title_detail_tracking`, `detail_tracking`) but only mouse-verified, per
   [[feedback-no-nav-work-during-volatile-design]]; run `mc-nav-trace` if a key
   path misbehaves.
-* **Plan** — Phase 6, above, in a fresh session.
-* **Defer** — the two follow-ups below, and marketing screenshots (stale by
-  standing preference, not regenerated).
+* **Abandoned** — Phase 6. Not deferred: no one is expected to pick it up.
+* **Defer** — the two follow-ups below (both lost their Phase 6 home and are now
+  standalone, whenever that code is next opened), and marketing screenshots
+  (stale by standing preference, not regenerated).
 
 ## Follow-ups found while building
 
@@ -260,8 +269,9 @@ Per the closure convention, every leftover is bucketed rather than left implicit
   scheduled" while a row below it shows that release — and `relative_day/2`
   prints "Today" for any past date, so the row claims today. Pre-existing
   semantics surfaced by the merged modal, not introduced by it. Shipped in
-  v1.16.0 unfixed. Candidate for Phase 6, which is in that code anyway; do not
-  paper over it in the timeline component.
+  v1.16.0 unfixed, and still unfixed now that Phase 6 is abandoned — a standalone
+  fix in `next_event/2` and `relative_day/2`, not a component patch. Do not paper
+  over it in the timeline component.
 * **The timeline half-duplicates the seasons list on the library panel.** A
   series' announced episodes already appear as Upcoming rows inside its seasons;
   the timeline repeats their codes, but carries the per-release grab status and
@@ -279,8 +289,6 @@ Per the closure convention, every leftover is bucketed rather than left implicit
 * No bell, no `Track` verb, no straggler line.
 * Guide and wiki describe one intent and one machine; glossary carries all four terms.
 * `mix precommit` green; migrations idempotent and CHANGELOG-mentioned.
-* Phase 6: opening a title never lands on a surface that describes neither what
-  you have nor what is coming — no stub, no `In library` hop.
 * The owner has used the shipped surfaces on the desktop and on the TV.
 
 ## Pointers
