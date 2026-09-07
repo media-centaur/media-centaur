@@ -154,8 +154,14 @@ master decode ~50 ms vs ~8 ms for a 1920 derivative; Home decodes 51 images,
   luminance of the hero's unobscured upper-right region per frame. Apply
   cache pressure between returns or the hero never gets evicted. Dev static
   assets carry `max-age=3600`, so after `mix assets.build` the shell needs a
-  cache-clearing reload (`Network.clearBrowserCache` + `Page.reload`), and
-  after an external `mix compile` in dev the dev service needs a restart —
-  the code reloader only reloads what it compiled itself.
+  cache-clearing reload (`Network.clearBrowserCache` + `Page.reload`).
+* Post-ship incident (2026-09-07): the dev app died after the release because
+  the `live_reload` regexes in `config/dev.exs` carried per-VM references
+  (OTP 28+), so Mix judged the app config "changed" on every cross-process
+  compile and force-rebuilt every dependency and module; a hot rebuild that
+  long leaves the running app without its modules. Fixed by moving that block
+  to `config/runtime.exs`, and `scripts/ship release` now restarts the dev
+  service after the version bump. The earlier note here blaming the code
+  reloader for "only reloading what it compiled itself" was wrong.
 * Headless: `~/scripts/agents/chromium-probe` (no window focus, transitions
   never settle — assert on state, not on animated values).

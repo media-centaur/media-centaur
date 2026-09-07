@@ -86,3 +86,27 @@ if config_env() == :prod do
     check_origin: false,
     secret_key_base: secret_key_base
 end
+
+if config_env() == :dev do
+  # Live-reload patterns are regexes, and since OTP 28 a compiled regex holds
+  # a per-VM reference. Mix records the evaluated compile-time config in its
+  # manifest and compares it term by term on every compile, so a running dev
+  # server's code reloader and a `mix compile` in a shell can never agree on
+  # the endpoint config while this block sits in config/dev.exs. Any advance
+  # of the config mtime — a version bump, an edited config file, a build lock
+  # — then reads as "the app config changed": Mix force-recompiles every
+  # dependency and every module, and a hot recompile that long leaves the
+  # running app without its modules and takes it down (2026-09-07).
+  #
+  # Runtime config is not part of that comparison, and phoenix_live_reload
+  # reads `:live_reload` from the endpoint at runtime, so it belongs here.
+  config :media_centaur, MediaCentaurWeb.Endpoint,
+    live_reload: [
+      web_console_logger: true,
+      patterns: [
+        ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
+        ~r"priv/gettext/.*(po)$",
+        ~r"lib/media_centaur_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
+      ]
+    ]
+end
