@@ -57,6 +57,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :activity_id,
     :preview,
     acquisition?: false,
+    lower_quality_accepted?: false,
     default_grab_mode: "off",
     recommendations: []
   ]
@@ -78,6 +79,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           on_watchlist?: boolean(),
           tracking: TrackingDetail.t() | nil,
           acquisition?: boolean(),
+          lower_quality_accepted?: boolean(),
           default_grab_mode: String.t(),
           kind: Activity.kind() | nil,
           episode: Episode.t() | nil,

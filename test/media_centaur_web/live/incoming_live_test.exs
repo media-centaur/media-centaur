@@ -5,6 +5,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Acquisition.TitleDownloadParams
+  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Discovery
   alias MediaCentaur.Acquisition.Plans
@@ -1200,7 +1202,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "#plan-grid[phx-hook='PlanGridCaption'] [data-plan-caption]")
     end
 
-    test "taking lower quality tracks the title, re-solves, and can be undone", %{conn: conn} do
+    test "taking lower quality stores it, follows nothing, re-solves, and can be undone", %{
+      conn: conn
+    } do
       stub_lower_quality_movie()
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
@@ -1211,8 +1215,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("button[phx-click='plan_accept_lower_quality']")
       |> render_click()
 
-      item = MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_813, :movie)
-      assert item.min_quality == "any"
+      assert TitleDownloadParams.get(246_813, :movie).min_quality == "any"
+
+      # Adjusting a quality floor is not a request to follow the film.
+      refute ReleaseTracking.get_item_by_tmdb(246_813, :movie)
 
       html = render(view)
       assert html =~ "Lower quality accepted for this show"
@@ -1225,7 +1231,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("button[phx-click='plan_undo_lower_quality']")
       |> render_click()
 
-      assert MediaCentaur.ReleaseTracking.get_item_by_tmdb(246_813, :movie).min_quality == nil
+      assert TitleDownloadParams.get(246_813, :movie).min_quality == nil
       refute render(view) =~ "Lower quality accepted for this show"
     end
 
@@ -1581,7 +1587,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # Arming from there tracks it; the row flips to Tracked on the broadcast.
       view |> element("#title-tracking-mode-watch") |> render_click()
       await_supervised_tasks()
-      assert %{tracking_mode: :watch} = MediaCentaur.ReleaseTracking.get_item_by_tmdb(888, :movie)
+      assert %{tracking_mode: :watch} = ReleaseTracking.get_item_by_tmdb(888, :movie)
       assert MediaCentaur.Discovery.on_watchlist?(888, :movie)
     end
 
@@ -3257,13 +3263,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
       view |> element("#title-tracking-mode-watch") |> render_click()
-      assert MediaCentaur.ReleaseTracking.get_item(item.id).tracking_mode == :watch
+      assert ReleaseTracking.get_item(item.id).tracking_mode == :watch
 
       view |> element("#title-tracking-mode-grab") |> render_click()
-      assert MediaCentaur.ReleaseTracking.get_item(item.id).tracking_mode == :grab
+      assert ReleaseTracking.get_item(item.id).tracking_mode == :grab
 
       view |> element("#title-tracking-mode-none") |> render_click()
-      assert MediaCentaur.ReleaseTracking.get_item(item.id).tracking_mode == :none
+      assert ReleaseTracking.get_item(item.id).tracking_mode == :none
       assert has_element?(view, "#title-tracking-mode[data-mode='none']")
       # Disarmed is inert: no timeline, and the row leaves Coming up.
       refute has_element?(view, "#title-release-timeline")
@@ -3274,7 +3280,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       conn: conn
     } do
       {item, _release} = tracked_with_release(%{name: "Accepted Show"})
-      {:ok, item} = MediaCentaur.ReleaseTracking.update_automation(item, %{min_quality: "any"})
+
+      {:ok, _params} =
+        TitleDownloadParams.put(item.tmdb_id, item.media_type, %{
+          min_quality: "any"
+        })
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
 
@@ -3284,7 +3294,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("#title-tracking-mode-lower-quality button[phx-click='reset_lower_quality']")
       |> render_click()
 
-      assert MediaCentaur.ReleaseTracking.get_item(item.id).min_quality == nil
+      assert TitleDownloadParams.get(item.tmdb_id, item.media_type).min_quality ==
+               nil
+
       refute has_element?(view, "#title-tracking-mode-lower-quality")
     end
 

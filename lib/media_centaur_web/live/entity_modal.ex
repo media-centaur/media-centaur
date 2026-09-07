@@ -63,6 +63,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   alias MediaCentaur.{Activities, Capabilities, Discovery, Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Acquisition.AutoGrabSettings
+  alias MediaCentaur.Acquisition.DownloadParams
+  alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
@@ -601,6 +603,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       delete_confirm: nil,
       deleting: nil,
       tracking: nil,
+      lower_quality_accepted?: false,
       recommendations: [],
       playback: %{}
     )
@@ -689,6 +692,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     tracking =
       if selection_changed, do: load_tracking(selected_entry), else: socket.assigns.tracking
 
+    lower_quality_accepted? =
+      if selection_changed,
+        do: lower_quality_accepted?(selected_entry),
+        else: socket.assigns.lower_quality_accepted?
+
     socket =
       socket
       |> Phoenix.Component.assign(
@@ -700,7 +708,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         detail_files: detail_files,
         detail_files_status: detail_files_status,
         expanded_seasons: expanded_seasons,
-        tracking: tracking
+        tracking: tracking,
+        lower_quality_accepted?: lower_quality_accepted?
       )
       |> Phoenix.Component.assign(per_selection_assigns(socket.assigns, selection_changed))
       |> assign_recommendations()
@@ -907,6 +916,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     doc:
       "the open subject's `TrackingDetail` or nil — the release timeline and tracking-mode control under the list (UIDR-035). Required so a host cannot mount the modal without it."
 
+  attr :lower_quality_accepted?, :boolean,
+    required: true,
+    doc:
+      "whether the open subject carries the per-title lower-quality acceptance (ADR-063 §2), from the modal's `:lower_quality_accepted?` assign. An Acquisition fact keyed by TMDB identity, so it outlives the title being tracked and cannot be read off `tracking`. Required so a host cannot mount the modal without it."
+
   attr :recommendations, :list,
     required: true,
     doc:
@@ -962,6 +976,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           @watchlisted_refs
         )
       }
+      lower_quality_accepted?={@lower_quality_accepted?}
       recommend?={@show_discovery}
       tracking={@tracking}
       recommendations={@recommendations}
@@ -1508,9 +1523,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   @doc false
   def handle_reset_lower_quality(%{"ref" => param}, socket) do
     with {:ok, {tmdb_id, media_type} = ref} <- TitleRef.parse(param),
-         ^ref <- find_tmdb_id(socket.assigns.selected_entry),
-         %Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
-      {:ok, _item} = ReleaseTracking.update_automation(item, %{min_quality: nil})
+         ^ref <- find_tmdb_id(socket.assigns.selected_entry) do
+      {:ok, _params} = TitleDownloadParams.put(tmdb_id, media_type, %{min_quality: nil})
       reload_tracking(socket)
     else
       _stale_or_unknown -> socket
@@ -1518,6 +1532,22 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   def handle_reset_lower_quality(_params, socket), do: socket
+
+  # Whether the panel's subject carries the per-title lower-quality
+  # acceptance. An Acquisition fact keyed by TMDB identity, so it is read
+  # here rather than off the tracking record — the acceptance outlives the
+  # title being tracked (ADR-063 §2).
+  defp lower_quality_accepted?(selected_entry) do
+    case find_tmdb_id(selected_entry) do
+      {tmdb_id, media_type} ->
+        tmdb_id
+        |> TitleDownloadParams.get(media_type)
+        |> DownloadParams.lower_quality_accepted?()
+
+      _no_identity ->
+        false
+    end
+  end
 
   @doc """
   Maps a `Pipeline.ImageRefresh.enqueue_refresh/2` result to a
@@ -1804,6 +1834,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   defp reload_tracking(%{assigns: %{selected_entry: nil}} = socket), do: socket
 
-  defp reload_tracking(socket),
-    do: Phoenix.Component.assign(socket, :tracking, load_tracking(socket.assigns.selected_entry))
+  # Both, always: `reset_lower_quality` moves only the acceptance, and an
+  # assign that never changes is one LiveView will not re-render.
+  defp reload_tracking(socket) do
+    entry = socket.assigns.selected_entry
+
+    Phoenix.Component.assign(socket,
+      tracking: load_tracking(entry),
+      lower_quality_accepted?: lower_quality_accepted?(entry)
+    )
+  end
 end

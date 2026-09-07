@@ -263,6 +263,7 @@ defmodule MediaCentaurWeb.HomeLive do
           delete_confirm={@delete_confirm}
           deleting={@deleting}
           tracking={@tracking}
+          lower_quality_accepted?={@lower_quality_accepted?}
           recommendations={@recommendations}
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}

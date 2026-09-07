@@ -18,13 +18,14 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Acquisition.DownloadParams
   alias MediaCentaur.Acquisition.Jobs.RunPlan
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans.{CommitPlan, DownloadScope, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Targeting
+  alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Reasons
   alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.{Client, Identifiers, Mapper, Title}
   alias MediaCentaur.Topics
@@ -264,13 +265,15 @@ defmodule MediaCentaur.Acquisition.Plans do
     end
   end
 
-  # A manual plan with no explicit bounds snapshots the tracked title's
-  # per-title quality preferences when the title is tracked (ADR-063 §2:
-  # bounds resolve unit override → per-title preference → global
-  # default; `criteria` is the per-plan snapshot of the middle layer).
+  # A manual plan with no explicit bounds snapshots the title's own
+  # download params (ADR-063 §2: bounds resolve unit override → per-title
+  # param → global default; `criteria` is the per-plan snapshot of the
+  # middle layer). Read by TMDB identity, so an untracked title with a
+  # stored acceptance still gets it.
   defp resolve_title_bounds(%{criteria: criteria} = plan_attrs) when criteria == %{} do
-    case tracking_item_for(plan_attrs) do
-      %{min_quality: min, max_quality: max} when is_binary(min) or is_binary(max) ->
+    case title_download_params(plan_attrs) do
+      %DownloadParams{min_quality: min, max_quality: max}
+      when is_binary(min) or is_binary(max) ->
         bounds =
           %{}
           |> put_bound("min_quality", min)
@@ -278,19 +281,19 @@ defmodule MediaCentaur.Acquisition.Plans do
 
         %{plan_attrs | criteria: bounds}
 
-      _untracked_or_unset ->
+      _unset ->
         plan_attrs
     end
   end
 
   defp resolve_title_bounds(plan_attrs), do: plan_attrs
 
-  defp tracking_item_for(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type}) do
+  defp title_download_params(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type}) do
     with {numeric_id, ""} <- Integer.parse(to_string(tmdb_id)),
          {:ok, media_type} <- item_media_type(tmdb_type) do
-      ReleaseTracking.get_item_by_tmdb(numeric_id, media_type)
+      TitleDownloadParams.get(numeric_id, media_type)
     else
-      _no_identity -> nil
+      _no_identity -> DownloadParams.defaults()
     end
   end
 
@@ -417,16 +420,18 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   @doc """
   The per-title acceptance (ADR-063 §2, UIDR-029): the user has said
-  lower-quality releases are fine for this title. Ensures the title is
-  tracked, stores `min_quality: "any"` as its durable per-title
-  preference, snapshots the accepted bound onto this plan, and
-  re-solves so the below-preference releases become assignable. The
-  global default is never touched.
+  lower-quality releases are fine for this title. Stores `min_quality:
+  "any"` as the title's durable download param, snapshots the accepted
+  bound onto this plan, and re-solves so the below-preference releases
+  become assignable. The global default is never touched.
+
+  It follows nothing. The params are keyed by TMDB identity, so saying
+  something about a title's quality no longer requires the title to be
+  tracked — which is what used to make this act start tracking a show.
   """
   @spec accept_lower_quality(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
   def accept_lower_quality(%Plan{} = plan) do
-    with {:ok, item} <- ensure_tracking_item(plan),
-         {:ok, _item} <- ReleaseTracking.update_automation(item, %{min_quality: "any"}),
+    with {:ok, _params} <- put_download_params(plan, %{min_quality: "any"}),
          {:ok, snapshotted} <-
            Repo.update(
              Plan.criteria_changeset(plan, Map.put(plan.criteria || %{}, "min_quality", "any"))
@@ -436,42 +441,25 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   @doc """
-  Reverses `accept_lower_quality/1`: clears the title's per-title
-  acceptance (back to inheriting the global default), drops the plan's
-  snapshot, and re-solves. The tracking item itself stays — untracking
-  is a separate, deliberate act.
+  Reverses `accept_lower_quality/1`: clears the title's acceptance (back
+  to inheriting the global default), drops the plan's snapshot, and
+  re-solves.
   """
   @spec undo_lower_quality(Plan.t()) :: {:ok, Plan.t()} | {:error, term()}
   def undo_lower_quality(%Plan{} = plan) do
-    with {:ok, item} <- ensure_tracking_item(plan),
-         {:ok, _item} <- ReleaseTracking.update_automation(item, %{min_quality: nil}),
+    with {:ok, _params} <- put_download_params(plan, %{min_quality: nil}),
          {:ok, snapshotted} <-
            Repo.update(Plan.criteria_changeset(plan, Map.delete(plan.criteria || %{}, "min_quality"))) do
       replan(snapshotted)
     end
   end
 
-  defp ensure_tracking_item(%Plan{} = plan) do
-    case tracking_item_for(plan) do
-      nil ->
-        with {numeric_id, ""} <- Integer.parse(to_string(plan.tmdb_id)),
-             {:ok, media_type} <- item_media_type(plan.tmdb_type) do
-          ReleaseTracking.track_item(%{
-            tmdb_id: numeric_id,
-            media_type: media_type,
-            name: plan.title,
-            # A plan's leftovers handed to tracking are downstream of a
-            # person's download, so they seed the arming mode, never the
-            # global default — auto-grab stays opt-in (ADR-065).
-            tracking_mode: Reasons.seed_mode(:watchlist),
-            origin_country: plan.origin_country
-          })
-        else
-          _no_identity -> {:error, :no_tmdb_identity}
-        end
-
-      item ->
-        {:ok, item}
+  defp put_download_params(%Plan{} = plan, attrs) do
+    with {numeric_id, ""} <- Integer.parse(to_string(plan.tmdb_id)),
+         {:ok, media_type} <- item_media_type(plan.tmdb_type) do
+      TitleDownloadParams.put(numeric_id, media_type, attrs)
+    else
+      _no_identity -> {:error, :no_tmdb_identity}
     end
   end
 

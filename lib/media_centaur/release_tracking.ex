@@ -113,25 +113,6 @@ defmodule MediaCentaur.ReleaseTracking do
     Repo.update(Item.update_changeset(item, attrs))
   end
 
-  @doc """
-  Updates per-item automation preferences and broadcasts
-  `:releases_updated` so subscribed LiveViews refresh.
-
-  `attrs` may include `:tracking_mode`, `:min_quality`, `:max_quality`,
-  `:quality_4k_patience_hours`, `:prefer_season_packs`. Validation lives
-  on `Item.automation_changeset/2`.
-  """
-  def update_automation(%Item{} = item, attrs) do
-    case Repo.update(Item.automation_changeset(item, attrs)) do
-      {:ok, updated} ->
-        broadcast_releases_updated([updated.id])
-        {:ok, updated}
-
-      {:error, changeset} ->
-        {:error, changeset}
-    end
-  end
-
   def get_item(id), do: Repo.get(Item, id)
 
   @doc """

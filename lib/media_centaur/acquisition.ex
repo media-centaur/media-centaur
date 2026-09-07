@@ -17,6 +17,7 @@ defmodule MediaCentaur.Acquisition do
     exports: [
       AutoGrabSettings,
       CancelReasons,
+      DownloadParams,
       PlanEvents,
       PlanEvents.Changed,
       PlanEvents.DescentStatus,
@@ -26,6 +27,7 @@ defmodule MediaCentaur.Acquisition do
       Plans.Board,
       Plans.Plan,
       Targeting,
+      TitleDownloadParams,
       TitleStates,
       Targeting.Selection,
       Targeting.Season,

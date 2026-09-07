@@ -54,7 +54,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   import Phoenix.LiveView
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1, tmdb_cdn_url: 2]
 
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, Plans, TitleStates}
+  alias MediaCentaur.Acquisition.{AutoGrabSettings, DownloadParams, Plans, TitleStates}
+  alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Activities
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Discovery
@@ -167,6 +168,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     facts = %{
       library_owner_id: Map.get(ExternalIds.tmdb_owners([ref]), ref),
       on_watchlist?: Discovery.on_watchlist?(title.tmdb_id, title.media_type),
+      lower_quality_accepted?:
+        DownloadParams.lower_quality_accepted?(TitleDownloadParams.get(title.tmdb_id, title.media_type)),
       acquisition_state: Map.get(TitleStates.for_refs([ref]), ref),
       release_mode_available: Capabilities.prowlarr_ready?(),
       today: today,
@@ -344,10 +347,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
+  # The acceptance is keyed by TMDB identity, not by tracked title, so
+  # resetting it neither needs nor touches one (ADR-063 §2).
   def handle_title_event("reset_lower_quality", %{"ref" => param}, socket) do
-    with {:ok, {tmdb_id, media_type}} <- TitleRef.parse(param),
-         %Item{} = item <- ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
-      ReleaseTracking.update_automation(item, %{min_quality: nil})
+    with {:ok, {tmdb_id, media_type}} <- TitleRef.parse(param) do
+      TitleDownloadParams.put(tmdb_id, media_type, %{min_quality: nil})
     end
 
     {:halt, refresh_title_detail(socket)}

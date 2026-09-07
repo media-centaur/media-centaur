@@ -176,7 +176,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
               default_grab_mode={@detail.default_grab_mode}
               acquisition?={@detail.acquisition?}
               on_watchlist?={@detail.on_watchlist?}
-              lower_quality_accepted?={@tracking != nil and @tracking.lower_quality_accepted?}
+              lower_quality_accepted?={@detail.lower_quality_accepted?}
             />
           </div>
 

@@ -142,6 +142,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "whether the panel's subject is on the watchlist — forwarded to the view controls' bookmark toggle. Compute via `EntityModal.watchlisted?/3`."
 
+  attr :lower_quality_accepted?, :boolean,
+    default: false,
+    doc:
+      "whether the subject carries the per-title lower-quality acceptance (ADR-063 §2). An Acquisition fact keyed by TMDB identity, not a tracking one — it survives the title not being tracked."
+
   attr :recommend?, :boolean,
     default: false,
     doc:
@@ -491,7 +496,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 available={@available}
               />
             </div>
-            <.tracking_block tracking={@tracking} on_watchlist?={@watchlisted?} />
+            <.tracking_block
+              tracking={@tracking}
+              on_watchlist?={@watchlisted?}
+              lower_quality_accepted?={@lower_quality_accepted?}
+            />
         <% end %>
       </:body>
     </CinematicShell.cinematic_shell>
@@ -598,6 +607,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # title is not tracked; that is the whole state, not a gap.
   attr :tracking, TrackingDetail, default: nil
   attr :on_watchlist?, :boolean, required: true
+  attr :lower_quality_accepted?, :boolean, required: true
 
   defp tracking_block(%{tracking: nil} = assigns), do: ~H""
 
@@ -621,7 +631,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         default_grab_mode={@tracking.default_grab_mode}
         acquisition?={@tracking.acquisition?}
         on_watchlist?={@on_watchlist?}
-        lower_quality_accepted?={@tracking.lower_quality_accepted?}
+        lower_quality_accepted?={@lower_quality_accepted?}
       />
       <section :if={@tracking.mode != :none and @tracking.activity != []} class="space-y-2">
         <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
