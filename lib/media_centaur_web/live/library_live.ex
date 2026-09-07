@@ -33,7 +33,6 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LibraryCardInfoAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
-  use MediaCentaurWeb.Live.LibraryBackdropAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
   use MediaCentaurWeb.Live.WatchlistAware
 
@@ -51,7 +50,6 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   alias MediaCentaurWeb.Components.LibraryCards
   alias MediaCentaurWeb.DiscoveryLive.RecommendModal
-  alias MediaCentaurWeb.HomeLive.Logic
 
   import MediaCentaurWeb.LibraryHelpers
   import MediaCentaurWeb.LibraryFormatters
@@ -80,7 +78,6 @@ defmodule MediaCentaurWeb.LibraryLive do
        progress_by_id: %{},
        availability_map: %{},
        visible_ids: MapSet.new(),
-       hero_backdrop: nil,
        active_tab: :all,
        sort_order: :recent,
        sort_open: false,
@@ -360,19 +357,11 @@ defmodule MediaCentaurWeb.LibraryLive do
         data-nav-default-zone="library"
         data-nav-transient-params="selected,view"
       >
-        <%!-- Calm backdrop band behind the header — a sense of place that
-              ties the browse page to the home page's visual language without
-              a full hero. Masked + dimmed by `.page-atmosphere`. Off when the
-              user disables the Library backdrop preference. --%>
-        <div :if={@hero_backdrop && @library_backdrop} class="page-atmosphere" aria-hidden="true">
-          <MediaCentaurWeb.Components.HeroBackdrop.hero_backdrop backdrop_url={@hero_backdrop} />
-        </div>
         <%!-- Same fixed dark scrim the home page uses (left-weighted + a
               vertical dim that holds down the page) so the library reads as a
               rich dark surface rather than flat grey. It sits behind the grid
-              (z-0), so it darkens the background, never the posters.
-              Unconditional — the scrim carries the page's depth with or
-              without the artwork band. --%>
+              (z-0), so it darkens the background, never the posters. Browse is
+              its own subject — the page carries no artwork of its own. --%>
         <div class="page-side-dim" aria-hidden="true"></div>
 
         <div class="relative z-[1]">
@@ -537,21 +526,8 @@ defmodule MediaCentaurWeb.LibraryLive do
       availability_map: availability_map,
       unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end),
       counts: tab_counts(entries),
-      hero_backdrop: library_backdrop(),
       playback: load_playback_sessions()
     )
-  end
-
-  # The header atmosphere draws from the same hero-candidate pool as the
-  # home page (ETS read, no DB query), but `select_alt_hero/1` deliberately
-  # picks a *different* candidate than the home hero whenever the pool has
-  # 2+ entries — so the two pages show two distinct backdrops. Re-read on
-  # every `load_library/1` (browse refresh).
-  defp library_backdrop do
-    case Logic.select_alt_hero(Library.Views.hero_candidates()) do
-      %{backdrop_url: url} when is_binary(url) -> url
-      _ -> nil
-    end
   end
 
   # --- Stream Management ---

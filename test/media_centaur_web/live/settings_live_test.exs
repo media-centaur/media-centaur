@@ -10,9 +10,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     AppsVisibility,
     AutoPlayNextEpisode,
     DiscoveryVisibility,
-    IncomingBackdrop,
     LetterboxdLinks,
-    LibraryBackdrop,
     LibraryCardInfo,
     UIScale
   }
@@ -175,44 +173,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
   end
 
-  describe "page backdrop toggles" do
-    test "renders both rows unchecked by default", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
-
-      assert has_element?(view, "span", "Library backdrop")
-      assert has_element?(view, "span", "Incoming backdrop")
-
-      refute has_element?(
-               view,
-               "div[phx-click=toggle_library_backdrop] input[type=checkbox][checked]"
-             )
-
-      refute has_element?(
-               view,
-               "div[phx-click=toggle_incoming_backdrop] input[type=checkbox][checked]"
-             )
-    end
-
-    test "toggling the Library backdrop persists the flag", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
-
-      view |> element("div[phx-click=toggle_library_backdrop]") |> render_click()
-      assert LibraryBackdrop.enabled?() == true
-
-      view |> element("div[phx-click=toggle_library_backdrop]") |> render_click()
-      assert LibraryBackdrop.enabled?() == false
-    end
-
-    test "toggling the Incoming backdrop persists the flag", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
-
-      view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
-      assert IncomingBackdrop.enabled?() == true
-
-      view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
-      assert IncomingBackdrop.enabled?() == false
-    end
-
+  describe "preference toggles" do
     test "the Letterboxd links row renders checked by default", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 

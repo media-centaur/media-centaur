@@ -15,11 +15,13 @@
 // Expected shape (rendered by `Components.HeroBackdrop.hero_backdrop/1`):
 //   <canvas id="hero-backdrop" phx-hook="HeroBackdrop" data-src="/media-images/…/backdrop.jpg">
 //
-// `data-src` is the cache key. The root layout marks the same URLs on its
-// prefetch hints (`data-hero-backdrop`) and app.js pre-decodes them at idle,
-// so the first visit to a page is warm too. Cache capacity is three: one
-// bitmap per backdrop-bearing page (Home, Library, Incoming), ~33 MB each at
-// 4K. A `?v=` bump changes the URL, so invalidation is the key itself.
+// `data-src` is the cache key. The root layout marks the same URL on its
+// prefetch hint (`data-hero-backdrop`) and app.js pre-decodes it at idle, so
+// the first visit is warm too. Cache capacity is one: Home's hero is the only
+// backdrop-bearing surface, so exactly one URL is live at a time and a bitmap
+// costs ~33 MB at 4K. The hero rotates and a `?v=` bump changes the URL —
+// either way the outgoing bitmap is never asked for again, so evicting it is
+// the right move, and invalidation is the key itself.
 //
 // `data-hero-state` reports the slot's state — `pending` (decoding),
 // `drawn`, or `failed` — for tests and runtime probes; nothing styles it.
@@ -32,7 +34,7 @@ async function decodeUrl(url) {
 
 // LRU keyed by URL. `get` promotes; `load` dedupes in-flight decodes and
 // closes the bitmap it evicts so its GPU memory is released promptly.
-export function createBitmapCache({ capacity = 3, decode = decodeUrl } = {}) {
+export function createBitmapCache({ capacity = 1, decode = decodeUrl } = {}) {
   const entries = new Map()
   const inflight = new Map()
 

@@ -205,7 +205,7 @@ defmodule MediaCentaurWeb.LiveHelpers do
       above the master's own returns the master.
     * `:full_bleed` — returns the URL **byte-identical**, for surfaces that
       span the viewport (the home hero backdrop, the detail modal's cinematic
-      backdrop and its pinned replica, the library/incoming atmosphere bands).
+      backdrop and its pinned replica).
       Byte-identity is load-bearing twice over: `ArtworkWarmup` prefetches the
       bare `backdrop_url` for each hero page, and the detail modal's
       orientation backing replicates the cinematic backdrop exactly (see
@@ -257,9 +257,9 @@ defmodule MediaCentaurWeb.LiveHelpers do
   @doc """
   The `src` every page hero backdrop is painted from: the master, untouched.
 
-  Home's backdrop and the Library and Incoming atmosphere bands render
-  through `Components.HeroBackdrop`, whose hook keys a decoded-bitmap cache
-  by this URL; `ArtworkWarmup` marks the same URLs on the root layout's
+  Home's backdrop — the app's one page-artwork surface — renders through
+  `Components.HeroBackdrop`, whose hook keys a decoded-bitmap cache by this
+  URL; `ArtworkWarmup` marks the same URLs on the root layout's
   prefetch hints so `app.js` can pre-decode them at idle. One function on
   both sides, for the same reason as `poster_src/1`: a key that differs by a
   byte is a miss, and the hero decodes on every visit again.
