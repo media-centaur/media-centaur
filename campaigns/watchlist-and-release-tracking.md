@@ -30,7 +30,9 @@ tracked titles (12 `global`, 1 `watch`), 9 watchlist rows, and **0 active
 tracked titles with no reason** — the invariant holds on real data. The old
 columns are gone from the table.
 
-Phase 2 (merge the two no-files title surfaces) is next, and is Fable's.
+**Phase 2 complete, unpushed** (`206eca0f`): one title surface for everything
+without files. Phase 3 (library detail mounts the same two components, the bell
+goes) is in progress with Fable.
 
 ## Decisions made
 
@@ -73,6 +75,20 @@ Phase 2 (merge the two no-files title surfaces) is next, and is Fable's.
 * `2026-09-07` — Phase 1 landed and was migrated on this machine; the invariant
   verified on real data (0 orphans). Inert `:none` rows are never pruned —
   pruning one would re-arm the title.
+* `2026-09-07` — Phase 2 landed. **Watchlist rows show the tracking mode as a
+  quiet marker and never set it.** UIDR-035 says a row shows its mode; a
+  five-option control repeated down a list reads as a chip palette and breaks
+  `title_row.ex`'s own contract ("state is shown, never acted on here: every
+  verb lives in the modal"). Arming stays one click away on the row's modal, so
+  the watchlist is still the arming surface. Reverted after seeing it rendered.
+* `2026-09-07` — `arm/2` takes an explicit `tracking_mode`, and re-arming a
+  disarmed title raises it to the seed. Not the system raising a mode: every
+  caller is a person's click. `disarm/1` / `arm/2` write their
+  `:stopped_tracking` / `:began_tracking` audit events so the modal's recent
+  activity still records a stop.
+* `2026-09-07` — `TitleDetailHost` is the shared host trait for the merged
+  modal, and `TitleRef` owns the `?title=` ref spelling now that both Discovery
+  and Incoming use it.
 
 ## Next steps
 
@@ -100,7 +116,7 @@ Phase 2 (merge the two no-files title surfaces) is next, and is Fable's.
    `DropOrphanedTrackedTitles` data migration sweeps rows the old
    keep-everything `detach` left behind. Inert `:none` rows are deliberately
    never pruned — pruning one re-arms the title.
-3. **Phase 2 — merge the no-files surfaces** (Fable). `ReleaseTracking.TitleModal`
+3. ~~**Phase 2 — merge the no-files surfaces**~~ Done 2026-09-07 (`206eca0f`). `ReleaseTracking.TitleModal`
    absorbed into `Discovery.TitleDetailModal`; shared release-timeline and
    tracking-mode components extracted; watchlist rows gain the mode control;
    the `Track` verb retired in favour of add + arm. Ships a working product;
