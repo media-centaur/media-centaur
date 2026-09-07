@@ -1587,6 +1587,48 @@ body:has(.modal-backdrop[data-state="open"]) {
   --btn-noise: none;
 }
 
+/* Armed destructive button (CoreComponents.armed_button, MC0027 tier 2).
+   The armed state owns its look whatever the idle variant was: error text
+   and border, a tint stronger than btn-soft's 8% (which reads as neutral
+   on the dark theme), the label on one line (a wrapped label overflows the
+   fixed btn height and looks unpadded), and a one-shot ring pulse on
+   arming — opacity/transform only. Direct properties rather than daisyUI's
+   --btn-* variables, so the mouse-mode focus-visible rules above, which
+   reset those variables on the programmatic refocus that follows every
+   patch, can't wash the armed look out. */
+.btn[data-armed] {
+  position: relative;
+  color: var(--color-error);
+  background-color: color-mix(in oklab, var(--color-error) 14%, var(--color-base-100));
+  border-color: color-mix(in oklab, var(--color-error) 45%, transparent);
+  padding-inline: calc(var(--btn-p) + 0.125rem);
+  white-space: nowrap;
+}
+
+.btn[data-armed]:hover {
+  background-color: color-mix(in oklab, var(--color-error) 22%, var(--color-base-100));
+}
+
+.btn[data-armed]::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border: 2px solid var(--color-error);
+  border-radius: calc(var(--radius-field, 0.25rem) + 3px);
+  pointer-events: none;
+  opacity: 0;
+  animation: armed-pulse 550ms ease-out 1;
+}
+
+@keyframes armed-pulse {
+  from { opacity: 0.9; transform: scale(0.94); }
+  to { opacity: 0; transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn[data-armed]::after { animation: none; }
+}
+
 /* Keyboard/gamepad focus ring — primary color glow */
 [data-input=keyboard] [data-nav-item]:focus,
 [data-input=gamepad] [data-nav-item]:focus {

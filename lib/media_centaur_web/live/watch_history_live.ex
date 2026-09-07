@@ -293,11 +293,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               armed_label="Click again to remove"
               variant="destructive_inline"
               size="xs"
-              class={[
-                "text-base-content/55 hover:text-error transition-opacity",
-                @remove_confirm != event.id &&
-                  "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
-              ]}
+              class="text-base-content/55 hover:text-error transition-opacity opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
               phx-value-id={event.id}
               aria-label="Remove from history"
             >
