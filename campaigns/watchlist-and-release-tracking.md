@@ -21,6 +21,15 @@ existence is reconciled from reasons, and `ReleaseTracking.arm/2` is the
 person's act. `mix precommit` green (6854 Elixir + 807 JS). No visible change
 yet — the UI still wears its old controls, wired to the new field.
 
+**Migrated on this machine 2026-09-07**, against the real library DB
+(`~/.local/share/media-centaur/media-centaur.db`, which the `media-centaur-dev`
+daily driver uses): Fae backup first (`media-center-db`, success), service
+stopped, `ecto.migrate` + `ecto.migrate_data`, service restarted and serving
+(`/incoming` and `/discovery/watchlist` both 200, logs clean). Result: 13
+tracked titles (12 `global`, 1 `watch`), 9 watchlist rows, and **0 active
+tracked titles with no reason** — the invariant holds on real data. The old
+columns are gone from the table.
+
 Phase 2 (merge the two no-files title surfaces) is next, and is Fable's.
 
 ## Decisions made
@@ -61,6 +70,9 @@ Phase 2 (merge the two no-files title surfaces) is next, and is Fable's.
 * `2026-09-07` — UI phases are implemented with the Fable model; context,
   schema and migration phases stay on Opus.
 * `2026-09-07` — Phase 0 landed: ADR-065, UIDR-035, five glossary terms.
+* `2026-09-07` — Phase 1 landed and was migrated on this machine; the invariant
+  verified on real data (0 orphans). Inert `:none` rows are never pruned —
+  pruning one would re-arm the title.
 
 ## Next steps
 
