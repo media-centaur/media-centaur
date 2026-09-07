@@ -7,7 +7,15 @@ defmodule MediaCentaur.MixProject do
       version: "1.15.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
-      start_permanent: Mix.env() == :prod,
+      # `:permanent` makes the VM halt when the OTP application stops. Outside
+      # :prod Mix starts apps :temporary, so an application shutdown — the way
+      # a hot full-rebuild ends (journal 2026-09-07 10:53, and the account in
+      # 03f164fa) — leaves the BEAM alive with nothing served. systemd
+      # sees a healthy process, Restart= never fires, and the service is down
+      # invisibly. The always-on dev unit sets MIX_START_PERMANENT=1 so that
+      # failure becomes a process exit its Restart=always can act on; an ad-hoc
+      # `mix phx.server` keeps the lenient default.
+      start_permanent: Mix.env() == :prod or System.get_env("MIX_START_PERMANENT") == "1",
       description: "Library management and playback for a personal movie and TV collection.",
       source_url: "https://github.com/media-centaur/media-centaur",
       homepage_url: "https://media-centaur.github.io/media-centaur/",
