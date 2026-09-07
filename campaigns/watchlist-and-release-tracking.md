@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-09-07
 last_updated: 2026-09-07
 ---
@@ -15,9 +15,10 @@ wherever the title appears.
 
 ## Status
 
-Planning. Design agreed 2026-09-07 and written to
+**Phase 0 complete.** ADR-065, UIDR-035 and the four glossary terms are written;
+the design is in
 `docs/superpowers/specs/2026-09-07-watchlist-release-tracking-reconciliation-design.md`.
-No code yet.
+Phase 1 (the model) is next. No code yet.
 
 ## Decisions made
 
@@ -56,15 +57,16 @@ No code yet.
   is **not** a collision — two contexts may use one word for different things.
 * `2026-09-07` — UI phases are implemented with the Fable model; context,
   schema and migration phases stay on Opus.
+* `2026-09-07` — Phase 0 landed: ADR-065, UIDR-035, five glossary terms.
 
 ## Next steps
 
-1. **Phase 0 — records and vocabulary.** ADR-065 (tracking reasons, the derived
-   tracked title, the invariant, removal of `source`). UIDR-035 (two title
-   surfaces; retirement of the straggler line, superseding that half of
-   UIDR-017). Glossary entries for *watchlist entry*, *tracked title*,
-   *tracking reason*, *tracking mode* — none exists today, which is the
-   diagnosis in miniature.
+1. ~~**Phase 0 — records and vocabulary.**~~ Done 2026-09-07:
+   [ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
+   [UIDR-035](../decisions/user-interface/2026-09-07-035-two-title-surfaces.md),
+   and five glossary terms (*watchlist entry*, *tracked title*, *tracking
+   reason*, *tracking mode*, *arming* — none existed, which was the diagnosis in
+   miniature). *Straggler* marked retired-pending-Phase-4.
 2. **Phase 1 — the model.** `tracking_mode` replaces `status` +
    `auto_grab_mode`; `source` dropped; existence reconciled from reasons;
    `ReleaseTracking.WatchlistListener` mirroring `LibraryListener`;
