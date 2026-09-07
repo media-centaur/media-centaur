@@ -37,8 +37,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:armed` — a future release that **will** auto-grab when it drops (only
       when acquisition is ready AND the effective auto-grab mode is
       `"all_releases"`). Honest: never shown when a grab won't actually fire.
-      A past armed release stays only for a week after it dropped; older ones
-      are library gaps, not forecast beats (`forecast_worthy?/2`).
+      A past armed release stays listed while it is still missing — the app
+      is searching for it, and the shelf says so (`forecast_worthy?/2`).
     * `:armed_fallback` — a movie's later acquirable date (its physical
       release after the digital one). The want ledger opens a single want per
       film, anchored on the earliest acquirable date, so only that date's
@@ -56,8 +56,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
   @bucket_order [:today, :this_week, :next_week, :later, :beyond]
 
-  # How long a past release stays a "just dropped" / "just landed" beat on the
-  # forecast before it is history (the ledger's) or a gap (the library's).
+  # How long a landed release stays on the forecast as a "just landed" beat
+  # before it is the ledger's history.
   @recent_days 7
 
   @empty_buckets Map.new(@bucket_order, &{&1, []})
@@ -153,7 +153,10 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   arrived theatrical date → "Now"; today → "Tonight" (episodes) / "Today"
   (movies); under a week → "Tue"; under a month → "Wed Jun 24"; beyond →
   "Jul 24". A bare weekday is only unambiguous inside the coming week, hence
-  the `< 7` cutoff.
+  the `< 7` cutoff. A release that already came out reads as elapsed time —
+  "Yesterday", "5 days ago", then "May 15", then "May 1998" once the year
+  differs — never as tonight: the row is there because the app is still
+  searching for it, and the date says how long that has been.
   """
   @spec shelf_date_label(Event.t(), Date.t()) :: String.t()
   def shelf_date_label(%Event{air_date: date} = event, today) do
@@ -161,8 +164,12 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
     cond do
       event.status == :theatrical_info and diff <= 0 -> "Now"
-      diff <= 0 and event.kind == :movie -> "Today"
-      diff <= 0 -> "Tonight"
+      diff == 0 and event.kind == :movie -> "Today"
+      diff == 0 -> "Tonight"
+      diff == -1 -> "Yesterday"
+      diff < 0 and diff >= -6 -> "#{-diff} days ago"
+      diff < 0 and date.year == today.year -> Calendar.strftime(date, "%b %-d")
+      diff < 0 -> Calendar.strftime(date, "%b %Y")
       diff < 7 -> weekday_abbr(date)
       diff <= 30 -> "#{weekday_abbr(date)} #{month_day(date)}"
       true -> month_day(date)
@@ -286,22 +293,20 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       Item.grab_mode(item.tracking_mode, context.auto_grab_default_mode) == "all_releases"
   end
 
-  # A forecast is about the future. A *past* release earns a spot only as a
-  # meaningful beat: it's actively being grabbed (live, however old), or —
-  # within `@recent_days` — it just landed (closure) or it's armed and just
-  # dropped. The window is what makes those beats beats: an owned series in
-  # Global mode arms every episode it is missing, so without it a 1998 episode
-  # sat on Coming up as "Tonight · Will grab" for as long as it stayed missing.
-  # That is a library gap, shown as a missing episode in the library detail,
-  # not a forecast item. Past theatrical dates (released, never enter the
-  # library, never grabbed) are dropped outright; the future digital date
-  # carries the title.
+  # A forecast is about the future. A *past* release earns a spot while the
+  # machine is still on it — under pursuit, or armed and not yet found (the
+  # want ledger searches an armed gap forever, and a title the app is
+  # searching for is listed for as long as that holds; stopping it is the
+  # tracking mode, not this filter) — or, within `@recent_days`, because it
+  # just landed (closure; after that it is the ledger's history). Past
+  # theatrical dates (released, never enter the library, never grabbed) are
+  # dropped outright; the future digital date carries the title.
   defp forecast_worthy?(%Event{air_date: date, status: status}, today) do
     cond do
       is_nil(date) -> true
       Date.compare(date, today) != :lt -> true
-      status == :under_pursuit -> true
-      status in [:in_library, :armed] -> Date.diff(today, date) <= @recent_days
+      status in [:under_pursuit, :armed] -> true
+      status == :in_library -> Date.diff(today, date) <= @recent_days
       true -> false
     end
   end

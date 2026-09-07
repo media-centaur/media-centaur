@@ -474,13 +474,13 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert [%{title: "dropped-this-week", status: :armed}] = feed.buckets.today
     end
 
-    test "an armed release that aired long ago is a library gap, not a forecast beat" do
+    test "an armed release that aired long ago stays listed — the app is still searching for it" do
       item = tv_item()
 
       old =
         release(item, %{
           title: "aired-decades-ago",
-          air_date: days(-30),
+          air_date: ~D[1998-05-18],
           released: true,
           season_number: 10,
           episode_number: 21
@@ -488,7 +488,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
       feed = UpcomingFeed.build([old], armed_context())
 
-      assert all_events(feed) == []
+      assert [%{title: "aired-decades-ago", status: :armed}] = feed.buckets.today
     end
 
     test "a release that landed long ago is history, not a closure beat" do
@@ -669,6 +669,29 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       event = shelf_event(UpcomingFeed.build([movie], armed_context()))
 
       assert UpcomingFeed.shelf_date_label(event, @today) == "Today"
+    end
+
+    test "a release that already came out reads as how long ago, never Tonight" do
+      item = tv_item()
+
+      label = fn date ->
+        episode =
+          release(item, %{
+            title: "t",
+            air_date: date,
+            released: true,
+            season_number: 1,
+            episode_number: 1
+          })
+
+        event = shelf_event(UpcomingFeed.build([episode], armed_context()))
+        UpcomingFeed.shelf_date_label(event, @today)
+      end
+
+      assert label.(days(-1)) == "Yesterday"
+      assert label.(days(-5)) == "5 days ago"
+      assert label.(days(-30)) == "May 15"
+      assert label.(~D[1998-05-18]) == "May 1998"
     end
 
     test "a theatrical date that has arrived reads Now" do
