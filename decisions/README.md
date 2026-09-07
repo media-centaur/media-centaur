@@ -69,7 +69,8 @@ System design, data model, integration patterns, and engineering standards. Thes
 | 062 | 2026-08-18 | [Episode auto-advance rides the mpv playlist inside one session](architecture/2026-08-18-062-playlist-based-episode-advance.md) | accepted |
 | 063 | 2026-08-31 | [Plan diagnosis model: per-unit outcomes, per-title quality bounds, status-observed cancellation](architecture/2026-08-31-063-plan-diagnosis-model.md) | accepted |
 | 064 | 2026-09-04 | [Outbound HTTP goes through one seam: upstream tagging, instrumentation, and an origin-freshness cache](architecture/2026-09-04-064-outbound-http-seam.md) | accepted |
-| 065 | 2026-09-07 | [A tracked title is derived from reasons; only a person sets its mode](architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md) | accepted |
+| 065 | 2026-09-07 | [A tracked title is derived from reasons; only a person sets its mode](architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md) | superseded in part by 066 |
+| 066 | 2026-09-07 | [One ladder per title: an authored rung, and machinery derived from it](architecture/2026-09-07-066-one-ladder-per-title.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
@@ -110,4 +111,5 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 032 | 2026-09-06 | [Page hero backdrops paint from a decoded-bitmap cache](user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md) | accepted |
 | 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted |
 | 034 | 2026-09-07 | [An empty surface states the diagnosed reason it is empty](user-interface/2026-09-07-034-empty-surfaces-state-a-diagnosed-reason.md) | accepted |
-| 035 | 2026-09-07 | [Two title surfaces, split by whether the title has files](user-interface/2026-09-07-035-two-title-surfaces.md) | accepted |
+| 035 | 2026-09-07 | [Two title surfaces, split by whether the title has files](user-interface/2026-09-07-035-two-title-surfaces.md) | superseded in part by 036 |
+| 036 | 2026-09-07 | [One control per title, because there is one ladder](user-interface/2026-09-07-036-one-control-per-title.md) | accepted |

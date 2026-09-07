@@ -1,7 +1,12 @@
 ---
-status: accepted
+status: superseded in part
 date: 2026-09-07
 ---
+
+> **Superseded in part** by [UIDR-036](2026-09-07-036-one-control-per-title.md):
+> "`Remove from watchlist` becomes the separate, unrelated act it always
+> should have been" — under one ladder it is the bottom rung of the one
+> control. The rest of this record stands.
 # Two title surfaces, split by whether the title has files
 
 Supersedes the straggler half of
