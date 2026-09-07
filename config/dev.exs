@@ -38,21 +38,19 @@ config :media_centaur, MediaCentaurWeb.Endpoint,
     tailwind: {Tailwind, :install_and_run, [:media_centaur, ~w(--watch)]}
   ]
 
-config :media_centaur, MediaCentaurWeb.Endpoint,
-  live_reload: [
-    web_console_logger: true,
-    patterns: [
-      ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
-      # Dev default TOML path — separate from production's XDG default so
-      # `iex -S mix phx.server` (no `MEDIA_CENTAUR_CONFIG_OVERRIDE` set)
-      # picks up dev values (port 1080, dev DB) instead of the installed
-      # prod config (port 2160). The dev systemd unit also points at this
-      # same file via its explicit override env var.
-      ~r"priv/gettext/.*(po)$",
-      ~r"lib/media_centaur_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
-    ]
-  ]
+# Live-reload patterns live in config/runtime.exs, not here: they are
+# regexes, and a compiled regex carries a per-VM reference on OTP 28+, so
+# two Mix processes never evaluate this block to equal terms. Mix compares
+# the evaluated compile-time config on every compile and treats that
+# mismatch as "the app config changed" — a forced rebuild of every
+# dependency and every module whenever the dev server and a shell compile
+# alternate. See the runtime.exs block for the full account.
 
+# Dev default TOML path — separate from production's XDG default so
+# `iex -S mix phx.server` (no `MEDIA_CENTAUR_CONFIG_OVERRIDE` set)
+# picks up dev values (port 1080, dev DB) instead of the installed
+# prod config (port 2160). The dev systemd unit also points at this
+# same file via its explicit override env var.
 config :media_centaur, :default_config_path, "~/.config/media-centaur/media-centaur-dev.toml"
 
 # Toggle at runtime via the Settings page.

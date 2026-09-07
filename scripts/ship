@@ -256,6 +256,16 @@ cmd_release() {
   git add mix.exs
   git commit -m "chore: bump version to $next"
 
+  # A running dev server cannot follow a mix.exs change: Phoenix's code
+  # reloader refuses to compile once a config file's checksum differs from
+  # the one it started with ("You must restart your server"), so every
+  # request would fail until someone restarts it. Do it here, where the
+  # change is made; a boot compile is the safe kind.
+  if systemctl --user is-active --quiet media-centaur-dev 2>/dev/null; then
+    banner "Restarting media-centaur-dev for the new version"
+    systemctl --user restart media-centaur-dev
+  fi
+
   banner "Pushing main"
   git push origin main
 
