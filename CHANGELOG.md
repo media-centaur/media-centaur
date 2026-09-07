@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.14.0 — 2026-09-07
+
+### Improved
+
+- **The Home backdrop is there the moment the page is.** Coming back to Home after visiting other pages used to show the page first and the big backdrop a beat later, filling in from the top. The picture was already downloaded; the browser was re-decoding the full 4K image on every return and painting the page without it in the meantime. Media Centaur now keeps the decoded picture ready between pages and draws it in the same frame the page appears, at full resolution. The Library and Incoming header backdrops work the same way.
+
 ## v1.13.0 — 2026-09-06
 
 ### Improved
