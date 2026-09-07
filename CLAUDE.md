@@ -86,8 +86,12 @@ mix seed.review        # populate review UI test cases (one-shot, idempotent)
 > the shared `_build` is what took the service down on 2026-09-07.
 >
 > Release builds (`scripts/preflight`, `scripts/ship`) are the exception: they
-> read `_build/prod/rel/...` by hard-coded path, and they build `:prod` so they
-> never race the `:dev` server. Run those the normal way.
+> read `_build/prod/rel/...` by hard-coded path, so a different build root puts
+> the release where they don't look. Run those the normal way. They are mostly
+> `:prod` and so mostly don't race the `:dev` server — but `preflight` does end
+> with a dev-env `mix assets.build` to undo its own `assets.deploy`, which does
+> touch `_build/dev`. That step is a no-op when dev is already in sync, and
+> `MIX_START_PERMANENT=1` now makes the bad case self-heal in ~20s.
 
 **Run `mix precommit` before finishing any change** and fix everything it reports. **Zero warnings policy** — every warning is a bug, including unused vars/aliases and log output indicating misconfigured stubs.
 

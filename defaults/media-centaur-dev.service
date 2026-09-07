@@ -1,5 +1,15 @@
 [Unit]
 Description=Media Centaur Backend (Dev)
+# scripts/install-dev GENERATES the installed unit from this file and
+# overwrites it wholesale, so nothing machine-specific survives here. Put local
+# settings in a drop-in instead:
+#
+#   ~/.config/systemd/user/media-centaur-dev.service.d/local.conf
+#
+# List-valued keys (After=, Environment=) append there; a bare `Key=` resets the
+# list before you re-set it. Hand-edits to the installed unit were silently
+# reverted on the next install — that is how this machine lost
+# MEDIA_CENTAUR_DURABLE_DIAGNOSTICS on 2026-09-07.
 # Do NOT add graphical-session.target here. This unit is WantedBy=default.target;
 # pulling the session target into the default.target transaction creates an
 # ordering cycle that systemd breaks by deleting session jobs, which loops the
