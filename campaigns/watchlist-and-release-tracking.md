@@ -30,9 +30,10 @@ tracked titles (12 `global`, 1 `watch`), 9 watchlist rows, and **0 active
 tracked titles with no reason** — the invariant holds on real data. The old
 columns are gone from the table.
 
-**Phase 2 complete, unpushed** (`206eca0f`): one title surface for everything
-without files. Phase 3 (library detail mounts the same two components, the bell
-goes) is in progress with Fable.
+**Phases 2–3 complete, unpushed** (`206eca0f`, `71a52275`): one title surface
+for everything without files, and the library detail mounting the same two
+components with the bell gone. The `:watching` / `:ignored` vocabulary is out of
+the app entirely. Phase 4 (retire the stragglers line) is in progress with Fable.
 
 ## Decisions made
 
@@ -89,6 +90,14 @@ goes) is in progress with Fable.
 * `2026-09-07` — `TitleDetailHost` is the shared host trait for the merged
   modal, and `TitleRef` owns the `?title=` ref spelling now that both Discovery
   and Incoming use it.
+* `2026-09-07` — Phase 3 landed: the library detail mounts the same timeline and
+  mode control, the bell is gone, and `tracking_status` became `tracking_mode`
+  through the view models.
+* `2026-09-07` — **Suite flakes here are contention, not regressions.** Two
+  agents running the full suite at once race for the test database and produce a
+  rotating cast of ~4–5 failures; the committed baseline shows the same rate.
+  Verify a change against its own test surface repeated, and run one full
+  precommit at a time.
 
 ## Next steps
 
@@ -122,7 +131,7 @@ goes) is in progress with Fable.
    the `Track` verb retired in favour of add + arm. Ships a working product;
    the bell remains a knowingly-stale second representation until Phase 3 — an
    explicit scheduled convergence, not a silent one.
-4. **Phase 3 — library detail** (Fable). Mounts the same two shared components;
+4. ~~**Phase 3 — library detail**~~ Done 2026-09-07 (`71a52275`). Mounts the same two shared components;
    the bell is removed. The convergence point for Phase 2's debt.
 5. **Phase 4 — retire the stragglers line** (Fable). `UpcomingFeed.Straggler`
    removed, Coming up reduced to the schedule, UIDR-017 amended.
