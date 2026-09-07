@@ -127,15 +127,18 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline do
   end
 
   @doc """
-  The featured "what's next" pick: the first timeline event dated today
-  or later that hasn't already landed. `nil` when nothing lies ahead —
-  the timeline states the absence instead.
+  The featured "what's next" pick: the first dated timeline event that
+  hasn't already landed. The timeline is date-ordered and already bounded
+  by `UpcomingFeed` (a past release stays a week, and only while it is
+  armed, landed or under pursuit), so a recent drop that is still missing
+  is the beat to feature, not something to skip — skipping it said
+  "Nothing scheduled" above a row that listed it. `nil` when nothing
+  qualifies — the timeline states the absence instead.
   """
   @spec next_event([Event.t()], Date.t()) :: Event.t() | nil
-  def next_event(timeline, today) do
+  def next_event(timeline, _today) do
     Enum.find(timeline, fn %Event{} = event ->
-      event.status != :in_library and event.air_date != nil and
-        Date.compare(event.air_date, today) != :lt
+      event.status != :in_library and event.air_date != nil
     end)
   end
 end

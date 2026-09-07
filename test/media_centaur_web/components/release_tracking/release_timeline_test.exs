@@ -37,6 +37,13 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimelineTest do
       assert %Event{id: "upcoming"} = ReleaseTimeline.next_event([landed, upcoming], @today)
     end
 
+    test "a recent release that has not landed is the featured beat, even though its date passed" do
+      dropped = event(%{id: "dropped", air_date: ~D[2026-07-31], status: :armed})
+      later = event(%{id: "later", air_date: ~D[2026-08-11]})
+
+      assert %Event{id: "dropped"} = ReleaseTimeline.next_event([dropped, later], @today)
+    end
+
     test "returns nil when nothing is scheduled ahead" do
       past = event(%{id: "past", air_date: ~D[2026-07-01], status: :in_library})
       undated = event(%{id: "undated", air_date: nil, status: :unscheduled})
