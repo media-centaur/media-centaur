@@ -21,6 +21,17 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`watchlist-and-release-tracking.md`](watchlist-and-release-tracking.md) —
+  **planning.** Collapse four representations of one idea — a watchlist entry, a
+  tracked title, `Item.status`, `Item.auto_grab_mode` — into one authored intent
+  and one derived machine, and the three title modals into two. A watchlist entry
+  is intent; a tracked title exists while a **tracking reason** holds (the library
+  owns an active container, or a person armed the entry). One **tracking mode**
+  (None/Watch/Ask/Grab/Global), set only by a person and never raised by the
+  system; auto-grab stays opt-in, so adding to the watchlist seeds Watch, not the
+  global default. Invariant: every tracked title is either owned or on the
+  watchlist — which is what lets the straggler line retire. Six phases; UI phases
+  use the Fable model. Design settled 2026-09-07; no code yet.
 * [`instant-hero-backdrop.md`](instant-hero-backdrop.md) —
   **in-progress, owner check remaining.** Home, Library, and Incoming hero
   backdrops now paint in the mount frame on every return, at master
