@@ -135,22 +135,31 @@ end
 (no real TOML), and `:media_dirs, []`. Tests needing real paths create temp dirs via
 `System.tmp_dir!()` and override `:persistent_term`.
 
-**Global state is reset for you — do not hand-roll it.** The SQL sandbox rolls
-back rows and nothing else. `MediaCentaur.GlobalStateSandbox`, called from
-`DataCase.setup_sandbox/1`, restores every `:persistent_term` key this app owns
-to its post-`test_helper` baseline before each **sync** `DataCase`/`ConnCase`
-test, and clears `Console.Buffer` and `IncomingLive.SearchSession`. So:
-**write** what your test needs (`:persistent_term.put`, `Config.update/2`, a
-stubbed client) and **do not** save-and-restore it in `on_exit` — that's the
-harness's job, and a private copy of it drifts.
+**A sync test checks the machine out and checks it back in — do not hand-roll
+cleanup.** Every test module uses `MediaCentaur.Case, async: true|false`
+(directly, or through `DataCase`/`ConnCase`; **MC0035** refuses a bare
+`ExUnit.Case` or a template without an explicit `async:`). An `async: false`
+test is checked out: at exit, `MediaCentaur.GlobalStateSandbox` **restores**
+every app-owned `:persistent_term` key and the `:media_centaur` application env
+to the `test_helper` baseline and resets the singletons with a public read
+(`Console.Buffer`, `ErrorReports.Buckets`, `SearchSession`, `RateLimiter`,
+`MetadataStats`, watchers, the discovery in-flight set), then **verifies** what
+it cannot put back — a registered `MediaCentaur*` process, an app-owned ETS
+table, or a live `MediaCentaur.TaskSupervisor` child left behind fails *that*
+test with the diff. So: **write** what your test needs and **do not**
+save-and-restore it in `on_exit`; **drive your async to completion**
+(`await_supervised_tasks/0`, `render_async`, a released stub) rather than
+leaving a task for teardown, because teardown no longer kills it quietly.
 
-`async: true` tests reset nothing, same condition the sandbox's own shared mode
-uses: concurrent tests share the machine, so a reset in one clears state its
-peers installed. The corollary is the rule that makes this work — **a test that
-writes global state must be `async: false`**, and an async test that writes one
-(a stub, a config key, a cache) is relying on nobody else touching it. Also: a
-new stateful child of `MediaCentaur.Supervisor` fails
-`global_state_sandbox_test.exs` until it's classified in `dispositions/0`.
+`async: true` tests are not checked out and **may not write global state**
+(**MC0036**, which also refuses writes in `setup_all` — that runs before any
+test is checked out). The first sync test's checkout catches an async-phase
+leak the static list missed and names the phase. A new child of
+`MediaCentaur.Supervisor` fails `global_state_sandbox_test.exs` until it has a
+disposition — `:sandboxed`, `:unobservable`, `{:reset, mfa}` or
+`{:probe, mfa}`; there is no disposition whose truth rests on a sentence. To
+see which test wrote a piece of global state across a whole run, use the
+opt-in `MediaCentaur.StateProbeFormatter` (its moduledoc has the recipe).
 
 **Pipeline (Broadway)** — test-first, mandatory. Call stage functions directly
 (`run/1`, `Pipeline.Import.process_payload/1`), never the Broadway topology. Test
