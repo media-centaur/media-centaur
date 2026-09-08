@@ -60,16 +60,6 @@ Use [`template.md`](template.md) as a starter.
   that title parsing can never assert. **Phase 2** would query by id, which
   means owning the fan-out Prowlarr exists to provide, and may be declined.
   No code yet.
-* [`test-suite-determinism.md`](test-suite-determinism.md) —
-  **built 2026-09-08, seed verification remaining.** A full `mix test` should
-  pass or fail on the code, not on the order ExUnit picked. A sync test now
-  checks the machine out and back in (`MediaCentaur.Case` →
-  `GlobalStateSandbox`): app-owned `:persistent_term`, the app env and
-  reset-able singletons are restored at exit; a leaked process, ETS table or
-  live supervised task fails the test that made it. `:accepted` is gone from
-  the disposition vocabulary; MC0035/MC0036 are the static half; the
-  `DataCase` drain is retired. Same wall time as before, back to back. Wall
-  time itself is `serial-test-audit`'s and stays there.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and
@@ -144,6 +134,20 @@ Use [`template.md`](template.md) as a starter.
 
 ## Complete
 
+* **Test-suite determinism** — **complete 2026-09-08, unpushed** (file
+  retired; design in
+  [`docs/plans/2026-09-08-test-suite-determinism-checkout-design.md`](../docs/plans/2026-09-08-test-suite-determinism-checkout-design.md),
+  amendment in [ADR-049](../decisions/architecture/2026-05-22-049-testing-principles.md)).
+  A full `mix test` passes or fails on the code, not on the order ExUnit
+  picked: a sync test checks the machine out and back in
+  (`MediaCentaur.Case` → `GlobalStateSandbox`), restoring what can be
+  restored and failing the test that left anything else — a process, a
+  table, a live task, a request no stub could answer. `:accepted` left the
+  disposition vocabulary; MC0035/MC0036 are the static half; the `DataCase`
+  drain and ~90 hand-rolled restores are gone. Verified at five seeds and a
+  padded run, zero leaks; same wall time back to back. The rate-based
+  `render_async` site got a content wait; `Database busy` did not appear in
+  fourteen runs and is noted, not chased.
 * [`tracking-is-a-persons-act.md`](tracking-is-a-persons-act.md) —
   **complete 2026-09-07, unpushed.** One authored record per title
   carrying the whole ladder (Off · List · Follow · Ask · Grab · Default);
