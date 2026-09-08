@@ -435,7 +435,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # pennants; nothing else about the entry changes.
   def handle_modal_pubsub({tag, _event}, socket)
       when tag in [:activity_received, :activity_sent, :activity_deleted] do
-    {:cont, assign_recommendations(socket)}
+    {:cont, assign_friend_activity(socket)}
   end
 
   def handle_modal_pubsub({:library_view_updated, :detail, _id}, socket) do
@@ -606,7 +606,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       lower_quality_accepted?: false,
       default_grab_mode: AutoGrabSettings.load().default_mode,
       acquisition?: Capabilities.acquisition_ready?(),
-      recommendations: [],
+      friend_activity: [],
       playback: %{}
     )
   end
@@ -717,7 +717,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         lower_quality_accepted?: lower_quality_accepted?
       )
       |> Phoenix.Component.assign(per_selection_assigns(socket.assigns, selection_changed))
-      |> assign_recommendations()
+      |> assign_friend_activity()
 
     if should_load_files?, do: start_async_files_load(socket, selected_id), else: socket
   end
@@ -939,10 +939,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     doc:
       "whether the open subject carries the per-title lower-quality acceptance (ADR-063 §2), from the modal's `:lower_quality_accepted?` assign. An Acquisition fact keyed by TMDB identity, so it outlives the title being tracked and cannot be read off `tracking`. Required so a host cannot mount the modal without it."
 
-  attr :recommendations, :list,
+  attr :friend_activity, :list,
     required: true,
     doc:
-      "the open subject's `Activities.recommendations_for/1` rows, kept by the modal's `:recommendations` assign — the hero pennants. Required so a host cannot mount the modal without them."
+      "the open subject's `Activities.friend_activity_for/1` rows, kept by the modal's `:friend_activity` assign — the hero pennants. Required so a host cannot mount the modal without them."
 
   attr :availability_map, :map,
     default: %{},
@@ -1001,7 +1001,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       lower_quality_accepted?={@lower_quality_accepted?}
       recommend?={@show_discovery}
       tracking={@tracking}
-      recommendations={@recommendations}
+      friend_activity={@friend_activity}
       available={
         @selected_entry == nil ||
           Map.get(@availability_map, @selected_entry.entity.id, true)
@@ -1364,16 +1364,16 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # toggle and Recommend act on, so a collection shows the selected
   # member's pennants. Empty when nothing is open or the subject has no
   # TMDB identity.
-  defp assign_recommendations(socket) do
-    recommendations =
+  defp assign_friend_activity(socket) do
+    friend_activity =
       case watchlist_ref(
              watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
            ) do
         nil -> []
-        ref -> Map.get(Activities.recommendations_for([ref]), ref, [])
+        ref -> Map.get(Activities.friend_activity_for([ref]), ref, [])
       end
 
-    Phoenix.Component.assign(socket, :recommendations, recommendations)
+    Phoenix.Component.assign(socket, :friend_activity, friend_activity)
   end
 
   # The entity the watchlist toggle acts on: the open entity, except in a

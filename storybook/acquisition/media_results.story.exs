@@ -90,7 +90,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           title_rungs: %{{777, :movie} => :list},
           in_library_refs: MapSet.new([{246_810, :tv_series}]),
           tracked_refs: MapSet.new([{246_810, :tv_series}, {779, :tv_series}]),
-          recommendations_by_ref: %{
+          friend_activity_by_ref: %{
             {777, :movie} => [recommendation(777, "Sample Friend", :love)],
             {778, :movie} => [
               recommendation(778, "Other Friend", :like),

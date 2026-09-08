@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     only: [format_type: 1, format_human_duration: 1]
 
   alias MediaCentaurWeb.Components.CinematicShell
-  alias MediaCentaurWeb.Components.Discovery.RecommendationPennant
+  alias MediaCentaurWeb.Components.Discovery.Pennant
   alias MediaCentaurWeb.Components.Detail.CastPanel
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.CollectionRail
@@ -126,9 +126,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "the tracked-title half (`TrackingDetail.load/2`) for a series or collection — the release timeline, the tracking-mode control and recent activity below the list (UIDR-035); nil renders none of it"
 
-  attr :recommendations, :list,
+  attr :friend_activity, :list,
     default: [],
-    doc: "the subject's `Activities.recommendations_for/1` rows — the pennants on the hero's right edge."
+    doc: "the subject's `Activities.friend_activity_for/1` rows — the pennants on the hero's right edge."
 
   attr :tmdb_ready, :boolean, default: true
 
@@ -323,8 +323,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       data-detail-nested={@open && to_string(Logic.nested_view?(@entity, @detail_view))}
       data-nav-overlay={@open && "detail"}
     >
-      <:hero_mast :if={@recommendations != []}>
-        <RecommendationPennant.recommendation_pennants recommendations={@recommendations} on_image />
+      <:hero_mast :if={@friend_activity != []}>
+        <Pennant.pennants activity={@friend_activity} on_image />
       </:hero_mast>
       <%!-- The pinned block's content: identity lockup + hairline +
             metadata + play controls + synopsis. The sticky wrapper and
@@ -620,11 +620,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # --- Tracking (UIDR-035) ---
 
-  # The tracking half of the document, after what you have: the release
-  # timeline and recent activity when the title is followed, and the
-  # ladder control always. The same shared components the title detail
-  # modal mounts, so an owned series with an announced season is
-  # described in one place.
+  # The tracking half of the document, after what you have: the ladder
+  # control always, and beneath it what the ladder produces — the release
+  # timeline and recent activity — when the title is followed. The
+  # control comes first so choosing a rung adds content below it and
+  # never moves it. The same shared components the title detail modal
+  # mounts, so an owned series with an announced season is described in
+  # one place.
   #
   # The control renders whether or not the title is followed — under one
   # ladder, Off is a rung like any other, and hiding the control on an
@@ -647,12 +649,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       class="space-y-6 border-t border-base-content/10 px-6 pb-6 pt-6"
       data-nav-zone="detail_tracking"
     >
-      <ReleaseTimeline.release_timeline
-        :if={@tracking}
-        id="detail-release-timeline"
-        timeline={@tracking.timeline}
-        today={@tracking.today}
-      />
       <IntentControl.intent_control
         :if={@ref}
         id="detail-tracking-mode"
@@ -661,6 +657,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         default_grab_mode={@default_grab_mode}
         acquisition?={@acquisition?}
         lower_quality_accepted?={@lower_quality_accepted?}
+      />
+      <ReleaseTimeline.release_timeline
+        :if={@tracking}
+        id="detail-release-timeline"
+        timeline={@tracking.timeline}
+        today={@tracking.today}
       />
       <section :if={@tracking && @tracking.activity != []} class="space-y-2">
         <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">

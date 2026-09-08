@@ -379,15 +379,15 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       view |> element("#detail-recommend") |> render_click()
       assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
       assert has_element?(view, "#recommend-sentiment-like input[checked]")
-      assert has_element?(view, "#recommend-sentiment-like .pennant[data-sentiment='like']", "Like")
-      assert has_element?(view, "#recommend-sentiment-love .pennant[data-sentiment='love']", "Love")
+      assert has_element?(view, "#recommend-sentiment-like .pennant[data-flag='like']", "Like")
+      assert has_element?(view, "#recommend-sentiment-love .pennant[data-flag='love']", "Love")
 
       view |> form("#recommend-form", %{"sentiment" => "love", "note" => ""}) |> render_submit()
       assert [%{tmdb_id: 777, note: nil, sentiment: :love}] = MediaCentaur.Activities.list_sent()
 
       # The sender's own pennant now flies from the detail hero.
       render_until(view, fn _html ->
-        has_element?(view, "#detail-modal .pennant[data-sentiment='love']", "You")
+        has_element?(view, "#detail-modal .pennant[data-flag='love']", "You")
       end)
 
       await_supervised_tasks()
@@ -420,7 +420,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, _rec} = MediaCentaur.Activities.ingest(recommend.(:love))
 
       render_until(view, fn _html ->
-        has_element?(view, "#detail-modal .pennant[data-sentiment='love']", "Sample Friend")
+        has_element?(view, "#detail-modal .pennant[data-flag='love']", "Sample Friend")
       end)
 
       await_supervised_tasks()

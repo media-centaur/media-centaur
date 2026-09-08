@@ -19,13 +19,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsTest do
     assert ActivityWords.noun(:watched) == "watched activity"
     assert ActivityWords.noun(:tracking) == "tracking activity"
   end
-
-  test "a statement joins the actor and the verb" do
-    assert ActivityWords.statement("You", :tracking, nil) == "You started tracking"
-
-    assert ActivityWords.statement("Sam", :watched, %Episode{season_number: 1, episode_number: 12}) ==
-             "Sam watched S01E12"
-  end
 end
 
 defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsPresenceTest do

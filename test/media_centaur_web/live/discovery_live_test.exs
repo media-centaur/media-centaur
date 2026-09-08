@@ -243,15 +243,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       view |> element(friend_card() <> "-watched-#{watched.id}") |> render_click()
       assert_patch(view, "/discovery/friends?title=tv_series-1399&activity=#{watched.id}")
-      assert render(view) =~ "Sample Friend watched S02E05"
+      # Who did what is the pennant's to say, not a line under the hero.
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='watched']", "Sample Friend")
       refute has_element?(view, "#title-activity-delete")
       render_hook(view, "close_title", %{})
 
-      # The recommendation opens with its note and the named pennant.
+      # The recommendation opens with its note, attributed, and the named pennant.
       view |> element(friend_card() <> "-#{recommended.id}") |> render_click()
-      assert render(view) =~ "Sample Friend recommended"
-      assert render(view) =~ "Watch it."
-      assert has_element?(view, "#title-detail-modal .pennant[data-sentiment='love']", "Sample Friend")
+      assert has_element?(view, "#title-note", "Sample Friend")
+      assert has_element?(view, "#title-note", "Watch it.")
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='love']", "Sample Friend")
 
       await_supervised_tasks()
     end
@@ -273,7 +274,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute has_element?(view, "#person-you footer")
 
       view |> element("#person-you-#{rec.id}") |> render_click()
-      assert render(view) =~ "You recommended"
+      assert has_element?(view, "#title-activity-delete", "Delete recommendation")
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='like']", "You")
       view |> element("#title-tracking-mode-list") |> render_click()
       assert Discovery.listed?(99, :movie)
       render_hook(view, "close_title", %{})
@@ -392,7 +394,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # The tab is recommendations, so the pennant names who and says how much.
       assert has_element?(
                view,
-               "#recommendation-movie-777 .pennant[data-sentiment='like']",
+               "#recommendation-movie-777 .pennant[data-flag='like']",
                "Sample Friend"
              )
 
@@ -400,7 +402,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # the recommendation's provenance onto the item.
       view |> element("#recommendation-movie-777") |> render_click()
       assert_patch(view, "/discovery?title=movie-777")
-      assert render(view) =~ "Sample Friend recommended"
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='like']", "Sample Friend")
+      assert has_element?(view, "#title-note", "Watch it.")
 
       view |> element("#title-tracking-mode-list") |> render_click()
       assert Discovery.listed?(777, :movie)
@@ -436,13 +439,13 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#recommendation-movie-777 .pennant[data-sentiment='love']",
+               "#recommendation-movie-777 .pennant[data-flag='love']",
                "Other Friend"
              )
 
       assert has_element?(
                view,
-               "#recommendation-movie-777 .pennant[data-sentiment='like']",
+               "#recommendation-movie-777 .pennant[data-flag='like']",
                "Sample Friend"
              )
 
@@ -452,10 +455,13 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert ["recommendation-movie-777", "recommendation-movie-778"] =
                ids(view, "[data-component='title-row']")
 
-      # The modal speaks for the newest recommendation and flies both pennants.
+      # The modal speaks for the newest recommendation — its note, attributed —
+      # and flies both pennants.
       view |> element("#recommendation-movie-777") |> render_click()
-      assert render(view) =~ "Other Friend recommended"
-      assert has_element?(view, "#title-detail-modal .pennant[data-sentiment='like']", "Sample Friend")
+      assert has_element?(view, "#title-note", "Other Friend")
+      assert has_element?(view, "#title-note", "Agreed.")
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='love']", "Other Friend")
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='like']", "Sample Friend")
 
       await_supervised_tasks()
     end
@@ -639,7 +645,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # default under a loaded suite; the budget matches the other views'.
       html = render_async(view, 1_000)
       assert html =~ "Every confirmation counts."
-      assert has_element?(view, "#title-detail-modal [data-component='preview-body']")
+      # The preview's metadata row takes the hero's type line; its facets follow the overview.
+      assert has_element?(view, "#title-detail-modal .badge", "Movie")
+      assert has_element?(view, "#title-detail-modal", "Director")
       assert html =~ "sample-backdrop.jpg"
       assert html =~ "sample-logo.png"
       await_supervised_tasks()
@@ -843,7 +851,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       assert has_element?(view, "#title-release-timeline-next", "Digital release")
-      assert html =~ "Tracking since"
+      refute html =~ "Tracking since"
       await_supervised_tasks()
     end
 
@@ -896,7 +904,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#watchlist-item-movie-777 .pennant[data-sentiment='like']",
+               "#watchlist-item-movie-777 .pennant[data-flag='like']",
                "Sample Friend"
              )
 
@@ -914,23 +922,67 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#watchlist-item-movie-777 .pennant[data-sentiment='like']",
+               "#watchlist-item-movie-777 .pennant[data-flag='like']",
                "Sample Friend"
              )
 
       {:ok, _love} = Activities.ingest(other_event(777, :love))
 
       render_until(view, fn _html ->
-        has_element?(view, "#watchlist-item-movie-777 .pennant[data-sentiment='love']", "Other Friend")
+        has_element?(view, "#watchlist-item-movie-777 .pennant[data-flag='love']", "Other Friend")
       end)
 
       assert has_element?(
                view,
-               "#watchlist-item-movie-777 .pennant-mast .pennant:first-child[data-sentiment='love']"
+               "#watchlist-item-movie-777 .pennant-mast .pennant:first-child[data-flag='love']"
              )
 
       view |> element("#watchlist-item-movie-777") |> render_click()
-      assert has_element?(view, "#title-detail-modal .pennant[data-sentiment='love']", "Other Friend")
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='love']", "Other Friend")
+      await_supervised_tasks()
+    end
+
+    test "a friend who watched a listed title flies a watched pennant on the row and the modal", %{
+      conn: conn
+    } do
+      {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      {:ok, _} = Discovery.put_rung(title, :list)
+
+      watched =
+        Event.sign(
+          Translation.to_event(:watched, title, [episode: nil], @friend_pubkey,
+            created_at: 1_700_000_000
+          ),
+          @friend_secret
+        )
+
+      {:ok, _} = Activities.ingest(watched)
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+
+      assert has_element?(
+               view,
+               "#watchlist-item-movie-777 .pennant[data-flag='watched']",
+               "Sample Friend"
+             )
+
+      view |> element("#watchlist-item-movie-777") |> render_click()
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='watched']", "Sample Friend")
+      refute has_element?(view, "#title-activity-delete")
+      await_supervised_tasks()
+    end
+
+    test "your own tracking broadcast is not narrated back on the watchlist", %{conn: conn} do
+      title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      {:ok, _} = Discovery.put_rung(title, :follow)
+      {:ok, _} = Activities.tracking(title)
+
+      {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
+      refute has_element?(view, "#watchlist-item-movie-777 .pennant")
+      refute has_element?(view, "#title-detail-modal .pennant")
+      refute has_element?(view, "#title-activity-delete")
+      refute html =~ "started tracking"
       await_supervised_tasks()
     end
 

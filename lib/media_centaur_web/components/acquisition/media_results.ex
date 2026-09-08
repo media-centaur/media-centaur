@@ -27,8 +27,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.Components.Discovery.RecommendationPennant,
-    only: [recommendation_pennants: 1]
+  import MediaCentaurWeb.Components.Discovery.Pennant,
+    only: [pennants: 1]
 
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
@@ -73,10 +73,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     default: MapSet.new(),
     doc: "`{tmdb_id, media_type}` refs release tracking holds an open item for — the Tracked marker."
 
-  attr :recommendations_by_ref, :map,
+  attr :friend_activity_by_ref, :map,
     default: %{},
     doc:
-      "`%{ref => rows}` from `Activities.recommendations_for/1` for the landed results — the pennants on the mast."
+      "`%{ref => rows}` from `Activities.friend_activity_for/1` for the landed results — the pennants on the mast."
 
   def media_results(assigns) do
     today = assigns.today || Date.utc_today()
@@ -172,7 +172,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
           status={release_status(result, @today)}
           release_mode_available={@release_mode_available}
           rung={Map.get(@title_rungs, {result.tmdb_id, result.media_type})}
-          recommendations={Map.get(@recommendations_by_ref, {result.tmdb_id, result.media_type}, [])}
+          friend_activity={Map.get(@friend_activity_by_ref, {result.tmdb_id, result.media_type}, [])}
           in_library?={MapSet.member?(@in_library_refs, {result.tmdb_id, result.media_type})}
           tracked?={MapSet.member?(@tracked_refs, {result.tmdb_id, result.media_type})}
         />
@@ -234,9 +234,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     required: true,
     doc: "Whether release tracking already holds this title — the Tracked marker."
 
-  attr :recommendations, :list,
+  attr :friend_activity, :list,
     default: [],
-    doc: "the title's `Activities.recommendations_for/1` rows — the pennants above the bookmark."
+    doc: "the title's `Activities.friend_activity_for/1` rows — the pennants above the bookmark."
 
   # A wrapper div owns the row surface: the main pick button and the
   # bookmark toggle are siblings — nested interactive elements are
@@ -286,7 +286,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
       </button>
 
       <div class="flex flex-col items-end self-stretch">
-        <.recommendation_pennants recommendations={@recommendations} class="-mr-2 mt-2.5" />
+        <.pennants activity={@friend_activity} class="-mr-2 mt-2.5" />
         <button
           id={"omnibox-watchlist-#{@result.media_type}-#{@result.tmdb_id}"}
           type="button"

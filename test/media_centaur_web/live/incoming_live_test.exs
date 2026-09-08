@@ -1478,7 +1478,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert has_element?(
                view,
-               "[data-nav-zone='grid'] .pennant[data-sentiment='love']",
+               "[data-nav-zone='grid'] .pennant[data-flag='love']",
                "Sample Friend"
              )
 

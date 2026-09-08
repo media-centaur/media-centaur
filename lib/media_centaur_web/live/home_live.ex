@@ -267,7 +267,7 @@ defmodule MediaCentaurWeb.HomeLive do
           rung={@rung}
           default_grab_mode={@default_grab_mode}
           acquisition?={@acquisition?}
-          recommendations={@recommendations}
+          friend_activity={@friend_activity}
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}
           spoiler_free={@spoiler_free}

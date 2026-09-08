@@ -1,16 +1,17 @@
 defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
   @moduledoc """
   The title detail modal (UIDR-035) — the one surface for a title
-  without files, on Discovery and Incoming alike. The action row is the
+  without files, on Discovery and Incoming alike. Friend provenance is
+  the pennants on the hero's mast (UIDR-037). The action row is the
   honest rule with the acquisition state folded in; a series Download
-  is the split control; below it the shared release timeline and
-  tracking-mode control for any title the library does not own.
+  is the split control; below it a friend's note, the title's facts,
+  the ladder control, and beneath the control what it produces — the
+  release timeline and recent activity.
   """
 
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Activities.Activity
-  alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Library.Person
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
   alias MediaCentaur.TMDB.Title
@@ -51,10 +52,10 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
     })
   end
 
-  defp recommendation(title, nickname, sentiment) do
+  defp act(title, nickname, kind, sentiment \\ :like) do
     %{
       activity: %Activity{
-        kind: :recommendation,
+        kind: kind,
         sentiment: sentiment,
         tmdb_id: title.tmdb_id,
         media_type: title.media_type,
@@ -141,13 +142,14 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
         id: :dressed,
         description:
           "The live TMDB preview has landed: tagline in the lockup and the shared preview " <>
-            "body — metadata row, facets, top cast — under the provenance. Backdrop and logo " <>
-            "are hotlinked from TMDB in the app; nil here pins the frame's placeholder.",
+            "body — metadata row, overview, facets, no cast — above the ladder control. " <>
+            "Backdrop and logo are hotlinked from TMDB in the app; nil here pins the " <>
+            "frame's placeholder.",
         attributes: %{today: @today, detail: detail(movie(), %{preview: preview(movie())})}
       },
       %Variation{
         id: :movie_download,
-        description: "A released movie with an indexer: Download, Add to watchlist.",
+        description: "A released movie with an indexer: Download.",
         attributes: %{today: @today, detail: detail(movie(), %{})}
       },
       %Variation{
@@ -163,8 +165,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
       %Variation{
         id: :from_friend,
         description:
-          "Feed provenance: who recommended it and their note above the overview; " <>
-            "On watchlist as the quiet secondary, with Remove from watchlist as the tertiary verb.",
+          "Opened from a friend's recommendation: the love pennant on the mast says who, " <>
+            "and their note — the one thing a pennant cannot hold — leads the body, attributed.",
         attributes: %{
           today: @today,
           detail:
@@ -172,65 +174,68 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
               kind: :recommendation,
               sender: "Sample Friend",
               note: "Watch it before anyone spoils the ending.",
-              acted_at: ~U[2026-09-01 10:00:00Z],
               own?: false,
               rung: :follow,
-              recommendations: [recommendation(movie(), "Sample Friend", :love)]
+              friend_activity: [act(movie(), "Sample Friend", :recommendation, :love)]
             })
         }
       },
       %Variation{
-        id: :recommended_by_two,
+        id: :every_flag,
         description:
-          "Two friends with different sentiments: the pennants stack on the hero's right " <>
-            "edge under the actions, love above like, the like body dark glass over the art.",
+          "Friends did everything: the pennants stack on the hero's right edge under the " <>
+            "actions — love, like, watched, tracking — the neutral bodies dark glass over the art.",
         attributes: %{
           today: @today,
           detail:
-            detail(movie(), %{
+            detail(show(), %{
               rung: :follow,
-              recommendations: [
-                recommendation(movie(), "Other Friend", :like),
-                recommendation(movie(), "Sample Friend", :love)
+              primary: nil,
+              friend_activity: [
+                act(show(), "Third Friend", :tracking),
+                act(show(), "Other Friend", :watched),
+                act(show(), "Other Friend", :recommendation),
+                act(show(), "Sample Friend", :recommendation, :love)
               ]
             })
         }
       },
       %Variation{
-        id: :own_recommendation,
-        description: "An own recommendation carries Delete recommendation as the tertiary verb.",
+        id: :own_note,
+        description: "Your own watchlist note, unattributed.",
         attributes: %{
           today: @today,
-          detail:
-            detail(movie(), %{kind: :recommendation, own?: true, acted_at: ~U[2026-09-01 10:00:00Z]})
+          detail: detail(movie(), %{rung: :list, note: "Pick this for the long weekend."})
         }
       },
       %Variation{
-        id: :friend_watched,
-        description: "A friend finished an episode: the statement names it; no note.",
+        id: :own_recommendation,
+        description:
+          "Opened from the You card: your own recommendation flies You and carries " <>
+            "Delete recommendation as the tertiary verb.",
         attributes: %{
           today: @today,
           detail:
-            detail(show(), %{
-              kind: :watched,
-              episode: %Episode{season_number: 2, episode_number: 5, name: "The Fifth"},
-              sender: "Sample Friend",
-              acted_at: ~U[2026-09-01 10:00:00Z],
-              own?: false,
-              primary: nil
+            detail(movie(), %{
+              kind: :recommendation,
+              own?: true,
+              activity_id: "0d2c5cd6-0000-4000-8000-000000000002",
+              friend_activity: [act(movie(), nil, :recommendation)]
             })
         }
       },
       %Variation{
         id: :own_tracking,
-        description: "An own tracking activity carries Delete tracking activity as the tertiary verb.",
+        description:
+          "Opened from the You card: an own tracking broadcast carries Delete tracking " <>
+            "activity. It flies no pennant — a pennant tells you what friends did.",
         attributes: %{
           today: @today,
           detail:
             detail(show(), %{
               kind: :tracking,
               own?: true,
-              acted_at: ~U[2026-09-01 10:00:00Z],
+              activity_id: "0d2c5cd6-0000-4000-8000-000000000003",
               primary: nil
             })
         }

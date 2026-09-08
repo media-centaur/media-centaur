@@ -206,18 +206,20 @@ defmodule MediaCentaur.Activities do
   end
 
   @doc """
-  The live recommendations of the titles in `refs` by this identity and
-  by current friends, as `%{ref => [activity_row]}` — the rows in
-  `list_activities/0`'s shape, newest first, in one query plus one roster
-  read. Refs nobody recommended are absent, and a former friend's
-  recommendation is left out: a pennant names a friend. What every
-  recommendation pennant is fed from.
+  The live friend activity on the titles in `refs`, as `%{ref =>
+  [activity_row]}` — every kind a current friend has broadcast for the
+  title (recommendation, watched, tracking) plus this identity's own
+  recommendations, in `list_activities/0`'s row shape, newest first, in
+  one query plus one roster read. Refs with no activity are absent, and
+  a former friend's is left out: a pennant names a friend. Own watched
+  and tracking acts are left out too — a pennant tells you what friends
+  did, not what you did. What every pennant mast is fed from.
   """
-  @spec recommendations_for([{integer(), Title.media_type()}]) ::
+  @spec friend_activity_for([{integer(), Title.media_type()}]) ::
           %{optional({integer(), Title.media_type()}) => [activity_row()]}
-  def recommendations_for([]), do: %{}
+  def friend_activity_for([]), do: %{}
 
-  def recommendations_for(refs) when is_list(refs) do
+  def friend_activity_for(refs) when is_list(refs) do
     friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
     me = Identity.pubkey()
     tmdb_ids = refs |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
@@ -225,12 +227,13 @@ defmodule MediaCentaur.Activities do
 
     Activity
     |> live()
-    |> where([a], a.kind == :recommendation and a.tmdb_id in ^tmdb_ids)
+    |> where([a], a.tmdb_id in ^tmdb_ids)
     |> order_by(desc: :acted_at)
     |> Repo.all()
     |> Enum.filter(
       &(MapSet.member?(wanted, {&1.tmdb_id, &1.media_type}) and
-          (&1.author_pubkey == me or is_map_key(friends, &1.author_pubkey)))
+          ((&1.author_pubkey == me and &1.kind == :recommendation) or
+             is_map_key(friends, &1.author_pubkey)))
     )
     |> Enum.group_by(&{&1.tmdb_id, &1.media_type}, &activity_row(&1, me, friends))
   end

@@ -113,3 +113,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 034 | 2026-09-07 | [An empty surface states the diagnosed reason it is empty](user-interface/2026-09-07-034-empty-surfaces-state-a-diagnosed-reason.md) | accepted |
 | 035 | 2026-09-07 | [Two title surfaces, split by whether the title has files](user-interface/2026-09-07-035-two-title-surfaces.md) | superseded in part by 036 |
 | 036 | 2026-09-07 | [One control per title, because there is one ladder](user-interface/2026-09-07-036-one-control-per-title.md) | accepted |
+| 037 | 2026-09-08 | [Friend provenance is the pennant, on every title surface](user-interface/2026-09-08-037-friend-provenance-is-the-pennant.md) | accepted |

@@ -286,12 +286,13 @@ tabs project one enriched list — every live activity with its actor
   lives there. `DiscoveryLive.AddFriendBlock` is the add-friend form,
   still an iteration-phase component under `live/discovery_live/`.
 
-Who recommended a title, and how much, is one component everywhere —
-`Components.Discovery.RecommendationPennant` — fed by
-`Activities.recommendations_for/1` on the watchlist rows, the Incoming
+What friends did with a title — recommended and how much, watched, or
+tracking — is one component everywhere, the pennant
+(`Components.Discovery.Pennant`, UIDR-037), fed by
+`Activities.friend_activity_for/1` on the watchlist rows, the Incoming
 search rows and both detail modals, and by the row's own activities on the
-Recommendations tab. See
-`docs/plans/2026-09-05-recommendation-pennant.md` for the decisions.
+Recommendations tab. See `docs/plans/2026-09-05-recommendation-pennant.md`
+for the original decisions.
 
 The joins the contexts may not make happen here:
 

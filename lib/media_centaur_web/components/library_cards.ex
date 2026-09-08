@@ -177,7 +177,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
     >
       <%!-- Left cluster: type tabs + sort, bound tightly as "shape the list" controls --%>
       <div class="flex items-center gap-2">
-        <div role="tablist" class="tabs tabs-boxed library-tabs w-fit">
+        <div role="tablist" class="tabs tabs-boxed segmented-control w-fit">
           <button
             :for={{tab, label} <- [{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
             role="tab"

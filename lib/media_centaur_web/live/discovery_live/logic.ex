@@ -20,8 +20,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   `library_owner_id`, `rung`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
   `backdrop_url`, `logo_url`, `tracking`, `acquisition?`,
-  `lower_quality_accepted?`, `default_grab_mode`, `kind`, `episode`, `sender`, `note`, `acted_at`,
-  `own?`, `activity_id`, `recommendations`, `preview`. The primary
+  `lower_quality_accepted?`, `default_grab_mode`, `kind`, `sender`, `note`,
+  `own?`, `activity_id`, `friend_activity`, `preview`. The primary
   action is In library, else the acquisition state, else Download when
   the title is out and an indexer is ready — else nothing: arming is
   the tracking-mode control's job, not a verb in the strip.
@@ -42,13 +42,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
       lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
       default_grab_mode: Map.get(facts, :default_grab_mode, "off"),
       kind: Map.get(facts, :kind),
-      episode: Map.get(facts, :episode),
       sender: Map.get(facts, :sender),
       note: Map.get(facts, :note),
-      acted_at: Map.get(facts, :acted_at),
       own?: Map.get(facts, :own?),
       activity_id: Map.get(facts, :activity_id),
-      recommendations: Map.get(facts, :recommendations, []),
+      friend_activity: Map.get(facts, :friend_activity, []),
       preview: Map.get(facts, :preview)
     }
   end

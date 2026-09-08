@@ -17,8 +17,8 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.Components.Discovery.RecommendationPennant,
-    only: [recommendation_pennants: 1]
+  import MediaCentaurWeb.Components.Discovery.Pennant,
+    only: [pennants: 1]
 
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
@@ -42,9 +42,9 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
     default: [],
     doc: "`%{name: nil | String.t(), text}` notes displacing the overview; a lone nil name reads plain"
 
-  attr :recommendations, :list,
+  attr :friend_activity, :list,
     default: [],
-    doc: "the title's `Activities.recommendations_for/1` rows — the pennants on the mast"
+    doc: "the title's `Activities.friend_activity_for/1` rows — the pennants on the mast"
 
   def title_row(assigns) do
     ~H"""
@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
       </.title_summary>
       <%!-- The mast bleeds into the row's right padding so the hoist
             meets the border; overflow-hidden clips it to the corners. --%>
-      <.recommendation_pennants recommendations={@recommendations} class="-mr-4 self-center" />
+      <.pennants activity={@friend_activity} class="-mr-4 self-center" />
     </button>
     """
   end
