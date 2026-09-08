@@ -32,7 +32,10 @@ defmodule MediaCentaur.GlobalStateSandbox do
   child of `MediaCentaur.TaskSupervisor` at check-in is such a leak: a test
   drives its async work to completion (ADR-049,
   `MediaCentaur.TaskAwaits`), and a grace window would only turn the leak
-  into a load-dependent flake.
+  into a load-dependent flake. So is a `cannot find mock/stub` crash logged
+  since the last check-in (`MediaCentaur.GlobalStateSandbox.StubOrphans`):
+  a task that was still running when its owner exited usually dies of that
+  crash before check-in can see it alive.
 
   Async modules run before any sync module, so a sync test that finds the
   machine off the baseline at checkout has found the async phase's leak. It
@@ -133,6 +136,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
   """
   @spec capture_baseline!() :: :ok
   def capture_baseline! do
+    MediaCentaur.GlobalStateSandbox.StubOrphans.install()
     :ets.new(@table, [:named_table, :public, :set])
     :ets.insert(@table, [{:baseline, snapshot()}, {:verified_clean, false}])
     :ok

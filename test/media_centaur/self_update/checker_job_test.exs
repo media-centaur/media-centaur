@@ -9,8 +9,6 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
       Plug.Conn.send_resp(conn, 404, "not found")
     end)
 
-    Req.Test.set_req_test_from_context(%{async: false})
-
     UpdateChecker.clear_cache()
 
     # CheckerJob.perform/1 short-circuits when SelfUpdate.enabled?() is false.

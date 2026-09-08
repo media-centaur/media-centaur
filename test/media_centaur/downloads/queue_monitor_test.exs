@@ -40,12 +40,6 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
     setup do
       DownloadClientStubs.setup_qbittorrent_client()
 
-      # The monitor GenServer isn't in this test's $callers chain, so the
-      # Req.Test stub must be shared. The suite file is async: false, so
-      # sharing can't leak across concurrently running tests.
-      Req.Test.set_req_test_to_shared()
-      on_exit(fn -> Req.Test.set_req_test_to_private() end)
-
       # Force the readiness flag without the settings DB — same cache key
       # Capabilities itself maintains. No cleanup here: every DataCase /
       # ConnCase test restores the whole term store before it runs
@@ -140,9 +134,6 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
     setup do
       DownloadClientStubs.setup_qbittorrent_client()
       DownloadClientStubs.setup_sabnzbd_client()
-
-      Req.Test.set_req_test_to_shared()
-      on_exit(fn -> Req.Test.set_req_test_to_private() end)
 
       # Force the readiness flag without the settings DB — same cache key
       # Capabilities itself maintains. Cleanup is the global-state

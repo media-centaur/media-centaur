@@ -9,19 +9,23 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
 
   * **restorable** — `persistent_term` and `application_env`. A difference
     from the baseline is put back at check-in without comment.
-  * **verified** — `registered`, `ets`, `tasks` and `probes`. The harness
-    cannot put these back, so a difference fails the test that made it.
+  * **verified** — `registered`, `ets`, `tasks`, `stub_orphans` and
+    `probes`. The harness cannot put these back, so a difference fails the
+    test that made it.
 
   The app's share of each store is derived, never listed: `:persistent_term`
   keys and registered names under the `MediaCentaur` namespace, the
   `:media_centaur` application env, named ETS tables owned by an app
   process (registered under the namespace, or started from a module in
-  it), and every child of `MediaCentaur.TaskSupervisor`. Probes are the one
+  it), every child of `MediaCentaur.TaskSupervisor`, and every
+  `cannot find mock/stub` crash logged since the last check-in
+  (`MediaCentaur.GlobalStateSandbox.StubOrphans`). Probes are the one
   listed part — the `{:probe, mfa}` dispositions — because a singleton's
   observable state has no namespace to derive it from.
   """
 
-  @type store :: :persistent_term | :application_env | :registered | :ets | :tasks | :probe
+  @type store ::
+          :persistent_term | :application_env | :registered | :ets | :tasks | :stub_orphans | :probe
   @type leak :: {store(), key :: term(), baseline :: term(), now :: term()}
   @type t :: %__MODULE__{
           persistent_term: %{term() => term()},
@@ -29,6 +33,7 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
           registered: %{atom() => pid()},
           ets: %{atom() => non_neg_integer()},
           tasks: [pid()],
+          stub_orphans: [String.t()],
           probes: %{atom() => term()}
         }
 
@@ -37,6 +42,7 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
             registered: %{},
             ets: %{},
             tasks: [],
+            stub_orphans: [],
             probes: %{}
 
   @namespace "Elixir.MediaCentaur"
@@ -50,6 +56,7 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
       registered: registered_names(),
       ets: owned_tables(),
       tasks: Task.Supervisor.children(MediaCentaur.TaskSupervisor),
+      stub_orphans: MediaCentaur.GlobalStateSandbox.StubOrphans.list(),
       probes:
         Map.new(probes, fn {id, {module, function, args}} -> {id, apply(module, function, args)} end)
     }
@@ -68,6 +75,7 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
     map_diff(:registered, baseline.registered, now.registered) ++
       map_diff(:ets, baseline.ets, now.ets) ++
       tasks_diff(baseline.tasks, now.tasks) ++
+      list_diff(:stub_orphans, now.stub_orphans) ++
       map_diff(:probe, baseline.probes, now.probes)
   end
 
@@ -111,6 +119,9 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
   end
 
   defp contain_one({:tasks, pids, _from, _to}), do: Enum.each(pids, &Process.exit(&1, :kill))
+
+  defp contain_one({:stub_orphans, _messages, _from, _to}),
+    do: MediaCentaur.GlobalStateSandbox.StubOrphans.clear()
 
   # A table that appeared is deleted; a baseline table whose size changed is
   # emptied (baseline app tables are empty at boot); a baseline table that
@@ -226,6 +237,9 @@ defmodule MediaCentaur.GlobalStateSandbox.Snapshot do
 
     added ++ removed ++ changed
   end
+
+  defp list_diff(_store, []), do: []
+  defp list_diff(store, items), do: [{store, items, [], items}]
 
   defp tasks_diff(_baseline, []), do: []
   defp tasks_diff(baseline, now), do: [{:tasks, now, baseline, now}]

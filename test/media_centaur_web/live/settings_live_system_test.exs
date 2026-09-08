@@ -33,8 +33,6 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
       )
     end)
 
-    Req.Test.set_req_test_from_context(%{async: false})
-
     # Checks (scheduled, landing, and manual) only run on the prod release
     # channel; flip the environment so the check flow under test actually
     # executes.
