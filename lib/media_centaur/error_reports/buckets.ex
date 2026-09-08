@@ -107,6 +107,22 @@ defmodule MediaCentaur.ErrorReports.Buckets do
     GenServer.call(server, {:dismiss, fingerprints})
   end
 
+  @doc """
+  Empties the in-memory cache. **Test isolation only** — the durable store
+  is left alone, so this is not `dismiss/2` over everything: it drops the
+  projection, not the incidents.
+
+  `MediaCentaur.GlobalStateSandbox` calls it before every sync test. The
+  Status board reads this globally named process through
+  `ErrorReports.list_buckets/0`, so a LiveView test that needs an incident
+  on the board has to ingest here rather than into a named instance the
+  way `buckets_test.exs` does; without this reset those buckets outlive
+  the test that minted them.
+  """
+  @spec clear() :: :ok
+  @spec clear(GenServer.server()) :: :ok
+  def clear(server \\ __MODULE__), do: GenServer.call(server, :clear)
+
   # --- Callbacks ---
 
   @impl true
@@ -145,6 +161,14 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   @impl true
   def handle_call({:get_bucket, fingerprint}, _from, state) do
     {:reply, BucketCache.get(state.cache, fingerprint), state}
+  end
+
+  @impl true
+  def handle_call(:clear, _from, state) do
+    cache = BucketCache.new()
+    broadcast(cache)
+
+    {:reply, :ok, %{state | cache: cache, last_broadcast_at: now_ms(), broadcast_pending: false}}
   end
 
   @impl true

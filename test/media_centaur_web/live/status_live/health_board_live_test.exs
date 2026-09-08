@@ -119,10 +119,6 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
   end
 
   test "dismissing all clears every incident in the subsystem", %{conn: conn} do
-    # Dismissing broadcasts the global Buckets snapshot, which replaces the
-    # injected list in the view. Warnings logged by earlier tests can have
-    # minted pipeline buckets there, so start from an empty snapshot.
-    Buckets.dismiss(Enum.map(Buckets.list_buckets(), & &1.fingerprint))
     # The all-clear is only offered to a subsystem that actually runs; the
     # test env has no media directories, which would leave pipeline dormant.
     Config.put_media_dirs([%{"dir" => System.tmp_dir!()}])
@@ -208,8 +204,6 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
       Enum.find(Buckets.list_buckets(), fn bucket ->
         Enum.any?(bucket.sample_entries, &(&1.message == "cold-load deep link probe"))
       end)
-
-    on_exit(fn -> Buckets.dismiss([bucket.fingerprint]) end)
 
     {:ok, view, _html} = live(conn, ~p"/status?incident=#{bucket.fingerprint}")
 

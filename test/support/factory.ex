@@ -12,7 +12,9 @@ defmodule MediaCentaur.TestFactory do
     Use for resource tests and channel tests.
   """
 
+  alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Library
+  alias MediaCentaur.Repo
 
   alias MediaCentaur.TestFactory.OwnerRef
 
@@ -936,8 +938,15 @@ defmodule MediaCentaur.TestFactory do
     title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
     intent_attrs = Map.drop(attrs, [:tmdb_id, :media_type, :name, :rung])
 
-    {:ok, intent} = MediaCentaur.Discovery.put_rung(title, rung, intent_attrs)
-    intent
+    # `Discovery.put_rung/3`'s two branches, minus its `ensure_artwork_async/1`
+    # — a supervised task that calls TMDB. That task outlives the test process
+    # that owns the Req.Test stub, so it dies with `cannot find mock/stub
+    # :tmdb` and the crash lands in a later test's captured log. "Writes the
+    # record only" has to mean the record only.
+    case Repo.get_by(TitleIntent, tmdb_id: tmdb_id, media_type: media_type) do
+      nil -> title |> TitleIntent.create_changeset(rung, intent_attrs) |> Repo.insert!()
+      existing -> existing |> TitleIntent.rung_changeset(rung, title) |> Repo.update!()
+    end
   end
 
   @doc """
