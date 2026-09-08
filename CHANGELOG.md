@@ -4,6 +4,37 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.17.0 — 2026-09-08
+
+### New
+
+- **A download menu entry that also starts tracking.** *Download all* covers episodes that have already aired — the future was never part of it, though the entry implied otherwise by quietly starting to track the series. The menu now reads *Download season 1* / *Download all* / *Download all and track*, and only the last one follows new releases.
+- **Every kind of friend activity flies on a title.** The marker on a title used to appear only for a friend's recommendation. It now carries a friend's love, like, watch and tracking too, on every surface it already appeared on, and a friend's note leads the title's page attributed to them by name.
+
+### Improved
+
+- **Your list and the tracking control are one thing.** A title used to have both an *Add to watchlist* button and a separate five-mode strip, which could contradict each other — taking a title off your list at *Grab* was a legal click that tore its tracking down as a side effect. There is now one control with six settings: **Off · List · Follow · Ask · Grab · Default**. *List* keeps the title on your list and nothing more; *Follow* and above keep its release calendar.
+- **Off deletes.** Setting a title to *Off* removes it from your list along with its release calendar. It is not remembered as "off" any more, because nothing except you can turn tracking back on. The control says this before you click it.
+- **Media Centaur no longer starts tracking a title on its own.** Adding a series to your library used to start following its releases at your global auto-grab setting, with nothing clicked. Nothing gets tracked now unless you say so.
+- **Deleting a series from your library no longer stops tracking it.** Your setting for a title is yours; losing the files says nothing about whether you still want new episodes. Set it to *Off* when you are done with it.
+- **A title's page reads top-down.** It used to open on bookkeeping — when you started tracking, a Delete link — with the tracking control sitting in the middle of loose text and moving down the page once you chose a setting. It is now the title, its metadata, the overview, the tracking control, and beneath that the release timeline and any activity. The control stays put.
+- **The two-click confirm reads as a warning.** *Click again to …* inherited the dim styling of the control it replaced, so on icon-only rows it looked disabled, and a long label could overflow the button. It now has its own look: warning glyph, error tone, one line.
+
+### Fixed
+
+- **"Also grab future episodes" now grabs.** The checkbox in the download picker left the show on a setting that watches the calendar and downloads nothing, so future episodes never arrived. It sets *Grab*, which is what it says.
+- **"Track these" on a plan's missing units says what will actually happen to them.** It used to promise Media Centaur would keep looking, on a setting that does not search. It now tracks the title and tells you what its own setting will do with those units — shown under Coming up, parked for approval, or fetched.
+- **Adjusting a title's quality floor no longer starts tracking it.** Accepting lower quality on a plan board had to create a tracked title to store the setting on. The setting has its own home now.
+- **Coming up dates a past release as what it is.** An episode that dropped in 1998 and is still missing was listed as *Tonight · Will grab*. A past release now reads its actual age — *Yesterday*, *5 days ago*, *May 1998* — and says *Searching*, which is what the ledger is doing. It stays listed for as long as you track the title; a release that landed drops off after a week.
+- **The release timeline no longer says "Nothing scheduled" above a scheduled release.** Its featured slot skipped any past-dated release, so a drop from a few days ago that was still missing produced a contradiction with the row directly beneath it. The slot now features the first release that has not landed.
+- **A title you own opens with its tracking control.** Opening an owned title from Coming up or your watchlist gave you a page with no way to stop the searching the row was reporting — the control was three hops away on the library page. It is on both.
+
+### Upgrade note
+
+This release migrates your database. Your watchlist and your tracking settings become one record per title, and your existing settings carry over: *Watch* becomes *Follow*, *Ask* and *Grab* stay as they are, and a title that was on your list without a tracking setting becomes *List*.
+
+**Anything Media Centaur started tracking by itself stops.** That is every title you never put on your list — the ones picked up from your library, from *Download all*, or as a side effect of accepting lower quality on a plan. If a show you want was in that group, open it and set a tracking level again.
+
 ## v1.16.0 — 2026-09-07
 
 ### New
