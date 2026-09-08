@@ -18,6 +18,10 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
+
+  alias MediaCentaur.TmdbStubs
+
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
@@ -59,15 +63,28 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/apps", "apps"}
         ] ++ @subsystem_routes do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live_async!(conn, unquote(path))
+      assert {:ok, _view, html} = smoke!(conn, unquote(path))
       assert is_binary(html)
     end
+  end
+
+  # A smoke test mounts a page and leaves; the page's context-layer work —
+  # searches, artwork, health probes — runs under the global task
+  # supervisor and is this test's to drive to completion (ADR-049).
+  defp smoke!(conn, path) do
+    result = live_async!(conn, path)
+    await_supervised_tasks()
+    result
   end
 
   # The Discovery title detail modal is URL-driven (`?title=`); a watchlist
   # item for the ref makes the modal render on both title tabs.
   describe "/discovery with the title modal open" do
     setup do
+      # The modal warms the title's artwork through the TMDB client.
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.setup_artwork_cache()
+
       {:ok, _item} =
         MediaCentaur.Discovery.put_rung(
           MediaCentaur.TMDB.Title.new!(%{
@@ -87,7 +104,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/discovery/watchlist?title=movie-777", "discovery watchlist with the title modal"}
         ] do
       test "#{label} (#{path}) renders without crashing", %{conn: conn} do
-        assert {:ok, view, html} = live_async!(conn, unquote(path))
+        assert {:ok, view, html} = smoke!(conn, unquote(path))
         assert is_binary(html)
         assert Phoenix.LiveViewTest.has_element?(view, "#title-detail-modal")
       end
@@ -135,7 +152,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     test "library drill-in renders populated overview cards without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live_async!(conn, "/status?subsystem=library")
+      assert {:ok, _view, html} = smoke!(conn, "/status?subsystem=library")
       assert html =~ "Recently added"
       assert html =~ "Pending work"
       assert html =~ "Completeness gaps"
@@ -153,7 +170,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     test "system drill-in renders the retention panel with sweep stats", %{conn: conn} do
-      assert {:ok, _view, html} = live_async!(conn, "/status?subsystem=system")
+      assert {:ok, _view, html} = smoke!(conn, "/status?subsystem=system")
       assert html =~ "Data retention"
       assert html =~ "7 removed"
     end
@@ -168,7 +185,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   for section <- ~w(system services preferences controls library tmdb social
                     acquisition import playback language maintenance danger) do
     test "settings section #{section} renders without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live_async!(conn, ~p"/settings?section=#{unquote(section)}")
+      assert {:ok, _view, html} = smoke!(conn, ~p"/settings?section=#{unquote(section)}")
       assert is_binary(html)
     end
   end
@@ -196,7 +213,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "library detail panel mounts for a movie with duration_seconds",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = smoke!(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)
     end
   end
@@ -225,7 +242,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "home detail panel mounts and renders the member panel + rail for a collection",
          %{conn: conn, series: series} do
-      assert {:ok, _view, html} = live_async!(conn, ~p"/?selected=#{series.id}")
+      assert {:ok, _view, html} = smoke!(conn, ~p"/?selected=#{series.id}")
       assert is_binary(html)
       # Proves the collection branch actually rendered — a false-pass
       # guard: if the constituent movies weren't present, this smoke
@@ -291,7 +308,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     test "library detail panel mounts for a TV series with upcoming + future-season releases",
          %{conn: conn, tv: tv} do
       assert {:ok, view, _html} =
-               live_async!(conn, ~p"/library?selected=#{tv.id}")
+               smoke!(conn, ~p"/library?selected=#{tv.id}")
 
       # Seasons open collapsed (2026-08-04 orientation design), so
       # expand season 1 to exercise the upcoming-row render path.
@@ -333,7 +350,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "library detail panel mounts when a linked file has subtitle tracks",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = smoke!(conn, ~p"/library?selected=#{movie.id}")
       assert is_binary(html)
     end
   end
@@ -362,7 +379,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     test "library browse renders the grid and stat line", %{conn: conn} do
-      assert {:ok, _view, html} = live_async!(conn, ~p"/library")
+      assert {:ok, _view, html} = smoke!(conn, ~p"/library")
       assert is_binary(html)
     end
   end
@@ -487,9 +504,9 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     test "forecast-only /incoming renders without crashing", %{conn: conn} do
       # /?zone=upcoming redirects to /incoming (HomeLive handles zone params).
       assert {:error, {:live_redirect, %{to: "/incoming"}}} =
-               live_async!(conn, "/?zone=upcoming")
+               smoke!(conn, "/?zone=upcoming")
 
-      assert {:ok, view, html} = live_async!(conn, "/incoming")
+      assert {:ok, view, html} = smoke!(conn, "/incoming")
       assert is_binary(html)
 
       # Honest degradation: the hero mode hint reframes to tracking (the
@@ -516,6 +533,9 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       )
 
       MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
+      # /incoming probes indexer health on mount; a configured Prowlarr is
+      # asked, so it must answer.
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
       # Seed a tracked upcoming release so the shelf renders an actual
       # card (poster tile, date badge, status pill) rather than only the
@@ -592,7 +612,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     test "renders without crashing (smart default — seeded activity wins)", %{conn: conn} do
-      assert {:ok, view, html} = live_async!(conn, "/incoming")
+      assert {:ok, view, html} = smoke!(conn, "/incoming")
       assert is_binary(html)
 
       # `IncomingLive.ensure_loaded/1` runs the pursuit-row + ledger +
@@ -608,7 +628,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     test "renders without crashing (?zone=coming_up)", %{conn: conn} do
-      assert {:ok, view, html} = live_async!(conn, "/incoming?zone=coming_up")
+      assert {:ok, view, html} = smoke!(conn, "/incoming?zone=coming_up")
       assert is_binary(html)
 
       # The explicit zone beats the smart default: the tab bar plus the
@@ -623,14 +643,14 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       shelf_item: shelf_item
     } do
       assert {:ok, view, _html} =
-               live_async!(conn, "/incoming?title=tv_series-#{shelf_item.tmdb_id}")
+               smoke!(conn, "/incoming?title=tv_series-#{shelf_item.tmdb_id}")
 
       assert has_element?(view, "#title-detail-modal[data-state=open]")
       assert has_element?(view, "#title-detail-modal", "Smoke Shelf Show")
     end
 
     test "renders without crashing (?zone=history)", %{conn: conn} do
-      assert {:ok, view, _html} = live_async!(conn, "/incoming?zone=history")
+      assert {:ok, view, _html} = smoke!(conn, "/incoming?zone=history")
 
       # The History tab IS the archive: filter chips + search render
       # immediately (no disclosure), default filter :all, and the two
@@ -657,6 +677,9 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       )
 
       MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
+      # /incoming probes indexer health on mount; a configured Prowlarr is
+      # asked, so it must answer.
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
       {:ok, pursuit} =
         MediaCentaur.Repo.insert(
@@ -675,7 +698,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       conn: conn,
       pursuit_id: pursuit_id
     } do
-      assert {:ok, _view, html} = live_async!(conn, "/incoming?selected=#{pursuit_id}")
+      assert {:ok, _view, html} = smoke!(conn, "/incoming?selected=#{pursuit_id}")
       assert is_binary(html)
       assert html =~ "Sample Movie"
       assert html =~ ~s|data-state="open"|
@@ -683,7 +706,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "renders not-found inside the modal for an unknown pursuit_id", %{conn: conn} do
       assert {:ok, _view, html} =
-               live_async!(conn, "/incoming?selected=#{Ecto.UUID.generate()}")
+               smoke!(conn, "/incoming?selected=#{Ecto.UUID.generate()}")
 
       assert html =~ "Pursuit not found"
     end
@@ -696,7 +719,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     test "renders the card grid", %{conn: conn} do
-      assert {:ok, _view, html} = live_async!(conn, "/apps")
+      assert {:ok, _view, html} = smoke!(conn, "/apps")
       assert html =~ "Sample Smoke App"
     end
   end

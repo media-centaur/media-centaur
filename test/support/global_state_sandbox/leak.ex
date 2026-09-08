@@ -58,6 +58,9 @@ defmodule MediaCentaur.GlobalStateSandbox.Leak do
   defp line({:tasks, pids, _from, _to}),
     do: "#{length(pids)} child(ren) of MediaCentaur.TaskSupervisor still running"
 
+  defp line({:stub_orphans, messages, _from, _to}),
+    do: "a process made a request no Req.Test stub could answer: " <> Enum.join(messages, "; ")
+
   defp line({:probe, id, from, to}), do: "#{inspect(id)} reads #{inspect(to)}, baseline #{inspect(from)}"
 
   defp change(:absent, to), do: "added #{inspect(to, limit: 8)}"

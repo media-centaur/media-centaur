@@ -151,6 +151,26 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
       refute Process.alive?(pid)
     end
 
+    test "a request no stub could answer, logged from a process that then died" do
+      # A task that outlives its owner's stubs dies of the stub loss, usually
+      # before check-in can see it as a live child; a request for a stub that
+      # was never installed dies the same way. The crash report is recorded
+      # where it is logged.
+      {:ok, pid} =
+        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+          Req.get!(Req.new(plug: {Req.Test, :tmdb}, url: "http://stub.test/"))
+        end)
+
+      ref = Process.monitor(pid)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 1_000
+
+      error = assert_raise(Leak, &GlobalStateSandbox.checkin/0)
+
+      assert Exception.message(error) =~ "no mock or stub for :tmdb"
+      # Contained: the record is cleared, so the next check-in is clean.
+      assert GlobalStateSandbox.checkin() == :ok
+    end
+
     test "a process that is still shutting down is waited for, not reported" do
       # Exit signals propagate asynchronously; check-in gives verified state a
       # moment to settle and returns the instant it is clean.
