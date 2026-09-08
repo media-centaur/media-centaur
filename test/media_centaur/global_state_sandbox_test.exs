@@ -1,117 +1,201 @@
 defmodule MediaCentaur.GlobalStateSandboxTest do
-  # Manipulates process-global state directly — must not run beside
-  # anything else. Same reason every writer of a global cache in this
-  # suite is `async: false`.
-  use ExUnit.Case, async: false
+  # Writes process-global state on purpose — owns the machine.
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Console.Buffer
   alias MediaCentaur.Console.Entry
   alias MediaCentaur.ErrorReports.Buckets
   alias MediaCentaur.GlobalStateSandbox
+  alias MediaCentaur.GlobalStateSandbox.Leak
+  alias MediaCentaur.GlobalStateSandbox.Snapshot
   alias MediaCentaurWeb.IncomingLive.SearchSession
 
-  describe "restore!/0 — :persistent_term" do
-    test "puts back an app-owned term a test changed" do
-      key = {MediaCentaur.Settings.Config, :config}
-      pristine = :persistent_term.get(key)
+  @config_key {MediaCentaur.Settings.Config, :config}
 
-      :persistent_term.put(key, Map.put(pristine, :port, 65_432))
-      GlobalStateSandbox.restore!()
+  describe "checkin/0 — restorable state is put back" do
+    test "an app-owned :persistent_term a test changed" do
+      pristine = :persistent_term.get(@config_key)
+      :persistent_term.put(@config_key, Map.put(pristine, :port, 65_432))
 
-      assert :persistent_term.get(key) == pristine
+      GlobalStateSandbox.checkin()
+
+      assert :persistent_term.get(@config_key) == pristine
     end
 
-    test "erases an app-owned term that did not exist at capture" do
+    test "an app-owned :persistent_term that did not exist at capture is erased" do
       # Deliberately a module that does not exist: the baseline is derived
-      # from the namespace, not from a list of known caches, so a cache
-      # added tomorrow is covered without editing GlobalStateSandbox.
+      # from the namespace, not from a list of known caches.
       key = {MediaCentaur.SomeCacheAddedTomorrow, :state}
       :persistent_term.put(key, :leaked)
 
-      GlobalStateSandbox.restore!()
+      GlobalStateSandbox.checkin()
 
       assert :persistent_term.get(key, :__unset) == :__unset
     end
 
-    test "leaves terms this application does not own alone" do
-      # Third-party libraries keep their own terms here (Phoenix, Ecto,
-      # Req). Resetting those would reset the test harness itself.
+    test "a :persistent_term this application does not own is left alone" do
       key = {:some_dependency, :config}
       :persistent_term.put(key, :not_ours)
       on_exit(fn -> :persistent_term.erase(key) end)
 
-      GlobalStateSandbox.restore!()
+      GlobalStateSandbox.checkin()
 
       assert :persistent_term.get(key) == :not_ours
     end
-  end
 
-  describe "restore!/0 — long-lived singletons" do
-    test "empties the Console ring buffer" do
-      Buffer.append(
-        Entry.new(
-          id: 1,
-          timestamp: DateTime.utc_now(),
-          level: :info,
-          component: :library,
-          message: "a line from an earlier test"
-        )
-      )
+    test "an application-env key a test changed, and one it added" do
+      original = Application.get_env(:media_centaur, :environment)
+      Application.put_env(:media_centaur, :environment, :prod)
+      Application.put_env(:media_centaur, :key_added_by_a_test, :leaked)
 
+      GlobalStateSandbox.checkin()
+
+      assert Application.get_env(:media_centaur, :environment) == original
+      assert Application.get_env(:media_centaur, :key_added_by_a_test, :__unset) == :__unset
+    end
+
+    test "the Console ring buffer is emptied" do
+      Buffer.append(entry(:info, "a line from an earlier test"))
       Buffer.flush()
       assert Buffer.recent(nil) != []
 
-      GlobalStateSandbox.restore!()
+      GlobalStateSandbox.checkin()
 
       assert Buffer.recent(nil) == []
     end
 
-    test "empties the incident bucket cache" do
-      # The Status board reads the globally named cache through
-      # `ErrorReports.list_buckets/0`, so a LiveView test that wants an
-      # incident on the board has to ingest into this instance — it cannot
-      # drive a named one the way `buckets_test.exs` does. Four such files
-      # exist, and every bucket they mint used to survive them.
-      Buckets.ingest(
-        Entry.new(
-          id: 1,
-          timestamp: DateTime.utc_now(),
-          level: :error,
-          component: :tmdb,
-          message: "an incident from an earlier test"
-        )
-      )
-
+    test "the incident bucket cache is emptied" do
+      # The Status board reads the globally named cache, so a LiveView test
+      # that wants an incident on the board has to ingest into this instance.
+      Buckets.ingest(entry(:error, "an incident from an earlier test"))
       assert Buckets.list_buckets() != []
 
-      GlobalStateSandbox.restore!()
+      GlobalStateSandbox.checkin()
 
       assert Buckets.list_buckets() == []
     end
 
-    test "resets the acquisition search session" do
+    test "the acquisition search session is reset" do
       SearchSession.set_query_preview("a query from an earlier test")
       assert SearchSession.current().query != ""
 
-      GlobalStateSandbox.restore!()
+      GlobalStateSandbox.checkin()
 
       assert SearchSession.current().query == ""
     end
   end
 
-  describe "restore!/1 — only for a test that owns the machine" do
-    test "an async test resets nothing" do
+  describe "checkin/0 — verified state fails the test that left it" do
+    test "a registered app process the test started and did not stop" do
+      name = MediaCentaur.LeakedByATest
+      {:ok, pid} = Agent.start(fn -> :leaked end, name: name)
+      Process.unlink(pid)
+
+      error = assert_raise(Leak, &GlobalStateSandbox.checkin/0)
+
+      assert Exception.message(error) =~ inspect(name)
+      # Contained, so the next test starts clean rather than failing too.
+      refute Process.alive?(pid)
+    end
+
+    test "a child a test added to the app supervisor is stopped through the supervisor, not killed" do
+      # Killing a supervised child only has the supervisor restart it, and
+      # enough restarts stop the application under every later test.
+      {:ok, pid} = Supervisor.start_child(MediaCentaur.Supervisor, MediaCentaur.Review.Intake)
+
+      error = assert_raise(Leak, &GlobalStateSandbox.checkin/0)
+
+      assert Exception.message(error) =~ "MediaCentaur.Review.Intake"
+      refute Process.alive?(pid)
+
+      refute Enum.any?(
+               Supervisor.which_children(MediaCentaur.Supervisor),
+               &match?({MediaCentaur.Review.Intake, _, _, _}, &1)
+             )
+
+      assert Process.alive?(Process.whereis(MediaCentaur.Supervisor))
+    end
+
+    test "a named ETS table owned by an app process that outlives the test" do
+      {:ok, owner} =
+        Agent.start(fn -> :ets.new(:media_centaur_leaked_table, [:named_table, :public]) end)
+
+      Process.unlink(owner)
+      assert :ets.whereis(:media_centaur_leaked_table) != :undefined
+
+      # The owner is an app process by its initial call, not its name.
+      error = assert_raise(Leak, &GlobalStateSandbox.checkin/0)
+
+      assert Exception.message(error) =~ ":media_centaur_leaked_table"
+      assert :ets.whereis(:media_centaur_leaked_table) == :undefined
+    end
+
+    test "a named ETS table the test process itself created is not a leak" do
+      # It dies with the test process, before check-in ever runs; creating
+      # it here and checking in from the same process is the closest a test
+      # can get, and the table's owner is not an app process.
+      :ets.new(:some_dependency_table, [:named_table, :public])
+
+      assert GlobalStateSandbox.checkin() == :ok
+    end
+
+    test "a supervised task still running at check-in" do
+      {:ok, pid} =
+        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+          Process.sleep(:infinity)
+        end)
+
+      error = assert_raise(Leak, &GlobalStateSandbox.checkin/0)
+
+      assert Exception.message(error) =~ "MediaCentaur.TaskSupervisor"
+      refute Process.alive?(pid)
+    end
+
+    test "a process that is still shutting down is waited for, not reported" do
+      # Exit signals propagate asynchronously; check-in gives verified state a
+      # moment to settle and returns the instant it is clean.
+      name = MediaCentaur.ShuttingDownAfterATest
+      {:ok, pid} = Agent.start(fn -> :ok end, name: name)
+      Process.unlink(pid)
+      spawn(fn -> Process.sleep(50) && Agent.stop(pid) end)
+
+      assert GlobalStateSandbox.checkin() == :ok
+    end
+  end
+
+  describe "checkout/1" do
+    test "a checkout after a clean check-in takes the machine on trust" do
+      key = {MediaCentaur.SomeCacheAddedTomorrow, :state}
+      :persistent_term.put(key, :written_between_tests_by_nothing)
+      :ets.insert(:media_centaur_global_state_sandbox, {:verified_clean, true})
+
+      assert GlobalStateSandbox.checkout(%{async: false}) == :ok
+    end
+
+    test "an async test neither restores nor verifies anything" do
       # Async tests run concurrently, so a reset in one of them clears state
-      # its peers installed for themselves. An unconditional reset erased the
-      # stubbed TMDB client an async test had put in place and sent the stage
-      # to the real API.
+      # its peers installed for themselves.
       key = {MediaCentaur.SomeCacheAddedTomorrow, :state}
       :persistent_term.put(key, :installed_by_a_peer)
       on_exit(fn -> :persistent_term.erase(key) end)
 
-      GlobalStateSandbox.restore!(%{async: true})
+      assert GlobalStateSandbox.checkout(%{async: true}) == :ok
 
       assert :persistent_term.get(key, :__unset) == :installed_by_a_peer
+    end
+
+    test "a sync test that begins off the baseline fails, naming the async phase, and is restored" do
+      key = {MediaCentaur.SomeCacheAddedTomorrow, :state}
+      :persistent_term.put(key, :left_by_the_async_phase)
+      # Checkout trusts a check-in that verified clean; before the first
+      # sync test there has been none.
+      :ets.insert(:media_centaur_global_state_sandbox, {:verified_clean, false})
+
+      error = assert_raise(Leak, fn -> GlobalStateSandbox.checkout(%{async: false}) end)
+
+      assert Exception.message(error) =~ "async phase"
+      assert Exception.message(error) =~ inspect(key)
+      assert :persistent_term.get(key, :__unset) == :__unset
     end
   end
 
@@ -130,23 +214,34 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
 
                  #{inspect(unclassified)}
 
-             Add each to `MediaCentaur.GlobalStateSandbox.dispositions/0`
-             with how its state is contained — :sandboxed, :stateless,
-             :reset (and wire the reset), or :accepted with the reason no
-             test can read it.
+             Add each to `MediaCentaur.GlobalStateSandbox.dispositions/0`:
+             :sandboxed, :unobservable, {:reset, mfa} or {:probe, mfa}.
              """
     end
 
-    test "every child classified :reset is actually reset" do
-      reset_children =
-        GlobalStateSandbox.dispositions()
-        |> Enum.filter(fn {_id, {disposition, _why}} -> disposition == :reset end)
-        |> Enum.map(fn {id, _} -> id end)
-        |> Enum.sort()
-
-      wired = GlobalStateSandbox.resets() |> Enum.map(fn {module, _fun} -> module end) |> Enum.sort()
-
-      assert reset_children == wired
+    test "every reset and probe names a function that exists" do
+      for {id, disposition} <- GlobalStateSandbox.dispositions(),
+          {kind, {module, function, args}, _why} <- [disposition],
+          kind in [:reset, :probe] do
+        assert function_exported?(module, function, length(args)),
+               "#{inspect(id)} is #{kind} through #{inspect(module)}.#{function}/#{length(args)}, which does not exist"
+      end
     end
+
+    test "every probe reads its baseline value on a clean machine" do
+      # A probe that drifts on its own would fail every sync test; this is
+      # the claim behind each `{:probe, mfa}` line, checked at rest.
+      assert Snapshot.verified_diff(GlobalStateSandbox.baseline(), GlobalStateSandbox.snapshot()) == []
+    end
+  end
+
+  defp entry(level, message) do
+    Entry.new(
+      id: 1,
+      timestamp: DateTime.utc_now(),
+      level: level,
+      component: :tmdb,
+      message: message
+    )
   end
 end

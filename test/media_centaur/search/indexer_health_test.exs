@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Search.IndexerHealthTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.Search.Prowlarr
@@ -121,12 +121,6 @@ defmodule MediaCentaur.Search.IndexerHealthTest do
   end
 
   describe "cache" do
-    setup do
-      IndexerHealth.clear_cache()
-      on_exit(fn -> IndexerHealth.clear_cache() end)
-      :ok
-    end
-
     test "cached/0 is nil before any observation" do
       assert IndexerHealth.cached() == nil
     end
@@ -160,9 +154,6 @@ defmodule MediaCentaur.Search.IndexerHealthTest do
 
   describe "check/1" do
     setup do
-      IndexerHealth.clear_cache()
-      on_exit(fn -> IndexerHealth.clear_cache() end)
-
       Req.Test.stub(:prowlarr_health, fn conn ->
         case conn.request_path do
           "/api/v1/indexer" ->

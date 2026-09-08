@@ -11,10 +11,7 @@ defmodule MediaCentaur.Apps.ArtworkTest do
     original = :persistent_term.get({Config, :config}, %{})
     :persistent_term.put({Config, :config}, Map.put(original, :data_dir, data_dir))
 
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original)
-      File.rm_rf!(data_dir)
-    end)
+    on_exit(fn -> File.rm_rf!(data_dir) end)
 
     %{data_dir: data_dir}
   end

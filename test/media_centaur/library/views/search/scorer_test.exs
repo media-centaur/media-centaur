@@ -11,7 +11,7 @@ defmodule MediaCentaur.Library.Views.Search.ScorerTest do
   is responsible for normalisation. See `Library.Views.Search` for the
   read-path wiring.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.Views.Search.Scorer
 

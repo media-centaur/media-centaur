@@ -8,7 +8,7 @@ defmodule MediaCentaur.Library.Views.RankedProjectionTest do
   Tested with throwaway table names rather than the real projection
   tables, so this never races the `Cache.Worker` or a sibling test.
   """
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics

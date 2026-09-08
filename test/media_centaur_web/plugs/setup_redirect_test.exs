@@ -9,16 +9,6 @@ defmodule MediaCentaurWeb.Plugs.SetupRedirectTest do
   alias MediaCentaur.Settings.Config
   alias MediaCentaurWeb.Plugs.SetupRedirect
 
-  setup do
-    original = :persistent_term.get({Config, :config})
-
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original)
-    end)
-
-    :ok
-  end
-
   defp set_dismissed(value) do
     config = :persistent_term.get({Config, :config})
     :persistent_term.put({Config, :config}, Map.put(config, :setup_wizard_dismissed, value))

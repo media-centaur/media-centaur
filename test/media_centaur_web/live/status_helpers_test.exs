@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.StatusHelpersTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.WatchProgress
   alias MediaCentaurWeb.StatusHelpers

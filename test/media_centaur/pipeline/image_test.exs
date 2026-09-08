@@ -27,10 +27,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
 
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, updated_config)
 
-    on_exit(fn ->
-      File.rm_rf!(images_dir)
-      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-    end)
+    on_exit(fn -> File.rm_rf!(images_dir) end)
 
     %{images_dir: images_dir}
   end

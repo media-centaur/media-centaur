@@ -17,8 +17,10 @@ defmodule MediaCentaurWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
-  using do
+  using opts do
     quote do
+      use MediaCentaur.Case, unquote(opts)
+
       # The default endpoint for testing
       @endpoint MediaCentaurWeb.Endpoint
 

@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Watcher.DirValidatorTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Watcher.DirValidator
 

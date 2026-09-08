@@ -16,7 +16,7 @@ defmodule MediaCentaur.Nostr.ConnectionFramesTest do
   ping/pong liveness, backoff — lives in `ConnectionTest`, which keeps a
   real socket because that is exactly what it is testing.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   @moduletag :capture_log
 

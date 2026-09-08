@@ -1,5 +1,5 @@
 defmodule MediaCentaur.BootHealTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.BootHeal
 

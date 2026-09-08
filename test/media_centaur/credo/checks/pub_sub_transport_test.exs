@@ -64,7 +64,7 @@ defmodule MediaCentaur.Credo.Checks.PubSubTransportTest do
     test "test files may drive PubSub directly" do
       ~S'''
       defmodule MediaCentaur.ReviewTest do
-        use MediaCentaur.DataCase
+        use MediaCentaur.DataCase, async: false
 
         test "broadcasts" do
           Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "review:updates")

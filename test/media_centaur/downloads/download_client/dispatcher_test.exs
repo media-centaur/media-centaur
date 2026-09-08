@@ -1,19 +1,9 @@
 defmodule MediaCentaur.Downloads.DownloadClient.DispatcherTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Downloads.DownloadClient.{Dispatcher, QBittorrent, SABnzbd}
   alias MediaCentaur.Settings.Config
-
-  setup do
-    original = :persistent_term.get({Config, :config}, %{})
-
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original)
-    end)
-
-    :ok
-  end
 
   defp put_config(overrides) do
     config = :persistent_term.get({Config, :config}, %{})

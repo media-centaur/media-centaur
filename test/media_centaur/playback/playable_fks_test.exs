@@ -5,7 +5,7 @@ defmodule MediaCentaur.Playback.PlayableFksTest do
   two callers, which makes an unrecognised type falling through to the
   catch-all the failure worth pinning.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Playback.PlayableFks
 

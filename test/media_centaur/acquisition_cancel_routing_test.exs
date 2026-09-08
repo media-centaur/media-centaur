@@ -4,7 +4,7 @@ defmodule MediaCentaur.AcquisitionCancelRoutingTest do
   # authoritative; when the item has already left the snapshot (cleanup
   # cancels arrive late), the id shape decides — SABnzbd ids are always
   # "SABnzbd_nzo_…", torrent ids are bare infohashes.
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.DownloadClientStubs

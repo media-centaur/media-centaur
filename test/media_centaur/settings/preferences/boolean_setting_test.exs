@@ -10,7 +10,7 @@ defmodule MediaCentaur.Settings.Preferences.BooleanSettingTest do
   The compile-time raise is what turns that into a build failure, so it is
   exercised against an actual violation rather than assumed to work.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   test "a non-boolean default is a compile error, not a silently inverted flag" do
     assert_raise ArgumentError, ~r/expects a literal boolean `default:`/, fn ->

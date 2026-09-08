@@ -338,11 +338,9 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     # (`status == :error`), not for `:not_configured`. Both tests put
     # `media_dirs` in `:error` state by configuring a path that does not
     # exist on disk — `Probes.media_dirs/1` returns `:error` when every
-    # configured dir is unreachable. Restored on exit.
+    # configured dir is unreachable.
     setup do
-      previous = Config.get(:media_dirs) || []
       :ok = Config.put_media_dirs([%{"dir" => "/var/empty/nope/missing"}])
-      on_exit(fn -> Config.put_media_dirs(previous) end)
       :ok
     end
 

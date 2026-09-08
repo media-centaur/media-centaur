@@ -5,7 +5,7 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
   Uses `Image.new!/2` to generate test images in memory, then verifies
   resize behavior, format detection, skip-if-small logic, and error handling.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Pipeline.ImageProcessor
 

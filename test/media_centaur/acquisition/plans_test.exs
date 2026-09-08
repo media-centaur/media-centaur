@@ -18,10 +18,6 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
     )
 
-    on_exit(fn ->
-      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-    end)
-
     :ok
   end
 

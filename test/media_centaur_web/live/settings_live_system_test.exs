@@ -35,16 +35,10 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
 
     Req.Test.set_req_test_from_context(%{async: false})
 
-    # The cache is global (persistent_term) — reset it so each test starts
-    # from a known empty state and can't be polluted by prior runs.
-    UpdateChecker.clear_cache()
-
     # Checks (scheduled, landing, and manual) only run on the prod release
     # channel; flip the environment so the check flow under test actually
-    # executes. Restored on exit.
+    # executes.
     Application.put_env(:media_centaur, :environment, :prod)
-
-    on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
 
     :ok
   end

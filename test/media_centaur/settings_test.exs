@@ -139,10 +139,6 @@ defmodule MediaCentaur.SettingsTest do
     end
 
     test "refresh_cache/0 populates :persistent_term and is idempotent" do
-      # The cache is global :persistent_term — clean up on exit so we don't
-      # leak the empty test-DB snapshot into later tests' Settings reads.
-      on_exit(fn -> :persistent_term.erase({Settings, :entries}) end)
-
       Settings.create_entry!(%{key: "cache_target", value: %{"v" => 1}})
 
       assert :ok = Settings.refresh_cache()

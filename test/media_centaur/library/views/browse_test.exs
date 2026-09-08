@@ -42,17 +42,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     :ok
   end
 
-  # ETS table is global; tests that exercise the cached path must clean
-  # up so later tests fall back to a clean slate.
-  defp on_exit_clear_table do
-    on_exit(fn ->
-      case :ets.whereis(@table) do
-        :undefined -> :ok
-        _ref -> :ets.delete(@table)
-      end
-    end)
-  end
-
   # Seeds a standalone movie with a present file so the entity passes
   # presentable-filter queries. The factory hooks PlayableItem +
   # WatchedFile automatically when given :movie_id.
@@ -126,15 +115,11 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
 
   describe "cold start — refresh_cache/0 populates the ETS table" do
     test "returns empty when library is empty" do
-      on_exit_clear_table()
-
       assert :ok = Browse.refresh_cache()
       assert Views.browse() == []
     end
 
     test "returns standalone movies ordered by inserted_at desc (recent-first)" do
-      on_exit_clear_table()
-
       # Phase 3.1: Browse projection's display order is recent-first
       # ("what did I just add?") — the most natural Library default.
       # Other sort orders are applied by the LiveView consumer.
@@ -161,8 +146,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "returns TV series, movie series, and video objects alongside movies" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       seed_present_tv_series("Series A")
       seed_present_movie_series("MSeries A")
@@ -177,8 +160,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "assigns rank in display order, starting at 0" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       seed_present_movie("Movie B")
       seed_present_movie("Movie C")
@@ -190,8 +171,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "year is derived from container.date_published" do
-      on_exit_clear_table()
-
       seed_present_movie("Year Movie", %{date_published: ~D[2010-06-01]})
       seed_present_movie("No-Year Movie", %{date_published: nil})
 
@@ -205,8 +184,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "date_published is the full Date (not just year)" do
-      on_exit_clear_table()
-
       seed_present_movie("Dated Movie", %{date_published: ~D[2010-06-01]})
       seed_present_movie("Undated Movie", %{date_published: nil})
 
@@ -220,8 +197,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "poster_url is populated when entity has a poster image" do
-      on_exit_clear_table()
-
       movie = seed_present_movie("Poster Movie")
 
       create_image(%{
@@ -245,8 +220,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
 
   describe "Views.browse/1 — filters" do
     test "respects :kind filter (movies only)" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       seed_present_tv_series("Series A")
       seed_present_video_object("VO A")
@@ -260,8 +233,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "respects :kind filter (tv_series only)" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       seed_present_tv_series("Series A")
       seed_present_tv_series("Series B")
@@ -274,8 +245,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "browse excludes entities with no present WatchedFile" do
-      on_exit_clear_table()
-
       # A standalone movie WITH a present file.
       seed_present_movie("Present Movie")
 
@@ -294,8 +263,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
 
   describe "refresh via library:updates" do
     test "newly created entity appears in next read after :entities_changed broadcast" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       # Prime the cache so we start from a known state.
@@ -319,8 +286,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "deleted entity disappears in next read after refresh" do
-      on_exit_clear_table()
-
       movie = seed_present_movie("Will Be Gone")
       :ok = Browse.refresh_cache()
       assert [%BrowseItem{name: "Will Be Gone"}] = Views.browse()
@@ -339,8 +304,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "renamed entity's BrowseItem.name reflects the update after refresh" do
-      on_exit_clear_table()
-
       # Library exposes `update_tv_series/2` but not `update_movie/2`
       # (see Library context API). Use a TVSeries here to stay on the
       # public context API for the rename contract.
@@ -363,8 +326,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     # refresh; flipping back surfaces it again. The Cache.Worker drives
     # refreshes on availability_changed broadcasts in production.
     test "file becoming present surfaces the entity in next refresh" do
-      on_exit_clear_table()
-
       # Post-Phase-4 (library-presence-unification): "presence" is now
       # structural — a WatchedFile exists iff its Library.FilePresence
       # exists (cascade-delete via FK). The "absent" baseline below is
@@ -385,8 +346,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
 
   describe "broadcast contract" do
     test "emits {:library_view_updated, :browse} on library:views after refresh" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       assert :ok = Browse.refresh_cache()
@@ -395,8 +354,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "broadcasts even when the projection is empty" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       assert :ok = Browse.refresh_cache()
@@ -417,8 +374,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     end
 
     test "is idempotent — repeat refreshes replace the snapshot, no leak" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       assert :ok = Browse.refresh_cache()
       assert length(Views.browse()) == 1

@@ -1,6 +1,6 @@
 defmodule MediaCentaur.ErrorReports.IssueUrlTest do
   # `async: false` — one test writes application env (a shared value).
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.ErrorReports.{Bucket, IssueUrl}
 
@@ -88,9 +88,7 @@ defmodule MediaCentaur.ErrorReports.IssueUrlTest do
     end
 
     test "honors a :diagnostics_issues_repo override" do
-      original = Application.get_env(:media_centaur, :diagnostics_issues_repo)
       Application.put_env(:media_centaur, :diagnostics_issues_repo, "acme/widgets")
-      on_exit(fn -> Application.put_env(:media_centaur, :diagnostics_issues_repo, original) end)
 
       assert IssueUrl.new_issue_url("x", "body", []) =~ "https://github.com/acme/widgets/issues/new?"
     end

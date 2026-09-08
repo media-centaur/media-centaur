@@ -2,7 +2,7 @@ defmodule MediaCentaur.ImageFilesTest do
   @moduledoc """
   Tests for the shared image download service.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.ImageFiles
 

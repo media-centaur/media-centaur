@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.ViewModel.OrientationTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   import MediaCentaur.TestFactory, only: [build_episode: 1, build_movie: 1]
 

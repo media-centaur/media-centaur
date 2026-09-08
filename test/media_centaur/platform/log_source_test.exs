@@ -1,10 +1,9 @@
 defmodule MediaCentaur.Platform.LogSourceTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Platform.LogSource
 
-  # async: false because we mutate Application env. Each test rolls
-  # back its override in `on_exit` so the suite stays clean.
+  # async: false because we mutate Application env.
 
   defmodule FakeImpl do
     @behaviour MediaCentaur.Platform.LogSource
@@ -19,17 +18,7 @@ defmodule MediaCentaur.Platform.LogSourceTest do
 
   describe "facade dispatch" do
     setup do
-      original = Application.get_env(:media_centaur, LogSource)
       Application.put_env(:media_centaur, LogSource, FakeImpl)
-
-      on_exit(fn ->
-        if original do
-          Application.put_env(:media_centaur, LogSource, original)
-        else
-          Application.delete_env(:media_centaur, LogSource)
-        end
-      end)
-
       :ok
     end
 
@@ -48,12 +37,7 @@ defmodule MediaCentaur.Platform.LogSourceTest do
 
   describe "default impl (no Application env)" do
     test "defaults to Journal when no impl is configured" do
-      original = Application.get_env(:media_centaur, LogSource)
       Application.delete_env(:media_centaur, LogSource)
-
-      on_exit(fn ->
-        if original, do: Application.put_env(:media_centaur, LogSource, original)
-      end)
 
       # available?/1 with nil unit is the safe contract probe — neither
       # impl should attempt a shell-out for this.

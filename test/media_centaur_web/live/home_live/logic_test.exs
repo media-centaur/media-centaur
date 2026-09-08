@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.HomeLive.LogicTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.HomeLive.Logic
 

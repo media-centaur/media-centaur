@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent.SyncTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync
   alias MediaCentaur.Downloads.QueueItem

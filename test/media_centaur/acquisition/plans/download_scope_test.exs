@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Acquisition.Plans.DownloadScopeTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Acquisition.Targeting

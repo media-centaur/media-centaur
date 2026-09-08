@@ -1,5 +1,5 @@
 defmodule MediaCentaur.ErrorReports.ReportPayloadTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
   alias MediaCentaur.ErrorReports.ReportPayload
 
   test "build_generic/2 renders a title + body from a snapshot and env" do

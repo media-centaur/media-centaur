@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.SensitiveParamsFilterTest do
   See decisions/architecture/ for the sensitive-information policy.
   """
 
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   test "Phoenix.Logger redacts password / api_key / secret / token form params" do
     filtered =

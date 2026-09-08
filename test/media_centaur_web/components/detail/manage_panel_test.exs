@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.Detail.ManagePanelTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Components.Detail.ManagePanel
 

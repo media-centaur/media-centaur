@@ -91,10 +91,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
       original = :persistent_term.get({Config, :config}, %{})
       :persistent_term.put({Config, :config}, Map.put(original, :data_dir, tmp_dir))
 
-      on_exit(fn ->
-        :persistent_term.put({Config, :config}, original)
-        File.rm_rf!(tmp_dir)
-      end)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
       %{filename: "poster.jpg"}
     end
@@ -140,10 +137,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
       original = :persistent_term.get({Config, :config}, %{})
       :persistent_term.put({Config, :config}, Map.put(original, :data_dir, tmp_dir))
 
-      on_exit(fn ->
-        :persistent_term.put({Config, :config}, original)
-        File.rm_rf!(tmp_dir)
-      end)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
       %{filename: "backdrop.jpg", master_path: master_path}
     end

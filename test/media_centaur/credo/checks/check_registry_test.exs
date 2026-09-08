@@ -4,7 +4,7 @@ defmodule MediaCentaur.Credo.Checks.CheckRegistryTest do
   every doc, ADR, plan and `credo:disable` comment cites a rule. An id
   shared by two checks makes every one of those citations ambiguous.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   @checks_dir Path.expand("../../../../credo_checks", __DIR__)
 

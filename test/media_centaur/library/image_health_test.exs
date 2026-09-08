@@ -10,17 +10,12 @@ defmodule MediaCentaur.Library.ImageHealthTest do
     images_dir = Path.join(tmp, ".media-centaur/images")
     File.mkdir_p!(images_dir)
 
-    original = :persistent_term.get({Config, :config}, %{})
-
     :persistent_term.put({Config, :config}, %{
       media_dirs: [tmp],
       media_dir_images: %{tmp => images_dir}
     })
 
-    on_exit(fn ->
-      File.rm_rf!(tmp)
-      :persistent_term.put({Config, :config}, original)
-    end)
+    on_exit(fn -> File.rm_rf!(tmp) end)
 
     %{tmp: tmp, images_dir: images_dir}
   end

@@ -7,7 +7,7 @@ defmodule MediaCentaur.Iso639Test do
   everywhere, and that non-language metadata (`"forced"`, `"sdh"`) never
   masquerades as a language.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Iso639
 

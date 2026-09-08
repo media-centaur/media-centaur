@@ -6,7 +6,7 @@ defmodule MediaCentaur.TestFactory.OwnerRefTest do
   episode, only extras hang off a season — because a silently-accepted
   wrong key would write a sidecar row pointing at nothing.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.TestFactory.OwnerRef
 

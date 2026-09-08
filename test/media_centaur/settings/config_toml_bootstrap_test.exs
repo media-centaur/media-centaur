@@ -11,15 +11,12 @@ defmodule MediaCentaur.Settings.ConfigTomlBootstrapTest do
   To do that we temporarily disable the test-env `:skip_user_config`
   short-circuit and point `MEDIA_CENTAUR_CONFIG_OVERRIDE` at a temp file.
   """
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Settings.Config
 
   setup do
-    original_config = :persistent_term.get({Config, :config})
-    original_skip = Application.get_env(:media_centaur, :skip_user_config)
     original_override = System.get_env("MEDIA_CENTAUR_CONFIG_OVERRIDE")
-    original_raw_watch = Application.get_env(:media_centaur, :__raw_toml_media_dirs)
 
     toml_dir = Path.join(System.tmp_dir!(), "config_bootstrap_#{Ecto.UUID.generate()}")
     File.mkdir_p!(toml_dir)
@@ -29,10 +26,6 @@ defmodule MediaCentaur.Settings.ConfigTomlBootstrapTest do
     System.put_env("MEDIA_CENTAUR_CONFIG_OVERRIDE", toml_path)
 
     on_exit(fn ->
-      :persistent_term.put({Config, :config}, original_config)
-      Application.put_env(:media_centaur, :skip_user_config, original_skip)
-      restore_env(:__raw_toml_media_dirs, original_raw_watch)
-
       case original_override do
         nil -> System.delete_env("MEDIA_CENTAUR_CONFIG_OVERRIDE")
         value -> System.put_env("MEDIA_CENTAUR_CONFIG_OVERRIDE", value)
@@ -102,7 +95,4 @@ defmodule MediaCentaur.Settings.ConfigTomlBootstrapTest do
       end
     end
   end
-
-  defp restore_env(_key, nil), do: :ok
-  defp restore_env(key, value), do: Application.put_env(:media_centaur, key, value)
 end

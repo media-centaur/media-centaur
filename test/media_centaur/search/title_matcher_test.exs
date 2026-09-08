@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Search.TitleMatcherTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Search.{Criteria, SearchResult, TitleMatcher}
 

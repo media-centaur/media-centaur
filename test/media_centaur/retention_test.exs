@@ -63,12 +63,7 @@ defmodule MediaCentaur.RetentionTest do
   end
 
   defp with_providers(providers) do
-    original = Application.fetch_env!(:media_centaur, :retention_policy_providers)
     Application.put_env(:media_centaur, :retention_policy_providers, providers)
-
-    on_exit(fn ->
-      Application.put_env(:media_centaur, :retention_policy_providers, original)
-    end)
   end
 
   describe "record_run/2" do

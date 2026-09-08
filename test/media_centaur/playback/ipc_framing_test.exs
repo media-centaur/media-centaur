@@ -2,7 +2,7 @@ defmodule MediaCentaur.Playback.IpcFramingTest do
   @moduledoc """
   Pure-function tests for the mpv JSON-IPC newline framing.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Playback.IpcFraming
 

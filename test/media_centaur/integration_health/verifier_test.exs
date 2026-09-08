@@ -1,28 +1,9 @@
 defmodule MediaCentaur.IntegrationHealth.VerifierTest do
-  # `async: false` — mutates the shared Config persistent_term to control
-  # which download-client slots count as configured.
-  use ExUnit.Case, async: false
+  # `async: false` — reads the shared Config persistent_term at its
+  # baseline, where no Prowlarr URL and no download-client slot is set.
+  use MediaCentaur.Case, async: false
 
-  alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth.Verifier
-
-  setup do
-    # Null the download-client config so a slot leaked from another test
-    # can't make this deterministic check flaky.
-    original_config = :persistent_term.get({Config, :config})
-
-    :persistent_term.put(
-      {Config, :config},
-      original_config
-      |> Map.put(:download_client_type, nil)
-      |> Map.put(:download_client_url, nil)
-      |> Map.put(:usenet_download_client_type, nil)
-      |> Map.put(:usenet_download_client_url, nil)
-    )
-
-    on_exit(fn -> :persistent_term.put({Config, :config}, original_config) end)
-    :ok
-  end
 
   describe "run(:prowlarr)" do
     test "returns {:error, :not_configured} when no Prowlarr URL is configured" do

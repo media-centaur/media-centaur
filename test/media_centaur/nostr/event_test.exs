@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Nostr.EventTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys

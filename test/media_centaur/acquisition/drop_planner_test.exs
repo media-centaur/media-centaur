@@ -29,10 +29,6 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
 
     Capabilities.save_test_result(:prowlarr, :ok)
 
-    on_exit(fn ->
-      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-    end)
-
     :ok
   end
 

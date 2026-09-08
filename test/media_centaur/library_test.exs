@@ -1187,13 +1187,6 @@ defmodule MediaCentaur.LibraryTest do
       # scale with episode count — bounded, but noise for an N+1 check).
       :ok = MediaCentaur.Library.Views.Detail.refresh_cache()
 
-      on_exit(fn ->
-        case :ets.whereis(:library_view_detail) do
-          :undefined -> :ok
-          _ -> :ets.delete(:library_view_detail)
-        end
-      end)
-
       query_count = count_queries(fn -> Library.ModalEntry.load(series.id) end)
 
       # Projection-warm path: ETS lookup (0 queries) + 1 progress query.

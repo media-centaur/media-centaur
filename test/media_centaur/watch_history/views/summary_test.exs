@@ -11,10 +11,6 @@ defmodule MediaCentaur.WatchHistory.Views.SummaryTest do
 
   @cache_key {Summary, :data}
 
-  defp on_exit_clear_cache do
-    on_exit(fn -> :persistent_term.erase(@cache_key) end)
-  end
-
   describe "Cache behaviour — relevant?/1" do
     test "accepts watch-event creation" do
       assert Summary.relevant?({:watch_event_created, %{}})
@@ -33,8 +29,6 @@ defmodule MediaCentaur.WatchHistory.Views.SummaryTest do
 
   describe "refresh_cache/0" do
     test "populates :persistent_term with the SummaryData struct" do
-      on_exit_clear_cache()
-
       movie = create_standalone_movie(%{name: "Replayed"})
       create_watch_event(%{movie_id: movie.id, entity_type: :movie, title: "Replayed"})
       create_watch_event(%{movie_id: movie.id, entity_type: :movie, title: "Replayed"})
@@ -52,8 +46,6 @@ defmodule MediaCentaur.WatchHistory.Views.SummaryTest do
     end
 
     test "broadcasts {:watch_history_view_updated, :summary} after refresh" do
-      on_exit_clear_cache()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.watch_history_views())
 
       movie = create_standalone_movie(%{name: "Broadcast"})
@@ -65,8 +57,6 @@ defmodule MediaCentaur.WatchHistory.Views.SummaryTest do
     end
 
     test "is idempotent — repeat calls replace the snapshot, no leak" do
-      on_exit_clear_cache()
-
       movie = create_standalone_movie(%{name: "Idempotent"})
       create_watch_event(%{movie_id: movie.id, entity_type: :movie, title: "Idempotent"})
       assert :ok = Summary.refresh_cache()
@@ -99,8 +89,6 @@ defmodule MediaCentaur.WatchHistory.Views.SummaryTest do
 
   describe "equivalence with the legacy live read paths" do
     test "cached summary matches the per-call WatchHistory reads for the same DB state" do
-      on_exit_clear_cache()
-
       movie = create_standalone_movie(%{name: "Equiv"})
       create_watch_event(%{movie_id: movie.id, entity_type: :movie, title: "Equiv"})
 

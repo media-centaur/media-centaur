@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   import MediaCentaur.TestFactory, only: [build_tracking_release: 1]
 

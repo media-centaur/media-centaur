@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Pipeline.Image.StatsTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Pipeline.Image.Stats
 

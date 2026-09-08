@@ -29,17 +29,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     movie
   end
 
-  # ETS table is global; tests that exercise the cached path must clean
-  # up so later tests fall back to the DB path with empty ETS.
-  defp on_exit_clear_table do
-    on_exit(fn ->
-      case :ets.whereis(@table) do
-        :undefined -> :ok
-        _ref -> :ets.delete(@table)
-      end
-    end)
-  end
-
   # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
   defp record_present(_file), do: :ok
 
@@ -81,8 +70,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
 
   describe "refresh_cache/0" do
     test "populates the ETS table with view-model structs in display order" do
-      on_exit_clear_table()
-
       now = DateTime.utc_now(:second)
       seed_in_progress_movie("First Watched", DateTime.add(now, -3600, :second))
       seed_in_progress_movie("Second Watched", DateTime.add(now, -1800, :second))
@@ -101,8 +88,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     end
 
     test "broadcasts {:library_view_updated, :continue_watching} after refresh" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       seed_in_progress_movie("Some Movie")
@@ -113,8 +98,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     end
 
     test "is idempotent — repeat calls replace the snapshot, no leak" do
-      on_exit_clear_table()
-
       seed_in_progress_movie("Movie A")
       assert :ok = ContinueWatching.refresh_cache()
       assert length(Views.continue_watching(limit: 10)) == 1
@@ -140,8 +123,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     end
 
     test "honours :limit on the ETS path" do
-      on_exit_clear_table()
-
       Enum.each(1..5, fn i -> seed_in_progress_movie("Movie #{i}") end)
       assert :ok = ContinueWatching.refresh_cache()
 
@@ -163,8 +144,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     # projection's view-model output mirrors the legacy map output for
     # representative DB state. A drift here would be a real regression.
     test "ETS-cached output matches Library.list_in_progress for the same DB state" do
-      on_exit_clear_table()
-
       # Explicit, distinct last_watched_at gives the cached and DB paths a
       # deterministic order to zip-compare — no clock-advance sleep.
       now = DateTime.utc_now(:second)
@@ -220,7 +199,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     end
 
     test "Continue Watching reflects fresh in-memory position written via Progress.record/3" do
-      on_exit_clear_table()
       ensure_progress_worker!()
       Progress.reset_for_test!()
 

@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimelineTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline

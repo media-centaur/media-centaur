@@ -2,7 +2,7 @@ defmodule MediaCentaur.Watcher.ScanStatsTest do
   # async: false — exercises the application-wide ScanStats singleton via the
   # real scan telemetry event. Per-test isolation comes from a unique dir key,
   # so concurrent suites never collide on the same row.
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Watcher.ScanStats
 

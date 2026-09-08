@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Downloads.HealthHistoryTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Downloads.Health
   alias MediaCentaur.Downloads.HealthHistory

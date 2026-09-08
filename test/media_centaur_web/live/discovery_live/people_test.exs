@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   import MediaCentaur.DiscoveryRows
 

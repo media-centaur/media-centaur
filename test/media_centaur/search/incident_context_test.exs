@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Search.IncidentContextTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Search.IncidentContext
   alias MediaCentaur.Search.IndexerHealth

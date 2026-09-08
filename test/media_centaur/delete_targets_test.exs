@@ -14,7 +14,6 @@ defmodule MediaCentaur.DeleteTargetsTest do
   setup do
     stored = :persistent_term.get({Config, :config})
     :persistent_term.put({Config, :config}, Map.put(stored, :media_dirs, ["/media/movies", "/media/tv"]))
-    on_exit(fn -> :persistent_term.put({Config, :config}, stored) end)
     :ok
   end
 

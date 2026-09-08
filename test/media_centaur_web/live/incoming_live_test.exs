@@ -47,13 +47,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
-    # Settings mirrors into a process-global :persistent_term cache that
-    # outlives the Ecto sandbox. Once any other test warms it, `put_cache/1`
-    # starts writing here, so a pref set by one test (e.g. the History
-    # disclosure) would leak into the next. Erase it so every test reads its
-    # own sandboxed DB (writes stay DB-only while the cache is unset).
-    :persistent_term.erase({MediaCentaur.Settings, :entries})
-
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
@@ -71,15 +64,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     # client). Seed both so tests of other behaviors see the fully-enabled page.
     Capabilities.save_test_result(:prowlarr, :ok)
     Capabilities.save_test_result(:download_client, :ok)
-
-    # The SearchSession GenServer is a singleton — reset it between tests
-    # so leaked state from a prior test doesn't leak into the next one.
-    SearchSession.clear()
-
-    on_exit(fn ->
-      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-      SearchSession.clear()
-    end)
 
     :ok
   end
@@ -2388,10 +2372,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         })
       )
 
-      on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-      end)
-
       :ok
     end
 
@@ -2805,11 +2785,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "search session persistence" do
-    setup do
-      SearchSession.clear()
-      :ok
-    end
-
     test "search query and results persist across navigation", %{conn: conn} do
       stub_prowlarr_with([sample_release()])
 
@@ -2889,9 +2864,12 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "groups in :loading become :abandoned with retry affordance after LV crash", %{conn: conn} do
-      # Searches hang forever; the IndexerHealth snapshot endpoints stay
-      # responsive so mount's health async (UIDR-016) doesn't eat the
-      # render_async budget — this test is about search-session lifecycle.
+      # Searches block until this test releases them; the IndexerHealth
+      # snapshot endpoints stay responsive so mount's health async
+      # (UIDR-016) doesn't eat the render_async budget — this test is about
+      # search-session lifecycle.
+      test_pid = self()
+
       Req.Test.stub(:prowlarr, fn conn ->
         case conn.request_path do
           "/api/v1/indexer" ->
@@ -2901,7 +2879,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
             Req.Test.json(conn, [])
 
           _search ->
-            :timer.sleep(:infinity)
+            send(test_pid, {:search_blocked, self()})
+
+            receive do
+              :release -> Req.Test.json(conn, [])
+            end
         end
       end)
 
@@ -2925,6 +2907,21 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view2, _html2} = live_async!(conn, "/incoming")
       assert render_after_async_load(view2) =~ "Retry"
+
+      # The blocked searches are this test's async work: release every one
+      # and drive them to completion before the test ends.
+      release_blocked_searches()
+      await_supervised_tasks()
+    end
+  end
+
+  defp release_blocked_searches do
+    receive do
+      {:search_blocked, pid} ->
+        send(pid, :release)
+        release_blocked_searches()
+    after
+      0 -> :ok
     end
   end
 
@@ -3372,16 +3369,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       })
 
       # hero_candidates reads a global ETS projection; refresh it from this
-      # test's sandboxed rows and drop it afterwards so nothing leaks. With
-      # the projection populated, a backdrop would render if one were wired.
+      # test's sandboxed rows. With the projection populated, a backdrop
+      # would render if one were wired.
       MediaCentaur.Library.Views.HeroCandidates.refresh_cache()
-
-      on_exit(fn ->
-        case :ets.whereis(:library_view_hero_candidates) do
-          :undefined -> :ok
-          _ref -> :ets.delete(:library_view_hero_candidates)
-        end
-      end)
 
       {:ok, view, _html} = live_async!(conn, "/incoming")
 

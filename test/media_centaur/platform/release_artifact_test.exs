@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Platform.ReleaseArtifactTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Platform.ReleaseArtifact
 

@@ -1,22 +1,11 @@
 defmodule MediaCentaur.DownloadsTest do
-  # Mutates the global Config :persistent_term — same isolation pattern
-  # as DispatcherTest.
-  use ExUnit.Case, async: false
+  # Mutates the global Config :persistent_term.
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Downloads
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Secret
-
-  setup do
-    original = :persistent_term.get({Config, :config}, %{})
-
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original)
-    end)
-
-    :ok
-  end
 
   defp put_config(overrides) do
     config = :persistent_term.get({Config, :config}, %{})

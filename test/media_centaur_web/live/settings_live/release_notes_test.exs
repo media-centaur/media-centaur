@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.ReleaseNotesTest do
   CHANGELOG produces (headings, bullets, bold, inline code). Anything
   outside that is passed through as plain text.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Live.SettingsLive.ReleaseNotes
 

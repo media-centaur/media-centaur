@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastSelectionTest do
   on the server, which is where the cast already is, so it is an ordinary
   pure function and tested as one.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.Person
   alias MediaCentaurWeb.Components.Detail.CastSelection

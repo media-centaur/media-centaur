@@ -121,9 +121,9 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       |> form("form[phx-submit='search']", %{"query" => "Crash Pending Show", "type" => "tv"})
       |> render_submit()
 
-      html = render_async(view)
-
-      assert html =~ "TMDB search failed"
+      # The failure copy is produced by the crashed task's `{:exit, _}` reaching
+      # the view; wait for it rather than for `render_async/1`'s fixed budget.
+      render_until(view, "TMDB search failed")
       refute has_element?(view, "form[phx-submit='search'] button[disabled]")
     end
   end
@@ -240,8 +240,6 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
         {MediaCentaur.Settings.Config, :config},
         Map.put(config, :media_dirs, [media_dir])
       )
-
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, config) end)
 
       path = Path.join(media_dir, "flat_movie.mkv")
       File.write!(path, "x")

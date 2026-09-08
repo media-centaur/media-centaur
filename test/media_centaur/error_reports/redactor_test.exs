@@ -1,5 +1,5 @@
 defmodule MediaCentaur.ErrorReports.RedactorTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.ErrorReports.Redactor
 
@@ -93,7 +93,7 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
   describe "normalize/1 active-config strip" do
     setup do
       # Stub Config values. The real Config is `:persistent_term`-backed,
-      # so we overwrite the key for the test and restore it after.
+      # so we overwrite the key for the test.
       original = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       patched =
@@ -103,10 +103,6 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
         |> Map.put(:download_client_url, "http://qbit.local:8080")
 
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, patched)
-
-      on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Settings.Config, :config}, original)
-      end)
 
       :ok
     end
@@ -133,8 +129,6 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
       patched = Map.put(original, :tmdb_api_key, MediaCentaur.Secret.wrap(""))
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, patched)
 
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, original) end)
-
       input = "error contains the literal string a"
       # empty key must not replace every 'a' in the input
       assert Redactor.normalize(input) == "error contains the literal string a"
@@ -151,7 +145,6 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
         |> Map.put(:download_client_url, nil)
 
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, patched)
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, original) end)
 
       urls = Redactor.configured_urls()
       assert "http://p" in urls

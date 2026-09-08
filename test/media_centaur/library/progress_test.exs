@@ -24,18 +24,8 @@ defmodule MediaCentaur.Library.ProgressTest do
 
   @flush_interval_ms 50
 
-  setup_all do
-    prev = Application.get_env(:media_centaur, :library_progress_flush_interval_ms)
+  setup do
     Application.put_env(:media_centaur, :library_progress_flush_interval_ms, @flush_interval_ms)
-
-    on_exit(fn ->
-      if prev == nil do
-        Application.delete_env(:media_centaur, :library_progress_flush_interval_ms)
-      else
-        Application.put_env(:media_centaur, :library_progress_flush_interval_ms, prev)
-      end
-    end)
-
     :ok
   end
 

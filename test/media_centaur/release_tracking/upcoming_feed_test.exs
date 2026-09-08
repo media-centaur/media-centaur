@@ -5,7 +5,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
   auto-grab default, and the per-release pursuit linkage) as injected data and
   is a pure function over `Release` structs (with `:item` preloaded).
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.TestFactory

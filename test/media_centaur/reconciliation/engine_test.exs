@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Reconciliation.EngineTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Reconciliation.{Artifact, Engine, Placement, SpineNode}
 

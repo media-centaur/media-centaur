@@ -27,17 +27,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
   # Helper kept as a no-op so legacy seed code still reads clearly.
   defp record_present(_file), do: :ok
 
-  defp on_exit_clear_table do
-    on_exit(fn ->
-      for table <- [@table, @shared_table] do
-        case :ets.whereis(table) do
-          :undefined -> :ok
-          _ref -> :ets.delete(table)
-        end
-      end
-    end)
-  end
-
   # Two billed cast members — enough to prove the shared payload survives
   # the split without bloating the fixture.
   defp sample_cast do
@@ -125,15 +114,11 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "cold start — refresh_cache/0 populates the ETS table" do
     test "returns nil for unknown playable_item_id" do
-      on_exit_clear_table()
-
       assert :ok = Detail.refresh_cache()
       assert Views.detail(Ecto.UUID.generate()) == nil
     end
 
     test "returns DetailItem for a standalone Movie with its PlayableItem" do
-      on_exit_clear_table()
-
       {movie, _file} = seed_present_movie("Movie A", %{date_published: ~D[2010-01-01]})
       playable_item = playable_item_for_movie(movie)
 
@@ -149,8 +134,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "DetailItem includes preloaded cast/crew for a Movie" do
-      on_exit_clear_table()
-
       {movie, _file} =
         seed_present_movie("Cast Movie", %{
           cast: [%{name: "Actor A", character: "Role A", order: 0, tmdb_person_id: 1}],
@@ -167,8 +150,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "DetailItem includes preloaded extras for a Movie" do
-      on_exit_clear_table()
-
       {movie, _file} = seed_present_movie("Movie With Extras")
       _extra = create_extra(%{movie_id: movie.id, name: "Behind the Scenes", position: 1})
 
@@ -181,8 +162,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "DetailItem includes preloaded external_ids for a Movie" do
-      on_exit_clear_table()
-
       {movie, _file} = seed_present_movie("ExtIds Movie", %{tmdb_id: "12345", imdb_id: "tt0001"})
       playable_item = playable_item_for_movie(movie)
 
@@ -195,8 +174,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "returns DetailItem for an Episode with TVSeries container metadata" do
-      on_exit_clear_table()
-
       {series, _season, episode, _file} = seed_present_episode("Sample Series")
       playable_item = playable_item_for_episode(episode)
 
@@ -213,8 +190,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "carries the episode's own air date onto the season's episode row" do
-      on_exit_clear_table()
-
       series = create_tv_series(%{name: "Aired Series"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -243,8 +218,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "carries the TVSeries first-air date as container_date_published" do
-      on_exit_clear_table()
-
       {_series, _season, episode, _file} =
         seed_present_episode("Dated Series", %{date_published: ~D[2019-04-08]})
 
@@ -257,8 +230,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "returns DetailItem for a VideoObject's PlayableItem" do
-      on_exit_clear_table()
-
       {vo, _file} = seed_present_video_object("Concert A")
       playable_item = playable_item_for_video_object(vo)
 
@@ -271,8 +242,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "DetailItem.present? reflects file presence" do
-      on_exit_clear_table()
-
       # Post-Phase-4 (library-presence-unification): present? is true
       # iff a WatchedFile exists. Drop just the WatchedFile here to
       # isolate the present?-flip assertion — the full cleanup path
@@ -291,8 +260,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "DetailItem.present? is false for a PlayableItem with no WatchedFile" do
-      on_exit_clear_table()
-
       # Movie with a PlayableItem but no WatchedFile at all.
       movie = create_standalone_movie(%{name: "Fileless Movie"})
       {:ok, playable_item} = Library.PlayableItems.find_or_create(:movie, movie.id, 1)
@@ -305,8 +272,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "refresh via library:updates" do
     test "metadata edit on a TVSeries reflects in next read for its episode PlayableItem" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       {series, _season, episode, _file} = seed_present_episode("Old Title")
@@ -331,8 +296,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "deleted Movie's DetailItem is removed from the table" do
-      on_exit_clear_table()
-
       {movie, _file} = seed_present_movie("Will Be Gone")
       playable_item = playable_item_for_movie(movie)
 
@@ -348,8 +311,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "refresh via library:availability" do
     test "file becoming present updates present? to true" do
-      on_exit_clear_table()
-
       # Post-Phase-4 (library-presence-unification): "becoming present"
       # means the WatchedFile getting stamped. Start with a PlayableItem
       # but no WatchedFile; stamp it and watch present? flip.
@@ -368,8 +329,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "broadcast contract" do
     test "a full rebuild emits exactly one :all message, not one per row" do
-      on_exit_clear_table()
-
       # Three rows. A per-row fan-out on full rebuild made every open
       # detail modal re-read (and re-render) once per row in the whole
       # library — 765 reads on a real library to converge on the row it
@@ -391,8 +350,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "a partial rebuild still emits the per-row 3-tuple" do
-      on_exit_clear_table()
-
       {movie, _file} = seed_present_movie("Targeted Movie")
       playable_item = playable_item_for_movie(movie)
 
@@ -409,8 +366,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "shared entity payload is stored once per entity" do
     test "sibling episode rows read back identical cast and seasons" do
-      on_exit_clear_table()
-
       series = create_tv_series(%{name: "Shared Payload Show", cast: sample_cast()})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -436,8 +391,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "a row still reads when the shared table is gone" do
-      on_exit_clear_table()
-
       {movie, _file} = seed_present_movie("Orphaned Shared Movie")
       playable_item = playable_item_for_movie(movie)
 
@@ -453,8 +406,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "the shared table holds one entry per entity, not one per row" do
-      on_exit_clear_table()
-
       series = create_tv_series(%{name: "One Entry Show", cast: sample_cast()})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -518,8 +469,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "detail_by_container/2" do
     test "resolves a Movie container UUID to its sole PlayableItem" do
-      on_exit_clear_table()
-
       {movie, _file} = seed_present_movie("Resolve Me")
       playable_item = playable_item_for_movie(movie)
 
@@ -530,8 +479,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "resolves a VideoObject container UUID to its PlayableItem" do
-      on_exit_clear_table()
-
       {vo, _file} = seed_present_video_object("VO Resolve")
       playable_item = playable_item_for_video_object(vo)
 
@@ -542,15 +489,11 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "returns nil for an unknown container UUID" do
-      on_exit_clear_table()
-
       assert :ok = Detail.refresh_cache()
       assert Views.detail_by_container(:movie, Ecto.UUID.generate()) == nil
     end
 
     test "returns canonical episode's DetailItem for :tv_series (Phase 3.2)" do
-      on_exit_clear_table()
-
       {series, _season, _episode, _file} = seed_present_episode("TV Resolve")
 
       assert :ok = Detail.refresh_cache()
@@ -563,8 +506,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "returns the position=1 PlayableItem when multiple cuts exist for a Movie" do
-      on_exit_clear_table()
-
       {movie, _file} = seed_present_movie("Multi-Cut Movie")
       pi_one = playable_item_for_movie(movie)
       # Seed a second cut at position 2.
@@ -614,8 +555,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "is idempotent — repeat refreshes replace per-row entries, no leak" do
-      on_exit_clear_table()
-
       {movie_a, _file_a} = seed_present_movie("Idempotent A")
       pi_a = playable_item_for_movie(movie_a)
       :ok = Detail.refresh_cache()
@@ -637,7 +576,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "Phase 3.2 — expanded fields populated by cold-start refresh" do
     test "Movie row carries :watched_files with path + media_dir" do
-      on_exit_clear_table()
       {movie, file} = seed_present_movie("Watched Files Movie")
 
       assert :ok = Detail.refresh_cache()
@@ -650,7 +588,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "Movie row carries :container_director (Phase 3.2 Task D)" do
-      on_exit_clear_table()
       movie = create_standalone_movie(%{name: "Directed Movie", director: "Sample Director"})
       _file = create_linked_file(%{movie_id: movie.id})
 
@@ -661,7 +598,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "Movie row carries :images for entity-owned images" do
-      on_exit_clear_table()
       {movie, _file} = seed_present_movie("Image Movie")
 
       _img =
@@ -680,7 +616,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "TV-series episode row carries :seasons populated with sibling episodes" do
-      on_exit_clear_table()
       series = create_tv_series(%{name: "Sample TV Tree"})
       season1 = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -717,7 +652,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "TV-series episodes carry per-episode :images for thumbnail render (Phase 3.2 Task C.2)" do
-      on_exit_clear_table()
       series = create_tv_series(%{name: "Sample Thumb Show"})
       season1 = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -762,7 +696,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "detail_by_container(:tv_series, id) returns canonical leaf with full seasons tree" do
-      on_exit_clear_table()
       series = create_tv_series(%{name: "Sample TV Canonical"})
       season1 = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -788,7 +721,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "MovieSeries constituent rows carry display fields — description, duration, poster, tmdb id" do
-      on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS Display Fields"})
 
       movie =
@@ -832,7 +764,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "MovieSeries constituent movie row carries :movies" do
-      on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS Tree"})
 
       movie1 =
@@ -872,7 +803,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       # `List.first(files) |> Map.get(:file_path)`, which crashed with
       # BadMapError when files == []. Since the Detail Cache.Worker is in
       # the supervision tree, the crash takes the whole app with it.
-      on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS Pending File"})
 
       movie1 =
@@ -915,7 +845,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       # UIDR-023: a selected collection member renders the standalone-movie
       # panel — title layer, facet fields, cast — so its MovieEntry must
       # carry everything that panel consumes.
-      on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS Member Fields"})
 
       movie1 =
@@ -963,7 +892,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "detail_by_container(:movie_series, id) returns canonical leaf with movies list" do
-      on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS Canonical"})
 
       movie1 =
@@ -995,7 +923,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "movie_series with no own art borrows a child movie's poster + backdrop" do
-      on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS No Art"})
 
       movie1 = create_movie(%{name: "No Art Part 1", movie_series_id: ms.id, position: 1})
@@ -1019,7 +946,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test ":subtitle_tracks defaults to empty list for leaves with no detected tracks" do
-      on_exit_clear_table()
       {movie, _file} = seed_present_movie("No Subs Movie")
 
       assert :ok = Detail.refresh_cache()
@@ -1029,7 +955,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "Season carries :number_of_episodes from Season schema" do
-      on_exit_clear_table()
       series = create_tv_series(%{name: "Sample TV NOE"})
       season = create_season(%{tv_series_id: series.id, season_number: 1, number_of_episodes: 10})
 
@@ -1046,7 +971,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "Season's :extras is populated from Season's preloaded extras" do
-      on_exit_clear_table()
       series = create_tv_series(%{name: "Sample TV Extras"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -1071,7 +995,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
 
     test "Episode carries :content_url from the first linked WatchedFile" do
-      on_exit_clear_table()
       series = create_tv_series(%{name: "Sample TV ContentURL"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -1089,7 +1012,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "partial refresh — a changed series is rebuilt as one batch (audit P1)" do
     setup do
-      on_exit_clear_table()
       series = create_tv_series(%{name: "Sample Batch Show"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
 
@@ -1148,7 +1070,6 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   describe "refresh_cache/0 query efficiency (N+1 guard)" do
     test "query count is invariant to the number of episodes under a series" do
-      on_exit_clear_table()
       series = create_tv_series(%{name: "Sample N+1 Show"})
       season = create_season(%{tv_series_id: series.id, season_number: 1})
 

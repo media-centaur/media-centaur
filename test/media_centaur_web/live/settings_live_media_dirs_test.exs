@@ -14,14 +14,6 @@ defmodule MediaCentaurWeb.SettingsLiveMediaDirsTest do
     view
   end
 
-  setup do
-    on_exit(fn ->
-      :ok = Config.put_media_dirs([])
-    end)
-
-    :ok
-  end
-
   test "deep link opens the add dialog", %{conn: conn} do
     {:ok, _view, html} = live_async!(conn, "/settings?section=library&add_media_dir=1")
     assert html =~ "Add media directory"

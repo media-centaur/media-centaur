@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.StatusLive.ActivityWidgetsTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
 

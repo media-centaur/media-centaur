@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Search.ProwlarrTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
 
@@ -19,7 +19,6 @@ defmodule MediaCentaur.Search.ProwlarrTest do
       })
     )
 
-    on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, original) end)
     {:ok, client: Prowlarr.default_client()}
   end
 
@@ -285,10 +284,6 @@ defmodule MediaCentaur.Search.ProwlarrTest do
             showcase_mode: false
         }
       )
-
-      on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Settings.Config, :config}, original)
-      end)
 
       :ok
     end

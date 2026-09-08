@@ -5,7 +5,7 @@
 # Tests may only be added, never removed.
 
 defmodule MediaCentaur.ParserTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Parser
 

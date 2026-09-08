@@ -5,12 +5,6 @@ defmodule MediaCentaur.Settings.ConfigRuntimeOverridesTest do
   alias MediaCentaur.Settings
   alias MediaCentaur.Topics
 
-  setup do
-    original = :persistent_term.get({Config, :config})
-    on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
-    :ok
-  end
-
   describe "load_runtime_overrides/0 broadcasts" do
     test "broadcasts {:config_updated, key, value} for each overlaid runtime key" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.config_updates())

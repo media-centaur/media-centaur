@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.LiveHelpersTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   import MediaCentaurWeb.LiveHelpers
 

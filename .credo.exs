@@ -321,7 +321,15 @@
           # `text-base-content/55` or above — the dark theme's contrast floor
           # for small text. Icons, spinners, separators, placeholders and
           # disabled states may go dimmer (audit DS25).
-          {MediaCentaur.Credo.Checks.ReadableTextContrast, []}
+          {MediaCentaur.Credo.Checks.ReadableTextContrast, []},
+          # MC0035 / MC0036 are the static half of the global-state sandbox:
+          # every test module states its ownership through
+          # `MediaCentaur.Case, async: true|false`, and a write to global
+          # state happens only inside a checked-out (sync, per-test) scope.
+          # Added by the test-suite-determinism campaign; the moduledocs
+          # are the rules' specs.
+          {MediaCentaur.Credo.Checks.TestCaseTemplate, []},
+          {MediaCentaur.Credo.Checks.GlobalStateWritesCheckedOut, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

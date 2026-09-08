@@ -1,5 +1,5 @@
 defmodule MediaCentaur.DiagnosticsTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Diagnostics
   alias MediaCentaur.ErrorReports.Bucket

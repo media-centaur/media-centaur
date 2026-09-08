@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Nostr.OneShotTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   @moduletag :capture_log
 

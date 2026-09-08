@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Platform.LogSource.FilesTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   @moduletag :tmp_dir
 

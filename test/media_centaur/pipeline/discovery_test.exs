@@ -4,7 +4,7 @@ defmodule MediaCentaur.Pipeline.DiscoveryTest do
   Pipeline integration is exercised via stage tests; this file covers
   the small classifier extracted for log-severity routing.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Pipeline.Discovery
 

@@ -1,20 +1,9 @@
 defmodule MediaCentaur.Subtitles.Detector.FfprobeTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Subtitles.Detector.Ffprobe
   alias MediaCentaur.Subtitles.Track
-
-  setup do
-    original_config = :persistent_term.get({Config, :config})
-
-    on_exit(fn ->
-      Application.delete_env(:media_centaur, :subtitles_runner)
-      :persistent_term.put({Config, :config}, original_config)
-    end)
-
-    :ok
-  end
 
   defp set_runner(fun), do: Application.put_env(:media_centaur, :subtitles_runner, fun)
 

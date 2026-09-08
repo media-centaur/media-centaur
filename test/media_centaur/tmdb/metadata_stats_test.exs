@@ -3,7 +3,7 @@ defmodule MediaCentaur.TMDB.MetadataStatsTest do
   # a per-instance handler still *catches* emits from any concurrent async test
   # (e.g. FetchMetadataTest), which would pollute total/recent. Running sync keeps
   # these tests from overlapping other emitters; within the file they're serial.
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.TMDB.MetadataStats
 
@@ -55,5 +55,13 @@ defmodule MediaCentaur.TMDB.MetadataStatsTest do
     test "snapshot/1 returns the empty snapshot when the server is down" do
       assert MetadataStats.snapshot(:metadata_stats_not_started) == MetadataStats.empty_snapshot()
     end
+  end
+
+  test "reset/1 returns the server to the empty snapshot", %{server: server} do
+    assert %{total: 1} = enrich(server, %{title: "Sample Movie"})
+
+    assert MetadataStats.reset(server) == :ok
+
+    assert MetadataStats.snapshot(server) == MetadataStats.empty_snapshot()
   end
 end

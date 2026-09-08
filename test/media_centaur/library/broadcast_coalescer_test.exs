@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Library.BroadcastCoalescerTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Library.BroadcastCoalescer
   alias MediaCentaur.Topics

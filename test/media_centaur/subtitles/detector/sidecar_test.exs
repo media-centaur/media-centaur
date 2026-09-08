@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Subtitles.Detector.SidecarTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Subtitles.Detector.Sidecar
   alias MediaCentaur.Subtitles.Track

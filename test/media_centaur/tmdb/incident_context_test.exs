@@ -1,5 +1,5 @@
 defmodule MediaCentaur.TMDB.IncidentContextTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.ErrorReports.Contributors
   alias MediaCentaur.TMDB.IncidentContext

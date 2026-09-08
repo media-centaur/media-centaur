@@ -1,5 +1,6 @@
 defmodule MediaCentaur.SelfUpdate.UpdateCheckerTest do
-  use ExUnit.Case, async: true
+  # Writes the update-check cache (a :persistent_term) — owns the machine.
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.SelfUpdate.UpdateChecker
 
@@ -212,7 +213,6 @@ defmodule MediaCentaur.SelfUpdate.UpdateCheckerTest do
   describe "cache" do
     setup do
       UpdateChecker.clear_cache()
-      on_exit(fn -> UpdateChecker.clear_cache() end)
       :ok
     end
 

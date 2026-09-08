@@ -66,4 +66,15 @@ defmodule MediaCentaur.Pipeline.Discovery.InflightSet do
   """
   @spec size() :: non_neg_integer()
   def size, do: :ets.info(@table, :size)
+
+  @doc """
+  Releases every path. The pipeline never needs this — a path is released
+  when its work finishes — but a test that claimed paths hands the next
+  test an empty set.
+  """
+  @spec clear() :: :ok
+  def clear do
+    :ets.delete_all_objects(@table)
+    :ok
+  end
 end

@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Library.ProgressSummaryTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   import MediaCentaur.TestFactory
 

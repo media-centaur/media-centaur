@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Activities.TranslationTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Activities.Activity.Episode

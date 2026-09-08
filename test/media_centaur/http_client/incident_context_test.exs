@@ -1,5 +1,5 @@
 defmodule MediaCentaur.HttpClient.IncidentContextTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.HttpClient.{IncidentContext, Stats}
 

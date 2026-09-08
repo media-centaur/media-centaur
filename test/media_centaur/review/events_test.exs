@@ -4,7 +4,7 @@ defmodule MediaCentaur.Review.EventsTest do
   so every payload is a struct with `@enforce_keys` and every broadcast
   goes through one chokepoint.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Review.Events
   alias MediaCentaur.Review.Events.FileAdded

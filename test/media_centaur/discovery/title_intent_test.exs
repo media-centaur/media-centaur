@@ -5,7 +5,7 @@ defmodule MediaCentaur.Discovery.TitleIntentTest do
   which is what makes "Off deletes" a fact about the schema rather than a
   rule something has to enforce.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Discovery.TitleIntent
 

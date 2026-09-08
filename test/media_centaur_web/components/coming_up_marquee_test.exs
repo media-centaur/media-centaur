@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.ComingUpMarqueeTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Components.ComingUpMarquee.{Item, Marquee}
 

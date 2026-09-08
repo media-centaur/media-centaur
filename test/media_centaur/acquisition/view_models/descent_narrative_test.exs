@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrativeTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.PlanEvents.DescentStatus
   alias MediaCentaur.Acquisition.ViewModels.DescentNarrative

@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent

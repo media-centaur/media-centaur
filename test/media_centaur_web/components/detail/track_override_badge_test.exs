@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.Detail.TrackOverrideBadgeTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.MediaTrackOverride
   alias MediaCentaurWeb.Components.Detail.TrackOverrideBadge

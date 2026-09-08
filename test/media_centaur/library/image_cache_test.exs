@@ -1,15 +1,9 @@
 defmodule MediaCentaur.Library.ImageCacheTest do
   # `async: false` — writes the shared Config persistent_term.
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Settings.Config
-
-  setup do
-    original = :persistent_term.get({Config, :config})
-    on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
-    :ok
-  end
 
   # ---------------------------------------------------------------------------
   # dir_for/1

@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResultsTest do
   query-activity rule that decides whether the section owns the page
   (ADR-030 extracted logic; no rendering).
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults

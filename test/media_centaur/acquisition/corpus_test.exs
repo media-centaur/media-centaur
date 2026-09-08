@@ -6,12 +6,6 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-    IndexerHealth.clear_cache()
-
-    on_exit(fn ->
-      IndexerHealth.clear_cache()
-    end)
-
     :ok
   end
 

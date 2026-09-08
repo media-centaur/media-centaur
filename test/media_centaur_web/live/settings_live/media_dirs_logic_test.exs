@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.SettingsLive.MediaDirsLogicTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.SettingsLive.MediaDirsLogic
 

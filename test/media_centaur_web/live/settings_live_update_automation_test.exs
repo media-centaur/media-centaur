@@ -31,10 +31,6 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
        }}
     )
 
-    # Application env is the one piece of global state the sandbox does
-    # not restore; the :persistent_term writes above are.
-    on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
-
     :ok
   end
 

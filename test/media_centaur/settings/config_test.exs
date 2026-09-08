@@ -3,19 +3,9 @@ defmodule MediaCentaur.Settings.ConfigTest do
   Tests for Config: image_resolution/0, update-check keys, config_path/0
   and media_dirs parsing (plain strings, inline tables, legacy media_dir).
   """
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Settings.Config
-
-  setup do
-    original = :persistent_term.get({Config, :config})
-
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original)
-    end)
-
-    %{original_config: original}
-  end
 
   # ---------------------------------------------------------------------------
   # image_resolution/0
@@ -146,8 +136,6 @@ defmodule MediaCentaur.Settings.ConfigTest do
       toml_path = Path.join(toml_dir, "media-centaur.toml")
 
       original_override = System.get_env("MEDIA_CENTAUR_CONFIG_OVERRIDE")
-      original_skip = Application.get_env(:media_centaur, :skip_user_config)
-      original_raw = Application.get_env(:media_centaur, :__raw_toml_media_dirs)
 
       System.put_env("MEDIA_CENTAUR_CONFIG_OVERRIDE", toml_path)
       Application.put_env(:media_centaur, :skip_user_config, false)
@@ -159,9 +147,6 @@ defmodule MediaCentaur.Settings.ConfigTest do
           nil -> System.delete_env("MEDIA_CENTAUR_CONFIG_OVERRIDE")
           value -> System.put_env("MEDIA_CENTAUR_CONFIG_OVERRIDE", value)
         end
-
-        Application.put_env(:media_centaur, :skip_user_config, original_skip)
-        Application.put_env(:media_centaur, :__raw_toml_media_dirs, original_raw)
       end)
 
       %{toml_path: toml_path}

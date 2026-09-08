@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Guide.LibraryTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   test "loads chapters ordered by :order" do
     chapters = MediaCentaur.Guide.chapters()
