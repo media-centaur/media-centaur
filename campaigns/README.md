@@ -60,6 +60,19 @@ Use [`template.md`](template.md) as a starter.
   that title parsing can never assert. **Phase 2** would query by id, which
   means owning the fan-out Prowlarr exists to provide, and may be declined.
   No code yet.
+* [`test-suite-determinism.md`](test-suite-determinism.md) —
+  **planning.** A full `mix test` should pass or fail on the code, not on the
+  order ExUnit picked. Seven problems catalogued, no approach chosen: the Ecto
+  sandbox covers rows and nothing else; `GlobalStateSandbox`'s `:accepted`
+  reasons are prose nothing verifies (a stale one cost three failures during
+  the v1.17.0 ship); some singletons production reads by name cannot be
+  isolated by a LiveView test that needs the real read path; supervised tasks
+  outlive the test process that owns their `Req.Test` stub; missing isolation
+  grows bespoke per-test cleanup that hides the evidence; a run's symptoms
+  point away from its cause; and ordering-dependent failures defeat the
+  "reproduce it on main" check because ordering shifts with the test count.
+  Deliberately problems-only — the point is to design once rather than add an
+  eighth local remedy. Wall time is `serial-test-audit`'s and stays there.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and
