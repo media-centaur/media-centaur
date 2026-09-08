@@ -158,7 +158,26 @@ The cheap path — add a restore call to the 37 plain files and move on — woul
 fix seed 310401 and leave `:accepted`, the drain, and two uncovered stores
 exactly as they are. That is the bolt-on this document exists to refuse.
 
-## Open for the owner
+## Decisions (2026-09-08, on soundness alone)
+
+Recorded in `campaigns/test-suite-determinism.md`; two additions found on day two:
+
+* **A sync test's `Req.Test` stubs are shared** (`Req.Test.set_req_test_from_context/1`
+  in `MediaCentaur.Case`), on the same condition as the SQL sandbox's
+  shared mode. Found on day two: the Activities sync tests' artwork tasks
+  run from a GenServer outside the test's caller chain and had been
+  crashing on a stub they could not see, inside ExUnit's log capture,
+  for as long as they existed. Four hand-rolled shared-mode sites deleted.
+* **A request no stub could answer is a verified store.** Zero tolerance
+  for live tasks cannot see a task the stub loss itself kills before
+  check-in, and cannot see a crash during the test at all. The crash
+  report is logged synchronously in the dying process, so
+  `GlobalStateSandbox.StubOrphans` is a `:logger` handler that records
+  it, and check-in fails the test. Day two: eight page-smoke tests had
+  been requesting Prowlarr and TMDB with no stub installed since they
+  were written.
+
+## Open for the owner (settled — see the campaign)
 
 * Name of the sync template: `MediaCentaur.SyncCase` or `MediaCentaur.MachineCase`.
 * Zero tolerance for live tasks at check-in (incoherence 2) — confirm.

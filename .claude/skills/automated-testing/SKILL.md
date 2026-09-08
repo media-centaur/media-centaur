@@ -145,8 +145,11 @@ to the `test_helper` baseline and resets the singletons with a public read
 (`Console.Buffer`, `ErrorReports.Buckets`, `SearchSession`, `RateLimiter`,
 `MetadataStats`, watchers, the discovery in-flight set), then **verifies** what
 it cannot put back — a registered `MediaCentaur*` process, an app-owned ETS
-table, or a live `MediaCentaur.TaskSupervisor` child left behind fails *that*
-test with the diff. So: **write** what your test needs and **do not**
+table, a live `MediaCentaur.TaskSupervisor` child, or a request no `Req.Test`
+stub could answer (logged by the crashing process, recorded by the harness)
+fails *that* test with the diff. A sync test's stubs are **shared** — any
+process, a GenServer or Broadway stage included, resolves them — on the same
+condition as the SQL sandbox; do not call `set_req_test_to_shared` yourself. So: **write** what your test needs and **do not**
 save-and-restore it in `on_exit`; **drive your async to completion**
 (`await_supervised_tasks/0`, `render_async`, a released stub) rather than
 leaving a task for teardown, because teardown no longer kills it quietly.

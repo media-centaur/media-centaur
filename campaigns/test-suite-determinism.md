@@ -36,6 +36,12 @@ was decided on soundness alone and implemented the same day:
 * A live `TaskSupervisor` child at check-in fails the test (B's detector);
   the `DataCase` drain is gone.
 * MC0035 and MC0036 are the static half.
+* A sync test's `Req.Test` stubs are shared (same condition as the SQL
+  sandbox), and a request no stub could answer — logged by the dying
+  process, recorded by `GlobalStateSandbox.StubOrphans` — fails the test
+  that made it. That is B's detector for the case zero tolerance cannot
+  see, and it found eight smoke tests and four sync tests that had been
+  requesting unstubbed upstreams inside ExUnit's log capture all along.
 * Six full runs at `9a2113af` measured the problems (table below); after the
   change, one full run at seed 281658 is green with zero leaks, back to back
   with the old harness at the same wall time (82.4 s vs 82.5 s).
@@ -231,9 +237,9 @@ ordering-attribution problem has nothing left to attribute.
 1. Run the full suite at several seeds with the test count varied (pad with
    inert async tests) and confirm zero leaks and zero failures; record the
    seeds here.
-2. Trace the artwork spawn that outlived `discovery_live_test.exs`'s await
-   (B's remaining seam): with zero tolerance it now fails the test that
-   causes it, or it has stopped reproducing — find out which.
+2. ~~Trace the artwork spawn that outlived the discovery test's await.~~
+   Done: it was the smoke tests' discovery modal and the sync tests'
+   feed, both now stubbed and awaited; seeds 310401, 30892, 260789 run clean.
 3. Close the campaign: bucket every remaining item by destination.
 
 ## Completion criteria
@@ -255,6 +261,8 @@ ordering-attribution problem has nothing left to attribute.
   completion.
 * `credo_checks/test_case_template.ex` (MC0035),
   `credo_checks/global_state_writes_checked_out.ex` (MC0036).
+* `test/support/global_state_sandbox/stub_orphans.ex` — the `:logger`
+  handler behind the stub-less-request store.
 * `test/support/state_probe_formatter.ex` — the per-test state probe; its
   moduledoc has the run recipe.
 * `test/media_centaur/global_state_sandbox_test.exs` — the two checks that do
