@@ -216,19 +216,21 @@ Modals are **never** conditionally rendered with `:if={}`. They stay in the DOM 
 
 **Why always-in-DOM:** `backdrop-filter: blur()` has a first-frame compositing cost. Conditional rendering causes visible flash on every open.
 
-### Recommendation pennant
+### Pennant ([UIDR-037])
 
-Who recommended a title and how much, as flags flying inward from the
-right edge of the surface the title is on. One component,
-`<.recommendation_pennants recommendations={rows} />`
-(`Components.Discovery.RecommendationPennant`), fed the
-`Activities.recommendations_for/1` rows for one title; `named?={false}` where
-the surface already says who (the Feed lead), `on_image` over a hero. The
-host places the mast: a row bleeds it into its own right padding under
-`overflow-hidden`; the cinematic shell has a `:hero_mast` slot. Like is a
-thumbs up on a neutral tint, love a heart on `--color-love` (rose), the one
-warm hue outside the health palette. Never on poster cards. Story:
-`/storybook/discovery/recommendation_pennants`.
+What friends did with a title, as flags flying inward from the right
+edge of the surface the title is on — the one place friend provenance
+shows. One component, `<.pennants activity={rows} />`
+(`Components.Discovery.Pennant`), fed the
+`Activities.friend_activity_for/1` rows for one title; `on_image` over a
+hero. The host places the mast: a row bleeds it into its own right
+padding under `overflow-hidden`; the cinematic shell has a `:hero_mast`
+slot. Four flags in mast order: love (heart on `--color-love`, rose, the
+one warm hue outside the health palette), like (thumbs up), watched
+(eye), tracking (bell), the last three on a neutral tint. Own acts fly
+only for recommendations ("You"). Never a provenance line elsewhere; a
+friend's note is the one thing that stays in the body. Never on poster
+cards. Story: `/storybook/discovery/pennants`.
 
 ### File Paths ([UIDR-001])
 
@@ -296,7 +298,7 @@ Plain text links with animated underline. `.zone-tab-active` expands underline f
 
 ### Library Toolbar
 
-- **Type tabs:** `.tabs.tabs-boxed.library-tabs` — glass pill container, `.tab-active` with `bg-neutral/80`
+- **Type tabs:** `.tabs.tabs-boxed.segmented-control` — the house pick-one pill (glass container, the chosen `.tab` lifted on `bg-neutral/80`; also `aria-selected` / `aria-pressed`). The title ladder (`IntentControl`) wears the same pill with a `.segment-rule` before Default.
 - **Sort dropdown:** `.sort-dropdown-trigger` (pill) + `.sort-dropdown-menu.glass-surface` (animated dropdown)
 - **Filter input:** `.library-filter` — pill with glass border, blue focus ring
 
@@ -395,6 +397,9 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 032 | Page hero backdrops paint from a decoded-bitmap cache (canvas + `HeroBackdrop` hook; amends 012) |
 | 033 | Home is the only page that carries artwork; every other page gets the scrim alone |
 | 034 | An empty surface states the diagnosed reason it is empty, via one `empty_state/1` |
+| 035 | Two title surfaces, split by whether the title has files |
+| 036 | One control per title, because there is one ladder |
+| 037 | Friend provenance is the pennant, on every title surface |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 

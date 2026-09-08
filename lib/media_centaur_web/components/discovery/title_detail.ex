@@ -19,11 +19,15 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   `default_grab_mode` are what the tracking-mode control needs to say
   honestly what each mode does right now.
 
-  `kind`, `episode`, `sender`, `note`, `acted_at` and `own?` are the
-  feed provenance and nil on a detail without one; `sender` is nil on
-  an own activity (the modal reads `own?`), `episode` is set on a
-  watched series only. `recommendations` are the title's
-  `Activities.recommendations_for/1` rows for the hero's pennants.
+  `friend_activity` is the title's `Activities.friend_activity_for/1`
+  rows — the hero's pennants, the one place who-did-what shows
+  (UIDR-037). `note` is the one thing a pennant cannot hold: a friend's
+  words with the recommendation, attributed to `sender`, or the person's
+  own watchlist note when `sender` is nil. `activity_id`, `own?` and
+  `kind` name the activity the modal speaks for — a friend's, so that
+  listing the title records where it came from; an own one, opened from
+  the You card, so that Delete <noun> can withdraw it. All nil on a
+  detail without one.
 
   `preview` is the live TMDB-backed `Detail.TitlePreview` the host
   fetches on open; nil until it lands, or when TMDB is not configured,
@@ -32,7 +36,6 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
   """
 
   alias MediaCentaur.Activities.Activity
-  alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
@@ -49,17 +52,15 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
     :rung,
     :tracking,
     :kind,
-    :episode,
     :sender,
     :note,
-    :acted_at,
     :own?,
     :activity_id,
     :preview,
     acquisition?: false,
     lower_quality_accepted?: false,
     default_grab_mode: "off",
-    recommendations: []
+    friend_activity: []
   ]
 
   @type primary ::
@@ -82,13 +83,11 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
           lower_quality_accepted?: boolean(),
           default_grab_mode: String.t(),
           kind: Activity.kind() | nil,
-          episode: Episode.t() | nil,
           sender: String.t() | nil,
           note: String.t() | nil,
-          acted_at: DateTime.t() | nil,
           own?: boolean() | nil,
           activity_id: Ecto.UUID.t() | nil,
-          recommendations: [map()],
+          friend_activity: [map()],
           preview: TitlePreview.t() | nil
         }
 end

@@ -24,25 +24,33 @@ defmodule MediaCentaurWeb.Components.Discovery.IntentControlTest do
     end
   end
 
-  describe "description/2" do
+  describe "segment_label/2" do
+    test "Default carries what the global setting resolves to; the rest are their names" do
+      default = %{rung: :default, label: "Default"}
+      assert Control.segment_label(default, "all_releases") == "Default · Grab"
+      assert Control.segment_label(default, "ask") == "Default · Ask"
+      assert Control.segment_label(default, "off") == "Default · Follow"
+      assert Control.segment_label(%{rung: :follow, label: "Follow"}, "all_releases") == "Follow"
+    end
+  end
+
+  describe "description/1" do
     test "Off is the absence of a record, and says so" do
-      assert Control.description(nil, "all_releases") == "Not on your list."
+      assert Control.description(nil) == "Not on your list."
     end
 
     test "List is on the list and nothing more" do
-      assert Control.description(:list, "all_releases") =~ "Nothing is watching for releases"
+      assert Control.description(:list) =~ "Nothing is watching for releases"
     end
 
-    test "each explicit rung states its consequence, independent of the global default" do
-      assert Control.description(:follow, "all_releases") =~ "Nothing downloads"
-      assert Control.description(:ask, "off") =~ "waits for your approval"
-      assert Control.description(:grab, "off") =~ "downloads when it drops"
+    test "each explicit rung states its consequence" do
+      assert Control.description(:follow) =~ "Nothing downloads"
+      assert Control.description(:ask) =~ "waits for your approval"
+      assert Control.description(:grab) =~ "downloads when it drops"
     end
 
-    test "Default spells out what the global setting resolves to right now" do
-      assert Control.description(:default, "all_releases") =~ "currently Grab."
-      assert Control.description(:default, "ask") =~ "currently Ask."
-      assert Control.description(:default, "off") =~ "currently Follow."
+    test "Default says what it follows; the segment says what that resolves to" do
+      assert Control.description(:default) =~ "auto-grab setting"
     end
   end
 end

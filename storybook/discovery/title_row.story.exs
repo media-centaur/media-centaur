@@ -86,7 +86,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
           lead: "Sample Friend · 2d ago",
           markers: ["On watchlist"],
           notes: [%{name: nil, text: "Watch it before anyone spoils the ending."}],
-          recommendations: [recommendation("Sample Friend", :love)]
+          friend_activity: [recommendation("Sample Friend", :love)]
         }
       },
       %Variation{
@@ -102,7 +102,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
             %{name: "Sample Friend", text: "Watch it before anyone spoils the ending."},
             %{name: "Other Friend", text: "Fine."}
           ],
-          recommendations: [
+          friend_activity: [
             recommendation("Other Friend", :like),
             recommendation("Sample Friend", :love)
           ]
@@ -117,7 +117,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
           title: title(),
           markers: ["In library"],
           notes: [%{name: nil, text: "For the weekend."}],
-          recommendations: [recommendation("Sample Friend", :love)]
+          friend_activity: [recommendation("Sample Friend", :love)]
         }
       },
       %Variation{

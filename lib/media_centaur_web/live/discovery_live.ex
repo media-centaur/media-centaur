@@ -120,14 +120,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         {title,
          %{
            kind: activity_row && activity_row.activity.kind,
-           episode: activity_row && activity_row.activity.episode,
            sender: activity_row && !activity_row.own? && activity_row.nickname,
            note: (activity_row && activity_row.activity.note) || (watch_row && watch_row.item.note),
-           acted_at: activity_row && activity_row.activity.acted_at,
            own?: activity_row && activity_row.own?,
            activity_id: activity_row && activity_row.activity.id,
-           recommendations:
-             (watch_row && watch_row.recommendations) || title_recommendations(socket, ref)
+           friend_activity:
+             (watch_row && watch_row.friend_activity) || title_friend_activity(socket, ref)
          }}
     end
   end
@@ -140,11 +138,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # The activity the modal speaks for: the one named, else the title's
   # newest friend recommendation (the Recommendations row's lead), else
-  # any activity for the title (a watchlist title a friend watched).
+  # any friend's activity for the title. Never an own act unless named —
+  # the You card names it; a watchlist title is not a place to narrate
+  # your own broadcasts back to you.
   defp activity_row(socket, ref, nil) do
     case Enum.find(socket.assigns.recommendations, &(&1.ref == ref)) do
-      %{newest: newest} -> newest
-      nil -> Enum.find(socket.assigns.activities, &(activity_ref(&1) == ref))
+      %{newest: newest} ->
+        newest
+
+      nil ->
+        Enum.find(socket.assigns.activities, &(activity_ref(&1) == ref and not &1.own?))
     end
   end
 
@@ -154,14 +157,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   defp activity_ref(%{activity: activity}), do: {activity.tmdb_id, activity.media_type}
 
-  # A title's recommendations are its recommendation activities by this
-  # identity and current friends — the rows are the one representation
-  # (a former friend's carries no name, so no pennant).
-  defp title_recommendations(socket, ref) do
+  # A title's friend activity, for a title the watchlist does not carry:
+  # every act on it by a current friend, plus own recommendations — the
+  # feed rows are the one representation (a former friend's carries no
+  # name, so no pennant).
+  defp title_friend_activity(socket, ref) do
     Enum.filter(
       socket.assigns.activities,
-      &(activity_ref(&1) == ref and &1.activity.kind == :recommendation and
-          (&1.own? or &1.nickname != nil))
+      &(activity_ref(&1) == ref and
+          ((&1.own? and &1.activity.kind == :recommendation) or &1.nickname != nil))
     )
   end
 
@@ -217,15 +221,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   # The list row's decoration: Discovery owns the record and library
-  # presence; the poster, the recommendations (the pennants) and the
+  # presence; the poster, the friend activity (the pennants) and the
   # tracked title's next date are joined here, because Discovery knows
   # nothing about Activities or ReleaseTracking. The rung comes straight
   # off the record — it is the authored fact, not something to look up.
   defp load_items(socket) do
     rows = Discovery.list_intents()
 
-    recommendations =
-      Activities.recommendations_for(Enum.map(rows, &{&1.intent.tmdb_id, &1.intent.media_type}))
+    friend_activity =
+      Activities.friend_activity_for(Enum.map(rows, &{&1.intent.tmdb_id, &1.intent.media_type}))
 
     tracked = Map.new(ReleaseTracking.list_all_items(), &{{&1.tmdb_id, &1.media_type}, &1})
 
@@ -237,7 +241,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         |> Map.put(:item, intent)
         |> Map.merge(%{
           poster_url: title_poster_url(intent.title),
-          recommendations: Map.get(recommendations, {intent.tmdb_id, intent.media_type}, []),
+          friend_activity: Map.get(friend_activity, {intent.tmdb_id, intent.media_type}, []),
           rung: intent.rung,
           next_air_date: next_air_date(tracked_item, socket.assigns.today)
         })
@@ -436,7 +440,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 })
               }
               notes={row.notes}
-              recommendations={row.activities}
+              friend_activity={row.activities}
             />
           </div>
 
@@ -500,7 +504,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 })
               }
               notes={Logic.note_list(row.item.note)}
-              recommendations={row.recommendations}
+              friend_activity={row.friend_activity}
             />
           </div>
         </div>

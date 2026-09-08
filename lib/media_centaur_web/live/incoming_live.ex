@@ -252,7 +252,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_scope: :all,
          in_library_refs: MapSet.new(),
          tracked_refs: MapSet.new(),
-         recommendations_by_ref: %{},
+         friend_activity_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
          plan_selection: nil,
@@ -276,8 +276,8 @@ defmodule MediaCentaurWeb.IncomingLive do
      )}
   end
 
-  defp recommendations_for_results(rows),
-    do: Activities.recommendations_for(Enum.map(rows, &{&1.tmdb_id, &1.media_type}))
+  defp friend_activity_for_results(rows),
+    do: Activities.friend_activity_for(Enum.map(rows, &{&1.tmdb_id, &1.media_type}))
 
   defp subscribe_acquisition do
     Acquisition.subscribe()
@@ -887,7 +887,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             title_rungs={@title_rungs}
             in_library_refs={@in_library_refs}
             tracked_refs={@tracked_refs}
-            recommendations_by_ref={@recommendations_by_ref}
+            friend_activity_by_ref={@friend_activity_by_ref}
           />
 
           <Search.search_zone
@@ -2055,8 +2055,8 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply,
      assign(
        socket,
-       :recommendations_by_ref,
-       recommendations_for_results(socket.assigns.omnibox_results)
+       :friend_activity_by_ref,
+       friend_activity_for_results(socket.assigns.omnibox_results)
      )}
   end
 
@@ -2329,7 +2329,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_searching?: false,
          in_library_refs: in_library_refs,
          tracked_refs: ReleaseTracking.tracked_refs(),
-         recommendations_by_ref: recommendations_for_results(rows)
+         friend_activity_by_ref: friend_activity_for_results(rows)
        )}
     else
       {:noreply, socket}

@@ -1281,11 +1281,11 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 
-/* ── Library Filter Tabs (pill container) ──
-   Glass-pill styling for type filter tabs.
-   Uses daisyUI tabs-boxed as base, customized with glass background. */
-
-.library-tabs {
+/* Segmented control — the house pick-one idiom: a glass pill holding
+   the choices, the chosen one lifted on a neutral fill. Worn by the
+   library's type tabs (role=tablist, .tab-active / aria-selected) and
+   the title ladder (role=group, aria-pressed). */
+.segmented-control {
   display: inline-flex;
   align-items: center;
   /* Fixed rail height (border-box) so the tabs pill, sort pill, and filter
@@ -1298,7 +1298,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   gap: 0.125rem;
 }
 
-.library-tabs .tab {
+.segmented-control .tab {
   border-radius: 1.5rem;
   color: oklch(from var(--color-base-content) l c h / 0.6);
   font-weight: 500;
@@ -1308,11 +1308,21 @@ body:has(.modal-backdrop[data-state="open"]) {
   min-height: 0;
   display: inline-flex;
   align-items: center;
+  cursor: pointer;
   transition: color 150ms, background 150ms, box-shadow 150ms;
 }
 
-.library-tabs .tab:hover {
+.segmented-control .tab:hover {
   color: oklch(from var(--color-base-content) l c h / 0.8);
+}
+
+/* A rule between two groups of choices in one pill — the ladder's
+   explicit rungs and its Default. */
+.segmented-control .segment-rule {
+  width: 1px;
+  height: 1rem;
+  margin: 0 0.25rem;
+  background: var(--glass-border);
 }
 
 /* Cursor ring on a tab: the generic nav ring (2px outline + 2px offset,
@@ -1320,16 +1330,17 @@ body:has(.modal-backdrop[data-state="open"]) {
    it lands on the pill's border, and the forced radius squares off the tab's
    own pill shape. Hug the tab instead — no offset, own radius — so the ring
    reads as the cursor inside the segmented control. */
-[data-input=keyboard] .library-tabs .tab:focus,
-[data-input=gamepad] .library-tabs .tab:focus {
+[data-input=keyboard] .segmented-control .tab:focus,
+[data-input=gamepad] .segmented-control .tab:focus {
   outline-offset: 0;
   border-radius: 1.5rem;
 }
 
 /* Active tab — original neutral fill, lifted off the pill with a faint
    drop shadow so it reads as raised rather than a flat inset slab. */
-.library-tabs .tab-active,
-.library-tabs .tab[aria-selected=true] {
+.segmented-control .tab-active,
+.segmented-control .tab[aria-selected=true],
+.segmented-control .tab[aria-pressed=true] {
   color: var(--color-base-content) !important;
   background: oklch(from var(--color-neutral) l c h / 0.8) !important;
   --tab-bg: oklch(from var(--color-neutral) l c h / 0.8);
@@ -2861,12 +2872,13 @@ body:has(.modal-backdrop[data-state="open"]) {
   transform: rotate(90deg);
 }
 
-/* ── Recommendation pennant ──
-   A flag flying inward from the right edge of a row or hero (the mast).
-   The mast is a flex column hugging that edge; a row bleeds it into its
-   own right padding under overflow-hidden so the hoist meets the border.
-   The point is the clip-path. One shape at every width, stacked
-   love-above-like for several friends. */
+/* ── Pennant ──
+   What friends did with a title, as flags flying inward from the right
+   edge of a row or hero (the mast). The mast is a flex column hugging
+   that edge; a row bleeds it into its own right padding under
+   overflow-hidden so the hoist meets the border. The point is the
+   clip-path. One shape at every width, one flag per kind of act,
+   stacked love, like, watched, tracking. Only love is a colour. */
 .pennant-mast {
   display: inline-flex;
   flex-direction: column;
@@ -2902,7 +2914,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* Over imagery the neutral tint has nothing to sit on. */
-.pennant-on-image.pennant-like {
+.pennant-on-image:not(.pennant-love) {
   color: oklch(from var(--color-base-content) l c h / 0.85);
   background: oklch(14% 0.015 264 / 0.72);
 }

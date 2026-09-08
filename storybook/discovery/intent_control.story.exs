@@ -44,7 +44,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IntentControl do
       },
       %Variation{
         id: :default_resolves_to_off,
-        description: "Default names what the global setting resolves to right now.",
+        description: "The Default segment names what the global setting resolves to right now.",
         attributes: base(%{rung: :default, default_grab_mode: "off"})
       },
       %Variation{

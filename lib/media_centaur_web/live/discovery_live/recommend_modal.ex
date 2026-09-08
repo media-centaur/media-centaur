@@ -13,8 +13,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
   """
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.Components.Discovery.RecommendationPennant,
-    only: [recommendation_pennants: 1]
+  import MediaCentaurWeb.Components.Discovery.Pennant,
+    only: [pennants: 1]
 
   import MediaCentaurWeb.Components.Modal, only: [modal: 1]
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
@@ -65,8 +65,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
                 checked={sentiment == :like}
                 class="sr-only"
               />
-              <.recommendation_pennants
-                recommendations={[preview(sentiment)]}
+              <.pennants
+                activity={[preview(sentiment)]}
                 label={sentiment_word(sentiment)}
               />
             </label>

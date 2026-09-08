@@ -19,9 +19,15 @@ defmodule MediaCentaurWeb.Components.Discovery.IntentControl do
   derived from it; the consequence line says so before the click, which
   is why it needs no second confirmation.
 
-  Beneath the strip: the selected rung's one-line consequence, the notes,
-  and the per-title quality acceptance row with its Reset
-  (`reset_lower_quality`, ADR-063 §2) when set. A list row never wears
+  The rungs sit in one segmented control (the house pick-one pill the
+  library's type tabs wear), a rule before Default, whose segment names
+  what the global setting resolves to right now ("Default · Grab") so
+  the resolved rung is on the button, not only in the line below.
+  Beneath the strip: the selected rung's one-line consequence, the
+  notes, and the per-title quality acceptance row with its Reset
+  (`reset_lower_quality`, ADR-063 §2) when set. The host places the
+  control above everything the ladder produces (the timeline, the
+  activity), so choosing a rung never moves it. A list row never wears
   this control — a row shows its rung as a quiet marker and opens its
   modal to change it.
   """
@@ -65,29 +71,27 @@ defmodule MediaCentaurWeb.Components.Discovery.IntentControl do
 
   def intent_control(assigns) do
     ~H"""
-    <div id={@id} class="space-y-2" data-component="intent-control" data-rung={@rung || :off}>
+    <div id={@id} class="space-y-2.5" data-component="intent-control" data-rung={@rung || :off}>
       <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">Tracking</h3>
-      <div class="flex flex-wrap gap-1" role="group" aria-label="Tracking">
-        <button
-          :for={option <- options()}
-          id={"#{@id}-#{option.rung}"}
-          type="button"
-          phx-click="set_rung"
-          phx-value-choice={option.rung}
-          phx-value-ref={@ref}
-          aria-pressed={to_string(selected?(@rung, option.rung))}
-          class={[
-            "cursor-pointer rounded-md px-2.5 py-1 text-sm transition-colors duration-150",
-            selected?(@rung, option.rung) && "bg-primary font-medium text-primary-content",
-            !selected?(@rung, option.rung) && "text-base-content/60 hover:bg-base-content/[0.06]"
-          ]}
-          data-nav-item
-          tabindex="0"
-        >
-          {option.label}
-        </button>
+      <div class="tabs tabs-boxed segmented-control w-fit" role="group" aria-label="Tracking">
+        <%= for option <- options() do %>
+          <span :if={option.rung == :default} class="segment-rule" aria-hidden="true"></span>
+          <button
+            id={"#{@id}-#{option.rung}"}
+            type="button"
+            class={["tab", "text-sm"]}
+            phx-click="set_rung"
+            phx-value-choice={option.rung}
+            phx-value-ref={@ref}
+            aria-pressed={to_string(selected?(@rung, option.rung))}
+            data-nav-item
+            tabindex="0"
+          >
+            {segment_label(option, @default_grab_mode)}
+          </button>
+        <% end %>
       </div>
-      <p class="text-sm text-base-content/70">{description(@rung, @default_grab_mode)}</p>
+      <p class="text-sm text-base-content/70">{description(@rung)}</p>
       <p :if={!@acquisition?} id={"#{@id}-acquisition-note"} class="text-xs text-base-content/55">
         Ask, Grab and Default download nothing until an indexer and a download client are set up under Settings → Acquisition.
       </p>
@@ -129,23 +133,31 @@ defmodule MediaCentaurWeb.Components.Discovery.IntentControl do
   def selected?(rung, option), do: rung == option
 
   @doc """
+  The segment's label: the rung's name, and for Default what the global
+  setting resolves to right now ("Default · Grab"), so the resolved rung
+  is on the button itself.
+  """
+  @spec segment_label(%{rung: TitleIntent.rung() | :off, label: String.t()}, String.t()) ::
+          String.t()
+  def segment_label(%{rung: :default, label: label}, default),
+    do: "#{label} · #{label_for_grab_mode(TitleIntent.grab_mode(:default, default))}"
+
+  def segment_label(%{label: label}, _default), do: label
+
+  @doc """
   The one-line consequence of a rung. Off states that it deletes, because
   it does and there is no confirmation step to state it later. Default
-  spells out what the global auto-grab setting resolves to right now
-  (`TitleIntent.grab_mode/2`), so the person never has to know the
-  setting to know what the title will do.
+  says what it follows and where that is set; what it resolves to right
+  now is on the segment itself (`segment_label/2`).
   """
-  @spec description(TitleIntent.rung() | nil, String.t()) :: String.t()
-  def description(nil, _default), do: "Not on your list."
+  @spec description(TitleIntent.rung() | nil) :: String.t()
+  def description(nil), do: "Not on your list."
 
-  def description(:list, _default), do: "On your list. Nothing is watching for releases."
-  def description(:follow, _default), do: "Releases show on Coming up. Nothing downloads."
-  def description(:ask, _default), do: "When a release drops, a plan waits for your approval."
-  def description(:grab, _default), do: "Each release downloads when it drops."
-
-  def description(:default, default) do
-    "Follows the auto-grab setting, currently #{label_for_grab_mode(TitleIntent.grab_mode(:default, default))}."
-  end
+  def description(:list), do: "On your list. Nothing is watching for releases."
+  def description(:follow), do: "Releases show on Coming up. Nothing downloads."
+  def description(:ask), do: "When a release drops, a plan waits for your approval."
+  def description(:grab), do: "Each release downloads when it drops."
+  def description(:default), do: "Follows the auto-grab setting under Settings → Acquisition."
 
   defp label_for_grab_mode("all_releases"), do: "Grab"
   defp label_for_grab_mode("ask"), do: "Ask"

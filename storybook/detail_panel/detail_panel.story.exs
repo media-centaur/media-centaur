@@ -246,7 +246,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           tmdb_ready: true,
           expanded_seasons: MapSet.new(),
           tracking: tracking(%{}),
-          recommendations: [
+          friend_activity: [
             %{
               activity: %MediaCentaur.Activities.Activity{
                 kind: :recommendation,

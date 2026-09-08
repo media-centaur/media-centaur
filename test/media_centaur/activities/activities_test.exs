@@ -117,11 +117,12 @@ defmodule MediaCentaur.ActivitiesTest do
     end
   end
 
-  describe "recommendations_for/1" do
-    test "the live recommendations per title: friend rows named, own rows marked, newest first" do
+  describe "friend_activity_for/1" do
+    test "every live act on a title by a friend, own recommendations only, newest first" do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, theirs} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000, nil, :love))
       {:ok, mine} = Activities.recommend(title(), :like, "mine")
+      {:ok, _own_tracking} = Activities.tracking(title())
       {:ok, other} = Activities.ingest(friend_event(title(604), "other", 1_700_000_000))
       {:ok, withdrawn} = Activities.recommend(title(605), :like, nil)
       {:ok, _tombstone} = Activities.delete(withdrawn.id)
@@ -129,23 +130,30 @@ defmodule MediaCentaur.ActivitiesTest do
       watched =
         Event.sign(
           Translation.to_event(:watched, title(), [episode: nil], @friend_pubkey,
-            created_at: 1_700_000_000
+            created_at: 1_700_000_100,
+            acted_at: 1_700_000_100
           ),
           @friend_secret
         )
 
-      {:ok, _watched} = Activities.ingest(watched)
+      {:ok, friend_watched} = Activities.ingest(watched)
 
       result =
-        Activities.recommendations_for([{603, :movie}, {604, :movie}, {605, :movie}, {999, :movie}])
+        Activities.friend_activity_for([{603, :movie}, {604, :movie}, {605, :movie}, {999, :movie}])
 
       theirs_id = theirs.id
       mine_id = mine.id
       other_id = other.id
+      watched_id = friend_watched.id
 
       assert %{
                {603, :movie} => [
-                 %{activity: %Activity{id: ^mine_id, sentiment: :like}, nickname: nil, own?: true},
+                 %{activity: %Activity{id: ^mine_id, kind: :recommendation}, nickname: nil, own?: true},
+                 %{
+                   activity: %Activity{id: ^watched_id, kind: :watched},
+                   nickname: "Sample Friend",
+                   own?: false
+                 },
                  %{
                    activity: %Activity{id: ^theirs_id, sentiment: :love},
                    nickname: "Sample Friend",
@@ -162,14 +170,14 @@ defmodule MediaCentaur.ActivitiesTest do
     end
 
     test "nothing for no refs, and nothing from a former friend" do
-      assert Activities.recommendations_for([]) == %{}
+      assert Activities.friend_activity_for([]) == %{}
 
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _rec} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000))
-      assert %{{603, :movie} => [_row]} = Activities.recommendations_for([{603, :movie}])
+      assert %{{603, :movie} => [_row]} = Activities.friend_activity_for([{603, :movie}])
 
       :ok = Social.remove_friend(@friend_pubkey)
-      assert Activities.recommendations_for([{603, :movie}]) == %{}
+      assert Activities.friend_activity_for([{603, :movie}]) == %{}
       await_supervised_tasks()
     end
   end
