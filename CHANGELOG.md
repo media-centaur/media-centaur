@@ -4,22 +4,6 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
-## Unreleased
-
-### Changed
-
-- **Media Centaur no longer starts tracking a title on its own.** Adding a series to your library used to start following its releases at your global auto-grab setting, with nothing clicked. It doesn't any more. Nothing gets tracked unless you say so.
-- **On upgrade, anything Media Centaur started tracking by itself stops.** That's every title you never put on your list — the ones picked up from your library, from "Download all", or as a side effect of accepting lower quality on a plan. Titles you put on your list keep their setting. If a show you want was in that group, open it and set a tracking level again.
-- **Your list and the tracking control are one thing now.** Where a title used to have both an *Add to watchlist* button and a separate five-mode strip, there is one control with six settings: **Off · List · Follow · Ask · Grab · Default**. *List* keeps the title on your list and nothing more; *Follow* and above keep its release calendar.
-- **Off deletes.** Setting a title to Off removes it from your list along with its release calendar. It isn't remembered as "off" any more, because nothing can turn tracking back on except you. The control says this before you click it.
-- **Deleting a series from your library no longer stops tracking it.** Your setting for a title is yours; losing the files says nothing about whether you still want new episodes. Set it to Off when you're done with it.
-
-### Fixed
-
-- **"Also grab future episodes" now grabs.** The checkbox in the download picker left the show on a setting that watches the calendar and downloads nothing, so future episodes never arrived. It sets Grab, which is what it says.
-- **"Track these" on a plan's missing units says what will actually happen to them.** It used to promise Media Centaur would keep looking, on a setting that doesn't search. It now tracks the title and tells you what its own setting will do with those units — shown under Coming up, parked for approval, or fetched.
-- **Adjusting a title's quality floor no longer starts tracking it.** Accepting lower quality on a plan board had to create a tracked title to store the setting on. The setting has its own home now.
-
 ## v1.16.0 — 2026-09-07
 
 ### New
