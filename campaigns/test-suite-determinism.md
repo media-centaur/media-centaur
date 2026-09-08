@@ -20,9 +20,22 @@ measured about each. It does not prescribe fixes.
 
 ## Status
 
-Planning. No approach chosen. Seven distinct problems below; instances are
-recorded in the session memory `project-suite-residual-concurrency-flakes` and
-in the git history of the fixes that have already landed piecemeal.
+Measured 2026-09-08 at `9a2113af`: six full runs, one of them under a per-test
+state probe (`MediaCentaur.StateProbeFormatter`, below). No approach chosen; a
+design direction is proposed under *Next steps* and is not decided.
+
+| Run | Result | What the log said |
+|---|---|---|
+| seed 281658 | green | one orphaned `:tmdb` task crash (`Discovery.ensure_artwork_async/1`) |
+| seed 209562 | green | clean |
+| seed 30892 | 1 failure | `review_live_test.exs:97` — `render_async/1` past its 100 ms default; one orphaned `:tmdb` task crash (`Activities.ensure_artwork_async/1`) |
+| seed 921528 | green | clean |
+| seed 310401 | 1 failure | `integration_health/verifier_test.exs:28` — found a Prowlarr URL in Config; one orphaned `:tmdb` task crash |
+| seed 281658, probed | green | 356 of 2,926 sync tests exit with an app-owned `:persistent_term` key off the pristine baseline |
+
+Neither failure is the leak fixed in `9451b095`, and they are not the same
+class as each other. Instances are also logged in the session memory
+`project-suite-residual-concurrency-flakes`.
 
 ## The problems
 
@@ -110,6 +123,61 @@ write contention under 24 parallel cases, and `assert_receive` deadline
 pressure under full-suite load. They need distinguishing from the above before
 anything is attempted, because a fix for one does nothing for the other.
 
+### 8. The restore runs at the wrong edge, for the wrong set of tests
+
+`GlobalStateSandbox.restore!/1` is called from `DataCase.setup_sandbox/1` and
+nowhere else, so it runs at the *entry* of a `DataCase` or `ConnCase` test. A
+test's leak is therefore cleaned by the next test — provided the next test is
+one of those. A plain `ExUnit.Case, async: false` test gets no restore and
+reads whatever the previous test left. 38 such files exist, and the sync phase
+is shuffled by seed, so whether one of them follows a dirty exit is a property
+of the seed.
+
+Worked example, 2026-09-08, seed 310401: `IntegrationHealth.VerifierTest`
+nulls the download-client keys in its own setup (a problem-5 defence) and
+asserts that Prowlarr is *not configured*. A `DataCase` test before it had set
+a Prowlarr URL through `Config.update/2`; nothing restored it, and
+`Capabilities.configured?(:prowlarr)` was true. The probe says how exposed this
+is: after 356 of the run's 2,926 sync tests, at least one app-owned
+`:persistent_term` key differs from the baseline — 241 times the Config map
+itself — and that count is measured *after* `on_exit`, so the hand-rolled
+restores of problem 5 are already netted out.
+
+Two stores are outside the inventory altogether: the named ETS tables of the
+projections and caches, and the `:media_centaur` application env (17 test
+files save and restore it by hand). Neither leaked in the probed run. The
+cache workers are not started under `:test`, so a projection table belongs to
+whichever process first touched it and dies with it — which also makes the
+three `on_exit` `:ets.delete` sites in the suite inert code.
+
+## What the measurement says
+
+Step 1 of the plan was to decide whether the seven problems are one or several.
+They are three, and two of the seven are not problems in their own right.
+
+**A. Containment is at the wrong edge and covers the wrong set** — problems
+1, 2, 3, 5 and 8. One mechanism, seen from five sides: the state a sync test
+depends on is reset by the *next* test's entry, only when that test is a
+`DataCase`, only for `:persistent_term` and three named processes, and the
+claim that anything else is safe is a sentence nobody re-reads.
+
+**B. A supervised task's lifetime is not its stub owner's** — problem 4. Four
+of six runs logged exactly one `cannot find mock/stub :tmdb` crash, from
+`Discovery.ensure_artwork_async/1` or `Activities.ensure_artwork_async/1`,
+both reached from `discovery_live_test.exs` tests that already call
+`await_supervised_tasks/0`. The spawn therefore happens *after* the await
+returns — a LiveView or broadcast path, not yet traced. It failed no test in
+these runs; it is log noise until the day it is not.
+
+**C. Deadline pressure under load** — the rate-based tail of problem 7.
+`render_async/1` at its 100 ms default in `review_live_test.exs:97`. Rate, not
+order. `Database busy` did not appear in six runs.
+
+Problems 6 and 7 are what A looks like without a detector. The probe
+attributed every `:persistent_term` change in the run to a test, to within
+one; with detection at the source, a symptom names its cause and the
+ordering-attribution problem has nothing left to attribute.
+
 ## Decisions made
 
 * `2026-09-08` — Opened after the v1.17.0 ship, where three `HealthBoardLiveTest`
@@ -124,14 +192,37 @@ anything is attempted, because a fix for one does nothing for the other.
   found one at a time over months, each fixed where it surfaced; the point of
   writing them down together is to design once against all seven rather than
   add an eighth local remedy.
+* `2026-09-08` — Re-measured at `9a2113af` (six full runs). The seven problems
+  are three: A (1, 2, 3, 5, 8), B (4), C (the rate-based tail of 7); 6 and 7
+  are consequences of A having no detector. Recorded under *What the
+  measurement says*.
+* `2026-09-08` — `MediaCentaur.StateProbeFormatter` lands as a measurement
+  instrument, not a fix. It is opt-in through `--formatter` and changes
+  nothing in a normal run. It is the first thing in the suite that says which
+  test *wrote* a piece of global state rather than which test read it.
 
 ## Next steps
 
-1. Decide whether these are one problem or several. Problems 1, 2, 3 and 5 may
-   be one thing seen from four sides; 4, 6 and 7 look genuinely separate.
-2. Re-measure before designing. The instance log spans months and several of
-   its entries have been fixed since; confirm which still reproduce.
-3. Then design.
+Design A first; B and C are independent of it and of each other, and smaller.
+
+1. **A — a design conversation, not yet had.** The candidate direction, to be
+   argued rather than assumed: put containment on the edge that exists.
+   Every `async: false` test uses one sync case template (Credo-enforced, so
+   a bare `use ExUnit.Case, async: false` is a violation), and that template
+   restores at entry *and verifies at exit* against the same baseline —
+   failing the test that left state behind, with the diff. An `:accepted`
+   disposition then has to be a probe, not a sentence. ETS table names and
+   the application env join the baseline under the same namespace rule
+   `:persistent_term` already uses.
+2. **B** — make the orphan attributable before fixing it: a teardown that
+   finds a live supervised task fails the test instead of killing it quietly.
+   Then trace and fix the seam it names, starting with the discovery-watchlist
+   artwork spawn.
+3. **C** — raise the positive ceiling at `review_live_test.exs:97`. A
+   positive ceiling costs nothing when the test passes
+   ([`serial-test-audit.md`](serial-test-audit.md)); a `refute` ceiling would.
+4. Every step is checked the same way it was measured: re-run the probe and
+   read the "exit dirty" count down.
 
 ## Completion criteria
 
@@ -140,12 +231,15 @@ anything is attempted, because a fix for one does nothing for the other.
   judgment about whether a written reason is still true.
 * No test carries cleanup for state another test created.
 * `cannot find mock/stub` does not appear in a clean run.
+* The probe reports no sync test exiting with global state off the baseline.
 
 ## Pointers
 
 * `test/support/global_state_sandbox.ex` — the inventory and its vocabulary.
 * `test/support/data_case.ex` — sandbox setup and the teardown orphan drain.
 * `test/support/task_awaits.ex` — the opt-in task drain.
+* `test/support/state_probe_formatter.ex` — the per-test state probe; its
+  moduledoc has the run recipe.
 * `test/media_centaur/global_state_sandbox_test.exs` — the two checks that do
   exist today.
 * [ADR-027](../decisions/architecture/2026-03-07-027-regression-tests-append-only.md)

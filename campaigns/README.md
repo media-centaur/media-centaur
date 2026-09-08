@@ -61,18 +61,16 @@ Use [`template.md`](template.md) as a starter.
   means owning the fan-out Prowlarr exists to provide, and may be declined.
   No code yet.
 * [`test-suite-determinism.md`](test-suite-determinism.md) —
-  **planning.** A full `mix test` should pass or fail on the code, not on the
-  order ExUnit picked. Seven problems catalogued, no approach chosen: the Ecto
-  sandbox covers rows and nothing else; `GlobalStateSandbox`'s `:accepted`
-  reasons are prose nothing verifies (a stale one cost three failures during
-  the v1.17.0 ship); some singletons production reads by name cannot be
-  isolated by a LiveView test that needs the real read path; supervised tasks
-  outlive the test process that owns their `Req.Test` stub; missing isolation
-  grows bespoke per-test cleanup that hides the evidence; a run's symptoms
-  point away from its cause; and ordering-dependent failures defeat the
-  "reproduce it on main" check because ordering shifts with the test count.
-  Deliberately problems-only — the point is to design once rather than add an
-  eighth local remedy. Wall time is `serial-test-audit`'s and stays there.
+  **measured 2026-09-08, design not chosen.** A full `mix test` should pass or
+  fail on the code, not on the order ExUnit picked. Six full runs at one
+  commit: two failures, different tests, different classes. The seven
+  catalogued problems are three — containment sits at the wrong edge (the
+  harness restores at the entry of `DataCase` tests only, so a plain sync
+  test reads what the previous one left; 356 of 2,926 sync tests exit dirty),
+  a supervised task outlives its `Req.Test` owner, and deadline pressure
+  under load. A per-test state probe (`MediaCentaur.StateProbeFormatter`,
+  opt-in) now says which test wrote a piece of global state. Wall time is
+  `serial-test-audit`'s and stays there.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and
