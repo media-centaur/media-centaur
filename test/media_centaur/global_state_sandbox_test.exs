@@ -6,6 +6,7 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
 
   alias MediaCentaur.Console.Buffer
   alias MediaCentaur.Console.Entry
+  alias MediaCentaur.ErrorReports.Buckets
   alias MediaCentaur.GlobalStateSandbox
   alias MediaCentaurWeb.IncomingLive.SearchSession
 
@@ -63,6 +64,29 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
       GlobalStateSandbox.restore!()
 
       assert Buffer.recent(nil) == []
+    end
+
+    test "empties the incident bucket cache" do
+      # The Status board reads the globally named cache through
+      # `ErrorReports.list_buckets/0`, so a LiveView test that wants an
+      # incident on the board has to ingest into this instance — it cannot
+      # drive a named one the way `buckets_test.exs` does. Four such files
+      # exist, and every bucket they mint used to survive them.
+      Buckets.ingest(
+        Entry.new(
+          id: 1,
+          timestamp: DateTime.utc_now(),
+          level: :error,
+          component: :tmdb,
+          message: "an incident from an earlier test"
+        )
+      )
+
+      assert Buckets.list_buckets() != []
+
+      GlobalStateSandbox.restore!()
+
+      assert Buckets.list_buckets() == []
     end
 
     test "resets the acquisition search session" do

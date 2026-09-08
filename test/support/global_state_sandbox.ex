@@ -65,12 +65,14 @@ defmodule MediaCentaur.GlobalStateSandbox do
   """
 
   alias MediaCentaur.Console.Buffer
+  alias MediaCentaur.ErrorReports.Buckets
   alias MediaCentaurWeb.IncomingLive.SearchSession
 
   @snapshot_key {__MODULE__, :pristine}
 
   @resets [
     {Buffer, :clear},
+    {Buckets, :clear},
     {SearchSession, :clear}
   ]
 
@@ -117,7 +119,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
        "enrichment stats accumulate from telemetry; no reset API, and status_live_test " <>
          "deliberately asserts on its own rows rather than this singleton"},
     MediaCentaur.ErrorReports.Buckets =>
-      {:accepted, "the durable log handler is off under :test; bucket tests drive named instances"},
+      {:reset, "Status-board tests ingest into this named process; the board reads only it"},
     MediaCentaur.SelfUpdate.Updater =>
       {:accepted, "download/apply state; tests drive UpdateChecker and the release stubs instead"},
     MediaCentaur.SelfUpdate.AutoApply => {:accepted, "check schedule only, no read API"},
