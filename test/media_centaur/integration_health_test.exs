@@ -13,7 +13,7 @@ end
 defmodule MediaCentaur.IntegrationHealthTest do
   # `async: false` — IntegrationHealth registers under a global name and
   # owns a named ETS table, so concurrent tests would clobber each other.
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth
@@ -28,36 +28,7 @@ defmodule MediaCentaur.IntegrationHealthTest do
     # The verifier is injected via Application.put_env so tests don't
     # touch real network. Default to a stub that returns :ok unless a
     # specific test overrides it.
-    previous_verifier =
-      Application.get_env(:media_centaur, :integration_health_verifier)
-
     Application.put_env(:media_centaur, :integration_health_verifier, OkVerifier)
-
-    # Snapshot + reset Config persistent_term directly (not via
-    # Config.update, which writes to the Settings DB and would need a
-    # DataCase sandbox). A prior test that set `tmdb_api_key` etc. via
-    # its own write path can leak into persistent_term; null those keys
-    # so IntegrationHealth's boot seed sees `configured? = false`
-    # deterministically.
-    original_config = :persistent_term.get({Config, :config})
-
-    :persistent_term.put(
-      {Config, :config},
-      original_config
-      |> Map.put(:tmdb_api_key, nil)
-      |> Map.put(:prowlarr_api_key, nil)
-      |> Map.put(:download_client_password, nil)
-    )
-
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original_config)
-
-      if previous_verifier do
-        Application.put_env(:media_centaur, :integration_health_verifier, previous_verifier)
-      else
-        Application.delete_env(:media_centaur, :integration_health_verifier)
-      end
-    end)
 
     :ok
   end

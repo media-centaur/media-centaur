@@ -1,14 +1,7 @@
 defmodule MediaCentaur.Pipeline.Discovery.InflightSetTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Pipeline.Discovery.InflightSet
-
-  setup do
-    # The InflightSet starts under the application supervision tree at
-    # test load; reset it before each test so cases don't leak state.
-    :ets.delete_all_objects(:pipeline_discovery_inflight)
-    :ok
-  end
 
   describe "claim/1" do
     test "returns true the first time a path is claimed" do
@@ -24,6 +17,17 @@ defmodule MediaCentaur.Pipeline.Discovery.InflightSetTest do
       assert InflightSet.claim("/media/test/a.mkv") == true
       assert InflightSet.claim("/media/test/b.mkv") == true
       assert InflightSet.size() == 2
+    end
+  end
+
+  describe "clear/0" do
+    test "empties the set" do
+      assert InflightSet.claim("/media/test/one.mkv") == true
+      assert InflightSet.claim("/media/test/two.mkv") == true
+
+      assert InflightSet.clear() == :ok
+
+      assert InflightSet.size() == 0
     end
   end
 

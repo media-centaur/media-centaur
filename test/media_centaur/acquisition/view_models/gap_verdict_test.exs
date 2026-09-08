@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict}
   alias MediaCentaur.Search.IndexerHealth

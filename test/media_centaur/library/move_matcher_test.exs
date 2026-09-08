@@ -5,7 +5,7 @@ defmodule MediaCentaur.Library.MoveMatcherTest do
   path-relative-to-media-dir plus byte size (see `MoveMatcher` moduledoc).
   No DB, no filesystem — the caller confirms the old path is actually gone.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.MoveMatcher
 

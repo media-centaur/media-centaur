@@ -5,7 +5,6 @@ defmodule MediaCentaur.SelfUpdate.StorageTest do
 
   setup do
     UpdateChecker.clear_cache()
-    on_exit(fn -> UpdateChecker.clear_cache() end)
     :ok
   end
 

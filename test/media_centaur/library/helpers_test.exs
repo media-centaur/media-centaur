@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Library.HelpersTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Library.Helpers
   alias MediaCentaur.Topics

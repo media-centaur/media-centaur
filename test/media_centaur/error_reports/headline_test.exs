@@ -1,5 +1,5 @@
 defmodule MediaCentaur.ErrorReports.HeadlineTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.ErrorReports.Headline
 

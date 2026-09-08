@@ -44,12 +44,6 @@ defmodule MediaCentaur.SelfUpdate.UpdaterTest do
   setup do
     :persistent_term.put({FakeDownloader, :test_pid}, self())
     UpdateChecker.clear_cache()
-
-    on_exit(fn ->
-      :persistent_term.erase({FakeDownloader, :test_pid})
-      UpdateChecker.clear_cache()
-    end)
-
     :ok
   end
 
@@ -309,7 +303,7 @@ defmodule MediaCentaur.SelfUpdate.UpdaterTest do
       defmodule BlockingHandoff do
         def spawn_detached(staged_root, _opts \\ []) do
           test_pid = :persistent_term.get({__MODULE__, :test_pid})
-          send(test_pid, {:handoff_blocking_started, staged_root})
+          send(test_pid, {:handoff_blocking_started, staged_root, self()})
 
           receive do
             :proceed -> :ok
@@ -325,7 +319,7 @@ defmodule MediaCentaur.SelfUpdate.UpdaterTest do
       start_updater(name, handoff: BlockingHandoff)
 
       assert :ok = Updater.apply_pending(name)
-      assert_receive {:handoff_blocking_started, _}, 2_000
+      assert_receive {:handoff_blocking_started, _, handoff}, 2_000
 
       # The :handing_off transition is an async {:phase, …} message the GenServer
       # turns into a {:progress, :handing_off, _} broadcast (we subscribed to
@@ -335,6 +329,11 @@ defmodule MediaCentaur.SelfUpdate.UpdaterTest do
       assert_receive {:progress, :handing_off, _}, 2_000
 
       assert {:error, :past_point_of_no_return} = Updater.cancel(name)
+
+      # The handoff task is this test's async work; it runs under the global
+      # supervisor and is driven to completion before the test ends.
+      send(handoff, :proceed)
+      MediaCentaur.TaskAwaits.await_supervised_tasks()
     end
   end
 end

@@ -6,7 +6,7 @@ defmodule MediaCentaur.Downloads.IncidentContextTest do
   outage — measured from the `{:offline, since}` onset the producer grades —
   surfaces an incident.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Downloads.IncidentContext
   alias MediaCentaur.Downloads.QueueState

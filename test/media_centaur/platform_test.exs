@@ -1,9 +1,8 @@
 defmodule MediaCentaur.PlatformTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
-  # async: false because pick_impl/2 reads Application env; tests
-  # mutate it and roll back via on_exit. on_exit is safe here — it's
-  # an in-memory ETS-like op, not a DB write.
+  # async: false because pick_impl/2 reads Application env, which
+  # these tests mutate.
 
   alias MediaCentaur.Platform
 
@@ -18,17 +17,7 @@ defmodule MediaCentaur.PlatformTest do
 
   describe "pick_impl/3 — Application env override wins" do
     setup do
-      original = Application.get_env(:media_centaur, FakeFacade)
       Application.put_env(:media_centaur, FakeFacade, FakeDarwin)
-
-      on_exit(fn ->
-        if original do
-          Application.put_env(:media_centaur, FakeFacade, original)
-        else
-          Application.delete_env(:media_centaur, FakeFacade)
-        end
-      end)
-
       :ok
     end
 
@@ -44,13 +33,7 @@ defmodule MediaCentaur.PlatformTest do
 
   describe "pick_impl/3 — OS-based default when no override" do
     setup do
-      original = Application.get_env(:media_centaur, FakeFacade)
       Application.delete_env(:media_centaur, FakeFacade)
-
-      on_exit(fn ->
-        if original, do: Application.put_env(:media_centaur, FakeFacade, original)
-      end)
-
       :ok
     end
 

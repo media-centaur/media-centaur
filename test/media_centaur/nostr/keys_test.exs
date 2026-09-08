@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Nostr.KeysTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret

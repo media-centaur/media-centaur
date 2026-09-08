@@ -21,7 +21,7 @@ defmodule MediaCentaur.Nostr.ConnectionTest do
   fails as a phantom bug in the connection rather than as the timing
   assumption it actually is.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   @moduletag :capture_log
 

@@ -37,12 +37,6 @@ defmodule MediaCentaur.Settings.ConfigUpdateTest do
   end
 
   describe "update/2 — new keys" do
-    setup do
-      original = :persistent_term.get({Config, :config})
-      on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
-      :ok
-    end
-
     test "accepts ffprobe_path" do
       :ok = Config.subscribe()
       :ok = Config.update(:ffprobe_path, "/opt/custom/bin/ffprobe")

@@ -22,15 +22,6 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
     end
   end
 
-  defp on_exit_clear_table do
-    on_exit(fn ->
-      case :ets.whereis(@table) do
-        :undefined -> :ok
-        _ref -> :ets.delete(@table)
-      end
-    end)
-  end
-
   # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
   defp record_present(_file), do: :ok
 
@@ -54,8 +45,6 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
 
   describe "refresh_cache/0" do
     test "populates the ETS table with view-model structs ordered newest-first" do
-      on_exit_clear_table()
-
       now = DateTime.utc_now(:second)
       seed_recently_added("Oldest", DateTime.add(now, -3600, :second))
       seed_recently_added("Middle", DateTime.add(now, -1800, :second))
@@ -73,8 +62,6 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
     end
 
     test "broadcasts {:library_view_updated, :recently_added} after refresh" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       seed_recently_added("Some Movie")
@@ -85,8 +72,6 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
     end
 
     test "is idempotent — repeat calls replace the snapshot, no leak" do
-      on_exit_clear_table()
-
       seed_recently_added("Movie A")
       assert :ok = RecentlyAdded.refresh_cache()
       assert length(Views.recently_added(limit: 10)) == 1
@@ -111,8 +96,6 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
     end
 
     test "honours :limit on the ETS path" do
-      on_exit_clear_table()
-
       Enum.each(1..5, fn i -> seed_recently_added("Movie #{i}") end)
       assert :ok = RecentlyAdded.refresh_cache()
 
@@ -131,8 +114,6 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
 
   describe "equivalence with Library.list_recently_added/1" do
     test "ETS-cached output matches Library.list_recently_added for the same DB state" do
-      on_exit_clear_table()
-
       # Explicit, distinct inserted_at gives the cached and DB paths a
       # deterministic order to zip-compare — no clock-advance sleep.
       now = DateTime.utc_now(:second)

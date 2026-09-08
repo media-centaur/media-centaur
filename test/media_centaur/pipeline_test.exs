@@ -19,21 +19,12 @@ defmodule MediaCentaur.PipelineTest do
 
   import MediaCentaur.TmdbStubs
 
-  # PubSub listener GenServers don't start in test mode (no sandbox access).
-  # Start Review.Intake here — this integration test needs it to process
-  # {:needs_review, ...} and {:review_completed, ...} events via PubSub.
-  setup_all do
-    Supervisor.start_child(MediaCentaur.Supervisor, MediaCentaur.Review.Intake)
-
-    on_exit(fn ->
-      Supervisor.terminate_child(MediaCentaur.Supervisor, MediaCentaur.Review.Intake)
-      Supervisor.delete_child(MediaCentaur.Supervisor, MediaCentaur.Review.Intake)
-    end)
-
-    :ok
-  end
-
   setup do
+    # PubSub listener GenServers don't start in test mode (no sandbox
+    # access). This integration test needs Review.Intake to process
+    # {:needs_review, ...} and {:review_completed, ...} events, so each test
+    # starts its own, stopped with the test.
+    start_supervised!(MediaCentaur.Review.Intake)
     setup_tmdb_client()
 
     # Subscribe to receive entity_published events from the Import pipeline
@@ -54,10 +45,7 @@ defmodule MediaCentaur.PipelineTest do
 
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, updated_config)
 
-    on_exit(fn ->
-      File.rm_rf!(images_dir)
-      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
-    end)
+    on_exit(fn -> File.rm_rf!(images_dir) end)
 
     :ok
   end

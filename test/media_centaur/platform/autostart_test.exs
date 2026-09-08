@@ -1,10 +1,9 @@
 defmodule MediaCentaur.Platform.AutostartTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Platform.Autostart
 
-  # async: false because we mutate Application env. Each test rolls
-  # back its override in `on_exit`.
+  # async: false because we mutate Application env.
 
   defmodule FakeImpl do
     @behaviour MediaCentaur.Platform.Autostart
@@ -33,17 +32,7 @@ defmodule MediaCentaur.Platform.AutostartTest do
 
   describe "facade dispatch" do
     setup do
-      original = Application.get_env(:media_centaur, Autostart)
       Application.put_env(:media_centaur, Autostart, FakeImpl)
-
-      on_exit(fn ->
-        if original do
-          Application.put_env(:media_centaur, Autostart, original)
-        else
-          Application.delete_env(:media_centaur, Autostart)
-        end
-      end)
-
       :ok
     end
 
@@ -78,12 +67,7 @@ defmodule MediaCentaur.Platform.AutostartTest do
 
   describe "default impl" do
     test "defaults to Systemd when no impl is configured" do
-      original = Application.get_env(:media_centaur, Autostart)
       Application.delete_env(:media_centaur, Autostart)
-
-      on_exit(fn ->
-        if original, do: Application.put_env(:media_centaur, Autostart, original)
-      end)
 
       # Sanity: handoff_env_vars/0 is pure and cheap, returns the
       # systemd-required list. No shell-out involved.

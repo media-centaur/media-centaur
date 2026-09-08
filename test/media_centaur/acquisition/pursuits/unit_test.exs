@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Acquisition.Pursuits.UnitTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.Pursuits.Unit
 

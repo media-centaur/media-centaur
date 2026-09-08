@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsTest do
 end
 
 defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsPresenceTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords

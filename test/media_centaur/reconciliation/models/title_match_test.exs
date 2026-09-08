@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Reconciliation.Models.TitleMatchTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Reconciliation.{Artifact, SpineNode}
   alias MediaCentaur.Reconciliation.Models.{GapFill, TitleMatch}

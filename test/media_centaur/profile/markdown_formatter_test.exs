@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Profile.MarkdownFormatterTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Profile.{MarkdownFormatter, RunData}
 

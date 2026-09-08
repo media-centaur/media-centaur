@@ -2,7 +2,7 @@ defmodule MediaCentaur.Search.ReleaseCoverageTest do
   # Release-title classification tests are parser-class regression tests:
   # append-only per ADR-027. Every title here is a realistic release-name
   # shape using generic placeholders (no real show titles).
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Search.ReleaseCoverage
 

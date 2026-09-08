@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Downloads.QueueMonitorTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Downloads.{QueueMonitor, QueueState}

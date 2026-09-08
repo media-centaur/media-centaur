@@ -18,19 +18,10 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
   alias MediaCentaur.Library.FilePresence
 
   setup do
-    original = :persistent_term.get({Availability, :state}, :__unset__)
-
     :persistent_term.put({Availability, :state}, %{
       "/media/test" => :watching,
       "/mnt/offline" => :unavailable
     })
-
-    on_exit(fn ->
-      case original do
-        :__unset__ -> :persistent_term.erase({Availability, :state})
-        m -> :persistent_term.put({Availability, :state}, m)
-      end
-    end)
 
     :ok
   end

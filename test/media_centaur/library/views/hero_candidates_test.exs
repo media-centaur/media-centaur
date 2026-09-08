@@ -25,15 +25,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
     movie
   end
 
-  defp on_exit_clear_table do
-    on_exit(fn ->
-      case :ets.whereis(@table) do
-        :undefined -> :ok
-        _ref -> :ets.delete(@table)
-      end
-    end)
-  end
-
   # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
   defp record_present(_file), do: :ok
 
@@ -57,8 +48,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
 
   describe "refresh_cache/0" do
     test "populates the ETS table with view-model structs in candidate order" do
-      on_exit_clear_table()
-
       seed_hero_candidate("Hero One")
       seed_hero_candidate("Hero Two")
       seed_hero_candidate("Hero Three")
@@ -73,8 +62,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
     end
 
     test "materializes the whole eligible set with no cap, readable without a limit" do
-      on_exit_clear_table()
-
       for index <- 1..30, do: seed_hero_candidate("Hero #{index}")
 
       assert :ok = HeroCandidates.refresh_cache()
@@ -83,8 +70,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
     end
 
     test "broadcasts {:library_view_updated, :hero_candidates} after refresh" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       seed_hero_candidate("Some Movie")
@@ -95,8 +80,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
     end
 
     test "is idempotent — repeat calls replace the snapshot, no leak" do
-      on_exit_clear_table()
-
       seed_hero_candidate("Movie A")
       assert :ok = HeroCandidates.refresh_cache()
       assert length(Views.hero_candidates(limit: 10)) == 1
@@ -122,8 +105,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
     end
 
     test "honours :limit on the ETS path" do
-      on_exit_clear_table()
-
       Enum.each(1..5, fn i -> seed_hero_candidate("Movie #{i}") end)
       assert :ok = HeroCandidates.refresh_cache()
 
@@ -142,8 +123,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
 
   describe "equivalence with Library.list_hero_candidates/1" do
     test "ETS-cached output matches Library.list_hero_candidates for the same DB state" do
-      on_exit_clear_table()
-
       seed_hero_candidate("Movie One")
       seed_hero_candidate("Movie Two")
 
@@ -176,8 +155,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
     # one card. The cap keeps the rotation pool generous (7h rotation ×
     # @max_items ≈ 17 days before a title repeats) while bounding the cost.
     test "caps the cached projection at max_items/0 even when more candidates qualify" do
-      on_exit_clear_table()
-
       overflow = HeroCandidates.max_items() + 1
       for index <- 1..overflow, do: seed_hero_candidate("Hero Candidate #{index}")
 
@@ -187,8 +164,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
     end
 
     test "an unlimited read still returns every cached row below the cap" do
-      on_exit_clear_table()
-
       for index <- 1..3, do: seed_hero_candidate("Small Pool #{index}")
 
       assert :ok = HeroCandidates.refresh_cache()

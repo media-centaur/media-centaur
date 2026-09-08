@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Playback.ResumeTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Playback.Resume
 

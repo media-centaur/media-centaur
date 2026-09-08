@@ -1,5 +1,5 @@
 defmodule MediaCentaur.ErrorReports.BucketCacheTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Console.Entry
   alias MediaCentaur.ErrorReports.Bucket

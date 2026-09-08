@@ -30,15 +30,6 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
     item
   end
 
-  defp on_exit_clear_table do
-    on_exit(fn ->
-      case :ets.whereis(@table) do
-        :undefined -> :ok
-        _ref -> :ets.delete(@table)
-      end
-    end)
-  end
-
   describe "Cache behaviour — relevant?/1" do
     test "accepts release-tracking update events" do
       assert ComingUp.relevant?({:releases_updated, [1, 2]})
@@ -61,8 +52,6 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
 
   describe "refresh_cache/0" do
     test "populates the ETS table with view-model structs ordered by air date" do
-      on_exit_clear_table()
-
       today = Date.utc_today()
       seed_release("Late Show", Date.add(today, 30))
       seed_release("Mid Show", Date.add(today, 14))
@@ -80,8 +69,6 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
     end
 
     test "carries release_type through the ETS snapshot" do
-      on_exit_clear_table()
-
       today = Date.utc_today()
       item = create_tracking_item(%{name: "Sample Movie", media_type: :movie, tmdb_id: 88_002})
 
@@ -99,8 +86,6 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
     end
 
     test "broadcasts {:release_tracking_view_updated, :coming_up} after refresh" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.release_tracking_views())
 
       today = Date.utc_today()
@@ -112,8 +97,6 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
     end
 
     test "is idempotent — repeat calls replace the snapshot, no leak" do
-      on_exit_clear_table()
-
       today = Date.utc_today()
       seed_release("Show A", Date.add(today, 5))
       assert :ok = ComingUp.refresh_cache()
@@ -140,8 +123,6 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
     end
 
     test "filters by the requested date window at read time" do
-      on_exit_clear_table()
-
       today = Date.utc_today()
       seed_release("Within Window", Date.add(today, 5))
       seed_release("Past Window", Date.add(today, 200))
@@ -154,8 +135,6 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
     end
 
     test "honours :limit on the ETS path" do
-      on_exit_clear_table()
-
       today = Date.utc_today()
 
       Enum.each(1..5, fn i ->
@@ -171,8 +150,6 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
 
   describe "equivalence with ReleaseTracking.list_releases_between/3" do
     test "ETS-cached output matches list_releases_between for the same DB state" do
-      on_exit_clear_table()
-
       today = Date.utc_today()
       to_date = Date.add(today, 90)
 

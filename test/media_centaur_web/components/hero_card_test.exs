@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.HeroCardTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Components.HeroCard.Item
 

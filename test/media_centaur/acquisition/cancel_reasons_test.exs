@@ -6,7 +6,7 @@ defmodule MediaCentaur.Acquisition.CancelReasonsTest do
   matters is that every named constant is in `all/0` and that `valid?/1`
   accepts exactly those strings.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.CancelReasons
 

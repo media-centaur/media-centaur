@@ -50,9 +50,7 @@ ExUnit.after_suite(fn _result -> File.rm_rf!(test_data_dir) end)
 # call `UpdateChecker.clear_cache/0` in their own setup.
 MediaCentaur.SelfUpdate.UpdateChecker.cache_result({:error, :disabled_in_tests})
 
-# Snapshot every app-owned :persistent_term key so DataCase can restore
-# the lot before each test — the global caches the SQL sandbox cannot roll
-# back. Must be the last thing this file does: the baseline is whatever
-# state the priming above leaves behind, and that is what every test
-# should start from. See `MediaCentaur.GlobalStateSandbox`.
-MediaCentaur.GlobalStateSandbox.capture_pristine!()
+# Capture the baseline every sync test starts from and returns to. Must be
+# the last thing this file does: the baseline is whatever state the priming
+# above leaves behind. See `MediaCentaur.GlobalStateSandbox`.
+MediaCentaur.GlobalStateSandbox.capture_baseline!()

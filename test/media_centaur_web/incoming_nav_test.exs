@@ -18,7 +18,6 @@ defmodule MediaCentaurWeb.IncomingNavTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Capabilities
-  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Topics
 
   @cache_key {Capabilities, :ready_flags}
@@ -40,22 +39,6 @@ defmodule MediaCentaurWeb.IncomingNavTest do
   }
 
   @incoming_nav_entry ~s(#sidebar a[href="/incoming"])
-
-  setup do
-    config_backup = :persistent_term.get({Config, :config})
-    cache_backup = :persistent_term.get(@cache_key, :__unset)
-
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, config_backup)
-
-      case cache_backup do
-        :__unset -> :persistent_term.erase(@cache_key)
-        flags -> :persistent_term.put(@cache_key, flags)
-      end
-    end)
-
-    :ok
-  end
 
   test "Incoming nav entry renders without any acquisition capability", %{conn: conn} do
     :persistent_term.put(@cache_key, @ready_false)

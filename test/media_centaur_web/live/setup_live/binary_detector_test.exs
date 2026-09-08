@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Live.SetupLive.BinaryDetectorTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Live.SetupLive.BinaryDetector
 

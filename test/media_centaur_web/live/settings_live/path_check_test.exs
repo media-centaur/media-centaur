@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Live.SettingsLive.PathCheckTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Live.SettingsLive.PathCheck
 

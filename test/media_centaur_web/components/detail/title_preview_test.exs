@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.Detail.TitlePreviewTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.Person
   alias MediaCentaurWeb.Components.Detail.TitlePreview

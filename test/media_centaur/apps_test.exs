@@ -92,10 +92,7 @@ defmodule MediaCentaur.AppsTest do
         Map.put(original, :data_dir, data_dir)
       )
 
-      on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Settings.Config, :config}, original)
-        File.rm_rf!(data_dir)
-      end)
+      on_exit(fn -> File.rm_rf!(data_dir) end)
 
       %{data_dir: data_dir}
     end
@@ -153,10 +150,7 @@ defmodule MediaCentaur.AppsTest do
         Map.put(original, :data_dir, data_dir)
       )
 
-      on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Settings.Config, :config}, original)
-        File.rm_rf!(data_dir)
-      end)
+      on_exit(fn -> File.rm_rf!(data_dir) end)
 
       %{data_dir: data_dir}
     end

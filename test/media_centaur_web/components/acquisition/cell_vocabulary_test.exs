@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.Acquisition.CellVocabularyTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
 

@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Acquisition.QueueMatcherTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.QueueMatcher
   alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, PursuitRow, PursuitWithDownload}

@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.ReleaseTracking.PresentTest do
   @moduledoc "Pure presentation helpers for the Upcoming rail — labels, tones, descriptors, relative dates."
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
   alias MediaCentaurWeb.Components.ReleaseTracking.Present

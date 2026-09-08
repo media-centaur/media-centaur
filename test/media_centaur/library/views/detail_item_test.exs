@@ -15,7 +15,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
   established for `BrowseItem` (consumed alongside
   `Library.ProgressRecords.summaries/1`).
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.Views.DetailItem
 

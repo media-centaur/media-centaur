@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Setup.GateTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.IntegrationHealth.Status
   alias MediaCentaur.Setup.Gate

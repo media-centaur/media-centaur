@@ -1,5 +1,5 @@
 defmodule MediaCentaur.TMDB.ConfidenceTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
   alias MediaCentaur.TMDB.Confidence
 
   test "exact title match scores near 1.0" do

@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Watcher.SupervisorTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Repo
   alias MediaCentaur.Watcher.Supervisor, as: WatcherSupervisor
@@ -21,16 +21,12 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
     updated_config = Map.put(original_config, :media_dirs, [tmp_dir])
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, updated_config)
 
-    # Stop any existing watchers, then start fresh with our temp dir
-    WatcherSupervisor.stop_watchers()
     WatcherSupervisor.start_watchers()
     eventually(fn -> WatcherSupervisor.statuses() != [] end)
 
     on_exit(fn ->
-      WatcherSupervisor.stop_watchers()
       await_supervised_tasks()
       Ecto.Adapters.SQL.Sandbox.stop_owner(sandbox_owner)
-      :persistent_term.put({MediaCentaur.Settings.Config, :config}, original_config)
       File.rm_rf!(tmp_dir)
     end)
 

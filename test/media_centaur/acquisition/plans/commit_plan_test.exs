@@ -24,8 +24,6 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlanTest do
       |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
     )
 
-    on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, config) end)
-
     Req.Test.stub(:prowlarr, fn conn ->
       case {conn.method, conn.request_path} do
         {"GET", "/api/v1/indexer"} ->

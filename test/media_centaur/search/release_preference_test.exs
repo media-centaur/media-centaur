@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Search.ReleasePreferenceTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Search.{Quality, ReleasePreference, SearchResult}
 

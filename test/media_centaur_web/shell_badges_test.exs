@@ -106,8 +106,7 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
     end
 
     # Ingests into the app's global bucket cache (the one `compute_counts`
-    # reads); the returned fingerprint must be dismissed on exit so the
-    # in-memory cache doesn't leak into later tests.
+    # reads).
     defp ingest_global(level, message) do
       entry =
         Entry.new(%{
@@ -122,7 +121,6 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
       Buckets.ingest(entry)
 
       fingerprint = Fingerprint.fingerprint(:pipeline, message).key
-      on_exit(fn -> ErrorReports.dismiss([fingerprint]) end)
 
       # ingest/2 is a cast; the follow-up call serializes on the GenServer
       # so the bucket is guaranteed cached before we assert.

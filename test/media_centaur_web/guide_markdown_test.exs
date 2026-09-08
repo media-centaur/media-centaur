@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.GuideMarkdownTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   import Phoenix.LiveViewTest, only: [rendered_to_string: 1]
 

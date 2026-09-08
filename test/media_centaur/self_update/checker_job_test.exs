@@ -14,13 +14,8 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
     UpdateChecker.clear_cache()
 
     # CheckerJob.perform/1 short-circuits when SelfUpdate.enabled?() is false.
-    # Override to :prod so the job body runs; restore on exit.
+    # Override to :prod so the job body runs.
     Application.put_env(:media_centaur, :environment, :prod)
-
-    on_exit(fn ->
-      Application.put_env(:media_centaur, :environment, :test)
-      UpdateChecker.clear_cache()
-    end)
 
     :ok
   end
@@ -196,13 +191,6 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
   end
 
   defp set_config(key, value) do
-    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-    original = Map.get(config, key)
-    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))
-    on_exit(fn -> set_config_raw(key, original) end)
-  end
-
-  defp set_config_raw(key, value) do
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))
   end

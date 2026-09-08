@@ -1,5 +1,5 @@
 defmodule MediaCentaur.FormatTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Format
 

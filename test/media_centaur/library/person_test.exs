@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Library.PersonTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.Person
 

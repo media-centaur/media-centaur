@@ -2,7 +2,7 @@ defmodule MediaCentaur.Search.ReleaseRedFlagsTest do
   # Suspicious-release classification is parser-class: append-only per
   # ADR-027. Shapes here are the classic fake-release malware patterns
   # observed in the wild, with generic placeholder titles.
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Search.ReleaseRedFlags
 

@@ -82,16 +82,9 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       })
 
       # hero_candidates reads a global ETS projection; refresh it from this
-      # test's sandboxed rows and drop it afterwards so nothing leaks. With
-      # the projection populated, a backdrop would render if one were wired.
+      # test's sandboxed rows. With the projection populated, a backdrop
+      # would render if one were wired.
       MediaCentaur.Library.Views.HeroCandidates.refresh_cache()
-
-      on_exit(fn ->
-        case :ets.whereis(:library_view_hero_candidates) do
-          :undefined -> :ok
-          _ref -> :ets.delete(:library_view_hero_candidates)
-        end
-      end)
 
       {:ok, view, _html} = live_async!(conn, "/library")
 
@@ -892,11 +885,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     setup do
-      # Application env is not covered by GlobalStateSandbox, so the stub
-      # is restored by hand.
-      previous = Application.get_env(:media_centaur, :media_probe_runner)
       Application.put_env(:media_centaur, :media_probe_runner, StubProbeRunner)
-      on_exit(fn -> Application.put_env(:media_centaur, :media_probe_runner, previous) end)
 
       movie = create_standalone_movie(%{name: "Probed Movie"})
       file = create_linked_file(%{movie_id: movie.id})
@@ -1687,21 +1676,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     @cache_key {MediaCentaur.Capabilities, :ready_flags}
 
     setup do
-      cache_backup = :persistent_term.get(@cache_key, :__unset)
-
       :persistent_term.put(@cache_key, %{
         tmdb: true,
         prowlarr: false,
         download_client: false,
         acquisition: false
       })
-
-      on_exit(fn ->
-        case cache_backup do
-          :__unset -> :persistent_term.erase(@cache_key)
-          flags -> :persistent_term.put(@cache_key, flags)
-        end
-      end)
 
       # Unidentified movie (no tmdb_id) → the click takes the no-HTTP
       # pre-check branch and flashes, so this test never touches TMDB.

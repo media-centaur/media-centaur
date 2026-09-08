@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.StatusLive.HealthBoard
 

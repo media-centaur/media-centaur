@@ -1,5 +1,5 @@
 defmodule MediaCentaur.CacheTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Cache
 

@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Pipeline.ProducerTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Pipeline.Discovery.Producer, as: DiscoveryProducer
   alias MediaCentaur.Pipeline.Import.Producer, as: ImportProducer

@@ -45,6 +45,14 @@ defmodule MediaCentaur.TMDB.MetadataStats do
     :exit, _ -> empty_snapshot()
   end
 
+  @doc """
+  Returns the server to the empty snapshot. The app never needs this;
+  a test whose enrichment reached the singleton hands the next test an
+  empty feed.
+  """
+  @spec reset(GenServer.server()) :: :ok
+  def reset(server \\ __MODULE__), do: GenServer.call(server, :reset)
+
   @doc "Empty snapshot for the disconnected LiveView mount, before any enrichment."
   @spec empty_snapshot() :: map()
   def empty_snapshot, do: %{last_enriched_at: nil, total: 0, recent: []}
@@ -61,6 +69,8 @@ defmodule MediaCentaur.TMDB.MetadataStats do
 
   @impl true
   def handle_call(:snapshot, _from, state), do: {:reply, state.snapshot, state}
+
+  def handle_call(:reset, _from, state), do: {:reply, :ok, %{state | snapshot: empty_snapshot()}}
 
   @impl true
   def handle_cast({:enriched, entry}, %{snapshot: snapshot} = state) do

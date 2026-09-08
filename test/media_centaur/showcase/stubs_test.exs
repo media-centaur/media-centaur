@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Showcase.StubsTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Showcase.Stubs

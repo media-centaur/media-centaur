@@ -2,7 +2,7 @@ defmodule MediaCentaur.Watcher.StatusDetailTest do
   # async: false — starts real Watcher GenServers that register in the
   # application-wide Watcher.Registry. A unique non-existent dir per test keeps
   # registrations from colliding.
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Watcher
 

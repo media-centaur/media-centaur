@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Social.DevTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   import ExUnit.CaptureIO
 

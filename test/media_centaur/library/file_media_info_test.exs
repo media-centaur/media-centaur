@@ -36,9 +36,7 @@ defmodule MediaCentaur.Library.FileMediaInfoTest do
   end
 
   defp with_stub_runner do
-    previous = Application.get_env(:media_centaur, :media_probe_runner)
     Application.put_env(:media_centaur, :media_probe_runner, StubRunner)
-    on_exit(fn -> Application.put_env(:media_centaur, :media_probe_runner, previous) end)
   end
 
   describe "refresh_file_media_info/2 + file_media_info_by_paths/1" do

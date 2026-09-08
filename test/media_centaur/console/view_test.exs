@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Console.ViewTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Console.Entry
   alias MediaCentaur.Console.Filter

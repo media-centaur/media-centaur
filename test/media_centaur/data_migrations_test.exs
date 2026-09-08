@@ -10,7 +10,7 @@ defmodule MediaCentaur.DataMigrationsTest do
   # End-to-end verification happens via `mix ecto.migrate_data` against
   # a real DB — the dev workflow exercises the same code path that
   # production uses.
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.DataMigrations
 

@@ -27,15 +27,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
   # Helper kept as a no-op so legacy seed code still reads clearly.
   defp record_present(_file), do: :ok
 
-  defp on_exit_clear_table do
-    on_exit(fn ->
-      case :ets.whereis(@table) do
-        :undefined -> :ok
-        _ref -> :ets.delete(@table)
-      end
-    end)
-  end
-
   defp seed_present_movie(name, overrides \\ %{}) do
     attrs = Map.merge(%{name: name}, overrides)
     movie = create_standalone_movie(attrs)
@@ -102,8 +93,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
   describe "cold start — empty / whitespace query" do
     test "returns [] for empty query" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       assert :ok = Search.refresh_cache()
 
@@ -111,8 +100,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "returns [] for whitespace-only query" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       assert :ok = Search.refresh_cache()
 
@@ -122,8 +109,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
   describe "cold start — refresh_cache/0 indexes all entity kinds" do
     test "exact name match returns single result with score 1.0" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       seed_present_movie("Movie B")
 
@@ -134,8 +119,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "case-insensitive match" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
 
       assert :ok = Search.refresh_cache()
@@ -145,8 +128,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "prefix match scored above substring match" do
-      on_exit_clear_table()
-
       # "Movie Alpha" starts with "Movie" — prefix.
       # "The Movie Show" contains "Movie" mid-string — substring.
       seed_present_movie("Movie Alpha")
@@ -163,8 +144,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "results sorted by descending score then ascending name (stable for ties)" do
-      on_exit_clear_table()
-
       # Two entries with identical "Movie Z" / "Movie A" — both exact
       # matches for "Movie" prefix, same score; tie-break by name asc.
       seed_present_movie("Movie Z")
@@ -182,8 +161,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "respects :limit option" do
-      on_exit_clear_table()
-
       Enum.each(1..5, fn i -> seed_present_movie("Movie #{i}") end)
 
       assert :ok = Search.refresh_cache()
@@ -193,8 +170,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "respects :kind_filter (:movies only)" do
-      on_exit_clear_table()
-
       seed_present_movie("Sample Movie")
       seed_present_tv_series("Sample Show")
       seed_present_video_object("Sample Video")
@@ -208,8 +183,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "respects :kind_filter (:tv_series only)" do
-      on_exit_clear_table()
-
       seed_present_movie("Sample Movie")
       seed_present_tv_series("Sample Show A")
       seed_present_tv_series("Sample Show B")
@@ -222,8 +195,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "respects :kind_filter (:movie_series only)" do
-      on_exit_clear_table()
-
       seed_present_movie("Sample Movie")
       seed_present_movie_series("Sample Saga")
 
@@ -235,8 +206,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "respects :kind_filter (:video_objects only)" do
-      on_exit_clear_table()
-
       seed_present_movie("Sample Movie")
       seed_present_video_object("Sample Video")
 
@@ -248,8 +217,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test ":kind_filter :all is the default" do
-      on_exit_clear_table()
-
       seed_present_movie("Sample Movie")
       seed_present_tv_series("Sample Show")
 
@@ -261,8 +228,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "TV series, MovieSeries, VideoObject all indexed alongside Movies" do
-      on_exit_clear_table()
-
       seed_present_movie("Sample Movie")
       seed_present_tv_series("Sample Show")
       seed_present_movie_series("Sample Saga")
@@ -279,8 +244,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
   describe ":present_only filter" do
     test "present_only=false (default) includes all indexed entities" do
-      on_exit_clear_table()
-
       seed_present_movie("Sample Movie")
 
       assert :ok = Search.refresh_cache()
@@ -289,8 +252,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "present_only=false indexes both present and absent entities; :present_only=true filters absents out" do
-      on_exit_clear_table()
-
       # Present movie — has WatchedFile + KnownFile(state: :present).
       seed_present_movie("Present Movie")
 
@@ -318,8 +279,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "present? on stored rows reflects real presence (true for present, false for absent)" do
-      on_exit_clear_table()
-
       seed_present_movie("Present Movie")
 
       # Post-Phase-4 (library-presence-unification): absent = has a
@@ -339,8 +298,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
   describe "SearchItem shape" do
     test "has typed fields (struct, not string-key map)" do
-      on_exit_clear_table()
-
       seed_present_movie("Sample Movie", %{date_published: ~D[2010-06-01]})
 
       assert :ok = Search.refresh_cache()
@@ -356,8 +313,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "year derived from container.date_published when available" do
-      on_exit_clear_table()
-
       seed_present_movie("Year Movie", %{date_published: ~D[2010-06-01]})
 
       assert :ok = Search.refresh_cache()
@@ -367,8 +322,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "year is nil when container has no date_published" do
-      on_exit_clear_table()
-
       seed_present_movie("No-Year Movie", %{date_published: nil})
 
       assert :ok = Search.refresh_cache()
@@ -380,8 +333,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
   describe "refresh via library:updates" do
     test "newly created Movie becomes searchable after :entities_changed broadcast" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       :ok = Search.refresh_cache()
@@ -404,8 +355,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "renamed entity is no longer matched by old name" do
-      on_exit_clear_table()
-
       series = seed_present_tv_series("Old Name")
       :ok = Search.refresh_cache()
 
@@ -419,8 +368,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "deleted entity disappears from results" do
-      on_exit_clear_table()
-
       movie = seed_present_movie("Will Be Gone")
       :ok = Search.refresh_cache()
 
@@ -435,8 +382,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
   describe "broadcast contract" do
     test "emits {:library_view_updated, :search} on library:views after refresh" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       assert :ok = Search.refresh_cache()
@@ -445,8 +390,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "broadcasts even when the projection is empty" do
-      on_exit_clear_table()
-
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       assert :ok = Search.refresh_cache()
@@ -457,8 +400,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
   describe "refresh via library:availability" do
     test "file becoming present flips present? on the indexed row" do
-      on_exit_clear_table()
-
       # Post-Phase-4 (library-presence-unification): start with a
       # PlayableItem but no WatchedFile so Search indexes the entity
       # with present? = false. Stamping a WatchedFile flips it to true.
@@ -497,8 +438,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     end
 
     test "is idempotent — repeat refreshes replace the snapshot, no leak" do
-      on_exit_clear_table()
-
       seed_present_movie("Movie A")
       assert :ok = Search.refresh_cache()
       assert length(Views.search("Movie")) == 1
@@ -522,8 +461,6 @@ defmodule MediaCentaur.Library.Views.SearchTest do
     @query_ceiling 25
 
     test "refresh_cache issues a bounded number of queries regardless of entity count" do
-      on_exit_clear_table()
-
       # Seed 20 entities across all four kinds to exercise every bulk
       # lookup path. If lookups were N+1, query count would scale with
       # this count.

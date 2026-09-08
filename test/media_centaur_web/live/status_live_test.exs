@@ -270,11 +270,8 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       # dir_health rows for media dirs listed in config. Surface an
       # at-risk warning by configuring the test dir, then seeding a
       # Library.FilePresence row whose last_seen_at is older than the
-      # TTL threshold. Restore config on exit so we don't leak.
-      original_media_dirs = :persistent_term.get({MediaCentaur.Settings.Config, :config}).media_dirs
-
+      # TTL threshold.
       put_config(:media_dirs, ["/mnt/cold-storage"])
-      on_exit(fn -> put_config(:media_dirs, original_media_dirs) end)
 
       # Stamp a stale presence row (15 days old; TTL default is 30 so
       # this is still within TTL and shows up in the at-risk summary
@@ -302,8 +299,6 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     # breaks the line silently vanishes — this catches that. The per-piece
     # formatting is unit-tested in StatusHelpersTest.
     test "renders the last-scan line for a watching dir", %{conn: conn} do
-      original_media_dirs = :persistent_term.get({MediaCentaur.Settings.Config, :config}).media_dirs
-
       tmp_dir =
         Path.join(
           System.tmp_dir!(),
@@ -313,14 +308,9 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       File.mkdir_p!(tmp_dir)
       put_config(:media_dirs, [tmp_dir])
 
-      MediaCentaur.Watcher.Supervisor.stop_watchers()
       MediaCentaur.Watcher.Supervisor.start_watchers()
 
-      on_exit(fn ->
-        MediaCentaur.Watcher.Supervisor.stop_watchers()
-        put_config(:media_dirs, original_media_dirs)
-        File.rm_rf!(tmp_dir)
-      end)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
 
       # 1. Wait for the watcher to attach to the (real, existing) temp dir.
       eventually(fn ->

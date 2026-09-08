@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.StorybookCompileTest do
   Runs as part of `mix test` → `mix precommit`. ~5s for ~50 files.
   """
 
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   setup_all do
     # The storybook backend compiles in :test too (see

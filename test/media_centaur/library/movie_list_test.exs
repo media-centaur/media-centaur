@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Library.MovieListTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Library.MovieList
 

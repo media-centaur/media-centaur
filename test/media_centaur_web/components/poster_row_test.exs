@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.PosterRowTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Components.PosterRow.Item
 

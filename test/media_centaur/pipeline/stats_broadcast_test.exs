@@ -5,7 +5,7 @@ defmodule MediaCentaur.Pipeline.StatsBroadcastTest do
   any pipeline activity from a concurrently running module would land in
   this mailbox too.
   """
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Pipeline.Image.Stats, as: ImageStats
   alias MediaCentaur.Pipeline.Stats

@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Live.SettingsLive.ConnectionTestTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.Live.SettingsLive.ConnectionTest
 

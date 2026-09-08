@@ -17,10 +17,6 @@ defmodule MediaCentaur.SelfUpdateTest do
 
     UpdateChecker.clear_cache()
 
-    on_exit(fn ->
-      UpdateChecker.clear_cache()
-    end)
-
     :ok
   end
 

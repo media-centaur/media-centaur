@@ -5,17 +5,6 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
   alias MediaCentaur.Watcher.ConfigListener
   alias MediaCentaur.Watcher.Supervisor, as: WatcherSup
 
-  setup do
-    original = :persistent_term.get({Config, :config})
-
-    on_exit(fn ->
-      :ok = Config.put_media_dirs([])
-      :persistent_term.put({Config, :config}, original)
-    end)
-
-    :ok
-  end
-
   defp tmp_dir(label) do
     tmp = Path.join(System.tmp_dir!(), "watcher-#{label}-test-#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp)
@@ -42,7 +31,6 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
     setup do
       # No media dirs yet, so this starts no child — it turns watching on.
       WatcherSup.start_watchers()
-      on_exit(fn -> WatcherSup.stop_watchers() end)
       :ok
     end
 

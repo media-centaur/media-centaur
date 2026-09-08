@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.IncomingLive.HistoryLogicTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, PursuitRow}
   alias MediaCentaurWeb.IncomingLive.HistoryLogic, as: Logic

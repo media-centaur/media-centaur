@@ -1,5 +1,5 @@
 defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.SelfUpdate.AutoApply
   alias MediaCentaur.Topics
@@ -161,12 +161,6 @@ defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
 
   defp set_config(key, value) do
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-    original = Map.get(config, key)
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))
-
-    on_exit(fn ->
-      current = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-      :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(current, key, original))
-    end)
   end
 end

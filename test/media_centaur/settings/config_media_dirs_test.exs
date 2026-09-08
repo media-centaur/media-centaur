@@ -25,12 +25,6 @@ defmodule MediaCentaur.Settings.ConfigMediaDirsTest do
   end
 
   describe "put_media_dirs/1" do
-    setup do
-      original = :persistent_term.get({Config, :config})
-      on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
-      :ok
-    end
-
     test "persists, updates :persistent_term, and broadcasts" do
       :ok = Config.subscribe()
 
@@ -59,12 +53,6 @@ defmodule MediaCentaur.Settings.ConfigMediaDirsTest do
   end
 
   describe "migrate_media_dirs_from_toml/1" do
-    setup do
-      original = :persistent_term.get({Config, :config})
-      on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
-      :ok
-    end
-
     test "imports TOML dirs into a Settings entry with UUIDs" do
       toml_entries = [
         %{"dir" => "/mnt/a", "images_dir" => nil},
@@ -100,12 +88,6 @@ defmodule MediaCentaur.Settings.ConfigMediaDirsTest do
   end
 
   describe "refresh_media_dirs_from_settings/0" do
-    setup do
-      original = :persistent_term.get({Config, :config})
-      on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
-      :ok
-    end
-
     test "rebuilds :media_dirs and :media_dir_images from the Settings entry" do
       {:ok, _} =
         Settings.find_or_create_entry(%{

@@ -7,7 +7,7 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospectionTest do
     test "test using public API is allowed" do
       ~S'''
       defmodule MyTest do
-        use ExUnit.Case
+        use MediaCentaur.Case, async: false
 
         test "via public API" do
           assert MyServer.count() == 0
@@ -37,7 +37,7 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospectionTest do
     test "GenServer.call in a test is reported" do
       ~S'''
       defmodule MyTest do
-        use ExUnit.Case
+        use MediaCentaur.Case, async: false
 
         test "drives the server by message" do
           :ok = GenServer.call(MyServer, :sync)
@@ -52,7 +52,7 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospectionTest do
     test "GenServer.cast in a test is reported" do
       ~S'''
       defmodule MyTest do
-        use ExUnit.Case
+        use MediaCentaur.Case, async: false
 
         test "drives the server by message" do
           :ok = GenServer.cast(MyServer, {:record, 1})
@@ -80,7 +80,7 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospectionTest do
     test ":sys.get_state in test is reported" do
       ~S'''
       defmodule MyTest do
-        use ExUnit.Case
+        use MediaCentaur.Case, async: false
 
         test "peeks at internal state" do
           state = :sys.get_state(MyServer)
@@ -96,7 +96,7 @@ defmodule MediaCentaur.Credo.Checks.NoSysIntrospectionTest do
     test ":sys.replace_state in test is reported" do
       ~S'''
       defmodule MyTest do
-        use ExUnit.Case
+        use MediaCentaur.Case, async: false
 
         test "rewrites state" do
           :sys.replace_state(MyServer, fn state -> %{state | count: 5} end)

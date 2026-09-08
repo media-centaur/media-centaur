@@ -55,6 +55,14 @@ defmodule MediaCentaur.TMDB.RateLimiter do
     GenServer.call(__MODULE__, :status)
   end
 
+  @doc """
+  Empties the window: every slot is available again. The app never needs
+  this — the window drains on its own — but a test that filled it must
+  hand the next test an empty one.
+  """
+  @spec reset() :: :ok
+  def reset, do: GenServer.call(__MODULE__, :reset)
+
   @impl true
   def init(opts) do
     rate = opts[:rate] || @default_rate
@@ -75,6 +83,9 @@ defmodule MediaCentaur.TMDB.RateLimiter do
       {:reply, {:retry_after, wait_ms}, state}
     end
   end
+
+  @impl true
+  def handle_call(:reset, _from, state), do: {:reply, :ok, %{state | timestamps: :queue.new()}}
 
   @impl true
   def handle_call(:status, _from, state) do

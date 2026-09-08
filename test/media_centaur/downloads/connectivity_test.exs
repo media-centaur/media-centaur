@@ -6,7 +6,7 @@ defmodule MediaCentaur.Downloads.ConnectivityTest do
   cadence they had to mirror (and which drifted), flagging a perfectly
   healthy client as offline whenever a snapshot was a few seconds old.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Downloads.Connectivity
 

@@ -5,7 +5,7 @@ defmodule MediaCentaur.TMDB.TitleTest do
   enforced constructor — a missing identity or name crashes at the data
   layer instead of rendering a broken row.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.TMDB.Title
 

@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Components.TMDB.TitleSummaryTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   import Phoenix.Component
   import Phoenix.LiveViewTest

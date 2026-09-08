@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Console.JournalSourceTest do
-  use ExUnit.Case, async: false
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Console.{Entry, JournalSource}
   alias MediaCentaur.Topics

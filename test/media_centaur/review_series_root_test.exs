@@ -5,7 +5,7 @@ defmodule MediaCentaur.ReviewSeriesRootTest do
   one approve/reject decision. Pure path arithmetic, so it lives here as an
   async unit test rather than inside the DataCase-bound `ReviewTest`.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Review
 

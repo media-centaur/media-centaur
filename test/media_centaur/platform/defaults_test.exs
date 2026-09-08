@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Platform.DefaultsTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Platform.Defaults
 

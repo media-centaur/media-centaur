@@ -3,7 +3,7 @@ defmodule MediaCentaur.TopicsTest do
   The transport seam introduced by ADR-060. `Topics` owns the PubSub
   server name so no other module has to know it.
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Topics
 

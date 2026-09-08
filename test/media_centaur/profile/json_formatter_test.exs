@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Profile.JSONFormatterTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Profile.{JSONFormatter, RunData}
 

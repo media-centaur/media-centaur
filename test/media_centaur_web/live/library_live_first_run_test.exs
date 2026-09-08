@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.LibraryLiveFirstRunTest do
   Pure function tests for the Library page's first-run empty-state logic
   ([ADR-030] LiveView logic extraction).
   """
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaurWeb.LiveHelpers
 

@@ -39,7 +39,7 @@ defmodule MediaCentaur.Credo.Checks.OneModulePerFileTest do
       end
 
       defmodule MediaCentaur.IntegrationHealthTest do
-        use ExUnit.Case
+        use MediaCentaur.Case, async: false
       end
       '''
       |> to_source_file("test/media_centaur/integration_health_test.exs")

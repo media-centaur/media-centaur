@@ -1,5 +1,5 @@
 defmodule MediaCentaur.HttpClient.CacheTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.Case, async: true
 
   alias MediaCentaur.HttpClient
   alias MediaCentaur.HttpClient.Cache
