@@ -154,5 +154,24 @@ still applies to what counts as "slow".
   the wrapper must compile once and fork. Acceptable for the
   wall-time win on a 12-core box.
 
+## Amendment 2026-09-08 — a sync test checks the machine out and back in
+
+The `DataCase` drain this ADR set out to remove is gone. It killed a
+lingering task after 100 ms and said nothing, which hid the tests that
+left one. In its place, `MediaCentaur.GlobalStateSandbox` checks every
+`async: false` test out at entry and back in at exit (through the root
+template `MediaCentaur.Case`, which `DataCase` and `ConnCase` compose):
+restorable global state — app-owned `:persistent_term`, the application
+env, singletons with a reset — is put back silently; everything else —
+registered processes, app-owned ETS tables, live `TaskSupervisor`
+children, probed singleton state — is verified against the baseline and
+a difference **fails the test that made it**. A live task at check-in is
+a test that did not drive its async work to completion, which Principle
+2 already requires; there is no grace window, because a threshold under
+load is a flake. Static half: MC0035 (every test module states its
+ownership through the template) and MC0036 (no global-state write in an
+async module or in `setup_all`). Design:
+`docs/plans/2026-09-08-test-suite-determinism-checkout-design.md`.
+
 [ADR-030]: 2026-04-02-030-liveview-logic-extraction.md
 [ADR-044]: 2026-05-14-044-no-blocking-io-in-liveview-handlers.md

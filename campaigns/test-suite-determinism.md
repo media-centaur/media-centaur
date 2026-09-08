@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-09-08
 last_updated: 2026-09-08
 ---
@@ -20,9 +20,27 @@ measured about each. It does not prescribe fixes.
 
 ## Status
 
-Measured 2026-09-08 at `9a2113af`: six full runs, one of them under a per-test
-state probe (`MediaCentaur.StateProbeFormatter`, below). No approach chosen; a
-design direction is proposed under *Next steps* and is not decided.
+**A and B built 2026-09-08, C fixed at its one site; verification across
+seeds remaining.** The design
+([`docs/plans/2026-09-08-test-suite-determinism-checkout-design.md`](../docs/plans/2026-09-08-test-suite-determinism-checkout-design.md))
+was decided on soundness alone and implemented the same day:
+
+* `MediaCentaur.Case` is the root template every test module uses;
+  `DataCase`/`ConnCase` compose it. A sync test is checked out at entry and
+  back in at exit by `MediaCentaur.GlobalStateSandbox`: restorable state put
+  back, verified state compared, a leak contained and raised as
+  `GlobalStateSandbox.Leak` on the test that made it.
+* `:accepted` is gone. Dispositions are `:sandboxed`, `:unobservable`,
+  `{:reset, mfa}`, `{:probe, mfa}`; the inventory test checks the functions
+  exist and the probes read their baseline at rest.
+* A live `TaskSupervisor` child at check-in fails the test (B's detector);
+  the `DataCase` drain is gone.
+* MC0035 and MC0036 are the static half.
+* Six full runs at `9a2113af` measured the problems (table below); after the
+  change, one full run at seed 281658 is green with zero leaks, back to back
+  with the old harness at the same wall time (82.4 s vs 82.5 s).
+
+Measured before the change, at `9a2113af`:
 
 | Run | Result | What the log said |
 |---|---|---|
@@ -33,8 +51,7 @@ design direction is proposed under *Next steps* and is not decided.
 | seed 310401 | 1 failure | `integration_health/verifier_test.exs:28` — found a Prowlarr URL in Config; one orphaned `:tmdb` task crash |
 | seed 281658, probed | green | 356 of 2,926 sync tests exit with an app-owned `:persistent_term` key off the pristine baseline |
 
-Neither failure is the leak fixed in `9451b095`, and they are not the same
-class as each other. Instances are also logged in the session memory
+Instances are also logged in the session memory
 `project-suite-residual-concurrency-flakes`.
 
 ## The problems
@@ -200,29 +217,24 @@ ordering-attribution problem has nothing left to attribute.
   instrument, not a fix. It is opt-in through `--formatter` and changes
   nothing in a normal run. It is the first thing in the suite that says which
   test *wrote* a piece of global state rather than which test read it.
+* `2026-09-08` — Design decided on soundness alone (owner's instruction:
+  "regardless of the work it takes"), recorded in the design doc, and built.
+  One root template rather than a sync-only one; zero tolerance for a live
+  task; entry-dirty fails the first sync test; no prose disposition;
+  supervisor-aware containment (killing a supervised child stopped the
+  application on day one); `setup_all` is outside every checkout.
+* `2026-09-08` — The `DataCase` drain is retired: it hid problem B. ADR-049
+  amended.
 
 ## Next steps
 
-Design A first; B and C are independent of it and of each other, and smaller.
-
-1. **A — a design conversation, not yet had.** The candidate direction, to be
-   argued rather than assumed: put containment on the edge that exists.
-   Every `async: false` test uses one sync case template (Credo-enforced, so
-   a bare `use ExUnit.Case, async: false` is a violation), and that template
-   restores at entry *and verifies at exit* against the same baseline —
-   failing the test that left state behind, with the diff. An `:accepted`
-   disposition then has to be a probe, not a sentence. ETS table names and
-   the application env join the baseline under the same namespace rule
-   `:persistent_term` already uses.
-2. **B** — make the orphan attributable before fixing it: a teardown that
-   finds a live supervised task fails the test instead of killing it quietly.
-   Then trace and fix the seam it names, starting with the discovery-watchlist
-   artwork spawn.
-3. **C** — raise the positive ceiling at `review_live_test.exs:97`. A
-   positive ceiling costs nothing when the test passes
-   ([`serial-test-audit.md`](serial-test-audit.md)); a `refute` ceiling would.
-4. Every step is checked the same way it was measured: re-run the probe and
-   read the "exit dirty" count down.
+1. Run the full suite at several seeds with the test count varied (pad with
+   inert async tests) and confirm zero leaks and zero failures; record the
+   seeds here.
+2. Trace the artwork spawn that outlived `discovery_live_test.exs`'s await
+   (B's remaining seam): with zero tolerance it now fails the test that
+   causes it, or it has stopped reproducing — find out which.
+3. Close the campaign: bucket every remaining item by destination.
 
 ## Completion criteria
 
@@ -237,7 +249,12 @@ Design A first; B and C are independent of it and of each other, and smaller.
 
 * `test/support/global_state_sandbox.ex` — the inventory and its vocabulary.
 * `test/support/data_case.ex` — sandbox setup and the teardown orphan drain.
-* `test/support/task_awaits.ex` — the opt-in task drain.
+* `test/support/case.ex` — the root template; `test/support/global_state_sandbox/`
+  — the snapshot value type and the leak error.
+* `test/support/task_awaits.ex` — how a test drives its supervised tasks to
+  completion.
+* `credo_checks/test_case_template.ex` (MC0035),
+  `credo_checks/global_state_writes_checked_out.ex` (MC0036).
 * `test/support/state_probe_formatter.ex` — the per-test state probe; its
   moduledoc has the run recipe.
 * `test/media_centaur/global_state_sandbox_test.exs` — the two checks that do

@@ -2,8 +2,8 @@
 
 Campaign: [`campaigns/test-suite-determinism.md`](../../campaigns/test-suite-determinism.md),
 problem A. Written with the `unify_design` pass: core idea, greenfield shape,
-diff against the code, each incoherence decided, cost named. **Not decided** —
-the owner approves the trade before any implementation.
+diff against the code, each incoherence decided, cost named. **Decided and built
+2026-09-08** — see *Decisions* at the end.
 
 ## Glossary
 

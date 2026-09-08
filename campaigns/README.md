@@ -61,16 +61,15 @@ Use [`template.md`](template.md) as a starter.
   means owning the fan-out Prowlarr exists to provide, and may be declined.
   No code yet.
 * [`test-suite-determinism.md`](test-suite-determinism.md) —
-  **measured 2026-09-08, design not chosen.** A full `mix test` should pass or
-  fail on the code, not on the order ExUnit picked. Six full runs at one
-  commit: two failures, different tests, different classes. The seven
-  catalogued problems are three — containment sits at the wrong edge (the
-  harness restores at the entry of `DataCase` tests only, so a plain sync
-  test reads what the previous one left; 356 of 2,926 sync tests exit dirty),
-  a supervised task outlives its `Req.Test` owner, and deadline pressure
-  under load. A per-test state probe (`MediaCentaur.StateProbeFormatter`,
-  opt-in) now says which test wrote a piece of global state. Wall time is
-  `serial-test-audit`'s and stays there.
+  **built 2026-09-08, seed verification remaining.** A full `mix test` should
+  pass or fail on the code, not on the order ExUnit picked. A sync test now
+  checks the machine out and back in (`MediaCentaur.Case` →
+  `GlobalStateSandbox`): app-owned `:persistent_term`, the app env and
+  reset-able singletons are restored at exit; a leaked process, ETS table or
+  live supervised task fails the test that made it. `:accepted` is gone from
+  the disposition vocabulary; MC0035/MC0036 are the static half; the
+  `DataCase` drain is retired. Same wall time as before, back to back. Wall
+  time itself is `serial-test-audit`'s and stays there.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and

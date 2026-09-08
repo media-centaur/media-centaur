@@ -49,8 +49,10 @@ re-measure before acting on it, because the numbers drift with machine load.
 2. **Convert the third bucket first.** A file with no reason is either a free
    win or a latent isolation bug that async exposes. Either outcome is worth
    having; the second is worth more.
-3. **For the global-state bucket, check `GlobalStateSandbox`.** It already
-   restores every `:persistent_term` key the app owns before each sync test.
+3. **For the global-state bucket, check `GlobalStateSandbox`.** A sync test
+   is checked out and back in: app-owned `:persistent_term` and app env are
+   restored at exit, and MC0036 is the exact criterion for converting a file
+   to `async: true` — it may not write global state at all.
    A file serial only because it writes state the sandbox already handles may
    not need to be. A file that writes state the sandbox does *not* handle is a
    candidate for extending the sandbox rather than for staying serial.
