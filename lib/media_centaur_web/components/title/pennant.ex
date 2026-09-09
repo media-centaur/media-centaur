@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Discovery.Pennant do
+defmodule MediaCentaurWeb.Components.Title.Pennant do
   @moduledoc """
   The pennant: what friends did with a title, as flags flying inward
   from the right edge of the surface the title is on — the mast. It is

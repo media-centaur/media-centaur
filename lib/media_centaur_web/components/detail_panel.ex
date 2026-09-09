@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     only: [format_type: 1, format_human_duration: 1]
 
   alias MediaCentaurWeb.Components.CinematicShell
-  alias MediaCentaurWeb.Components.Discovery.Pennant
+  alias MediaCentaurWeb.Components.Title.Pennant
   alias MediaCentaurWeb.Components.Detail.CastPanel
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.CollectionRail
