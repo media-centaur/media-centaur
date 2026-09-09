@@ -288,7 +288,7 @@ tabs project one enriched list — every live activity with its actor
 
 What friends did with a title — recommended and how much, watched, or
 tracking — is one component everywhere, the pennant
-(`Components.Discovery.Pennant`, UIDR-037), fed by
+(`Components.Title.Pennant`, UIDR-037), fed by
 `Activities.friend_activity_for/1` on the watchlist rows, the Incoming
 search rows and both detail modals, and by the row's own activities on the
 Recommendations tab. See `docs/plans/2026-09-05-recommendation-pennant.md`
