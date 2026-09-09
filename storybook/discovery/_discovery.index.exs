@@ -4,8 +4,6 @@ defmodule MediaCentaurWeb.Storybook.Discovery do
   def folder_open?, do: false
   def folder_icon, do: {:fa, "compass", :light, "psb:mr-1"}
 
-  def entry("title_row"), do: [icon: {:fa, "bookmark", :thin}, name: "Title row"]
-
   def entry("person_card"), do: [icon: {:fa, "user", :thin}, name: "Person card"]
 
   def entry("title_detail_modal"),

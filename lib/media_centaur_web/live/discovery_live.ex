@@ -57,8 +57,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
-  alias MediaCentaurWeb.Components.Discovery.{PersonCard, TitleDetailModal, TitleRow}
+  alias MediaCentaurWeb.Components.Discovery.{PersonCard, TitleDetailModal}
   alias MediaCentaurWeb.Components.TabStrip.Tab
+  alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
   alias MediaCentaurWeb.DiscoveryLive.Logic
   alias MediaCentaurWeb.DiscoveryLive.People
