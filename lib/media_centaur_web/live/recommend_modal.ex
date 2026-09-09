@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
+defmodule MediaCentaurWeb.Live.RecommendModal do
   @moduledoc """
   The Recommend modal: the title being recommended, the sentiment as two
   pennants (like preselected, love the stronger word) — the choice is a
@@ -8,8 +8,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
 
   Pure rendering over `MediaCentaurWeb.Live.RecommendFlow`'s assigns;
   `recommend_send` (form submit) and `recommend_cancel` bubble to the
-  host, which is `DiscoveryLive` for watchlist rows and any `EntityModal`
-  host for the library detail page.
+  host: any `EntityModal` host for a title with files, any
+  `TitleDetailHost` host for one without.
   """
   use MediaCentaurWeb, :html
 

@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaur.Topics
 
   alias MediaCentaurWeb.Components.LibraryCards
-  alias MediaCentaurWeb.DiscoveryLive.RecommendModal
+  alias MediaCentaurWeb.Live.RecommendModal
 
   import MediaCentaurWeb.LibraryHelpers
   import MediaCentaurWeb.LibraryFormatters

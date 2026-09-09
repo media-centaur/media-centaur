@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.HomeLive do
     PosterRow
   }
 
-  alias MediaCentaurWeb.DiscoveryLive.RecommendModal
+  alias MediaCentaurWeb.Live.RecommendModal
   alias MediaCentaurWeb.HomeLive.Logic
 
   @impl true
