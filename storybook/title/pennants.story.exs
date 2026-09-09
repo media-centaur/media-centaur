@@ -3,7 +3,9 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
   The pennant (UIDR-037): what friends did with a title, flying from the
   right edge of whatever the title is on. One shape at every width, one
   flag per kind of act. The template gives each variation a row-shaped
-  surface with the mast pinned to its edge, as a Discovery row does.
+  surface with the mast pinned to its edge, as a Discovery row does —
+  content-height over a one-row minimum, like the real row, so a full
+  four-flag mast is shown rather than clipped.
   """
 
   use PhoenixStorybook.Story, :component
@@ -16,7 +18,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
 
   def template do
     """
-    <div class="glass-surface flex h-16 w-80 items-center justify-end overflow-hidden rounded-xl pl-4">
+    <div class="glass-surface flex min-h-16 w-80 items-center justify-end overflow-hidden rounded-xl py-3 pl-4">
       <.psb-variation/>
     </div>
     """
