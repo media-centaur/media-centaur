@@ -46,18 +46,27 @@ Effect: the gradient only paints when `body` has the sandbox class. The live app
 ### 2. Reset chrome to a light scheme
 
 ```css
-html.psb {
+html.psb:not(.psb\:dark) {
   color-scheme: light;
 }
 
-html.psb body {
-  background-color: white;
+html.psb:not(.psb\:dark) body {
+  background-color: var(--color-base-100);
   background-image: none;
   color: oklch(20% 0.015 264);
 }
 ```
 
 This kicks in only inside storybook's chrome (`html.psb`). Browser defaults flip back to dark-on-light, our gradient is suppressed, body text is dark.
+
+The `:not(.psb\:dark)` guard exists because the backend sets `color_mode: true`. The header picker adds a `psb:dark` class to `<html>` for dark mode, where storybook's own `psb:dark:*` utilities style the chrome — leaving this rule unguarded would paint dark text on dark panels.
+
+Note which declarations actually land: storybook imports our stylesheet as
+`@import url("/assets/css/app.css") layer(app)`, and its chrome utilities
+(`.psb .psb\:bg-white`, in a later layer) beat anything in `layer(app)` no
+matter how specific. So `color-scheme` and `color` apply; the `background-*`
+declarations are inert in the chrome document and only matter inside the
+component iframe, which loads our css without the chrome bundle.
 
 ### 3. Restore dark theme inside component preview sandboxes
 
@@ -161,7 +170,7 @@ Expected on a `:page` story (welcome):
 }
 ```
 
-If `htmlColorScheme` is `"dark"`, the `html.psb` reset isn't winning specificity. If `sandboxColorScheme` is `"light"` on a component story, the `.psb-variation-block .media-centaur` rule isn't matching.
+If `htmlColorScheme` is `"dark"` while the picker says light, the `html.psb:not(.psb\:dark)` reset isn't winning specificity. If `sandboxColorScheme` is `"light"` on a component story, the `.psb-variation-block .media-centaur` rule isn't matching.
 
 ## Color modes (currently unused)
 

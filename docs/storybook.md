@@ -137,6 +137,7 @@ Every function component is either covered, deliberately skipped with a reason, 
 
 - **Tailwind v4 source globs.** `storybook/` is added to `assets/css/app.css` `@source` directives so utility classes inside variations compile. New top-level dirs need the same treatment.
 - **Theme.** The storybook iframe loads our real `app.css` so the body gradient + glass surfaces work. Do not rely on a separate `storybook.css` — it was deleted on setup and should not return.
+- **Color mode.** The backend sets `color_mode: true`, so the header carries a light/dark/system picker for storybook's own chrome. It toggles a `psb:dark` class on `<html>`; our chrome override in `app.css` is scoped to `:not(.psb\:dark)` so it only fires in light mode. Component previews are dark in every mode — the app is dark-only, so the `dark` class the picker adds to the sandbox matches nothing.
 - **Boundary.** See "Boundary requirement" above. Story modules must be `MediaCentaurWeb.Storybook.*`.
 - **Stateful components.** If a component depends on `data-input` modes or sticky LiveView state, write a static example illustrating the visual outcome — do not synthesize fake input state.
 - **Fake data lives in the story.** Don't import factories from `test/support`; story fixtures should be obvious literals so a designer reading the story can reason about the rendered output.

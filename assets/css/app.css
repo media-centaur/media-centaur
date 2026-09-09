@@ -217,15 +217,21 @@ html {
    container `.media-centaur` so component previews still render with
    the real theme, glass gradient, and daisyUI variants.
 
-   Body bg is set to the app's dark base so the surrounding "frame"
-   matches the live UI — going from app → storybook is a tonal shift,
-   not a black→white flip. The chrome's own panels still render light
-   for readability; component previews still render dark. */
-html.psb {
+   Only `color` actually lands on the chrome body: storybook imports our
+   css as `@import url(app.css) layer(app)`, and its own `psb:bg-white`
+   utility sits in a later layer, so the background declarations below are
+   inert here. They still apply in the component iframe, which loads our
+   css without the chrome bundle.
+
+   Scoped to `:not(.psb\:dark)`: the backend sets `color_mode: true`, and
+   the header picker adds `psb:dark` to `<html>` for dark chrome, where
+   storybook's own `psb:dark:*` utilities do the styling and this override
+   would put dark text on dark panels. */
+html.psb:not(.psb\:dark) {
   color-scheme: light;
 }
 
-html.psb body {
+html.psb:not(.psb\:dark) body {
   background-color: var(--color-base-100);
   background-image: none;
   color: oklch(20% 0.015 264);
@@ -237,7 +243,11 @@ html.psb body {
    `.psb-variation-block`, so they stay light like the chrome). This gives
    us light docs + dark component previews — visually consistent with
    storybook's chrome design while still showing components in their real
-   theme. */
+   theme.
+
+   Deliberately not gated on the color-mode picker: the app has no light
+   palette, so previews are dark in light, dark, and system mode alike. The
+   `dark` class the picker drops on the sandbox matches nothing here. */
 html.psb .psb-variation-block .media-centaur {
   color-scheme: dark;
   color: var(--color-base-content);
