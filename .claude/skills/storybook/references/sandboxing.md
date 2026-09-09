@@ -74,15 +74,14 @@ component iframe, which loads our css without the chrome bundle.
 html.psb .psb-variation-block .media-centaur {
   color-scheme: dark;
   color: var(--color-base-content);
-  background:
-    radial-gradient(ellipse at 20% 15%, var(--glass-gradient-a), transparent 60%),
-    radial-gradient(ellipse at 80% 80%, var(--glass-gradient-b), transparent 60%),
-    var(--color-base-100);
+  background: var(--color-base-100);
   border-radius: 0.375rem;
 }
 ```
 
-`.psb-variation-block` is only present on **component story** pages — never on `:page` story pages. So `:page` stories (welcome, future docs) stay in the chrome's light scheme; component previews get our dark theme + gradient + glass surfaces.
+`.psb-variation-block` is only present on **component story** pages — never on `:page` story pages. So `:page` stories (welcome, future docs) stay in the chrome's light scheme; component previews get our dark theme and glass surfaces.
+
+The backdrop is flat `base-100`, not the app's gradient. The gradient positions its two ellipses at fixed page coordinates; inside a preview block a fraction of a page's size, that lands as arbitrary colored smudges under the component rather than a wash. Judge gradient-dependent glass work in the app, not here.
 
 The selector specificity is `(0,2,2)` which beats daisyUI's `:root` rules.
 
