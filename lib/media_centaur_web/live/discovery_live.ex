@@ -479,7 +479,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               icon="hero-bookmark"
               headline="Titles you save land here"
             >
-              Bookmark a title from a search or its detail view and it is kept here until you
+              Bookmark a title from its detail view and it is kept here until you
               watch it.
               <:action>
                 <.button

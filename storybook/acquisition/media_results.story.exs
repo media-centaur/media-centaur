@@ -1,11 +1,12 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
   @moduledoc """
   The flat media-search answer sheet — TMDB results as page content
-  below the omnibox (no floating overlay). Rows carry poster thumb,
-  identity line, overview, the row verb (Download / More info), and
-  a sibling bookmark toggle for the watchlist; rows the library already
-  presents carry a quiet In library marker. The header row holds the
-  search status and the Clear search reset.
+  below the omnibox (no floating overlay). Each row is identity (poster
+  thumb, name, quiet type/year text, overview) plus quiet text markers —
+  In library, On your list, Tracking: …, Next: … — with no verb or
+  bookmark of its own; the whole card opens the title detail modal,
+  where every action lives (spec 2026-09-05 §14). The header row holds
+  the search status and the Clear search reset.
   """
 
   use PhoenixStorybook.Story, :component
@@ -48,7 +49,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         name: "Sample Upcoming Show",
         year: "2999",
         release_date: ~D[2999-03-01],
-        overview: "Already tracked and not yet out — More info opens the title detail."
+        overview: "Already tracked and not yet out."
       }
     ]
   end
@@ -75,21 +76,20 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         description:
           "The answer sheet: one row per TMDB hit in relevance order — poster thumb " <>
             "(fake paths render broken outside the app; the icon fallback shows the " <>
-            "no-poster treatment), identity line with quiet type/year text, overview, " <>
-            "tracked marker, and the row verb. Each row ends in the bookmark toggle — " <>
-            "filled primary on Sample Movie (watchlisted), ghost elsewhere — and " <>
-            "Sample Show carries the quiet In library marker. The upcoming/released " <>
-            "chips sit between the box and the rows with counts.",
+            "no-poster treatment), identity line with quiet type/year text, and overview. " <>
+            "Sample Show carries the quiet In library marker, Sample Movie reads On your " <>
+            "list, and Sample Upcoming Show reads Tracking: Follow. The upcoming/released " <>
+            "chips sit between the box and the rows with counts; the whole card opens the " <>
+            "title detail modal, where every action lives.",
         attributes: %{
           query: "sample",
           results: results(),
           searching?: false,
-          release_mode_available: true,
           scope: :all,
           today: ~D[2026-08-02],
-          title_rungs: %{{777, :movie} => :list},
+          title_rungs: %{{777, :movie} => :list, {779, :tv_series} => :follow},
           in_library_refs: MapSet.new([{246_810, :tv_series}]),
-          tracked_refs: MapSet.new([{246_810, :tv_series}, {779, :tv_series}]),
+          default_grab_mode: "off",
           friend_activity_by_ref: %{
             {777, :movie} => [recommendation(777, "Sample Friend", :love)],
             {778, :movie} => [
@@ -108,10 +108,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           query: "sample",
           results: results(),
           searching?: false,
-          release_mode_available: true,
           scope: :upcoming,
           today: ~D[2026-08-02],
-          tracked_refs: MapSet.new([{246_810, :tv_series}, {779, :tv_series}])
+          default_grab_mode: "off"
         }
       },
       %Variation{
@@ -123,24 +122,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           query: "sample",
           results: Enum.take(results(), 2),
           searching?: false,
-          release_mode_available: true,
           scope: :upcoming,
-          today: ~D[2026-08-02]
-        }
-      },
-      %Variation{
-        id: :track_only,
-        description:
-          "No indexer configured — the row verb honestly reads Track; nothing " <>
-            "promises a grab the page can't make. (Also the Released scope: both " <>
-            "rows are out.)",
-        attributes: %{
-          query: "sample",
-          results: Enum.take(results(), 2),
-          searching?: false,
-          release_mode_available: false,
-          scope: :released,
-          today: ~D[2026-08-02]
+          today: ~D[2026-08-02],
+          default_grab_mode: "off"
         }
       },
       %Variation{
@@ -150,18 +134,21 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           query: "sample",
           results: Enum.take(results(), 1),
           searching?: true,
-          release_mode_available: true
+          default_grab_mode: "off"
         }
       },
       %Variation{
         id: :no_results,
-        description: "The honest empty answer, with Clear search as the one reset.",
+        description:
+          "The honest empty answer, with Clear search as the one reset — here under the " <>
+            "Released scope, which is as empty as any other.",
         attributes: %{
           query: "zzzzz",
           results: [],
           searching?: false,
-          release_mode_available: true,
-          metadata_available: true
+          metadata_available: true,
+          scope: :released,
+          default_grab_mode: "off"
         }
       },
       %Variation{
@@ -173,8 +160,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           query: "sample show",
           results: [],
           searching?: false,
-          release_mode_available: false,
-          metadata_available: false
+          metadata_available: false,
+          default_grab_mode: "off"
         }
       },
       %Variation{
@@ -186,7 +173,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           query: "z",
           results: [],
           searching?: false,
-          release_mode_available: true
+          default_grab_mode: "off"
         }
       }
     ]
