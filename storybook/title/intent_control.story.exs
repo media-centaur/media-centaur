@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Storybook.Discovery.IntentControl do
+defmodule MediaCentaurWeb.Storybook.Title.IntentControl do
   @moduledoc """
   The ladder control (UIDR-035): Off · List · Follow · Ask · Grab ·
   Default, the pressed rung `aria-pressed`, with the selected rung's
@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IntentControl do
   """
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.Components.Discovery.IntentControl.intent_control/1
+  def function, do: &MediaCentaurWeb.Components.Title.IntentControl.intent_control/1
 
   defp base(overrides) do
     Map.merge(

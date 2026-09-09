@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Discovery.IntentControl do
+defmodule MediaCentaurWeb.Components.Title.IntentControl do
   @moduledoc """
   The one control for a title, mounted by every title surface (UIDR-035):
   a pick-one-of-six for the rung a person's `Discovery.TitleIntent` sits
