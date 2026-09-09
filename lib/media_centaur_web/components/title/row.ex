@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   entry — as a whole-card click target opening the title detail modal
   (spec 2026-09-05 §14). The shared `title_summary/1` identity block, an
   optional lead line (the Recommendations tab's `<names> · when`), the
-  quiet markers the host computed (`Logic.row_markers/1`),
+  quiet markers the host computed (`Logic.row_markers/2`),
   and the notes in place of the overview: one unattributed note reads
   plain, several carry their names (UIDR-031). State is shown, never
   acted on here: every verb lives in the modal.
@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
     default: nil,
     doc: "the Recommendations tab's names/when line; nil on the watchlist"
 
-  attr :markers, :list, default: [], doc: "quiet text markers from `Logic.row_markers/1`"
+  attr :markers, :list, default: [], doc: "quiet text markers from `Logic.row_markers/2`"
 
   attr :notes, :list,
     default: [],
