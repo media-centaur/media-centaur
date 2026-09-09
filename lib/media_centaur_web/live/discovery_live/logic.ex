@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.Logic do
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
-  alias MediaCentaurWeb.Components.Discovery.TitleDetail
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.Present
 
   @type acquisition_state :: :planning | :downloading | :needs_review | nil

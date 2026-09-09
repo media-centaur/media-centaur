@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Title.Pennant
-  alias MediaCentaurWeb.Components.Discovery.TitleDetail
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Components.Title.IntentControl

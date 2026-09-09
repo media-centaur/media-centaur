@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Components.Detail.TitlePreview
-  alias MediaCentaurWeb.Components.Discovery.TitleDetail
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.DiscoveryLive.Logic

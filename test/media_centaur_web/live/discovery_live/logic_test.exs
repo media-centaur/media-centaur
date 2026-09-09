@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
   import MediaCentaur.TestFactory, only: [build_tracking_release: 1]
 
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.Components.Discovery.TitleDetail
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.DiscoveryLive.Logic
 
   @today ~D[2026-09-05]

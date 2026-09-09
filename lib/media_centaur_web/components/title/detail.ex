@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Discovery.TitleDetail do
+defmodule MediaCentaurWeb.Components.Title.Detail do
   @moduledoc """
   The title detail modal's view-model (UIDR-035): one TMDB title without
   files — watchlisted, tracked, in flight, or merely recommended — with
