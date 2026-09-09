@@ -75,9 +75,21 @@ html.psb .psb-variation-block .media-centaur {
   color-scheme: dark;
   color: var(--color-base-content);
   background: var(--color-base-100);
-  border-radius: 0.375rem;
+  flex: 1;
+  align-self: stretch;
+  justify-content: center;
+  margin: -0.5rem;
+  border-radius: inherit;
 }
 ```
+
+The four layout declarations make the fill cover the whole preview card.
+Storybook's card is a centering flex box with 8px of padding holding a
+content-sized sandbox, so a short component beside a tall source panel would
+otherwise leave a band of the chrome's own slate above and below our
+background. Stretching both axes and cancelling the card's padding paints the
+card as one surface; `justify-content: center` puts the vertical centring back
+on the sandbox, which now owns the full height.
 
 `.psb-variation-block` is only present on **component story** pages — never on `:page` story pages. So `:page` stories (welcome, future docs) stay in the chrome's light scheme; component previews get our dark theme and glass surfaces.
 
