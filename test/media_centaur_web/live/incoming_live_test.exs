@@ -17,6 +17,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Secret
+  alias MediaCentaur.TMDB.Title
 
   # `IncomingLive.ensure_loaded/1` defers the initial reads (search
   # session, capability flag, active pursuit rows, history rows) to an
@@ -142,8 +143,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_change()
 
       render_async(view, 2_000)
-
-      assert has_element?(view, "#omnibox-result-movie-424242", "More info")
 
       view
       |> element("#omnibox-result-movie-424242")
@@ -1343,7 +1342,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "omnibox — one search surface, two modes (UIDR-014)" do
-    test "typing in media mode surfaces TMDB results; picking patches into the plan flow", %{
+    test "typing in media mode surfaces TMDB results; picking opens the title detail", %{
       conn: conn
     } do
       TmdbStubs.setup_tmdb_client()
@@ -1377,12 +1376,70 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ "Sample Movie"
       assert html =~ "Sample Show"
 
-      # Picking a result opens the plan flow via URL patch (refresh-safe).
+      # Every pick lands on the title detail; Download lives inside it.
       view
       |> element("#omnibox-result-tv_series-246810")
       |> render_click()
 
-      assert_patch(view, "/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      assert_patch(view, "/incoming?title=tv_series-246810")
+      assert has_element?(view, "#title-detail-modal[data-state='open']", "Sample Show")
+      refute has_element?(view, "#plan-modal[data-state='open']")
+
+      await_supervised_tasks()
+    end
+
+    test "a search row carries the overlay-restore origin", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 424_242,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      assert has_element?(view, "#omnibox-result-movie-424242[data-entity-id='movie-424242']")
+
+      await_supervised_tasks()
+    end
+
+    test "a search result states what the library and the ladder already know", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 424_242,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      {:ok, _intent} =
+        Discovery.put_rung(
+          Title.new!(%{tmdb_id: 424_242, media_type: :movie, name: "Sample Movie"}),
+          :list
+        )
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      assert render_async(view, 2_000) =~ "On your list"
+
+      await_supervised_tasks()
     end
 
     test "media-mode results render TMDB poster thumbnails, icon fallback without one", %{
@@ -1517,17 +1574,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "[data-nav-zone='coming_up_list']")
     end
 
-    test "an upcoming row's verb is More info — picking it opens the title detail, never the plan flow",
+    test "picking an upcoming row opens the title detail; arming from there tracks it",
          %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
       TmdbStubs.stub_search_multi([
-        %{
-          "id" => 777,
-          "media_type" => "movie",
-          "title" => "Released Movie",
-          "release_date" => "2020-01-01"
-        },
         %{
           "id" => 888,
           "media_type" => "movie",
@@ -1543,12 +1594,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_change()
 
       render_async(view, 2_000)
-
-      # The verb tells the truth per row: a released title can be
-      # downloaded; an unreleased one has only its detail, where the
-      # tracking-mode control arms it.
-      assert has_element?(view, "#omnibox-result-movie-777", "Download")
-      assert has_element?(view, "#omnibox-result-movie-888", "More info")
 
       # The detail's preview and the arm's calendar both read the movie.
       TmdbStubs.stub_get_movie(
@@ -1577,7 +1622,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert MediaCentaur.Discovery.listed?(888, :movie)
     end
 
-    test "an already-tracked title carries the Tracked marker from the ref set", %{conn: conn} do
+    test "an already-tracked title carries its ladder rung as a marker", %{conn: conn} do
       create_tracking_item(%{tmdb_id: 200, media_type: :tv_series, name: "Sample Show"})
 
       TmdbStubs.setup_tmdb_client()
@@ -1605,8 +1650,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       render_async(view, 2_000)
 
-      assert has_element?(view, "#omnibox-result-tv_series-200", "Tracked")
-      refute has_element?(view, "#omnibox-result-movie-777", "Tracked")
+      # `create_tracking_item/1` also puts the title on the ladder at the
+      # Default rung, which the row states as what Default resolves to.
+      assert has_element?(view, "#omnibox-result-tv_series-200", "Tracking:")
+      refute has_element?(view, "#omnibox-result-movie-777", "Tracking:")
     end
 
     test "the upcoming/released chips scope the results; the active chip toggles back off", %{
@@ -1655,42 +1702,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert has_element?(view, "#omnibox-result-movie-777")
       assert has_element?(view, "#omnibox-result-movie-888")
-    end
-
-    test "search row watchlist toggle adds then removes", %{conn: conn} do
-      TmdbStubs.setup_tmdb_client()
-
-      TmdbStubs.stub_search_multi([
-        %{
-          "id" => 777,
-          "media_type" => "movie",
-          "title" => "Sample Movie",
-          "release_date" => "2010-03-05"
-        }
-      ])
-
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
-
-      view
-      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
-      |> render_change()
-
-      render_async(view, 2_000)
-
-      view |> element("[id^='omnibox-watchlist-']") |> render_click()
-      assert %{{777, :movie} => :list} = Discovery.rungs()
-
-      # The handler assigns nothing itself — the flipped icon proves the
-      # WatchlistAware PubSub refresh made the round trip.
-      assert has_element?(view, "[id^='omnibox-watchlist-'][aria-pressed='true']")
-
-      view |> element("[id^='omnibox-watchlist-']") |> render_click()
-      assert Discovery.rungs() == %{}
-      assert has_element?(view, "[id^='omnibox-watchlist-'][aria-pressed='false']")
-
-      # add_to_watchlist fires a supervised artwork task — drive it to
-      # completion so its Req stub doesn't outlive this test (ADR-049).
-      await_supervised_tasks()
     end
 
     test "a result the library already presents carries the In library marker", %{conn: conn} do

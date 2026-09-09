@@ -252,7 +252,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_searched: nil,
          omnibox_scope: :all,
          in_library_refs: MapSet.new(),
-         tracked_refs: MapSet.new(),
+         default_grab_mode: AutoGrabSettings.load().default_mode,
          friend_activity_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
@@ -888,12 +888,11 @@ defmodule MediaCentaurWeb.IncomingLive do
             query={@omnibox_query}
             results={@omnibox_results}
             searching?={@omnibox_searching?}
-            release_mode_available={@prowlarr_ready}
             metadata_available={@tmdb_ready}
             scope={@omnibox_scope}
             title_rungs={@title_rungs}
             in_library_refs={@in_library_refs}
-            tracked_refs={@tracked_refs}
+            default_grab_mode={@default_grab_mode}
             friend_activity_by_ref={@friend_activity_by_ref}
           />
 
@@ -1613,68 +1612,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  def handle_event("omnibox_pick", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
-      when media_type in ~w(movie tv_series) do
-    picked =
-      Enum.find(socket.assigns.omnibox_results, fn result ->
-        to_string(result.tmdb_id) == to_string(tmdb_id) &&
-          to_string(result.media_type) == media_type
-      end)
-
-    cond do
-      picked == nil ->
-        {:noreply, socket}
-
-      # Nothing to download — no indexer, or not out yet: the row's verb
-      # says More info, and the title detail is where the tracking-mode
-      # control arms it (UIDR-035). Never the plan (grab) flow.
-      not Capabilities.prowlarr_ready?() or
-          MediaResults.release_status(picked, Date.utc_today()) == :upcoming ->
-        {:noreply,
-         push_patch(socket, to: incoming_path(socket, %{"title" => TitleRef.param(Title.ref(picked))}))}
-
-      true ->
-        plan_type = if media_type == "movie", do: "movie", else: "tv"
-
-        # Carry the picked result into the plan flow — the modal opens
-        # already wearing its identity instead of a gray loading box.
-        {:noreply,
-         socket
-         |> assign(plan_identity: picked)
-         |> push_patch(
-           to: incoming_path(socket, %{"plan" => "new", "tmdb_id" => tmdb_id, "tmdb_type" => plan_type})
-         )}
-    end
-  end
-
-  # The search row's bookmark toggles the bottom of the ladder only: it
-  # adds a title at List, and removes one that is still at List. A title
-  # a person has raised to Follow or above is not torn down by a row
-  # click — the row renders it as a marker instead (`MediaResults`).
-  #
-  # No assign update here — the IntentAware PubSub hook refreshes
-  # `:title_rungs` from the broadcast, same loop every other title
-  # surface rides.
-  def handle_event("watchlist_toggle", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
-      when media_type in ~w(movie tv_series) do
-    ref = {String.to_integer(tmdb_id), String.to_existing_atom(media_type)}
-
-    case Map.get(socket.assigns.title_rungs, ref) do
-      :list ->
-        result = Enum.find(socket.assigns.omnibox_results, &({&1.tmdb_id, &1.media_type} == ref))
-        if result, do: ReleaseTracking.set_rung(result, :off)
-
-      nil ->
-        result = Enum.find(socket.assigns.omnibox_results, &({&1.tmdb_id, &1.media_type} == ref))
-        if result, do: ReleaseTracking.set_rung(result, :list)
-
-      _followed ->
-        :ok
-    end
-
-    {:noreply, socket}
-  end
-
   def handle_event("grab_selected", _params, socket) do
     selections = socket.assigns.search_session.selections
 
@@ -2335,7 +2272,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: rows,
          omnibox_searching?: false,
          in_library_refs: in_library_refs,
-         tracked_refs: ReleaseTracking.tracked_refs(),
          friend_activity_by_ref: friend_activity_for_results(rows)
        )}
     else
