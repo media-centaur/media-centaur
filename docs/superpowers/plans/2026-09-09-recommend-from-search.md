@@ -1200,8 +1200,10 @@ Replace the imports block's `title_summary` and `pennants` imports — the row o
 
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Logic
-  alias MediaCentaurWeb.Components.Title.Row
+  alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
 ```
+
+The `, as: TitleRow` matches how `discovery_live.ex` aliases it (Task A3): one local name for the module everywhere, and `Row` on its own would be ambiguous next to `RecommendationRows`.
 
 (Keep any other import the remaining markup still needs; the compiler's unused-import warning is the check.)
 
@@ -1236,7 +1238,7 @@ with:
 
 ```heex
       <div data-nav-zone="grid" class="space-y-2">
-        <Row.title_row
+        <TitleRow.title_row
           :for={result <- @visible}
           id={"omnibox-result-#{result.media_type}-#{result.tmdb_id}"}
           title={result}
