@@ -436,7 +436,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               lead={row.lead}
               markers={
                 Logic.row_markers(%{
-                  library_owner_id: row.library_owner_id,
+                  in_library?: not is_nil(row.library_owner_id),
                   acquisition_state: row.acquisition_state,
                   rung: row.rung
                 })
@@ -496,14 +496,17 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               title={row.item.title}
               poster_url={row.poster_url}
               markers={
-                Logic.row_markers(%{
-                  library_owner_id: row.library_owner_id,
-                  acquisition_state: row.acquisition_state,
-                  rung: row.rung,
-                  default_grab_mode: @default_grab_mode,
-                  next_air_date: row.next_air_date,
-                  today: @today
-                })
+                Logic.row_markers(
+                  %{
+                    in_library?: not is_nil(row.library_owner_id),
+                    acquisition_state: row.acquisition_state,
+                    rung: row.rung,
+                    default_grab_mode: @default_grab_mode,
+                    next_air_date: row.next_air_date,
+                    today: @today
+                  },
+                  true
+                )
               }
               notes={Logic.note_list(row.item.note)}
               friend_activity={row.friend_activity}

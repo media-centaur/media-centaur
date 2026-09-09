@@ -127,6 +127,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     await_supervised_tasks()
   end
 
+  test "the watchlist tab does not tell you a row is on the watchlist", %{conn: conn} do
+    {:ok, _} =
+      Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
+
+    {:ok, view, html} = live(conn, ~p"/discovery/watchlist")
+
+    assert has_element?(view, "[id^='watchlist-item-']")
+    refute html =~ "On your list"
+  end
+
   test "the sidebar marks Discovery active on the watchlist tab", %{conn: conn} do
     Settings.find_or_create_entry!(%{
       key: DiscoveryVisibility.setting_key(),

@@ -109,32 +109,31 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
   end
 
-  describe "row_markers/1" do
+  describe "row_markers/2" do
     test "in library wins, then the acquisition state" do
       assert Logic.row_markers(%{
-               library_owner_id: "o",
+               in_library?: true,
                acquisition_state: :downloading,
                rung: :list
              }) == ["In library"]
 
-      # List says only that it is on the list, which the row already is.
       assert Logic.row_markers(%{
-               library_owner_id: nil,
+               in_library?: false,
                acquisition_state: :needs_review,
                rung: :list
-             }) == ["Needs review"]
+             }) == ["Needs review", "On your list"]
 
       assert Logic.row_markers(%{
-               library_owner_id: nil,
+               in_library?: false,
                acquisition_state: nil,
                rung: nil
              }) == []
     end
   end
 
-  describe "row_markers/1 tracking" do
-    test "a followed title states its rung, Default resolved; Off, List and owned say nothing" do
-      base = %{library_owner_id: nil, acquisition_state: nil, rung: nil}
+  describe "row_markers/2 tracking" do
+    test "a listed or followed title states its rung, Default resolved; Off and owned say nothing" do
+      base = %{in_library?: false, acquisition_state: nil, rung: nil}
 
       assert Logic.row_markers(Map.merge(base, %{rung: :follow, default_grab_mode: "ask"})) ==
                ["Tracking: Follow"]
@@ -145,19 +144,28 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
       assert Logic.row_markers(Map.merge(base, %{rung: :default, default_grab_mode: "off"})) ==
                ["Tracking: Follow"]
 
-      assert Logic.row_markers(Map.merge(base, %{rung: :list, default_grab_mode: "ask"})) == []
+      assert Logic.row_markers(Map.merge(base, %{rung: :list, default_grab_mode: "ask"})) ==
+               ["On your list"]
+
       assert Logic.row_markers(Map.merge(base, %{rung: nil, default_grab_mode: "ask"})) == []
 
       assert Logic.row_markers(
-               Map.merge(base, %{library_owner_id: "o", rung: :grab, default_grab_mode: "ask"})
+               Map.merge(base, %{in_library?: true, rung: :grab, default_grab_mode: "ask"})
              ) == ["In library"]
+    end
+
+    test "list_implied? drops only the List marker" do
+      base = %{in_library?: false, acquisition_state: nil, rung: nil, default_grab_mode: "ask"}
+
+      assert Logic.row_markers(Map.put(base, :rung, :list), true) == []
+      assert Logic.row_markers(Map.put(base, :rung, :follow), true) == ["Tracking: Follow"]
     end
   end
 
-  describe "row_markers/1 next release" do
+  describe "row_markers/2 next release" do
     test "a watchlist row states its next date when it has one" do
       assert Logic.row_markers(%{
-               library_owner_id: nil,
+               in_library?: false,
                acquisition_state: nil,
                rung: nil,
                next_air_date: Date.add(@today, 1),
@@ -165,7 +173,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
              }) == ["Next: Tomorrow"]
 
       assert Logic.row_markers(%{
-               library_owner_id: nil,
+               in_library?: false,
                acquisition_state: :planning,
                rung: nil,
                next_air_date: nil,

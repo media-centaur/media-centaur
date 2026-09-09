@@ -79,37 +79,44 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   def acquisition_marker(nil), do: nil
 
   @doc """
-  The quiet text markers a Discovery row shows after its type and year,
-  in order: the library or acquisition state (one of them — In library
-  wins), then On watchlist (never for an owned title — membership is
-  noise once the file is there), then — a watchlist row's — the tracking
-  rung when the title is followed (`rung` + `default_grab_mode`,
-  Default resolved to what it does; never for an owned title, whose
-  tracking is the library detail's) and the next release date when the
-  facts carry one (`next_air_date` + `today`). Who recommended the title
-  is the pennant's, and the feed row's sender/when line is the host's;
-  neither is a marker.
+  The quiet text markers a title row shows after its type and year, in
+  order: the library or acquisition state (one of them — In library
+  wins), then the tracking rung (`rung` + `default_grab_mode`, Default
+  resolved to what it does; never for an owned title, whose tracking is
+  the library detail's) and the next release date when the facts carry
+  one (`next_air_date` + `today`).
+
+  `list_implied?` is a fact about the *container*, not the title: pass
+  true where every row is on the list — Discovery's watchlist tab — and
+  the List rung's own marker is dropped as redundant. Everywhere else a
+  listed title says so, which is the only place a search result can.
+
+  Who recommended the title is the pennant's, and a feed row's
+  sender/when line is the host's; neither is a marker.
   """
-  @spec row_markers(%{
-          required(:library_owner_id) => Ecto.UUID.t() | nil,
-          required(:acquisition_state) => acquisition_state(),
-          required(:rung) => TitleIntent.rung() | nil,
-          optional(:rung) => TitleIntent.rung() | nil,
-          optional(:default_grab_mode) => String.t(),
-          optional(:next_air_date) => Date.t() | nil,
-          optional(:today) => Date.t()
-        }) :: [String.t()]
-  def row_markers(facts) do
+  @spec row_markers(
+          %{
+            required(:in_library?) => boolean(),
+            required(:acquisition_state) => acquisition_state(),
+            optional(:rung) => TitleIntent.rung() | nil,
+            optional(:default_grab_mode) => String.t(),
+            optional(:next_air_date) => Date.t() | nil,
+            optional(:today) => Date.t()
+          },
+          boolean()
+        ) :: [String.t()]
+  def row_markers(facts, list_implied? \\ false) do
     state =
       cond do
-        facts.library_owner_id -> "In library"
+        facts.in_library? -> "In library"
         marker = acquisition_marker(facts.acquisition_state) -> marker
         true -> nil
       end
 
     tracking =
-      if is_nil(facts.library_owner_id),
-        do: rung_marker(Map.get(facts, :rung), Map.get(facts, :default_grab_mode))
+      if not facts.in_library? do
+        rung_marker(Map.get(facts, :rung), Map.get(facts, :default_grab_mode), list_implied?)
+      end
 
     next =
       case Map.get(facts, :next_air_date) do
@@ -120,15 +127,17 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
     Enum.reject([state, tracking, next], &is_nil/1)
   end
 
-  # Off says nothing — the row would not be here. List says only that it
-  # is on the list, which the row already is. Default says what it
-  # resolves to, so the row never asks the reader to know the setting.
-  defp rung_marker(rung, _default) when rung in [nil, :list], do: nil
-  defp rung_marker(:follow, _default), do: "Tracking: Follow"
-  defp rung_marker(:ask, _default), do: "Tracking: Ask"
-  defp rung_marker(:grab, _default), do: "Tracking: Grab"
+  # Off says nothing — the row would not be here. List says it is on the
+  # list, except where the container already says so. Default says what
+  # it resolves to, so the row never asks the reader to know the setting.
+  defp rung_marker(nil, _default, _list_implied?), do: nil
+  defp rung_marker(:list, _default, true), do: nil
+  defp rung_marker(:list, _default, false), do: "On your list"
+  defp rung_marker(:follow, _default, _list_implied?), do: "Tracking: Follow"
+  defp rung_marker(:ask, _default, _list_implied?), do: "Tracking: Ask"
+  defp rung_marker(:grab, _default, _list_implied?), do: "Tracking: Grab"
 
-  defp rung_marker(:default, default) do
+  defp rung_marker(:default, default, _list_implied?) do
     case TitleIntent.grab_mode(:default, default) do
       "all_releases" -> "Tracking: Grab"
       "ask" -> "Tracking: Ask"
