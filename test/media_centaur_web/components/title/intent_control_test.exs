@@ -1,7 +1,7 @@
-defmodule MediaCentaurWeb.Components.Discovery.IntentControlTest do
+defmodule MediaCentaurWeb.Components.Title.IntentControlTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaurWeb.Components.Discovery.IntentControl, as: Control
+  alias MediaCentaurWeb.Components.Title.IntentControl, as: Control
 
   describe "options/0" do
     test "offers the six rungs, Off first, Default last" do

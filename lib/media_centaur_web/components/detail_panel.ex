@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.ProgressHairline
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
-  alias MediaCentaurWeb.Components.Discovery.IntentControl
+  alias MediaCentaurWeb.Components.Title.IntentControl
   alias MediaCentaurWeb.ViewModel.Orientation
 
   # --- Public API ---

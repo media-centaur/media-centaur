@@ -63,7 +63,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
   alias MediaCentaurWeb.Components.Discovery.TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
-  alias MediaCentaurWeb.Components.Discovery.IntentControl
+  alias MediaCentaurWeb.Components.Title.IntentControl
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.DiscoveryLive.Logic
   alias MediaCentaurWeb.TitleRef
