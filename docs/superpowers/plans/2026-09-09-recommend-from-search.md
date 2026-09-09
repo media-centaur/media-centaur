@@ -439,7 +439,7 @@ with:
 Run: `~/scripts/agents/agent-mix compile --warnings-as-errors && ~/scripts/agents/agent-mix test`
 Expected: no warnings, suite green.
 
-- [ ] **Step 5: Run the full gate — this closes Phase A**
+- [ ] **Step 5: Run the full gate**
 
 Run: `~/scripts/agents/agent-mix precommit`
 Expected: PASS. Storybook compile and render tests confirm every moved story still resolves.
@@ -455,6 +455,66 @@ Live.RecommendFlow, whose assigns it renders.
 
 Claude-Session: https://claude.ai/code/session_01F3FLHycnth9F1z26fCRUJE"
 ```
+
+### Task A8: Sweep the contributor docs and skills
+
+The renaming `grep`s in A1–A7 covered `lib test storybook` only. Prose outside those trees names the moved modules and their storybook paths, and is now wrong. Known at the time of writing (re-grep, do not trust this list):
+
+- `docs/GLOSSARY.md` — the **Title detail modal** row names `Components.Discovery.TitleDetailModal`, view-model `TitleDetail`, and calls the surface "The Discovery page's".
+- `docs/social.md` — names `Components.Discovery.Pennant`.
+- `.claude/skills/user-interface/SKILL.md` — names `Components.Discovery.Pennant` and the story path `/storybook/discovery/pennants`.
+
+**Files:** whatever the sweep finds outside `lib test storybook`, excluding `docs/superpowers/**` (historical planning docs, explicitly not maintained against current code per `CLAUDE.md`).
+
+- [ ] **Step 1: Find every stale reference**
+
+```bash
+cd ~/src/media-centaur/media-centaur-app
+grep -rn "Components\.Discovery\.\(Pennant\|IntentControl\|TitleRow\|TitleDetail\|TitleDetailModal\)\|DiscoveryLive\.Logic\|DiscoveryLive\.RecommendModal\|storybook/discovery/\(pennants\|intent_control\|title_row\|title_detail_modal\)" \
+  . --include='*.md' --include='*.ex' --include='*.exs' \
+  | grep -v '^\./docs/superpowers/' | grep -v '^\./_build/' | grep -v '^\./deps/'
+```
+
+- [ ] **Step 2: Fix each hit**
+
+Rewrite each to the new name and path:
+
+| Old | New |
+|---|---|
+| `Components.Discovery.Pennant` | `Components.Title.Pennant` |
+| `Components.Discovery.IntentControl` | `Components.Title.IntentControl` |
+| `Components.Discovery.TitleRow` | `Components.Title.Row` |
+| `Components.Discovery.TitleDetail` | `Components.Title.Detail` |
+| `Components.Discovery.TitleDetailModal` | `Components.Title.DetailModal` |
+| `MediaCentaurWeb.DiscoveryLive.Logic` | `MediaCentaurWeb.Components.Title.Logic` |
+| `MediaCentaurWeb.DiscoveryLive.RecommendModal` | `MediaCentaurWeb.Live.RecommendModal` |
+| `/storybook/discovery/pennants` | `/storybook/title/pennant` |
+| `/storybook/discovery/intent_control` | `/storybook/title/intent_control` |
+| `/storybook/discovery/title_row` | `/storybook/title/row` |
+| `/storybook/discovery/title_detail_modal` | `/storybook/title/detail_modal` |
+
+In `docs/GLOSSARY.md`, also fix the prose: the title detail modal is not "The Discovery page's" surface — it is the depth surface for a TMDB title the library does not own, hosted by Discovery **and** Incoming through `Live.TitleDetailHost`. Change the sentence "Every Discovery verb lives here." to "Every verb on such a title lives here."
+
+- [ ] **Step 3: Re-run the sweep**
+
+Run the Step 1 command again.
+Expected: no output.
+
+- [ ] **Step 4: Run the gate**
+
+Run: `~/scripts/agents/agent-mix precommit`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add -A
+git commit -m "docs: follow the title surfaces out of the Discovery namespace
+
+Claude-Session: https://claude.ai/code/session_01F3FLHycnth9F1z26fCRUJE"
+```
+
+---
 
 ---
 
