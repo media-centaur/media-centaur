@@ -252,7 +252,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_searched: nil,
          omnibox_scope: :all,
          in_library_refs: MapSet.new(),
-         default_grab_mode: AutoGrabSettings.load().default_mode,
          friend_activity_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
@@ -892,7 +891,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             scope={@omnibox_scope}
             title_rungs={@title_rungs}
             in_library_refs={@in_library_refs}
-            default_grab_mode={@default_grab_mode}
+            default_grab_mode={@auto_grab_default_mode}
             friend_activity_by_ref={@friend_activity_by_ref}
           />
 
