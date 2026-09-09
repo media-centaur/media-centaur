@@ -5,7 +5,4 @@ defmodule MediaCentaurWeb.Storybook.Discovery do
   def folder_icon, do: {:fa, "compass", :light, "psb:mr-1"}
 
   def entry("person_card"), do: [icon: {:fa, "user", :thin}, name: "Person card"]
-
-  def entry("title_detail_modal"),
-    do: [icon: {:fa, "window-maximize", :thin}, name: "Title detail modal"]
 end

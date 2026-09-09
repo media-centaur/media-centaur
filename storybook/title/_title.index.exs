@@ -9,4 +9,6 @@ defmodule MediaCentaurWeb.Storybook.Title do
   def entry("intent_control"), do: [icon: {:fa, "sliders", :thin}, name: "Intent control"]
 
   def entry("row"), do: [icon: {:fa, "bookmark", :thin}, name: "Title row"]
+
+  def entry("detail_modal"), do: [icon: {:fa, "window-maximize", :thin}, name: "Title detail modal"]
 end

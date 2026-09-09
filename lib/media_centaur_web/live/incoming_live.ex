@@ -134,7 +134,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
-  alias MediaCentaurWeb.Components.Discovery.TitleDetailModal
+  alias MediaCentaurWeb.Components.Title.DetailModal, as: TitleDetailModal
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
