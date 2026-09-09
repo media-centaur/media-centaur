@@ -31,11 +31,13 @@
 | `lib/media_centaur_web/components/discovery/title_detail_modal.ex` | `lib/media_centaur_web/components/title/detail_modal.ex` |
 | `lib/media_centaur_web/live/discovery_live/logic.ex` | `lib/media_centaur_web/components/title/logic.ex` |
 | `lib/media_centaur_web/live/discovery_live/recommend_modal.ex` | `lib/media_centaur_web/live/recommend_modal.ex` |
-| `storybook/discovery/pennants.story.exs` | `storybook/title/pennant.story.exs` |
+| `storybook/discovery/pennants.story.exs` | `storybook/title/pennants.story.exs` |
 | `storybook/discovery/intent_control.story.exs` | `storybook/title/intent_control.story.exs` |
-| `storybook/discovery/title_row.story.exs` | `storybook/title/row.story.exs` |
-| `storybook/discovery/title_detail_modal.story.exs` | `storybook/title/detail_modal.story.exs` |
+| `storybook/discovery/title_row.story.exs` | `storybook/title/title_row.story.exs` |
+| `storybook/discovery/title_detail_modal.story.exs` | `storybook/title/title_detail_modal.story.exs` |
 | `test/media_centaur_web/live/discovery_live/logic_test.exs` | `test/media_centaur_web/components/title/logic_test.exs` |
+
+**Story filenames keep their old basenames — do not rename them to match the moved modules.** The MC0009 Credo check pins a story to the component's *function* name, not its module or file name: `pennant.ex` defines `pennants/1`, `row.ex` defines `title_row/1`, `detail_modal.ex` defines `title_detail_modal/1`. Renaming those stories to `pennant`/`row`/`detail_modal` silently drops storybook coverage for all three, and the storybook index `entry(...)` keys are story filenames, so they keep the old basenames too. Only the story *module* names change.
 
 Created in Phase A: `storybook/title/_title.index.exs`.
 Staying put: `components/discovery/person.ex`, `person_card.ex`, `storybook/discovery/person_card.story.exs`, `storybook/discovery/_discovery.index.exs`.
@@ -488,10 +490,10 @@ Rewrite each to the new name and path:
 | `Components.Discovery.TitleDetailModal` | `Components.Title.DetailModal` |
 | `MediaCentaurWeb.DiscoveryLive.Logic` | `MediaCentaurWeb.Components.Title.Logic` |
 | `MediaCentaurWeb.DiscoveryLive.RecommendModal` | `MediaCentaurWeb.Live.RecommendModal` |
-| `/storybook/discovery/pennants` | `/storybook/title/pennant` |
+| `/storybook/discovery/pennants` | `/storybook/title/pennants` |
 | `/storybook/discovery/intent_control` | `/storybook/title/intent_control` |
-| `/storybook/discovery/title_row` | `/storybook/title/row` |
-| `/storybook/discovery/title_detail_modal` | `/storybook/title/detail_modal` |
+| `/storybook/discovery/title_row` | `/storybook/title/title_row` |
+| `/storybook/discovery/title_detail_modal` | `/storybook/title/title_detail_modal` |
 
 In `docs/GLOSSARY.md`, also fix the prose: the title detail modal is not "The Discovery page's" surface — it is the depth surface for a TMDB title the library does not own, hosted by Discovery **and** Incoming through `Live.TitleDetailHost`. Change the sentence "Every Discovery verb lives here." to "Every verb on such a title lives here."
 
