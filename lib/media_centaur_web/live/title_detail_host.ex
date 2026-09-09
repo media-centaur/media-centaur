@@ -69,7 +69,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
-  alias MediaCentaurWeb.DiscoveryLive.Logic
+  alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.TitleRef
 
   require MediaCentaur.Log, as: Log

@@ -1,9 +1,10 @@
-defmodule MediaCentaurWeb.DiscoveryLive.Logic do
+defmodule MediaCentaurWeb.Components.Title.Logic do
   @moduledoc """
-  Pure decisions for the Discovery page (ADR-030): the title detail
-  view-model, the acquisition-state words the rows and the modal show,
-  the row markers, and a watchlist row's next release date. The two tab
-  projections live beside it: `RecommendationRows` and `People`.
+  Pure decisions for the title surfaces (ADR-030) — the ones Discovery
+  and Incoming share: the title detail view-model, the acquisition-state
+  words the rows and the modal show, the row markers, and a watchlist
+  row's next release date. Discovery's own two tab projections live
+  beside its LiveView: `RecommendationRows` and `People`.
   """
 
   alias MediaCentaur.Discovery.TitleIntent

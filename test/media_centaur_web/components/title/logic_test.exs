@@ -1,11 +1,11 @@
-defmodule MediaCentaurWeb.DiscoveryLive.LogicTest do
+defmodule MediaCentaurWeb.Components.Title.LogicTest do
   use MediaCentaur.Case, async: true
 
   import MediaCentaur.TestFactory, only: [build_tracking_release: 1]
 
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
-  alias MediaCentaurWeb.DiscoveryLive.Logic
+  alias MediaCentaurWeb.Components.Title.Logic
 
   @today ~D[2026-09-05]
 
