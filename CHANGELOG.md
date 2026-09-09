@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.18.0 — 2026-09-09
+
+### New
+
+- **Recommend a title you don't own.** Recommending used to need the title to be in your library, which ruled out most of what you would actually press on a friend. Any title carries it now — a search result, something a friend sent you, anything on your list — through **Recommend** on the title's page, beside Download. The **Discovery** preference still gates it.
+
+### Improved
+
+- **A search result opens the title.** Each result row used to carry its own verb — *Download* for something already out, *More info* for something that wasn't — so two rows in the same list behaved differently, and only one of them let you reach the title. Clicking any result now opens the title, and everything you can do with it lives there: Download, the tracking control, and Recommend. Downloading from a search costs one more click than it did; in exchange every result works the same way.
+- **A search result says what you already know about it.** In place of the bookmark, a row states **In library**, **On your list**, or **Tracking: Follow / Ask / Grab**. To put a title on your list from a search, open it and set **Tracking** to **List**.
+- **A title you have saved says so on the Recommendations tab.** A friend's recommendation for something already on your list used to look identical to one you had never seen. It now reads **On your list**. Your watchlist itself stays quiet about it — every row there is on your list.
+
 ## v1.17.0 — 2026-09-08
 
 ### New
