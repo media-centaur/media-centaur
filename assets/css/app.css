@@ -259,7 +259,18 @@ html.psb .psb-variation-block .media-centaur {
   color-scheme: dark;
   color: var(--color-base-content);
   background: var(--color-base-100);
-  border-radius: 0.375rem;
+
+  /* Fill the whole preview card. Storybook's card is a centering flex box
+     with 8px of padding, and the sandbox inside it is content-sized — so a
+     short component next to a tall source panel leaves the chrome's own
+     slate showing as a band above and below our fill. Stretch on both axes,
+     cancel the card's padding, and re-center the component inside the
+     sandbox itself so the card reads as one surface. */
+  flex: 1;
+  align-self: stretch;
+  justify-content: center;
+  margin: -0.5rem;
+  border-radius: inherit;
 }
 
 /* Primary glass surface — cards */
