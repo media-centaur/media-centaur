@@ -8,6 +8,12 @@ if Mix.env() in [:dev, :test] do
     tokens, and daisyUI variants. See [`docs/storybook.md`](../../docs/storybook.md)
     for philosophy and conventions.
 
+    `color_mode: true` puts a light/dark/system picker in the header, which
+    toggles a `psb:dark` class on `<html>` for storybook's own chrome. It also
+    adds a `dark` class to the sandbox for component previews, which is inert
+    here — the app is dark-only (daisyUI `themes: false`, a single `dark`
+    theme), so previews render dark in every mode by design.
+
     The env guard exists because `phoenix_storybook` is `only: [:dev, :test]` —
     `mix compile` in `:prod` would otherwise fail to find `PhoenixStorybook`.
     """
@@ -16,6 +22,7 @@ if Mix.env() in [:dev, :test] do
       otp_app: :media_centaur,
       content_path: Path.expand("../../storybook", __DIR__),
       css_path: "/assets/css/app.css",
-      sandbox_class: "media-centaur"
+      sandbox_class: "media-centaur",
+      color_mode: true
   end
 end
