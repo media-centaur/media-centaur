@@ -6,8 +6,6 @@ defmodule MediaCentaurWeb.Storybook.Discovery do
 
   def entry("title_row"), do: [icon: {:fa, "bookmark", :thin}, name: "Title row"]
 
-  def entry("pennants"), do: [icon: {:fa, "flag-pennant", :thin}, name: "Pennant"]
-
   def entry("person_card"), do: [icon: {:fa, "user", :thin}, name: "Person card"]
 
   def entry("intent_control"), do: [icon: {:fa, "sliders", :thin}, name: "Intent control"]

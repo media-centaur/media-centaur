@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendModal do
   """
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.Components.Discovery.Pennant,
+  import MediaCentaurWeb.Components.Title.Pennant,
     only: [pennants: 1]
 
   import MediaCentaurWeb.Components.Modal, only: [modal: 1]

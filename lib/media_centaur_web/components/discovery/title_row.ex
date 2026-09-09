@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.Components.Discovery.Pennant,
+  import MediaCentaurWeb.Components.Title.Pennant,
     only: [pennants: 1]
 
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]

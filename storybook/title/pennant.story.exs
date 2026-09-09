@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Storybook.Discovery.Pennant do
+defmodule MediaCentaurWeb.Storybook.Title.Pennant do
   @moduledoc """
   The pennant (UIDR-037): what friends did with a title, flying from the
   right edge of whatever the title is on. One shape at every width, one
@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.Pennant do
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.TMDB.Title
 
-  def function, do: &MediaCentaurWeb.Components.Discovery.Pennant.pennants/1
+  def function, do: &MediaCentaurWeb.Components.Title.Pennant.pennants/1
   def render_source, do: :function
 
   def template do

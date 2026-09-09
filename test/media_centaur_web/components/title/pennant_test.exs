@@ -1,9 +1,9 @@
-defmodule MediaCentaurWeb.Components.Discovery.PennantTest do
+defmodule MediaCentaurWeb.Components.Title.PennantTest do
   use MediaCentaur.Case, async: true
 
   import MediaCentaur.TestFactory, only: [build_activity: 1]
 
-  alias MediaCentaurWeb.Components.Discovery.Pennant
+  alias MediaCentaurWeb.Components.Title.Pennant
 
   defp friend(nickname, attrs),
     do: %{activity: build_activity(Map.new(attrs)), nickname: nickname, own?: false}
