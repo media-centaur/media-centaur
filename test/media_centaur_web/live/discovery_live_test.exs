@@ -678,6 +678,27 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
+    test "the Recommend control follows the friend-network preference", %{conn: conn} do
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, view, _html} = live(conn, ~p"/discovery/watchlist")
+
+      # Open whatever row this test module's setup put on the watchlist.
+      view
+      |> element("[data-component='title-row']")
+      |> render_click()
+
+      # `show_discovery` is default-off: Discovery is a preview, and
+      # Recommend is the one control on this modal that belongs to it.
+      refute has_element?(view, "#title-recommend")
+
+      Settings.find_or_create_entry!(%{
+        key: DiscoveryVisibility.setting_key(),
+        value: %{"enabled" => true}
+      })
+
+      render_until(view, fn _html -> has_element?(view, "#title-recommend") end)
+    end
+
     test "Download creates an automatic plan, closes the modal, flashes, and the row shows the state",
          %{conn: conn} do
       {:ok, _} = Discovery.put_rung(released_movie(), :list)

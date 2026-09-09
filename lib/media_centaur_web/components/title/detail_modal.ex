@@ -72,6 +72,11 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   attr :scope_menu_open, :boolean, default: false, doc: "the series scope menu is showing"
   attr :today, Date, required: true
 
+  attr :recommend?, :boolean,
+    default: false,
+    doc:
+      "whether the Recommend control is offered — the hosts pass `show_discovery`, the preference that gates the whole friend-network preview."
+
   def title_detail_modal(assigns) do
     assigns =
       assigns
@@ -125,8 +130,24 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
                 the strip's first control — the split Download button. --%>
           <div class="mt-4 pb-5">
             <div class="glass-menu" phx-click-away="title_scope_close">
+              <%!-- Recommend joins the strip's left cluster, after the
+                    primary and before the `ml-auto` tertiary group. A text
+                    control, not the library panel's paper-plane: this strip
+                    speaks in words where that controls row is an icon
+                    cluster. Same act, each surface's own idiom. --%>
               <div class="flex flex-wrap items-center gap-3" data-nav-zone="title_detail_body">
                 <.primary detail={@detail} scope_menu_open={@scope_menu_open} />
+                <button
+                  :if={@recommend?}
+                  id="title-recommend"
+                  type="button"
+                  class="cursor-pointer text-sm text-base-content/70 transition-colors hover:text-base-content/90"
+                  phx-click="title_recommend_open"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Recommend
+                </button>
                 <.tertiary detail={@detail} />
               </div>
               <ul
