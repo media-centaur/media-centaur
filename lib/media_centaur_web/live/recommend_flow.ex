@@ -31,6 +31,11 @@ defmodule MediaCentaurWeb.Live.RecommendFlow do
   (an entity panel's subject, a watchlist row's title), so each host
   keeps its own opening clause and calls `open/2`. Place the `use` among
   the host's other `handle_event/3` clauses so they stay grouped.
+
+  Two modules inject this flow: `EntityModal`, for a title with files,
+  and `TitleDetailHost`, for one without. A LiveView may `use` one or
+  the other, never both — the injected clauses and the `init/1` seed
+  would collide.
   """
 
   @doc false

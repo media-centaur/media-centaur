@@ -63,6 +63,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
   alias MediaCentaurWeb.Components.Title.Logic
+  alias MediaCentaurWeb.Live.RecommendModal
   alias MediaCentaurWeb.DiscoveryLive.People
   alias MediaCentaurWeb.DiscoveryLive.RecommendationRows
   alias MediaCentaurWeb.Live.TitleDetailHost
@@ -381,6 +382,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           scope_menu_open={@scope_menu_open}
           today={@today}
           recommend?={@show_discovery}
+        />
+        <RecommendModal.recommend_modal
+          subject={@recommend_subject}
+          poster_url={@recommend_poster_url}
+          relay_counts={@recommend_relay_counts}
         />
       </:overlays>
       <%!-- `title` and `activity` are modal state: stripped from the

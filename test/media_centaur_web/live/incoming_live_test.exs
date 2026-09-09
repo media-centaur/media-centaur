@@ -6,6 +6,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.TitleDownloadParams
+  alias MediaCentaur.Activities
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Discovery
@@ -1918,6 +1919,47 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # Re-mount: the in-flight session must not hide behind media mode.
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
       assert has_element?(view, "form[phx-change='query_change']")
+    end
+
+    test "a search result can be recommended from its detail modal", %{conn: conn} do
+      Capabilities.clear_test_result(:prowlarr)
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 424_242,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      # Recommend is gated on the default-off friend-network preview.
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        value: %{"enabled" => true}
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      view |> element("#omnibox-result-movie-424242") |> render_click()
+      assert_patch(view, "/incoming?title=movie-424242")
+
+      view |> element("#title-recommend") |> render_click()
+      assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
+
+      render_submit(view, "recommend_send", %{"sentiment" => "love", "note" => "Worth it"})
+
+      refute has_element?(view, "#recommend-modal[data-state='open']")
+      assert [%{tmdb_id: 424_242, sentiment: :love, note: "Worth it"}] = Activities.list_sent()
+
+      await_supervised_tasks()
     end
   end
 

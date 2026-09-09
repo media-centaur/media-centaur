@@ -16,9 +16,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) and `&activity=<id>` |
-  | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_scope_*`, `title_download`, `title_activity_delete`, `set_rung`, `reset_lower_quality` |
+  | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_scope_*`, `title_download`, `title_activity_delete`, `title_recommend_open`, `set_rung`, `reset_lower_quality` |
   | `:handle_async` | the live TMDB preview (`{:title_preview, ref}`) |
   | `:handle_info` | refreshes the open detail on `:releases_updated`, watchlist and library changes, then continues so the host's own clauses run |
+  | `use RecommendFlow` | injects the Recommend modal's own controls; `title_recommend_open` opens it on the detail's title |
+
+  A host that `use`s this module must not also `use` `EntityModal`: both
+  inject `RecommendFlow`, and the duplicated clauses and `init/1` seed
+  would collide.
 
   Hosts MUST NOT call `ReleaseTracking.subscribe/0` themselves. A host
   that also uses `IntentAware` must `use` this module *first*: hooks
@@ -70,6 +75,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.Components.Title.Logic
+  alias MediaCentaurWeb.Live.RecommendFlow
   alias MediaCentaurWeb.TitleRef
 
   require MediaCentaur.Log, as: Log
@@ -80,12 +86,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @callback title_detail_path(socket :: Phoenix.LiveView.Socket.t(), query :: keyword()) ::
               String.t()
 
-  @modal_events ~w(title_scope_toggle title_scope_close title_download title_activity_delete)
+  @modal_events ~w(title_scope_toggle title_scope_close title_download title_activity_delete title_recommend_open)
   @rungs ~w(off list follow ask grab default)
 
   defmacro __using__(_opts) do
     quote do
       @behaviour MediaCentaurWeb.Live.TitleDetailHost
+
+      use MediaCentaurWeb.Live.RecommendFlow
 
       on_mount {MediaCentaurWeb.Live.TitleDetailHost, :default}
     end
@@ -97,6 +105,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     socket =
       socket
       |> assign(title_detail: nil, scope_menu_open: false)
+      |> RecommendFlow.init()
       |> attach_hook(:title_detail_params, :handle_params, &apply_title_params/3)
       |> attach_hook(:title_detail_events, :handle_event, &handle_title_event/3)
       |> attach_hook(:title_detail_async, :handle_async, &handle_title_async/3)
@@ -332,6 +341,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
     {:halt, refresh_title_detail(socket)}
   end
+
+  # The artwork is the detail's own — already resolved on open and
+  # refreshed by the live preview. Deriving it again here would be a
+  # second source for one value.
+  def handle_title_event(
+        "title_recommend_open",
+        _params,
+        %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
+      ), do: {:halt, RecommendFlow.open(socket, detail.title, detail.poster_url)}
 
   # A modal event with no open modal (a stale click after a close) is a no-op.
   def handle_title_event(event, _params, socket) when event in @modal_events, do: {:halt, socket}
