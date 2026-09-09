@@ -63,6 +63,21 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendationRowsTest do
     assert silent.notes == []
   end
 
+  test "an ignored title makes no row, whoever recommends it; the rest group as before" do
+    rows =
+      RecommendationRows.build(
+        [
+          Map.put(friend("Bob", 1), :rung, :ignored),
+          Map.put(friend("Cleo", 1, at: ~U[2026-09-02 12:00:00Z]), :rung, :ignored),
+          Map.put(friend("Alice", 2), :rung, :list),
+          friend("Bob", 3)
+        ],
+        now: @now
+      )
+
+    assert Enum.map(rows, & &1.ref) == [{2, :movie}, {3, :movie}]
+  end
+
   test "the row carries the page's joins from the rows that fed it" do
     [row] =
       RecommendationRows.build(

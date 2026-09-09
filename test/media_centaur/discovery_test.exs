@@ -93,19 +93,36 @@ defmodule MediaCentaur.DiscoveryTest do
       await_supervised_tasks()
     end
 
-    test "list_intents returns newest-first with nil library owner when absent" do
+    test "list_watchlist returns newest-first with nil library owner when absent" do
       {:ok, _} = Discovery.put_rung(@title, :list)
-      assert [%{intent: %TitleIntent{tmdb_id: 777}, library_owner_id: nil}] = Discovery.list_intents()
+      assert [%{intent: %TitleIntent{tmdb_id: 777}, library_owner_id: nil}] = Discovery.list_watchlist()
       await_supervised_tasks()
     end
 
-    test "list_intents resolves the library owner when a presentable container exists" do
+    test "list_watchlist resolves the library owner when a presentable container exists" do
       {:ok, _} = Discovery.put_rung(@title, :list)
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_external_id(%{source: "tmdb", external_id: "777", movie_id: movie.id})
       create_linked_file(%{movie_id: movie.id})
-      assert [%{library_owner_id: owner_id}] = Discovery.list_intents()
+      assert [%{library_owner_id: owner_id}] = Discovery.list_watchlist()
       assert owner_id == movie.id
+      await_supervised_tasks()
+    end
+
+    test "an ignored title is a record below the list: not listed, off the watchlist, in rungs/0" do
+      {:ok, %{rung: :ignored}} = Discovery.put_rung(@title, :ignored)
+
+      refute Discovery.listed?(777, :movie)
+      assert Discovery.rung(777, :movie) == :ignored
+      assert Discovery.list_watchlist() == []
+      assert Discovery.rungs() == %{{777, :movie} => :ignored}
+      # No artwork is promoted or held for a title the person has dismissed.
+      assert MediaCentaur.Discovery.TmdbArtworkHolds.holds() == MapSet.new()
+
+      # Wanting it again supersedes having dismissed it — one record, moved.
+      {:ok, %{rung: :list}} = Discovery.put_rung(@title, :list)
+      assert Discovery.listed?(777, :movie)
+      assert [_] = Discovery.list_watchlist()
       await_supervised_tasks()
     end
 

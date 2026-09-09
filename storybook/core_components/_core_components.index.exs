@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents do
 
   def folder_open?, do: true
 
+  def entry("action_toast"), do: [icon: {:fa, "rotate-left", :thin}, name: "Action toast"]
   def entry("badge"), do: [icon: {:fa, "tag", :thin}]
   def entry("button"), do: [icon: {:fa, "rectangle-ad", :thin}]
   def entry("empty_state"), do: [icon: {:fa, "wind", :thin}, name: "Empty state"]

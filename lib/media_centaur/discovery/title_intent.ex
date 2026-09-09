@@ -12,6 +12,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   | rung | what the app does |
   |---|---|
   | *(no record)* | nothing; the title is not on your list |
+  | `:ignored` | keeps it off the Recommendations tab, and nothing else |
   | `:list` | keeps it on your list, and nothing else |
   | `:follow` | keeps its calendar, so releases appear under Coming up |
   | `:ask` | parks a draft plan when a release drops |
@@ -23,6 +24,12 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   instead of a rule something has to remember to apply, and it is why
   there is no durable-disarm state to keep: nothing but a person can put
   a title back on the ladder, so nothing can silently re-arm it.
+
+  **Ignored is a record, below List.** Off is no opinion; Ignored is the
+  person's decision that the title is not for them, and the one thing it
+  does is keep friends' recommendations of it out of the Recommendations
+  tab. Wanting the title later — any rung at List or above — replaces it,
+  the way every other move on the ladder does.
 
   Identity is `(tmdb_id, media_type)`, kept as indexed columns and
   derived from the embedded title on write so there is one write path
@@ -45,10 +52,10 @@ defmodule MediaCentaur.Discovery.TitleIntent do
 
   alias MediaCentaur.TMDB.Title
 
-  @rungs [:list, :follow, :ask, :grab, :default]
+  @rungs [:ignored, :list, :follow, :ask, :grab, :default]
 
   @typedoc "Where a person's intent about a title sits. Off is no record at all."
-  @type rung :: :list | :follow | :ask | :grab | :default
+  @type rung :: :ignored | :list | :follow | :ask | :grab | :default
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
@@ -139,7 +146,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   def grab_mode(:default, default), do: default
   def grab_mode(:grab, _default), do: "all_releases"
   def grab_mode(:ask, _default), do: "ask"
-  def grab_mode(rung, _default) when rung in [nil, :list, :follow], do: "off"
+  def grab_mode(rung, _default) when rung in [nil, :ignored, :list, :follow], do: "off"
 
   # Provenance pairing: a friend-sourced item names its recommendation; a
   # manual one carries none.

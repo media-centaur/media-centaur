@@ -32,6 +32,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   into `from <nickname>` (`Activities.get_many/1` →
   `Social.list_friends/0`) — the join neither context may make.
 
+  A Recommendations row's `×` (`ignore_title`) is the one verb outside
+  the modal: it sets the title's rung to Ignored through
+  `ReleaseTracking.set_rung/3` — the same write the ladder makes — with
+  the newest recommendation as provenance, and the row leaves on the
+  `RungChanged` broadcast like any other rung move. Because the row
+  shows no state to reverse, the act gets an undo toast (`ignore_undo`
+  restores the rung the title had; `ignore_undo_dismiss` clears the
+  toast, by click or by expiry). The ladder's own Ignore has no toast:
+  the ladder is its own undo.
+
   Every row carries its acquisition state (Planning / Downloading /
   Needs review) stamped from one `TitleStates` read per load; the page
   subscribes to `acquisition:updates` so a one-click download's progress
@@ -57,6 +67,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
+  alias MediaCentaurWeb.Components.ActionToast
   alias MediaCentaurWeb.Components.Discovery.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.Components.Title.DetailModal, as: TitleDetailModal
@@ -91,6 +102,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        recommendations: [],
        people: [],
        expanded_people: MapSet.new(),
+       ignore_undo: nil,
        default_grab_mode: AutoGrabSettings.load().default_mode,
        today: Date.utc_today()
      )
@@ -190,6 +202,30 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, socket |> load_friends() |> load_activities()}
   end
 
+  # The row's × — see the moduledoc. The rung it had is kept for Undo;
+  # nil is Off, which set_rung/2 spells as such.
+  def handle_event("ignore_title", %{"ref" => param}, socket) do
+    with {:ok, ref} <- TitleRef.parse(param),
+         %{title: title, rung: rung, newest: newest} <-
+           Enum.find(socket.assigns.recommendations, &(&1.ref == ref)) do
+      provenance = %{source: :friend, activity_id: newest.activity.id, note: newest.activity.note}
+      {:ok, _intent} = ReleaseTracking.set_rung(title, :ignored, provenance)
+      {:noreply, assign(socket, :ignore_undo, %{title: title, previous_rung: rung || :off})}
+    else
+      _unknown -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("ignore_undo", _params, %{assigns: %{ignore_undo: %{} = undo}} = socket) do
+    {:ok, _intent} = ReleaseTracking.set_rung(undo.title, undo.previous_rung)
+    {:noreply, assign(socket, :ignore_undo, nil)}
+  end
+
+  def handle_event("ignore_undo", _params, socket), do: {:noreply, socket}
+
+  def handle_event("ignore_undo_dismiss", _params, socket),
+    do: {:noreply, assign(socket, :ignore_undo, nil)}
+
   @impl true
   def handle_info({:title_intent_changed, _event}, socket) do
     {:noreply, socket |> load_items() |> load_activities()}
@@ -229,7 +265,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # nothing about Activities or ReleaseTracking. The rung comes straight
   # off the record — it is the authored fact, not something to look up.
   defp load_items(socket) do
-    rows = Discovery.list_intents()
+    rows = Discovery.list_watchlist()
 
     friend_activity =
       Activities.friend_activity_for(Enum.map(rows, &{&1.intent.tmdb_id, &1.intent.media_type}))
@@ -450,8 +486,18 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               }
               notes={row.notes}
               friend_activity={row.activities}
+              ignorable?
             />
           </div>
+
+          <ActionToast.action_toast
+            :if={@ignore_undo}
+            id="ignore-undo"
+            message={"#{@ignore_undo.title.name} ignored"}
+            action="Undo"
+            on_action={JS.push("ignore_undo")}
+            on_dismiss={JS.push("ignore_undo_dismiss") |> hide("#ignore-undo")}
+          />
 
           <div :if={@live_action == :friends} class="space-y-4">
             <div :if={@people != []} class="space-y-3" data-nav-zone="people">

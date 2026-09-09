@@ -55,7 +55,16 @@ defmodule MediaCentaur.Discovery do
         existing
         |> TitleIntent.rung_changeset(rung, title)
         |> Repo.update()
-        |> announce()
+        |> case do
+          # Leaving Ignored for the list is the one move that is also a
+          # first listing: the artwork was not promoted when it was dismissed.
+          {:ok, intent} when existing.rung == :ignored ->
+            ensure_artwork_async(intent)
+            announce({:ok, intent})
+
+          result ->
+            announce(result)
+        end
 
       nil ->
         title
@@ -124,18 +133,21 @@ defmodule MediaCentaur.Discovery do
   def grab_mode(tmdb_id, media_type, default),
     do: TitleIntent.grab_mode(rung(tmdb_id, media_type), default)
 
-  @doc "Whether the title is on the list at all — any rung above Off."
+  @doc "Whether the title is on the list at all — List or above; Off and Ignored are not."
   @spec listed?(integer(), media_type()) :: boolean()
-  def listed?(tmdb_id, media_type), do: not is_nil(rung(tmdb_id, media_type))
+  def listed?(tmdb_id, media_type), do: TitleIntent.rung_at_least?(rung(tmdb_id, media_type), :list)
 
   @doc """
-  Every title intent, newest first, each with the owning library
-  container's id (nil when the library doesn't know the title) — derived
-  live via `Library.ExternalIds.tmdb_owners/1`, never stored.
+  The watchlist: every title intent at List or above, newest first, each
+  with the owning library container's id (nil when the library doesn't
+  know the title) — derived live via `Library.ExternalIds.tmdb_owners/1`,
+  never stored. Ignored titles are records too, but not on the list.
   """
-  @spec list_intents() :: [%{intent: TitleIntent.t(), library_owner_id: Ecto.UUID.t() | nil}]
-  def list_intents do
-    intents = Repo.all(from(i in TitleIntent, order_by: [desc: i.inserted_at]))
+  @spec list_watchlist() :: [%{intent: TitleIntent.t(), library_owner_id: Ecto.UUID.t() | nil}]
+  def list_watchlist do
+    intents =
+      Repo.all(from(i in TitleIntent, where: i.rung != :ignored, order_by: [desc: i.inserted_at]))
+
     owners = ExternalIds.tmdb_owners(Enum.map(intents, &{&1.tmdb_id, &1.media_type}))
 
     Enum.map(intents, fn intent ->
@@ -144,9 +156,10 @@ defmodule MediaCentaur.Discovery do
   end
 
   @doc """
-  Every listed title's rung, as `{tmdb_id, media_type} => rung` — bulk
-  decoration for search rows and list rows, which show the rung rather
-  than a yes/no.
+  Every recorded title's rung, Ignored included, as `{tmdb_id,
+  media_type} => rung` — bulk decoration for search rows and list rows,
+  which show the rung rather than a yes/no, and the Recommendations
+  tab's filter.
   """
   @spec rungs() :: %{ref() => TitleIntent.rung()}
   def rungs do
@@ -171,6 +184,10 @@ defmodule MediaCentaur.Discovery do
 
   # Listed titles persist, so their artwork moves from TMDB-hotlink to
   # the local referenced tier. Network — context-layer task (ADR-049).
+  # An ignored title is a record the person does not want; nothing is
+  # fetched for it.
+  defp ensure_artwork_async(%TitleIntent{rung: :ignored}), do: :ok
+
   defp ensure_artwork_async(intent) do
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
       TmdbArtwork.ensure(intent.media_type, intent.tmdb_id)

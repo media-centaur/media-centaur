@@ -4,9 +4,11 @@ defmodule MediaCentaurWeb.Components.Title.IntentControlTest do
   alias MediaCentaurWeb.Components.Title.IntentControl, as: Control
 
   describe "options/0" do
-    test "offers the six rungs, Off first, Default last" do
-      assert Enum.map(Control.options(), & &1.rung) == [:off, :list, :follow, :ask, :grab, :default]
-      assert Enum.map(Control.options(), & &1.label) == ~w(Off List Follow Ask Grab Default)
+    test "offers the seven rungs, Ignore first, Off beside it, Default last" do
+      assert Enum.map(Control.options(), & &1.rung) ==
+               [:ignored, :off, :list, :follow, :ask, :grab, :default]
+
+      assert Enum.map(Control.options(), & &1.label) == ~w(Ignore Off List Follow Ask Grab Default)
     end
   end
 
@@ -37,6 +39,11 @@ defmodule MediaCentaurWeb.Components.Title.IntentControlTest do
   describe "description/1" do
     test "Off is the absence of a record, and says so" do
       assert Control.description(nil) == "Not on your list."
+    end
+
+    test "Ignored is hidden from Recommendations and nothing more" do
+      assert Control.description(:ignored) =~ "Hidden from Recommendations"
+      assert Control.description(:ignored) =~ "Nothing is watching for releases"
     end
 
     test "List is on the list and nothing more" do

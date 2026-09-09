@@ -10,8 +10,8 @@ defmodule MediaCentaur.Discovery.TitleIntentTest do
   alias MediaCentaur.Discovery.TitleIntent
 
   describe "the ladder" do
-    test "runs from List to Default, and Off is not on it" do
-      assert TitleIntent.rungs() == [:list, :follow, :ask, :grab, :default]
+    test "runs from Ignored to Default, and Off is not on it" do
+      assert TitleIntent.rungs() == [:ignored, :list, :follow, :ask, :grab, :default]
       refute :off in TitleIntent.rungs()
     end
 
@@ -20,6 +20,13 @@ defmodule MediaCentaur.Discovery.TitleIntentTest do
       assert TitleIntent.rung_at_least?(:grab, :follow)
       assert TitleIntent.rung_at_least?(:default, :follow)
       refute TitleIntent.rung_at_least?(:list, :follow)
+    end
+
+    test "Ignored is a record below List — an opinion, unlike Off, but not on the list" do
+      refute TitleIntent.rung_at_least?(:ignored, :list)
+      assert TitleIntent.rung_at_least?(:ignored, :ignored)
+      assert TitleIntent.rung_at_least?(:list, :ignored)
+      refute TitleIntent.follows_releases?(:ignored)
     end
 
     test "a title with no record is below every rung" do
@@ -46,7 +53,7 @@ defmodule MediaCentaur.Discovery.TitleIntentTest do
     end
 
     test "the rungs below Ask never grab, whatever the global setting says" do
-      for rung <- [nil, :list, :follow] do
+      for rung <- [nil, :ignored, :list, :follow] do
         assert TitleIntent.grab_mode(rung, "all_releases") == "off",
                "#{inspect(rung)} must never grab"
       end

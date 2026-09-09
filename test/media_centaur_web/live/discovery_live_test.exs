@@ -424,7 +424,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#recommendation-movie-777")
 
       assert [%{intent: %{source: :friend, activity_id: rec_id, note: "Watch it."}}] =
-               Discovery.list_intents()
+               Discovery.list_watchlist()
 
       assert rec_id == rec.id
 
@@ -501,6 +501,79 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
+    test "the row's × ignores the title in one click, with provenance; Undo puts it back", %{
+      conn: conn
+    } do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert has_element?(view, "#recommendation-movie-777")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge", "1")
+
+      view |> element("#recommendation-movie-777-ignore") |> render_click()
+
+      assert Discovery.rung(777, :movie) == :ignored
+      assert %{source: :friend, activity_id: rec_id} = Discovery.get_intent(777, :movie)
+      assert rec_id == rec.id
+      refute has_element?(view, "#recommendation-movie-777")
+      refute has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge")
+      assert has_element?(view, "#ignore-undo", "Sample Movie 777")
+
+      view |> element("#ignore-undo-action") |> render_click()
+
+      assert Discovery.rung(777, :movie) == nil
+      assert has_element?(view, "#recommendation-movie-777")
+      refute has_element?(view, "#ignore-undo")
+      await_supervised_tasks()
+    end
+
+    test "Undo restores the rung the title had; the toast's own dismiss only clears the toast", %{
+      conn: conn
+    } do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _rec} = Activities.ingest(friend_event(777, nil))
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      view |> element("#recommendation-movie-777-ignore") |> render_click()
+      assert Discovery.rung(777, :movie) == :ignored
+
+      view |> element("#ignore-undo-action") |> render_click()
+      assert Discovery.rung(777, :movie) == :list
+      assert has_element?(view, "#recommendation-movie-777")
+
+      view |> element("#recommendation-movie-777-ignore") |> render_click()
+      render_hook(view, "ignore_undo_dismiss", %{})
+      refute has_element?(view, "#ignore-undo")
+      assert Discovery.rung(777, :movie) == :ignored
+      await_supervised_tasks()
+    end
+
+    test "the ladder's Ignore removes the row and keeps the modal; no × on the watchlist", %{
+      conn: conn
+    } do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, _rec} = Activities.ingest(friend_event(777, nil))
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      assert has_element?(view, "#watchlist-item-movie-777")
+      refute has_element?(view, "#watchlist-item-movie-777-ignore")
+
+      {:ok, view, _html} = live(conn, "/discovery?title=movie-777")
+      view |> element("#title-tracking-mode-ignored") |> render_click()
+
+      assert Discovery.rung(777, :movie) == :ignored
+      refute has_element?(view, "#recommendation-movie-777")
+      assert has_element?(view, "#title-tracking-mode[data-rung='ignored']")
+      refute has_element?(view, "#ignore-undo")
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      refute has_element?(view, "#watchlist-item-movie-777")
+      await_supervised_tasks()
+    end
+
     test "the tab strip counts the titles", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _rec} = Activities.ingest(friend_event(777, nil))
@@ -549,7 +622,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       render_click(view, "set_rung", %{"choice" => "list", "ref" => "movie-1"})
 
       assert Process.alive?(view.pid)
-      assert Discovery.list_intents() == []
+      assert Discovery.list_watchlist() == []
     end
 
     test "a friend's deletion removes their row without a reload", %{conn: conn} do

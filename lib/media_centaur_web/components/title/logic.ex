@@ -127,10 +127,13 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
     Enum.reject([state, tracking, next], &is_nil/1)
   end
 
-  # Off says nothing — the row would not be here. List says it is on the
-  # list, except where the container already says so. Default says what
-  # it resolves to, so the row never asks the reader to know the setting.
+  # Off says nothing — the row would not be here. Ignored says so: the
+  # Recommendations tab hides it, but a search result must still say the
+  # reader dismissed it. List says it is on the list, except where the
+  # container already says so. Default says what it resolves to, so the
+  # row never asks the reader to know the setting.
   defp rung_marker(nil, _default, _list_implied?), do: nil
+  defp rung_marker(:ignored, _default, _list_implied?), do: "Ignored"
   defp rung_marker(:list, _default, true), do: nil
   defp rung_marker(:list, _default, false), do: "On your list"
   defp rung_marker(:follow, _default, _list_implied?), do: "Tracking: Follow"
