@@ -10,31 +10,26 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   forecast, the same convention as the release-search zone — whose
   `grid` nav zone the result rows reuse (the two modes are exclusive,
   so only one grid exists at a time). The header strip (scope chips +
-  Clear) is its own `toolbar` nav zone: the rows form a two-column
-  grid (pick + bookmark, declared via the row-level `data-nav-grid`),
-  and grid navigation is index arithmetic — header items sharing the
-  zone would shift the pairing.
+  Clear) is its own `toolbar` nav zone.
 
-  Each row leads with one verb: clicking downloads the title — opening
-  the plan flow, which is a step toward it, not the goal — or tracks it
-  when no indexer is configured. Same `omnibox_pick` contract the popup
-  rows carried. A sibling bookmark button toggles the title on the
-  watchlist (`watchlist_toggle`), and rows the library already presents
-  carry a quiet "In library" marker. Pure rendering; events bubble to
-  the parent LiveView (`omnibox_pick`, `omnibox_clear`,
-  `watchlist_toggle`).
+  This module owns the list, not the row. Each result is a
+  `Components.Title.Row` — identity, quiet markers, the whole card
+  opening the title detail modal, where every verb lives (spec
+  2026-09-05 §14). Media search was the last surface still carrying its
+  own verb; it no longer does, so a search result and a Discovery row
+  are the same row.
+
+  Pure rendering; events bubble to the parent LiveView (`open_title`
+  from the row, `omnibox_clear` and `omnibox_scope` from the header).
   """
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.Components.Title.Pennant,
-    only: [pennants: 1]
-
-  import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
-  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Title.Logic
+  alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
 
   attr :query, :string,
     required: true,
@@ -42,10 +37,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   attr :results, :list, required: true, doc: "`Title.t()` rows, TMDB relevance order."
   attr :searching?, :boolean, required: true
-
-  attr :release_mode_available, :boolean,
-    required: true,
-    doc: "Whether an indexer is configured — flips the row verb between download and track."
 
   attr :metadata_available, :boolean,
     default: true,
@@ -69,9 +60,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     default: MapSet.new(),
     doc: "`{tmdb_id, media_type}` refs the library has a presentable container for."
 
-  attr :tracked_refs, :any,
-    default: MapSet.new(),
-    doc: "`{tmdb_id, media_type}` refs release tracking holds an open item for — the Tracked marker."
+  attr :default_grab_mode, :string,
+    required: true,
+    doc:
+      "the resolved Default rung, for the row's tracking marker — `AutoGrabSettings.load().default_mode`."
 
   attr :friend_activity_by_ref, :map,
     default: %{},
@@ -166,15 +158,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
       </div>
 
       <div data-nav-zone="grid" class="space-y-2">
-        <.result_row
+        <TitleRow.title_row
           :for={result <- @visible}
-          result={result}
-          status={release_status(result, @today)}
-          release_mode_available={@release_mode_available}
-          rung={Map.get(@title_rungs, {result.tmdb_id, result.media_type})}
-          friend_activity={Map.get(@friend_activity_by_ref, {result.tmdb_id, result.media_type}, [])}
-          in_library?={MapSet.member?(@in_library_refs, {result.tmdb_id, result.media_type})}
-          tracked?={MapSet.member?(@tracked_refs, {result.tmdb_id, result.media_type})}
+          id={"omnibox-result-#{result.media_type}-#{result.tmdb_id}"}
+          title={result}
+          poster_url={title_poster_url(result)}
+          markers={markers(result, assigns)}
+          friend_activity={Map.get(@friend_activity_by_ref, Title.ref(result), [])}
         />
       </div>
     </section>
@@ -212,113 +202,20 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     """
   end
 
-  attr :result, Title, required: true
+  # The row's markers, from the one builder every title row uses.
+  # `acquisition_state: nil` because this page does not read
+  # `Acquisition.title_state/2` per result — a scheduled convergence, and
+  # a one-word change here when it does.
+  defp markers(%Title{} = result, assigns) do
+    ref = Title.ref(result)
 
-  attr :status, :atom,
-    required: true,
-    values: [:upcoming, :released],
-    doc: "`release_status/2` of this row — picks the verb the click honestly performs."
-
-  attr :release_mode_available, :boolean, required: true
-
-  attr :rung, :atom,
-    default: nil,
-    doc:
-      "The rung this title sits at, nil for Off — fills the bookmark. Above List the bookmark is a marker, not a toggle: a row click must not tear down a calendar."
-
-  attr :in_library?, :boolean,
-    required: true,
-    doc: "Whether the library already presents this title — the quiet In library marker."
-
-  attr :tracked?, :boolean,
-    required: true,
-    doc: "Whether release tracking already holds this title — the Tracked marker."
-
-  attr :friend_activity, :list,
-    default: [],
-    doc: "the title's `Activities.friend_activity_for/1` rows — the pennants above the bookmark."
-
-  # A wrapper div owns the row surface: the main pick button and the
-  # bookmark toggle are siblings — nested interactive elements are
-  # invalid HTML. The wrapper is a real 2-track grid carrying
-  # `data-nav-grid`: the input system reads its computed column count,
-  # so DOWN/UP move row-to-row (pick → pick) and LEFT/RIGHT move
-  # within a row (pick ↔ bookmark). Every row renders exactly these
-  # two nav items. The pennants share the bookmark's track, above it,
-  # so the track stays one of two and the pick's text never runs under
-  # a flag; the mast bleeds into the row's right padding to meet the
-  # edge.
-  defp result_row(assigns) do
-    assigns =
-      assign(assigns, :verb, verb(assigns.tracked?, assigns.status, assigns.release_mode_available))
-
-    ~H"""
-    <div
-      class="glass-surface grid w-full grid-cols-[1fr_auto] items-start gap-1 overflow-hidden rounded-xl pr-2 transition-colors hover:bg-base-content/[0.05]"
-      data-nav-grid
-    >
-      <button
-        id={"omnibox-result-#{@result.media_type}-#{@result.tmdb_id}"}
-        type="button"
-        class="flex min-w-0 cursor-pointer items-start gap-4 py-3 pl-4 text-left"
-        phx-click="omnibox_pick"
-        phx-value-tmdb-id={@result.tmdb_id}
-        phx-value-media-type={@result.media_type}
-        data-nav-item
-        tabindex="0"
-      >
-        <.title_summary title={@result} poster_url={title_poster_url(@result)}>
-          <:markers>
-            <span :if={@tracked?} class="shrink-0 text-xs text-success/70">Tracked</span>
-            <%!-- Quiet neutral, deliberately unlike Tracked's success tint —
-                in-library is metadata here, not a state this page owns. --%>
-            <span :if={@in_library?} class="shrink-0 text-xs text-base-content/55">In library</span>
-          </:markers>
-        </.title_summary>
-
-        <span
-          :if={@verb}
-          class="inline-flex shrink-0 items-center gap-1 self-center text-xs font-medium text-primary/70"
-        >
-          {@verb}
-          <.icon name="hero-chevron-right-mini" class="size-3.5" />
-        </span>
-      </button>
-
-      <div class="flex flex-col items-end self-stretch">
-        <.pennants activity={@friend_activity} class="-mr-2 mt-2.5" />
-        <button
-          id={"omnibox-watchlist-#{@result.media_type}-#{@result.tmdb_id}"}
-          type="button"
-          class={[
-            "flex flex-1 items-center px-2 transition-colors",
-            @rung && "text-primary",
-            !@rung && "text-base-content/55 hover:text-base-content/60",
-            toggleable?(@rung) && "cursor-pointer"
-          ]}
-          phx-click={toggleable?(@rung) && "watchlist_toggle"}
-          phx-value-tmdb-id={@result.tmdb_id}
-          phx-value-media-type={@result.media_type}
-          aria-pressed={to_string(@rung != nil)}
-          title={bookmark_label(@rung)}
-          data-nav-item
-          tabindex="0"
-        >
-          <.icon name={if @rung, do: "hero-bookmark-solid", else: "hero-bookmark"} class="size-4" />
-        </button>
-      </div>
-    </div>
-    """
+    Logic.row_markers(%{
+      in_library?: MapSet.member?(assigns.in_library_refs, ref),
+      acquisition_state: nil,
+      rung: Map.get(assigns.title_rungs, ref),
+      default_grab_mode: assigns.default_grab_mode
+    })
   end
-
-  # The row's one verb, honest per release status: a released title with
-  # an indexer can be downloaded — the host's `omnibox_pick` opens the
-  # plan flow. Anything else — not out yet, or no indexer — opens the
-  # title detail (UIDR-003's standard label for that), where the
-  # tracking-mode control is the arming surface; there is no `Track`
-  # verb (ADR-065). The verb names the goal, not the step it opens with.
-  defp verb(_tracked?, :released, true), do: "Download"
-  defp verb(_tracked?, _status, _release_mode_available), do: "More info"
 
   @doc """
   Whether the typed query is active — two or more characters after
@@ -352,14 +249,4 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   def scope(results, scope, today) when scope in [:upcoming, :released] do
     Enum.filter(results, &(release_status(&1, today) == scope))
   end
-
-  # The row bookmark works the bottom of the ladder only. Above List a
-  # click would destroy a calendar and its wants as a side effect of a
-  # one-click affordance, so it becomes a marker and the label says where
-  # the ladder lives.
-  defp toggleable?(rung), do: rung in [nil, :list]
-
-  defp bookmark_label(nil), do: "Add to your list"
-  defp bookmark_label(:list), do: "Remove from your list"
-  defp bookmark_label(_followed), do: "Tracking — change it in the title view"
 end
