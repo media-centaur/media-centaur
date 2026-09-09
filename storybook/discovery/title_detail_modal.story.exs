@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.Facet
   alias MediaCentaurWeb.Components.Detail.TitlePreview
-  alias MediaCentaurWeb.Components.Discovery.TitleDetail
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
 
   @today ~D[2026-08-03]
