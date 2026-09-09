@@ -138,6 +138,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
+  alias MediaCentaurWeb.Live.RecommendModal
 
   alias MediaCentaur.Storage
 
@@ -835,6 +836,11 @@ defmodule MediaCentaurWeb.IncomingLive do
           scope_menu_open={@scope_menu_open}
           today={@today}
           recommend?={@show_discovery}
+        />
+        <RecommendModal.recommend_modal
+          subject={@recommend_subject}
+          poster_url={@recommend_poster_url}
+          relay_counts={@recommend_relay_counts}
         />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js

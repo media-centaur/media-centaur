@@ -589,7 +589,10 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
       refute render(view) =~ "Recommend to your friends"
-      refute has_element?(view, "#recommend-modal")
+      # The container mounts unconditionally, same as every other
+      # `RecommendFlow` host (`EntityModal`'s) — only its open state is
+      # gated, by the detail modal's own Recommend control not rendering.
+      refute has_element?(view, "#recommend-modal[data-state='open']")
       await_supervised_tasks()
     end
   end
