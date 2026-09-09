@@ -314,5 +314,5 @@ Per the closure convention, every leftover is bucketed rather than left implicit
 * [UIDR-017](../decisions/user-interface/2026-08-03-017-coming-up-title-depth.md) — Coming Up title depth; straggler half superseded here
 * Key modules: `lib/media_centaur/discovery.ex`, `lib/media_centaur/release_tracking.ex`,
   `lib/media_centaur/release_tracking/{item,auto_track,library_listener,wants}.ex`,
-  `lib/media_centaur_web/components/{discovery/title_detail_modal,release_tracking/title_modal}.ex`,
+  `lib/media_centaur_web/components/{title/detail_modal,release_tracking/title_modal}.ex`,
   `lib/media_centaur_web/live/entity_modal.ex`
