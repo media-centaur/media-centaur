@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Discovery.TitleRow do
+defmodule MediaCentaurWeb.Components.Title.Row do
   @moduledoc """
   One Discovery row — a title on the Recommendations tab or a watchlist
   entry — as a whole-card click target opening the title detail modal

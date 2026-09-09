@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
+defmodule MediaCentaurWeb.Storybook.Title.Row do
   @moduledoc """
   One Discovery row — poster thumb, identity line, the host's lead line
   and quiet markers, the notes or the overview — as a whole-card click
@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleRow do
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.TMDB.Title
 
-  def function, do: &MediaCentaurWeb.Components.Discovery.TitleRow.title_row/1
+  def function, do: &MediaCentaurWeb.Components.Title.Row.title_row/1
   def render_source, do: :function
   def layout, do: :one_column
 
