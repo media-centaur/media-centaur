@@ -332,6 +332,11 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
           "On the list at List: the ladder control carries that state, and the strip " <>
             "has no Add/Remove verbs of its own any more.",
         attributes: %{today: @today, detail: detail(movie(), %{rung: :list})}
+      },
+      %Variation{
+        id: :with_recommend,
+        description: "Friend network on — the strip offers Recommend",
+        attributes: %{today: @today, detail: detail(movie(), %{}), recommend?: true}
       }
     ]
   end

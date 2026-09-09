@@ -834,6 +834,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           detail={@title_detail}
           scope_menu_open={@scope_menu_open}
           today={@today}
+          recommend?={@show_discovery}
         />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js

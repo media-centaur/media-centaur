@@ -380,6 +380,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           detail={@title_detail}
           scope_menu_open={@scope_menu_open}
           today={@today}
+          recommend?={@show_discovery}
         />
       </:overlays>
       <%!-- `title` and `activity` are modal state: stripped from the
