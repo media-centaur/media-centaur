@@ -8,6 +8,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendationRows do
   attributed. The row's joins (poster, library owner, watchlist,
   acquisition state) are the title's, taken from any row that carried
   them — every activity row for a title carries the same.
+
+  A title at the Ignored rung makes no row, whoever recommends it: that
+  is the one thing the rung does. The activities themselves stay — the
+  Friends tab and the pennants still say what a friend said.
   """
 
   alias MediaCentaur.Format
@@ -31,7 +35,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.RecommendationRows do
     now = Keyword.fetch!(opts, :now)
 
     rows
-    |> Enum.filter(&(&1.activity.kind == :recommendation and not &1.own? and &1.nickname != nil))
+    |> Enum.filter(
+      &(&1.activity.kind == :recommendation and not &1.own? and &1.nickname != nil and
+          &1.rung != :ignored)
+    )
     |> Enum.group_by(&{&1.activity.tmdb_id, &1.activity.media_type})
     |> Enum.map(fn {ref, group} -> row(ref, group, now) end)
     |> Enum.sort_by(& &1.newest.activity.acted_at, {:desc, DateTime})

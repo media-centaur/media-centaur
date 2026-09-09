@@ -1,10 +1,15 @@
 defmodule MediaCentaurWeb.Components.Title.IntentControl do
   @moduledoc """
   The one control for a title, mounted by every title surface (UIDR-035):
-  a pick-one-of-six for the rung a person's `Discovery.TitleIntent` sits
+  a pick-one-of-seven for the rung a person's `Discovery.TitleIntent` sits
   at.
 
-      Off · List · Follow · Ask · Grab · Default
+      Ignore · Off · List · Follow · Ask · Grab · Default
+
+  Ignore sits left of Off because it is the stronger no: Off is no
+  record, Ignore is a record that keeps friends' recommendations of the
+  title off the Recommendations tab. It is the modal's ignore verb — the
+  Recommendations row's `×` is a one-click shortcut to the same rung.
 
   It replaces two controls that expressed one ladder — a watchlist
   Add/Remove *and* a five-value tracking-mode strip — which could
@@ -39,6 +44,7 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   alias MediaCentaur.Discovery.TitleIntent
 
   @options [
+    %{rung: :ignored, label: "Ignore"},
     %{rung: :off, label: "Off"},
     %{rung: :list, label: "List"},
     %{rung: :follow, label: "Follow"},
@@ -54,7 +60,7 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
     doc: "the title's `MediaCentaurWeb.TitleRef.param/1`, carried on every click"
 
   attr :rung, :atom,
-    values: [nil, :list, :follow, :ask, :grab, :default],
+    values: [nil, :ignored, :list, :follow, :ask, :grab, :default],
     default: nil,
     doc: "the rung the title's intent sits at; nil means the title is Off — no record"
 
@@ -123,7 +129,7 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
     """
   end
 
-  @doc "The six rungs in ladder order, each `%{rung, label}`. `:off` is the absence of a record."
+  @doc "The seven rungs in ladder order, each `%{rung, label}`. `:off` is the absence of a record."
   @spec options() :: [%{rung: TitleIntent.rung() | :off, label: String.t()}]
   def options, do: @options
 
@@ -152,6 +158,8 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   """
   @spec description(TitleIntent.rung() | nil) :: String.t()
   def description(nil), do: "Not on your list."
+
+  def description(:ignored), do: "Hidden from Recommendations. Nothing is watching for releases."
 
   def description(:list), do: "On your list. Nothing is watching for releases."
   def description(:follow), do: "Releases show on Coming up. Nothing downloads."

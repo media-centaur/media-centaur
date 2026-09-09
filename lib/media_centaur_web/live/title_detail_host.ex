@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
               String.t()
 
   @modal_events ~w(title_scope_toggle title_scope_close title_download title_activity_delete title_recommend_open)
-  @rungs ~w(off list follow ask grab default)
+  @rungs ~w(ignored off list follow ask grab default)
 
   defmacro __using__(_opts) do
     quote do
@@ -413,6 +413,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
+  defp rung_atom("ignored"), do: :ignored
   defp rung_atom("off"), do: :off
   defp rung_atom("list"), do: :list
   defp rung_atom("follow"), do: :follow

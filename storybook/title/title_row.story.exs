@@ -4,7 +4,9 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
   and quiet markers, the notes or the overview — as a whole-card click
   target. Every verb lives in the title detail modal, so the row never
   grows or loses a control depending on where the title stands; only
-  its markers change. `poster_url: nil` shows the icon fallback.
+  its markers change. The one exception is the Recommendations row's
+  hover-revealed × (`ignorable?`), a shortcut to the Ignored rung.
+  `poster_url: nil` shows the icon fallback.
   """
 
   use PhoenixStorybook.Story, :component
@@ -98,6 +100,26 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
           id: "row-recommended-by-two",
           title: title(),
           lead: "Sample Friend, Other Friend · 2d ago",
+          notes: [
+            %{name: "Sample Friend", text: "Watch it before anyone spoils the ending."},
+            %{name: "Other Friend", text: "Fine."}
+          ],
+          friend_activity: [
+            recommendation("Other Friend", :like),
+            recommendation("Sample Friend", :love)
+          ]
+        }
+      },
+      %Variation{
+        id: :ignorable,
+        description:
+          "A Recommendations row with its × (hover the row): a sibling of the card " <>
+            "button, centred in the gutter to its right, clear of the mast. Pointer-only — no nav item.",
+        attributes: %{
+          id: "row-ignorable",
+          title: title(),
+          lead: "Sample Friend, Other Friend · 2d ago",
+          ignorable?: true,
           notes: [
             %{name: "Sample Friend", text: "Watch it before anyone spoils the ending."},
             %{name: "Other Friend", text: "Fine."}

@@ -1,6 +1,6 @@
 # Ignore a recommendation
 
-**Date:** 2026-09-09 · **Status:** approved, implementing
+**Date:** 2026-09-09 · **Status:** implemented 2026-09-09
 
 ## Glossary
 

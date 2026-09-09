@@ -2,6 +2,15 @@
 status: accepted
 date: 2026-09-07
 ---
+
+> **Amended 2026-09-09:** the ladder gained a seventh rung, **Ignore**,
+> left of Off — a record that keeps friends' recommendations of the
+> title off the Recommendations tab, and nothing else. Off stays the
+> absence of a record. The Recommendations row's hover-revealed `×` is
+> a one-click shortcut to that rung, the one exception to point 4
+> below; the ladder remains the verb everywhere else. See
+> `docs/superpowers/specs/2026-09-09-ignore-recommendation-design.md`.
+
 # One control per title, because there is one ladder
 
 Supersedes the clause in [UIDR-035](2026-09-07-035-two-title-surfaces.md)

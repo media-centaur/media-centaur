@@ -1,8 +1,10 @@
 defmodule MediaCentaurWeb.Storybook.Title.IntentControl do
   @moduledoc """
-  The ladder control (UIDR-035): Off · List · Follow · Ask · Grab ·
-  Default, the pressed rung `aria-pressed`, with the selected rung's
-  consequence, the notes and the quality acceptance row beneath.
+  The ladder control (UIDR-035, UIDR-036): Ignore · Off · List · Follow ·
+  Ask · Grab · Default, the pressed rung `aria-pressed`, with the
+  selected rung's consequence, the notes and the quality acceptance row
+  beneath. Ignore is the strongest no — a record that keeps friends'
+  recommendations of the title off the Recommendations tab.
 
   One control replacing two: a watchlist Add/Remove *and* a tracking-mode
   strip used to express one ladder, and could contradict each other.
@@ -31,7 +33,7 @@ defmodule MediaCentaurWeb.Storybook.Title.IntentControl do
         id: :rungs,
         description: "Every rung, pressed, with its one-line consequence beneath.",
         variations:
-          for rung <- [:list, :follow, :ask, :grab, :default] do
+          for rung <- [:ignored, :list, :follow, :ask, :grab, :default] do
             %Variation{id: rung, attributes: base(%{rung: rung})}
           end
       },

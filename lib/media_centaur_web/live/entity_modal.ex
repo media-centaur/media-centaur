@@ -1512,7 +1512,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   def find_tmdb_id(_), do: nil
 
-  @rungs ~w(off list follow ask grab default)
+  @rungs ~w(ignored off list follow ask grab default)
 
   @doc false
   def handle_set_rung(%{"choice" => choice, "ref" => param}, socket) when choice in @rungs do
@@ -1538,6 +1538,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   def handle_set_rung(_params, socket), do: socket
 
+  defp rung_atom("ignored"), do: :ignored
   defp rung_atom("off"), do: :off
   defp rung_atom("list"), do: :list
   defp rung_atom("follow"), do: :follow

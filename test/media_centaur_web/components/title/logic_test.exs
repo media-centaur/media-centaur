@@ -154,6 +154,12 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
              ) == ["In library"]
     end
 
+    test "an ignored title says so — a search result you dismissed is still findable" do
+      base = %{in_library?: false, acquisition_state: nil, default_grab_mode: "ask"}
+      assert Logic.row_markers(Map.put(base, :rung, :ignored)) == ["Ignored"]
+      assert Logic.row_markers(Map.put(base, :rung, :ignored), true) == ["Ignored"]
+    end
+
     test "list_implied? drops only the List marker" do
       base = %{in_library?: false, acquisition_state: nil, rung: nil, default_grab_mode: "ask"}
 
