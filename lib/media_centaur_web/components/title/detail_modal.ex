@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Discovery.TitleDetailModal do
+defmodule MediaCentaurWeb.Components.Title.DetailModal do
   @moduledoc """
   The title detail modal — the one depth surface for a title without
   files (UIDR-035): watchlisted, tracked, in flight, or merely

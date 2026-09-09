@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
+defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
   @moduledoc """
   The title detail modal (UIDR-035) — the one surface for a title
   without files, on Discovery and Incoming alike. Friend provenance is
@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.TitleDetailModal do
 
   @today ~D[2026-08-03]
 
-  def function, do: &MediaCentaurWeb.Components.Discovery.TitleDetailModal.title_detail_modal/1
+  def function, do: &MediaCentaurWeb.Components.Title.DetailModal.title_detail_modal/1
   def render_source, do: :function
   def layout, do: :one_column
 
