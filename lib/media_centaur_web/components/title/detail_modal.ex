@@ -65,7 +65,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Components.Title.IntentControl
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
-  alias MediaCentaurWeb.DiscoveryLive.Logic
+  alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.TitleRef
 
   attr :detail, TitleDetail, default: nil, doc: "the open title; nil = closed"

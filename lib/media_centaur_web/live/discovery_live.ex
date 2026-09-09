@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.Title.DetailModal, as: TitleDetailModal
   alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
-  alias MediaCentaurWeb.DiscoveryLive.Logic
+  alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.DiscoveryLive.People
   alias MediaCentaurWeb.DiscoveryLive.RecommendationRows
   alias MediaCentaurWeb.Live.TitleDetailHost

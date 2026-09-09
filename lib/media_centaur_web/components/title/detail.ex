@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   The title detail modal's view-model (UIDR-035): one TMDB title without
   files — watchlisted, tracked, in flight, or merely recommended — with
   the facts the modal's controls depend on already decided. Built by
-  `DiscoveryLive.Logic.title_detail/2` from facts the
+  `Logic.title_detail/2` from facts the
   `TitleDetailHost` resolved; rendered by `TitleDetailModal`.
 
   `primary` is the one honest primary action for the title's state:
