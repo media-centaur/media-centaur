@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.20.1 — 2026-09-10
+
+### Fixed
+
+- **Discovery shows the artwork for what you and your friends share.** Most titles on the **Friends** and **Recommendations** tabs painted an empty grey card with the name tucked in the corner instead of a poster — including titles sitting in your own library with artwork already downloaded. Every card now finds its poster: the library's own copy when you have the title, and a fresh download from TMDB when you don't.
+
 ## v1.20.0 — 2026-09-10
 
 ### Fixed
