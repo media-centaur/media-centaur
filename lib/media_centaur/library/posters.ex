@@ -5,7 +5,8 @@ defmodule MediaCentaur.Library.Posters do
   the Status page's recently-watched feed).
 
   Episodes resolve to their **series'** poster — episodes carry no poster of
-  their own. The result map contains entries only for refs that resolved to a
+  their own; a caller that already holds the series id passes `:tv_series`
+  directly. The result map contains entries only for refs that resolved to a
   cached poster; refs to deleted or posterless entities are simply absent, so
   callers read with `Map.get(result, ref)` and treat `nil` as "no artwork".
   """
@@ -17,7 +18,7 @@ defmodule MediaCentaur.Library.Posters do
   alias MediaCentaur.Library.Image
   alias MediaCentaur.Repo
 
-  @type ref :: {:movie | :episode | :video_object, Ecto.UUID.t()}
+  @type ref :: {:movie | :tv_series | :episode | :video_object, Ecto.UUID.t()}
 
   @spec urls_by_refs([ref()]) :: %{ref() => String.t()}
   def urls_by_refs([]), do: %{}

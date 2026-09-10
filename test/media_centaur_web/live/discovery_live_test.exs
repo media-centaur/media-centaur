@@ -299,6 +299,37 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
+    # An activity's title snapshot carries no poster path, so the only
+    # artwork this install can paint for a title it owns is the entity's
+    # own poster — the top of the ladder `ActivityPosters` walks.
+    test "an activity for a title in the library paints the entity's poster", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie 424242"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "424242"})
+      create_linked_file(%{movie_id: movie.id})
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      {:ok, watched} =
+        Activities.watched(
+          Title.new!(%{tmdb_id: 424_242, media_type: :movie, name: "Sample Movie 424242"}),
+          nil
+        )
+
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+
+      assert has_element?(
+               view,
+               "#person-you-watched-#{watched.id} img[src^='/media-images/#{movie.id}/poster.jpg']"
+             )
+
+      await_supervised_tasks()
+    end
+
     test "a You card with nothing shared says where sharing starts", %{conn: conn} do
       Identity.ensure()
       {:ok, view, _html} = live(conn, "/discovery/friends")

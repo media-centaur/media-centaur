@@ -59,19 +59,23 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.{AutoGrabSettings, PlanEvents, TitleStates}
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Activities
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
+  alias MediaCentaur.Library.Posters
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Components.ActionToast
   alias MediaCentaurWeb.Components.Discovery.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.Components.Title.DetailModal, as: TitleDetailModal
   alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
+  alias MediaCentaurWeb.DiscoveryLive.ActivityPosters
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Live.RecommendModal
@@ -80,6 +84,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Live.TitleDetailHost
   alias MediaCentaurWeb.TitleRef
 
+  require MediaCentaur.Log, as: Log
   require PursuitEvents
 
   @impl true
@@ -103,6 +108,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        people: [],
        expanded_people: MapSet.new(),
        ignore_undo: nil,
+       warmed_artwork: MapSet.new(),
        default_grab_mode: AutoGrabSettings.load().default_mode,
        today: Date.utc_today()
      )
@@ -298,12 +304,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # The activity row's decoration: Activities owns the record and the
   # nickname; watchlist and library presence are derived here, live,
   # from the contexts that own them. Both tabs project from this list.
+  # The poster too — an activity snapshot carries no poster path, so
+  # only this page knows which artwork tier the title lives in
+  # (`ActivityPosters`).
   defp load_activities(socket) do
     rows = Activities.list_activities()
 
     owners =
       ExternalIds.tmdb_owners(Enum.map(rows, &{&1.activity.tmdb_id, &1.activity.media_type}))
 
+    library_posters = owners |> ActivityPosters.library_refs() |> Posters.urls_by_refs()
     rungs = Discovery.rungs()
 
     activities =
@@ -311,7 +321,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         ref = {activity.tmdb_id, activity.media_type}
 
         Map.merge(row, %{
-          poster_url: title_poster_url(activity.title),
+          poster_url: ActivityPosters.url(activity, owners, library_posters),
           library_owner_id: Map.get(owners, ref),
           rung: Map.get(rungs, ref)
         })
@@ -323,6 +333,37 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       recommendations_ready?: Social.list_relays() != [] and Social.list_friends() != []
     )
     |> stamp_acquisition_states()
+    |> warm_activity_artwork()
+  end
+
+  # Nothing else warms an activity's identity: a title no library entity
+  # owns reaches the bottom of the ladder with nothing until the
+  # referenced tier is downloaded. Once per identity per mount — a fetch
+  # that comes back empty (no artwork on TMDB) must not re-queue on every
+  # reload. Owned async (ADR-049), so a page load never waits on TMDB.
+  defp warm_activity_artwork(socket) do
+    refs =
+      socket.assigns.activities
+      |> ActivityPosters.missing()
+      |> Enum.reject(&MapSet.member?(socket.assigns.warmed_artwork, &1))
+
+    if refs == [] or not connected?(socket) or not Capabilities.tmdb_ready?() do
+      socket
+    else
+      socket
+      |> update(:warmed_artwork, &Enum.into(refs, &1))
+      |> start_async(:activity_artwork, fn ->
+        Enum.each(refs, fn {tmdb_id, media_type} -> TmdbArtwork.ensure(media_type, tmdb_id) end)
+      end)
+    end
+  end
+
+  @impl true
+  def handle_async(:activity_artwork, {:ok, _warmed}, socket), do: {:noreply, load_activities(socket)}
+
+  def handle_async(:activity_artwork, {:exit, reason}, socket) do
+    Log.warning(:social, "activity artwork warm crashed - #{inspect(reason)}")
+    {:noreply, socket}
   end
 
   # Acquisition state per row from one read over both lists' refs; the
