@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.19.0 — 2026-09-10
+
+### New
+
+- **Ignore a recommendation.** A friend's pick you are not interested in used to sit on the Recommendations tab for good. Hover its row and click **Ignore** at the end of its first line — with a controller, press Right from the row, then A — and the row leaves; a toast offers **Undo** for a few seconds. An ignored title stays off the tab whoever recommends it next. It still shows on the Friends tab and in search results, marked *Ignored*.
+- **Ignore is a setting on the tracking control.** The control on a title's page now reads **Ignore · Off · List · Follow · Ask · Grab · Default**. *Ignore* keeps friends' recommendations of the title off the Recommendations tab and nothing more; *Off* still means the title is not on your list at all. Setting a title to *List* or above brings it back.
+
 ## v1.18.0 — 2026-09-09
 
 ### New
