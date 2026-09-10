@@ -744,7 +744,10 @@ body:has(.modal-backdrop[data-state="open"]) {
      0 → 0%, 4rem → 9%, 8rem → 28%, 12rem → 50%, 16rem → 69%,
      20rem → full plateau (78%, the uncapped pre-2026-08 behavior). */
   --detail-sheet-overshoot: 8rem;
-  border-radius: 0.75rem;
+  /* Named because the hero mast hoists below the corner's arc — the
+     inset that puts a flag on the straight edge is this radius. */
+  --modal-panel-radius: 0.75rem;
+  border-radius: var(--modal-panel-radius);
   overflow: hidden;
   background-color: var(--color-base-100);
   color: var(--color-base-content);
@@ -857,6 +860,27 @@ body:has(.modal-backdrop[data-state="open"]) {
    over the hero window's lower edge at rest (the lockup reads as "on"
    the fixed backdrop); once scrolled, the block pins at the scrollport
    top and the episode list continues underneath it. */
+/* ── Hero window ──
+   The transparent frame the panel-fixed backdrop shows through. The
+   backdrop runs under the reserved scrollbar rail so the rail sits over
+   the picture; the frame lives inside the scroller and would stop a
+   rail short of it. Extend it by `--modal-rail-w` (published by the
+   DetailScrollGeometry hook — the same correction the orientation
+   backing's clip window makes) so the frame's right edge is the panel's
+   and everything hoisted from it, the pennant mast, meets the border. */
+.detail-hero {
+  margin-right: calc(-1 * var(--modal-rail-w, 0px));
+}
+
+/* The pennant mast flies in from the frame's right edge, hoisted just
+   below the panel's rounded corner so the flags come off the straight
+   side rather than out of the arc. */
+.detail-hero-mast {
+  position: absolute;
+  top: var(--modal-panel-radius);
+  right: 0;
+}
+
 .detail-orientation {
   position: sticky;
   /* Breathing room between the pinned logo and the modal's top edge. */

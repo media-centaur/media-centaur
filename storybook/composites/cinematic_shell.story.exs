@@ -19,7 +19,11 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.TMDB.Title
+
   def function, do: &MediaCentaurWeb.Components.CinematicShell.cinematic_shell/1
+  def imports, do: [{MediaCentaurWeb.Components.Title.Pennant, pennants: 1}]
   def render_source, do: :function
   def layout, do: :one_column
 
@@ -44,6 +48,29 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
     """
   end
 
+  @doc "One friend's like and another's watched: the mast the hero corner carries."
+  def sample_activity do
+    [
+      activity_row("Sample Friend", :recommendation, :like),
+      activity_row("Another Friend", :watched, nil)
+    ]
+  end
+
+  defp activity_row(nickname, kind, sentiment) do
+    %{
+      activity: %Activity{
+        kind: kind,
+        sentiment: sentiment,
+        tmdb_id: 777,
+        media_type: :movie,
+        title: Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Subject"}),
+        acted_at: ~U[2026-09-01 12:00:00Z]
+      },
+      nickname: nickname,
+      own?: false
+    }
+  end
+
   def variations do
     [
       %Variation{
@@ -61,9 +88,10 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
       %Variation{
         id: :open_full,
         description:
-          "Open, `full: true` — scrolling document: placeholder hero window, pinned " <>
-            "orientation block with sample lockup content, and a body sheet long " <>
-            "enough to scroll (the orientation block pins once the hero scrolls away).",
+          "Open, `full: true` — scrolling document: placeholder hero window with the " <>
+            "pennant mast flying in from its right edge, pinned orientation block " <>
+            "with sample lockup content, and a body sheet long enough to scroll (the " <>
+            "orientation block pins once the hero scrolls away).",
         attributes: %{
           id: "cinematic-full",
           open: true,
@@ -76,9 +104,12 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
         },
         slots: [
           """
-          <:hero_actions>
-            <span class="text-xs text-base-content/60">hero actions</span>
-          </:hero_actions>
+          <:hero_mast>
+            <.pennants
+              activity={MediaCentaurWeb.Storybook.Composites.CinematicShell.sample_activity()}
+              on_image
+            />
+          </:hero_mast>
           """,
           """
           <:orientation>

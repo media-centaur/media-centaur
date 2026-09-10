@@ -128,7 +128,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :friend_activity, :list,
     default: [],
-    doc: "the subject's `Activities.friend_activity_for/1` rows — the pennants on the hero's right edge."
+    doc:
+      "the subject's `Activities.friend_activity_for/1` rows — the pennants flying in from the hero's right edge."
 
   attr :tmdb_ready, :boolean, default: true
 
