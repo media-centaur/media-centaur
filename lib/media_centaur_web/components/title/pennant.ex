@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   grouping (`mast/1`), the label and the tooltip are pure. The mast
   states, it never acts — no nav item. The host places the mast: a row
   bleeds it into its own right padding under `overflow-hidden` so the
-  hoist meets the border; a hero pins it to its right edge.
+  hoist meets the border; a hero flies it in from its right edge, below the corner.
   """
 
   use Phoenix.Component

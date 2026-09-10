@@ -21,9 +21,10 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
       `.orientation-backing*` replica of the backdrop;
     * the body sheet (`.detail-content-sheet` + `DetailBodyScroll`).
 
-  Tenants supply the content through slots: `:hero_actions` (top-right
-  overlay), `:orientation` (identity lockup, metadata, controls — the
-  block that pins), and `:body` (the scrolling document below).
+  Tenants supply the content through slots: `:hero_mast` (the pennants
+  flying in from the hero window's right edge), `:orientation`
+  (identity lockup, metadata, controls — the block that pins), and
+  `:body` (the scrolling document below).
 
   **The byte-identity invariant is structural here.** The panel backdrop
   and the orientation backing render the *same* `<img>` src (both through
@@ -93,10 +94,9 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
 
   attr :rest, :global, doc: "forwarded to the modal backdrop (nav wiring: `data-nav-overlay` etc.)."
 
-  slot :hero_actions, doc: "top-right overlay in the hero window."
-
   slot :hero_mast,
-    doc: "pinned to the hero window's right edge under the actions — the recommendation pennants."
+    doc:
+      "flies in from the hero window's right edge, below the corner — the recommendation pennants (UIDR-037)."
 
   slot :orientation,
     doc: "content of the pinned block — identity lockup, metadata, controls."
@@ -146,10 +146,13 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
             <div class="relative z-[2]">
               <div class="detail-panel">
                 <%!-- Hero window: transparent 21:9 frame the fixed
-                      panel-level backdrop shows through. Scrolls away; the
-                      orientation block below overlaps its lower edge at
-                      rest and pins to the scrollport top. Fills with the
-                      quiet placeholder when there is no backdrop. --%>
+                      panel-level backdrop shows through. Panel-wide — it
+                      bleeds under the reserved scrollbar rail like the
+                      backdrop it frames (`.detail-hero`), so its right
+                      edge is the panel's. Scrolls away; the orientation
+                      block below overlaps its lower edge at rest and pins
+                      to the scrollport top. Fills with the quiet
+                      placeholder when there is no backdrop. --%>
                 <div class="detail-hero relative">
                   <div class={[
                     "aspect-[21/9] relative",
@@ -158,21 +161,10 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
                     <div :if={@placeholder?} class="w-full h-full flex items-center justify-center">
                       <.icon name="hero-film" class="size-12 text-base-content/20" />
                     </div>
-                    <div
-                      :if={@hero_actions != []}
-                      class="absolute top-3 right-3 flex items-center gap-1"
-                    >
-                      {render_slot(@hero_actions)}
-                    </div>
-                    <%!-- Under the action cluster when there is one; at the
-                          same inset as the cluster would be when there is not. --%>
-                    <div
-                      :if={@hero_mast != []}
-                      class={[
-                        "absolute right-0",
-                        if(@hero_actions == [], do: "top-3", else: "top-14")
-                      ]}
-                    >
+                    <%!-- The mast hoists from the frame's right edge, just
+                          below the corner's rounding (`.detail-hero-mast`),
+                          so the flags fly in from the panel border itself. --%>
+                    <div :if={@hero_mast != []} class="detail-hero-mast">
                       {render_slot(@hero_mast)}
                     </div>
                   </div>

@@ -20,7 +20,7 @@ bare-id local store that two different modules resolved from.
 `CinematicShell` — the extracted tenant-agnostic half of the detail-modal
 technology (always-in-DOM `<.modal>`, panel-fixed backdrop + atmosphere, single
 scrollport, sticky orientation block with its backing replica, body sheet with
-per-view scroll memory). Tenants fill `:hero_actions` / `:orientation` /
+per-view scroll memory). Tenants fill `:hero_mast` / `:orientation` /
 `:body` slots; the frame renders **both** backdrop copies from one
 `backdrop_url`, making the byte-identical-URL invariant structural. Tenants:
 library `DetailPanel`, the plan modal, the Incoming title modal, and the
