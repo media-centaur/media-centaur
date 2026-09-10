@@ -44,6 +44,9 @@ export const inputConfig = {
     // rows over a footer — arrangement carries the meaning, so geometry
     // answers adjacency (UIDR-031).
     people: "[data-nav-zone='people'] [data-nav-item]",
+    // Discovery's Recommendations and watchlist rows: a vertical list whose
+    // rows carry a control (Ignore) — a TREE, so RIGHT steps into it.
+    title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
     // Episode mapping (/reconcile) — the same master/detail shape as review
@@ -98,6 +101,7 @@ export const inputConfig = {
     guide_chapters: Context.MENU,
     guide_outline: Context.MENU,
     people: Context.SHELF,
+    title_rows: Context.TREE,
     // The detail modal: a horizontal command row over a nesting list. The
     // Cast sub-view swaps the list for a photo grid, whose arrangement
     // carries the meaning — SHELF resolves it by geometry, which is what
@@ -304,15 +308,15 @@ export const inputConfig = {
       grid:      { up: ["toolbar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
-    // Discovery: the zone-tabs strip above one body zone — the row grid on
+    // Discovery: the zone-tabs strip above one body zone — the title rows on
     // Recommendations and the watchlist, the person cards on Friends. Only
     // one body zone is in the DOM at a time, so `down` routes to whichever
     // is populated.
     discovery: {
-      zone_tabs: { down: ["grid", "people"] },
-      grid:      { up: ["zone_tabs"] },
-      people:    { up: ["zone_tabs"] },
-      sidebar:   { right: ["grid", "people", "zone_tabs"] },
+      zone_tabs:  { down: ["title_rows", "people"] },
+      title_rows: { up: ["zone_tabs"] },
+      people:     { up: ["zone_tabs"] },
+      sidebar:    { right: ["title_rows", "people", "zone_tabs"] },
     },
     apps: {
       toolbar: { down: ["grid"] },
@@ -348,7 +352,7 @@ export const inputConfig = {
     reconcile: ["reconcile-list", "reconcile-detail", "zone_tabs", "sidebar"],
     incoming:  ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["grid", "toolbar", "sidebar"],
-    discovery: ["grid", "people", "zone_tabs", "sidebar"],
+    discovery: ["title_rows", "people", "zone_tabs", "sidebar"],
     apps: ["grid", "toolbar", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],

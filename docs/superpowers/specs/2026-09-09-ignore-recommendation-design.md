@@ -61,3 +61,19 @@ The first draft of this design (a separate `ignored_titles` table) was a second 
 ## Records
 
 UIDR-036 (one control per title) gains the seventh rung as an amendment; `docs/GLOSSARY.md` **Rung** entry updated; wiki `Watchlist.md` ladder table and `Social.md` Recommendations section updated.
+
+## Amendment 2026-09-10 — the row's affordance
+
+The gutter `×` (a sibling of the card, pointer-only) was replaced after
+review of five mockups (`2026-09-09-ignore-affordance-mockups/`, direction
+5). The row's verb is now **"Ignore" as quiet text at the end of the lead
+line**, shown while the row is hovered or holds the cursor, and it is the
+row's `data-nav-sub-item` — the pattern the detail modal's episode rows
+use for their watched toggle. One control serves every input method:
+click it with a pointer; RIGHT then SELECT from keyboard or gamepad,
+LEFT steps back.
+
+Consequences: `Title.Row`'s card is a `div[role=button]` (a `<button>`
+may not contain a control); the Discovery rows zone is `title_rows`, a
+TREE, on both the Recommendations and watchlist tabs (watchlist rows
+carry no sub-item). The undo toast and the ladder's Ignore are unchanged.
