@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>3 · Overflow menu</title><style>
+.kebab{flex:none;align-self:center;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:oklch(93% 0.01 264/.6);font-size:18px;line-height:1;opacity:0;transition:opacity .12s;margin-right:6px}
+.row:hover .kebab,.row.open .kebab{opacity:1}
+.kebab:hover,.row.open .kebab{background:oklch(93% 0.01 264/.08);color:oklch(93% 0.01 264/.9)}
+.row.open{overflow:visible;background:oklch(93% 0.01 264/.065)}
+.menu{position:absolute;right:158px;top:60px;min-width:180px;padding:6px;border-radius:12px;font-size:13px;z-index:2}
+.menu .it{padding:7px 10px;border-radius:8px;color:oklch(93% 0.01 264/.85)}
+.menu .it:hover{background:oklch(93% 0.01 264/.08)}
+.menu .it.dim{color:oklch(93% 0.01 264/.45)}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab active">Recommendations<span class="n">4</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">3</span></span></div>
+<div class="row glass"><div class="thumb" style="--h:200"></div><div class="id"><div class="t"><b>Movie B</b><span class="m">Movie · 2023</span><span class="m">Bob · 2d ago</span></div><div class="s">Watch this one on the big screen, the last twenty minutes are the whole point.</div></div><span class="kebab">⋯</span><div class="mast"><span class="pen love">Bob ♥</span></div></div>
+<div class="row glass open"><div class="thumb" style="--h:280"></div><div class="id"><div class="t"><b>Show B</b><span class="m">TV · 2021</span><span class="m">Alice, Cleo · 3d ago</span><span class="m">In library</span></div><div class="s"><span class="who">Alice</span>Slow start, give it three episodes.</div><div class="s"><span class="who">Cleo</span>Fine.</div></div><span class="kebab">⋯</span><div class="mast"><span class="pen love">Alice ♥</span><span class="pen">Cleo 👍</span></div><div class="menu glass"><div class="it">Ignore</div></div></div>
+<div class="row glass"><div class="thumb" style="--h:90"></div><div class="id"><div class="t"><b>Movie C</b><span class="m">Movie · 2019</span><span class="m">Alice · 1w ago</span><span class="m">Downloading</span></div><div class="s">A drifter arrives in a coastal town where nobody will say what happened the previous winter.</div></div><span class="kebab">⋯</span><div class="mast"><span class="pen">Alice 👍</span></div></div>
+<div class="row glass"><div class="thumb" style="--h:20"></div><div class="id"><div class="t"><b>Sample Show</b><span class="m">TV · 2024</span><span class="m">Bob · 3w ago</span><span class="m">On your list</span></div><div class="s">Two siblings inherit a failing radio station and the town that listens to it.</div></div><span class="kebab">⋯</span><div class="mast"><span class="pen">Bob 👍</span></div></div>
+<p class="legend"><b>3 · Overflow menu.</b> A hover-revealed ⋯ between the text and the mast opens the house glass menu; today it holds one item. The second row is drawn open.</p>
+</div></body></html>
