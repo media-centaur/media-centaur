@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.20.0 — 2026-09-10
+
+### Fixed
+
+- **The friend pennant on a title's page reaches the edge.** The pennant that says a friend liked, loved, watched or is tracking a title used to stop short of the page's right edge, sitting inside the artwork instead of flying from the border. It now hoists from the edge itself, just below the corner.
+
 ## v1.19.0 — 2026-09-10
 
 ### New
