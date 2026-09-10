@@ -510,6 +510,14 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, view, _html} = live(conn, "/discovery")
       assert has_element?(view, "#recommendation-movie-777")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge", "1")
+      # The verb is the row's own sub-item (RIGHT from the row on a pad),
+      # inside the card rather than beside it.
+      assert has_element?(
+               view,
+               "[data-nav-zone='title_rows'] #recommendation-movie-777[data-nav-item] " <>
+                 "#recommendation-movie-777-ignore[data-nav-sub-item]",
+               "Ignore"
+             )
 
       view |> element("#recommendation-movie-777-ignore") |> render_click()
 

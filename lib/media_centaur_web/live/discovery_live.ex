@@ -439,7 +439,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
           <.tab_strip tabs={tabs(@recommendations, @items, @friends)} active={@live_action} />
 
-          <div :if={@live_action == :recommendations} class="space-y-2" data-nav-zone="grid">
+          <div :if={@live_action == :recommendations} class="space-y-2" data-nav-zone="title_rows">
             <.empty_state
               :if={@recommendations == []}
               id="recommendations-empty"
@@ -518,7 +518,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
             </p>
           </div>
 
-          <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="grid">
+          <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="title_rows">
             <.empty_state
               :if={@items == []}
               id="watchlist-empty"

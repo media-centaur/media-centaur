@@ -5,8 +5,10 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
   target. Every verb lives in the title detail modal, so the row never
   grows or loses a control depending on where the title stands; only
   its markers change. The one exception is the Recommendations row's
-  hover-revealed × (`ignorable?`), a shortcut to the Ignored rung.
-  `poster_url: nil` shows the icon fallback.
+  "Ignore" (`ignorable?`), quiet text at the end of the lead line shown
+  while the row is hovered or holds the cursor — a shortcut to the
+  Ignored rung, and the row's nav sub-item. `poster_url: nil` shows the
+  icon fallback.
   """
 
   use PhoenixStorybook.Story, :component
@@ -113,8 +115,8 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
       %Variation{
         id: :ignorable,
         description:
-          "A Recommendations row with its × (hover the row): a sibling of the card " <>
-            "button, centred in the gutter to its right, clear of the mast. Pointer-only — no nav item.",
+          "A Recommendations row with its Ignore (hover the row): quiet text after the " <>
+            "markers, the row's nav sub-item — RIGHT steps onto it in the app.",
         attributes: %{
           id: "row-ignorable",
           title: title(),
