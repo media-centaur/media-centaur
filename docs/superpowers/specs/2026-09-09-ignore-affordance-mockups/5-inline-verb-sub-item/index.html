@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>5 · Inline verb as a nav sub-item</title><style>
+.page{max-width:820px}
+.state{margin:26px 0 8px 4px;display:flex;align-items:baseline;gap:12px}
+.state .sec{font-size:11px}
+.state .keys{font-size:12px;color:oklch(93% 0.01 264/.55)}
+.key{display:inline-block;font:11px/1 ui-monospace,monospace;color:oklch(93% 0.01 264/.75);border:1px solid oklch(93% 0.01 264/.18);border-radius:5px;padding:3px 6px;margin:0 1px;background:oklch(93% 0.01 264/.05)}
+.verb{font-size:12px;color:oklch(93% 0.01 264/.7);flex:none;opacity:0;transition:opacity .12s;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;border-radius:3px}
+.row:hover .verb,.row.hovered .verb,.row.focused .verb,.row.subfocus .verb{opacity:1}
+.verb:hover{color:oklch(93% 0.01 264/.9);text-decoration-color:currentColor}
+.row.hovered{background:oklch(93% 0.01 264/.065)}
+/* the app's cursor ring: 2px primary outline, 2px offset, drawn outside the card */
+.row.focused{outline:2px solid var(--p);outline-offset:2px}
+.row.subfocus .verb{outline:2px solid var(--p);outline-offset:3px;color:oklch(93% 0.01 264/.9)}
+.rest{opacity:.55}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab active">Recommendations<span class="n">4</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">3</span></span></div>
+
+<div class="state"><span class="sec">Mouse · row hovered</span><span class="keys">"Ignore" appears with the row; click it, or click anywhere else on the row to open the title</span></div>
+<div class="row glass hovered"><div class="thumb" style="--h:280"></div><div class="id"><div class="t"><b>Show B</b><span class="m">TV · 2021</span><span class="m">Alice, Cleo · 3d ago</span><span class="m">In library</span><span class="verb">Ignore</span></div><div class="s"><span class="who">Alice</span>Slow start, give it three episodes.</div><div class="s"><span class="who">Cleo</span>Fine.</div></div><div class="mast"><span class="pen love">Alice ♥</span><span class="pen">Cleo 👍</span></div></div>
+
+<div class="state"><span class="sec">Keyboard / gamepad · cursor on the row</span><span class="keys"><span class="key">↑</span><span class="key">↓</span> walk the rows · <span class="key">Enter</span>/<span class="key">A</span> opens the title · <span class="key">→</span> steps into Ignore</span></div>
+<div class="row glass focused"><div class="thumb" style="--h:280"></div><div class="id"><div class="t"><b>Show B</b><span class="m">TV · 2021</span><span class="m">Alice, Cleo · 3d ago</span><span class="m">In library</span><span class="verb">Ignore</span></div><div class="s"><span class="who">Alice</span>Slow start, give it three episodes.</div><div class="s"><span class="who">Cleo</span>Fine.</div></div><div class="mast"><span class="pen love">Alice ♥</span><span class="pen">Cleo 👍</span></div></div>
+
+<div class="state"><span class="sec">Keyboard / gamepad · cursor on Ignore</span><span class="keys"><span class="key">Enter</span>/<span class="key">A</span> ignores (row leaves, toast offers Undo) · <span class="key">←</span> steps back to the row</span></div>
+<div class="row glass subfocus"><div class="thumb" style="--h:280"></div><div class="id"><div class="t"><b>Show B</b><span class="m">TV · 2021</span><span class="m">Alice, Cleo · 3d ago</span><span class="m">In library</span><span class="verb">Ignore</span></div><div class="s"><span class="who">Alice</span>Slow start, give it three episodes.</div><div class="s"><span class="who">Cleo</span>Fine.</div></div><div class="mast"><span class="pen love">Alice ♥</span><span class="pen">Cleo 👍</span></div></div>
+
+<div class="state"><span class="sec">At rest</span><span class="keys">neither hovered nor focused — no verb shows</span></div>
+<div class="row glass"><div class="thumb" style="--h:90"></div><div class="id"><div class="t"><b>Movie C</b><span class="m">Movie · 2019</span><span class="m">Alice · 1w ago</span><span class="m">Downloading</span><span class="verb">Ignore</span></div><div class="s">A drifter arrives in a coastal town where nobody will say what happened the previous winter.</div></div><div class="mast"><span class="pen">Alice 👍</span></div></div>
+<div class="row glass"><div class="thumb" style="--h:20"></div><div class="id"><div class="t"><b>Sample Show</b><span class="m">TV · 2024</span><span class="m">Bob · 3w ago</span><span class="m">On your list</span><span class="verb">Ignore</span></div><div class="s">Two siblings inherit a failing radio station and the town that listens to it.</div></div><div class="mast"><span class="pen">Bob 👍</span></div></div>
+
+<p class="legend"><b>5 · Inline verb as a nav sub-item.</b> One control for every input method: the word is a <code>data-nav-sub-item</code> inside the row, so it shows while the row is hovered <i>or</i> holds the cursor, and RIGHT/LEFT step in and out the way the episode rows' watched circle works in the detail modal. The rows zone becomes a TREE.</p>
+</div></body></html>
