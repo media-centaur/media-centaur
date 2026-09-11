@@ -51,6 +51,10 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     # The title in its original language, when TMDB's canonical title is
     # a localised one. Self-heals on refresh.
     field :original_title, :string
+    # The film's release year (movies). TV titles leave it nil — a series
+    # spans years and the matcher's year gate is movie-only. Self-heals
+    # from TMDB on the next refresher pass.
+    field :year, :integer
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
     field :dismiss_released_before, :date
@@ -74,6 +78,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :imdb_id,
       :tvdb_id,
       :original_title,
+      :year,
       :last_library_season,
       :last_library_episode
     ])
@@ -95,6 +100,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :imdb_id,
       :tvdb_id,
       :original_title,
+      :year,
       :last_library_season,
       :last_library_episode,
       :dismiss_released_before

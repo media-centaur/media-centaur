@@ -110,14 +110,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
 
     Start.execute(%{
       recipe_type: "tmdb",
-      tmdb_id: plan.tmdb_id,
-      tmdb_type: plan.tmdb_type,
-      title: plan.title,
-      year: plan.year,
-      origin_country: plan.origin_country,
-      imdb_id: plan.imdb_id,
-      tvdb_id: plan.tvdb_id,
-      original_title: plan.original_title,
+      identity: Plan.identity(plan),
       origin: pursuit_origin(plan),
       criteria: plan.criteria,
       units: unit_specs

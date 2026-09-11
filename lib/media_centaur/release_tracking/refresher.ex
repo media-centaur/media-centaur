@@ -20,8 +20,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   alias MediaCentaur.ReleaseTracking.{Differ, Helpers, RefreshSchedule}
   alias MediaCentaur.Settings
   alias MediaCentaur.TMDB.Client
-  alias MediaCentaur.TMDB.Identifiers
-  alias MediaCentaur.TMDB.Mapper
+  alias MediaCentaur.TMDB.TitleIdentity
 
   @last_swept_at_key "release_tracking:last_swept_at"
   @first_tick_floor_ms to_timeout(second: 10)
@@ -270,20 +269,25 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   defp update_item_metadata(item, response) do
-    name = response["name"] || response["title"] || item.name
-    identifiers = Identifiers.from_payload(item.media_type, response)
+    # One read of TMDB's shape rather than four — `TitleIdentity` owns
+    # where each field lives in a movie vs a series payload.
+    declared = TitleIdentity.from_payload(item.media_type, response)
 
     ReleaseTracking.update_item(item, %{
-      name: name,
+      name: declared.title || item.name,
       last_refreshed_at: DateTime.utc_now(),
       # Self-heals items created before the columns existed; a collection
       # response carries none of these and keeps the stored values.
-      origin_country: response["origin_country"] || item.origin_country,
-      imdb_id: identifiers.imdb_id || item.imdb_id,
-      tvdb_id: identifiers.tvdb_id || item.tvdb_id,
-      original_title: Mapper.original_title(response) || item.original_title
+      origin_country: presence(declared.origin_country) || item.origin_country,
+      imdb_id: declared.imdb_id || item.imdb_id,
+      tvdb_id: declared.tvdb_id || item.tvdb_id,
+      original_title: declared.original_title || item.original_title,
+      year: declared.year || item.year
     })
   end
+
+  defp presence([]), do: nil
+  defp presence(list), do: list
 
   defp schedule_refresh(interval) do
     Process.send_after(self(), :refresh, interval)

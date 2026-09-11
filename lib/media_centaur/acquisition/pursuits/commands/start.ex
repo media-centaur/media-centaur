@@ -6,6 +6,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Start do
   alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, Unit, UnitOrder}
   alias MediaCentaur.Acquisition.Pursuits.Events.PursuitStarted
   alias MediaCentaur.Repo
+  alias MediaCentaur.TMDB.TitleIdentity
 
   @doc """
   Atomically inserts a Pursuit row, its units, and records the
@@ -22,6 +23,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Start do
   @spec execute(map()) :: {:ok, Pursuit.t()} | {:error, Ecto.Changeset.t()}
   def execute(args) when is_map(args) do
     unit_specs = Map.get(args, :units, [%{query: Map.get(args, :manual_query)}])
+    args = flatten_identity(args)
 
     # Creation commands run their own transaction rather than going through
     # Commands.Runner: Runner operates on an already-existing pursuit/unit
@@ -51,6 +53,26 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Start do
 
     result
   end
+
+  # A tmdb-recipe pursuit is started from a `TitleIdentity`, which the
+  # schema stores as its own columns. A prowlarr-query pursuit carries no
+  # identity at all — the person picked the release themselves.
+  defp flatten_identity(%{identity: %TitleIdentity{} = identity} = args) do
+    args
+    |> Map.delete(:identity)
+    |> Map.merge(%{
+      tmdb_id: identity.tmdb_id,
+      tmdb_type: Atom.to_string(identity.tmdb_type),
+      title: identity.title,
+      year: identity.year,
+      imdb_id: identity.imdb_id,
+      tvdb_id: identity.tvdb_id,
+      original_title: identity.original_title,
+      origin_country: identity.origin_country
+    })
+  end
+
+  defp flatten_identity(args), do: args
 
   # Positions derive from airing order (season → episode) so the
   # residual-driven descent and unit queries walk units in sequence

@@ -31,6 +31,8 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
 
   use Ecto.Schema
 
+  alias MediaCentaur.TMDB.TitleIdentity
+
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
@@ -83,6 +85,24 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
   end
 
   @type t :: %__MODULE__{}
+
+  @doc """
+  The identity this plan is for — what every search and verification it
+  spawns is matching against.
+  """
+  @spec identity(t()) :: TitleIdentity.t()
+  def identity(%__MODULE__{} = plan) do
+    TitleIdentity.new(%{
+      tmdb_type: plan.tmdb_type,
+      tmdb_id: plan.tmdb_id,
+      title: plan.title,
+      imdb_id: plan.imdb_id,
+      tvdb_id: plan.tvdb_id,
+      original_title: plan.original_title,
+      year: plan.year,
+      origin_country: plan.origin_country || []
+    })
+  end
 
   @doc "The approval policy values."
   @spec approval_policies() :: [String.t()]
