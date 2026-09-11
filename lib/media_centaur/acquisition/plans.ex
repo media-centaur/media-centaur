@@ -25,7 +25,6 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Format
-  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.{Client, Identifiers, Mapper, Title}
   alias MediaCentaur.Topics
@@ -73,7 +72,6 @@ defmodule MediaCentaur.Acquisition.Plans do
         original_title: selection.original_title,
         criteria: Keyword.get(opts, :criteria, %{}),
         span_sizes: Targeting.aired_counts(selection),
-        grab_future: Keyword.get(opts, :grab_future, false),
         approval_policy: Keyword.get(opts, :approval_policy, "review")
       },
       unit_specs
@@ -101,7 +99,6 @@ defmodule MediaCentaur.Acquisition.Plans do
         imdb_id: Map.get(attrs, :imdb_id),
         original_title: Map.get(attrs, :original_title),
         criteria: Keyword.get(opts, :criteria, %{}),
-        grab_future: Keyword.get(opts, :grab_future, false),
         approval_policy: Keyword.get(opts, :approval_policy, "review")
       },
       [%{season_number: nil, episode_number: nil, label: title, position: 0}]
@@ -118,16 +115,13 @@ defmodule MediaCentaur.Acquisition.Plans do
   same path so the contract is one shape.
 
   Options: `approval_policy:` (`"automatic"` | `"review"`, default
-  review — the one-click download passes automatic); `scope:` (series
-  only) `:first_season` (default) or `:everything`, see `DownloadScope`;
-  and `track:` (series only, default `false`).
+  review — the one-click download passes automatic) and `scope:` (series
+  only) `:first_season` (default) or `:everything`, see `DownloadScope`.
 
-  `scope:` and `track:` are separate questions on purpose. A scope covers
-  episodes that have *aired* — downloading them says nothing about what
-  is still to come — so following the series is its own act, named by its
-  own menu entry, and it arms (which lists the title, ADR-065) rather
-  than tracking quietly. The plan is created before the arm so its units
-  are not excluded as tracked.
+  A scope covers episodes that have *aired*; downloading them says
+  nothing about what is still to come, and this door never touches the
+  title's rung. Following a series is a person's act on the watchlist
+  (ADR-066).
 
   A failure inside the task (TMDB unreachable, nothing pickable) is
   logged at warning on `:acquisition` and leaves no plan.
@@ -136,16 +130,15 @@ defmodule MediaCentaur.Acquisition.Plans do
   def plan_title(%Title{} = title, opts \\ []) do
     policy = Keyword.get(opts, :approval_policy, "review")
     scope = Keyword.get(opts, :scope, :first_season)
-    track? = Keyword.get(opts, :track, false)
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      do_plan_title(title, policy, scope, track?)
+      do_plan_title(title, policy, scope)
     end)
 
     :ok
   end
 
-  defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope, _track?) do
+  defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope) do
     case create_movie_plan(movie_plan_attrs(title), approval_policy: policy) do
       {:ok, _plan} ->
         :ok
@@ -155,15 +148,10 @@ defmodule MediaCentaur.Acquisition.Plans do
     end
   end
 
-  defp do_plan_title(%Title{media_type: :tv_series} = title, policy, scope, track?) do
+  defp do_plan_title(%Title{media_type: :tv_series} = title, policy, scope) do
     with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
          units when units != [] <- DownloadScope.units(selection, scope),
          {:ok, _plan} <- create_series_plan(selection, units, approval_policy: policy) do
-      # Downloading says nothing about what is still to come. Following
-      # the series is the separate act the third scope entry names, and
-      # it arms rather than tracks quietly, so the title is listed as
-      # part of it (ADR-065).
-      if track?, do: ReleaseTracking.set_rung(title, :follow)
       :ok
     else
       [] ->

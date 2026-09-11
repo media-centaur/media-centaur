@@ -37,7 +37,6 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
 
       assert [want] = ReleaseTracking.open_wants_for_item(item.id)
       assert want.status == :open
-      assert want.provenance == :calendar
       assert want.season_number == 2
       assert want.episode_number == 5
       assert want.air_date == @last_month

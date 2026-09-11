@@ -12,7 +12,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
     PursuitSatisfied
   }
 
+  alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.Acquisition.Target
+  alias MediaCentaur.Discovery
   alias MediaCentaur.Topics
 
   defp insert_active_pursuit(state \\ "active") do
@@ -40,6 +42,44 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       assert event.payload["final_release_title"] == "Sample.Movie.2010.1080p"
 
       assert_receive %PursuitSatisfied{}
+    end
+
+    test "satisfying a pursuit born from a plan leaves the title's rung alone" do
+      {pursuit, target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "42001",
+          tmdb_type: "tv",
+          title: "Sample Future Show",
+          season_number: 1,
+          episode_number: 1,
+          origin: "manual",
+          status: "acquired"
+        })
+
+      # The committed plan behind the pursuit, stamped the way CommitPlan does.
+      {:ok, plan} =
+        Repo.insert(
+          Plan.create_changeset(%{
+            tmdb_id: pursuit.tmdb_id,
+            tmdb_type: pursuit.tmdb_type,
+            title: pursuit.title,
+            grab_future: true
+          })
+        )
+
+      force_attrs(plan, status: "committed", pursuit_id: pursuit.id)
+
+      assert {:ok, %Pursuit{state: "satisfied"}} =
+               Satisfy.execute(%{
+                 pursuit_id: pursuit.id,
+                 final_target_id: target.id,
+                 final_release_title: "Sample.Future.Show.S01E01.1080p"
+               })
+
+      # A download completing is not a watchlist act: nothing but a
+      # person puts a title on the ladder (ADR-066).
+      assert Discovery.rung(42_001, :tv_series) == nil
     end
 
     test "rejects already-terminal pursuit" do

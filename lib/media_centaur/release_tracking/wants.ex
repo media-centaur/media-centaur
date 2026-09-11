@@ -20,8 +20,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     today, the sync time for units airing today. Never reset.
   * Satisfaction is **real library presence** (episode row exists /
     movie with matching TMDB id exists), not the calendar's `in_library`
-    flag and not the item watermark — a future gap-provenance want for
-    an episode *below* the watermark must not be falsely satisfied.
+    flag and not the item watermark.
   * Wants are never auto-dropped when a calendar row vanishes —
     collection refreshes drop past parts and the TV fetch window moves,
     neither of which means the unit stopped being wanted. Closing a
@@ -50,7 +49,6 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     :title,
     :air_date,
     :status,
-    :provenance,
     :wanted_since,
     :last_searched_at,
     :satisfied_at,
@@ -109,40 +107,6 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
         order_by: [asc: w.air_date]
       )
     )
-  end
-
-  @doc """
-  Opens gap-provenance wants on an item — the media-search gap handoff
-  (ADR-056 Q15): units a plan couldn't find become standing intent on
-  the track. Unit specs carry `season_number`/`episode_number` (TV) or
-  `part_tmdb_id` (movies) plus an optional `title`. Idempotent against
-  the ledger (existing wants of any status win); returns the number of
-  wants actually opened. `wanted_since` is now — the gap is fresh
-  intent even when the episode aired long ago, so patience and back-off
-  start from the handoff.
-  """
-  @spec open_gap_wants(Item.t(), [map()]) :: non_neg_integer()
-  def open_gap_wants(%Item{} = item, unit_specs) when is_list(unit_specs) do
-    existing_keys =
-      MapSet.new(Repo.all(from(w in Want, where: w.item_id == ^item.id, select: w.unit_key)))
-
-    now = DateTime.utc_now(:second)
-
-    unit_specs
-    |> Enum.map(fn spec ->
-      %{
-        season_number: Map.get(spec, :season_number),
-        episode_number: Map.get(spec, :episode_number),
-        part_tmdb_id: Map.get(spec, :part_tmdb_id),
-        title: Map.get(spec, :title)
-      }
-    end)
-    |> Enum.reject(fn spec ->
-      key = Want.unit_key(spec.season_number, spec.episode_number, spec.part_tmdb_id)
-      is_nil(key) or MapSet.member?(existing_keys, key)
-    end)
-    |> Enum.map(&Map.merge(&1, %{item_id: item.id, provenance: :gap, wanted_since: now}))
-    |> insert_wants()
   end
 
   @doc """
@@ -225,7 +189,6 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
         part_tmdb_id: candidate.part_tmdb_id,
         title: candidate.title,
         air_date: candidate.air_date,
-        provenance: :calendar,
         wanted_since: wanted_since_for(candidate.air_date, now)
       }
     end)

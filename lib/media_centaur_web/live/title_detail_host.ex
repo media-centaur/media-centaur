@@ -290,15 +290,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         _movie_or_unknown -> []
       end
 
-    # "Download all and track" is the one entry that also follows the
-    # series; the other two download and say nothing about the future.
-    track = if params["track"] == "true", do: [track: true], else: []
-
-    :ok = Plans.plan_title(detail.title, [approval_policy: "automatic"] ++ scope ++ track)
+    # A download says nothing about the future: whichever scope, the
+    # title's rung is untouched (ADR-066).
+    :ok = Plans.plan_title(detail.title, [approval_policy: "automatic"] ++ scope)
 
     {:halt,
      socket
-     |> put_flash(:info, download_flash(detail.title.name, track != []))
+     |> put_flash(:info, download_flash(detail.title.name))
      |> push_close()}
   end
 
@@ -366,13 +364,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   @doc """
   The flash a one-click download raises — the one wording, for the
-  modal's Download and the Feed toolbar's. `track?` is the scope-menu
-  entry that also follows the series.
+  modal's Download and the Feed toolbar's.
   """
-  @spec download_flash(String.t(), boolean()) :: String.t()
-  def download_flash(name, false), do: "Finding a release for #{name}"
-
-  def download_flash(name, true), do: "Finding a release for #{name} — and tracking it for new episodes"
+  @spec download_flash(String.t()) :: String.t()
+  def download_flash(name), do: "Finding a release for #{name}"
 
   defp push_close(socket), do: push_patch(socket, to: socket.view.title_detail_path(socket, []))
 

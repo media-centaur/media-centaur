@@ -27,9 +27,6 @@ defmodule MediaCentaur.ReleaseTracking.Want do
   * `last_searched_at` — stamped when a plan run actually searches this
     unit's term; drives the stepped back-off schedule. Nil = never
     searched (due immediately).
-  * `provenance` — `:calendar` for wants derived from the TMDB
-    schedule; `:gap` for wants handed off from media-search plan
-    approval (units planning could not find).
   * `satisfied_quality` — quality label of the file that satisfied the
     want, when classifiable from its path. The hook for the future
     quality-upgrades campaign.
@@ -50,7 +47,6 @@ defmodule MediaCentaur.ReleaseTracking.Want do
     field :air_date, :date
 
     field :status, Ecto.Enum, values: [:open, :satisfied, :dismissed], default: :open
-    field :provenance, Ecto.Enum, values: [:calendar, :gap], default: :calendar
 
     field :wanted_since, :utc_datetime
     field :last_searched_at, :utc_datetime
@@ -72,7 +68,6 @@ defmodule MediaCentaur.ReleaseTracking.Want do
       :part_tmdb_id,
       :title,
       :air_date,
-      :provenance,
       :wanted_since
     ])
     |> validate_required([:item_id, :wanted_since])

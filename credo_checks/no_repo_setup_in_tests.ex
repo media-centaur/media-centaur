@@ -69,7 +69,6 @@ defmodule MediaCentaur.Credo.Checks.NoRepoSetupInTests do
     "test/media_centaur/acquisition/pursuits/commands/terminal_commands_test.exs",
     "test/media_centaur/acquisition/pursuits/watcher_test.exs",
     "test/media_centaur/acquisition/pursuits_test.exs",
-    "test/media_centaur/acquisition/tracking_handoffs_test.exs",
     "test/media_centaur/library/movie_series_test.exs",
     "test/media_centaur/library/movie_test.exs",
     "test/media_centaur/library/playable_item_test.exs",

@@ -26,10 +26,10 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   ready; otherwise no primary verb — there is no `Track`, because
   arming is the ladder control's job (ADR-065). A series Download is a
   split control — "Download season 1" plus a chevron opening "Download
-  all" and "Download all and track" — reusing the `glass-menu` idiom.
-  Only the last of the three follows the series: a scope covers
-  episodes that have aired, and what is still to come is a separate
-  act. Delete <noun> is the one tertiary verb, on an own activity the
+  all" — reusing the `glass-menu` idiom. Neither follows the series: a
+  scope covers episodes that have aired, and what is still to come is
+  the ladder's business, never a download's (ADR-066). Delete <noun> is
+  the one tertiary verb, on an own activity the
   modal was opened from (the You card), named by its kind
   (`ActivityWords.noun/1`).
 
@@ -164,16 +164,6 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
                   tabindex="0"
                 >
                   Download all
-                </li>
-                <li
-                  class="glass-menu-item"
-                  phx-click="title_download"
-                  phx-value-scope="everything"
-                  phx-value-track="true"
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Download all and track
                 </li>
               </ul>
             </div>

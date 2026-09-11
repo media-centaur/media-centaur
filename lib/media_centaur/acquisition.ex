@@ -140,8 +140,7 @@ defmodule MediaCentaur.Acquisition do
     DropPlanner,
     Target,
     TargetEvents,
-    Targets,
-    TrackingHandoffs
+    Targets
   }
 
   alias MediaCentaur.Search.{Prowlarr, QueryExpander, SearchResult}
@@ -660,9 +659,6 @@ defmodule MediaCentaur.Acquisition do
   gesture since ADR-056 (the legacy queue-everything path is gone).
   """
   defdelegate plan_tracked_item_now(item_id), to: DropPlanner, as: :plan_item_now
-
-  @doc "See `MediaCentaur.Acquisition.TrackingHandoffs.track_plan_gaps_async/1`."
-  defdelegate track_plan_gaps_async(plan_id), to: TrackingHandoffs
 
   @doc "See `Acquisition.Targets.list_auto_targets/1`."
   defdelegate list_auto_targets(filter \\ :all), to: Targets

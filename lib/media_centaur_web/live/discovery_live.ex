@@ -238,7 +238,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     case feed_entry(socket, id) do
       %FeedEntry{download_slot: :download} = entry ->
         :ok = Plans.plan_title(entry.title, approval_policy: "automatic")
-        {:noreply, put_flash(socket, :info, TitleDetailHost.download_flash(entry.title.name, false))}
+        {:noreply, put_flash(socket, :info, TitleDetailHost.download_flash(entry.title.name))}
 
       _state_or_unknown ->
         {:noreply, socket}

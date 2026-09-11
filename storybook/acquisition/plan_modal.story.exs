@@ -69,8 +69,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             "cinematic shell as the movie confirm). Quick-action presets, tri-state season " <>
             "rows collapsed by default; season 1 expanded showing the episode drill-in: the " <>
             "in-library row greyed (shown, never hidden), the unaired row inert. The footer " <>
-            "carries Watch for releases (arm the title: on the watchlist, following its " <>
-            "releases, downloading nothing) for an untracked series.",
+            "is Cancel and Download, nothing about the future: following the series is " <>
+            "the ladder's act on the watchlist, never a download's.",
         attributes: %{
           open: true,
           stage: :targeting,
@@ -138,9 +138,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :movie_confirm_upcoming,
         description:
-          "A movie that isn't out yet — the footer adds Watch for release (release tracking " <>
-            "watches for it, nothing is grabbed now). This is the only state that verb " <>
-            "appears in; once the movie is out there is no future release to wait for.",
+          "A movie that isn't out yet — the same footer as a released one (Cancel and " <>
+            "Download); watching for its release is the ladder's act on the watchlist.",
         attributes: %{
           open: true,
           stage: :movie_confirm,
@@ -249,8 +248,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         description:
           "The gap search ran while search was blind (every enabled indexer backed off, " <>
             "UIDR-016) — the banner says availability couldn't be checked instead of " <>
-            "presenting unavailability as knowledge. Search again stays; Track these " <>
-            "later stops reading as an informed conclusion.",
+            "presenting unavailability as knowledge. Search again stays.",
         attributes: %{
           open: true,
           stage: :board,

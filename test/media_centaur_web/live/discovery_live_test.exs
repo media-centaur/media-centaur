@@ -1019,41 +1019,21 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       view |> element("#title-scope-toggle") |> render_click()
       assert has_element?(view, "#title-scope-menu", "Download all")
-      assert has_element?(view, "#title-scope-menu", "Download all and track")
+      # Downloading is not a watchlist act: the menu carries no entry that
+      # follows the series (campaign: the watchlist is the single entry point).
+      refute has_element?(view, "#title-scope-menu", "Download all and track")
+      refute has_element?(view, "#title-scope-menu [phx-value-track]")
 
-      view |> element("#title-scope-menu li:not([phx-value-track])") |> render_click()
+      view |> element("#title-scope-menu li") |> render_click()
       await_supervised_tasks()
 
       [plan] = Plans.list_drafts()
       assert plan.tmdb_type == "tv"
 
-      # Downloading what has aired says nothing about what is to come.
+      # Downloading what has aired says nothing about what is to come: the
+      # title stays where the person put it, at List.
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
-    end
-
-    test "the scope menu's Download all and track is the entry that follows the series", %{
-      conn: conn
-    } do
-      TmdbStubs.stub_series_universe_for_targeting()
-
-      show =
-        Title.new!(%{
-          tmdb_id: 246_810,
-          media_type: :tv_series,
-          name: "Sample Show",
-          year: "2010",
-          release_date: ~D[2010-01-01]
-        })
-
-      {:ok, _} = Discovery.put_rung(show, :list)
-      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
-
-      view |> element("#title-scope-toggle") |> render_click()
-      view |> element("#title-scope-menu li[phx-value-track='true']") |> render_click()
-      await_supervised_tasks()
-
-      assert [_plan] = Plans.list_drafts()
-      assert %ReleaseTracking.Item{} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
+      assert Discovery.rung(246_810, :tv_series) == :list
     end
 
     test "raising the rung on a listed title follows it — tracked, at that rung", %{
