@@ -1568,7 +1568,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "[data-nav-zone='coming_up_list']")
     end
 
-    test "picking an upcoming row opens the title detail; arming from there tracks it",
+    test "picking an upcoming row opens the title detail; listing then arming from there tracks it",
          %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
@@ -1607,6 +1607,12 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert_patch(view, "/incoming?title=movie-888")
       assert has_element?(view, "#title-detail-modal[data-state='open']", "Upcoming Movie")
       refute has_element?(view, "#plan-modal[data-state='open']")
+
+      # A search result is not on the list: the one verb is Add to watchlist
+      # (UIDR-039), and the tracking controls appear once it is listed.
+      refute has_element?(view, "#title-tracking-mode-follow")
+      view |> element("#title-tracking-mode-add") |> render_click()
+      assert Discovery.rung(888, :movie) == :list
 
       # Arming from there tracks it; the row flips to Tracked on the broadcast.
       view |> element("#title-tracking-mode-follow") |> render_click()

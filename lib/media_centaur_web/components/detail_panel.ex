@@ -629,11 +629,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # mounts, so an owned series with an announced season is described in
   # one place.
   #
-  # The control renders whether or not the title is followed — under one
-  # ladder, Off is a rung like any other, and hiding the control on an
-  # owned-but-unfollowed series would leave no way to start following it
-  # from the library. It needs a `ref`, so it is skipped only when the
-  # subject has no TMDB identity at all.
+  # The control renders whether or not the title is followed — hiding it
+  # on an owned-but-unlisted series would leave no way to list and then
+  # follow it from the library. Its form follows the rung (UIDR-039): Add
+  # to watchlist until the title is listed, the tracking controls after.
+  # It needs a `ref`, so it is skipped only when the subject has no TMDB
+  # identity at all.
   attr :tracking, TrackingDetail, default: nil
   attr :rung, :atom, default: nil
   attr :ref, :string, default: nil

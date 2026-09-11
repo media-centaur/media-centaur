@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     refute has_element?(view, "#detail-release-timeline")
   end
 
-  test "raising an unfollowed series from Off follows it and lists it", %{
+  test "an owned series not on the list offers Add to watchlist; the controls follow, and raise it", %{
     conn: conn,
     series: series
   } do
@@ -105,6 +105,15 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
 
     {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
     assert has_element?(view, "#detail-tracking-mode[data-rung='off']")
+
+    # Owning a series is not listing it (UIDR-039): the library's view
+    # offers the one verb until the title is on the list.
+    assert has_element?(view, "#detail-tracking-mode-add", "Add to watchlist")
+    refute has_element?(view, "#detail-tracking-mode-ask")
+
+    view |> element("#detail-tracking-mode-add") |> render_click()
+    assert Discovery.rung(424_242, :tv_series) == :list
+    assert has_element?(view, "#detail-tracking-mode[data-rung='list']")
 
     view |> element("#detail-tracking-mode-ask") |> render_click()
     await_supervised_tasks()

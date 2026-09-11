@@ -3,6 +3,11 @@ status: accepted
 date: 2026-09-07
 ---
 
+> **Amended 2026-09-11** by [UIDR-039](2026-09-11-039-add-to-watchlist-then-the-tracking-controls.md):
+> the control has two forms decided by the title's rung — a title not on the
+> list offers only **Add to watchlist**; a listed one shows the seven-way
+> tracking controls. Point 5 (the bookmark) is superseded: the first form is
+> the listing verb, and nothing else toggles the bottom of the record.
 > **Amended 2026-09-11** by [UIDR-038](2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md):
 > on a Feed entry the Ignore shortcut and the List bookmark (point 5) sit
 > in a hover/cursor toolbar under the entry, together with Download. The

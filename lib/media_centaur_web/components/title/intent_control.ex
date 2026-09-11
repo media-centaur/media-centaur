@@ -1,21 +1,31 @@
 defmodule MediaCentaurWeb.Components.Title.IntentControl do
   @moduledoc """
-  The one control for a title, mounted by every title surface (UIDR-035):
-  a pick-one-of-seven for the rung a person's `Discovery.TitleIntent` sits
-  at.
+  The one control for a title, mounted by every title surface (UIDR-035),
+  in one of two forms decided by the rung the person's
+  `Discovery.TitleIntent` sits at (UIDR-039):
 
-      Ignore · Off · List · Follow · Ask · Grab · Default
+  * **Add to watchlist** — a title with no record, or an ignored one,
+    offers that one verb and nothing above it. Listing is the first act;
+    nothing else is reachable until it has happened.
+  * **The tracking controls** — a title at List or above shows the
+    pick-one-of-seven:
+
+        Ignore · Off · List · Follow · Ask · Grab · Default
+
+  So from a search result, the Feed or a friend's card the order is
+  forced: open, Add to watchlist, then choose what to do about releases.
+  `control_form/1` is the rule; the host mounts the component either way.
 
   Ignore sits left of Off because it is the stronger no: Off is no
   record, Ignore is a record that keeps friends' recommendations of the
-  title off the Feed. It is the modal's ignore verb — the
-  Feed entry's Ignore is a one-click shortcut to the same rung.
+  title off the Feed. The Feed entry's Ignore is a one-click shortcut to
+  the same rung, and the only way onto it for a title not on the list.
 
-  It replaces two controls that expressed one ladder — a watchlist
+  It replaces two controls that expressed one record — a watchlist
   Add/Remove *and* a five-value tracking-mode strip — which could
   contradict each other, since removing from the watchlist while at Grab
   was a legal click that tore the tracking down as a side effect. There
-  is one ladder, so there is one control.
+  is one record, so there is one control.
 
   A click pushes `set_rung` with `phx-value-choice` (the rung, or `off`)
   and `phx-value-ref` (the title's `TitleRef` param — a page with several
@@ -31,7 +41,7 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   Beneath the strip: the selected rung's one-line consequence, the
   notes, and the per-title quality acceptance row with its Reset
   (`reset_lower_quality`, ADR-063 §2) when set. The host places the
-  control above everything the ladder produces (the timeline, the
+  control above everything tracking produces (the timeline, the
   activity), so choosing a rung never moves it. A list row never wears
   this control — a row shows its rung as a quiet marker and opens its
   modal to change it.
@@ -76,10 +86,41 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   attr :lower_quality_accepted?, :boolean, default: false
 
   def intent_control(assigns) do
+    assigns = assign(assigns, :form, control_form(assigns.rung))
+
     ~H"""
-    <div id={@id} class="space-y-2.5" data-component="intent-control" data-rung={@rung || :off}>
-      <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">Tracking</h3>
-      <div class="tabs tabs-boxed segmented-control w-fit" role="group" aria-label="Tracking">
+    <div
+      id={@id}
+      class="space-y-2.5"
+      data-component="intent-control"
+      data-rung={@rung || :off}
+      data-form={@form}
+    >
+      <.button
+        :if={@form == :add}
+        id={"#{@id}-add"}
+        variant="neutral"
+        size="sm"
+        phx-click="set_rung"
+        phx-value-choice="list"
+        phx-value-ref={@ref}
+        data-nav-item
+        tabindex="0"
+      >
+        Add to watchlist
+      </.button>
+      <h3
+        :if={@form == :controls}
+        class="text-xs font-medium uppercase tracking-wider text-base-content/55"
+      >
+        Tracking
+      </h3>
+      <div
+        :if={@form == :controls}
+        class="tabs tabs-boxed segmented-control w-fit"
+        role="group"
+        aria-label="Tracking"
+      >
         <%= for option <- options() do %>
           <span :if={option.rung == :default} class="segment-rule" aria-hidden="true"></span>
           <button
@@ -129,7 +170,17 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
     """
   end
 
-  @doc "The seven rungs in ladder order, each `%{rung, label}`. `:off` is the absence of a record."
+  @doc """
+  Which form the control takes (UIDR-039): `:add` — the one verb, Add to
+  watchlist — for a title with no record or an ignored one; `:controls`
+  — the seven-way tracking controls — for a title on the list.
+  """
+  @spec control_form(TitleIntent.rung() | nil) :: :add | :controls
+  def control_form(nil), do: :add
+  def control_form(:ignored), do: :add
+  def control_form(_listed), do: :controls
+
+  @doc "The seven rungs in order, each `%{rung, label}`. `:off` is the absence of a record."
   @spec options() :: [%{rung: TitleIntent.rung() | :off, label: String.t()}]
   def options, do: @options
 

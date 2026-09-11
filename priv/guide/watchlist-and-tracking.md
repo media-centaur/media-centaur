@@ -16,16 +16,20 @@ a second, deliberate act.
 ## Adding a title
 
 Open the title — from a search result on [Incoming](/guide/search-and-download), from the
-Feed or a friend's card on Discovery, or from its page in the library — and set **Tracking**
-to **List**. A title that came from a friend keeps who it came from.
+Feed or a friend's card on Discovery, or from its page in the library — and press
+**Add to watchlist**. That is the only thing a title not on your list offers; the tracking
+controls appear once it is on the list. A title that came from a friend keeps who it came
+from.
 
 A saved title keeps the name, year, poster and synopsis it had when you saved it, so the list
 renders when TMDB is unreachable. Titles you already own can stay on the list — owning
 something isn't the same as having watched it.
 
-## The Tracking control
+## The tracking controls
 
-One control, one setting. Every level above **List** includes being on the list.
+Once a title is on your list, the same view shows the tracking controls in place of
+**Add to watchlist**. One control, one setting; every level above **List** includes being on
+the list, and **Off** takes the title off it and brings **Add to watchlist** back.
 
 | Setting | What happens |
 |---|---|
