@@ -463,8 +463,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # names what is missing rather than implying nobody wrote. The two cases
   # differ in what the reader can do next, which is why they are separate copy
   # and why only one of them carries actions.
-  defp feed_empty_state(true),
-    do: "Recommendations, and titles your friends want to watch, land here newest first."
+  defp feed_empty_state(true), do: "Each friend's action is one entry, newest first."
 
   defp feed_empty_state(_not_ready),
     do:
@@ -528,7 +527,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               :if={@feed == []}
               id="feed-empty"
               icon="hero-users"
-              headline="What your friends point at lands here"
+              headline="What your friends recommend and want to watch lands here"
             >
               {feed_empty_state(@feed_ready?)}
               <:action :if={not @feed_ready?}>

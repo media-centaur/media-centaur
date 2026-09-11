@@ -447,7 +447,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       # Unready: the copy explains the mechanism and both prerequisites are
       # offered as actions rather than named in prose the reader has to parse.
-      assert render(view) =~ "What your friends point at lands here"
+      assert render(view) =~ "What your friends recommend and want to watch lands here"
       assert render(view) =~ "Media Centaur reaches your friends over a relay"
       assert has_element?(view, "#feed-empty a[href='/settings?section=social']")
       assert has_element?(view, "#feed-empty a[href='/discovery/friends']")
@@ -456,7 +456,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
       {:ok, view, _html} = live(conn, "/discovery")
-      assert render(view) =~ "titles your friends want to watch, land here"
+      assert render(view) =~ "Each friend&#39;s action is one entry, newest first."
       refute has_element?(view, "#feed-empty a[href='/settings?section=social']")
     end
 
@@ -604,7 +604,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, view, _html} = live(conn, "/discovery")
       assert entries(view) == []
       refute has_element?(view, feed_badge())
-      assert render(view) =~ "What your friends point at lands here"
+      assert render(view) =~ "What your friends recommend and want to watch lands here"
 
       await_supervised_tasks()
     end

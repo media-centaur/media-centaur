@@ -30,15 +30,15 @@ and [`campaigns/friends-recommendations.md`](../campaigns/friends-recommendation
 ## Contexts
 
 Four `Boundary` contexts, each with one job. The dependency edges run one way:
-`Discovery ← (nothing) → Activities → Social → Nostr`; `Activities` also
-reads `Library`, `WatchHistory`, `ReleaseTracking` and `Settings.Preferences`
-to turn a person's acts into activities.
+`Discovery ← Activities → Social → Nostr`; `Activities` also reads
+`Library`, `WatchHistory`, `Discovery` and `Settings.Preferences` to turn a
+person's acts into activities.
 
 | Context | Owns | Depends on |
 |---|---|---|
 | `MediaCentaur.Nostr` | The protocol and nothing else: `Keys`, `Event`, `Filter`, `Connection`. No tables, no domain meaning. | — |
 | `MediaCentaur.Social` | The network's *configuration*: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), and `Connections` (one live connection per relay). | `Nostr` |
-| `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Sync` (relays ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `ReleaseTracking`, `Settings.Preferences` |
+| `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Sync` (relays ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `Discovery`, `Settings.Preferences` |
 | `MediaCentaur.Discovery` | The watchlist (`watchlist_items`). Knows nothing about the friend network — a row from the feed stores a bare `activity_id`. | `Library`, `TmdbArtwork`, `TMDB` |
 
 The Discovery/Activities separation is deliberate: a watchlist row records
@@ -142,7 +142,7 @@ envelope (`v`, `title`); each adds its own fields:
 |---|---|---|---|
 | `32160` | Recommendation | `tmdb:<media_type>:<tmdb_id>` | `sentiment` (`like` / `love`, absent = like), `note`, `recommended_at` |
 | `32161` | Watched | same | `watched_at`, `episode` (TV: `season_number`, `episode_number`, `name`) |
-| `32162` | Tracking | same | `tracked_at` |
+| `32163` | Listing | same | `listed_at` (32162, Tracking, is retired — never reused, dropped on read) |
 
 A `p` tag is defined by the spec for directed recommendations and never set.
 
@@ -167,15 +167,18 @@ absent `v` as 1 and drops an unknown one.
 
 **Producers.** Recommending is an explicit act and always publishes
 (`Activities.recommend/3`, from the Recommend modal, with the sentiment
-the sender picked). Watched and tracking
+the sender picked). Watched and listing
 activities come from `Activities.Publisher`, a pubsub listener over
-`watch_history:events` and `release_tracking:updates` that calls
-`Activities.watched/2` / `tracking/1` only while the `share_watched` /
-`share_tracking` preference is on (Settings → Social → Sharing, both default
+`watch_history:events` and `discovery:updates` that calls
+`Activities.watched/2` / `listing/1` only while the `share_watched` /
+`share_watchlist` preference is on (Settings → Social → Sharing, both default
 off). A completion resolves its TMDB identity through `Library.ExternalIds`;
-an entity without one, and every extra, is skipped. Only a `source: :manual`
-tracking item broadcasts `ReleaseTracking.Events.TrackingStarted` — the
-library scan's items never become activities.
+an entity without one, and every extra, is skipped. A listing follows the
+rung transition: `Discovery.Events.RungChanged` carries `previous_rung`
+and `rung`, and only the crossing onto List publishes — moving up the
+ladder afterwards does not. Dropping below List (Off or Ignored) calls
+`Activities.withdraw/3` on the listing whether or not the toggle is still
+on: the statement is no longer true (ADR-067).
 
 **Deletion.** `Activities.delete/1` withdraws an own row of any kind:
 `Translation.to_deletion/5` builds the kind 5 (`a` =
@@ -236,10 +239,11 @@ stamp (a withdrawal made offline). Re-reading is idempotent.
    the wording; `Connections` only keeps the reason as the relay row's last
    error. A relay refusing a deletion with `blocked: kind 5 is not stored by
    this relay` is a `social-relay` older than v0.3.0; one refusing kind 32161
-   or 32162 is older than v0.4.0 — and, because its deletion parser only
-   knows a 32160 coordinate, that relay refuses the *deletion* of a watched
-   or tracking activity with `blocked: only the author may delete an event`.
-   Both are re-sent on every connect until it is upgraded.
+   is older than v0.4.0, one refusing 32163 older than v0.5.0 — and, because
+   an old deletion parser only knows the coordinates of its day, that relay
+   refuses the *deletion* of a watched activity or a listing with
+   `blocked: only the author may delete an event`. Both are re-sent on
+   every connect until it is upgraded.
 
 `ingest/1` rejects anything not signed by the identity or a key on the roster, so
 a relay that hands over the whole world still yields only what you follow.
@@ -269,16 +273,22 @@ disagree with the owner about what a message meant.
 ## Web layer
 
 `MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
-(`:recommendations` at `/discovery`, `:watchlist`, `:friends`). Both social
-tabs project one enriched list — every live activity with its actor
-(`Activities.list_activities/0`) — two ways (UIDR-031):
+(`:feed` at `/discovery`, `:watchlist`, `:friends`). Both social tabs
+project one enriched list — every live activity with its actor
+(`Activities.list_activities/0`) — two ways (UIDR-031, UIDR-038):
 
-- **Recommendations** — `DiscoveryLive.RecommendationRows`: friends'
-  recommendations only, one row per title placed by its newest, the lead
-  naming every recommender, notes attributed when there are several.
+- **Feed** — `DiscoveryLive.FeedEntries`: friends' recommendations and
+  listings, one `Components.Discovery.FeedEntry` per action, newest
+  first, flat, windowed (50, then *Show older*). Watched, own, former
+  friends' and ignored-title rows make no entry. `FeedEntryCard` renders
+  one entry with its hover toolbar — `feed_list` (the bottom rung as a
+  toggle; Following as plain state), `feed_download` (the modal's plain
+  Download, same `Plans.plan_title/2` and flash) and `ignore_title`
+  (with the Undo toast). Friend provenance for a listing or an ignore is
+  `TitleIntent.friend_provenance/2`, the same spelling the modal uses.
 - **Friends** — `DiscoveryLive.People` folds the list into one
   `Components.Discovery.Person` per friend and one for You (when an
-  identity exists), each with its watched / tracking / recommended
+  identity exists), each with its watched / listed / recommended
   shelves and a presence line (`DiscoveryLive.ActivityWords.presence/3`);
   `Components.Discovery.PersonCard` renders it. Every poster and name
   opens the title modal with `?title=<ref>&activity=<id>` so the modal
@@ -287,17 +297,18 @@ tabs project one enriched list — every live activity with its actor
   still an iteration-phase component under `live/discovery_live/`.
 
 What friends did with a title — recommended and how much, watched, or
-tracking — is one component everywhere, the pennant
+listed — is one component everywhere but the Feed, the pennant
 (`Components.Title.Pennant`, UIDR-037), fed by
 `Activities.friend_activity_for/1` on the watchlist rows, the Incoming
-search rows and both detail modals, and by the row's own activities on the
-Recommendations tab. See `docs/plans/2026-09-05-recommendation-pennant.md`
-for the original decisions.
+search rows and both detail modals. A feed entry flies none: each
+friend's action is its own entry there. See
+`docs/plans/2026-09-05-recommendation-pennant.md` for the original
+decisions.
 
 The joins the contexts may not make happen here:
 
 - **Activity rows** — `Activities.list_activities/0` returns the record plus
-  the friend's nickname (`own?: true`, `nickname: nil` for this identity's
+  the friend's nickname (`nil` for a former friend; `own?: true`, `nickname: nil` for this identity's
   own). `DiscoveryLive` adds `poster_url`, `library_owner_id`
   (`Library.ExternalIds.tmdb_owners/1`), `on_watchlist?`
   (`Discovery.watchlisted_refs/0`) and the acquisition state, then both
@@ -358,17 +369,17 @@ Tests that need either start it by hand, pointed at a `FakeRelay`.
 ## Development
 
 Two things stand in for the network on a dev machine: the private relay from
-`../social-relay` running in Docker on `ws://127.0.0.1:2173` (v0.4.0 or later
-for the watched and tracking kinds), and a **dev friend** — a second keypair
+`../social-relay` running in Docker on `ws://127.0.0.1:2173` (v0.5.0 or later
+for the listing kind), and a **dev friend** — a second keypair
 in `priv/dev-social/friend.nsec` (gitignored) driven from the command line. `just social` prints the walkthrough; `just --list` shows
 the recipes.
 
 | Recipe | Does |
 |---|---|
 | `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Friends. The relay goes under Settings → Social. Re-run to restart. |
-| `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up under Recommendations and on the friend's card. |
+| `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up on the Feed and on the friend's card. |
 | `just social-watched tv_series 1399 --name "Sample Show" --season 2 --episode 5` | The friend finished an episode (kind 32161). |
-| `just social-tracking movie 603 --name "Sample Movie"` | The friend started tracking a release (kind 32162). |
+| `just social-listing movie 603 --name "Sample Movie"` | The friend wants to watch a title (kind 32163). |
 | `just social-delete movie 603` / `just social-delete watched tv_series 1399` | The friend withdraws an activity (kind 5); it leaves the row and the friend's card. |
 | `just social-feed` | Everything the relay holds — activities and deletions — including what the dev app sent. |
 | `just social-status` / `social-down` / `social-reset` | Container state and NIP-11; stop; stop and forget data plus the friend's key. |
