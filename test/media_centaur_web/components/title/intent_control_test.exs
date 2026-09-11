@@ -4,9 +4,12 @@ defmodule MediaCentaurWeb.Components.Title.IntentControlTest do
   alias MediaCentaurWeb.Components.Title.IntentControl
 
   describe "control_form/1 — which form the control takes (UIDR-039)" do
-    test "a title with no record, or an ignored one, gets the one verb: Add to watchlist" do
-      assert IntentControl.control_form(nil) == :add
-      assert IntentControl.control_form(:ignored) == :add
+    test "a title with no record shows nothing here — listing is the bookmark's act, in the action strip" do
+      assert IntentControl.control_form(nil) == :none
+    end
+
+    test "an ignored title shows only the line that says so" do
+      assert IntentControl.control_form(:ignored) == :ignored
     end
 
     test "a title on the list gets the tracking controls" do

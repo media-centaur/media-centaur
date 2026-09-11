@@ -1,8 +1,8 @@
 defmodule MediaCentaurWeb.Storybook.Title.IntentControl do
   @moduledoc """
-  The one control for a title (UIDR-035, UIDR-036, UIDR-039), in its two
-  forms. A title not on the list offers **Add to watchlist** and nothing
-  else; a listed one shows the tracking controls — Ignore · Off · List ·
+  The one control for a title (UIDR-035, UIDR-036, UIDR-039). A title not
+  on the list shows nothing here — the bookmark in the action strip lists
+  it; a listed one shows the tracking controls — Ignore · Off · List ·
   Follow · Ask · Grab · Default, the pressed rung `aria-pressed`, with the
   selected rung's consequence, the notes and the quality acceptance row
   beneath. Ignore is the strongest no — a record that keeps friends'
@@ -34,16 +34,14 @@ defmodule MediaCentaurWeb.Storybook.Title.IntentControl do
       %Variation{
         id: :not_listed,
         description:
-          "A title with no record (nil rung reads as Off): the one verb, Add to watchlist, " <>
-            "and the line that says where it stands. Nothing above List is reachable until " <>
-            "it is on the list (UIDR-039).",
+          "A title with no record (nil rung reads as Off): nothing — listing is the " <>
+            "bookmark's act in the action strip, and nothing above List is reachable " <>
+            "until it is on the list (UIDR-039).",
         attributes: base(%{rung: nil})
       },
       %Variation{
         id: :ignored,
-        description:
-          "An ignored title takes the same form — Add to watchlist replaces Ignore — " <>
-            "and its line says the Feed is hiding it.",
+        description: "An ignored title shows the one line that says the Feed is hiding it.",
         attributes: base(%{rung: :ignored})
       },
       %VariationGroup{

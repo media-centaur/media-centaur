@@ -64,6 +64,10 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     assert has_element?(view, "#detail-tracking[data-nav-zone='detail_tracking']")
     assert has_element?(view, "#detail-release-timeline-next", "S02E01")
     assert has_element?(view, "#detail-tracking-mode[data-rung='default']")
+    # Followed: the bookmark is a filled marker with no click — a one-click
+    # must not tear down the calendar; Off is in the tracking controls.
+    assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true']")
+    refute has_element?(view, "#detail-watchlist-toggle[phx-click]")
     refute has_element?(view, "[phx-click='toggle_tracking']")
     refute html =~ "hero-bell"
   end
@@ -106,12 +110,16 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
     assert has_element?(view, "#detail-tracking-mode[data-rung='off']")
 
-    # Owning a series is not listing it (UIDR-039): the library's view
-    # offers the one verb until the title is on the list.
-    assert has_element?(view, "#detail-tracking-mode-add", "Add to watchlist")
+    # Owning a series is not listing it (UIDR-039): the view controls'
+    # bookmark is the one verb until the title is on the list, and the
+    # tracking block holds no controls.
+    assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
+    assert has_element?(view, "#detail-tracking-mode[data-form='none']")
     refute has_element?(view, "#detail-tracking-mode-ask")
 
-    view |> element("#detail-tracking-mode-add") |> render_click()
+    view |> element("#detail-watchlist-toggle") |> render_click()
+    # Listing fetches artwork on a supervised task; drive it home (ADR-049).
+    await_supervised_tasks()
     assert Discovery.rung(424_242, :tv_series) == :list
     assert has_element?(view, "#detail-tracking-mode[data-rung='list']")
 

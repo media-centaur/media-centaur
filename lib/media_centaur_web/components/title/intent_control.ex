@@ -4,16 +4,17 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   in one of two forms decided by the rung the person's
   `Discovery.TitleIntent` sits at (UIDR-039):
 
-  * **Add to watchlist** — a title with no record, or an ignored one,
-    offers that one verb and nothing above it. Listing is the first act;
-    nothing else is reachable until it has happened.
+  * **Nothing** — a title with no record has no tracking block. Listing
+    is the first act, and it is the bookmark's, in the action strip
+    (`WatchlistToggle`); nothing above List is reachable until it has
+    happened. An ignored title shows only the line that says so.
   * **The tracking controls** — a title at List or above shows the
     pick-one-of-seven:
 
         Ignore · Off · List · Follow · Ask · Grab · Default
 
   So from a search result, the Feed or a friend's card the order is
-  forced: open, Add to watchlist, then choose what to do about releases.
+  forced: open, bookmark, then choose what to do about releases.
   `control_form/1` is the rule; the host mounts the component either way.
 
   Ignore sits left of Off because it is the stronger no: Off is no
@@ -96,19 +97,6 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
       data-rung={@rung || :off}
       data-form={@form}
     >
-      <.button
-        :if={@form == :add}
-        id={"#{@id}-add"}
-        variant="neutral"
-        size="sm"
-        phx-click="set_rung"
-        phx-value-choice="list"
-        phx-value-ref={@ref}
-        data-nav-item
-        tabindex="0"
-      >
-        Add to watchlist
-      </.button>
       <h3
         :if={@form == :controls}
         class="text-xs font-medium uppercase tracking-wider text-base-content/55"
@@ -138,8 +126,12 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
           </button>
         <% end %>
       </div>
-      <p class="text-sm text-base-content/70">{description(@rung)}</p>
-      <p :if={!@acquisition?} id={"#{@id}-acquisition-note"} class="text-xs text-base-content/55">
+      <p :if={@form != :none} class="text-sm text-base-content/70">{description(@rung)}</p>
+      <p
+        :if={@form == :controls and !@acquisition?}
+        id={"#{@id}-acquisition-note"}
+        class="text-xs text-base-content/55"
+      >
         Ask, Grab and Default download nothing until an indexer and a download client are set up under Settings → Acquisition.
       </p>
       <%!-- The per-title quality acceptance (ADR-063 §2) is keyed by TMDB
@@ -171,13 +163,14 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   end
 
   @doc """
-  Which form the control takes (UIDR-039): `:add` — the one verb, Add to
-  watchlist — for a title with no record or an ignored one; `:controls`
-  — the seven-way tracking controls — for a title on the list.
+  Which form the control takes (UIDR-039): `:none` for a title with no
+  record — the bookmark in the action strip is its verb; `:ignored` — the
+  one line saying the Feed hides it; `:controls` — the seven-way tracking
+  controls — for a title on the list.
   """
-  @spec control_form(TitleIntent.rung() | nil) :: :add | :controls
-  def control_form(nil), do: :add
-  def control_form(:ignored), do: :add
+  @spec control_form(TitleIntent.rung() | nil) :: :none | :ignored | :controls
+  def control_form(nil), do: :none
+  def control_form(:ignored), do: :ignored
   def control_form(_listed), do: :controls
 
   @doc "The seven rungs in order, each `%{rung, label}`. `:off` is the absence of a record."
@@ -210,7 +203,7 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   @spec description(TitleIntent.rung() | nil) :: String.t()
   def description(nil), do: "Not on your list."
 
-  def description(:ignored), do: "Hidden from the Feed. Nothing is watching for releases."
+  def description(:ignored), do: "Hidden from the Feed. Add it to your watchlist to bring it back."
 
   def description(:list), do: "On your list. Nothing is watching for releases."
   def description(:follow), do: "Releases show on Coming up. Nothing downloads."
