@@ -1,14 +1,10 @@
 defmodule MediaCentaurWeb.Storybook.Title.Row do
   @moduledoc """
-  One Discovery row — poster thumb, identity line, the host's lead line
-  and quiet markers, the notes or the overview — as a whole-card click
-  target. Every verb lives in the title detail modal, so the row never
-  grows or loses a control depending on where the title stands; only
-  its markers change. The one exception is the Recommendations row's
-  "Ignore" (`ignorable?`), quiet text at the end of the lead line shown
-  while the row is hovered or holds the cursor — a shortcut to the
-  Ignored rung, and the row's nav sub-item. `poster_url: nil` shows the
-  icon fallback.
+  One title row — poster thumb, identity line, the host's quiet
+  markers, the notes or the overview — as a whole-card click target.
+  Every verb lives in the title detail modal, so the row never grows or
+  loses a control depending on where the title stands; only its markers
+  change. `poster_url: nil` shows the icon fallback.
   """
 
   use PhoenixStorybook.Story, :component
@@ -81,13 +77,11 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
       %Variation{
         id: :recommended_by_one,
         description:
-          "A Recommendations row from one friend: the lead says who and when, On " <>
-            "watchlist is a marker, the note displaces the overview unattributed, and " <>
-            "the named pennant carries the sentiment.",
+          "A title one friend recommended: On watchlist is a marker, the note " <>
+            "displaces the overview unattributed, and the named pennant carries the sentiment.",
         attributes: %{
           id: "row-recommended-by-one",
           title: title(),
-          lead: "Sample Friend · 2d ago",
           markers: ["On watchlist"],
           notes: [%{name: nil, text: "Watch it before anyone spoils the ending."}],
           friend_activity: [recommendation("Sample Friend", :love)]
@@ -96,32 +90,11 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
       %Variation{
         id: :recommended_by_two,
         description:
-          "Two friends on one title (UIDR-031): the lead names both newest first, " <>
-            "each note carries its name, and the mast stacks love above like.",
+          "Two friends on one title (UIDR-031): each note carries its name, " <>
+            "and the mast stacks love above like.",
         attributes: %{
           id: "row-recommended-by-two",
           title: title(),
-          lead: "Sample Friend, Other Friend · 2d ago",
-          notes: [
-            %{name: "Sample Friend", text: "Watch it before anyone spoils the ending."},
-            %{name: "Other Friend", text: "Fine."}
-          ],
-          friend_activity: [
-            recommendation("Other Friend", :like),
-            recommendation("Sample Friend", :love)
-          ]
-        }
-      },
-      %Variation{
-        id: :ignorable,
-        description:
-          "A Recommendations row with its Ignore (hover the row): quiet text after the " <>
-            "markers, the row's nav sub-item — RIGHT steps onto it in the app.",
-        attributes: %{
-          id: "row-ignorable",
-          title: title(),
-          lead: "Sample Friend, Other Friend · 2d ago",
-          ignorable?: true,
           notes: [
             %{name: "Sample Friend", text: "Watch it before anyone spoils the ending."},
             %{name: "Other Friend", text: "Fine."}
@@ -134,8 +107,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
       },
       %Variation{
         id: :watchlist_with_note,
-        description:
-          "A watchlist row: no lead, the item's own note, and the pennants name who recommended it.",
+        description: "A watchlist row: the item's own note, and the pennants name who recommended it.",
         attributes: %{
           id: "row-watchlist-with-note",
           title: title(),

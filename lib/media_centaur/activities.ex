@@ -213,9 +213,10 @@ defmodule MediaCentaur.Activities do
 
   @doc """
   Every activity, newest first — received ones with the friend's
-  nickname, this identity's own marked `own?: true` with `nickname: nil`
-  (the Feed shows them as "You"). Before an identity exists nothing
-  stored can be ours, so every row is a received one.
+  nickname (`nil` for a former friend: a row nobody on the roster
+  owns), this identity's own marked `own?: true` with `nickname: nil`
+  (the You card). Before an identity exists nothing stored can be ours,
+  so every row is a received one.
   """
   @spec list_activities() :: [activity_row()]
   def list_activities do
@@ -406,11 +407,7 @@ defmodule MediaCentaur.Activities do
     do: %{activity: activity, nickname: nil, own?: true}
 
   defp activity_row(%Activity{} = activity, _me, friends),
-    do: %{
-      activity: activity,
-      nickname: Map.get(friends, activity.author_pubkey, "a former friend"),
-      own?: false
-    }
+    do: %{activity: activity, nickname: Map.get(friends, activity.author_pubkey), own?: false}
 
   # One grouped count query buckets every row as "sent" or "received" by
   # comparing author_pubkey to `me`; a second query finds the newest
