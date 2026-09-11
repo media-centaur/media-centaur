@@ -184,7 +184,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
         id: :every_flag,
         description:
           "Friends did everything: the pennants stack on the hero's right edge under the " <>
-            "actions — love, like, watched, tracking — the neutral bodies dark glass over the art.",
+            "actions — love, like, watched, listing — the neutral bodies dark glass over the art.",
         attributes: %{
           today: @today,
           detail:
@@ -192,7 +192,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
               rung: :follow,
               primary: nil,
               friend_activity: [
-                act(show(), "Third Friend", :tracking),
+                act(show(), "Third Friend", :listing),
                 act(show(), "Other Friend", :watched),
                 act(show(), "Other Friend", :recommendation),
                 act(show(), "Sample Friend", :recommendation, :love)
@@ -225,15 +225,15 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
         }
       },
       %Variation{
-        id: :own_tracking,
+        id: :own_listing,
         description:
-          "Opened from the You card: an own tracking broadcast carries Delete tracking " <>
-            "activity. It flies no pennant — a pennant tells you what friends did.",
+          "Opened from the You card: an own listing broadcast carries Delete listing. " <>
+            "It flies no pennant — a pennant tells you what friends did.",
         attributes: %{
           today: @today,
           detail:
             detail(show(), %{
-              kind: :tracking,
+              kind: :listing,
               own?: true,
               activity_id: "0d2c5cd6-0000-4000-8000-000000000003",
               primary: nil

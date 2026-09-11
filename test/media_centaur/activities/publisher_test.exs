@@ -9,7 +9,7 @@ defmodule MediaCentaur.Activities.PublisherTest do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Activities.Publisher
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.Settings.Preferences.{ShareTracking, ShareWatched}
+  alias MediaCentaur.Settings.Preferences.{ShareWatched, ShareWatchlist}
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Topics
   alias MediaCentaur.WatchHistory
@@ -94,63 +94,75 @@ defmodule MediaCentaur.Activities.PublisherTest do
     end
   end
 
-  describe "tracking" do
-    test "off by default: tracking publishes nothing" do
-      {:ok, _item} =
-        ReleaseTracking.track_item(%{
-          tmdb_id: 1399,
-          media_type: :tv_series,
-          name: "Sample Show",
-          source: :manual
-        })
+  describe "listing" do
+    defp show,
+      do: MediaCentaur.TMDB.Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
 
+    defp listings, do: Enum.filter(Activities.list_sent(), &(&1.kind == :listing))
+
+    test "off by default: listing a title publishes nothing" do
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
       settle()
       assert Activities.list_sent() == []
     end
 
-    test "arming a title becomes a tracking activity" do
-      ShareTracking.set(true)
-
-      # ADR-065: the activity follows the person's act (arming), not the
-      # creation of the machinery row.
-      {:ok, _item} =
-        ReleaseTracking.track_item(%{
-          tmdb_id: 1399,
-          media_type: :tv_series,
-          name: "Sample Show"
-        })
-
-      {:ok, _intent} =
-        ReleaseTracking.set_rung(
-          MediaCentaur.TMDB.Title.new!(%{
-            tmdb_id: 1399,
-            media_type: :tv_series,
-            name: "Sample Show"
-          }),
-          :follow
-        )
-
+    test "a title reaching List becomes a listing with the intent's snapshot" do
+      ShareWatchlist.set(true)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
       settle()
 
-      assert [%Activity{kind: :tracking, tmdb_id: 1399, media_type: :tv_series} = activity] =
-               Activities.list_sent()
-
+      assert [%Activity{kind: :listing, tmdb_id: 1399, media_type: :tv_series} = activity] = listings()
       assert activity.title.name == "Sample Show"
+      assert activity.raw_event["kind"] == 32_163
     end
 
-    test "a library-sourced item is never shared" do
-      ShareTracking.set(true)
-
-      {:ok, _item} =
-        ReleaseTracking.track_item(%{
-          tmdb_id: 1399,
-          media_type: :tv_series,
-          name: "Sample Show",
-          source: :library
-        })
-
+    test "leaving Ignored for the list is a listing; moving up the ladder is not another" do
+      ShareWatchlist.set(true)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ignored)
       settle()
-      assert Activities.list_sent() == []
+      assert listings() == []
+
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
+      settle()
+      assert [%Activity{kind: :listing} = first] = listings()
+
+      # `:follow` needs a calendar, which is a TMDB fetch; `:ask` stays local.
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ask)
+      settle()
+      assert [%Activity{id: id}] = listings()
+      assert id == first.id
+      assert Activity.event_created_at(hd(listings())) == Activity.event_created_at(first)
+    end
+
+    test "dropping below List withdraws the listing — with the toggle on or off" do
+      ShareWatchlist.set(true)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
+      settle()
+      assert [%Activity{kind: :listing}] = listings()
+
+      # The statement is no longer true; a switched-off toggle does not
+      # keep it standing on friends' shelves.
+      ShareWatchlist.set(false)
+      {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
+      settle()
+      assert listings() == []
+      assert [%MediaCentaur.Nostr.Event{kind: 5}] = Activities.own_events()
+
+      ShareWatchlist.set(true)
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
+      settle()
+      assert [%Activity{kind: :listing}] = listings()
+
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ignored)
+      settle()
+      assert listings() == []
+    end
+
+    test "a title never listed dropping to Off publishes nothing" do
+      ShareWatchlist.set(true)
+      {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
+      settle()
+      assert Activities.own_events() == []
     end
   end
 

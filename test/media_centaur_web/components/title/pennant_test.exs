@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Components.Title.PennantTest do
 
     test "one pennant per flag in mast order, names in the rows' order with You last" do
       rows = [
-        friend("Pat", kind: :tracking),
+        friend("Pat", kind: :listing),
         own(:like),
         friend("Sam", sentiment: :like),
         friend("Nick", sentiment: :love),
@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.Components.Title.PennantTest do
                %{flag: :love, names: ["Nick"]},
                %{flag: :like, names: ["Sam", "Alex", "You"]},
                %{flag: :watched, names: ["Nick"]},
-               %{flag: :tracking, names: ["Pat"]}
+               %{flag: :listing, names: ["Pat"]}
              ]
     end
   end
@@ -54,10 +54,10 @@ defmodule MediaCentaurWeb.Components.Title.PennantTest do
 
       assert Pennant.tooltip(%{flag: :watched, names: ["Nick"]}) == "Nick watched this"
       assert Pennant.tooltip(%{flag: :watched, names: ["Nick", "Sam"]}) == "Nick and Sam watched this"
-      assert Pennant.tooltip(%{flag: :tracking, names: ["Nick"]}) == "Nick is tracking this"
+      assert Pennant.tooltip(%{flag: :listing, names: ["Nick"]}) == "Nick wants to watch this"
 
-      assert Pennant.tooltip(%{flag: :tracking, names: ["Nick", "Sam"]}) ==
-               "Nick and Sam are tracking this"
+      assert Pennant.tooltip(%{flag: :listing, names: ["Nick", "Sam"]}) ==
+               "Nick and Sam want to watch this"
     end
   end
 end

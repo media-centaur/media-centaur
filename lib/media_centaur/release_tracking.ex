@@ -14,8 +14,6 @@ defmodule MediaCentaur.ReleaseTracking do
       LibraryListener,
       Release,
       Event,
-      Events,
-      Events.TrackingStarted,
       Want,
       Views,
       Views.ComingUp,
@@ -49,7 +47,6 @@ defmodule MediaCentaur.ReleaseTracking do
 
   alias MediaCentaur.ReleaseTracking.{
     Event,
-    Events,
     Helpers,
     Item,
     Onboarding,
@@ -81,19 +78,6 @@ defmodule MediaCentaur.ReleaseTracking do
   @spec track_item(map()) :: {:ok, Item.t()} | {:error, Ecto.Changeset.t()}
   def track_item(attrs) do
     Repo.insert(Item.create_changeset(attrs))
-  end
-
-  @doc """
-  Announces that a person started following `item`'s releases. Called by
-  `set_rung/3` when a rung crosses onto `:follow`, never by the creation
-  path.
-  """
-  @spec announce_tracking_started(Item.t()) :: :ok
-  def announce_tracking_started(%Item{} = item) do
-    Events.broadcast(%Events.TrackingStarted{
-      item_id: item.id,
-      title: Title.new!(%{tmdb_id: item.tmdb_id, media_type: item.media_type, name: item.name})
-    })
   end
 
   def update_item(%Item{} = item, attrs) do
@@ -355,10 +339,8 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   def set_rung(%Title{} = title, rung, attrs) do
-    followed_before? = TitleIntent.follows_releases?(Discovery.rung(title.tmdb_id, title.media_type))
-
     with {:ok, intent} <- Discovery.put_rung(title, rung, attrs),
-         :ok <- derive(title, rung, attrs, followed_before?) do
+         :ok <- derive(title, rung, attrs) do
       {:ok, intent}
     end
   end
@@ -380,7 +362,7 @@ defmodule MediaCentaur.ReleaseTracking do
   # a single film already in the library is complete, so it has neither
   # calendar nor wants however high the rung sits. The rung is never
   # lowered to express that: the system does not move a person's intent.
-  defp derive(%Title{} = title, rung, attrs, followed_before?) do
+  defp derive(%Title{} = title, rung, attrs) do
     cond do
       not TitleIntent.follows_releases?(rung) ->
         drop_machinery(title.tmdb_id, title.media_type)
@@ -389,14 +371,7 @@ defmodule MediaCentaur.ReleaseTracking do
         drop_machinery(title.tmdb_id, title.media_type)
 
       true ->
-        with {:ok, item} <- ensure_machinery(title, attrs) do
-          # The announcement belongs to the person's act, at the beat
-          # where following begins — not to the rows it happened to
-          # create. A title whose machinery already existed still
-          # announces if the person was not following it before.
-          if !followed_before?, do: announce_tracking_started(item)
-          :ok
-        end
+        with {:ok, _item} <- ensure_machinery(title, attrs), do: :ok
     end
   end
 

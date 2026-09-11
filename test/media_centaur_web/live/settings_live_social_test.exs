@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
-  alias MediaCentaur.Settings.Preferences.ShareTracking
+  alias MediaCentaur.Settings.Preferences.ShareWatchlist
   alias MediaCentaur.Settings.Preferences.ShareWatched
   alias MediaCentaurWeb.SettingsLive.SocialSection
 
@@ -141,28 +141,36 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
     test "both toggles start off and flip their preference", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
       refute ShareWatched.enabled?()
-      refute ShareTracking.enabled?()
+      refute ShareWatchlist.enabled?()
       refute has_element?(view, "#social-sharing [phx-click='toggle_share_watched'] input:checked")
-      refute has_element?(view, "#social-sharing [phx-click='toggle_share_tracking'] input:checked")
+      refute has_element?(view, "#social-sharing [phx-click='toggle_share_watchlist'] input:checked")
 
       view |> element("#social-sharing [phx-click='toggle_share_watched']") |> render_click()
       assert ShareWatched.enabled?()
-      refute ShareTracking.enabled?()
+      refute ShareWatchlist.enabled?()
       assert has_element?(view, "#social-sharing [phx-click='toggle_share_watched'] input:checked")
 
-      view |> element("#social-sharing [phx-click='toggle_share_tracking']") |> render_click()
-      assert ShareTracking.enabled?()
-      assert has_element?(view, "#social-sharing [phx-click='toggle_share_tracking'] input:checked")
+      view |> element("#social-sharing [phx-click='toggle_share_watchlist']") |> render_click()
+      assert ShareWatchlist.enabled?()
+      assert has_element?(view, "#social-sharing [phx-click='toggle_share_watchlist'] input:checked")
 
       view |> element("#social-sharing [phx-click='toggle_share_watched']") |> render_click()
       refute ShareWatched.enabled?()
       refute has_element?(view, "#social-sharing [phx-click='toggle_share_watched'] input:checked")
     end
 
-    test "a stored preference renders as on", %{conn: conn} do
-      ShareTracking.set(true)
+    test "the toggles are named for what they share", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
-      assert has_element?(view, "#social-sharing [phx-click='toggle_share_tracking'] input:checked")
+      assert has_element?(view, "#social-sharing", "Share what you watch")
+      assert has_element?(view, "#social-sharing", "Share your watchlist")
+      assert has_element?(view, "#social-sharing", "A title you list is shared with your friends")
+      refute render(view) =~ "Share what you track"
+    end
+
+    test "a stored preference renders as on", %{conn: conn} do
+      ShareWatchlist.set(true)
+      {:ok, view, _html} = live_async!(conn, @section)
+      assert has_element?(view, "#social-sharing [phx-click='toggle_share_watchlist'] input:checked")
       refute has_element?(view, "#social-sharing [phx-click='toggle_share_watched'] input:checked")
     end
   end

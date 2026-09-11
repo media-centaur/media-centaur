@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   the title detail's hero.
 
   One pennant per flag, top to bottom: love (a filled heart on the rose
-  fill), like (a thumbs up), watched (an eye), tracking (a bell) — the
+  fill), like (a thumbs up), watched (an eye), listing (a bookmark) — the
   last three on a neutral tint, since only love is a colour. A pennant
   carries up to two nicknames and then a count ("Nick, Sam", "Nick +2");
   an own recommendation reads "You". Every pennant carries the full
@@ -26,9 +26,9 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
 
   alias MediaCentaur.Activities.Activity
 
-  @flags [:love, :like, :watched, :tracking]
+  @flags [:love, :like, :watched, :listing]
 
-  @type flag :: :love | :like | :watched | :tracking
+  @type flag :: :love | :like | :watched | :listing
   @type pennant :: %{flag: flag(), names: [String.t()]}
 
   attr :activity, :list,
@@ -63,7 +63,7 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   defp glyph(:love), do: "hero-heart-solid"
   defp glyph(:like), do: "hero-hand-thumb-up"
   defp glyph(:watched), do: "hero-eye"
-  defp glyph(:tracking), do: "hero-bell"
+  defp glyph(:listing), do: "hero-bookmark"
 
   @doc """
   The mast for one title's activity rows: one pennant per flag in mast
@@ -93,7 +93,7 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   def label(%{names: names}) when length(names) <= @max_named, do: Enum.join(names, ", ")
   def label(%{names: [first | rest]}), do: "#{first} +#{length(rest)}"
 
-  @doc ~s(The whole statement: "Nick loves this", "Nick, Sam and you like this", "Nick is tracking this".)
+  @doc ~s(The whole statement: "Nick loves this", "Nick, Sam and you like this", "Nick wants to watch this".)
   @spec tooltip(pennant()) :: String.t()
   def tooltip(%{flag: flag, names: names}) do
     subjects = Enum.map(names, &if(&1 == "You" and length(names) > 1, do: "you", else: &1))
@@ -109,9 +109,9 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
 
   defp verb(:love, [name]) when name != "You", do: "loves"
   defp verb(:like, [name]) when name != "You", do: "likes"
-  defp verb(:tracking, [_one]), do: "is tracking"
+  defp verb(:listing, [_one]), do: "wants to watch"
   defp verb(:love, _plural_or_you), do: "love"
   defp verb(:like, _plural_or_you), do: "like"
   defp verb(:watched, _any), do: "watched"
-  defp verb(:tracking, _plural), do: "are tracking"
+  defp verb(:listing, _plural), do: "want to watch"
 end

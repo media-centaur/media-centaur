@@ -58,13 +58,13 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
         attributes: %{activity: [row("Sample Friend", :watched)]}
       },
       %Variation{
-        id: :tracking,
-        description: "A friend is tracking it: a bell on the neutral tint.",
-        attributes: %{activity: [row("Sample Friend", :tracking)]}
+        id: :listing,
+        description: "A friend wants to watch it: a bookmark on the neutral tint.",
+        attributes: %{activity: [row("Sample Friend", :listing)]}
       },
       %Variation{
         id: :own,
-        description: "Your own recommendation reads You. Your own watching and tracking never fly.",
+        description: "Your own recommendation reads You. Your own watching and listing never fly.",
         attributes: %{activity: [row(nil, :recommendation)]}
       },
       %Variation{
@@ -91,10 +91,10 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
       },
       %Variation{
         id: :stacked,
-        description: "Every flag at once, in mast order: love, like, watched, tracking.",
+        description: "Every flag at once, in mast order: love, like, watched, listing.",
         attributes: %{
           activity: [
-            row("Other Friend", :tracking),
+            row("Other Friend", :listing),
             row("Third Friend", :watched),
             row("Other Friend", :recommendation),
             row("Sample Friend", :recommendation, :love)

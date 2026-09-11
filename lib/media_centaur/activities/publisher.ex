@@ -6,7 +6,16 @@ defmodule MediaCentaur.Activities.Publisher do
   | Act | Source | Toggle | Activity |
   |---|---|---|---|
   | Finished a movie or an episode | `watch_history:events`, `{:watch_event_created, event}` | `share_watched` | `Activities.watched/2` |
-  | Started tracking a release | `release_tracking:updates`, `{:tracking_started, event}` | `share_tracking` | `Activities.tracking/1` |
+  | Listed a title — its rung crossed onto List from below | `discovery:updates`, `{:title_intent_changed, %RungChanged{}}` | `share_watchlist` | `Activities.listing/1` |
+  | Dropped a listed title below List | the same message, the other way | none | `Activities.withdraw/3` |
+
+  A listing follows the rung transition (ADR-067): `RungChanged` carries
+  both ends, so crossing onto List is read off the message, and only the
+  crossing publishes — moving up the ladder afterwards is not another
+  listing. Dropping below List (Off, or Ignored) withdraws the listing
+  **whether or not the toggle is still on**: a statement that is no
+  longer true is withdrawn; the toggle governs what gets said, not what
+  stands. With no listing to withdraw the drop is a no-op.
 
   A GenServer only because it holds the two subscriptions; it keeps no
   state. Each message is handled on a supervised task (ADR-049), so a
@@ -18,7 +27,7 @@ defmodule MediaCentaur.Activities.Publisher do
   (`video_object`), is not shared. The title snapshot is the entity's
   name, date and description; poster and backdrop are left for the
   receiving install, which fetches artwork from the identity as it does
-  for every activity. A tracking activity's title rides on the event.
+  for every activity. A listing's snapshot rides on the event.
 
   Listed under the application's `pubsub_listeners`, so not started
   under `:test`; tests start it by hand.
@@ -29,10 +38,11 @@ defmodule MediaCentaur.Activities.Publisher do
 
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Activity.Episode
+  alias MediaCentaur.Discovery
+  alias MediaCentaur.Discovery.Events.RungChanged
+  alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Library.{Containers, Episodes, ExternalIds, Seasons}
-  alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Events.TrackingStarted
-  alias MediaCentaur.Settings.Preferences.{ShareTracking, ShareWatched}
+  alias MediaCentaur.Settings.Preferences.{ShareWatched, ShareWatchlist}
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.WatchHistory
 
@@ -41,7 +51,7 @@ defmodule MediaCentaur.Activities.Publisher do
   @impl true
   def init(_opts) do
     WatchHistory.subscribe()
-    ReleaseTracking.subscribe()
+    Discovery.subscribe()
     {:ok, %{}}
   end
 
@@ -51,8 +61,21 @@ defmodule MediaCentaur.Activities.Publisher do
     {:noreply, state}
   end
 
-  def handle_info({:tracking_started, %TrackingStarted{title: %Title{} = title}}, state) do
-    if ShareTracking.enabled?(), do: run(fn -> share(:tracking, Activities.tracking(title)) end)
+  def handle_info({:title_intent_changed, %RungChanged{} = change}, state) do
+    listed_before? = TitleIntent.rung_at_least?(change.previous_rung, :list)
+    listed_now? = TitleIntent.rung_at_least?(change.rung, :list)
+
+    cond do
+      not listed_before? and listed_now? and ShareWatchlist.enabled?() ->
+        run(fn -> share(:listing, Activities.listing(change.title)) end)
+
+      listed_before? and not listed_now? ->
+        run(fn -> withdraw_listing(change) end)
+
+      true ->
+        :ok
+    end
+
     {:noreply, state}
   end
 
@@ -82,6 +105,14 @@ defmodule MediaCentaur.Activities.Publisher do
 
   defp share(kind, {:error, reason}),
     do: Log.warning(:social, "could not share #{kind}: #{inspect(reason)}")
+
+  defp withdraw_listing(%RungChanged{} = change) do
+    case Activities.withdraw(:listing, change.tmdb_id, change.media_type) do
+      {:ok, activity} -> Log.info(:social, "withdrew listing: #{activity.title.name}")
+      :ok -> :ok
+      {:error, reason} -> Log.warning(:social, "could not withdraw listing: #{inspect(reason)}")
+    end
+  end
 
   # The title a completion is about, with the episode for a series —
   # or `:skip` when the entity is gone or carries no TMDB identity.

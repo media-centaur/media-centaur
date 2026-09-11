@@ -78,7 +78,7 @@ defmodule MediaCentaur.Activities.SyncTest do
                     [
                       "REQ",
                       "feed",
-                      %{"authors" => authors, "kinds" => [32_160, 32_161, 32_162, 5], "limit" => 500}
+                      %{"authors" => authors, "kinds" => [32_160, 32_161, 32_163, 5], "limit" => 500}
                     ]},
                    5_000
 

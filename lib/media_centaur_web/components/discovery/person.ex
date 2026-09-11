@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.Components.Discovery.Person do
     :added_on,
     :presence,
     watched: [],
-    tracking: [],
+    listed: [],
     recommended: []
   ]
 
@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.Components.Discovery.Person do
           added_on: Date.t() | nil,
           presence: presence() | nil,
           watched: [Entry.t()],
-          tracking: [Entry.t()],
+          listed: [Entry.t()],
           recommended: [Entry.t()]
         }
 end
