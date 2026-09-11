@@ -21,45 +21,31 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`watchlist-and-release-tracking.md`](watchlist-and-release-tracking.md) —
-  **phases 0–5 shipped in v1.16.0 2026-09-07; Phase 6 abandoned; owner check
-  remaining.** Four representations of one idea collapsed into one authored
-  intent and one derived machine, and three title modals into two. A watchlist
-  entry is intent; a tracked
-  title exists while a **tracking reason** holds, and the two reasons are not
-  equivalent — owning a title is a *default* that evaporates with the library,
-  arming it is an *act* that outlives it ([ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
-  [UIDR-035](../decisions/user-interface/2026-09-07-035-two-title-surfaces.md)).
-  One `tracking_mode`, never raised by the system; auto-grab stays opt-in; an
-  explicit Off is durable. **Phase 6 — "a title resolves to one surface" — was
-  abandoned 2026-09-07 before planning**: an owned title opened from the watchlist
-  still gets a stub with an `In library` hop, and that is now accepted behaviour.
-  The brief is kept in the campaign as a record of the defect. Remaining: the
-  owner uses the shipped surfaces on the desktop and on the TV.
-* [`instant-hero-backdrop.md`](instant-hero-backdrop.md) —
-  **in-progress, owner check remaining.** Home, Library, and Incoming hero
-  backdrops now paint in the mount frame on every return, at master
-  resolution: a JS-owned `ImageBitmap` cache survives live navigation and a
-  canvas hook draws from it ([UIDR-032](../decisions/user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md)).
-  Measured in the real shell before/after: a 32–50 ms hero decode on 4 of 5
-  returns with the page painted without it, versus the picture in the first
-  frame with no decode. The media-center shell moved from Vivaldi to
-  Chromium 152 (launcher outside the repo). Shipped v1.14.0 2026-09-07.
-  Remaining: owner confirms remote/gamepad input and the look on the TV,
-  then removes the Vivaldi profile and closes the campaign.
+* [`watchlist-single-entry-point.md`](watchlist-single-entry-point.md) —
+  **planning, 2026-09-11.** Adding a title to the watchlist and enabling
+  release tracking are two acts, in that order, and the second happens only
+  on the watchlist. The record already works that way (one title intent, one
+  write path); what does not is four download-side controls that raise a
+  title to Follow or Grab as a side effect (*Download all and track*, *Watch
+  for releases*, *Also grab future episodes*, *Track these*) and the full
+  ladder mounted on every title view. Phase 1 removes the four controls and
+  their machinery (`TrackingHandoffs`, `Plan.grab_future`, `Want.provenance`);
+  Phase 2 shows the ladder only where the watchlist is being looked at. Two
+  owner decisions open: whether the bookmark-or-ladder form is chosen by the
+  record's rung or by the surface, and whether the Library keeps the ladder
+  for an owned, unlisted title. Absorbs the owner check left by
+  `watchlist-and-release-tracking`.
 * [`indexer-id-search.md`](indexer-id-search.md) —
-  **planning, unblocked.** Identify a title by identifier rather than by name,
-  replacing identity reverse-engineered from parsed release titles with a
-  ±1-year tolerance. Probed 2026-09-06: the aggregated `/api/v1/search`
-  **ignores** `imdbId` (a bogus id returns byte-identical results, same shape
-  as the inert `year`), while the per-indexer Newznab route Radarr consumes
-  **honours** it and is more complete besides — 51 releases against the 49 our
-  title matching verified. Split accordingly. **Phase 1** verifies identity
-  using the ids already present in aggregated responses: no query change, no
-  fan-out change, no extra requests, and a mismatching id becomes a rejection
-  that title parsing can never assert. **Phase 2** would query by id, which
-  means owning the fan-out Prowlarr exists to provide, and may be declined.
-  No code yet.
+  **Phase 1 shipped 2026-09-06; Phase 2 undecided.** Identify a title by
+  identifier rather than by name. Phase 1 verifies identity using the ids
+  already present in aggregated Prowlarr responses — `SearchResult` carries
+  them, plans and pursuits snapshot them, and `TitleMatcher` treats a
+  mismatching id as a rejection title parsing can never assert; the ±1-year
+  tolerance now applies only to id-less results. Phase 2 would query by id
+  per indexer (the aggregated `/api/v1/search` ignores `imdbId`; the
+  per-indexer Newznab route honours it), which means owning the fan-out
+  Prowlarr exists to provide — measure the coverage gain first (51 vs 49 on
+  one film), and it may be declined.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and
@@ -69,13 +55,6 @@ Use [`template.md`](template.md) as a starter.
   (raise a positive `assert_receive` ceiling; never a `refute_receive` one).
   `mix test --slowest` is not valid input — under load it inflates by
   contention. No code yet.
-* [`http-client-unification.md`](http-client-unification.md) —
-  **shipped v1.8.0 2026-09-04**, one follow-up open (collapse the four
-  mirrored stats GenServers onto one base). Every outbound HTTP request
-  through `HttpClient.new/2`; an origin-freshness response cache with
-  ETag revalidation for TMDB and Steam; an `:http` Status tile with
-  per-upstream traffic, errors, latency, and cache effectiveness.
-  Plan: `docs/plans/2026-09-04-http-client-cache-and-upstreams-panel.md`.
 * [`showcase-comprehensive-coverage.md`](showcase-comprehensive-coverage.md) —
   **planning.** Expand the marketing showcase from well-covered static
   surfaces to the high-impact feature set that photographs well:
@@ -134,8 +113,48 @@ Use [`template.md`](template.md) as a starter.
 
 ## Complete
 
-* **Test-suite determinism** — **complete 2026-09-08, unpushed** (file
-  retired; design in
+Files retired; git history holds the verbatim record. Each entry names
+where any leftover went.
+
+* **Watchlist and release tracking** — **shipped v1.16.0 2026-09-07; file
+  retired 2026-09-11.** Four representations of one idea collapsed into one
+  authored intent and one derived machine, three title modals into two
+  ([ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
+  [UIDR-035](../decisions/user-interface/2026-09-07-035-two-title-surfaces.md));
+  superseded in part by *Tracking is a person's act* below. Phase 6 ("a title
+  resolves to one surface") was abandoned before planning: an owned title
+  opened from the watchlist gets a stub with an *In library* hop, and that is
+  accepted behaviour — the brief is in the retired file's history. Leftover:
+  the owner check of the shipped surfaces, re-homed to
+  `watchlist-single-entry-point` Phase 4.
+* **Tracking is a person's act** — **shipped v1.17.0 2026-09-08; file
+  retired 2026-09-11.** One authored record per title carrying the whole
+  ladder (Off · Ignore · List · Follow · Ask · Grab · Default); the machinery
+  is derived from it, and nothing but a person puts a title on it. Supersedes
+  ADR-065 §2/§4/§5 ([ADR-066](../decisions/architecture/2026-09-07-066-one-ladder-per-title.md))
+  and UIDR-035's separate de-listing verb ([UIDR-036](../decisions/user-interface/2026-09-07-036-one-control-per-title.md)).
+  Design: [`docs/superpowers/specs/2026-09-07-tracking-is-a-persons-act-design.md`](../docs/superpowers/specs/2026-09-07-tracking-is-a-persons-act-design.md).
+  No leftovers.
+* **Instant hero backdrop** — **shipped v1.14.0 2026-09-07; file retired
+  2026-09-11.** The Home hero backdrop paints in the mount frame on every
+  return, at master resolution, from a JS-owned `ImageBitmap` cache
+  ([UIDR-032](../decisions/user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md);
+  the Library and Incoming hosts were later removed by UIDR-033). Measured in
+  the real shell: a 32–50 ms hero decode on 4 of 5 returns before, none after.
+  The media-center shell moved from Vivaldi to Chromium 152 (launcher outside
+  the repo). Leftovers, owner only: confirm arrow keys, gamepad and the FLIRC
+  remote drive the Chromium shell; then delete `~/.config/vivaldi-mediacenter`
+  and `~/scripts/media-centaur/run.vivaldi-backup`.
+* **HTTP client unification** — **shipped v1.8.0 2026-09-04; file retired
+  2026-09-11.** Every outbound HTTP request through `HttpClient.new/2`
+  (Credo MC0029); an origin-freshness response cache with ETag revalidation
+  for TMDB and Steam; an `:http` Status tile per upstream
+  ([ADR-064](../decisions/architecture/2026-09-04-064-outbound-http-seam.md)).
+  Plan: [`docs/plans/2026-09-04-http-client-cache-and-upstreams-panel.md`](../docs/plans/2026-09-04-http-client-cache-and-upstreams-panel.md).
+  Leftover, deferred to whichever change next touches one of them: collapse
+  `MetadataStats`, `Image.Stats`, `ScanStats` and `HttpClient.Stats` onto one
+  attach/cast/snapshot base.
+* **Test-suite determinism** — **complete 2026-09-08** (file retired; design in
   [`docs/plans/2026-09-08-test-suite-determinism-checkout-design.md`](../docs/plans/2026-09-08-test-suite-determinism-checkout-design.md),
   amendment in [ADR-049](../decisions/architecture/2026-05-22-049-testing-principles.md)).
   A full `mix test` passes or fails on the code, not on the order ExUnit
@@ -148,9 +167,3 @@ Use [`template.md`](template.md) as a starter.
   padded run, zero leaks; same wall time back to back. The rate-based
   `render_async` site got a content wait; `Database busy` did not appear in
   fourteen runs and is noted, not chased.
-* [`tracking-is-a-persons-act.md`](tracking-is-a-persons-act.md) —
-  **complete 2026-09-07, unpushed.** One authored record per title
-  carrying the whole ladder (Off · List · Follow · Ask · Grab · Default);
-  the machinery is derived from it, and nothing but a person puts a title
-  on it. Supersedes ADR-065 §2/§4/§5 (ADR-066) and UIDR-035's separate
-  de-listing verb (UIDR-036).

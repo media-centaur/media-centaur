@@ -1,7 +1,7 @@
 # Tracking is a person's act — design
 
 **Date:** 2026-09-07
-**Campaign:** [`campaigns/tracking-is-a-persons-act.md`](../../../campaigns/tracking-is-a-persons-act.md)
+**Campaign:** `campaigns/tracking-is-a-persons-act.md` (completed and removed — see git history)
 **Supersedes in part:** [ADR-065](../../../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md) §2, §4, §5, and the collection carve-out; [UIDR-035](../../../decisions/user-interface/2026-09-07-035-two-title-surfaces.md)'s "`Remove from watchlist` becomes the separate, unrelated act".
 
 ## Glossary
