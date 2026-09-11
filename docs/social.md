@@ -215,7 +215,7 @@ the relay, and be republished by the own-events diff on every connect.
 `social:updates`:
 
 1. `:connected` for a relay → subscribe `"feed"` (authors = friends ++ self,
-   kinds 32160, 32161, 32162 + 5, `limit` 500, no `since`) and `"own:<url>"`
+   kinds 32160, 32161, 32163 + 5, `limit` 500, no `since`) and `"own:<url>"`
    (authors = [self], same kinds) on that relay, and reset the seen-set for
    that URL.
 2. `{:event, "feed", event}` → `Activities.ingest/1` (verify signature,

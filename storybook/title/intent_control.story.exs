@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Storybook.Title.IntentControl do
   Ask · Grab · Default, the pressed rung `aria-pressed`, with the
   selected rung's consequence, the notes and the quality acceptance row
   beneath. Ignore is the strongest no — a record that keeps friends'
-  recommendations of the title off the Recommendations tab.
+  recommendations and listings of the title off the Feed.
 
   One control replacing two: a watchlist Add/Remove *and* a tracking-mode
   strip used to express one ladder, and could contradict each other.

@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   and Incoming share: the title detail view-model, the acquisition-state
   words the rows and the modal show, the row markers, and a watchlist
   row's next release date. Discovery's own two tab projections live
-  beside its LiveView: `RecommendationRows` and `People`.
+  beside its LiveView: `FeedEntries` and `People`.
   """
 
   alias MediaCentaur.Discovery.TitleIntent
@@ -128,7 +128,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   end
 
   # Off says nothing — the row would not be here. Ignored says so: the
-  # Recommendations tab hides it, but a search result must still say the
+  # Feed hides it, but a search result must still say the
   # reader dismissed it. List says it is on the list, except where the
   # container already says so. Default says what it resolves to, so the
   # row never asks the reader to know the setting.

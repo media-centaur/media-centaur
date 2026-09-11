@@ -12,7 +12,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   | rung | what the app does |
   |---|---|
   | *(no record)* | nothing; the title is not on your list |
-  | `:ignored` | keeps it off the Recommendations tab, and nothing else |
+  | `:ignored` | keeps it off the Feed, and nothing else |
   | `:list` | keeps it on your list, and nothing else |
   | `:follow` | keeps its calendar, so releases appear under Coming up |
   | `:ask` | parks a draft plan when a release drops |
@@ -41,7 +41,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   (`:import`, …); directed recommendations later add nullable
   sender/recipient columns — no dead columns until then. A `:friend`
   record names the recommendation it came from in `activity_id` — a
-  bare uuid, because Discovery and Recommendations are independent
+  bare uuid, because Discovery and Activities are independent
   contexts; the web layer resolves the nickname from the
   recommendation's author. A `:manual` record carries none, and the
   pairing is validated both ways.
