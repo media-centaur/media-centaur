@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`watchlist-single-entry-point.md`](watchlist-single-entry-point.md) —
-  **planning, 2026-09-11.** Adding a title to the watchlist and enabling
+  **shipped v1.22.0 2026-09-11; owner check open.** Adding a title to the watchlist and enabling
   release tracking are two acts, in that order, and the second happens only
   on the watchlist. The record already works that way (one title intent, one
   write path); what does not is four download-side controls that raise a

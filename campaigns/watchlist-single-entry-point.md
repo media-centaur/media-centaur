@@ -1,5 +1,5 @@
 ---
-status: active
+status: shipped, owner check open
 started: 2026-09-11
 last_updated: 2026-09-11
 ---
@@ -38,7 +38,7 @@ makes the ladder appear only where the watchlist is being looked at.
 
 ## Status
 
-**Phase 1 shipped to main 2026-09-11 (unpushed, unreleased).** The four
+**Shipped as v1.22.0 on 2026-09-11** (Phases 0–3; Phase 4, the owner check, is the one open item — retire this file once it is done). Phase 1: The four
 download-side controls and their machinery are gone: `TrackingHandoffs`,
 `Plans.plan_title/2`'s `:track`, `Plan.grab_future`, `Want.provenance`,
 `Wants.open_gap_wants/2`, the `plan_track_only` / `plan_toggle_grab_future`
@@ -59,7 +59,7 @@ were rewritten outright — they still described the pre-v1.17 world (a
 *Watch* rung, owned series tracked on their own, Off remembered). What
 remains of Phase 3 is the ladder-form wording, which waits on Phase 2.
 
-**Phases 0, 2 and 3 done 2026-09-11 (unpushed).** Decision A settled by the
+**Phases 0, 2 and 3 done 2026-09-11.** Decision A settled by the
 owner: the form follows the title's state. The listing verb is the
 bookmark beside Download (`Title.WatchlistToggle`, one implementation for
 the title view and the library's view controls; the owner asked for the
@@ -75,7 +75,7 @@ List pressed. `mc-nav-trace`: Down from the detail list lands on the button
 *Add to watchlist*; wiki `Watchlist.md`, `Keyboard-and-Gamepad.md`,
 `Searching-and-Downloading.md`; guide `watchlist-and-tracking.md`.
 
-Left: Phase 4 (owner check) and the CHANGELOG at ship.
+Left: Phase 4 (owner check). The CHANGELOG entry shipped with v1.22.0.
 
 ### Audit (2026-09-11)
 
