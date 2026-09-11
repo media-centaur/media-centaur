@@ -287,6 +287,119 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
   # Errors
   # ---------------------------------------------------------------------------
 
+  # ---------------------------------------------------------------------------
+  # Identity the grab asked for
+  # ---------------------------------------------------------------------------
+
+  describe "a file whose grab wanted a different film" do
+    # The Filipiñana loop's silent half. Acquisition knew it had asked
+    # for tmdb 663875; the importer parsed the filename, found a
+    # different film with the same folded name, and filed it with no
+    # signal — so the want stayed open and the sweep grabbed again.
+    defp grab_wanting(release_title, identity_attrs) do
+      create_pursuit_with_target(
+        Map.merge(
+          %{
+            recipe_type: "tmdb",
+            tmdb_type: "movie",
+            status: "succeeded",
+            release_title: release_title
+          },
+          identity_attrs
+        )
+      )
+    end
+
+    test "a matched film contradicting the grab's identity goes to review, not the shelf" do
+      grab_wanting("Sample.Film.2026.1080p.WEB-DL-GROUP", %{
+        tmdb_id: "663875",
+        title: "Sample Film",
+        imdb_id: "tt11887594"
+      })
+
+      stub_search_movie([
+        movie_search_result(%{
+          "id" => 1_417_935,
+          "title" => "Sample Film",
+          "release_date" => "2026-08-26"
+        })
+      ])
+
+      payload =
+        payload_with_parsed(%{
+          file_path: "/media/Sample.Film.2026.1080p.WEB-DL-GROUP/Sample.Film.2026.mkv",
+          title: "Sample Film",
+          year: 2026
+        })
+
+      assert {:needs_review, result} = Search.run(payload)
+      assert result.tmdb_id == 1_417_935
+    end
+
+    test "a matched film agreeing with the grab's identity files normally" do
+      grab_wanting("Sample.Film.2026.1080p.WEB-DL-GROUP", %{
+        tmdb_id: "550",
+        title: "Sample Movie",
+        imdb_id: "tt0137523"
+      })
+
+      stub_search_movie([
+        movie_search_result(%{
+          "id" => 550,
+          "title" => "Sample Movie",
+          "release_date" => "1999-10-15"
+        })
+      ])
+
+      payload =
+        payload_with_parsed(%{
+          file_path: "/media/Sample.Film.2026.1080p.WEB-DL-GROUP/Sample.Movie.mkv"
+        })
+
+      assert {:ok, result} = Search.run(payload)
+      assert result.tmdb_id == 550
+    end
+
+    test "a grab for a series does not veto a movie sharing its tmdb id" do
+      # Movie 550 and series 550 are unrelated works; comparing ids
+      # across types would read a coincidence as a fault.
+      grab_wanting("Sample.Film.2026.1080p.WEB-DL-GROUP", %{
+        tmdb_type: "tv",
+        tmdb_id: "999",
+        title: "Sample Show"
+      })
+
+      stub_search_movie([
+        movie_search_result(%{
+          "id" => 550,
+          "title" => "Sample Movie",
+          "release_date" => "1999-10-15"
+        })
+      ])
+
+      payload =
+        payload_with_parsed(%{
+          file_path: "/media/Sample.Film.2026.1080p.WEB-DL-GROUP/Sample.Movie.mkv"
+        })
+
+      assert {:ok, result} = Search.run(payload)
+      assert result.tmdb_id == 550
+    end
+
+    test "a file no grab of ours accounts for is unaffected" do
+      stub_search_movie([
+        movie_search_result(%{
+          "id" => 550,
+          "title" => "Sample Movie",
+          "release_date" => "1999-10-15"
+        })
+      ])
+
+      assert {:ok, result} = Search.run(payload_with_parsed())
+      assert result.tmdb_id == 550
+    end
+  end
+
   describe "errors" do
     test "TMDB API error returns {:error, reason}" do
       stub_tmdb_error("/search/movie", 500)

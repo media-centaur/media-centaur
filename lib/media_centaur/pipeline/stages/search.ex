@@ -12,7 +12,8 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   alias MediaCentaur.DateUtil
   alias MediaCentaur.Parser
   alias MediaCentaur.Pipeline.Payload
-  alias MediaCentaur.TMDB.{Client, Confidence}
+  alias MediaCentaur.Acquisition
+  alias MediaCentaur.TMDB.{Client, Confidence, TitleIdentity}
 
   @behaviour MediaCentaur.Pipeline.Stage
 
@@ -77,12 +78,48 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
           candidates: top_matches
       }
 
-    if score >= Confidence.threshold() and (not tied? or resolvable_tie?) do
-      {:ok, updated}
-    else
-      {:needs_review, updated}
+    cond do
+      contradicts_grab?(payload, updated) -> {:needs_review, updated}
+      score < Confidence.threshold() -> {:needs_review, updated}
+      tied? and not resolvable_tie? -> {:needs_review, updated}
+      true -> {:ok, updated}
     end
   end
+
+  # Confidence measures how well a *name* matched. It cannot see that
+  # acquisition asked for a different film — two works genuinely share a
+  # name, and the folded comparison that makes `Amélie` match `Amelie`
+  # makes them indistinguishable. So when the grab that brought this file
+  # here named an identity, and the match contradicts it by external id,
+  # a person decides. Silence here is what turned one bad grab into a
+  # loop: the want could never close, so the sweep re-grabbed daily.
+  defp contradicts_grab?(%Payload{file_path: file_path}, matched) when is_binary(file_path) do
+    file_path
+    |> Acquisition.GrabProvenance.wanted_identity_for_file()
+    |> contradicts_match?(matched)
+  end
+
+  defp contradicts_grab?(_payload, _matched), do: false
+
+  # A TMDB id only names a work within its own type — movie 550 and
+  # series 550 are unrelated. Comparing across types would read a
+  # coincidence as agreement and a difference as a fault, so a
+  # type-crossing match is left to confidence, as before.
+  defp contradicts_match?(%TitleIdentity{tmdb_type: type} = wanted, %Payload{tmdb_type: type} = matched) do
+    verdict = TitleIdentity.compare(wanted, %{tmdb_id: matched.tmdb_id})
+
+    if verdict == :mismatch do
+      Log.warning(
+        :pipeline,
+        "grab wanted #{wanted.tmdb_type}:#{wanted.tmdb_id} (#{wanted.title}) but this file " <>
+          "matches tmdb:#{matched.tmdb_id} (#{matched.match_title}) — sending to review"
+      )
+    end
+
+    verdict == :mismatch
+  end
+
+  defp contradicts_match?(_wanted, _matched), do: false
 
   # Tied results can be resolved when the parsed year matches the top
   # match's year. TMDB sorts by popularity within the same title/year,

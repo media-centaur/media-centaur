@@ -1,6 +1,11 @@
 defmodule MediaCentaur.Pipeline do
   use Boundary,
     deps: [
+      # The importer asks acquisition whether a landing file was asked
+      # for, and as what — see `Acquisition.GrabProvenance`. Without it
+      # the two ends of the flow never meet: we search with one identity
+      # and file under another, with nothing comparing them.
+      MediaCentaur.Acquisition,
       MediaCentaur.TMDB,
       MediaCentaur.Library,
       MediaCentaur.Retention,
