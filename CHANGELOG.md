@@ -4,6 +4,25 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.21.0 — 2026-09-11
+
+### New
+
+- **The Feed replaces the Recommendations tab.** **Discovery → Feed** is what your friends did, newest first: every recommendation and every title a friend put on their watchlist, one entry each. An entry reads *Nick recommended · 2h ago* or *Cleo wants to watch · 12m ago*, then the title and its year beside the poster, then the friend's note when there is one — nothing else. Two friends on one title are two entries; nothing is grouped and nothing moves once it has landed. Past the newest fifty, **Show older** shows the next fifty.
+- **Verbs on hover.** Hover an entry for **List** (puts the title on your watchlist, keeping who it came from; reads **Listed** while it is there, **Following** once you track it), **Download** (the one-click download; reads **Downloading** or **In library** when that is the case) and **Ignore** (removes every entry for the title, with **Undo**). Click anywhere else to open the title.
+- **Friends see what you want to watch.** Turn on **Share your watchlist** under **Settings → Social → Sharing** and the first time a title reaches **List** on its tracking control your friends get a *wants to watch* entry. Dropping the title back to **Off** or **Ignore** withdraws it, whether or not the toggle is still on. This replaces **Share what you track**: tracking a title's releases is your own business now and tells nobody.
+
+### Improved
+
+- **The Friends tab says *wants to watch*.** A friend's card has a **Wants to watch** shelf in place of *Tracking*, the pennant on a title flies a bookmark instead of a bell, and the card's presence line reads *wants to watch Sample Show · 1w ago*.
+- **Times past a week read in weeks.** *2w ago* rather than *14d ago*, everywhere a relative time shows.
+
+### Fixed
+
+- **Activity from someone you removed stays off every list.** A removed friend's recommendations no longer surface under a placeholder name.
+
+This release runs a data migration: tracking activities your friends sent under the old scheme are removed (they are replaced by listings as friends update), and the old **Share what you track** setting is cleared — **Share your watchlist** starts off. Listings need social-relay v0.5.0 or later; an older relay refuses them until it is upgraded and Media Centaur sends them again on its own once it is.
+
 ## v1.20.1 — 2026-09-10
 
 ### Fixed
