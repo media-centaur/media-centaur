@@ -1,7 +1,7 @@
 # Discovery › Feed: friends' actions, one entry each
 
-**Date:** 2026-09-11 · **Status:** design approved (UIDR-038, ADR-067);
-not implemented. Mockups in `2026-09-11-discovery-feed-mockups/`
+**Date:** 2026-09-11 · **Status:** implemented 2026-09-11 (UIDR-038, ADR-067);
+plan in `../plans/2026-09-11-discovery-feed.md`. Mockups in `2026-09-11-discovery-feed-mockups/`
 (round 1: `1-person-first-post`, `2-title-row-author-lead`,
 `3-two-weights`; round 2: `A-poster-left-row` **chosen**,
 `B-sentence-then-card`; briefs `BRIEF.md`, `BRIEF-2.md`). Model for the
