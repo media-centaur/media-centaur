@@ -23,6 +23,7 @@ defmodule MediaCentaur.Acquisition do
       PlanEvents.Changed,
       PlanEvents.DescentStatus,
       PlanEvents.SearchActivity,
+      GrabProvenance,
       Plans,
       Plans.Alternatives,
       Plans.Board,
