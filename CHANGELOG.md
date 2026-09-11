@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.22.1 — 2026-09-11
+
+### Fixed
+
+- **A tracked film is no longer re-downloaded every day when another film shares its name.** Two different films can carry the same title — one tracked title on this machine was downloaded five days running, 6.2 GB, because the automatic search matched a different film of the same name and the tracked one never arrived. Automatic downloads now check a release against the film's IMDb id and release year before grabbing it, so a same-named film from another year is turned down.
+- **A download that brings back the wrong title goes to Review instead of into your library.** Until now the importer worked out what a finished download was purely from its filename, with no reference to what had been asked for. When those two disagree the file waits in Review for you to decide, rather than being filed as something it is not.
+- **A release that has already been downloaded for a title you are still waiting on is not downloaded again.** Previously only a download that had *failed* was remembered. One that finished but did not deliver the title could be picked again on the next search.
+
+### Migration safety
+
+- Adds a release year to each tracked title, which the automatic search uses to tell same-named films apart. It fills in from TMDB the next time each title refreshes — nothing to do by hand, and nothing changes in what you already have.
+
 ## v1.22.0 — 2026-09-11
 
 ### New
