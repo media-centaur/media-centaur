@@ -52,16 +52,14 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
 
   ## Your list
 
-  A movie or TV subject with a TMDB id gets a bookmark toggle between the
-  Letterboxd link and the cog — the same flip idiom as the search-row
-  bookmark (`MediaResults`): outline off the ladder, solid + primary tint
-  at any rung, state carried by `aria-pressed`. It toggles the *bottom*
-  of the ladder only (Off ↔ List); at Follow and above it is a marker,
-  because tearing down a calendar should not be a one-click side effect. Fires `modal_watchlist_toggle`,
-  handled by the injected `EntityModal` clause; the rendered state comes
-  from the host's `:title_rungs` (`IntentAware`), threaded down as
-  `subject_rung`. In-app action, so unlike Letterboxd it IS a
-  `data-nav-item`.
+  A movie or TV subject with a TMDB id gets the bookmark
+  (`Title.WatchlistToggle`, the same control the title view wears beside
+  Download — UIDR-039) between the Letterboxd link and the cog. It fires
+  `modal_watchlist_toggle` with the `choice` the control decided (`list`
+  or `off`; none at Follow and above, where it is a marker), handled by
+  the injected `EntityModal` clause; the rendered state comes from the
+  host's `:title_rungs` (`IntentAware`), threaded down as `subject_rung`.
+  In-app action, so unlike Letterboxd it IS a `data-nav-item`.
 
   ## Recommend
 
@@ -76,6 +74,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   use MediaCentaurWeb, :html
 
   alias MediaCentaurWeb.Components.Detail.Logic
+  alias MediaCentaurWeb.Components.Title.WatchlistToggle
 
   attr :entity, :map,
     required: true,
@@ -93,7 +92,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   attr :subject_rung, :atom,
     default: nil,
     doc:
-      "the rung the subject sits at, nil for Off — a filled bookmark at any rung. Compute via `EntityModal.subject_rung/3` so it matches what `modal_watchlist_toggle` acts on."
+      "the rung the subject sits at, nil for Off — the bookmark's state. Compute via `EntityModal.subject_rung/3` so it matches what `modal_watchlist_toggle` acts on."
 
   attr :recommend?, :boolean,
     default: false,
@@ -141,25 +140,12 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
         />
       </svg>
     </.button>
-    <.button
+    <WatchlistToggle.watchlist_toggle
       :if={@entity.tmdb_id && @entity.type in [:movie, :tv_series]}
       id="detail-watchlist-toggle"
-      variant="dismiss"
-      size="sm"
-      shape="circle"
-      class={[
-        "ml-1 transition-opacity",
-        if(@subject_rung, do: "text-primary", else: "opacity-60 hover:opacity-100")
-      ]}
-      phx-click="modal_watchlist_toggle"
-      data-nav-item
-      tabindex="0"
-      aria-pressed={to_string(@subject_rung != nil)}
-      title={bookmark_label(@subject_rung)}
-      aria-label={bookmark_label(@subject_rung)}
-    >
-      <.icon name={if @subject_rung, do: "hero-bookmark-solid", else: "hero-bookmark"} class="size-5" />
-    </.button>
+      rung={@subject_rung}
+      event="modal_watchlist_toggle"
+    />
     <.button
       :if={@recommend? && @entity.tmdb_id && @entity.type in [:movie, :tv_series]}
       id="detail-recommend"
@@ -218,7 +204,4 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   # The bookmark toggles the bottom of the ladder only. Above List a
   # click would tear down a calendar and its wants as a side effect of a
   # one-click affordance, so the label says where to go instead.
-  defp bookmark_label(nil), do: "Add to your list"
-  defp bookmark_label(:list), do: "Remove from your list"
-  defp bookmark_label(_followed), do: "Tracking — change it in the title view"
 end

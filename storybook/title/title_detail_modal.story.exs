@@ -303,8 +303,8 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
       %Variation{
         id: :off,
         description:
-          "A title that is not on the ladder: the control shows Off and there is no " <>
-            "tracking half at all, because nothing is stored for it.",
+          "A title with no record: the strip's bookmark is empty and there is no " <>
+            "tracking block at all — listing comes first (UIDR-039).",
         attributes: %{
           today: @today,
           detail: detail(show(), %{primary: nil, rung: nil, tracking: nil})
@@ -329,13 +329,13 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
       %Variation{
         id: :listed,
         description:
-          "On the list at List: the ladder control carries that state, and the strip " <>
-            "has no Add/Remove verbs of its own any more.",
+          "On the list at List: the bookmark is filled and the tracking controls " <>
+            "appear below, with List pressed.",
         attributes: %{today: @today, detail: detail(movie(), %{rung: :list})}
       },
       %Variation{
         id: :with_recommend,
-        description: "Friend network on — the strip offers Recommend",
+        description: "Friend network on — the strip offers the paper-plane Recommend",
         attributes: %{today: @today, detail: detail(movie(), %{}), recommend?: true}
       }
     ]

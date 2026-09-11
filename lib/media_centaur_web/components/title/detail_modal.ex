@@ -33,13 +33,12 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   modal was opened from (the You card), named by its kind
   (`ActivityWords.noun/1`).
 
-  The tracking control renders for every title, in the form its rung
-  decides (UIDR-039): Add to watchlist for one not on the list, the
-  tracking controls for one that is. It is where a title gets listed and
-  then armed, and where an owned one is stopped; Coming up and the
-  watchlist open owned titles here, so the control cannot live only on
-  the library detail. An owned title's files stay the library's —
-  `In library` bridges to them.
+  The strip's bookmark lists a title and the tracking block below shows
+  the controls once it is listed (UIDR-039): two acts, in order, on the
+  same view. That is where a title gets listed and then armed, and where
+  an owned one is stopped; Coming up and the watchlist open owned titles
+  here, so the control cannot live only on the library detail. An owned
+  title's files stay the library's — `In library` bridges to them.
 
   Pure rendering; every control bubbles to the `TitleDetailHost`:
   `close_title`, `title_download` (`scope` for a series),
@@ -66,6 +65,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Components.Title.IntentControl
+  alias MediaCentaurWeb.Components.Title.WatchlistToggle
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.TitleRef
@@ -132,24 +132,34 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
                 the strip's first control — the split Download button. --%>
           <div class="mt-4 pb-5">
             <div class="glass-menu" phx-click-away="title_scope_close">
-              <%!-- Recommend joins the strip's left cluster, after the
-                    primary and before the `ml-auto` tertiary group. A text
-                    control, not the library panel's paper-plane: this strip
-                    speaks in words where that controls row is an icon
-                    cluster. Same act, each surface's own idiom. --%>
+              <%!-- After the primary, the same icon cluster the library
+                    panel's view controls wear: the bookmark (UIDR-039 — the
+                    listing act, and the only verb a title not on the list
+                    has) and the paper-plane Recommend. Then the `ml-auto`
+                    tertiary group. --%>
               <div class="flex flex-wrap items-center gap-3" data-nav-zone="title_detail_body">
                 <.primary detail={@detail} scope_menu_open={@scope_menu_open} />
-                <button
+                <WatchlistToggle.watchlist_toggle
+                  id="title-watchlist"
+                  rung={@detail.rung}
+                  event="set_rung"
+                  phx-value-ref={@ref}
+                />
+                <.button
                   :if={@recommend?}
                   id="title-recommend"
-                  type="button"
-                  class="cursor-pointer text-sm text-base-content/70 transition-colors hover:text-base-content/90"
+                  variant="dismiss"
+                  size="sm"
+                  shape="circle"
+                  class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
                   phx-click="title_recommend_open"
                   data-nav-item
                   tabindex="0"
+                  title="Recommend"
+                  aria-label="Recommend"
                 >
-                  Recommend
-                </button>
+                  <.icon name="hero-paper-airplane" class="size-5" />
+                </.button>
                 <.tertiary detail={@detail} />
               </div>
               <ul

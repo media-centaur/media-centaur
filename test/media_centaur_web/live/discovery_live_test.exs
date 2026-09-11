@@ -286,7 +286,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element("#person-you-#{rec.id}") |> render_click()
       assert has_element?(view, "#title-activity-delete", "Delete recommendation")
       assert has_element?(view, "#title-detail-modal .pennant[data-flag='like']", "You")
-      view |> element("#title-tracking-mode-add") |> render_click()
+      view |> element("#title-watchlist") |> render_click()
       assert Discovery.listed?(99, :movie)
       render_hook(view, "close_title", %{})
 
@@ -503,7 +503,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#title-detail-modal .pennant[data-flag='love']", "Sample Friend")
       assert has_element?(view, "#title-note", "Watch it.")
 
-      view |> element("#title-tracking-mode-add") |> render_click()
+      view |> element("#title-watchlist") |> render_click()
       assert Discovery.listed?(777, :movie)
       render_hook(view, "close_title", %{})
       assert_patch(view, "/discovery")
@@ -757,26 +757,41 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, view, _html} = live(conn, "/discovery")
       view |> element(entry(rec)) |> render_click()
 
-      # Two acts, in order (UIDR-039): listing is the only verb a title
-      # that is not on the list offers, and nothing above List is reachable.
-      assert has_element?(view, "#title-tracking-mode[data-rung='off']")
-      assert has_element?(view, "#title-tracking-mode-add", "Add to watchlist")
-      refute has_element?(view, "#title-tracking-mode-follow")
-      refute has_element?(view, "#title-tracking-mode-ignored")
+      # Two acts, in order (UIDR-039): the bookmark beside Download is the
+      # only verb a title that is not on the list offers; the tracking
+      # block below is empty, so nothing above List is reachable.
+      assert has_element?(view, "#title-watchlist[aria-pressed='false'][phx-value-choice='list']")
+      assert has_element?(view, "#title-tracking-mode[data-rung='off'][data-form='none']")
+      refute has_element?(view, "#title-tracking-mode [data-nav-item]")
 
-      view |> element("#title-tracking-mode-add") |> render_click()
+      view |> element("#title-watchlist") |> render_click()
 
       assert Discovery.rung(777, :movie) == :list
-      assert has_element?(view, "#title-tracking-mode[data-rung='list']")
-      refute has_element?(view, "#title-tracking-mode-add")
+      assert has_element?(view, "#title-watchlist[aria-pressed='true'][phx-value-choice='off']")
+      assert has_element?(view, "#title-tracking-mode[data-rung='list'][data-form='controls']")
       assert has_element?(view, "#title-tracking-mode-list[aria-pressed='true']")
       assert has_element?(view, "#title-tracking-mode-follow")
-      assert has_element?(view, "#title-tracking-mode-off")
 
-      # Off takes it back off the list, and the view returns to the one verb.
+      # At Follow the bookmark is a marker: filled, and no click to tear
+      # the calendar down — Off lives in the tracking controls. Following
+      # fetches the calendar, so the movie is stubbed with a date to come.
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_get_movie(
+        777,
+        TmdbStubs.movie_detail(%{"id" => 777, "release_date" => "2999-01-01"})
+      )
+
+      view |> element("#title-tracking-mode-follow") |> render_click()
+      await_supervised_tasks()
+      assert has_element?(view, "#title-watchlist[aria-pressed='true']")
+      refute has_element?(view, "#title-watchlist[phx-click]")
+
+      # Off takes it back off the list, and the strip's bookmark empties again.
       view |> element("#title-tracking-mode-off") |> render_click()
       assert Discovery.rung(777, :movie) == nil
-      assert has_element?(view, "#title-tracking-mode-add", "Add to watchlist")
+      assert has_element?(view, "#title-watchlist[aria-pressed='false']")
+      assert has_element?(view, "#title-tracking-mode[data-form='none']")
     end
 
     test "an ignored title says so and offers Add to watchlist, which replaces Ignore", %{conn: conn} do
@@ -786,11 +801,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery?title=movie-777")
       refute has_element?(view, entry(rec))
-      assert has_element?(view, "#title-tracking-mode[data-rung='ignored']")
-      assert has_element?(view, "#title-tracking-mode-add", "Add to watchlist")
+      assert has_element?(view, "#title-tracking-mode[data-rung='ignored'][data-form='ignored']")
+      assert has_element?(view, "#title-watchlist[aria-pressed='false'][phx-value-choice='list']")
       assert render(view) =~ "Hidden from the Feed"
 
-      view |> element("#title-tracking-mode-add") |> render_click()
+      view |> element("#title-watchlist") |> render_click()
       assert Discovery.rung(777, :movie) == :list
       assert has_element?(view, "#title-tracking-mode-follow")
     end

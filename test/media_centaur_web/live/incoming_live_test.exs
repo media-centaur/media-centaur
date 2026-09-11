@@ -1611,7 +1611,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # A search result is not on the list: the one verb is Add to watchlist
       # (UIDR-039), and the tracking controls appear once it is listed.
       refute has_element?(view, "#title-tracking-mode-follow")
-      view |> element("#title-tracking-mode-add") |> render_click()
+      view |> element("#title-watchlist") |> render_click()
       assert Discovery.rung(888, :movie) == :list
 
       # Arming from there tracks it; the row flips to Tracked on the broadcast.

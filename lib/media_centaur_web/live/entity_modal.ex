@@ -225,8 +225,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       # --- Watchlist ---
 
-      def handle_event("modal_watchlist_toggle", _params, socket) do
-        {:noreply, EntityModal.toggle_watchlist(socket)}
+      def handle_event("modal_watchlist_toggle", %{"choice" => choice}, socket)
+          when choice in ["list", "off"] do
+        {:noreply, EntityModal.toggle_watchlist(socket, choice)}
       end
 
       # --- Recommend ---
@@ -1255,37 +1256,42 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   refreshed by the Discovery broadcast. No-op when the subject carries no
   TMDB id (the toggle isn't rendered then).
   """
-  @spec toggle_watchlist(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  def toggle_watchlist(socket) do
+  @spec toggle_watchlist(Phoenix.LiveView.Socket.t(), String.t()) :: Phoenix.LiveView.Socket.t()
+  def toggle_watchlist(socket, choice) do
     subject = watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
 
-    case watchlist_ref(subject) do
-      nil ->
+    case {watchlist_ref(subject), choice} do
+      {nil, _choice} ->
         socket
 
-      {tmdb_id, media_type} ->
-        if Map.has_key?(socket.assigns.title_rungs, {tmdb_id, media_type}) do
-          ReleaseTracking.set_rung(
-            Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: subject.name}),
-            :off
-          )
-        else
-          # No poster_path on purpose: library subjects don't carry a TMDB
-          # poster path — artwork arrives via Discovery's async TmdbArtwork.ensure.
-          ReleaseTracking.set_rung(
-            Title.new!(%{
-              tmdb_id: tmdb_id,
-              media_type: media_type,
-              name: subject.name,
-              year: watchlist_year(Map.get(subject, :date_published)),
-              release_date: Map.get(subject, :date_published),
-              overview: Map.get(subject, :description)
-            }),
-            :list
-          )
-        end
+      {{tmdb_id, media_type}, "off"} ->
+        ReleaseTracking.set_rung(
+          Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: subject.name}),
+          :off
+        )
 
-        socket
+        reload_tracking(socket)
+
+      {{tmdb_id, media_type}, "list"} ->
+        # No poster_path on purpose: library subjects don't carry a TMDB
+        # poster path — artwork arrives via Discovery's async TmdbArtwork.ensure.
+        ReleaseTracking.set_rung(
+          Title.new!(%{
+            tmdb_id: tmdb_id,
+            media_type: media_type,
+            name: subject.name,
+            year: watchlist_year(Map.get(subject, :date_published)),
+            release_date: Map.get(subject, :date_published),
+            overview: Map.get(subject, :description)
+          }),
+          :list
+        )
+
+        # The tracking block below reads the panel's own `rung`, which is a
+        # loaded projection, not `title_rungs` — so the bookmark's write
+        # re-reads it the way `handle_set_rung/2` does, and the controls
+        # appear under the freshly listed title (UIDR-039).
+        reload_tracking(socket)
     end
   end
 
