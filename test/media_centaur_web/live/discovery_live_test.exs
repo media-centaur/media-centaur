@@ -286,7 +286,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element("#person-you-#{rec.id}") |> render_click()
       assert has_element?(view, "#title-activity-delete", "Delete recommendation")
       assert has_element?(view, "#title-detail-modal .pennant[data-flag='like']", "You")
-      view |> element("#title-tracking-mode-list") |> render_click()
+      view |> element("#title-tracking-mode-add") |> render_click()
       assert Discovery.listed?(99, :movie)
       render_hook(view, "close_title", %{})
 
@@ -503,7 +503,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#title-detail-modal .pennant[data-flag='love']", "Sample Friend")
       assert has_element?(view, "#title-note", "Watch it.")
 
-      view |> element("#title-tracking-mode-list") |> render_click()
+      view |> element("#title-tracking-mode-add") |> render_click()
       assert Discovery.listed?(777, :movie)
       render_hook(view, "close_title", %{})
       assert_patch(view, "/discovery")
@@ -749,9 +749,54 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
-    test "the ladder's Ignore removes the entry and keeps the modal; no Ignore on the watchlist", %{
-      conn: conn
-    } do
+    test "a title not on the list offers Add to watchlist; the tracking controls appear once it is listed",
+         %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Activities.ingest(friend_event(777, nil))
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      view |> element(entry(rec)) |> render_click()
+
+      # Two acts, in order (UIDR-039): listing is the only verb a title
+      # that is not on the list offers, and nothing above List is reachable.
+      assert has_element?(view, "#title-tracking-mode[data-rung='off']")
+      assert has_element?(view, "#title-tracking-mode-add", "Add to watchlist")
+      refute has_element?(view, "#title-tracking-mode-follow")
+      refute has_element?(view, "#title-tracking-mode-ignored")
+
+      view |> element("#title-tracking-mode-add") |> render_click()
+
+      assert Discovery.rung(777, :movie) == :list
+      assert has_element?(view, "#title-tracking-mode[data-rung='list']")
+      refute has_element?(view, "#title-tracking-mode-add")
+      assert has_element?(view, "#title-tracking-mode-list[aria-pressed='true']")
+      assert has_element?(view, "#title-tracking-mode-follow")
+      assert has_element?(view, "#title-tracking-mode-off")
+
+      # Off takes it back off the list, and the view returns to the one verb.
+      view |> element("#title-tracking-mode-off") |> render_click()
+      assert Discovery.rung(777, :movie) == nil
+      assert has_element?(view, "#title-tracking-mode-add", "Add to watchlist")
+    end
+
+    test "an ignored title says so and offers Add to watchlist, which replaces Ignore", %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Activities.ingest(friend_event(777, nil))
+      {:ok, _} = Discovery.put_rung(released_movie(), :ignored)
+
+      {:ok, view, _html} = live(conn, "/discovery?title=movie-777")
+      refute has_element?(view, entry(rec))
+      assert has_element?(view, "#title-tracking-mode[data-rung='ignored']")
+      assert has_element?(view, "#title-tracking-mode-add", "Add to watchlist")
+      assert render(view) =~ "Hidden from the Feed"
+
+      view |> element("#title-tracking-mode-add") |> render_click()
+      assert Discovery.rung(777, :movie) == :list
+      assert has_element?(view, "#title-tracking-mode-follow")
+    end
+
+    test "the tracking controls' Ignore removes the entry and keeps the modal; no Ignore on the watchlist",
+         %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Activities.ingest(friend_event(777, nil))
       {:ok, _} = Discovery.put_rung(released_movie(), :list)

@@ -47,7 +47,7 @@ Titles you own open in the library instead, and carry the same timeline and cont
 When a tracked release airs and you don't have it, the app records a durable **want**. A planner
 periodically sweeps open wants, batches what's due, and — if the title's setting allows — turns
 them into a [pursuit](/guide/pursuits). Per-title settings are in
-[the watchlist](/guide/watchlist-and-tracking#the-tracking-control); a title left on **Default**
+[the watchlist](/guide/watchlist-and-tracking#the-tracking-controls); a title left on **Default**
 follows the global setting and changes with it.
 
 Wants persist through TMDB calendar changes and transient outages — a missed sweep is caught by

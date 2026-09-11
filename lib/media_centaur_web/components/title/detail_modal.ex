@@ -33,10 +33,12 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   modal was opened from (the You card), named by its kind
   (`ActivityWords.noun/1`).
 
-  The ladder control renders for every title — it is where an untracked
-  title gets armed, and where an owned one is stopped; Coming up and
-  the watchlist open owned titles here, so the control cannot live only
-  on the library detail. An owned title's files stay the library's —
+  The tracking control renders for every title, in the form its rung
+  decides (UIDR-039): Add to watchlist for one not on the list, the
+  tracking controls for one that is. It is where a title gets listed and
+  then armed, and where an owned one is stopped; Coming up and the
+  watchlist open owned titles here, so the control cannot live only on
+  the library detail. An owned title's files stay the library's —
   `In library` bridges to them.
 
   Pure rendering; every control bubbles to the `TitleDetailHost`:

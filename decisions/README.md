@@ -113,6 +113,7 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted |
 | 034 | 2026-09-07 | [An empty surface states the diagnosed reason it is empty](user-interface/2026-09-07-034-empty-surfaces-state-a-diagnosed-reason.md) | accepted |
 | 035 | 2026-09-07 | [Two title surfaces, split by whether the title has files](user-interface/2026-09-07-035-two-title-surfaces.md) | superseded in part by 036 |
-| 036 | 2026-09-07 | [One control per title, because there is one ladder](user-interface/2026-09-07-036-one-control-per-title.md) | accepted |
+| 036 | 2026-09-07 | [One control per title, because there is one ladder](user-interface/2026-09-07-036-one-control-per-title.md) | amended by 039 |
 | 037 | 2026-09-08 | [Friend provenance is the pennant, on every title surface](user-interface/2026-09-08-037-friend-provenance-is-the-pennant.md) | accepted |
 | 038 | 2026-09-11 | [The Feed is friends' actions, one entry each](user-interface/2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md) | accepted |
+| 039 | 2026-09-11 | [Add to watchlist first, then the tracking controls](user-interface/2026-09-11-039-add-to-watchlist-then-the-tracking-controls.md) | accepted |
