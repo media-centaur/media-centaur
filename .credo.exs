@@ -329,7 +329,16 @@
           # Added by the test-suite-determinism campaign; the moduledocs
           # are the rules' specs.
           {MediaCentaur.Credo.Checks.TestCaseTemplate, []},
-          {MediaCentaur.Credo.Checks.GlobalStateWritesCheckedOut, []}
+          {MediaCentaur.Credo.Checks.GlobalStateWritesCheckedOut, []},
+
+          # MC0037 keeps the set of acquisition plan *doors* discoverable.
+          # `Plans.create_plan/2` taking a `TMDB.TitleIdentity` already makes
+          # a half-built door a compile error; this is the other half, so a
+          # door cannot be *unknown*. The identity-by-id rollout wired three
+          # of release tracking's four plan paths and missed the fourth
+          # because nothing enumerated them — five days of re-downloading the
+          # wrong film. See `Acquisition.Plans.Doors`.
+          {MediaCentaur.Credo.Checks.PlanDoorRegistered, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

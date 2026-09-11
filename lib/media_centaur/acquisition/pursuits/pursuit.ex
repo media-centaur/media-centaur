@@ -108,6 +108,24 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
   )a
 
   @doc """
+  The identity this pursuit is for — the same value the plan carried,
+  round-tripped through the columns it is stored in.
+  """
+  @spec identity(t()) :: MediaCentaur.TMDB.TitleIdentity.t()
+  def identity(%__MODULE__{} = pursuit) do
+    MediaCentaur.TMDB.TitleIdentity.new(%{
+      tmdb_type: pursuit.tmdb_type,
+      tmdb_id: pursuit.tmdb_id,
+      title: pursuit.title,
+      imdb_id: pursuit.imdb_id,
+      tvdb_id: pursuit.tvdb_id,
+      original_title: pursuit.original_title,
+      year: pursuit.year,
+      origin_country: pursuit.origin_country || []
+    })
+  end
+
+  @doc """
   Builds a new pursuit. The `recipe_type` discriminator drives which
   recipe-level fields are required:
 

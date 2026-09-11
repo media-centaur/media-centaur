@@ -10,6 +10,7 @@ defmodule MediaCentaur.ReleaseTracking do
       MediaCentaur.TmdbArtwork
     ],
     exports: [
+      Identity,
       Item,
       LibraryListener,
       Release,

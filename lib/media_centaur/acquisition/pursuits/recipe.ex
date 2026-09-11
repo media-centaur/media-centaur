@@ -31,6 +31,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
   @enforce_keys [:type, :title]
   defstruct [
     :type,
+    :identity,
     :title,
     :tmdb_id,
     :tmdb_type,
@@ -49,6 +50,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
 
   @type t :: %__MODULE__{
           type: type(),
+          identity: MediaCentaur.TMDB.TitleIdentity.t() | nil,
           title: String.t(),
           tmdb_id: String.t() | nil,
           tmdb_type: tmdb_type() | nil,
@@ -64,18 +66,21 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
 
   @spec from(Pursuit.t()) :: t()
   def from(%Pursuit{recipe_type: "tmdb"} = pursuit) do
+    identity = Pursuit.identity(pursuit)
+
     %__MODULE__{
       type: :tmdb,
-      title: pursuit.title,
-      tmdb_id: pursuit.tmdb_id,
-      tmdb_type: tmdb_type_atom(pursuit.tmdb_type),
+      identity: identity,
+      title: identity.title,
+      tmdb_id: identity.tmdb_id,
+      tmdb_type: identity.tmdb_type,
       season_number: pursuit.season_number,
       episode_number: pursuit.episode_number,
-      year: pursuit.year,
-      imdb_id: pursuit.imdb_id,
-      tvdb_id: pursuit.tvdb_id,
-      original_title: pursuit.original_title,
-      origin_country: pursuit.origin_country || []
+      year: identity.year,
+      imdb_id: identity.imdb_id,
+      tvdb_id: identity.tvdb_id,
+      original_title: identity.original_title,
+      origin_country: identity.origin_country
     }
   end
 
@@ -106,10 +111,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
 
   def for_unit(%Pursuit{} = pursuit, _unit), do: from(pursuit)
 
-  defp tmdb_type_atom("movie"), do: :movie
-  defp tmdb_type_atom("tv"), do: :tv
-  defp tmdb_type_atom(nil), do: nil
-
   @doc """
   Projects this recipe into the `MediaCentaur.Search.Criteria` shape
   consumed by `Search.QueryBuilder` and `Search.TitleMatcher`.
@@ -120,19 +121,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
   search.
   """
   @spec to_criteria(t()) :: MediaCentaur.Search.Criteria.t()
-  def to_criteria(%__MODULE__{type: :tmdb} = recipe) do
-    %MediaCentaur.Search.Criteria{
-      type: :tmdb,
-      title: recipe.title,
-      tmdb_type: recipe.tmdb_type,
-      season_number: recipe.season_number,
-      episode_number: recipe.episode_number,
-      year: recipe.year,
-      imdb_id: recipe.imdb_id,
-      tmdb_id: recipe.tmdb_id,
-      tvdb_id: recipe.tvdb_id,
-      original_title: recipe.original_title,
-      origin_country: recipe.origin_country
+  def to_criteria(%__MODULE__{type: :tmdb, identity: identity} = recipe) do
+    # Identity via the one projection both routes share; scope is this
+    # recipe's own and is added on top.
+    %{
+      MediaCentaur.Acquisition.Plans.MatchCriteria.from(identity)
+      | season_number: recipe.season_number,
+        episode_number: recipe.episode_number
     }
   end
 

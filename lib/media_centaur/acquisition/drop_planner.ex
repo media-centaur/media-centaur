@@ -34,7 +34,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   alias MediaCentaur.Discovery
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Item
+  alias MediaCentaur.ReleaseTracking.{Identity, Item}
   alias MediaCentaur.Search.Quality
 
   @doc """
@@ -113,13 +113,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
       case Plans.create_tracking_plan(
              %{
-               tmdb_id: tmdb_id,
-               tmdb_type: "tv",
-               title: item.name,
-               origin_country: item.origin_country,
-               imdb_id: item.imdb_id,
-               tvdb_id: item.tvdb_id,
-               original_title: item.original_title,
+               identity: Identity.for_item(item),
                tracking_item_id: item.id,
                origin: "manual",
                approval_policy: "review",
@@ -154,14 +148,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
         {:ok, _plan} =
           Plans.create_tracking_plan(
             %{
-              tmdb_id: to_string(want.part_tmdb_id),
-              tmdb_type: "movie",
-              title: want.title || item.name,
-              year: want.air_date && want.air_date.year,
-              # Only when the want IS the tracked film: a collection part
-              # is a different film, and the item's id would name it wrong.
-              imdb_id: solo_movie_imdb_id(item, want),
-              original_title: solo_movie_original_title(item, want),
+              identity: Identity.for_want(item, want),
               tracking_item_id: item.id,
               origin: "manual",
               approval_policy: "review",
@@ -183,18 +170,6 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
       {:ok, :planned}
     end
   end
-
-  # A solo movie's want carries the item's own TMDB id; a collection
-  # part carries the part's, and we hold no IMDb id for that part.
-  defp solo_movie_imdb_id(%Item{} = item, want) do
-    if solo_movie?(item, want), do: item.imdb_id
-  end
-
-  defp solo_movie_original_title(%Item{} = item, want) do
-    if solo_movie?(item, want), do: item.original_title
-  end
-
-  defp solo_movie?(%Item{} = item, want), do: to_string(want.part_tmdb_id) == to_string(item.tmdb_id)
 
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
@@ -255,13 +230,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
       case Plans.create_tracking_plan(
              %{
-               tmdb_id: tmdb_id,
-               tmdb_type: "tv",
-               title: item.name,
-               origin_country: item.origin_country,
-               imdb_id: item.imdb_id,
-               tvdb_id: item.tvdb_id,
-               original_title: item.original_title,
+               identity: Identity.for_item(item),
                tracking_item_id: item.id,
                approval_policy: approval_policy(item, settings),
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
@@ -304,10 +273,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
       case Plans.create_tracking_plan(
              %{
-               tmdb_id: tmdb_id,
-               tmdb_type: "movie",
-               title: want.title || item.name,
-               year: want.air_date && want.air_date.year,
+               identity: Identity.for_want(item, want),
                tracking_item_id: item.id,
                approval_policy: approval_policy(item, settings),
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
@@ -331,21 +297,27 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   # ---------------------------------------------------------------------------
 
-  # The Q5 loop-breaker: releases already tried by terminally-failed
-  # pursuit units of this title are seeded as plan-unit exclusions, so
-  # a re-plan only ever assigns genuinely new releases — no
-  # grab-fail-regrab loop. Satisfied units' attempts are irrelevant
-  # (their wants are closed); the union is per unit identity.
+  # The Q5 loop-breaker: releases already tried by a previous pursuit of
+  # this title are seeded as plan-unit exclusions, so a re-plan only ever
+  # assigns genuinely new releases — no grab-regrab loop. The union is
+  # per unit identity.
+  #
+  # This deliberately does not filter on unit state. It used to count
+  # only terminally-failed units, reasoning that a satisfied unit's want
+  # was closed and so its attempts could not matter. That reasoning is
+  # circular: this function is only ever consulted while planning an
+  # **open** want, so reaching here at all means the want did not close.
+  # A grab that left the want open did not work — whatever it brought
+  # back, repeating it cannot help, and a different release might. The
+  # cost of the old reading was the same wrong film downloaded once a
+  # day for five days.
   defp failed_guids_by_unit(tmdb_id, tmdb_type) do
     import Ecto.Query
-
-    terminal_failure = MediaCentaur.Acquisition.Pursuits.UnitState.terminal_failure()
 
     MediaCentaur.Acquisition.Pursuits.Unit
     |> join(:inner, [u], p in MediaCentaur.Acquisition.Pursuits.Pursuit, on: p.id == u.pursuit_id)
     |> where([u, p], p.recipe_type == "tmdb")
     |> where([u, p], p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type)
-    |> where([u, _p], u.state in ^terminal_failure)
     |> select([u, _p], {u.season_number, u.episode_number, u.tried_release_guids})
     |> MediaCentaur.Repo.all()
     |> Enum.reduce(%{}, fn {season, episode, guids}, acc ->

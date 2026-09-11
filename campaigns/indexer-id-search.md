@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-09-06
-last_updated: 2026-09-06
+last_updated: 2026-09-11
 ---
 # Exact ID search against indexers
 
@@ -18,13 +18,16 @@ matcher can only paper over.
 
 ## Status
 
-**Phase 1 shipped**, 2026-09-06 — every completion criterion below is met and
-`mix precommit` is green. Verified against the live indexer, not only fixtures:
-a search for a public-domain film returned 100 results all carrying ids, of
-which the id path accepted one the title path rejected
-(`Nosferatu.A.Symphony.of.Horror.1922.…` — the subtitle in the release name
-defeats title matching) and newly rejected none. **Phase 2 remains undecided**
-and is the only open item.
+**Phase 1 shipped 2026-09-06 but was incomplete — reopened 2026-09-11.** A
+third completion criterion ("plans and pursuits carry IMDb and TVDB ids where
+TMDB supplies them") is **false for one of the seven plan doors**, and the
+live defect it caused ran for five days. **Phase 3** now covers the structural
+fix; Phase 2 remains undecided.
+
+Verified against the live indexer at the time, and still true: a search for a
+public-domain film returned 100 results all carrying ids, of which the id path
+accepted one the title path rejected (`Nosferatu.A.Symphony.of.Horror.1922.…`
+— the subtitle defeats title matching) and newly rejected none.
 
 ## Decisions made
 
@@ -93,6 +96,33 @@ and is the only open item.
   episode still have to match, and a movie must still parse as a movie. Any one
   id matching outweighs another disagreeing (indexers mis-tag one field more
   often than they get all of them wrong).
+* `2026-09-11` — **"Four plan doors" was wrong; there are seven.** The
+  snapshot-at-the-door decision above is sound, but it was taken against a
+  door count held in someone's head. *Release tracking* reads as one door and
+  is four code paths (`DropPlanner` manual-TV, manual-movie, sweep-TV,
+  sweep-movie). Three were wired. `plan_movie_drop/5` — the automatic movie
+  sweep — was missed, and there is no place in the codebase where the set of
+  doors is enumerated, so nothing could have caught it. Cost: the same wrong
+  film grabbed five days running, 6.2 GB, because a 2026 release passed a
+  folded-name check that a plan carrying `tt11887594` would have rejected
+  outright.
+* `2026-09-11` — **The year gate was the second hole, and it is independent.**
+  Of the two releases that got through, the id gate would have rejected the
+  NZBgeek one (it declared a conflicting `imdbId`) and only the year gate
+  would have rejected the 1337x one (it declared none, and
+  `year_matches?(_parsed, nil)` tolerates everything). Fixing ids alone leaves
+  the loop running. `ReleaseTracking.Item` carries every identity field except
+  `year`, so the door had no year to give and compensated by reading
+  `want.air_date` — scope answering an identity question.
+* `2026-09-11` — **The two ends of the flow never meet, and that is the real
+  engine.** `lib/media_centaur/pipeline/` contains zero references to
+  Acquisition: we search with a wanted identity and file under an
+  independently derived one, with no comparison. Wanted `tmdb:663875`, filed
+  `tmdb:1417935`, no signal. The want then stays open *correctly* by its own
+  rule, and the sweep re-plans it the next day. Wiring the door stops this
+  loop; only closing this seam makes the next wrong filing visible instead of
+  silent. Full enumeration and design:
+  [`docs/plans/2026-09-11-acquisition-identity-flow.md`](../docs/plans/2026-09-11-acquisition-identity-flow.md).
 * `2026-09-06` — Not adopting `limit` as a companion lever. Indexers advertise
   a `limitsMax` (100 typical) and Prowlarr pages upstream to satisfy a larger
   one, so raising it multiplies requests against rate-limiting indexers.
@@ -112,6 +142,9 @@ and is the only open item.
    `:match` / `:mismatch` / `:unknown`; `matches?/2` and `coverage/2` both gate
    on it, and the ±1-year tolerance now applies only to `:unknown`.
 
+**Criterion 2 was not actually met** — see Phase 3. One of seven doors carried
+no ids.
+
 **Known gap, deliberate:** a movie want inside a *tracked collection* plans by
 its part's TMDB id, and we hold no IMDb id for a part — those plans fall back
 to title matching. Closing it means carrying ids on `ReleaseTracking.Want`,
@@ -130,6 +163,44 @@ which is worth doing only if collection parts turn out to mismatch in practice.
    criteria that carry an id and for indexers that accept one, with the text
    query as the fallback for those that do not. Corpus keys must include
    whatever changes the result set.
+
+### Phase 3 — one identity value, carried end to end (designed 2026-09-11)
+
+**Decided 2026-09-11:** the type is `MediaCentaur.TMDB.TitleIdentity` —
+identity originates from TMDB and `TMDB.Identifiers` already owns where the
+ids come from. Costs **zero new Boundary edges** (Acquisition,
+ReleaseTracking and Pipeline all already dep TMDB; Library needs none because
+the import-seam comparison lives in Pipeline). It also rules out embedding
+the struct in `Search.Criteria`, which would add `Search → TMDB` and reverse
+the inversion that context's moduledoc calls deliberate — so `Criteria` keeps
+its flat shape and `Plans.MatchCriteria` generalises to the single projection
+serving both routes into it. That retires the two-paths-must-agree problem as
+a side effect.
+
+
+Design and full flow enumeration:
+[`docs/plans/2026-09-11-acquisition-identity-flow.md`](../docs/plans/2026-09-11-acquisition-identity-flow.md).
+Phase 1 wired identity into the doors it could remember; Phase 3 makes the set
+of doors impossible to miscount.
+
+6. **One `TitleIdentity` value type** with a constructor per source, replacing
+   eight fields hand-copied across ten hops. Converts all seven doors; the
+   `plan_movie_drop/5` defect disappears as a consequence rather than a patch.
+7. **`year` on `release_tracking_items`**, nullable, refresher self-heals —
+   the route `origin_country` and `imdb_id` already travelled. Retires the
+   `want.air_date` year read.
+8. **Widen the loop-breaker.** `failed_guids_by_unit/2` excludes guids from
+   terminally-failed units only; its comment assumes satisfied units' wants
+   are closed, which a wrong-film grab violates.
+9. **Close the import seam.** The grab stamps the identity it wanted where the
+   importer reads it; the importer compares the landing file's derived
+   identity against it and routes a mismatch to review instead of filing it
+   silently. Not a reverse lookup from `Target.content_path` — measured
+   2026-09-11 as protocol-asymmetric (19/29 torrent grabs carry it, 1/25
+   usenet), which is why four of the five wrong Filipiñana grabs recorded no
+   path at all.
+
+Steps 6–8 end the live defect. Step 9 makes the next one visible.
 
 ## Adjacent work shipped alongside (2026-09-06)
 
@@ -158,11 +229,13 @@ scripts — noise as query terms for one TMDB request per title.
 
 ## Completion criteria
 
-Phase 1 (the committed scope) — **all met, 2026-09-06**:
+Phase 1 (the committed scope) — **2 of 4 met; criterion 2 falsified
+2026-09-11**:
 
 * ✅ `SearchResult` carries the ids the indexer sends, and they survive the
   corpus round-trip.
-* ✅ Plans and pursuits carry IMDb and TVDB ids where TMDB supplies them.
+* ❌ Plans and pursuits carry IMDb and TVDB ids where TMDB supplies them —
+  **false for `plan_movie_drop/5`**, one of seven doors. Phase 3 closes it.
 * ✅ `TitleMatcher` treats a matching id as a verdict and a mismatching id as a
   rejection; the ±1-year tolerance applies only to id-less results.
 * ✅ No regression in what the matcher accepts for results that carry no id —
@@ -172,6 +245,20 @@ Phase 1 (the committed scope) — **all met, 2026-09-06**:
 Phase 2 is complete when it is either shipped against the criteria written at
 the time, or **explicitly declined in this file with the reason** — an
 undecided Phase 2 left dangling is exactly the drift ADR-042 warns about.
+
+Phase 3 is complete when:
+
+* One identity value type serves every door, hop and comparison enumerated in
+  the design doc — no site assembles identity field by field.
+* A plan cannot be created without an identity value: omission is a compile
+  error, not a nil column.
+* The set of plan doors is declared in the code and enforced by a Credo
+  check — an eighth door announces itself rather than being counted from
+  memory. *This* is the criterion that would have caught Phase 1's miss.
+* A tracked movie supplies its own year; nothing reads a year off a want.
+* A release already grabbed against a still-open want is not grabbed again.
+* A file whose derived identity contradicts the identity its grab wanted
+  reaches review rather than the shelf.
 
 ## Pointers
 

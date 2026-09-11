@@ -26,7 +26,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Format
   alias MediaCentaur.Repo
-  alias MediaCentaur.TMDB.{Client, Identifiers, Mapper, Title}
+  alias MediaCentaur.TMDB.{Client, Title, TitleIdentity}
   alias MediaCentaur.Topics
 
   @type unit_choice :: {pos_integer(), pos_integer()}
@@ -63,13 +63,16 @@ defmodule MediaCentaur.Acquisition.Plans do
 
     create_plan(
       %{
-        tmdb_id: selection.tmdb_id,
-        tmdb_type: "tv",
-        title: selection.title,
-        origin_country: selection.origin_country,
-        imdb_id: selection.imdb_id,
-        tvdb_id: selection.tvdb_id,
-        original_title: selection.original_title,
+        identity:
+          TitleIdentity.new(%{
+            tmdb_type: :tv,
+            tmdb_id: selection.tmdb_id,
+            title: selection.title,
+            imdb_id: selection.imdb_id,
+            tvdb_id: selection.tvdb_id,
+            original_title: selection.original_title,
+            origin_country: selection.origin_country
+          }),
         criteria: Keyword.get(opts, :criteria, %{}),
         span_sizes: Targeting.aired_counts(selection),
         approval_policy: Keyword.get(opts, :approval_policy, "review")
@@ -83,26 +86,38 @@ defmodule MediaCentaur.Acquisition.Plans do
   `approval_policy:` (`"automatic"` | `"review"`, default review) names
   who commits the plan once ready — see `Plan`.
 
-  `attrs` may carry `:imdb_id` and `:original_title` — the caller
-  holding a TMDB detail payload already knows both, and the plan
-  snapshots them so the matcher can settle identity against the ids
-  indexers declare and accept either of the film's names.
+  Takes the film's `TitleIdentity`, or any map carrying its fields (a
+  `Detail.TitlePreview`, say) which is converted to one. The plan
+  snapshots the whole identity so the matcher can settle it against the
+  ids indexers declare, and accept either of the film's names.
   """
-  @spec create_movie_plan(map(), keyword()) :: {:ok, Plan.t()} | {:error, term()}
-  def create_movie_plan(%{tmdb_id: tmdb_id, title: title} = attrs, opts \\ []) do
+  @spec create_movie_plan(TitleIdentity.t() | map(), keyword()) ::
+          {:ok, Plan.t()} | {:error, term()}
+  def create_movie_plan(identity_or_attrs, opts \\ [])
+
+  def create_movie_plan(%TitleIdentity{} = identity, opts) do
     create_plan(
       %{
-        tmdb_id: to_string(tmdb_id),
-        tmdb_type: "movie",
-        title: title,
-        year: Map.get(attrs, :year),
-        imdb_id: Map.get(attrs, :imdb_id),
-        original_title: Map.get(attrs, :original_title),
+        identity: identity,
         criteria: Keyword.get(opts, :criteria, %{}),
         approval_policy: Keyword.get(opts, :approval_policy, "review")
       },
-      [%{season_number: nil, episode_number: nil, label: title, position: 0}]
+      [%{season_number: nil, episode_number: nil, label: identity.title, position: 0}]
     )
+  end
+
+  def create_movie_plan(%{tmdb_id: tmdb_id, title: title} = attrs, opts) do
+    identity =
+      TitleIdentity.new(%{
+        tmdb_type: :movie,
+        tmdb_id: tmdb_id,
+        title: title,
+        imdb_id: Map.get(attrs, :imdb_id),
+        original_title: Map.get(attrs, :original_title),
+        year: Map.get(attrs, :year)
+      })
+
+    create_movie_plan(identity, opts)
   end
 
   @doc """
@@ -167,17 +182,19 @@ defmodule MediaCentaur.Acquisition.Plans do
   # only one that holds no TMDB payload already. Best-effort: an
   # unreachable TMDB leaves them out rather than failing the plan.
   defp movie_plan_attrs(%Title{} = title) do
-    attrs = %{tmdb_id: title.tmdb_id, title: title.name, year: title_year(title)}
+    known =
+      TitleIdentity.new(%{
+        tmdb_type: :movie,
+        tmdb_id: title.tmdb_id,
+        title: title.name,
+        year: title_year(title)
+      })
 
     case Client.get_movie(title.tmdb_id) do
-      {:ok, payload} ->
-        Map.merge(attrs, %{
-          imdb_id: Identifiers.from_payload(:movie, payload).imdb_id,
-          original_title: Mapper.original_title(payload)
-        })
-
-      {:error, _reason} ->
-        attrs
+      # The payload knows the ids and the original title the search
+      # snapshot never carried; the snapshot knows the id we asked for.
+      {:ok, payload} -> TitleIdentity.merge(known, TitleIdentity.from_payload(:movie, payload))
+      {:error, _reason} -> known
     end
   end
 
@@ -234,7 +251,26 @@ defmodule MediaCentaur.Acquisition.Plans do
     |> Repo.one()
   end
 
-  defp create_plan(plan_attrs, unit_specs) do
+  # Every door hands over one `TitleIdentity`. There is deliberately no
+  # clause for a plan without one: a door that tries to assemble identity
+  # field by field does not match, which is the whole point — the
+  # unattended movie door once shipped for months missing three fields,
+  # and no shape prevented it. See `TMDB.TitleIdentity`.
+  defp create_plan(%{identity: %TitleIdentity{} = identity} = plan_attrs, unit_specs) do
+    plan_attrs =
+      plan_attrs
+      |> Map.delete(:identity)
+      |> Map.merge(%{
+        tmdb_id: identity.tmdb_id,
+        tmdb_type: Atom.to_string(identity.tmdb_type),
+        title: identity.title,
+        year: identity.year,
+        imdb_id: identity.imdb_id,
+        tvdb_id: identity.tvdb_id,
+        original_title: identity.original_title,
+        origin_country: identity.origin_country
+      })
+
     if unit_specs == [] do
       {:error, :no_units}
     else

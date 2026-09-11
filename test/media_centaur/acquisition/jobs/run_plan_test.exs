@@ -1,6 +1,15 @@
 defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   use MediaCentaur.DataCase, async: false
 
+  # Every plan carries one `TMDB.TitleIdentity` — see `Plans.create_plan/2`.
+  defp tv_identity do
+    MediaCentaur.TMDB.TitleIdentity.new(%{
+      tmdb_type: :tv,
+      tmdb_id: "246810",
+      title: "Sample Show"
+    })
+  end
+
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Acquisition.PlanEvents
@@ -267,7 +276,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       {:ok, plan} =
         Plans.create_tracking_plan(
-          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          %{identity: tv_identity()},
           [
             %{season_number: 1, episode_number: 1, label: "S01E01", position: 0, min_quality: "uhd_4k"},
             %{season_number: 1, episode_number: 2, label: "S01E02", position: 1},
@@ -647,7 +656,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       # published — exactly the silent never-completes case.
       {:ok, plan} =
         Plans.create_tracking_plan(
-          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          %{identity: tv_identity()},
           [
             %{
               season_number: 1,
@@ -689,7 +698,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       {:ok, plan} =
         Plans.create_tracking_plan(
-          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          %{identity: tv_identity()},
           [
             %{
               season_number: 1,
@@ -733,7 +742,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       {:ok, plan} =
         Plans.create_tracking_plan(
-          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          %{identity: tv_identity()},
           [
             %{
               season_number: 1,
@@ -775,7 +784,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       {:ok, plan} =
         Plans.create_tracking_plan(
-          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          %{identity: tv_identity()},
           [
             %{
               season_number: 1,

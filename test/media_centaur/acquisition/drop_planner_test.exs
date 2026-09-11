@@ -186,6 +186,48 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       # item's own IMDb id would be the wrong identity to claim.
       assert pursuit.imdb_id == nil
     end
+
+    test "a solo movie want carries the tracked film's own identity" do
+      # The unattended movie door, on the branch where the want IS the
+      # tracked film (part id == item id). Regression: it built its plan
+      # from title alone, so a different film sharing the folded name
+      # passed the matcher and was grabbed once a day until noticed.
+      stub_results(%{
+        "Sample Solo Film" => [
+          release("Sample.Solo.Film.2026.1080p.WEB-DL", "solo-1", %{seeders: 25})
+        ]
+      })
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 3003,
+          media_type: :movie,
+          name: "Sample Solo Film",
+          imdb_id: "tt5550001",
+          original_title: "Beispielfilm"
+        })
+
+      ReleaseTracking.create_release!(%{
+        item_id: item.id,
+        air_date: @last_month,
+        title: "Sample Solo Film",
+        part_tmdb_id: 3003,
+        released: true
+      })
+
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+
+      pursuit = sole_pursuit()
+      assert pursuit.tmdb_type == "movie"
+      assert pursuit.tmdb_id == "3003"
+
+      # The want is the tracked film itself, so its identity is the
+      # item's — and an unattended grab is verifiable against it.
+      assert pursuit.imdb_id == "tt5550001"
+      assert pursuit.original_title == "Beispielfilm"
+    end
   end
 
   describe "run_tick/0 — patience quality floors" do
@@ -489,6 +531,46 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
 
       # The dead release is excluded at plan time: nothing assignable,
       # no pursuit, the want stays open for a genuinely new release.
+      assert Enum.filter(Repo.all(Pursuit), &(&1.state == "active")) == []
+      assert [%{status: :open}] = ReleaseTracking.open_wants_for_item(item.id)
+    end
+
+    test "a release already grabbed for a want that is still open is not grabbed again" do
+      # The Filipiñana loop. A prior pursuit *succeeded* on "grabbed-1",
+      # but the file it brought back was a different film, so the want
+      # never closed. The old guard excluded only terminally-failed
+      # units — a succeeded one left no exclusion, so the next sweep
+      # grabbed the very same release, once a day, indefinitely.
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "246810",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 1,
+          origin: "auto",
+          status: "succeeded"
+        })
+
+      [unit] = Units.for_pursuit(pursuit.id)
+      _ = force_attrs(unit, state: "satisfied", tried_release_guids: ["grabbed-1"])
+      _ = force_state(Repo.get!(Pursuit, pursuit.id), "satisfied")
+
+      stub_results(%{
+        "Sample Show S01E01" => [
+          release("Sample.Show.S01E01.1080p.WEB-DL", "grabbed-1", %{seeders: 20})
+        ]
+      })
+
+      item = create_tracked_show()
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+
+      # Still-open want plus already-grabbed release means the grab did
+      # not work. Repeating it cannot help; a new release might.
       assert Enum.filter(Repo.all(Pursuit), &(&1.state == "active")) == []
       assert [%{status: :open}] = ReleaseTracking.open_wants_for_item(item.id)
     end
