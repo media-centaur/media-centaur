@@ -59,4 +59,14 @@ defmodule MediaCentaur.Discovery.TitleIntentTest do
       end
     end
   end
+
+  describe "friend_provenance/2" do
+    test "names the activity a friend-sourced record came from, with its note" do
+      assert TitleIntent.friend_provenance("activity-1", "Watch it.") ==
+               %{source: :friend, activity_id: "activity-1", note: "Watch it."}
+
+      assert TitleIntent.friend_provenance("activity-1", nil) ==
+               %{source: :friend, activity_id: "activity-1", note: nil}
+    end
+  end
 end

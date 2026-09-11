@@ -138,8 +138,8 @@ defmodule MediaCentaur.Format do
   `nil` returns `"never"`. The `:sub_minute` option controls how the first
   minute reads: `:seconds` (default) gives `"<N>s ago"` for activity surfaces
   where seconds-precision is meaningful; `:just_now` collapses the whole first
-  minute to `"just now"` where sub-minute precision is noise. Minute, hour and
-  day granularity is identical either way. `:now` pins the reference time
+  minute to `"just now"` where sub-minute precision is noise. Minute, hour, day and
+  week (from seven days) granularity is identical either way. `:now` pins the reference time
   (defaults to the current time).
 
       iex> dt = DateTime.add(DateTime.utc_now(), -90, :second)
@@ -157,7 +157,8 @@ defmodule MediaCentaur.Format do
       seconds < 60 -> sub_minute_label(Keyword.get(opts, :sub_minute, :seconds), seconds)
       seconds < 3600 -> "#{div(seconds, 60)}m ago"
       seconds < 86_400 -> "#{div(seconds, 3600)}h ago"
-      true -> "#{div(seconds, 86_400)}d ago"
+      seconds < 7 * 86_400 -> "#{div(seconds, 86_400)}d ago"
+      true -> "#{div(seconds, 7 * 86_400)}w ago"
     end
   end
 

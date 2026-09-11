@@ -360,13 +360,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # record the raise creates — who sent it, and what they said. It applies
   # on creation only, so re-raising an existing record leaves it alone.
   defp provenance(%TitleDetail{activity_id: id, own?: own?, note: note}) when is_binary(id) and not own?,
-    do: %{source: :friend, activity_id: id, note: note}
+    do: TitleIntent.friend_provenance(id, note)
 
   defp provenance(_detail), do: %{}
 
-  defp download_flash(name, false), do: "Finding a release for #{name}"
+  @doc """
+  The flash a one-click download raises — the one wording, for the
+  modal's Download and the Feed toolbar's. `track?` is the scope-menu
+  entry that also follows the series.
+  """
+  @spec download_flash(String.t(), boolean()) :: String.t()
+  def download_flash(name, false), do: "Finding a release for #{name}"
 
-  defp download_flash(name, true), do: "Finding a release for #{name} — and tracking it for new episodes"
+  def download_flash(name, true), do: "Finding a release for #{name} — and tracking it for new episodes"
 
   defp push_close(socket), do: push_patch(socket, to: socket.view.title_detail_path(socket, []))
 

@@ -110,6 +110,20 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   defp maybe_refresh_title(changeset, nil), do: changeset
   defp maybe_refresh_title(changeset, %Title{} = title), do: put_embed(changeset, :title, title)
 
+  @doc """
+  The attrs a record takes when a person acts on a friend's activity —
+  the one spelling of friend provenance, for every surface that lists
+  or ignores a title from what a friend said (the title modal, the
+  Feed's toolbar).
+  """
+  @spec friend_provenance(Ecto.UUID.t(), String.t() | nil) :: %{
+          source: :friend,
+          activity_id: Ecto.UUID.t(),
+          note: String.t() | nil
+        }
+  def friend_provenance(activity_id, note) when is_binary(activity_id),
+    do: %{source: :friend, activity_id: activity_id, note: note}
+
   @doc "The ladder, lowest first. Off is not on it — Off is no record."
   @spec rungs() :: [rung()]
   def rungs, do: @rungs

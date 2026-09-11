@@ -154,5 +154,12 @@ defmodule MediaCentaur.FormatTest do
       assert Format.relative_ago(DateTime.add(now, -2 * 86_400, :second), sub_minute: :just_now) ==
                "2d ago"
     end
+
+    test "days run to six, then weeks" do
+      now = DateTime.utc_now()
+      assert Format.relative_ago(DateTime.add(now, -6 * 86_400, :second)) == "6d ago"
+      assert Format.relative_ago(DateTime.add(now, -7 * 86_400, :second)) == "1w ago"
+      assert Format.relative_ago(DateTime.add(now, -20 * 86_400, :second)) == "2w ago"
+    end
   end
 end

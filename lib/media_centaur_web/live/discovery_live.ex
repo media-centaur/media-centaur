@@ -5,48 +5,51 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   tab is a click target opening the title detail modal
   (`TitleDetailModal`, hosted through `TitleDetailHost` and driven by
   `?title=<media_type>-<id>` on the current tab, plus `&activity=<id>`
-  when a person card opened it — refresh keeps it open, back closes it),
-  where the verbs live: Download (the one-click plan), Add to / Remove
-  from watchlist, Delete (an own activity of any kind), and the
-  tracking-mode control.
+  when an entry or a person card opened it — refresh keeps it open, back
+  closes it), where the verbs live: Download (the one-click plan), the
+  ladder, Delete (an own activity of any kind), and the tracking-mode
+  control.
 
-  The social projections (UIDR-031) come from one list: every live
-  activity with its actor (`Activities.list_activities/0`), enriched
-  here with what Activities cannot know — `Library.ExternalIds.tmdb_owners/1`,
+  The social projections come from one list: every live activity with
+  its actor (`Activities.list_activities/0`), enriched here with what
+  Activities cannot know — `Library.ExternalIds.tmdb_owners/1`,
   `Discovery.rungs/0` and `Acquisition.TitleStates.for_refs/1`.
 
-  Recommendations (`/discovery`, the page's default) — friends'
-  recommendations, one row per title (`RecommendationRows`), the
-  newest first. Friends (`/discovery/friends`) — one `Person` card per
-  friend and one for You (`People`), each with their shelves, and the
-  add-friend form below; identity and relays live on the Settings
-  page's Social section, which this tab points at.
+  Feed (`/discovery`, the page's default; UIDR-038) — friends'
+  recommendations and listings, one entry per action, newest first,
+  flat (`FeedEntries`), the newest `feed_window` of them and a *Show
+  older* control past that (`feed_show_older`). An entry's toolbar
+  holds the three verbs that live outside the modal: `feed_list` (the
+  bottom rung as a toggle — List, Listed, or Following as plain state),
+  `feed_download` (the one-click plan, the modal's plain Download) and
+  `ignore_title` (the Ignored rung, with the Undo toast). Friends
+  (`/discovery/friends`) — one `Person` card per friend and one for You
+  (`People`), each with their shelves, and the add-friend form below;
+  identity and relays live on the Settings page's Social section, which
+  this tab points at.
 
   The watchlist — authored intent, and the arming surface (UIDR-035).
   Rows come from `Discovery.list_watchlist/0` (library presence derived
   live), each showing its tracking mode and, when it has one, its next
   release date as quiet markers — joined here from `ReleaseTracking`,
   because Discovery stays free of tracking (ADR-065); a row is armed
-  from its modal. A row added from a
-  recommendation carries a bare `activity_id`, and this page turns it
-  into `from <nickname>` (`Activities.get_many/1` →
-  `Social.list_friends/0`) — the join neither context may make.
+  from its modal. A row added from a friend's action carries a bare
+  `activity_id`, and this page turns it into `from <nickname>`
+  (`Activities.get_many/1` → `Social.list_friends/0`) — the join neither
+  context may make.
 
-  A Recommendations row's `×` (`ignore_title`) is the one verb outside
-  the modal: it sets the title's rung to Ignored through
-  `ReleaseTracking.set_rung/3` — the same write the ladder makes — with
-  the newest recommendation as provenance, and the row leaves on the
-  `RungChanged` broadcast like any other rung move. Because the row
-  shows no state to reverse, the act gets an undo toast (`ignore_undo`
-  restores the rung the title had; `ignore_undo_dismiss` clears the
-  toast, by click or by expiry). The ladder's own Ignore has no toast:
-  the ladder is its own undo.
+  A listing or an ignore made from an entry carries that entry's
+  activity as provenance (`TitleIntent.friend_provenance/2`), the way
+  the modal's ladder does. Because Ignore shows no state to reverse, it
+  gets an undo toast (`ignore_undo` restores the rung the title had;
+  `ignore_undo_dismiss` clears the toast, by click or by expiry). The
+  ladder's own Ignore has no toast: the ladder is its own undo.
 
-  Every row carries its acquisition state (Planning / Downloading /
-  Needs review) stamped from one `TitleStates` read per load; the page
-  subscribes to `acquisition:updates` so a one-click download's progress
-  lands on the row without a reload, the way `library:updates` flips a
-  row to In library when the file lands.
+  Every row and entry carries its acquisition state (Planning /
+  Downloading / Needs review) stamped from one `TitleStates` read per
+  load; the page subscribes to `acquisition:updates` so a one-click
+  download's progress lands without a reload, the way `library:updates`
+  flips a title to In library when the file lands.
 
   Subscribes to Discovery directly (it needs the full item list, not the
   `IntentAware` rung map — see that trait's moduledoc).
@@ -58,11 +61,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, PlanEvents, TitleStates}
+  alias MediaCentaur.Acquisition.{AutoGrabSettings, PlanEvents, Plans, TitleStates}
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Activities
   alias MediaCentaur.Discovery
+  alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Library.Posters
@@ -71,18 +75,19 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Components.ActionToast
+  alias MediaCentaurWeb.Components.Discovery.FeedEntryCard
   alias MediaCentaurWeb.Components.Discovery.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
+  alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.Title.DetailModal, as: TitleDetailModal
   alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
   alias MediaCentaurWeb.DiscoveryLive.ActivityPosters
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
+  alias MediaCentaurWeb.DiscoveryLive.FeedEntries
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Live.RecommendModal
   alias MediaCentaurWeb.DiscoveryLive.People
-  alias MediaCentaurWeb.DiscoveryLive.RecommendationRows
   alias MediaCentaurWeb.Live.TitleDetailHost
-  alias MediaCentaurWeb.TitleRef
 
   require MediaCentaur.Log, as: Log
   require PursuitEvents
@@ -104,7 +109,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        friends: [],
        items: [],
        activities: [],
-       recommendations: [],
+       feed: [],
+       feed_has_older?: false,
+       feed_window: FeedEntries.page_size(),
        people: [],
        expanded_people: MapSet.new(),
        ignore_undo: nil,
@@ -158,18 +165,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     do: Enum.find(socket.assigns.items, &({&1.item.tmdb_id, &1.item.media_type} == ref))
 
   # The activity the modal speaks for: the one named, else the title's
-  # newest friend recommendation (the Recommendations row's lead), else
-  # any friend's activity for the title. Never an own act unless named —
-  # the You card names it; a watchlist title is not a place to narrate
-  # your own broadcasts back to you.
+  # newest friend recommendation (it carries the note), else any friend's
+  # activity for the title. Never an own act unless named — the You card
+  # names it; a watchlist title is not a place to narrate your own
+  # broadcasts back to you.
   defp activity_row(socket, ref, nil) do
-    case Enum.find(socket.assigns.recommendations, &(&1.ref == ref)) do
-      %{newest: newest} ->
-        newest
-
-      nil ->
-        Enum.find(socket.assigns.activities, &(activity_ref(&1) == ref and not &1.own?))
-    end
+    friends = Enum.filter(socket.assigns.activities, &(activity_ref(&1) == ref and not &1.own?))
+    Enum.find(friends, &(&1.activity.kind == :recommendation)) || List.first(friends)
   end
 
   defp activity_row(socket, ref, activity_id) do
@@ -208,17 +210,53 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, socket |> load_friends() |> load_activities()}
   end
 
-  # The row's × — see the moduledoc. The rung it had is kept for Undo;
-  # nil is Off, which set_rung/2 spells as such.
-  def handle_event("ignore_title", %{"ref" => param}, socket) do
-    with {:ok, ref} <- TitleRef.parse(param),
-         %{title: title, rung: rung, newest: newest} <-
-           Enum.find(socket.assigns.recommendations, &(&1.ref == ref)) do
-      provenance = %{source: :friend, activity_id: newest.activity.id, note: newest.activity.note}
-      {:ok, _intent} = ReleaseTracking.set_rung(title, :ignored, provenance)
-      {:noreply, assign(socket, :ignore_undo, %{title: title, previous_rung: rung || :off})}
-    else
-      _unknown -> {:noreply, socket}
+  # --- the Feed's toolbar — see the moduledoc ---
+
+  def handle_event("feed_show_older", _params, socket) do
+    {:noreply, socket |> update(:feed_window, &(&1 + FeedEntries.page_size())) |> project()}
+  end
+
+  # The bottom rung as a toggle. Following is plain state: the ladder is
+  # in the modal for that.
+  def handle_event("feed_list", %{"activity" => id}, socket) do
+    case feed_entry(socket, id) do
+      %FeedEntry{list_slot: :list} = entry ->
+        {:ok, _intent} = ReleaseTracking.set_rung(entry.title, :list, entry_provenance(entry))
+        {:noreply, socket}
+
+      %FeedEntry{list_slot: :listed} = entry ->
+        {:ok, nil} = ReleaseTracking.set_rung(entry.title, :off)
+        {:noreply, socket}
+
+      _following_or_unknown ->
+        {:noreply, socket}
+    end
+  end
+
+  # The modal's plain Download: no scope, so the planner's default.
+  def handle_event("feed_download", %{"activity" => id}, socket) do
+    case feed_entry(socket, id) do
+      %FeedEntry{download_slot: :download} = entry ->
+        :ok = Plans.plan_title(entry.title, approval_policy: "automatic")
+        {:noreply, put_flash(socket, :info, TitleDetailHost.download_flash(entry.title.name, false))}
+
+      _state_or_unknown ->
+        {:noreply, socket}
+    end
+  end
+
+  # The rung the title had is kept for Undo; nil is Off, which
+  # set_rung/2 spells as such.
+  def handle_event("ignore_title", %{"activity" => id}, socket) do
+    case feed_entry(socket, id) do
+      %FeedEntry{} = entry ->
+        {:ok, _intent} = ReleaseTracking.set_rung(entry.title, :ignored, entry_provenance(entry))
+
+        {:noreply,
+         assign(socket, :ignore_undo, %{title: entry.title, previous_rung: entry.rung || :off})}
+
+      nil ->
+        {:noreply, socket}
     end
   end
 
@@ -231,6 +269,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   def handle_event("ignore_undo_dismiss", _params, socket),
     do: {:noreply, assign(socket, :ignore_undo, nil)}
+
+  defp feed_entry(socket, id), do: Enum.find(socket.assigns.feed, &(&1.activity_id == id))
+
+  defp entry_provenance(%FeedEntry{activity_id: id, note: note}),
+    do: TitleIntent.friend_provenance(id, note)
 
   @impl true
   def handle_info({:title_intent_changed, _event}, socket) do
@@ -330,7 +373,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     socket
     |> assign(
       activities: activities,
-      recommendations_ready?: Social.list_relays() != [] and Social.list_friends() != []
+      feed_ready?: Social.list_relays() != [] and Social.list_friends() != []
     )
     |> stamp_acquisition_states()
     |> warm_activity_artwork()
@@ -393,8 +436,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp project(socket) do
     now = DateTime.utc_now()
 
+    %{entries: entries, has_older?: has_older?} =
+      FeedEntries.build(socket.assigns.activities, now: now, window: socket.assigns.feed_window)
+
     assign(socket,
-      recommendations: RecommendationRows.build(socket.assigns.activities, now: now),
+      feed: entries,
+      feed_has_older?: has_older?,
       people:
         People.build(socket.assigns.activities, socket.assigns.friends,
           me: Identity.pubkey() != nil,
@@ -405,14 +452,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   defp load_friends(socket), do: assign(socket, :friends, Social.list_friends())
 
-  defp tabs(recommendations, items, friends),
+  defp tabs(feed, items, friends),
     do: [
-      %Tab{
-        id: :recommendations,
-        label: "Recommendations",
-        navigate: "/discovery",
-        count: length(recommendations)
-      },
+      %Tab{id: :feed, label: "Feed", navigate: "/discovery", count: length(feed)},
       %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
       %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends", count: length(friends)}
     ]
@@ -421,9 +463,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # names what is missing rather than implying nobody wrote. The two cases
   # differ in what the reader can do next, which is why they are separate copy
   # and why only one of them carries actions.
-  defp recommendations_empty_state(true), do: "Titles your friends recommend land here, newest first."
+  defp feed_empty_state(true),
+    do: "Recommendations, and titles your friends want to watch, land here newest first."
 
-  defp recommendations_empty_state(_not_ready),
+  defp feed_empty_state(_not_ready),
     do:
       "Media Centaur reaches your friends over a relay. Add one, then add a friend by the public key they give you."
 
@@ -478,17 +521,17 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <.page_header title="Discovery" class="px-1" />
 
-          <.tab_strip tabs={tabs(@recommendations, @items, @friends)} active={@live_action} />
+          <.tab_strip tabs={tabs(@feed, @items, @friends)} active={@live_action} />
 
-          <div :if={@live_action == :recommendations} class="space-y-2" data-nav-zone="title_rows">
+          <div :if={@live_action == :feed} class="space-y-2">
             <.empty_state
-              :if={@recommendations == []}
-              id="recommendations-empty"
+              :if={@feed == []}
+              id="feed-empty"
               icon="hero-users"
-              headline="Recommendations from friends land here"
+              headline="What your friends point at lands here"
             >
-              {recommendations_empty_state(@recommendations_ready?)}
-              <:action :if={not @recommendations_ready?}>
+              {feed_empty_state(@feed_ready?)}
+              <:action :if={not @feed_ready?}>
                 <.button
                   variant="primary"
                   size="sm"
@@ -499,7 +542,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                   Add a relay
                 </.button>
               </:action>
-              <:action :if={not @recommendations_ready?}>
+              <:action :if={not @feed_ready?}>
                 <.button
                   variant="dismiss"
                   size="sm"
@@ -512,23 +555,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               </:action>
             </.empty_state>
 
-            <TitleRow.title_row
-              :for={row <- @recommendations}
-              id={"recommendation-#{TitleRef.param(row.ref)}"}
-              title={row.title}
-              poster_url={row.poster_url}
-              lead={row.lead}
-              markers={
-                Logic.row_markers(%{
-                  in_library?: not is_nil(row.library_owner_id),
-                  acquisition_state: row.acquisition_state,
-                  rung: row.rung
-                })
-              }
-              notes={row.notes}
-              friend_activity={row.activities}
-              ignorable?
-            />
+            <FeedEntryCard.feed_entry_card :for={entry <- @feed} entry={entry} />
+
+            <div :if={@feed_has_older?} class="flex justify-center pt-3">
+              <.button id="feed-show-older" variant="dismiss" size="sm" phx-click="feed_show_older">
+                Show older
+              </.button>
+            </div>
           </div>
 
           <ActionToast.action_toast
