@@ -71,6 +71,7 @@ System design, data model, integration patterns, and engineering standards. Thes
 | 064 | 2026-09-04 | [Outbound HTTP goes through one seam: upstream tagging, instrumentation, and an origin-freshness cache](architecture/2026-09-04-064-outbound-http-seam.md) | accepted |
 | 065 | 2026-09-07 | [A tracked title is derived from reasons; only a person sets its mode](architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md) | superseded in part by 066 |
 | 066 | 2026-09-07 | [One ladder per title: an authored rung, and machinery derived from it](architecture/2026-09-07-066-one-ladder-per-title.md) | accepted |
+| 067 | 2026-09-11 | [A listing replaces tracking as the shared act about wanting a title](architecture/2026-09-11-067-listing-replaces-tracking-on-the-wire.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
@@ -107,10 +108,11 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 028 | 2026-08-19 | [Back enters the main menu; left stays in the page](user-interface/2026-08-19-028-back-enters-main-menu.md) | accepted |
 | 029 | 2026-08-31 | [The plan board narrates a diagnosis, not a procedure](user-interface/2026-08-31-029-plan-board-diagnosis.md) | accepted |
 | 030 | 2026-09-05 | [Follow-up pill and condition dot — the sidebar's two badge idioms](user-interface/2026-09-05-030-follow-up-pill-and-condition-dot.md) | accepted |
-| 031 | 2026-09-06 | [Friends carry the shelves; the feed is recommendations](user-interface/2026-09-06-031-friends-carry-shelves-feed-is-recommendations.md) | accepted |
+| 031 | 2026-09-06 | [Friends carry the shelves; the feed is recommendations](user-interface/2026-09-06-031-friends-carry-shelves-feed-is-recommendations.md) | superseded in part by 038 |
 | 032 | 2026-09-06 | [Page hero backdrops paint from a decoded-bitmap cache](user-interface/2026-09-06-032-page-hero-backdrops-paint-from-a-decoded-bitmap-cache.md) | accepted |
 | 033 | 2026-09-07 | [Home is the only page that carries artwork](user-interface/2026-09-07-033-home-is-the-only-page-with-artwork.md) | accepted |
 | 034 | 2026-09-07 | [An empty surface states the diagnosed reason it is empty](user-interface/2026-09-07-034-empty-surfaces-state-a-diagnosed-reason.md) | accepted |
 | 035 | 2026-09-07 | [Two title surfaces, split by whether the title has files](user-interface/2026-09-07-035-two-title-surfaces.md) | superseded in part by 036 |
 | 036 | 2026-09-07 | [One control per title, because there is one ladder](user-interface/2026-09-07-036-one-control-per-title.md) | accepted |
 | 037 | 2026-09-08 | [Friend provenance is the pennant, on every title surface](user-interface/2026-09-08-037-friend-provenance-is-the-pennant.md) | accepted |
+| 038 | 2026-09-11 | [The Feed is friends' actions, one entry each](user-interface/2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md) | accepted |

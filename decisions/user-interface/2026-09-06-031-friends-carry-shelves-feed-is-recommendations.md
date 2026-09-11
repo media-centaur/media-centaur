@@ -1,7 +1,14 @@
 ---
-status: accepted
+status: superseded in part
 date: 2026-09-06
 ---
+
+> **Superseded in part** by [UIDR-038](2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md):
+> the Recommendations projection is replaced by the Feed — friends'
+> recommendations and listings, one entry per action, no grouping. The
+> Friends card and the You card stand; the Tracking shelf is renamed
+> Wants to watch ([ADR-067](../architecture/2026-09-11-067-listing-replaces-tracking-on-the-wire.md)).
+
 # Friends carry the shelves; the feed is recommendations
 
 ## Context and Problem Statement
