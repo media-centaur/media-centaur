@@ -4,6 +4,27 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.22.0 — 2026-09-11
+
+### New
+
+- **The bookmark next to Download puts a title on your watchlist.** Open any title — from a search result, the Feed, a friend's card, or its page in the library — and press the bookmark. It is outlined while the title is not on your list and filled once it is; the same bookmark now sits in the library's row of controls. Press it again while the title is still at **List** to take it off.
+- **The tracking controls appear once a title is on your list.** Listing a title and following its releases are two acts, in that order: until you have bookmarked a title, its view offers nothing above **List**. Once it is on the list, the Tracking control (Ignore · Off · List · Follow · Ask · Grab · Default) shows below the details, exactly as before. From **Follow** up, the bookmark is a marker and **Off** on the tracking controls is the way off, because it also deletes the release calendar and says so.
+- **Recommend is an icon.** On the title view, Recommend is the paper plane beside the bookmark, as it already was in the library.
+
+### Improved
+
+- **A download never changes a title's tracking.** Four controls that did are gone: **Download all and track** in the download menu, **Watch for releases** / **Watch for release** on the episode picker and the movie confirmation, **Also grab future episodes** on the episode picker, and **Track these** on a plan's missing episodes. Downloading takes what has aired and says nothing about what is still to come; new episodes are the Tracking control's business, on your watchlist. A show set to **Ask** or higher there already wants every episode it is missing, so nothing is lost.
+- **The in-app guide's watchlist and release-tracking pages describe the current controls.** They still described the older world where owned series were followed on their own and Off was remembered.
+
+### Fixed
+
+- **The library's bookmark no longer removes a title you are tracking.** It promised to be a marker from **Follow** up, but a click still took the title off the list and deleted its calendar. It is a marker now; **Off** on the tracking controls is the only way off.
+
+### Migration safety
+
+- Drops two columns nothing reads any more: a download plan's *grab future* flag and a want's *provenance* label. Existing plans and wants are unaffected — a want opened from a plan's missing episodes stays a want. The update runs it automatically, nothing to do by hand.
+
 ## v1.21.0 — 2026-09-11
 
 ### New
