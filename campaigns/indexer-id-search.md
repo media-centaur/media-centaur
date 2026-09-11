@@ -18,11 +18,14 @@ matcher can only paper over.
 
 ## Status
 
-**Phase 1 shipped 2026-09-06 but was incomplete — reopened 2026-09-11.** A
-third completion criterion ("plans and pursuits carry IMDb and TVDB ids where
-TMDB supplies them") is **false for one of the seven plan doors**, and the
-live defect it caused ran for five days. **Phase 3** now covers the structural
-fix; Phase 2 remains undecided.
+**Phase 1 shipped 2026-09-06 incomplete; Phase 3 closed it 2026-09-11.** A
+Phase 1 completion criterion ("plans and pursuits carry IMDb and TVDB ids
+where TMDB supplies them") was **false for one of the seven plan doors**, and
+the live defect it caused ran for five days. Phase 3 shipped the structural
+fix — commits `32a786e3`, `8dc6216a` — and is verified against the live
+indexer strings, not only fixtures: both releases that actually got through
+are now rejected, one by the id gate and one by the year gate. **Phase 2
+remains the only open item**, still undecided.
 
 Verified against the live indexer at the time, and still true: a search for a
 public-domain film returned 100 results all carrying ids, of which the id path
@@ -164,7 +167,7 @@ which is worth doing only if collection parts turn out to mismatch in practice.
    query as the fallback for those that do not. Corpus keys must include
    whatever changes the result set.
 
-### Phase 3 — one identity value, carried end to end (designed 2026-09-11)
+### Phase 3 — one identity value, carried end to end — DONE 2026-09-11
 
 **Decided 2026-09-11:** the type is `MediaCentaur.TMDB.TitleIdentity` —
 identity originates from TMDB and `TMDB.Identifiers` already owns where the
@@ -183,16 +186,16 @@ Design and full flow enumeration:
 Phase 1 wired identity into the doors it could remember; Phase 3 makes the set
 of doors impossible to miscount.
 
-6. **One `TitleIdentity` value type** with a constructor per source, replacing
+6. ~~**One `TitleIdentity` value type**~~ `MediaCentaur.TMDB.TitleIdentity`; with a constructor per source, replacing
    eight fields hand-copied across ten hops. Converts all seven doors; the
    `plan_movie_drop/5` defect disappears as a consequence rather than a patch.
-7. **`year` on `release_tracking_items`**, nullable, refresher self-heals —
+7. ~~**`year` on `release_tracking_items`**~~ shipped;, nullable, refresher self-heals —
    the route `origin_country` and `imdb_id` already travelled. Retires the
    `want.air_date` year read.
-8. **Widen the loop-breaker.** `failed_guids_by_unit/2` excludes guids from
+8. ~~**Widen the loop-breaker.**~~ shipped — `failed_guids_by_unit/2` excludes guids from
    terminally-failed units only; its comment assumes satisfied units' wants
    are closed, which a wrong-film grab violates.
-9. **Close the import seam.** The grab stamps the identity it wanted where the
+9. ~~**Close the import seam.**~~ shipped as `Acquisition.GrabProvenance` — The grab stamps the identity it wanted where the
    importer reads it; the importer compares the landing file's derived
    identity against it and routes a mismatch to review instead of filing it
    silently. Not a reverse lookup from `Target.content_path` — measured
@@ -200,7 +203,20 @@ of doors impossible to miscount.
    usenet), which is why four of the five wrong Filipiñana grabs recorded no
    path at all.
 
-Steps 6–8 end the live defect. Step 9 makes the next one visible.
+All four shipped. Two corrections the build forced on the design, both
+improvements: `Search.Criteria` could not embed the struct (it would have
+added `Search → TMDB` and reversed a deliberate inversion), so
+`Plans.MatchCriteria` became the single projection — which retired the
+two-routes-must-agree problem as a side effect. And `@enforce_keys` cannot
+cover the *declared* side, since an indexer's identity routinely carries one
+id and no title; enforcement belongs on the wanted side, where doors build
+identity and where the omission happened.
+
+`MC0037` earned itself immediately: it flagged two plan doors the design
+document had wrongly classified as non-doors (the web entry points).
+
+**Open follow-up:** the wiki. A file going to review because it contradicts
+its grab is user-visible and belongs in *Troubleshooting*.
 
 ## Adjacent work shipped alongside (2026-09-06)
 

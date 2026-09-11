@@ -3,7 +3,8 @@
 Campaign: [`campaigns/indexer-id-search.md`](../../campaigns/indexer-id-search.md).
 Written with the `unify_design` pass: enumerate every part of the flow first,
 design the coherent version, verify it against the enumeration, then name the
-cost. **Status: design, awaiting approval.**
+cost. **Status: built 2026-09-11** — commits `32a786e3`, `8dc6216a`. See
+*Verified against the live system* at the end.
 
 Occasioned by a live defect: the same wrong film was downloaded five days
 running (6.2 GB) because the automatic movie door built its plan without the
@@ -387,3 +388,50 @@ where it originates. Better than the shape it replaced.
   theatrical-only want survived a rules change that would never have opened
   it. Real, but a ledger-lifecycle concern, not an identity one. Own design
   pass.
+
+## Verified against the live system
+
+Not only the suite. Both releases that actually got through, replayed as
+the indexers sent them, against the real matcher on the running dev node:
+
+| Release | Indexer | Declared | Verdict now |
+|---|---|---|---|
+| `Filipinana.2026.1080p.Tagalog.WEB-DL.HC.HEVC.x265-BONE` | NZBgeek | `tt38268539` | **rejected** — id mismatch against `tt11887594` |
+| `Filipinana 2026 1080p Tagalog WEB-DL HC HEVC x265 BONE` | 1337x | no ids | **rejected** — parsed 2026 against criteria year 2020 |
+
+The criteria the unattended movie door now produces for that want carry
+`imdb_id: "tt11887594"` and `year: 2020`. Both were nil before. Each gate
+catches exactly one of the two releases, which is why both halves had to
+ship: fixing ids alone would have left the torrent indexer's path open.
+
+`release_tracking_items.year` backfilled from TMDB on the first refresh
+after the migration, as designed — no data migration.
+
+## What shipped against the plan
+
+| Step | State |
+|---|---|
+| 1. `TMDB.TitleIdentity`, all seven doors, `create_plan/2` takes the struct | done |
+| 1b. `Plans.Doors` registry + `MC0037` | done — and it immediately caught two doors this document had wrongly classified as non-doors (the web entry points) |
+| 2. `year` on tracked titles | done, migrated |
+| 3. Loop-breaker widened | done |
+| 4. Import seam | done — `Acquisition.GrabProvenance`, keyed on release title, not `content_path` |
+
+Two things the build taught us that the design had wrong:
+
+* **`Search.Criteria` could not embed the struct.** It would have added
+  `Search → TMDB` and reversed a deliberate inversion. `MatchCriteria`
+  became the single projection instead — which also retired the D5/D8
+  two-routes-must-agree problem, so the constraint produced a better
+  shape than the original plan.
+* **`@enforce_keys` cannot cover the declared side.** An indexer's
+  identity routinely carries one id and no title, so `compare/2` takes
+  any id-bearing map on the right. Enforcement belongs on the wanted
+  side, where doors build identity and where the omission happened.
+
+## Still open
+
+* **The wiki.** A file going to review because it contradicts its grab is
+  user-visible and belongs in *Troubleshooting*. Not written yet.
+* **B4 — ids on wants**, and **want retirement**, both deferred above
+  with reasons. Neither is identity work.

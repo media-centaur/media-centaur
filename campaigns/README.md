@@ -36,15 +36,16 @@ Use [`template.md`](template.md) as a starter.
   for an owned, unlisted title. Absorbs the owner check left by
   `watchlist-and-release-tracking`.
 * [`indexer-id-search.md`](indexer-id-search.md) —
-  **Phase 1 incomplete (reopened 2026-09-11); Phase 3 designed, awaiting
-  approval; Phase 2 undecided.** Identify a title by identifier rather than by
+  **Phases 1 and 3 shipped; Phase 2 undecided.** Identify a title by identifier rather than by
   name. Phase 1 verifies identity using the ids already present in aggregated
   Prowlarr responses, and `TitleMatcher` treats a mismatching id as a
   rejection title parsing can never assert. But it wired only the plan doors
   it could remember — one of seven carried no ids, which cost the same wrong
-  film downloaded five days running. Phase 3 promotes identity to one value
-  type carried end to end, and closes the seam where the identity we search
-  with is never compared to the identity we file under. Phase 2 would query
+  film downloaded five days running. Phase 3 (2026-09-11) promoted identity to
+  one value type carried end to end, made a plan impossible to build without
+  one, declared the set of doors and enforced it with MC0037, and closed the
+  seam where the identity we search with was never compared to the identity we
+  file under. Phase 2 would query
   by id per indexer (the aggregated `/api/v1/search` ignores `imdbId`; the
   per-indexer Newznab route honours it), which means owning the fan-out
   Prowlarr exists to provide — measure the coverage gain first (51 vs 49 on
