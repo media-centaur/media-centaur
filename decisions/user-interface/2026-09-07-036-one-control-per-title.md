@@ -3,6 +3,11 @@ status: accepted
 date: 2026-09-07
 ---
 
+> **Amended 2026-09-11** by [UIDR-038](2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md):
+> on a Feed entry the Ignore shortcut and the List bookmark (point 5) sit
+> in a hover/cursor toolbar under the entry, together with Download. The
+> toolbar shows state and verb as one control; the ladder remains the
+> verb everywhere else.
 > **Amended 2026-09-09:** the ladder gained a seventh rung, **Ignore**,
 > left of Off — a record that keeps friends' recommendations of the
 > title off the Recommendations tab, and nothing else. Off stays the

@@ -1,0 +1,140 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>B · Sentence then card</title><style>
+/* ---- the feed is one surface; entries are divided, not boxed ---- */
+.feed{padding:4px}
+.entry{position:relative;display:block;padding:14px 16px 34px;cursor:pointer;text-align:left;border-radius:10px}
+.entry+.entry{border-top:1px solid oklch(93% 0.01 264/.07)}
+.entry:hover,.entry.hovered,.entry.cursor{background:oklch(93% 0.01 264/.06)}
+.entry.cursor{outline:2px solid var(--p);outline-offset:-2px}
+
+/* ---- line 1: the sentence. Name · verb [heart] · time ---- */
+.sentence{font-size:15px;line-height:1.4;color:oklch(93% 0.01 264/.7)}
+.sentence .who{font-weight:500;color:oklch(93% 0.01 264/.95)}
+.sentence .love{color:var(--love);font-size:13px;margin-left:3px;vertical-align:1px}
+.sentence .sep{color:oklch(93% 0.01 264/.4);margin:0 6px}
+.sentence .time{color:oklch(93% 0.01 264/.55);font-size:13px}
+
+/* ---- body: what they said (recommendations only) ---- */
+.body{margin:6px 0 0;font-size:14px;line-height:1.5;color:oklch(93% 0.01 264/.88);
+ display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ---- the object the sentence points at: poster, name, year. Shrink-wrapped, nothing else. ---- */
+.card{display:inline-flex;align-items:center;gap:12px;margin-top:10px;padding:6px 22px 6px 6px;max-width:100%;vertical-align:top}
+.card .thumb{width:56px;height:84px;border-radius:5px}
+.card .t{display:flex;align-items:baseline;gap:8px;min-width:0}
+.card .name{font-size:14px;font-weight:600;color:oklch(93% 0.01 264/.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .year{font-size:12px;color:oklch(93% 0.01 264/.55);flex:none}
+
+/* ---- toolbar: overlaid in the bottom padding; the entry never changes height ---- */
+.bar{position:absolute;left:16px;right:16px;bottom:8px;display:flex;align-items:center;gap:20px;height:20px;
+ font-size:12px;color:oklch(93% 0.01 264/.7);opacity:0;transition:opacity .12s;pointer-events:none}
+.entry:hover .bar,.entry.hovered .bar,.entry.cursor .bar{opacity:1;pointer-events:auto}
+.v{display:inline-flex;align-items:center;gap:5px;line-height:20px;border-radius:4px;white-space:nowrap}
+.v svg{width:14px;height:14px;flex:none}
+.v.act:hover{color:oklch(93% 0.01 264/.95)}
+.v.on{color:oklch(93% 0.01 264/.9)}          /* Listed / Following: filled glyph, fuller text */
+.v.plain{color:oklch(93% 0.01 264/.6);cursor:default}   /* plain state text: not a control */
+.v.cursor{outline:2px solid var(--p);outline-offset:3px}
+.v .prog{position:relative;display:inline-block}
+.v .prog:after{content:"";position:absolute;left:0;right:0;bottom:-4px;height:3px;border-radius:2px;
+ background:linear-gradient(90deg,oklch(93% 0.01 264/.55) 0 42%,oklch(93% 0.01 264/.14) 42%)}
+.ignore{margin-left:auto}
+.ignore:hover{text-decoration:underline;text-underline-offset:3px}
+
+.older{display:flex;justify-content:center;margin-top:14px}
+.state{margin:34px 0 8px 4px;display:flex;align-items:baseline;gap:12px}
+.state .sec{flex:none;white-space:nowrap}
+.state .keys{font-size:12px;color:oklch(93% 0.01 264/.55)}
+.single{padding:4px}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab active">Feed<span class="n">8</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">4</span></span></div>
+
+<!-- icon sprites: bookmark (outline / filled), arrow-down -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-bm" viewBox="0 0 24 24"><path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4.5L5 21V4.5a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bm-f" viewBox="0 0 24 24"><path d="M6 3.5h12a1 1 0 0 1 1 1V21l-7-4.5L5 21V4.5a1 1 0 0 1 1-1z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v13M6 11l6 6 6-6M5 20h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="feed glass">
+
+<!-- 1 · Cleo wants to watch Sample Show -->
+<div class="entry">
+  <div class="sentence"><span class="who">Cleo</span> wants to watch<span class="sep">·</span><span class="time">12m ago</span></div>
+  <div class="card inset"><div class="thumb" style="--h:350"></div><div class="t"><span class="name">Sample Show</span><span class="year">2024</span></div></div>
+  <div class="bar"><span class="v act"><svg><use href="#i-bm"/></svg>List</span><span class="v act"><svg><use href="#i-dl"/></svg>Download</span><span class="v act ignore">Ignore</span></div>
+</div>
+
+<!-- 2 · Nick recommended ♥ Movie A, with a note -->
+<div class="entry">
+  <div class="sentence"><span class="who">Nick</span> recommended<span class="love">♥</span><span class="sep">·</span><span class="time">2h ago</span></div>
+  <p class="body">Saw it twice. The last twenty minutes are the whole film.</p>
+  <div class="card inset"><div class="thumb" style="--h:200"></div><div class="t"><span class="name">Movie A</span><span class="year">2026</span></div></div>
+  <div class="bar"><span class="v act"><svg><use href="#i-bm"/></svg>List</span><span class="v act"><svg><use href="#i-dl"/></svg>Download</span><span class="v act ignore">Ignore</span></div>
+</div>
+
+<!-- 3 · Nick wants to watch Movie A — same person, same title, minutes later -->
+<div class="entry">
+  <div class="sentence"><span class="who">Nick</span> wants to watch<span class="sep">·</span><span class="time">2h ago</span></div>
+  <div class="card inset"><div class="thumb" style="--h:200"></div><div class="t"><span class="name">Movie A</span><span class="year">2026</span></div></div>
+  <div class="bar"><span class="v act"><svg><use href="#i-bm"/></svg>List</span><span class="v act"><svg><use href="#i-dl"/></svg>Download</span><span class="v act ignore">Ignore</span></div>
+</div>
+
+<!-- 4 · Bob recommended Show B — HOVERED: title is In library -->
+<div class="entry hovered">
+  <div class="sentence"><span class="who">Bob</span> recommended<span class="sep">·</span><span class="time">1d ago</span></div>
+  <p class="body">Slow start, give it three episodes.</p>
+  <div class="card inset"><div class="thumb" style="--h:264"></div><div class="t"><span class="name">Show B</span><span class="year">2021</span></div></div>
+  <div class="bar"><span class="v act"><svg><use href="#i-bm"/></svg>List</span><span class="v plain">In library</span><span class="v act ignore">Ignore</span></div>
+</div>
+
+<!-- 5 · Sam wants to watch The Long Field — HOVERED: title is on your list -->
+<div class="entry hovered">
+  <div class="sentence"><span class="who">Sam</span> wants to watch<span class="sep">·</span><span class="time">3d ago</span></div>
+  <div class="card inset"><div class="thumb" style="--h:140"></div><div class="t"><span class="name">The Long Field</span><span class="year">2025</span></div></div>
+  <div class="bar"><span class="v act on"><svg><use href="#i-bm-f"/></svg>Listed</span><span class="v act"><svg><use href="#i-dl"/></svg>Download</span><span class="v act ignore">Ignore</span></div>
+</div>
+
+<!-- 6 · Nick recommended Sample Show — no note -->
+<div class="entry">
+  <div class="sentence"><span class="who">Nick</span> recommended<span class="sep">·</span><span class="time">6d ago</span></div>
+  <div class="card inset"><div class="thumb" style="--h:350"></div><div class="t"><span class="name">Sample Show</span><span class="year">2024</span></div></div>
+  <div class="bar"><span class="v act"><svg><use href="#i-bm"/></svg>List</span><span class="v act"><svg><use href="#i-dl"/></svg>Download</span><span class="v act ignore">Ignore</span></div>
+</div>
+
+<!-- 7 · Cleo recommended Show B — one-word note -->
+<div class="entry">
+  <div class="sentence"><span class="who">Cleo</span> recommended<span class="sep">·</span><span class="time">1w ago</span></div>
+  <p class="body">Fine.</p>
+  <div class="card inset"><div class="thumb" style="--h:264"></div><div class="t"><span class="name">Show B</span><span class="year">2021</span></div></div>
+  <div class="bar"><span class="v act"><svg><use href="#i-bm"/></svg>List</span><span class="v plain">In library</span><span class="v act ignore">Ignore</span></div>
+</div>
+
+<!-- 8 · Bob wants to watch Harbor Lights — HOVERED: title is Downloading -->
+<div class="entry hovered">
+  <div class="sentence"><span class="who">Bob</span> wants to watch<span class="sep">·</span><span class="time">2w ago</span></div>
+  <div class="card inset"><div class="thumb" style="--h:60"></div><div class="t"><span class="name">Harbor Lights</span><span class="year">2023</span></div></div>
+  <div class="bar"><span class="v act"><svg><use href="#i-bm"/></svg>List</span><span class="v plain"><span class="prog">Downloading</span></span><span class="v act ignore">Ignore</span></div>
+</div>
+
+</div>
+
+<div class="older"><button class="btn ghost">Show older</button></div>
+
+<!-- ---- states ---- -->
+<div class="state"><span class="sec">State · keyboard cursor on the entry</span><span class="keys">ring on the entry, toolbar shown; Enter opens the title, → moves the cursor into the toolbar</span></div>
+<div class="glass single"><div class="entry cursor">
+  <div class="sentence"><span class="who">Nick</span> recommended<span class="love">♥</span><span class="sep">·</span><span class="time">2h ago</span></div>
+  <p class="body">Saw it twice. The last twenty minutes are the whole film.</p>
+  <div class="card inset"><div class="thumb" style="--h:200"></div><div class="t"><span class="name">Movie A</span><span class="year">2026</span></div></div>
+  <div class="bar"><span class="v act"><svg><use href="#i-bm"/></svg>List</span><span class="v act"><svg><use href="#i-dl"/></svg>Download</span><span class="v act ignore">Ignore</span></div>
+</div></div>
+
+<div class="state"><span class="sec">State · cursor on “List”</span><span class="keys">ring moves to the item; the entry stays lifted; Enter toggles</span></div>
+<div class="glass single"><div class="entry hovered">
+  <div class="sentence"><span class="who">Nick</span> recommended<span class="love">♥</span><span class="sep">·</span><span class="time">2h ago</span></div>
+  <p class="body">Saw it twice. The last twenty minutes are the whole film.</p>
+  <div class="card inset"><div class="thumb" style="--h:200"></div><div class="t"><span class="name">Movie A</span><span class="year">2026</span></div></div>
+  <div class="bar"><span class="v act cursor"><svg><use href="#i-bm"/></svg>List</span><span class="v act"><svg><use href="#i-dl"/></svg>Download</span><span class="v act ignore">Ignore</span></div>
+</div></div>
+
+<p class="legend"><b>B · Sentence then card.</b> The Bluesky post taken literally, minus everything Bluesky puts around it. Line one is a sentence — who did what, when — and it is the entry’s first and loudest line. If they said something, that is the body. The title is an object the sentence points at: a small inset card with poster, name and year, shrink-wrapped so the surface is as wide as the title, not the page. The feed is one glass column with hairline dividers, so the only boxes on the page are titles. Verbs live in a toolbar overlaid in the entry’s bottom padding, shown on hover or cursor; entries 4, 5 and 8 are shown hovered with the three non-default states.</p>
+</div></body></html>

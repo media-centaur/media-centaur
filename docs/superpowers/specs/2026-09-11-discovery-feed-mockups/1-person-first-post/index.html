@@ -1,0 +1,93 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>1 · Person-first post</title><style>
+/* ---- post: one act, rendered as a post ---- */
+.post{position:relative;display:flex;flex-direction:column;gap:10px;padding:14px 16px 14px;margin-bottom:10px;cursor:pointer;text-align:left}
+.post:hover,.post.hovered{background:oklch(93% 0.01 264/.065)}
+
+/* header line: avatar · Name verb [glyph] · time …… Ignore */
+.head{display:flex;align-items:center;gap:10px;min-height:26px}
+.head .avatar{width:26px;height:26px;font-size:12px}
+.head .line{flex:1;min-width:0;font-size:14px;color:oklch(93% 0.01 264/.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.head .who{font-weight:500;color:var(--bc)}
+.head .time{color:oklch(93% 0.01 264/.55)}
+.head .time:before{content:"·";margin:0 6px;color:oklch(93% 0.01 264/.4)}
+.glyph{display:inline-block;margin-left:4px;font-size:12px;vertical-align:1px}
+.glyph.love{color:var(--love)}
+.glyph.like{filter:grayscale(1);opacity:.7}
+.ignore{flex:none;font-size:12px;color:oklch(93% 0.01 264/.7);opacity:0;transition:opacity .12s;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}
+.post:hover .ignore,.post.hovered .ignore{opacity:1}
+.ignore:hover{color:oklch(93% 0.01 264/.9);text-decoration-color:currentColor}
+
+/* body: the note (or the overview when there is no note); listings have none */
+.body{font-size:14px;line-height:1.5;color:oklch(93% 0.01 264/.9);margin:-2px 0 0 36px;
+ display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.body.overview{color:oklch(93% 0.01 264/.6);-webkit-line-clamp:2}
+
+/* embedded title card: thumb · name / meta · markers …… mast bleeding off the right edge */
+.card{position:relative;display:flex;gap:12px;align-items:center;padding:10px 12px 10px 10px;margin-left:36px;overflow:hidden;border:1px solid oklch(93% 0.01 264/.07)}
+.card .id{flex:1;min-width:0;align-self:center}
+.card .name{font-size:14px;font-weight:600;color:oklch(93% 0.01 264/.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .meta{font-size:12px;color:oklch(93% 0.01 264/.55);margin-top:3px}
+.card .mark{margin-left:10px}
+.card .mast{margin-right:-12px}
+
+/* end of window */
+.older{display:block;margin:6px auto 0;font-size:13px;color:oklch(93% 0.01 264/.6);background:transparent;border:0;padding:8px 14px;cursor:pointer;border-radius:8px}
+.older:hover{color:oklch(93% 0.01 264/.85);background:oklch(93% 0.01 264/.05)}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab active">Feed<span class="n">8</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">4</span></span></div>
+
+<!-- 1 · Cleo wants to watch Sample Show -->
+<div class="post glass">
+  <div class="head"><span class="avatar" style="--h:300">C</span><span class="line"><span class="who">Cleo</span> wants to watch<span class="time">12m ago</span></span><span class="ignore">Ignore</span></div>
+  <div class="card inset"><div class="thumb" style="--h:230"></div><div class="id"><div class="name">Sample Show</div><div class="meta">TV · 2024</div></div><div class="mast"><span class="pen">Nick 👍</span></div></div>
+</div>
+
+<!-- 2 · Nick recommended (love) Movie A, with a note -->
+<div class="post glass">
+  <div class="head"><span class="avatar" style="--h:264">N</span><span class="line"><span class="who">Nick</span> recommended<span class="glyph love">♥</span><span class="time">2h ago</span></span><span class="ignore">Ignore</span></div>
+  <div class="body">Saw it twice. The last twenty minutes are the whole film.</div>
+  <div class="card inset"><div class="thumb" style="--h:290"></div><div class="id"><div class="name">Movie A</div><div class="meta">Movie · 2026</div></div><div class="mast"><span class="pen love">Nick ♥</span></div></div>
+</div>
+
+<!-- 3 · Nick wants to watch Movie A — same person, same title, minutes later -->
+<div class="post glass">
+  <div class="head"><span class="avatar" style="--h:264">N</span><span class="line"><span class="who">Nick</span> wants to watch<span class="time">2h ago</span></span><span class="ignore">Ignore</span></div>
+  <div class="card inset"><div class="thumb" style="--h:290"></div><div class="id"><div class="name">Movie A</div><div class="meta">Movie · 2026</div></div><div class="mast"><span class="pen love">Nick ♥</span></div></div>
+</div>
+
+<!-- 4 · Bob recommended (like) Show B — HOVERED: Ignore visible -->
+<div class="post glass hovered">
+  <div class="head"><span class="avatar" style="--h:210">B</span><span class="line"><span class="who">Bob</span> recommended<span class="glyph like">👍</span><span class="time">1d ago</span></span><span class="ignore">Ignore</span></div>
+  <div class="body">Slow start, give it three episodes.</div>
+  <div class="card inset"><div class="thumb" style="--h:280"></div><div class="id"><div class="name">Show B</div><div class="meta">TV · 2021<span class="mark">In library</span></div></div><div class="mast"><span class="pen">Bob 👍</span><span class="pen">Cleo 👍</span></div></div>
+</div>
+
+<!-- 5 · Sam wants to watch The Long Field -->
+<div class="post glass">
+  <div class="head"><span class="avatar" style="--h:180">S</span><span class="line"><span class="who">Sam</span> wants to watch<span class="time">3d ago</span></span><span class="ignore">Ignore</span></div>
+  <div class="card inset"><div class="thumb" style="--h:150"></div><div class="id"><div class="name">The Long Field</div><div class="meta">Movie · 2025<span class="mark">On your list</span></div></div></div>
+</div>
+
+<!-- 6 · Nick recommended (like) Sample Show — no note, overview shows -->
+<div class="post glass">
+  <div class="head"><span class="avatar" style="--h:264">N</span><span class="line"><span class="who">Nick</span> recommended<span class="glyph like">👍</span><span class="time">6d ago</span></span><span class="ignore">Ignore</span></div>
+  <div class="body overview">Two siblings inherit a failing radio station and the town that listens to it.</div>
+  <div class="card inset"><div class="thumb" style="--h:230"></div><div class="id"><div class="name">Sample Show</div><div class="meta">TV · 2024</div></div><div class="mast"><span class="pen">Nick 👍</span><span class="pen">Cleo 🔖</span></div></div>
+</div>
+
+<!-- 7 · Cleo recommended (like) Show B — one-word note -->
+<div class="post glass">
+  <div class="head"><span class="avatar" style="--h:300">C</span><span class="line"><span class="who">Cleo</span> recommended<span class="glyph like">👍</span><span class="time">1w ago</span></span><span class="ignore">Ignore</span></div>
+  <div class="body">Fine.</div>
+  <div class="card inset"><div class="thumb" style="--h:280"></div><div class="id"><div class="name">Show B</div><div class="meta">TV · 2021<span class="mark">In library</span></div></div><div class="mast"><span class="pen">Bob 👍</span><span class="pen">Cleo 👍</span></div></div>
+</div>
+
+<!-- 8 · Bob wants to watch Harbor Lights -->
+<div class="post glass">
+  <div class="head"><span class="avatar" style="--h:210">B</span><span class="line"><span class="who">Bob</span> wants to watch<span class="time">2w ago</span></span><span class="ignore">Ignore</span></div>
+  <div class="card inset"><div class="thumb" style="--h:200"></div><div class="id"><div class="name">Harbor Lights</div><div class="meta">TV · 2023<span class="mark">Downloading</span></div></div></div>
+</div>
+
+<button class="older">Show older</button>
+
+<p class="legend"><b>1 · Person-first post.</b> The Bluesky anatomy taken literally: the person is the author, the act is the post, the title is the embedded card. Header line carries person, verb, sentiment glyph and time; the note is the body; the card repeats per act, so a title listed minutes after being recommended appears twice, on purpose. Entry 4 is shown hovered: the surface lifts and "Ignore" appears at the end of the header line.</p>
+</div></body></html>

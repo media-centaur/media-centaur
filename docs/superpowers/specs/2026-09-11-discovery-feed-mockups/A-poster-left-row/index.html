@@ -1,0 +1,135 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>A · Poster-left row</title><style>
+.feed{display:flex;flex-direction:column;gap:8px}
+
+/* ---- one anatomy: poster left, three text lines right, toolbar seat at the bottom of the text block ---- */
+.entry{position:relative;display:flex;gap:14px;align-items:flex-start;padding:12px 16px 10px;cursor:pointer;text-align:left;overflow:hidden}
+.entry:hover,.entry.hovered{background:oklch(93% 0.01 264/.065)}
+.entry.cursor{outline:2px solid var(--p);outline-offset:-1px}
+.body{flex:1;min-width:0;display:flex;flex-direction:column;align-self:stretch;min-height:72px}
+
+/* line 1 · name + action + time */
+.l1{font-size:13px;line-height:1.45;color:oklch(93% 0.01 264/.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l1>span+span{margin-left:5px}
+.l1 .who{font-weight:500;color:oklch(93% 0.01 264/.92)}
+.l1 .love{color:var(--love);font-size:12px;position:relative;top:-.5px}
+.l1 .sep{color:oklch(93% 0.01 264/.4)}
+.l1 .time{color:oklch(93% 0.01 264/.55)}
+
+/* line 2 · title + year */
+.l2{display:flex;align-items:baseline;gap:8px;font-size:14px;line-height:1.45;margin-top:1px}
+.l2 b{font-weight:600;color:var(--bc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.l2 .y{font-size:12px;color:oklch(93% 0.01 264/.55);flex:none}
+
+/* line 3 · the note, when there is one */
+.l3{margin:4px 0 4px;font-size:13px;line-height:1.5;color:oklch(93% 0.01 264/.68);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+
+/* ---- toolbar · fixed 20px seat, always in flow, empty at rest. sits at the bottom of the text block. ---- */
+.bar{display:flex;align-items:center;gap:2px;height:20px;margin:auto -6px 0;opacity:0;transition:opacity .12s;font-size:12px;color:oklch(93% 0.01 264/.7)}
+.entry:hover .bar,.entry.hovered .bar,.entry.cursor .bar,.entry:focus-within .bar{opacity:1}
+.v{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 6px;border-radius:6px;white-space:nowrap;color:inherit}
+.v svg{width:14px;height:14px;flex:none}
+.v:hover{color:oklch(93% 0.01 264/.92);background:oklch(93% 0.01 264/.07)}
+.v.on{color:oklch(93% 0.01 264/.92)}
+.v.cursor{outline:2px solid var(--p);outline-offset:0}
+.v.ignore{margin-left:auto}
+.st{display:inline-flex;align-items:center;height:20px;padding:0 6px;white-space:nowrap;color:oklch(93% 0.01 264/.6)}
+.st .w{position:relative}
+.st .w.prog:after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:3px;border-radius:2px;background:linear-gradient(90deg,oklch(93% 0.01 264/.55) var(--pct,45%),oklch(93% 0.01 264/.12) var(--pct,45%))}
+
+.older{display:flex;justify-content:center;margin-top:14px}
+.state{margin:30px 0 8px 4px;display:flex;align-items:baseline;gap:12px}
+.state .sec{flex:none;white-space:nowrap}
+.state .keys{font-size:12px;color:oklch(93% 0.01 264/.55)}
+.legend{margin-top:26px}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab active">Feed<span class="n">8</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">3</span></span></div>
+
+<!-- icon sprites: monochrome, currentColor, 14px -->
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="i-bm" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-bm-on" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v13M5.5 11.5 12 18l6.5-6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+
+<div class="feed">
+
+<!-- 1 · listing -->
+<div class="entry glass"><div class="thumb" style="--h:350"></div><div class="body">
+<div class="l1"><span class="who">Cleo</span><span>wants to watch</span><span class="sep">·</span><span class="time">12m ago</span></div>
+<div class="l2"><b>Sample Show</b><span class="y">2024</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<!-- 2 · recommendation (love, note) -->
+<div class="entry glass"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">Nick</span><span>recommended</span><span class="love">♥</span><span class="sep">·</span><span class="time">2h ago</span></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<!-- 3 · listing, same person same title, minutes later -->
+<div class="entry glass"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">Nick</span><span>wants to watch</span><span class="sep">·</span><span class="time">2h ago</span></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<!-- 4 · recommendation (like, note) · title In library · shown hovered -->
+<div class="entry glass hovered"><div class="thumb" style="--h:264"></div><div class="body">
+<div class="l1"><span class="who">Bob</span><span>recommended</span><span class="sep">·</span><span class="time">1d ago</span></div>
+<div class="l2"><b>Show B</b><span class="y">2021</span></div>
+<p class="l3">Slow start, give it three episodes.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<!-- 5 · listing · title on your list · shown hovered -->
+<div class="entry glass hovered"><div class="thumb" style="--h:140"></div><div class="body">
+<div class="l1"><span class="who">Sam</span><span>wants to watch</span><span class="sep">·</span><span class="time">3d ago</span></div>
+<div class="l2"><b>The Long Field</b><span class="y">2025</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<!-- 6 · recommendation (like, no note) -->
+<div class="entry glass"><div class="thumb" style="--h:350"></div><div class="body">
+<div class="l1"><span class="who">Nick</span><span>recommended</span><span class="sep">·</span><span class="time">6d ago</span></div>
+<div class="l2"><b>Sample Show</b><span class="y">2024</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<!-- 7 · recommendation (like, short note) -->
+<div class="entry glass"><div class="thumb" style="--h:264"></div><div class="body">
+<div class="l1"><span class="who">Cleo</span><span>recommended</span><span class="sep">·</span><span class="time">1w ago</span></div>
+<div class="l2"><b>Show B</b><span class="y">2021</span></div>
+<p class="l3">Fine.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<!-- 8 · listing · title Downloading · shown hovered -->
+<div class="entry glass hovered"><div class="thumb" style="--h:60"></div><div class="body">
+<div class="l1"><span class="who">Bob</span><span>wants to watch</span><span class="sep">·</span><span class="time">2w ago</span></div>
+<div class="l2"><b>Harbor Lights</b><span class="y">2023</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+</div>
+
+<div class="older"><button class="btn ghost">Show older</button></div>
+
+<div class="state"><span class="sec">State · cursor on the entry</span><span class="keys">ring on the entry, toolbar shown · Enter opens the title · → moves the cursor into the toolbar</span></div>
+<div class="entry glass cursor"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">Nick</span><span>recommended</span><span class="love">♥</span><span class="sep">·</span><span class="time">2h ago</span></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<div class="state"><span class="sec">State · cursor on “List”</span><span class="keys">ring moves to the item · Enter toggles it · ← back to the entry</span></div>
+<div class="entry glass hovered"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">Nick</span><span>recommended</span><span class="love">♥</span><span class="sep">·</span><span class="time">2h ago</span></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v cursor"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v ignore">Ignore</span></div>
+</div></div>
+
+<p class="legend"><b>A · Poster-left row.</b> One anatomy for every entry: the poster is the anchor, and to its right three lines — who did what and when, which title, what they said. A listing and a recommendation differ only by the third line. The toolbar has a fixed 20px seat at the bottom of the text block, empty at rest; for a listing the seat sits inside the poster’s height and costs nothing, for a recommendation it is the air under the quote.</p>
+</div></body></html>

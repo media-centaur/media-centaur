@@ -2,6 +2,13 @@
 status: accepted
 date: 2026-09-08
 ---
+
+> **Amended 2026-09-11** by [UIDR-038](2026-09-11-038-the-feed-is-friends-actions-one-entry-each.md):
+> the Feed entry is the one title surface that flies no mast — each
+> friend's action is its own entry there. The tracking flag (bell)
+> becomes a listing flag (bookmark) per
+> [ADR-067](../architecture/2026-09-11-067-listing-replaces-tracking-on-the-wire.md).
+
 # Friend provenance is the pennant, on every title surface
 
 Extends [UIDR-031](2026-09-06-031-friends-carry-shelves-feed-is-recommendations.md)

@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>2 · Title row with an author lead</title><style>
+/* The lead: the row's first line. Person + verb + sentiment glyph + time, sentence voice. */
+.lead{display:flex;align-items:baseline;gap:8px;font-size:12px;line-height:1.45;color:oklch(93% 0.01 264/.7);white-space:nowrap;min-width:0}
+.lead .act{overflow:hidden;text-overflow:ellipsis}
+.lead b{font-weight:500}
+.lead .g{font-size:11px;margin-left:2px}
+.lead .g.love{color:var(--love)}
+/* Title line sits second; the note/overview third. Same `.t`/`.s` as today's row. */
+.id .t{margin-top:1px}
+.id .s{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* The entry's one verb: quiet text at the end of the lead, revealed with the row. */
+.verb{flex:none;opacity:0;transition:opacity .12s;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;border-radius:3px}
+.row:hover .verb,.row.hovered .verb{opacity:1}
+.verb:hover{color:oklch(93% 0.01 264/.9);text-decoration-color:currentColor}
+.row.hovered{background:oklch(93% 0.01 264/.065)}
+.older{display:flex;justify-content:center;padding-top:4px}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab active">Feed<span class="n">8</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">4</span></span></div>
+
+<!-- 1 · Cleo wants to watch · Sample Show -->
+<div class="row glass"><div class="thumb" style="--h:20"></div><div class="id"><div class="lead"><span class="act"><b>Cleo</b> wants to watch · 12m ago</span><span class="verb">Ignore</span></div><div class="t"><b>Sample Show</b><span class="m">TV · 2024</span></div><div class="s">Two siblings inherit a failing radio station and the town that listens to it.</div></div><div class="mast"><span class="pen">Nick 👍</span></div></div>
+
+<!-- 2 · Nick recommended (love) · Movie A -->
+<div class="row glass"><div class="thumb" style="--h:200"></div><div class="id"><div class="lead"><span class="act"><b>Nick</b> recommended<span class="g love">♥</span> · 2h ago</span><span class="verb">Ignore</span></div><div class="t"><b>Movie A</b><span class="m">Movie · 2026</span></div><div class="s">Saw it twice. The last twenty minutes are the whole film.</div></div><div class="mast"><span class="pen love">Nick ♥</span></div></div>
+
+<!-- 3 · Nick wants to watch · Movie A (same person, same title, minutes later) -->
+<div class="row glass"><div class="thumb" style="--h:200"></div><div class="id"><div class="lead"><span class="act"><b>Nick</b> wants to watch · 2h ago</span><span class="verb">Ignore</span></div><div class="t"><b>Movie A</b><span class="m">Movie · 2026</span></div><div class="s">A retired cartographer is hired to map a valley that keeps changing shape.</div></div><div class="mast"><span class="pen love">Nick ♥</span></div></div>
+
+<!-- 4 · Bob recommended (like) · Show B — hovered, Ignore visible -->
+<div class="row glass hovered"><div class="thumb" style="--h:280"></div><div class="id"><div class="lead"><span class="act"><b>Bob</b> recommended<span class="g">👍</span> · 1d ago</span><span class="verb">Ignore</span></div><div class="t"><b>Show B</b><span class="m">TV · 2021</span><span class="m">In library</span></div><div class="s">Slow start, give it three episodes.</div></div><div class="mast"><span class="pen">Bob 👍</span><span class="pen">Cleo 👍</span></div></div>
+
+<!-- 5 · Sam wants to watch · The Long Field -->
+<div class="row glass"><div class="thumb" style="--h:140"></div><div class="id"><div class="lead"><span class="act"><b>Sam</b> wants to watch · 3d ago</span><span class="verb">Ignore</span></div><div class="t"><b>The Long Field</b><span class="m">Movie · 2025</span><span class="m">On your list</span></div><div class="s">Three harvests, one family, and a road that never gets built.</div></div><div class="mast"></div></div>
+
+<!-- 6 · Nick recommended (like) · Sample Show · no note, overview shows -->
+<div class="row glass"><div class="thumb" style="--h:20"></div><div class="id"><div class="lead"><span class="act"><b>Nick</b> recommended<span class="g">👍</span> · 6d ago</span><span class="verb">Ignore</span></div><div class="t"><b>Sample Show</b><span class="m">TV · 2024</span></div><div class="s">Two siblings inherit a failing radio station and the town that listens to it.</div></div><div class="mast"><span class="pen">Nick 👍</span><span class="pen">Cleo 🔖</span></div></div>
+
+<!-- 7 · Cleo recommended (like) · Show B · "Fine." -->
+<div class="row glass"><div class="thumb" style="--h:280"></div><div class="id"><div class="lead"><span class="act"><b>Cleo</b> recommended<span class="g">👍</span> · 1w ago</span><span class="verb">Ignore</span></div><div class="t"><b>Show B</b><span class="m">TV · 2021</span><span class="m">In library</span></div><div class="s">Fine.</div></div><div class="mast"><span class="pen">Bob 👍</span><span class="pen">Cleo 👍</span></div></div>
+
+<!-- 8 · Bob wants to watch · Harbor Lights -->
+<div class="row glass"><div class="thumb" style="--h:60"></div><div class="id"><div class="lead"><span class="act"><b>Bob</b> wants to watch · 2w ago</span><span class="verb">Ignore</span></div><div class="t"><b>Harbor Lights</b><span class="m">TV · 2023</span><span class="m">Downloading</span></div><div class="s">A night-shift lighthouse crew logs ships that were never registered.</div></div><div class="mast"></div></div>
+
+<div class="older"><button class="btn ghost">Show older</button></div>
+
+<p class="legend"><b>2 · Title row with an author lead.</b> Today's title row, one act per row, with the person and time promoted to the first line in sentence voice. Poster stays the anchor; the mast still flies every friend's act on the title; "Ignore" sits at the end of the lead when the row is hovered (entry 4). Nothing else about the row changes, so the Watchlist tab keeps sharing it.</p>
+</div></body></html>

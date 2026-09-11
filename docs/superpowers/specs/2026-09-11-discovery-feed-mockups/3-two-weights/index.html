@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>3 · Two weights</title><style>
+.feed{display:flex;flex-direction:column;gap:10px}
+.entry{position:relative;cursor:pointer;text-align:left;overflow:hidden}
+
+/* ---- full entry: a recommendation. person-first header, note as body, title as an embedded card ---- */
+.entry.full{padding:12px 16px 14px}
+.entry.full:hover,.entry.full.hovered{background:oklch(93% 0.01 264/.065)}
+.head{display:flex;align-items:center;gap:5px;font-size:13px;color:oklch(93% 0.01 264/.7)}
+.head .avatar{width:22px;height:22px;font-size:11px;flex:none;margin-right:4px}
+.head .who{font-weight:600;color:oklch(93% 0.01 264/.92)}
+.head .g{font-size:12px;line-height:1}
+.head .g.love{color:var(--love)}
+.head .sep{color:oklch(93% 0.01 264/.4)}
+.head .time{color:oklch(93% 0.01 264/.55)}
+.body{margin:9px 0 0;font-size:14px;line-height:1.5;color:oklch(93% 0.01 264/.88)}
+.card{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-top:10px;overflow:hidden;position:relative}
+.card .id{align-self:center}
+.card .mast{margin-right:-12px}
+
+/* ---- compact entry: a listing. one line, no avatar, small thumb, lighter surface ---- */
+.entry.compact{display:flex;align-items:center;gap:12px;padding:8px 14px;border:1px solid oklch(93% 0.01 264/.06)}
+.entry.compact:hover,.entry.compact.hovered{background:oklch(93% 0.01 264/.055)}
+.compact+.compact{margin-top:-5px}
+.thumb.xs{width:28px;height:42px;border-radius:4px}
+.line{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;font-size:13px;color:oklch(93% 0.01 264/.7);white-space:nowrap}
+.line .s1{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.line .who{font-weight:500;color:oklch(93% 0.01 264/.92)}
+.line b{font-weight:600;color:var(--bc)}
+.line .time{color:oklch(93% 0.01 264/.55)}
+.line .m{font-size:12px;color:oklch(93% 0.01 264/.55);flex:none}
+.compact .mast{margin-right:-14px}
+
+/* ---- the one verb: quiet text at the end of the header/line, revealed with the entry ---- */
+.ignore{margin-left:auto;flex:none;font-size:12px;color:oklch(93% 0.01 264/.7);opacity:0;transition:opacity .12s;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}
+.entry:hover .ignore,.entry.hovered .ignore{opacity:1}
+.ignore:hover{color:oklch(93% 0.01 264/.9);text-decoration-color:currentColor}
+
+.older{display:flex;justify-content:center;margin-top:14px}
+.state{margin:30px 0 8px 4px;display:flex;align-items:baseline;gap:12px}
+.state .sec{flex:none;white-space:nowrap}
+.state .keys{font-size:12px;color:oklch(93% 0.01 264/.55)}
+</style></head><body><div class="page"><h1>Discovery</h1><div class="tabs"><span class="tab active">Feed<span class="n">8</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">3</span></span></div>
+
+<div class="feed">
+
+<!-- 1 · listing -->
+<div class="entry compact inset"><div class="thumb xs" style="--h:20"></div><div class="line"><span class="s1"><span class="who">Cleo</span> wants to watch <b>Sample Show</b> <span class="time">· 12m ago</span></span><span class="m">TV · 2024</span></div><span class="ignore">Ignore</span><div class="mast"><span class="pen">Nick 👍</span></div></div>
+
+<!-- 2 · recommendation (love, note) -->
+<div class="entry full glass"><div class="head"><span class="avatar" style="--h:264">N</span><span class="who">Nick</span><span>recommended</span><span class="g love">♥</span><span class="sep">·</span><span class="time">2h ago</span><span class="ignore">Ignore</span></div><p class="body">Saw it twice. The last twenty minutes are the whole film.</p><div class="card inset"><div class="thumb" style="--h:230"></div><div class="id"><div class="t"><b>Movie A</b><span class="m">Movie · 2026</span></div></div><div class="mast"><span class="pen love">Nick ♥</span></div></div></div>
+
+<!-- 3 · listing, same person same title, minutes later -->
+<div class="entry compact inset"><div class="thumb xs" style="--h:230"></div><div class="line"><span class="s1"><span class="who">Nick</span> wants to watch <b>Movie A</b> <span class="time">· 2h ago</span></span><span class="m">Movie · 2026</span></div><span class="ignore">Ignore</span><div class="mast"><span class="pen love">Nick ♥</span></div></div>
+
+<!-- 4 · recommendation (like, note, marker) — hovered -->
+<div class="entry full glass hovered"><div class="head"><span class="avatar" style="--h:300">B</span><span class="who">Bob</span><span>recommended</span><span class="g">👍</span><span class="sep">·</span><span class="time">1d ago</span><span class="ignore">Ignore</span></div><p class="body">Slow start, give it three episodes.</p><div class="card inset"><div class="thumb" style="--h:280"></div><div class="id"><div class="t"><b>Show B</b><span class="m">TV · 2021</span><span class="m">In library</span></div></div><div class="mast"><span class="pen">Bob 👍</span><span class="pen">Cleo 👍</span></div></div></div>
+
+<!-- 5 · listing, marker -->
+<div class="entry compact inset"><div class="thumb xs" style="--h:120"></div><div class="line"><span class="s1"><span class="who">Sam</span> wants to watch <b>The Long Field</b> <span class="time">· 3d ago</span></span><span class="m">Movie · 2025</span><span class="m">On your list</span></div><span class="ignore">Ignore</span></div>
+
+<!-- 6 · recommendation (like, no note → overview) -->
+<div class="entry full glass"><div class="head"><span class="avatar" style="--h:264">N</span><span class="who">Nick</span><span>recommended</span><span class="g">👍</span><span class="sep">·</span><span class="time">6d ago</span><span class="ignore">Ignore</span></div><div class="card inset"><div class="thumb" style="--h:20"></div><div class="id"><div class="t"><b>Sample Show</b><span class="m">TV · 2024</span></div><div class="s">Two siblings inherit a failing radio station and the town that listens to it.</div></div><div class="mast"><span class="pen">Nick 👍</span><span class="pen">Cleo 🔖</span></div></div></div>
+
+<!-- 7 · recommendation (like, short note) -->
+<div class="entry full glass"><div class="head"><span class="avatar" style="--h:210">C</span><span class="who">Cleo</span><span>recommended</span><span class="g">👍</span><span class="sep">·</span><span class="time">1w ago</span><span class="ignore">Ignore</span></div><p class="body">Fine.</p><div class="card inset"><div class="thumb" style="--h:280"></div><div class="id"><div class="t"><b>Show B</b><span class="m">TV · 2021</span><span class="m">In library</span></div></div><div class="mast"><span class="pen">Bob 👍</span><span class="pen">Cleo 👍</span></div></div></div>
+
+<!-- 8 · listing, marker -->
+<div class="entry compact inset"><div class="thumb xs" style="--h:200"></div><div class="line"><span class="s1"><span class="who">Bob</span> wants to watch <b>Harbor Lights</b> <span class="time">· 2w ago</span></span><span class="m">TV · 2023</span><span class="m">Downloading</span></div><span class="ignore">Ignore</span></div>
+
+</div>
+
+<div class="older"><button class="btn ghost">Show older</button></div>
+
+<div class="state"><span class="sec">State · compact entry hovered</span><span class="keys">"Ignore" appears at the end of the line; click it, or anywhere else on the entry to open the title</span></div>
+<div class="entry compact inset hovered"><div class="thumb xs" style="--h:120"></div><div class="line"><span class="s1"><span class="who">Sam</span> wants to watch <b>The Long Field</b> <span class="time">· 3d ago</span></span><span class="m">Movie · 2025</span><span class="m">On your list</span></div><span class="ignore">Ignore</span></div>
+
+<p class="legend"><b>3 · Two weights.</b> A recommendation is someone saying something, so it gets a full entry: who, how much, when; what they said; then the title as a card with the mast on its edge. A listing is someone wanting something, so it gets one line on a lighter surface with the same mast. The compact entry is the full entry's card with the header folded into it — one part, two weights. Heavy = said, light = wants.</p>
+</div></body></html>
