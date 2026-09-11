@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.Components.Title.IntentControlTest do
     end
 
     test "Ignored is hidden from Recommendations and nothing more" do
-      assert Control.description(:ignored) =~ "Hidden from Recommendations"
+      assert Control.description(:ignored) =~ "Hidden from the Feed"
       assert Control.description(:ignored) =~ "Nothing is watching for releases"
     end
 

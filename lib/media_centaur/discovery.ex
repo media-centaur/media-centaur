@@ -160,7 +160,7 @@ defmodule MediaCentaur.Discovery do
   @doc """
   Every recorded title's rung, Ignored included, as `{tmdb_id,
   media_type} => rung` — bulk decoration for search rows and list rows,
-  which show the rung rather than a yes/no, and the Recommendations
+  which show the rung rather than a yes/no, and the Feed
   tab's filter.
   """
   @spec rungs() :: %{ref() => TitleIntent.rung()}

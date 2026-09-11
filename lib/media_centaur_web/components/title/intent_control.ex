@@ -8,8 +8,8 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
 
   Ignore sits left of Off because it is the stronger no: Off is no
   record, Ignore is a record that keeps friends' recommendations of the
-  title off the Recommendations tab. It is the modal's ignore verb — the
-  Recommendations row's `×` is a one-click shortcut to the same rung.
+  title off the Feed. It is the modal's ignore verb — the
+  Feed entry's Ignore is a one-click shortcut to the same rung.
 
   It replaces two controls that expressed one ladder — a watchlist
   Add/Remove *and* a five-value tracking-mode strip — which could
@@ -159,7 +159,7 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   @spec description(TitleIntent.rung() | nil) :: String.t()
   def description(nil), do: "Not on your list."
 
-  def description(:ignored), do: "Hidden from Recommendations. Nothing is watching for releases."
+  def description(:ignored), do: "Hidden from the Feed. Nothing is watching for releases."
 
   def description(:list), do: "On your list. Nothing is watching for releases."
   def description(:follow), do: "Releases show on Coming up. Nothing downloads."

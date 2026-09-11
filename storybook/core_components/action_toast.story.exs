@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.ActionToast do
     [
       %Variation{
         id: :undo,
-        description: "A title ignored from the Recommendations tab, with Undo.",
+        description: "A title ignored from the Feed, with Undo.",
         attributes: %{
           id: "toast-undo",
           message: "Sample Movie ignored",
