@@ -5,24 +5,20 @@ part: Acquisition
 slug: release-tracking-and-upcoming
 order: 17
 ---
-Release tracking watches TMDB for releases you don't have yet — new seasons of shows in your
-library, new films in a series you own, anything you armed from your
-[watchlist](/guide/watchlist-and-tracking) — and the Incoming page shows the dated ones as the
+Release tracking watches TMDB for releases you don't have yet — the next season of a show, a
+film that isn't out — for every title you set to **Follow** or higher on your
+[watchlist](/guide/watchlist-and-tracking). The Incoming page shows the dated ones as the
 **Coming up** shelf. If acquisition is configured, tracking can grab them too.
 
 ## What gets tracked, and why it stops
 
-A title is tracked while there's a reason to track it. There are two, and they behave
-differently:
+A title is tracked because you set it to **Follow** or higher, and for no other reason.
+Adding a series to your library does not start following it; neither does downloading one.
 
-- **You own it.** A series in your library is followed automatically, and a movie you own joins
-  its collection's tracking. This is the app's default, so it goes away when the reason does:
-  delete the series and tracking stops.
-- **You armed it.** Setting a tracking mode is your decision, so it outlives the library. Delete
-  an armed series and it keeps its place on your watchlist and its mode; new seasons still
-  arrive. Take it off the watchlist to stop it.
-
-Turning a title's tracking **Off** is remembered whatever else happens to it.
+- **Deleting a series from your library does not stop tracking it.** The setting is yours, and
+  losing the files says nothing about whether you still want new episodes.
+- **Setting a title to Off stops it, and deletes it.** The title leaves your list and its
+  release calendar goes with it. Nothing except you can turn it back on.
 
 ## The Coming up shelf
 
@@ -32,13 +28,14 @@ dropping on one day collapses into one "all N episodes at once" card. Past the f
 the shelf caps — **Show all N** grows it in place.
 
 Titles TMDB hasn't dated yet don't appear here. They're on your watchlist, or in your library,
-with their mode on the row.
+with their tracking level on the row.
 
 | Status | Meaning |
 |---|---|
 | Landed | You already have it |
 | In pursuit | Released and being grabbed now — click the pill to jump to the live download below |
-| Armed | A future release that *will* auto-grab when it drops — shown only when a grab will genuinely fire |
+| Will grab | A future release that *will* be grabbed when it drops — shown only when a grab will genuinely fire |
+| Searching | A release whose date has passed that you still don't have — indexers are being re-checked for it |
 | Tracked | Dated, but won't auto-grab |
 | In theaters | A film's cinema date — informational only, never grabbed |
 
@@ -48,9 +45,9 @@ Titles you own open in the library instead, and carry the same timeline and cont
 ## Auto-grab
 
 When a tracked release airs and you don't have it, the app records a durable **want**. A planner
-periodically sweeps open wants, batches what's due, and — if the title's mode allows — turns
-them into a [pursuit](/guide/pursuits). Per-title modes are in
-[the watchlist](/guide/watchlist-and-tracking#tracking-modes); a title left on **Default**
+periodically sweeps open wants, batches what's due, and — if the title's setting allows — turns
+them into a [pursuit](/guide/pursuits). Per-title settings are in
+[the watchlist](/guide/watchlist-and-tracking#the-tracking-control); a title left on **Default**
 follows the global setting and changes with it.
 
 Wants persist through TMDB calendar changes and transient outages — a missed sweep is caught by

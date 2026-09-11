@@ -87,8 +87,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Discovery
-  alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher}
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
@@ -262,7 +260,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_board: nil,
          plan_gap_verdict: nil,
          plan_rejected: nil,
-         plan_grab_future: false,
          plan_error: nil,
          plan_last_activity: nil,
          plan_descent: nil,
@@ -462,24 +459,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   @impl TitleDetailHost
   def title_detail_path(socket, query),
     do: incoming_path(socket, Map.new(query, fn {key, value} -> {to_string(key), value} end))
-
-  # The plan modal's current identity, whichever stage holds it —
-  # `{tmdb_id :: integer, media_type, name}` or nil when nothing usable.
-  defp tracked_plan_identity(%{plan_movie: %TitlePreview{} = movie}) when movie.title != nil do
-    case Integer.parse(movie.tmdb_id) do
-      {tmdb_id, ""} -> {tmdb_id, :movie, movie.title}
-      _other -> nil
-    end
-  end
-
-  defp tracked_plan_identity(%{plan_selection: %Targeting.Selection{} = selection}) do
-    case Integer.parse(selection.tmdb_id) do
-      {tmdb_id, ""} -> {tmdb_id, :tv_series, selection.title}
-      _other -> nil
-    end
-  end
-
-  defp tracked_plan_identity(_assigns), do: nil
 
   # Fetches one row past the window so `history_has_older?` is a fact
   # about the archive, not a guess — search/filter narrow in SQL over
@@ -806,7 +785,6 @@ defmodule MediaCentaurWeb.IncomingLive do
           expanded_seasons={@plan_expanded_seasons}
           movie={@plan_movie}
           board={@plan_board}
-          grab_future={@plan_grab_future}
           error={@plan_error}
           last_activity={@plan_last_activity}
           descent={@plan_descent}
@@ -1276,13 +1254,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, assign(socket, plan_chosen: chosen)}
   end
 
-  def handle_event("plan_toggle_grab_future", _params, socket) do
-    {:noreply, assign(socket, plan_grab_future: !socket.assigns.plan_grab_future)}
-  end
-
   def handle_event("plan_create", _params, socket) do
-    grab_future = socket.assigns.plan_grab_future
-
     result =
       case socket.assigns.plan_stage do
         :targeting ->
@@ -1291,11 +1263,11 @@ defmodule MediaCentaurWeb.IncomingLive do
 
           if units == [],
             do: :noop,
-            else: Plans.create_series_plan(selection, units, grab_future: grab_future)
+            else: Plans.create_series_plan(selection, units)
 
         :movie_confirm ->
           movie = socket.assigns.plan_movie
-          if movie.in_library?, do: :noop, else: Plans.create_movie_plan(movie, grab_future: grab_future)
+          if movie.in_library?, do: :noop, else: Plans.create_movie_plan(movie)
       end
 
     case result do
@@ -1411,26 +1383,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       {:noreply, socket}
     else
       _ -> {:noreply, put_flash(socket, :error, "Could not re-run the search.")}
-    end
-  end
-
-  # The gap handoff (ADR-056): unfound units become gap wants on the
-  # title's tracked title, which the handoff raises onto Follow if the
-  # person was not following it yet. Context-layer async — a first raise
-  # fetches TMDB, which doesn't belong inline in an event handler.
-  #
-  # The flash says what the title's *own* rung will do with those wants,
-  # rather than promising a search: below Ask nothing searches, and the
-  # click alone is not a licence to raise a person's rung that far.
-  def handle_event("plan_track_gaps", _params, socket) do
-    case socket.assigns.plan_board do
-      %{plan_id: plan_id, gaps: gaps} = board when gaps != [] ->
-        rung = gap_rung(board)
-        Acquisition.track_plan_gaps_async(plan_id)
-        {:noreply, put_flash(socket, :info, gap_flash(length(gaps), rung))}
-
-      _ ->
-        {:noreply, socket}
     end
   end
 
@@ -1698,33 +1650,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       nil ->
         {:noreply, socket}
-    end
-  end
-
-  # Follow without grabbing, from inside the plan modal — the TV picker's
-  # and the movie confirm's "Watch for release(s)". TV follows all
-  # upcoming episodes (the back catalog is exactly what the open picker
-  # grabs); the async task and its TMDB enrichment are ReleaseTracking's.
-  def handle_event("plan_track_only", _params, socket) do
-    case tracked_plan_identity(socket.assigns) do
-      nil ->
-        {:noreply, socket}
-
-      {tmdb_id, media_type, name} ->
-        scope = if media_type == :tv_series, do: %{start_season: 0, start_episode: 0}, else: %{}
-
-        ReleaseTracking.set_rung_async(
-          Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name}),
-          :follow,
-          scope
-        )
-
-        {:noreply,
-         socket
-         |> put_flash(:info, "Tracking #{name} — releases will appear under Coming up.")
-         # Deliberately the plain path (= Coming up), not incoming_path/1:
-         # the flash points there, and showing the new row beats describing it.
-         |> push_patch(to: "/incoming")}
     end
   end
 
@@ -2595,7 +2520,6 @@ defmodule MediaCentaurWeb.IncomingLive do
         plan_rejected: nil,
         plan_chosen: MapSet.new(),
         plan_expanded_seasons: MapSet.new(),
-        plan_grab_future: false,
         plan_error: nil,
         plan_identity: matching_plan_identity(socket, tmdb_id, tmdb_type),
         plan_artwork: nil
@@ -2908,41 +2832,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       <% end %>
     <% end %>
     """
-  end
-
-  # The rung the handoff will leave the title at: its own if it already
-  # has one that follows, else Follow, which is the least it needs to
-  # hold the wants at all.
-  defp gap_rung(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type}) do
-    with {numeric_id, ""} <- Integer.parse(to_string(tmdb_id)),
-         media_type when not is_nil(media_type) <- gap_media_type(tmdb_type),
-         rung when not is_nil(rung) <- Discovery.rung(numeric_id, media_type),
-         true <- TitleIntent.follows_releases?(rung) do
-      rung
-    else
-      _below_follow -> :follow
-    end
-  end
-
-  defp gap_rung(_board), do: :follow
-
-  defp gap_media_type("tv"), do: :tv_series
-  defp gap_media_type("movie"), do: :movie
-  defp gap_media_type(_other), do: nil
-
-  defp gap_flash(count, rung) do
-    noun = if count == 1, do: "episode", else: "episodes"
-
-    case rung do
-      :follow ->
-        "Tracking the #{count} missing #{noun} — they'll show under Coming up. Set Ask or Grab on the title to have them fetched."
-
-      :ask ->
-        "Tracking the #{count} missing #{noun} — a plan will wait for your approval when one turns up."
-
-      _grabbing ->
-        "Tracking the #{count} missing #{noun} — they'll be fetched when they turn up."
-    end
   end
 
   # Approval submits real grabs (Prowlarr → indexer → download client) —

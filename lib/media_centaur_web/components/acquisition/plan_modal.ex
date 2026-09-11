@@ -94,7 +94,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: nil,
     doc: "%PlanBoard{} | nil — the live coverage board (board stage)."
 
-  attr :grab_future, :boolean, default: false
   attr :error, :string, default: nil, doc: "Targeting-stage failure copy (error stage)."
 
   attr :last_activity, :string,
@@ -198,7 +197,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           selection={@selection}
           chosen={@chosen || MapSet.new()}
           expanded_seasons={@expanded_seasons || MapSet.new()}
-          grab_future={@grab_future}
           on_close={@on_close}
         />
 
@@ -244,7 +242,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :selection, Targeting.Selection, required: true
   attr :chosen, :any, required: true, doc: "MapSet — typed at the public attr."
   attr :expanded_seasons, :any, required: true, doc: "MapSet — typed at the public attr."
-  attr :grab_future, :boolean, required: true
   attr :on_close, :string, required: true
 
   defp targeting_stage(assigns) do
@@ -320,35 +317,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </div>
       </div>
 
-      <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-between gap-4">
-        <label class="flex items-center gap-2 text-sm text-base-content/70 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={@grab_future}
-            class="checkbox checkbox-sm checkbox-primary"
-            phx-click="plan_toggle_grab_future"
-            data-nav-item
-            tabindex="0"
-          />
-          <span>
-            Also grab future episodes
-            <span class="block text-[11px] text-base-content/55">
-              tracks the show at Grab once this download finishes
-            </span>
-          </span>
-        </label>
+      <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-end gap-4">
         <div class="flex items-center gap-2">
-          <.button
-            :if={!@selection.tracked?}
-            variant="neutral"
-            size="sm"
-            phx-click="plan_track_only"
-            title="Adds it to your watchlist and follows its releases — download nothing now"
-            data-nav-item
-            tabindex="0"
-          >
-            Watch for releases
-          </.button>
           <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
             Cancel
           </.button>
@@ -509,19 +479,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       </div>
 
       <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-end gap-2">
-        <%!-- Only a movie that isn't out yet has a release to watch for;
-              for one already out, tracking would promise nothing. --%>
-        <.button
-          :if={!@movie.in_library? && @movie.upcoming?}
-          variant="neutral"
-          size="sm"
-          phx-click="plan_track_only"
-          title="Adds it to your watchlist and watches for its release — download nothing now"
-          data-nav-item
-          tabindex="0"
-        >
-          Watch for release
-        </.button>
         <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
           Cancel
         </.button>
@@ -650,17 +607,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               tabindex="0"
             >
               {if @rejected, do: "Hide", else: "Show them anyway"}
-            </.button>
-            <.button
-              variant="neutral"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click="plan_track_gaps"
-              title="Track the missing units on this title — what happens to them then is the title's own setting"
-              data-nav-item
-              tabindex="0"
-            >
-              Track these
             </.button>
             <.button
               variant="neutral"

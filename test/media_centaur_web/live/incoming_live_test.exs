@@ -467,53 +467,46 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute render(view) =~ "Sample Movie 2026"
     end
 
-    test "the TV picker offers Watch for releases for an untracked series", %{conn: conn} do
+    test "the TV picker downloads and says nothing about the future — no tracking control, and the rung stays put",
+         %{conn: conn} do
       stub_plan_tmdb()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
+      # Release tracking is enabled on the watchlist and nowhere else
+      # (campaign: the watchlist is the single entry point): the picker
+      # carries neither a follow verb nor a grab-on-completion opt-in.
+      refute has_element?(view, "[phx-click='plan_track_only']")
+      refute has_element?(view, "[phx-click='plan_toggle_grab_future']")
+      refute render(view) =~ "Watch for releases"
+      refute render(view) =~ "Also grab future episodes"
+
       view
-      |> element("button[phx-click='plan_track_only']")
+      |> element("[phx-click='plan_preset'][phx-value-preset='everything_aired']")
       |> render_click()
 
-      # The synchronous half: flash + hand back to the page (the shelf is
-      # where the tracked title appears). The tracking task itself is
-      # covered by the ReleaseTracking tests; drive it to completion so
-      # its stubs outlive it (ADR-049).
-      assert_patch(view, "/incoming")
-      assert render(view) =~ "Tracking Sample Show"
-      await_supervised_tasks()
+      view
+      |> element("button[phx-click='plan_create']")
+      |> render_click()
+
+      _ = render(view)
+      assert [_draft] = Plans.list_drafts()
+      assert Discovery.rung(246_810, :tv_series) == nil
+      refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
     end
 
-    test "the movie confirm offers Watch for release for a movie that isn't out yet", %{
-      conn: conn
-    } do
+    test "the movie confirm offers the download and nothing else, out or not", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail(%{"release_date" => "2099-01-01"}))
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
       render_async(view, 2_000)
 
-      view
-      |> element("button[phx-click='plan_track_only']")
-      |> render_click()
-
-      assert_patch(view, "/incoming")
-      assert render(view) =~ "Tracking Sample Movie"
-      await_supervised_tasks()
-    end
-
-    test "the movie confirm drops Watch for release once the movie is out", %{conn: conn} do
-      TmdbStubs.setup_tmdb_client()
-      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
-
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
-      render_async(view, 2_000)
-
-      # A released movie has no future release to watch for — the stage
-      # offers the download, nothing else.
-      refute has_element?(view, "button[phx-click='plan_track_only']")
+      # A movie that isn't out yet used to offer Watch for release here;
+      # watching for it is the ladder's job, on the watchlist.
+      refute has_element?(view, "[phx-click='plan_track_only']")
+      refute render(view) =~ "Watch for release"
       assert has_element?(view, "button[phx-click='plan_create']", "Download")
     end
 
@@ -1061,10 +1054,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~
                "5 searches — checked just now. Still missing: S01E01 · Episode 1, S01E02 · Episode 2."
 
-      # Wired, not disabled — the click path itself (track creation +
-      # gap wants) is covered synchronously in tracking_handoffs_test.
-      assert has_element?(view, "button[phx-click='plan_track_gaps']", "Track these")
-      refute has_element?(view, "button[disabled]", "Track these")
+      # No handoff to release tracking from here: a followed series at
+      # Ask or above already wants every episode it is missing, and the
+      # rung is set on the watchlist, not from a download's gaps.
+      refute has_element?(view, "[phx-click='plan_track_gaps']")
+      refute html =~ "Track these"
       # TV recourse is deferred — no escape hatch on aggregate gaps.
       refute has_element?(view, "button[phx-click='plan_show_rejected']")
     end

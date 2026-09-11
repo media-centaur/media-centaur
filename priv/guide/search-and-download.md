@@ -38,7 +38,7 @@ broader releases (a season pack over twelve singles) and stays within the qualit
 set, never fragmenting an acceptable pack just to upgrade one episode.
 
 > [!TIP]
-> Plans are durable — start one, walk away, finish it later. And when a plan can't cover
-> everything, one button hands the missing episodes to
-> [release tracking](/guide/release-tracking-and-upcoming) so they're grabbed automatically
-> when they appear, instead of you checking back.
+> Plans are durable — start one, walk away, finish it later. A plan never changes a title's
+> tracking: episodes it can't find stay missing until you search again, unless the show is set
+> to **Ask** or higher on your [watchlist](/guide/watchlist-and-tracking), in which case
+> [release tracking](/guide/release-tracking-and-upcoming) already wants them and keeps looking.

@@ -1,5 +1,5 @@
 ---
-status: planning
+status: active
 started: 2026-09-11
 last_updated: 2026-09-11
 ---
@@ -35,8 +35,28 @@ makes the ladder appear only where the watchlist is being looked at.
 
 ## Status
 
-Planning, 2026-09-11. Audit done; nothing built. Two decisions wait on the
-owner (below) before Phase 2 can be planned; Phase 1 needs neither.
+**Phase 1 shipped to main 2026-09-11 (unpushed, unreleased).** The four
+download-side controls and their machinery are gone: `TrackingHandoffs`,
+`Plans.plan_title/2`'s `:track`, `Plan.grab_future`, `Want.provenance`,
+`Wants.open_gap_wants/2`, the `plan_track_only` / `plan_toggle_grab_future`
+/ `plan_track_gaps` events and the `tracked_plan_identity` / `gap_rung` /
+`gap_flash` helpers behind them. Migration `20260911150000` drops both
+columns (down re-adds them at their defaults); it has run on the real
+database. Tests pin each door: the scope menu is *Download all* only and
+leaves the rung at List; the picker and the movie confirm carry no tracking
+control and creating a plan leaves the rung at nil; the gaps banner has no
+*Track these*; satisfying a pursuit born from a plan leaves the rung alone.
+
+The Phase 3 docs that named the removed controls are done in the same
+change: wiki `Watchlist.md`, `Release-Tracking.md`,
+`Searching-and-Downloading.md`, `Social.md`, `Keyboard-and-Gamepad.md`
+(committed in the wiki repo, unpushed), and the in-app guide pages
+`watchlist-and-tracking.md` and `release-tracking-and-upcoming.md`, which
+were rewritten outright — they still described the pre-v1.17 world (a
+*Watch* rung, owned series tracked on their own, Off remembered). What
+remains of Phase 3 is the ladder-form wording, which waits on Phase 2.
+
+Phase 0 and Phase 2 wait on decision A (below). Phase 4 waits on Phase 2.
 
 ### Audit (2026-09-11)
 
@@ -72,8 +92,13 @@ The wiki names 1–4 as the exceptions under "Nothing sets this but you"
   "grab future" (3) is the Grab rung. (Owner's direction, this session.)
 * `2026-09-11` — The removals follow the no-compatibility rule: `grab_future`
   leaves `acquisition_plans`, `provenance` leaves `release_tracking_wants`,
-  `TrackingHandoffs` is deleted. Paired, idempotent migrations per the
-  safe-migration-every-release rule.
+  `TrackingHandoffs` is deleted. One migration drops both columns in the
+  same release as the code, the way v1.17's did; `down` restores the shape.
+* `2026-09-11` — No Credo check pinning `set_rung` call sites. After Phase 1
+  the callers above List are the two `set_rung` event handlers and showcase
+  seeding, and each door has a test that says the rung did not move; a
+  check that whitelists modules would be brittle and would not catch a new
+  handler added to a whitelisted module.
 
 ## Open decisions
 
@@ -106,44 +131,25 @@ is that title's watchlist view.
 
 ## Next steps
 
+Phase 1 is done (see Status). Remaining, in order:
+
 1. **Phase 0 — records.** UIDR-039 amending UIDR-036: one ladder, shown in
    two forms, and a download never moves a rung. Glossary: *bookmark* and
    *ladder* as above; surface names only if decision A picks *by surface*.
    Regenerate `decisions/README.md`.
-2. **Phase 1 — the four download-side controls go.** Test-first
-   (`automated-testing`), one commit per control or one for all four:
-   * (1) menu entry, the `track` param and `download_flash/2`'s second
-     clause, `Plans.plan_title/2`'s `:track` option and `do_plan_title/4`'s
-     `track?`. Tests: `plans_test.exs`, `incoming_live_test.exs`,
-     `discovery_live_test.exs`.
-   * (2) both buttons, `plan_track_only`, `tracked_plan_identity/1`.
-   * (3) the checkbox, `plan_grab_future` assign and its toggle, the
-     `grab_future:` option on `create_series_plan` / `create_movie_plan`,
-     the `Plan.grab_future` field and a paired migration dropping the column,
-     `TrackingHandoffs.maybe_grab_future/1` and its call in `Satisfy`.
-   * (4) the button, `plan_track_gaps`, `TrackingHandoffs.track_plan_gaps/1`
-     and `_async/1`, the `Acquisition` facade functions, `Wants.open_gap_wants/2`,
-     `Want.provenance` and its column (paired migration), the `:gap` wording
-     in the `Wants` moduledoc. `tracking_handoffs_test.exs` goes with the
-     module.
-   * After this phase, the only callers of `set_rung` above List are the
-     title view's and the Library view's `set_rung` event handlers, plus
-     showcase seeding. Consider a Credo check (`credo_checks/`) pinning that,
-     since it is a house rule that fits a static check.
+2. ~~**Phase 1 — the four download-side controls go.**~~ Done 2026-09-11.
 3. **Phase 2 — two forms of the control.** Per decision A. `IntentControl`
    gains the bookmark form (List / Off, plus Ignore where the host is the
    Feed); the title view and the Library view choose the form. Story
    variations for both forms (MC0009). Real-browser check and `mc-nav-trace`
    for the control's nav items, since the form change alters the zone's
    item count.
-4. **Phase 3 — docs.** Wiki: `Watchlist.md` ("Saving a title", the
-   "Nothing sets this but you" list, the download-menu table), `Release-Tracking.md`
-   ("Starting and stopping", the "Watch for releases" paragraph),
-   `Searching-and-Downloading.md` (the picker's checkbox and buttons, the
-   board's Track these). Guide: `priv/guide/watchlist-and-tracking.md`,
-   `release-tracking-and-upcoming.md`, `search-and-download.md`. Glossary.
-   CHANGELOG entry at ship names the removed controls and the dropped
-   columns.
+4. **Phase 3 — docs, the rest.** The removed-control mentions are done
+   (Status). Left: the bookmark/ladder wording per decision A in wiki
+   `Watchlist.md` ("Saving a title", "Tracking") and the guide's "Adding a
+   title" / "The Tracking control"; Glossary (*bookmark*, *ladder*).
+   CHANGELOG entry at ship names the four removed controls and the two
+   dropped columns under *Migration safety*.
 5. **Phase 4 — owner check.** Desktop and TV, mouse and gamepad: search a
    title, list it, enable tracking from the watchlist, download from the
    title view and confirm the rung did not move. This absorbs the owner

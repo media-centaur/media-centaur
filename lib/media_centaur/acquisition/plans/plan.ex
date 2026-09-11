@@ -68,7 +68,6 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     # whole season" from "I want one of its 24 episodes". Empty for
     # movies and legacy plans (gating stays off — see `Planner`).
     field :span_sizes, :map, default: %{}
-    field :grab_future, :boolean, default: false
     field :pursuit_id, Ecto.UUID
     field :error, :string
     # "manual" = media-search door; "tracking" = release-tracking drop
@@ -103,7 +102,6 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
       :original_title,
       :criteria,
       :span_sizes,
-      :grab_future,
       :origin,
       :tracking_item_id,
       :approval_policy

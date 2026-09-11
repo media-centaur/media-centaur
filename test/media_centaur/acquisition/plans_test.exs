@@ -842,7 +842,6 @@ defmodule MediaCentaur.Acquisition.PlansTest do
   describe "plan_title/2" do
     import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
-    alias MediaCentaur.Discovery
     alias MediaCentaur.ReleaseTracking
     alias MediaCentaur.TMDB.Title
 
@@ -917,28 +916,6 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       # "Download all" downloads what has aired. It says nothing about
       # what is still to come, so it starts following nothing.
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
-    end
-
-    test "`track: true` is the separate act that follows the series, and lists it" do
-      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
-
-      assert :ok = Plans.plan_title(show_title(), scope: :everything, track: true)
-      await_supervised_tasks()
-
-      assert [_plan] = Plans.list_drafts()
-      assert %ReleaseTracking.Item{} = ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
-      assert Discovery.listed?(246_810, :tv_series)
-    end
-
-    test "`track: true` on an already-followed series does not follow it twice" do
-      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
-      create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"})
-
-      assert :ok = Plans.plan_title(show_title(), scope: :everything, track: true)
-      await_supervised_tasks()
-
-      assert [_plan] = Plans.list_drafts()
-      assert length(Repo.all(ReleaseTracking.Item)) == 1
     end
 
     test "a TMDB failure leaves no plan" do
