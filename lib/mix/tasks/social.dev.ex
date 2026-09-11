@@ -16,7 +16,7 @@ defmodule Mix.Tasks.Social.Dev do
       mix social.dev npub
       mix social.dev recommend movie 603 --name "Sample Movie" --note "try it"
       mix social.dev watched tv_series 1399 --name "Sample Show" --season 2 --episode 5
-      mix social.dev tracking movie 603 --name "Sample Movie"
+      mix social.dev listing movie 603 --name "Sample Movie"
       mix social.dev delete movie 603
       mix social.dev delete watched tv_series 1399
       mix social.dev feed
@@ -70,10 +70,10 @@ defmodule Mix.Tasks.Social.Dev do
           --season N --episode N [--episode-name TEXT]
         Title options as for recommend.
 
-    mix social.dev tracking <movie|tv_series> <tmdb_id> --name NAME [options]
-        Publish a tracking activity as the friend. Title options as for recommend.
+    mix social.dev listing <movie|tv_series> <tmdb_id> --name NAME [options]
+        Publish a listing ("wants to watch") as the friend. Title options as for recommend.
 
-    mix social.dev delete [recommendation|watched|tracking] <movie|tv_series> <tmdb_id>
+    mix social.dev delete [recommendation|watched|listing] <movie|tv_series> <tmdb_id>
         Withdraw one of the friend's activities (a kind 5 deletion); the kind
         defaults to recommendation.
           --relay URL           default #{@default_relay}
@@ -108,7 +108,7 @@ defmodule Mix.Tasks.Social.Dev do
 
   defp dispatch(["recommend", type, tmdb_id], opts), do: publish(:recommendation, type, tmdb_id, opts)
   defp dispatch(["watched", type, tmdb_id], opts), do: publish(:watched, type, tmdb_id, opts)
-  defp dispatch(["tracking", type, tmdb_id], opts), do: publish(:tracking, type, tmdb_id, opts)
+  defp dispatch(["listing", type, tmdb_id], opts), do: publish(:listing, type, tmdb_id, opts)
   defp dispatch(["delete", type, tmdb_id], opts), do: delete(:recommendation, type, tmdb_id, opts)
   defp dispatch(["delete", kind, type, tmdb_id], opts), do: delete(parse_kind(kind), type, tmdb_id, opts)
   defp dispatch(["feed"], opts), do: feed(opts)
@@ -165,10 +165,10 @@ defmodule Mix.Tasks.Social.Dev do
 
   defp parse_kind("recommendation"), do: :recommendation
   defp parse_kind("watched"), do: :watched
-  defp parse_kind("tracking"), do: :tracking
+  defp parse_kind("listing"), do: :listing
 
   defp parse_kind(other),
-    do: fail("Kind must be recommendation, watched or tracking, got #{inspect(other)}.")
+    do: fail("Kind must be recommendation, watched or listing, got #{inspect(other)}.")
 
   defp parse_media_type("movie"), do: :movie
   defp parse_media_type("tv_series"), do: :tv_series

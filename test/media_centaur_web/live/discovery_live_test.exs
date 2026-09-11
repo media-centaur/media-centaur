@@ -224,7 +224,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       show = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
       episode = %Episode{season_number: 2, episode_number: 5, name: "The Fifth"}
       {:ok, watched} = Activities.ingest(signed(:watched, show, episode: episode))
-      {:ok, tracked} = Activities.ingest(signed(:tracking, show, []))
+      {:ok, listed} = Activities.ingest(signed(:listing, show, []))
 
       movie = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie 777"})
 
@@ -232,7 +232,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         Activities.ingest(signed(:recommendation, movie, note: "Watch it.", sentiment: :love))
 
       # The watched act is the newest, so it is the presence line.
-      backdate(tracked, :acted_at, ~U[2026-09-01 10:00:00Z])
+      backdate(listed, :acted_at, ~U[2026-09-01 10:00:00Z])
       backdate(recommended, :acted_at, ~U[2026-09-01 09:00:00Z])
 
       {:ok, view, _html} = live(conn, "/discovery/friends")
@@ -247,7 +247,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
              )
 
       assert has_element?(view, friend_card() <> "-watched-#{watched.id}")
-      assert has_element?(view, friend_card() <> "-#{tracked.id}", "Sample Show")
+      assert has_element?(view, friend_card() <> "-#{listed.id}", "Sample Show")
       assert has_element?(view, friend_card() <> "-#{recommended.id}", "Sample Movie 777")
       assert has_element?(view, friend_card() <> "-#{recommended.id} .text-love")
 
@@ -269,7 +269,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "the You card shows what you broadcast and deletes it by kind", %{conn: conn} do
       title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
-      {:ok, mine} = Activities.tracking(title)
+      {:ok, mine} = Activities.listing(title)
 
       {:ok, rec} =
         Activities.recommend(
@@ -291,8 +291,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       render_hook(view, "close_title", %{})
 
       view |> element("#person-you-#{mine.id}") |> render_click()
-      view |> element("#title-activity-delete", "Delete tracking activity") |> render_click()
-      assert render(view) =~ "Tracking activity withdrawn"
+      view |> element("#title-activity-delete", "Delete listing") |> render_click()
+      assert render(view) =~ "Listing withdrawn"
       refute has_element?(view, "#person-you-#{mine.id}")
       assert Enum.map(Activities.list_sent(), & &1.kind) == [:recommendation]
 
@@ -624,7 +624,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
-    test "own activity, watched and tracking never make a row here", %{conn: conn} do
+    test "own activity, watched and listing never make a row here", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       show = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
       episode = %Episode{season_number: 2, episode_number: 5, name: "The Fifth"}
@@ -637,9 +637,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
           )
         )
 
-      {:ok, _tracked} =
+      {:ok, _listed} =
         Activities.ingest(
-          Event.sign(Translation.to_event(:tracking, show, [], @friend_pubkey), @friend_secret)
+          Event.sign(Translation.to_event(:listing, show, [], @friend_pubkey), @friend_secret)
         )
 
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
@@ -1122,16 +1122,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
-    test "your own tracking broadcast is not narrated back on the watchlist", %{conn: conn} do
+    test "your own listing broadcast is not narrated back on the watchlist", %{conn: conn} do
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
       {:ok, _} = Discovery.put_rung(title, :follow)
-      {:ok, _} = Activities.tracking(title)
+      {:ok, _} = Activities.listing(title)
 
       {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
       refute has_element?(view, "#watchlist-item-movie-777 .pennant")
       refute has_element?(view, "#title-detail-modal .pennant")
       refute has_element?(view, "#title-activity-delete")
-      refute html =~ "started tracking"
+      refute html =~ "wants to watch"
       await_supervised_tasks()
     end
 

@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
       added_on: added_at && DateTime.to_date(added_at),
       presence: presence(List.first(sorted), now),
       watched: Map.get(shelves, :watched, []),
-      tracking: Map.get(shelves, :tracking, []),
+      listed: Map.get(shelves, :listing, []),
       recommended: Map.get(shelves, :recommendation, [])
     }
   end

@@ -5,10 +5,10 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   copy, and the two-click import that replaces the identity), the relays
   it publishes to and reads from (live connection state, add by URL,
   remove), and the sharing toggles that decide which of the user's acts
-  become activities for friends (watched, tracking; recommending always
+  become activities for friends (watched, listed; recommending always
   is). `SettingsLive` delegates to `render/1` and hosts the handlers:
   `reveal_nsec`, `hide_nsec`, `import_nsec`, `add_relay`, `remove_relay`,
-  `toggle_share_watched`, `toggle_share_tracking`. The friend roster
+  `toggle_share_watched`, `toggle_share_watchlist`. The friend roster
   stays on the Discovery page's Friends tab.
 
   The import textarea renders `import_draft`, so the arming click keeps
@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
     doc: "`Social.Connections.status/0` — `%{url => %{state: atom, last_error: String.t() | nil}}`"
 
   attr :share_watched?, :boolean, required: true, doc: "the `share_watched` preference"
-  attr :share_tracking?, :boolean, required: true, doc: "the `share_tracking` preference"
+  attr :share_watchlist?, :boolean, required: true, doc: "the `share_watchlist` preference"
 
   def render(assigns) do
     ~H"""
@@ -224,10 +224,10 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               event="toggle_share_watched"
             />
             <.settings_row
-              label="Share what you track"
-              description="Friends see a release when you start tracking it."
-              checked={@share_tracking?}
-              event="toggle_share_tracking"
+              label="Share your watchlist"
+              description="A title you list is shared with your friends; one you drop is withdrawn."
+              checked={@share_watchlist?}
+              event="toggle_share_watchlist"
             />
           </div>
         </div>

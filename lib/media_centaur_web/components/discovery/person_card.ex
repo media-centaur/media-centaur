@@ -3,8 +3,8 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   One person on the Friends tab (UIDR-031): the name as the card's
   title, the presence line on the right, a *Recently watched* strip of
   up to #{5} posters with an "all N" tile that grows the strip in
-  place, then Tracking and Recommended as text rows of up to #{3} names
-  and "N more", Recommended carrying the sentiment glyph. A friend's
+  place, then Wants to watch and Recommended as text rows of up to #{3}
+  names and "N more", Recommended carrying the sentiment glyph. A friend's
   footer holds the elided key, the added date and Remove friend; the
   You card has a primary-tinted border, a subtitle, and no footer. A
   person with nothing shared collapses to header and footer.
@@ -35,10 +35,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
     assigns =
       assign(assigns,
         watched: shown(assigns.person.watched, @strip_cap, assigns.expanded?),
-        tracking: shown(assigns.person.tracking, @row_cap, assigns.expanded?),
+        listed: shown(assigns.person.listed, @row_cap, assigns.expanded?),
         recommended: shown(assigns.person.recommended, @row_cap, assigns.expanded?),
         watched_hidden: hidden(assigns.person.watched, @strip_cap, assigns.expanded?),
-        tracking_hidden: hidden(assigns.person.tracking, @row_cap, assigns.expanded?),
+        listed_hidden: hidden(assigns.person.listed, @row_cap, assigns.expanded?),
         recommended_hidden: hidden(assigns.person.recommended, @row_cap, assigns.expanded?)
       )
 
@@ -134,12 +134,12 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
       </div>
 
       <.shelf_row
-        :if={@person.tracking != []}
-        label="Tracking"
+        :if={@person.listed != []}
+        label="Wants to watch"
         person={@person}
-        entries={@tracking}
-        hidden={@tracking_hidden}
-        verb="is tracking"
+        entries={@listed}
+        hidden={@listed_hidden}
+        verb="wants to watch"
       />
       <.shelf_row
         :if={@person.recommended != []}
@@ -238,7 +238,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
 
   defp own_subtitle(%Person{presence: nil}),
     do:
-      "Friends see here what you recommend from a title's page, and what you watch and track once sharing is on under Settings → Social."
+      "Friends see here what you recommend from a title's page, and what you watch and list once sharing is on under Settings → Social."
 
   defp own_subtitle(_person), do: "How friends see you"
 end

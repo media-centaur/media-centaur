@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   }
 
   alias MediaCentaur.Maintenance
-  alias MediaCentaur.Settings.Preferences.{ShareTracking, ShareWatched, UIScale}
+  alias MediaCentaur.Settings.Preferences.{ShareWatched, ShareWatchlist, UIScale}
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Watcher
@@ -141,7 +141,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(bindings: %{})
      |> assign(glyph_style: nil)
      |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
-     |> assign(relays: [], relay_status: %{}, share_watched?: false, share_tracking?: false)
+     |> assign(relays: [], relay_status: %{}, share_watched?: false, share_watchlist?: false)
      |> assign(
        sections: @sections,
        exclude_dir_input: "",
@@ -268,7 +268,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     socket
     |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false, import_draft: "")
     |> assign(relay_status: Connections.status())
-    |> assign(share_watched?: ShareWatched.enabled?(), share_tracking?: ShareTracking.enabled?())
+    |> assign(share_watched?: ShareWatched.enabled?(), share_watchlist?: ShareWatchlist.enabled?())
     |> load_relays()
   end
 
@@ -856,10 +856,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, share_watched?: enabled)}
   end
 
-  def handle_event("toggle_share_tracking", _params, socket) do
-    enabled = !socket.assigns.share_tracking?
-    ShareTracking.set(enabled)
-    {:noreply, assign(socket, share_tracking?: enabled)}
+  def handle_event("toggle_share_watchlist", _params, socket) do
+    enabled = !socket.assigns.share_watchlist?
+    ShareWatchlist.set(enabled)
+    {:noreply, assign(socket, share_watchlist?: enabled)}
   end
 
   def handle_event("save_tmdb", params, socket) do
@@ -1778,7 +1778,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 relays={@relays}
                 relay_status={@relay_status}
                 share_watched?={@share_watched?}
-                share_tracking?={@share_tracking?}
+                share_watchlist?={@share_watchlist?}
                 language_policy={@language_policy}
                 language_draft={@language_draft}
                 language_options={@language_options}
@@ -1958,7 +1958,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       relays={@relays}
       status={@relay_status}
       share_watched?={@share_watched?}
-      share_tracking?={@share_tracking?}
+      share_watchlist?={@share_watchlist?}
     />
     """
   end

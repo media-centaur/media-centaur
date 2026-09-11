@@ -1,9 +1,9 @@
 defmodule MediaCentaur.Activities do
   use Boundary,
     deps: [
+      MediaCentaur.Discovery,
       MediaCentaur.Library,
       MediaCentaur.Nostr,
-      MediaCentaur.ReleaseTracking,
       MediaCentaur.Settings.Preferences,
       MediaCentaur.Social,
       MediaCentaur.TMDB,
@@ -25,7 +25,7 @@ defmodule MediaCentaur.Activities do
   Bounded context for activities: what this install told its friends and
   what its friends told it. An activity is one signed statement by one
   signer about one title, of one of three kinds — a recommendation, a
-  title watched, a release tracked (`Activity`).
+  title watched, a title listed (`Activity`).
 
   Records are translated from signed events (`Translation`), kept one
   per author + kind + title (a newer event replaces the row), and synced
@@ -40,9 +40,10 @@ defmodule MediaCentaur.Activities do
   deletions.
 
   Recommending is an explicit act of sharing and always publishes.
-  Watching and tracking are published by `Activities.Publisher` only
-  while their sharing toggle is on; `watched/2` and `tracking/1` are the
-  primitives it calls and do not consult the toggle themselves.
+  Watching and listing are published by `Activities.Publisher` only
+  while their sharing toggle is on; `watched/2`, `listing/1` and
+  `withdraw/3` are the primitives it calls and do not consult the toggle
+  themselves.
 
   Broadcasts typed events on `activities:updates` (subscribe through
   `subscribe/0`).
@@ -96,9 +97,9 @@ defmodule MediaCentaur.Activities do
   @spec watched(Title.t(), Episode.t() | nil) :: {:ok, Activity.t()} | {:error, term()}
   def watched(%Title{} = title, episode), do: publish_own(:watched, title, episode: episode)
 
-  @doc "Builds, signs, stores and publishes a tracking activity from this identity: `title` is now tracked."
-  @spec tracking(Title.t()) :: {:ok, Activity.t()} | {:error, term()}
-  def tracking(%Title{} = title), do: publish_own(:tracking, title, [])
+  @doc "Builds, signs, stores and publishes a listing from this identity: `title` is on the watchlist (\"wants to watch\")."
+  @spec listing(Title.t()) :: {:ok, Activity.t()} | {:error, term()}
+  def listing(%Title{} = title), do: publish_own(:listing, title, [])
 
   defp publish_own(kind, %Title{} = title, payload) do
     secret = Identity.ensure()
@@ -133,6 +134,29 @@ defmodule MediaCentaur.Activities do
       nil -> {:error, :not_found}
       %Activity{deleted_at: %DateTime{}} = activity -> {:ok, activity}
       %Activity{} = activity -> delete_own(activity)
+    end
+  end
+
+  @doc """
+  Withdraws this identity's own live activity of `kind` at an address —
+  `delete/1` by address rather than by row id, for a caller that knows
+  what was said about a title but not which row said it (the publisher
+  withdrawing a listing when the title drops below List). `:ok` when
+  there is nothing live to withdraw: no row, a tombstone, or no identity
+  yet.
+  """
+  @spec withdraw(Activity.kind(), integer(), Title.media_type()) ::
+          :ok | {:ok, Activity.t()} | {:error, term()}
+  def withdraw(kind, tmdb_id, media_type) do
+    case Identity.pubkey() do
+      nil ->
+        :ok
+
+      me ->
+        case existing(%{kind: kind, author_pubkey: me, tmdb_id: tmdb_id, media_type: media_type}) do
+          %Activity{deleted_at: nil} = activity -> delete_own(activity)
+          _none_or_tombstone -> :ok
+        end
     end
   end
 
@@ -208,11 +232,11 @@ defmodule MediaCentaur.Activities do
   @doc """
   The live friend activity on the titles in `refs`, as `%{ref =>
   [activity_row]}` — every kind a current friend has broadcast for the
-  title (recommendation, watched, tracking) plus this identity's own
+  title (recommendation, watched, listing) plus this identity's own
   recommendations, in `list_activities/0`'s row shape, newest first, in
   one query plus one roster read. Refs with no activity are absent, and
   a former friend's is left out: a pennant names a friend. Own watched
-  and tracking acts are left out too — a pennant tells you what friends
+  and listing acts are left out too — a pennant tells you what friends
   did, not what you did. What every pennant mast is fed from.
   """
   @spec friend_activity_for([{integer(), Title.media_type()}]) ::

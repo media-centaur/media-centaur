@@ -1,8 +1,8 @@
 defmodule MediaCentaur.Activities.Activity do
   @moduledoc """
   One activity: a signed addressable event — a recommendation (kind
-  32160), a title watched (32161) or a release tracked (32162) —
-  translated into a row.
+  32160), a title watched (32161) or a title listed (32163, "wants to
+  watch") — translated into a row.
 
   Identity is `(author_pubkey, kind, tmdb_id, media_type)` — the event's
   kind and address — so a newer event of the same kind for the same title
@@ -16,7 +16,7 @@ defmodule MediaCentaur.Activities.Activity do
   Per-kind payload: `sentiment` (`:like` or `:love`, the strength the
   recommendation pennant shows) and `note` on a recommendation; `episode`
   on a watched TV series (the episode finished, `Episode`), nil for a
-  movie. A tracking activity carries only the title. `sentiment` is
+  movie. A listing carries only the title. `sentiment` is
   `:like` on every other kind's row — the column default, never read.
 
   Two times per record (see `Translation`): `acted_at` and `deleted_at`
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Activities.Activity do
 
   alias MediaCentaur.TMDB.Title
 
-  @kinds [:recommendation, :watched, :tracking]
+  @kinds [:recommendation, :watched, :listing]
   @sentiments [:like, :love]
 
   defmodule Episode do
@@ -93,7 +93,7 @@ defmodule MediaCentaur.Activities.Activity do
     timestamps()
   end
 
-  @type kind :: :recommendation | :watched | :tracking
+  @type kind :: :recommendation | :watched | :listing
   @type sentiment :: :like | :love
 
   @type t :: %__MODULE__{

@@ -122,7 +122,7 @@ defmodule MediaCentaur.ActivitiesTest do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, theirs} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000, nil, :love))
       {:ok, mine} = Activities.recommend(title(), :like, "mine")
-      {:ok, _own_tracking} = Activities.tracking(title())
+      {:ok, _own_listing} = Activities.listing(title())
       {:ok, other} = Activities.ingest(friend_event(title(604), "other", 1_700_000_000))
       {:ok, withdrawn} = Activities.recommend(title(605), :like, nil)
       {:ok, _tombstone} = Activities.delete(withdrawn.id)
@@ -370,6 +370,35 @@ defmodule MediaCentaur.ActivitiesTest do
   # keeps what it holds (a deletion beating a recommendation). An own event
   # stamped no later than the row it supersedes would be discarded there
   # while replacing the row here, and republished on every connect.
+  describe "withdraw/3" do
+    test "withdraws the own live row of a kind at an address: tombstone, deletion, broadcast" do
+      Activities.subscribe()
+      {:ok, listing} = Activities.listing(title())
+      {:ok, _rec} = Activities.recommend(title(), :like, nil)
+
+      assert {:ok, %Activity{deleted_at: %DateTime{}} = tombstone} =
+               Activities.withdraw(:listing, 603, :movie)
+
+      assert tombstone.id == listing.id
+      assert {:ok, deletion} = Event.from_map(tombstone.deletion_event)
+      assert Event.tag_value(deletion, "a") == "32163:#{Identity.pubkey()}:tmdb:movie:603"
+      assert_receive {:activity_deleted, %Deleted{kind: :listing}}, 500
+
+      # The recommendation at the same address is another kind: untouched.
+      assert [%Activity{kind: :recommendation}] = Activities.list_sent()
+      await_supervised_tasks()
+    end
+
+    test "nothing to withdraw is :ok — no row, a withdrawn row, or no identity yet" do
+      assert :ok = Activities.withdraw(:listing, 603, :movie)
+
+      {:ok, _listing} = Activities.listing(title())
+      {:ok, _gone} = Activities.withdraw(:listing, 603, :movie)
+      assert :ok = Activities.withdraw(:listing, 603, :movie)
+      await_supervised_tasks()
+    end
+  end
+
   describe "own events are stamped after what the row holds" do
     test "a re-recommendation is stamped after the recommendation it replaces" do
       {:ok, rec} = Activities.recommend(title(), :like, "first")
@@ -499,7 +528,7 @@ defmodule MediaCentaur.ActivitiesTest do
     end
   end
 
-  describe "watched/2 and tracking/1" do
+  describe "watched/2 and listing/1" do
     defp show, do: Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
     defp episode(number), do: %Episode{season_number: 1, episode_number: number, name: nil}
 
@@ -519,11 +548,19 @@ defmodule MediaCentaur.ActivitiesTest do
 
     test "a watched movie has no episode, and kinds are separate rows for one title" do
       assert {:ok, %Activity{kind: :watched, episode: nil}} = Activities.watched(title(), nil)
-      assert {:ok, %Activity{kind: :tracking}} = Activities.tracking(title())
+      assert {:ok, %Activity{kind: :listing}} = Activities.listing(title())
       assert {:ok, %Activity{kind: :recommendation}} = Activities.recommend(title(), :like, nil)
 
       kinds = Activities.list_sent() |> Enum.map(& &1.kind) |> Enum.sort()
-      assert kinds == [:recommendation, :tracking, :watched]
+      assert kinds == [:listing, :recommendation, :watched]
+    end
+
+    test "a listing is stamped after the listing it replaces and rides kind 32163" do
+      {:ok, first} = Activities.listing(title())
+      {:ok, second} = Activities.listing(title())
+      assert second.id == first.id
+      assert second.raw_event["kind"] == 32_163
+      assert Activity.event_created_at(second) > Activity.event_created_at(first)
     end
 
     test "delete withdraws a watched row under its own kind" do

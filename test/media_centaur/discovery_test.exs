@@ -56,12 +56,34 @@ defmodule MediaCentaur.DiscoveryTest do
       await_supervised_tasks()
     end
 
-    test "a rung change broadcasts a typed event" do
+    test "a rung change broadcasts the transition: both rungs and the title" do
       Discovery.subscribe()
       {:ok, _intent} = Discovery.put_rung(@title, :list)
 
       assert_receive {:title_intent_changed,
-                      %Discovery.Events.RungChanged{tmdb_id: 777, media_type: :movie, rung: :list}}
+                      %Discovery.Events.RungChanged{
+                        tmdb_id: 777,
+                        media_type: :movie,
+                        previous_rung: nil,
+                        rung: :list,
+                        title: %Title{tmdb_id: 777}
+                      }}
+
+      {:ok, _intent} = Discovery.put_rung(@title, :follow)
+
+      assert_receive {:title_intent_changed,
+                      %Discovery.Events.RungChanged{previous_rung: :list, rung: :follow}}
+
+      await_supervised_tasks()
+    end
+
+    test "leaving Ignored for the list is a transition from :ignored" do
+      {:ok, _intent} = Discovery.put_rung(@title, :ignored)
+      Discovery.subscribe()
+      {:ok, _intent} = Discovery.put_rung(@title, :list)
+
+      assert_receive {:title_intent_changed,
+                      %Discovery.Events.RungChanged{previous_rung: :ignored, rung: :list}}
 
       await_supervised_tasks()
     end
@@ -72,7 +94,13 @@ defmodule MediaCentaur.DiscoveryTest do
       assert :ok = Discovery.forget(777, :movie)
 
       assert_receive {:title_intent_changed,
-                      %Discovery.Events.RungChanged{tmdb_id: 777, media_type: :movie, rung: nil}}
+                      %Discovery.Events.RungChanged{
+                        tmdb_id: 777,
+                        media_type: :movie,
+                        previous_rung: :grab,
+                        rung: nil,
+                        title: %Title{tmdb_id: 777}
+                      }}
 
       assert :ok = Discovery.forget(777, :movie)
       refute Discovery.listed?(777, :movie)

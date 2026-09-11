@@ -60,10 +60,10 @@ defmodule MediaCentaur.Discovery do
           # first listing: the artwork was not promoted when it was dismissed.
           {:ok, intent} when existing.rung == :ignored ->
             ensure_artwork_async(intent)
-            announce({:ok, intent})
+            announce({:ok, intent}, existing.rung)
 
           result ->
-            announce(result)
+            announce(result, existing.rung)
         end
 
       nil ->
@@ -73,7 +73,7 @@ defmodule MediaCentaur.Discovery do
         |> case do
           {:ok, intent} ->
             ensure_artwork_async(intent)
-            announce({:ok, intent})
+            announce({:ok, intent}, nil)
 
           {:error, %Ecto.Changeset{errors: errors} = changeset} ->
             # A concurrent write won the race exactly when a unique
@@ -100,6 +100,8 @@ defmodule MediaCentaur.Discovery do
         Events.broadcast(%Events.RungChanged{
           tmdb_id: tmdb_id,
           media_type: media_type,
+          title: intent.title,
+          previous_rung: intent.rung,
           rung: nil
         })
 
@@ -166,17 +168,19 @@ defmodule MediaCentaur.Discovery do
     Map.new(Repo.all(from(i in TitleIntent, select: {{i.tmdb_id, i.media_type}, i.rung})))
   end
 
-  defp announce({:ok, %TitleIntent{} = intent} = result) do
+  defp announce({:ok, %TitleIntent{} = intent} = result, previous_rung) do
     Events.broadcast(%Events.RungChanged{
       tmdb_id: intent.tmdb_id,
       media_type: intent.media_type,
+      title: intent.title,
+      previous_rung: previous_rung,
       rung: intent.rung
     })
 
     result
   end
 
-  defp announce(result), do: result
+  defp announce(result, _previous_rung), do: result
 
   defp unique_violation?(errors) do
     Enum.any?(errors, fn {_field, {_msg, meta}} -> meta[:constraint] == :unique end)

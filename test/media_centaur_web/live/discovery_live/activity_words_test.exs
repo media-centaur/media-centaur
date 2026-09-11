@@ -11,13 +11,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsTest do
     assert ActivityWords.verb(:watched, %Episode{season_number: 2, episode_number: 5}) ==
              "watched S02E05"
 
-    assert ActivityWords.verb(:tracking, nil) == "started tracking"
+    assert ActivityWords.verb(:listing, nil) == "wants to watch"
   end
 
   test "the delete verb's noun" do
     assert ActivityWords.noun(:recommendation) == "recommendation"
     assert ActivityWords.noun(:watched) == "watched activity"
-    assert ActivityWords.noun(:tracking) == "tracking activity"
+    assert ActivityWords.noun(:listing) == "listing"
   end
 end
 
@@ -34,6 +34,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsPresenceTest do
     assert ActivityWords.presence(:watched, %Episode{season_number: 2, episode_number: 5}, "Sample Show") ==
              "watched S02E05 of Sample Show"
 
-    assert ActivityWords.presence(:tracking, nil, "Sample Show") == "started tracking Sample Show"
+    assert ActivityWords.presence(:listing, nil, "Sample Show") == "wants to watch Sample Show"
   end
 end

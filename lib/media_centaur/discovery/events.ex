@@ -7,22 +7,33 @@ defmodule MediaCentaur.Discovery.Events do
   title intent: its rung moves. Added, removed and re-graded were three
   names for that before the ladder replaced them; `rung: nil` is Off,
   which is the removal.
+
+  The message describes the **transition** — `previous_rung` and `rung`,
+  either of them `nil` for Off — plus the title snapshot, so every
+  subscriber decides its own threshold from the two ends (the publisher
+  asks whether List was crossed; nothing pre-reads a rung in order to
+  fire a second event later).
   """
 
   alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
   defmodule RungChanged do
     @moduledoc """
-    A title's rung moved. `rung: nil` means it is Off — the record is
-    already gone. Subscribers refresh whatever they derived from it.
+    A title's rung moved from `previous_rung` to `rung`; `nil` on either
+    side is Off (no record). `title` is the snapshot the record holds —
+    on a move to Off, the one it held. Subscribers refresh whatever they
+    derived from it.
     """
-    @enforce_keys [:tmdb_id, :media_type, :rung]
-    defstruct [:tmdb_id, :media_type, :rung]
+    @enforce_keys [:tmdb_id, :media_type, :title, :previous_rung, :rung]
+    defstruct [:tmdb_id, :media_type, :title, :previous_rung, :rung]
 
     @type t :: %__MODULE__{
             tmdb_id: integer(),
             media_type: :movie | :tv_series,
+            title: Title.t(),
+            previous_rung: TitleIntent.rung() | nil,
             rung: TitleIntent.rung() | nil
           }
   end

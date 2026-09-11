@@ -13,8 +13,8 @@ defmodule MediaCentaur.Settings.Preferences do
       DiscoveryVisibility,
       LetterboxdLinks,
       LibraryCardInfo,
-      ShareTracking,
       ShareWatched,
+      ShareWatchlist,
       SpoilerFree,
       UIScale
     ]

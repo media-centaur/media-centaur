@@ -167,7 +167,7 @@ defmodule MediaCentaur.Activities.Sync do
 
   defp refused(:recommendation), do: "a recommendation"
   defp refused(:watched), do: "a watched activity"
-  defp refused(:tracking), do: "a tracking activity"
+  defp refused(:listing), do: "a listing"
   defp refused(:deletion), do: "a deletion"
   defp refused(nil), do: "an event"
 

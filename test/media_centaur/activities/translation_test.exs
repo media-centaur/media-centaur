@@ -205,8 +205,8 @@ defmodule MediaCentaur.Activities.TranslationTest do
       assert {:error, :bad_content} = Translation.from_event(junk)
     end
 
-    test "watched and tracking events carry no sentiment" do
-      event = Translation.to_event(:tracking, title(), [], @pubkey)
+    test "watched and listing events carry no sentiment" do
+      event = Translation.to_event(:listing, title(), [], @pubkey)
       refute Map.has_key?(Jason.decode!(event.content), "sentiment")
 
       assert {:ok, attrs} = Translation.from_event(Event.sign(event, @secret))
@@ -335,15 +335,23 @@ defmodule MediaCentaur.Activities.TranslationTest do
     assert Translation.max_note_length() == 500
   end
 
-  describe "watched and tracking kinds" do
+  describe "watched and listing kinds" do
     defp show, do: Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
     defp episode, do: %Episode{season_number: 2, episode_number: 5, name: "The Fifth"}
 
     test "every activity kind has its own number in the addressable block" do
-      assert Enum.sort(Translation.kinds()) == [32_160, 32_161, 32_162]
+      assert Enum.sort(Translation.kinds()) == [32_160, 32_161, 32_163]
       assert Translation.kind(:recommendation) == 32_160
       assert Translation.kind(:watched) == 32_161
-      assert Translation.kind(:tracking) == 32_162
+      assert Translation.kind(:listing) == 32_163
+    end
+
+    test "the retired tracking kind (32162) is dropped as the wrong kind" do
+      # Numbers are never reused (ADR-067 §3): a reader that still meets
+      # one on a relay drops it rather than reading it as anything.
+      event = Translation.to_event(:listing, show(), [], @pubkey)
+      retired = Event.sign(%{event | kind: 32_162}, @secret)
+      assert {:error, :wrong_kind} = Translation.from_event(retired)
     end
 
     test "a watched TV series names the episode and round-trips it" do
@@ -392,18 +400,26 @@ defmodule MediaCentaur.Activities.TranslationTest do
       assert {:error, :bad_content} = Translation.from_event(with_episode.(show(), "S01E01"))
     end
 
-    test "a tracking activity carries the title and its time only" do
-      event = Translation.to_event(:tracking, show(), [], @pubkey, acted_at: 1_600_000_000)
-      assert event.kind == 32_162
+    test "a listing activity carries the title and its time only" do
+      event = Translation.to_event(:listing, show(), [], @pubkey, acted_at: 1_600_000_000)
+      assert event.kind == 32_163
 
-      assert %{"tracked_at" => 1_600_000_000, "title" => %{"tmdb_id" => 1399}} =
+      assert %{"listed_at" => 1_600_000_000, "title" => %{"tmdb_id" => 1399}} =
                content = Jason.decode!(event.content)
 
       refute Map.has_key?(content, "note")
       refute Map.has_key?(content, "episode")
 
-      assert {:ok, %{kind: :tracking, note: nil, episode: nil, acted_at: ~U[2020-09-13 12:26:40Z]}} =
+      assert {:ok, %{kind: :listing, note: nil, episode: nil, acted_at: ~U[2020-09-13 12:26:40Z]}} =
                Translation.from_event(Event.sign(event, @secret))
+    end
+
+    test "a listing's deletion addresses kind 32163" do
+      deletion = Translation.to_deletion(:listing, @pubkey, :movie, 603, nil)
+      assert [["a", "32163:" <> _rest] | _tags] = deletion.tags
+
+      assert {:ok, %{kind: :listing, tmdb_id: 603, media_type: :movie}} =
+               Translation.from_deletion(Event.sign(deletion, @secret))
     end
 
     test "a deletion names the kind it withdraws" do

@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   @moduledoc """
   One person on the Friends tab (UIDR-031): name as the title, the
   presence line, the Recently watched strip with its "all N" tile, the
-  Tracking and Recommended rows, and a friend's footer. The You card
+  Wants to watch and Recommended rows, and a friend's footer. The You card
   differs in border, subtitle and the missing footer. Expansion is the
   host's state, shown here as an attribute.
   """
@@ -59,11 +59,11 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         added_on: ~D[2026-08-30],
         presence: %{text: "watched S02E05 of Sample Show", ago: "2h ago", at: ~U[2026-09-01 12:00:00Z]},
         watched: watched_shelf(),
-        tracking: [
-          entry(21, "Movie G", kind: :tracking),
-          entry(22, "Show H", kind: :tracking, media_type: :tv_series),
-          entry(23, "Movie I", kind: :tracking),
-          entry(24, "Movie J", kind: :tracking)
+        listed: [
+          entry(21, "Movie G", kind: :listing),
+          entry(22, "Show H", kind: :listing, media_type: :tv_series),
+          entry(23, "Movie I", kind: :listing),
+          entry(24, "Movie J", kind: :listing)
         ],
         recommended: [
           entry(31, "Movie K", kind: :recommendation, sentiment: :love),
@@ -92,7 +92,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         id: :friend_quiet,
         description: "A friend who has shared nothing: header and footer only.",
         attributes: %{
-          person: friend(%{presence: nil, watched: [], tracking: [], recommended: []})
+          person: friend(%{presence: nil, watched: [], listed: [], recommended: []})
         }
       },
       %Variation{
@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
               pubkey: nil,
               short_npub: nil,
               added_on: nil,
-              tracking: [entry(21, "Movie G", kind: :tracking)],
+              listed: [entry(21, "Movie G", kind: :listing)],
               recommended: [entry(31, "Movie K", kind: :recommendation, sentiment: :love)]
             })
         }
@@ -126,7 +126,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
               added_on: nil,
               presence: nil,
               watched: [],
-              tracking: [],
+              listed: [],
               recommended: []
             })
         }

@@ -9,7 +9,10 @@ defmodule MediaCentaur.Activities.Translation do
   |---|---|---|
   | 32160 | Recommendation | `sentiment` (`like` or `love`; absent means `like`), `note` (string or null), `recommended_at` |
   | 32161 | Watched | `watched_at`, `episode` (TV only: `season_number`, `episode_number`, `name`) |
-  | 32162 | Tracking | `tracked_at` |
+  | 32163 | Listing | `listed_at` |
+
+  Kind 32162 (Tracking) is retired (ADR-067): never reused, never read —
+  an event of that kind is `:wrong_kind` like any other stranger.
 
   An optional `p` (recipient) tag is defined by the spec for directed
   recommendations and is never set here. Kind 5 (NIP-09) withdraws an
@@ -24,7 +27,7 @@ defmodule MediaCentaur.Activities.Translation do
   Two times ride on every message. The **wire time** is the event's
   `created_at`: it decides which of two copies wins, here and on the
   relay, and nothing else. The **domain time** is when the person acted
-  — `recommended_at` / `watched_at` / `tracked_at` in the content, a
+  — `recommended_at` / `watched_at` / `listed_at` in the content, a
   `deleted_at` tag on a deletion — and is what the app orders and shows
   by (`acted_at` on the row). They coincide in practice, but readers
   never derive one from the other: an event missing its domain time gets
@@ -40,7 +43,7 @@ defmodule MediaCentaur.Activities.Translation do
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.TMDB.Title
 
-  @kinds %{recommendation: 32_160, watched: 32_161, tracking: 32_162}
+  @kinds %{recommendation: 32_160, watched: 32_161, listing: 32_163}
   @kind_names Map.new(@kinds, fn {name, number} -> {number, name} end)
   @kind_numbers @kinds |> Map.values() |> Enum.sort()
   @deletion_kind 5
@@ -85,7 +88,7 @@ defmodule MediaCentaur.Activities.Translation do
   @typedoc """
   What an activity says beyond its title: a recommendation's `sentiment`
   (`:like` when absent) and `note`, a watched TV series' `episode`. A
-  tracking activity and a watched movie carry nothing.
+  listing and a watched movie carry nothing.
   """
   @type payload :: [
           sentiment: Activity.sentiment(),
@@ -128,7 +131,7 @@ defmodule MediaCentaur.Activities.Translation do
   defp kind_content(:watched, payload, acted_at),
     do: %{"watched_at" => acted_at, "episode" => episode_map(Keyword.get(payload, :episode))}
 
-  defp kind_content(:tracking, _payload, acted_at), do: %{"tracked_at" => acted_at}
+  defp kind_content(:listing, _payload, acted_at), do: %{"listed_at" => acted_at}
 
   defp episode_map(nil), do: nil
 
@@ -296,7 +299,7 @@ defmodule MediaCentaur.Activities.Translation do
 
   defp acted_at_field(:recommendation), do: "recommended_at"
   defp acted_at_field(:watched), do: "watched_at"
-  defp acted_at_field(:tracking), do: "tracked_at"
+  defp acted_at_field(:listing), do: "listed_at"
 
   # The kind's own fields, checked and shaped. Anything the kind does not
   # carry is nil on the row.
@@ -313,7 +316,7 @@ defmodule MediaCentaur.Activities.Translation do
     end
   end
 
-  defp kind_payload(:tracking, _content, _media_type), do: {:ok, %{note: nil, episode: nil}}
+  defp kind_payload(:listing, _content, _media_type), do: {:ok, %{note: nil, episode: nil}}
 
   # Absent means like: a recommendation made before the field existed is
   # a plain one. Anything but a known word is malformed.
