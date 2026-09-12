@@ -43,7 +43,16 @@ Environment=MEDIA_CENTAUR_CONFIG_OVERRIDE=%h/.config/media-centaur/media-centaur
 # cleanly and must not leave the daemon dead. An explicit systemctl stop still stops.
 Restart=always
 RestartSec=5
-KillMode=mixed
+# process, not mixed: `mixed` follows the BEAM's SIGTERM with a SIGKILL to
+# everything left in the unit's cgroup, which kills the external processes the
+# app deliberately launches to outlive it — mpv (so playback survives an
+# update; recovery reattaches over IPC on the next boot) and every app started
+# from /apps (Steam, ...). Measured on this box (Elixir 1.20.4/OTP 29, real
+# `systemctl stop` path): under `mixed` the child is SIGKILLed; under `process`
+# it survives. `process` signals only the main BEAM. This matches the shipped
+# prod unit (defaults/media-centaur.service), where mpv already survives a
+# restart. See campaigns/external-process-lifetime.md.
+KillMode=process
 TimeoutStopSec=30
 LimitNOFILE=65536
 

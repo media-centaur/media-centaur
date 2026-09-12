@@ -10,6 +10,34 @@ defmodule MediaCentaur.Playback.MpvSession do
   The session observes position/duration/pause/eof via IPC, persists watch
   progress, and broadcasts state changes via PubSub.
 
+  ## Process lifetime — mpv's lifetime is the viewer's, not this app's
+
+  mpv must outlive a Media Centaur restart, so an update never costs the
+  viewer what they were watching. On the next boot `SessionRecovery` scans the
+  socket directory, reconnects to the still-running mpv over its entity-scoped
+  IPC socket, and resumes observing (`ADR-023`). The viewer keeps driving
+  playback from their remote throughout; the backend is only the tracker.
+
+  **What actually kills mpv on restart — and what does not (measured, not
+  inferred):** the one lethal mechanism is the OS supervisor's cgroup SIGKILL.
+  systemd's `KillMode=mixed` follows the BEAM's SIGTERM with a SIGKILL to
+  everything left in the unit's cgroup, which reaches mpv even though it is a
+  detached descendant. The unit must therefore run `KillMode=process`, which
+  signals only the BEAM — the shipped prod unit already does, and the dev unit
+  was corrected to match (`defaults/media-centaur.service`,
+  `defaults/media-centaur-dev.service`).
+
+  The `Port` this session opens over mpv is **not** a lifetime binding. On this
+  machine (Elixir 1.20.4/OTP 29), a direct port child survives a restart
+  whenever the cgroup does not kill it — measured across the real
+  `systemctl stop` path and a bare `:erlang.halt()` alike. The port stays only
+  because it carries mpv's `{:exit_status, n}` and merged stderr for
+  `MpvExitClassifier`; it grants mpv no extra life and takes none away. The
+  original ADR-023 premise — that a restart "orphans the still-running mpv
+  process, the user's playback continues" — was an unmeasured inference and was
+  false for six months (dev ran `KillMode=mixed`); see the ADR's 2026-09-12
+  amendment and `campaigns/external-process-lifetime.md`.
+
   ## Episode auto-advance (ADR-062)
 
   A TV episode session appends its successor to the mpv playlist

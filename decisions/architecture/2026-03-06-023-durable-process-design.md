@@ -60,3 +60,41 @@ Every stateful process must satisfy one of two properties:
 * Good, because it builds on ADR-022's `handle_continue/2` pattern rather than introducing a competing mechanism
 * Bad, because startup reconciliation adds latency to process init (mitigated by running in `handle_continue/2`, which is non-blocking)
 * Bad, because `terminate/2` flush requires `trap_exit` to be set, adding a small amount of boilerplate to affected processes
+
+## Amendment — 2026-09-12: the MpvSession premise was false as written
+
+One factual claim in this ADR was an unmeasured inference and was wrong for six
+months. The Context bullet and the classification table describe MpvSession as:
+
+> On restart, it generates a new socket path and orphans the still-running mpv
+> process — the user's playback continues but the backend can no longer control
+> it.
+
+**mpv did not keep playing.** On this machine the dev unit shipped
+`KillMode=mixed`, so every Media Centaur restart SIGKILLed the whole cgroup —
+mpv included — and the recovery path this ADR prescribed
+(`MediaCentaur.Playback.SessionRecovery`, stable socket + reconnect) therefore
+**never once fired** (0 `recovery: found live session` lines in 30 days). The
+premise "the user's playback continues" was assumed, not tested.
+
+What was measured 2026-09-12 (Elixir 1.20.4/OTP 29, real `systemctl --user
+stop` path, deterministic across three runs):
+
+| Spawn technique | `KillMode=mixed` | `KillMode=process` |
+|---|---|---|
+| Direct BEAM port (mpv's pattern) | KILLED | SURVIVED |
+| `setsid --fork` grandchild | KILLED | SURVIVED |
+
+* The BEAM `Port` is **not** a lifetime binding: a direct port child survives a
+  restart whenever the cgroup does not kill it.
+* The sole lethal mechanism is the cgroup SIGKILL from `KillMode=mixed`.
+* Fix: the dev unit now ships `KillMode=process`, matching the prod unit
+  (`defaults/media-centaur.service`), where mpv already survived.
+
+**What still stands.** The ADR's core principle is sound and unchanged: every
+stateful process must be *resumable* or *idempotent on restart*. MpvSession's
+resumable design (stable entity-scoped socket + IPC reconnect) is correct — it
+simply never got the chance to run because the OS supervisor was killing the
+external process out from under it. Only the factual row about mpv's fate on
+restart is corrected here. See `campaigns/external-process-lifetime.md` and the
+`MediaCentaur.Playback.MpvSession` moduledoc.
