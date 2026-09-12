@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, PlanEvents, Plans, TitleStates}
+  alias MediaCentaur.Acquisition.{AutoGrabSettings, PlanEvents, TitleStates}
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Activities
@@ -71,6 +71,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Library.Posters
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.TmdbArtwork
@@ -236,12 +237,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     end
   end
 
-  # The modal's plain Download: no scope, so the planner's default.
+  # The row's plain Download performs the default planning mode on the
+  # default scope (season 1 for a series); the full control is in the
+  # modal. The host owns the two paths (TitleDetailHost.start_download/4).
   def handle_event("feed_download", %{"activity" => id}, socket) do
     case feed_entry(socket, id) do
       %FeedEntry{download_slot: :download} = entry ->
-        :ok = Plans.plan_title(entry.title, approval_policy: "automatic")
-        {:noreply, put_flash(socket, :info, TitleDetailHost.download_flash(entry.title.name))}
+        scope = if entry.title.media_type == :tv_series, do: :first_season
+        {:noreply, TitleDetailHost.start_download(socket, entry.title, PlanningMode.value(), scope)}
 
       _state_or_unknown ->
         {:noreply, socket}
