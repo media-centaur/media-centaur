@@ -140,10 +140,13 @@ defmodule MediaCentaur.Acquisition.Plans do
           :ok
 
         {:error, :nothing_to_plan} ->
-          Log.warning(:acquisition, "nothing to plan — #{title.name}")
+          Log.warning(:acquisition, "nothing to plan — #{title.name} tmdb:#{title.tmdb_id}")
 
         {:error, reason} ->
-          Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
+          Log.warning(
+            :acquisition,
+            "could not plan — #{title.name} tmdb:#{title.tmdb_id} — #{inspect(reason)}"
+          )
       end
     end)
 

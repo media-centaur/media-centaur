@@ -39,9 +39,10 @@ defmodule MediaCentaur.Acquisition.Plans.Doors do
 
   `identity_from` is the interesting column. A door holding a TMDB
   payload reads identity straight off it; a door working from stored
-  state reads it from there. The one door with neither — Discovery's
-  one-click movie — fetches its own, inside the background task it
-  already runs in.
+  state reads it from there. The one door with neither —
+  `Plans.create_title_plan/2` — fetches its own, in whichever process
+  runs it: the LiveView's `start_async` when the person selects
+  releases, `plan_title/2`'s supervised task when the app auto-selects.
   """
   @spec registry() :: [door()]
   def registry do

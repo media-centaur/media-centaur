@@ -10,8 +10,8 @@ defmodule MediaCentaur.Acquisition.Plans.DownloadScope do
   * `:everything` — the picker's default (`Targeting.default_units/1`):
     every pickable episode, specials included.
 
-  Pure; the caller (`Plans.plan_title/2`) owns the TMDB fetch, the plan
-  creation and, for `:everything`, the tracking hand-off.
+  Pure; the caller (`Plans.create_title_plan/2`) owns the TMDB fetch and
+  the plan creation. Neither scope follows the series (ADR-066).
   """
 
   alias MediaCentaur.Acquisition.Targeting
