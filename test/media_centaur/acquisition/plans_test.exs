@@ -927,4 +927,66 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert Plans.list_drafts() == []
     end
   end
+
+  describe "create_title_plan/2" do
+    alias MediaCentaur.Acquisition.Plans.Plan
+    alias MediaCentaur.TMDB.Title
+
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+      :ok
+    end
+
+    test "a movie returns its plan, stamped with the policy" do
+      assert {:ok, %Plan{} = plan} = Plans.create_title_plan(movie_title(), approval_policy: "automatic")
+
+      assert plan.tmdb_type == "movie"
+      assert plan.tmdb_id == "246813"
+      assert plan.approval_policy == "automatic"
+      assert plan.origin == "manual"
+      assert [%Plan{id: id}] = Plans.list_drafts()
+      assert id == plan.id
+    end
+
+    test "the policy defaults to review" do
+      assert {:ok, %Plan{approval_policy: "review"}} = Plans.create_title_plan(movie_title())
+    end
+
+    test "a series with :first_season plans season 1's pickable episodes" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      assert {:ok, %Plan{} = plan} =
+               Plans.create_title_plan(show_title(), scope: :first_season, approval_policy: "review")
+
+      assert plan.tmdb_type == "tv"
+      assert plan.approval_policy == "review"
+
+      assert Enum.map(Plans.units_for(plan.id), &{&1.season_number, &1.episode_number}) ==
+               [{1, 1}, {1, 2}]
+    end
+
+    test "a series with :everything plans every pickable episode" do
+      MediaCentaur.TmdbStubs.stub_series_universe_for_targeting()
+
+      assert {:ok, %Plan{} = plan} = Plans.create_title_plan(show_title(), scope: :everything)
+      assert length(Plans.units_for(plan.id)) == 3
+    end
+
+    test "a series with nothing pickable is :nothing_to_plan and leaves no plan" do
+      MediaCentaur.TmdbStubs.stub_unaired_series_for_targeting()
+
+      unaired =
+        Title.new!(%{tmdb_id: 246_811, media_type: :tv_series, name: "Unaired Show", year: "2199"})
+
+      assert {:error, :nothing_to_plan} = Plans.create_title_plan(unaired, scope: :first_season)
+      assert Plans.list_drafts() == []
+    end
+
+    test "a TMDB failure returns the error and leaves no plan" do
+      Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
+
+      assert {:error, _reason} = Plans.create_title_plan(show_title(), scope: :first_season)
+      assert Plans.list_drafts() == []
+    end
+  end
 end

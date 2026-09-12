@@ -166,6 +166,31 @@ defmodule MediaCentaur.TmdbStubs do
     ])
   end
 
+  @doc """
+  A series whose every episode is still to come — nothing pickable, so a
+  download scope over it is empty. TMDB id 246_811, one season.
+  """
+  def stub_unaired_series_for_targeting do
+    stub_routes([
+      {"/tv/246811/season/1",
+       season_detail(%{
+         "season_number" => 1,
+         "episodes" => [
+           %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2199-01-01"},
+           %{"episode_number" => 2, "name" => "Second", "air_date" => "2199-01-08"}
+         ]
+       })},
+      {"/tv/246811",
+       tv_detail(%{
+         "id" => 246_811,
+         "name" => "Unaired Show",
+         "original_name" => "Unaired Show",
+         "origin_country" => ["US"],
+         "seasons" => [%{"season_number" => 1, "episode_count" => 2}]
+       })}
+    ])
+  end
+
   def stub_get_collection(collection_id, data) do
     stub_endpoint("/collection/#{collection_id}", data)
   end
