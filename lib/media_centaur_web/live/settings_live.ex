@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   }
 
   alias MediaCentaur.Maintenance
-  alias MediaCentaur.Settings.Preferences.{ShareWatched, ShareWatchlist, UIScale}
+  alias MediaCentaur.Settings.Preferences.{PlanningMode, ShareWatched, ShareWatchlist, UIScale}
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Watcher
@@ -322,6 +322,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       prowlarr_test: load_test_result(:prowlarr),
       download_client_test: load_test_result(:download_client),
       usenet_client_test: load_test_result(:usenet_download_client),
+      planning_mode: PlanningMode.value(),
       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
       service_state: Autostart.state(),
       bindings: Controls.get(),
@@ -1120,6 +1121,13 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
+  def handle_event("set_planning_mode", %{"planning_mode" => mode}, socket)
+      when mode in ~w(manually_select_release auto_select_best_release) do
+    planning_mode = PlanningMode.parse(%{"mode" => mode})
+    PlanningMode.set(planning_mode)
+    {:noreply, assign(socket, planning_mode: planning_mode)}
+  end
+
   # --- Controls events ---
 
   def handle_event("controls:listen", %{"id" => id, "kind" => kind}, socket) do
@@ -1819,6 +1827,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 usenet_client_test={@usenet_client_test}
                 usenet_client_testing={@usenet_client_testing}
                 detected_usenet_client={@detected_usenet_client}
+                planning_mode={@planning_mode}
                 app_version={@app_version}
                 build_info={@build_info}
                 update_status={@update_status}
@@ -2008,6 +2017,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       usenet_client_test={@usenet_client_test}
       usenet_client_testing={@usenet_client_testing}
       auto_grab={@auto_grab}
+      planning_mode={@planning_mode}
     />
     """
   end
