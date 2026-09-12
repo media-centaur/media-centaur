@@ -2,7 +2,7 @@ defmodule MediaCentaur.Settings.Preferences.DiscoveryVisibility do
   @moduledoc """
   Typed accessor for the `show_discovery` Settings entry.
 
-  Gates the sidebar's Discovery entry and the Recommend control on both
+  Gates the sidebar's Discovery entry and the Review control on both
   title surfaces — the library detail panel and the title detail modal.
   Default-**off**: Discovery is a work-in-progress feature expected to
   change shape, so it stays out of everyone's sidebar until a user opts

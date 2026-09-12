@@ -52,7 +52,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 - **Playback** — launches mpv on the local machine, tracks your progress, resumes where you left off, and auto-advances to the next episode.
 - **Release tracking** — monitors TMDB daily for upcoming movies and new TV seasons tied to the shows in your library.
 - **Acquisition** *(optional)* — search and queue downloads via Prowlarr. Entirely optional: Media Centaur is a full library manager without it.
-- **Discovery** — a watchlist for titles you don't have yet, and recommendations from friends: each install has a Nostr identity, friends are followed keys, and a friend's recommendation is one click from your acquisition path. No server we run.
+- **Discovery** — a watchlist for titles you don't have yet, and your friends' reviews and watchlists: each install has a Nostr identity, friends are followed keys, and a friend's review is one click from your acquisition path. No server we run.
 - **Apps** — a launcher for Steam games and other local applications from the same couch UI.
 - **Couch-first UI** — keyboard *and* gamepad navigation, large artwork, dark-first. Built to drive a TV from across the room.
 - **Real-time** — every change (new file, metadata fetched, playback started) appears instantly via Phoenix LiveView. No polling, no refresh.

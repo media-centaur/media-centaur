@@ -37,11 +37,11 @@ defmodule MediaCentaur.Activities.SyncTest do
   defp friend_event(id),
     do:
       Event.sign(
-        Translation.to_event(:recommendation, title(id), [note: "from a friend"], @friend_pubkey),
+        Translation.to_event(:review, title(id), [note: "from a friend"], @friend_pubkey),
         @friend_secret
       )
 
-  test "on connect, a friend's stored recommendation lands in the feed" do
+  test "on connect, a friend's stored review lands in the feed" do
     relay = FakeRelay.start(events: [friend_event(1)])
     {:ok, _row} = Social.add_relay(relay.url)
 
@@ -50,17 +50,17 @@ defmodule MediaCentaur.Activities.SyncTest do
     await_supervised_tasks()
   end
 
-  test "own recommendations the relay lacks are published after its EOSE" do
-    {:ok, _rec} = Activities.recommend(title(7), :like, "mine")
+  test "own reviews the relay lacks are published after its EOSE" do
+    {:ok, _rec} = Activities.review(title(7), :like, "mine")
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
 
-    assert_receive {:relay_in, ["EVENT", %{"kind" => 32_160, "tags" => [["d", "tmdb:movie:7"]]}]}, 5_000
+    assert_receive {:relay_in, ["EVENT", %{"kind" => 32_164, "tags" => [["d", "tmdb:movie:7"]]}]}, 5_000
     await_supervised_tasks()
   end
 
-  test "own recommendations the relay already has are not republished" do
-    {:ok, _rec} = Activities.recommend(title(7), :like, "mine")
+  test "own reviews the relay already has are not republished" do
+    {:ok, _rec} = Activities.review(title(7), :like, "mine")
     [own] = Activities.own_events()
     relay = FakeRelay.start(events: [own])
     {:ok, _row} = Social.add_relay(relay.url)
@@ -78,7 +78,7 @@ defmodule MediaCentaur.Activities.SyncTest do
                     [
                       "REQ",
                       "feed",
-                      %{"authors" => authors, "kinds" => [32_160, 32_161, 32_163, 5], "limit" => 500}
+                      %{"authors" => authors, "kinds" => [32_161, 32_163, 32_164, 5], "limit" => 500}
                     ]},
                    5_000
 
@@ -107,7 +107,7 @@ defmodule MediaCentaur.Activities.SyncTest do
 
     event =
       Event.sign(
-        Translation.to_event(:recommendation, title(3), [note: nil], Keys.pubkey(stranger)),
+        Translation.to_event(:review, title(3), [note: nil], Keys.pubkey(stranger)),
         stranger
       )
 
@@ -124,7 +124,7 @@ defmodule MediaCentaur.Activities.SyncTest do
     do:
       Event.sign(
         %{
-          Translation.to_event(:recommendation, title(id), [note: "old"], @friend_pubkey)
+          Translation.to_event(:review, title(id), [note: "old"], @friend_pubkey)
           | created_at: created_at
         },
         @friend_secret
@@ -188,19 +188,19 @@ defmodule MediaCentaur.Activities.SyncTest do
   end
 
   test "own deletions the relay lacks are published after its EOSE" do
-    {:ok, rec} = Activities.recommend(title(7), :like, "mine")
+    {:ok, rec} = Activities.review(title(7), :like, "mine")
     {:ok, _gone} = Activities.delete(rec.id)
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:relay_in, ["EVENT", %{"kind" => 5, "tags" => [["a", coordinate] | _rest]}]}, 5_000
-    assert coordinate == "32160:#{Identity.pubkey()}:tmdb:movie:7"
-    refute_receive {:relay_in, ["EVENT", %{"kind" => 32_160}]}, 300
+    assert coordinate == "32164:#{Identity.pubkey()}:tmdb:movie:7"
+    refute_receive {:relay_in, ["EVENT", %{"kind" => 32_164}]}, 300
     await_supervised_tasks()
   end
 
   test "a relay refusing an own event is logged by what was refused" do
-    {:ok, rec} = Activities.recommend(title(7), :like, "mine")
+    {:ok, rec} = Activities.review(title(7), :like, "mine")
     {:ok, _gone} = Activities.delete(rec.id)
     relay = FakeRelay.start(accept: false, reason: "blocked: kind 5 is not stored by this relay")
     {:ok, _row} = Social.add_relay(relay.url)
@@ -211,8 +211,8 @@ defmodule MediaCentaur.Activities.SyncTest do
     await_supervised_tasks()
   end
 
-  test "a relay refusing an own recommendation is logged as such" do
-    {:ok, _rec} = Activities.recommend(title(7), :like, "mine")
+  test "a relay refusing an own review is logged as such" do
+    {:ok, _rec} = Activities.review(title(7), :like, "mine")
 
     relay =
       FakeRelay.start(
@@ -222,9 +222,9 @@ defmodule MediaCentaur.Activities.SyncTest do
 
     {:ok, _row} = Social.add_relay(relay.url)
 
-    assert_receive {:relay_in, ["EVENT", %{"kind" => 32_160}]}, 5_000
+    assert_receive {:relay_in, ["EVENT", %{"kind" => 32_164}]}, 5_000
 
-    assert_logged(~r/rejected a recommendation: restricted: the event author/)
+    assert_logged(~r/rejected a review: restricted: the event author/)
     await_supervised_tasks()
   end
 
@@ -245,13 +245,13 @@ defmodule MediaCentaur.Activities.SyncTest do
     )
   end
 
-  test "a friend's deletion arriving on the feed hides their recommendation" do
+  test "a friend's deletion arriving on the feed hides their review" do
     now = System.os_time(:second)
     {:ok, _rec} = Activities.ingest(friend_event_at(4, now - 10))
 
     deletion =
       Event.sign(
-        Translation.to_deletion(:recommendation, @friend_pubkey, :movie, 4, "x"),
+        Translation.to_deletion(:review, @friend_pubkey, :movie, 4, "x"),
         @friend_secret
       )
 

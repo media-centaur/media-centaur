@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   copy, and the two-click import that replaces the identity), the relays
   it publishes to and reads from (live connection state, add by URL,
   remove), and the sharing toggles that decide which of the user's acts
-  become activities for friends (watched, listed; recommending always
+  become activities for friends (watched, listed; reviewing always
   is). `SettingsLive` delegates to `render/1` and hosts the handlers:
   `reveal_nsec`, `hide_nsec`, `import_nsec`, `add_relay`, `remove_relay`,
   `toggle_share_watched`, `toggle_share_watchlist`. The friend roster
@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
         <div class="space-y-4">
           <.settings_card_header title="Your identity" />
           <p class="text-xs text-base-content/55 max-w-[60ch]">
-            Friends add you by this key. Your recommendations are visible to anyone who can read the relays you configure.
+            Friends add you by this key. Your reviews are visible to anyone who can read the relays you configure.
           </p>
 
           <div class="flex items-center gap-3">
@@ -213,7 +213,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
         <div id="social-sharing" class="pt-5 border-t border-base-content/10 space-y-4">
           <.settings_card_header title="Sharing" />
           <p class="text-xs text-base-content/55 max-w-[60ch]">
-            Recommending always shares. Each of these shares from the moment it is switched on; what was sent before stays until you delete it from the Feed.
+            Reviewing always shares. Each of these shares from the moment it is switched on; what was sent before stays until you delete it from the Feed.
           </p>
 
           <div class="space-y-1">

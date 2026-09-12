@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityPosters do
   poster path** — `Activities.Publisher` leaves artwork to the install
   reading the row, because the entity a watch came from has no TMDB
   poster path to snapshot. So the poster is the host's to resolve
-  (`RecommendFlow`'s moduledoc says the same for the recommend modal),
+  (`ReviewFlow`'s moduledoc says the same for the review modal),
   down the artwork ladder, best first:
 
     * the **library** entity's own poster, when this install owns the

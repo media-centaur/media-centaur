@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Activities.TmdbArtworkHolds do
   @moduledoc """
-  Every recommendation holds its TMDB artwork cache entry — sent or
+  Every activity holds its TMDB artwork cache entry — sent or
   received, the row is a standing interest in the title, so its artwork
   never ages out while the row exists.
   """

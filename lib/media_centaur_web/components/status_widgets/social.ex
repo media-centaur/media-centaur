@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
   @moduledoc """
   Social subsystem Activity widget: one diagnostic row per configured
-  relay, then roster size and recommendation traffic.
+  relay, then roster size and activity traffic.
 
   The rows are the *diagnostic* view of the relay list — state, how long,
   why, when it retries, when it was last heard (`RelayStatusRow`).
@@ -28,12 +28,12 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Social do
       "one `Social.Connections.entry/0` per configured relay, keyed by URL (the host merges the relay rows with `Social.Connections.status/0`); empty when no relay is configured"
 
   attr :friend_count, :integer, required: true, doc: "how many keys are on the roster"
-  attr :sent_count, :integer, required: true, doc: "recommendations this install has sent"
-  attr :received_count, :integer, required: true, doc: "recommendations received from friends"
+  attr :sent_count, :integer, required: true, doc: "activities this install has sent, every kind"
+  attr :received_count, :integer, required: true, doc: "activities received from friends, every kind"
 
   attr :last_received_at, :any,
     default: nil,
-    doc: "`DateTime.t()` of the newest received recommendation, or nil when none"
+    doc: "`DateTime.t()` of the newest received activity, or nil when none"
 
   def social_widget(assigns) do
     now = DateTime.utc_now()

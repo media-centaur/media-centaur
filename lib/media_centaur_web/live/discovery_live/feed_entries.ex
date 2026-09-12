@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   @moduledoc """
   The Feed's entries from the page's enriched activity rows (ADR-030,
-  UIDR-038): friends' recommendations and listings, one entry per
+  UIDR-038): friends' reviews and listings, one entry per
   action, newest first, flat. Nothing groups and nothing re-sorts — two
-  friends on one title are two entries, and one friend recommending then
+  friends on one title are two entries, and one friend reviewing then
   listing a title is two adjacent entries. Watched actions, own actions,
   a former friend's actions and any title at the Ignored rung make no
   entry; the activities themselves stay for the Friends tab and the
@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   alias MediaCentaurWeb.Components.Title.Logic
 
   @page_size 50
-  @kinds [:recommendation, :listing]
+  @kinds [:review, :listing]
 
   @doc "Entries per window — the initial load and each Show older step."
   @spec page_size() :: pos_integer()
@@ -61,8 +61,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
       poster_url: row.poster_url,
       nickname: row.nickname,
       kind: activity.kind,
-      sentiment: if(activity.kind == :recommendation, do: activity.sentiment),
-      note: if(activity.kind == :recommendation, do: activity.note),
+      sentiment: if(activity.kind == :review, do: activity.sentiment),
+      text: if(activity.kind == :review, do: activity.text),
       acted_at: activity.acted_at,
       ago: Format.relative_ago(activity.acted_at, now: now, sub_minute: :just_now),
       rung: row.rung,

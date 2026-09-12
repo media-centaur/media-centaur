@@ -52,12 +52,12 @@ social:
     @echo '                               and prints the friend'"'"'s npub'
     @echo '2. In the dev app: Settings → Social → add relay ws://127.0.0.1:2173,'
     @echo '   then Discovery → Friends → add a friend with the npub from step 1.'
-    @echo '3. just social-recommend movie 603 --name "Sample Movie" --note "try it"'
-    @echo '                               the friend recommends a title; it appears in your Feed'
+    @echo '3. just social-review movie 603 --name "Sample Movie" --sentiment love --text "try it"'
+    @echo '                               the friend reviews a title; it appears in your Feed'
     @echo '   just social-watched tv_series 1399 --name "Sample Show" --season 2 --episode 5'
     @echo '   just social-listing movie 603 --name "Sample Movie"'
     @echo '4. just social-delete movie 603  the friend withdraws it; the row leaves your Feed'
-    @echo '   just social-delete watched tv_series 1399   (a kind other than recommendation)'
+    @echo '   just social-delete watched tv_series 1399   (a kind other than review)'
     @echo '5. just social-feed            everything the relay holds, including what you sent'
     @echo
     @echo 'Also: just social-status · just social-down · just social-reset (new friend key)'
@@ -95,9 +95,9 @@ social-reset:
 social-status:
     {{_dev_relay}} status
 
-# The friend recommends a title: social-recommend movie 603 --name "Sample Movie" [--note "..."]
-social-recommend *args:
-    mix social.dev recommend "$@"
+# The friend reviews a title: social-review movie 603 --name "Sample Movie" [--sentiment love] [--text "..."]
+social-review *args:
+    mix social.dev review "$@"
 
 # The friend finished an episode or a movie: social-watched tv_series 1399 --name "Sample Show" --season 2 --episode 5
 social-watched *args:
@@ -111,6 +111,6 @@ social-listing *args:
 social-delete *args:
     mix social.dev delete "$@"
 
-# Everything the dev relay holds, newest first — recommendations and deletions.
+# Everything the dev relay holds, newest first — reviews and deletions.
 social-feed:
     mix social.dev feed

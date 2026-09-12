@@ -225,12 +225,17 @@ shows. One component, `<.pennants activity={rows} />`
 `Activities.friend_activity_for/1` rows for one title; `on_image` over a
 hero. The host places the mast: a row bleeds it into its own right
 padding under `overflow-hidden`; the cinematic shell has a `:hero_mast`
-slot. Four flags in mast order: love (heart on `--color-love`, rose, the
-one warm hue outside the health palette), like (thumbs up), watched
-(eye), tracking (bell), the last three on a neutral tint. Own acts fly
-only for recommendations ("You"). Never a provenance line elsewhere; a
-friend's note is the one thing that stays in the body. Never on poster
-cards. Story: `/storybook/title/pennants`.
+slot. Six flags in mast order (UIDR-040): love (heart on `--color-love`,
+rose, the one warm hue outside the health palette), like (thumbs up),
+dislike (thumbs down), reviewed (speech bubble — a review with no
+sentiment), watched (eye), listing (bookmark), all but love on a neutral
+tint. A review flies its sentiment or the reviewed flag. Own acts fly
+only for reviews ("You"). The sentiment glyphs come from
+`Components.Title.Sentiment` (`<.sentiment_glyph sentiment={…} />`,
+story `/storybook/title/sentiment_glyph`), the one map every surface
+shares. Never a provenance line elsewhere; a friend's review text is the
+one thing that stays in the body. Never on poster cards. Story:
+`/storybook/title/pennants`.
 
 ### File Paths ([UIDR-001])
 
@@ -400,6 +405,9 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 035 | Two title surfaces, split by whether the title has files |
 | 036 | One control per title, because there is one ladder |
 | 037 | Friend provenance is the pennant, on every title surface |
+| 038 | The Feed is friends' actions, one entry each |
+| 039 | Add to watchlist first, then the tracking controls |
+| 040 | A review is an opinion of any valence: the sentiment shows when given, nothing when none |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 

@@ -21,7 +21,7 @@ defmodule MediaCentaur.Social.IncidentContext do
       disconnected for longer than the grace window. Nothing can be sent
       or received.
     * `:relay_degraded` (**warning**) — some, but not all, relays are in
-      that state. Recommendations still flow through the rest.
+      that state. Activity still flows through the rest.
 
   No relays configured is never a fault: an install that has not set up
   the friend network is not broken. Neither is a relay still working

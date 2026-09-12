@@ -2,11 +2,12 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
   @moduledoc """
   One entry on the Feed (UIDR-038): a glass card, the poster at 48×72 on
   the left and to its right three lines at most — who did what and when
-  (`Nick recommended ♥ · 2h ago`), which title (name and year), and the
-  note when a recommendation has one. A listing and a recommendation are
-  one anatomy; the note line is the only difference. Nothing else is on
-  the body: no pennant, no marker, no synopsis, no avatar; the rose
-  heart after "recommended" for Love is the only colour.
+  (`Nick reviewed ♥ · 2h ago`, the sentiment glyph after the verb when
+  the review gives one, nothing when it gives none), which title (name
+  and year), and the text when a review has some. A listing and a review
+  are one anatomy; the glyph and the text line are the only differences.
+  Nothing else is on the body: no pennant, no marker, no synopsis, no
+  avatar; the rose heart for Love is the only colour.
 
   The toolbar is a fixed 20px seat at the bottom of the text block,
   empty at rest and shown while the card is hovered or holds focus, so
@@ -28,6 +29,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
+  alias MediaCentaurWeb.Components.Title.Sentiment
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.TitleRef
 
@@ -68,9 +70,11 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
         <p class="truncate text-[13px] leading-snug text-base-content/70" data-role="who">
           <span class="font-medium text-base-content/90">{@entry.nickname}</span>
           {ActivityWords.verb(@entry.kind, nil)}
-          <span :if={@entry.sentiment == :love} data-role="love">
-            <.icon name="hero-heart-solid" class="inline size-3 align-[-1px] text-love" />
-          </span>
+          <Sentiment.sentiment_glyph
+            :if={@entry.sentiment}
+            sentiment={@entry.sentiment}
+            class="inline size-3 align-[-1px]"
+          />
           <span class="text-base-content/40">·</span>
           <span class="text-base-content/55">{@entry.ago}</span>
         </p>
@@ -81,11 +85,11 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
           </span>
         </p>
         <p
-          :if={@entry.note}
+          :if={@entry.text}
           class="mb-1 mt-1 line-clamp-4 text-[13px] leading-normal text-base-content/70"
-          data-role="note"
+          data-role="text"
         >
-          {@entry.note}
+          {@entry.text}
         </p>
 
         <div

@@ -70,7 +70,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
           activity("Bob", @bob, %{
             tmdb_id: 9,
             sentiment: :love,
-            note: "Yes.",
+            text: "Yes.",
             acted_at: ~U[2026-08-20 10:00:00Z]
           })
         ],
@@ -88,7 +88,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
     assert Enum.map(bob.watched, & &1.ref) == [{1399, :tv_series}, {7, :movie}]
     assert [%Person.Entry{episode: ^episode, activity_id: "activity-1399-watched"} | _] = bob.watched
     assert Enum.map(bob.listed, & &1.ref) == [{8, :movie}]
-    assert [%Person.Entry{sentiment: :love, ref: {9, :movie}}] = bob.recommended
+    assert [%Person.Entry{sentiment: :love, ref: {9, :movie}}] = bob.reviewed
     assert bob.short_npub =~ "npub1"
     assert bob.added_on == ~D[2026-08-30]
   end
@@ -102,6 +102,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.PeopleTest do
         now: @now
       )
 
-    assert [%Person{name: "Cleo", presence: nil, watched: [], listed: [], recommended: []}] = people
+    assert [%Person{name: "Cleo", presence: nil, watched: [], listed: [], reviewed: []}] = people
   end
 end

@@ -34,11 +34,11 @@ defmodule MediaCentaur.DiscoveryRows do
                 Map.get(
                   activity,
                   :id,
-                  "activity-#{tmdb_id}-#{Map.get(activity, :kind, :recommendation)}"
+                  "activity-#{tmdb_id}-#{Map.get(activity, :kind, :review)}"
                 ),
-              kind: :recommendation,
+              kind: :review,
               sentiment: :like,
-              note: nil,
+              text: nil,
               episode: nil,
               tmdb_id: tmdb_id,
               media_type: media_type,

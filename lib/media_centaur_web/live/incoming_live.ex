@@ -136,7 +136,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
-  alias MediaCentaurWeb.Live.RecommendModal
+  alias MediaCentaurWeb.Live.ReviewModal
 
   alias MediaCentaur.Storage
 
@@ -812,12 +812,13 @@ defmodule MediaCentaurWeb.IncomingLive do
           detail={@title_detail}
           scope_menu_open={@scope_menu_open}
           today={@today}
-          recommend?={@show_discovery}
+          review?={@show_discovery}
         />
-        <RecommendModal.recommend_modal
-          subject={@recommend_subject}
-          poster_url={@recommend_poster_url}
-          relay_counts={@recommend_relay_counts}
+        <ReviewModal.review_modal
+          subject={@review_subject}
+          poster_url={@review_poster_url}
+          sentiment={@review_sentiment}
+          relay_counts={@review_relay_counts}
         />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
@@ -1916,7 +1917,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, build_view(socket)}
   end
 
-  # A recommendation arriving or withdrawn while results are up re-reads
+  # A review arriving or withdrawn while results are up re-reads
   # the pennants for exactly those results.
   def handle_info({tag, _event}, socket)
       when tag in [:activity_received, :activity_sent, :activity_deleted] do

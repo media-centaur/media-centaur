@@ -19,10 +19,11 @@ Media Centaur's kinds occupy the same block in each range: **2160–2999**, **12
 
 | Kind | Name | Rule | Defined by |
 |---|---|---|---|
-| 32160 | Recommendation | Addressable | Media Centaur |
+| 32160 | Recommendation — **retired** 2026-09-12 | Addressable | Media Centaur. Never reused; relays refuse it, readers drop it. |
 | 32161 | Watched | Addressable | Media Centaur |
 | 32162 | Tracking — **retired** 2026-09-11 | Addressable | Media Centaur. Never reused; relays refuse it, readers drop it. |
 | 32163 | Listing | Addressable | Media Centaur |
+| 32164 | Review | Addressable | Media Centaur |
 | 5 | Deletion | Regular | Nostr (NIP-09) |
 | 22242 | Relay authentication | Ephemeral | Nostr (NIP-42) |
 | 27235 | HTTP authentication, used by relay administration | Ephemeral | Nostr (NIP-98) |
@@ -33,14 +34,14 @@ Every message is a NIP-01 event: `id`, `pubkey`, `created_at` (Unix seconds), `k
 
 ## Activities
 
-The three addressable kinds are **activities**: one signed statement by one person about one title — recommended it, watched it, listed it. They share the address and the content envelope; each adds its own fields. The address is the title, so a person holds at most one activity of each kind per title; a newer one replaces the earlier one everywhere.
+The three addressable kinds are **activities**: one signed statement by one person about one title — reviewed it, watched it, listed it. They share the address and the content envelope; each adds its own fields. The address is the title, so a person holds at most one activity of each kind per title; a newer one replaces the earlier one everywhere.
 
 **Tags** (every activity kind)
 
 | Tag | Value | Required |
 |---|---|---|
 | `d` | `tmdb:<media_type>:<tmdb_id>` — `media_type` is `movie` or `tv_series`, `tmdb_id` a positive integer. Example: `tmdb:movie:603`. | yes |
-| `p` | Recipient public key, for a directed recommendation. Reserved; never set today. | no |
+| `p` | Recipient public key, for a directed review. Reserved; never set today. | no |
 
 **Content** is a JSON object. The envelope, on every kind:
 
@@ -62,13 +63,17 @@ The three addressable kinds are **activities**: one signed statement by one pers
 | `backdrop_path` | string, TMDB path | | no |
 | `overview` | string | 2000 characters | no |
 
-### Recommendation (kind 32160)
+### Review (kind 32164)
+
+The person's opinion of the title: a sentiment, words, both, or neither. A review with neither says only that the person reviewed the title.
 
 | Field | Type | Cap | Notes |
 |---|---|---|---|
-| `sentiment` | `"like"` or `"love"` | | How strongly the person recommends it. Absent means `like`; any other value is malformed. |
-| `note` | string or null | 500 characters | The sender's note. |
-| `recommended_at` | integer, Unix seconds | | When the person recommended the title. Absent means `created_at`. |
+| `sentiment` | `"dislike"`, `"like"` or `"love"` | | The person's verdict. Absent means none — the review gives no verdict; any other value is malformed. |
+| `text` | string or null | 500 characters | The review's words. |
+| `reviewed_at` | integer, Unix seconds | | When the person reviewed the title. Absent means `created_at`. |
+
+Kind 32160 (Recommendation, `sentiment` of `like` or `love` with absent meaning `like`, `note`, `recommended_at`) said the person recommended the title. Retired 2026-09-12: a review carries an opinion of any valence, and an absent sentiment means none rather than like, so the meaning changed and the kind with it.
 
 ### Watched (kind 32161)
 
@@ -102,7 +107,7 @@ Kind 32162 (Tracking, `tracked_at`) said the person started tracking the title's
 - Readers ignore fields they do not know, so fields can be added without a version bump. A change that alters the meaning of an existing field bumps `v`; readers drop a message whose `v` they do not understand.
 - A message whose `d` tag and `title` disagree, whose content is not JSON, whose strings exceed a cap, or whose `episode` is malformed or set on a movie is dropped as malformed. Nothing is repaired or truncated.
 - Between two activities of one kind from the same signer for the same title, the newer `created_at` wins. On a tie, what is already stored is kept.
-- `created_at` is the wire time and decides only which copy wins. `recommended_at` / `watched_at` / `listed_at` is when the person acted; readers order and display by it and never derive one from the other. The two coincide when a message is made and sent in one go.
+- `created_at` is the wire time and decides only which copy wins. `reviewed_at` / `watched_at` / `listed_at` is when the person acted; readers order and display by it and never derive one from the other. The two coincide when a message is made and sent in one go.
 
 ## Deletion (kind 5)
 
@@ -112,7 +117,7 @@ A person withdrawing their own activity of any kind. Standard NIP-09, restricted
 
 | Tag | Value | Required |
 |---|---|---|
-| `a` | `<kind>:<signer pubkey>:tmdb:<media_type>:<tmdb_id>` — the address of the activity being withdrawn, `kind` one of 32160, 32161, 32163. One `a` tag per deletion. | yes |
+| `a` | `<kind>:<signer pubkey>:tmdb:<media_type>:<tmdb_id>` — the address of the activity being withdrawn, `kind` one of 32164, 32161, 32163. One `a` tag per deletion. | yes |
 | `e` | The id of the activity event, if known. | no |
 | `deleted_at` | When the person withdrew it, Unix seconds. Absent means `created_at`. Same split as an activity's domain time: `created_at` decides, `deleted_at` is shown. | no |
 
@@ -133,8 +138,8 @@ The app keeps one long-lived connection per relay and, on every connect, opens t
 
 | Subscription | Authors | Kinds | Purpose |
 |---|---|---|---|
-| `feed` | followed keys plus the install's own | 32160, 32161, 32163, 5 | what friends did and withdrew |
-| `own:<relay url>` | the install's own | 32160, 32161, 32163, 5 | what this relay holds of ours |
+| `feed` | followed keys plus the install's own | 32164, 32161, 32163, 5 | what friends did and withdrew |
+| `own:<relay url>` | the install's own | 32164, 32161, 32163, 5 | what this relay holds of ours |
 
 **From the start, every time.** Every connect reads the relay's whole stored set for the subscription; the app keeps no `since` cursor. A relay holds one record per signer per kind per title (Deletion rule 3), so a friend group's history is a page or two, and a cursor keyed on `created_at` would skip a message published late with an older stamp — a withdrawal made while offline. Re-reading is idempotent: a reader ignores anything not newer than what it holds.
 
@@ -152,7 +157,7 @@ For a relay to carry Media Centaur traffic:
 |---|---|
 | Authentication | Challenge on connect (NIP-42). The app answers immediately and never reacts to an `auth-required:` rejection. |
 | Access | Reads and writes gated by an allowlist of public keys. |
-| Kinds stored | 32160, 32161, 32163 and 5, with the rules above. Every other kind, the retired 32162 included, refused with `blocked:`. |
+| Kinds stored | 32164, 32161, 32163 and 5, with the rules above. Every other kind, the retired 32160 and 32162 included, refused with `blocked:`. |
 | Addressable storage | One record per signer per kind per address, activity or deletion (Deletion rule 3). |
 | Deletion checks | Deletion rules 1, 2 and 4. |
 | Filters | `authors`, `kinds`, `since`, `until`, `limit` (NIP-01). `limit` capped at 500. |
@@ -179,3 +184,4 @@ For a relay to carry Media Centaur traffic:
 | 2026-09-04 | Domain times: `recommended_at` in a recommendation's content, `deleted_at` tag on a deletion; `created_at` decides, the domain time is shown. Sync reads from the start on every connect; the `since` cursor is gone. Relay requirements unchanged. |
 | 2026-09-05 | Activities: Watched (32161, with `watched_at` and `episode`) and Tracking (32162, with `tracked_at`) beside Recommendation, sharing its envelope and address. A deletion's `a` tag names the kind it withdraws. Relays store the two new kinds and key the address slot by kind (social-relay v0.4.0). |
 | 2026-09-11 | Listing (32163, with `listed_at`) replaces Tracking: published when a title first reaches List, withdrawn by a deletion when it drops below. 32162 retired — never reused, refused by relays, dropped by readers. Relays store 32163 and refuse 32162 (social-relay v0.5.0). |
+| 2026-09-12 | Review (32164, with `sentiment` of `dislike` / `like` / `love` or absent for none, `text`, `reviewed_at`) replaces Recommendation: an opinion of any valence, neither field required. 32160 retired — never reused, refused by relays, dropped by readers. Relays store 32164 and refuse 32160 (social-relay v0.6.0). |

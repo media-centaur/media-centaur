@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   @moduledoc """
   One person on the Friends tab (UIDR-031): name as the title, the
   presence line, the Recently watched strip with its "all N" tile, the
-  Wants to watch and Recommended rows, and a friend's footer. The You card
+  Wants to watch and Reviewed rows, and a friend's footer. The You card
   differs in border, subtitle and the missing footer. Expansion is the
   host's state, shown here as an attribute.
   """
@@ -65,9 +65,11 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
           entry(23, "Movie I", kind: :listing),
           entry(24, "Movie J", kind: :listing)
         ],
-        recommended: [
-          entry(31, "Movie K", kind: :recommendation, sentiment: :love),
-          entry(32, "Movie L", kind: :recommendation, sentiment: :like)
+        reviewed: [
+          entry(31, "Movie K", kind: :review, sentiment: :love),
+          entry(32, "Movie L", kind: :review, sentiment: :like),
+          entry(33, "Movie M", kind: :review, sentiment: :dislike),
+          entry(34, "Movie N", kind: :review, sentiment: nil)
         ]
       },
       overrides
@@ -80,7 +82,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         id: :friend,
         description:
           "A friend with every shelf: five posters and \"all 7\", three tracked titles and " <>
-            "\"1 more\", two recommendations with their sentiment glyphs, the key and Remove in the footer.",
+            "\"1 more\", reviews with their sentiment glyphs (none for a review without one), the key and Remove in the footer.",
         attributes: %{person: friend(%{})}
       },
       %Variation{
@@ -92,7 +94,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         id: :friend_quiet,
         description: "A friend who has shared nothing: header and footer only.",
         attributes: %{
-          person: friend(%{presence: nil, watched: [], listed: [], recommended: []})
+          person: friend(%{presence: nil, watched: [], listed: [], reviewed: []})
         }
       },
       %Variation{
@@ -108,7 +110,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
               short_npub: nil,
               added_on: nil,
               listed: [entry(21, "Movie G", kind: :listing)],
-              recommended: [entry(31, "Movie K", kind: :recommendation, sentiment: :love)]
+              reviewed: [entry(31, "Movie K", kind: :review, sentiment: :love)]
             })
         }
       },
@@ -127,7 +129,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
               presence: nil,
               watched: [],
               listed: [],
-              recommended: []
+              reviewed: []
             })
         }
       }

@@ -20,7 +20,7 @@ defmodule MediaCentaur.DiscoveryTest do
       assert %Title{name: "Sample Movie"} = Ecto.Changeset.get_embed(changeset, :title, :struct)
     end
 
-    test "a friend-sourced record carries its recommendation id; the pairing is enforced" do
+    test "a friend-sourced record carries its review id; the pairing is enforced" do
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
       id = Ecto.UUID.generate()
       assert TitleIntent.create_changeset(title, :list, %{source: :friend, activity_id: id}).valid?

@@ -27,8 +27,8 @@ defmodule MediaCentaur.Discovery.TitleIntent do
 
   **Ignored is a record, below List.** Off is no opinion; Ignored is the
   person's decision that the title is not for them, and the one thing it
-  does is keep friends' recommendations of it out of the Recommendations
-  tab. Wanting the title later — any rung at List or above — replaces it,
+  does is keep friends' reviews and listings of it off the Feed.
+  Wanting the title later — any rung at List or above — replaces it,
   the way every other move on the ladder does.
 
   Identity is `(tmdb_id, media_type)`, kept as indexed columns and
@@ -38,13 +38,14 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   `Library.ExternalIds` (one source of truth, cannot go stale).
 
   `source` is the provenance seam every future candidate source extends
-  (`:import`, …); directed recommendations later add nullable
+  (`:import`, …); directed reviews later add nullable
   sender/recipient columns — no dead columns until then. A `:friend`
-  record names the recommendation it came from in `activity_id` — a
-  bare uuid, because Discovery and Activities are independent
-  contexts; the web layer resolves the nickname from the
-  recommendation's author. A `:manual` record carries none, and the
-  pairing is validated both ways.
+  record names the friend's review or listing it came from in
+  `activity_id` — a bare uuid, because Discovery and Activities are
+  independent contexts; the web layer resolves the nickname from the
+  activity's author — and, for a review, carries its text as the record's
+  `note`: what the friend said when the person acted, a snapshot. A
+  `:manual` record carries none, and the pairing is validated both ways.
   """
   use Ecto.Schema
 
@@ -162,8 +163,8 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   def grab_mode(:ask, _default), do: "ask"
   def grab_mode(rung, _default) when rung in [nil, :ignored, :list, :follow], do: "off"
 
-  # Provenance pairing: a friend-sourced item names its recommendation; a
-  # manual one carries none.
+  # Provenance pairing: a friend-sourced item names the activity it came
+  # from; a manual one carries none.
   defp validate_provenance(changeset) do
     case {get_field(changeset, :source), get_field(changeset, :activity_id)} do
       {:friend, nil} ->

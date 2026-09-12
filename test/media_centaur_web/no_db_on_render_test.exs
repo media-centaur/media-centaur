@@ -221,7 +221,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       #
       # 2026-09-02: the Social drill-in's widget added the relay rows, the
       # roster (twice — once for the count, once inside the feed read) and
-      # the recommendations read to every mount, +8 measured in isolation
+      # the reviews read to every mount, +8 measured in isolation
       # (34 → 42). The band moves with it, so the ceiling moves 52 → 60 to
       # keep the same headroom over the observed jitter.
       MediaCentaur.Status.Views.Overview.refresh_cache()

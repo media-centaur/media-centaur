@@ -9,6 +9,10 @@ date: 2026-09-08
 > becomes a listing flag (bookmark) per
 > [ADR-067](../architecture/2026-09-11-067-listing-replaces-tracking-on-the-wire.md).
 
+> **Amended 2026-09-12** by [UIDR-040](2026-09-12-040-a-review-is-an-opinion-of-any-valence.md):
+> six flags — love, like, dislike, reviewed, watched, listing — and the
+> recommendation is a review ([ADR-068](../architecture/2026-09-12-068-review-replaces-recommendation-on-the-wire.md)).
+
 # Friend provenance is the pennant, on every title surface
 
 Extends [UIDR-031](2026-09-06-031-friends-carry-shelves-feed-is-recommendations.md)

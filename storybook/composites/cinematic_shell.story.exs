@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
   @doc "One friend's like and another's watched: the mast the hero corner carries."
   def sample_activity do
     [
-      activity_row("Sample Friend", :recommendation, :like),
+      activity_row("Sample Friend", :review, :like),
       activity_row("Another Friend", :watched, nil)
     ]
   end

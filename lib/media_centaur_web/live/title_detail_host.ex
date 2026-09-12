@@ -16,13 +16,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) and `&activity=<id>` |
-  | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_scope_*`, `title_download`, `title_activity_delete`, `title_recommend_open`, `set_rung`, `reset_lower_quality` |
+  | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_scope_*`, `title_download`, `title_activity_delete`, `title_review_open`, `set_rung`, `reset_lower_quality` |
   | `:handle_async` | the live TMDB preview (`{:title_preview, ref}`) |
   | `:handle_info` | refreshes the open detail on `:releases_updated`, watchlist and library changes, then continues so the host's own clauses run |
-  | `use RecommendFlow` | injects the Recommend modal's own controls; `title_recommend_open` opens it on the detail's title |
+  | `use ReviewFlow` | injects the Review modal's own controls; `title_review_open` opens it on the detail's title |
 
   A host that `use`s this module must not also `use` `EntityModal`: both
-  inject `RecommendFlow`, and the duplicated clauses and `init/1` seed
+  inject `ReviewFlow`, and the duplicated clauses and `init/1` seed
   would collide.
 
   Hosts MUST NOT call `ReleaseTracking.subscribe/0` themselves. A host
@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   * `resolve_title/3` — the `TMDB.Title` a ref names on this page plus
     any page-specific facts for `Logic.title_detail/2` (Discovery's feed
-    provenance and recommendations), or nil when the page does not know
+    provenance and reviews), or nil when the page does not know
     the title, which leaves the modal closed.
   * `title_detail_path/2` — the page's own path with the modal query
     applied (`[]` closes), so leaving the modal never changes tab.
@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.Components.Title.Logic
-  alias MediaCentaurWeb.Live.RecommendFlow
+  alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.TitleRef
 
   require MediaCentaur.Log, as: Log
@@ -86,14 +86,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @callback title_detail_path(socket :: Phoenix.LiveView.Socket.t(), query :: keyword()) ::
               String.t()
 
-  @modal_events ~w(title_scope_toggle title_scope_close title_download title_activity_delete title_recommend_open)
+  @modal_events ~w(title_scope_toggle title_scope_close title_download title_activity_delete title_review_open)
   @rungs ~w(ignored off list follow ask grab default)
 
   defmacro __using__(_opts) do
     quote do
       @behaviour MediaCentaurWeb.Live.TitleDetailHost
 
-      use MediaCentaurWeb.Live.RecommendFlow
+      use MediaCentaurWeb.Live.ReviewFlow
 
       on_mount {MediaCentaurWeb.Live.TitleDetailHost, :default}
     end
@@ -105,7 +105,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     socket =
       socket
       |> assign(title_detail: nil, scope_menu_open: false)
-      |> RecommendFlow.init()
+      |> ReviewFlow.init()
       |> attach_hook(:title_detail_params, :handle_params, &apply_title_params/3)
       |> attach_hook(:title_detail_events, :handle_event, &handle_title_event/3)
       |> attach_hook(:title_detail_async, :handle_async, &handle_title_async/3)
@@ -166,7 +166,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   end
 
   # The common facts, from the contexts that own them; the host's facts
-  # (feed provenance, recommendations) merge over them.
+  # (feed provenance, reviews) merge over them.
   defp build_detail(socket, %Title{} = title, host_facts, preview) do
     ref = Title.ref(title)
     artwork = TmdbArtwork.urls(title.media_type, title.tmdb_id)
@@ -344,17 +344,17 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # refreshed by the live preview. Deriving it again here would be a
   # second source for one value.
   def handle_title_event(
-        "title_recommend_open",
+        "title_review_open",
         _params,
         %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
-      ), do: {:halt, RecommendFlow.open(socket, detail.title, detail.poster_url)}
+      ), do: {:halt, ReviewFlow.open(socket, detail.title, detail.poster_url)}
 
   # A modal event with no open modal (a stale click after a close) is a no-op.
   def handle_title_event(event, _params, socket) when event in @modal_events, do: {:halt, socket}
 
   def handle_title_event(_event, _params, socket), do: {:cont, socket}
 
-  # A feed-born detail carries the recommendation's provenance onto the
+  # A feed-born detail carries the review's provenance onto the
   # record the raise creates — who sent it, and what they said. It applies
   # on creation only, so re-raising an existing record leaves it alone.
   defp provenance(%TitleDetail{activity_id: id, own?: own?, note: note}) when is_binary(id) and not own?,

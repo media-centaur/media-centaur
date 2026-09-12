@@ -2,7 +2,7 @@ defmodule MediaCentaur.TMDB.Title do
   @moduledoc """
   The app-wide TMDB title value — a movie or show referenced by TMDB
   identity, whether or not the library owns it: search hits, tracked
-  items, watchlist items, recommendations.
+  items, watchlist items, reviews.
 
   Identity is `(tmdb_id, media_type)`; TMDB's movie and TV id spaces
   overlap, so neither half is enough alone. The remaining fields are a

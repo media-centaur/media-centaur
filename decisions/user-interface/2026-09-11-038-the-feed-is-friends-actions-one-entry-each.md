@@ -2,6 +2,14 @@
 status: accepted
 date: 2026-09-11
 ---
+
+> **Amended 2026-09-12** by [UIDR-040](2026-09-12-040-a-review-is-an-opinion-of-any-valence.md):
+> an entry is a friend's review — any sentiment, or none — or listing; its
+> first line shows the sentiment glyph when the review gives one and
+> nothing when it does not. The rule in §1, "a rose heart for Love and
+> nothing for Like", is retired with the recommendation
+> ([ADR-068](../architecture/2026-09-12-068-review-replaces-recommendation-on-the-wire.md)).
+
 # The Feed is friends' actions, one entry each
 
 Supersedes the feed half of

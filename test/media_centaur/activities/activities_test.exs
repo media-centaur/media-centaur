@@ -21,7 +21,7 @@ defmodule MediaCentaur.ActivitiesTest do
   @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
   @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
-  # No identity here on purpose: `recommend/2` creates one, and ingesting a
+  # No identity here on purpose: `review/2` creates one, and ingesting a
   # friend's event never needs one — so the tests that want an identity get
   # it from the code under test.
   setup do
@@ -37,9 +37,9 @@ defmodule MediaCentaur.ActivitiesTest do
 
     Event.sign(
       Translation.to_event(
-        :recommendation,
+        :review,
         title,
-        [note: note, sentiment: sentiment],
+        [text: note, sentiment: sentiment],
         @friend_pubkey,
         opts
       ),
@@ -49,13 +49,13 @@ defmodule MediaCentaur.ActivitiesTest do
 
   defp wire_time(%DateTime{} = at), do: DateTime.to_unix(at)
 
-  describe "recommend/3" do
-    test "signs with the identity, stores it as a sent recommendation, and broadcasts" do
+  describe "review/3" do
+    test "signs with the identity, stores it as a sent review, and broadcasts" do
       Activities.subscribe()
 
-      assert {:ok, %Activity{} = rec} = Activities.recommend(title(), :like, "Go.")
+      assert {:ok, %Activity{} = rec} = Activities.review(title(), :like, "Go.")
       assert rec.author_pubkey == Identity.pubkey()
-      assert rec.note == "Go."
+      assert rec.text == "Go."
       assert {:ok, event} = Event.from_map(rec.raw_event)
       assert Event.verify(event) == :ok
 
@@ -69,12 +69,12 @@ defmodule MediaCentaur.ActivitiesTest do
       await_supervised_tasks()
     end
 
-    test "re-recommending the same title replaces the record" do
-      {:ok, first} = Activities.recommend(title(), :like, "first")
-      {:ok, second} = Activities.recommend(title(), :like, "second")
+    test "re-reviewing the same title replaces the record" do
+      {:ok, first} = Activities.review(title(), :like, "first")
+      {:ok, second} = Activities.review(title(), :like, "second")
 
       assert first.id == second.id
-      assert Activities.list_sent() |> hd() |> Map.get(:note) == "second"
+      assert Activities.list_sent() |> hd() |> Map.get(:text) == "second"
       assert length(Activities.own_events()) == 1
 
       await_supervised_tasks()
@@ -83,48 +83,60 @@ defmodule MediaCentaur.ActivitiesTest do
     test "rejects a note over 500 characters and stores nothing" do
       long_note = String.duplicate("a", 501)
 
-      assert {:error, :note_too_long} = Activities.recommend(title(), :like, long_note)
+      assert {:error, :text_too_long} = Activities.review(title(), :like, long_note)
       assert Activities.list_sent() == []
     end
 
     test "a note at exactly 500 characters is accepted" do
       note = String.duplicate("a", 500)
 
-      assert {:ok, rec} = Activities.recommend(title(), :like, note)
-      assert rec.note == note
+      assert {:ok, rec} = Activities.review(title(), :like, note)
+      assert rec.text == note
 
       await_supervised_tasks()
     end
 
     test "a note is trimmed before the length check and blank becomes nil" do
-      assert {:ok, rec} = Activities.recommend(title(), :like, "  Go.  ")
-      assert rec.note == "Go."
+      assert {:ok, rec} = Activities.review(title(), :like, "  Go.  ")
+      assert rec.text == "Go."
 
-      assert {:ok, rec2} = Activities.recommend(title(2), :like, "   ")
-      assert rec2.note == nil
+      assert {:ok, rec2} = Activities.review(title(2), :like, "   ")
+      assert rec2.text == nil
 
       await_supervised_tasks()
     end
   end
 
-  describe "recommend/3 sentiment" do
+  describe "review/3 sentiment" do
     test "stores the sentiment on the row and on the wire" do
-      assert {:ok, %Activity{sentiment: :love} = rec} = Activities.recommend(title(), :love, nil)
+      assert {:ok, %Activity{sentiment: :love} = rec} = Activities.review(title(), :love, nil)
       assert {:ok, event} = Event.from_map(rec.raw_event)
       assert %{"sentiment" => "love"} = Jason.decode!(event.content)
-      assert {:ok, %Activity{sentiment: :like}} = Activities.recommend(title(2), :like, nil)
+      assert {:ok, %Activity{sentiment: :like}} = Activities.review(title(2), :like, nil)
+      assert {:ok, %Activity{sentiment: :dislike}} = Activities.review(title(3), :dislike, nil)
+      await_supervised_tasks()
+    end
+
+    test "a review with no sentiment and no text is valid: nil on the row, absent on the wire" do
+      assert {:ok, %Activity{sentiment: nil, text: nil} = bare} = Activities.review(title(), nil, nil)
+      assert {:ok, event} = Event.from_map(bare.raw_event)
+      refute Map.has_key?(Jason.decode!(event.content), "sentiment")
+
+      assert [%{activity: %Activity{sentiment: nil, text: nil}, own?: true}] =
+               Activities.list_activities()
+
       await_supervised_tasks()
     end
   end
 
   describe "friend_activity_for/1" do
-    test "every live act on a title by a friend, own recommendations only, newest first" do
+    test "every live act on a title by a friend, own reviews only, newest first" do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, theirs} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000, nil, :love))
-      {:ok, mine} = Activities.recommend(title(), :like, "mine")
+      {:ok, mine} = Activities.review(title(), :like, "mine")
       {:ok, _own_listing} = Activities.listing(title())
       {:ok, other} = Activities.ingest(friend_event(title(604), "other", 1_700_000_000))
-      {:ok, withdrawn} = Activities.recommend(title(605), :like, nil)
+      {:ok, withdrawn} = Activities.review(title(605), :like, nil)
       {:ok, _tombstone} = Activities.delete(withdrawn.id)
 
       watched =
@@ -148,7 +160,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert %{
                {603, :movie} => [
-                 %{activity: %Activity{id: ^mine_id, kind: :recommendation}, nickname: nil, own?: true},
+                 %{activity: %Activity{id: ^mine_id, kind: :review}, nickname: nil, own?: true},
                  %{
                    activity: %Activity{id: ^watched_id, kind: :watched},
                    nickname: "Sample Friend",
@@ -191,7 +203,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert {:ok, %Activity{}} = Activities.ingest(event)
       assert_receive {:activity_received, %Received{author_pubkey: @friend_pubkey}}, 500
 
-      assert [%{activity: %Activity{note: "Great."}, nickname: "Sample Friend"}] =
+      assert [%{activity: %Activity{text: "Great."}, nickname: "Sample Friend"}] =
                Activities.list_activities()
 
       await_supervised_tasks()
@@ -203,11 +215,11 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert {:ok, newer} = Activities.ingest(friend_event(title(), "two", 1_700_000_100))
       assert newer.id == first.id
-      assert newer.note == "two"
+      assert newer.text == "two"
 
       assert :ignored = Activities.ingest(friend_event(title(), "stale", 1_699_999_000))
       assert :ignored = Activities.ingest(friend_event(title(), "two", 1_700_000_100))
-      assert [%{activity: %{note: "two"}}] = Activities.list_activities()
+      assert [%{activity: %{text: "two"}}] = Activities.list_activities()
 
       await_supervised_tasks()
     end
@@ -226,7 +238,7 @@ defmodule MediaCentaur.ActivitiesTest do
     end
 
     test "own events arriving from a relay are stored once and shown as own" do
-      {:ok, rec} = Activities.recommend(title(), :like, "mine")
+      {:ok, rec} = Activities.review(title(), :like, "mine")
       [event] = Activities.own_events()
 
       assert :ignored = Activities.ingest(event)
@@ -251,13 +263,13 @@ defmodule MediaCentaur.ActivitiesTest do
     await_supervised_tasks()
   end
 
-  test "before an identity exists nothing is sent and a friend's recommendation still lands" do
+  test "before an identity exists nothing is sent and a friend's review still lands" do
     {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
     refute Identity.present?()
 
     {:ok, _rec} = Activities.ingest(friend_event(title(), "hi", 1_700_000_000))
 
-    assert [%{activity: %{note: "hi"}}] = Activities.list_activities()
+    assert [%{activity: %{text: "hi"}}] = Activities.list_activities()
     assert Activities.list_sent() == []
     assert Activities.own_events() == []
 
@@ -265,7 +277,7 @@ defmodule MediaCentaur.ActivitiesTest do
   end
 
   test "artwork holds cover every stored title" do
-    {:ok, _rec} = Activities.recommend(title(9), :like, nil)
+    {:ok, _rec} = Activities.review(title(9), :like, nil)
     assert MapSet.member?(Activities.TmdbArtworkHolds.holds(), {:movie, 9})
     await_supervised_tasks()
   end
@@ -287,7 +299,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
     test "splits sent from received and finds the newest received acted_at" do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
-      {:ok, _sent} = Activities.recommend(title(3), :like, "mine")
+      {:ok, _sent} = Activities.review(title(3), :like, "mine")
       {:ok, _one} = Activities.ingest(friend_event(title(1), "a", 1_700_000_000))
       {:ok, _two} = Activities.ingest(friend_event(title(2), "b", 1_700_000_500))
 
@@ -308,7 +320,7 @@ defmodule MediaCentaur.ActivitiesTest do
   defp friend_deletion(title, created_at) do
     Event.sign(
       %{
-        Translation.to_deletion(:recommendation, @friend_pubkey, title.media_type, title.tmdb_id, "x")
+        Translation.to_deletion(:review, @friend_pubkey, title.media_type, title.tmdb_id, "x")
         | created_at: created_at
       },
       @friend_secret
@@ -318,7 +330,7 @@ defmodule MediaCentaur.ActivitiesTest do
   describe "delete/1" do
     test "tombstones an own row, hides it everywhere, republishes the deletion, broadcasts" do
       Activities.subscribe()
-      {:ok, rec} = Activities.recommend(title(), :like, "mine")
+      {:ok, rec} = Activities.review(title(), :like, "mine")
 
       assert {:ok, %Activity{deleted_at: %DateTime{}, deletion_event: %{"kind" => 5}} = gone} =
                Activities.delete(rec.id)
@@ -330,7 +342,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert [%Event{kind: 5} = deletion] = Activities.own_events()
       assert Event.verify(deletion) == :ok
-      assert Event.tag_value(deletion, "a") == "32160:#{Identity.pubkey()}:tmdb:movie:603"
+      assert Event.tag_value(deletion, "a") == "32164:#{Identity.pubkey()}:tmdb:movie:603"
 
       id = rec.id
       assert_receive {:activity_deleted, %Deleted{id: ^id}}, 500
@@ -343,38 +355,38 @@ defmodule MediaCentaur.ActivitiesTest do
       assert {:error, :not_own} = Activities.delete(theirs.id)
       assert {:error, :not_found} = Activities.delete(Ecto.UUID.generate())
 
-      {:ok, mine} = Activities.recommend(title(9), :like, nil)
+      {:ok, mine} = Activities.review(title(9), :like, nil)
       {:ok, gone} = Activities.delete(mine.id)
       assert {:ok, ^gone} = Activities.delete(mine.id)
       await_supervised_tasks()
     end
 
-    test "a stale copy of the withdrawn recommendation is ignored; recommending again revives it" do
-      {:ok, rec} = Activities.recommend(title(), :like, "mine")
+    test "a stale copy of the withdrawn review is ignored; reviewing again revives it" do
+      {:ok, rec} = Activities.review(title(), :like, "mine")
       {:ok, stale} = Event.from_map(rec.raw_event)
       {:ok, _gone} = Activities.delete(rec.id)
 
       assert :ignored = Activities.ingest(stale)
       assert Activities.list_sent() == []
 
-      {:ok, again} = Activities.recommend(title(), :like, "again")
+      {:ok, again} = Activities.review(title(), :like, "again")
       assert again.id == rec.id
       refute Activity.deleted?(again)
-      assert [%{note: "again"}] = Activities.list_sent()
-      assert [%Event{kind: 32_160}] = Activities.own_events()
+      assert [%{text: "again"}] = Activities.list_sent()
+      assert [%Event{kind: 32_164}] = Activities.own_events()
       await_supervised_tasks()
     end
   end
 
   # The relay keeps one record per address and, on a `created_at` tie,
-  # keeps what it holds (a deletion beating a recommendation). An own event
+  # keeps what it holds (a deletion beating a review). An own event
   # stamped no later than the row it supersedes would be discarded there
   # while replacing the row here, and republished on every connect.
   describe "withdraw/3" do
     test "withdraws the own live row of a kind at an address: tombstone, deletion, broadcast" do
       Activities.subscribe()
       {:ok, listing} = Activities.listing(title())
-      {:ok, _rec} = Activities.recommend(title(), :like, nil)
+      {:ok, _rec} = Activities.review(title(), :like, nil)
 
       assert {:ok, %Activity{deleted_at: %DateTime{}} = tombstone} =
                Activities.withdraw(:listing, 603, :movie)
@@ -384,8 +396,8 @@ defmodule MediaCentaur.ActivitiesTest do
       assert Event.tag_value(deletion, "a") == "32163:#{Identity.pubkey()}:tmdb:movie:603"
       assert_receive {:activity_deleted, %Deleted{kind: :listing}}, 500
 
-      # The recommendation at the same address is another kind: untouched.
-      assert [%Activity{kind: :recommendation}] = Activities.list_sent()
+      # The review at the same address is another kind: untouched.
+      assert [%Activity{kind: :review}] = Activities.list_sent()
       await_supervised_tasks()
     end
 
@@ -400,12 +412,12 @@ defmodule MediaCentaur.ActivitiesTest do
   end
 
   describe "own events are stamped after what the row holds" do
-    test "a re-recommendation is stamped after the recommendation it replaces" do
-      {:ok, rec} = Activities.recommend(title(), :like, "first")
+    test "a re-review is stamped after the review it replaces" do
+      {:ok, rec} = Activities.review(title(), :like, "first")
       ahead = wire_time(ahead_of_now())
       force_attrs(rec, raw_event: Map.put(rec.raw_event, "created_at", ahead))
 
-      {:ok, again} = Activities.recommend(title(), :like, "second")
+      {:ok, again} = Activities.review(title(), :like, "second")
       assert again.raw_event["created_at"] > ahead
       # The domain time is when the person acted, not the wire stamp.
       assert DateTime.before?(again.acted_at, DateTime.from_unix!(ahead))
@@ -413,18 +425,18 @@ defmodule MediaCentaur.ActivitiesTest do
     end
 
     test "a revival is stamped after the tombstone" do
-      {:ok, rec} = Activities.recommend(title(), :like, "mine")
+      {:ok, rec} = Activities.review(title(), :like, "mine")
       {:ok, gone} = Activities.delete(rec.id)
       ahead = wire_time(ahead_of_now())
       force_attrs(gone, deletion_event: Map.put(gone.deletion_event, "created_at", ahead))
 
-      {:ok, again} = Activities.recommend(title(), :like, "again")
+      {:ok, again} = Activities.review(title(), :like, "again")
       assert again.raw_event["created_at"] > ahead
       await_supervised_tasks()
     end
 
-    test "a deletion is stamped no earlier than the recommendation it withdraws" do
-      {:ok, rec} = Activities.recommend(title(), :like, "mine")
+    test "a deletion is stamped no earlier than the review it withdraws" do
+      {:ok, rec} = Activities.review(title(), :like, "mine")
       ahead = wire_time(ahead_of_now())
       force_attrs(rec, raw_event: Map.put(rec.raw_event, "created_at", ahead))
 
@@ -450,12 +462,12 @@ defmodule MediaCentaur.ActivitiesTest do
 
       # Newer on the wire replaces, whatever the payload says.
       {:ok, rec} = Activities.ingest(friend_event(title(), "b", now + 1, now - 2_000))
-      assert rec.note == "b"
+      assert rec.text == "b"
       assert rec.acted_at == DateTime.from_unix!(now - 2_000)
 
       # Older on the wire is the stale copy, whatever the payload says.
       assert :ignored = Activities.ingest(friend_event(title(), "c", now - 5, now + 5_000))
-      assert [%{activity: %{note: "b"}}] = Activities.list_activities()
+      assert [%{activity: %{text: "b"}}] = Activities.list_activities()
       await_supervised_tasks()
     end
 
@@ -465,7 +477,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
       early_act_late_wire =
         Event.sign(
-          Translation.to_deletion(:recommendation, @friend_pubkey, :movie, 603, nil,
+          Translation.to_deletion(:review, @friend_pubkey, :movie, 603, nil,
             created_at: now + 1,
             deleted_at: now - 50
           ),
@@ -496,17 +508,17 @@ defmodule MediaCentaur.ActivitiesTest do
       assert_receive {:activity_deleted, %Deleted{id: ^id, author_pubkey: @friend_pubkey}}, 500
       assert Activities.list_activities() == []
 
-      # The withdrawn recommendation coming back off another relay stays hidden.
+      # The withdrawn review coming back off another relay stays hidden.
       assert :ignored = Activities.ingest(friend_event(title(), "theirs", now - 10))
       assert Activities.list_activities() == []
 
-      # A newer recommendation revives it.
+      # A newer review revives it.
       assert {:ok, _revived} = Activities.ingest(friend_event(title(), "again", now + 10))
-      assert [%{activity: %{note: "again"}}] = Activities.list_activities()
+      assert [%{activity: %{text: "again"}}] = Activities.list_activities()
       await_supervised_tasks()
     end
 
-    test "a deletion older than the recommendation, or for nothing stored, is ignored" do
+    test "a deletion older than the review, or for nothing stored, is ignored" do
       now = System.os_time(:second)
       {:ok, _rec} = Activities.ingest(friend_event(title(), "theirs", now))
 
@@ -520,7 +532,7 @@ defmodule MediaCentaur.ActivitiesTest do
     test "a stranger's deletion and a bad signature are rejected" do
       stranger = MediaCentaur.Nostr.Keys.generate()
       pubkey = MediaCentaur.Nostr.Keys.pubkey(stranger)
-      event = Event.sign(Translation.to_deletion(:recommendation, pubkey, :movie, 603, "x"), stranger)
+      event = Event.sign(Translation.to_deletion(:review, pubkey, :movie, 603, "x"), stranger)
       assert {:error, :unknown_author} = Activities.ingest(event)
 
       forged = %{friend_deletion(title(), System.os_time(:second)) | sig: String.duplicate("0", 128)}
@@ -549,10 +561,10 @@ defmodule MediaCentaur.ActivitiesTest do
     test "a watched movie has no episode, and kinds are separate rows for one title" do
       assert {:ok, %Activity{kind: :watched, episode: nil}} = Activities.watched(title(), nil)
       assert {:ok, %Activity{kind: :listing}} = Activities.listing(title())
-      assert {:ok, %Activity{kind: :recommendation}} = Activities.recommend(title(), :like, nil)
+      assert {:ok, %Activity{kind: :review}} = Activities.review(title(), :like, nil)
 
       kinds = Activities.list_sent() |> Enum.map(& &1.kind) |> Enum.sort()
-      assert kinds == [:listing, :recommendation, :watched]
+      assert kinds == [:listing, :review, :watched]
     end
 
     test "a listing is stamped after the listing it replaces and rides kind 32163" do

@@ -41,7 +41,7 @@ defmodule MediaCentaurWeb.Components.Discovery.Person do
     :presence,
     watched: [],
     listed: [],
-    recommended: []
+    reviewed: []
   ]
 
   @type presence :: %{text: String.t(), ago: String.t(), at: DateTime.t()}
@@ -56,6 +56,6 @@ defmodule MediaCentaurWeb.Components.Discovery.Person do
           presence: presence() | nil,
           watched: [Entry.t()],
           listed: [Entry.t()],
-          recommended: [Entry.t()]
+          reviewed: [Entry.t()]
         }
 end

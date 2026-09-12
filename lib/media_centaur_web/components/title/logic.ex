@@ -91,7 +91,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   the List rung's own marker is dropped as redundant. Everywhere else a
   listed title says so, which is the only place a search result can.
 
-  Who recommended the title is the pennant's, and a feed row's
+  Who reviewed the title is the pennant's, and a feed row's
   sender/when line is the host's; neither is a marker.
   """
   @spec row_markers(

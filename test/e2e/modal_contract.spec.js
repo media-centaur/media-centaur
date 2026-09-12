@@ -58,7 +58,7 @@ test.describe("generic modal input contract", () => {
  * Every backdrop is in the DOM regardless of open state, so this needs no
  * fixture data. Incoming's two confirmations have since become MC0027 arm
  * gestures with no overlay at all, so the probe moved to Library, where the
- * recommend modal opens over a title's detail modal — the one raised-over-
+ * review modal opens over a title's detail modal — the one raised-over-
  * ordinary pair left in the app.
  */
 test.describe("raised modals stack above ordinary ones", () => {
@@ -70,8 +70,8 @@ test.describe("raised modals stack above ordinary ones", () => {
       page.locator(`#${id}`).evaluate((el) => parseInt(getComputedStyle(el).zIndex, 10))
 
     const detailModal = await zIndexOf("detail-modal")
-    const recommendModal = await zIndexOf("recommend-modal")
+    const reviewModal = await zIndexOf("review-modal")
 
-    expect(recommendModal).toBeGreaterThan(detailModal)
+    expect(reviewModal).toBeGreaterThan(detailModal)
   })
 })

@@ -2,8 +2,8 @@
 
 **Social** is the subsystem that connects one install to friends' installs over
 Nostr relays: this install's identity, its relays, its friends, and the
-activities that travel between them — a title recommended, watched, or
-tracked. A **friend** is one roster entry inside it. How it is put together:
+activities that travel between them — a title reviewed, watched, or
+listed. A **friend** is one roster entry inside it. How it is put together:
 four contexts, one protocol library, one long-lived WebSocket per relay, and
 a sync loop that keeps stored activities in step with what the relays hold.
 
@@ -12,7 +12,7 @@ End-user setup lives on the wiki:
 Design rationale and the build order live in
 [`docs/superpowers/specs/2026-09-02-friends-recommendations-design.md`](superpowers/specs/2026-09-02-friends-recommendations-design.md),
 [`docs/superpowers/specs/2026-09-05-social-activity-feed-design.md`](superpowers/specs/2026-09-05-social-activity-feed-design.md)
-and [`campaigns/friends-recommendations.md`](../campaigns/friends-recommendations.md).
+and `campaigns/friends-recommendations.md` (completed and removed — see git history).
 
 - [Contexts](#contexts)
 - [Identity and secrets](#identity-and-secrets)
@@ -43,7 +43,7 @@ person's acts into activities.
 
 The Discovery/Activities separation is deliberate: a watchlist row records
 *intent*, an activity records *what a signed event said*. Joining them (who
-recommended a watchlist row, whether a feed row is already saved) is the web
+reviewed a watchlist row, whether a feed row is already saved) is the web
 layer's job — see [Web layer](#web-layer).
 
 ## Identity and secrets
@@ -54,7 +54,7 @@ layer's job — see [Web layer](#web-layer).
 read rather than stored, so the two can never disagree.
 
 - `ensure/0` generates on first use. Two callers: the Settings page's Social section, and
-  `Activities` publishing an own activity — a user can recommend a title before
+  `Activities` publishing an own activity — a user can review a title before
   ever opening the tab, which mints the identity right there.
 - `import_nsec/1` is the only replacement path (two-click arm in the UI,
   MC0027 treatment b).
@@ -140,14 +140,14 @@ envelope (`v`, `title`); each adds its own fields:
 
 | Kind | Name | `d` tag | Content beyond the envelope |
 |---|---|---|---|
-| `32160` | Recommendation | `tmdb:<media_type>:<tmdb_id>` | `sentiment` (`like` / `love`, absent = like), `note`, `recommended_at` |
+| `32164` | Review | `tmdb:<media_type>:<tmdb_id>` | `sentiment` (`dislike` / `like` / `love`, absent = none), `text`, `reviewed_at` (32160, Recommendation, is retired — ADR-068) |
 | `32161` | Watched | same | `watched_at`, `episode` (TV: `season_number`, `episode_number`, `name`) |
 | `32163` | Listing | same | `listed_at` (32162, Tracking, is retired — never reused, dropped on read) |
 
-A `p` tag is defined by the spec for directed recommendations and never set.
+A `p` tag is defined by the spec for directed reviews and never set.
 
 Addressable means the relay keeps one event per `(author, kind, d)`, so
-recommending the same title twice — or finishing the next episode — replaces
+reviewing the same title twice — or finishing the next episode — replaces
 rather than appends. The row mirrors that: identity is `(author_pubkey, kind,
 tmdb_id, media_type)`, the wire time decides, and the embedded title and
 episode use `on_replace: :delete` — the newer event's snapshot is the whole
@@ -161,13 +161,14 @@ republished to a relay that lacks it. Sent vs received is derived by comparing
 `author_pubkey` against the identity — no stored direction column can disagree
 with the signature.
 
-Note length is capped at 500 characters (`Activities`), matched by the
-textarea's `maxlength`. Content carries `"v": 1`; `from_event/1` treats an
+Review text is capped at 500 characters (`Activities`), matched by the
+textarea's `maxlength`; a review's sentiment and text are both optional,
+and a nil sentiment is left off the wire. Content carries `"v": 1`; `from_event/1` treats an
 absent `v` as 1 and drops an unknown one.
 
-**Producers.** Recommending is an explicit act and always publishes
-(`Activities.recommend/3`, from the Recommend modal, with the sentiment
-the sender picked). Watched and listing
+**Producers.** Reviewing is an explicit act and always publishes
+(`Activities.review/3`, from the Review modal, with the sentiment and text
+the sender gave, neither required). Watched and listing
 activities come from `Activities.Publisher`, a pubsub listener over
 `watch_history:events` and `discovery:updates` that calls
 `Activities.watched/2` / `listing/1` only while the `share_watched` /
@@ -195,7 +196,7 @@ instead of its activity.
 here (`upsert_if_newer`, `tombstone_applies?`, read off the stored events via
 `Activity.event_created_at/1` / `deletion_created_at/1`) and on the
 relay, and nothing else. The *domain* time is when the person acted —
-`recommended_at` / `watched_at` / `tracked_at` in the content, a `deleted_at`
+`reviewed_at` / `watched_at` / `listed_at` in the content, a `deleted_at`
 tag on the deletion — and is what `acted_at` / `deleted_at` on the row hold,
 so ordering and display never move when a message is re-signed or arrives
 late. A message without
@@ -206,7 +207,7 @@ keeps what it holds (a deletion beating an activity). So a new own activity is
 stamped strictly after the activity or tombstone the row already holds, and
 `delete/1` stamps the deletion no earlier than the activity it withdraws
 (`Activities.stamp/3`, private). Without this
-a same-second re-recommendation would replace the row here, be discarded by
+a same-second re-review would replace the row here, be discarded by
 the relay, and be republished by the own-events diff on every connect.
 
 ## Sync
@@ -215,7 +216,7 @@ the relay, and be republished by the own-events diff on every connect.
 `social:updates`:
 
 1. `:connected` for a relay → subscribe `"feed"` (authors = friends ++ self,
-   kinds 32160, 32161, 32163 + 5, `limit` 500, no `since`) and `"own:<url>"`
+   kinds 32164, 32161, 32163 + 5, `limit` 500, no `since`) and `"own:<url>"`
    (authors = [self], same kinds) on that relay, and reset the seen-set for
    that URL.
 2. `{:event, "feed", event}` → `Activities.ingest/1` (verify signature,
@@ -235,11 +236,12 @@ holds one record per signer per title, so the whole history is a page, and a
 stamp (a withdrawal made offline). Re-reading is idempotent.
 6. `{:ok, id, false, reason}` → a warning naming what the relay refused
    (`Activities.own_event_kind/1`: "rejected a deletion: …" / "rejected a
-   recommendation: …" / "rejected a watched activity: …"). The publisher owns
+   review: …" / "rejected a watched activity: …"). The publisher owns
    the wording; `Connections` only keeps the reason as the relay row's last
    error. A relay refusing a deletion with `blocked: kind 5 is not stored by
    this relay` is a `social-relay` older than v0.3.0; one refusing kind 32161
-   is older than v0.4.0, one refusing 32163 older than v0.5.0 — and, because
+   is older than v0.4.0, one refusing 32163 older than v0.5.0, one refusing
+   32164 older than v0.6.0 — and, because
    an old deletion parser only knows the coordinates of its day, that relay
    refuses the *deletion* of a watched activity or a listing with
    `blocked: only the author may delete an event`. Both are re-sent on
@@ -277,7 +279,7 @@ disagree with the owner about what a message meant.
 project one enriched list — every live activity with its actor
 (`Activities.list_activities/0`) — two ways (UIDR-031, UIDR-038):
 
-- **Feed** — `DiscoveryLive.FeedEntries`: friends' recommendations and
+- **Feed** — `DiscoveryLive.FeedEntries`: friends' reviews and
   listings, one `Components.Discovery.FeedEntry` per action, newest
   first, flat, windowed (50, then *Show older*). Watched, own, former
   friends' and ignored-title rows make no entry. `FeedEntryCard` renders
@@ -288,7 +290,7 @@ project one enriched list — every live activity with its actor
   `TitleIntent.friend_provenance/2`, the same spelling the modal uses.
 - **Friends** — `DiscoveryLive.People` folds the list into one
   `Components.Discovery.Person` per friend and one for You (when an
-  identity exists), each with its watched / listed / recommended
+  identity exists), each with its watched / listed / reviewed
   shelves and a presence line (`DiscoveryLive.ActivityWords.presence/3`);
   `Components.Discovery.PersonCard` renders it. Every poster and name
   opens the title modal with `?title=<ref>&activity=<id>` so the modal
@@ -296,14 +298,16 @@ project one enriched list — every live activity with its actor
   lives there. `DiscoveryLive.AddFriendBlock` is the add-friend form,
   still an iteration-phase component under `live/discovery_live/`.
 
-What friends did with a title — recommended and how much, watched, or
-listed — is one component everywhere but the Feed, the pennant
-(`Components.Title.Pennant`, UIDR-037), fed by
+What friends did with a title — reviewed and with what sentiment, watched,
+or listed — is one component everywhere but the Feed, the pennant
+(`Components.Title.Pennant`, UIDR-037, six flags per UIDR-040; the
+sentiment glyphs are `Components.Title.Sentiment`'s), fed by
 `Activities.friend_activity_for/1` on the watchlist rows, the Incoming
 search rows and both detail modals. A feed entry flies none: each
 friend's action is its own entry there. See
 `docs/plans/2026-09-05-recommendation-pennant.md` for the original
-decisions.
+decisions (written for the two-valued recommendation sentiment; UIDR-040
+is the current rule).
 
 The joins the contexts may not make happen here:
 
@@ -316,10 +320,12 @@ The joins the contexts may not make happen here:
 - **Watchlist rows** — the row stores only `activity_id`; the page resolves
   it to a nickname through `Activities.get_many/1` → `Social.list_friends/0`.
 
-`MediaCentaurWeb.Live.RecommendFlow` is the modal flow (`use RecommendFlow`
-injects the handlers), hosted by every `EntityModal` host for the library detail
-page — the only place a recommendation is made. The sharing toggles live in
-`SettingsLive.SocialSection`. The Recommend control is gated
+`MediaCentaurWeb.Live.ReviewFlow` is the modal flow (`use ReviewFlow`
+injects the handlers, the clearable sentiment choice included), hosted by
+every `EntityModal` host for the library detail page and every
+`TitleDetailHost` host for a title without files — the only places a
+review is made. The sharing toggles live in
+`SettingsLive.SocialSection`. The Review control is gated
 on the `show_discovery` preference (`Settings.Preferences.DiscoveryVisibility`),
 the same preference that gates the sidebar entry.
 
@@ -377,10 +383,10 @@ the recipes.
 | Recipe | Does |
 |---|---|
 | `just social-up npub1…` | Builds the relay image from the sibling repo, writes its allowlist (your npub plus the friend's), starts the container, prints the friend's npub to add under Discovery → Friends. The relay goes under Settings → Social. Re-run to restart. |
-| `just social-recommend movie 603 --name "Sample Movie" --note "try it"` | The friend publishes a kind 32160 event; it shows up on the Feed and on the friend's card. |
+| `just social-review movie 603 --name "Sample Movie" --sentiment love --text "try it"` | The friend publishes a kind 32164 event (`--sentiment` and `--text` both optional); it shows up on the Feed and on the friend's card. |
 | `just social-watched tv_series 1399 --name "Sample Show" --season 2 --episode 5` | The friend finished an episode (kind 32161). |
 | `just social-listing movie 603 --name "Sample Movie"` | The friend wants to watch a title (kind 32163). |
-| `just social-delete movie 603` / `just social-delete watched tv_series 1399` | The friend withdraws an activity (kind 5); it leaves the row and the friend's card. |
+| `just social-delete movie 603` / `just social-delete watched tv_series 1399` | The friend withdraws an activity (kind 5; the kind defaults to review); it leaves the row and the friend's card. |
 | `just social-feed` | Everything the relay holds — activities and deletions — including what the dev app sent. |
 | `just social-status` / `social-down` / `social-reset` | Container state and NIP-11; stop; stop and forget data plus the friend's key. |
 

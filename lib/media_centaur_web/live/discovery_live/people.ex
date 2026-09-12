@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
       presence: presence(List.first(sorted), now),
       watched: Map.get(shelves, :watched, []),
       listed: Map.get(shelves, :listing, []),
-      recommended: Map.get(shelves, :recommendation, [])
+      reviewed: Map.get(shelves, :review, [])
     }
   end
 
@@ -70,7 +70,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
       ref: {activity.tmdb_id, activity.media_type},
       title: activity.title,
       poster_url: row.poster_url,
-      sentiment: if(activity.kind == :recommendation, do: activity.sentiment),
+      sentiment: if(activity.kind == :review, do: activity.sentiment),
       episode: activity.episode,
       acted_at: activity.acted_at
     }

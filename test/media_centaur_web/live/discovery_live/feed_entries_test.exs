@@ -17,15 +17,15 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
   end
 
   describe "build/2" do
-    test "keeps friends' recommendations and listings; drops watched, own, former-friend, ignored" do
+    test "keeps friends' reviews and listings; drops watched, own, former-friend, ignored" do
       %{entries: entries, has_older?: false} =
         build([
           row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo-lists-1"}),
-          row("Nick", %{tmdb_id: 2, kind: :recommendation, id: "nick-recs-2"}),
+          row("Nick", %{tmdb_id: 2, kind: :review, id: "nick-recs-2"}),
           row("Nick", %{tmdb_id: 3, kind: :watched, id: "nick-watched-3"}),
-          row(nil, %{tmdb_id: 4, kind: :recommendation, id: "mine"}, %{own?: true}),
+          row(nil, %{tmdb_id: 4, kind: :review, id: "mine"}, %{own?: true}),
           row(nil, %{tmdb_id: 5, kind: :listing, id: "gone"}, %{own?: false}),
-          row("Sam", %{tmdb_id: 6, kind: :recommendation, id: "ignored"}, %{rung: :ignored})
+          row("Sam", %{tmdb_id: 6, kind: :review, id: "ignored"}, %{rung: :ignored})
         ])
 
       assert Enum.map(entries, & &1.activity_id) == ["cleo-lists-1", "nick-recs-2"]
@@ -37,13 +37,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
           row("Nick", %{tmdb_id: 7, kind: :listing, id: "nick-lists", acted_at: ~U[2026-09-01 12:05:00Z]}),
           row("Nick", %{
             tmdb_id: 7,
-            kind: :recommendation,
+            kind: :review,
             id: "nick-recs",
             acted_at: ~U[2026-09-01 12:00:00Z]
           }),
           row("Cleo", %{
             tmdb_id: 7,
-            kind: :recommendation,
+            kind: :review,
             id: "cleo-recs",
             acted_at: ~U[2026-09-01 11:00:00Z]
           }),
@@ -64,16 +64,16 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
     end
 
     test "an entry carries what the card shows and the facts the toolbar resolves from" do
-      %{entries: [recommendation, listing]} =
+      %{entries: [review, listing]} =
         build([
           row(
             "Nick",
             %{
               tmdb_id: 9,
-              kind: :recommendation,
+              kind: :review,
               id: "nick-recs-9",
               sentiment: :love,
-              note: "Saw it twice.",
+              text: "Saw it twice.",
               acted_at: ~U[2026-09-01 12:00:00Z]
             },
             %{
@@ -96,9 +96,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
                activity_id: "nick-recs-9",
                ref: {9, :movie},
                nickname: "Nick",
-               kind: :recommendation,
+               kind: :review,
                sentiment: :love,
-               note: "Saw it twice.",
+               text: "Saw it twice.",
                ago: "2h ago",
                poster_url: "/p.jpg",
                rung: :list,
@@ -106,14 +106,14 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
                acquisition_state: :downloading,
                list_slot: :listed,
                download_slot: {:state, "In library"}
-             } = recommendation
+             } = review
 
-      assert recommendation.title.name == "Sample Movie 9"
+      assert review.title.name == "Sample Movie 9"
 
       assert %FeedEntry{
                kind: :listing,
                sentiment: nil,
-               note: nil,
+               text: nil,
                ago: "1d ago",
                rung: nil,
                list_slot: :list,

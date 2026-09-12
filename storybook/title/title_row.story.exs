@@ -32,10 +32,10 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
     )
   end
 
-  defp recommendation(nickname, sentiment) do
+  defp review(nickname, sentiment) do
     %{
       activity: %Activity{
-        kind: :recommendation,
+        kind: :review,
         sentiment: sentiment,
         tmdb_id: 777,
         media_type: :movie,
@@ -75,45 +75,45 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
         attributes: %{id: "row-needs-review", title: title(), markers: ["Needs review"]}
       },
       %Variation{
-        id: :recommended_by_one,
+        id: :reviewed_by_one,
         description:
-          "A title one friend recommended: On watchlist is a marker, the note " <>
+          "A title one friend reviewed: On watchlist is a marker, the note " <>
             "displaces the overview unattributed, and the named pennant carries the sentiment.",
         attributes: %{
-          id: "row-recommended-by-one",
+          id: "row-reviewed-by-one",
           title: title(),
           markers: ["On watchlist"],
           notes: [%{name: nil, text: "Watch it before anyone spoils the ending."}],
-          friend_activity: [recommendation("Sample Friend", :love)]
+          friend_activity: [review("Sample Friend", :love)]
         }
       },
       %Variation{
-        id: :recommended_by_two,
+        id: :reviewed_by_two,
         description:
           "Two friends on one title (UIDR-031): each note carries its name, " <>
             "and the mast stacks love above like.",
         attributes: %{
-          id: "row-recommended-by-two",
+          id: "row-reviewed-by-two",
           title: title(),
           notes: [
             %{name: "Sample Friend", text: "Watch it before anyone spoils the ending."},
             %{name: "Other Friend", text: "Fine."}
           ],
           friend_activity: [
-            recommendation("Other Friend", :like),
-            recommendation("Sample Friend", :love)
+            review("Other Friend", :like),
+            review("Sample Friend", :love)
           ]
         }
       },
       %Variation{
         id: :watchlist_with_note,
-        description: "A watchlist row: the item's own note, and the pennants name who recommended it.",
+        description: "A watchlist row: the item's own note, and the pennants name who reviewed it.",
         attributes: %{
           id: "row-watchlist-with-note",
           title: title(),
           markers: ["In library"],
           notes: [%{name: nil, text: "For the weekend."}],
-          friend_activity: [recommendation("Sample Friend", :love)]
+          friend_activity: [review("Sample Friend", :love)]
         }
       },
       %Variation{

@@ -33,13 +33,13 @@ defmodule MediaCentaur.Repo.DataMigrations.ListingReplacesTrackingTest do
       {:ok, legacy} = Activities.listing(title(1))
       make_tracking!(legacy)
       {:ok, _listing} = Activities.listing(title(2))
-      {:ok, _recommendation} = Activities.recommend(title(3), :like, nil)
+      {:ok, _review} = Activities.review(title(3), :like, nil)
       {:ok, _} = Settings.find_or_create_entry(%{key: "share_tracking", value: %{"enabled" => true}})
       {:ok, _} = Settings.find_or_create_entry(%{key: "share_watched", value: %{"enabled" => true}})
 
       assert :ok = ListingReplacesTracking.sweep(Repo)
 
-      assert kinds() == ["listing", "recommendation"]
+      assert kinds() == ["listing", "review"]
       assert Settings.get_by_key("share_tracking") == nil
       assert %{value: %{"enabled" => true}} = Settings.get_by_key("share_watched")
     end

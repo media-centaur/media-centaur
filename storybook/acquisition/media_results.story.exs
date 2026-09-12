@@ -54,10 +54,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
     ]
   end
 
-  defp recommendation(tmdb_id, nickname, sentiment) do
+  defp review(tmdb_id, nickname, sentiment) do
     %{
       activity: %MediaCentaur.Activities.Activity{
-        kind: :recommendation,
+        kind: :review,
         sentiment: sentiment,
         tmdb_id: tmdb_id,
         media_type: :movie,
@@ -91,10 +91,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           in_library_refs: MapSet.new([{246_810, :tv_series}]),
           default_grab_mode: "off",
           friend_activity_by_ref: %{
-            {777, :movie} => [recommendation(777, "Sample Friend", :love)],
+            {777, :movie} => [review(777, "Sample Friend", :love)],
             {778, :movie} => [
-              recommendation(778, "Other Friend", :like),
-              recommendation(778, "Sample Friend", :love)
+              review(778, "Other Friend", :like),
+              review(778, "Sample Friend", :love)
             ]
           }
         }

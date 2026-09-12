@@ -7,11 +7,13 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   the title detail's hero.
 
   One pennant per flag, top to bottom: love (a filled heart on the rose
-  fill), like (a thumbs up), watched (an eye), listing (a bookmark) — the
-  last three on a neutral tint, since only love is a colour. A pennant
-  carries up to two nicknames and then a count ("Nick, Sam", "Nick +2");
-  an own recommendation reads "You". Every pennant carries the full
-  sentence as a tooltip.
+  fill), like (a thumbs up), dislike (a thumbs down), reviewed (a speech
+  bubble — a review that gives no verdict), watched (an eye), listing (a
+  bookmark) — all but love on a neutral tint, since only love is a
+  colour. A review flies its sentiment, or the reviewed flag when it has
+  none (`flag/1`). A pennant carries up to two nicknames and then a
+  count ("Nick, Sam", "Nick +2"); an own review reads "You". Every
+  pennant carries the full sentence as a tooltip.
 
   Fed the `Activities.friend_activity_for/1` rows for one title; the
   grouping (`mast/1`), the label and the tooltip are pure. The mast
@@ -25,10 +27,11 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   alias MediaCentaur.Activities.Activity
+  alias MediaCentaurWeb.Components.Title.Sentiment
 
-  @flags [:love, :like, :watched, :listing]
+  @flags [:love, :like, :dislike, :review, :watched, :listing]
 
-  @type flag :: :love | :like | :watched | :listing
+  @type flag :: :love | :like | :dislike | :review | :watched | :listing
   @type pennant :: %{flag: flag(), names: [String.t()]}
 
   attr :activity, :list,
@@ -37,7 +40,7 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
 
   attr :label, :string,
     default: nil,
-    doc: "replaces the names on every pennant — the Recommend modal's choice reads Like / Love"
+    doc: "replaces the names on every pennant — the Review modal's choice reads Dislike / Like / Love"
 
   attr :on_image, :boolean, default: false, doc: "over imagery the neutral tint is dark glass"
   attr :class, :string, default: nil
@@ -60,8 +63,8 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
     """
   end
 
-  defp glyph(:love), do: "hero-heart-solid"
-  defp glyph(:like), do: "hero-hand-thumb-up"
+  defp glyph(sentiment) when sentiment in [:love, :like, :dislike], do: Sentiment.glyph(sentiment)
+  defp glyph(:review), do: "hero-chat-bubble-bottom-center-text"
   defp glyph(:watched), do: "hero-eye"
   defp glyph(:listing), do: "hero-bookmark"
 
@@ -81,9 +84,10 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
     end
   end
 
-  @doc "The flag an activity flies: a recommendation by its sentiment, the other kinds as themselves."
+  @doc "The flag an activity flies: a review by its sentiment, or reviewed when it gives none; the other kinds as themselves."
   @spec flag(Activity.t()) :: flag()
-  def flag(%Activity{kind: :recommendation, sentiment: sentiment}), do: sentiment
+  def flag(%Activity{kind: :review, sentiment: nil}), do: :review
+  def flag(%Activity{kind: :review, sentiment: sentiment}), do: sentiment
   def flag(%Activity{kind: kind}), do: kind
 
   @max_named 2
@@ -93,7 +97,7 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   def label(%{names: names}) when length(names) <= @max_named, do: Enum.join(names, ", ")
   def label(%{names: [first | rest]}), do: "#{first} +#{length(rest)}"
 
-  @doc ~s(The whole statement: "Nick loves this", "Nick, Sam and you like this", "Nick wants to watch this".)
+  @doc ~s(The whole statement: "Nick loves this", "Nick dislikes this", "Nick, Sam and you like this", "Nick reviewed this", "Nick wants to watch this".)
   @spec tooltip(pennant()) :: String.t()
   def tooltip(%{flag: flag, names: names}) do
     subjects = Enum.map(names, &if(&1 == "You" and length(names) > 1, do: "you", else: &1))
@@ -109,9 +113,12 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
 
   defp verb(:love, [name]) when name != "You", do: "loves"
   defp verb(:like, [name]) when name != "You", do: "likes"
+  defp verb(:dislike, [name]) when name != "You", do: "dislikes"
   defp verb(:listing, [_one]), do: "wants to watch"
   defp verb(:love, _plural_or_you), do: "love"
   defp verb(:like, _plural_or_you), do: "like"
+  defp verb(:dislike, _plural_or_you), do: "dislike"
+  defp verb(:review, _any), do: "reviewed"
   defp verb(:watched, _any), do: "watched"
   defp verb(:listing, _plural), do: "want to watch"
 end
