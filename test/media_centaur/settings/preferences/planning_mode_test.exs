@@ -53,6 +53,12 @@ defmodule MediaCentaur.Settings.Preferences.PlanningModeTest do
     end
   end
 
+  describe "modes/0" do
+    test "lists both modes, the default first" do
+      assert PlanningMode.modes() == [:manually_select_release, :auto_select_best_release]
+    end
+  end
+
   describe "other/1" do
     test "is the one alternative" do
       assert PlanningMode.other(:manually_select_release) == :auto_select_best_release
