@@ -12,7 +12,10 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   not a verb), `:download`, or `nil` when there is nothing to download
   yet — the tracking-mode control is the arming surface, so there is
   no `Track` verb (ADR-065). `scoped?` says the download carries the
-  series scope menu.
+  series scope menu. `planning_mode` is the person's default planning
+  mode (`Settings.Preferences.PlanningMode`), read on build like
+  `default_grab_mode`: the main segment of Download performs it and the
+  menu names the other.
 
   `tracking` is the tracked-title half (`TrackingDetail`): nil for a
   title that has never been tracked. `acquisition?` and
@@ -37,6 +40,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   """
 
   alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
@@ -61,6 +65,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
     acquisition?: false,
     lower_quality_accepted?: false,
     default_grab_mode: "off",
+    planning_mode: :manually_select_release,
     friend_activity: []
   ]
 
@@ -83,6 +88,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
           acquisition?: boolean(),
           lower_quality_accepted?: boolean(),
           default_grab_mode: String.t(),
+          planning_mode: PlanningMode.mode(),
           kind: Activity.kind() | nil,
           sender: String.t() | nil,
           note: String.t() | nil,

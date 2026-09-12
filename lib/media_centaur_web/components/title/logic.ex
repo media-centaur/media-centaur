@@ -7,8 +7,10 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   beside its LiveView: `FeedEntries` and `People`.
   """
 
+  alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.ReleaseTracking.Release
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
@@ -21,11 +23,11 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   `library_owner_id`, `rung`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
   `backdrop_url`, `logo_url`, `tracking`, `acquisition?`,
-  `lower_quality_accepted?`, `default_grab_mode`, `kind`, `sender`, `note`,
-  `own?`, `activity_id`, `friend_activity`, `preview`. The primary
-  action is In library, else the acquisition state, else Download when
-  the title is out and an indexer is ready — else nothing: arming is
-  the tracking-mode control's job, not a verb in the strip.
+  `lower_quality_accepted?`, `default_grab_mode`, `planning_mode`, `kind`,
+  `sender`, `note`, `own?`, `activity_id`, `friend_activity`, `preview`.
+  The primary action is In library, else the acquisition state, else
+  Download when the title is out and an indexer is ready — else nothing:
+  arming is the tracking-mode control's job, not a verb in the strip.
   """
   @spec title_detail(Title.t(), map()) :: TitleDetail.t()
   def title_detail(%Title{} = title, facts) do
@@ -42,6 +44,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       acquisition?: Map.get(facts, :acquisition?, false),
       lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
       default_grab_mode: Map.get(facts, :default_grab_mode, "off"),
+      planning_mode: Map.get(facts, :planning_mode, :manually_select_release),
       kind: Map.get(facts, :kind),
       sender: Map.get(facts, :sender),
       note: Map.get(facts, :note),
@@ -77,6 +80,16 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   def acquisition_marker(:downloading), do: "Downloading"
   def acquisition_marker(:needs_review), do: "Needs review"
   def acquisition_marker(nil), do: nil
+
+  @doc "The words for a planning mode — the Settings option and the Download menu item alike (spec 2026-09-12 §2, §11)."
+  @spec planning_mode_label(PlanningMode.mode()) :: String.t()
+  def planning_mode_label(:auto_select_best_release), do: "Auto-select best release"
+  def planning_mode_label(:manually_select_release), do: "Manually select release"
+
+  @doc "The scope select's words for a download scope."
+  @spec download_scope_label(DownloadScope.scope()) :: String.t()
+  def download_scope_label(:first_season), do: "Season 1"
+  def download_scope_label(:everything), do: "All seasons"
 
   @doc """
   The quiet text markers a title row shows after its type and year, in
