@@ -349,4 +349,44 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       assert MediaCentaur.Secret.present?(Config.get(:tmdb_api_key))
     end
   end
+
+  describe "download button — default planning mode" do
+    alias MediaCentaur.Settings.Preferences.PlanningMode
+
+    setup do
+      Config.update(:prowlarr_url, "http://prowlarr.test")
+      Config.update(:prowlarr_api_key, "test-key")
+      MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
+      :ok
+    end
+
+    test "defaults to manual selection and persists a change", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      assert has_element?(
+               view,
+               "#settings-planning-mode option[value='manually_select_release'][selected]"
+             )
+
+      view
+      |> form("#settings-download-button", %{planning_mode: "auto_select_best_release"})
+      |> render_change()
+
+      assert PlanningMode.value() == :auto_select_best_release
+
+      assert has_element?(
+               view,
+               "#settings-planning-mode option[value='auto_select_best_release'][selected]"
+             )
+    end
+
+    test "the card is hidden until Prowlarr is ready", %{conn: conn} do
+      Config.update(:prowlarr_url, nil)
+      Config.update(:prowlarr_api_key, nil)
+
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      refute has_element?(view, "#settings-download-button")
+    end
+  end
 end

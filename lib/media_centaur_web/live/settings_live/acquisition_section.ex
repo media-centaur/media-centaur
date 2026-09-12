@@ -2,14 +2,18 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
   @moduledoc """
   The Acquisition section of the Settings page — Prowlarr + download-client
   configuration (with connection tests / detect-from-Prowlarr), the
-  auto-grab defaults form, and the release-tracking refresh interval that
-  feeds auto-grab. `SettingsLive` computes the capability/display values
-  and delegates to `render/1`; it hosts the save / test / detect handlers.
+  Download button's default planning mode, the auto-grab defaults form,
+  and the release-tracking refresh interval that feeds auto-grab.
+  `SettingsLive` computes the capability/display values and delegates to
+  `render/1`; it hosts the save / test / detect handlers.
   """
 
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.SettingsLive.Components
+
+  alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaurWeb.Components.Title.Logic
 
   attr :config, :map, required: true, doc: "settings config map (prowlarr/download-client keys)."
   attr :prowlarr_configured, :boolean, required: true
@@ -32,6 +36,11 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
   attr :usenet_client_test, :any, required: true, doc: "connection-test result map or nil."
   attr :usenet_client_testing, :boolean, required: true
   attr :auto_grab, :map, required: true, doc: "AutoGrabSettings map (default_mode, patience_hours)."
+
+  attr :planning_mode, :atom,
+    required: true,
+    values: [:manually_select_release, :auto_select_best_release],
+    doc: "the Download button's default planning mode (`Settings.Preferences.PlanningMode`)"
 
   def render(assigns) do
     ~H"""
@@ -384,6 +393,8 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
         </div>
       </form>
 
+      <.download_button_card :if={@prowlarr_ready} planning_mode={@planning_mode} />
+
       <.auto_grab_defaults_form :if={@prowlarr_ready} auto_grab={@auto_grab} />
 
       <.release_tracking_form config={@config} />
@@ -432,6 +443,52 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
         />
         <p class="text-xs text-base-content/55 mt-1">
           Changes take effect after the current refresh cycle completes.
+        </p>
+      </div>
+    </form>
+    """
+  end
+
+  attr :planning_mode, :atom,
+    required: true,
+    values: [:manually_select_release, :auto_select_best_release]
+
+  # The Download button on a title the library does not own (Discovery,
+  # Incoming) performs this mode; its menu carries the other one. The
+  # words are `Title.Logic.planning_mode_label/1`'s — the same ones the
+  # menu shows. Saves on change; the select is the state.
+  defp download_button_card(assigns) do
+    ~H"""
+    <form
+      id="settings-download-button"
+      phx-change="set_planning_mode"
+      class="p-5 rounded-lg glass-surface space-y-5"
+    >
+      <div class="min-w-0">
+        <h2 class="text-lg font-semibold">Download button</h2>
+        <p class="text-sm text-base-content/55 mt-0.5">On a title you don't own yet.</p>
+      </div>
+
+      <div>
+        <label
+          for="settings-planning-mode"
+          class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5"
+        >
+          Default planning mode
+        </label>
+        <select
+          id="settings-planning-mode"
+          name="planning_mode"
+          class="select select-bordered w-full"
+          data-nav-item
+          tabindex="0"
+        >
+          <option :for={mode <- PlanningMode.modes()} value={mode} selected={mode == @planning_mode}>
+            {Logic.planning_mode_label(mode)}
+          </option>
+        </select>
+        <p class="text-xs text-base-content/55 mt-1">
+          The button's main action. The other choice is in its menu.
         </p>
       </div>
     </form>
