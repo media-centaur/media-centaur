@@ -9,9 +9,9 @@ const reader = createDomReader()
 let restore = () => {}
 afterEach(() => restore())
 
-function stubDocument({ activeElement, body = {}, documentElement = {} }) {
+function stubDocument({ activeElement, body = {}, documentElement = {}, ...rest }) {
   const real = globalThis.document
-  globalThis.document = { activeElement, body, documentElement }
+  globalThis.document = { activeElement, body, documentElement, ...rest }
   restore = () => { globalThis.document = real }
 }
 
@@ -781,5 +781,74 @@ describe("scrollZoneToTop — a declaring zone rests its scroller at the top", (
     writer.scrollZoneToTop("nope")
 
     expect(glider.glideCalls).toEqual([])
+  })
+})
+
+describe("queryContextItems — an item counts once, for its nearest zone", () => {
+  // A fake element tree: `zone` marks a [data-nav-zone] container, `navItem`
+  // a [data-nav-item]; closest()/contains() walk `parent` links.
+  function el({ zone = null, parent = null, navItem = false } = {}) {
+    return {
+      parent, zone, navItem,
+      disabled: false,
+      hasAttribute(name) { return name === "data-nav-item" ? navItem : name === "disabled" ? false : false },
+      checkVisibility() { return true },
+      closest(selector) {
+        let cur = this
+        while (cur) {
+          if (selector === "[data-nav-zone]" && cur.zone) return cur
+          cur = cur.parent
+        }
+        return null
+      },
+      contains(other) {
+        let cur = other
+        while (cur) {
+          if (cur === this) return true
+          cur = cur.parent
+        }
+        return false
+      },
+    }
+  }
+
+  const selectors = {
+    strip: "[data-nav-zone='strip'] [data-nav-item]",
+    menu: "[data-nav-zone='menu'] [data-nav-item]",
+  }
+
+  test("items inside a nested zone belong to the inner zone, not the outer", () => {
+    const strip = el({ zone: "strip" })
+    const button = el({ parent: strip, navItem: true })
+    const chevron = el({ parent: strip, navItem: true })
+    const menu = el({ zone: "menu", parent: strip })
+    const item = el({ parent: menu, navItem: true })
+
+    stubDocument({
+      activeElement: null,
+      querySelector: (sel) => (sel === "[data-nav-zone='strip']" ? strip : sel === "[data-nav-zone='menu']" ? menu : null),
+      querySelectorAll: (sel) => (sel === selectors.strip ? [button, chevron, item] : sel === selectors.menu ? [item] : []),
+    })
+    const reader = createDomReader({ contextSelectors: selectors })
+
+    expect(reader.getItemCount("strip")).toBe(2)
+    expect(reader.getItemAt("strip", 1)).toBe(chevron)
+    expect(reader.getItemCount("menu")).toBe(1)
+    expect(reader.getItemAt("menu", 0)).toBe(item)
+  })
+
+  test("with no nested zone every matched item counts, as before", () => {
+    const strip = el({ zone: "strip" })
+    const a = el({ parent: strip, navItem: true })
+    const b = el({ parent: strip, navItem: true })
+
+    stubDocument({
+      activeElement: null,
+      querySelector: (sel) => (sel === "[data-nav-zone='strip']" ? strip : null),
+      querySelectorAll: (sel) => (sel === selectors.strip ? [a, b] : []),
+    })
+    const reader = createDomReader({ contextSelectors: selectors })
+
+    expect(reader.getItemCount("strip")).toBe(2)
   })
 })

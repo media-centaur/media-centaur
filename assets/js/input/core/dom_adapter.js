@@ -43,9 +43,32 @@ function isNavigable(el) {
 }
 
 /**
+ * The element a context's selector is scoped to — its first compound
+ * (`[data-nav-zone='grid']`, `[data-detail-mode='modal']`). Null when the
+ * selector has no scope or the element is not in the DOM.
+ */
+function contextScopeElement(selector) {
+  const scope = selector.split(" ")[0]
+  return scope ? document.querySelector(scope) : null
+}
+
+/**
+ * An item belongs to its nearest zone. A zone may contain another zone — a
+ * menu list opened inside an action strip — and the outer zone's descendant
+ * selector still matches the inner items, so they are dropped here, at the
+ * one chokepoint every count, index and focus read goes through.
+ */
+function ownedByScope(item, scope) {
+  if (!scope) return true
+  const nearest = item.closest("[data-nav-zone]")
+  return !nearest || nearest === scope || !scope.contains(nearest)
+}
+
+/**
  * Resolve the nav items for a context. MODAL items are scoped to the active
  * modal element (see `activeModalElement`); every other context uses its
- * flat config selector. Disabled items are excluded (see `isNavigable`).
+ * flat config selector, minus items that belong to a zone nested inside it
+ * (see `ownedByScope`). Disabled items are excluded (see `isNavigable`).
  * Returns an array (possibly empty).
  */
 function queryContextItems(selectors, context) {
@@ -55,7 +78,8 @@ function queryContextItems(selectors, context) {
   }
   const selector = selectors[context]
   if (!selector) return []
-  return Array.from(document.querySelectorAll(selector)).filter(isNavigable)
+  const scope = contextScopeElement(selector)
+  return Array.from(document.querySelectorAll(selector)).filter(el => isNavigable(el) && ownedByScope(el, scope))
 }
 
 /**

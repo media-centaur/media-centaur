@@ -88,8 +88,8 @@ describe("config.js covers what the templates declare", () => {
     expect(missing).toEqual([])
   })
 
-  test("every data-nav-zone has a context selector", () => {
-    const missing = [...declared("data-nav-zone")]
+  test("every data-nav-zone (and every menu_zone handed to a GlassMenu component) has a context selector", () => {
+    const missing = [...declared("data-nav-zone"), ...declared("menu_zone")]
       .filter(([zone]) => !RESOLVABLE_ZONES.has(zone))
       .map(([zone, path]) => `${zone} (${path})`)
 
