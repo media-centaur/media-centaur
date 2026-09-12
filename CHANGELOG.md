@@ -4,6 +4,27 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.23.0 — 2026-09-12
+
+### New
+
+- **Review a title for your friends.** *Recommend* is now *Review*: the pencil beside the bookmark on a title's page, in the library and on the title view. Give a verdict — **Dislike**, **Like** or **Love** — write what you thought, do both, or neither. None of it is required: press a chosen verdict again to clear it, and **Send** works with nothing chosen. Your friends see the verdict and your words on the Feed, on your card under **Discovery → Friends**, and as a pennant on the title wherever it appears.
+- **A thumbs down is something you can say.** A recommendation could only be *Like* or *Love*. A review can be a *Dislike* too, or no verdict at all with just your words.
+
+### Improved
+
+- **The Feed shows every verdict.** A liked title used to show nothing on its first line. Now a thumbs down, a thumbs up or a heart follows *reviewed* whenever the review gives a verdict, and only a review without one shows nothing. The friend's words are the third line, as the note was.
+- **Pennants fly six flags.** Love, like, dislike, *reviewed* (a speech bubble, for a review with no verdict), watched and wants to watch, in that order, on every surface a title appears on. Hover one for the sentence — *Nick dislikes this*, *Nick reviewed this*.
+- **The Friends tab says *Reviewed*.** A friend's card has a **Reviewed** shelf in place of *Recommended*, the verdict beside each title, and its presence line reads *reviewed Sample Movie · 3d ago*. Your own card's delete option reads **Delete review**.
+
+### Migration safety
+
+- This release runs a data migration: every recommendation stored on this machine — yours and your friends' — is removed. A review is a new kind of message that a recommendation cannot be turned into, since a friend's is signed by them, so recommendations do not carry over; review the titles again and they reappear for everyone. In the activity table the *note* column becomes *text* and the sentiment column becomes optional. The update runs all of it automatically, nothing to do by hand.
+
+### Relay note
+
+- Reviews need [social-relay](https://github.com/media-centaur/social-relay) **v0.6.0 or later**. Until a relay is upgraded it refuses them (the relay row under Settings › Social shows *blocked: kind 32164 is not stored by this relay*) and Media Centaur sends them again on its own once it is.
+
 ## v1.22.1 — 2026-09-11
 
 ### Fixed
