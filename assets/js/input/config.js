@@ -124,10 +124,10 @@ export const inputConfig = {
     plan_grid: Context.SHELF,
     plan_body: Context.TREE,
     // The title detail modal's action row walks LEFT/RIGHT like the
-    // library detail's action row; the scope menu's item joins it when open.
+    // library detail's action row; its menus are zones nested inside it.
     title_detail_body: Context.TOOLBAR,
-    // The series scope menu, present only while open: a one-item vertical
-    // list under the strip.
+    // Whichever Download menu is open — the other planning mode, or the
+    // scope — a short vertical list under the strip.
     title_detail_menu: Context.TREE,
     // The tracking-mode strip in the body (Off · Watch · Ask · Grab ·
     // Default, plus the acceptance Reset when set) walks LEFT/RIGHT.
@@ -200,15 +200,17 @@ export const inputConfig = {
       },
     },
     // The title detail modal (UIDR-035): the action strip (primary,
-    // secondary, tertiary verbs) over the series scope menu, which exists
-    // only while open, over the tracking-mode strip, which exists for any
-    // title the library does not own — DOWN descends, UP climbs back. No
-    // `back` edges: BACK dismisses from anywhere.
+    // secondary, tertiary verbs) over whichever Download menu is open,
+    // over the tracking-mode strip, which exists for any title the
+    // library does not own — DOWN descends, UP climbs back.
     title_detail: {
       entry: ["title_detail_body", "title_detail_menu", "title_detail_tracking"],
       layout: {
         title_detail_body: { down: ["title_detail_menu", "title_detail_tracking"] },
-        title_detail_menu: { up: ["title_detail_body"], down: ["title_detail_tracking"] },
+        // The open menu (the other planning mode, or the scope) is a list
+        // nested inside the strip; BACK leaves it for the strip and, through
+        // the list's `data-nav-dismiss-event`, closes it.
+        title_detail_menu: { up: ["title_detail_body"], down: ["title_detail_tracking"], back: ["title_detail_body"] },
         title_detail_tracking: { up: ["title_detail_menu", "title_detail_body"] },
       },
     },

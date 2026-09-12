@@ -19,6 +19,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Secret
   alias MediaCentaur.Settings
   alias MediaCentaur.Settings.Preferences.DiscoveryVisibility
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.DiscoveryLive.People
@@ -971,6 +972,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       })
     end
 
+    defp released_show do
+      Title.new!(%{
+        tmdb_id: 246_810,
+        media_type: :tv_series,
+        name: "Sample Show",
+        year: "2010",
+        release_date: ~D[2010-01-01]
+      })
+    end
+
     test "the modal opens from the snapshot, then dresses itself from the live TMDB detail",
          %{conn: conn} do
       # A ready TMDB capability: a key in config plus a passed test.
@@ -1049,8 +1060,27 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       render_until(view, fn _html -> has_element?(view, "#title-review") end)
     end
 
-    test "Download creates an automatic plan, closes the modal, flashes, and the row shows the state",
+    test "Download under the default mode plans for manual selection and opens its board on Incoming",
          %{conn: conn} do
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
+
+      assert has_element?(view, "#title-download", "Download")
+      # A movie has one scope: no scope select.
+      refute has_element?(view, "#title-scope")
+
+      html = view |> element("#title-download") |> render_click()
+      assert html =~ "Planning…"
+
+      plan = eventually(fn -> List.first(Plans.list_drafts()) end)
+      assert plan.approval_policy == "review"
+      assert plan.tmdb_type == "movie"
+      assert_redirect(view, "/incoming?plan=#{plan.id}")
+    end
+
+    test "Download under the auto-select mode creates an automatic plan, closes the modal and flashes",
+         %{conn: conn} do
+      PlanningMode.set(:auto_select_best_release)
       {:ok, _} = Discovery.put_rung(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
@@ -1066,41 +1096,78 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       render_until(view, fn _html -> has_element?(view, "#watchlist-item-movie-777", "Needs review") end)
     end
 
-    test "a series Download offers season 1 and the scope menu's Download all", %{conn: conn} do
+    test "the menu names the other mode and performs it", %{conn: conn} do
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
+
+      refute has_element?(view, "#title-download-menu")
+      view |> element("#title-download-toggle") |> render_click()
+      assert has_element?(view, "#title-download-menu #title-download-other", "Auto-select best release")
+
+      view |> element("#title-download-other") |> render_click()
+
+      assert_patch(view, "/discovery/watchlist")
+      await_supervised_tasks()
+      assert [%{approval_policy: "automatic"}] = Plans.list_drafts()
+    end
+
+    test "with auto-select as the default the menu offers manual selection", %{conn: conn} do
+      PlanningMode.set(:auto_select_best_release)
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
+
+      view |> element("#title-download-toggle") |> render_click()
+      assert has_element?(view, "#title-download-other", "Manually select release")
+
+      # Closing the menu is its own event (a click outside, or BACK).
+      render_hook(view, "title_menu_close", %{})
+      refute has_element?(view, "#title-download-menu")
+    end
+
+    test "a series Download plans season 1 by default; the scope select widens it to all seasons",
+         %{conn: conn} do
       TmdbStubs.stub_series_universe_for_targeting()
-
-      show =
-        Title.new!(%{
-          tmdb_id: 246_810,
-          media_type: :tv_series,
-          name: "Sample Show",
-          year: "2010",
-          release_date: ~D[2010-01-01]
-        })
-
-      {:ok, _} = Discovery.put_rung(show, :list)
+      {:ok, _} = Discovery.put_rung(released_show(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
 
-      assert has_element?(view, "#title-download", "Download season 1")
+      assert has_element?(view, "#title-download", "Download")
+      assert has_element?(view, "#title-scope", "Season 1")
       refute has_element?(view, "#title-scope-menu")
 
-      view |> element("#title-scope-toggle") |> render_click()
-      assert has_element?(view, "#title-scope-menu", "Download all")
-      # Downloading is not a watchlist act: the menu carries no entry that
-      # follows the series (campaign: the watchlist is the single entry point).
-      refute has_element?(view, "#title-scope-menu", "Download all and track")
-      refute has_element?(view, "#title-scope-menu [phx-value-track]")
+      view |> element("#title-scope") |> render_click()
+      assert has_element?(view, "#title-scope-menu #title-scope-everything", "All seasons")
+      assert has_element?(view, "#title-scope-first_season.glass-menu-item-active")
 
-      view |> element("#title-scope-menu li") |> render_click()
-      await_supervised_tasks()
+      view |> element("#title-scope-everything") |> render_click()
+      refute has_element?(view, "#title-scope-menu")
+      assert has_element?(view, "#title-scope", "All seasons")
 
-      [plan] = Plans.list_drafts()
+      view |> element("#title-download") |> render_click()
+
+      plan = eventually(fn -> List.first(Plans.list_drafts()) end)
       assert plan.tmdb_type == "tv"
+      assert plan.approval_policy == "review"
+      assert length(Plans.units_for(plan.id)) == 3
+      assert_redirect(view, "/incoming?plan=#{plan.id}")
 
       # Downloading what has aired says nothing about what is to come: the
       # title stays where the person put it, at List.
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
       assert Discovery.rung(246_810, :tv_series) == :list
+    end
+
+    test "a TMDB failure while planning manually flashes on the modal and leaves no plan",
+         %{conn: conn} do
+      {:ok, _} = Discovery.put_rung(released_show(), :list)
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
+      Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
+
+      view |> element("#title-download") |> render_click()
+
+      # The apostrophe is escaped in the HTML, so match the parsed flash.
+      render_until(view, fn _html -> has_element?(view, "#flash-error", "Couldn't plan Sample Show") end)
+      assert has_element?(view, "#title-download", "Download")
+      assert Plans.list_drafts() == []
     end
 
     test "raising the rung on a listed title follows it — tracked, at that rung", %{

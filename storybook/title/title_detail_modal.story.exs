@@ -3,8 +3,9 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
   The title detail modal (UIDR-035) — the one surface for a title
   without files, on Discovery and Incoming alike. Friend provenance is
   the pennants on the hero's mast (UIDR-037). The action row is the
-  honest rule with the acquisition state folded in; a series Download
-  is the split control; below it a friend's note, the title's facts,
+  honest rule with the acquisition state folded in; Download is the
+  split control with the scope select beside it on a series; below it a
+  friend's note, the title's facts,
   the ladder control, and beneath the control what it produces — the
   release timeline and recent activity.
   """
@@ -154,13 +155,39 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
       },
       %Variation{
         id: :series_split,
-        description: "A series: the split control — Download season 1, chevron for Download all.",
-        attributes: %{today: @today, detail: detail(show(), %{})}
+        description:
+          "A series: the split Download (main segment = the default planning mode, chevron " <>
+            "for the other) and the scope select beside it, on Season 1.",
+        attributes: %{today: @today, detail: detail(show(), %{}), download_scope: :first_season}
       },
       %Variation{
-        id: :series_menu_open,
-        description: "The scope menu open, showing the second verb.",
-        attributes: %{today: @today, detail: detail(show(), %{}), scope_menu_open: true}
+        id: :series_mode_menu_open,
+        description: "The mode menu open: manual selection is the default, so it offers auto-select.",
+        attributes: %{today: @today, detail: detail(show(), %{}), open_menu: :mode}
+      },
+      %Variation{
+        id: :series_auto_default,
+        description: "Auto-select as the default: the menu offers manual selection instead.",
+        attributes: %{
+          today: @today,
+          detail: detail(show(), %{planning_mode: :auto_select_best_release}),
+          open_menu: :mode
+        }
+      },
+      %Variation{
+        id: :series_scope_menu_open,
+        description: "The scope menu open, Season 1 active, All seasons on offer.",
+        attributes: %{today: @today, detail: detail(show(), %{}), open_menu: :scope}
+      },
+      %Variation{
+        id: :series_all_seasons,
+        description: "All seasons chosen: the select shows it; nothing else moves.",
+        attributes: %{today: @today, detail: detail(show(), %{}), download_scope: :everything}
+      },
+      %Variation{
+        id: :series_planning,
+        description: "A manual plan is being created: the split is disabled and reads Planning…",
+        attributes: %{today: @today, detail: detail(show(), %{}), download_pending?: true}
       },
       %Variation{
         id: :from_friend,

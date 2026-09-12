@@ -27,12 +27,12 @@ describe("discovery behavior", () => {
     expect(inputConfig.cursorStartPriority.discovery).toEqual(["title_rows", "people", "zone_tabs", "sidebar"])
   })
 
-  test("the title_detail overlay is the action strip over the scope menu over the tracking strip, DOWN/UP between them", () => {
+  test("the title_detail overlay is the action strip over the open menu over the tracking strip, DOWN/UP between them, BACK out of the menu", () => {
     expect(inputConfig.overlays.title_detail).toEqual({
       entry: ["title_detail_body", "title_detail_menu", "title_detail_tracking"],
       layout: {
         title_detail_body: { down: ["title_detail_menu", "title_detail_tracking"] },
-        title_detail_menu: { up: ["title_detail_body"], down: ["title_detail_tracking"] },
+        title_detail_menu: { up: ["title_detail_body"], down: ["title_detail_tracking"], back: ["title_detail_body"] },
         title_detail_tracking: { up: ["title_detail_menu", "title_detail_body"] },
       },
     })

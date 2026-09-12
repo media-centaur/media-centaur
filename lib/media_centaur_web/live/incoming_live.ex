@@ -460,6 +460,12 @@ defmodule MediaCentaurWeb.IncomingLive do
   def title_detail_path(socket, query),
     do: incoming_path(socket, Map.new(query, fn {key, value} -> {to_string(key), value} end))
 
+  # The board is this page's own modal: a patch swaps the title detail
+  # for it (`apply_plan_modal_params/2`).
+  @impl TitleDetailHost
+  def open_plan_board(socket, plan_id),
+    do: push_patch(socket, to: incoming_path(socket, %{"plan" => plan_id}))
+
   # Fetches one row past the window so `history_has_older?` is a fact
   # about the archive, not a guess — search/filter narrow in SQL over
   # the whole terminal table, the limit only bounds what renders. The
@@ -810,7 +816,9 @@ defmodule MediaCentaurWeb.IncomingLive do
         />
         <TitleDetailModal.title_detail_modal
           detail={@title_detail}
-          scope_menu_open={@scope_menu_open}
+          open_menu={@open_menu}
+          download_scope={@download_scope}
+          download_pending?={@download_pending != nil}
           today={@today}
           review?={@show_discovery}
         />
@@ -2499,7 +2507,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         open_plan_targeting(socket, params)
 
       plan_id ->
-        open_plan_board(socket, plan_id)
+        load_plan_board(socket, plan_id)
     end
   end
 
@@ -2595,7 +2603,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  defp open_plan_board(socket, plan_id) do
+  defp load_plan_board(socket, plan_id) do
     case Plans.fetch(plan_id) do
       {:ok, plan} ->
         board = Plans.Board.build(plan)
@@ -2686,7 +2694,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     if socket.assigns.plan_param == plan_id do
       socket
       |> assign(:search_health, IndexerHealth.cached())
-      |> open_plan_board(plan_id)
+      |> load_plan_board(plan_id)
     else
       socket
     end
