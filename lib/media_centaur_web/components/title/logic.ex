@@ -3,8 +3,10 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   Pure decisions for the title surfaces (ADR-030) — the ones Discovery
   and Incoming share: the title detail view-model, the acquisition-state
   words the rows and the modal show, the row markers, and a watchlist
-  row's next release date. Discovery's own two tab projections live
-  beside its LiveView: `FeedEntries` and `People`.
+  row's next release date. The planning-mode and scope words live here
+  too, so the Download menu and the Settings select say the same thing.
+  Discovery's own two tab projections live beside its LiveView:
+  `FeedEntries` and `People`.
   """
 
   alias MediaCentaur.Acquisition.Plans.DownloadScope
@@ -86,7 +88,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   def planning_mode_label(:auto_select_best_release), do: "Auto-select best release"
   def planning_mode_label(:manually_select_release), do: "Manually select release"
 
-  @doc "The scope select's words for a download scope."
+  @doc "The scope select's words for a download scope (spec 2026-09-12 §1, §11)."
   @spec download_scope_label(DownloadScope.scope()) :: String.t()
   def download_scope_label(:first_season), do: "Season 1"
   def download_scope_label(:everything), do: "All seasons"

@@ -203,7 +203,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
   end
 
-  describe "planning mode words" do
+  describe "planning mode and scope words" do
     test "each mode has its label" do
       assert Logic.planning_mode_label(:auto_select_best_release) == "Auto-select best release"
       assert Logic.planning_mode_label(:manually_select_release) == "Manually select release"
