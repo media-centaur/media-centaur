@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: shipped, owner check open
 started: 2026-09-12
 last_updated: 2026-09-12
 ---
@@ -44,7 +44,15 @@ nothing in the app says "recommend" once it ships.
 
 ## Status
 
-**In progress, 2026-09-12.** Scope audit and unify pass done; design
+**Shipped as v1.23.0 on 2026-09-12** (Phases 0–4; the relay tag and Phase
+5's owner check are the open items — retire this file once both are done).
+The app and wiki are pushed; the relay commit in `../social-relay`
+(`0faabd1`, stores 32164 and refuses 32160) is still unpushed and untagged,
+so until the owner tags v0.6.0 and redeploys, the relay refuses every
+review with `blocked: kind 32164 is not stored by this relay` and the app
+re-sends them on each connect.
+
+Scope audit and unify pass done; design
 approved by the owner the same day, including the removal of the stored
 recommendations. The owner's nine were printed for hand re-entry before
 the migration. One deferral named (several friends' texts on one title
@@ -61,8 +69,7 @@ three unpressed choices, a press sets, a second press clears, another
 replaces, Send is enabled with nothing chosen, Cancel closes; the Feed,
 the Friends tab and the storybook states (six-flag mast, dislike and bare
 entries, the three glyphs) render as designed. Left: Phase 5 (ship, owner
-check). Nothing is pushed: the app commit, the wiki commit and the relay
-commit all wait on the owner.
+check).
 
 ## Scope audit (2026-09-12)
 
@@ -292,23 +299,26 @@ owner can review them again by hand.
 
 ## Next steps
 
-0. **Records and glossary.** ADR-068 *A review replaces the recommendation
+Phases 0–4 are done and shipped in v1.23.0. Remaining: the relay tag and
+Phase 5.
+
+0. ~~**Records and glossary.**~~ Done. ADR-068 *A review replaces the recommendation
    on the wire* (architecture; shaped like ADR-067). UIDR-040 *A review is
    an opinion of any valence: the sentiment shows when given, nothing when
    none* (amends UIDR-037's flags, UIDR-038 §1 and its heart rule,
    UIDR-039's control; UIDR-031's anti-pattern amended in place).
    Regenerate `decisions/README.md`. Glossary rows: Review, Sentiment,
    Review text; Activity, Action, Feed, Sharing toggle reworded.
-1. **Relay v0.6.0.** `kinds.go` stores 32164 and refuses 32160; tests;
+1. **Relay v0.6.0.** Code done (`0faabd1`); **the owner tags and deploys.** `kinds.go` stores 32164 and refuses 32160; tests;
    `README.md`, `docs/protocol.md`, `docs/operating.md`; a campaign entry
    there. The owner tags and deploys. `just social-up` builds the working
    tree, so the app work can start against it before the tag.
-2. **Wire and context.** `Translation` (kind, fields, absent sentiment,
+2. ~~**Wire and context.**~~ Done. `Translation` (kind, fields, absent sentiment,
    `max_text_length/0`), `Activity` (kinds, nullable sentiment, `text`),
    `Activities.review/3` (delete `recommend/3`), `Sync` wording, the
    schema migration, the data migration and its test, `social.dev`
    (`review`, `--sentiment`, `--text`), `justfile`. Test-first.
-3. **Web.** `ReviewFlow` / `ReviewModal` with the clearable three-way
+3. ~~**Web.**~~ Done. `ReviewFlow` / `ReviewModal` with the clearable three-way
    choice; the host and control renames; `Components.Title.Sentiment`
    with its story; `Pennant` (six flags); `FeedEntry` / `FeedEntryCard`;
    `Person` / `People` / `PersonCard`; `ActivityWords`; `Title.Detail`
@@ -316,7 +326,7 @@ owner can review them again by hand.
    story variations for dislike, reviewed, text-only and bare. Verified in
    the real browser and with `mc-nav-trace` — the modal's nav-item count
    changes and the choice is now clearable.
-4. **Docs.** `docs/social-protocol.md` (+ `scripts/sync-wiki-docs`),
+4. ~~**Docs.**~~ Done, wiki pushed. `docs/social-protocol.md` (+ `scripts/sync-wiki-docs`),
    `docs/social.md`, `docs/architecture.md`; wiki `Social.md`,
    `Settings-Reference.md`, `Watchlist.md`, `Troubleshooting.md`,
    `FAQ.md`, `Hosting-a-Private-Relay.md` (v0.6.0), `Keyboard-and-Gamepad.md`,
@@ -324,10 +334,7 @@ owner can review them again by hand.
    `watchlist-and-tracking.md`; `README.md`. CHANGELOG at ship: the
    feature, and under *Migration safety* the removed recommendation rows,
    the nullable sentiment, the `text` column, and the relay version.
-5. **Ship and owner check.** At ship, the CHANGELOG entry names the
-   feature and, under *Migration safety*, the removed recommendation rows,
-   the nullable sentiment, the `text` column and the relay version; the
-   relay v0.6.0 tag and deploy come first. Then, desktop and TV: write a review with each
+5. **Owner check** (shipped as v1.23.0 with the CHANGELOG entry). Desktop and TV: write a review with each
    sentiment and with none; see it on the Feed, the Friends card and the
    pennant; delete it; a friend's dislike shows as a thumbs down; a
    friend's bare review shows as "reviewed".
