@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.SplitButton do
         description: "Every button variant, closed.",
         variations:
           for variant <-
-                ~w(primary secondary action info risky danger dismiss destructive_inline neutral outline) do
+                ~w(primary secondary action info risky danger dismiss destructive_inline neutral) do
             %Variation{
               id: String.to_atom("variant_" <> variant),
               attributes: base(open: false, variant: variant),
