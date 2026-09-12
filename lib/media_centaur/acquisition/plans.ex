@@ -121,61 +121,74 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   @doc """
-  Plans a TMDB title from its snapshot alone (spec 2026-09-05 §17): the
-  door a surface that lists titles the library does not own uses, where
-  there is no picker. Runs on the context task supervisor — a series
-  needs a targeting fetch, and the work must outlive the calling
-  LiveView (ADR-049) — and returns as soon as it is queued; the plan row
+  Plans a TMDB title from its snapshot alone, in the background (spec
+  2026-09-05 §17): the door the auto-select download action uses, where
+  nobody waits for the plan. Runs `create_title_plan/2` on the context
+  task supervisor — the work must outlive the calling LiveView
+  (ADR-049) — and returns as soon as it is queued; the plan row
   broadcasts on `acquisition:updates` when it exists. Movies take the
   same path so the contract is one shape.
 
+  Options are `create_title_plan/2`'s. A failure inside the task is
+  logged at warning on `:acquisition` and leaves no plan.
+  """
+  @spec plan_title(Title.t(), keyword()) :: :ok
+  def plan_title(%Title{} = title, opts \\ []) do
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+      case create_title_plan(title, opts) do
+        {:ok, _plan} ->
+          :ok
+
+        {:error, :nothing_to_plan} ->
+          Log.warning(:acquisition, "nothing to plan — #{title.name}")
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
+      end
+    end)
+
+    :ok
+  end
+
+  @doc """
+  Creates the plan for a TMDB title from its snapshot, synchronously —
+  the door the choose-releases download action uses, because it waits
+  for the plan's id to open its board (spec 2026-09-12 §20).
+
   Options: `approval_policy:` (`"automatic"` | `"review"`, default
-  review — the one-click download passes automatic) and `scope:` (series
-  only) `:first_season` (default) or `:everything`, see `DownloadScope`.
+  review) and `scope:` (series only) `:first_season` (default) or
+  `:everything`, see `DownloadScope`.
 
   A scope covers episodes that have *aired*; downloading them says
   nothing about what is still to come, and this door never touches the
   title's rung. Following a series is a person's act on the watchlist
   (ADR-066).
 
-  A failure inside the task (TMDB unreachable, nothing pickable) is
-  logged at warning on `:acquisition` and leaves no plan.
+  A movie resolves its ids from TMDB best-effort (`movie_plan_attrs/1`);
+  a series needs its targeting selection, so TMDB must answer.
+  `{:error, :nothing_to_plan}` when the scope yields no unit; the
+  targeting or creation error otherwise.
   """
-  @spec plan_title(Title.t(), keyword()) :: :ok
-  def plan_title(%Title{} = title, opts \\ []) do
-    policy = Keyword.get(opts, :approval_policy, "review")
+  @spec create_title_plan(Title.t(), keyword()) :: {:ok, Plan.t()} | {:error, term()}
+  def create_title_plan(title, opts \\ [])
+
+  def create_title_plan(%Title{media_type: :movie} = title, opts) do
+    create_movie_plan(movie_plan_attrs(title), approval_policy: title_policy(opts))
+  end
+
+  def create_title_plan(%Title{media_type: :tv_series} = title, opts) do
     scope = Keyword.get(opts, :scope, :first_season)
 
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      do_plan_title(title, policy, scope)
-    end)
-
-    :ok
-  end
-
-  defp do_plan_title(%Title{media_type: :movie} = title, policy, _scope) do
-    case create_movie_plan(movie_plan_attrs(title), approval_policy: policy) do
-      {:ok, _plan} ->
-        :ok
-
-      {:error, reason} ->
-        Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
-    end
-  end
-
-  defp do_plan_title(%Title{media_type: :tv_series} = title, policy, scope) do
     with {:ok, selection} <- Targeting.series_selection(title.tmdb_id),
-         units when units != [] <- DownloadScope.units(selection, scope),
-         {:ok, _plan} <- create_series_plan(selection, units, approval_policy: policy) do
-      :ok
+         units when units != [] <- DownloadScope.units(selection, scope) do
+      create_series_plan(selection, units, approval_policy: title_policy(opts))
     else
-      [] ->
-        Log.warning(:acquisition, "nothing to plan — #{title.name}")
-
-      {:error, reason} ->
-        Log.warning(:acquisition, "could not plan — #{title.name} — #{inspect(reason)}")
+      [] -> {:error, :nothing_to_plan}
+      {:error, reason} -> {:error, reason}
     end
   end
+
+  defp title_policy(opts), do: Keyword.get(opts, :approval_policy, "review")
 
   # A search-result snapshot carries neither the film's external ids nor
   # its original title, so this door is the one that has to ask — the
