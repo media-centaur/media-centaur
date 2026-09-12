@@ -161,6 +161,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   @impl TitleDetailHost
   def title_detail_path(socket, query), do: discovery_path(socket, query)
 
+  @impl TitleDetailHost
+  def open_plan_board(socket, plan_id), do: push_navigate(socket, to: "/incoming?plan=#{plan_id}")
+
   defp watch_row(socket, ref),
     do: Enum.find(socket.assigns.items, &({&1.item.tmdb_id, &1.item.media_type} == ref))
 
@@ -498,7 +501,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       <:overlays>
         <TitleDetailModal.title_detail_modal
           detail={@title_detail}
-          scope_menu_open={@scope_menu_open}
+          open_menu={@open_menu}
+          download_scope={@download_scope}
+          download_pending?={@download_pending != nil}
           today={@today}
           review?={@show_discovery}
         />

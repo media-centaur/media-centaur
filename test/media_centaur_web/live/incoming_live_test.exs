@@ -1382,6 +1382,39 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       await_supervised_tasks()
     end
 
+    test "Download in the title detail on Incoming patches to the new plan's board", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 246_810,
+          "media_type" => "tv",
+          "name" => "Sample Show",
+          "first_air_date" => "2010-06-16"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+      view |> element("#omnibox-result-tv_series-246810") |> render_click()
+      assert_patch(view, "/incoming?title=tv_series-246810")
+
+      # The targeting fetch behind Download reads the series universe.
+      TmdbStubs.stub_series_universe_for_targeting()
+      view |> element("#title-download") |> render_click()
+
+      plan = eventually(fn -> List.first(MediaCentaur.Acquisition.Plans.list_drafts()) end)
+      assert plan.approval_policy == "review"
+      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert has_element?(view, "#plan-modal[data-state='open']")
+      refute has_element?(view, "#title-detail-modal[data-state='open']")
+    end
+
     test "a search row carries the overlay-restore origin", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 

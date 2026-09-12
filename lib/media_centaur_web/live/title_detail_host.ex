@@ -10,14 +10,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   ## Host contract
 
   `use MediaCentaurWeb.Live.TitleDetailHost` registers an `on_mount`
-  that subscribes to `release_tracking:updates`, seeds `:title_detail`
-  and `:scope_menu_open`, and attaches four lifecycle hooks:
+  that subscribes to `release_tracking:updates`, seeds `:title_detail`,
+  `:open_menu`, `:download_scope` and `:download_pending`, and attaches
+  four lifecycle hooks:
 
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) and `&activity=<id>` |
-  | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_scope_*`, `title_download`, `title_activity_delete`, `title_review_open`, `set_rung`, `reset_lower_quality` |
-  | `:handle_async` | the live TMDB preview (`{:title_preview, ref}`) |
+  | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_mode_toggle`, `title_scope_toggle`, `title_menu_close`, `title_scope`, `title_download`, `title_activity_delete`, `title_review_open`, `set_rung`, `reset_lower_quality` |
+  | `:handle_async` | the live TMDB preview (`{:title_preview, ref}`) and the manual plan (`{:title_download, ref, name}`) that opens its board |
   | `:handle_info` | refreshes the open detail on `:releases_updated`, watchlist and library changes, then continues so the host's own clauses run |
   | `use ReviewFlow` | injects the Review modal's own controls; `title_review_open` opens it on the detail's title |
 
@@ -29,7 +30,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   that also uses `IntentAware` must `use` this module *first*: hooks
   run in attach order and `IntentAware` halts the watchlist messages.
 
-  Beyond the `use`, the host implements two callbacks:
+  Beyond the `use`, the host implements three callbacks:
 
   * `resolve_title/3` — the `TMDB.Title` a ref names on this page plus
     any page-specific facts for `Logic.title_detail/2` (Discovery's feed
@@ -37,6 +38,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     the title, which leaves the modal closed.
   * `title_detail_path/2` — the page's own path with the modal query
     applied (`[]` closes), so leaving the modal never changes tab.
+  * `open_plan_board/2` — navigates to Incoming with the plan's board
+    open (`push_navigate` from another page, `push_patch` on Incoming
+    itself).
 
   and keeps a `:today` assign. The common facts — library owner,
   watchlist membership, acquisition state, artwork, the tracked-title
@@ -60,6 +64,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1, tmdb_cdn_url: 2]
 
   alias MediaCentaur.Acquisition.{AutoGrabSettings, DownloadParams, Plans, TitleStates}
+  alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Activities
   alias MediaCentaur.Capabilities
@@ -67,6 +72,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Client, as: TMDBClient
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
@@ -86,7 +92,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @callback title_detail_path(socket :: Phoenix.LiveView.Socket.t(), query :: keyword()) ::
               String.t()
 
-  @modal_events ~w(title_scope_toggle title_scope_close title_download title_activity_delete title_review_open)
+  @callback open_plan_board(socket :: Phoenix.LiveView.Socket.t(), plan_id :: Ecto.UUID.t()) ::
+              Phoenix.LiveView.Socket.t()
+
+  @modal_events ~w(title_mode_toggle title_scope_toggle title_menu_close title_scope title_download title_activity_delete title_review_open)
   @rungs ~w(ignored off list follow ask grab default)
 
   defmacro __using__(_opts) do
@@ -104,7 +113,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
     socket =
       socket
-      |> assign(title_detail: nil, scope_menu_open: false)
+      |> assign(title_detail: nil, open_menu: nil, download_scope: :first_season, download_pending: nil)
       |> ReviewFlow.init()
       |> attach_hook(:title_detail_params, :handle_params, &apply_title_params/3)
       |> attach_hook(:title_detail_events, :handle_event, &handle_title_event/3)
@@ -131,7 +140,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         _closed_or_other ->
           socket =
             socket
-            |> assign(title_detail: build_detail(socket, title, facts, nil), scope_menu_open: false)
+            |> assign(
+              title_detail: build_detail(socket, title, facts, nil),
+              open_menu: nil,
+              download_scope: :first_season
+            )
             |> fetch_preview(title)
 
           {:cont, socket}
@@ -143,7 +156,17 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   def apply_title_params(_params, _uri, socket), do: {:cont, close(socket)}
 
-  defp close(socket), do: assign(socket, title_detail: nil, scope_menu_open: false)
+  # Closing while a manual plan is being created abandons it: the person
+  # left, so nobody should be taken to its board.
+  defp close(socket) do
+    socket =
+      case socket.assigns.download_pending do
+        nil -> socket
+        name -> socket |> cancel_async(name) |> assign(:download_pending, nil)
+      end
+
+    assign(socket, title_detail: nil, open_menu: nil, download_scope: :first_season)
+  end
 
   @doc """
   Rebuilds the open detail from current facts (a row reloaded, a mode
@@ -193,6 +216,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         }),
       acquisition?: acquisition?,
       default_grab_mode: default_grab_mode,
+      planning_mode: PlanningMode.value(),
       preview: preview
     }
 
@@ -219,6 +243,29 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   defp load_preview(%Title{media_type: :tv_series, tmdb_id: id}, in_library?) do
     with {:ok, show} <- TMDBClient.get_tv(id), do: {:ok, TitlePreview.tv(show, in_library?)}
+  end
+
+  def handle_title_async({:title_download, _ref, _name}, {:ok, {:ok, plan}}, socket) do
+    socket = assign(socket, download_pending: nil, open_menu: nil)
+    {:halt, socket.view.open_plan_board(socket, plan.id)}
+  end
+
+  def handle_title_async({:title_download, _ref, name}, {:ok, {:error, reason}}, socket) do
+    Log.warning(:acquisition, "could not plan — #{name} — #{inspect(reason)}")
+
+    {:halt,
+     socket
+     |> assign(:download_pending, nil)
+     |> put_flash(:error, plan_failure_flash(name, reason))}
+  end
+
+  def handle_title_async({:title_download, _ref, name}, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "planning crashed — #{name} — #{inspect(reason)}")
+
+    {:halt,
+     socket
+     |> assign(:download_pending, nil)
+     |> put_flash(:error, plan_failure_flash(name, :crashed))}
   end
 
   def handle_title_async({:title_preview, ref}, {:ok, {:ok, %TitlePreview{} = preview}}, socket) do
@@ -267,37 +314,49 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def handle_title_event("close_title", _params, socket), do: {:halt, push_close(socket)}
 
   def handle_title_event(
+        "title_mode_toggle",
+        _params,
+        %{assigns: %{title_detail: %TitleDetail{}}} = socket
+      ), do: {:halt, update(socket, :open_menu, &toggle_menu(&1, :mode))}
+
+  def handle_title_event(
         "title_scope_toggle",
         _params,
         %{assigns: %{title_detail: %TitleDetail{}}} = socket
-      ), do: {:halt, update(socket, :scope_menu_open, &(!&1))}
+      ), do: {:halt, update(socket, :open_menu, &toggle_menu(&1, :scope))}
 
-  def handle_title_event("title_scope_close", _params, socket),
-    do: {:halt, assign(socket, :scope_menu_open, false)}
+  def handle_title_event("title_menu_close", _params, socket),
+    do: {:halt, assign(socket, :open_menu, nil)}
 
-  # Movies send no scope; a series sends first_season or everything.
+  # A closed set, mapped explicitly: `String.to_existing_atom/1` would
+  # depend on whether `DownloadScope` happens to be loaded yet.
+  def handle_title_event(
+        "title_scope",
+        %{"choice" => choice},
+        %{assigns: %{title_detail: %TitleDetail{}}} = socket
+      )
+      when choice in ~w(first_season everything) do
+    scope = if choice == "everything", do: :everything, else: :first_season
+    {:halt, assign(socket, download_scope: scope, open_menu: nil)}
+  end
+
+  # The main segment sends no mode (the person's default); the menu item
+  # names the other one. A movie has one scope, so it sends none.
   def handle_title_event(
         "title_download",
         params,
         %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
       ) do
-    # A closed set, mapped explicitly: `String.to_existing_atom/1` would
-    # depend on whether `DownloadScope` happens to be loaded yet.
-    scope =
+    mode =
       case params do
-        %{"scope" => "first_season"} -> [scope: :first_season]
-        %{"scope" => "everything"} -> [scope: :everything]
-        _movie_or_unknown -> []
+        %{"mode" => "auto_select_best_release"} -> :auto_select_best_release
+        %{"mode" => "manually_select_release"} -> :manually_select_release
+        _default -> detail.planning_mode
       end
 
-    # A download says nothing about the future: whichever scope, the
-    # title's rung is untouched (ADR-066).
-    :ok = Plans.plan_title(detail.title, [approval_policy: "automatic"] ++ scope)
+    scope = if detail.scoped?, do: socket.assigns.download_scope
 
-    {:halt,
-     socket
-     |> put_flash(:info, download_flash(detail.title.name))
-     |> push_close()}
+    {:halt, socket |> assign(:open_menu, nil) |> start_download(detail.title, mode, scope)}
   end
 
   def handle_title_event(
@@ -354,6 +413,47 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   def handle_title_event(_event, _params, socket), do: {:cont, socket}
 
+  defp toggle_menu(open, menu) when open == menu, do: nil
+  defp toggle_menu(_open, menu), do: menu
+
+  @doc """
+  Performs a planning mode on a title (spec 2026-09-12 §5–7). Auto-select
+  hands the plan to the supervised door (`Plans.plan_title/2`,
+  `automatic`), flashes, and closes the modal when one is open. Manually
+  selecting plans here under `start_async` (`Plans.create_title_plan/2`,
+  `review`) and opens the plan's board on Incoming once it exists,
+  through the host's `open_plan_board/2`; a failure flashes on the modal
+  instead. A click while one is pending is a no-op. `scope` is nil for
+  a movie. A download never moves the title's rung (ADR-066).
+  """
+  @spec start_download(
+          Phoenix.LiveView.Socket.t(),
+          Title.t(),
+          PlanningMode.mode(),
+          DownloadScope.scope() | nil
+        ) :: Phoenix.LiveView.Socket.t()
+  def start_download(%{assigns: %{download_pending: name}} = socket, _title, _mode, _scope)
+      when not is_nil(name), do: socket
+
+  def start_download(socket, %Title{} = title, :auto_select_best_release, scope) do
+    :ok = Plans.plan_title(title, [approval_policy: "automatic"] ++ scope_opts(scope))
+
+    socket = put_flash(socket, :info, download_flash(title.name))
+    if socket.assigns.title_detail, do: push_close(socket), else: socket
+  end
+
+  def start_download(socket, %Title{} = title, :manually_select_release, scope) do
+    opts = [approval_policy: "review"] ++ scope_opts(scope)
+    name = {:title_download, Title.ref(title), title.name}
+
+    socket
+    |> assign(:download_pending, name)
+    |> start_async(name, fn -> Plans.create_title_plan(title, opts) end)
+  end
+
+  defp scope_opts(nil), do: []
+  defp scope_opts(scope), do: [scope: scope]
+
   # A feed-born detail carries the review's provenance onto the
   # record the raise creates — who sent it, and what they said. It applies
   # on creation only, so re-raising an existing record leaves it alone.
@@ -368,6 +468,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   """
   @spec download_flash(String.t()) :: String.t()
   def download_flash(name), do: "Finding a release for #{name}"
+
+  # The one remedy that matters, per cause: nothing to plan is a fact
+  # about the library; anything else is TMDB's answer or its absence.
+  defp plan_failure_flash(name, :nothing_to_plan),
+    do: "Nothing to download for #{name}: every aired episode is already in your library or on its way."
+
+  defp plan_failure_flash(name, _reason),
+    do: "Couldn't plan #{name}. Check TMDB under Settings and try again."
 
   defp push_close(socket), do: push_patch(socket, to: socket.view.title_detail_path(socket, []))
 

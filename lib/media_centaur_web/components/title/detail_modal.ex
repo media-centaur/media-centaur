@@ -24,13 +24,15 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   Planning / Downloading / Needs review → a stated fact (Needs review
   links to Incoming); Download when the title is out and an indexer is
   ready; otherwise no primary verb — there is no `Track`, because
-  arming is the ladder control's job (ADR-065). A series Download is a
-  split control — "Download season 1" plus a chevron opening "Download
-  all" — reusing the `glass-menu` idiom. Neither follows the series: a
-  scope covers episodes that have aired, and what is still to come is
-  the ladder's business, never a download's (ADR-066). Delete <noun> is
-  the one tertiary verb, on an own activity the
-  modal was opened from (the You card), named by its kind
+  arming is the ladder control's job (ADR-065). Download is a split
+  button (`GlassMenu.split_button`): its main segment performs the
+  person's default planning mode (`Settings.Preferences.PlanningMode`)
+  and its menu names the other; a series adds a scope select beside it
+  (`GlassMenu.menu_select`, Season 1 or All seasons). Neither follows
+  the series: a scope covers episodes that have aired, and what is still
+  to come is the ladder's business, never a download's (ADR-066). Delete
+  <noun> is the one tertiary verb, on an own activity the modal was
+  opened from (the You card), named by its kind
   (`ActivityWords.noun/1`).
 
   The strip's bookmark lists a title and the tracking block below shows
@@ -41,22 +43,24 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   title's files stay the library's — `In library` bridges to them.
 
   Pure rendering; every control bubbles to the `TitleDetailHost`:
-  `close_title`, `title_download` (`scope` for a series),
-  `title_scope_toggle`, `title_scope_close`, `title_activity_delete`,
+  `close_title`, `title_download` (`mode` from the menu, none from the
+  main segment), `title_mode_toggle`, `title_scope_toggle`,
+  `title_menu_close`, `title_scope` (`choice`), `title_activity_delete`,
   `set_rung`, `reset_lower_quality`.
 
   Nav: the backdrop is the `title_detail` overlay
   (`config.overlays.title_detail`): the action strip is the
-  `title_detail_body` TOOLBAR, the open scope menu the
-  `title_detail_menu` TREE beneath it, and the ladder strip the
-  `title_detail_tracking` TOOLBAR in the body — siblings in the DOM,
-  because nav zones must not nest.
+  `title_detail_body` TOOLBAR, whichever Download menu is open the
+  `title_detail_menu` TREE nested inside it (BACK closes it), and the
+  ladder strip the `title_detail_tracking` TOOLBAR in the body.
   """
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.FacetStrip
+  alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Detail.TitleLayer
@@ -71,7 +75,18 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   alias MediaCentaurWeb.TitleRef
 
   attr :detail, TitleDetail, default: nil, doc: "the open title; nil = closed"
-  attr :scope_menu_open, :boolean, default: false, doc: "the series scope menu is showing"
+
+  attr :open_menu, :atom,
+    default: nil,
+    values: [nil, :mode, :scope],
+    doc: "which of the Download control's menus is open: the other planning mode, or the scope"
+
+  attr :download_scope, :atom, default: :first_season, values: [:first_season, :everything]
+
+  attr :download_pending?, :boolean,
+    default: false,
+    doc: "a manual plan is being created — the split button is disabled and says so"
+
   attr :today, Date, required: true
 
   attr :review?, :boolean,
@@ -125,59 +140,44 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
               · {@detail.title.year}
             </span>
           </p>
-          <%!-- The scope menu is a sibling of the action strip, not a child:
-                nav zones must not nest, and the menu is its own region
-                (`title_detail_menu`, reached by DOWN from the strip). The
-                wrapper is the `.glass-menu` anchor, so the list opens under
-                the strip's first control — the split Download button. --%>
+          <%!-- The action strip. The Download control's menus are zones
+                nested inside it: the input system counts an item for its
+                nearest zone, and BACK out of an open list closes it
+                (`data-nav-dismiss-event`). After the primary, the same
+                icon cluster the library panel's view controls wear: the
+                bookmark (UIDR-039 — the listing act, and the only verb a
+                title not on the list has) and the pencil Review. Then
+                the `ml-auto` tertiary group. --%>
           <div class="mt-4 pb-5">
-            <div class="glass-menu" phx-click-away="title_scope_close">
-              <%!-- After the primary, the same icon cluster the library
-                    panel's view controls wear: the bookmark (UIDR-039 — the
-                    listing act, and the only verb a title not on the list
-                    has) and the pencil Review. Then the `ml-auto`
-                    tertiary group. --%>
-              <div class="flex flex-wrap items-center gap-3" data-nav-zone="title_detail_body">
-                <.primary detail={@detail} scope_menu_open={@scope_menu_open} />
-                <WatchlistToggle.watchlist_toggle
-                  id="title-watchlist"
-                  rung={@detail.rung}
-                  event="set_rung"
-                  phx-value-ref={@ref}
-                />
-                <.button
-                  :if={@review?}
-                  id="title-review"
-                  variant="dismiss"
-                  size="sm"
-                  shape="circle"
-                  class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
-                  phx-click="title_review_open"
-                  data-nav-item
-                  tabindex="0"
-                  title="Review"
-                  aria-label="Review"
-                >
-                  <.icon name="hero-pencil-square" class="size-5" />
-                </.button>
-                <.tertiary detail={@detail} />
-              </div>
-              <ul
-                :if={@scope_menu_open}
-                id="title-scope-menu"
-                class="glass-menu-list glass-menu-list--content glass-surface"
-                data-nav-zone="title_detail_menu"
+            <div class="flex flex-wrap items-center gap-3" data-nav-zone="title_detail_body">
+              <.primary
+                detail={@detail}
+                open_menu={@open_menu}
+                download_scope={@download_scope}
+                download_pending?={@download_pending?}
+              />
+              <WatchlistToggle.watchlist_toggle
+                id="title-watchlist"
+                rung={@detail.rung}
+                event="set_rung"
+                phx-value-ref={@ref}
+              />
+              <.button
+                :if={@review?}
+                id="title-review"
+                variant="dismiss"
+                size="sm"
+                shape="circle"
+                class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
+                phx-click="title_review_open"
+                data-nav-item
+                tabindex="0"
+                title="Review"
+                aria-label="Review"
               >
-                <li
-                  class="glass-menu-item"
-                  phx-click="title_download"
-                  phx-value-scope="everything"
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Download all
-                </li>
-              </ul>
+                <.icon name="hero-pencil-square" class="size-5" />
+              </.button>
+              <.tertiary detail={@detail} />
             </div>
           </div>
         </div>
@@ -238,7 +238,9 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   end
 
   attr :detail, TitleDetail, required: true
-  attr :scope_menu_open, :boolean, required: true
+  attr :open_menu, :atom, required: true, values: [nil, :mode, :scope]
+  attr :download_scope, :atom, required: true, values: [:first_season, :everything]
+  attr :download_pending?, :boolean, required: true
 
   defp primary(%{detail: %{primary: {:in_library, owner_id}}} = assigns) do
     assigns = assign(assigns, :owner_id, owner_id)
@@ -279,53 +281,51 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
     """
   end
 
-  defp primary(%{detail: %{primary: :download, scoped?: true}} = assigns) do
-    ~H"""
-    <span class="inline-flex">
-      <.button
-        id="title-download"
-        variant="primary"
-        size="sm"
-        class="rounded-r-none"
-        phx-click="title_download"
-        phx-value-scope="first_season"
-        data-nav-item
-        tabindex="0"
-      >
-        Download season 1
-      </.button>
-      <.button
-        id="title-scope-toggle"
-        variant="primary"
-        size="sm"
-        shape="square"
-        class="rounded-l-none border-l border-primary-content/20"
-        phx-click="title_scope_toggle"
-        aria-label="More download options"
-        aria-expanded={to_string(@scope_menu_open)}
-        data-nav-item
-        tabindex="0"
-      >
-        <span class={["glass-menu-chevron", @scope_menu_open && "rotate-180"]}>
-          <.icon name="hero-chevron-down-mini" class="size-4" />
-        </span>
-      </.button>
-    </span>
-    """
-  end
-
+  # The split's main segment performs the person's default planning
+  # mode; the menu names the other. A series adds the scope select.
   defp primary(%{detail: %{primary: :download}} = assigns) do
+    assigns = assign(assigns, :other_mode, PlanningMode.other(assigns.detail.planning_mode))
+
     ~H"""
-    <.button
+    <GlassMenu.split_button
       id="title-download"
-      variant="primary"
-      size="sm"
+      open={@open_menu == :mode}
+      on_toggle="title_mode_toggle"
+      on_close="title_menu_close"
+      menu_zone="title_detail_menu"
+      menu_label="More download options"
+      disabled={@download_pending?}
       phx-click="title_download"
-      data-nav-item
-      tabindex="0"
     >
-      Download
-    </.button>
+      {if @download_pending?, do: "Planning…", else: "Download"}
+      <:item
+        id="title-download-other"
+        event="title_download"
+        values={%{"mode" => Atom.to_string(@other_mode)}}
+      >
+        {Logic.planning_mode_label(@other_mode)}
+      </:item>
+    </GlassMenu.split_button>
+    <GlassMenu.menu_select
+      :if={@detail.scoped?}
+      id="title-scope"
+      open={@open_menu == :scope}
+      on_toggle="title_scope_toggle"
+      on_close="title_menu_close"
+      menu_zone="title_detail_menu"
+      value_label={Logic.download_scope_label(@download_scope)}
+      label="Download scope"
+    >
+      <:item
+        :for={scope <- [:first_season, :everything]}
+        id={"title-scope-" <> Atom.to_string(scope)}
+        event="title_scope"
+        values={%{"choice" => Atom.to_string(scope)}}
+        active={scope == @download_scope}
+      >
+        {Logic.download_scope_label(scope)}
+      </:item>
+    </GlassMenu.menu_select>
     """
   end
 
