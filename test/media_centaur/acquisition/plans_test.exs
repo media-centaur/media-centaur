@@ -21,6 +21,25 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     :ok
   end
 
+  # The snapshots the title doors plan from: the ids the TMDB stubs serve.
+  defp movie_title do
+    MediaCentaur.TMDB.Title.new!(%{
+      tmdb_id: 246_813,
+      media_type: :movie,
+      name: "Sample Movie",
+      year: "2005"
+    })
+  end
+
+  defp show_title do
+    MediaCentaur.TMDB.Title.new!(%{
+      tmdb_id: 246_810,
+      media_type: :tv_series,
+      name: "Sample Show",
+      year: "2010"
+    })
+  end
+
   defp selection do
     %Targeting.Selection{
       tmdb_id: "246810",
@@ -850,14 +869,6 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       :ok
     end
 
-    defp movie_title do
-      Title.new!(%{tmdb_id: 246_813, media_type: :movie, name: "Sample Movie", year: "2005"})
-    end
-
-    defp show_title do
-      Title.new!(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show", year: "2010"})
-    end
-
     test "a movie plans with the given policy" do
       assert :ok = Plans.plan_title(movie_title(), approval_policy: "automatic")
       await_supervised_tasks()
@@ -924,6 +935,22 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert :ok = Plans.plan_title(show_title(), scope: :first_season)
       await_supervised_tasks()
 
+      assert Plans.list_drafts() == []
+    end
+
+    test "nothing to plan is logged once, by title and id, and leaves no plan" do
+      MediaCentaur.TmdbStubs.stub_unaired_series_for_targeting()
+
+      unaired =
+        Title.new!(%{tmdb_id: 246_811, media_type: :tv_series, name: "Unaired Show", year: "2199"})
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          assert :ok = Plans.plan_title(unaired, scope: :first_season)
+          await_supervised_tasks()
+        end)
+
+      assert log =~ "nothing to plan — Unaired Show tmdb:246811"
       assert Plans.list_drafts() == []
     end
   end
