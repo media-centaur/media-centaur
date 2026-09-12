@@ -887,3 +887,31 @@ describe("queryContextItems — an item counts once, for its nearest zone", () =
     expect(reader.getItemAt("drawer", 0)).toBe(loose)
   })
 })
+
+describe("getZoneDismissEvent — what BACK pushes when it leaves a zone", () => {
+  const selectors = {
+    menu: "[data-nav-zone='menu'] [data-nav-item]",
+    toolbar: "[data-nav-zone='toolbar'] [data-nav-item]",
+  }
+
+  test("reads data-nav-dismiss-event off the zone container", () => {
+    const menu = { dataset: { navZone: "menu", navDismissEvent: "close_menu" } }
+    const toolbar = { dataset: { navZone: "toolbar" } }
+    stubDocument({
+      activeElement: null,
+      querySelector: (sel) => (sel === "[data-nav-zone='menu']" ? menu : sel === "[data-nav-zone='toolbar']" ? toolbar : null),
+    })
+    const reader = createDomReader({ contextSelectors: selectors })
+
+    expect(reader.getZoneDismissEvent("menu")).toBe("close_menu")
+    expect(reader.getZoneDismissEvent("toolbar")).toBe(null)
+  })
+
+  test("is null for an unknown context or an absent zone", () => {
+    stubDocument({ activeElement: null, querySelector: () => null })
+    const reader = createDomReader({ contextSelectors: selectors })
+
+    expect(reader.getZoneDismissEvent("menu")).toBe(null)
+    expect(reader.getZoneDismissEvent("nowhere")).toBe(null)
+  })
+})
