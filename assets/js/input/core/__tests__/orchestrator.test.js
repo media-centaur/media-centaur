@@ -3946,4 +3946,74 @@ describe("Orchestrator", () => {
       }
     })
   })
+
+  describe("BACK out of a zone that declares a dismiss event", () => {
+    // A page layout with a menu list (a TREE) under its toolbar: DOWN enters
+    // it, BACK leaves along the `back` edge — and the zone's
+    // `data-nav-dismiss-event` asks the LiveView to close the list, so the
+    // cursor and the DOM leave together.
+    const MENU_LAYOUTS = {
+      ...TEST_LAYOUTS,
+      menus: {
+        toolbar: { down: ["menu", "grid"] },
+        menu:    { up: ["toolbar"], back: ["toolbar"] },
+        grid:    { up: ["toolbar"] },
+        sidebar: { right: ["toolbar", "grid"] },
+      },
+    }
+
+    function menuSetup(readerOverrides = {}) {
+      return setup(
+        {
+          getZone: () => "menus",
+          getItemCount: () => 2,
+          getFocusedIndex: () => 0,
+          getZoneDismissEvent: (ctx) => (ctx === "menu" ? "close_menu" : null),
+          ...readerOverrides,
+        },
+        {
+          contextSelectors: { ...TEST_CONFIG.contextSelectors, menu: "[data-nav-zone='menu'] [data-nav-item]" },
+          instanceTypes: { ...TEST_CONFIG.instanceTypes, menu: Context.TREE },
+          layouts: MENU_LAYOUTS,
+          cursorStartPriority: { ...TEST_CONFIG.cursorStartPriority, menus: ["toolbar", "grid", "sidebar"] },
+        },
+      )
+    }
+
+    test("BACK from the menu returns to the toolbar and pushes the zone's dismiss event", () => {
+      const { system } = menuSetup()
+      const pushEvent = mock(() => {})
+      system.start({ pushEvent })
+      system.focusMachine.forceContext("menu")
+
+      system._handleAction(Action.BACK)
+
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+      expect(pushEvent).toHaveBeenCalledWith("close_menu", {})
+    })
+
+    test("BACK from a zone without a dismiss event pushes nothing", () => {
+      const { system } = menuSetup({ getZoneDismissEvent: () => null })
+      const pushEvent = mock(() => {})
+      system.start({ pushEvent })
+      system.focusMachine.forceContext("menu")
+
+      system._handleAction(Action.BACK)
+
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+      expect(pushEvent).not.toHaveBeenCalled()
+    })
+
+    test("BACK from the toolbar (no back edge) still enters the sidebar", () => {
+      const { system } = menuSetup({ getActiveItemIndex: (ctx) => (ctx === "sidebar" ? 0 : -1) })
+      const pushEvent = mock(() => {})
+      system.start({ pushEvent })
+      system.focusMachine.forceContext(Context.TOOLBAR)
+
+      system._handleAction(Action.BACK)
+
+      expect(system.focusMachine.context).toBe("sidebar")
+      expect(pushEvent).not.toHaveBeenCalled()
+    })
+  })
 })

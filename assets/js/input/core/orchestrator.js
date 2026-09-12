@@ -4,6 +4,9 @@
  * Creates instances, manages input sources, routes actions through
  * the state machine, and executes directives via the DOM adapter.
  *
+ * A zone may declare `data-nav-dismiss-event`; BACK leaving it along its
+ * back edge pushes that event (menus close themselves this way).
+ *
  * Input sources (keyboard, gamepad) are decoupled peers that produce
  * semantic actions. The orchestrator is source-agnostic — it never
  * knows which source produced an action.
@@ -691,6 +694,15 @@ export class Orchestrator {
     const contextBefore = this.focusMachine.context
 
     const directive = this.focusMachine.transition(action)
+
+    // A zone that declares `data-nav-dismiss-event` is a containment layer
+    // the LiveView owns (a menu list). BACK peeling out of it along its
+    // `back` edge also tells the LiveView to close it, so the cursor and the
+    // DOM leave together.
+    if (directive.type === "enter_context" && directive.direction === "back") {
+      const dismiss = this.reader.getZoneDismissEvent?.(contextBefore)
+      if (dismiss) this._hookEl?.pushEvent?.(dismiss, {})
+    }
 
     // If we just entered the sidebar, record where we came from
     if (directive.type === "enter_sidebar" && contextBefore !== this._config.primaryMenu) {
