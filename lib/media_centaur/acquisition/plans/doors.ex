@@ -60,8 +60,11 @@ defmodule MediaCentaur.Acquisition.Plans.Doors do
       },
       %{
         module: MediaCentaur.Acquisition.Plans,
-        function: :do_plan_title,
-        opens: "Discovery's one-click download, for a film or a series",
+        function: :create_title_plan,
+        opens:
+          "the Download button on a title the library does not own, for a film or a " <>
+            "series — directly when the person selects releases, through plan_title/2's " <>
+            "supervised task when the app auto-selects",
         identity_from: "a TMDB detail it fetches itself — the only door holding no payload already"
       },
       %{
