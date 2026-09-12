@@ -1478,11 +1478,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   color: var(--color-primary);
 }
 
-.glass-menu-item-highlight {
-  background: oklch(from var(--color-base-content) l c h / 0.1);
-  color: oklch(from var(--color-base-content) l c h / 0.9);
-}
-
 /* Filter input — subtle border, matched height, leading search icon */
 .library-filter-wrap {
   position: relative;
