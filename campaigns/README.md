@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`review-replaces-recommendation.md`](review-replaces-recommendation.md) —
+  **planning.** "Recommend" becomes "review": one person's opinion of one
+  title, told to their friends — an optional sentiment (thumbs down, thumbs
+  up, heart) and optional text, neither required. A new activity kind
+  (32164) replaces the recommendation (32160, retired) on the wire, in
+  storage, in every control and every sentence, following ADR-067's
+  retirement precedent (relay release first, stored rows removed by a data
+  migration). Scope audit and unify-design pass written; one owner decision
+  open (the eleven stored recommendations); one deferral named (several
+  friends' review texts on one title view). No code yet.
 * [`watchlist-single-entry-point.md`](watchlist-single-entry-point.md) —
   **shipped v1.22.0 2026-09-11; owner check open.** Adding a title to the watchlist and enabling
   release tracking are two acts, in that order, and the second happens only
