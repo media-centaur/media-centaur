@@ -25,8 +25,10 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
   any found unit for a tracking plan); `review` — the plan parks as a
   draft on Downloads until a person approves it. Stamped at creation by
   whoever creates the plan (the drop planner from the item's auto-grab
-  mode, the picker and plan-now as `review`, one-click downloads as
-  `automatic`) and never derived from `origin` at read time.
+  mode, the picker and Plan now as `review`; the Download button as its
+  planning mode says — auto-select `automatic`, manual selection `review`
+  (`TitleDetailHost.start_download/4`)) and never derived from `origin`
+  at read time.
   """
 
   use Ecto.Schema

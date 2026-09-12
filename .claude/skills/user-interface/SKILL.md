@@ -122,6 +122,18 @@ Sizes: `"xs"`, `"sm"`, `"md"` (default), `"lg"`. Shapes: `"circle"`, `"square"` 
 
 **Standard labels.** Use `"More info"` (not `"Details"`, `"More"`, or `"Info"`) for the secondary action that *opens* an entity's detail view from a card or hero — the hero CTA pair is always **Play** + **More info**. *Inside* the detail modal, the secondary toggle is **Manage** (cog icon); it keeps that label while the sub-view is open (`aria-pressed`), and the way out is the view control named for its destination ("Overview", "Episodes"). See [UIDR-003].
 
+### Glass menu
+
+The house dropdown idiom (`.glass-menu*` in `app.css`): a trigger with a chevron and an anchored glass list beneath it, open state owned by the LiveView. **Always** compose it from `MediaCentaurWeb.Components.GlassMenu` — never hand-roll `.glass-menu` markup or a private keyboard model.
+
+| Component | Use |
+|---|---|
+| `menu_list/1` | The anchored list on its own: `id`, `zone` (its `data-nav-zone`, a TREE in `config.js`), `on_close` (the event BACK pushes on the way out, rendered as `data-nav-dismiss-event`), `:item` slot (`event`, `values`, `active` — an active item is a `menuitemradio`) |
+| `split_button/1` | A main segment that performs an action (`phx-click` in `rest`) joined to a chevron that opens the list — the title detail modal's Download. Any button variant but `outline` |
+| `menu_select/1` | A trigger showing the current value (`value_label`) with the options in the list, the current one `active` — the scope select beside a series' Download, the library sort. `label` is the hidden accessible name read before the value |
+
+`open`, `on_toggle`, `on_close` and `menu_zone` are the LiveView's: one open-menu assign, a toggle event, and a close event the click-away and BACK share. The list's zone needs a `back` edge to the trigger's zone in `config.js` so BACK closes it (see the `input-system` skill). Settings keeps native `<select>`s; the glass menu is for content surfaces.
+
 ### Empty states ([UIDR-034])
 
 **Always** use `<.empty_state>`. A surface with nothing on it states the
@@ -304,7 +316,7 @@ Plain text links with animated underline. `.zone-tab-active` expands underline f
 ### Library Toolbar
 
 - **Type tabs:** `.tabs.tabs-boxed.segmented-control` — the house pick-one pill (glass container, the chosen `.tab` lifted on `bg-neutral/80`; also `aria-selected` / `aria-pressed`). The title ladder (`IntentControl`) wears the same pill with a `.segment-rule` before Default.
-- **Sort dropdown:** `.sort-dropdown-trigger` (pill) + `.sort-dropdown-menu.glass-surface` (animated dropdown)
+- **Sort:** `GlassMenu.menu_select` (see Glass menu under Component Recipes); its open list is the `library_sort_menu` nav zone
 - **Filter input:** `.library-filter` — pill with glass border, blue focus ring
 
 ### Console Overlay (Guake-style)
@@ -321,7 +333,7 @@ All interactive elements need `data-nav-item` and `tabindex="0"` for gamepad/key
 **Except iteration-phase surfaces**, which ship mouse-only until their hardening pass. A surface whose template comment or spec says the design is still moving ("iteration-phase", "the hardening pass gives it one") gets no nav zones, attributes, config entries or key-trace verification until that pass, or until the owner asks — nav wiring is per-geometry and is rewritten with every layout change.
 
 **Key rules:**
-- Zone containers: `data-nav-zone="zone-name"` — must not nest
+- Zone containers: `data-nav-zone="zone-name"` — may nest; an item counts once, for its nearest zone (a menu list inside a toolbar)
 - Grid containers: add `data-nav-grid` for column detection
 - Page behavior: `data-page-behavior="page-name"` on root
 - Focus rings: visible only in keyboard/gamepad mode (`[data-input=keyboard]`, `[data-input=gamepad]`)
@@ -429,6 +441,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `app/1` | `layouts.ex` | Root layout (sidebar + content) |
 | `poster_card/1` | `library_cards.ex` | 2:3 poster grid card |
 | `toolbar/1` | `library_cards.ex` | Type tabs + sort + filter |
+| `menu_list/1`, `split_button/1`, `menu_select/1` | `glass_menu.ex` | Glass menu family — the house dropdown (list, split button, value select) | ✅ |
 | `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards |
 | `hero_card/1` | `hero_card.ex` | Home hero (Play + More info) |
 | `poster_row/1` | `poster_row.ex` | Horizontal poster shelf |
@@ -474,7 +487,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 - `:if={}` on elements with `backdrop-filter`
 - CSS keyframe animations on LiveView stream items
 - Monospace font for aesthetic reasons (only for paths/IDs/tables)
-- Nested `data-nav-zone` containers
+- Expecting an outer `data-nav-zone` to own the items of a zone nested inside it — an item counts once, for its nearest zone
 - Badge borders/fills on status labels (use plain colored text)
 - Custom CSS for one-off styling (use Tailwind utilities)
 - `phx-value-value` on a `<button>`/`<input>` — the key `value` collides with the element's native `value` DOM property, which LiveView merges into the click payload and clobbers to `""`. The render looks right and a `render_click` test passes; it only breaks on a real click. Use a descriptive key (`phx-value-choice`, `phx-value-id`). Enforced by Credo **MC0021**. (`phx-value-name` does **not** collide — only `value`.)
