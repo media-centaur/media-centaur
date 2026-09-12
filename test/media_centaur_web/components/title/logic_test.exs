@@ -202,4 +202,27 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
       assert Logic.next_air_date([], @today) == nil
     end
   end
+
+  describe "planning mode words" do
+    test "each mode has its label" do
+      assert Logic.planning_mode_label(:auto_select_best_release) == "Auto-select best release"
+      assert Logic.planning_mode_label(:manually_select_release) == "Manually select release"
+    end
+
+    test "each scope has its label" do
+      assert Logic.download_scope_label(:first_season) == "Season 1"
+      assert Logic.download_scope_label(:everything) == "All seasons"
+    end
+  end
+
+  describe "title_detail/2 planning mode" do
+    test "carries the host's planning mode" do
+      assert %{planning_mode: :auto_select_best_release} =
+               Logic.title_detail(movie(), facts(%{planning_mode: :auto_select_best_release}))
+    end
+
+    test "defaults to manually selecting" do
+      assert %{planning_mode: :manually_select_release} = Logic.title_detail(movie(), facts())
+    end
+  end
 end
