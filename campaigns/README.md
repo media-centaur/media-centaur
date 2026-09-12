@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`review-replaces-recommendation.md`](review-replaces-recommendation.md) —
-  **shipped v1.23.0 2026-09-12; relay tag and owner check open.** "Recommend" becomes "review": one person's opinion of one
+  **shipped v1.23.0 2026-09-12; owner check open.** "Recommend" becomes "review": one person's opinion of one
   title, told to their friends — an optional sentiment (thumbs down, thumbs
   up, heart) and optional text, neither required. A new activity kind
   (32164) replaces the recommendation (32160, retired) on the wire, in
@@ -30,8 +30,8 @@ Use [`template.md`](template.md) as a starter.
   retirement precedent (relay release first, stored rows removed by a data
   migration). The eleven stored recommendations were removed on the
   owner's approval; one deferral named (several friends' review texts on
-  one title view). Open: the owner tags and deploys social-relay v0.6.0
-  (commit `0faabd1` there), then the desktop and TV check.
+  one title view). social-relay v0.6.0 is tagged and deployed. Open: the
+  desktop and TV check.
 * [`watchlist-single-entry-point.md`](watchlist-single-entry-point.md) —
   **shipped v1.22.0 2026-09-11; owner check open.** Adding a title to the watchlist and enabling
   release tracking are two acts, in that order, and the second happens only
