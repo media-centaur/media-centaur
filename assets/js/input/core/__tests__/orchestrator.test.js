@@ -3992,6 +3992,25 @@ describe("Orchestrator", () => {
       expect(pushEvent).toHaveBeenCalledWith("close_menu", {})
     })
 
+    test("BACK lands on the item the cursor left from, not the toolbar's active tab", () => {
+      const { system, calls } = menuSetup({
+        getItemCount: () => 5,
+        getActiveItemIndex: (ctx) => (ctx === Context.TOOLBAR ? 0 : -1),
+      })
+      system.start({ pushEvent: mock(() => {}) })
+      // The cursor opened the menu from the toolbar's fourth item (Sort).
+      system._contextMemory[Context.TOOLBAR] = 3
+      system.focusMachine.forceContext("menu")
+      calls.length = 0
+
+      system._handleAction(Action.BACK)
+
+      expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+      const landing = calls.find(c => c.method === "focusByIndex")
+      expect(landing.args[0]).toBe(Context.TOOLBAR)
+      expect(landing.args[1]).toBe(3)
+    })
+
     test("BACK from a zone without a dismiss event pushes nothing", () => {
       const { system } = menuSetup({ getZoneDismissEvent: () => null })
       const pushEvent = mock(() => {})

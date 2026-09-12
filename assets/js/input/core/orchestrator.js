@@ -785,6 +785,17 @@ export class Orchestrator {
       return
     }
 
+    // BACK returns to the item the cursor left from. The remembered index
+    // wins over a DOM-marked active item here: a toolbar's active tab would
+    // otherwise steal the landing from the trigger that opened a menu.
+    if (direction === "back") {
+      const savedIndex = this._contextMemory[context]
+      if (savedIndex != null && savedIndex < this.reader.getItemCount(context)) {
+        this.writer.focusByIndex(context, savedIndex, opts)
+        return
+      }
+    }
+
     const band = this._entryBand(context, direction)
     if (!band) {
       this._restoreContextFocus(context, opts)
