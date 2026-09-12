@@ -122,6 +122,8 @@ function fakeNavItem(label) {
   return {
     label,
     dataset: {},
+    // In no zone: the flat overlay case, which every context keeps.
+    closest() { return null },
     hasAttribute(name) { return name === "data-nav-item" },
     checkVisibility() { return true },
     focus() { globalThis.document.activeElement = this },
@@ -246,6 +248,7 @@ function fakeGridItem(label, { disabled = false, hidden = false } = {}) {
     label,
     disabled,
     dataset: {},
+    closest() { return null },
     hasAttribute(name) {
       if (name === "data-nav-item") return true
       if (name === "disabled") return disabled
@@ -707,6 +710,8 @@ describe("scrollZoneToTop — a declaring zone rests its scroller at the top", (
     const zone = {
       parentElement: sticky,
       hasAttribute: attr => declares && attr === "data-nav-enter-scroll-top",
+      // The item's nearest zone is the context's own zone.
+      matches: () => true,
     }
     const item = {
       dataset: {},
@@ -786,12 +791,13 @@ describe("scrollZoneToTop — a declaring zone rests its scroller at the top", (
 
 describe("queryContextItems — an item counts once, for its nearest zone", () => {
   // A fake element tree: `zone` marks a [data-nav-zone] container, `navItem`
-  // a [data-nav-item]; closest()/contains() walk `parent` links.
-  function el({ zone = null, parent = null, navItem = false } = {}) {
+  // a [data-nav-item]; closest() walks `parent` links, matches() answers the
+  // zone compound the reader scopes a context to.
+  function fakeTreeElement({ zone = null, parent = null, navItem = false } = {}) {
     return {
       parent, zone, navItem,
       disabled: false,
-      hasAttribute(name) { return name === "data-nav-item" ? navItem : name === "disabled" ? false : false },
+      hasAttribute(name) { return name === "data-nav-item" && navItem },
       checkVisibility() { return true },
       closest(selector) {
         let cur = this
@@ -801,13 +807,9 @@ describe("queryContextItems — an item counts once, for its nearest zone", () =
         }
         return null
       },
-      contains(other) {
-        let cur = other
-        while (cur) {
-          if (cur === this) return true
-          cur = cur.parent
-        }
-        return false
+      matches(selector) {
+        const wanted = selector.match(/data-nav-zone='([^']+)'/)?.[1]
+        return wanted != null && this.zone === wanted
       },
     }
   }
@@ -815,18 +817,18 @@ describe("queryContextItems — an item counts once, for its nearest zone", () =
   const selectors = {
     strip: "[data-nav-zone='strip'] [data-nav-item]",
     menu: "[data-nav-zone='menu'] [data-nav-item]",
+    drawer: "[data-detail-mode='drawer'] [data-nav-item]",
   }
 
   test("items inside a nested zone belong to the inner zone, not the outer", () => {
-    const strip = el({ zone: "strip" })
-    const button = el({ parent: strip, navItem: true })
-    const chevron = el({ parent: strip, navItem: true })
-    const menu = el({ zone: "menu", parent: strip })
-    const item = el({ parent: menu, navItem: true })
+    const strip = fakeTreeElement({ zone: "strip" })
+    const button = fakeTreeElement({ parent: strip, navItem: true })
+    const chevron = fakeTreeElement({ parent: strip, navItem: true })
+    const menu = fakeTreeElement({ zone: "menu", parent: strip })
+    const item = fakeTreeElement({ parent: menu, navItem: true })
 
     stubDocument({
       activeElement: null,
-      querySelector: (sel) => (sel === "[data-nav-zone='strip']" ? strip : sel === "[data-nav-zone='menu']" ? menu : null),
       querySelectorAll: (sel) => (sel === selectors.strip ? [button, chevron, item] : sel === selectors.menu ? [item] : []),
     })
     const reader = createDomReader({ contextSelectors: selectors })
@@ -838,17 +840,50 @@ describe("queryContextItems — an item counts once, for its nearest zone", () =
   })
 
   test("with no nested zone every matched item counts, as before", () => {
-    const strip = el({ zone: "strip" })
-    const a = el({ parent: strip, navItem: true })
-    const b = el({ parent: strip, navItem: true })
+    const strip = fakeTreeElement({ zone: "strip" })
+    const a = fakeTreeElement({ parent: strip, navItem: true })
+    const b = fakeTreeElement({ parent: strip, navItem: true })
 
     stubDocument({
       activeElement: null,
-      querySelector: (sel) => (sel === "[data-nav-zone='strip']" ? strip : null),
       querySelectorAll: (sel) => (sel === selectors.strip ? [a, b] : []),
     })
     const reader = createDomReader({ contextSelectors: selectors })
 
     expect(reader.getItemCount("strip")).toBe(2)
+  })
+
+  test("two same-named zones on one page: an item nested inside either is dropped from the outer count", () => {
+    const first = fakeTreeElement({ zone: "strip" })
+    const second = fakeTreeElement({ zone: "strip" })
+    const a = fakeTreeElement({ parent: first, navItem: true })
+    const b = fakeTreeElement({ parent: second, navItem: true })
+    const menu = fakeTreeElement({ zone: "menu", parent: second })
+    const item = fakeTreeElement({ parent: menu, navItem: true })
+
+    stubDocument({
+      activeElement: null,
+      querySelectorAll: (sel) => (sel === selectors.strip ? [a, b, item] : sel === selectors.menu ? [item] : []),
+    })
+    const reader = createDomReader({ contextSelectors: selectors })
+
+    expect(reader.getItemCount("strip")).toBe(2)
+    expect(reader.getItemCount("menu")).toBe(1)
+  })
+
+  test("a scope that is not a zone (the drawer) keeps items in no zone and drops items in a zone inside it", () => {
+    const drawer = fakeTreeElement()
+    const loose = fakeTreeElement({ parent: drawer, navItem: true })
+    const region = fakeTreeElement({ zone: "detail_actions", parent: drawer })
+    const inRegion = fakeTreeElement({ parent: region, navItem: true })
+
+    stubDocument({
+      activeElement: null,
+      querySelectorAll: (sel) => (sel === selectors.drawer ? [loose, inRegion] : []),
+    })
+    const reader = createDomReader({ contextSelectors: selectors })
+
+    expect(reader.getItemCount("drawer")).toBe(1)
+    expect(reader.getItemAt("drawer", 0)).toBe(loose)
   })
 })
