@@ -162,7 +162,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def title_detail_path(socket, query), do: discovery_path(socket, query)
 
   @impl TitleDetailHost
-  def open_plan_board(socket, plan_id), do: push_navigate(socket, to: "/incoming?plan=#{plan_id}")
+  def open_plan_board(socket, plan_id), do: push_navigate(socket, to: ~p"/incoming?plan=#{plan_id}")
 
   defp watch_row(socket, ref),
     do: Enum.find(socket.assigns.items, &({&1.item.tmdb_id, &1.item.media_type} == ref))

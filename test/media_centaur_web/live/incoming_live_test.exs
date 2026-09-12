@@ -1408,7 +1408,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       TmdbStubs.stub_series_universe_for_targeting()
       view |> element("#title-download") |> render_click()
 
-      plan = eventually(fn -> List.first(MediaCentaur.Acquisition.Plans.list_drafts()) end)
+      # The plan is made under the view's own task; awaiting it means the
+      # view has handled the result, so the patch is already here.
+      render_async(view, 2_000)
+      [plan] = Plans.list_drafts()
       assert plan.approval_policy == "review"
       assert_patch(view, "/incoming?plan=#{plan.id}")
       assert has_element?(view, "#plan-modal[data-state='open']")

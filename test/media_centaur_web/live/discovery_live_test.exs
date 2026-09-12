@@ -1072,10 +1072,13 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       html = view |> element("#title-download") |> render_click()
       assert html =~ "Planning…"
 
-      plan = eventually(fn -> List.first(Plans.list_drafts()) end)
+      # The plan is made under the view's own task; its board opens once
+      # the plan exists, so the redirect is the one thing to wait on.
+      {path, _flash} = assert_redirect(view, 2_000)
+      "/incoming?plan=" <> plan_id = path
+      {:ok, plan} = Plans.fetch(plan_id)
       assert plan.approval_policy == "review"
       assert plan.tmdb_type == "movie"
-      assert_redirect(view, "/incoming?plan=#{plan.id}")
     end
 
     test "Download under the auto-select mode creates an automatic plan, closes the modal and flashes",
@@ -1144,11 +1147,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       view |> element("#title-download") |> render_click()
 
-      plan = eventually(fn -> List.first(Plans.list_drafts()) end)
+      {path, _flash} = assert_redirect(view, 2_000)
+      "/incoming?plan=" <> plan_id = path
+      {:ok, plan} = Plans.fetch(plan_id)
       assert plan.tmdb_type == "tv"
       assert plan.approval_policy == "review"
       assert length(Plans.units_for(plan.id)) == 3
-      assert_redirect(view, "/incoming?plan=#{plan.id}")
 
       # Downloading what has aired says nothing about what is to come: the
       # title stays where the person put it, at List.
@@ -1167,6 +1171,41 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # The apostrophe is escaped in the HTML, so match the parsed flash.
       render_until(view, fn _html -> has_element?(view, "#flash-error", "Couldn't plan Sample Show") end)
       assert has_element?(view, "#title-download", "Download")
+      assert Plans.list_drafts() == []
+    end
+
+    test "closing the modal while planning manually abandons the plan: no flash, no board",
+         %{conn: conn} do
+      {:ok, _} = Discovery.put_rung(released_show(), :list)
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
+
+      # The targeting fetch behind a series Download runs inline in the
+      # plan's task; holding it lets the modal close mid-plan.
+      test_pid = self()
+
+      Req.Test.stub(:tmdb, fn conn ->
+        send(test_pid, {:blocked, self()})
+
+        receive do
+          :go -> :ok
+        end
+
+        Plug.Conn.send_resp(conn, 500, "")
+      end)
+
+      view |> element("#title-download") |> render_click()
+      assert_receive {:blocked, task_pid}
+
+      render_hook(view, "close_title", %{})
+      assert_patch(view, "/discovery/watchlist")
+
+      # Closing cancels the plan, which kills its task; the cancel's own
+      # exit reaches the view before the render below does.
+      ref = Process.monitor(task_pid)
+      send(task_pid, :go)
+      assert_receive {:DOWN, ^ref, :process, ^task_pid, _reason}
+
+      refute has_element?(view, "#flash-error")
       assert Plans.list_drafts() == []
     end
 
