@@ -245,8 +245,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     with {:ok, show} <- TMDBClient.get_tv(id), do: {:ok, TitlePreview.tv(show, in_library?)}
   end
 
+  # A result for a plan the person walked away from — the cancel's own
+  # exit, or a reply already queued when the modal closed — is dropped.
+  def handle_title_async(
+        {:title_download, _ref, _name} = name,
+        _result,
+        %{assigns: %{download_pending: pending}} = socket
+      )
+      when pending != name, do: {:halt, socket}
+
+  # `download_pending` stays set: Discovery navigates away, and on
+  # Incoming the patch closes the modal, which resets it.
   def handle_title_async({:title_download, _ref, _name}, {:ok, {:ok, plan}}, socket) do
-    socket = assign(socket, download_pending: nil, open_menu: nil)
+    socket = assign(socket, :open_menu, nil)
     {:halt, socket.view.open_plan_board(socket, plan.id)}
   end
 
@@ -325,8 +336,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         %{assigns: %{title_detail: %TitleDetail{}}} = socket
       ), do: {:halt, update(socket, :open_menu, &toggle_menu(&1, :scope))}
 
-  def handle_title_event("title_menu_close", _params, socket),
-    do: {:halt, assign(socket, :open_menu, nil)}
+  def handle_title_event(
+        "title_menu_close",
+        _params,
+        %{assigns: %{title_detail: %TitleDetail{}}} = socket
+      ), do: {:halt, assign(socket, :open_menu, nil)}
 
   # A closed set, mapped explicitly: `String.to_existing_atom/1` would
   # depend on whether `DownloadScope` happens to be loaded yet.
