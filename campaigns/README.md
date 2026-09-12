@@ -51,20 +51,22 @@ Use [`template.md`](template.md) as a starter.
   Prowlarr exists to provide — measure the coverage gain first (51 vs 49 on
   one film), and it may be declined.
 * [`external-process-lifetime.md`](external-process-lifetime.md) —
-  **planning.** mpv dies on every Media Centaur restart, so every update costs
-  the viewer whatever they were watching. Two independent causes, both
-  measured: mpv is spawned as a BEAM port (`erl_child_setup` SIGKILLs port
-  children when the VM halts) and the dev unit's `KillMode=mixed` SIGKILLs
-  whatever is left in the cgroup. ADR-023's reattach-after-restart machinery
-  has therefore **never run once** — zero `recovery: found live session` lines
-  in 30 days — because it was built on a premise ("the user's playback
-  continues") that was false when written. Not a regression: `Port.open` dates
-  from the first playback commit. `Apps.Launcher` carries the identical
-  unverified claim and is broken the same way today. Fix routes both through
-  one `Platform.*` detached-spawn seam, flips the dev unit to
-  `KillMode=process`, and records the facts in three enforced layers —
-  moduledoc, Credo check, dated ADR-023 amendment — because prose alone is
-  what failed. One naming decision open. No code yet.
+  **complete (Minimal scope) 2026-09-12; awaiting owner batch-retire.** mpv died
+  on every restart of this contributor's dev box, so every update cost the
+  viewer their playback, and ADR-023's reattach machinery had **never run once**
+  (0 `recovery: found live session` lines in 30 days). The campaign originally
+  blamed two causes; a faithful 2×2 measurement (real `systemctl stop` path)
+  showed the first — "the BEAM port SIGKILLs mpv on halt" — was an **unmeasured
+  inference and false**: a direct port child and a `setsid` grandchild die and
+  survive identically, and the *sole* lethal mechanism is the cgroup SIGKILL
+  from the dev unit's `KillMode=mixed`. Prod already shipped `KillMode=process`,
+  so mpv already survived for end users — **no user-facing change**. Fix
+  (Minimal scope, owner's call): flip the dev unit to `KillMode=process`,
+  correct the false MpvSession + `Apps.Launcher` moduledocs, and amend ADR-023
+  to the measured truth. The `Platform.DetachedProcess` seam / port removal /
+  Credo check were **declined** — measured to buy no survival benefit. Verified
+  live: recovery fired end to end for the first time. Durable record lives in
+  ADR-023's 2026-09-12 amendment and the two moduledocs.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and

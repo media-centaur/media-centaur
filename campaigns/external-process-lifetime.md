@@ -11,14 +11,77 @@ mpv dies every time Media Centaur restarts, so every update costs the viewer
 whatever they were watching. It should not: mpv's lifetime belongs to the
 person watching, not to the app that started it. The machinery to reattach
 after a restart already exists ([ADR-023](../decisions/architecture/2026-03-06-023-durable-process-design.md))
-and has **never once run**, because mpv is spawned as a BEAM port and cannot
-survive the VM. Fix the lifetime binding, and document the facts where the
-next person touching mpv will meet them — prose alone is what failed here.
+and has **never once run**, because mpv dies on every restart of this
+machine's dev unit. Make mpv survive the restart, verify recovery finally
+fires, and document the facts where the next person touching mpv will meet
+them — prose alone is what failed here.
 
 ## Status
 
-**Planning.** Diagnosed and measured 2026-09-11/12; design pass done
-(`unify_design`). No code yet. One naming decision open.
+**Complete (Minimal scope) — 2026-09-12.** Premise corrected by measurement
+(see *Correction*), owner chose the Minimal scope, shipped and verified
+end-to-end. The dev unit now ships `KillMode=process`; the false MpvSession
+and `Apps.Launcher` moduledocs are corrected; ADR-023 carries a dated
+amendment. The `DetachedProcess` seam / port removal / Credo check were
+**declined** — the measurement showed they buy no survival benefit.
+
+**Verification (this machine, live dev service under the new unit):**
+
+* `KillMode=process` confirmed live (`systemctl --user show`).
+* Recovery fired for the first time ever. A stub mpv IPC socket left in the
+  socket dir across a `systemctl --user restart media-centaur-dev` produced,
+  in the journal:
+  `recovery: found live session …` → `session started` →
+  `reconnected to existing mpv via …sock` → `recovered session`. The reattach
+  used IPC only; no fresh mpv launched; the bogus session finalized clean (no
+  `PlaybackFailed`, no incident). This is the line the campaign named as its
+  completion signal — 0 occurrences in the prior 30 days.
+* Survival is mechanism-faithful from the 2×2: a direct BEAM port child
+  (mpv's exact spawn shape) survives `systemctl stop` under `KillMode=process`.
+* `mix precommit` green (one unrelated pre-existing `SearchSessionTest`
+  concurrency flake; 15/15 in isolation).
+
+**No end-user-facing change.** End users run the prod release, whose unit
+already shipped `KillMode=process` — mpv already survived a restart for them.
+Only this contributor dev box was affected. So: no CHANGELOG entry, no wiki
+change (the wiki already states mpv reconnects across a restart, which was
+true for prod and is now true here).
+
+## Correction (2026-09-12): the port is not a kill mechanism
+
+The campaign originally claimed **two** independent kill mechanisms — the
+BEAM port (`erl_child_setup` SIGKILLs port children on VM halt) and the
+cgroup (`KillMode=mixed`). The port claim was an **inference from Erlang
+docs, never measured** — the very sin this campaign was written to warn
+against. It is false on this machine.
+
+Measured on this box (Elixir 1.20.4 / OTP 29), each cell = a BEAM under a
+transient `systemd-run --user` unit that spawns a long-lived child, then
+`systemctl --user stop` (the real SIGTERM + orderly-shutdown + KillMode
+path, not a bare `:erlang.halt()`), deterministic across three runs:
+
+| Spawn technique | `KillMode=mixed` (dev today) | `KillMode=process` (prod) |
+|---|---|---|
+| Direct BEAM port — mpv's current pattern (`:exit_status`, `:stderr_to_stdout`, port never closed) | **KILLED** | **SURVIVED** |
+| `setsid --fork` detached grandchild | **KILLED** | **SURVIVED** |
+
+Consequences:
+
+* **The port does not bind mpv's lifetime.** A direct port child survives a
+  restart whenever the cgroup does not kill it. `:erlang.halt()` on its own
+  also leaves the child alive (OTP 29 reparents it to init).
+* **setsid buys no survival.** It does not escape the cgroup (confirming the
+  earlier row) and matches the port in both KillMode settings.
+* **The only lever that matters is `KillMode`.** `mixed → process` on the
+  dev unit is necessary *and* sufficient for mpv (and every `/apps` process)
+  to survive a restart.
+* **Prod already survives.** `defaults/media-centaur.service` ships
+  `KillMode=process`, so mpv already outlives a restart there. "0 recoveries
+  in 30 days" is fully explained by this machine running the **dev** unit
+  (`mixed`), which kills mpv every restart — the port was never the cause.
+* **`Apps.Launcher` is not broken by its setsid.** Its moduledoc claim is
+  false only under the current dev unit (`mixed`); it becomes true the moment
+  `KillMode` is flipped, with no code change to the launcher.
 
 ## Why this is not "a regression"
 
@@ -151,10 +214,31 @@ duplication that exists now — not speculative abstraction.
 
 ## Open decisions
 
-* **Name for the shared seam.** Proposed but **not confirmed**:
-  `MediaCentaur.Platform.DetachedProcess` — names what it produces (a process
-  detached from this app's lifetime) rather than how it does it, and sits with
-  the existing `Platform.*` seams. Ask before building; naming is the owner's.
+* **Scope, reopened by the correction above.** The measurement removed the
+  functional reason for the seam. Two honest paths:
+  * **Minimal.** Flip the dev unit's `KillMode` to `process`, verify recovery
+    fires, correct the false moduledocs (MpvSession + `Apps.Launcher`), and
+    amend ADR-023 to the measured truth. Drop the `DetachedProcess` seam, the
+    port removal, and the Credo check. Fully fixes the measured problem;
+    simplest.
+  * **Full.** Everything in *Minimal*, plus route mpv + `Apps.Launcher`
+    through the `DetachedProcess` seam, remove the port, and add the Credo
+    check — on architectural/robustness grounds (mpv's lifetime is the
+    viewer's; eliminate the low SIGPIPE-on-broken-pipe risk at BEAM
+    shutdown), even though none of it is required for survival.
+
+  Owner's call — this is scaling the approved work down, which is not the
+  model's to decide.
+
+## Settled decisions
+
+* `2026-09-12` — **Seam name (if the seam is built): `MediaCentaur.Platform.DetachedProcess`**
+  (owner chose it from `DetachedProcess` / `ExternalProcess` / `DetachedSpawn`).
+  Names what it produces — a process detached from this app's lifetime — and
+  sits with the existing `Platform.*` seams. Contingent on the *Full* scope.
+* `2026-09-12` — **The port is not a kill mechanism (measured).** See
+  *Correction* above. `KillMode=mixed→process` on the dev unit is the
+  necessary and sufficient fix; the seam is now optional.
 
 ## Next steps
 
