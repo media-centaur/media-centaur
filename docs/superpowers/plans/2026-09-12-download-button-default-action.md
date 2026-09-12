@@ -569,7 +569,7 @@ Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
 ### Task 4: Input system — a zone says what BACK pushes when it leaves
 
 **Files:**
-- Modify: `assets/js/input/core/dom_adapter.js` (reader gains `getZoneDismissEvent`)
+- Modify: `assets/js/input/core/dom_adapter.js` (reader gains `getZoneDismissEvent`; note Task 3 landed as `scopeCompound(selector)` — a compound string, not an element — after review)
 - Modify: `assets/js/input/core/orchestrator.js` (`_handleAction`, after the transition)
 - Test: `assets/js/input/core/__tests__/orchestrator.test.js`
 
@@ -662,8 +662,9 @@ Expected: the first new test fails on `toHaveBeenCalledWith("close_menu", {})`.
      */
     getZoneDismissEvent(context) {
       const selector = selectors[context]
-      if (!selector) return null
-      return contextScopeElement(selector)?.dataset?.navDismissEvent ?? null
+      const scope = selector && scopeCompound(selector)
+      if (!scope) return null
+      return document.querySelector(scope)?.dataset?.navDismissEvent ?? null
     },
 ```
 

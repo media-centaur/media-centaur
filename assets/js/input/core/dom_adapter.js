@@ -43,25 +43,28 @@ function isNavigable(el) {
 }
 
 /**
- * The element a context's selector is scoped to — its first compound
- * (`[data-nav-zone='grid']`, `[data-detail-mode='modal']`). Null when the
- * selector has no scope or the element is not in the DOM.
+ * The compound a context's selector is scoped to — its first compound
+ * (`[data-nav-zone='grid']`, `[data-detail-mode='modal']`). Null for a
+ * selector with no scope, i.e. one that is a single compound.
  */
-function contextScopeElement(selector) {
-  const scope = selector.split(" ")[0]
-  return scope ? document.querySelector(scope) : null
+function scopeCompound(selector) {
+  const [scope, ...rest] = selector.split(" ")
+  return rest.length ? scope : null
 }
 
 /**
  * An item belongs to its nearest zone. A zone may contain another zone — a
  * menu list opened inside an action strip — and the outer zone's descendant
  * selector still matches the inner items, so they are dropped here, at the
- * one chokepoint every count, index and focus read goes through.
+ * one chokepoint every count, index and focus read goes through: an item
+ * counts for a context only when its nearest zone *is* the context's scope
+ * (matched by compound, so two same-named zones on one page cannot fool
+ * it), or when it sits in no zone at all — the flat overlay selectors.
  */
 function ownedByScope(item, scope) {
   if (!scope) return true
   const nearest = item.closest("[data-nav-zone]")
-  return !nearest || nearest === scope || !scope.contains(nearest)
+  return !nearest || nearest.matches(scope)
 }
 
 /**
@@ -78,7 +81,7 @@ function queryContextItems(selectors, context) {
   }
   const selector = selectors[context]
   if (!selector) return []
-  const scope = contextScopeElement(selector)
+  const scope = scopeCompound(selector)
   return Array.from(document.querySelectorAll(selector)).filter(el => isNavigable(el) && ownedByScope(el, scope))
 }
 
