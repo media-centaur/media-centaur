@@ -29,7 +29,8 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
 
   use MediaCentaurWeb, :html
 
-  @variants ~w(primary secondary action info risky danger dismiss destructive_inline neutral outline)
+  # `outline` is left out: two outlined segments double the seam, and no tenant wants it.
+  @variants ~w(primary secondary action info risky danger dismiss destructive_inline neutral)
 
   attr :id, :string, required: true
   attr :zone, :string, required: true, doc: "the list's `data-nav-zone` — a TREE declared in `config.js`"
@@ -53,9 +54,10 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
       data-nav-dismiss-event={@on_close}
     >
       <li
-        :for={item <- @item}
-        id={item[:id]}
-        role="menuitem"
+        :for={{item, index} <- Enum.with_index(@item)}
+        id={item[:id] || "#{@id}-item-#{index}"}
+        role={if is_nil(item[:active]), do: "menuitem", else: "menuitemradio"}
+        aria-checked={if is_boolean(item[:active]), do: to_string(item[:active])}
         class={["glass-menu-item", item[:active] && "glass-menu-item-active"]}
         phx-click={item.event}
         {phx_values(item[:values])}
@@ -96,7 +98,11 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
     assigns = assign(assigns, :divider, divider_class(assigns.variant))
 
     ~H"""
-    <span id={@id <> "-split"} class={["glass-menu inline-flex", @class]} phx-click-away={@on_close}>
+    <div
+      id={@id <> "-split"}
+      class={["glass-menu inline-flex", @class]}
+      phx-click-away={@open && @on_close}
+    >
       <.button
         id={@id}
         variant={@variant}
@@ -120,6 +126,7 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
         aria-label={@menu_label}
         aria-haspopup="menu"
         aria-expanded={to_string(@open)}
+        aria-controls={@id <> "-menu"}
         data-nav-item
         tabindex="0"
       >
@@ -144,7 +151,7 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
           {render_slot(item)}
         </:item>
       </.menu_list>
-    </span>
+    </div>
     """
   end
 
@@ -167,10 +174,10 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
 
   def menu_select(assigns) do
     ~H"""
-    <span
+    <div
       id={@id <> "-select"}
       class={["glass-menu inline-flex", @class]}
-      phx-click-away={@on_close}
+      phx-click-away={@open && @on_close}
       {@rest}
     >
       <button
@@ -178,12 +185,13 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
         type="button"
         class="glass-menu-trigger"
         phx-click={@on_toggle}
-        aria-label={@label}
         aria-haspopup="menu"
         aria-expanded={to_string(@open)}
+        aria-controls={@id <> "-menu"}
         data-nav-item
         tabindex="0"
       >
+        <span class="sr-only">{@label}</span>
         {@value_label}
         <span class={["glass-menu-chevron", @open && "rotate-180"]}>
           <.icon name="hero-chevron-down-mini" class="size-4" />
@@ -200,16 +208,28 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
           {render_slot(item)}
         </:item>
       </.menu_list>
-    </span>
+    </div>
     """
   end
 
   # The hairline between the segments takes the variant's own ink so it
-  # reads on a solid primary and on a soft tint alike.
-  defp divider_class("primary"), do: "border-primary-content/20"
-  defp divider_class(_variant), do: "border-base-content/15"
+  # reads on a solid primary and on a soft tint alike — on the left side
+  # only, since a soft button's other sides are transparent.
+  defp divider_class("primary"), do: "border-l-primary-content/20"
+  defp divider_class(_variant), do: "border-l-base-content/15"
 
-  # `phx-value-<key>` per entry; MC0021 forbids the key `value` itself.
+  # `phx-value-<key>` per entry. The key `value` collides with a button's
+  # native property and is clobbered on click (MC0021); the Credo check
+  # cannot see keys that arrive through a map, so it is refused here.
   defp phx_values(nil), do: %{}
-  defp phx_values(map), do: Map.new(map, fn {key, value} -> {"phx-value-#{key}", value} end)
+
+  defp phx_values(map) do
+    Map.new(map, fn
+      {key, _value} when key in ["value", :value] ->
+        raise ArgumentError, "phx-value-value is clobbered on click; use a descriptive key"
+
+      {key, value} ->
+        {"phx-value-#{key}", value}
+    end)
+  end
 end
