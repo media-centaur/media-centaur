@@ -2240,6 +2240,8 @@ Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
   - In the BACK section, rung 1: append " — and, when the region's container declares \`data-nav-dismiss-event\`, that event is pushed as the cursor leaves, so a menu list closes as BACK backs out of it. The rung is not overlay-only: a page layout may give a zone a \`back\` edge too (the library sort menu)."
   - In the overlays paragraph describing `title_detail` (search for `title_detail_menu`), say the menu is "whichever Download menu is open — the other planning mode, or the scope — a `title_detail_menu` TREE nested inside the strip with `up` and `back` to it". Add a sentence to the library layout description (search for `layouts.library` or the library page section) naming `library_sort_menu`.
 
+- [ ] **Step 3b: The input-system skill.** `.claude/skills/input-system/SKILL.md` repeats the old rule under its Design Rules (search for "must not nest"). Replace that rule with the same sentence as the doc: "A zone may contain a zone; an item counts once, for its nearest zone. A zone may declare `data-nav-dismiss-event`, the event BACK pushes when it leaves the zone along its `back` edge — a menu list closes itself this way." Commit it with the app docs (Step 6).
+
 - [ ] **Step 4: Plan schema moduledoc.** In `lib/media_centaur/acquisition/plans/plan.ex` change "the picker and plan-now as `review`, one-click downloads as `automatic`" to "the picker and Plan now as `review`; the Download button as its planning mode says — auto-select `automatic`, manual selection `review` (`TitleDetailHost.start_download/4`)".
 
 - [ ] **Step 5: Wiki.** In `~/src/media-centaur/media-centaur.wiki/`:
@@ -2283,7 +2285,7 @@ cd ~/src/media-centaur/media-centaur.wiki && git add -A && git commit -m "wiki: 
 - [ ] **Step 6: Commit the app docs**
 
 ```bash
-git add docs/superpowers/specs/2026-09-05-one-click-download-design.md docs/GLOSSARY.md docs/input-system.md lib/media_centaur/acquisition/plans/plan.ex
+git add docs/superpowers/specs/2026-09-05-one-click-download-design.md docs/GLOSSARY.md docs/input-system.md .claude/skills/input-system/SKILL.md lib/media_centaur/acquisition/plans/plan.ex
 git commit -m "docs: planning mode, glass menu, nested zones and BACK-dismiss — glossary, input-system, spec amendment
 
 Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
