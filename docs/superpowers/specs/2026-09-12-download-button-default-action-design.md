@@ -4,7 +4,8 @@ Date: 2026-09-12. Builds on the one-click download spec
 (`2026-09-05-one-click-download-design.md`), which introduced the
 approval policy column and the split Download control this spec
 replaces. Revised the same day after a unify_design pass (see
-"Coherence pass" at the end).
+"Coherence pass" at the end) and once more for the owner's preference
+for named modes over a boolean (decision 9).
 
 ## Glossary
 
@@ -12,10 +13,10 @@ replaces. Revised the same day after a unify_design pass (see
 - **Clean plan** (existing) — a solved plan in which every wanted unit was found within its quality bounds. The only kind an `automatic` manual plan commits.
 - **Plan board** (existing) — the live display of a draft plan on Incoming, opened by `?plan=<id>`: episode grid, kept releases, the swap picker per episode, exclude, offers, Approve plan.
 - **Download scope** (existing) — what a series Download covers: `first_season` or `everything`. Movies have one scope.
-- **Download action** — what the Download button does when pressed: *auto-select* or *choose releases*. One of the two is the person's default, held by the download action preference; the other is in the button's menu.
-- **Auto-select** — the download action that creates the plan with approval policy `automatic`, closes the modal and flashes. A clean plan commits with nobody looking; anything else parks on Incoming.
-- **Choose releases** — the download action that creates the plan with approval policy `review` and lands the person on its plan board, where they swap, exclude and approve.
-- **Download action preference** — the Settings entry naming the default download action. Key `download_action`; absent means choose releases.
+- **Planning mode** — what the Download button does when pressed: *auto-select best release* or *manually select release*. One of the two is the person's default, held by the default planning mode preference; the other is in the button's menu.
+- **Auto-select best release** — the planning mode (`:auto_select_best_release`) that creates the plan with approval policy `automatic`, closes the modal and flashes. A clean plan commits with nobody looking; anything else parks on Incoming.
+- **Manually select release** — the planning mode (`:manually_select_release`) that creates the plan with approval policy `review` and lands the person on its plan board, where they swap, exclude and approve.
+- **Default planning mode** — the Settings entry naming the person's default planning mode. Key `default_planning_mode`; absent means manually select release. `Settings.Preferences.PlanningMode`.
 - **Glass menu** — the house dropdown idiom (`.glass-menu*` in `app.css`): a trigger with a chevron and an anchored glass list beneath it, open state owned by the LiveView. `MediaCentaurWeb.Components.GlassMenu` is its component module.
 - **Menu list** — the anchored list itself: `GlassMenu.menu_list/1`. Its own nav zone; its items are nav items.
 - **Split button** — a glass-menu tenant whose trigger is two joined segments: a main segment that performs one action and a chevron segment that opens the menu list. `GlassMenu.split_button/1`.
@@ -32,22 +33,22 @@ The Download button on a title the library does not own creates an `automatic` p
 ### Controls
 
 1. **A series shows a split button reading "Download" and, to its right, a menu select for the scope** showing "Season 1" and offering "All seasons". A movie shows the split button alone.
-2. **The main segment performs the default download action on the selected scope.** The chevron opens a one-item menu naming the other action: "Choose releases" when the default is auto-select, "Auto-select best release" when the default is choose releases.
-3. **The feed row's compact Download performs the default action with no chevron.** That row's verbs are text links; the full control is in the modal.
-4. **One open-menu state on the host.** `open_menu` is `nil`, `:action` or `:scope`; at most one menu is open. Events: `title_menu_toggle` with `menu`, `title_menu_close`. Both lists render under the one zone name `title_detail_menu`, since only one exists at a time; the overlay layout in `config.js` needs no new region. The scope item pushes `title_scope` with `choice` (`first_season` | `everything`); the host holds `download_scope`, default `:first_season`, reset whenever a title opens. `title_download` carries `action` (`auto_select` | `choose_releases`) from the menu item and no `action` from the main segment, which means the default.
+2. **The main segment performs the default planning mode on the selected scope.** The chevron opens a one-item menu naming the other mode by the same words the Settings option uses: "Manually select release" when the default is auto-select, "Auto-select best release" when the default is manual.
+3. **The feed row's compact Download performs the default planning mode with no chevron.** That row's verbs are text links; the full control is in the modal.
+4. **One open-menu state on the host.** `open_menu` is `nil`, `:action` or `:scope`; at most one menu is open. Events: `title_menu_toggle` with `menu`, `title_menu_close`. Both lists render under the one zone name `title_detail_menu`, since only one exists at a time; the overlay layout in `config.js` needs no new region. The scope item pushes `title_scope` with `choice` (`first_season` | `everything`); the host holds `download_scope`, default `:first_season`, reset whenever a title opens. `title_download` carries `mode` (`auto_select_best_release` | `manually_select_release`) from the menu item and no `mode` from the main segment, which means the default. The two menus' toggles are `title_mode_toggle` and `title_scope_toggle`.
 
 ### Actions
 
-5. **Auto-select is today's path unchanged:** `Plans.plan_title/2` with `approval_policy: "automatic"` and the scope, close the modal, flash "Finding a release for <title>".
-6. **Choose releases plans in the host and lands on the board.** The host runs `Plans.create_title_plan/2` (decision 20) with `approval_policy: "review"` and the scope under `start_async` (name `{:title_download, ref}`); while pending the split button is disabled and its main segment reads "Planning…" (`download_pending?` on the host). On `{:ok, plan}` the host navigates to Incoming's board: `push_navigate` to `/incoming?plan=<id>` when the host page is Discovery, `push_patch` when it is Incoming. On `{:error, reason}` the host flashes on the modal and clears the pending state; copy names the cause in plain words (nothing to download, TMDB unreachable) and is settled with the writing-copy skill at implementation.
-7. **One host function starts a download**, `TitleDetailHost.start_download/4` (socket, title, action, scope), used by the modal's Download and by the feed row's Download. It maps the action to the policy (`auto_select` → `"automatic"`, `choose_releases` → `"review"`) and runs the matching path. Acquisition keeps speaking approval policy; the action vocabulary is the web layer's. A click while a download is pending is a no-op.
+5. **Auto-select best release is today's path unchanged:** `Plans.plan_title/2` with `approval_policy: "automatic"` and the scope, close the modal, flash "Finding a release for <title>".
+6. **Manually select release plans in the host and lands on the board.** The host runs `Plans.create_title_plan/2` (decision 20) with `approval_policy: "review"` and the scope under `start_async` (name `{:title_download, ref}`); while pending the split button is disabled and its main segment reads "Planning…" (`download_pending?` on the host). On `{:ok, plan}` the host navigates to Incoming's board: `push_navigate` to `/incoming?plan=<id>` when the host page is Discovery, `push_patch` when it is Incoming. On `{:error, reason}` the host flashes on the modal and clears the pending state; copy names the cause in plain words (nothing to download, TMDB unreachable) and is settled with the writing-copy skill at implementation.
+7. **One host function starts a download**, `TitleDetailHost.start_download/4` (socket, title, mode, scope), used by the modal's Download and by the feed row's Download. It maps the mode to the policy (`auto_select_best_release` → `"automatic"`, `manually_select_release` → `"review"`) and runs the matching path. Acquisition keeps speaking approval policy; the planning-mode vocabulary is the web layer's. A click while a download is pending is a no-op.
 8. **The gate is untouched.** A `review` plan waits; an `automatic` plan commits when clean and parks otherwise, exactly as the one-click spec decided.
 
 ### Preference
 
-9. **`Settings.Preferences.DownloadAction`**, a two-valued preference beside the boolean ones: key `download_action`, value `%{"action" => "choose_releases" | "auto_select"}`, `value/0` returning the atom (`:choose_releases` when the entry is absent or malformed), `parse/1` for a stored map, `other/1` for the alternative, `set/1` the only write, `setting_key/0`. Exported from `Settings.Preferences`. `SettingAware` is not involved (see Rejected).
-10. **The view-model carries it.** `Title.Detail` gains `download_action`, read by the host in `build_detail` the way `default_grab_mode` already is. The modal labels the menu item from it and the host resolves a main-segment click from it. Labels live in `Title.Logic.download_action_label/1`.
-11. **Settings → Acquisition gains a card "Download button"**, subline "On a title you don't own yet.", shown when Prowlarr is ready like the auto-acquisition defaults. One native select labelled "Default" with options "Choose releases" and "Auto-select best release", saving on change (`set_download_action`), with the description "The button's main action. The other choice is in its menu." Settings is the reference register and its selects are native; the glass menu is for content surfaces.
+9. **`Settings.Preferences.PlanningMode`**, a two-valued preference beside the boolean ones: key `default_planning_mode`, value `%{"mode" => "manually_select_release" | "auto_select_best_release"}`, `value/0` returning the atom (`:manually_select_release` when the entry is absent or malformed), `parse/1` for a stored map, `modes/0`, `other/1` for the alternative, `set/1` the only write, `setting_key/0`. Exported from `Settings.Preferences`. `SettingAware` is not involved (see Rejected). Named a *mode*, not a boolean, at the owner's request: the two options are peers with names, and the same names label the button's menu.
+10. **The view-model carries it.** `Title.Detail` gains `planning_mode`, read by the host in `build_detail` the way `default_grab_mode` already is. The modal labels the menu item from it and the host resolves a main-segment click from it. Labels live in `Title.Logic.planning_mode_label/1` and `download_scope_label/1`, and the Settings select uses the same function.
+11. **Settings → Acquisition gains a card "Download button"**, subline "On a title you don't own yet.", shown when Prowlarr is ready like the auto-acquisition defaults. One native select labelled "Default planning mode" with options "Manually select release" (default) and "Auto-select best release", saving on change (`set_planning_mode`), with the description "The button's main action. The other choice is in its menu." Settings is the reference register and its selects are native; the glass menu is for content surfaces.
 
 ### Glass menu components
 
@@ -73,11 +74,11 @@ The Download button on a title the library does not own creates an `automatic` p
 
 ## Rejected
 
-- **A boolean setting named after one action** ("Auto-select best release" as a toggle). The select's two options are the same words as the menu items — one vocabulary in both places.
+- **A boolean setting named after one mode** ("Auto-select best release" as a toggle; the first draft). The owner prefers named modes to booleans, and the select's two options are the same words as the menu items — one vocabulary in both places.
 - **Reading the preference in the gate.** A flip mid-solve would change a plan's fate, and the plan row would no longer say what will happen to it (one-click spec decision 1).
 - **Folding the default into tracking's Default mode.** Two ideas in one control, and its default is Grab.
 - **Scope inside the menu.** Two axes in one list; the menu would need three near-duplicate items or drop a combination.
-- **Park and point for choose releases** (flash plus the pill). Nothing is chosen on click, so the label would be untrue.
+- **Park and point for manual selection** (flash plus the pill). Nothing is chosen on click, so the label would be untrue.
 - **An Incoming param that opens the draft for a title once it appears.** The synchronous create-then-navigate carries the plan id, and a targeting failure surfaces where the click happened instead of leaving the person on Incoming with nothing.
 - **A native `<select>` for the scope** (the first draft of this spec). A bordered form control beside a glass-menu split button is two dropdown idioms in one strip, and the library sort already wears the glass idiom for exactly this shape.
 - **Generalising `SettingAware` for a non-boolean preference.** The modal already reads the auto-grab default mode on build; the download action follows that precedent. A live update would matter only for a modal held open across a change made on another page.
@@ -85,15 +86,15 @@ The Download button on a title the library does not own creates an `automatic` p
 
 ## Data changes
 
-None. An absent preference row means choose releases.
+None. An absent preference row means manually select release.
 
 ## Testing
 
 - Storybook: `menu_list`, `split_button`, `menu_select` stories (closed, open, active item, disabled) and the updated title detail modal and library toolbar stories compile and render.
-- `TitleDetailHost` on both hosts: main click under the choose default shows "Planning…" then navigates to `/incoming?plan=<id>` (Discovery) or patches to it (Incoming); under the auto default it flashes and closes; the menu item performs the other action; the scope select changes the plan's units; a TMDB failure flashes on the modal and leaves no plan; the menu label follows the preference; a second click while pending is ignored.
-- Discovery feed row: Download follows the default action.
+- `TitleDetailHost` on both hosts: main click under the manual default shows "Planning…" then navigates to `/incoming?plan=<id>` (Discovery) or patches to it (Incoming); under the auto default it flashes and closes; the menu item performs the other mode; the scope select changes the plan's units; a TMDB failure flashes on the modal and leaves no plan; the menu label follows the preference; a second click while pending is ignored.
+- Discovery feed row: Download follows the default planning mode.
 - Library: the sort menu still patches `?sort=` from a click; no keyboard-model events remain.
-- Settings: the select persists, round-trips, and defaults to choose releases.
+- Settings: the select persists, round-trips, and defaults to manually select release.
 - `Plans.create_title_plan/2`: movie, series first season, series everything, `:nothing_to_plan`, targeting failure. `plan_title/2` keeps its asynchronous tests.
 - JS: the adapter counts a nested zone's items once, for the inner zone; BACK along a `back` edge pushes the zone's dismiss event; config tests for both layouts.
 - Real browser before done: the split button and both menu selects by mouse; `mc-nav-trace` on the modal (RIGHT from Download reaches the chevron, then the scope trigger, then the bookmark; DOWN from the strip enters the open menu; BACK closes it and lands on the strip) and on the library toolbar (SELECT on Sort opens it, DOWN enters, BACK closes and returns to Sort).
@@ -101,11 +102,11 @@ None. An absent preference row means choose releases.
 ## Documentation
 
 - Dated amendment on the 2026-09-05 one-click spec: decisions 7, 10 and 17.
-- Moduledocs: `Plans.Plan` (approval paragraph), `Plans` (both doors), `Title.DetailModal`, `Title.Detail`, `TitleDetailHost`, `GlassMenu`, `LibraryCards.toolbar`, `Preferences.DownloadAction`, the `dom_adapter.js` and `orchestrator.js` headers.
+- Moduledocs: `Plans.Plan` (approval paragraph), `Plans` (both doors), `Title.DetailModal`, `Title.Detail`, `TitleDetailHost`, `GlassMenu`, `LibraryCards.toolbar`, `Preferences.PlanningMode`, the `dom_adapter.js` and `orchestrator.js` headers.
 - `docs/input-system.md`: nesting rule, `data-nav-dismiss-event` row, the BACK section, the library and title-detail layouts.
-- `docs/GLOSSARY.md`: approval policy and download scope rows updated; download action, glass menu, split button, menu select added.
+- `docs/GLOSSARY.md`: approval policy and download scope rows updated; planning mode, glass menu, split button, menu select added.
 - Wiki: Settings-Reference (Acquisition: the Download button card), Searching-and-Downloading (the paragraph on drafts from one-click downloads), Social (the Download row), Watchlist ("What happens after Download"), Keyboard-and-Gamepad (the title view: split button, menu, scope select, BACK closing a menu; the library sort menu).
-- CHANGELOG at ship: Download now opens the plan for you to choose releases; set Auto-select best release under Settings → Acquisition to restore the one-click behaviour.
+- CHANGELOG at ship: Download now opens the plan for you to select releases; set the default planning mode to Auto-select best release under Settings → Acquisition to restore the one-click behaviour.
 
 ## Coherence pass (unify_design, 2026-09-12)
 
