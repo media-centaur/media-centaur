@@ -81,7 +81,7 @@ The Download button on a title the library does not own creates an `automatic` p
 - **Park and point for manual selection** (flash plus the pill). Nothing is chosen on click, so the label would be untrue.
 - **An Incoming param that opens the draft for a title once it appears.** The synchronous create-then-navigate carries the plan id, and a targeting failure surfaces where the click happened instead of leaving the person on Incoming with nothing.
 - **A native `<select>` for the scope** (the first draft of this spec). A bordered form control beside a glass-menu split button is two dropdown idioms in one strip, and the library sort already wears the glass idiom for exactly this shape.
-- **Generalising `SettingAware` for a non-boolean preference.** The modal already reads the auto-grab default mode on build; the download action follows that precedent. A live update would matter only for a modal held open across a change made on another page.
+- **Generalising `SettingAware` for a non-boolean preference.** The modal already reads the auto-grab default mode on build; the planning mode follows that precedent. A live update would matter only for a modal held open across a change made on another page.
 - **A menu as its own `data-nav-overlay`.** Overlays are `[data-detail-mode='modal']` elements with focus semantics a dropdown does not want; a `back` edge plus a dismiss event on the zone is the whole of what a menu needs.
 
 ## Data changes
