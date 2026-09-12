@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { createLibraryBehavior } from "../library_behavior"
 import { Context } from "../core/index.js"
+import { inputConfig } from "../config.js"
 
 /**
  * Mock DOM interface — provides controllable filter and scroll operations.
@@ -99,6 +100,18 @@ describe("Library behavior", () => {
       const behavior = createLibraryBehavior(mockDom())
       expect(behavior.onSyncState({ getSortOrder: () => null }))
         .toEqual({ clearGridMemory: false })
+    })
+  })
+
+  test("the sort menu is a TREE under the toolbar: DOWN enters it, UP and BACK leave for the toolbar", () => {
+    expect(inputConfig.contextSelectors.library_sort_menu).toBe("[data-nav-zone='library_sort_menu'] [data-nav-item]")
+    expect(inputConfig.instanceTypes.library_sort_menu).toBe(Context.TREE)
+    expect(inputConfig.layouts.library).toEqual({
+      toolbar:           { down: ["library_sort_menu", "grid"] },
+      library_sort_menu: { up: ["toolbar"], back: ["toolbar"] },
+      grid:              { up: ["toolbar"], right: ["drawer"] },
+      sidebar:           { right: ["grid", "toolbar"] },
+      drawer:            { left: ["grid", "toolbar"] },
     })
   })
 })

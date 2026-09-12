@@ -37,6 +37,8 @@ export const inputConfig = {
     title_detail_menu: "[data-nav-zone='title_detail_menu'] [data-nav-item]",
     title_detail_tracking: "[data-nav-zone='title_detail_tracking'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
+    // The library toolbar's sort menu — a GlassMenu.menu_select list nested in the toolbar zone.
+    library_sort_menu: "[data-nav-zone='library_sort_menu'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
@@ -132,6 +134,8 @@ export const inputConfig = {
     // The tracking-mode strip in the body (Off · Watch · Ask · Grab ·
     // Default, plus the acceptance Reset when set) walks LEFT/RIGHT.
     title_detail_tracking: Context.TOOLBAR,
+    // The library sort menu, present only while open: a short list under the toolbar's Sort trigger.
+    library_sort_menu: Context.TREE,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -236,10 +240,13 @@ export const inputConfig = {
       drawer:    { left: ["grid"] },
     },
     library: {
-      toolbar:   { down: ["grid"] },
-      grid:      { up: ["toolbar"], right: ["drawer"] },
-      sidebar:   { right: ["grid", "toolbar"] },
-      drawer:    { left: ["grid", "toolbar"] },
+      toolbar:           { down: ["library_sort_menu", "grid"] },
+      // The open sort menu, nested in the toolbar: BACK leaves it for the
+      // toolbar and, through its `data-nav-dismiss-event`, closes it.
+      library_sort_menu: { up: ["toolbar"], back: ["toolbar"] },
+      grid:              { up: ["toolbar"], right: ["drawer"] },
+      sidebar:           { right: ["grid", "toolbar"] },
+      drawer:            { left: ["grid", "toolbar"] },
     },
     settings: {
       sections:  { right: ["grid"] },

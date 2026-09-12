@@ -81,7 +81,6 @@ defmodule MediaCentaurWeb.LibraryLive do
        active_tab: :all,
        sort_order: :recent,
        sort_open: false,
-       sort_highlight: 0,
        filter_text: "",
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
@@ -140,26 +139,10 @@ defmodule MediaCentaurWeb.LibraryLive do
      )}
   end
 
-  # Order must match `LibraryCards.@sort_options` — the keyboard
-  # highlight index selects from this list while the component renders
-  # the menu from its own.
-  @sort_options [:recent, :watched, :alpha, :year]
-
-  def handle_event("toggle_sort", _params, socket) do
-    if socket.assigns.sort_open do
-      {:noreply, assign(socket, sort_open: false)}
-    else
-      highlight = Enum.find_index(@sort_options, &(&1 == socket.assigns.sort_order)) || 0
-      {:noreply, assign(socket, sort_open: true, sort_highlight: highlight)}
-    end
-  end
+  def handle_event("toggle_sort", _params, socket), do: {:noreply, update(socket, :sort_open, &(!&1))}
 
   def handle_event("close_sort", _params, socket) do
     {:noreply, assign(socket, sort_open: false)}
-  end
-
-  def handle_event("sort_key", %{"key" => key}, socket) do
-    sort_key(key, socket)
   end
 
   def handle_event("sort", %{"sort" => sort}, socket) do
@@ -369,7 +352,6 @@ defmodule MediaCentaurWeb.LibraryLive do
               active_tab={@active_tab}
               sort_order={@sort_order}
               sort_open={@sort_open}
-              sort_highlight={@sort_highlight}
               filter_text={@filter_text}
             />
 
@@ -601,58 +583,17 @@ defmodule MediaCentaurWeb.LibraryLive do
     assign(socket, visible_ids: visible_ids)
   end
 
-  # --- Sort Dropdown Keyboard ---
-
-  defp sort_key("Enter", socket) do
-    if socket.assigns.sort_open do
-      selected = Enum.at(@sort_options, socket.assigns.sort_highlight)
-      socket = assign(socket, sort_open: false)
-
-      {:noreply,
-       push_patch(socket,
-         to: build_path(%{socket | assigns: Map.put(socket.assigns, :sort_order, selected)}, %{})
-       )}
-    else
-      highlight = Enum.find_index(@sort_options, &(&1 == socket.assigns.sort_order)) || 0
-      {:noreply, assign(socket, sort_open: true, sort_highlight: highlight)}
-    end
-  end
-
-  defp sort_key("Escape", socket) do
-    {:noreply, assign(socket, sort_open: false)}
-  end
-
-  defp sort_key("ArrowDown", socket) do
-    if socket.assigns.sort_open do
-      max = length(@sort_options) - 1
-      highlight = min(socket.assigns.sort_highlight + 1, max)
-      {:noreply, assign(socket, sort_highlight: highlight)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  defp sort_key("ArrowUp", socket) do
-    if socket.assigns.sort_open do
-      highlight = max(socket.assigns.sort_highlight - 1, 0)
-      {:noreply, assign(socket, sort_highlight: highlight)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  defp sort_key(_key, socket), do: {:noreply, socket}
-
   # --- URL Params ---
 
   defp parse_tab("movies"), do: :movies
   defp parse_tab("tv"), do: :tv
   defp parse_tab(_), do: :all
 
-  defp parse_sort("alpha"), do: :alpha
-  defp parse_sort("year"), do: :year
-  defp parse_sort("watched"), do: :watched
-  defp parse_sort(_), do: :recent
+  # The sort values the URL may carry, in the menu's order —
+  # `LibraryCards.@sort_options` renders the same list with its labels.
+  @sort_options [:recent, :watched, :alpha, :year]
+
+  defp parse_sort(sort), do: Enum.find(@sort_options, :recent, &(Atom.to_string(&1) == sort))
 
   @impl true
   def build_modal_path(socket, overrides), do: build_path(socket, overrides)

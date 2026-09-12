@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   import MediaCentaurWeb.LiveHelpers, only: [poster_src: 1]
 
   alias MediaCentaur.Library.ContinueWatchingProgress
+  alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.PlayOverlay
 
   # --- Poster Card ---
@@ -144,8 +145,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
 
   # --- Toolbar ---
 
-  # Order must match `LibraryLive.@sort_options` — the LiveView's
-  # keyboard highlight index and this rendered menu index one list each.
+  # The menu's order. `LibraryLive.@sort_options` lists the same values for parsing the URL.
   @sort_options [
     {:recent, "Recently Added"},
     {:watched, "Recently Watched"},
@@ -156,7 +156,6 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   attr :active_tab, :atom, required: true
   attr :sort_order, :atom, required: true
   attr :sort_open, :boolean, required: true
-  attr :sort_highlight, :integer, required: true
   attr :filter_text, :string, required: true
 
   def toolbar(assigns) do
@@ -191,37 +190,26 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
           </button>
         </div>
 
-        <div
-          class="glass-menu"
-          phx-click="toggle_sort"
-          phx-click-away="close_sort"
-          phx-keydown="sort_key"
-          data-nav-item
+        <GlassMenu.menu_select
+          id="library-sort"
+          open={@sort_open}
+          on_toggle="toggle_sort"
+          on_close="close_sort"
+          menu_zone="library_sort_menu"
+          value_label={sort_label(@sort_order)}
+          label="Sort"
           data-sort={@sort_order}
-          data-captures-keys={@sort_open}
-          tabindex="0"
         >
-          <div class="glass-menu-trigger">
-            {sort_label(@sort_order)}
-            <span class={["glass-menu-chevron", @sort_open && "rotate-180"]}>
-              <.icon name="hero-chevron-down-mini" class="size-4" />
-            </span>
-          </div>
-          <ul :if={@sort_open} class="glass-menu-list glass-surface">
-            <li
-              :for={{{value, label}, index} <- Enum.with_index(@sort_options)}
-              class={[
-                "glass-menu-item",
-                @sort_order == value && "glass-menu-item-active",
-                @sort_highlight == index && "glass-menu-item-highlight"
-              ]}
-              phx-click="sort"
-              phx-value-sort={value}
-            >
-              {label}
-            </li>
-          </ul>
-        </div>
+          <:item
+            :for={{value, label} <- @sort_options}
+            id={"library-sort-" <> Atom.to_string(value)}
+            event="sort"
+            values={%{"sort" => Atom.to_string(value)}}
+            active={@sort_order == value}
+          >
+            {label}
+          </:item>
+        </GlassMenu.menu_select>
       </div>
 
       <form id="library-filter-form" phx-change="filter" class="ml-auto">

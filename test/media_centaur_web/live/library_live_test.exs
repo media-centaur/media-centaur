@@ -157,6 +157,26 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert assert_patch(view) == "/library?sort=watched"
     end
+
+    test "the sort menu is a nav zone that closes itself on BACK, with no private keyboard model",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      refute has_element?(view, "[phx-keydown='sort_key']")
+      refute has_element?(view, "#library-sort-menu")
+
+      view |> element("#library-sort") |> render_click()
+
+      assert has_element?(
+               view,
+               "#library-sort-menu[data-nav-zone='library_sort_menu'][data-nav-dismiss-event='close_sort']"
+             )
+
+      assert has_element?(view, "#library-sort-recent.glass-menu-item-active", "Recently Added")
+
+      render_hook(view, "close_sort", %{})
+      refute has_element?(view, "#library-sort-menu")
+    end
   end
 
   describe "search excludes all results" do

@@ -1,8 +1,9 @@
 defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
   @moduledoc """
-  Library page toolbar — tabs (All / Movies / TV), a custom sort
-  dropdown, and a debounced filter input. Per-type counts live in the
-  page heading (`50 titles · 33 movies · 17 shows`), not on the tabs.
+  Library page toolbar — tabs (All / Movies / TV), the sort control (a
+  `GlassMenu.menu_select`), and a debounced filter input. Per-type counts
+  live in the page heading (`50 titles · 33 movies · 17 shows`), not on
+  the tabs.
 
   ## Contract shape
 
@@ -11,14 +12,12 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
       attr :active_tab, :atom, required: true       # :all | :movies | :tv
       attr :sort_order, :atom, required: true       # :recent | :watched | :alpha | :year
       attr :sort_open, :boolean, required: true
-      attr :sort_highlight, :integer, required: true
       attr :filter_text, :string, required: true
 
   ## Variation matrix
 
     * Tab axis — `:active_tab` toggled across the three tabs.
-    * Sort dropdown states — closed (showing each `sort_order` label) and
-      open (sweeping `sort_highlight` across the four items).
+    * Sort dropdown states — closed (showing each `sort_order` label) and open.
     * Filter input — collapsed (idle/empty) vs expanded (holding a term).
 
   ## Visual note
@@ -60,9 +59,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
       },
       %VariationGroup{
         id: :sort_closed,
-        description:
-          "Sort dropdown closed — the trigger label tracks `sort_order` " <>
-            "via `sort_label/1`. `sort_highlight` is irrelevant when closed.",
+        description: "Sort dropdown closed — the trigger label tracks `sort_order` via `sort_label/1`.",
         variations:
           for {order, suffix} <- [
                 {:recent, "recent"},
@@ -80,25 +77,10 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
             }
           end
       },
-      %VariationGroup{
+      %Variation{
         id: :sort_open,
-        description:
-          "Sort dropdown open — `sort_order: :recent` makes the first item " <>
-            "the *active* (primary-coloured) one. `sort_highlight` then sweeps " <>
-            "across indices 0/1/2/3 to show how keyboard highlight stacks on top " <>
-            "of the active item (index 0) vs sits alone on a non-active item.",
-        variations:
-          for highlight <- 0..3 do
-            %Variation{
-              id: String.to_atom("open_highlight_" <> Integer.to_string(highlight)),
-              attributes:
-                base_attrs(
-                  sort_order: :recent,
-                  sort_open: true,
-                  sort_highlight: highlight
-                )
-            }
-          end
+        description: "Sort dropdown open — the current order (`:recent`) is the active item.",
+        attributes: base_attrs(sort_order: :recent, sort_open: true)
       },
       %VariationGroup{
         id: :filter_states,
@@ -132,7 +114,6 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
       active_tab: :all,
       sort_order: :recent,
       sort_open: false,
-      sort_highlight: 0,
       filter_text: ""
     ]
 
