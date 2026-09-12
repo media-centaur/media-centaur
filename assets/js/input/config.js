@@ -44,7 +44,7 @@ export const inputConfig = {
     // rows over a footer — arrangement carries the meaning, so geometry
     // answers adjacency (UIDR-031).
     people: "[data-nav-zone='people'] [data-nav-item]",
-    // Discovery's Recommendations and watchlist rows: a vertical list whose
+    // Discovery's Feed and watchlist rows: a vertical list whose
     // rows carry a control (Ignore) — a TREE, so RIGHT steps into it.
     title_rows: "[data-nav-zone='title_rows'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
@@ -309,7 +309,7 @@ export const inputConfig = {
       sidebar:   { right: ["toolbar", "grid"] },
     },
     // Discovery: the zone-tabs strip above one body zone — the title rows on
-    // Recommendations and the watchlist, the person cards on Friends. Only
+    // The Feed and the watchlist, the person cards on Friends. Only
     // one body zone is in the DOM at a time, so `down` routes to whichever
     // is populated.
     discovery: {

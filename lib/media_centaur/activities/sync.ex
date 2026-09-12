@@ -15,7 +15,7 @@ defmodule MediaCentaur.Activities.Sync do
       page that followed a full one, re-issue `"feed"` live (no `until`)
       so new events keep arriving.
     * `{:eose, "own:<url>"}` → publish to that relay every stored own
-      event it did not send — recommendations of live rows, deletions of
+      event it did not send — activities of live rows, deletions of
       withdrawn ones. A per-relay diff, not a blanket re-publish.
     * `{:ok, id, false, reason}` → log the refusal by what was refused
       (`Activities.own_event_kind/1`): a relay refusing a deletion
@@ -165,7 +165,7 @@ defmodule MediaCentaur.Activities.Sync do
 
   # --- own events ------------------------------------------------------------
 
-  defp refused(:recommendation), do: "a recommendation"
+  defp refused(:review), do: "a review"
   defp refused(:watched), do: "a watched activity"
   defp refused(:listing), do: "a listing"
   defp refused(:deletion), do: "a deletion"

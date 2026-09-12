@@ -117,7 +117,7 @@ defmodule MediaCentaur.Social do
   @spec to_npub(String.t()) :: String.t()
   def to_npub(pubkey) when is_binary(pubkey), do: Keys.to_npub(pubkey)
 
-  @doc "Every followed pubkey — the authors the recommendations feed subscribes to."
+  @doc "Every followed pubkey — the authors the activities feed subscribes to."
   @spec friend_pubkeys() :: [String.t()]
   def friend_pubkeys,
     do: Repo.all(from(friend in Friend, select: friend.pubkey, order_by: friend.pubkey))

@@ -260,7 +260,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # The Social section is where the identity comes into existence (the
-  # only other minting site is `Activities.recommend/2`). Other
+  # only other minting site is `Activities.review/2`). Other
   # sections leave it alone, so opening Settings never creates a key.
   defp load_social(socket, "social") do
     Identity.ensure()

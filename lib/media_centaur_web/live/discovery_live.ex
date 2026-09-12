@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   `Discovery.rungs/0` and `Acquisition.TitleStates.for_refs/1`.
 
   Feed (`/discovery`, the page's default; UIDR-038) — friends'
-  recommendations and listings, one entry per action, newest first,
+  reviews and listings, one entry per action, newest first,
   flat (`FeedEntries`), the newest `feed_window` of them and a *Show
   older* control past that (`feed_show_older`). An entry's toolbar
   holds the three verbs that live outside the modal: `feed_list` (the
@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
   alias MediaCentaurWeb.DiscoveryLive.FeedEntries
   alias MediaCentaurWeb.Components.Title.Logic
-  alias MediaCentaurWeb.Live.RecommendModal
+  alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.DiscoveryLive.People
   alias MediaCentaurWeb.Live.TitleDetailHost
 
@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
          %{
            kind: activity_row && activity_row.activity.kind,
            sender: activity_row && !activity_row.own? && activity_row.nickname,
-           note: (activity_row && activity_row.activity.note) || (watch_row && watch_row.item.note),
+           note: (activity_row && activity_row.activity.text) || (watch_row && watch_row.item.note),
            own?: activity_row && activity_row.own?,
            activity_id: activity_row && activity_row.activity.id,
            friend_activity:
@@ -165,13 +165,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     do: Enum.find(socket.assigns.items, &({&1.item.tmdb_id, &1.item.media_type} == ref))
 
   # The activity the modal speaks for: the one named, else the title's
-  # newest friend recommendation (it carries the note), else any friend's
+  # newest friend review (it carries the text), else any friend's
   # activity for the title. Never an own act unless named — the You card
   # names it; a watchlist title is not a place to narrate your own
   # broadcasts back to you.
   defp activity_row(socket, ref, nil) do
     friends = Enum.filter(socket.assigns.activities, &(activity_ref(&1) == ref and not &1.own?))
-    Enum.find(friends, &(&1.activity.kind == :recommendation)) || List.first(friends)
+    Enum.find(friends, &(&1.activity.kind == :review)) || List.first(friends)
   end
 
   defp activity_row(socket, ref, activity_id) do
@@ -181,14 +181,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp activity_ref(%{activity: activity}), do: {activity.tmdb_id, activity.media_type}
 
   # A title's friend activity, for a title the watchlist does not carry:
-  # every act on it by a current friend, plus own recommendations — the
+  # every act on it by a current friend, plus own reviews — the
   # feed rows are the one representation (a former friend's carries no
   # name, so no pennant).
   defp title_friend_activity(socket, ref) do
     Enum.filter(
       socket.assigns.activities,
       &(activity_ref(&1) == ref and
-          ((&1.own? and &1.activity.kind == :recommendation) or &1.nickname != nil))
+          ((&1.own? and &1.activity.kind == :review) or &1.nickname != nil))
     )
   end
 
@@ -272,8 +272,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   defp feed_entry(socket, id), do: Enum.find(socket.assigns.feed, &(&1.activity_id == id))
 
-  defp entry_provenance(%FeedEntry{activity_id: id, note: note}),
-    do: TitleIntent.friend_provenance(id, note)
+  defp entry_provenance(%FeedEntry{activity_id: id, text: text}),
+    do: TitleIntent.friend_provenance(id, text)
 
   @impl true
   def handle_info({:title_intent_changed, _event}, socket) do
@@ -500,12 +500,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           detail={@title_detail}
           scope_menu_open={@scope_menu_open}
           today={@today}
-          recommend?={@show_discovery}
+          review?={@show_discovery}
         />
-        <RecommendModal.recommend_modal
-          subject={@recommend_subject}
-          poster_url={@recommend_poster_url}
-          relay_counts={@recommend_relay_counts}
+        <ReviewModal.review_modal
+          subject={@review_subject}
+          poster_url={@review_poster_url}
+          sentiment={@review_sentiment}
+          relay_counts={@review_relay_counts}
         />
       </:overlays>
       <%!-- `title` and `activity` are modal state: stripped from the
@@ -527,7 +528,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               :if={@feed == []}
               id="feed-empty"
               icon="hero-users"
-              headline="What your friends recommend and want to watch lands here"
+              headline="What your friends review and want to watch lands here"
             >
               {feed_empty_state(@feed_ready?)}
               <:action :if={not @feed_ready?}>

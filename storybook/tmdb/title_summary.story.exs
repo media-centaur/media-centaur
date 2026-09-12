@@ -77,7 +77,7 @@ defmodule MediaCentaurWeb.Storybook.TMDB.TitleSummary do
           "A secondary line displaces the overview — a watchlist note is why the title is here.",
         attributes: %{title: title(%{}), poster_url: nil},
         slots: [
-          ~s|<:secondary>Recommended after movie night — the sequel to the one we liked.</:secondary>|
+          ~s|<:secondary>Reviewed after movie night — the sequel to the one we liked.</:secondary>|
         ]
       },
       %Variation{

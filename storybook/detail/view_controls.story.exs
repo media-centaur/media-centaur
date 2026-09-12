@@ -36,9 +36,9 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
       primary tint and `aria-pressed` (`:movie_on_watchlist`). Never shown
       without a `:tmdb_id`, which is why the tmdb-id-less variations
       render without either icon button.
-    * **Recommend rides on the Discovery preview.** `recommend?` is the
+    * **Review rides on the Discovery preview.** `review?` is the
       `show_discovery` preference, off by default, so no variation but
-      `:movie_recommend` carries the paper-plane button. It sits after
+      `:movie_review` carries the paper-plane button. It sits after
       the bookmark and before the cog, and never appears without a
       `:tmdb_id`.
 
@@ -155,15 +155,15 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
         }
       },
       %Variation{
-        id: :movie_recommend,
+        id: :movie_review,
         description:
-          "The same movie with the Discovery preview on (`recommend?`) — " <>
+          "The same movie with the Discovery preview on (`review?`) — " <>
             "the paper-plane button joins the row between the bookmark " <>
-            "and the cog, and opens the Recommend modal.",
+            "and the cog, and opens the Review modal.",
         attributes: %{
           entity: %{entity(:movie, [%{owner_type: :movie}]) | tmdb_id: "1001"},
           detail_view: :main,
-          recommend?: true
+          review?: true
         }
       },
       %Variation{

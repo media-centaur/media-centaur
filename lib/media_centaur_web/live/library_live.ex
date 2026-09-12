@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaur.Topics
 
   alias MediaCentaurWeb.Components.LibraryCards
-  alias MediaCentaurWeb.Live.RecommendModal
+  alias MediaCentaurWeb.Live.ReviewModal
 
   import MediaCentaurWeb.LibraryHelpers
   import MediaCentaurWeb.LibraryFormatters
@@ -333,10 +333,11 @@ defmodule MediaCentaurWeb.LibraryLive do
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
-        <RecommendModal.recommend_modal
-          subject={@recommend_subject}
-          poster_url={@recommend_poster_url}
-          relay_counts={@recommend_relay_counts}
+        <ReviewModal.review_modal
+          subject={@review_subject}
+          poster_url={@review_poster_url}
+          sentiment={@review_sentiment}
+          relay_counts={@review_relay_counts}
         />
       </:overlays>
       <div

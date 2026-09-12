@@ -95,8 +95,7 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
   attr :rest, :global, doc: "forwarded to the modal backdrop (nav wiring: `data-nav-overlay` etc.)."
 
   slot :hero_mast,
-    doc:
-      "flies in from the hero window's right edge, below the corner — the recommendation pennants (UIDR-037)."
+    doc: "flies in from the hero window's right edge, below the corner — the pennants (UIDR-037)."
 
   slot :orientation,
     doc: "content of the pinned block — identity lockup, metadata, controls."

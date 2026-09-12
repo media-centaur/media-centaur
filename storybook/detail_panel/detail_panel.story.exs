@@ -233,9 +233,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
-        id: :movie_recommended,
+        id: :movie_reviewed,
         description:
-          "The same movie two friends recommended: the pennants fly from the hero's " <>
+          "The same movie two friends reviewed: the pennants fly from the hero's " <>
             "right edge under the actions, love above like, the like body dark glass.",
         attributes: %{
           entity: sample_movie_entity(),
@@ -249,7 +249,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           friend_activity: [
             %{
               activity: %MediaCentaur.Activities.Activity{
-                kind: :recommendation,
+                kind: :review,
                 sentiment: :like,
                 tmdb_id: 603,
                 media_type: :movie,
@@ -260,7 +260,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             },
             %{
               activity: %MediaCentaur.Activities.Activity{
-                kind: :recommendation,
+                kind: :review,
                 sentiment: :love,
                 tmdb_id: 603,
                 media_type: :movie,

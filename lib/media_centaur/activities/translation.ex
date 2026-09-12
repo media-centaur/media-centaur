@@ -7,15 +7,16 @@ defmodule MediaCentaur.Activities.Translation do
 
   | Kind | Name | Content beyond the envelope |
   |---|---|---|
-  | 32160 | Recommendation | `sentiment` (`like` or `love`; absent means `like`), `note` (string or null), `recommended_at` |
+  | 32164 | Review | `sentiment` (`dislike`, `like` or `love`; absent means none), `text` (string or null), `reviewed_at` |
   | 32161 | Watched | `watched_at`, `episode` (TV only: `season_number`, `episode_number`, `name`) |
   | 32163 | Listing | `listed_at` |
 
-  Kind 32162 (Tracking) is retired (ADR-067): never reused, never read —
-  an event of that kind is `:wrong_kind` like any other stranger.
+  Kinds 32160 (Recommendation, ADR-068) and 32162 (Tracking, ADR-067)
+  are retired: never reused, never read — an event of either kind is
+  `:wrong_kind` like any other stranger.
 
   An optional `p` (recipient) tag is defined by the spec for directed
-  recommendations and is never set here. Kind 5 (NIP-09) withdraws an
+  reviews and is never set here. Kind 5 (NIP-09) withdraws an
   activity of any kind: a single `a` tag naming the signer's own address.
 
   Both directions are pure and know nothing about relays or storage:
@@ -27,15 +28,15 @@ defmodule MediaCentaur.Activities.Translation do
   Two times ride on every message. The **wire time** is the event's
   `created_at`: it decides which of two copies wins, here and on the
   relay, and nothing else. The **domain time** is when the person acted
-  — `recommended_at` / `watched_at` / `listed_at` in the content, a
+  — `reviewed_at` / `watched_at` / `listed_at` in the content, a
   `deleted_at` tag on a deletion — and is what the app orders and shows
   by (`acted_at` on the row). They coincide in practice, but readers
   never derive one from the other: an event missing its domain time gets
   the wire time as a fallback and that is all.
 
-  Inbound strings are capped: note at 500, title name at 300, title
-  overview at 2000, episode name at 300 characters; larger events are
-  rejected as `:bad_content`.
+  Inbound strings are capped: review text at 500, title name at 300,
+  title overview at 2000, episode name at 300 characters; larger events
+  are rejected as `:bad_content`.
   """
 
   alias MediaCentaur.Activities.Activity
@@ -43,19 +44,19 @@ defmodule MediaCentaur.Activities.Translation do
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.TMDB.Title
 
-  @kinds %{recommendation: 32_160, watched: 32_161, listing: 32_163}
+  @kinds %{review: 32_164, watched: 32_161, listing: 32_163}
   @kind_names Map.new(@kinds, fn {name, number} -> {number, name} end)
   @kind_numbers @kinds |> Map.values() |> Enum.sort()
   @deletion_kind 5
   @content_version 1
-  @max_note 500
+  @max_text 500
   @max_name 300
   @max_overview 2000
-  @sentiments %{"like" => :like, "love" => :love}
+  @sentiments %{"dislike" => :dislike, "like" => :like, "love" => :love}
 
-  @doc "The inbound cap on a recommendation note, in characters."
-  @spec max_note_length() :: pos_integer()
-  def max_note_length, do: @max_note
+  @doc "The inbound cap on a review's text, in characters."
+  @spec max_text_length() :: pos_integer()
+  def max_text_length, do: @max_text
 
   @doc "The event kind number of an activity kind."
   @spec kind(Activity.kind()) :: non_neg_integer()
@@ -86,21 +87,21 @@ defmodule MediaCentaur.Activities.Translation do
         ]
 
   @typedoc """
-  What an activity says beyond its title: a recommendation's `sentiment`
-  (`:like` when absent) and `note`, a watched TV series' `episode`. A
-  listing and a watched movie carry nothing.
+  What an activity says beyond its title: a review's `sentiment` (nil
+  when it gives no verdict) and `text`, a watched TV series' `episode`.
+  A listing and a watched movie carry nothing.
   """
   @type payload :: [
-          sentiment: Activity.sentiment(),
-          note: String.t() | nil,
+          sentiment: Activity.sentiment() | nil,
+          text: String.t() | nil,
           episode: Episode.t() | nil
         ]
 
   @doc """
   An unsigned activity event of `kind` from `pubkey` about `title`. The
-  payload's `sentiment` and `note` ride on a recommendation and its
-  `episode` on a watched activity; the rest is ignored on the other
-  kinds.
+  payload's `sentiment` and `text` ride on a review and its `episode`
+  on a watched activity; the rest is ignored on the other kinds. A nil
+  sentiment is left off the wire: absent means none.
   """
   @spec to_event(Activity.kind(), Title.t(), payload(), String.t(), times()) :: Event.t()
   def to_event(kind, %Title{} = title, payload, pubkey, times \\ []) do
@@ -121,12 +122,14 @@ defmodule MediaCentaur.Activities.Translation do
     })
   end
 
-  defp kind_content(:recommendation, payload, acted_at),
-    do: %{
-      "sentiment" => Atom.to_string(Keyword.get(payload, :sentiment, :like)),
-      "note" => blank_to_nil(Keyword.get(payload, :note)),
-      "recommended_at" => acted_at
-    }
+  defp kind_content(:review, payload, acted_at) do
+    content = %{"text" => blank_to_nil(Keyword.get(payload, :text)), "reviewed_at" => acted_at}
+
+    case Keyword.get(payload, :sentiment) do
+      nil -> content
+      sentiment -> Map.put(content, "sentiment", Atom.to_string(sentiment))
+    end
+  end
 
   defp kind_content(:watched, payload, acted_at),
     do: %{"watched_at" => acted_at, "episode" => episode_map(Keyword.get(payload, :episode))}
@@ -244,14 +247,14 @@ defmodule MediaCentaur.Activities.Translation do
   end
 
   @type attrs :: %{
-          optional(:sentiment) => Activity.sentiment(),
+          optional(:sentiment) => Activity.sentiment() | nil,
           kind: Activity.kind(),
           event_id: String.t(),
           author_pubkey: String.t(),
           tmdb_id: integer(),
           media_type: Title.media_type(),
           title: Title.t(),
-          note: String.t() | nil,
+          text: String.t() | nil,
           episode: Episode.t() | nil,
           created_at: non_neg_integer(),
           acted_at: DateTime.t(),
@@ -262,7 +265,8 @@ defmodule MediaCentaur.Activities.Translation do
   Record attrs from a *verified* event of any activity kind; shape and
   address checks only. `created_at` is the wire time; `acted_at` the
   kind's domain-time field in the content, or the wire time when absent.
-  `sentiment` is present on a recommendation only.
+  `sentiment` is present on a review only, and nil there when the
+  review gives no verdict.
   """
   @spec from_event(Event.t()) ::
           {:ok, attrs()}
@@ -297,30 +301,30 @@ defmodule MediaCentaur.Activities.Translation do
 
   def from_event(%Event{}), do: {:error, :wrong_kind}
 
-  defp acted_at_field(:recommendation), do: "recommended_at"
+  defp acted_at_field(:review), do: "reviewed_at"
   defp acted_at_field(:watched), do: "watched_at"
   defp acted_at_field(:listing), do: "listed_at"
 
   # The kind's own fields, checked and shaped. Anything the kind does not
   # carry is nil on the row.
-  defp kind_payload(:recommendation, content, _media_type) do
-    with :ok <- check_length(content["note"], @max_note),
+  defp kind_payload(:review, content, _media_type) do
+    with :ok <- check_length(content["text"], @max_text),
          {:ok, sentiment} <- parse_sentiment(content["sentiment"]) do
-      {:ok, %{sentiment: sentiment, note: blank_to_nil(content["note"]), episode: nil}}
+      {:ok, %{sentiment: sentiment, text: blank_to_nil(content["text"]), episode: nil}}
     end
   end
 
   defp kind_payload(:watched, content, media_type) do
     with {:ok, episode} <- build_episode(content["episode"], media_type) do
-      {:ok, %{note: nil, episode: episode}}
+      {:ok, %{text: nil, episode: episode}}
     end
   end
 
-  defp kind_payload(:listing, _content, _media_type), do: {:ok, %{note: nil, episode: nil}}
+  defp kind_payload(:listing, _content, _media_type), do: {:ok, %{text: nil, episode: nil}}
 
-  # Absent means like: a recommendation made before the field existed is
-  # a plain one. Anything but a known word is malformed.
-  defp parse_sentiment(nil), do: {:ok, :like}
+  # Absent means none: the review gives no verdict. Anything but a known
+  # word is malformed.
+  defp parse_sentiment(nil), do: {:ok, nil}
   defp parse_sentiment(word) when is_map_key(@sentiments, word), do: {:ok, Map.fetch!(@sentiments, word)}
   defp parse_sentiment(_other), do: {:error, :bad_content}
 
@@ -413,7 +417,7 @@ defmodule MediaCentaur.Activities.Translation do
 
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(string) when is_binary(string), do: if(String.trim(string) != "", do: string)
-  # A relay may send anything in the note slot; anything that is not a
-  # string is not a note.
+  # A relay may send anything in the text slot; anything that is not a
+  # string is not a text.
   defp blank_to_nil(_other), do: nil
 end

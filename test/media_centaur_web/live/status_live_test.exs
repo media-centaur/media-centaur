@@ -383,7 +383,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert html =~ "Social"
     end
 
-    test "the drill-in aggregates relays, roster and recommendations", %{conn: conn} do
+    test "the drill-in aggregates relays, roster and reviews", %{conn: conn} do
       {:ok, _relay} = MediaCentaur.Social.add_relay("wss://relay-one.example")
       {:ok, _relay} = MediaCentaur.Social.add_relay("wss://relay-two.example")
       {:ok, _friend} = MediaCentaur.Social.add_friend(@friend_pubkey, "Sample Friend")

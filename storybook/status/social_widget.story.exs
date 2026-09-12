@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.SocialWidget do
   @moduledoc """
   Storybook coverage for the Social Activity widget — one diagnostic row
   per configured relay (state, how long, why, when it retries, when it was
-  last heard), then roster size and recommendation traffic.
+  last heard), then roster size and activity traffic.
 
   The rows are the diagnostic view of the relay list; Settings → Social
   is the editing view. The two links at the foot go to each.
@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.Storybook.Status.SocialWidget do
         id: :degraded,
         description:
           "One relay of two is down: how long, why, and when the next attempt is. " <>
-            "Recommendations still flow through the other one.",
+            "Activity still flows through the other one.",
         attributes:
           Map.put(traffic(last_received_at: ago(90 * 60)), :relay_status, %{
             "wss://relay-one.example/" => entry(:synced, last_heard_at: ago(12)),

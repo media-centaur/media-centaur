@@ -34,7 +34,7 @@ off, because it also deletes the release calendar and says so.
 
 | Setting | What happens |
 |---|---|
-| **Ignore** | Not on your list, and the title stays off the Feed whoever recommends it next |
+| **Ignore** | Not on your list, and the title stays off the Feed whoever reviews or lists it next |
 | **Off** | Not on your list. Nothing is kept for the title |
 | **List** | On your list. No release calendar is kept and nothing is grabbed |
 | **Follow** | New releases appear under **Coming up**; nothing is downloaded |

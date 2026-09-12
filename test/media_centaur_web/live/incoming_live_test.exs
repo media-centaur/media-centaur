@@ -1474,7 +1474,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#omnibox-result-tv_series-246810 img")
     end
 
-    test "a result a friend recommended flies their pennant from the row's edge", %{conn: conn} do
+    test "a result a friend reviewed flies their pennant from the row's edge", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
       TmdbStubs.stub_search_multi([
@@ -1494,9 +1494,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       event =
         MediaCentaur.Nostr.Event.sign(
           MediaCentaur.Activities.Translation.to_event(
-            :recommendation,
+            :review,
             title,
-            [note: nil, sentiment: :love],
+            [text: nil, sentiment: :love],
             friend_pubkey
           ),
           friend_secret
@@ -1932,7 +1932,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "form[phx-change='query_change']")
     end
 
-    test "a search result can be recommended from its detail modal", %{conn: conn} do
+    test "a search result can be reviewed from its detail modal", %{conn: conn} do
       Capabilities.clear_test_result(:prowlarr)
       TmdbStubs.setup_tmdb_client()
 
@@ -1945,7 +1945,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         }
       ])
 
-      # Recommend is gated on the default-off friend-network preview.
+      # Review is gated on the default-off friend-network preview.
       MediaCentaur.Settings.find_or_create_entry!(%{
         key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
         value: %{"enabled" => true}
@@ -1962,13 +1962,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       view |> element("#omnibox-result-movie-424242") |> render_click()
       assert_patch(view, "/incoming?title=movie-424242")
 
-      view |> element("#title-recommend") |> render_click()
-      assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
+      view |> element("#title-review") |> render_click()
+      assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
 
-      render_submit(view, "recommend_send", %{"sentiment" => "love", "note" => "Worth it"})
+      view |> element("#review-sentiment-love") |> render_click()
+      render_submit(view, "review_send", %{"text" => "Worth it"})
 
-      refute has_element?(view, "#recommend-modal[data-state='open']")
-      assert [%{tmdb_id: 424_242, sentiment: :love, note: "Worth it"}] = Activities.list_sent()
+      refute has_element?(view, "#review-modal[data-state='open']")
+      assert [%{tmdb_id: 424_242, sentiment: :love, text: "Worth it"}] = Activities.list_sent()
 
       await_supervised_tasks()
     end

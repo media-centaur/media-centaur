@@ -1,8 +1,8 @@
 defmodule MediaCentaur.Activities.Activity do
   @moduledoc """
-  One activity: a signed addressable event — a recommendation (kind
-  32160), a title watched (32161) or a title listed (32163, "wants to
-  watch") — translated into a row.
+  One activity: a signed addressable event — a review (kind 32164), a
+  title watched (32161) or a title listed (32163, "wants to watch") —
+  translated into a row.
 
   Identity is `(author_pubkey, kind, tmdb_id, media_type)` — the event's
   kind and address — so a newer event of the same kind for the same title
@@ -13,11 +13,12 @@ defmodule MediaCentaur.Activities.Activity do
   received is derived by comparing `author_pubkey` with the identity; no
   stored direction column can disagree with the signature.
 
-  Per-kind payload: `sentiment` (`:like` or `:love`, the strength the
-  recommendation pennant shows) and `note` on a recommendation; `episode`
-  on a watched TV series (the episode finished, `Episode`), nil for a
-  movie. A listing carries only the title. `sentiment` is
-  `:like` on every other kind's row — the column default, never read.
+  Per-kind payload: `sentiment` (`:dislike`, `:like` or `:love`, or nil
+  for a review that gives no verdict — the flag the pennant flies) and
+  `text` (the review's words, or nil) on a review; `episode` on a
+  watched TV series (the episode finished, `Episode`), nil for a movie.
+  A listing carries only the title. `sentiment` and `text` are nil on
+  every other kind's row.
 
   Two times per record (see `Translation`): `acted_at` and `deleted_at`
   are **domain** times — when the person acted — and are what the app
@@ -39,8 +40,8 @@ defmodule MediaCentaur.Activities.Activity do
 
   alias MediaCentaur.TMDB.Title
 
-  @kinds [:recommendation, :watched, :listing]
-  @sentiments [:like, :love]
+  @kinds [:review, :watched, :listing]
+  @sentiments [:dislike, :like, :love]
 
   defmodule Episode do
     @moduledoc "The episode a watched activity names on a TV series: season and episode numbers, and the episode's name when known."
@@ -82,8 +83,8 @@ defmodule MediaCentaur.Activities.Activity do
     field :tmdb_id, :integer
     field :media_type, Ecto.Enum, values: [:movie, :tv_series]
     embeds_one :title, Title, on_replace: :delete
-    field :sentiment, Ecto.Enum, values: @sentiments, default: :like
-    field :note, :string
+    field :sentiment, Ecto.Enum, values: @sentiments
+    field :text, :string
     embeds_one :episode, Episode, on_replace: :delete
     field :acted_at, :utc_datetime
     field :raw_event, :map
@@ -93,8 +94,8 @@ defmodule MediaCentaur.Activities.Activity do
     timestamps()
   end
 
-  @type kind :: :recommendation | :watched | :listing
-  @type sentiment :: :like | :love
+  @type kind :: :review | :watched | :listing
+  @type sentiment :: :dislike | :like | :love
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
@@ -104,8 +105,8 @@ defmodule MediaCentaur.Activities.Activity do
           tmdb_id: integer(),
           media_type: Title.media_type(),
           title: Title.t(),
-          sentiment: sentiment(),
-          note: String.t() | nil,
+          sentiment: sentiment() | nil,
+          text: String.t() | nil,
           episode: Episode.t() | nil,
           acted_at: DateTime.t(),
           raw_event: map(),
@@ -117,7 +118,7 @@ defmodule MediaCentaur.Activities.Activity do
   @spec kinds() :: [kind()]
   def kinds, do: @kinds
 
-  @doc "Every recommendation sentiment, weakest first."
+  @doc "Every sentiment a review can carry, mildest first. A review may carry none (nil)."
   @spec sentiments() :: [sentiment()]
   def sentiments, do: @sentiments
 
@@ -128,7 +129,7 @@ defmodule MediaCentaur.Activities.Activity do
     :tmdb_id,
     :media_type,
     :sentiment,
-    :note,
+    :text,
     :acted_at,
     :raw_event
   ]
@@ -140,7 +141,7 @@ defmodule MediaCentaur.Activities.Activity do
     |> cast(Map.drop(attrs, [:title, :episode]), @fields)
     |> put_embed(:title, attrs.title)
     |> put_embed(:episode, Map.get(attrs, :episode))
-    |> validate_required(@fields -- [:note])
+    |> validate_required(@fields -- [:sentiment, :text])
     |> put_change(:deleted_at, nil)
     |> put_change(:deletion_event, nil)
     |> unique_constraint(:event_id)

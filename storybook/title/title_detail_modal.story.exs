@@ -165,18 +165,18 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
       %Variation{
         id: :from_friend,
         description:
-          "Opened from a friend's recommendation: the love pennant on the mast says who, " <>
+          "Opened from a friend's review: the love pennant on the mast says who, " <>
             "and their note — the one thing a pennant cannot hold — leads the body, attributed.",
         attributes: %{
           today: @today,
           detail:
             detail(movie(), %{
-              kind: :recommendation,
+              kind: :review,
               sender: "Sample Friend",
               note: "Watch it before anyone spoils the ending.",
               own?: false,
               rung: :follow,
-              friend_activity: [act(movie(), "Sample Friend", :recommendation, :love)]
+              friend_activity: [act(movie(), "Sample Friend", :review, :love)]
             })
         }
       },
@@ -194,8 +194,8 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
               friend_activity: [
                 act(show(), "Third Friend", :listing),
                 act(show(), "Other Friend", :watched),
-                act(show(), "Other Friend", :recommendation),
-                act(show(), "Sample Friend", :recommendation, :love)
+                act(show(), "Other Friend", :review),
+                act(show(), "Sample Friend", :review, :love)
               ]
             })
         }
@@ -209,18 +209,18 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
         }
       },
       %Variation{
-        id: :own_recommendation,
+        id: :own_review,
         description:
-          "Opened from the You card: your own recommendation flies You and carries " <>
-            "Delete recommendation as the tertiary verb.",
+          "Opened from the You card: your own review flies You and carries " <>
+            "Delete review as the tertiary verb.",
         attributes: %{
           today: @today,
           detail:
             detail(movie(), %{
-              kind: :recommendation,
+              kind: :review,
               own?: true,
               activity_id: "0d2c5cd6-0000-4000-8000-000000000002",
-              friend_activity: [act(movie(), nil, :recommendation)]
+              friend_activity: [act(movie(), nil, :review)]
             })
         }
       },
@@ -334,9 +334,9 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
         attributes: %{today: @today, detail: detail(movie(), %{rung: :list})}
       },
       %Variation{
-        id: :with_recommend,
-        description: "Friend network on — the strip offers the paper-plane Recommend",
-        attributes: %{today: @today, detail: detail(movie(), %{}), recommend?: true}
+        id: :with_review,
+        description: "Friend network on — the strip offers the paper-plane Review",
+        attributes: %{today: @today, detail: detail(movie(), %{}), review?: true}
       }
     ]
   end

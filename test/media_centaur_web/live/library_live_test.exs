@@ -357,7 +357,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       await_supervised_tasks()
     end
 
-    test "the detail page's Recommend control opens the modal and sends", %{conn: conn} do
+    test "the detail page's Review control opens the modal and sends", %{conn: conn} do
       MediaCentaur.Settings.find_or_create_entry!(%{
         key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
         value: %{"enabled" => true}
@@ -369,14 +369,25 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
-      view |> element("#detail-recommend") |> render_click()
-      assert has_element?(view, "#recommend-modal[data-state='open']", "Sample Movie")
-      assert has_element?(view, "#recommend-sentiment-like input[checked]")
-      assert has_element?(view, "#recommend-sentiment-like .pennant[data-flag='like']", "Like")
-      assert has_element?(view, "#recommend-sentiment-love .pennant[data-flag='love']", "Love")
+      view |> element("#detail-review") |> render_click()
+      assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
+      # Nothing is chosen at open; the three choices preview their pennants.
+      refute has_element?(view, "#review-form [aria-pressed='true']")
+      assert has_element?(view, "#review-sentiment-dislike .pennant[data-flag='dislike']", "Dislike")
+      assert has_element?(view, "#review-sentiment-like .pennant[data-flag='like']", "Like")
+      assert has_element?(view, "#review-sentiment-love .pennant[data-flag='love']", "Love")
 
-      view |> form("#recommend-form", %{"sentiment" => "love", "note" => ""}) |> render_submit()
-      assert [%{tmdb_id: 777, note: nil, sentiment: :love}] = MediaCentaur.Activities.list_sent()
+      # A choice presses; pressing it again clears it; another choice replaces it.
+      view |> element("#review-sentiment-like") |> render_click()
+      assert has_element?(view, "#review-sentiment-like[aria-pressed='true']")
+      view |> element("#review-sentiment-like") |> render_click()
+      refute has_element?(view, "#review-form [aria-pressed='true']")
+      view |> element("#review-sentiment-love") |> render_click()
+      assert has_element?(view, "#review-sentiment-love[aria-pressed='true']")
+      refute has_element?(view, "#review-sentiment-like[aria-pressed='true']")
+
+      view |> form("#review-form", %{"text" => ""}) |> render_submit()
+      assert [%{tmdb_id: 777, text: nil, sentiment: :love}] = MediaCentaur.Activities.list_sent()
 
       # The sender's own pennant now flies from the detail hero.
       render_until(view, fn _html ->
@@ -386,18 +397,18 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       await_supervised_tasks()
     end
 
-    test "a friend's recommendation flies its pennant from the detail hero, live", %{conn: conn} do
+    test "a friend's review flies its pennant from the detail hero, live", %{conn: conn} do
       friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
       friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
       {:ok, _} = MediaCentaur.Social.add_friend(friend_pubkey, "Sample Friend")
       title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
-      recommend = fn sentiment ->
+      review = fn sentiment ->
         MediaCentaur.Nostr.Event.sign(
           MediaCentaur.Activities.Translation.to_event(
-            :recommendation,
+            :review,
             title,
-            [note: nil, sentiment: sentiment],
+            [text: nil, sentiment: sentiment],
             friend_pubkey
           ),
           friend_secret
@@ -410,7 +421,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
       refute has_element?(view, "#detail-modal .pennant")
 
-      {:ok, _rec} = MediaCentaur.Activities.ingest(recommend.(:love))
+      {:ok, _rec} = MediaCentaur.Activities.ingest(review.(:love))
 
       render_until(view, fn _html ->
         has_element?(view, "#detail-modal .pennant[data-flag='love']", "Sample Friend")
@@ -419,7 +430,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       await_supervised_tasks()
     end
 
-    test "the Recommend modal paints the library poster", %{conn: conn} do
+    test "the Review modal paints the library poster", %{conn: conn} do
       MediaCentaur.Settings.find_or_create_entry!(%{
         key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
         value: %{"enabled" => true}
@@ -431,19 +442,19 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
-      view |> element("#detail-recommend") |> render_click()
+      view |> element("#detail-review") |> render_click()
 
-      assert has_element?(view, "#recommend-modal img[src^='/media-images/#{movie.id}/poster.jpg']")
+      assert has_element?(view, "#review-modal img[src^='/media-images/#{movie.id}/poster.jpg']")
     end
 
-    test "the Recommend control is absent while Discovery is off", %{conn: conn} do
+    test "the Review control is absent while Discovery is off", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
-      refute has_element?(view, "#detail-recommend")
+      refute has_element?(view, "#detail-review")
     end
 
     test "toggling adds a TV series with the :tv_series media type", %{conn: conn} do

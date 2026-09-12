@@ -9,6 +9,11 @@ date: 2026-09-06
 > Friends card and the You card stand; the Tracking shelf is renamed
 > Wants to watch ([ADR-067](../architecture/2026-09-11-067-listing-replaces-tracking-on-the-wire.md)).
 
+> **Amended 2026-09-12** by [UIDR-040](2026-09-12-040-a-review-is-an-opinion-of-any-valence.md):
+> recommendations are reviews ([ADR-068](../architecture/2026-09-12-068-review-replaces-recommendation-on-the-wire.md)),
+> and the anti-pattern below now reads "no reactions beyond a review's
+> sentiment — dislike, like, love — or none".
+
 # Friends carry the shelves; the feed is recommendations
 
 ## Context and Problem Statement

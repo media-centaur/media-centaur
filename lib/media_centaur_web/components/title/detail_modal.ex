@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   @moduledoc """
   The title detail modal — the one depth surface for a title without
   files (UIDR-035): watchlisted, tracked, in flight, or merely
-  recommended, on Discovery and on Incoming alike. A tenant of the
+  reviewed, on Discovery and on Incoming alike. A tenant of the
   cinematic frame. Rendered from the embedded `TMDB.Title` snapshot plus
   the local artwork cache, with no network call on open; the live TMDB
   preview dresses it when it lands.
@@ -74,10 +74,10 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   attr :scope_menu_open, :boolean, default: false, doc: "the series scope menu is showing"
   attr :today, Date, required: true
 
-  attr :recommend?, :boolean,
+  attr :review?, :boolean,
     default: false,
     doc:
-      "whether the Recommend control is offered — the hosts pass `show_discovery`, the preference that gates the whole friend-network preview."
+      "whether the Review control is offered — the hosts pass `show_discovery`, the preference that gates the whole friend-network preview."
 
   def title_detail_modal(assigns) do
     assigns =
@@ -135,7 +135,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
               <%!-- After the primary, the same icon cluster the library
                     panel's view controls wear: the bookmark (UIDR-039 — the
                     listing act, and the only verb a title not on the list
-                    has) and the paper-plane Recommend. Then the `ml-auto`
+                    has) and the pencil Review. Then the `ml-auto`
                     tertiary group. --%>
               <div class="flex flex-wrap items-center gap-3" data-nav-zone="title_detail_body">
                 <.primary detail={@detail} scope_menu_open={@scope_menu_open} />
@@ -146,19 +146,19 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
                   phx-value-ref={@ref}
                 />
                 <.button
-                  :if={@recommend?}
-                  id="title-recommend"
+                  :if={@review?}
+                  id="title-review"
                   variant="dismiss"
                   size="sm"
                   shape="circle"
                   class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
-                  phx-click="title_recommend_open"
+                  phx-click="title_review_open"
                   data-nav-item
                   tabindex="0"
-                  title="Recommend"
-                  aria-label="Recommend"
+                  title="Review"
+                  aria-label="Review"
                 >
-                  <.icon name="hero-paper-airplane" class="size-5" />
+                  <.icon name="hero-pencil-square" class="size-5" />
                 </.button>
                 <.tertiary detail={@detail} />
               </div>

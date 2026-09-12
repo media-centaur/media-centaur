@@ -14,7 +14,7 @@ defmodule Mix.Tasks.Social.Dev do
   `MediaCentaur.Nostr.OneShot`.
 
       mix social.dev npub
-      mix social.dev recommend movie 603 --name "Sample Movie" --note "try it"
+      mix social.dev review movie 603 --name "Sample Movie" --sentiment love --text "try it"
       mix social.dev watched tv_series 1399 --name "Sample Show" --season 2 --episode 5
       mix social.dev listing movie 603 --name "Sample Movie"
       mix social.dev delete movie 603
@@ -45,7 +45,8 @@ defmodule Mix.Tasks.Social.Dev do
     year: :string,
     poster_path: :string,
     overview: :string,
-    note: :string,
+    sentiment: :string,
+    text: :string,
     season: :integer,
     episode: :integer,
     episode_name: :string
@@ -57,25 +58,26 @@ defmodule Mix.Tasks.Social.Dev do
     mix social.dev npub
         Print the dev friend's npub (creating the key on first use).
 
-    mix social.dev recommend <movie|tv_series> <tmdb_id> --name NAME [options]
-        Publish a recommendation as the friend.
-          --note TEXT           a note shown in the Feed
+    mix social.dev review <movie|tv_series> <tmdb_id> --name NAME [options]
+        Publish a review as the friend. Neither option below is required.
+          --sentiment WORD      dislike, like or love; none when omitted
+          --text TEXT           the review's words, shown in the Feed
           --year YYYY           --poster-path /abc.jpg   --overview TEXT
           --relay URL           default #{@default_relay}
         Example:
-          mix social.dev recommend movie 603 --name "Sample Movie" --note "try it"
+          mix social.dev review movie 603 --name "Sample Movie" --sentiment love --text "try it"
 
     mix social.dev watched <movie|tv_series> <tmdb_id> --name NAME [options]
         Publish a watched activity as the friend. A TV series takes the episode finished:
           --season N --episode N [--episode-name TEXT]
-        Title options as for recommend.
+        Title options as for review.
 
     mix social.dev listing <movie|tv_series> <tmdb_id> --name NAME [options]
-        Publish a listing ("wants to watch") as the friend. Title options as for recommend.
+        Publish a listing ("wants to watch") as the friend. Title options as for review.
 
-    mix social.dev delete [recommendation|watched|listing] <movie|tv_series> <tmdb_id>
+    mix social.dev delete [review|watched|listing] <movie|tv_series> <tmdb_id>
         Withdraw one of the friend's activities (a kind 5 deletion); the kind
-        defaults to recommendation.
+        defaults to review.
           --relay URL           default #{@default_relay}
 
     mix social.dev feed
@@ -106,10 +108,10 @@ defmodule Mix.Tasks.Social.Dev do
   defp dispatch(["npub"], opts),
     do: opts |> secret() |> Keys.pubkey() |> Keys.to_npub() |> Mix.shell().info()
 
-  defp dispatch(["recommend", type, tmdb_id], opts), do: publish(:recommendation, type, tmdb_id, opts)
+  defp dispatch(["review", type, tmdb_id], opts), do: publish(:review, type, tmdb_id, opts)
   defp dispatch(["watched", type, tmdb_id], opts), do: publish(:watched, type, tmdb_id, opts)
   defp dispatch(["listing", type, tmdb_id], opts), do: publish(:listing, type, tmdb_id, opts)
-  defp dispatch(["delete", type, tmdb_id], opts), do: delete(:recommendation, type, tmdb_id, opts)
+  defp dispatch(["delete", type, tmdb_id], opts), do: delete(:review, type, tmdb_id, opts)
   defp dispatch(["delete", kind, type, tmdb_id], opts), do: delete(parse_kind(kind), type, tmdb_id, opts)
   defp dispatch(["feed"], opts), do: feed(opts)
   defp dispatch(_other, _opts), do: fail("Unknown command.")
@@ -137,7 +139,12 @@ defmodule Mix.Tasks.Social.Dev do
         overview: opts[:overview]
       })
 
-    payload = [note: opts[:note], episode: episode(kind, media_type, opts)]
+    payload = [
+      sentiment: sentiment(opts[:sentiment]),
+      text: opts[:text],
+      episode: episode(kind, media_type, opts)
+    ]
+
     event = kind |> Translation.to_event(title, payload, Keys.pubkey(secret)) |> Event.sign(secret)
 
     case OneShot.publish(relay, event, signer(secret), timeout_ms: @relay_timeout_ms) do
@@ -163,12 +170,17 @@ defmodule Mix.Tasks.Social.Dev do
 
   defp episode(_kind, _media_type, _opts), do: nil
 
-  defp parse_kind("recommendation"), do: :recommendation
+  defp sentiment(nil), do: nil
+  defp sentiment("dislike"), do: :dislike
+  defp sentiment("like"), do: :like
+  defp sentiment("love"), do: :love
+  defp sentiment(other), do: fail("Sentiment must be dislike, like or love, got #{inspect(other)}.")
+
+  defp parse_kind("review"), do: :review
   defp parse_kind("watched"), do: :watched
   defp parse_kind("listing"), do: :listing
 
-  defp parse_kind(other),
-    do: fail("Kind must be recommendation, watched or listing, got #{inspect(other)}.")
+  defp parse_kind(other), do: fail("Kind must be review, watched or listing, got #{inspect(other)}.")
 
   defp parse_media_type("movie"), do: :movie
   defp parse_media_type("tv_series"), do: :tv_series
@@ -251,8 +263,8 @@ defmodule Mix.Tasks.Social.Dev do
       {:ok, attrs} ->
         detail =
           case attrs do
-            %{note: note} when is_binary(note) ->
-              "  — #{note}"
+            %{text: text} when is_binary(text) ->
+              "  — #{text}"
 
             %{episode: %Episode{season_number: season, episode_number: episode}} ->
               "  S#{season}E#{episode}"

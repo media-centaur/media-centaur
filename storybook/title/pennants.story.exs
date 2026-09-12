@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
   flag per kind of act. The template gives each variation a row-shaped
   surface with the mast pinned to its edge, as a Discovery row does —
   content-height over a one-row minimum, like the real row, so a full
-  four-flag mast is shown rather than clipped.
+  six-flag mast is shown rather than clipped.
   """
 
   use PhoenixStorybook.Story, :component
@@ -44,13 +44,23 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
       %Variation{
         id: :like,
         description: "A friend likes it: neutral tint, thumbs up.",
-        attributes: %{activity: [row("Sample Friend", :recommendation)]}
+        attributes: %{activity: [row("Sample Friend", :review)]}
       },
       %Variation{
         id: :love,
         description:
           "A friend loves it: a heart on the rose fill, the one warm hue outside the health palette.",
-        attributes: %{activity: [row("Sample Friend", :recommendation, :love)]}
+        attributes: %{activity: [row("Sample Friend", :review, :love)]}
+      },
+      %Variation{
+        id: :dislike,
+        description: "A friend dislikes it: a thumbs down on the neutral tint.",
+        attributes: %{activity: [row("Sample Friend", :review, :dislike)]}
+      },
+      %Variation{
+        id: :reviewed,
+        description: "A friend reviewed it without a verdict: a speech bubble on the neutral tint.",
+        attributes: %{activity: [row("Sample Friend", :review, nil)]}
       },
       %Variation{
         id: :watched,
@@ -64,16 +74,16 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
       },
       %Variation{
         id: :own,
-        description: "Your own recommendation reads You. Your own watching and listing never fly.",
-        attributes: %{activity: [row(nil, :recommendation)]}
+        description: "Your own review reads You. Your own watching and listing never fly.",
+        attributes: %{activity: [row(nil, :review)]}
       },
       %Variation{
         id: :two_same,
         description: "Two friends, one flag: names joined, newest first.",
         attributes: %{
           activity: [
-            row("Sample Friend", :recommendation, :love),
-            row("Other Friend", :recommendation, :love)
+            row("Sample Friend", :review, :love),
+            row("Other Friend", :review, :love)
           ]
         }
       },
@@ -82,29 +92,33 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
         description: "Past two names the pennant counts.",
         attributes: %{
           activity: [
-            row("Sample Friend", :recommendation),
-            row("Other Friend", :recommendation),
-            row("Third Friend", :recommendation),
-            row(nil, :recommendation)
+            row("Sample Friend", :review),
+            row("Other Friend", :review),
+            row("Third Friend", :review),
+            row(nil, :review)
           ]
         }
       },
       %Variation{
         id: :stacked,
-        description: "Every flag at once, in mast order: love, like, watched, listing.",
+        description:
+          "Every flag at once, in mast order: love, like, dislike, reviewed, watched, listing.",
         attributes: %{
           activity: [
             row("Other Friend", :listing),
             row("Third Friend", :watched),
-            row("Other Friend", :recommendation),
-            row("Sample Friend", :recommendation, :love)
+            row("Fourth Friend", :review, nil),
+            row("Third Friend", :review, :dislike),
+            row("Other Friend", :review),
+            row("Sample Friend", :review, :love)
           ]
         }
       },
       %Variation{
         id: :labelled,
-        description: "A fixed label in place of the names — the Recommend modal's Like / Love choice.",
-        attributes: %{activity: [row(nil, :recommendation, :love)], label: "Love"}
+        description:
+          "A fixed label in place of the names — the Review modal's Dislike / Like / Love choice.",
+        attributes: %{activity: [row(nil, :review, :love)], label: "Love"}
       },
       %Variation{
         id: :on_image,
@@ -112,8 +126,8 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
         attributes: %{
           activity: [
             row("Third Friend", :watched),
-            row("Other Friend", :recommendation),
-            row("Sample Friend", :recommendation, :love)
+            row("Other Friend", :review),
+            row("Sample Friend", :review, :love)
           ],
           on_image: true
         }

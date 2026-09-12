@@ -8,7 +8,7 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
   Two subscription maps are kept and re-applied whenever a connection
   starts: `subs` (every relay, from `subscribe_all/2`) and `relay_subs`
-  (one relay, from `subscribe/3` — the recommendations sync publishes
+  (one relay, from `subscribe/3` — the activities sync publishes
   only what a given relay lacks, so fan-out is wrong there).
   """
 

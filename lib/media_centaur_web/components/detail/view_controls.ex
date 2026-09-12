@@ -61,11 +61,11 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   host's `:title_rungs` (`IntentAware`), threaded down as `subject_rung`.
   In-app action, so unlike Letterboxd it IS a `data-nav-item`.
 
-  ## Recommend
+  ## Review
 
-  A paper-plane icon button after the bookmark opens the Recommend modal
-  on the panel's subject (`modal_recommend_open`, handled by the injected
-  `EntityModal` clause). Gated by `recommend?`, which the hosts wire to
+  A pencil icon button after the bookmark opens the Review modal
+  on the panel's subject (`modal_review_open`, handled by the injected
+  `EntityModal` clause). Gated by `review?`, which the hosts wire to
   the `show_discovery` preference: the friend network is a preview, and
   this is the only control on the modal that belongs to it. A
   `data-nav-item` like the bookmark.
@@ -94,10 +94,10 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
     doc:
       "the rung the subject sits at, nil for Off — the bookmark's state. Compute via `EntityModal.subject_rung/3` so it matches what `modal_watchlist_toggle` acts on."
 
-  attr :recommend?, :boolean,
+  attr :review?, :boolean,
     default: false,
     doc:
-      "whether the Recommend control is offered — the hosts pass `show_discovery`, the preference that gates the whole friend-network preview."
+      "whether the Review control is offered — the hosts pass `show_discovery`, the preference that gates the whole friend-network preview."
 
   def view_controls(assigns) do
     assigns = assign(assigns, :destination, Logic.secondary_view(assigns.entity, assigns.detail_view))
@@ -147,19 +147,19 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       event="modal_watchlist_toggle"
     />
     <.button
-      :if={@recommend? && @entity.tmdb_id && @entity.type in [:movie, :tv_series]}
-      id="detail-recommend"
+      :if={@review? && @entity.tmdb_id && @entity.type in [:movie, :tv_series]}
+      id="detail-review"
       variant="dismiss"
       size="sm"
       shape="circle"
       class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
-      phx-click="modal_recommend_open"
+      phx-click="modal_review_open"
       data-nav-item
       tabindex="0"
-      title="Recommend"
-      aria-label="Recommend"
+      title="Review"
+      aria-label="Review"
     >
-      <.icon name="hero-paper-airplane" class="size-5" />
+      <.icon name="hero-pencil-square" class="size-5" />
     </.button>
     <.button
       variant="dismiss"

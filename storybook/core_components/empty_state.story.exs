@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.EmptyState do
         id: :two_actions,
         description:
           "Two actions is the ceiling — beyond that the surface is a menu, not an empty state",
-        attributes: %{icon: "hero-users", headline: "Recommendations from friends land here"},
+        attributes: %{icon: "hero-users", headline: "Reviews from friends land here"},
         slots: [
           """
           Add a relay so Media Centaur can reach the network, then add a friend by their public key.

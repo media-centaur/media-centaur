@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
-  alias MediaCentaurWeb.Live.RecommendFlow
+  alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.Orientation
@@ -230,11 +230,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         {:noreply, EntityModal.toggle_watchlist(socket, choice)}
       end
 
-      # --- Recommend ---
-      use MediaCentaurWeb.Live.RecommendFlow
+      # --- Review ---
+      use MediaCentaurWeb.Live.ReviewFlow
 
-      def handle_event("modal_recommend_open", _params, socket),
-        do: {:noreply, EntityModal.open_recommend(socket)}
+      def handle_event("modal_review_open", _params, socket),
+        do: {:noreply, EntityModal.open_review(socket)}
 
       # --- Track overrides ---
 
@@ -432,7 +432,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # partial id, and partial refreshes are genuinely one-at-a-time. What this
   # clause must never do again is refresh once per row in the library, which
   # is what the old per-row rebuild fan-out caused.
-  # A recommendation arriving or withdrawn re-reads the open subject's
+  # A review arriving or withdrawn re-reads the open subject's
   # pennants; nothing else about the entry changes.
   def handle_modal_pubsub({tag, _event}, socket)
       when tag in [:activity_received, :activity_sent, :activity_deleted] do
@@ -584,7 +584,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   @spec assign_modal_defaults(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def assign_modal_defaults(socket) do
     socket
-    |> RecommendFlow.init()
+    |> ReviewFlow.init()
     |> Phoenix.Component.assign(
       selected_entity_id: nil,
       selected_member_id: nil,
@@ -961,7 +961,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   attr :show_discovery, :boolean,
     default: false,
     doc:
-      "the session-wide `show_discovery` preference — gates the view controls' Recommend button (the friend network is a preview)."
+      "the session-wide `show_discovery` preference — gates the view controls' Review button (the friend network is a preview)."
 
   def entity_modal(assigns) do
     ~H"""
@@ -1000,7 +1000,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       default_grab_mode={@default_grab_mode}
       acquisition?={@acquisition?}
       lower_quality_accepted?={@lower_quality_accepted?}
-      recommend?={@show_discovery}
+      review?={@show_discovery}
       tracking={@tracking}
       friend_activity={@friend_activity}
       available={
@@ -1296,7 +1296,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Opens the Recommend modal on the panel's subject — the same subject
+  Opens the Review modal on the panel's subject — the same subject
   `toggle_watchlist/1` acts on, so the two controls can never disagree
   about what the panel is showing. No-op when the subject carries no
   TMDB id (the control isn't rendered then).
@@ -1307,8 +1307,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   poster, resolved here through `image_url/2` because this host owns the
   entity and the modal only knows the TMDB identity.
   """
-  @spec open_recommend(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
-  def open_recommend(socket) do
+  @spec open_review(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def open_review(socket) do
     subject = watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
 
     case watchlist_ref(subject) do
@@ -1316,7 +1316,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         socket
 
       {tmdb_id, media_type} ->
-        RecommendFlow.open(
+        ReviewFlow.open(
           socket,
           Title.new!(%{
             tmdb_id: tmdb_id,
@@ -1366,8 +1366,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     end
   end
 
-  # The open subject's recommendations — the same subject the watchlist
-  # toggle and Recommend act on, so a collection shows the selected
+  # The open subject's reviews — the same subject the watchlist
+  # toggle and Review act on, so a collection shows the selected
   # member's pennants. Empty when nothing is open or the subject has no
   # TMDB identity.
   defp assign_friend_activity(socket) do

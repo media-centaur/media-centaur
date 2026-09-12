@@ -820,14 +820,14 @@ defmodule MediaCentaur.TestFactory do
 
     defaults = %{
       id: Ecto.UUID.generate(),
-      kind: :recommendation,
+      kind: :review,
       event_id: Ecto.UUID.generate(),
       author_pubkey: String.duplicate("f", 64),
       tmdb_id: tmdb_id,
       media_type: media_type,
       title: Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: "Sample Movie"}),
       sentiment: :like,
-      note: nil,
+      text: nil,
       episode: nil,
       acted_at: ~U[2026-09-01 12:00:00Z],
       raw_event: %{},

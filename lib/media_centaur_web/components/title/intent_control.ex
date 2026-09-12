@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   `control_form/1` is the rule; the host mounts the component either way.
 
   Ignore sits left of Off because it is the stronger no: Off is no
-  record, Ignore is a record that keeps friends' recommendations of the
+  record, Ignore is a record that keeps friends' reviews of the
   title off the Feed. The Feed entry's Ignore is a one-click shortcut to
   the same rung, and the only way onto it for a title not on the list.
 

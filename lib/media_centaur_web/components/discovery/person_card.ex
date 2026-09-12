@@ -3,8 +3,8 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   One person on the Friends tab (UIDR-031): the name as the card's
   title, the presence line on the right, a *Recently watched* strip of
   up to #{5} posters with an "all N" tile that grows the strip in
-  place, then Wants to watch and Recommended as text rows of up to #{3}
-  names and "N more", Recommended carrying the sentiment glyph. A friend's
+  place, then Wants to watch and Reviewed as text rows of up to #{3}
+  names and "N more", Reviewed carrying the sentiment glyph. A friend's
   footer holds the elided key, the added date and Remove friend; the
   You card has a primary-tinted border, a subtitle, and no footer. A
   person with nothing shared collapses to header and footer.
@@ -17,12 +17,13 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Discovery.Person
   alias MediaCentaurWeb.Components.Discovery.Person.Entry
+  alias MediaCentaurWeb.Components.Title.Sentiment
   alias MediaCentaurWeb.TitleRef
 
   @strip_cap 5
@@ -36,10 +37,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
       assign(assigns,
         watched: shown(assigns.person.watched, @strip_cap, assigns.expanded?),
         listed: shown(assigns.person.listed, @row_cap, assigns.expanded?),
-        recommended: shown(assigns.person.recommended, @row_cap, assigns.expanded?),
+        reviewed: shown(assigns.person.reviewed, @row_cap, assigns.expanded?),
         watched_hidden: hidden(assigns.person.watched, @strip_cap, assigns.expanded?),
         listed_hidden: hidden(assigns.person.listed, @row_cap, assigns.expanded?),
-        recommended_hidden: hidden(assigns.person.recommended, @row_cap, assigns.expanded?)
+        reviewed_hidden: hidden(assigns.person.reviewed, @row_cap, assigns.expanded?)
       )
 
     ~H"""
@@ -142,12 +143,12 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
         verb="wants to watch"
       />
       <.shelf_row
-        :if={@person.recommended != []}
-        label="Recommended"
+        :if={@person.reviewed != []}
+        label="Reviewed"
         person={@person}
-        entries={@recommended}
-        hidden={@recommended_hidden}
-        verb="recommended"
+        entries={@reviewed}
+        hidden={@reviewed_hidden}
+        verb="reviewed"
       />
 
       <footer
@@ -199,10 +200,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             data-nav-item
             tabindex="0"
           >
-            {entry.title.name}<.icon
+            {entry.title.name}<Sentiment.sentiment_glyph
               :if={entry.sentiment}
-              name={sentiment_glyph(entry.sentiment)}
-              class={"ml-1 inline size-3.5 align-[-2px]" <> if(entry.sentiment == :love, do: " text-love", else: "")}
+              sentiment={entry.sentiment}
+              class="ml-1 inline size-3.5 align-[-2px]"
             />
           </button>
         </span>
@@ -228,9 +229,6 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   defp hidden(_entries, _cap, true), do: 0
   defp hidden(entries, cap, false), do: max(length(entries) - cap, 0)
 
-  defp sentiment_glyph(:love), do: "hero-heart-solid"
-  defp sentiment_glyph(:like), do: "hero-hand-thumb-up"
-
   defp episode_and_title(%Entry{episode: nil, title: title}), do: title.name
 
   defp episode_and_title(%Entry{episode: episode, title: title}),
@@ -238,7 +236,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
 
   defp own_subtitle(%Person{presence: nil}),
     do:
-      "Friends see here what you recommend from a title's page, and what you watch and list once sharing is on under Settings → Social."
+      "Friends see here what you review from a title's page, and what you watch and list once sharing is on under Settings → Social."
 
   defp own_subtitle(_person), do: "How friends see you"
 end

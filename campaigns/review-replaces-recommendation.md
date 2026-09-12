@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-09-12
 last_updated: 2026-09-12
 ---
@@ -44,10 +44,25 @@ nothing in the app says "recommend" once it ships.
 
 ## Status
 
-**Planning, 2026-09-12.** Scope audit done (below); design written as a
-unify pass; no code. One owner decision open — what happens to the eleven
-stored recommendations — and one deferral named (several friends' texts on
-one title view).
+**In progress, 2026-09-12.** Scope audit and unify pass done; design
+approved by the owner the same day, including the removal of the stored
+recommendations. The owner's nine were printed for hand re-entry before
+the migration. One deferral named (several friends' texts on one title
+view). Phases 0–4 implemented in one session: relay v0.6.0 committed in
+`../social-relay` (unpushed, untagged — the owner tags and deploys);
+ADR-068, UIDR-040 and the four amendments landed; the wire, row, context,
+web layer, dev tooling, stories, tests, contributor docs, glossary and
+wiki are done; `mix precommit` is green (6950 Elixir tests, 809 JS
+tests); the schema and data migrations have run on the real database
+(the eleven recommendation rows are gone) and the dev service restarted
+on the new code. Verified in the real browser (chromium-probe against the
+dev server): the pencil control named Review opens *Share a review* with
+three unpressed choices, a press sets, a second press clears, another
+replaces, Send is enabled with nothing chosen, Cancel closes; the Feed,
+the Friends tab and the storybook states (six-flag mast, dislike and bare
+entries, the three glyphs) render as designed. Left: Phase 5 (ship, owner
+check). Nothing is pushed: the app commit, the wiki commit and the relay
+commit all wait on the owner.
 
 ## Scope audit (2026-09-12)
 
@@ -259,8 +274,15 @@ friends review and want to watch lands here".
 * `2026-09-12` — One sentiment glyph component for every surface;
   nothing-for-Like ends. The 500-character cap stays. The control's glyph
   becomes the pencil-square, named Review.
+* `2026-09-12` — **The stored recommendations are removed** by the data
+  migration, as ADR-067 removed tracking rows; no re-signing path. The
+  owner approved the design and this disposition together, and the nine
+  own recommendations were printed for hand re-entry (owner's direction).
 
 ## Open decisions
+
+None. The one below was answered 2026-09-12 (see Decisions made) and is
+kept for the reasoning.
 
 **A. The eleven stored recommendations.** Remove them with the data
 migration (the ADR-067 precedent; recommended) or re-sign the owner's nine
@@ -302,7 +324,10 @@ owner can review them again by hand.
    `watchlist-and-tracking.md`; `README.md`. CHANGELOG at ship: the
    feature, and under *Migration safety* the removed recommendation rows,
    the nullable sentiment, the `text` column, and the relay version.
-5. **Ship and owner check.** Desktop and TV: write a review with each
+5. **Ship and owner check.** At ship, the CHANGELOG entry names the
+   feature and, under *Migration safety*, the removed recommendation rows,
+   the nullable sentiment, the `text` column and the relay version; the
+   relay v0.6.0 tag and deploy come first. Then, desktop and TV: write a review with each
    sentiment and with none; see it on the Feed, the Friends card and the
    pennant; delete it; a friend's dislike shows as a thumbs down; a
    friend's bare review shows as "reviewed".

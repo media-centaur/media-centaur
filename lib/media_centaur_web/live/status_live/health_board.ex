@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
       "Runs downloads through Prowlarr and your download client, " <>
         "then links finished files into the library.",
     social:
-      "Your identity, your relays, and the recommendations that travel between you and your friends.",
+      "Your identity, your relays, and the reviews, watched titles and listings that travel between you and your friends.",
     self_update: "Checks for new releases and applies in-app updates.",
     system: "Runtime health, plus anything not owned by another subsystem."
   }

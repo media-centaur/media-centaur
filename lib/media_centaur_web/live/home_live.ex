@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.HomeLive do
     PosterRow
   }
 
-  alias MediaCentaurWeb.Live.RecommendModal
+  alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.HomeLive.Logic
 
   @impl true
@@ -103,10 +103,11 @@ defmodule MediaCentaurWeb.HomeLive do
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
-        <RecommendModal.recommend_modal
-          subject={@recommend_subject}
-          poster_url={@recommend_poster_url}
-          relay_counts={@recommend_relay_counts}
+        <ReviewModal.review_modal
+          subject={@review_subject}
+          poster_url={@review_poster_url}
+          sentiment={@review_sentiment}
+          relay_counts={@review_relay_counts}
         />
       </:overlays>
       <%!-- Home page positioning context. `relative` makes this the anchor

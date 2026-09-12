@@ -24,7 +24,7 @@ defmodule MediaCentaur.Activities do
   @moduledoc """
   Bounded context for activities: what this install told its friends and
   what its friends told it. An activity is one signed statement by one
-  signer about one title, of one of three kinds — a recommendation, a
+  signer about one title, of one of three kinds — a review, a
   title watched, a title listed (`Activity`).
 
   Records are translated from signed events (`Translation`), kept one
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Activities do
   excluded everywhere except `own_events/0`, which republishes their
   deletions.
 
-  Recommending is an explicit act of sharing and always publishes.
+  Reviewing is an explicit act of sharing and always publishes.
   Watching and listing are published by `Activities.Publisher` only
   while their sharing toggle is on; `watched/2`, `listing/1` and
   `withdraw/3` are the primitives it calls and do not consult the toggle
@@ -70,21 +70,24 @@ defmodule MediaCentaur.Activities do
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe, do: Topics.subscribe(Topics.activities_updates())
 
-  @max_note_length Translation.max_note_length()
+  @max_text_length Translation.max_text_length()
 
   @doc """
-  Builds, signs, stores and publishes a recommendation from this
-  identity with a `sentiment` (`:like` or `:love`), creating the identity
-  first (`Identity.ensure/0`) if none exists yet. `note` is trimmed
-  first; blank becomes `nil`; a note over #{@max_note_length} characters
-  is rejected with `{:error, :note_too_long}` and nothing is stored.
-  Stamped after whatever the row already holds (see `stamp/3`).
+  Builds, signs, stores and publishes a review from this identity — an
+  optional `sentiment` (`:dislike`, `:like`, `:love`, or nil for no
+  verdict) and optional `text` — creating the identity first
+  (`Identity.ensure/0`) if none exists yet. Neither is required: a
+  review with neither says only that the person reviewed the title.
+  `text` is trimmed first; blank becomes `nil`; text over
+  #{@max_text_length} characters is rejected with `{:error,
+  :text_too_long}` and nothing is stored. Stamped after whatever the
+  row already holds (see `stamp/3`).
   """
-  @spec recommend(Title.t(), Activity.sentiment(), String.t() | nil) ::
-          {:ok, Activity.t()} | {:error, :note_too_long | term()}
-  def recommend(%Title{} = title, sentiment, note) when sentiment in [:like, :love] do
-    with {:ok, note} <- validate_note(note) do
-      publish_own(:recommendation, title, sentiment: sentiment, note: note)
+  @spec review(Title.t(), Activity.sentiment() | nil, String.t() | nil) ::
+          {:ok, Activity.t()} | {:error, :text_too_long | term()}
+  def review(%Title{} = title, sentiment, text) when sentiment in [nil, :dislike, :like, :love] do
+    with {:ok, text} <- validate_text(text) do
+      publish_own(:review, title, sentiment: sentiment, text: text)
     end
   end
 
@@ -233,8 +236,8 @@ defmodule MediaCentaur.Activities do
   @doc """
   The live friend activity on the titles in `refs`, as `%{ref =>
   [activity_row]}` — every kind a current friend has broadcast for the
-  title (recommendation, watched, listing) plus this identity's own
-  recommendations, in `list_activities/0`'s row shape, newest first, in
+  title (review, watched, listing) plus this identity's own
+  reviews, in `list_activities/0`'s row shape, newest first, in
   one query plus one roster read. Refs with no activity are absent, and
   a former friend's is left out: a pennant names a friend. Own watched
   and listing acts are left out too — a pennant tells you what friends
@@ -257,7 +260,7 @@ defmodule MediaCentaur.Activities do
     |> Repo.all()
     |> Enum.filter(
       &(MapSet.member?(wanted, {&1.tmdb_id, &1.media_type}) and
-          ((&1.author_pubkey == me and &1.kind == :recommendation) or
+          ((&1.author_pubkey == me and &1.kind == :review) or
              is_map_key(friends, &1.author_pubkey)))
     )
     |> Enum.group_by(&{&1.tmdb_id, &1.media_type}, &activity_row(&1, me, friends))
@@ -391,15 +394,15 @@ defmodule MediaCentaur.Activities do
     max(now, floor)
   end
 
-  defp validate_note(nil), do: {:ok, nil}
+  defp validate_text(nil), do: {:ok, nil}
 
-  defp validate_note(note) when is_binary(note) do
-    case String.trim(note) do
+  defp validate_text(text) when is_binary(text) do
+    case String.trim(text) do
       "" ->
         {:ok, nil}
 
       trimmed ->
-        if String.length(trimmed) <= @max_note_length, do: {:ok, trimmed}, else: {:error, :note_too_long}
+        if String.length(trimmed) <= @max_text_length, do: {:ok, trimmed}, else: {:error, :text_too_long}
     end
   end
 

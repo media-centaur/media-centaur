@@ -8,7 +8,7 @@ defmodule MediaCentaur.Discovery do
   one record per title, carrying the rung that says what the app should
   do about that title's releases — and, in later iterations, the
   candidate sources that feed them (TMDB discover, list import, friend
-  recommendations).
+  reviews).
 
   A record here is the only authored thing in the whole tracking story.
   Discovery stores the rung and knows nothing about what it causes: no

@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.Title.Detail do
   @moduledoc """
   The title detail modal's view-model (UIDR-035): one TMDB title without
-  files — watchlisted, tracked, in flight, or merely recommended — with
+  files — watchlisted, tracked, in flight, or merely reviewed — with
   the facts the modal's controls depend on already decided. Built by
   `Logic.title_detail/2` from facts the
   `TitleDetailHost` resolved; rendered by `TitleDetailModal`.
@@ -22,8 +22,9 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   `friend_activity` is the title's `Activities.friend_activity_for/1`
   rows — the hero's pennants, the one place who-did-what shows
   (UIDR-037). `note` is the one thing a pennant cannot hold: a friend's
-  words with the recommendation, attributed to `sender`, or the person's
-  own watchlist note when `sender` is nil. `activity_id`, `own?` and
+  review text, attributed to `sender`, or the person's own watchlist
+  note when `sender` is nil — the words under the hero, whichever source
+  they have. `activity_id`, `own?` and
   `kind` name the activity the modal speaks for — a friend's, so that
   listing the title records where it came from; an own one, opened from
   the You card, so that Delete <noun> can withdraw it. All nil on a

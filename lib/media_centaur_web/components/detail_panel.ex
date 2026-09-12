@@ -166,10 +166,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "whether the subject carries the per-title lower-quality acceptance (ADR-063 §2). An Acquisition fact keyed by TMDB identity, not a tracking one — it survives the title not being tracked."
 
-  attr :recommend?, :boolean,
+  attr :review?, :boolean,
     default: false,
     doc:
-      "whether the view controls offer Recommend — the host passes `show_discovery`, the preference gating the friend-network preview."
+      "whether the view controls offer Review — the host passes `show_discovery`, the preference gating the friend-network preview."
 
   attr :seasons_view, :list,
     default: nil,
@@ -398,7 +398,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                     detail_view={@detail_view}
                     letterboxd_links={@letterboxd_links}
                     subject_rung={@subject_rung}
-                    recommend?={@recommend?}
+                    review?={@review?}
                   />
                   <%!-- Member watched toggle: acting on the *selected*
                         movie is what the movie-first modal is for, and

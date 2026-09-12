@@ -2,6 +2,11 @@
 status: accepted
 date: 2026-09-11
 ---
+
+> **Amended 2026-09-12** by [UIDR-040](2026-09-12-040-a-review-is-an-opinion-of-any-valence.md):
+> Recommend is Review, the pencil-square icon, on both surfaces
+> ([ADR-068](../architecture/2026-09-12-068-review-replaces-recommendation-on-the-wire.md)).
+
 # Add to watchlist first, then the tracking controls
 
 Amends [UIDR-036](2026-09-07-036-one-control-per-title.md). Point 5 there —
