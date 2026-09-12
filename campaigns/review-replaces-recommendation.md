@@ -44,13 +44,11 @@ nothing in the app says "recommend" once it ships.
 
 ## Status
 
-**Shipped as v1.23.0 on 2026-09-12** (Phases 0–4; the relay tag and Phase
-5's owner check are the open items — retire this file once both are done).
-The app and wiki are pushed; the relay commit in `../social-relay`
-(`0faabd1`, stores 32164 and refuses 32160) is still unpushed and untagged,
-so until the owner tags v0.6.0 and redeploys, the relay refuses every
-review with `blocked: kind 32164 is not stored by this relay` and the app
-re-sends them on each connect.
+**Shipped as v1.23.0 on 2026-09-12** (Phases 0–4; Phase 5's owner check
+is the one open item — retire this file once it is done). The app and wiki
+are pushed; social-relay v0.6.0 (`0faabd1`, stores 32164 and refuses
+32160) was tagged and deployed by the owner the same day, and the app's
+relay row reads Synced with no error since.
 
 Scope audit and unify pass done; design
 approved by the owner the same day, including the removal of the stored
@@ -299,8 +297,8 @@ owner can review them again by hand.
 
 ## Next steps
 
-Phases 0–4 are done and shipped in v1.23.0. Remaining: the relay tag and
-Phase 5.
+Phases 0–4 are done and shipped in v1.23.0; the relay is deployed.
+Remaining: Phase 5.
 
 0. ~~**Records and glossary.**~~ Done. ADR-068 *A review replaces the recommendation
    on the wire* (architecture; shaped like ADR-067). UIDR-040 *A review is
@@ -309,7 +307,7 @@ Phase 5.
    UIDR-039's control; UIDR-031's anti-pattern amended in place).
    Regenerate `decisions/README.md`. Glossary rows: Review, Sentiment,
    Review text; Activity, Action, Feed, Sharing toggle reworded.
-1. **Relay v0.6.0.** Code done (`0faabd1`); **the owner tags and deploys.** `kinds.go` stores 32164 and refuses 32160; tests;
+1. ~~**Relay v0.6.0.**~~ Done, tagged and deployed 2026-09-12. `kinds.go` stores 32164 and refuses 32160; tests;
    `README.md`, `docs/protocol.md`, `docs/operating.md`; a campaign entry
    there. The owner tags and deploys. `just social-up` builds the working
    tree, so the app work can start against it before the tag.
