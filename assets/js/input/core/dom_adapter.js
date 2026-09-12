@@ -389,6 +389,18 @@ export function createDomReader(config = {}) {
     },
 
     /**
+     * The event a zone asks the LiveView for when BACK leaves it —
+     * `data-nav-dismiss-event` on the zone container. A menu list closes
+     * itself this way. Null when the zone declares none.
+     */
+    getZoneDismissEvent(context) {
+      const selector = selectors[context]
+      const scope = selector && scopeCompound(selector)
+      if (!scope) return null
+      return document.querySelector(scope)?.dataset?.navDismissEvent ?? null
+    },
+
+    /**
      * Get the current presentation mode.
      */
     getPresentation() {
