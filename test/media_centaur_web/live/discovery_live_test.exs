@@ -679,8 +679,26 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
-    test "Download starts the automatic plan and flashes; the slot then reads the state", %{conn: conn} do
+    test "Download performs the default planning mode — manual selection opens the board", %{conn: conn} do
       stub_prowlarr()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Activities.ingest(friend_event(777, nil))
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      view |> element(entry(rec) <> "-download") |> render_click()
+
+      # The plan is made under the view's own task; its board opens once
+      # the plan exists, so the redirect is the one thing to wait on.
+      {path, _flash} = assert_redirect(view, 2_000)
+      "/incoming?plan=" <> plan_id = path
+      {:ok, plan} = Plans.fetch(plan_id)
+      assert plan.approval_policy == "review"
+    end
+
+    test "Download under auto-select starts the automatic plan and flashes; the slot then reads the state",
+         %{conn: conn} do
+      stub_prowlarr()
+      PlanningMode.set(:auto_select_best_release)
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Activities.ingest(friend_event(777, nil))
 
