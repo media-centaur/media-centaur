@@ -892,6 +892,7 @@ describe("getZoneDismissEvent — what BACK pushes when it leaves a zone", () =>
   const selectors = {
     menu: "[data-nav-zone='menu'] [data-nav-item]",
     toolbar: "[data-nav-zone='toolbar'] [data-nav-item]",
+    flat: "[data-nav-item]",
   }
 
   test("reads data-nav-dismiss-event off the zone container", () => {
@@ -913,5 +914,12 @@ describe("getZoneDismissEvent — what BACK pushes when it leaves a zone", () =>
 
     expect(reader.getZoneDismissEvent("menu")).toBe(null)
     expect(reader.getZoneDismissEvent("nowhere")).toBe(null)
+  })
+
+  test("is null for a selector with no scope compound", () => {
+    stubDocument({ activeElement: null, querySelector: () => ({ dataset: { navDismissEvent: "never" } }) })
+    const reader = createDomReader({ contextSelectors: selectors })
+
+    expect(reader.getZoneDismissEvent("flat")).toBe(null)
   })
 })

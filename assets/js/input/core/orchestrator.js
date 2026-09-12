@@ -701,7 +701,7 @@ export class Orchestrator {
     // DOM leave together.
     if (directive.type === "enter_context" && directive.direction === "back") {
       const dismiss = this.reader.getZoneDismissEvent?.(contextBefore)
-      if (dismiss) this._hookEl?.pushEvent?.(dismiss, {})
+      if (dismiss && this._hookEl?.pushEvent) this._hookEl.pushEvent(dismiss, {})
     }
 
     // If we just entered the sidebar, record where we came from
