@@ -4004,8 +4004,11 @@ describe("Orchestrator", () => {
       expect(pushEvent).not.toHaveBeenCalled()
     })
 
-    test("BACK from the toolbar (no back edge) still enters the sidebar", () => {
-      const { system } = menuSetup({ getActiveItemIndex: (ctx) => (ctx === "sidebar" ? 0 : -1) })
+    test("BACK from the toolbar (no back edge) still enters the sidebar and pushes nothing, even when the zone declares a dismiss event", () => {
+      const { system } = menuSetup({
+        getZoneDismissEvent: () => "close_anything",
+        getActiveItemIndex: (ctx) => (ctx === "sidebar" ? 0 : -1),
+      })
       const pushEvent = mock(() => {})
       system.start({ pushEvent })
       system.focusMachine.forceContext(Context.TOOLBAR)
