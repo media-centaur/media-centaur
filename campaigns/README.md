@@ -50,6 +50,21 @@ Use [`template.md`](template.md) as a starter.
   per-indexer Newznab route honours it), which means owning the fan-out
   Prowlarr exists to provide — measure the coverage gain first (51 vs 49 on
   one film), and it may be declined.
+* [`external-process-lifetime.md`](external-process-lifetime.md) —
+  **planning.** mpv dies on every Media Centaur restart, so every update costs
+  the viewer whatever they were watching. Two independent causes, both
+  measured: mpv is spawned as a BEAM port (`erl_child_setup` SIGKILLs port
+  children when the VM halts) and the dev unit's `KillMode=mixed` SIGKILLs
+  whatever is left in the cgroup. ADR-023's reattach-after-restart machinery
+  has therefore **never run once** — zero `recovery: found live session` lines
+  in 30 days — because it was built on a premise ("the user's playback
+  continues") that was false when written. Not a regression: `Port.open` dates
+  from the first playback commit. `Apps.Launcher` carries the identical
+  unverified claim and is broken the same way today. Fix routes both through
+  one `Platform.*` detached-spawn seam, flips the dev unit to
+  `KillMode=process`, and records the facts in three enforced layers —
+  moduledoc, Credo check, dated ADR-023 amendment — because prose alone is
+  what failed. One naming decision open. No code yet.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and
