@@ -1,0 +1,61 @@
+defmodule MediaCentaur.Settings.Preferences.PlanningMode do
+  @moduledoc """
+  Typed accessor for the `default_planning_mode` Settings entry — what
+  the Download button on a title the library does not own does when
+  pressed (spec 2026-09-12 §9): `:manually_select_release` creates the
+  plan for review and opens its board on Incoming; `:auto_select_best_release`
+  creates it `automatic`, so a clean plan commits with nobody looking.
+  The other mode is always one click away in the button's menu; this
+  entry only names the default.
+
+  Default `:manually_select_release`: an absent, malformed or unknown
+  value all read as it, so a bad row can never turn on unattended
+  commits.
+
+  Read where the title detail is built (`TitleDetailHost`), like the
+  auto-grab default mode — not through `SettingAware`: the setting
+  changes only on the Settings page, never underneath an open modal.
+  """
+
+  alias MediaCentaur.Settings
+
+  @setting_key "default_planning_mode"
+  @modes [:manually_select_release, :auto_select_best_release]
+  @default :manually_select_release
+
+  @type mode :: :manually_select_release | :auto_select_best_release
+
+  @doc "The setting key in the Settings table."
+  @spec setting_key() :: String.t()
+  def setting_key, do: @setting_key
+
+  @doc "Every mode, the default first."
+  @spec modes() :: [mode()]
+  def modes, do: @modes
+
+  @doc "The current default mode; `:manually_select_release` when the entry is absent."
+  @spec value() :: mode()
+  def value do
+    case Settings.get_by_key(@setting_key) do
+      %{value: value} -> parse(value)
+      _ -> @default
+    end
+  end
+
+  @doc "Parses a stored value; anything but a known mode string is the default."
+  @spec parse(term()) :: mode()
+  def parse(%{"mode" => "auto_select_best_release"}), do: :auto_select_best_release
+  def parse(%{"mode" => "manually_select_release"}), do: :manually_select_release
+  def parse(_value), do: @default
+
+  @doc "The mode the button's menu offers beside the default."
+  @spec other(mode()) :: mode()
+  def other(:manually_select_release), do: :auto_select_best_release
+  def other(:auto_select_best_release), do: :manually_select_release
+
+  @doc "Persists the default mode. Subscribers learn of it through `{:setting_changed, key, value}`."
+  @spec set(mode()) :: Settings.Entry.t()
+  def set(mode) when mode in @modes do
+    Settings.find_or_create_entry!(%{key: @setting_key, value: %{"mode" => Atom.to_string(mode)}})
+  end
+end
