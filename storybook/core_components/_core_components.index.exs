@@ -12,6 +12,9 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents do
   def entry("icon"), do: [icon: {:fa, "icons", :thin}]
   def entry("input"), do: [icon: {:fa, "input-text", :thin}]
   def entry("list"), do: [icon: {:fa, "list", :thin}]
+  def entry("menu_list"), do: [icon: {:fa, "list-ul", :thin}, name: "Menu list"]
+  def entry("menu_select"), do: [icon: {:fa, "square-caret-down", :thin}, name: "Menu select"]
   def entry("modal"), do: [icon: {:fa, "window-maximize", :thin}]
+  def entry("split_button"), do: [icon: {:fa, "square-caret-down", :thin}, name: "Split button"]
   def entry("table"), do: [icon: {:fa, "table", :thin}]
 end
