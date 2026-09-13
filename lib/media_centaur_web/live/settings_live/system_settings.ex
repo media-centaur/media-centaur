@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
 
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.SettingsLive.Components
+  import MediaCentaurWeb.Components.Settings
 
   alias MediaCentaur.SelfUpdate
   alias MediaCentaurWeb.Live.SettingsLive.{ReleaseNotes, SystemSection}

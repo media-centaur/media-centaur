@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.SettingsLive.Playback do
 
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.SettingsLive.Components
+  import MediaCentaurWeb.Components.Settings
 
   attr :config, :map,
     required: true,

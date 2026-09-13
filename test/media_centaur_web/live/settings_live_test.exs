@@ -89,23 +89,23 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       # The stepper buttons carry precomputed absolute targets, one step away.
       assert has_element?(
                view,
-               "button[phx-click=set_ui_scale][phx-value-choice='0.95'][aria-label='Decrease scale']"
+               "button[phx-click=set_ui_scale][phx-value-choice='0.95'][aria-label='Decrease Interface scale']"
              )
 
       assert has_element?(
                view,
-               "button[phx-click=set_ui_scale][phx-value-choice='1.05'][aria-label='Increase scale']"
+               "button[phx-click=set_ui_scale][phx-value-choice='1.05'][aria-label='Increase Interface scale']"
              )
 
       # At the default, Reset is rendered but inert.
-      assert has_element?(view, "button[aria-label='Reset scale'][aria-disabled='true']")
+      assert has_element?(view, "button[aria-label='Reset Interface scale'][aria-disabled='true']")
     end
 
     test "stepping up persists the new scale and pushes the live update", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
       view
-      |> element("button[phx-click=set_ui_scale][aria-label='Increase scale']")
+      |> element("button[phx-click=set_ui_scale][aria-label='Increase Interface scale']")
       |> render_click()
 
       assert_push_event(view, "ui-scale", %{scale: 1.05})
@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       assert has_element?(
                view,
-               "button[phx-click=set_ui_scale][phx-value-choice='1.1'][aria-label='Increase scale']"
+               "button[phx-click=set_ui_scale][phx-value-choice='1.1'][aria-label='Increase Interface scale']"
              )
     end
 
@@ -124,7 +124,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
       view
-      |> element("button[phx-click=set_ui_scale][aria-label='Decrease scale']")
+      |> element("button[phx-click=set_ui_scale][aria-label='Decrease Interface scale']")
       |> render_click()
 
       assert_push_event(view, "ui-scale", %{scale: 0.95})
@@ -137,13 +137,13 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       # Step away from the default first (the assign reads the DB-free cache,
       # so the state is driven through the UI, not seeded).
-      increase = element(view, "button[phx-click=set_ui_scale][aria-label='Increase scale']")
+      increase = element(view, "button[phx-click=set_ui_scale][aria-label='Increase Interface scale']")
       render_click(increase)
       render_click(increase)
       assert has_element?(view, "span", "110%")
 
       view
-      |> element("button[phx-click=set_ui_scale][aria-label='Reset scale']")
+      |> element("button[phx-click=set_ui_scale][aria-label='Reset Interface scale']")
       |> render_click()
 
       assert_push_event(view, "ui-scale", %{scale: 1.0})
@@ -156,7 +156,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       # Walk the stepper all the way up — each click re-renders with the next
       # precomputed target, so this exercises the whole grid.
-      increase = element(view, "button[phx-click=set_ui_scale][aria-label='Increase scale']")
+      increase = element(view, "button[phx-click=set_ui_scale][aria-label='Increase Interface scale']")
       Enum.each(1..20, fn _step -> render_click(increase) end)
 
       assert UIScale.scale() == UIScale.max()
@@ -166,7 +166,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       # but it stays a focusable nav item so the gamepad nav graph never shifts.
       assert has_element?(
                view,
-               "button[phx-value-choice='2.0'][aria-label='Increase scale'][aria-disabled='true']"
+               "button[phx-value-choice='2.0'][aria-label='Increase Interface scale'][aria-disabled='true']"
              )
 
       render_click(increase)
