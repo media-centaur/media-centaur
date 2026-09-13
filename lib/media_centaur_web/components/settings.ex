@@ -279,7 +279,7 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :title, :string, required: true
   attr :description, :string, default: nil
   attr :class, :string, default: nil
-  attr :rest, :global
+  attr :rest, :global, doc: "an `id` or data attribute for the card element, e.g. a test anchor."
   slot :action
   slot :inner_block, required: true
 
@@ -297,10 +297,17 @@ defmodule MediaCentaurWeb.Components.Settings do
     """
   end
 
-  attr :label, :any, required: true
+  attr :label, :any,
+    required: true,
+    doc: "label content — accepts a string or a HEEx slot/AST. `:any` covers both."
+
   attr :description, :string, default: nil
   attr :options, :list, required: true, doc: "`[{value, label}]`, at most four."
-  attr :selected, :any, required: true
+
+  attr :selected, :any,
+    required: true,
+    doc: "the current option value — a string or atom, whatever the owner stores. Compared with `==`."
+
   attr :event, :string, required: true
   attr :event_value, :map, default: %{}, doc: "extra `phx-value-*` params (string keys)."
   attr :id, :string, default: nil
@@ -344,13 +351,19 @@ defmodule MediaCentaurWeb.Components.Settings do
 
   attr :type, :string, default: "text"
   attr :name, :string, required: true
-  attr :value, :any, default: nil
+
+  attr :value, :any,
+    default: nil,
+    doc: "the current value — string, number or nil; rendered as the input's value."
+
   attr :placeholder, :string, default: nil
   attr :mono, :boolean, default: false
   attr :autofocus, :boolean, default: false, doc: "focus on mount — the first field of an edit form."
   attr :class, :string, default: nil
 
-  attr :rest, :global, include: ~w(autocomplete phx-blur phx-keydown phx-key phx-value-name min max step)
+  attr :rest, :global,
+    include: ~w(autocomplete phx-blur phx-keydown phx-key phx-value-name min max step),
+    doc: "input attributes the row kinds bind: autocomplete, the blur/keydown events, number bounds."
 
   @doc "The house text input (UIDR-041 §31): bordered, full width, monospace for paths and keys, a nav item."
   def settings_input(assigns) do
@@ -372,7 +385,7 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :label, :string, required: true
   attr :description, :string, default: nil
   attr :name, :string, required: true
-  attr :value, :any, default: nil
+  attr :value, :any, default: nil, doc: "the current value — string, number or nil."
   attr :placeholder, :string, default: nil
 
   attr :event, :string,
@@ -410,7 +423,11 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :description, :string, default: nil
   attr :name, :string, required: true
   attr :options, :list, required: true, doc: "`[{value, label}]`, more than four."
-  attr :selected, :any, required: true
+
+  attr :selected, :any,
+    required: true,
+    doc: "the current option value — a string or atom, whatever the owner stores. Compared with `==`."
+
   attr :event, :string, required: true, doc: "pushed on change with `%{name => value}`."
   attr :id, :string, default: nil
 

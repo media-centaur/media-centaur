@@ -12,6 +12,16 @@ defmodule MediaCentaurWeb.Storybook.Settings.PathStatus do
         attributes: %{path: "/usr/bin/env", kind: :executable}
       },
       %Variation{
+        id: :directory,
+        description: "A directory that exists.",
+        attributes: %{path: "/", kind: :directory}
+      },
+      %Variation{
+        id: :file,
+        description: "A file that exists (the project's own mix.exs).",
+        attributes: %{path: "mix.exs", kind: :file}
+      },
+      %Variation{
         id: :missing,
         description: "The path does not resolve: a warning triangle with the reason in its title.",
         attributes: %{path: "/nonexistent/mpv", kind: :executable}
