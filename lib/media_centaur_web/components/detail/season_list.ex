@@ -417,7 +417,15 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         <span class="flex-1 min-w-0 truncate text-base-content/70 italic">
           {@item.title || "Episode #{@item.episode_number}"}
         </span>
-        <.badge :if={@item.air_date} variant="ghost" size="sm" class="gap-1 flex-shrink-0">
+        <%!-- Only a fresh gap says when it aired. On a series that ended
+              decades ago the date is noise: the row being a gap rather
+              than an upcoming one already says it aired. --%>
+        <.badge
+          :if={Logic.recently_aired?(@item.air_date)}
+          variant="ghost"
+          size="sm"
+          class="gap-1 flex-shrink-0"
+        >
           <.icon name="hero-calendar-mini" class="size-3" />
           {Logic.upcoming_pill_copy(@item)}
         </.badge>

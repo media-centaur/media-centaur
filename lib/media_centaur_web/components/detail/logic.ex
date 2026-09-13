@@ -294,10 +294,16 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
     end
   end
 
+  # Inside this many days either side of today the pill speaks in
+  # relative terms; beyond it, in a date.
+  @relative_window_days 14
+
   @doc """
   Pill copy for an upcoming episode/movie row. Past dates read
-  "aired Xd ago"; future dates read "in Xd" (or the bare formatted
-  date for further-out releases). `nil` air_date renders "TBA".
+  "aired Xd ago"; future dates read "in Xd". Beyond a fortnight either
+  way it is the date itself, carrying the year unless it falls in the
+  current one — "Aug 15" is only unambiguous for this year, and a row
+  can carry a date decades old. `nil` air_date renders "TBA".
 
   Pure: extracted for unit testing without LiveView render. Shared by
   the season list's upcoming episode rows and the collection list's
@@ -313,10 +319,30 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
     cond do
       days == 0 -> "today"
-      days > 0 and days <= 14 -> "in #{days}d"
-      days < 0 and days >= -14 -> "aired #{abs(days)}d ago"
-      true -> Calendar.strftime(air_date, "%b %-d")
+      days > 0 and days <= @relative_window_days -> "in #{days}d"
+      days < 0 and days >= -@relative_window_days -> "aired #{abs(days)}d ago"
+      air_date.year == today.year -> Calendar.strftime(air_date, "%b %-d")
+      true -> Calendar.strftime(air_date, "%b %-d, %Y")
     end
+  end
+
+  @doc """
+  Whether an air date is recent enough to be worth saying on a row for
+  an episode the library does not have.
+
+  A gap in a series that finished decades ago gains nothing from its air
+  date — you know it aired, because the row is a gap and not an upcoming
+  one. A gap that opened in the last fortnight is different: "aired 3d
+  ago" is why you don't have it yet.
+  """
+  @spec recently_aired?(Date.t() | nil, Date.t()) :: boolean()
+  def recently_aired?(air_date, today \\ Date.utc_today())
+
+  def recently_aired?(nil, _today), do: false
+
+  def recently_aired?(%Date{} = air_date, today) do
+    days = Date.diff(air_date, today)
+    days <= 0 and days >= -@relative_window_days
   end
 
   @doc """
