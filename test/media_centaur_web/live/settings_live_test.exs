@@ -78,6 +78,16 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
   end
 
+  describe "section intro" do
+    test "every section shows its title and description from the shell", %{conn: conn} do
+      for %{id: id, label: label, description: description} <- MediaCentaurWeb.SettingsLive.sections() do
+        {:ok, _view, html} = live_async!(conn, ~p"/settings?section=#{id}")
+        assert html =~ ~s(<h2 class="text-lg font-semibold">#{Plug.HTML.html_escape(label)}</h2>)
+        assert html =~ Plug.HTML.html_escape(description)
+      end
+    end
+  end
+
   describe "interface scale" do
     test "renders the stepper at the current value with step targets either side",
          %{conn: conn} do

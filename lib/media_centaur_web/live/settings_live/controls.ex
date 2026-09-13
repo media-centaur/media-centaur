@@ -25,11 +25,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
 
     ~H"""
     <div data-page="controls" class="controls-page max-w-4xl">
-      <div class="flex items-end justify-between mb-2">
-        <div>
-          <h2 class="text-2xl font-semibold">Controls</h2>
-          <p class="text-base-content/60 mt-1">Customize keyboard and gamepad bindings.</p>
-        </div>
+      <div class="flex justify-end mb-2">
         <.armed_button
           armed={@reset_armed}
           arm="controls:reset_all_arm"

@@ -13,22 +13,15 @@ defmodule MediaCentaurWeb.SettingsLive.Danger do
   def render(assigns) do
     ~H"""
     <div data-nav-grid class="p-5 rounded-lg glass-surface border border-error/20 space-y-4">
-      <div class="flex items-start gap-3">
-        <.icon name="hero-exclamation-triangle" class="size-6 text-error shrink-0 mt-0.5" />
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold text-error">Danger Zone</h2>
-          <p class="text-sm text-base-content/60 mt-0.5">
-            Destructive actions that cannot be undone. Read the prompt carefully before confirming.
-          </p>
-        </div>
-      </div>
-
-      <div class="flex items-start justify-between gap-4 pt-1">
-        <div class="min-w-0">
-          <p class="text-sm font-medium">Clear database</p>
-          <p class="text-xs text-base-content/55 mt-0.5">
-            Permanently deletes all entities, files, images, and progress.
-          </p>
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0 flex items-start gap-3">
+          <.icon name="hero-exclamation-triangle" class="size-5 text-error shrink-0 mt-0.5" />
+          <div class="min-w-0">
+            <p class="text-sm font-medium">Clear database</p>
+            <p class="text-xs text-base-content/55 mt-0.5">
+              Permanently deletes all entities, files, images, and progress. Read the prompt carefully before confirming.
+            </p>
+          </div>
         </div>
         <%!-- Irreversible and unbounded, so it earns the heaviest
               confirmation we have: a persistent modal, rendered at the
