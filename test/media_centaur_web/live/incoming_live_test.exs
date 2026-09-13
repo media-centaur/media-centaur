@@ -3383,16 +3383,16 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-tracking-mode-lower-quality")
+      assert has_element?(view, "#title-lower-quality")
 
       view
-      |> element("#title-tracking-mode-lower-quality button[phx-click='reset_lower_quality']")
+      |> element("#title-lower-quality button[phx-click='reset_lower_quality']")
       |> render_click()
 
       assert TitleDownloadParams.get(item.tmdb_id, item.media_type).min_quality ==
                nil
 
-      refute has_element?(view, "#title-tracking-mode-lower-quality")
+      refute has_element?(view, "#title-lower-quality")
     end
 
     test "the title modal shows no acceptance row while the title inherits the default", %{
@@ -3403,7 +3403,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
 
       assert has_element?(view, "#title-tracking-mode")
-      refute has_element?(view, "#title-tracking-mode-lower-quality")
+      refute has_element?(view, "#title-lower-quality")
     end
   end
 
