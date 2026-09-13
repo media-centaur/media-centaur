@@ -67,9 +67,8 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     field :below_floor_count, :integer, default: 0
     field :excluded_release_guids, {:array, :string}, default: []
     # Per-unit quality floor override (nil = inherit the plan's
-    # criteria). The patience elevation (ADR-056 Q4: `min := max`
-    # inside a want's window) is stamped here at plan creation, so the
-    # planner stays time-blind.
+    # criteria): a title's lower-quality acceptance (ADR-063 §2). Nothing
+    # else sets one.
     field :min_quality, :string
 
     timestamps()

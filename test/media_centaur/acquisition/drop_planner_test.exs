@@ -230,8 +230,8 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     end
   end
 
-  describe "run_tick/0 — patience quality floors" do
-    test "a want inside its patience window demands the ceiling; aged wants take the floor" do
+  describe "run_tick/0 — no patience window" do
+    test "a day-of want takes the best release available now, like an aged one" do
       stub_results(%{
         "Sample Show S01E01" => [
           release("Sample.Show.S01E01.1080p.WEB-DL", "e1-hd", %{seeders: 20})
@@ -243,33 +243,23 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
 
       item = create_tracked_show()
 
-      {:ok, _params} =
-        MediaCentaur.Acquisition.TitleDownloadParams.put(
-          item.tmdb_id,
-          item.media_type,
-          %{quality_4k_patience_hours: 24}
-        )
-
-      # Aged want (patience long expired) and a day-of want (inside it).
+      # An aged want and a day-of want: nothing holds the young one out
+      # for 4K (UIDR-041 §6), so both commit at the 1080p on offer.
       create_aired_release(item, 1, 1, @last_month)
       create_aired_release(item, 9, 1, Date.utc_today())
       :ok = ReleaseTracking.sync_wants(item)
 
       tick_and_gate()
 
-      # Only the aged unit commits — 1080p can't satisfy the young
-      # unit's elevated floor, so it stays an open, searched want.
       pursuit = sole_pursuit()
-      [unit] = Units.for_pursuit(pursuit.id)
-      assert {unit.season_number, unit.episode_number} == {1, 1}
+      units = Units.for_pursuit(pursuit.id)
+      assert Enum.sort(Enum.map(units, &{&1.season_number, &1.episode_number})) == [{1, 1}, {9, 1}]
 
-      young_want =
-        item.id
-        |> ReleaseTracking.open_wants_for_item()
-        |> Enum.find(&(&1.season_number == 9))
-
-      assert young_want
-      assert young_want.last_searched_at
+      # No unit carries a floor of its own — the plan's floor is the
+      # constant, and only a title's lower-quality acceptance would
+      # override it.
+      [plan] = Repo.all(Plans.Plan)
+      assert Enum.all?(Plans.units_for(plan.id), &is_nil(&1.min_quality))
     end
   end
 

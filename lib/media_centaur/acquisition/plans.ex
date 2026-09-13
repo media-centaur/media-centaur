@@ -244,9 +244,9 @@ defmodule MediaCentaur.Acquisition.Plans do
   @doc """
   Creates a release-tracking drop plan (ADR-056 Phase 2) and starts the
   planning run. `plan_attrs` carries the tmdb identity plus
-  `tracking_item_id`; `unit_specs` come from the item's due wants and
-  may carry per-unit `min_quality` floors (the patience elevation,
-  stamped by the drop planner so the planner stays time-blind).
+  `tracking_item_id`; `unit_specs` come from the item's due wants. A
+  per-unit `min_quality` is a title's lower-quality acceptance (ADR-063
+  §2); nothing else sets one.
   """
   @spec create_tracking_plan(map(), [map()]) :: {:ok, Plan.t()} | {:error, term()}
   def create_tracking_plan(plan_attrs, unit_specs) do
@@ -327,20 +327,14 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   # A manual plan with no explicit bounds snapshots the title's own
-  # download params (ADR-063 §2: bounds resolve unit override → per-title
-  # param → global default; `criteria` is the per-plan snapshot of the
-  # middle layer). Read by TMDB identity, so an untracked title with a
-  # stored acceptance still gets it.
+  # lower-quality acceptance (ADR-063 §2: the floor resolves unit
+  # override → per-title acceptance → the constant floor; `criteria` is
+  # the per-plan snapshot of the middle layer). Read by TMDB identity, so
+  # an untracked title with a stored acceptance still gets it.
   defp resolve_title_bounds(%{criteria: criteria} = plan_attrs) when criteria == %{} do
     case title_download_params(plan_attrs) do
-      %DownloadParams{min_quality: min, max_quality: max}
-      when is_binary(min) or is_binary(max) ->
-        bounds =
-          %{}
-          |> put_bound("min_quality", min)
-          |> put_bound("max_quality", max)
-
-        %{plan_attrs | criteria: bounds}
+      %DownloadParams{min_quality: min} when is_binary(min) ->
+        %{plan_attrs | criteria: %{"min_quality" => min}}
 
       _unset ->
         plan_attrs
@@ -361,9 +355,6 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp item_media_type("tv"), do: {:ok, :tv_series}
   defp item_media_type("movie"), do: {:ok, :movie}
   defp item_media_type(_other), do: :error
-
-  defp put_bound(bounds, _key, nil), do: bounds
-  defp put_bound(bounds, key, value), do: Map.put(bounds, key, value)
 
   defp insert_units(plan, unit_specs) do
     Enum.reduce_while(unit_specs, :ok, fn spec, :ok ->
