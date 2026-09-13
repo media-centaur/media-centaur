@@ -35,22 +35,16 @@ defmodule MediaCentaur.IntegrationHealth.Verifier do
     if Capabilities.configured?(:prowlarr), do: Prowlarr.ping(), else: {:error, :not_configured}
   end
 
-  # Route through the two-slot Dispatcher rather than hardcoding one
-  # driver: a usenet-only install has no torrent client, so probing
-  # qBittorrent would always error. Healthy = every configured slot
-  # tests :ok; unconfigured = no slot at all.
-  def run(:download_client) do
-    case Dispatcher.drivers() do
-      [] ->
-        {:error, :not_configured}
+  # One slot, one integration (UIDR-041 §7): each probe resolves its own
+  # protocol's driver through the Dispatcher; an empty slot is not
+  # configured, never an error to report.
+  def run(:download_client), do: run_slot(:torrent)
+  def run(:usenet_download_client), do: run_slot(:usenet)
 
-      drivers ->
-        Enum.reduce_while(drivers, :ok, fn {config, module}, :ok ->
-          case module.test_connection(config) do
-            :ok -> {:cont, :ok}
-            {:error, reason} -> {:halt, {:error, reason}}
-          end
-        end)
+  defp run_slot(protocol) do
+    case Dispatcher.driver_for(protocol) do
+      {:ok, {config, module}} -> module.test_connection(config)
+      {:error, _empty_slot} -> {:error, :not_configured}
     end
   end
 end

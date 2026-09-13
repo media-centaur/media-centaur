@@ -67,23 +67,6 @@ defmodule MediaCentaur.Downloads do
   # The flat `MediaCentaur.Settings.Config` keys backing the two client slots.
   # Owned here so consumers (e.g. `IntegrationHealth`, which re-derives
   # `configured?` on any of them) don't hardcode the set.
-  @config_keys [
-    :download_client_type,
-    :download_client_url,
-    :download_client_username,
-    :download_client_password,
-    :usenet_download_client_type,
-    :usenet_download_client_url,
-    :usenet_download_client_api_key
-  ]
-
-  @doc """
-  True when `key` is one of the config keys backing a download-client
-  slot — i.e. a change to it can flip `configured_clients/0`.
-  """
-  @spec config_key?(atom()) :: boolean()
-  def config_key?(key), do: key in @config_keys
-
   @doc """
   The configured client's web-UI URL for a protocol slot, or nil when
   the slot isn't configured. The same URL the driver talks to — the UI

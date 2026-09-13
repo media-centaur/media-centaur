@@ -56,11 +56,17 @@ defmodule MediaCentaur.IntegrationHealthTest do
     end
   end
 
-  describe "configured? for the download_client integration (two-slot)" do
-    test "a usenet-only config marks download_client configured? true" do
-      # No torrent slot, but a configured usenet (SABnzbd) slot. The
-      # integration's `configured?` must derive from the two-slot model
-      # (Downloads.configured_clients/0), not from the torrent password key.
+  describe "the four ids are the Capabilities subjects" do
+    test "known/0 lists them in UI order" do
+      assert IntegrationHealth.known() == [
+               :tmdb,
+               :prowlarr,
+               :download_client,
+               :usenet_download_client
+             ]
+    end
+
+    test "each slot's configured? is its own" do
       config = :persistent_term.get({Config, :config})
 
       :persistent_term.put(
@@ -75,8 +81,24 @@ defmodule MediaCentaur.IntegrationHealthTest do
       start_supervised!(IntegrationHealth)
       :ok = drain_initial_seed_broadcasts()
 
-      assert %Status{id: :download_client, configured?: true} =
+      assert %Status{id: :download_client, configured?: false} =
                IntegrationHealth.status(:download_client)
+
+      assert %Status{id: :usenet_download_client, configured?: true} =
+               IntegrationHealth.status(:usenet_download_client)
+    end
+
+    test "a usenet key change flips only the usenet slot" do
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+      IntegrationHealth.subscribe()
+
+      # The message `Config.update/2` broadcasts, delivered directly so the
+      # test needs no database ownership.
+      send(Process.whereis(IntegrationHealth), {:config_updated, :usenet_download_client_url, "x"})
+
+      assert_receive {:integration_health_changed, %Status{id: :usenet_download_client}}, 1_000
+      refute_receive {:integration_health_changed, %Status{id: :download_client}}, 100
     end
   end
 

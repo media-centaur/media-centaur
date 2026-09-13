@@ -23,4 +23,12 @@ defmodule MediaCentaur.IntegrationHealth.VerifierTest do
       assert {:error, :not_configured} = Verifier.run(:download_client)
     end
   end
+
+  describe "run(:usenet_download_client)" do
+    test "returns {:error, :not_configured} when the usenet slot is empty" do
+      # Each slot is its own integration (UIDR-041 §7): the usenet probe never
+      # touches the torrent slot, and an empty slot is not an error to report.
+      assert {:error, :not_configured} = Verifier.run(:usenet_download_client)
+    end
+  end
 end
