@@ -316,6 +316,73 @@ defmodule MediaCentaur.MaintenanceTest do
     end
   end
 
+  describe "refresh_episode_lists/0" do
+    setup [:setup_tmdb_client]
+
+    test "fills an incomplete season from TMDB and skips a complete one" do
+      series = seed_tv_series_with_tmdb!(%{name: "Sample Show"}, "300")
+
+      short =
+        create_season(%{tv_series_id: series.id, season_number: 1, episode_list: []})
+
+      complete =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 2,
+          episode_list: [%{episode_number: 1, air_date: "2021-01-01"}]
+        })
+
+      create_episode(%{season_id: complete.id, episode_number: 1})
+
+      stub_get_tv_with_seasons("300", %{"id" => 300}, %{
+        1 =>
+          season_detail(%{
+            "season_number" => 1,
+            "episodes" => [
+              %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01"},
+              %{"episode_number" => 2, "name" => "Second Sample", "air_date" => ""}
+            ]
+          })
+      })
+
+      assert {:ok, %{updated: 1, skipped: 1, failed: 0}} = Maintenance.refresh_episode_lists()
+
+      refreshed = Repo.get!(MediaCentaur.Library.Season, short.id)
+      assert Enum.map(refreshed.episode_list, & &1.episode_number) == [1, 2]
+      assert hd(refreshed.episode_list).air_date == ~D[2020-01-01]
+      assert List.last(refreshed.episode_list).air_date == nil
+
+      untouched = Repo.get!(MediaCentaur.Library.Season, complete.id)
+      assert length(untouched.episode_list) == 1
+    end
+
+    test "a season short of its own list is refreshed again" do
+      series = seed_tv_series_with_tmdb!(%{name: "Sample Show"}, "301")
+
+      season =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 1,
+          episode_list: [%{episode_number: 1, air_date: "2020-01-01"}]
+        })
+
+      stub_get_tv_with_seasons("301", %{"id" => 301}, %{
+        1 =>
+          season_detail(%{
+            "season_number" => 1,
+            "episodes" => [
+              %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01"},
+              %{"episode_number" => 2, "name" => "Second Sample", "air_date" => "2020-01-08"}
+            ]
+          })
+      })
+
+      assert {:ok, %{updated: 1, skipped: 0, failed: 0}} = Maintenance.refresh_episode_lists()
+
+      assert length(Repo.get!(MediaCentaur.Library.Season, season.id).episode_list) == 2
+    end
+  end
+
   describe "refresh_series_credits/0" do
     setup [:setup_tmdb_client]
 
