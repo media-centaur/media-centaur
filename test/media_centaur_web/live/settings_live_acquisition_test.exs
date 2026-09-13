@@ -123,8 +123,13 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       assert has_element?(view, "#connection-download_client-form")
     end
 
-    test "Save persists, closes the form and the row reads Not tested", %{conn: conn} do
+    test "Save persists, closes the form and a connected row reads Not tested", %{conn: conn} do
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      # A passing test first, so the save has a result to invalidate.
+      view |> element("#connection-prowlarr-test") |> render_click()
+      assert await_test(view, :prowlarr) =~ "Connected"
+
       view |> element("#connection-prowlarr-edit") |> render_click()
 
       view
@@ -138,6 +143,7 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
                      1_000
 
       assert render(view) =~ "Not tested"
+      assert Capabilities.load_test_result(:prowlarr) == nil
     end
 
     test "Save and test persists BEFORE verifying and closes on :ok", %{conn: conn} do
