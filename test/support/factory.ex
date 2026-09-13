@@ -160,7 +160,7 @@ defmodule MediaCentaur.TestFactory do
     defaults = %{
       id: Ecto.UUID.generate(),
       season_number: 1,
-      number_of_episodes: 0,
+      episode_list: [],
       name: "Season 1",
       episodes: [],
       extras: []
@@ -714,8 +714,7 @@ defmodule MediaCentaur.TestFactory do
       Library.Seasons.find_or_create(%{
         tv_series_id: tv_series_id,
         season_number: 9001,
-        name: "Factory Season",
-        number_of_episodes: 0
+        name: "Factory Season"
       })
 
     episode_number = length(Library.Episodes.list_for_season(season.id)) + 1
