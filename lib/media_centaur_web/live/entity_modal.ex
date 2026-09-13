@@ -63,6 +63,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   alias MediaCentaur.{Activities, Capabilities, Discovery, Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Acquisition.AutoGrabSettings
+  alias MediaCentaur.Acquisition.Plans
+  alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.DownloadParams
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Library.Deletion
@@ -73,6 +75,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
+  alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.CollectionDetail
@@ -140,6 +143,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       def handle_event("toggle_season", params, socket) do
         EntityModal.handle_toggle_season(params, socket)
+      end
+
+      def handle_event("download_missing_episode", params, socket) do
+        EntityModal.handle_download_missing_episode(params, socket)
       end
 
       def handle_event("toggle_file_group", params, socket) do
@@ -324,6 +331,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       def handle_async({:delete, _entity_id}, {:exit, reason}, socket),
         do: {:noreply, EntityModal.apply_delete_crash(socket, reason)}
+
+      def handle_async({:missing_episode, _entity_id, _unit}, {:ok, result}, socket),
+        do: {:noreply, EntityModal.apply_missing_episode_result(socket, result)}
+
+      def handle_async({:missing_episode, _entity_id, _unit}, {:exit, reason}, socket),
+        do: {:noreply, EntityModal.apply_missing_episode_crash(socket, reason)}
 
       @before_compile EntityModal
     end
@@ -608,6 +621,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       default_grab_mode: AutoGrabSettings.load().default_mode,
       acquisition?: Capabilities.acquisition_ready?(),
       friend_activity: [],
+      download_pending: nil,
       playback: %{}
     )
   end
@@ -1078,6 +1092,110 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         else: MapSet.put(expanded, season_number)
 
     {:noreply, Phoenix.Component.assign(socket, expanded_seasons: expanded)}
+  end
+
+  @doc """
+  Plans the one episode a missing row names (2026-09-13
+  series-gap-download design, decisions 9-10).
+
+  Fetches the series' targeting selection — a TMDB read, on an explicit
+  click, never on render — and creates a one-unit plan through the existing
+  `Plans.create_series_plan/3` door. The selection is also the guard: an
+  episode that has not aired, that arrived since the projection was built,
+  or that release tracking is already chasing is not planned.
+
+  The person's planning mode decides the approval policy and the ending,
+  through `MediaCentaurWeb.Live.PlanFlow` — the same words and the same
+  mapping the title modal's Download uses.
+  """
+  def handle_download_missing_episode(%{"season" => season, "episode" => episode}, socket) do
+    unit = {String.to_integer(season), String.to_integer(episode)}
+    entity = socket.assigns.selected_entry && socket.assigns.selected_entry.entity
+
+    cond do
+      socket.assigns[:download_pending] -> {:noreply, socket}
+      is_nil(entity) or is_nil(entity.tmdb_id) -> {:noreply, socket}
+      true -> start_missing_episode_plan(socket, entity, unit)
+    end
+  end
+
+  defp start_missing_episode_plan(socket, entity, unit) do
+    name = {:missing_episode, entity.id, unit}
+    tmdb_id = entity.tmdb_id
+    mode = MediaCentaur.Settings.Preferences.PlanningMode.value()
+
+    {:noreply,
+     socket
+     |> Phoenix.Component.assign(:download_pending, name)
+     |> Phoenix.LiveView.start_async(name, fn -> plan_missing_episode(tmdb_id, unit, mode) end)}
+  end
+
+  # Runs in the async task: TMDB read, the guard, then the plan door.
+  defp plan_missing_episode(tmdb_id, {season, episode} = unit, mode) do
+    with {:ok, selection} <- Targeting.series_selection(tmdb_id),
+         label = "#{selection.title} S#{season}E#{episode}",
+         :ok <- unit_plannable(selection, unit) do
+      opts = [approval_policy: PlanFlow.approval_policy(mode)]
+
+      case Plans.create_series_plan(selection, [unit], opts) do
+        {:ok, plan} -> {:planned, plan, mode, label}
+        {:error, reason} -> {:plan_failed, label, reason}
+      end
+    else
+      {:skip, reason} -> {:plan_failed, "that episode", reason}
+      {:error, reason} -> {:plan_failed, "that episode", reason}
+    end
+  end
+
+  # `tracked?` matters because the rendering no longer says so: an aired
+  # episode with no file is a Missing row whether or not release tracking
+  # holds an open want for it, so planning here would duplicate the cadence.
+  defp unit_plannable(selection, {season, episode}) do
+    found =
+      Enum.find_value(selection.seasons, fn s ->
+        s.season_number == season && Enum.find(s.episodes, &(&1.episode_number == episode))
+      end)
+
+    cond do
+      is_nil(found) -> {:skip, :not_listed}
+      not found.aired? -> {:skip, :unaired}
+      found.in_library? -> {:skip, :already_here}
+      found.tracked? -> {:skip, :tracked}
+      true -> :ok
+    end
+  end
+
+  @doc """
+  Ends a missing-episode download: auto-select flashes and stays put,
+  manual select lands on the plan's board.
+  """
+  def apply_missing_episode_result(socket, {:planned, _plan, :auto_select_best_release, label}) do
+    socket
+    |> Phoenix.Component.assign(:download_pending, nil)
+    |> Phoenix.LiveView.put_flash(:info, PlanFlow.download_flash(label))
+  end
+
+  def apply_missing_episode_result(socket, {:planned, plan, _manual, _label}) do
+    socket
+    |> Phoenix.Component.assign(:download_pending, nil)
+    |> Phoenix.LiveView.push_navigate(to: "/incoming?plan=#{plan.id}")
+  end
+
+  def apply_missing_episode_result(socket, {:plan_failed, label, reason}) do
+    Log.warning(:acquisition, "could not plan #{label} — #{inspect(reason)}")
+
+    socket
+    |> Phoenix.Component.assign(:download_pending, nil)
+    |> Phoenix.LiveView.put_flash(:info, PlanFlow.failure_flash(label, reason))
+  end
+
+  @doc "A crashed planning task leaves the modal usable and says so."
+  def apply_missing_episode_crash(socket, reason) do
+    Log.warning(:acquisition, "planning crashed for a missing episode — #{inspect(reason)}")
+
+    socket
+    |> Phoenix.Component.assign(:download_pending, nil)
+    |> Phoenix.LiveView.put_flash(:error, PlanFlow.failure_flash("that episode", :crashed))
   end
 
   @doc """

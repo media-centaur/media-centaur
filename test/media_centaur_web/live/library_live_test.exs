@@ -2033,4 +2033,94 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute has_element?(view, ~s|[data-entity-id="#{movie.id}"] button[phx-click="play"]|)
     end
   end
+
+  describe "downloading a missing episode" do
+    setup do
+      MediaCentaur.Settings.Preferences.PlanningMode.set(:auto_select_best_release)
+      TmdbStubs.stub_series_universe_for_targeting()
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
+
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentaur.Settings.Config, :config},
+        config
+        |> Map.put(:prowlarr_url, "http://prowlarr.test")
+        |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
+        |> Map.put(:download_client_type, "qbittorrent")
+        |> Map.put(:download_client_url, "http://qbit.test")
+      )
+
+      MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
+      MediaCentaur.Capabilities.save_test_result(:download_client, :ok)
+      MediaCentaur.Capabilities.refresh_cache()
+
+      on_exit(fn ->
+        :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
+        MediaCentaur.Capabilities.refresh_cache()
+      end)
+
+      :ok
+    end
+
+    test "clicking a missing row plans that one episode", %{conn: conn} do
+      series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810"})
+
+      season =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 1,
+          episode_list: [
+            %{episode_number: 1, name: "Pilot", air_date: "2020-01-01"},
+            %{episode_number: 2, name: "Second Sample", air_date: "2020-01-08"}
+          ]
+        })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        name: "Pilot",
+        content_url: "/tv/sample-show/s01e01.mkv"
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+
+      view
+      |> element("[data-role='missing-episode-row'][phx-value-episode='2']")
+      |> render_click()
+
+      assert render_async(view) =~ "Finding a release for Sample Show S1E2"
+
+      assert [plan] = MediaCentaur.Acquisition.Plans.list_drafts()
+
+      assert plan.id
+             |> MediaCentaur.Acquisition.Plans.units_for()
+             |> Enum.map(& &1.episode_number) == [2]
+    end
+
+    test "the modal offers the link to the picker", %{conn: conn} do
+      series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810"})
+
+      season =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 1,
+          episode_list: [%{episode_number: 1, name: "Pilot", air_date: "2020-01-01"}]
+        })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        name: "Pilot",
+        content_url: "/tv/sample-show/s01e01.mkv"
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+      html = render(view)
+
+      assert html =~ "Download more of this show"
+      assert html =~ "tmdb_id=246810"
+    end
+  end
+
 end

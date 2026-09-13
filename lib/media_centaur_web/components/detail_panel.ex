@@ -513,6 +513,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 on_play={@on_play}
                 spoiler_free={@spoiler_free}
                 available={@available}
+                acquisition?={@acquisition?}
               />
             </div>
             <.tracking_block
@@ -730,6 +731,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       on_play={@on_play}
       spoiler_free={@spoiler_free}
       available={@available}
+      series_tmdb_id={@entity.tmdb_id}
+      acquisition?={@acquisition?}
     />
     """
   end
