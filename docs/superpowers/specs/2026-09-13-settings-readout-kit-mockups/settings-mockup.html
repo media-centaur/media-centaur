@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en" data-input="mouse" style="--auto-scale:1;--ui-scale-pref:1">
+<head>
+<meta charset="utf-8">
+<title>Settings mockup · Acquisition + Social</title>
+<link rel="stylesheet" href="http://127.0.0.1:2160/assets/css/app.css">
+<style>
+  .board { max-width: 1180px; margin: 0 auto; padding: 2rem 2.5rem 3rem; }
+  .board + .board { border-top: 1px dashed oklch(from var(--color-base-content) l c h / 0.15); }
+  .board-label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+                 color: oklch(from var(--color-warning) l c h / 0.85); margin-bottom: 1.25rem; display: flex; gap: 1rem; align-items: baseline; }
+  .board-label small { text-transform: none; letter-spacing: 0; color: oklch(from var(--color-base-content) l c h / 0.5); font-size: 12px; }
+  .mock-type { width: 11rem; }
+  .row-state { min-width: 15rem; text-align: right; }
+</style>
+</head>
+<body class="media-centaur">
+
+<!-- ═══════════════════════════ ARTBOARD 1 ═══════════════════════════ -->
+<div class="board">
+  <div class="board-label">Artboard 1 <small>Acquisition, configured install. Usenet row shown in its edit state.</small></div>
+
+  <header class="mb-6">
+    <h1 class="text-2xl font-bold tracking-tight">Settings</h1>
+    <p class="mt-1 text-sm text-base-content/60">Services, preferences, and configuration</p>
+  </header>
+
+  <div class="flex gap-8 max-w-[1100px]">
+    <nav class="w-40 shrink-0 self-start flex flex-col gap-0.5">
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">System</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Services</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Preferences</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Controls</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Library</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">TMDB</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Social</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-primary bg-primary/10 font-medium">Acquisition</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Media Import</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Playback</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Language</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Maintenance</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Danger Zone</a>
+    </nav>
+
+    <div class="flex-1 min-w-0 space-y-4">
+
+      <!-- Section intro: rendered by the shell for every section -->
+      <div class="min-w-0 mb-1">
+        <h2 class="text-lg font-semibold">Acquisition</h2>
+        <p class="text-sm text-base-content/55 mt-0.5">
+          Where releases are searched for and downloaded, and what happens when a tracked title's release appears.
+        </p>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Search</h3>
+        </div>
+        <ul>
+          <li class="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+            <span class="size-2 rounded-full bg-success shrink-0" title="Connected"></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium">Prowlarr</div>
+              <div class="text-xs text-base-content/60 flex items-center gap-1.5 min-w-0">
+                <a href="#" class="font-mono truncate inline-flex items-center gap-1 hover:text-base-content">http://localhost:9696 <span class="hero-arrow-top-right-on-square-mini size-3"></span></a>
+                <span>· API key set</span>
+              </div>
+            </div>
+            <div class="row-state text-sm text-base-content/70 shrink-0">Connected <span class="text-xs text-base-content/40">· tested 118 days ago</span></div>
+            <div class="flex gap-1 shrink-0">
+              <button class="btn btn-soft btn-xs"><span class="hero-signal-mini size-3.5"></span> Test</button>
+              <button class="btn btn-ghost btn-xs">Edit</button>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- DOWNLOAD CLIENTS -->
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Download clients</h3>
+          <div class="shrink-0">
+            <button class="btn btn-ghost btn-xs"><span class="hero-magnifying-glass-mini size-3.5"></span> Detect from Prowlarr</button>
+          </div>
+        </div>
+        <p class="text-xs text-base-content/55 max-w-[60ch]">
+          One client per protocol. Prowlarr sends each grab to the client that matches the indexer.
+        </p>
+        <ul>
+          <li class="flex items-center gap-4 py-3 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0">
+            <span class="size-2 rounded-full bg-success shrink-0" title="Connected"></span>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-baseline gap-2">
+                <span class="text-sm font-medium">qBittorrent</span>
+                <span class="text-xs text-base-content/55">torrent</span>
+              </div>
+              <div class="text-xs text-base-content/60 flex items-center gap-1.5 min-w-0">
+                <a href="#" class="font-mono truncate inline-flex items-center gap-1 hover:text-base-content">http://localhost:8080 <span class="hero-arrow-top-right-on-square-mini size-3"></span></a>
+                <span>· admin · password set</span>
+              </div>
+            </div>
+            <div class="row-state text-sm text-base-content/70 shrink-0">Connected <span class="text-xs text-base-content/40">· tested 118 days ago</span></div>
+            <div class="flex gap-1 shrink-0">
+              <button class="btn btn-soft btn-xs"><span class="hero-signal-mini size-3.5"></span> Test</button>
+              <button class="btn btn-ghost btn-xs">Edit</button>
+            </div>
+          </li>
+
+          <!-- EDIT STATE -->
+          <li class="py-3 border-t border-base-content/5 last:pb-0">
+            <div class="flex items-center gap-4">
+              <span class="size-2 rounded-full bg-success shrink-0" title="Connected"></span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-baseline gap-2">
+                  <span class="text-sm font-medium">SABnzbd</span>
+                  <span class="text-xs text-base-content/55">usenet</span>
+                </div>
+                <div class="text-xs text-base-content/60">Editing. Saving clears the last test; test again afterwards.</div>
+              </div>
+            </div>
+            <form class="mt-3 ml-6 pl-4 border-l border-base-content/10 space-y-4" onsubmit="return false">
+              <div class="flex gap-3">
+                <div class="mock-type">
+                  <div class="text-sm font-medium">Client</div>
+                  <select class="select select-bordered w-full text-sm mt-1.5">
+                    <option selected>SABnzbd</option>
+                  </select>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-medium">Address</div>
+                  <input type="text" value="http://192.168.68.67:8085" class="input input-bordered w-full font-mono text-sm mt-1.5">
+                  <p class="mt-1 text-xs text-base-content/55">Must be reachable from this machine. A detected address is often a hostname that only resolves inside Docker.</p>
+                </div>
+              </div>
+              <div>
+                <div class="text-sm font-medium">API key</div>
+                <input type="password" placeholder="Leave blank to keep the current key" class="input input-bordered w-full font-mono text-sm mt-1.5">
+                <p class="mt-1 text-xs text-base-content/55">SABnzbd → Config → General → API Key.</p>
+              </div>
+              <div class="flex items-center justify-between gap-3 pt-1">
+                <button class="btn btn-ghost btn-sm text-error">Remove client</button>
+                <div class="flex items-center gap-2">
+                  <button class="btn btn-ghost btn-sm">Cancel</button>
+                  <button class="btn btn-soft btn-sm"><span class="hero-signal-mini size-4"></span> Save and test</button>
+                  <button class="btn btn-soft btn-primary text-base-content btn-sm">Save</button>
+                </div>
+              </div>
+            </form>
+          </li>
+        </ul>
+      </div>
+
+      <!-- DOWNLOAD BUTTON -->
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Download button</h3>
+        </div>
+        <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+          <div class="min-w-0">
+            <span class="font-medium">Default action on a title you don't own yet</span>
+            <p class="text-xs text-base-content/55 mt-0.5">The other choice stays in the button's menu.</p>
+          </div>
+          <div class="tabs tabs-boxed segmented-control w-fit shrink-0" role="group">
+            <button type="button" class="tab text-sm" aria-pressed="false">Choose a release</button>
+            <button type="button" class="tab text-sm" aria-pressed="true">Best release</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUTO-ACQUISITION -->
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Auto-acquisition</h3>
+        </div>
+        <p class="text-xs text-base-content/55 max-w-[60ch]">
+          Applied when a tracked title's release appears. A title's own tracking controls take precedence.
+        </p>
+        <div class="space-y-0.5">
+          <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+            <div class="min-w-0">
+              <span class="font-medium">When a release appears</span>
+              <p class="text-xs text-base-content/55 mt-0.5">Ask first parks the plan on Incoming until you approve it.</p>
+            </div>
+            <div class="tabs tabs-boxed segmented-control w-fit shrink-0" role="group">
+              <button type="button" class="tab text-sm" aria-pressed="true">Grab it</button>
+              <button type="button" class="tab text-sm" aria-pressed="false">Ask first</button>
+              <button type="button" class="tab text-sm" aria-pressed="false">Notify only</button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+            <div class="min-w-0">
+              <span class="font-medium">Highest resolution</span>
+              <p class="text-xs text-base-content/55 mt-0.5">The best available is taken right away. Nothing found at this resolution falls back to 1080p; anything lower needs the title's own acceptance.</p>
+            </div>
+            <div class="tabs tabs-boxed segmented-control w-fit shrink-0" role="group">
+              <button type="button" class="tab text-sm" aria-pressed="true">4K</button>
+              <button type="button" class="tab text-sm" aria-pressed="false">1080p</button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+            <div class="min-w-0">
+              <span class="font-medium">Within a resolution</span>
+              <p class="text-xs text-base-content/55 mt-0.5">Best fidelity takes a remux first. Save space takes compact encodes first, and still takes a remux when nothing smaller exists.</p>
+            </div>
+            <div class="tabs tabs-boxed segmented-control w-fit shrink-0" role="group">
+              <button type="button" class="tab text-sm" aria-pressed="true">Best fidelity</button>
+              <button type="button" class="tab text-sm" aria-pressed="false">Save space</button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+            <div class="min-w-0">
+              <span class="font-medium">Season packs</span>
+              <p class="text-xs text-base-content/55 mt-0.5">Take a pack only when you want at least this share of its episodes. Below it, episodes are grabbed one by one and the pack is offered.</p>
+            </div>
+            <div class="flex items-center gap-1 shrink-0" role="group">
+              <button type="button" class="flex items-center justify-center size-7 rounded-md text-base-content/60 transition-colors duration-150 hover:bg-base-content/[0.06] cursor-pointer"><span class="hero-minus-mini size-4"></span></button>
+              <span class="w-12 text-center text-sm tabular-nums">75%</span>
+              <button type="button" class="flex items-center justify-center size-7 rounded-md text-base-content/60 transition-colors duration-150 hover:bg-base-content/[0.06] cursor-pointer"><span class="hero-plus-mini size-4"></span></button>
+              <button type="button" class="px-2.5 py-1 rounded-md text-sm transition-colors duration-150 text-base-content/60 opacity-30">Reset</button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+            <div class="min-w-0">
+              <span class="font-medium">Search attempts</span>
+              <p class="text-xs text-base-content/55 mt-0.5">Failed search cycles before a release is given up on.</p>
+            </div>
+            <div class="flex items-center gap-1 shrink-0" role="group">
+              <button type="button" class="flex items-center justify-center size-7 rounded-md text-base-content/60 transition-colors duration-150 hover:bg-base-content/[0.06] cursor-pointer"><span class="hero-minus-mini size-4"></span></button>
+              <span class="w-12 text-center text-sm tabular-nums">12</span>
+              <button type="button" class="flex items-center justify-center size-7 rounded-md text-base-content/60 transition-colors duration-150 hover:bg-base-content/[0.06] cursor-pointer"><span class="hero-plus-mini size-4"></span></button>
+              <button type="button" class="px-2.5 py-1 rounded-md text-sm transition-colors duration-150 text-base-content/60 opacity-30">Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RELEASE TRACKING -->
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Release tracking</h3>
+        </div>
+        <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+          <div class="min-w-0">
+            <span class="font-medium">Check TMDB for new release dates</span>
+            <p class="text-xs text-base-content/55 mt-0.5">A change applies after the current cycle finishes.</p>
+          </div>
+          <div class="flex items-center gap-1 shrink-0" role="group">
+            <button type="button" class="flex items-center justify-center size-7 rounded-md text-base-content/60 transition-colors duration-150 hover:bg-base-content/[0.06] cursor-pointer"><span class="hero-minus-mini size-4"></span></button>
+            <span class="w-12 text-center text-sm tabular-nums">every 6h</span>
+            <button type="button" class="flex items-center justify-center size-7 rounded-md text-base-content/60 transition-colors duration-150 hover:bg-base-content/[0.06] cursor-pointer"><span class="hero-plus-mini size-4"></span></button>
+            <button type="button" class="px-2.5 py-1 rounded-md text-sm transition-colors duration-150 text-base-content/60 opacity-30">Reset</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ ARTBOARD 2 ═══════════════════════════ -->
+<div class="board">
+  <div class="board-label">Artboard 2 <small>Acquisition, fresh install. Nothing configured, nothing tested.</small></div>
+
+  <div class="flex gap-8 max-w-[1100px]">
+    <nav class="w-40 shrink-0 self-start flex flex-col gap-0.5">
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">System</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Services</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Preferences</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Controls</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Library</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">TMDB</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Social</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-primary bg-primary/10 font-medium">Acquisition</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Media Import</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Playback</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Language</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Maintenance</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Danger Zone</a>
+    </nav>
+
+    <div class="flex-1 min-w-0 space-y-4">
+      <div class="min-w-0 mb-1">
+        <h2 class="text-lg font-semibold">Acquisition</h2>
+        <p class="text-sm text-base-content/55 mt-0.5">
+          Where releases are searched for and downloaded, and what happens when a tracked title's release appears.
+        </p>
+      </div>
+
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Search</h3>
+        </div>
+        <ul>
+          <li class="flex items-center gap-4 py-3 first:pt-0 last:pb-0">
+            <span class="size-2 rounded-full bg-base-content/20 shrink-0" title="Not configured"></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium">Prowlarr</div>
+              <div class="text-xs text-base-content/60">Searches your indexers and forwards each grab to a download client.</div>
+            </div>
+            <div class="row-state text-sm text-base-content/55 shrink-0">Not configured</div>
+            <div class="flex gap-1 shrink-0">
+              <button class="btn btn-soft btn-primary text-base-content btn-xs">Set up</button>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Download clients</h3>
+          <div class="shrink-0">
+            <button class="btn btn-ghost btn-xs" disabled title="Needs Prowlarr"><span class="hero-magnifying-glass-mini size-3.5"></span> Detect from Prowlarr</button>
+          </div>
+        </div>
+        <p class="text-xs text-base-content/55 max-w-[60ch]">
+          One client per protocol. Prowlarr sends each grab to the client that matches the indexer.
+        </p>
+        <ul>
+          <li class="flex items-center gap-4 py-3 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0">
+            <span class="size-2 rounded-full bg-base-content/20 shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium">Torrent client</div>
+              <div class="text-xs text-base-content/60">qBittorrent. Also powers the download progress on Incoming.</div>
+            </div>
+            <div class="row-state text-sm text-base-content/55 shrink-0">Not configured</div>
+            <div class="flex gap-1 shrink-0">
+              <button class="btn btn-soft btn-primary text-base-content btn-xs">Set up</button>
+            </div>
+          </li>
+          <li class="flex items-center gap-4 py-3 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0">
+            <span class="size-2 rounded-full bg-base-content/20 shrink-0"></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-medium">Usenet client</div>
+              <div class="text-xs text-base-content/60">SABnzbd. Repairs and unpacks; the finished file imports like any other download.</div>
+            </div>
+            <div class="row-state text-sm text-base-content/55 shrink-0">Not configured</div>
+            <div class="flex gap-1 shrink-0">
+              <button class="btn btn-soft btn-primary text-base-content btn-xs">Set up</button>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Download button</h3>
+        </div>
+        <p class="text-sm text-base-content/60">Available once Prowlarr's connection test passes.</p>
+      </div>
+
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Auto-acquisition</h3>
+        </div>
+        <p class="text-sm text-base-content/60">Available once Prowlarr's connection test passes.</p>
+      </div>
+
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Release tracking</h3>
+        </div>
+        <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+          <div class="min-w-0">
+            <span class="font-medium">Check TMDB for new release dates</span>
+            <p class="text-xs text-base-content/55 mt-0.5">A change applies after the current cycle finishes.</p>
+          </div>
+          <div class="flex items-center gap-1 shrink-0" role="group">
+            <button type="button" class="flex items-center justify-center size-7 rounded-md text-base-content/60 hover:bg-base-content/[0.06] cursor-pointer"><span class="hero-minus-mini size-4"></span></button>
+            <span class="w-12 text-center text-sm tabular-nums">every 6h</span>
+            <button type="button" class="flex items-center justify-center size-7 rounded-md text-base-content/60 hover:bg-base-content/[0.06] cursor-pointer"><span class="hero-plus-mini size-4"></span></button>
+            <button type="button" class="px-2.5 py-1 rounded-md text-sm text-base-content/60 opacity-30">Reset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ ARTBOARD 3 ═══════════════════════════ -->
+<div class="board">
+  <div class="board-label">Artboard 3 <small>Social on the same kit: section intro from the shell, one card per group, relays as connection rows.</small></div>
+
+  <div class="flex gap-8 max-w-[1100px]">
+    <nav class="w-40 shrink-0 self-start flex flex-col gap-0.5">
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">System</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Services</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Preferences</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Controls</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Library</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">TMDB</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-primary bg-primary/10 font-medium">Social</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Acquisition</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Media Import</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Playback</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Language</a>
+      <div class="my-2 mx-3 h-px bg-base-content/10"></div>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Maintenance</a>
+      <a class="block py-2 px-3 rounded-lg text-sm text-base-content/70">Danger Zone</a>
+    </nav>
+
+    <div class="flex-1 min-w-0 space-y-4">
+      <div class="min-w-0 mb-1">
+        <h2 class="text-lg font-semibold">Social</h2>
+        <p class="text-sm text-base-content/55 mt-0.5">
+          Your identity, the relays your activity travels over, and what you share. Friends are managed on the Discovery page.
+        </p>
+      </div>
+
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Your identity</h3>
+        </div>
+        <p class="text-xs text-base-content/55 max-w-[60ch]">
+          Friends add you by this key. Your reviews are visible to anyone who can read the relays you configure.
+        </p>
+        <div class="flex items-center gap-3">
+          <code class="min-w-0 flex-1 truncate rounded-md bg-base-content/5 px-3 py-2 text-xs">npub1wg5xdrjt0rrrs9wl2w55cumalzy7a4e0mf60lwxqwc60079pylhsmdjr2k</code>
+          <button class="btn btn-ghost btn-xs shrink-0">Copy</button>
+        </div>
+        <details class="release-notes-disclosure">
+          <summary class="cursor-pointer select-none text-xs text-base-content/50 inline-flex items-center gap-1.5">
+            <span class="hero-chevron-right-mini size-4 disclosure-caret"></span>
+            <span>Secret key</span>
+          </summary>
+        </details>
+      </div>
+
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Relays</h3>
+        </div>
+        <p class="text-xs text-base-content/55 max-w-[60ch]">
+          The servers your activity is published to and read from. Your group's own relay first; public relays are more entries.
+        </p>
+        <ul>
+          <li class="flex items-center gap-4 py-3 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0">
+            <span class="size-2 rounded-full bg-success shrink-0" title="Synced"></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-mono truncate">wss://social-media.shawnmc.cool/</div>
+            </div>
+            <div class="row-state text-sm text-base-content/70 shrink-0">Synced</div>
+            <div class="flex gap-1 shrink-0">
+              <button class="btn btn-ghost btn-xs">Remove</button>
+            </div>
+          </li>
+          <li class="flex items-center gap-4 py-3 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0">
+            <span class="size-2 rounded-full bg-error shrink-0" title="Rejected"></span>
+            <div class="min-w-0 flex-1">
+              <div class="text-sm font-mono truncate">wss://relay.example.net</div>
+              <div class="text-xs text-base-content/55 truncate">auth-required: this relay requires authentication</div>
+            </div>
+            <div class="row-state text-sm text-base-content/70 shrink-0">Rejected</div>
+            <div class="flex gap-1 shrink-0">
+              <button class="btn btn-ghost btn-xs">Remove</button>
+            </div>
+          </li>
+        </ul>
+        <form class="flex items-center gap-2 pt-1" onsubmit="return false">
+          <input type="text" placeholder="wss://relay.example" class="input input-bordered min-w-0 flex-1 font-mono text-sm">
+          <button class="btn btn-soft btn-sm">Add relay</button>
+        </form>
+      </div>
+
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-baseline justify-between gap-4">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">Sharing</h3>
+        </div>
+        <p class="text-xs text-base-content/55 max-w-[60ch]">
+          Reviewing always shares. Each of these shares from the moment it is switched on; what was sent before stays until you delete it from the Feed.
+        </p>
+        <div class="space-y-0.5">
+          <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg cursor-pointer hover:bg-base-content/[0.04]">
+            <div>
+              <span class="font-medium">Share what you watch</span>
+              <p class="text-xs text-base-content/55 mt-0.5">Friends see a movie or an episode when you finish it.</p>
+            </div>
+            <input type="checkbox" class="toggle toggle-sm toggle-info" checked tabindex="-1">
+          </div>
+          <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg cursor-pointer hover:bg-base-content/[0.04]">
+            <div>
+              <span class="font-medium">Share your watchlist</span>
+              <p class="text-xs text-base-content/55 mt-0.5">A title you list is shared with your friends; one you drop is withdrawn.</p>
+            </div>
+            <input type="checkbox" class="toggle toggle-sm toggle-info" checked tabindex="-1">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

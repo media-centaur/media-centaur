@@ -420,6 +420,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 038 | The Feed is friends' actions, one entry each |
 | 039 | Add to watchlist first, then the tracking controls |
 | 040 | A review is an opinion of any valence: the sentiment shows when given, nothing when none |
+| 041 | Settings cards are readouts with actions, from one kit; save on the act; gated cards state their prerequisite |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
