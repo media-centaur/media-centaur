@@ -95,11 +95,24 @@ defmodule MediaCentaur.IntegrationHealthTest do
       :ok = drain_initial_seed_broadcasts()
       IntegrationHealth.subscribe()
 
-      # The message `Config.update/2` broadcasts, delivered directly so the
-      # test needs no database ownership.
+      # The slot becomes configured, then the message `Config.update/2`
+      # broadcasts arrives — delivered directly so the test needs no
+      # database ownership.
+      config = :persistent_term.get({Config, :config})
+
+      :persistent_term.put(
+        {Config, :config},
+        config
+        |> Map.put(:usenet_download_client_type, "sabnzbd")
+        |> Map.put(:usenet_download_client_url, "http://sab:8085")
+      )
+
       send(Process.whereis(IntegrationHealth), {:config_updated, :usenet_download_client_url, "x"})
 
-      assert_receive {:integration_health_changed, %Status{id: :usenet_download_client}}, 1_000
+      assert_receive {:integration_health_changed,
+                      %Status{id: :usenet_download_client, configured?: true}},
+                     1_000
+
       refute_receive {:integration_health_changed, %Status{id: :download_client}}, 100
     end
   end
@@ -168,17 +181,68 @@ defmodule MediaCentaur.IntegrationHealthTest do
   end
 
   describe "a config change" do
-    test "resets the integration to :unknown, never :pending" do
+    test "a boot-time config load keeps the persisted test" do
+      Config.update(:tmdb_api_key, "k")
+      MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+      IntegrationHealth.subscribe()
+
+      # `Config.load_runtime_overrides/0` at boot re-broadcasts every key.
+      send(Process.whereis(IntegrationHealth), {:config_updated, :tmdb_api_key, "k"})
+
+      # Nothing moved, so nothing is announced — and nothing is erased.
+      refute_receive {:integration_health_changed, %Status{id: :tmdb, test_state: :unknown}}, 100
+      assert %Status{test_state: :ok} = IntegrationHealth.status(:tmdb)
+    end
+
+    test "Remove client resets the slot to not configured" do
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://localhost:8080")
+      MediaCentaur.Capabilities.save_test_result(:download_client, :ok)
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+      IntegrationHealth.subscribe()
+
+      :ok = MediaCentaur.Capabilities.clear_integration(:download_client)
+
+      assert_receive {:integration_health_changed,
+                      %Status{id: :download_client, configured?: false, test_state: :unknown}},
+                     1_000
+    end
+
+    test "a verify in flight survives a config broadcast" do
       Config.update(:tmdb_api_key, "k")
       start_supervised!(IntegrationHealth)
       :ok = drain_initial_seed_broadcasts()
       IntegrationHealth.subscribe()
 
-      send(Process.whereis(IntegrationHealth), {:config_updated, :tmdb_api_key, "k2"})
+      IntegrationHealth.verify(:tmdb)
+      assert_receive {:integration_health_changed, %Status{id: :tmdb, test_state: :pending}}, 1_000
+
+      send(Process.whereis(IntegrationHealth), {:config_updated, :tmdb_api_key, "k"})
+
+      # Whatever the re-seed announced, the verify still lands as :ok — and
+      # waiting for it keeps the owner from being torn down mid-write.
+      assert_receive {:integration_health_changed, %Status{id: :tmdb, test_state: :ok}}, 1_000
+      refute_received {:integration_health_changed, %Status{id: :tmdb, test_state: :unknown}}
+    end
+
+    test "a person's save resets the integration to :unknown, never :pending" do
+      Config.update(:tmdb_api_key, "k")
+      MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+      IntegrationHealth.subscribe()
+
+      # The Settings page's save: writes the field, then clears the test.
+      assert MediaCentaur.Capabilities.save_integration(:tmdb, %{"tmdb_api_key" => "k2"})
 
       assert_receive {:integration_health_changed,
                       %Status{id: :tmdb, configured?: true, test_state: :unknown}},
                      1_000
+
+      refute_receive {:integration_health_changed, %Status{id: :tmdb, test_state: :pending}}, 100
     end
   end
 

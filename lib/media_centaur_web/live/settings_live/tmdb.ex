@@ -1,96 +1,57 @@
 defmodule MediaCentaurWeb.SettingsLive.Tmdb do
   @moduledoc """
-  The TMDB section of the Settings page — API key and connection test.
-  `SettingsLive` delegates to `render/1` and hosts the save / test handlers.
+  The TMDB section of the Settings page: one card, one connection row
+  (UIDR-041). `SettingsLive` builds the row and hosts the row's events.
   """
 
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.Components.Settings
+  import MediaCentaurWeb.SettingsLive.AcquisitionSection, only: [integration_row: 1]
 
-  attr :config, :map,
-    required: true,
-    doc: "settings config map (reads :tmdb_api_key_configured?)."
+  alias MediaCentaurWeb.SettingsLive.ConnectionState
 
-  attr :tmdb_test, :any, required: true, doc: "connection-test result map or nil."
-  attr :tmdb_testing, :boolean, required: true
+  attr :config, :map, required: true, doc: "settings config map (reads :tmdb_api_key_configured?)."
+  attr :row, ConnectionState, required: true
+  attr :editing, :boolean, required: true
 
   def render(assigns) do
     ~H"""
-    <form id="settings-tmdb" phx-submit="save_tmdb" class="p-5 rounded-lg glass-surface space-y-5">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold flex items-center gap-2">
-            TMDB <.status_dot configured={@config[:tmdb_api_key_configured?]} />
-          </h2>
-          <p class="text-sm text-base-content/55 mt-0.5">
-            The Movie Database API — required for metadata scraping and artwork.
-          </p>
-        </div>
-        <.button
-          type="submit"
-          variant="secondary"
-          size="sm"
-          class="shrink-0"
-          data-nav-item
-          tabindex="0"
+    <.settings_card title="TMDB">
+      <ul>
+        <.integration_row
+          row={@row}
+          name="The Movie Database"
+          editing={@editing}
+          description="Metadata and artwork for everything in the library."
         >
-          Save
-        </.button>
-      </div>
-
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            API Key
-          </label>
-          <input
-            type="password"
-            name="tmdb_api_key"
-            class="input input-bordered w-full font-mono text-sm"
-            placeholder={
-              if @config[:tmdb_api_key_configured?],
-                do: "Leave blank to keep current key",
-                else: "Enter your TMDB API key"
-            }
-            autocomplete="off"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/55 mt-1">
-            Don't have one yet? Request a free key at <a
-              href="https://www.themoviedb.org/settings/api"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="link link-primary"
-            >themoviedb.org/settings/api</a>.
-          </p>
-        </div>
-      </div>
-
-      <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-        <.connection_status
-          test={@tmdb_test}
-          ok_label="Connected"
-          error_label="Unreachable"
-        />
-        <.button
-          type="submit"
-          variant="neutral"
-          size="sm"
-          class="shrink-0"
-          name="_action"
-          value="test"
-          disabled={@tmdb_testing}
-          data-nav-item
-          tabindex="0"
-        >
-          <span :if={@tmdb_testing} class="loading loading-spinner loading-xs"></span>
-          <.icon :if={!@tmdb_testing} name="hero-signal-mini" class="size-4" />
-          {if @tmdb_testing, do: "Testing…", else: "Test connection"}
-        </.button>
-      </div>
-    </form>
+          <:form>
+            <.settings_field label="API key" layout={:stacked}>
+              <.settings_input
+                type="password"
+                name="tmdb_api_key"
+                autocomplete="off"
+                mono
+                autofocus
+                placeholder={
+                  if @config[:tmdb_api_key_configured?],
+                    do: "Leave blank to keep the current key",
+                    else: "Enter the API key"
+                }
+              />
+              <p class="mt-1 text-xs text-base-content/55">
+                Free at <a
+                  href="https://www.themoviedb.org/settings/api"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="link link-primary"
+                >themoviedb.org/settings/api</a>.
+              </p>
+            </.settings_field>
+          </:form>
+        </.integration_row>
+      </ul>
+    </.settings_card>
     """
   end
 end
