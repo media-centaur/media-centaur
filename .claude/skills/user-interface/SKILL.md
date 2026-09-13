@@ -132,7 +132,7 @@ The house dropdown idiom (`.glass-menu*` in `app.css`): a trigger with a chevron
 | `split_button/1` | A main segment that performs an action (`phx-click` in `rest`) joined to a chevron that opens the list — the title detail modal's Download. Any button variant but `outline` |
 | `menu_select/1` | A trigger showing the current value (`value_label`) with the options in the list, the current one `active` — the scope select beside a series' Download, the library sort. `label` is the hidden accessible name read before the value |
 
-`open`, `on_toggle`, `on_close` and `menu_zone` are the LiveView's: one open-menu assign, a toggle event, and a close event the click-away and BACK share. The list's zone needs a `back` edge to the trigger's zone in `config.js` so BACK closes it (see the `input-system` skill). Settings keeps native `<select>`s; the glass menu is for content surfaces.
+`open`, `on_toggle`, `on_close` and `menu_zone` are the LiveView's: one open-menu assign, a toggle event, and a close event the click-away and BACK share. The list's zone needs a `back` edge to the trigger's zone in `config.js` so BACK closes it (see the `input-system` skill). Settings uses its own kit (choice pill, native select rows); the glass menu is for content surfaces.
 
 ### Empty states ([UIDR-034])
 
@@ -443,6 +443,8 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `poster_card/1` | `library_cards.ex` | 2:3 poster grid card |
 | `toolbar/1` | `library_cards.ex` | Type tabs + sort + filter |
 | `menu_list/1`, `split_button/1`, `menu_select/1` | `glass_menu.ex` | Glass menu family — the house dropdown (list, split button, value select) | ✅ |
+| `settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `settings_disclosure/1`, `path_status/1` | `settings.ex` | The Settings kit (UIDR-041) | ✅ |
+| `connection_row/1` | `settings/connection_row.ex` | The readout for one external endpoint (UIDR-041) | ✅ |
 | `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards |
 | `hero_card/1` | `hero_card.ex` | Home hero (Play + More info) |
 | `poster_row/1` | `poster_row.ex` | Horizontal poster shelf |
@@ -494,6 +496,18 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 - `phx-value-value` on a `<button>`/`<input>` — the key `value` collides with the element's native `value` DOM property, which LiveView merges into the click payload and clobbers to `""`. The render looks right and a `render_click` test passes; it only breaks on a real click. Use a descriptive key (`phx-value-choice`, `phx-value-id`). Enforced by Credo **MC0021**. (`phx-value-name` does **not** collide — only `value`.)
 - Relying on `<button>` for a pointer cursor — Tailwind v4 Preflight does **not** set `cursor: pointer` on buttons; add `cursor-pointer` explicitly, or a styled button feels inert on hover.
 
-### Non-toggle settings controls
+### Settings kit ([UIDR-041])
 
-For a bounded numeric setting, use `MediaCentaurWeb.SettingsLive.Components.settings_stepper/1` (the −/value/+/Reset sibling of `settings_row`) — focusable nav items, absolute precomputed targets in `phx-value-choice` (the value's owner does the arithmetic), `aria-disabled` no-ops at the bounds so the nav graph never shifts. For a pick-one-of-N enum setting, restore `settings_choice/1` from git history (removed with the interface-scale stepper change when its last call site went away) rather than hand-rolling a segmented control — a native `<select>` is hostile to d-pad/10-foot use either way.
+Every Settings section is cards of rows, composed from `MediaCentaurWeb.Components.Settings` (stories under `/storybook/settings/*`). The shell renders the section's title and one line; a section module renders `settings_card`s only, and no card carries a Save.
+
+| Row kind | Component | Use |
+|---|---|---|
+| Toggle | `settings_row/1` | A boolean; saves on click |
+| Stepper | `settings_stepper/1` | A bounded number over a fixed ladder (`MediaCentaur.Settings.Ladder`); −/value/+/Reset carry absolute targets in `phx-value-choice`, `aria-disabled` at the bounds so the nav graph never shifts |
+| Choice | `settings_choice/1` | An enum of four or fewer on the house segmented pill; `aria-pressed` marks the chosen one |
+| Select | `settings_select_row/1` | An enum wider than the pill: a native select, saving on change |
+| Text | `settings_text_row/1` | Free text (a path) committing on Enter or blur with one payload (`name`, `value`) |
+| List | `settings_list/1` | A string list: rows with Remove, an inline input with Add, optional live validation |
+| Connection | `Settings.ConnectionRow.connection_row/1` | The readout for an external endpoint: state dot, name, address link, credential presence, state word with the test's age, actions; the form in its `edit` slot, one open at a time |
+
+`settings_field/1` and `settings_input/1` are the label/control unit and the house input inside a connection row's form; `settings_disclosure/1` hides rare content. Readiness has one owner, `MediaCentaur.IntegrationHealth`: Test and Save and test call `verify/1` and the row follows its broadcasts; `SettingsLive.ConnectionState` is the pure projection the row draws.
