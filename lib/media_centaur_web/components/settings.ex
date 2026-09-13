@@ -10,14 +10,11 @@ defmodule MediaCentaurWeb.Components.Settings do
   edit form; `settings_disclosure/1` hides rare content; `path_status/1`
   is the glyph beside a path label. The connection row lives in
   `MediaCentaurWeb.Components.Settings.ConnectionRow`.
-
-  `settings_card_header/1`, `status_dot/1` and `connection_status/1` are
-  the pre-kit helpers, kept until the last section moves off them.
   """
 
   use MediaCentaurWeb, :html
 
-  alias MediaCentaurWeb.Live.SettingsLive.{ConnectionTest, PathCheck}
+  alias MediaCentaurWeb.Live.SettingsLive.PathCheck
   alias Phoenix.LiveView.JS
 
   attr :label, :any,
@@ -151,22 +148,6 @@ defmodule MediaCentaurWeb.Components.Settings do
       "transition-colors duration-150 hover:bg-base-content/[0.06]"
   end
 
-  # Card title row — one consistent treatment for every settings card:
-  # muted, uppercase, with an optional right-aligned action.
-  attr :title, :string, required: true
-  slot :action
-
-  def settings_card_header(assigns) do
-    ~H"""
-    <div class="flex items-baseline justify-between gap-4">
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">
-        {@title}
-      </h3>
-      <div :if={@action != []} class="shrink-0">{render_slot(@action)}</div>
-    </div>
-    """
-  end
-
   # One field inside a card: sentence-case label, optional terse description,
   # and a control. `:inline` keeps the control on the right; `:stacked` drops
   # a wide control full-width below.
@@ -193,21 +174,6 @@ defmodule MediaCentaurWeb.Components.Settings do
         {render_slot(@inner_block)}
       </div>
     </div>
-    """
-  end
-
-  attr :configured, :boolean, required: true
-
-  def status_dot(assigns) do
-    ~H"""
-    <span
-      class={[
-        "size-2 rounded-full shrink-0",
-        if(@configured, do: "bg-success", else: "bg-base-content/20")
-      ]}
-      aria-label={if @configured, do: "Configured", else: "Not configured"}
-      title={if @configured, do: "Configured", else: "Not configured"}
-    ></span>
     """
   end
 
@@ -238,41 +204,6 @@ defmodule MediaCentaurWeb.Components.Settings do
         class="size-3.5"
       />
     </span>
-    """
-  end
-
-  attr :test, :any,
-    required: true,
-    doc:
-      "connection test result — `nil`, `%{status: :ok | :error, tested_at: DateTime.t(), ...}`, or atom shorthand. Heterogeneous shape; `:any` is intentional."
-
-  attr :ok_label, :string, required: true
-  attr :error_label, :string, required: true
-
-  def connection_status(assigns) do
-    status = if is_map(assigns.test), do: assigns.test.status
-    age = if is_map(assigns.test), do: ConnectionTest.relative_age(assigns.test.tested_at)
-    assigns = assign(assigns, status: status, age: age)
-
-    ~H"""
-    <div class="flex items-center gap-2 min-w-0 text-sm">
-      <span class={[
-        "size-2 rounded-full shrink-0",
-        @status == :ok && "bg-success",
-        @status == :error && "bg-error",
-        is_nil(@status) && "bg-base-content/30"
-      ]}></span>
-      <span class="min-w-0 truncate">
-        <span class="text-base-content/70">
-          {cond do
-            @status == :ok -> @ok_label
-            @status == :error -> @error_label
-            true -> "Not tested"
-          end}
-        </span>
-        <span :if={@age} class="text-base-content/40 text-xs">· {@age}</span>
-      </span>
-    </div>
     """
   end
 
