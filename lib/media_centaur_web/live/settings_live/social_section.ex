@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   alias MediaCentaur.Social.Connections
   alias MediaCentaurWeb.RelayStatusRow
 
-  import MediaCentaurWeb.SettingsLive.Components
+  import MediaCentaurWeb.Components.Settings
 
   attr :npub, :string, required: true
   attr :nsec_revealed, :string, default: nil, doc: "the nsec while revealed; nil hides it"

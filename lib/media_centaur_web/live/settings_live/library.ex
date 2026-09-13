@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
 
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.SettingsLive.Components
+  import MediaCentaurWeb.Components.Settings
 
   alias MediaCentaurWeb.SettingsLive.MediaDirsLogic
 

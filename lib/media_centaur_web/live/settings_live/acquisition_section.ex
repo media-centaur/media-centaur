@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.SettingsLive.Components
+  import MediaCentaurWeb.Components.Settings
 
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.Components.Title.Logic

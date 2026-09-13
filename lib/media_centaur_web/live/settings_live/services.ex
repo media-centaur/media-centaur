@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
 
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.SettingsLive.Components
+  import MediaCentaurWeb.Components.Settings
 
   attr :watchers_running, :boolean, required: true
   attr :pipeline_running, :boolean, required: true
@@ -33,28 +33,24 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
           description="Detects new files in your media directories"
           checked={@watchers_running}
           event="toggle_watchers"
-          color="info"
         />
         <.settings_row
           label="Media import"
           description="Identifies new files and adds them to your library"
           checked={@pipeline_running}
           event="toggle_pipeline"
-          color="info"
         />
         <.settings_row
           label="Artwork downloads"
           description="Fetches posters and backdrops from TMDB"
           checked={@image_pipeline_running}
           event="toggle_image_pipeline"
-          color="info"
         />
         <.settings_row
           label="Auto-grab"
           description="Search and grab releases as tracked episodes air"
           checked={@acquisition_running}
           event="toggle_acquisition"
-          color="info"
         />
       </div>
     </div>

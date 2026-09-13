@@ -1,9 +1,18 @@
-defmodule MediaCentaurWeb.SettingsLive.Components do
+defmodule MediaCentaurWeb.Components.Settings do
   @moduledoc """
-  Shared UI kit for the Settings page sections — the consistent row / card /
-  field / status-dot treatments every section composes from. Function
-  components imported by `SettingsLive` and the per-section render modules
-  (`MediaCentaurWeb.SettingsLive.*`).
+  The Settings kit (UIDR-041): the components every Settings section
+  composes from. A section is cards of rows. `settings_card/1` is the
+  card; `settings_row/1` (toggle), `settings_stepper/1`,
+  `settings_choice/1`, `settings_text_row/1` and `settings_select_row/1`
+  are the rows, each saving on the act; `settings_list/1` is a
+  string-list setting; `settings_field/1` and `settings_input/1` are the
+  label/control/help unit and the house input inside a connection row's
+  edit form; `settings_disclosure/1` hides rare content; `path_status/1`
+  is the glyph beside a path label. The connection row lives in
+  `MediaCentaurWeb.Components.Settings.ConnectionRow`.
+
+  `settings_card_header/1`, `status_dot/1` and `connection_status/1` are
+  the pre-kit helpers, kept until the last section moves off them.
   """
 
   use MediaCentaurWeb, :html
@@ -18,8 +27,8 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
   attr :checked, :boolean, required: true
   attr :event, :string, required: true
   attr :event_value, :map, default: %{}, doc: "phx-value-* params map (string-keyed)."
-  attr :color, :string, default: "info"
 
+  @doc "A boolean setting: label and description on the left, the toggle on the right, saved on click."
   def settings_row(assigns) do
     ~H"""
     <div
@@ -33,15 +42,12 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
         <span class="font-medium">{@label}</span>
         <p class="text-xs text-base-content/55 mt-0.5">{@description}</p>
       </div>
-      <input
-        type="checkbox"
-        class={"toggle toggle-sm toggle-#{@color}"}
-        checked={@checked}
-        tabindex="-1"
-      />
+      <input type="checkbox" class="toggle toggle-sm toggle-info" checked={@checked} tabindex="-1" />
     </div>
     """
   end
+
+  attr :id, :string, default: nil
 
   attr :label, :any,
     required: true,
@@ -66,6 +72,7 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
   attr :at_max, :boolean, required: true
   attr :at_default, :boolean, required: true
   attr :event, :string, required: true
+  attr :event_value, :map, default: %{}, doc: "extra phx-value-* params on every button (string-keyed)."
 
   @doc """
   A bounded-numeric stepper — the counterpart to `settings_row`'s toggle for a
@@ -83,7 +90,7 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
   """
   def settings_stepper(assigns) do
     ~H"""
-    <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+    <div id={@id} class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
       <div class="min-w-0">
         <span class="font-medium">{@label}</span>
         <p class="text-xs text-base-content/55 mt-0.5">{@description}</p>
@@ -95,7 +102,8 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
           tabindex="0"
           phx-click={@event}
           phx-value-choice={@down_value}
-          aria-label="Decrease scale"
+          {phx_values(@event_value)}
+          aria-label={"Decrease #{@label}"}
           aria-disabled={to_string(@at_min)}
           class={[stepper_button_class(), @at_min && "opacity-30", !@at_min && "cursor-pointer"]}
         >
@@ -108,7 +116,8 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
           tabindex="0"
           phx-click={@event}
           phx-value-choice={@up_value}
-          aria-label="Increase scale"
+          {phx_values(@event_value)}
+          aria-label={"Increase #{@label}"}
           aria-disabled={to_string(@at_max)}
           class={[stepper_button_class(), @at_max && "opacity-30", !@at_max && "cursor-pointer"]}
         >
@@ -120,7 +129,8 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
           tabindex="0"
           phx-click={@event}
           phx-value-choice={@reset_value}
-          aria-label="Reset scale"
+          {phx_values(@event_value)}
+          aria-label={"Reset #{@label}"}
           aria-disabled={to_string(@at_default)}
           class={[
             "px-2.5 py-1 rounded-md text-sm transition-colors duration-150 text-base-content/60",
@@ -162,13 +172,15 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
   attr :label, :string, required: true
   attr :description, :string, default: nil
   attr :layout, :atom, default: :inline, values: [:inline, :stacked]
+  attr :class, :string, default: nil
   slot :inner_block, required: true
 
   def settings_field(assigns) do
     ~H"""
     <div class={[
       "py-3.5 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0",
-      @layout == :inline && "flex items-start justify-between gap-6"
+      @layout == :inline && "flex items-start justify-between gap-6",
+      @class
     ]}>
       <div class={["min-w-0", @layout == :inline && "max-w-[46ch]"]}>
         <div class="text-sm font-medium">{@label}</div>

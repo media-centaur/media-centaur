@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
 
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.SettingsLive.Components
+  import MediaCentaurWeb.Components.Settings
 
   alias MediaCentaur.Settings.Preferences.UIScale
 
@@ -38,7 +38,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Blur episode descriptions until hovered"
           checked={@spoiler_free}
           event="toggle_spoiler_free"
-          color="info"
         />
 
         <.settings_row
@@ -46,7 +45,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Hide for a clean wall-of-posters view"
           checked={@show_card_info}
           event="toggle_show_card_info"
-          color="info"
         />
 
         <.settings_row
@@ -54,7 +52,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Hover a card to play it in one click"
           checked={@show_play_button}
           event="toggle_show_play_button"
-          color="info"
         />
 
         <.settings_row
@@ -62,7 +59,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="When an episode ends, the next one starts on its own"
           checked={@auto_play_next_episode}
           event="toggle_auto_play_next_episode"
-          color="info"
         />
 
         <.settings_row
@@ -70,7 +66,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Movie pages link to the film on Letterboxd"
           checked={@letterboxd_links}
           event="toggle_letterboxd_links"
-          color="info"
         />
 
         <.settings_row
@@ -78,7 +73,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Show the Discovery page in the sidebar. Early preview — it may still change shape"
           checked={@show_discovery}
           event="toggle_show_discovery"
-          color="info"
         />
 
         <.settings_row
@@ -86,7 +80,6 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Show the Apps launcher in the sidebar"
           checked={@show_apps}
           event="toggle_show_apps"
-          color="info"
         />
 
         <.settings_stepper
