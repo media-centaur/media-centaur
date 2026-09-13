@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Settings do
-  use Boundary, deps: [], exports: [Entry, Services]
+  use Boundary, deps: [], exports: [Entry, Services, Ladder]
   @behaviour MediaCentaur.Cache
 
   @moduledoc """

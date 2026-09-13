@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
 
           <details
             :if={SystemSection.show_terminal_recovery?(@update_status)}
-            class="release-notes-disclosure mt-2"
+            class="settings-disclosure mt-2"
           >
             <summary class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none">
               <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
@@ -510,7 +510,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
           </.button>
         </div>
 
-        <details class="release-notes-disclosure" open={@service_status_visible}>
+        <details class="settings-disclosure" open={@service_status_visible}>
           <summary
             phx-click="service_toggle_status"
             class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none"

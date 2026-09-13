@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             </.button>
           </div>
 
-          <details class="release-notes-disclosure">
+          <details class="settings-disclosure">
             <summary class="cursor-pointer select-none text-xs text-base-content/50 inline-flex items-center gap-1.5">
               <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
               <span>Secret key</span>

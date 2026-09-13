@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.Components.Settings do
   use MediaCentaurWeb, :html
 
   alias MediaCentaurWeb.Live.SettingsLive.{ConnectionTest, PathCheck}
+  alias Phoenix.LiveView.JS
 
   attr :label, :any,
     required: true,
@@ -272,6 +273,256 @@ defmodule MediaCentaurWeb.Components.Settings do
         <span :if={@age} class="text-base-content/40 text-xs">· {@age}</span>
       </span>
     </div>
+    """
+  end
+
+  attr :title, :string, required: true
+  attr :description, :string, default: nil
+  attr :class, :string, default: nil
+  attr :rest, :global
+  slot :action
+  slot :inner_block, required: true
+
+  @doc "One card in a settings section (UIDR-041 §3): uppercase title, optional description and action, a body of rows."
+  def settings_card(assigns) do
+    ~H"""
+    <div class={["glass-surface rounded-xl p-5 space-y-3", @class]} {@rest}>
+      <div class="flex items-baseline justify-between gap-4">
+        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">{@title}</h3>
+        <div :if={@action != []} class="shrink-0">{render_slot(@action)}</div>
+      </div>
+      <p :if={@description} class="text-xs text-base-content/55 max-w-[60ch]">{@description}</p>
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  attr :label, :any, required: true
+  attr :description, :string, default: nil
+  attr :options, :list, required: true, doc: "`[{value, label}]`, at most four."
+  attr :selected, :any, required: true
+  attr :event, :string, required: true
+  attr :event_value, :map, default: %{}, doc: "extra `phx-value-*` params (string keys)."
+  attr :id, :string, default: nil
+
+  @doc """
+  A pick-one-of-N row on the house segmented pill (UIDR-041 §2). Each
+  option is a nav item; the chosen one carries `aria-pressed`. Clicking
+  pushes `@event` with `choice` set to the option value (never `value`:
+  a button's native `value` property would clobber it, MC0021).
+  """
+  def settings_choice(assigns) do
+    ~H"""
+    <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+      <div class="min-w-0">
+        <span class="font-medium">{@label}</span>
+        <p :if={@description} class="text-xs text-base-content/55 mt-0.5">{@description}</p>
+      </div>
+      <div
+        id={@id}
+        class="tabs tabs-boxed segmented-control w-fit shrink-0"
+        role="group"
+        aria-label={@label}
+      >
+        <button
+          :for={{value, label} <- @options}
+          type="button"
+          class="tab text-sm"
+          phx-click={@event}
+          phx-value-choice={value}
+          {phx_values(@event_value)}
+          aria-pressed={to_string(value == @selected)}
+          data-nav-item
+          tabindex="0"
+        >
+          {label}
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  attr :type, :string, default: "text"
+  attr :name, :string, required: true
+  attr :value, :any, default: nil
+  attr :placeholder, :string, default: nil
+  attr :mono, :boolean, default: false
+  attr :autofocus, :boolean, default: false, doc: "focus on mount — the first field of an edit form."
+  attr :class, :string, default: nil
+
+  attr :rest, :global, include: ~w(autocomplete phx-blur phx-keydown phx-key phx-value-name min max step)
+
+  @doc "The house text input (UIDR-041 §31): bordered, full width, monospace for paths and keys, a nav item."
+  def settings_input(assigns) do
+    ~H"""
+    <input
+      type={@type}
+      name={@name}
+      value={@value}
+      placeholder={@placeholder}
+      phx-mounted={@autofocus && JS.focus()}
+      class={["input input-bordered w-full text-sm", @mono && "font-mono", @class]}
+      data-nav-item
+      tabindex="0"
+      {@rest}
+    />
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :description, :string, default: nil
+  attr :name, :string, required: true
+  attr :value, :any, default: nil
+  attr :placeholder, :string, default: nil
+
+  attr :event, :string,
+    required: true,
+    doc: ~s(pushed with `%{"name" => name, "value" => typed}` on Enter and on blur.)
+
+  attr :mono, :boolean, default: false
+  attr :id, :string, default: nil
+  slot :label_suffix, doc: "a glyph beside the label, e.g. `path_status`."
+
+  @doc "A free-text setting that commits on Enter or blur (UIDR-041 §2, §30). One payload shape, no form."
+  def settings_text_row(assigns) do
+    ~H"""
+    <div id={@id} class="py-2.5 px-3.5 space-y-1.5">
+      <div class="flex items-center gap-1.5">
+        <span class="font-medium">{@label}</span>
+        {render_slot(@label_suffix)}
+      </div>
+      <p :if={@description} class="text-xs text-base-content/55">{@description}</p>
+      <.settings_input
+        name={@name}
+        value={@value}
+        placeholder={@placeholder}
+        mono={@mono}
+        phx-blur={@event}
+        phx-keydown={@event}
+        phx-key="Enter"
+        phx-value-name={@name}
+      />
+    </div>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :description, :string, default: nil
+  attr :name, :string, required: true
+  attr :options, :list, required: true, doc: "`[{value, label}]`, more than four."
+  attr :selected, :any, required: true
+  attr :event, :string, required: true, doc: "pushed on change with `%{name => value}`."
+  attr :id, :string, default: nil
+
+  @doc "An enum too wide for the pill: a native select on the right, saving on change (UIDR-041 §2)."
+  def settings_select_row(assigns) do
+    ~H"""
+    <form
+      id={@id}
+      phx-change={@event}
+      class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg"
+    >
+      <div class="min-w-0">
+        <span class="font-medium">{@label}</span>
+        <p :if={@description} class="text-xs text-base-content/55 mt-0.5">{@description}</p>
+      </div>
+      <select
+        name={@name}
+        class="select select-bordered select-sm shrink-0 text-sm"
+        data-nav-item
+        tabindex="0"
+      >
+        <option :for={{value, label} <- @options} value={value} selected={value == @selected}>
+          {label}
+        </option>
+      </select>
+    </form>
+    """
+  end
+
+  attr :id, :string, default: nil
+  attr :items, :list, required: true, doc: "the current entries, strings."
+
+  attr :remove_event, :string,
+    required: true,
+    doc: "pushed with `phx-value-item` = the entry, plus `event_value`."
+
+  attr :add_event, :string, required: true, doc: "the inline form's submit; the input is named `item`."
+
+  attr :event_value, :map,
+    default: %{},
+    doc: "extra `phx-value-*` on Remove and hidden inputs on the add form, e.g. the config key."
+
+  attr :placeholder, :string, default: nil
+  attr :add_label, :string, default: "Add"
+  attr :mono, :boolean, default: false
+  attr :error, :string, default: nil
+
+  @doc "A string-list setting (UIDR-041 §32): one row per entry with Remove, an inline input with Add, an optional error line."
+  def settings_list(assigns) do
+    ~H"""
+    <div id={@id} class="space-y-2">
+      <ul :if={@items != []} class="space-y-2">
+        <li
+          :for={item <- @items}
+          class="flex items-center gap-3 rounded-md bg-base-content/5 px-3 py-2"
+        >
+          <span class={["min-w-0 flex-1 truncate text-sm", @mono && "font-mono"]} title={item}>
+            {item}
+          </span>
+          <.button
+            variant="dismiss"
+            size="xs"
+            class="shrink-0"
+            phx-click={@remove_event}
+            phx-value-item={item}
+            {phx_values(@event_value)}
+            data-nav-item
+            tabindex="0"
+          >
+            Remove
+          </.button>
+        </li>
+      </ul>
+      <form phx-submit={@add_event} class="flex items-center gap-2">
+        <input :for={{key, value} <- @event_value} type="hidden" name={key} value={value} />
+        <.settings_input
+          name="item"
+          placeholder={@placeholder}
+          mono={@mono}
+          autocomplete="off"
+          class="min-w-0 flex-1"
+        />
+        <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
+          {@add_label}
+        </.button>
+      </form>
+      <p :if={@error} class="text-xs text-error">{@error}</p>
+    </div>
+    """
+  end
+
+  attr :label, :string, required: true
+  attr :open, :boolean, default: false
+  attr :id, :string, default: nil
+  slot :inner_block, required: true
+
+  @doc "Rare content behind a caret and a label (UIDR-041): the secret key, service details."
+  def settings_disclosure(assigns) do
+    ~H"""
+    <details id={@id} class="settings-disclosure" open={@open}>
+      <summary
+        class="cursor-pointer select-none text-xs text-base-content/55 inline-flex items-center gap-1.5"
+        data-nav-item
+        tabindex="0"
+      >
+        <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
+        <span>{@label}</span>
+      </summary>
+      <div class="mt-3 ml-5 space-y-4 border-l border-base-content/10 pl-4 text-sm">
+        {render_slot(@inner_block)}
+      </div>
+    </details>
     """
   end
 
