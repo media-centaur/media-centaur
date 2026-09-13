@@ -13,16 +13,18 @@ defmodule MediaCentaurWeb.ViewModel.EpisodeRow do
     * `Library` — a real `MediaCentaur.Library.Episode` we have a file
       for. Carries precomputed `state` and `is_resume_target` so the
       renderer doesn't have to recompute them per row.
-    * `Missing` — the season's episode list says episode N exists but
-      no file has been imported. Rendered as a quiet placeholder.
-    * `Upcoming` — a `MediaCentaur.ReleaseTracking.Release` for an
-      episode that's either unaired (`released: false`) or aired but
-      not yet in the library (`released: true, in_library: false`).
-      Rendered as a muted row with an air-date pill.
+    * `Missing` — an episode that has aired (or carries no air date)
+      that the library has no file for. Actionable: clicking it
+      downloads that episode.
+    * `Upcoming` — an episode that has not aired yet. Rendered muted
+      with a date pill, and not focusable — there is nothing to do
+      with it.
 
-  The `Missing | Upcoming` distinction matters: Missing means "we
-  expect a file eventually, no schedule info". Upcoming means "TMDB
-  has scheduled it; here's the date".
+  The distinction is the air date and nothing else. Until 2026-09-13 it
+  was partly the *source*: a release-tracking row for an aired episode
+  became `Upcoming{sub_status: :aired_not_in_library}`, so the same
+  state rendered as an unclickable pill on a tracked series and as a
+  clickable gap on an untracked one.
 
   These structs are populated by
   `MediaCentaurWeb.ViewModel.SeriesDetail.compose/2`. The component
@@ -51,43 +53,44 @@ defmodule MediaCentaurWeb.ViewModel.EpisodeRow do
 
   defmodule Missing do
     @moduledoc """
-    An episode the season's episode list names that no file has been
-    imported for. No release record either (otherwise it would be an
-    `Upcoming`).
+    An episode that has aired — or carries no air date — that the library
+    holds no file for. Two sources produce it: an entry in the season's
+    `episode_list`, and a release-tracking row for a tracked series. They
+    are the same state, so they are the same row.
+
+    `title` and `air_date` are whatever the producing source knew — a
+    release row's title beats a list entry's name, and the row wears an
+    "aired 3d ago" pill when it has a date.
     """
 
     @enforce_keys [:season_number, :episode_number]
-    defstruct [:season_number, :episode_number]
+    defstruct [:season_number, :episode_number, :title, :air_date]
 
     @type t :: %__MODULE__{
             season_number: non_neg_integer(),
-            episode_number: non_neg_integer()
+            episode_number: non_neg_integer(),
+            title: String.t() | nil,
+            air_date: Date.t() | nil
           }
   end
 
   defmodule Upcoming do
     @moduledoc """
-    An episode TMDB has scheduled. `sub_status` distinguishes:
+    An episode that has not aired yet: `air_date` is in the future, or nil
+    for a release TMDB has scheduled without dating. Rendered muted with a
+    date pill ("in 7d", "May 15", "TBA").
 
-      * `:unaired` — `air_date` is in the future (`released: false`).
-        The pill copy is "in 7d" / "May 15".
-      * `:aired_not_in_library` — `air_date` is in the past
-        (`released: true`, `in_library: false`). The pill copy is
-        "aired 3d ago".
-
-    `air_date` may be nil for releases TMDB hasn't dated yet (rare).
+    Aired-but-absent is `Missing`, not a sub-status here.
     """
 
-    @enforce_keys [:season_number, :episode_number, :sub_status]
-    defstruct [:season_number, :episode_number, :title, :air_date, :sub_status]
+    @enforce_keys [:season_number, :episode_number]
+    defstruct [:season_number, :episode_number, :title, :air_date]
 
-    @type sub_status :: :unaired | :aired_not_in_library
     @type t :: %__MODULE__{
             season_number: non_neg_integer(),
             episode_number: non_neg_integer(),
             title: String.t() | nil,
-            air_date: Date.t() | nil,
-            sub_status: sub_status
+            air_date: Date.t() | nil
           }
   end
 

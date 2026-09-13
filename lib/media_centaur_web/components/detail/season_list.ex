@@ -364,8 +364,12 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           {@item.episode_number}
         </span>
         <span class="flex-1 min-w-0 truncate text-base-content/70 italic">
-          Episode {@item.episode_number}
+          {@item.title || "Episode #{@item.episode_number}"}
         </span>
+        <.badge :if={@item.air_date} variant="ghost" size="sm" class="gap-1 flex-shrink-0">
+          <.icon name="hero-calendar-mini" class="size-3" />
+          {Logic.upcoming_pill_copy(@item)}
+        </.badge>
       </div>
     </div>
     """

@@ -20,6 +20,12 @@ defmodule MediaCentaurWeb.ViewModel.MovieRow do
   collection-completeness feature lands, the gap rows join this ADT as a
   third variant.
 
+  Note the asymmetry with `EpisodeRow` since 2026-09-13: there,
+  aired-and-absent is `Missing` and `Upcoming` means unaired only. Here
+  `Upcoming` still carries both through `sub_status`, because without a
+  `Missing` variant there is nowhere else for an aired-and-absent part to
+  go. The two converge when collection completeness lands.
+
   Populated by `MediaCentaurWeb.ViewModel.CollectionDetail.build/4`.
   The component pattern-matches on struct type — no tuple ADTs.
   """

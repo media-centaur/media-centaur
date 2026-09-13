@@ -58,12 +58,12 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
                %EpisodeRow.Library{episode: %{episode_number: 1}},
                %EpisodeRow.Library{episode: %{episode_number: 2}},
                %EpisodeRow.Library{episode: %{episode_number: 3}},
-               %EpisodeRow.Upcoming{episode_number: 4, title: "The Gap", sub_status: :unaired},
+               %EpisodeRow.Upcoming{episode_number: 4, title: "The Gap"},
                %EpisodeRow.Upcoming{episode_number: 5, title: "The End"}
              ] = items
     end
 
-    test "release beyond number_of_episodes extends the items list" do
+    test "release beyond the episode list extends the items list" do
       season = season_with_episodes(1, 3, [1, 2, 3])
       tv = build_tv_series(%{seasons: [season]})
 
@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       [%SeasonView{items: items, total_count: total}] = view_model.seasons
       assert length(items) == 5
       # total_count tracks library size; the extra upcoming rows past
-      # number_of_episodes don't inflate watched-against-X copy.
+      # episode-list entries do not inflate watched-against-X copy.
       assert total == 3
 
       assert [
@@ -136,8 +136,14 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
              ] = items
     end
 
-    test "without a TMDB count, gaps below the highest known episode are still filled" do
-      season = season_with_episodes(1, nil, [1, 3])
+    # Changed 2026-09-13. A numbering gap in the library used to be
+    # enough to draw a Missing row; it no longer is. Only the season's
+    # episode list says an episode exists, and an empty list means the
+    # season has never been refreshed — not that episode 2 is absent.
+    # Inferring existence from a gap is the same heuristic the Status
+    # tile used and that this change deleted.
+    test "with an empty episode list, a numbering gap draws no Missing row" do
+      season = build_season(%{season_number: 1, episode_list: [], episodes: build_episodes([1, 3])})
       tv = build_tv_series(%{seasons: [season]})
 
       view_model =
@@ -147,7 +153,6 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       assert [
                %EpisodeRow.Library{episode: %{episode_number: 1}},
-               %EpisodeRow.Missing{episode_number: 2},
                %EpisodeRow.Library{episode: %{episode_number: 3}}
              ] = items
     end
@@ -193,7 +198,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       assert Enum.map(items, & &1.episode_number) == [1, 2, 3]
     end
 
-    test "aired-but-not-in-library release gets sub_status :aired_not_in_library" do
+    test "an aired release with no file is Missing, carrying the calendar's title and date" do
       tv = build_tv_series(%{seasons: []})
 
       releases = [
@@ -202,6 +207,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
           episode_number: 1,
           released: true,
           in_library: false,
+          title: "First Sample",
           air_date: ~D[2026-04-01]
         })
       ]
@@ -211,13 +217,39 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       [%SeasonView{items: [item]}] = view_model.seasons
 
-      assert %EpisodeRow.Upcoming{sub_status: :aired_not_in_library, air_date: ~D[2026-04-01]} =
-               item
+      assert %EpisodeRow.Missing{
+               episode_number: 1,
+               title: "First Sample",
+               air_date: ~D[2026-04-01]
+             } = item
+    end
+
+    test "an unaired release is still Upcoming" do
+      future = Date.add(Date.utc_today(), 30)
+      tv = build_tv_series(%{seasons: []})
+
+      releases = [
+        release_map(%{
+          season_number: 1,
+          episode_number: 1,
+          released: false,
+          in_library: false,
+          title: "The Finale",
+          air_date: future
+        })
+      ]
+
+      view_model =
+        SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, releases, nil)
+
+      [%SeasonView{items: [item]}] = view_model.seasons
+
+      assert %EpisodeRow.Upcoming{episode_number: 1, title: "The Finale", air_date: ^future} = item
     end
 
     test "watched_count and total_count reflect library state, not releases" do
       [ep1, ep2, ep3] = build_episodes([1, 2, 3])
-      season = build_season(%{season_number: 1, number_of_episodes: 3, episodes: [ep1, ep2, ep3]})
+      season = build_season(%{season_number: 1, episode_list: past_episode_list(3), episodes: [ep1, ep2, ep3]})
       tv = build_tv_series(%{seasons: [season]})
 
       progress_records = [
@@ -239,7 +271,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
     test "is_resume_target marks the matching library item from resume_target hint" do
       [ep1, ep2] = build_episodes([1, 2])
-      season = build_season(%{season_number: 1, number_of_episodes: 2, episodes: [ep1, ep2]})
+      season = build_season(%{season_number: 1, episode_list: past_episode_list(2), episodes: [ep1, ep2]})
       tv = build_tv_series(%{seasons: [season]})
 
       resume_target = %{
@@ -262,7 +294,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
     test "library_item.state reflects watch progress" do
       [ep1, ep2, ep3] = build_episodes([1, 2, 3])
-      season = build_season(%{season_number: 1, number_of_episodes: 3, episodes: [ep1, ep2, ep3]})
+      season = build_season(%{season_number: 1, episode_list: past_episode_list(3), episodes: [ep1, ep2, ep3]})
       tv = build_tv_series(%{seasons: [season]})
 
       progress_records = [
@@ -288,8 +320,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       assert %EpisodeRow.Library{state: :unwatched} = item3
     end
 
-    test "season with no episodes and zero number_of_episodes produces empty items" do
-      season = build_season(%{season_number: 1, number_of_episodes: 0, episodes: []})
+    test "season with no episodes and an empty episode list produces empty items" do
+      season = build_season(%{season_number: 1, episode_list: past_episode_list(0), episodes: []})
       tv = build_tv_series(%{seasons: [season]})
 
       view_model = SeriesDetail.build(%{entity: tv, progress: nil, progress_records: []}, [], nil)
@@ -352,20 +384,34 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
                %SeasonView{kind: :future, season_number: 2, items: [item]}
              ] = view_model.seasons
 
-      assert %EpisodeRow.Upcoming{episode_number: 1, sub_status: :unaired} = item
+      assert %EpisodeRow.Upcoming{episode_number: 1} = item
     end
   end
 
   # --- Test helpers ---
 
-  defp season_with_episodes(season_number, number_of_episodes, present_numbers) do
-    episodes = build_episodes(present_numbers)
-
+  # A season TMDB says has `total` episodes, of which `present_numbers`
+  # have files. Every listed episode is dated in the past, so an absent
+  # one is Missing rather than Upcoming.
+  defp season_with_episodes(season_number, total, present_numbers) do
     build_season(%{
       season_number: season_number,
-      number_of_episodes: number_of_episodes,
-      episodes: episodes
+      episode_list: past_episode_list(total),
+      episodes: build_episodes(present_numbers)
     })
+  end
+
+  # Plain maps: `build_season/1` puts them straight on the struct and the
+  # DB-backed helpers cast them through `Season.create_changeset/1`. The
+  # composer reads both shapes the same way.
+  defp past_episode_list(total) do
+    for n <- 1..total//1 do
+      %{
+        episode_number: n,
+        name: "Episode " <> Integer.to_string(n),
+        air_date: Date.add(Date.utc_today(), -100 + n)
+      }
+    end
   end
 
   defp build_episodes(numbers) do
@@ -393,7 +439,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       create_external_id(%{tv_series_id: tv.id, source: "tmdb", external_id: tmdb_id})
     end
 
-    season = create_season(%{tv_series_id: tv.id, season_number: 1, number_of_episodes: 1})
+    season = create_season(%{tv_series_id: tv.id, season_number: 1, episode_list: past_episode_list(1)})
 
     episode =
       create_episode(%{

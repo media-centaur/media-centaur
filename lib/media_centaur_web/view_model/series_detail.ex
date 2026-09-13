@@ -181,7 +181,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       )
 
     watched_count = count_watched_episodes(season.episodes || [], progress_by_episode_id)
-    total_count = max(length(season.episodes || []), season.number_of_episodes || 0)
+    total_count = max(length(season.episodes || []), length(season.episode_list || []))
 
     %SeasonView{
       season_number: season.season_number,
@@ -194,43 +194,57 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     }
   end
 
-  # Merge the library episodes (with gap-filling) and the season's
-  # releases into one ordered list. Release wins over Missing for the
-  # same {season, episode} — richer data displaces the bare placeholder.
+  # One row per episode number the season knows about, in order: the
+  # episode list TMDB gave us, plus any library or release row numbered
+  # outside it (a misparsed `E1080`, an absolute episode number).
   #
-  # Gap-filling stops at TMDB's episode count when it is known: a file
-  # or release numbered above it (a misparsed `E1080`, an absolute
-  # episode number) gets its own row, with no Missing placeholders
-  # between. Without a count, the highest known number is the ceiling.
+  # A library row wins over everything — a file is a file. A release row
+  # wins over an episode-list entry, because the calendar is refreshed on
+  # a cadence where the list is an ingest-time snapshot, and it carries
+  # the episode's title.
+  #
+  # A season whose episode list is empty has never been refreshed
+  # (*Refresh episode lists* under Settings → Maintenance); it renders
+  # its library and release rows and nothing else, which is what it did
+  # before the list existed.
   defp build_library_items(season, releases, progress_by_episode_id, resume_episode_key) do
     episode_map = Map.new(season.episodes || [], &{&1.episode_number, &1})
     release_map = Map.new(releases, &{&1.episode_number, &1})
-    known_numbers = Map.keys(episode_map) ++ Map.keys(release_map)
+    listed = Map.new(season.episode_list || [], &{&1.episode_number, &1})
+    today = Date.utc_today()
 
-    ceiling =
-      case season.number_of_episodes do
-        count when is_integer(count) and count > 0 -> count
-        _ -> Enum.max(known_numbers, fn -> 0 end)
-      end
-
-    numbers =
-      Enum.uniq(Enum.to_list(1..ceiling//1) ++ Enum.sort(Enum.filter(known_numbers, &(&1 > ceiling))))
-
-    Enum.map(numbers, fn n ->
+    (Map.keys(listed) ++ Map.keys(episode_map) ++ Map.keys(release_map))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.map(fn number ->
       cond do
-        episode = Map.get(episode_map, n) ->
+        episode = Map.get(episode_map, number) ->
           build_library_item(episode, season.season_number, progress_by_episode_id, resume_episode_key)
 
-        release = Map.get(release_map, n) ->
-          build_upcoming_item(release)
+        release = Map.get(release_map, number) ->
+          build_release_item(release)
 
         true ->
-          %EpisodeRow.Missing{
-            season_number: season.season_number,
-            episode_number: n
-          }
+          build_listed_item(Map.fetch!(listed, number), season.season_number, today)
       end
     end)
+  end
+
+  # An episode TMDB lists that no file was imported for. Dated in the
+  # future means it has not aired; a past date — or no date at all — is a
+  # gap the person can act on, because absence of a date is not evidence
+  # that an episode is still to come.
+  defp build_listed_item(entry, season_number, today) do
+    fields = [
+      season_number: season_number,
+      episode_number: entry.episode_number,
+      title: entry.name,
+      air_date: entry.air_date
+    ]
+
+    if entry.air_date && Date.compare(entry.air_date, today) == :gt,
+      do: struct!(EpisodeRow.Upcoming, fields),
+      else: struct!(EpisodeRow.Missing, fields)
   end
 
   defp build_library_item(episode, season_number, progress_by_episode_id, resume_episode_key) do
@@ -251,7 +265,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     items =
       releases
       |> Enum.sort_by(& &1.episode_number)
-      |> Enum.map(&build_upcoming_item/1)
+      |> Enum.map(&build_release_item/1)
 
     %SeasonView{
       season_number: season_number,
@@ -264,21 +278,22 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     }
   end
 
-  defp build_upcoming_item(release) do
-    %EpisodeRow.Upcoming{
+  # A release row becomes whichever row its air date says it is. The DB
+  # query already excludes aired-and-in-library rows, so an aired release
+  # here is one the library does not have — the same state an episode-list
+  # entry with a past date describes, and therefore the same row. The
+  # calendar knows the episode's title, so both carry it.
+  defp build_release_item(release) do
+    fields = [
       season_number: release.season_number,
       episode_number: release.episode_number,
       title: release.title,
-      air_date: release.air_date,
-      sub_status: upcoming_sub_status(release)
-    }
-  end
+      air_date: release.air_date
+    ]
 
-  # `released` derives from `air_date` (no stored flag). The DB query already
-  # excludes aired-and-in-library rows, so an aired release here is
-  # not-in-library; an unaired one has a future/absent air_date.
-  defp upcoming_sub_status(release) do
-    if aired?(release), do: :aired_not_in_library, else: :unaired
+    if aired?(release),
+      do: struct!(EpisodeRow.Missing, fields),
+      else: struct!(EpisodeRow.Upcoming, fields)
   end
 
   defp aired?(%{air_date: %Date{} = air_date}), do: Date.compare(air_date, Date.utc_today()) != :gt
