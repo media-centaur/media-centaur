@@ -257,10 +257,10 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   end
 
   describe "language & subtitle policy" do
-    test "renders the picker and the audio/subtitle form", %{conn: conn} do
+    test "renders the picker and the audio/subtitle rows", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
-      assert has_element?(view, "h2", "Languages you understand")
-      assert has_element?(view, "h2", "Audio & subtitles")
+      assert has_element?(view, "h3", "Languages you understand")
+      assert has_element?(view, "h3", "Audio & subtitles")
     end
 
     test "adding a language persists it and shows a chip", %{conn: conn} do
@@ -313,18 +313,18 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert LanguagePolicy.load().understood_languages == ["spa", "eng"]
     end
 
-    test "saving the audio/subtitle form persists a normalized policy", %{conn: conn} do
+    test "each audio/subtitle select persists on change, keeping the others", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
 
-      view
-      |> form("form[phx-submit=save_language_policy]", %{
-        "audio_priority" => "understood_first",
-        "subtitles_when" => "always",
-        "subtitles_language" => "audio_language",
-        "subtitles_variant" => "sdh_preferred",
-        "forced_subs" => "never"
-      })
-      |> render_submit()
+      for {id, name, value} <- [
+            {"language-audio_priority", "audio_priority", "understood_first"},
+            {"language-subtitles_when", "subtitles_when", "always"},
+            {"language-subtitles_language", "subtitles_language", "audio_language"},
+            {"language-subtitles_variant", "subtitles_variant", "sdh_preferred"},
+            {"language-forced_subs", "forced_subs", "never"}
+          ] do
+        view |> form("##{id}", %{name => value}) |> render_change()
+      end
 
       policy = LanguagePolicy.load()
       assert policy.audio_priority == ["understood", "original", "any"]
@@ -391,16 +391,13 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   end
 
   describe "media import — artwork resolution" do
-    test "saving the media-import form persists the artwork resolution", %{conn: conn} do
+    test "choosing a resolution persists it", %{conn: conn} do
+      Config.update(:image_resolution, "4k")
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       view
-      |> form("form[phx-submit=save_import]", %{
-        "extras_dirs" => "",
-        "skip_dirs" => "",
-        "image_resolution" => "1080p"
-      })
-      |> render_submit()
+      |> element("#import-image_resolution button[phx-value-choice='1080p']")
+      |> render_click()
 
       assert Config.image_resolution() == "1080p"
     end
@@ -411,47 +408,47 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       html =
         view
-        |> form("form[phx-submit=save_import]", %{
-          "extras_dirs" => "",
-          "skip_dirs" => "",
-          "image_resolution" => "1080p"
-        })
-        |> render_submit()
+        |> element("#import-image_resolution button[phx-value-choice='1080p']")
+        |> render_click()
 
       assert html =~ "Re-fetching backdrops"
     end
 
-    test "saving without changing the resolution does not start a re-fetch", %{conn: conn} do
+    test "choosing the current resolution does not start a re-fetch", %{conn: conn} do
       Config.update(:image_resolution, "1080p")
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       html =
         view
-        |> form("form[phx-submit=save_import]", %{
-          "extras_dirs" => "",
-          "skip_dirs" => "",
-          "image_resolution" => "1080p"
-        })
-        |> render_submit()
+        |> element("#import-image_resolution button[phx-value-choice='1080p']")
+        |> render_click()
 
       refute html =~ "Re-fetching backdrops"
-      assert html =~ "Media import settings saved"
     end
 
-    test "saving persists the auto-approve threshold", %{conn: conn} do
-      Config.update(:image_resolution, "1080p")
+    test "stepping the auto-approve threshold persists a rung", %{conn: conn} do
+      Config.update(:auto_approve_threshold, 0.85)
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       view
-      |> form("form[phx-submit=save_import]", %{
-        "extras_dirs" => "",
-        "skip_dirs" => "",
-        "auto_approve_threshold" => "0.72",
-        "image_resolution" => "1080p"
-      })
-      |> render_submit()
+      |> element("#auto-approve-threshold button[aria-label='Decrease Auto-approve threshold']")
+      |> render_click()
 
-      assert Config.get(:auto_approve_threshold) == 0.72
+      assert Config.get(:auto_approve_threshold) == 0.8
+    end
+
+    test "folder names are added and removed one at a time", %{conn: conn} do
+      Config.update(:extras_dirs, ["Extras"])
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
+
+      view |> form("#extras-dirs form", %{"item" => "Featurettes"}) |> render_submit()
+      assert Config.get(:extras_dirs) == ["Extras", "Featurettes"]
+
+      view
+      |> element("#extras-dirs button[phx-click=config_list_remove][phx-value-item='Extras']")
+      |> render_click()
+
+      assert Config.get(:extras_dirs) == ["Featurettes"]
     end
 
     test "the completion message reports the re-queued count", %{conn: conn} do

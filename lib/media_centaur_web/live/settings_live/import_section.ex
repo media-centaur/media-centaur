@@ -1,125 +1,94 @@
 defmodule MediaCentaurWeb.SettingsLive.ImportSection do
   @moduledoc """
-  The Media Import section of the Settings page — extras/skip directories,
-  the match auto-approve threshold, and artwork resolution. (Named for the
-  user-facing task; the machinery behind it is the Broadway pipeline.)
-  `SettingsLive` delegates to `render/1` and hosts the save handler.
+  The Media Import section of the Settings page (UIDR-041): the extras
+  and ignored folder names as list settings, the match auto-approve
+  threshold as a stepper, and the artwork resolution as a choice. (Named
+  for the user-facing task; the machinery behind it is the Broadway
+  pipeline.) `SettingsLive` delegates to `render/1` and hosts the
+  `config_list_add` / `config_list_remove` / `set_*` handlers.
+  `threshold_ladder/0` is the stepper's rungs, shared with its handler.
   """
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.Components.Settings
+
   alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Settings.Ladder
 
   attr :config, :map,
     required: true,
     doc: "settings config map (reads :extras_dirs, :skip_dirs, :auto_approve_threshold)."
 
   def render(assigns) do
+    assigns = assign(assigns, :threshold, assigns.config[:auto_approve_threshold] || threshold_default())
+
     ~H"""
-    <form phx-submit="save_import" class="p-5 rounded-lg glass-surface space-y-5">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Media Import</h2>
-          <p class="text-sm text-base-content/55 mt-0.5">
-            Controls how files are classified and matched during ingestion.
-          </p>
-        </div>
-        <.button
-          type="submit"
-          variant="secondary"
-          size="sm"
-          class="shrink-0"
-          data-nav-item
-          tabindex="0"
-        >
-          Save
-        </.button>
-      </div>
+    <div class="space-y-4">
+      <.settings_card
+        title="Extras folder names"
+        description="Folder names found within your media whose files import as bonus content."
+      >
+        <.settings_list
+          id="extras-dirs"
+          items={@config[:extras_dirs] || []}
+          remove_event="config_list_remove"
+          add_event="config_list_add"
+          event_value={%{"key" => "extras_dirs"}}
+          placeholder="Featurettes"
+        />
+      </.settings_card>
 
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Extras folder names
-          </label>
-          <input
-            type="text"
-            name="extras_dirs"
-            value={Enum.join(@config[:extras_dirs] || [], ", ")}
-            class="input input-bordered w-full text-sm"
-            placeholder="Extras, Featurettes, Special Features"
-            data-nav-item
-            tabindex="0"
+      <.settings_card
+        title="Ignored folder names"
+        description="Folder names ignored wherever they appear within your media. To exclude a specific path, use Library → Excluded directories."
+      >
+        <.settings_list
+          id="skip-dirs"
+          items={@config[:skip_dirs] || []}
+          remove_event="config_list_remove"
+          add_event="config_list_add"
+          event_value={%{"key" => "skip_dirs"}}
+          placeholder="Sample"
+        />
+      </.settings_card>
+
+      <.settings_card title="Matching">
+        <div class="space-y-0.5">
+          <.settings_stepper
+            id="auto-approve-threshold"
+            label="Auto-approve threshold"
+            description="A TMDB match scoring at least this confidence is approved on its own; the rest wait in Review."
+            value_label={format_threshold(@threshold)}
+            down_value={Ladder.down(threshold_ladder(), @threshold)}
+            up_value={Ladder.up(threshold_ladder(), @threshold)}
+            reset_value={threshold_default()}
+            at_min={@threshold <= 0.5}
+            at_max={@threshold >= 1.0}
+            at_default={@threshold == threshold_default()}
+            event="set_auto_approve_threshold"
           />
-          <p class="text-xs text-base-content/55 mt-1">
-            Comma-separated folder names found within your media — files inside import as bonus content.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Ignored folder names
-          </label>
-          <input
-            type="text"
-            name="skip_dirs"
-            value={Enum.join(@config[:skip_dirs] || [], ", ")}
-            class="input input-bordered w-full text-sm"
-            placeholder="Sample"
-            data-nav-item
-            tabindex="0"
+          <.settings_choice
+            id="import-image_resolution"
+            label="Artwork resolution"
+            description="Backdrops are downloaded at this size from now on; existing artwork keeps its size until refreshed. Posters and thumbnails always use a display-appropriate size."
+            options={[{"4k", "4K"}, {"1080p", "1080p"}]}
+            selected={Config.image_resolution()}
+            event="set_image_resolution"
           />
-          <p class="text-xs text-base-content/55 mt-1">
-            Comma-separated folder names ignored wherever they appear within your media.
-            To exclude a specific path, use Library → Excluded directories.
-          </p>
         </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Auto-approve threshold
-          </label>
-          <input
-            type="number"
-            name="auto_approve_threshold"
-            step="0.01"
-            min="0"
-            max="1"
-            value={@config[:auto_approve_threshold]}
-            class="input input-bordered w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/55 mt-1">
-            TMDB matches scoring above this confidence (0.0–1.0) are approved
-            automatically; the rest wait in Review.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Artwork resolution
-          </label>
-          <select
-            name="image_resolution"
-            class="select select-bordered w-full text-sm"
-            data-nav-item
-            tabindex="0"
-          >
-            <option value="4k" selected={Config.image_resolution() == "4k"}>
-              4K — sharper on UHD displays, larger downloads
-            </option>
-            <option value="1080p" selected={Config.image_resolution() == "1080p"}>
-              1080p — smaller files, ideal for 1080p displays
-            </option>
-          </select>
-          <p class="text-xs text-base-content/55 mt-1">
-            Resolution for downloaded background artwork (backdrops). Applies to
-            newly fetched art; existing artwork keeps its size until refreshed.
-            Posters and thumbnails are always stored at a display-appropriate size.
-          </p>
-        </div>
-      </div>
-    </form>
+      </.settings_card>
+    </div>
     """
   end
+
+  @doc "The auto-approve stepper's rungs: 0.50 to 1.00 in steps of 0.05."
+  @spec threshold_ladder() :: [float()]
+  def threshold_ladder, do: for(n <- 50..100//5, do: n / 100)
+
+  @doc "The auto-approve threshold the app ships with."
+  @spec threshold_default() :: float()
+  def threshold_default, do: Application.get_env(:media_centaur, :auto_approve_threshold) || 0.85
+
+  defp format_threshold(value), do: :erlang.float_to_binary(value / 1, decimals: 2)
 end

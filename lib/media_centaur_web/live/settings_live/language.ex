@@ -1,11 +1,14 @@
 defmodule MediaCentaurWeb.SettingsLive.Language do
   @moduledoc """
-  The Language section of the Settings page — understood-languages list plus
-  the audio/subtitle policy form. `SettingsLive` delegates to `render/1` and
-  hosts the add/move/remove and save-policy event handlers.
+  The Language section of the Settings page (UIDR-041): the ordered
+  understood-languages list and, as select rows that save on change, the
+  audio/subtitle policy. `SettingsLive` delegates to `render/1` and hosts
+  the add/move/remove and `set_language_policy` handlers.
   """
 
   use MediaCentaurWeb, :html
+
+  import MediaCentaurWeb.Components.Settings
 
   alias MediaCentaur.Iso639
   alias MediaCentaur.Playback.LanguagePolicy
@@ -25,26 +28,17 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
   def render(assigns) do
     ~H"""
     <div class="space-y-4">
-      <form phx-submit="add_language" class="p-5 rounded-lg glass-surface space-y-4">
-        <div>
-          <h2 class="text-lg font-semibold">Languages you understand</h2>
-          <p class="text-sm text-base-content/55 mt-0.5">
-            Add the languages you can follow without subtitles, most-preferred first.
-            Used to pick audio you understand and which language to show subtitles in.
-            Changes here save automatically.
-          </p>
-        </div>
-
-        <div class="flex gap-2">
-          <input
-            type="text"
+      <.settings_card
+        title="Languages you understand"
+        description="Add the languages you can follow without subtitles, most-preferred first. Used to pick audio you understand and which language to show subtitles in."
+      >
+        <form phx-submit="add_language" class="flex gap-2">
+          <.settings_input
             name="lang"
             list="language-options"
-            class="input input-bordered flex-1 text-sm"
             placeholder="Add a language…"
             autocomplete="off"
-            data-nav-item
-            tabindex="0"
+            class="flex-1"
           />
           <datalist id="language-options">
             <option :for={{_code, name} <- @language_options} value={name}></option>
@@ -52,7 +46,7 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
           <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
             Add
           </.button>
-        </div>
+        </form>
 
         <ol :if={@language_draft != []} class="space-y-2">
           <li
@@ -105,160 +99,73 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
         <p :if={@language_draft == []} class="text-sm text-base-content/55">
           No languages added yet — subtitles will always be shown until you add one.
         </p>
-      </form>
+      </.settings_card>
 
-      <form phx-submit="save_language_policy" class="p-5 rounded-lg glass-surface space-y-5">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Audio &amp; subtitles</h2>
-            <p class="text-sm text-base-content/55 mt-0.5">
-              How tracks are picked automatically when playback starts. Per-show overrides
-              (set by changing tracks during playback) always win over these.
-            </p>
-          </div>
-          <.button
-            type="submit"
-            variant="secondary"
-            size="sm"
-            class="shrink-0"
-            data-nav-item
-            tabindex="0"
-          >
-            Save
-          </.button>
+      <.settings_card
+        title="Audio & subtitles"
+        description="How tracks are picked automatically when playback starts. Per-show overrides (set by changing tracks during playback) always win over these."
+      >
+        <div class="space-y-0.5">
+          <.settings_select_row
+            id="language-audio_priority"
+            label="Audio preference"
+            name="audio_priority"
+            options={[
+              {"original_first", "Original language first (subtitles do the work)"},
+              {"understood_first", "My languages first (prefer dubs)"},
+              {"any", "No preference (whatever the file defaults to)"}
+            ]}
+            selected={LanguagePolicy.audio_priority_preset(@language_policy)}
+            event="set_language_policy"
+          />
+          <.settings_select_row
+            id="language-subtitles_when"
+            label="Show subtitles"
+            name="subtitles_when"
+            options={[
+              {"off", "Never"},
+              {"when_audio_not_understood", "Only when I don't understand the audio"},
+              {"always", "Always"}
+            ]}
+            selected={@language_policy.subtitles_when}
+            event="set_language_policy"
+          />
+          <.settings_select_row
+            id="language-subtitles_language"
+            label="Subtitle language"
+            name="subtitles_language"
+            options={[
+              {"understood", "One of my languages"},
+              {"audio_language", "Match the audio (language learning)"}
+            ]}
+            selected={@language_policy.subtitles_language}
+            event="set_language_policy"
+          />
+          <.settings_select_row
+            id="language-subtitles_variant"
+            label="Subtitle style"
+            name="subtitles_variant"
+            options={[
+              {"standard", "Standard"},
+              {"sdh_preferred", "Prefer SDH (deaf / hard-of-hearing)"}
+            ]}
+            selected={@language_policy.subtitles_variant}
+            event="set_language_policy"
+          />
+          <.settings_select_row
+            id="language-forced_subs"
+            label="Forced subtitles"
+            name="forced_subs"
+            options={[
+              {"never", "Never"},
+              {"fill_gaps", "Fill gaps (foreign-dialog scenes)"},
+              {"always", "Always"}
+            ]}
+            selected={@language_policy.forced_subs}
+            event="set_language_policy"
+          />
         </div>
-
-        <div class="space-y-4">
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-              Audio preference
-            </label>
-            <select
-              name="audio_priority"
-              class="select select-bordered w-full text-sm"
-              data-nav-item
-              tabindex="0"
-            >
-              <option
-                value="original_first"
-                selected={LanguagePolicy.audio_priority_preset(@language_policy) == "original_first"}
-              >
-                Original language first (subtitles do the work)
-              </option>
-              <option
-                value="understood_first"
-                selected={
-                  LanguagePolicy.audio_priority_preset(@language_policy) == "understood_first"
-                }
-              >
-                My languages first (prefer dubs)
-              </option>
-              <option
-                value="any"
-                selected={LanguagePolicy.audio_priority_preset(@language_policy) == "any"}
-              >
-                No preference (whatever the file defaults to)
-              </option>
-            </select>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-                Show subtitles
-              </label>
-              <select
-                name="subtitles_when"
-                class="select select-bordered w-full text-sm"
-                data-nav-item
-                tabindex="0"
-              >
-                <option value="off" selected={@language_policy.subtitles_when == "off"}>
-                  Never
-                </option>
-                <option
-                  value="when_audio_not_understood"
-                  selected={@language_policy.subtitles_when == "when_audio_not_understood"}
-                >
-                  Only when I don't understand the audio
-                </option>
-                <option value="always" selected={@language_policy.subtitles_when == "always"}>
-                  Always
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-                Subtitle language
-              </label>
-              <select
-                name="subtitles_language"
-                class="select select-bordered w-full text-sm"
-                data-nav-item
-                tabindex="0"
-              >
-                <option
-                  value="understood"
-                  selected={@language_policy.subtitles_language == "understood"}
-                >
-                  One of my languages
-                </option>
-                <option
-                  value="audio_language"
-                  selected={@language_policy.subtitles_language == "audio_language"}
-                >
-                  Match the audio (language learning)
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-                Subtitle style
-              </label>
-              <select
-                name="subtitles_variant"
-                class="select select-bordered w-full text-sm"
-                data-nav-item
-                tabindex="0"
-              >
-                <option value="standard" selected={@language_policy.subtitles_variant == "standard"}>
-                  Standard
-                </option>
-                <option
-                  value="sdh_preferred"
-                  selected={@language_policy.subtitles_variant == "sdh_preferred"}
-                >
-                  Prefer SDH (deaf / hard-of-hearing)
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-                Forced subtitles
-              </label>
-              <select
-                name="forced_subs"
-                class="select select-bordered w-full text-sm"
-                data-nav-item
-                tabindex="0"
-              >
-                <option value="never" selected={@language_policy.forced_subs == "never"}>
-                  Never
-                </option>
-                <option value="fill_gaps" selected={@language_policy.forced_subs == "fill_gaps"}>
-                  Fill gaps (foreign-dialog scenes)
-                </option>
-                <option value="always" selected={@language_policy.forced_subs == "always"}>
-                  Always
-                </option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </form>
+      </.settings_card>
     </div>
     """
   end

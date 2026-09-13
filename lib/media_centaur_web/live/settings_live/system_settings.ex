@@ -11,7 +11,10 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
   import MediaCentaurWeb.Components.Settings
 
   alias MediaCentaur.SelfUpdate
+  alias MediaCentaur.Settings.Ladder
   alias MediaCentaurWeb.Live.SettingsLive.{ReleaseNotes, SystemSection}
+
+  @interval_rungs [15, 30, 60, 120, 240, 360, 720, 1440]
 
   attr :config, :map, required: true, doc: "settings config map."
   attr :app_version, :string, required: true
@@ -63,15 +66,8 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
         </div>
       </div>
 
-      <div :if={SelfUpdate.enabled?()} class="p-5 rounded-lg glass-surface">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Updates</h2>
-            <p class="text-sm opacity-50 mt-0.5">
-              Check GitHub for a newer release.
-            </p>
-            <p class="text-xs text-base-content/55 mt-1.5">{@update_schedule_label}</p>
-          </div>
+      <.settings_card :if={SelfUpdate.enabled?()} title="Updates" description={@update_schedule_label}>
+        <:action>
           <.button
             variant="secondary"
             size="sm"
@@ -83,7 +79,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
           >
             {if @update_status == :checking, do: "Checking…", else: "Check for updates"}
           </.button>
-        </div>
+        </:action>
 
         <div :if={@update_status != :idle} class="mt-4 pt-4 border-t border-base-content/10">
           <p class={"text-sm #{update_tone_class(SystemSection.update_status_tone(@update_status))}"}>
@@ -220,39 +216,36 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
               checked={@update_check_enabled}
               event="toggle_update_check"
             />
-            <div :if={@update_check_enabled} class="glass-inset rounded-lg p-3.5 space-y-3">
-              <form phx-submit="save_update_interval" class="flex items-center gap-2.5 text-sm">
-                <label for="update-check-interval" class="text-base-content/70">Check every</label>
-                <input
-                  id="update-check-interval"
-                  type="number"
-                  name="interval_minutes"
-                  value={@update_check_interval_minutes}
-                  min={@update_check_interval_floor}
-                  step="1"
-                  class="input input-bordered input-sm w-20 font-mono text-sm"
-                  data-nav-item
-                  tabindex="0"
-                />
-                <span class="text-base-content/70">minutes</span>
-                <.button
-                  variant="neutral"
-                  size="sm"
-                  type="submit"
-                  class="ml-1"
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Save
-                </.button>
-              </form>
-              <p class="text-xs text-base-content/55 leading-relaxed">
-                Media Centaur asks the GitHub Releases API whether a newer version exists. GitHub
-                allows about 60 unauthenticated requests an hour from your network, so checking more
-                often than every {@update_check_interval_floor} minutes risks temporary rate-limiting
-                with no benefit — releases are infrequent.
-              </p>
-              <p class="text-xs text-base-content/55">{@last_checked_label}</p>
+            <div :if={@update_check_enabled} class="glass-inset rounded-lg px-1 py-1 space-y-1">
+              <.settings_stepper
+                id="update-check-interval"
+                label="Check every"
+                description={"GitHub allows about 60 unauthenticated requests an hour, so checking more often than every #{@update_check_interval_floor} minutes risks rate-limiting with no benefit — releases are infrequent. #{@last_checked_label}"}
+                value_label={interval_label(@update_check_interval_minutes)}
+                down_value={
+                  Ladder.down(
+                    interval_ladder(@update_check_interval_floor),
+                    @update_check_interval_minutes
+                  )
+                }
+                up_value={
+                  Ladder.up(
+                    interval_ladder(@update_check_interval_floor),
+                    @update_check_interval_minutes
+                  )
+                }
+                reset_value={360}
+                at_min={
+                  @update_check_interval_minutes <=
+                    List.first(interval_ladder(@update_check_interval_floor))
+                }
+                at_max={
+                  @update_check_interval_minutes >=
+                    List.last(interval_ladder(@update_check_interval_floor))
+                }
+                at_default={@update_check_interval_minutes == 360}
+                event="set_update_check_interval"
+              />
             </div>
           </div>
 
@@ -276,7 +269,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
             and settings are preserved.
           </p>
         </div>
-      </div>
+      </.settings_card>
 
       <.service_card
         service_state={@service_state}
@@ -342,14 +335,8 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
         </div>
       </div>
 
-      <div class="p-5 rounded-lg glass-surface">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Health Check</h2>
-            <p class="text-sm text-base-content/55 mt-0.5">
-              {overview_summary(@issue_count)}
-            </p>
-          </div>
+      <.settings_card title="Health check" description={overview_summary(@issue_count)}>
+        <:action>
           <div class="shrink-0 flex items-center gap-2">
             <.button
               variant="dismiss"
@@ -373,34 +360,25 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
               <.icon name="hero-check-circle-mini" class="size-3.5" /> All good
             </div>
           </div>
-        </div>
-      </div>
+        </:action>
+      </.settings_card>
 
-      <div class="p-5 rounded-lg glass-surface">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Guide</h2>
-            <p class="text-sm text-base-content/55 mt-0.5">
-              How Media Centaur works, chapter by chapter — including features you may not be using yet.
-            </p>
-          </div>
-          <div class="shrink-0">
-            <.button variant="dismiss" size="xs" navigate={~p"/guide"} data-nav-item>
-              Open the guide
-            </.button>
-          </div>
-        </div>
-      </div>
+      <.settings_card
+        title="Guide"
+        description="How Media Centaur works, chapter by chapter — including features you may not be using yet."
+      >
+        <:action>
+          <.button variant="dismiss" size="xs" navigate={~p"/guide"} data-nav-item>
+            Open the guide
+          </.button>
+        </:action>
+      </.settings_card>
 
       <div :if={@config == %{}} class="p-5 rounded-lg glass-surface text-base-content/60">
         Loading configuration…
       </div>
 
-      <div :for={group <- @groups} class="p-5 rounded-lg glass-surface space-y-2">
-        <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
-          {group.label}
-        </h3>
-
+      <.settings_card :for={group <- @groups} title={group.label}>
         <ul class="divide-y divide-base-content/5">
           <li :for={item <- group.items}>
             <.link
@@ -428,10 +406,18 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
             </.link>
           </li>
         </ul>
-      </div>
+      </.settings_card>
     </div>
     """
   end
+
+  @doc "The update-check stepper's rungs in minutes, from the rate-limit floor up to a day."
+  @spec interval_ladder(pos_integer()) :: [pos_integer()]
+  def interval_ladder(floor), do: Enum.filter(@interval_rungs, &(&1 >= floor))
+
+  defp interval_label(minutes) when minutes < 60, do: "#{minutes} min"
+  defp interval_label(minutes) when rem(minutes, 60) == 0, do: "#{div(minutes, 60)} h"
+  defp interval_label(minutes), do: "#{minutes} min"
 
   defp update_tone_class(tone), do: SystemSection.tone_class(tone)
 
@@ -451,20 +437,17 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
 
   defp service_card(assigns) do
     ~H"""
-    <div class="p-5 rounded-lg glass-surface space-y-4">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Service</h2>
-          <p class="text-sm opacity-50 mt-0.5">
-            {service_card_subtitle(@service_state)}
-          </p>
-        </div>
-
+    <.settings_card
+      title="Service"
+      description={service_card_subtitle(@service_state)}
+      class="space-y-4"
+    >
+      <:action>
         <div class={service_state_badge_class(@service_state)}>
           <.icon name={service_state_badge_icon(@service_state)} class="size-3.5" />
           {service_state_badge_text(@service_state)}
         </div>
-      </div>
+      </:action>
 
       <div
         :if={@service_action_pending}
@@ -557,7 +540,7 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
       >
         This install isn't running under a systemd user session — start/stop/restart buttons aren't available here. Use the terminal you started the app from, or a process manager of your choice.
       </p>
-    </div>
+    </.settings_card>
     """
   end
 

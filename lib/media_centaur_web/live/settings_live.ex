@@ -601,7 +601,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # --- Exclude-dir card events ---
 
-  def handle_event("exclude_dir:validate", %{"path" => path}, socket) do
+  def handle_event("exclude_dir:validate", %{"item" => path}, socket) do
     error = validate_exclude_dir_error(path, socket.assigns.exclude_dirs)
 
     socket =
@@ -612,7 +612,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, socket}
   end
 
-  def handle_event("exclude_dir:add", %{"path" => path}, socket) do
+  def handle_event("exclude_dir:add", %{"item" => path}, socket) do
     case validate_exclude_dir(path, socket.assigns.exclude_dirs) do
       {:ok, trimmed} ->
         new_list = [trimmed | socket.assigns.exclude_dirs]
@@ -631,7 +631,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  def handle_event("exclude_dir:delete", %{"path" => path}, socket) do
+  def handle_event("exclude_dir:delete", %{"item" => path}, socket) do
     new_list = Enum.reject(socket.assigns.exclude_dirs, &(&1 == path))
     :ok = Config.update(:exclude_dirs, new_list)
     {:noreply, assign(socket, :exclude_dirs, new_list)}
@@ -836,20 +836,20 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, put_update_automation_assigns(socket)}
   end
 
-  def handle_event("save_update_interval", params, socket) do
+  # The stepper's target is clamped to the floor and must be a rung.
+  def handle_event("set_update_check_interval", %{"choice" => raw}, socket) do
     minutes =
       SystemSection.normalize_interval_minutes(
-        params["interval_minutes"],
+        raw,
         socket.assigns.update_check_interval_floor,
         socket.assigns.update_check_interval_minutes
       )
 
-    Config.update(:update_check_interval_minutes, minutes)
+    if minutes in SystemSettings.interval_ladder(socket.assigns.update_check_interval_floor) do
+      Config.update(:update_check_interval_minutes, minutes)
+    end
 
-    {:noreply,
-     socket
-     |> put_update_automation_assigns()
-     |> put_flash(:info, "Update check interval saved")}
+    {:noreply, put_update_automation_assigns(socket)}
   end
 
   # Save + Test share one form-submit handler per service. The Save and
@@ -983,31 +983,44 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, download_client_detecting: true, download_client_detect_status: nil)}
   end
 
-  def handle_event("save_import", params, socket) do
-    extras =
-      (params["extras_dirs"] || "")
-      |> String.split(",")
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
+  # The two folder-name lists share one pair of handlers; `key` names the
+  # config list, and only these two are admitted.
+  @config_lists %{"extras_dirs" => :extras_dirs, "skip_dirs" => :skip_dirs}
 
-    skip =
-      (params["skip_dirs"] || "")
-      |> String.split(",")
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
+  def handle_event("config_list_add", %{"key" => key, "item" => raw}, socket)
+      when is_map_key(@config_lists, key) do
+    config_key = @config_lists[key]
+    item = String.trim(raw)
+    current = Config.get(config_key) || []
 
-    Config.update(:extras_dirs, extras)
-    Config.update(:skip_dirs, skip)
+    if item != "" and item not in current, do: Config.update(config_key, current ++ [item])
 
-    case Float.parse(params["auto_approve_threshold"] || "") do
-      {threshold, _} -> Config.update(:auto_approve_threshold, threshold)
-      :error -> :ok
+    {:noreply, assign(socket, config: load_config())}
+  end
+
+  def handle_event("config_list_remove", %{"key" => key, "item" => item}, socket)
+      when is_map_key(@config_lists, key) do
+    config_key = @config_lists[key]
+    Config.update(config_key, List.delete(Config.get(config_key) || [], item))
+    {:noreply, assign(socket, config: load_config())}
+  end
+
+  def handle_event("set_auto_approve_threshold", %{"choice" => raw}, socket) do
+    with {value, _} <- Float.parse(to_string(raw)),
+         rung when is_float(rung) <-
+           Enum.find(ImportSection.threshold_ladder(), &(abs(&1 - value) < 0.001)) do
+      Config.update(:auto_approve_threshold, rung)
+      {:noreply, assign(socket, config: load_config())}
+    else
+      _off_ladder -> {:noreply, socket}
     end
+  end
 
+  def handle_event("set_image_resolution", %{"choice" => resolution}, socket) do
     previous_resolution = Config.image_resolution()
 
-    if params["image_resolution"] in Config.image_resolutions() do
-      Config.update(:image_resolution, params["image_resolution"])
+    if resolution in Config.image_resolutions() do
+      Config.update(:image_resolution, resolution)
     end
 
     socket = assign(socket, config: load_config())
@@ -1015,53 +1028,56 @@ defmodule MediaCentaurWeb.SettingsLive do
     # Changing the resolution is one trigger for re-fetching the affected
     # artwork (backdrops) at the new size; the Library Maintenance button is
     # the other. Both go through `refetch_backdrops_async`.
-    socket =
-      if Config.image_resolution() == previous_resolution do
-        put_flash(socket, :info, "Media import settings saved")
-      else
-        start_backdrop_refetch(socket, "Media import settings saved — ")
-      end
-
-    {:noreply, socket}
+    if Config.image_resolution() == previous_resolution do
+      {:noreply, socket}
+    else
+      {:noreply, start_backdrop_refetch(socket, "")}
+    end
   end
 
-  def handle_event("save_playback", params, socket) do
-    if params["mpv_path"] != "" do
-      Config.update(:mpv_path, params["mpv_path"])
-    end
+  # Text rows push `name` + `value` on Enter and on blur.
+  def handle_event("set_mpv_path", %{"value" => raw}, socket),
+    do: {:noreply, set_path_config(socket, :mpv_path, raw)}
 
-    if params["mpv_socket_dir"] != "" do
-      Config.update(:mpv_socket_dir, params["mpv_socket_dir"])
-    end
+  def handle_event("set_mpv_socket_dir", %{"value" => raw}, socket),
+    do: {:noreply, set_path_config(socket, :mpv_socket_dir, raw)}
 
-    case Integer.parse(params["mpv_socket_timeout_ms"] || "") do
-      {ms, _} -> Config.update(:mpv_socket_timeout_ms, ms)
-      :error -> :ok
-    end
+  def handle_event("set_mpv_socket_timeout_ms", %{"choice" => raw}, socket) do
+    case parse_int(raw) do
+      ms when is_integer(ms) ->
+        if ms in Playback.timeout_ladder(), do: Config.update(:mpv_socket_timeout_ms, ms)
+        {:noreply, assign(socket, config: load_config())}
 
-    {:noreply,
-     socket
-     |> assign(config: load_config())
-     |> put_flash(:info, "Playback settings saved")}
+      _not_a_number ->
+        {:noreply, socket}
+    end
   end
 
-  def handle_event("save_language_policy", params, socket) do
-    # The understood-languages list is the live draft (the chip picker),
-    # not a form field; the audio/subtitle enums come from the form.
-    policy = %{
-      LanguagePolicy.from_form(params)
-      | understood_languages: socket.assigns.language_draft
-    }
+  # One select row changed: the policy is rebuilt from the current values
+  # with that one field replaced. The understood-languages list is the
+  # live draft (the chip picker), never a form field.
+  @language_policy_fields ~w(audio_priority subtitles_when subtitles_language subtitles_variant forced_subs)
+
+  def handle_event("set_language_policy", params, socket) do
+    current = socket.assigns.language_policy
+
+    form =
+      Map.merge(
+        %{
+          "audio_priority" => LanguagePolicy.audio_priority_preset(current),
+          "subtitles_when" => current.subtitles_when,
+          "subtitles_language" => current.subtitles_language,
+          "subtitles_variant" => current.subtitles_variant,
+          "forced_subs" => current.forced_subs
+        },
+        Map.take(params, @language_policy_fields)
+      )
+
+    policy = %{LanguagePolicy.from_form(form) | understood_languages: socket.assigns.language_draft}
 
     case LanguagePolicy.save(policy) do
-      {:ok, _entry} ->
-        {:noreply,
-         socket
-         |> put_language_assigns()
-         |> put_flash(:info, "Language & subtitle preferences saved")}
-
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Couldn't save language preferences")}
+      {:ok, _entry} -> {:noreply, put_language_assigns(socket)}
+      {:error, _changeset} -> {:noreply, put_flash(socket, :error, "Couldn't save language preferences")}
     end
   end
 
@@ -1081,33 +1097,14 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, update_languages(socket, LanguageLogic.move_down(socket.assigns.language_draft, code))}
   end
 
-  def handle_event("save_library", params, socket) do
-    case Integer.parse(params["file_absence_ttl_days"] || "") do
-      {days, _} -> Config.update(:file_absence_ttl_days, days)
-      :error -> :ok
-    end
+  def handle_event("set_absence_ttl_days", %{"choice" => raw}, socket),
+    do: {:noreply, set_days_config(socket, :file_absence_ttl_days, raw)}
 
-    case Integer.parse(params["recent_changes_days"] || "") do
-      {days, _} -> Config.update(:recent_changes_days, days)
-      :error -> :ok
-    end
+  def handle_event("set_recent_changes_days", %{"choice" => raw}, socket),
+    do: {:noreply, set_days_config(socket, :recent_changes_days, raw)}
 
-    {:noreply,
-     socket
-     |> assign(config: load_config())
-     |> put_flash(:info, "Library settings saved")}
-  end
-
-  def handle_event("save_data_dir", %{"data_dir" => raw}, socket) do
-    value = raw |> to_string() |> String.trim() |> Path.expand()
-
-    Config.update(:data_dir, value)
-
-    {:noreply,
-     socket
-     |> assign(config: load_config())
-     |> put_flash(:info, "Data directory saved")}
-  end
+  def handle_event("save_data_dir", %{"value" => raw}, socket),
+    do: {:noreply, set_path_config(socket, :data_dir, raw)}
 
   # A choice or stepper row pushes `key` + `choice`; the owner validates
   # the value and the LiveView re-reads the whole struct.
@@ -2829,6 +2826,36 @@ defmodule MediaCentaurWeb.SettingsLive do
     do: assign(socket, detected_usenet_client: nil)
 
   defp after_save(socket, _subject, _changed?), do: socket
+
+  # A path text row: trimmed and expanded; an unchanged or emptied value
+  # writes nothing (the row is the state, so a no-op stays quiet).
+  defp set_path_config(socket, key, raw) do
+    value = raw |> to_string() |> String.trim()
+
+    cond do
+      value == "" ->
+        socket
+
+      Path.expand(value) == Config.get(key) ->
+        socket
+
+      true ->
+        Config.update(key, Path.expand(value))
+        assign(socket, config: load_config())
+    end
+  end
+
+  # A cleanup stepper: the target must be a rung of the shared ladder.
+  defp set_days_config(socket, key, raw) do
+    case parse_int(raw) do
+      days when is_integer(days) ->
+        if days in Library.days_ladder(), do: Config.update(key, days)
+        assign(socket, config: load_config())
+
+      _not_a_number ->
+        socket
+    end
+  end
 
   defp connection_name(:tmdb), do: "TMDB"
   defp connection_name(:prowlarr), do: "Prowlarr"
