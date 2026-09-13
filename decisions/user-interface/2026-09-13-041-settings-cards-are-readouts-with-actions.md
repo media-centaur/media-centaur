@@ -57,6 +57,13 @@ tree.
    within-resolution preference. The configurable floor and the 4K patience
    window are removed (owner decision, 2026-09-13); the automatic floor is
    1080p, below it is the per-title acceptance of ADR-063 §2.
+7. **One owner of connection state.** `MediaCentaur.IntegrationHealth`
+   tracks the four `Capabilities` subjects, runs every connection test,
+   persists an explicit verify's result for readiness, seeds from the
+   persisted test at boot and probes nothing on its own. Settings, the
+   setup tour and any later surface test through `verify/1` and render
+   from its status; Settings keeps no private test machinery. (Added by
+   the unify_design pass the same day; spec D22–D28.)
 
 ### Consequences
 
@@ -75,6 +82,10 @@ tree.
   out for 4K is gone.
 * Bad, because the change touches every section and its tests in one
   campaign rather than one section at a time.
+* Good, because a verify from the setup tour now makes the install
+  ready; before, only Settings' own test persisted.
+* Bad, because there are no boot-time probes: an integration that is
+  down at boot reads as it last tested until someone tests it.
 
 ## Anti-patterns this record names
 

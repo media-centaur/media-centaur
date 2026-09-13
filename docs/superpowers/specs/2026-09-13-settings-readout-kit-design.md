@@ -28,11 +28,13 @@ app already has where one exists.
 - **Connection** — an external endpoint the app talks to: TMDB, Prowlarr, the torrent client, the usenet client, and each relay. The first four are **integrations** in `MediaCentaur.Capabilities`' sense (they have a persisted connection test); a relay is not.
 - **Readiness** (existing) — `Capabilities`' predicate: configured and the most recently persisted connection test passed.
 - **Readout state** — a connection row showing what is configured (name, address, credential presence) and its state, with no input fields on screen.
-- **Edit state** — the same row expanded beneath its readout into the form for that connection. At most one row is in its edit state on the page; the LiveView holds it as `editing` (`nil | :tmdb | :prowlarr | :torrent | :usenet`).
+- **Edit state** — the same row expanded beneath its readout into the form for that connection. At most one row is in its edit state on the page; the LiveView holds it as `editing` (`nil` or one of the four `Capabilities` subjects, D28).
 - **Pending detection** — values Detect from Prowlarr found for a slot that have not been saved. Shown on the slot's row; never persisted on its own.
 - **Save on the act** — a control persists the moment it changes. The page's default. A Save button exists only inside an edit form.
 - **Disclosure** — a `<details>` element hiding rare content (the secret key, service details) behind a caret and a label. `settings_disclosure/1`, replacing the `.release-notes-disclosure` class both current sites borrow.
 - **Gated card** — a card whose controls only mean something once Prowlarr is ready (Download button, Auto-acquisition). It stays on the page and states why its controls are absent.
+- **Connection state owner** — `MediaCentaur.IntegrationHealth`: for each integration id (the same atoms `Capabilities` uses) it holds configured?, `test_state` (`:unknown | :pending | :ok | :error`), the error and `last_tested_at`, runs every connection test (`verify/1`) and is the one writer of the persisted test. Added by the unify_design pass (D22–D28).
+- **Persisted test** (existing) — `Capabilities`' stored result (status + tested_at) that readiness gates on. Written only by the connection state owner when an explicit verify finishes; cleared by `Capabilities.save_integration/2` when a field changes.
 
 ## Problem
 
@@ -66,7 +68,7 @@ saying why.
 2. **Every card is `settings_card/1`**: `glass-surface rounded-xl p-5`, an uppercase `h3` title, optional `description` (`text-xs text-base-content/55 max-w-[60ch]`), optional `:action` slot right-aligned on the title line, body slot. Social's single card with dividers becomes three cards (Your identity, Relays, Sharing).
 3. **Rows are the only way a setting appears in a card**: toggle, stepper, choice, connection, text, select, or a list setting. Labels are sentence case, `font-medium`; descriptions `text-xs text-base-content/55`. The uppercase field label goes.
 4. **Save on the act everywhere a control is atomic.** Toggles, steppers, choices, selects and text rows persist on change. A Save button exists only inside a connection row's edit form. No card carries a Save in its header.
-5. **The kit moves to `lib/media_centaur_web/components/settings/`** as `MediaCentaurWeb.Components.Settings` with one story each under `storybook/settings/`: `settings_card`, `connection_row`, `settings_row`, `settings_stepper`, `settings_choice`, `settings_text_row`, `settings_select_row`, `settings_field` (the label/control/help unit used inside edit forms), `settings_disclosure`, `path_status`. `MediaCentaurWeb.SettingsLive.Components` is retired. `connection_status/1` and `status_dot/1` are absorbed by the connection row.
+5. **The kit moves to `lib/media_centaur_web/components/settings/`** as `MediaCentaurWeb.Components.Settings` with one story each under `storybook/settings/`: `settings_card`, `connection_row`, `settings_row`, `settings_stepper`, `settings_choice`, `settings_text_row`, `settings_select_row`, `settings_field` (the label/control/help unit used inside edit forms), `settings_input`, `settings_list`, `settings_disclosure`, `path_status`. `MediaCentaurWeb.SettingsLive.Components` is retired. `connection_status/1` and `status_dot/1` are absorbed by the connection row.
 
 ### Connection row
 
@@ -77,13 +79,14 @@ saying why.
    |---|---|---|---|
    | Not configured | `bg-base-content/20` | Not configured | Set up |
    | Configured, not tested | `bg-base-content/30` | Not tested | Test · Edit |
+   | Testing (`:pending`) | as underlying | Testing… | Test (disabled, spinner) · Edit |
    | Connected | `bg-success` | Connected · tested N ago | Test · Edit |
    | Unreachable | `bg-error` | the integration's failure word (Unreachable; Unreachable or auth failed; Unreachable or bad API key) · tested N ago | Test · Edit |
    | Pending detection | as underlying | Detected from Prowlarr, not saved | Review · Dismiss |
    | Editing | as underlying | the detail line reads "Editing. Saving clears the last test; test again afterwards." | none on the readout line; the form's footer carries them |
 
    The state vocabulary is the one `Capabilities` already persists. The row draws it; nothing else on Settings draws readiness.
-8. **Test in the readout re-tests the saved values** and updates the state and age in place. It never opens the form and never changes stored values.
+8. **Test in the readout asks the owner to verify** (`IntegrationHealth.verify/1`) and the row follows the owner's broadcasts: Testing…, then the result with its age. It never opens the form and never changes stored values.
 9. **Edit opens the form beneath the readout**, indented under a left hairline the way Social's secret-key disclosure body is. Fields per connection:
 
    | Connection | Fields |
@@ -100,6 +103,26 @@ saying why.
 13. **Detect from Prowlarr lives on the Download clients card's action slot**, enabled once Prowlarr is configured. Its result puts each found client on its slot's row as a pending detection. Review opens the edit form pre-filled with the detected type, address and username; Dismiss drops the pending values. A save from a pre-filled form is an ordinary save. Pending detections are page state and vanish on navigation, as today.
 14. **Every integration is a connection row.** The TMDB section is its intro plus one card ("TMDB") holding the TMDB row. Acquisition's Search card holds Prowlarr; its Download clients card holds the torrent and usenet rows in that order.
 15. **A relay is a connection row without an edit state.** Name is the URL in monospace; no kind tag; the detail line carries the last error when there is one; the state text is `RelayStatusRow.state_label/1`; the dot is success for Synced and Connected, neutral for Connecting, error for Not connected and Rejected; the one action is Remove. Add relay stays the list setting's inline input and Add beneath the rows. The Social section's header dot goes with the section-level `h2`.
+
+### One owner of connection state (unify_design pass, 2026-09-13)
+
+Two owners answered "does this integration work": `IntegrationHealth` (ETS, live, three ids with the two client slots merged; the setup tour's) and `Capabilities` (the persisted per-slot test that readiness gates on; written only by Settings' own four inline async tests). The tour's verify never persisted, so a fresh install that passed the tour was not ready until someone pressed Test on Settings. The owner chose to pay the cost of one owner.
+
+22. **`IntegrationHealth` tracks the four `Capabilities` subjects** (`:tmdb`, `:prowlarr`, `:download_client`, `:usenet_download_client`) as its ids. `configured?` is `Capabilities.configured?/1` for every id; the merged two-slot special case and `Downloads.config_key?/1` retire. The verifier gets one clause per slot through `Dispatcher.driver_for/1`.
+23. **An explicit verify persists.** When a `verify/1` result lands, the owner writes `Capabilities.save_test_result(id, status)` and then broadcasts. Settings, the setup tour and any later surface test through `verify/1`; nothing else calls `save_test_result` (the showcase seeder excepted).
+24. **Boot seeds from the persisted test and probes nothing.** `test_state` at boot is the persisted status with its `tested_at`, `:unknown` when none. Named consequence: an integration that is down at boot reads as it last tested until someone tests it. The owner accepted this over live state (2026-09-13).
+25. **A config change resets to `:unknown`, never `:pending`.** `:pending` means a verify is in flight and nothing else. The setup gate is unchanged: `:unknown` blocks the TMDB step until the verify the tour already runs on save.
+26. **Settings reads the owner.** `SettingsLive` holds `connections` (`IntegrationHealth.all_statuses/0`), subscribes to its topic, and renders each row from `%Status{}` plus the config map through `ConnectionState.build/3`, a struct. Test calls `verify/1`. Save and test saves, then calls `verify/1`; the form stays open until the result: `:ok` closes it, `:error` keeps it.
+27. **`SettingsLive` loses its private test machinery**: the four test assigns, four testing flags, four `handle_async` clauses, `start_async_test/3`, `load_test_result/1`, `save_test_result/2`. One `save_connection` event (param `connection` = the id) replaces the four save handlers, with per-id after-save hooks (TMDB re-emits unlinked files; a client slot clears its pending detection).
+28. **One id vocabulary.** DOM ids are `connection-<id>`, `phx-value-connection` carries the id string, `editing` holds the id atom. No slot nicknames.
+
+Smaller parallels the same pass removed:
+
+29. **`AutoGrabSettings.put/2` is the one write for `auto_grab.*`** and validates its enums and ranges; its ladders (`pack_fit_ladder/0`: 5–100 by 5; `attempts_ladder/0`: 1–50) live there. `MediaCentaur.Settings.Ladder` (core, exported from Settings) is the neighbour helper. Ladders for bare `Config` keys (refresh hours, cleanup days, mpv timeout, approve threshold) stay in the section modules with `Config.update/2` as the write: `Config` has no per-key owner module, and one is not worth creating for four ladders. Recorded, not scheduled.
+30. **The text row has one payload**: `name` and `value`, from an Enter keydown and from blur. No form element, no no-op change handler.
+31. **`settings_input/1`** is the house input (type, name, value, placeholder, mono, autofocus); `settings_field` wraps it. The class string is written once.
+32. **`settings_list/1`** renders a string-list setting: rows with Remove, an inline input with Add, an optional error line. Extras folder names, Ignored folder names and Excluded directories use it; the first two share the events `config_list_add` / `config_list_remove` with `key`, Excluded directories keeps its validating handlers. Languages keep their ordered chips; relays are connection rows.
+33. **`settings_row` loses `color`.** Every caller passed the default.
 
 ### Acquisition section
 
@@ -169,6 +192,9 @@ no screenshots are regenerated.
 - The planner's automatic floor is `hd_1080p` in every path (drop planner, plan runner, pursuit retry); `WantSchedule.due?/2` depends on age bands only.
 - Every section shows the shell's intro; no section module contains an `h2`; every card is `settings_card`; no card header contains a Save.
 - Every kit component has a story; MC0009 and `storybook_render_test` pass.
+- A verify started from the setup tour makes the integration ready in `Capabilities`; `save_test_result` has one caller in `lib/` besides the showcase seeder.
+- `SettingsLive` contains no `start_async` for connection tests; boot makes no network call for integrations; `Downloads.config_key?/1` is gone.
+- Pressing Test shows Testing… on the row until the owner's result lands.
 - Every action on the page is a nav item inside the `grid` zone; opening a form focuses its first field.
 - Settings-Reference and Release-Tracking on the wiki describe the rows as shipped.
 
@@ -184,7 +210,8 @@ no screenshots are regenerated.
 
 ## Deferred and rejected
 
-- **Live connectivity in the readout** (the queue monitor's per-slot liveness, indexer health beside the manual test age). Owner: not necessary. The row shows the persisted test.
+- **Live connectivity in the readout** (the queue monitor's per-slot liveness, indexer health, boot-time probes). Owner: not necessary. The row shows the last explicit test (D24).
+- **The setup tour on the kit.** The tour keeps its own form markup; it already shares `Capabilities.save_integration/2` and now `IntegrationHealth.verify/1`. Folding its steps onto the connection row is a separate design.
 - **A modal edit dialog** instead of inline expansion. Rejected: inline keeps the row in view and the form is short. The media-directory dialog stays for its three-field entry.
 - **Quality upgrades** after a lower-resolution grab. Out of scope; the consequence of dropping patience is accepted (decision 20).
 - **Folding TMDB into Acquisition's nav entry.** Rejected: TMDB serves the library; only its row shape is shared.

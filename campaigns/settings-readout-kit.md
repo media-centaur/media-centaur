@@ -25,16 +25,18 @@ Spec, UIDR-041 and the implementation plan are written; no code yet.
 * `2026-09-13` — Complete scope: all thirteen sections, not only Acquisition and Social. (owner)
 * `2026-09-13` — The quality policy is two choices, highest resolution and within-resolution preference; the floor and the patience window go. Consequence accepted: a 1080p grab is not upgraded when 4K lands later. (owner; [UIDR-041](../decisions/user-interface/2026-09-13-041-settings-cards-are-readouts-with-actions.md) §6)
 * `2026-09-13` — Live connectivity in the readout is not wanted; the row shows the persisted test. (owner)
+* `2026-09-13` — unify_design pass: `IntegrationHealth` becomes the one owner of connection state (four ids, persists explicit verifies, seeds from the persisted test, no boot probes); Settings drops its private test machinery. Owner paid the cost. (spec D22–D33)
 * `2026-09-13` — Inline edit expansion, not a dialog; the address is the Open link; Remove client lives in the edit form; Detect from Prowlarr sits on the Download clients card; gated cards stay and state their prerequisite. (spec D6–D17)
 
 ## Next steps
 
-1. Phase A — quality policy simplification (backend, data migration). Ships with Phase C in the same release.
-2. Phase B — the kit moves to the components tree with stories; the shell renders section intros.
-3. Phase C — Acquisition and TMDB on connection rows; tests; wiki.
-4. Phase D — Social on the kit.
-5. Phase E — the remaining sections, one commit each; retire the pre-kit helpers; wiki.
-6. Phase F — glossary, skill, storybook notes; owner look; retire this file.
+1. Phase A — quality policy simplification (backend, data migration, `AutoGrabSettings.put/2`). Ships with Phase D in the same release.
+2. Phase B — the kit moves to the components tree with stories (incl. input, list, core Ladder); the shell renders section intros.
+3. Phase C — one owner of connection state: `IntegrationHealth` four ids, per-slot verifier, persisted explicit verifies, seed from persisted; Settings' old forms test through it.
+4. Phase D — Acquisition and TMDB on connection rows; tests; wiki.
+5. Phase E — Social on the kit.
+6. Phase F — the remaining sections, one commit each; retire the pre-kit helpers; wiki.
+7. Phase G — glossary, skill, storybook notes; owner look; retire this file.
 
 Plan: [`docs/superpowers/plans/2026-09-13-settings-readout-kit.md`](../docs/superpowers/plans/2026-09-13-settings-readout-kit.md).
 Spec: [`docs/superpowers/specs/2026-09-13-settings-readout-kit-design.md`](../docs/superpowers/specs/2026-09-13-settings-readout-kit-design.md).
