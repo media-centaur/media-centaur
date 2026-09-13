@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`settings-readout-kit.md`](settings-readout-kit.md) —
-  **planning 2026-09-13.** Every Settings section composes from one kit whose
+  **implemented 2026-09-13, unpushed; owner look open.** Every Settings section composes from one kit whose
   resting state is a readout: an external connection is a row (name, address,
   credential presence, state, test age) whose form appears only on Edit, and
   every other setting saves on the act. Acquisition is rebuilt; the other

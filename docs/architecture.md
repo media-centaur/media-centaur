@@ -89,14 +89,14 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.Retention` | `retention_runs` table, policy registry, daily `SweepJob` | Data-hygiene orchestrator. Contexts declare policies in `RetentionPolicies` provider modules registered under `:retention_policy_providers` (runtime-resolved IoC, same shape as `:diagnostics_contributors`), so contexts may depend on `Retention` to record runs without cycles. Policies + observed pruning surface per subsystem on `/status`. |
 | `MediaCentaur.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |
 | `MediaCentaur.TmdbArtwork` | `{data_dir}/images/tmdb/` cache — temporary artwork for TMDB identities not (yet) in the library | Referenced tier of the artwork promotion ladder: entries are held alive by registered `HoldProvider`s (`:tmdb_artwork_hold_providers` — tracked items, non-terminal pursuits) and swept 7 days after last use once unheld. |
-| `MediaCentaur.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing Test Connection. Reads `Settings`, owns no state. |
+| `MediaCentaur.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing connection test. Reads `Settings`, owns no state; the persisted test is written by `IntegrationHealth`. |
 | `MediaCentaur.Settings.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |
 | `MediaCentaur.Downloads` | Download-client drivers (`qBittorrent`, `SABnzbd`) behind one `@behaviour`, queue monitor, client health | Two-slot model — see [docs/download-clients.md](download-clients.md). |
 | `MediaCentaur.Search` | Indexer search providers (Prowlarr) + query expansion | Feeds Acquisition; gated by `Capabilities`. |
 | `MediaCentaur.Subtitles` | `subtitles_*` table, embedded + sidecar track detection | Owned by Library's ingest path, read by Playback. |
 | `MediaCentaur.Reconciliation` | `reconciliation_*` table, episode-mapping models | Resolves files whose season/episode claim disagrees with the library. |
 | `MediaCentaur.ErrorReports` | `incidents` table, error buckets, public-issue submission | Drives the Status page's report modal. |
-| `MediaCentaur.IntegrationHealth` | Per-integration `configured? × test_state` in ETS | Gates the Setup tour; no DB tables. |
+| `MediaCentaur.IntegrationHealth` | The connection state owner: per-integration `configured? × test_state` in ETS for the four `Capabilities` subjects | Runs every connection test (`verify/1`), persists an explicit verify's result through `Capabilities`, seeds from the persisted test at boot and probes nothing on its own; serves Settings and the Setup tour (UIDR-041). No DB tables. |
 | `MediaCentaur.Diagnostics` | Read-side aggregator over ErrorReports + Playback | Composition only, owns no state. |
 | `MediaCentaur.Status` | Read-side aggregator for the Status page | Composes tiles from subsystem reads. The two hot reads (library overview, storage) are `Status.Views` projections over `status:views`; every other tile reads its subsystem directly and re-renders on that subsystem's own topic. Owns no domain state. |
 | `MediaCentaur.Guide` | Markdown guide book rendering | Static content; no DB tables. |

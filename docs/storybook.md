@@ -119,6 +119,8 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `library_cards.storage_offline_banner/1` | ✅ covered | Single/multi-dir + long-path stress |
 | `library_cards.toolbar/1` | ✅ covered | Tabs × sort × filter axes |
 | `poster_row/1` | ✅ covered | Horizontal 8-up row + artwork fallback |
+| `settings.settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `settings_disclosure/1`, `path_status/1` | ✅ covered | The Settings kit (UIDR-041): each row kind's states; `storybook/settings/` |
+| `settings.connection_row/1` | ✅ covered | Every readout state (not configured, not tested, testing, connected, unreachable, detected, editing) + relay rows |
 | `upcoming_cards.upcoming_zone/1` | ✅ covered | Calendar + active shows + tracked items + modal |
 | `coming_up_marquee/1` | ⚠️ skip | Depends on release-tracking timer state |
 | `console_components.chip_row/1` | ⚠️ skip | Log stream is sticky LiveView state |

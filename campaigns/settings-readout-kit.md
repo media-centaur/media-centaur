@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: owner-check
 started: 2026-09-13
 last_updated: 2026-09-13
 ---
@@ -17,10 +17,11 @@ floor and its 4K patience window.
 
 ## Status
 
-Phases A–D done 2026-09-13 (quality policy, kit + intros, one owner of
-connection state, Acquisition + TMDB as connection rows), each behind a
-green precommit; unpushed. Next: Phase E (Social), then F (the other
-sections), then G (closure).
+Implementation complete 2026-09-13: Phases A–G landed on main behind
+green precommits (unpushed); wiki updated; the data migration ran on the
+owner's dev install at the restart. Open: the owner's look at
+Acquisition, Social and Media Import on the dev server, then retire this
+file.
 
 ## Decisions made
 
@@ -32,13 +33,9 @@ sections), then G (closure).
 
 ## Next steps
 
-1. Phase A — quality policy simplification (backend, data migration, `AutoGrabSettings.put/2`). Ships with Phase D in the same release.
-2. Phase B — the kit moves to the components tree with stories (incl. input, list, core Ladder); the shell renders section intros.
-3. Phase C — one owner of connection state: `IntegrationHealth` four ids, per-slot verifier, persisted explicit verifies, seed from persisted; Settings' old forms test through it.
-4. Phase D — Acquisition and TMDB on connection rows; tests; wiki.
-5. Phase E — Social on the kit.
-6. Phase F — the remaining sections, one commit each; retire the pre-kit helpers; wiki.
-7. Phase G — glossary, skill, storybook notes; owner look; retire this file.
+1. Owner look at `/settings?section=acquisition`, `social`, `import` on the dev server; note anything to change here.
+2. Push and ship as one release (Phases A, C and D belong together; every phase is on main).
+3. Retire this file and its README entry (ADR-042).
 
 Plan: [`docs/superpowers/plans/2026-09-13-settings-readout-kit.md`](../docs/superpowers/plans/2026-09-13-settings-readout-kit.md).
 Spec: [`docs/superpowers/specs/2026-09-13-settings-readout-kit-design.md`](../docs/superpowers/specs/2026-09-13-settings-readout-kit-design.md).
