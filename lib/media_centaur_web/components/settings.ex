@@ -362,7 +362,7 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :class, :string, default: nil
 
   attr :rest, :global,
-    include: ~w(autocomplete phx-blur phx-keydown phx-key phx-value-name min max step),
+    include: ~w(autocomplete list phx-blur phx-keydown phx-key phx-value-name min max step),
     doc: "input attributes the row kinds bind: autocomplete, the blur/keydown events, number bounds."
 
   @doc "The house text input (UIDR-041 §31): bordered, full width, monospace for paths and keys, a nav item."
@@ -477,10 +477,18 @@ defmodule MediaCentaurWeb.Components.Settings do
 
   attr :change_event, :string,
     default: nil,
-    doc: "when set, the add form validates on change with `%{\"item\" => typed}` and the input is controlled by `value`."
+    doc:
+      "when set, the add form validates on change with `%{\"item\" => typed}` and the input is controlled by `value`."
 
-  attr :value, :string, default: nil, doc: "the add input's current text when `change_event` controls it."
+  attr :value, :string,
+    default: nil,
+    doc: "the add input's current text when `change_event` controls it."
+
   attr :add_disabled, :boolean, default: false, doc: "Add is inert while the typed entry is invalid."
+
+  attr :truncate_left, :boolean,
+    default: false,
+    doc: "entries are file paths: keep the filename visible and elide the prefix (UIDR-001)."
 
   @doc "A string-list setting (UIDR-041 §32): one row per entry with Remove, an inline input with Add, an optional error line."
   def settings_list(assigns) do
@@ -491,8 +499,19 @@ defmodule MediaCentaurWeb.Components.Settings do
           :for={item <- @items}
           class="flex items-center gap-3 rounded-md bg-base-content/5 px-3 py-2"
         >
-          <span class={["min-w-0 flex-1 truncate text-sm", @mono && "font-mono"]} title={item}>
-            {item}
+          <span
+            class={[
+              "min-w-0 flex-1 text-sm",
+              @truncate_left && "truncate-left",
+              !@truncate_left && "truncate",
+              @mono && "font-mono"
+            ]}
+            title={item}
+          >
+            <bdo :if={@truncate_left} dir="ltr">{item}</bdo>
+            <%= if !@truncate_left do %>
+              {item}
+            <% end %>
           </span>
           <.button
             variant="dismiss"

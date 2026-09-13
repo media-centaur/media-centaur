@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.SettingsLiveExcludeDirsTest do
     {:ok, view, _} = live_async!(conn, "/settings?section=library")
 
     view
-    |> form("form[phx-submit='exclude_dir:add']", %{"path" => tmp})
+    |> form("form[phx-submit='exclude_dir:add']", %{"item" => tmp})
     |> render_submit()
 
     assert tmp in Config.get(:exclude_dirs)
@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.SettingsLiveExcludeDirsTest do
 
     html =
       view
-      |> form("form[phx-submit='exclude_dir:add']", %{"path" => "cache"})
+      |> form("form[phx-submit='exclude_dir:add']", %{"item" => "cache"})
       |> render_change()
 
     assert html =~ "Must be an absolute path"
@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.SettingsLiveExcludeDirsTest do
     html =
       view
       |> form("form[phx-submit='exclude_dir:add']", %{
-        "path" => "/does/not/exist/#{System.unique_integer([:positive])}"
+        "item" => "/does/not/exist/#{System.unique_integer([:positive])}"
       })
       |> render_change()
 
@@ -78,13 +78,13 @@ defmodule MediaCentaurWeb.SettingsLiveExcludeDirsTest do
 
     html =
       view
-      |> form("form[phx-submit='exclude_dir:add']", %{"path" => tmp})
+      |> form("form[phx-submit='exclude_dir:add']", %{"item" => tmp})
       |> render_change()
 
     assert html =~ "Already in the list"
 
     view
-    |> form("form[phx-submit='exclude_dir:add']", %{"path" => tmp})
+    |> form("form[phx-submit='exclude_dir:add']", %{"item" => tmp})
     |> render_submit()
 
     assert Config.get(:exclude_dirs) == [tmp]
@@ -104,7 +104,7 @@ defmodule MediaCentaurWeb.SettingsLiveExcludeDirsTest do
     view = wait_for_async_load(view)
 
     view
-    |> element("button[phx-click='exclude_dir:delete'][phx-value-path='#{tmp_a}']")
+    |> element("button[phx-click='exclude_dir:delete'][phx-value-item='#{tmp_a}']")
     |> render_click()
 
     assert Config.get(:exclude_dirs) == [tmp_b]

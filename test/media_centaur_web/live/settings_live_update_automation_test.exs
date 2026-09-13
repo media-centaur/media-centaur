@@ -70,17 +70,24 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
     assert Config.get(:update_check_enabled) == false
   end
 
-  test "saving the interval persists a valid value", %{conn: conn} do
+  test "stepping the interval persists a rung", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/settings?section=system")
-    render_submit(view, "save_update_interval", %{"interval_minutes" => "30"})
+    render_click(view, "set_update_check_interval", %{"choice" => "30"})
 
     assert Config.update_check_interval_minutes() == 30
   end
 
-  test "saving an interval below the floor clamps it up", %{conn: conn} do
+  test "a target below the floor clamps up to it", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/settings?section=system")
-    render_submit(view, "save_update_interval", %{"interval_minutes" => "5"})
+    render_click(view, "set_update_check_interval", %{"choice" => "5"})
 
     assert Config.update_check_interval_minutes() == 15
+  end
+
+  test "a target off the ladder is ignored", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/settings?section=system")
+    render_click(view, "set_update_check_interval", %{"choice" => "37"})
+
+    assert Config.update_check_interval_minutes() == 360
   end
 end

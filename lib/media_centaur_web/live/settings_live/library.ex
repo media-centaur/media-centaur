@@ -1,16 +1,23 @@
 defmodule MediaCentaurWeb.SettingsLive.Library do
   @moduledoc """
-  The Library section of the Settings page — data directory, media
-  directories (add/edit/remove), excluded directories, and cleanup TTLs.
-  `SettingsLive` delegates to `render/1` and hosts the media_dir /
-  exclude_dir / save event handlers.
+  The Library section of the Settings page (UIDR-041): the data directory
+  as a text row, the media directories (add/edit/remove, scan), the
+  excluded directories as a list setting with live validation, and the
+  cleanup windows as steppers. `SettingsLive` delegates to `render/1` and
+  hosts the media_dir / exclude_dir / save / set event handlers.
+  `days_ladder/0` is the cleanup steppers' rungs, shared with the handler
+  that validates them.
   """
 
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.Components.Settings
 
+  alias MediaCentaur.Settings.Ladder
   alias MediaCentaurWeb.SettingsLive.MediaDirsLogic
+
+  @absence_default 30
+  @recent_default 3
 
   attr :config, :map,
     required: true,
@@ -28,46 +35,41 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
   attr :exclude_dir_error, :any, required: true, doc: "validation error string or nil"
 
   def render(assigns) do
+    assigns =
+      assign(assigns,
+        absence_days: assigns.config[:file_absence_ttl_days] || @absence_default,
+        recent_days: assigns.config[:recent_changes_days] || @recent_default,
+        absence_default: @absence_default,
+        recent_default: @recent_default
+      )
+
     ~H"""
     <div class="space-y-4">
-      <form phx-submit="save_data_dir" class="glass-surface rounded-xl p-5 space-y-3">
-        <.settings_card_header title="Data directory">
-          <:action>
-            <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
-              Save
-            </.button>
-          </:action>
-        </.settings_card_header>
-
-        <p class="text-xs text-base-content/55 max-w-[60ch]">
-          Where cached posters and backdrops are stored. Defaults next to the database.
-        </p>
-
-        <input
-          type="text"
+      <.settings_card title="Data directory">
+        <.settings_text_row
+          id="data-dir"
+          label="Location"
+          description="Where cached posters and backdrops are stored. Defaults next to the database."
           name="data_dir"
           value={@config[:data_dir]}
           placeholder={Path.dirname(@config[:database_path] || "")}
-          class="input input-bordered w-full font-mono text-sm"
-          data-nav-item
-          tabindex="0"
+          event="save_data_dir"
+          mono
         />
-      </form>
+      </.settings_card>
 
-      <div class="glass-surface rounded-xl p-5 space-y-3">
-        <.settings_card_header title="Media directories">
-          <:action>
-            <.button
-              variant="action"
-              size="sm"
-              phx-click="media_dir:open_add"
-              data-nav-item
-              tabindex="0"
-            >
-              <.icon name="hero-plus" class="size-4" /> Add
-            </.button>
-          </:action>
-        </.settings_card_header>
+      <.settings_card title="Media directories">
+        <:action>
+          <.button
+            variant="action"
+            size="sm"
+            phx-click="media_dir:open_add"
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-plus" class="size-4" /> Add
+          </.button>
+        </:action>
 
         <div :if={@media_dirs == []} class="text-base-content/60 py-4">
           No media directories configured — your library is empty. Add one to get started.
@@ -181,125 +183,67 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
             </.button>
           </div>
         </div>
-      </div>
+      </.settings_card>
 
-      <div class="glass-surface rounded-xl p-5 space-y-3">
-        <.settings_card_header title="Excluded directories" />
-        <p class="text-xs text-base-content/55 max-w-[60ch]">
-          Specific paths inside your media directories that are never scanned.
-          To ignore folders by name wherever they appear, use Media Import → Ignored folder names.
-        </p>
-
-        <ul :if={@exclude_dirs != []} class="space-y-2">
-          <li
-            :for={path <- @exclude_dirs}
-            class="glass-inset rounded-lg p-3 flex items-center gap-3"
-          >
-            <span class="flex-1 min-w-0 text-sm truncate-left" title={path}>
-              <bdo dir="ltr">{path}</bdo>
-            </span>
-            <.button
-              variant="destructive_inline"
-              size="sm"
-              class="shrink-0"
-              phx-click="exclude_dir:delete"
-              phx-value-path={path}
-              aria-label="Remove excluded directory"
-              data-nav-item
-              tabindex="0"
-            >
-              <.icon name="hero-trash" class="size-4" />
-            </.button>
-          </li>
-        </ul>
-
-        <div :if={@exclude_dirs == []} class="text-xs text-base-content/55 py-2">
-          No excluded directories.
-        </div>
-
-        <form
-          id="exclude-dir-form"
-          phx-change="exclude_dir:validate"
-          phx-submit="exclude_dir:add"
-          class="space-y-1.5 pt-1"
-        >
-          <div class="flex gap-2">
-            <input
-              type="text"
-              name="path"
-              value={@exclude_dir_input}
-              placeholder="/absolute/path/to/exclude"
-              class="library-filter flex-1"
-              autocomplete="off"
-              data-nav-item
-              tabindex="0"
-            />
-            <.button
-              type="submit"
-              variant="action"
-              size="sm"
-              class="shrink-0"
-              disabled={exclude_dir_add_disabled?(@exclude_dir_input, @exclude_dir_error)}
-              data-nav-item
-              tabindex="0"
-            >
-              <.icon name="hero-plus" class="size-4" /> Add
-            </.button>
-          </div>
-          <p :if={is_binary(@exclude_dir_error)} class="text-error text-xs">
-            {@exclude_dir_error}
-          </p>
-        </form>
-      </div>
-
-      <form
-        id="settings-library"
-        phx-submit="save_library"
-        class="glass-surface rounded-xl p-5 space-y-3"
+      <.settings_card
+        title="Excluded directories"
+        description="Specific paths inside your media directories that are never scanned. To ignore folders by name wherever they appear, use Media Import → Ignored folder names."
       >
-        <.settings_card_header title="Cleanup">
-          <:action>
-            <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
-              Save
-            </.button>
-          </:action>
-        </.settings_card_header>
+        <.settings_list
+          id="exclude-dirs"
+          items={@exclude_dirs}
+          remove_event="exclude_dir:delete"
+          add_event="exclude_dir:add"
+          change_event="exclude_dir:validate"
+          value={@exclude_dir_input}
+          add_disabled={exclude_dir_add_disabled?(@exclude_dir_input, @exclude_dir_error)}
+          error={@exclude_dir_error}
+          placeholder="/absolute/path/to/exclude"
+          mono
+          truncate_left
+        />
+      </.settings_card>
 
-        <div>
-          <.settings_field
-            label="File absence TTL (days)"
-            description="Days a missing file is kept before its entry is removed — covers unmounted drives."
-          >
-            <input
-              type="number"
-              name="file_absence_ttl_days"
-              value={@config[:file_absence_ttl_days]}
-              min="1"
-              class="input input-bordered w-24 font-mono text-sm text-right"
-              data-nav-item
-              tabindex="0"
-            />
-          </.settings_field>
-
-          <.settings_field
-            label="Recent changes window (days)"
+      <.settings_card title="Cleanup">
+        <div class="space-y-0.5">
+          <.settings_stepper
+            id="absence-ttl"
+            label="Keep a missing file's entry for"
+            description="Covers unmounted drives: the entry is removed only after this many days absent."
+            value_label={days(@absence_days)}
+            down_value={Ladder.down(days_ladder(), @absence_days)}
+            up_value={Ladder.up(days_ladder(), @absence_days)}
+            reset_value={@absence_default}
+            at_min={@absence_days <= 1}
+            at_max={@absence_days >= List.last(days_ladder())}
+            at_default={@absence_days == @absence_default}
+            event="set_absence_ttl_days"
+          />
+          <.settings_stepper
+            id="recent-changes"
+            label="Recent changes window"
             description="How far back the Status page lists recent changes."
-          >
-            <input
-              type="number"
-              name="recent_changes_days"
-              value={@config[:recent_changes_days]}
-              min="1"
-              class="input input-bordered w-24 font-mono text-sm text-right"
-              data-nav-item
-              tabindex="0"
-            />
-          </.settings_field>
+            value_label={days(@recent_days)}
+            down_value={Ladder.down(days_ladder(), @recent_days)}
+            up_value={Ladder.up(days_ladder(), @recent_days)}
+            reset_value={@recent_default}
+            at_min={@recent_days <= 1}
+            at_max={@recent_days >= List.last(days_ladder())}
+            at_default={@recent_days == @recent_default}
+            event="set_recent_changes_days"
+          />
         </div>
-      </form>
+      </.settings_card>
     </div>
     """
   end
+
+  @doc "The cleanup steppers' rungs: every day up to two weeks, every five days to a month, then 45, 60 and 90."
+  @spec days_ladder() :: [pos_integer()]
+  def days_ladder, do: Ladder.range(1, 14, 1) ++ [15, 20, 25, 30, 45, 60, 90]
+
+  defp days(1), do: "1 day"
+  defp days(n), do: "#{n} days"
 
   defp exclude_dir_add_disabled?(path, error) do
     String.trim(path || "") == "" or is_binary(error)
