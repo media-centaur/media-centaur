@@ -1255,8 +1255,6 @@ defmodule MediaCentaur.LibraryTest do
     # `:playable_item` so `ProgressRecords.progress_container_id/1` resolves
     # to the Episode UUID.
 
-    alias MediaCentaur.Library.EpisodeOrder
-
     test "returns [] for a series with no episodes" do
       tv = create_tv_series(%{name: "Empty Series"})
       assert Library.ProgressRecords.list_for_tv_series(tv.id) == []
