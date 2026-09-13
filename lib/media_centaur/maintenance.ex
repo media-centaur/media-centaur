@@ -35,6 +35,7 @@ defmodule MediaCentaur.Maintenance do
 
   alias MediaCentaur.Library.{
     ExternalId,
+    Season,
     ExternalIds,
     Movie,
     MovieSeries,
@@ -115,6 +116,14 @@ defmodule MediaCentaur.Maintenance do
     run_async(fn ->
       {:ok, result} = rederive_extra_names()
       send(reply_to, {:extra_names_rederived, result})
+    end)
+  end
+
+  @doc "Async `refresh_episode_lists/0`; sends `{:episode_lists_refreshed, result}`."
+  def refresh_episode_lists_async(reply_to) do
+    run_async(fn ->
+      {:ok, result} = refresh_episode_lists()
+      send(reply_to, {:episode_lists_refreshed, result})
     end)
   end
 
@@ -274,6 +283,97 @@ defmodule MediaCentaur.Maintenance do
     end
 
     :ok
+  end
+
+  @doc """
+  Refreshes the TMDB episode list of every season that is not complete — an
+  empty `episode_list`, or fewer library episode rows than the list holds —
+  for series carrying a TMDB id. One `get_season` per such season,
+  rate-limited inside the TMDB client.
+
+  Complete seasons are skipped, so re-running is cheap. It refreshes rather
+  than backfills: a season ingested mid-run captured whatever TMDB knew that
+  day, and a revised episode count would otherwise never reach the library.
+
+  Broadcasts `entities_changed` for the touched series so the ETS Detail
+  projection — and any open modal — picks the new lists up. A failed season
+  is logged and skipped, leaving the rest intact.
+
+  Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
+  """
+  @spec refresh_episode_lists() ::
+          {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
+  def refresh_episode_lists do
+    Log.info(:library, "refreshing season episode lists")
+
+    initial = %{updated: 0, skipped: 0, failed: 0, updated_ids: []}
+
+    result =
+      Enum.reduce(records_with_tmdb_id(TVSeries), initial, fn {series, tmdb_id}, acc ->
+        series.id
+        |> Library.Seasons.list_for_tv_series()
+        |> Enum.reduce(acc, &refresh_one_episode_list(series, &1, tmdb_id, &2))
+      end)
+
+    %{updated_ids: updated_ids} = result
+    Library.broadcast_entities_changed(Enum.uniq(updated_ids))
+
+    counts = Map.delete(result, :updated_ids)
+
+    Log.info(
+      :library,
+      "episode list refresh — #{counts.updated} updated, #{counts.skipped} skipped, #{counts.failed} failed"
+    )
+
+    {:ok, counts}
+  end
+
+  defp refresh_one_episode_list(series, season, tmdb_id, acc) do
+    if season_complete?(season) do
+      %{acc | skipped: acc.skipped + 1}
+    else
+      fetch_and_store_episode_list(series, season, tmdb_id, acc)
+    end
+  end
+
+  defp fetch_and_store_episode_list(series, season, tmdb_id, acc) do
+    case Client.get_season(tmdb_id, season.season_number) do
+      {:ok, season_data} ->
+        entries = Enum.map(season_data["episodes"] || [], &episode_list_entry/1)
+
+        case Repo.update(Season.episode_list_changeset(season, entries)) do
+          {:ok, _season} ->
+            %{acc | updated: acc.updated + 1, updated_ids: [series.id | acc.updated_ids]}
+
+          {:error, _changeset} ->
+            %{acc | failed: acc.failed + 1}
+        end
+
+      {:error, reason} ->
+        Log.warning(
+          :library,
+          "episode list refresh failed for #{series.id} season #{season.season_number}: #{inspect(reason)}"
+        )
+
+        %{acc | failed: acc.failed + 1}
+    end
+  end
+
+  # Complete means the library holds a row for every episode the list names.
+  # An empty list is never complete — it is a season that has never been
+  # refreshed.
+  defp season_complete?(season) do
+    listed = length(season.episode_list || [])
+    listed > 0 and length(Library.Episodes.list_for_season(season.id)) >= listed
+  end
+
+  # TMDB dates an undated episode as "" rather than omitting the key.
+  defp episode_list_entry(episode) do
+    %{
+      episode_number: episode["episode_number"],
+      name: episode["name"],
+      air_date: if(episode["air_date"] in [nil, ""], do: nil, else: episode["air_date"])
+    }
   end
 
   # Shared driver for credit-refresh maintenance actions. Each caller

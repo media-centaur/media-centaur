@@ -743,4 +743,14 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert html =~ "Couldn&#39;t reach Prowlarr" or html =~ "couldn&#39;t reach Prowlarr"
     end
   end
+
+  describe "Refresh episode lists" do
+    test "the button starts the pass", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=maintenance")
+
+      assert view |> element("button[phx-click='refresh_episode_lists']") |> render_click()
+      assert render(view) =~ "Refreshing…"
+    end
+  end
+
 end
