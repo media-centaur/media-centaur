@@ -499,6 +499,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               deleting={@deleting}
               tmdb_ready={@tmdb_ready}
               expanded_groups={@expanded_file_groups}
+              title_ref={@title_ref}
+              lower_quality_accepted?={@lower_quality_accepted?}
             />
           <% _ -> %>
             <div data-nav-zone="detail_list">
@@ -659,7 +661,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         rung={@rung}
         default_grab_mode={@default_grab_mode}
         acquisition?={@acquisition?}
-        lower_quality_accepted?={@lower_quality_accepted?}
       />
       <ReleaseTimeline.release_timeline
         :if={@tracking}

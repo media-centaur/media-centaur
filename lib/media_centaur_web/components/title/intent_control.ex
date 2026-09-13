@@ -39,9 +39,10 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   library's type tabs wear), a rule before Default, whose segment names
   what the global setting resolves to right now ("Default · Grab") so
   the resolved rung is on the button, not only in the line below.
-  Beneath the strip: the selected rung's one-line consequence, the
-  notes, and the per-title quality acceptance row with its Reset
-  (`reset_lower_quality`, ADR-063 §2) when set. The host places the
+  Beneath the strip: the selected rung's one-line consequence and the
+  notes. The per-title quality acceptance it used to carry is
+  `MediaCentaurWeb.Components.Title.LowerQualityNote`, placed by each host
+  instead (ADR-063 §2). The host places the
   control above everything tracking produces (the timeline, the
   activity), so choosing a rung never moves it. A list row never wears
   this control — a row shows its rung as a quiet marker and opens its
@@ -49,8 +50,6 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   """
 
   use Phoenix.Component
-
-  import MediaCentaurWeb.CoreComponents, only: [button: 1]
 
   alias MediaCentaur.Discovery.TitleIntent
 
@@ -83,8 +82,6 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
   attr :acquisition?, :boolean,
     required: true,
     doc: "an indexer and a download client are ready; without them the grab rungs download nothing"
-
-  attr :lower_quality_accepted?, :boolean, default: false
 
   def intent_control(assigns) do
     assigns = assign(assigns, :form, control_form(assigns.rung))
@@ -134,30 +131,6 @@ defmodule MediaCentaurWeb.Components.Title.IntentControl do
       >
         Ask, Grab and Default download nothing until an indexer and a download client are set up under Settings → Acquisition.
       </p>
-      <%!-- The per-title quality acceptance (ADR-063 §2) is keyed by TMDB
-            identity, so it can be set on a title at any rung; a plan board
-            sets it, this is where it is reset once the board is gone.
-            Rendered only when set — the inherited default is not a fact
-            worth a row. --%>
-      <div
-        :if={@lower_quality_accepted?}
-        id={"#{@id}-lower-quality"}
-        class="flex items-center justify-between gap-3 pt-1"
-      >
-        <span class="text-sm text-base-content/80">
-          Lower quality accepted — takes the best release there is
-        </span>
-        <.button
-          variant="dismiss"
-          size="xs"
-          phx-click="reset_lower_quality"
-          phx-value-ref={@ref}
-          data-nav-item
-          tabindex="0"
-        >
-          Reset
-        </.button>
-      </div>
     </div>
     """
   end

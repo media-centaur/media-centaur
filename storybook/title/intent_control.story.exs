@@ -22,8 +22,7 @@ defmodule MediaCentaurWeb.Storybook.Title.IntentControl do
         ref: "tv_series-1399",
         rung: :follow,
         default_grab_mode: "ask",
-        acquisition?: true,
-        lower_quality_accepted?: false
+        acquisition?: true
       },
       overrides
     )
@@ -64,13 +63,6 @@ defmodule MediaCentaurWeb.Storybook.Title.IntentControl do
           "No indexer or download client yet: the grab rungs stay selectable, and the " <>
             "note says plainly that they download nothing until one is set up.",
         attributes: base(%{rung: :default, default_grab_mode: "all_releases", acquisition?: false})
-      },
-      %Variation{
-        id: :lower_quality_accepted,
-        description:
-          "The per-title quality acceptance (ADR-063 §2) with its Reset. Keyed by TMDB " <>
-            "identity, so it shows at any rung — including a title nobody follows.",
-        attributes: base(%{rung: :grab, lower_quality_accepted?: true})
       }
     ]
   end

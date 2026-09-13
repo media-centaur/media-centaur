@@ -131,7 +131,9 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     assert has_element?(view, "#detail-tracking-mode[data-rung='ask']")
   end
 
-  test "the per-title quality acceptance is shown and reset from the block", %{
+  # Moved behind the cog on 2026-09-13: it is a setting you reset once,
+  # not a row to read past on the way to the episode list.
+  test "the per-title quality acceptance is shown and reset from Manage", %{
     conn: conn,
     series: series,
     item: item
@@ -143,16 +145,20 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
 
     {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
 
-    assert has_element?(view, "#detail-tracking-mode-lower-quality")
+    refute has_element?(view, "#detail-tracking #manage-lower-quality")
+
+    {:ok, view, _html} = live(conn, "/library?selected=#{series.id}&view=info")
+
+    assert has_element?(view, "#manage-lower-quality")
 
     view
-    |> element("#detail-tracking-mode-lower-quality button[phx-click='reset_lower_quality']")
+    |> element("#manage-lower-quality button[phx-click='reset_lower_quality']")
     |> render_click()
 
     assert MediaCentaur.Acquisition.TitleDownloadParams.get(item.tmdb_id, item.media_type).min_quality ==
              nil
 
-    refute has_element?(view, "#detail-tracking-mode-lower-quality")
+    refute has_element?(view, "#manage-lower-quality")
   end
 
   test "an untracked series shows no tracking block", %{conn: conn} do

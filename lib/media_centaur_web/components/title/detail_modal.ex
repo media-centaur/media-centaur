@@ -69,6 +69,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Components.Title.IntentControl
+  alias MediaCentaurWeb.Components.Title.LowerQualityNote
   alias MediaCentaurWeb.Components.Title.WatchlistToggle
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.Components.Title.Logic
@@ -206,7 +207,12 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
               rung={@detail.rung}
               default_grab_mode={@detail.default_grab_mode}
               acquisition?={@detail.acquisition?}
-              lower_quality_accepted?={@detail.lower_quality_accepted?}
+            />
+            <LowerQualityNote.lower_quality_note
+              id="title-lower-quality"
+              ref={@ref}
+              accepted?={@detail.lower_quality_accepted?}
+              class="pt-3"
             />
           </div>
 

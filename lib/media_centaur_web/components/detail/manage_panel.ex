@@ -64,6 +64,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   import MediaCentaurWeb.LiveHelpers
 
   alias MediaCentaurWeb.Components.Detail.SubtitlesRow
+  alias MediaCentaurWeb.Components.Title.LowerQualityNote
   alias MediaCentaurWeb.Components.Detail.TrackOverrideBadge
 
   # Above this many files the ledger rests collapsed; at or below it,
@@ -93,6 +94,15 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
   attr :deleting, :any, default: nil, doc: @doc_deleting
   attr :tmdb_ready, :boolean, default: true
+
+  attr :title_ref, :string,
+    default: nil,
+    doc: "the subject's title ref — what the lower-quality Reset acts on."
+
+  attr :lower_quality_accepted?, :boolean,
+    default: false,
+    doc:
+      "whether the subject carries the per-title lower-quality acceptance (ADR-063 §2). Shown here rather than under the episode list — it is a setting you reset once."
 
   attr :expanded_groups, :any,
     default: nil,
@@ -219,6 +229,14 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
       </div>
 
       <div data-nav-zone="manage_list" class="space-y-5">
+        <%!-- Above the ledger: a setting you came here to clear should not
+              be below a list you have to scroll past. --%>
+        <LowerQualityNote.lower_quality_note
+          :if={@title_ref}
+          id="manage-lower-quality"
+          ref={@title_ref}
+          accepted?={@lower_quality_accepted?}
+        />
         <p
           :if={@files_status == :loading}
           class="text-xs text-base-content/55"
