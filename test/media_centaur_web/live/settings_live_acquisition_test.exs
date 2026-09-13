@@ -1,28 +1,42 @@
 defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
   @moduledoc """
-  The Acquisition section (Prowlarr + Download Client) and TMDB section
-  share a discipline: any value the user types in is persisted, even if
-  a connection test fails. Clicking "Test connection" must save the
-  current form values *before* running the test — otherwise a failing
-  test would re-render the form against stale config and clobber what
-  the user just typed.
+  The Acquisition and TMDB sections as connection rows (UIDR-041): the
+  readout shows what is configured with no inputs until Edit; Test asks
+  the connection state owner (`IntegrationHealth`) to verify; Save and
+  Save-and-test persist what was typed before anything else happens, so
+  a failing test never displaces the user's input.
 
-  These tests exercise that contract end-to-end via form submission.
+  The owner is started per test with an injected verifier, and each
+  case waits for the owner's terminal broadcast before reading the row.
   """
 
   use MediaCentaurWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Acquisition.AutoGrabSettings
+  alias MediaCentaur.Capabilities
+  alias MediaCentaur.IntegrationHealth
+  alias MediaCentaur.IntegrationHealth.Status
   alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Settings.Preferences.PlanningMode
+
+  defmodule OkVerifier do
+    @behaviour MediaCentaur.IntegrationHealth.Verifier
+    @impl true
+    def run(_id), do: :ok
+  end
+
+  defmodule RejectVerifier do
+    @behaviour MediaCentaur.IntegrationHealth.Verifier
+    @impl true
+    def run(_id), do: {:error, :rejected}
+  end
 
   setup do
     # Reset Config keys at the START of each test (in the test process,
-    # while it owns its DB sandbox connection). The earlier on_exit
-    # cleanup ran in ExUnit.OnExitHandler — a different process without
-    # sandbox ownership — and was a flake under concurrent-test load.
-    # Resetting before each test instead of after the previous one
-    # produces the same hermetic effect with deterministic ownership.
+    # while it owns its DB sandbox connection).
+    Config.update(:tmdb_api_key, nil)
     Config.update(:prowlarr_url, nil)
     Config.update(:prowlarr_api_key, nil)
     Config.update(:download_client_type, nil)
@@ -33,278 +47,175 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
     Config.update(:usenet_download_client_url, nil)
     Config.update(:usenet_download_client_api_key, nil)
 
-    # A "test" submit starts the connection test as a LiveView async task
-    # that calls the integration through its `Req.Test` stub. Answer every
-    # stub so the task completes — each test below awaits it with
-    # `render_async/1` — instead of crashing on a missing stub, or on a
-    # stub that died with this process (ADR-049). The verdict is not under
-    # test here: the contract is that the typed values are saved first.
-    for stub <- [:prowlarr, :qbittorrent, :sabnzbd, :tmdb] do
-      Req.Test.stub(stub, &Req.Test.json(&1, %{}))
-    end
-
+    Application.put_env(:media_centaur, :integration_health_verifier, OkVerifier)
+    on_exit(fn -> Application.delete_env(:media_centaur, :integration_health_verifier) end)
+    start_supervised!(IntegrationHealth)
+    IntegrationHealth.subscribe()
     :ok
   end
 
-  describe "test buttons are wired as form submits, not standalone clicks" do
-    # The bug: a `phx-click="test_*"` button fires its handler without
-    # any form params. The typed-in URL/key never reaches the server.
-    # When the test result comes back and re-renders the form, morphdom
-    # overwrites the user's typed values with whatever's in @config —
-    # what the user perceives as a confusing "default values reset".
-    # Fix: each test button is a form submit (`name="_action" value="test"`)
-    # so save+test happen in one server round-trip.
+  defp configure_prowlarr do
+    Config.update(:prowlarr_url, "http://localhost:9696")
+    Config.update(:prowlarr_api_key, "k")
+    :ok
+  end
 
-    test "acquisition section: prowlarr + download client test buttons submit the form",
+  # Waits for the owner's terminal broadcast for `id`, then re-renders.
+  defp await_test(view, id) do
+    assert_receive {:integration_health_changed, %Status{id: ^id, test_state: state}}
+                   when state in [:ok, :error],
+                   1_000
+
+    render(view)
+  end
+
+  describe "readout" do
+    test "a configured install shows rows with no inputs until Edit", %{conn: conn} do
+      configure_prowlarr()
+      {:ok, view, html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      assert html =~ "http://localhost:9696"
+      assert html =~ "API key set"
+      refute has_element?(view, "#connection-prowlarr input")
+      refute has_element?(view, "#connection-prowlarr select")
+    end
+
+    test "an unconfigured row reads Not configured with Set up", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      assert has_element?(view, "#connection-prowlarr", "Not configured")
+      assert has_element?(view, "#connection-prowlarr-setup", "Set up")
+    end
+
+    test "Test asks the owner to verify; the row follows and stored values are untouched",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+      configure_prowlarr()
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
-      refute has_element?(view, "#settings-prowlarr button[phx-click='test_prowlarr']"),
-             "Prowlarr test button must not be a standalone phx-click — typed values would be lost"
+      view |> element("#connection-prowlarr-test") |> render_click()
+      html = await_test(view, :prowlarr)
 
-      refute has_element?(
-               view,
-               "#settings-download-client button[phx-click='test_download_client']"
-             ),
-             "Download-client test button must not be a standalone phx-click"
-
-      assert has_element?(
-               view,
-               "#settings-prowlarr button[type='submit'][name='_action'][value='test']"
-             )
-
-      assert has_element?(
-               view,
-               "#settings-download-client button[type='submit'][name='_action'][value='test']"
-             )
-    end
-
-    test "tmdb section: test button submits the form", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=tmdb")
-
-      refute has_element?(view, "#settings-tmdb button[phx-click='test_tmdb']"),
-             "TMDB test button must not be a standalone phx-click"
-
-      assert has_element?(
-               view,
-               "#settings-tmdb button[type='submit'][name='_action'][value='test']"
-             )
+      assert html =~ "Connected"
+      assert Config.get(:prowlarr_url) == "http://localhost:9696"
+      assert %{status: :ok} = Capabilities.load_test_result(:prowlarr)
     end
   end
 
-  describe "prowlarr form" do
-    test "save persists form values", %{conn: conn} do
+  describe "edit state" do
+    setup do
+      configure_prowlarr()
+    end
+
+    test "Edit opens the form; Cancel closes it with nothing changed", %{conn: conn} do
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      view |> element("#connection-prowlarr-edit") |> render_click()
+      assert has_element?(view, "#connection-prowlarr-form input[name=prowlarr_url]")
+
+      view |> element("#connection-prowlarr-cancel") |> render_click()
+      refute has_element?(view, "#connection-prowlarr-form")
+      assert Config.get(:prowlarr_url) == "http://localhost:9696"
+    end
+
+    test "opening a second row's form closes the first", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      view |> element("#connection-prowlarr-edit") |> render_click()
+      view |> element("#connection-download_client-setup") |> render_click()
+      refute has_element?(view, "#connection-prowlarr-form")
+      assert has_element?(view, "#connection-download_client-form")
+    end
+
+    test "Save persists, closes the form and the row reads Not tested", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      view |> element("#connection-prowlarr-edit") |> render_click()
 
       view
-      |> form("#settings-prowlarr", %{
-        "prowlarr_url" => "http://prowlarr.example.com:9696",
-        "prowlarr_api_key" => "secret-key-123"
-      })
+      |> form("#connection-prowlarr-form", %{"prowlarr_url" => "http://prowlarr.example.com:9696"})
       |> render_submit(%{"_action" => "save"})
 
       assert Config.get(:prowlarr_url) == "http://prowlarr.example.com:9696"
+      refute has_element?(view, "#connection-prowlarr-form")
+
+      assert_receive {:integration_health_changed, %Status{id: :prowlarr, test_state: :unknown}},
+                     1_000
+
+      assert render(view) =~ "Not tested"
     end
 
-    test "test action persists values BEFORE running the test", %{conn: conn} do
+    test "Save and test persists BEFORE verifying and closes on :ok", %{conn: conn} do
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      view |> element("#connection-prowlarr-edit") |> render_click()
 
       view
-      |> form("#settings-prowlarr", %{
-        "prowlarr_url" => "http://prowlarr.example.com:9696",
-        "prowlarr_api_key" => "secret-key-123"
-      })
+      |> form("#connection-prowlarr-form", %{"prowlarr_url" => "http://prowlarr.example.com:9696"})
       |> render_submit(%{"_action" => "test"})
 
-      render_async(view)
-
-      # Saved BEFORE the async test fires.
       assert Config.get(:prowlarr_url) == "http://prowlarr.example.com:9696"
+      html = await_test(view, :prowlarr)
+      refute html =~ "connection-prowlarr-form"
+      assert html =~ "Connected"
     end
 
-    test "a crashed connection test clears the testing flag and tells the user", %{conn: conn} do
-      Req.Test.stub(:prowlarr, fn _conn -> raise "stub crashed" end)
+    test "a failed Save and test keeps the typed values in the open form", %{conn: conn} do
+      Application.put_env(:media_centaur, :integration_health_verifier, RejectVerifier)
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      view |> element("#connection-prowlarr-edit") |> render_click()
 
       view
-      |> form("#settings-prowlarr", %{
-        "prowlarr_url" => "http://prowlarr.example.com:9696",
-        "prowlarr_api_key" => "secret-key-123"
-      })
+      |> form("#connection-prowlarr-form", %{"prowlarr_url" => "http://prowlarr.example.com:9696"})
       |> render_submit(%{"_action" => "test"})
 
-      html = render_async(view)
-
-      assert html =~ "Prowlarr test failed"
-
-      refute has_element?(
-               view,
-               "#settings-prowlarr button[type='submit'][name='_action'][value='test'][disabled]"
-             )
-    end
-
-    test "failed test does not revert the typed-in URL", %{conn: conn} do
-      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      view
-      |> form("#settings-prowlarr", %{
-        "prowlarr_url" => "http://typed-by-user.example.com:9696",
-        "prowlarr_api_key" => "user-typed-key"
-      })
-      |> render_submit(%{"_action" => "test"})
-
-      render_async(view)
-
-      send(view.pid, {:prowlarr_test_result, :error})
-      html = render(view)
-
-      # The typed-in URL must still be the input's `value=` after the
-      # failure — that's what survives morphdom on re-render.
-      assert html =~ ~s(value="http://typed-by-user.example.com:9696")
-    end
-  end
-
-  describe "download client form" do
-    test "save persists form values", %{conn: conn} do
-      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      view
-      |> form("#settings-download-client", %{
-        "download_client_type" => "qbittorrent",
-        "download_client_url" => "http://qb.example.com:8080",
-        "download_client_username" => "shawn",
-        "download_client_password" => "pw"
-      })
-      |> render_submit(%{"_action" => "save"})
-
-      assert Config.get(:download_client_url) == "http://qb.example.com:8080"
-      assert Config.get(:download_client_username) == "shawn"
-    end
-
-    test "test action persists values BEFORE running the test", %{conn: conn} do
-      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      view
-      |> form("#settings-download-client", %{
-        "download_client_type" => "qbittorrent",
-        "download_client_url" => "http://qb.example.com:8080",
-        "download_client_username" => "shawn",
-        "download_client_password" => "pw"
-      })
-      |> render_submit(%{"_action" => "test"})
-
-      render_async(view)
-
-      assert Config.get(:download_client_url) == "http://qb.example.com:8080"
-    end
-
-    test "failed test does not revert the typed-in URL", %{conn: conn} do
-      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      view
-      |> form("#settings-download-client", %{
-        "download_client_type" => "qbittorrent",
-        "download_client_url" => "http://typed-by-user.example.com:8080",
-        "download_client_username" => "shawn",
-        "download_client_password" => "pw"
-      })
-      |> render_submit(%{"_action" => "test"})
-
-      render_async(view)
-
-      send(view.pid, {:download_client_test_result, :error})
-      html = render(view)
-
-      assert html =~ ~s(value="http://typed-by-user.example.com:8080")
-    end
-  end
-
-  describe "usenet client form" do
-    test "test button is wired as a form submit", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      refute has_element?(
-               view,
-               "#settings-usenet-client button[phx-click='test_usenet_client']"
-             ),
-             "Usenet-client test button must not be a standalone phx-click"
+      await_test(view, :prowlarr)
 
       assert has_element?(
                view,
-               "#settings-usenet-client button[type='submit'][name='_action'][value='test']"
+               "#connection-prowlarr-form input[value='http://prowlarr.example.com:9696']"
              )
     end
 
-    test "save persists form values", %{conn: conn} do
+    test "Escape cancels", %{conn: conn} do
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      view |> element("#connection-prowlarr-edit") |> render_click()
+      render_keydown(view, "cancel_edit", %{"key" => "Escape"})
+      refute has_element?(view, "#connection-prowlarr-form")
+    end
+  end
 
-      view
-      |> form("#settings-usenet-client", %{
-        "usenet_download_client_type" => "sabnzbd",
-        "usenet_download_client_url" => "http://sab.example.com:8085",
-        "usenet_download_client_api_key" => "sab-api-key"
-      })
-      |> render_submit(%{"_action" => "save"})
+  describe "download clients" do
+    test "Remove client empties the slot", %{conn: conn} do
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://localhost:8080")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      view |> element("#connection-download_client-edit") |> render_click()
+      view |> element("#connection-download_client-remove") |> render_click()
 
-      assert Config.get(:usenet_download_client_type) == "sabnzbd"
-      assert Config.get(:usenet_download_client_url) == "http://sab.example.com:8085"
-      assert MediaCentaur.Secret.present?(Config.get(:usenet_download_client_api_key))
+      assert Config.get(:download_client_type) == nil
+
+      assert_receive {:integration_health_changed, %Status{id: :download_client, configured?: false}},
+                     1_000
+
+      assert has_element?(view, "#connection-download_client", "Not configured")
     end
 
-    test "a blank API key on save keeps the stored key", %{conn: conn} do
-      Config.update(:usenet_download_client_api_key, "already-stored")
+    test "a blank API key on save keeps the stored usenet key", %{conn: conn} do
+      Config.update(:usenet_download_client_type, "sabnzbd")
+      Config.update(:usenet_download_client_url, "http://localhost:8085")
+      Config.update(:usenet_download_client_api_key, "keep-me")
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+      view |> element("#connection-usenet_download_client-edit") |> render_click()
 
       view
-      |> form("#settings-usenet-client", %{
-        "usenet_download_client_type" => "sabnzbd",
-        "usenet_download_client_url" => "http://sab.example.com:8085",
+      |> form("#connection-usenet_download_client-form", %{
+        "usenet_download_client_url" => "http://localhost:8085",
         "usenet_download_client_api_key" => ""
       })
       |> render_submit(%{"_action" => "save"})
 
-      assert MediaCentaur.Secret.expose(Config.get(:usenet_download_client_api_key)) ==
-               "already-stored"
+      assert MediaCentaur.Secret.expose(Config.get(:usenet_download_client_api_key)) == "keep-me"
     end
 
-    test "test action persists values BEFORE running the test", %{conn: conn} do
-      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      view
-      |> form("#settings-usenet-client", %{
-        "usenet_download_client_type" => "sabnzbd",
-        "usenet_download_client_url" => "http://sab.example.com:8085",
-        "usenet_download_client_api_key" => "sab-api-key"
-      })
-      |> render_submit(%{"_action" => "test"})
-
-      render_async(view)
-
-      assert Config.get(:usenet_download_client_url) == "http://sab.example.com:8085"
-    end
-
-    test "failed test does not revert the typed-in URL", %{conn: conn} do
-      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      view
-      |> form("#settings-usenet-client", %{
-        "usenet_download_client_type" => "sabnzbd",
-        "usenet_download_client_url" => "http://typed-by-user.example.com:8085",
-        "usenet_download_client_api_key" => "sab-api-key"
-      })
-      |> render_submit(%{"_action" => "test"})
-
-      render_async(view)
-
-      send(view.pid, {:usenet_client_test_result, :error})
-      html = render(view)
-
-      assert html =~ ~s(value="http://typed-by-user.example.com:8085")
-    end
-  end
-
-  describe "detect from Prowlarr routes clients to their protocol slots" do
-    test "a qbittorrent and a sabnzbd client pre-fill their own forms", %{conn: conn} do
+    test "Detect from Prowlarr puts each client on its row as a pending detection", %{
+      conn: conn
+    } do
+      configure_prowlarr()
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
       clients = [
@@ -325,68 +236,110 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       ]
 
       send(view.pid, {:download_client_detect_result, {:ok, clients}})
-      html = render(view)
 
-      assert html =~ ~s(value="http://qbit.detected:8080")
-      assert html =~ ~s(value="http://sab.detected:8085")
+      assert has_element?(view, "#connection-download_client", "Detected from Prowlarr, not saved")
+
+      assert has_element?(
+               view,
+               "#connection-usenet_download_client",
+               "Detected from Prowlarr, not saved"
+             )
+
+      assert Config.get(:download_client_url) == nil
+
+      view |> element("#connection-download_client-review") |> render_click()
+
+      assert has_element?(
+               view,
+               "#connection-download_client-form input[name=download_client_url][value='http://qbit.detected:8080']"
+             )
+
+      view |> element("#connection-usenet_download_client-dismiss") |> render_click()
+      refute has_element?(view, "#connection-usenet_download_client", "Detected from Prowlarr")
     end
   end
 
-  describe "tmdb form" do
-    test "test action persists API key BEFORE running the test", %{conn: conn} do
-      {:ok, view, _} = live_async!(conn, ~p"/settings?section=tmdb")
+  describe "gated cards" do
+    test "state their prerequisite while Prowlarr is not ready", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
-      view
-      |> form("#settings-tmdb", %{
-        "tmdb_api_key" => "tmdb-key-from-user"
-      })
-      |> render_submit(%{"_action" => "test"})
+      assert has_element?(
+               view,
+               "#card-download-button",
+               "Available once Prowlarr's connection test passes."
+             )
 
-      render_async(view)
+      assert has_element?(
+               view,
+               "#card-auto-acquisition",
+               "Available once Prowlarr's connection test passes."
+             )
 
-      # Persistence assertion via the present? flag — the raw key never
-      # round-trips through assigns (see SettingsLive.load_config/0).
-      assert MediaCentaur.Secret.present?(Config.get(:tmdb_api_key))
+      refute has_element?(view, "#card-auto-acquisition button")
     end
   end
 
-  describe "download button — default planning mode" do
-    alias MediaCentaur.Settings.Preferences.PlanningMode
-
+  describe "auto-acquisition rows (Prowlarr ready)" do
     setup do
-      Config.update(:prowlarr_url, "http://prowlarr.test")
-      Config.update(:prowlarr_api_key, "test-key")
-      MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
+      configure_prowlarr()
+      Capabilities.save_test_result(:prowlarr, :ok)
       :ok
     end
 
-    test "defaults to manual selection and persists a change", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      assert has_element?(
-               view,
-               "#settings-planning-mode option[value='manually_select_release'][selected]"
-             )
+    test "a choice persists on click", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
       view
-      |> form("#settings-download-button", %{planning_mode: "auto_select_best_release"})
-      |> render_change()
+      |> element("#auto-grab-default_max_quality button[phx-value-choice=hd_1080p]")
+      |> render_click()
 
-      assert PlanningMode.value() == :auto_select_best_release
-
-      assert has_element?(
-               view,
-               "#settings-planning-mode option[value='auto_select_best_release'][selected]"
-             )
+      assert AutoGrabSettings.load().default_max_quality == "hd_1080p"
     end
 
-    test "the card is hidden until Prowlarr is ready", %{conn: conn} do
-      Config.update(:prowlarr_url, nil)
-      Config.update(:prowlarr_api_key, nil)
+    test "a stepper persists its absolute target", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
 
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+      view
+      |> element("#auto-grab-pack_min_fit button[aria-label='Increase Season packs']")
+      |> render_click()
 
-      refute has_element?(view, "#settings-download-button")
+      assert AutoGrabSettings.load().pack_min_fit == 80
+    end
+
+    test "the planning mode is a choice row in the button's words", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view
+      |> element("#planning-mode button[phx-value-choice=auto_select_best_release]")
+      |> render_click()
+
+      assert PlanningMode.value() == :auto_select_best_release
+    end
+  end
+
+  test "the release-tracking interval steps along its ladder", %{conn: conn} do
+    {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+    view
+    |> element(
+      "#release-tracking-interval button[aria-label='Increase Check TMDB for new release dates']"
+    )
+    |> render_click()
+
+    assert Config.get(:release_tracking_refresh_interval_hours) == 8
+  end
+
+  describe "tmdb row" do
+    test "Save and test persists the key BEFORE verifying", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=tmdb")
+      view |> element("#connection-tmdb-setup") |> render_click()
+
+      view
+      |> form("#connection-tmdb-form", %{"tmdb_api_key" => "tmdb-key-123"})
+      |> render_submit(%{"_action" => "test"})
+
+      assert MediaCentaur.Secret.expose(Config.get(:tmdb_api_key)) == "tmdb-key-123"
+      assert await_test(view, :tmdb) =~ "Connected"
     end
   end
 end

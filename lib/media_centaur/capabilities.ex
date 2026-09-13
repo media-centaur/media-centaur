@@ -128,49 +128,52 @@ defmodule MediaCentaur.Capabilities do
   @doc """
   Saves an integration's connection form. `params` is the submitted form
   (string keys); fields absent from it are untouched, blank settings and
-  secrets are left as they were. Returns whether any stored value changed;
-  a change clears the integration's persisted test result, since the old
-  result no longer describes these settings. Both the Settings page and
+  secrets are left as they were. Returns whether any stored value changed.
+
+  A change clears the integration's persisted test result **before** the
+  fields are written, since the old result no longer describes these
+  settings: `IntegrationHealth` re-reads the persisted test on each
+  field's `{:config_updated, ...}` broadcast, so clearing first is what
+  makes its row read Not tested after a save. Both the Settings page and
   the setup tour save through here.
   """
   @spec save_integration(subject(), %{optional(String.t()) => term()}) :: boolean()
   def save_integration(subject, params) when is_map(params) do
-    changed? =
+    changes =
       @integration_fields
       |> Map.fetch!(subject)
-      |> Enum.reduce(false, fn {key, kind}, changed? ->
-        write_field(key, kind, Map.get(params, Atom.to_string(key))) or changed?
-      end)
+      |> Enum.filter(fn {key, kind} -> changes?(key, kind, Map.get(params, Atom.to_string(key))) end)
 
-    if changed?, do: clear_test_result(subject)
-    changed?
+    if changes == [] do
+      false
+    else
+      clear_test_result(subject)
+      Enum.each(changes, fn {key, _kind} -> Config.update(key, Map.get(params, Atom.to_string(key))) end)
+      true
+    end
   end
 
   @doc """
   Empties every field of an integration and drops its test result — the
   Remove client action. The slot reads as never configured afterwards.
+  The test result goes first, for the same reason `save_integration/2`
+  clears first.
   """
   @spec clear_integration(subject()) :: :ok
   def clear_integration(subject) do
+    clear_test_result(subject)
+
     @integration_fields
     |> Map.fetch!(subject)
     |> Enum.each(fn {key, _kind} -> Config.update(key, nil) end)
-
-    clear_test_result(subject)
   end
 
-  defp write_field(_key, _kind, nil), do: false
-  defp write_field(_key, kind, "") when kind in [:setting, :secret], do: false
+  defp changes?(_key, _kind, nil), do: false
+  defp changes?(_key, kind, "") when kind in [:setting, :secret], do: false
 
-  defp write_field(key, kind, value) when is_binary(value) do
+  defp changes?(key, kind, value) when is_binary(value) do
     current = if kind == :secret, do: MediaCentaur.Secret.expose(Config.get(key)), else: Config.get(key)
-
-    if current == value do
-      false
-    else
-      Config.update(key, value)
-      true
-    end
+    current != value
   end
 
   defp present?(value), do: is_binary(value) and value != ""

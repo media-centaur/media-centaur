@@ -183,7 +183,7 @@ const TOUR = [
       // scrollIntoViewIfNeeded is a no-op when the card is already
       // visible, which made this shot identical to settings-prowlarr.
       await page
-        .locator("#settings-download-client")
+        .locator("#connection-download_client")
         .evaluate((el) => el.scrollIntoView({ block: "start", behavior: "instant" }))
         .catch(() => {})
     },
@@ -194,7 +194,7 @@ const TOUR = [
     url: "/settings?section=acquisition",
     action: async (page) => {
       await page
-        .locator("#settings-prowlarr")
+        .locator("#connection-prowlarr")
         .scrollIntoViewIfNeeded({ timeout: 5_000 })
         .catch(() => {})
     },

@@ -18,13 +18,15 @@ defmodule MediaCentaur.IntegrationHealth do
       `tested_at` when there is one, `:unknown` when there is none.
       Nothing is probed (UIDR-041 §7): an integration reads as it last
       tested until someone tests it.
-    * On `{:config_updated, key, _value}` for any tracked key: flip
-      `configured?` to match and reset `test_state` to `:unknown` — the
-      old result no longer describes these settings. The verify itself
-      is the caller's explicit act (`verify/1`, from the setup tour or
-      Settings), so a multi-field save cannot race a probe against
-      half-written credentials. `:pending` means a verify is in flight
-      and nothing else.
+    * On `{:config_updated, key, _value}` for any tracked key: re-seed
+      the id from Config and the persisted test. A person's save clears
+      the persisted test before it writes a field
+      (`Capabilities.save_integration/2`), so the row reads `:unknown`
+      afterwards; the boot-time config load leaves it in place, so the
+      row keeps its last result. A verify in flight keeps its `:pending`
+      through a re-seed. The verify itself is the caller's explicit act
+      (`verify/1`, from the setup tour or Settings), so a multi-field
+      save cannot race a probe against half-written credentials.
     * On `verify/1`: spawn the test on `Task.Supervisor`, set
       `test_state: :pending`, broadcast the change. The result arrives
       via `handle_info({:test_result, id, ...})`, is written here,
@@ -189,17 +191,14 @@ defmodule MediaCentaur.IntegrationHealth do
         {:noreply, state}
 
       id ->
-        configured? = configured_for?(id)
-        # Reset test_state — the previous :ok is no longer valid evidence
-        # for the new key value. We deliberately do NOT auto-kick a verify
-        # here: writes typically arrive in bursts (e.g., the setup tour
-        # saving URL + api_key in one form submit) and a per-key cascade
-        # races on stale config, so verification is always explicit via
-        # `verify/1`. Callers that mutate config and want a fresh test
-        # should call `verify/1` after the last write.
-        write(id, %Status{id: id, configured?: configured?, test_state: :unknown})
-
-        broadcast(id)
+        # Re-seed from the persisted test rather than resetting outright:
+        # a person's save has already cleared it (so this reads :unknown),
+        # while the boot-time config load has not (so the last result
+        # stays). We deliberately do NOT auto-kick a verify here: writes
+        # arrive in bursts (the tour saving URL + key in one submit) and a
+        # per-key cascade races on stale config, so verification is always
+        # explicit via `verify/1`.
+        reseed(id)
         {:noreply, state}
     end
   end
@@ -258,6 +257,26 @@ defmodule MediaCentaur.IntegrationHealth do
 
     Log.warning(:system, "#{id} test failed — #{inspect(reason)}")
     broadcast(id)
+  end
+
+  # Re-read one id from Config and the persisted test, keeping a verify
+  # that is still in flight, and tell subscribers when anything moved.
+  defp reseed(id) do
+    current = status(id)
+    fresh = seeded(id)
+
+    next =
+      case current do
+        %Status{test_state: :pending} -> %{fresh | test_state: :pending}
+        _settled -> fresh
+      end
+
+    if current != next do
+      write(id, next)
+      broadcast(id)
+    end
+
+    :ok
   end
 
   # The boot state of one id: configured? from Config, and the persisted

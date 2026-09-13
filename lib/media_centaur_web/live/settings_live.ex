@@ -34,6 +34,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Maintenance
   alias MediaCentaur.Settings.Preferences.{PlanningMode, ShareWatched, ShareWatchlist, UIScale}
   alias MediaCentaur.Acquisition
+  alias MediaCentaur.Acquisition.AutoGrabSettings
+  alias MediaCentaur.IntegrationHealth
+  alias MediaCentaurWeb.SettingsLive.ConnectionState
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Watcher
   alias MediaCentaur.Pipeline
@@ -137,6 +140,8 @@ defmodule MediaCentaurWeb.SettingsLive do
     %{id: "danger", label: "Danger Zone", group: :infra, description: "Actions that cannot be undone."}
   ]
 
+  @refresh_hours_ladder [1, 2, 3, 4, 6, 8, 12, 24]
+
   @impl true
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "Settings")
@@ -153,6 +158,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       Controls.subscribe()
       Social.subscribe()
       Social.subscribe_connections()
+      IntegrationHealth.subscribe()
       # Coarse heartbeat so the "next check" estimate on the Updates card stays
       # roughly current without behaving like a per-second countdown. The
       # labels carry no seconds (minute grain at their finest), so a 60s
@@ -176,9 +182,8 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
      |> assign(blank_extra_names_count: 0)
      |> assign(controls_reset_armed: false)
-     |> assign(tmdb_test: nil)
-     |> assign(prowlarr_test: nil)
-     |> assign(download_client_test: nil)
+     |> assign(connections: IntegrationHealth.all_statuses(), editing: nil)
+     |> assign(auto_grab: %AutoGrabSettings{})
      |> assign(tmdb_missing: false)
      |> assign(
        service_state: %{
@@ -214,13 +219,9 @@ defmodule MediaCentaurWeb.SettingsLive do
        refreshing_episode_lists: false,
        refreshing_movie_subtitles: false,
        repair_last_result: nil,
-       tmdb_testing: false,
-       prowlarr_testing: false,
-       download_client_testing: false,
        download_client_detect_status: nil,
        download_client_detecting: false,
        detected_download_client: nil,
-       usenet_client_testing: false,
        detected_usenet_client: nil,
        app_version: Version.current_version(),
        build_info: Version.build_info(),
@@ -371,10 +372,8 @@ defmodule MediaCentaurWeb.SettingsLive do
       # (audit P4). A repair re-walks live in its own result handler.
       missing_images_summary: MediaCentaur.Status.Views.overview().missing_images,
       blank_extra_names_count: Maintenance.blank_extra_names_count(),
-      tmdb_test: load_test_result(:tmdb),
-      prowlarr_test: load_test_result(:prowlarr),
-      download_client_test: load_test_result(:download_client),
-      usenet_client_test: load_test_result(:usenet_download_client),
+      connections: IntegrationHealth.all_statuses(),
+      auto_grab: AutoGrabSettings.load(),
       planning_mode: PlanningMode.value(),
       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
       service_state: Autostart.state(),
@@ -921,109 +920,63 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, share_watchlist?: enabled)}
   end
 
-  def handle_event("save_tmdb", params, socket) do
-    if Capabilities.save_integration(:tmdb, params) do
-      # Recovery hook: a fresh key may unblock files that were stranded
-      # by an earlier TMDB auth failure. Re-emit `:file_detected` for
-      # any present watcher_files row with no library link so the
-      # pipeline gets another chance.
-      MediaCentaur.Watcher.Rescan.rescan_unlinked_async()
-    end
+  # --- Connection rows (UIDR-041 §1, §7) ---------------------------------
 
-    socket = assign(socket, config: load_config(), tmdb_test: load_test_result(:tmdb))
+  def handle_event("edit_connection", %{"connection" => id}, socket),
+    do: {:noreply, assign(socket, editing: connection_id(id))}
+
+  def handle_event("cancel_edit", _params, socket), do: {:noreply, assign(socket, editing: nil)}
+
+  # Test on the readout asks the owner to verify; the row follows the
+  # owner's broadcasts (`handle_info({:integration_health_changed, _})`).
+  def handle_event("test_connection", %{"connection" => id}, socket) do
+    IntegrationHealth.verify(connection_id(id))
+    {:noreply, socket}
+  end
+
+  # Save and Save-and-test share one submit; `_action` says which. A save
+  # that changed anything clears the persisted test (Capabilities) and the
+  # owner resets the row to Not tested on the config broadcast. A test
+  # then verifies through the owner and the form stays open until :ok
+  # lands, so a failed test keeps the typed values in view.
+  def handle_event("save_connection", %{"connection" => id} = params, socket) do
+    subject = connection_id(id)
+    changed? = Capabilities.save_integration(subject, params)
+    socket = socket |> after_save(subject, changed?) |> assign(config: load_config())
 
     case params["_action"] do
       "test" ->
-        socket =
-          start_async_test(socket, :tmdb_test_result, fn ->
-            case MediaCentaur.TMDB.Client.configuration() do
-              {:ok, _} -> :ok
-              {:error, _} -> :error
-            end
-          end)
+        IntegrationHealth.verify(subject)
+        {:noreply, socket}
 
-        {:noreply, assign(socket, tmdb_testing: true)}
-
-      _ ->
-        {:noreply, put_flash(socket, :info, "TMDB settings saved")}
+      _save ->
+        {:noreply,
+         socket
+         |> assign(editing: nil)
+         |> put_flash(:info, "#{connection_name(subject)} saved")}
     end
   end
 
-  def handle_event("save_prowlarr", params, socket) do
-    Capabilities.save_integration(:prowlarr, params)
-    socket = assign(socket, config: load_config(), prowlarr_test: load_test_result(:prowlarr))
+  def handle_event("remove_client", %{"connection" => id}, socket)
+      when id in ["download_client", "usenet_download_client"] do
+    subject = connection_id(id)
+    Capabilities.clear_integration(subject)
 
-    case params["_action"] do
-      "test" ->
-        socket =
-          start_async_test(socket, :prowlarr_test_result, fn ->
-            case MediaCentaur.Acquisition.test_prowlarr() do
-              :ok -> :ok
-              {:error, _} -> :error
-            end
-          end)
-
-        {:noreply, assign(socket, prowlarr_testing: true)}
-
-      _ ->
-        {:noreply, put_flash(socket, :info, "Acquisition settings saved")}
-    end
+    {:noreply,
+     socket
+     |> after_save(subject, true)
+     |> assign(editing: nil, config: load_config())
+     |> put_flash(:info, "#{connection_name(subject)} removed")}
   end
 
-  def handle_event("save_download_client", params, socket) do
-    Capabilities.save_integration(:download_client, params)
+  def handle_event("review_detected", %{"connection" => id}, socket),
+    do: {:noreply, assign(socket, editing: connection_id(id))}
 
-    socket =
-      assign(socket,
-        config: load_config(),
-        download_client_test: load_test_result(:download_client),
-        download_client_detect_status: nil,
-        detected_download_client: nil
-      )
+  def handle_event("dismiss_detected", %{"connection" => "download_client"}, socket),
+    do: {:noreply, assign(socket, detected_download_client: nil)}
 
-    case params["_action"] do
-      "test" ->
-        socket =
-          start_async_test(socket, :download_client_test_result, fn ->
-            case Acquisition.test_download_client() do
-              :ok -> :ok
-              {:error, _} -> :error
-            end
-          end)
-
-        {:noreply, assign(socket, download_client_testing: true)}
-
-      _ ->
-        {:noreply, put_flash(socket, :info, "Download client settings saved")}
-    end
-  end
-
-  def handle_event("save_usenet_client", params, socket) do
-    Capabilities.save_integration(:usenet_download_client, params)
-
-    socket =
-      assign(socket,
-        config: load_config(),
-        usenet_client_test: load_test_result(:usenet_download_client),
-        detected_usenet_client: nil
-      )
-
-    case params["_action"] do
-      "test" ->
-        socket =
-          start_async_test(socket, :usenet_client_test_result, fn ->
-            case Acquisition.test_download_client(:usenet) do
-              :ok -> :ok
-              {:error, _} -> :error
-            end
-          end)
-
-        {:noreply, assign(socket, usenet_client_testing: true)}
-
-      _ ->
-        {:noreply, put_flash(socket, :info, "Usenet client settings saved")}
-    end
-  end
+  def handle_event("dismiss_detected", %{"connection" => "usenet_download_client"}, socket),
+    do: {:noreply, assign(socket, detected_usenet_client: nil)}
 
   def handle_event("detect_download_client", _params, socket) do
     Acquisition.discover_download_clients_async(self())
@@ -1156,34 +1109,40 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_flash(:info, "Data directory saved")}
   end
 
-  def handle_event("save_release_tracking", params, socket) do
-    case Integer.parse(params["refresh_interval_hours"] || "") do
-      {hours, _} -> Config.update(:release_tracking_refresh_interval_hours, hours)
-      :error -> :ok
-    end
+  # A choice or stepper row pushes `key` + `choice`; the owner validates
+  # the value and the LiveView re-reads the whole struct.
+  def handle_event("set_auto_grab", %{"key" => key, "choice" => raw}, socket) do
+    # Server-side gate double-check — the UI hides the rows, but a stale
+    # page could still push after the user revoked Prowlarr config.
+    if Capabilities.prowlarr_ready?() do
+      field = auto_grab_field(key)
+      value = if field in [:pack_min_fit, :max_attempts], do: parse_int(raw), else: raw
 
-    {:noreply,
-     socket
-     |> assign(config: load_config())
-     |> put_flash(:info, "Release tracking settings saved")}
-  end
-
-  def handle_event("save_auto_grab_defaults", %{"auto_grab" => params}, socket) do
-    # Server-side gate double-check — UI hides the form, but a stale page
-    # could still POST after the user revoked Prowlarr config.
-    if MediaCentaur.Capabilities.prowlarr_ready?() do
-      persist_auto_grab_defaults(params)
-      {:noreply, put_flash(socket, :info, "Auto-acquisition defaults saved")}
+      case AutoGrabSettings.put(field, value) do
+        :ok -> {:noreply, assign(socket, auto_grab: AutoGrabSettings.load())}
+        {:error, :invalid} -> {:noreply, socket}
+      end
     else
       {:noreply, put_flash(socket, :error, "Prowlarr is not ready — connect it first")}
     end
   end
 
-  def handle_event("set_planning_mode", %{"planning_mode" => mode}, socket)
+  def handle_event("set_planning_mode", %{"choice" => mode}, socket)
       when mode in ~w(manually_select_release auto_select_best_release) do
     planning_mode = PlanningMode.parse(%{"mode" => mode})
     PlanningMode.set(planning_mode)
     {:noreply, assign(socket, planning_mode: planning_mode)}
+  end
+
+  def handle_event("set_release_tracking_interval", %{"choice" => raw}, socket) do
+    case parse_int(raw) do
+      hours when hours in @refresh_hours_ladder ->
+        Config.update(:release_tracking_refresh_interval_hours, hours)
+        {:noreply, assign(socket, config: load_config())}
+
+      _off_ladder ->
+        {:noreply, socket}
+    end
   end
 
   # --- Controls events ---
@@ -1594,6 +1553,20 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_flash(:error, "Couldn't reach Prowlarr to discover download clients")}
   end
 
+  # The connection state owner moved: refresh that row. A verify that
+  # comes back :ok closes the row's form (Save and test succeeded); an
+  # error leaves it open with the typed values (UIDR-041 §1).
+  def handle_info({:integration_health_changed, %IntegrationHealth.Status{} = status}, socket) do
+    editing =
+      if !(status.test_state == :ok and socket.assigns.editing == status.id),
+        do: socket.assigns.editing
+
+    {:noreply,
+     socket
+     |> assign(connections: Map.put(socket.assigns.connections, status.id, status))
+     |> assign(editing: editing)}
+  end
+
   # Another tab replaced the identity. A key revealed here belongs to the
   # identity that is gone, an arm here is aimed at it too, and the pasted
   # draft is the secret that arm would have installed — all three drop.
@@ -1664,26 +1637,6 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_update_automation_assigns()}
   end
 
-  def handle_async(:tmdb_test_result, {:ok, status}, socket) do
-    info = save_test_result(:tmdb, status)
-    {:noreply, assign(socket, tmdb_testing: false, tmdb_test: info)}
-  end
-
-  def handle_async(:prowlarr_test_result, {:ok, status}, socket) do
-    info = save_test_result(:prowlarr, status)
-    {:noreply, assign(socket, prowlarr_testing: false, prowlarr_test: info)}
-  end
-
-  def handle_async(:download_client_test_result, {:ok, status}, socket) do
-    info = save_test_result(:download_client, status)
-    {:noreply, assign(socket, download_client_testing: false, download_client_test: info)}
-  end
-
-  def handle_async(:usenet_client_test_result, {:ok, status}, socket) do
-    info = save_test_result(:usenet_download_client, status)
-    {:noreply, assign(socket, usenet_client_testing: false, usenet_client_test: info)}
-  end
-
   def handle_async(:scan, {:ok, {:ok, count}}, socket) do
     message =
       case count do
@@ -1707,25 +1660,6 @@ defmodule MediaCentaurWeb.SettingsLive do
      socket
      |> assign(scanning: false)
      |> put_flash(:error, "Scan failed. Check the console for details.")}
-  end
-
-  # A crashed connection test must clear its `*_testing` flag; leaving it
-  # true strands the button on "Testing…" (audit DS17). One clause per
-  # test so nothing falls through to a silent catch-all.
-  for {result_key, flag, label} <- [
-        {:tmdb_test_result, :tmdb_testing, "TMDB"},
-        {:prowlarr_test_result, :prowlarr_testing, "Prowlarr"},
-        {:download_client_test_result, :download_client_testing, "Download client"},
-        {:usenet_client_test_result, :usenet_client_testing, "Usenet client"}
-      ] do
-    def handle_async(unquote(result_key), {:exit, reason}, socket) do
-      Log.warning(:settings, "#{unquote(label)} connection test exited — #{inspect(reason)}")
-
-      {:noreply,
-       socket
-       |> assign(unquote(flag), false)
-       |> put_flash(:error, "#{unquote(label)} test failed. Check the console for details.")}
-    end
   end
 
   defp normalize_bind_value(:keyboard, value) when is_binary(value), do: value
@@ -1819,7 +1753,13 @@ defmodule MediaCentaurWeb.SettingsLive do
       <%!-- Outer relative wrapper carries the page-behavior + default zone and
             scopes the ambient scrim, matching the library/downloads/upcoming
             page shell so the heading sits at the same height across pages. --%>
-      <div class="relative" data-page-behavior="settings" data-nav-default-zone="settings">
+      <div
+        class="relative"
+        data-page-behavior="settings"
+        data-nav-default-zone="settings"
+        phx-window-keydown={@editing && "cancel_edit"}
+        phx-key="Escape"
+      >
         <%!-- The scrim gives the page the same dimmed sense of place every
               other page has. The calm variant: Settings is mostly bare, so the
               standard ramp reads as a harsh band here. Fixed + behind
@@ -1905,17 +1845,12 @@ defmodule MediaCentaurWeb.SettingsLive do
                 letterboxd_links={@letterboxd_links}
                 show_discovery={@show_discovery}
                 show_apps={@show_apps}
-                tmdb_test={@tmdb_test}
-                tmdb_testing={@tmdb_testing}
-                prowlarr_test={@prowlarr_test}
-                prowlarr_testing={@prowlarr_testing}
-                download_client_test={@download_client_test}
-                download_client_testing={@download_client_testing}
+                connections={@connections}
+                editing={@editing}
+                auto_grab={@auto_grab}
                 download_client_detect_status={@download_client_detect_status}
                 download_client_detecting={@download_client_detecting}
                 detected_download_client={@detected_download_client}
-                usenet_client_test={@usenet_client_test}
-                usenet_client_testing={@usenet_client_testing}
                 detected_usenet_client={@detected_usenet_client}
                 planning_mode={@planning_mode}
                 app_version={@app_version}
@@ -1962,6 +1897,19 @@ defmodule MediaCentaurWeb.SettingsLive do
       %{id: id, label: "Settings", group: :none, description: "This section does not exist."}
   end
 
+  # The System overview's Integrations list speaks `%{status, tested_at}`;
+  # a settled owner status is exactly that, anything else is "not tested".
+  defp test_info(%IntegrationHealth.Status{test_state: state, last_tested_at: at})
+       when state in [:ok, :error], do: %{status: state, tested_at: at}
+
+  defp test_info(_unsettled), do: nil
+
+  # A connection row's readout: the owner's status for `id` projected with
+  # the config map, plus a pending detection when one waits for review.
+  defp row_state(assigns, id, detected \\ nil) do
+    ConnectionState.build(Map.fetch!(assigns.connections, id), assigns.config, detected)
+  end
+
   # --- Section router ---
 
   defp section_content(%{active_section: "system"} = assigns) do
@@ -1974,8 +1922,8 @@ defmodule MediaCentaurWeb.SettingsLive do
           pipeline_running: assigns.pipeline_running,
           image_pipeline_running: assigns.image_pipeline_running,
           acquisition_running: assigns.acquisition_running,
-          prowlarr_test: assigns.prowlarr_test,
-          download_client_test: assigns.download_client_test,
+          prowlarr_test: test_info(assigns.connections[:prowlarr]),
+          download_client_test: test_info(assigns.connections[:download_client]),
           config: assigns.config
         })
       end
@@ -2050,8 +1998,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   defp section_content(%{active_section: "tmdb"} = assigns) do
+    assigns = assign(assigns, tmdb_row: row_state(assigns, :tmdb))
+
     ~H"""
-    <Tmdb.render config={@config} tmdb_test={@tmdb_test} tmdb_testing={@tmdb_testing} />
+    <Tmdb.render config={@config} row={@tmdb_row} editing={@editing == :tmdb} />
     """
   end
 
@@ -2071,49 +2021,28 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   defp section_content(%{active_section: "acquisition"} = assigns) do
-    prowlarr_configured = Acquisition.available?()
-
-    # Form values prefer a pending `detected_download_client` (pre-filled
-    # by "Detect from Prowlarr", not yet saved) over the persisted config.
-    # See ADR-037 — the user must review and click Save to commit.
-    detected = assigns[:detected_download_client] || %{}
-    detected_usenet = assigns[:detected_usenet_client] || %{}
-    config = assigns.config
-
-    download_client_display = %{
-      type: detected[:type] || config[:download_client_type],
-      url: detected[:url] || config[:download_client_url],
-      username: detected[:username] || config[:download_client_username]
-    }
-
-    usenet_client_display = %{
-      type: detected_usenet[:type] || config[:usenet_download_client_type],
-      url: detected_usenet[:url] || config[:usenet_download_client_url]
-    }
-
+    # A pending detection (Detect from Prowlarr, not yet saved) rides on
+    # its slot's row until Review or Dismiss; nothing persists on its own.
     assigns =
       assign(assigns,
-        prowlarr_configured: prowlarr_configured,
-        download_client_display: download_client_display,
-        usenet_client_display: usenet_client_display,
-        prowlarr_ready: MediaCentaur.Capabilities.prowlarr_ready?(),
-        auto_grab: MediaCentaur.Acquisition.AutoGrabSettings.load()
+        rows: %{
+          prowlarr: row_state(assigns, :prowlarr),
+          download_client: row_state(assigns, :download_client, assigns[:detected_download_client]),
+          usenet_download_client:
+            row_state(assigns, :usenet_download_client, assigns[:detected_usenet_client])
+        },
+        prowlarr_configured: Capabilities.configured?(:prowlarr),
+        prowlarr_ready: Capabilities.prowlarr_ready?()
       )
 
     ~H"""
     <AcquisitionSection.render
       config={@config}
+      editing={@editing}
+      rows={@rows}
       prowlarr_configured={@prowlarr_configured}
       prowlarr_ready={@prowlarr_ready}
-      prowlarr_test={@prowlarr_test}
-      prowlarr_testing={@prowlarr_testing}
-      download_client_display={@download_client_display}
       download_client_detecting={@download_client_detecting}
-      download_client_test={@download_client_test}
-      download_client_testing={@download_client_testing}
-      usenet_client_display={@usenet_client_display}
-      usenet_client_test={@usenet_client_test}
-      usenet_client_testing={@usenet_client_testing}
       auto_grab={@auto_grab}
       planning_mode={@planning_mode}
     />
@@ -2754,16 +2683,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     }
   end
 
-  # Owned async (ADR-049): runs a connection-test under the LiveView via
-  # start_async/3, keyed by `result_key` so the result lands in the
-  # matching `handle_async(result_key, …)` clause. Each save_* handler
-  # dispatches here when the form was submitted with `_action=test`. The
-  # test runs against the values the save handler just persisted, so a
-  # failing test never displaces the user's typed-in input.
-  defp start_async_test(socket, result_key, fun) when is_atom(result_key) and is_function(fun, 0) do
-    start_async(socket, result_key, fun)
-  end
-
   defp rederive_extra_names_message(%{scanned: scanned, updated: updated}) do
     cond do
       scanned == 0 -> "No bonus features to check."
@@ -2817,14 +2736,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       media_dirs: config.get(:media_dirs) || []
     }
   end
-
-  # Connection-test persistence is owned by `MediaCentaur.Capabilities`,
-  # which also broadcasts to `Topics.capabilities_updates/0` so LiveViews
-  # that gate UI on integration health can re-render. These local
-  # wrappers exist so callsites in this module stay readable.
-
-  defp load_test_result(subject), do: Capabilities.load_test_result(subject)
-  defp save_test_result(subject, status), do: Capabilities.save_test_result(subject, status)
 
   defp persist_service_flag(service, value), do: Settings.Services.set(service, value)
 
@@ -2895,33 +2806,45 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  # --- Auto-grab defaults persistence ---
+  # --- Connection row helpers (UIDR-041) ---
 
-  defp persist_auto_grab_defaults(params) do
-    Enum.each(
-      [
-        {"auto_grab.default_mode", params["default_mode"], :string},
-        {"auto_grab.default_max_quality", params["default_max_quality"], :string},
-        {"auto_grab.max_attempts", params["max_attempts"], :integer},
-        {"auto_grab.pack_min_fit", params["pack_min_fit"], :integer},
-        {"auto_grab.size_preference", params["size_preference"], :string}
-      ],
-      fn {key, raw, type} ->
-        with value when value != nil <- coerce(raw, type) do
-          MediaCentaur.Settings.find_or_create_entry!(%{key: key, value: %{"value" => value}})
-        end
-      end
-    )
+  # The wire id is the Capabilities subject spelled out; anything else is
+  # refused before it can become an atom.
+  @connection_ids ~w(tmdb prowlarr download_client usenet_download_client)
+
+  defp connection_id(id) when id in @connection_ids, do: String.to_existing_atom(id)
+
+  # What a save of one integration also does, beyond the write.
+  defp after_save(socket, :tmdb, true) do
+    # A fresh key may unblock files stranded by an earlier TMDB auth
+    # failure; give the pipeline another pass at them.
+    MediaCentaur.Watcher.Rescan.rescan_unlinked_async()
+    socket
   end
 
-  defp coerce(nil, _), do: nil
-  defp coerce("", _), do: nil
-  defp coerce(value, :string), do: value
+  defp after_save(socket, :download_client, _changed?),
+    do: assign(socket, detected_download_client: nil, download_client_detect_status: nil)
 
-  defp coerce(value, :integer) do
-    case Integer.parse(value) do
-      {n, _} -> n
-      :error -> nil
+  defp after_save(socket, :usenet_download_client, _changed?),
+    do: assign(socket, detected_usenet_client: nil)
+
+  defp after_save(socket, _subject, _changed?), do: socket
+
+  defp connection_name(:tmdb), do: "TMDB"
+  defp connection_name(:prowlarr), do: "Prowlarr"
+  defp connection_name(:download_client), do: "Torrent client"
+  defp connection_name(:usenet_download_client), do: "Usenet client"
+
+  @auto_grab_fields ~w(default_mode default_max_quality size_preference pack_min_fit max_attempts)
+
+  defp auto_grab_field(key) when key in @auto_grab_fields, do: String.to_existing_atom(key)
+
+  defp parse_int(raw) when is_integer(raw), do: raw
+
+  defp parse_int(raw) when is_binary(raw) do
+    case Integer.parse(raw) do
+      {n, ""} -> n
+      _ -> nil
     end
   end
 end

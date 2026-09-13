@@ -1,45 +1,40 @@
 defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
   @moduledoc """
-  The Acquisition section of the Settings page — Prowlarr + download-client
-  configuration (with connection tests / detect-from-Prowlarr), the
-  Download button's default planning mode, the auto-grab defaults form,
-  and the release-tracking refresh interval that feeds auto-grab.
-  `SettingsLive` computes the capability/display values and delegates to
-  `render/1`; it hosts the save / test / detect handlers.
+  The Acquisition section of the Settings page (UIDR-041): five cards.
+  Search holds the Prowlarr connection row; Download clients the torrent
+  and usenet rows with Detect from Prowlarr on the card; Download button
+  and Auto-acquisition are gated on Prowlarr's readiness and say so while
+  they wait; Release tracking is one stepper. Each row is a
+  `ConnectionState` built by `SettingsLive`, which owns `editing` and
+  hosts every event this module names. `integration_row/1` is public
+  because the TMDB section renders the same row.
   """
 
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.Components.Settings
+  import MediaCentaurWeb.Components.Settings.ConnectionRow
 
+  alias MediaCentaur.Acquisition.AutoGrabSettings
+  alias MediaCentaur.Settings.Ladder
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.Components.Title.Logic
+  alias MediaCentaurWeb.SettingsLive.ConnectionState
 
-  attr :config, :map, required: true, doc: "settings config map (prowlarr/download-client keys)."
+  attr :config, :map,
+    required: true,
+    doc: "settings config map (addresses and credential presence flags)."
+
+  attr :editing, :atom, default: nil, doc: "the connection whose form is open, or nil."
+
+  attr :rows, :map,
+    required: true,
+    doc: "`%{id => ConnectionState.t()}` for :prowlarr, :download_client, :usenet_download_client."
+
   attr :prowlarr_configured, :boolean, required: true
   attr :prowlarr_ready, :boolean, required: true
-  attr :prowlarr_test, :any, required: true, doc: "connection-test result map or nil."
-  attr :prowlarr_testing, :boolean, required: true
-
-  attr :download_client_display, :map,
-    required: true,
-    doc: "torrent client type/url/username for the form (pending detect or persisted)."
-
   attr :download_client_detecting, :boolean, required: true
-  attr :download_client_test, :any, required: true, doc: "connection-test result map or nil."
-  attr :download_client_testing, :boolean, required: true
-
-  attr :usenet_client_display, :map,
-    required: true,
-    doc: "usenet client type/url for the form (pending detect or persisted)."
-
-  attr :usenet_client_test, :any, required: true, doc: "connection-test result map or nil."
-  attr :usenet_client_testing, :boolean, required: true
-
-  attr :auto_grab, :map,
-    required: true,
-    doc:
-      "AutoGrabSettings (default_mode, default_max_quality, size_preference, max_attempts, pack_min_fit)."
+  attr :auto_grab, AutoGrabSettings, required: true
 
   attr :planning_mode, :atom,
     required: true,
@@ -48,613 +43,473 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
   def render(assigns) do
     ~H"""
-    <div class="space-y-5">
-      <form
-        id="settings-prowlarr"
-        phx-submit="save_prowlarr"
-        class="p-5 rounded-lg glass-surface space-y-5"
-      >
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-              Prowlarr <.status_dot configured={@config[:prowlarr_api_key_configured?]} />
-            </h2>
-            <p class="text-sm text-base-content/55 mt-0.5">
-              Indexer proxy that searches for media and forwards grabs.
-            </p>
-          </div>
-          <.button
-            type="submit"
-            variant="secondary"
-            size="sm"
-            class="shrink-0"
-            data-nav-item
-            tabindex="0"
+    <div class="space-y-4">
+      <.settings_card title="Search">
+        <ul>
+          <.integration_row
+            row={@rows.prowlarr}
+            name="Prowlarr"
+            editing={@editing == :prowlarr}
+            description="Searches your indexers and forwards each grab to a download client."
           >
-            Save
-          </.button>
-        </div>
-
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-              URL
-            </label>
-            <input
-              type="text"
-              name="prowlarr_url"
-              value={@config[:prowlarr_url]}
-              class="input input-bordered w-full font-mono text-sm"
-              data-nav-item
-              tabindex="0"
-            />
-          </div>
-
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-              API Key
-            </label>
-            <input
-              type="password"
-              name="prowlarr_api_key"
-              class="input input-bordered w-full font-mono text-sm"
-              placeholder={
-                if @config[:prowlarr_api_key_configured?],
-                  do: "Leave blank to keep current key",
-                  else: "Enter your Prowlarr API key"
-              }
-              autocomplete="off"
-              data-nav-item
-              tabindex="0"
-            />
-          </div>
-        </div>
-
-        <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-          <.connection_status
-            test={@prowlarr_test}
-            ok_label="Connected"
-            error_label="Unreachable"
-          />
-          <.button
-            type="submit"
-            variant="neutral"
-            size="sm"
-            class="shrink-0"
-            name="_action"
-            value="test"
-            disabled={@prowlarr_testing}
-            data-nav-item
-            tabindex="0"
-          >
-            <span :if={@prowlarr_testing} class="loading loading-spinner loading-xs"></span>
-            <.icon :if={!@prowlarr_testing} name="hero-signal-mini" class="size-4" />
-            {if @prowlarr_testing, do: "Testing…", else: "Test connection"}
-          </.button>
-        </div>
-      </form>
-
-      <form
-        id="settings-download-client"
-        phx-submit="save_download_client"
-        class="p-5 rounded-lg glass-surface space-y-5"
-      >
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-              Torrent Client
-              <.status_dot configured={@config[:download_client_password_configured?]} />
-            </h2>
-            <p class="text-sm text-base-content/55 mt-0.5">
-              Where Prowlarr forwards torrent grabs. Powers the Downloads page progress.
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-2 shrink-0">
-            <.button
-              variant="neutral"
-              size="sm"
-              phx-click="detect_download_client"
-              disabled={@download_client_detecting || !@prowlarr_configured}
-              data-nav-item
-              tabindex="0"
-            >
-              <span :if={@download_client_detecting} class="loading loading-spinner loading-xs"></span>
-              <.icon
-                :if={!@download_client_detecting}
-                name="hero-magnifying-glass-mini"
-                class="size-4"
-              />
-              {if @download_client_detecting, do: "Detecting…", else: "Detect"}
-            </.button>
-            <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
-              Save
-            </.button>
-          </div>
-        </div>
-
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-              Type
-            </label>
-            <select
-              name="download_client_type"
-              class="select select-bordered w-full font-mono text-sm"
-              data-nav-item
-              tabindex="0"
-            >
-              <option value="" selected={@download_client_display.type in [nil, ""]}>
-                Not configured
-              </option>
-              <option
-                value="qbittorrent"
-                selected={@download_client_display.type == "qbittorrent"}
+            <:form>
+              <.settings_field label="Address" layout={:stacked}>
+                <.settings_input
+                  name="prowlarr_url"
+                  value={@config[:prowlarr_url]}
+                  placeholder="http://localhost:9696"
+                  mono
+                  autofocus
+                />
+              </.settings_field>
+              <.settings_field
+                label="API key"
+                description="Prowlarr → Settings → General → Security → API Key."
+                layout={:stacked}
               >
-                qBittorrent
-              </option>
-            </select>
-          </div>
+                <.settings_input
+                  type="password"
+                  name="prowlarr_api_key"
+                  autocomplete="off"
+                  mono
+                  placeholder={secret_placeholder(@config[:prowlarr_api_key_configured?], "key")}
+                />
+              </.settings_field>
+            </:form>
+          </.integration_row>
+        </ul>
+      </.settings_card>
 
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-              URL
-            </label>
-            <input
-              type="text"
-              name="download_client_url"
-              value={@download_client_display.url}
-              class="input input-bordered w-full font-mono text-sm"
-              data-nav-item
-              tabindex="0"
-            />
-            <p class="text-xs text-base-content/55 mt-1">
-              Must be reachable from <em>this</em>
-              machine. If you used <span class="font-mono">Detect from Prowlarr</span>, verify the URL —
-              Prowlarr often returns Docker-internal hostnames (<span class="font-mono">qbittorrent:8080</span>)
-              that only resolve inside the container network.
-            </p>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-                Username
-              </label>
-              <input
-                type="text"
-                name="download_client_username"
-                value={@download_client_display.username}
-                class="input input-bordered w-full font-mono text-sm"
-                placeholder="admin"
-                autocomplete="off"
-                data-nav-item
-                tabindex="0"
-              />
-            </div>
-
-            <div>
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                name="download_client_password"
-                class="input input-bordered w-full font-mono text-sm"
-                placeholder={
-                  if @config[:download_client_password_configured?],
-                    do: "Leave blank to keep current",
-                    else: "Enter password"
-                }
-                autocomplete="off"
-                data-nav-item
-                tabindex="0"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-          <.connection_status
-            test={@download_client_test}
-            ok_label="Connected"
-            error_label="Unreachable / auth failed"
-          />
-          <.open_client_link
-            :if={@download_client_display.url not in [nil, ""]}
-            url={@download_client_display.url}
-            label="Open qBittorrent"
-          />
-          <.button
-            type="submit"
-            variant="neutral"
-            size="sm"
-            class="shrink-0"
-            name="_action"
-            value="test"
-            disabled={@download_client_testing}
-            data-nav-item
-            tabindex="0"
-          >
-            <span :if={@download_client_testing} class="loading loading-spinner loading-xs"></span>
-            <.icon :if={!@download_client_testing} name="hero-signal-mini" class="size-4" />
-            {if @download_client_testing, do: "Testing…", else: "Test connection"}
-          </.button>
-        </div>
-      </form>
-
-      <form
-        id="settings-usenet-client"
-        phx-submit="save_usenet_client"
-        class="p-5 rounded-lg glass-surface space-y-5"
+      <.settings_card
+        title="Download clients"
+        description="One client per protocol. Prowlarr sends each grab to the client that matches the indexer."
       >
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-              Usenet Client
-              <.status_dot configured={@config[:usenet_download_client_api_key_configured?]} />
-            </h2>
-            <p class="text-sm text-base-content/55 mt-0.5">
-              Where Prowlarr forwards usenet grabs. SABnzbd repairs and unpacks;
-              the finished file imports like any other download.
-            </p>
-          </div>
+        <:action>
           <.button
-            type="submit"
-            variant="secondary"
-            size="sm"
-            class="shrink-0"
+            id="detect-download-clients"
+            variant="dismiss"
+            size="xs"
+            phx-click="detect_download_client"
+            disabled={@download_client_detecting || !@prowlarr_configured}
+            title={if !@prowlarr_configured, do: "Needs Prowlarr"}
             data-nav-item
             tabindex="0"
           >
-            Save
+            <span :if={@download_client_detecting} class="loading loading-spinner loading-xs"></span>
+            <.icon
+              :if={!@download_client_detecting}
+              name="hero-magnifying-glass-mini"
+              class="size-3.5"
+            />
+            {if @download_client_detecting, do: "Detecting…", else: "Detect from Prowlarr"}
           </.button>
-        </div>
-
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-              Type
-            </label>
-            <select
-              name="usenet_download_client_type"
-              class="select select-bordered w-full font-mono text-sm"
-              data-nav-item
-              tabindex="0"
-            >
-              <option value="" selected={@usenet_client_display.type in [nil, ""]}>
-                Not configured
-              </option>
-              <option value="sabnzbd" selected={@usenet_client_display.type == "sabnzbd"}>
-                SABnzbd
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-              URL
-            </label>
-            <input
-              type="text"
-              name="usenet_download_client_url"
-              value={@usenet_client_display.url}
-              class="input input-bordered w-full font-mono text-sm"
-              data-nav-item
-              tabindex="0"
-            />
-            <p class="text-xs text-base-content/55 mt-1">
-              Must be reachable from <em>this</em>
-              machine — Prowlarr-detected URLs are often Docker-internal hostnames.
-            </p>
-          </div>
-
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-              API Key
-            </label>
-            <input
-              type="password"
-              name="usenet_download_client_api_key"
-              class="input input-bordered w-full font-mono text-sm"
-              placeholder={
-                if @config[:usenet_download_client_api_key_configured?],
-                  do: "Leave blank to keep current key",
-                  else: "SABnzbd → Config → General → API Key"
-              }
-              autocomplete="off"
-              data-nav-item
-              tabindex="0"
-            />
-          </div>
-        </div>
-
-        <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-          <.connection_status
-            test={@usenet_client_test}
-            ok_label="Connected"
-            error_label="Unreachable / bad API key"
-          />
-          <.open_client_link
-            :if={@usenet_client_display.url not in [nil, ""]}
-            url={@usenet_client_display.url}
-            label="Open SABnzbd"
-          />
-          <.button
-            type="submit"
-            variant="neutral"
-            size="sm"
-            class="shrink-0"
-            name="_action"
-            value="test"
-            disabled={@usenet_client_testing}
-            data-nav-item
-            tabindex="0"
+        </:action>
+        <ul>
+          <.integration_row
+            row={@rows.download_client}
+            name={
+              if @rows.download_client.state == :not_configured,
+                do: "Torrent client",
+                else: "qBittorrent"
+            }
+            kind="torrent"
+            editing={@editing == :download_client}
+            removable
+            description="qBittorrent. Also powers the download progress on Incoming."
           >
-            <span :if={@usenet_client_testing} class="loading loading-spinner loading-xs"></span>
-            <.icon :if={!@usenet_client_testing} name="hero-signal-mini" class="size-4" />
-            {if @usenet_client_testing, do: "Testing…", else: "Test connection"}
-          </.button>
+            <:form>
+              <div class="flex gap-3">
+                <.settings_field label="Client" layout={:stacked} class="w-44 shrink-0">
+                  <select
+                    name="download_client_type"
+                    class="select select-bordered w-full text-sm"
+                    data-nav-item
+                    tabindex="0"
+                  >
+                    <option value="qbittorrent" selected>qBittorrent</option>
+                  </select>
+                </.settings_field>
+                <.settings_field
+                  label="Address"
+                  layout={:stacked}
+                  class="min-w-0 flex-1"
+                  description="Must be reachable from this machine. A detected address is often a hostname that only resolves inside Docker."
+                >
+                  <.settings_input
+                    name="download_client_url"
+                    value={@rows.download_client.prefill[:url] || @config[:download_client_url]}
+                    placeholder="http://localhost:8080"
+                    mono
+                    autofocus
+                  />
+                </.settings_field>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <.settings_field label="Username" layout={:stacked}>
+                  <.settings_input
+                    name="download_client_username"
+                    value={
+                      @rows.download_client.prefill[:username] || @config[:download_client_username]
+                    }
+                    placeholder="admin"
+                    autocomplete="off"
+                    mono
+                  />
+                </.settings_field>
+                <.settings_field label="Password" layout={:stacked}>
+                  <.settings_input
+                    type="password"
+                    name="download_client_password"
+                    autocomplete="off"
+                    mono
+                    placeholder={
+                      secret_placeholder(@config[:download_client_password_configured?], "password")
+                    }
+                  />
+                </.settings_field>
+              </div>
+            </:form>
+          </.integration_row>
+
+          <.integration_row
+            row={@rows.usenet_download_client}
+            name={
+              if @rows.usenet_download_client.state == :not_configured,
+                do: "Usenet client",
+                else: "SABnzbd"
+            }
+            kind="usenet"
+            editing={@editing == :usenet_download_client}
+            removable
+            description="SABnzbd. Repairs and unpacks; the finished file imports like any other download."
+          >
+            <:form>
+              <div class="flex gap-3">
+                <.settings_field label="Client" layout={:stacked} class="w-44 shrink-0">
+                  <select
+                    name="usenet_download_client_type"
+                    class="select select-bordered w-full text-sm"
+                    data-nav-item
+                    tabindex="0"
+                  >
+                    <option value="sabnzbd" selected>SABnzbd</option>
+                  </select>
+                </.settings_field>
+                <.settings_field
+                  label="Address"
+                  layout={:stacked}
+                  class="min-w-0 flex-1"
+                  description="Must be reachable from this machine. A detected address is often a hostname that only resolves inside Docker."
+                >
+                  <.settings_input
+                    name="usenet_download_client_url"
+                    value={
+                      @rows.usenet_download_client.prefill[:url] ||
+                        @config[:usenet_download_client_url]
+                    }
+                    placeholder="http://localhost:8085"
+                    mono
+                    autofocus
+                  />
+                </.settings_field>
+              </div>
+              <.settings_field
+                label="API key"
+                description="SABnzbd → Config → General → API Key."
+                layout={:stacked}
+              >
+                <.settings_input
+                  type="password"
+                  name="usenet_download_client_api_key"
+                  autocomplete="off"
+                  mono
+                  placeholder={
+                    secret_placeholder(@config[:usenet_download_client_api_key_configured?], "key")
+                  }
+                />
+              </.settings_field>
+            </:form>
+          </.integration_row>
+        </ul>
+      </.settings_card>
+
+      <.settings_card id="card-download-button" title="Download button">
+        <.gate :if={!@prowlarr_ready} />
+        <.settings_choice
+          :if={@prowlarr_ready}
+          id="planning-mode"
+          label="Default action on a title you don't own yet"
+          description="The other choice stays in the button's menu."
+          options={
+            for mode <- PlanningMode.modes(),
+                do: {Atom.to_string(mode), Logic.planning_mode_label(mode)}
+          }
+          selected={Atom.to_string(@planning_mode)}
+          event="set_planning_mode"
+        />
+      </.settings_card>
+
+      <.settings_card
+        id="card-auto-acquisition"
+        title="Auto-acquisition"
+        description={
+          @prowlarr_ready &&
+            "Applied when a tracked title's release appears. A title's own tracking controls take precedence."
+        }
+      >
+        <.gate :if={!@prowlarr_ready} />
+        <div :if={@prowlarr_ready} class="space-y-0.5">
+          <.settings_choice
+            id="auto-grab-default_mode"
+            label="When a release appears"
+            description="Ask first parks the plan on Incoming until you approve it."
+            options={[{"all_releases", "Grab it"}, {"ask", "Ask first"}, {"off", "Notify only"}]}
+            selected={@auto_grab.default_mode}
+            event="set_auto_grab"
+            event_value={%{"key" => "default_mode"}}
+          />
+          <.settings_choice
+            id="auto-grab-default_max_quality"
+            label="Highest resolution"
+            description="The best available is taken right away. Nothing found at this resolution falls back to 1080p; anything lower needs the title's own acceptance."
+            options={[{"uhd_4k", "4K"}, {"hd_1080p", "1080p"}]}
+            selected={@auto_grab.default_max_quality}
+            event="set_auto_grab"
+            event_value={%{"key" => "default_max_quality"}}
+          />
+          <.settings_choice
+            id="auto-grab-size_preference"
+            label="Within a resolution"
+            description="Best fidelity takes a remux first. Save space takes compact encodes first, and still takes a remux when nothing smaller exists."
+            options={[{"fidelity", "Best fidelity"}, {"space", "Save space"}]}
+            selected={@auto_grab.size_preference}
+            event="set_auto_grab"
+            event_value={%{"key" => "size_preference"}}
+          />
+          <.settings_stepper
+            id="auto-grab-pack_min_fit"
+            label="Season packs"
+            description="Take a pack only when you want at least this share of its episodes. Below it, episodes are grabbed one by one and the pack is offered."
+            value_label={"#{@auto_grab.pack_min_fit}%"}
+            down_value={Ladder.down(AutoGrabSettings.pack_fit_ladder(), @auto_grab.pack_min_fit)}
+            up_value={Ladder.up(AutoGrabSettings.pack_fit_ladder(), @auto_grab.pack_min_fit)}
+            reset_value={75}
+            at_min={@auto_grab.pack_min_fit <= 5}
+            at_max={@auto_grab.pack_min_fit >= 100}
+            at_default={@auto_grab.pack_min_fit == 75}
+            event="set_auto_grab"
+            event_value={%{"key" => "pack_min_fit"}}
+          />
+          <.settings_stepper
+            id="auto-grab-max_attempts"
+            label="Search attempts"
+            description="Failed search cycles before a release is given up on."
+            value_label={Integer.to_string(@auto_grab.max_attempts)}
+            down_value={Ladder.down(AutoGrabSettings.attempts_ladder(), @auto_grab.max_attempts)}
+            up_value={Ladder.up(AutoGrabSettings.attempts_ladder(), @auto_grab.max_attempts)}
+            reset_value={12}
+            at_min={@auto_grab.max_attempts <= 1}
+            at_max={@auto_grab.max_attempts >= 50}
+            at_default={@auto_grab.max_attempts == 12}
+            event="set_auto_grab"
+            event_value={%{"key" => "max_attempts"}}
+          />
         </div>
-      </form>
+      </.settings_card>
 
-      <.download_button_card :if={@prowlarr_ready} planning_mode={@planning_mode} />
-
-      <.auto_grab_defaults_form :if={@prowlarr_ready} auto_grab={@auto_grab} />
-
-      <.release_tracking_form config={@config} />
+      <.settings_card title="Release tracking">
+        <.settings_stepper
+          id="release-tracking-interval"
+          label="Check TMDB for new release dates"
+          description="How often, in hours. A change applies after the current cycle finishes."
+          value_label={"#{refresh_hours(@config)}h"}
+          down_value={Ladder.down(refresh_ladder(), refresh_hours(@config))}
+          up_value={Ladder.up(refresh_ladder(), refresh_hours(@config))}
+          reset_value={6}
+          at_min={refresh_hours(@config) <= 1}
+          at_max={refresh_hours(@config) >= 24}
+          at_default={refresh_hours(@config) == 6}
+          event="set_release_tracking_interval"
+        />
+      </.settings_card>
     </div>
     """
   end
 
-  attr :config, :map, required: true, doc: "reads `:release_tracking_refresh_interval_hours`."
+  # The stepper's rungs for the TMDB refresh interval, in hours. A
+  # function, not an attribute: inside ~H `@name` is an assign.
+  defp refresh_ladder, do: [1, 2, 3, 4, 6, 8, 12, 24]
 
-  # Release tracking polls TMDB directly, so unlike the auto-grab defaults
-  # it is not gated on Prowlarr being ready.
-  defp release_tracking_form(assigns) do
+  defp refresh_hours(config), do: config[:release_tracking_refresh_interval_hours] || 6
+
+  defp secret_placeholder(true, noun), do: "Leave blank to keep the current #{noun}"
+  defp secret_placeholder(_stored, "key"), do: "Enter the API key"
+  defp secret_placeholder(_stored, "password"), do: "Enter the password"
+
+  # The one line a gated card shows while Prowlarr is not ready (UIDR-041 §4).
+  defp gate(assigns) do
     ~H"""
-    <form phx-submit="save_release_tracking" class="p-5 rounded-lg glass-surface space-y-5">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Release tracking</h2>
-          <p class="text-sm text-base-content/55 mt-0.5">
-            How often to poll TMDB for upcoming release dates.
-          </p>
-        </div>
-        <.button
-          type="submit"
-          variant="secondary"
-          size="sm"
-          class="shrink-0"
-          data-nav-item
-          tabindex="0"
-        >
-          Save
-        </.button>
-      </div>
-
-      <div>
-        <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-          Refresh interval (hours)
-        </label>
-        <input
-          type="number"
-          name="refresh_interval_hours"
-          value={@config[:release_tracking_refresh_interval_hours]}
-          min="1"
-          class="input input-bordered w-full font-mono text-sm"
-          data-nav-item
-          tabindex="0"
-        />
-        <p class="text-xs text-base-content/55 mt-1">
-          Changes take effect after the current refresh cycle completes.
-        </p>
-      </div>
-    </form>
+    <p class="text-sm text-base-content/60">Available once Prowlarr's connection test passes.</p>
     """
   end
 
-  attr :planning_mode, :atom,
+  attr :row, ConnectionState, required: true
+  attr :name, :string, required: true
+  attr :kind, :string, default: nil
+  attr :editing, :boolean, required: true
+  attr :removable, :boolean, default: false, doc: "a client slot: the form offers Remove client."
+
+  attr :description, :string,
     required: true,
-    values: [:manually_select_release, :auto_select_best_release]
+    doc: "shown on the detail line while nothing is configured."
 
-  # The Download button on a title the library does not own (Discovery,
-  # Incoming) performs this mode; its menu carries the other one. The
-  # words are `Title.Logic.planning_mode_label/1`'s — the same ones the
-  # menu shows. Saves on change; the select is the state.
-  defp download_button_card(assigns) do
+  slot :form, required: true, doc: "the connection's fields; the footer is this component's."
+
+  @doc """
+  A connection row for one integration: the readout's actions per state
+  and the edit form with its footer (Cancel, Save and test, Save; Remove
+  client for a slot). Events: `edit_connection`, `test_connection`,
+  `review_detected`, `dismiss_detected`, `cancel_edit`, `remove_client`,
+  and the form's `save_connection` with `_action` save or test.
+  """
+  def integration_row(assigns) do
+    assigns = assign(assigns, :id, Atom.to_string(assigns.row.id))
+
     ~H"""
-    <form
-      id="settings-download-button"
-      phx-change="set_planning_mode"
-      class="p-5 rounded-lg glass-surface space-y-5"
+    <.connection_row
+      id={"connection-#{@id}"}
+      name={@name}
+      kind={@kind}
+      state={@row.state}
+      state_label={@row.state_label}
+      tested_at={@row.tested_at}
+      address={if @row.state != :not_configured, do: @row.address}
+      detail={if @row.state == :not_configured, do: @description, else: @row.credential}
+      editing={@editing}
     >
-      <div class="min-w-0">
-        <h2 class="text-lg font-semibold">Download button</h2>
-        <p class="text-sm text-base-content/55 mt-0.5">On a title you don't own yet.</p>
-      </div>
-
-      <div>
-        <label
-          for="settings-planning-mode"
-          class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5"
-        >
-          Default planning mode
-        </label>
-        <select
-          id="settings-planning-mode"
-          name="planning_mode"
-          class="select select-bordered w-full"
-          data-nav-item
-          tabindex="0"
-        >
-          <option :for={mode <- PlanningMode.modes()} value={mode} selected={mode == @planning_mode}>
-            {Logic.planning_mode_label(mode)}
-          </option>
-        </select>
-        <p class="text-xs text-base-content/55 mt-1">
-          The button's main action. The other choice is in its menu.
-        </p>
-      </div>
-    </form>
-    """
-  end
-
-  attr :url, :string, required: true, doc: "The client's web-UI URL as shown in the form."
-  attr :label, :string, required: true, doc: "e.g. \"Open SABnzbd\"."
-
-  # The client's own web UI — where per-job logs and failure details
-  # live (e.g. SABnzbd's "Repair failed" breakdown), one click from
-  # where the client is configured.
-  defp open_client_link(assigns) do
-    ~H"""
-    <a
-      href={@url}
-      target="_blank"
-      rel="noopener"
-      class="ml-auto inline-flex shrink-0 items-center gap-1.5 text-xs text-base-content/60 transition-colors hover:text-base-content"
-      data-nav-item
-      tabindex="0"
-    >
-      <.icon name="hero-arrow-top-right-on-square-mini" class="size-3.5" /> {@label}
-    </a>
-    """
-  end
-
-  defp auto_grab_defaults_form(assigns) do
-    ~H"""
-    <form
-      phx-submit="save_auto_grab_defaults"
-      class="p-5 rounded-lg glass-surface space-y-5"
-    >
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Auto-acquisition defaults</h2>
-          <p class="text-sm text-base-content/55 mt-0.5">
-            Applied when a tracked release becomes available. Per-item
-            overrides on individual tracking entries take precedence.
-          </p>
-        </div>
-        <.button
-          type="submit"
-          variant="secondary"
-          size="sm"
-          class="shrink-0"
-          data-nav-item
-          tabindex="0"
-        >
-          Save
-        </.button>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Default mode
-          </label>
-          <select
-            name="auto_grab[default_mode]"
-            class="select select-bordered w-full"
-            data-nav-item
-            tabindex="0"
-          >
-            <option value="all_releases" selected={@auto_grab.default_mode == "all_releases"}>
-              Auto-grab all releases
-            </option>
-            <option value="ask" selected={@auto_grab.default_mode == "ask"}>
-              Ask first (plans await approval)
-            </option>
-            <option value="off" selected={@auto_grab.default_mode == "off"}>
-              Off (notify only)
-            </option>
-          </select>
-          <p class="text-xs text-base-content/55 mt-1">
-            Applies to newly-tracked items. Existing items keep their per-item override.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Maximum quality
-          </label>
-          <select
-            name="auto_grab[default_max_quality]"
-            class="select select-bordered w-full"
-            data-nav-item
-            tabindex="0"
-          >
-            <option value="uhd_4k" selected={@auto_grab.default_max_quality == "uhd_4k"}>
-              4K
-            </option>
-            <option value="hd_1080p" selected={@auto_grab.default_max_quality == "hd_1080p"}>
-              1080p (no 4K)
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Release size preference
-          </label>
-          <select
-            name="auto_grab[size_preference]"
-            class="select select-bordered w-full"
-            data-nav-item
-            tabindex="0"
-          >
-            <option value="fidelity" selected={@auto_grab.size_preference == "fidelity"}>
-              Best fidelity (remuxes first)
-            </option>
-            <option value="space" selected={@auto_grab.size_preference == "space"}>
-              Save space (compact encodes first)
-            </option>
-          </select>
-          <p class="text-xs text-base-content/55 mt-1">
-            Decides between releases of the same resolution. Save space still grabs
-            a remux when nothing smaller exists.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Maximum search attempts
-          </label>
-          <input
-            type="number"
-            name="auto_grab[max_attempts]"
-            value={@auto_grab.max_attempts}
-            min="1"
-            max="50"
-            class="input input-bordered w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/55 mt-1">
-            How many failed search cycles before giving up on a release.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Pack threshold (%)
-          </label>
-          <input
-            type="number"
-            name="auto_grab[pack_min_fit]"
-            value={@auto_grab.pack_min_fit}
-            min="1"
-            max="100"
-            class="input input-bordered w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/55 mt-1">
-            Grab a season or series pack only when you want at least this share of the
-            episodes it contains. Below it, picking a few episodes grabs them individually
-            and the pack is offered as a one-click choice.
-          </p>
-        </div>
-      </div>
-    </form>
+      <:actions>
+        <%= case @row.state do %>
+          <% :not_configured -> %>
+            <.button
+              id={"connection-#{@id}-setup"}
+              variant="secondary"
+              size="xs"
+              phx-click="edit_connection"
+              phx-value-connection={@id}
+              data-nav-item
+              tabindex="0"
+            >
+              Set up
+            </.button>
+          <% :detected -> %>
+            <.button
+              id={"connection-#{@id}-review"}
+              variant="secondary"
+              size="xs"
+              phx-click="review_detected"
+              phx-value-connection={@id}
+              data-nav-item
+              tabindex="0"
+            >
+              Review
+            </.button>
+            <.button
+              id={"connection-#{@id}-dismiss"}
+              variant="dismiss"
+              size="xs"
+              phx-click="dismiss_detected"
+              phx-value-connection={@id}
+              data-nav-item
+              tabindex="0"
+            >
+              Dismiss
+            </.button>
+          <% _configured -> %>
+            <.button
+              id={"connection-#{@id}-test"}
+              variant="neutral"
+              size="xs"
+              phx-click="test_connection"
+              phx-value-connection={@id}
+              disabled={@row.state == :pending}
+              data-nav-item
+              tabindex="0"
+            >
+              <.icon name="hero-signal-mini" class="size-3.5" /> Test
+            </.button>
+            <.button
+              id={"connection-#{@id}-edit"}
+              variant="dismiss"
+              size="xs"
+              phx-click="edit_connection"
+              phx-value-connection={@id}
+              data-nav-item
+              tabindex="0"
+            >
+              Edit
+            </.button>
+        <% end %>
+      </:actions>
+      <:edit>
+        <form id={"connection-#{@id}-form"} phx-submit="save_connection" class="space-y-4">
+          <input type="hidden" name="connection" value={@id} />
+          {render_slot(@form)}
+          <div class="flex items-center justify-between gap-3 pt-1">
+            <div>
+              <.button
+                :if={@removable}
+                id={"connection-#{@id}-remove"}
+                variant="destructive_inline"
+                size="sm"
+                type="button"
+                phx-click="remove_client"
+                phx-value-connection={@id}
+                data-nav-item
+                tabindex="0"
+              >
+                Remove client
+              </.button>
+            </div>
+            <div class="flex items-center gap-2">
+              <.button
+                id={"connection-#{@id}-cancel"}
+                variant="dismiss"
+                size="sm"
+                type="button"
+                phx-click="cancel_edit"
+                data-nav-item
+                tabindex="0"
+              >
+                Cancel
+              </.button>
+              <.button
+                type="submit"
+                variant="neutral"
+                size="sm"
+                name="_action"
+                value="test"
+                disabled={@row.state == :pending}
+                data-nav-item
+                tabindex="0"
+              >
+                <.icon name="hero-signal-mini" class="size-4" /> Save and test
+              </.button>
+              <.button
+                type="submit"
+                variant="secondary"
+                size="sm"
+                name="_action"
+                value="save"
+                data-nav-item
+                tabindex="0"
+              >
+                Save
+              </.button>
+            </div>
+          </div>
+        </form>
+      </:edit>
+    </.connection_row>
     """
   end
 end
