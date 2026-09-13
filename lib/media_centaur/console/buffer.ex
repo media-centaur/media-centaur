@@ -96,6 +96,17 @@ defmodule MediaCentaur.Console.Buffer do
     GenServer.call(name, :clear)
   end
 
+  @doc """
+  Puts the buffer at rest: clears it and drops a pending settings write.
+  The test harness's reset (`MediaCentaur.GlobalStateSandbox`): a resize
+  or filter change arms a #{@persist_debounce_ms}ms debounce that would
+  otherwise fire inside a later test's sandbox. `clear/1` keeps the
+  pending write on purpose — a person emptying the console has not
+  changed their mind about its size.
+  """
+  @spec reset(atom()) :: :ok
+  def reset(name \\ __MODULE__), do: GenServer.call(name, :reset)
+
   @doc "Maximum allowed buffer cap. Used by LiveViews to size the stream once."
   @spec max_cap() :: pos_integer()
   def max_cap, do: @max_cap
@@ -162,6 +173,9 @@ defmodule MediaCentaur.Console.Buffer do
       cap: cap,
       filter: filter,
       persist_ref: nil,
+      # opts[:persist_debounce_ms] shortens the settings-persist debounce —
+      # used in tests so the timer fires inside the test that armed it.
+      persist_debounce_ms: Keyword.get(opts, :persist_debounce_ms, @persist_debounce_ms),
       pending: [],
       flush_ref: nil,
       overflow: 0
@@ -219,6 +233,11 @@ defmodule MediaCentaur.Console.Buffer do
     if state.flush_ref, do: Process.cancel_timer(state.flush_ref)
     broadcast(:buffer_cleared)
     {:reply, :ok, %{state | entries: [], pending: [], flush_ref: nil, overflow: 0}}
+  end
+
+  def handle_call(:reset, from, state) do
+    if state.persist_ref, do: Process.cancel_timer(state.persist_ref)
+    handle_call(:clear, from, %{state | persist_ref: nil})
   end
 
   def handle_call({:resize, n}, _from, state) do
@@ -291,7 +310,7 @@ defmodule MediaCentaur.Console.Buffer do
       Process.cancel_timer(state.persist_ref)
     end
 
-    ref = Process.send_after(self(), :persist, @persist_debounce_ms)
+    ref = Process.send_after(self(), :persist, state.persist_debounce_ms)
     %{state | persist_ref: ref}
   end
 
