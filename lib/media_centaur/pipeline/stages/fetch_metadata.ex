@@ -19,7 +19,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   - `child_movie` — `%{attrs, images, identifier, position}`
 
   TV adds:
-  - `season` — `%{season_number, name, number_of_episodes, episode}`
+  - `season` — `%{season_number, name, episode_list, episode}`
     where `episode` is `%{attrs, images}`
 
   Extra adds:
@@ -285,10 +285,25 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     %{
       season_number: season_data["season_number"],
       name: season_data["name"],
-      number_of_episodes: length(episodes),
+      episode_list: Enum.map(episodes, &episode_list_entry/1),
       episode: episode
     }
   end
+
+  # Every episode the season has, whether or not a file for it was
+  # imported — the fact `Library.Season.episode_list` stores. TMDB dates
+  # an undated episode as "" rather than omitting the key, and Ecto's
+  # :date cast rejects the empty string, so it becomes nil here.
+  defp episode_list_entry(episode) do
+    %{
+      episode_number: episode["episode_number"],
+      name: episode["name"],
+      air_date: presence(episode["air_date"])
+    }
+  end
+
+  defp presence(""), do: nil
+  defp presence(value), do: value
 
   defp build_minimal_season(parsed) do
     episode =
@@ -307,7 +322,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     %{
       season_number: parsed.season,
       name: "Season #{parsed.season}",
-      number_of_episodes: 0,
+      episode_list: [],
       episode: episode
     }
   end

@@ -154,6 +154,39 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
   # ---------------------------------------------------------------------------
 
   describe "TV series" do
+
+    test "the season's episode list carries every episode with its air date" do
+      stub_routes([
+        {"/tv/1396/season/1",
+         season_detail(%{
+           "episodes" => [
+             %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01"},
+             %{"episode_number" => 2, "name" => "Second Sample", "air_date" => ""},
+             %{"episode_number" => 3, "name" => "Third Sample", "air_date" => "2199-01-01"}
+           ]
+         })},
+        {"/tv/1396", tv_detail()}
+      ])
+
+      payload =
+        payload_for(%{
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          title: "Sample Show",
+          year: 2008,
+          type: :tv,
+          season: 1,
+          episode: 1,
+          file_path: "/media/TV/Sample.Show.S01E01.mkv"
+        })
+
+      assert {:ok, result} = FetchMetadata.run(payload)
+
+      assert [one, two, three] = result.metadata.season.episode_list
+      assert one == %{episode_number: 1, name: "Pilot", air_date: "2020-01-01"}
+      assert two.air_date == nil
+      assert three.air_date == "2199-01-01"
+    end
     test "fetches TV and season details" do
       stub_routes([
         {"/tv/1396/season/1", season_detail()},
@@ -183,7 +216,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       season = metadata.season
       assert season.season_number == 1
       assert season.name == "Season 1"
-      assert season.number_of_episodes == 2
+      assert Enum.map(season.episode_list, & &1.episode_number) == [1, 2]
 
       episode = season.episode
       assert episode.attrs.episode_number == 1
@@ -238,7 +271,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
 
       assert season.season_number == 1
       assert season.name == "Season 1"
-      assert season.number_of_episodes == 0
+      assert season.episode_list == []
       assert season.episode.attrs.episode_number == 1
       assert season.episode.images == []
     end

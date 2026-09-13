@@ -595,7 +595,7 @@ defmodule MediaCentaur.Library.Inbound do
         %{
           season_number: season_data.season_number,
           name: season_data.name,
-          number_of_episodes: season_data.number_of_episodes
+          episode_list: season_data.episode_list
         },
         entity_type,
         entity_id
@@ -680,7 +680,7 @@ defmodule MediaCentaur.Library.Inbound do
             %{
               season_number: extra_data.season_number,
               name: "Season #{extra_data.season_number}",
-              number_of_episodes: 0
+              episode_list: []
             },
             entity_type,
             entity_id

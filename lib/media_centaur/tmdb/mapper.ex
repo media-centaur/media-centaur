@@ -91,20 +91,6 @@ defmodule MediaCentaur.TMDB.Mapper do
     do: presence(payload["original_title"] || payload["original_name"])
 
   @doc """
-  Extracts season attributes from TMDB season data.
-  """
-  def season_attrs(entity_id, season_data) do
-    episodes = season_data["episodes"] || []
-
-    %{
-      entity_id: entity_id,
-      season_number: season_data["season_number"],
-      name: season_data["name"],
-      number_of_episodes: length(episodes)
-    }
-  end
-
-  @doc """
   Extracts episode attributes from TMDB episode data within a season response.
 
   The `file_path` argument is unused by the entity attrs — the on-disk
