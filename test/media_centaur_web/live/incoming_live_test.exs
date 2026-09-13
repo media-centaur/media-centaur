@@ -2001,6 +2001,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       view |> element("#title-review") |> render_click()
       assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
 
+      # Clicking Review puts the cursor in the text box for a pointer
+      # user; keyboard and gamepad keep focus with the input system, so
+      # the gate is `MouseAutofocus` rather than an unconditional focus.
+      assert has_element?(view, "#review-modal #review-text[phx-hook='MouseAutofocus']")
+
       view |> element("#review-sentiment-love") |> render_click()
       render_submit(view, "review_send", %{"text" => "Worth it"})
 

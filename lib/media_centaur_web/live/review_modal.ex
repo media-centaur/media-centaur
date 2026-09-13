@@ -7,7 +7,9 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   Cancel. Nothing is required: Send with nothing chosen and nothing
   written is a review that says only that you reviewed the title.
   Persistent — a stray backdrop click must not discard half-written
-  text — so Cancel is the only way out.
+  text — so Cancel is the only way out. A pointer user who clicked
+  Review lands in the text box; keyboard and gamepad keep focus with
+  the input system.
 
   Pure rendering over `MediaCentaurWeb.Live.ReviewFlow`'s assigns;
   `review_sentiment` (a choice), `review_send` (form submit) and
@@ -76,12 +78,18 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
               />
             </button>
           </div>
+          <%!-- Opening the modal is itself the act of writing, so the
+                cursor starts in the box. Pointer only: for keyboard and
+                gamepad the input system owns focus (ADR-053), which is
+                what `MouseAutofocus` gates on. --%>
           <textarea
+            id="review-text"
             name="text"
             rows="3"
             maxlength="500"
             placeholder="What did you think? (optional)"
             class="textarea textarea-bordered w-full text-sm"
+            phx-hook="MouseAutofocus"
           ></textarea>
           <p class="text-xs text-base-content/55">{relay_line(@relay_counts)}</p>
           <div class="flex justify-end gap-2">
