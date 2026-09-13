@@ -112,7 +112,7 @@ defmodule MediaCentaur.Library.InboundTest do
       season: %{
         season_number: 1,
         name: "Season 1",
-        number_of_episodes: 7,
+        episode_list: seven_episode_list(),
         episode: %{
           attrs: %{
             episode_number: 1,
@@ -363,7 +363,7 @@ defmodule MediaCentaur.Library.InboundTest do
           season: %{
             season_number: 1,
             name: "Season 1",
-            number_of_episodes: 7,
+            episode_list: seven_episode_list(),
             episode: %{
               attrs: %{
                 episode_number: 2,
@@ -507,7 +507,7 @@ defmodule MediaCentaur.Library.InboundTest do
           season: %{
             season_number: 1,
             name: "Season 1",
-            number_of_episodes: 7,
+            episode_list: seven_episode_list(),
             episode: nil
           },
           extra: %{
@@ -684,7 +684,7 @@ defmodule MediaCentaur.Library.InboundTest do
           season: %{
             season_number: 1,
             name: "Season 1",
-            number_of_episodes: 7,
+            episode_list: seven_episode_list(),
             episode: %{
               attrs: %{
                 episode_number: 2,
@@ -886,7 +886,7 @@ defmodule MediaCentaur.Library.InboundTest do
         create_season(%{
           tv_series_id: tv_series.id,
           season_number: 1,
-          number_of_episodes: 2
+          episode_list: two_episode_list()
         })
 
       create_episode(%{
@@ -954,4 +954,15 @@ defmodule MediaCentaur.Library.InboundTest do
   defp send_image_ready(attrs) do
     Inbound.process_image_ready(attrs)
   end
+
+  # The ingest event's season carries TMDB's episode list; these stand in
+  # for it at the two sizes the fixtures use.
+  defp seven_episode_list do
+    for n <- 1..7, do: %{episode_number: n, name: "Episode #{n}", air_date: "2020-01-0#{min(n, 9)}"}
+  end
+
+  defp two_episode_list do
+    for n <- 1..2, do: %{episode_number: n, name: "Episode #{n}", air_date: "2020-01-0#{n}"}
+  end
+
 end

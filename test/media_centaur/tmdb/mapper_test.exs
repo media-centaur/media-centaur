@@ -556,31 +556,6 @@ defmodule MediaCentaur.TMDB.MapperTest do
     end
   end
 
-  describe "season_attrs/2" do
-    test "extracts season attributes with episode count" do
-      season_data = %{
-        "season_number" => 2,
-        "name" => "Season 2",
-        "episodes" => [%{"episode_number" => 1}, %{"episode_number" => 2}]
-      }
-
-      result = Mapper.season_attrs("entity-uuid", season_data)
-
-      assert result.entity_id == "entity-uuid"
-      assert result.season_number == 2
-      assert result.name == "Season 2"
-      assert result.number_of_episodes == 2
-    end
-
-    test "nil episodes defaults to 0 count" do
-      season_data = %{"season_number" => 1, "name" => "Season 1", "episodes" => nil}
-
-      result = Mapper.season_attrs("entity-uuid", season_data)
-
-      assert result.number_of_episodes == 0
-    end
-  end
-
   describe "episode_attrs/4" do
     test "finds matching episode by number" do
       season_data = %{
