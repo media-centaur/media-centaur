@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=controls")
 
       view
-      |> element(~s|button[phx-click="controls:set_glyph"][phx-value-style="playstation"]|)
+      |> element(~s|button[phx-click="controls:set_glyph"][phx-value-choice="playstation"]|)
       |> render_click()
 
       assert_receive {:controls_changed, _}

@@ -10,6 +10,8 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.Components.Settings
+
   attr :blank_extra_names_count, :integer, required: true
 
   attr :missing_images_summary, :any,
@@ -31,7 +33,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
 
   def render(assigns) do
     ~H"""
-    <div data-nav-grid class="p-5 rounded-lg glass-surface space-y-4">
+    <.settings_card title="Library repairs" data-nav-grid>
       <div class="divide-y divide-base-content/10">
         <div class="flex items-start justify-between gap-4 py-3">
           <div class="min-w-0">
@@ -245,7 +247,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
           </div>
         </div>
       </div>
-    </div>
+    </.settings_card>
     """
   end
 end

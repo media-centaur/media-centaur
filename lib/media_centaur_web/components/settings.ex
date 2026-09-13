@@ -473,7 +473,14 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :placeholder, :string, default: nil
   attr :add_label, :string, default: "Add"
   attr :mono, :boolean, default: false
-  attr :error, :string, default: nil
+  attr :error, :string, default: nil, doc: "why the last add was refused; shown under the form."
+
+  attr :change_event, :string,
+    default: nil,
+    doc: "when set, the add form validates on change with `%{\"item\" => typed}` and the input is controlled by `value`."
+
+  attr :value, :string, default: nil, doc: "the add input's current text when `change_event` controls it."
+  attr :add_disabled, :boolean, default: false, doc: "Add is inert while the typed entry is invalid."
 
   @doc "A string-list setting (UIDR-041 §32): one row per entry with Remove, an inline input with Add, an optional error line."
   def settings_list(assigns) do
@@ -501,16 +508,24 @@ defmodule MediaCentaurWeb.Components.Settings do
           </.button>
         </li>
       </ul>
-      <form phx-submit={@add_event} class="flex items-center gap-2">
+      <form phx-submit={@add_event} phx-change={@change_event} class="flex items-center gap-2">
         <input :for={{key, value} <- @event_value} type="hidden" name={key} value={value} />
         <.settings_input
           name="item"
+          value={@value}
           placeholder={@placeholder}
           mono={@mono}
           autocomplete="off"
           class="min-w-0 flex-1"
         />
-        <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
+        <.button
+          type="submit"
+          variant="neutral"
+          size="sm"
+          disabled={@add_disabled}
+          data-nav-item
+          tabindex="0"
+        >
           {@add_label}
         </.button>
       </form>
