@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.24.1 — 2026-09-13
+
+### Improved
+
+- **The review box is ready to type in.** Pressing **Review** on a title now opens the modal with the cursor already in the text box, so you can start writing without clicking into it first. Keyboard and gamepad navigation is unchanged — the cursor stays where you left it and the box is reached the usual way.
+
 ## v1.24.0 — 2026-09-13
 
 ### New
