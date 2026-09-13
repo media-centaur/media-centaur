@@ -85,8 +85,9 @@ defmodule MediaCentaur.GlobalStateSandbox do
       {:sandboxed, "the per-dir map lives only in :persistent_term, which check-in restores"},
     MediaCentaur.TaskSupervisor => {:sandboxed, "live children are a verified store — see checkin/0"},
     MediaCentaur.Console.Buffer =>
-      {:reset, {MediaCentaur.Console.Buffer, :clear, []},
-       "ring buffer; unscoped log assertions false-match"},
+      {:reset, {MediaCentaur.Console.Buffer, :reset, []},
+       "ring buffer; unscoped log assertions false-match, and a resize's " <>
+         "settings-persist debounce would fire inside a later test's sandbox"},
     MediaCentaurWeb.IncomingLive.SearchSession =>
       {:reset, {MediaCentaurWeb.IncomingLive.SearchSession, :clear, []},
        "singleton search session, rendered by /incoming on mount"},

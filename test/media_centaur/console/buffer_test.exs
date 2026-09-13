@@ -100,6 +100,34 @@ defmodule MediaCentaur.Console.BufferTest do
     end
   end
 
+  describe "reset/1" do
+    test "drops a pending settings write, where clear/1 keeps it" do
+      # A short debounce so the timer fires inside this test.
+      {pid, name} = start_buffer(cap: 500, persist_debounce_ms: 30)
+      Ecto.Adapters.SQL.Sandbox.allow(MediaCentaur.Repo, self(), pid)
+
+      :ok = Buffer.resize(200, name)
+      Buffer.clear(name)
+
+      # clear/1 keeps the pending write: a person emptying the console has
+      # not changed their mind about its size.
+      eventually(fn ->
+        match?(%{value: %{"value" => 200}}, MediaCentaur.Settings.get_by_key("console_buffer_size")) ||
+          nil
+      end)
+
+      :ok = Buffer.resize(300, name)
+      Buffer.append(build_entry(), name)
+      Buffer.reset(name)
+
+      # A negative needs a bounded wait: an uncancelled timer would have
+      # fired well within it.
+      Process.sleep(150)
+      assert %{value: %{"value" => 200}} = MediaCentaur.Settings.get_by_key("console_buffer_size")
+      assert Buffer.recent(nil, name) == []
+    end
+  end
+
   describe "resize/2" do
     test "shrinking cap truncates existing entries immediately" do
       # Start with a large enough cap to hold the test-only warm-up entries,
