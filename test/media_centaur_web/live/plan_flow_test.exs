@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Live.PlanFlowTest do
                "TMDB doesn't list that episode for this season."
 
       assert PlanFlow.failure_flash("Sample Show", :tracked) ==
-               "Release tracking is already looking for that one."
+               "That episode is already on its way."
     end
 
     test "anything else points at TMDB and names the title" do
