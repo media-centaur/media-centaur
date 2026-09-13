@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
 
   def render(assigns) do
     ~H"""
-    <div data-nav-grid class="p-5 rounded-lg glass-surface">
+    <.settings_card title="Background services" data-nav-grid>
       <div class="space-y-0.5">
         <.settings_row
           label="File watching"
@@ -44,7 +44,7 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
           event="toggle_acquisition"
         />
       </div>
-    </div>
+    </.settings_card>
     """
   end
 end

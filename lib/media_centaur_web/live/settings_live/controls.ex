@@ -9,6 +9,8 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.Components.Settings
+
   alias MediaCentaurWeb.SettingsLive.ControlsLogic
 
   attr :bindings, :map,
@@ -37,50 +39,33 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
         </.armed_button>
       </div>
 
-      <div class="flex items-center gap-2 mb-6">
-        <span class="text-xs uppercase tracking-wide text-base-content/60">Glyphs:</span>
-        <div class="join">
-          <button
-            phx-click="controls:set_glyph"
-            phx-value-style="xbox"
-            class={"join-item btn btn-xs " <> if(@glyph_style == "xbox", do: "btn-primary", else: "btn-ghost")}
-            data-nav-item
-            tabindex="0"
-          >
-            Xbox
-          </button>
-          <button
-            phx-click="controls:set_glyph"
-            phx-value-style="playstation"
-            class={"join-item btn btn-xs " <> if(@glyph_style == "playstation", do: "btn-primary", else: "btn-ghost")}
-            data-nav-item
-            tabindex="0"
-          >
-            PlayStation
-          </button>
-        </div>
-      </div>
+      <.settings_card title="Gamepad glyphs" class="mb-4">
+        <.settings_choice
+          label="Button glyphs"
+          description="How gamepad buttons are drawn in the bindings below."
+          options={[{"xbox", "Xbox"}, {"playstation", "PlayStation"}]}
+          selected={@glyph_style}
+          event="controls:set_glyph"
+        />
+      </.settings_card>
 
-      <div class="h-px bg-base-300 mb-6"></div>
-
-      <div :for={{category, views} <- @groups} class="controls-category mb-8">
-        <div class="flex items-baseline justify-between mb-3 pb-2 border-b border-dashed border-base-300">
-          <h3 class="text-lg font-semibold">
-            {ControlsLogic.category_label(category)}
-            <span class="text-xs text-base-content/60 ml-2 uppercase tracking-wide">
-              {length(views)} bindings
-            </span>
-          </h3>
-          <button
+      <.settings_card
+        :for={{category, views} <- @groups}
+        title={ControlsLogic.category_label(category)}
+        class="controls-category mb-4"
+      >
+        <:action>
+          <.button
+            variant="dismiss"
+            size="xs"
             phx-click="controls:reset_category"
             phx-value-category={Atom.to_string(category)}
-            class="text-xs text-base-content/60 hover:text-primary"
             data-nav-item
             tabindex="0"
           >
             Reset {ControlsLogic.category_label(category)}
-          </button>
-        </div>
+          </.button>
+        </:action>
 
         <div class="controls-list">
           <div
@@ -141,7 +126,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
             </div>
           </div>
         </div>
-      </div>
+      </.settings_card>
     </div>
     """
   end

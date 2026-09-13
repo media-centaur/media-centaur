@@ -28,7 +28,10 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsList do
           placeholder: "/path",
           add_label: "Add",
           mono: true,
-          error: "That path is inside a media directory."
+          change_event: "exclude_dir:validate",
+          value: "cache",
+          add_disabled: true,
+          error: "Must be an absolute path."
         }
       }
     ]

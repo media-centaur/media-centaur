@@ -1212,7 +1212,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  def handle_event("controls:set_glyph", %{"style" => style}, socket) do
+  def handle_event("controls:set_glyph", %{"choice" => style}, socket) do
     :ok = Controls.set_glyph_style(style)
     {:noreply, socket}
   end

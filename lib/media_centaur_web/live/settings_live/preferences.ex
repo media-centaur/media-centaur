@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
 
   def render(assigns) do
     ~H"""
-    <div data-nav-grid class="p-5 rounded-lg glass-surface">
+    <.settings_card title="Display" data-nav-grid>
       <div class="space-y-0.5">
         <.settings_row
           label="Spoiler-free mode"
@@ -86,7 +86,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           event="set_ui_scale"
         />
       </div>
-    </div>
+    </.settings_card>
     """
   end
 end

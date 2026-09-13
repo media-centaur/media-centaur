@@ -8,11 +8,13 @@ defmodule MediaCentaurWeb.SettingsLive.Danger do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.Components.Settings
+
   attr :clearing_database, :boolean, required: true
 
   def render(assigns) do
     ~H"""
-    <div data-nav-grid class="p-5 rounded-lg glass-surface border border-error/20 space-y-4">
+    <.settings_card title="Danger zone" class="border border-error/20" data-nav-grid>
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0 flex items-start gap-3">
           <.icon name="hero-exclamation-triangle" class="size-5 text-error shrink-0 mt-0.5" />
@@ -38,7 +40,7 @@ defmodule MediaCentaurWeb.SettingsLive.Danger do
           {if @clearing_database, do: "Clearing…", else: "Clear"}
         </.button>
       </div>
-    </div>
+    </.settings_card>
     """
   end
 end
