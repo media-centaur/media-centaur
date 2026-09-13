@@ -192,9 +192,16 @@ those rows actionable would offer to download episodes that don't exist yet.
     populated — every series in this library today, so folding this in would
     reach nothing.
 
-17. **A season with an empty episode list behaves as it does today.** The
-    feature degrades to the current rendering rather than breaking, so the
-    pass is a correctness improvement you run once, not a prerequisite.
+17. **A season with an empty episode list draws no Missing rows.** It
+    renders its library and release rows and nothing else. This is a change
+    from today, where a numbering gap in the library alone draws a
+    placeholder — the same infer-from-a-gap heuristic decision 18 deletes
+    from `Completeness`, and it goes from both places or neither. Nothing
+    breaks before the pass runs; a season with a hole simply doesn't
+    advertise it until refreshed.
+
+    *(Amended 2026-09-13 during implementation. The decision as first
+    written claimed the rendering was unchanged, which was wrong.)*
 
 ### Converging the other definition
 
