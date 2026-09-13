@@ -2122,5 +2122,4 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert html =~ "tmdb_id=246810"
     end
   end
-
 end

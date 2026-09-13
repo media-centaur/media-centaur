@@ -1152,8 +1152,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # holds an open want for it, so planning here would duplicate the cadence.
   defp unit_plannable(selection, {season, episode}) do
     found =
-      Enum.find_value(selection.seasons, fn s ->
-        s.season_number == season && Enum.find(s.episodes, &(&1.episode_number == episode))
+      Enum.find_value(selection.seasons, fn listed_season ->
+        listed_season.season_number == season &&
+          Enum.find(listed_season.episodes, &(&1.episode_number == episode))
       end)
 
     cond do

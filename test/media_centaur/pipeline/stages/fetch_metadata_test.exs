@@ -154,7 +154,6 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
   # ---------------------------------------------------------------------------
 
   describe "TV series" do
-
     test "the season's episode list carries every episode with its air date" do
       stub_routes([
         {"/tv/1396/season/1",
@@ -187,6 +186,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert two.air_date == nil
       assert three.air_date == "2199-01-01"
     end
+
     test "fetches TV and season details" do
       stub_routes([
         {"/tv/1396/season/1", season_detail()},

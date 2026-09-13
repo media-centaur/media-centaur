@@ -956,6 +956,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
     test "Season carries :episode_list from the Season schema" do
       series = create_tv_series(%{name: "Sample TV NOE"})
+
       season =
         create_season(%{
           tv_series_id: series.id,

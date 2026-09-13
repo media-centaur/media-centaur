@@ -964,5 +964,4 @@ defmodule MediaCentaur.Library.InboundTest do
   defp two_episode_list do
     for n <- 1..2, do: %{episode_number: n, name: "Episode #{n}", air_date: "2020-01-0#{n}"}
   end
-
 end

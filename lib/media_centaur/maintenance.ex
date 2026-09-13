@@ -372,7 +372,7 @@ defmodule MediaCentaur.Maintenance do
     %{
       episode_number: episode["episode_number"],
       name: episode["name"],
-      air_date: if(episode["air_date"] in [nil, ""], do: nil, else: episode["air_date"])
+      air_date: if(episode["air_date"] not in [nil, ""], do: episode["air_date"])
     }
   end
 

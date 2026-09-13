@@ -242,7 +242,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       air_date: entry.air_date
     ]
 
-    if entry.air_date && Date.compare(entry.air_date, today) == :gt,
+    if entry.air_date && Date.after?(entry.air_date, today),
       do: struct!(EpisodeRow.Upcoming, fields),
       else: struct!(EpisodeRow.Missing, fields)
   end
