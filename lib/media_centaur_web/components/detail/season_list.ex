@@ -115,8 +115,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           data-nav-item
           tabindex="0"
         >
-          <.icon name="hero-arrow-down-tray-mini" class="size-3.5" />
-          Download more of this show
+          <.icon name="hero-arrow-down-tray-mini" class="size-3.5" /> Download more of this show
         </.link>
       </div>
       <ExtrasSection.extras_section

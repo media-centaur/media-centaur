@@ -32,6 +32,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        `%EpisodeRow.Library{}` and `%EpisodeRow.Missing{}`
        items — the TV-series content list reads exclusively from this
        structure (per ADR ViewModel migration).
+    3b. `:tv_series_acquisition_off` — the acquisition gate: missing rows
+       inert and unfocusable, no "Download more of this show".
     4. `:tv_series_spoiler_free` — same library shape as 3 but
        `spoiler_free: true`. Unwatched episodes blur their thumbnail,
        title, and description (`.spoiler-blur`); the leading episode
@@ -319,6 +321,16 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "Episode 2** — driven by `resume_label_from_progress/2`. " <>
             "`seasons_view` is the typed `[%SeasonView{}]` contract.",
         attributes: tv_series_attrs()
+      },
+      %Variation{
+        id: :tv_series_acquisition_off,
+        description:
+          "Same library shape as `:tv_series_with_seasons` with " <>
+            "`acquisition?: false`: the missing-episode row is inert — no " <>
+            "download glyph, no click, and not focusable — and \"Download more " <>
+            "of this show\" is absent. The gate for an install with no indexer " <>
+            "or download client configured.",
+        attributes: Map.put(tv_series_attrs(), :acquisition?, false)
       },
       %Variation{
         id: :tv_series_episode_details_open,
@@ -984,6 +996,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     struct!(EntityView,
       id: @tv_id,
       type: :tv_series,
+      tmdb_id: "246810",
       name: "Quiet Sample Series",
       description:
         "An anthology of small stories from a sleepy town. Each episode " <>

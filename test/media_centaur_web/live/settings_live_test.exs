@@ -759,5 +759,4 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert render(view) =~ "Episode lists already up to date"
     end
   end
-
 end

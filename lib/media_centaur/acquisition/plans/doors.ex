@@ -97,6 +97,18 @@ defmodule MediaCentaur.Acquisition.Plans.Doors do
           "the want, via ReleaseTracking.Identity.for_want/2 — the tracked film's own " <>
             "identity when the want is that film, the part's bare id when it is a " <>
             "collection part. This is the door that shipped without one."
+      },
+      %{
+        module: MediaCentaurWeb.Live.EntityModal,
+        function: :plan_missing_episode,
+        opens:
+          "the person clicking a missing-episode row in the library detail modal — " <>
+            "one {season, episode} unit of a series they already partly own",
+        identity_from:
+          "the Targeting.Selection its own TMDB fetch produces, the same as " <>
+            "create_series_plan's picker door. The click guards on that selection " <>
+            "before planning: unaired, already in the library, or already wanted by " <>
+            "release tracking all decline instead of drafting."
       }
     ]
   end

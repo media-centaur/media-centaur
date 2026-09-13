@@ -249,7 +249,10 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
     test "watched_count and total_count reflect library state, not releases" do
       [ep1, ep2, ep3] = build_episodes([1, 2, 3])
-      season = build_season(%{season_number: 1, episode_list: past_episode_list(3), episodes: [ep1, ep2, ep3]})
+
+      season =
+        build_season(%{season_number: 1, episode_list: past_episode_list(3), episodes: [ep1, ep2, ep3]})
+
       tv = build_tv_series(%{seasons: [season]})
 
       progress_records = [
@@ -271,7 +274,10 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
     test "is_resume_target marks the matching library item from resume_target hint" do
       [ep1, ep2] = build_episodes([1, 2])
-      season = build_season(%{season_number: 1, episode_list: past_episode_list(2), episodes: [ep1, ep2]})
+
+      season =
+        build_season(%{season_number: 1, episode_list: past_episode_list(2), episodes: [ep1, ep2]})
+
       tv = build_tv_series(%{seasons: [season]})
 
       resume_target = %{
@@ -294,7 +300,10 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
     test "library_item.state reflects watch progress" do
       [ep1, ep2, ep3] = build_episodes([1, 2, 3])
-      season = build_season(%{season_number: 1, episode_list: past_episode_list(3), episodes: [ep1, ep2, ep3]})
+
+      season =
+        build_season(%{season_number: 1, episode_list: past_episode_list(3), episodes: [ep1, ep2, ep3]})
+
       tv = build_tv_series(%{seasons: [season]})
 
       progress_records = [

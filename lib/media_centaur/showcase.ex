@@ -303,7 +303,7 @@ defmodule MediaCentaur.Showcase do
     %{
       episode_number: episode_data["episode_number"],
       name: episode_data["name"],
-      air_date: if(episode_data["air_date"] in [nil, ""], do: nil, else: episode_data["air_date"])
+      air_date: if(episode_data["air_date"] not in [nil, ""], do: episode_data["air_date"])
     }
   end
 
