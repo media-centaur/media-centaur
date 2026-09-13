@@ -5,78 +5,94 @@ defmodule MediaCentaur.Library.CompletenessTest do
 
   alias MediaCentaur.Library.Completeness
 
-  describe "detect_season_gaps/1 (pure)" do
-    test "no gaps when episode numbers are contiguous" do
-      rows = [
-        %{tv_series_id: "a", season_number: 1, episode_number: 1},
-        %{tv_series_id: "a", season_number: 1, episode_number: 2},
-        %{tv_series_id: "a", season_number: 1, episode_number: 3}
-      ]
-
-      assert Completeness.detect_season_gaps(rows) == 0
-    end
-
-    test "counts a series with an internal gap in a season" do
-      rows = [
-        %{tv_series_id: "a", season_number: 1, episode_number: 1},
-        %{tv_series_id: "a", season_number: 1, episode_number: 2},
-        %{tv_series_id: "a", season_number: 1, episode_number: 4}
-      ]
-
-      assert Completeness.detect_season_gaps(rows) == 1
-    end
-
-    test "counts a series only once even when multiple seasons have gaps" do
-      rows = [
-        %{tv_series_id: "a", season_number: 1, episode_number: 1},
-        %{tv_series_id: "a", season_number: 1, episode_number: 3},
-        %{tv_series_id: "a", season_number: 2, episode_number: 1},
-        %{tv_series_id: "a", season_number: 2, episode_number: 5}
-      ]
-
-      assert Completeness.detect_season_gaps(rows) == 1
-    end
-
-    test "counts each distinct series with a gap" do
-      rows = [
-        %{tv_series_id: "a", season_number: 1, episode_number: 1},
-        %{tv_series_id: "a", season_number: 1, episode_number: 3},
-        %{tv_series_id: "b", season_number: 1, episode_number: 2},
-        %{tv_series_id: "b", season_number: 1, episode_number: 9}
-      ]
-
-      assert Completeness.detect_season_gaps(rows) == 2
-    end
-
-    test "ignores nil episode numbers and empty input" do
-      assert Completeness.detect_season_gaps([]) == 0
-
-      rows = [
-        %{tv_series_id: "a", season_number: 1, episode_number: nil},
-        %{tv_series_id: "a", season_number: 1, episode_number: 1}
-      ]
-
-      assert Completeness.detect_season_gaps(rows) == 0
-    end
-  end
-
   describe "incomplete_season_count/0" do
-    test "counts series with a missing episode in the middle of a season" do
-      series = create_tv_series(%{name: "Gappy Show"})
-      season = create_season(%{season_number: 1, tv_series_id: series.id})
+    test "counts a season holding an aired episode with no file" do
+      series = create_tv_series(%{name: "Sample Show"})
+
+      season =
+        create_season(%{
+          season_number: 1,
+          tv_series_id: series.id,
+          episode_list: [
+            %{episode_number: 1, air_date: "2020-01-01"},
+            %{episode_number: 2, air_date: "2020-01-08"}
+          ]
+        })
+
       create_episode(%{episode_number: 1, season_id: season.id})
-      create_episode(%{episode_number: 3, season_id: season.id})
 
       assert Completeness.incomplete_season_count() == 1
     end
 
-    test "does not count a series whose seasons are contiguous" do
-      series = create_tv_series(%{name: "Complete Show"})
-      season = create_season(%{season_number: 1, tv_series_id: series.id})
+    test "does not count a season whose listed episodes all have files" do
+      series = create_tv_series(%{name: "Sample Show"})
+
+      season =
+        create_season(%{
+          season_number: 1,
+          tv_series_id: series.id,
+          episode_list: [
+            %{episode_number: 1, air_date: "2020-01-01"},
+            %{episode_number: 2, air_date: "2020-01-08"}
+          ]
+        })
+
       create_episode(%{episode_number: 1, season_id: season.id})
       create_episode(%{episode_number: 2, season_id: season.id})
 
       assert Completeness.incomplete_season_count() == 0
+    end
+
+    test "does not count a season whose only absent episodes have not aired" do
+      series = create_tv_series(%{name: "Sample Show"})
+      future = Date.utc_today() |> Date.add(30) |> Date.to_iso8601()
+
+      season =
+        create_season(%{
+          season_number: 1,
+          tv_series_id: series.id,
+          episode_list: [
+            %{episode_number: 1, air_date: "2020-01-01"},
+            %{episode_number: 2, air_date: future}
+          ]
+        })
+
+      create_episode(%{episode_number: 1, season_id: season.id})
+
+      assert Completeness.incomplete_season_count() == 0
+    end
+
+    test "an undated listed episode with no file counts as a gap" do
+      series = create_tv_series(%{name: "Sample Show"})
+
+      create_season(%{
+        season_number: 1,
+        tv_series_id: series.id,
+        episode_list: [%{episode_number: 1, air_date: nil}]
+      })
+
+      assert Completeness.incomplete_season_count() == 1
+    end
+
+    test "a season with an empty episode list never counts" do
+      series = create_tv_series(%{name: "Sample Show"})
+      create_season(%{season_number: 1, tv_series_id: series.id, episode_list: []})
+
+      assert Completeness.incomplete_season_count() == 0
+    end
+
+    test "each short season of one series counts separately" do
+      series = create_tv_series(%{name: "Sample Show"})
+
+      for number <- [1, 2] do
+        create_season(%{
+          season_number: number,
+          tv_series_id: series.id,
+          episode_list: [%{episode_number: 1, air_date: "2020-01-01"}]
+        })
+      end
+
+      assert Completeness.incomplete_season_count() == 2
     end
   end
 
