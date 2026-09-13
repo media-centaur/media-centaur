@@ -578,12 +578,15 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
              )
     end
 
-    test "saving the refresh interval from Acquisition persists it", %{conn: conn} do
+    test "stepping the refresh interval from Acquisition persists it", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
 
-      view
-      |> form("form[phx-submit=save_release_tracking]", %{"refresh_interval_hours" => "12"})
-      |> render_submit()
+      increase =
+        "#release-tracking-interval button[aria-label='Increase Check TMDB for new release dates']"
+
+      # The ladder runs 1 · 2 · 3 · 4 · 6 · 8 · 12 · 24; from the default 6, two steps up.
+      view |> element(increase) |> render_click()
+      view |> element(increase) |> render_click()
 
       assert Config.get(:release_tracking_refresh_interval_hours) == 12
     end
@@ -615,12 +618,11 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.pipeline_input())
 
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=tmdb")
+      open_tmdb_form(view)
 
       view
-      |> form("form[phx-submit='save_tmdb']", %{
-        "tmdb_api_key" => "freshly-rotated-key-123"
-      })
-      |> render_submit()
+      |> form("#connection-tmdb-form", %{"tmdb_api_key" => "freshly-rotated-key-123"})
+      |> render_submit(%{"_action" => "save"})
 
       assert_receive {:file_detected, %{path: ^stranded_path, media_dir: ^media_dir}}, 1_500
     end
@@ -633,14 +635,19 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.pipeline_input())
 
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=tmdb")
+      open_tmdb_form(view)
 
       view
-      |> form("form[phx-submit='save_tmdb']", %{
-        "tmdb_api_key" => ""
-      })
-      |> render_submit()
+      |> form("#connection-tmdb-form", %{"tmdb_api_key" => ""})
+      |> render_submit(%{"_action" => "save"})
 
       refute_receive {:file_detected, _}, 500
+    end
+
+    # The row's form opens with Set up while no key is stored, Edit once one is.
+    defp open_tmdb_form(view) do
+      button = if has_element?(view, "#connection-tmdb-setup"), do: "setup", else: "edit"
+      view |> element("#connection-tmdb-#{button}") |> render_click()
     end
   end
 
@@ -725,15 +732,17 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       html = render(view)
 
-      # Form shows the detected URL as the input value.
-      assert html =~ ~s(value="http://qbittorrent:8080")
-      assert html =~ ~s(value="admin")
-
-      # Config is NOT updated — the user hasn't clicked Save.
+      # The row carries the detection until it is reviewed; nothing is saved.
+      assert html =~ "Detected from Prowlarr, not saved"
+      assert html =~ "http://qbittorrent:8080"
       assert Config.get(:download_client_url) == saved_url_before
 
-      # A flash instructs the user to review and save.
-      assert html =~ "review" or html =~ "Review"
+      # Review opens the form pre-filled with the detected values.
+      view |> element("#connection-download_client-review") |> render_click()
+      html = render(view)
+      assert html =~ ~s(value="http://qbittorrent:8080")
+      assert html =~ ~s(value="admin")
+      assert Config.get(:download_client_url) == saved_url_before
     end
 
     test "empty result shows no clients configured", %{conn: conn} do
