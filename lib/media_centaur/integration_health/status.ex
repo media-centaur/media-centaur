@@ -2,8 +2,9 @@ defmodule MediaCentaur.IntegrationHealth.Status do
   @moduledoc """
   Per-integration health snapshot owned by `MediaCentaur.IntegrationHealth`.
 
-  Each external integration (TMDB, Prowlarr, download client) has two
-  orthogonal axes:
+  Each external integration (TMDB, Prowlarr, the torrent client, the
+  usenet client — the four `Capabilities` subjects) has two orthogonal
+  axes:
 
     * `configured?` — does the user's `Config` carry the required keys?
       Pure read of `Config`; no network involved.
@@ -21,7 +22,7 @@ defmodule MediaCentaur.IntegrationHealth.Status do
   back to `:pending` whenever the underlying config key changes.
   """
 
-  @type id :: :tmdb | :prowlarr | :download_client
+  @type id :: :tmdb | :prowlarr | :download_client | :usenet_download_client
   @type test_state :: :unknown | :pending | :ok | :error
 
   @enforce_keys [:id, :configured?, :test_state]

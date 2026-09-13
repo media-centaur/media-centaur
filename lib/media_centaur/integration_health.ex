@@ -2,9 +2,11 @@ defmodule MediaCentaur.IntegrationHealth do
   @moduledoc """
   Owns the per-integration "is this thing actually working?" answer.
 
-  Each external integration (`:tmdb`, `:prowlarr`, `:download_client`) is
-  tracked along two orthogonal axes — `configured?` (read of Config) and
-  `test_state` (last network probe result). State lives in a named ETS
+  Each external integration — the four `Capabilities` subjects `:tmdb`,
+  `:prowlarr`, `:download_client` (the torrent slot) and
+  `:usenet_download_client` — is tracked along two orthogonal axes:
+  `configured?` (`Capabilities.configured?/1`) and `test_state` (last
+  network probe result). State lives in a named ETS
   table owned by this module's GenServer; reads bypass the GenServer
   entirely. Writes go through the GenServer to serialise verify
   scheduling and broadcast emission.
@@ -60,20 +62,30 @@ defmodule MediaCentaur.IntegrationHealth do
   use GenServer
 
   alias MediaCentaur.Settings.Config
-  alias MediaCentaur.{Capabilities, Downloads, Topics}
+  alias MediaCentaur.{Capabilities, Topics}
   alias MediaCentaur.IntegrationHealth.{Status, Verifier}
   require MediaCentaur.Log, as: Log
 
   @table :integration_health
-  @integrations [:tmdb, :prowlarr, :download_client]
+  @integrations [:tmdb, :prowlarr, :download_client, :usenet_download_client]
 
   # The Config keys whose change can flip an integration's `configured?`
-  # (the predicate itself is `Capabilities.configured?/1`).
-  # `:download_client` is deliberately absent: it spans two slots
-  # (torrent + usenet) and reacts to any slot key (`Downloads.config_key?/1`).
+  # (the predicate itself is `Capabilities.configured?/1`). One slot, one
+  # integration: a usenet key never touches the torrent row (UIDR-041 §7).
   @config_keys %{
     tmdb: [:tmdb_api_key],
-    prowlarr: [:prowlarr_url, :prowlarr_api_key]
+    prowlarr: [:prowlarr_url, :prowlarr_api_key],
+    download_client: [
+      :download_client_type,
+      :download_client_url,
+      :download_client_username,
+      :download_client_password
+    ],
+    usenet_download_client: [
+      :usenet_download_client_type,
+      :usenet_download_client_url,
+      :usenet_download_client_api_key
+    ]
   }
 
   # ---------------------------------------------------------------------------
@@ -110,7 +122,7 @@ defmodule MediaCentaur.IntegrationHealth do
   @doc "Returns every tracked integration's status as a map keyed by id."
   @spec all_statuses() :: %{Status.id() => Status.t()}
   def all_statuses do
-    Map.new(@integrations, fn id -> {id, status(id) || unknown(id, false)} end)
+    Map.new(@integrations, fn id -> {id, status(id) || unknown(id, configured_for?(id))} end)
   end
 
   @doc "True when the integration is configured AND last test was `:ok`."
@@ -208,15 +220,10 @@ defmodule MediaCentaur.IntegrationHealth do
     end
   end
 
-  defp configured_for?(:download_client), do: Downloads.configured_clients() != []
   defp configured_for?(id), do: Capabilities.configured?(id)
 
   defp integration_for_key(key) do
-    if Downloads.config_key?(key) do
-      :download_client
-    else
-      Enum.find([:tmdb, :prowlarr], fn id -> key in Map.fetch!(@config_keys, id) end)
-    end
+    Enum.find(@integrations, fn id -> key in Map.fetch!(@config_keys, id) end)
   end
 
   defp kick_test(id) do
