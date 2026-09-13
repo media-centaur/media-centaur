@@ -281,7 +281,7 @@ defmodule MediaCentaur.Showcase do
             tv_series_id: series.id,
             season_number: season_number,
             name: season_data["name"] || "Season #{season_number}",
-            number_of_episodes: length(season_data["episodes"] || [])
+            episode_list: Enum.map(season_data["episodes"] || [], &episode_list_entry/1)
           })
 
         episodes =
@@ -295,6 +295,16 @@ defmodule MediaCentaur.Showcase do
         Log.warning(:library, "showcase: failed to seed season #{season_number}: #{inspect(reason)}")
         %{id: nil, episodes: []}
     end
+  end
+
+  # The season's episode list — the same shape the ingest stage builds,
+  # from the same TMDB payload.
+  defp episode_list_entry(episode_data) do
+    %{
+      episode_number: episode_data["episode_number"],
+      name: episode_data["name"],
+      air_date: if(episode_data["air_date"] in [nil, ""], do: nil, else: episode_data["air_date"])
+    }
   end
 
   defp seed_episode!(season, episode_data, _series_name) do
