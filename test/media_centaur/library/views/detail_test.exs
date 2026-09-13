@@ -954,9 +954,17 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert item.subtitle_tracks == []
     end
 
-    test "Season carries :number_of_episodes from Season schema" do
+    test "Season carries :episode_list from the Season schema" do
       series = create_tv_series(%{name: "Sample TV NOE"})
-      season = create_season(%{tv_series_id: series.id, season_number: 1, number_of_episodes: 10})
+      season =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 1,
+          episode_list: [
+            %{episode_number: 1, name: "One", air_date: "2020-01-01"},
+            %{episode_number: 2, name: "Two", air_date: nil}
+          ]
+        })
 
       ep1 =
         create_episode(%{season_id: season.id, episode_number: 1, name: "Ep 1", duration_seconds: 1800})
@@ -967,7 +975,12 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert :ok = Detail.refresh_cache()
       item = Views.detail(pi1.id)
 
-      assert [%DetailItem.Season{season_number: 1, number_of_episodes: 10}] = item.seasons
+      assert [%DetailItem.Season{season_number: 1, episode_list: episode_list}] = item.seasons
+
+      assert [
+               %{episode_number: 1, name: "One", air_date: ~D[2020-01-01]},
+               %{episode_number: 2, name: "Two", air_date: nil}
+             ] = episode_list
     end
 
     test "Season's :extras is populated from Season's preloaded extras" do
