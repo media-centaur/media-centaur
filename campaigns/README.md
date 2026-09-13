@@ -21,13 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`settings-readout-kit.md`](settings-readout-kit.md) —
-  **implemented 2026-09-13, unpushed; owner look open.** Every Settings section composes from one kit whose
-  resting state is a readout: an external connection is a row (name, address,
-  credential presence, state, test age) whose form appears only on Edit, and
-  every other setting saves on the act. Acquisition is rebuilt; the other
-  twelve sections adopt the kit; the automatic quality policy loses its floor
-  and its 4K patience window (UIDR-041).
 * [`review-replaces-recommendation.md`](review-replaces-recommendation.md) —
   **shipped v1.23.0 2026-09-12; owner check open.** "Recommend" becomes "review": one person's opinion of one
   title, told to their friends — an optional sentiment (thumbs down, thumbs
