@@ -20,6 +20,7 @@
 - User-facing words are the spec's. Any new sentence goes through the two writing-copy gates.
 - `~/scripts/agents/agent-mix precommit` before the last commit of every phase; zero warnings.
 - Commit after each task. Work on `main`; do not push until told.
+- **After adding functions a story captures, run `MIX_ENV=test ~/scripts/agents/agent-mix compile --force` once before precommit.** The storybook backend compiles stories at its own compile time; the test manifest caches "undefined or private" warnings for the new captures and replays them until a forced test-env compile.
 - **Release grouping:** Phases A, C and D ship in one release (A leaves two dead form fields until D; C leaves two writers of the persisted test until D). Phases B, E, F, G can each ship alone.
 
 ## File structure
