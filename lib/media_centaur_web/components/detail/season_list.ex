@@ -58,6 +58,14 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   attr :spoiler_free, :boolean, default: false
   attr :available, :boolean, default: true
 
+  attr :series_tmdb_id, :string,
+    default: nil,
+    doc: "the series' TMDB id — the plan picker's target. nil makes the gaps inert."
+
+  attr :acquisition?, :boolean,
+    default: false,
+    doc: "an indexer and a download client are ready; without them nothing here can download."
+
   def season_list(assigns) do
     ~H"""
     <div :if={@seasons != []} class="pt-3 space-y-3">
@@ -94,7 +102,23 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         on_play={@on_play}
         spoiler_free={@spoiler_free}
         available={@available}
+        actionable_gaps={@series_tmdb_id != nil && @acquisition?}
       />
+      <%!-- The season list is a picture of what is on disk; seasons you
+            don't own live in the plan picker on the other side of this
+            link (2026-09-13 series-gap-download design, decision 12). --%>
+      <div :if={@series_tmdb_id && @acquisition?} class="pt-1">
+        <.link
+          navigate={~p"/incoming?plan=new&tmdb_id=#{@series_tmdb_id}&tmdb_type=tv"}
+          class="inline-flex items-center gap-1.5 text-xs text-base-content/55 hover:text-base-content transition-colors"
+          data-role="download-more-link"
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon name="hero-arrow-down-tray-mini" class="size-3.5" />
+          Download more of this show
+        </.link>
+      </div>
       <ExtrasSection.extras_section
         extras={@extras}
         extra_progress_by_id={@extra_progress_by_id}
@@ -127,6 +151,10 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
   attr :available, :boolean, default: true
+
+  attr :actionable_gaps, :boolean,
+    default: false,
+    doc: "whether a missing-episode row in this season downloads that episode when clicked."
 
   defp season_section(assigns) do
     ~H"""
@@ -182,6 +210,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           on_play={@on_play}
           spoiler_free={@spoiler_free}
           available={@available}
+          actionable_gaps={@actionable_gaps}
         />
         <ExtrasSection.extras_section
           extras={@season.extras}
@@ -207,6 +236,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
   attr :available, :boolean, default: true
+  attr :actionable_gaps, :boolean, default: false
 
   attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
 
@@ -226,7 +256,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   defp season_item(%{item: %EpisodeRow.Missing{}} = assigns) do
     ~H"""
-    <.missing_episode_row id={@id} item={@item} />
+    <.missing_episode_row id={@id} item={@item} actionable={@actionable_gaps} />
     """
   end
 
@@ -350,14 +380,29 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
 
+  attr :actionable, :boolean,
+    required: true,
+    doc:
+      "whether clicking the row downloads the episode — a TMDB id plus a configured indexer and client. An inert row is not focusable, the same rule `upcoming_episode_row/1` follows."
+
   defp missing_episode_row(assigns) do
     ~H"""
     <div
       id={@id}
-      class="p-2 rounded opacity-30"
+      class={[
+        "p-2 rounded group",
+        if(@actionable,
+          do:
+            "opacity-30 hover:opacity-90 focus-visible:opacity-90 cursor-pointer transition-opacity",
+          else: "opacity-30"
+        )
+      ]}
       data-role="missing-episode-row"
-      data-nav-item
-      tabindex="0"
+      data-nav-item={@actionable}
+      tabindex={@actionable && "0"}
+      phx-click={@actionable && "download_missing_episode"}
+      phx-value-season={@actionable && @item.season_number}
+      phx-value-episode={@actionable && @item.episode_number}
     >
       <div class="flex items-center gap-3 text-sm">
         <span class="w-6 flex-shrink-0 text-right text-base-content/55 font-mono text-xs tabular-nums">
@@ -370,6 +415,11 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           <.icon name="hero-calendar-mini" class="size-3" />
           {Logic.upcoming_pill_copy(@item)}
         </.badge>
+        <.icon
+          :if={@actionable}
+          name="hero-arrow-down-tray-mini"
+          class="size-3.5 flex-shrink-0 text-base-content/0 group-hover:text-base-content/60 group-focus-visible:text-base-content/60 transition-colors"
+        />
       </div>
     </div>
     """
