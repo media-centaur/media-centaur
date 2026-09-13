@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.24.0 — 2026-09-13
+
+### New
+
+- **Download opens the plan for you to pick the release.** On a title you don't own yet — the title view on Discovery and Incoming, and the Feed's Download — pressing **Download** now creates the plan and takes you straight to its board on Incoming, where you watch the search, swap releases, exclude episodes and approve. Before, a clean result started downloading with nobody looking. The chevron beside the button offers the other choice for this one download: **Auto-select best release**.
+- **Default planning mode.** Settings → Acquisition → **Download button** sets what the button does: *Manually select release* (the default) or *Auto-select best release*, which restores the one-click behaviour — a clean plan starts on its own and anything that needs a decision parks on Incoming. The button's menu always carries the other mode.
+- **Season 1 or all seasons, as a select.** On a series, the select beside **Download** chooses **Season 1** or **All seasons** for the download; it replaces the old *Download all* menu entry.
+
+### Improved
+
+- **Esc / B closes a menu and puts you back on the control that opened it.** The Download menu, the scope select and the library **Sort** menu all behave the same with a keyboard or gamepad: **Enter** / A opens, **Down** enters the list, **Up** returns, and **Esc** / B closes the menu and lands on its button. A second **Esc** / B on a title view closes the view.
+- **The library Sort menu is the same dropdown as everywhere else.** One look and one set of keys for every dropdown in the app.
+
 ## v1.23.0 — 2026-09-12
 
 ### New
