@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.Components.Settings do
         >
           <.icon name="hero-minus-mini" class="size-4" />
         </button>
-        <span class="w-12 text-center text-sm tabular-nums">{@value_label}</span>
+        <span class="min-w-12 px-1 text-center text-sm tabular-nums whitespace-nowrap">{@value_label}</span>
         <button
           type="button"
           data-nav-item
@@ -458,7 +458,12 @@ defmodule MediaCentaurWeb.Components.Settings do
           </.button>
         </li>
       </ul>
-      <form phx-submit={@add_event} phx-change={@change_event} class="flex items-center gap-2">
+      <form
+        id={@id && "#{@id}-add"}
+        phx-submit={@add_event}
+        phx-change={@change_event}
+        class="flex items-center gap-2"
+      >
         <input :for={{key, value} <- @event_value} type="hidden" name={key} value={value} />
         <.settings_input
           name="item"
