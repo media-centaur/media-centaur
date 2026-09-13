@@ -32,17 +32,6 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
   def render(assigns) do
     ~H"""
     <div data-nav-grid class="p-5 rounded-lg glass-surface space-y-4">
-      <div class="flex items-start gap-3">
-        <.icon name="hero-wrench-screwdriver" class="size-6 text-base-content/70 shrink-0 mt-0.5" />
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Library maintenance</h2>
-          <p class="text-sm text-base-content/60 mt-0.5">
-            Detect and heal gaps in the library's metadata and cached artwork.
-            Everything here is recoverable.
-          </p>
-        </div>
-      </div>
-
       <div class="divide-y divide-base-content/10">
         <div class="flex items-start justify-between gap-4 py-3">
           <div class="min-w-0">

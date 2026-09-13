@@ -65,24 +65,76 @@ defmodule MediaCentaurWeb.SettingsLive do
   @sections [
     # Operational — the app itself and its background services.
     # (Update automation lives on the System section's Updates card.)
-    %{id: "system", label: "System", group: :system},
-    %{id: "services", label: "Services", group: :system},
+    %{
+      id: "system",
+      label: "System",
+      group: :system,
+      description: "This install: version, updates, the service, and a health check."
+    },
+    %{
+      id: "services",
+      label: "Services",
+      group: :system,
+      description: "Background work that runs while the app is up."
+    },
     # Personal — start-of-session setup
-    %{id: "preferences", label: "Preferences", group: :general},
-    %{id: "controls", label: "Controls", group: :general},
+    %{
+      id: "preferences",
+      label: "Preferences",
+      group: :general,
+      description: "How the app looks and behaves for you."
+    },
+    %{id: "controls", label: "Controls", group: :general, description: "Keyboard and gamepad bindings."},
     # Media workflow — the arr stack. (Release tracking's refresh interval
     # lives on the Acquisition section — it feeds auto-grab.)
-    %{id: "library", label: "Library", group: :media},
-    %{id: "tmdb", label: "TMDB", group: :media},
-    %{id: "social", label: "Social", group: :media},
-    %{id: "acquisition", label: "Acquisition", group: :media},
-    %{id: "import", label: "Media Import", group: :media},
-    %{id: "playback", label: "Playback", group: :media},
-    %{id: "language", label: "Language", group: :media},
+    %{
+      id: "library",
+      label: "Library",
+      group: :media,
+      description: "Where your media lives and how long absent files are kept."
+    },
+    %{
+      id: "tmdb",
+      label: "TMDB",
+      group: :media,
+      description: "The Movie Database: metadata and artwork for everything in the library."
+    },
+    %{
+      id: "social",
+      label: "Social",
+      group: :media,
+      description:
+        "Your identity, the relays your activity travels over, and what you share. Friends are managed on the Discovery page."
+    },
+    %{
+      id: "acquisition",
+      label: "Acquisition",
+      group: :media,
+      description:
+        "Where releases are searched for and downloaded, and what happens when a tracked title's release appears."
+    },
+    %{
+      id: "import",
+      label: "Media Import",
+      group: :media,
+      description: "How new files are classified and matched on their way into the library."
+    },
+    %{id: "playback", label: "Playback", group: :media, description: "The mpv player this app drives."},
+    %{
+      id: "language",
+      label: "Language",
+      group: :media,
+      description: "The languages you understand, and which audio and subtitle tracks play first."
+    },
     # Infrastructure — rare-touch admin. Maintenance holds the recoverable
     # repair actions; Danger Zone is reserved for the irreversible.
-    %{id: "maintenance", label: "Maintenance", group: :infra},
-    %{id: "danger", label: "Danger Zone", group: :infra}
+    %{
+      id: "maintenance",
+      label: "Maintenance",
+      group: :infra,
+      description: "Repairs you can run on the library. Nothing here deletes your files."
+    },
+    %{id: "danger", label: "Danger Zone", group: :infra, description: "Actions that cannot be undone."}
   ]
 
   @impl true
@@ -1805,7 +1857,15 @@ defmodule MediaCentaurWeb.SettingsLive do
               </div>
             </nav>
 
-            <div data-nav-zone="grid" class="flex-1 min-w-0">
+            <div data-nav-zone="grid" class="flex-1 min-w-0 space-y-4">
+              <%!-- The section intro is the shell's (UIDR-041 §3): one
+                    title and one line per section, from @sections. --%>
+              <div class="min-w-0">
+                <h2 class="text-lg font-semibold">{section_meta(@active_section).label}</h2>
+                <p class="text-sm text-base-content/55 mt-0.5">
+                  {section_meta(@active_section).description}
+                </p>
+              </div>
               <.section_content
                 active_section={@active_section}
                 identity_npub={@identity_npub}
@@ -1892,6 +1952,14 @@ defmodule MediaCentaurWeb.SettingsLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  @doc false
+  def sections, do: @sections
+
+  defp section_meta(id) do
+    Enum.find(@sections, &(&1.id == id)) ||
+      %{id: id, label: "Settings", group: :none, description: "This section does not exist."}
   end
 
   # --- Section router ---

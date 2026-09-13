@@ -18,16 +18,7 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
   def render(assigns) do
     ~H"""
     <div data-nav-grid class="p-5 rounded-lg glass-surface">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Services</h2>
-          <p class="text-sm text-base-content/55 mt-0.5">
-            Start or stop background services. State persists across restarts.
-          </p>
-        </div>
-      </div>
-
-      <div class="mt-4 space-y-0.5">
+      <div class="space-y-0.5">
         <.settings_row
           label="File watching"
           description="Detects new files in your media directories"
