@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   Renders exclusively from the typed
   `[%MediaCentaurWeb.ViewModel.SeasonView{}]` list composed by
   `MediaCentaurWeb.ViewModel.SeriesDetail` — each `SeasonView` carries
-  tagged `EpisodeListItem.{Library, Missing, Upcoming}` items the
+  tagged `EpisodeRow.{Library, Missing, Upcoming}` items the
   renderer pattern-matches on. No tuple ADTs, no shape-guessing.
 
   Row chrome (watched toggle, progress underline, state classes,
@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.PlayableRow
-  alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
 
   attr :seasons, :list,
     required: true,
@@ -175,7 +175,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           item={item}
           details_open={
             @all_episode_details_open ||
-              (match?(%EpisodeListItem.Library{}, item) &&
+              (match?(%EpisodeRow.Library{}, item) &&
                  MapSet.member?(@expanded_item_details || MapSet.new(), item.episode.id))
           }
           entity_id={@entity_id}
@@ -197,11 +197,11 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   # --- Season item dispatch ---
   #
-  # Pattern-matches on the `EpisodeListItem` struct type. No tuple
+  # Pattern-matches on the `EpisodeRow` struct type. No tuple
   # ADTs, no shape-guessing — the typed contract IS the dispatch
   # criterion.
 
-  attr :item, :map, required: true, doc: "%EpisodeListItem.{Library | Missing | Upcoming}{}"
+  attr :item, :map, required: true, doc: "%EpisodeRow.{Library | Missing | Upcoming}{}"
   attr :details_open, :boolean, default: false
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
@@ -210,7 +210,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
 
-  defp season_item(%{item: %EpisodeListItem.Library{}} = assigns) do
+  defp season_item(%{item: %EpisodeRow.Library{}} = assigns) do
     ~H"""
     <.episode_row
       id={@id}
@@ -224,13 +224,13 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     """
   end
 
-  defp season_item(%{item: %EpisodeListItem.Missing{}} = assigns) do
+  defp season_item(%{item: %EpisodeRow.Missing{}} = assigns) do
     ~H"""
     <.missing_episode_row id={@id} item={@item} />
     """
   end
 
-  defp season_item(%{item: %EpisodeListItem.Upcoming{}} = assigns) do
+  defp season_item(%{item: %EpisodeRow.Upcoming{}} = assigns) do
     ~H"""
     <.upcoming_episode_row id={@id} item={@item} />
     """
@@ -240,7 +240,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   attr :item, :map,
     required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Library{}` — typed library episode."
+    doc: "`%MediaCentaurWeb.ViewModel.EpisodeRow.Library{}` — typed library episode."
 
   attr :details_open, :boolean,
     default: false,
@@ -346,7 +346,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   attr :item, :map,
     required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Missing{}`"
+    doc: "`%MediaCentaurWeb.ViewModel.EpisodeRow.Missing{}`"
 
   attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
 
@@ -381,7 +381,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   attr :item, :map,
     required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Upcoming{}`"
+    doc: "`%MediaCentaurWeb.ViewModel.EpisodeRow.Upcoming{}`"
 
   attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
 

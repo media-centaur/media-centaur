@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.SeasonView
   alias MediaCentaurWeb.ViewModel.SeriesDetail
 
@@ -28,11 +28,11 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       assert length(items) == 5
 
       assert [
-               %EpisodeListItem.Library{},
-               %EpisodeListItem.Library{},
-               %EpisodeListItem.Library{},
-               %EpisodeListItem.Missing{episode_number: 4},
-               %EpisodeListItem.Library{}
+               %EpisodeRow.Library{},
+               %EpisodeRow.Library{},
+               %EpisodeRow.Library{},
+               %EpisodeRow.Missing{episode_number: 4},
+               %EpisodeRow.Library{}
              ] = items
     end
 
@@ -55,11 +55,11 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       [%SeasonView{items: items}] = view_model.seasons
 
       assert [
-               %EpisodeListItem.Library{episode: %{episode_number: 1}},
-               %EpisodeListItem.Library{episode: %{episode_number: 2}},
-               %EpisodeListItem.Library{episode: %{episode_number: 3}},
-               %EpisodeListItem.Upcoming{episode_number: 4, title: "The Gap", sub_status: :unaired},
-               %EpisodeListItem.Upcoming{episode_number: 5, title: "The End"}
+               %EpisodeRow.Library{episode: %{episode_number: 1}},
+               %EpisodeRow.Library{episode: %{episode_number: 2}},
+               %EpisodeRow.Library{episode: %{episode_number: 3}},
+               %EpisodeRow.Upcoming{episode_number: 4, title: "The Gap", sub_status: :unaired},
+               %EpisodeRow.Upcoming{episode_number: 5, title: "The End"}
              ] = items
     end
 
@@ -89,8 +89,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
                _,
                _,
                _,
-               %EpisodeListItem.Upcoming{episode_number: 4},
-               %EpisodeListItem.Upcoming{episode_number: 5}
+               %EpisodeRow.Upcoming{episode_number: 4},
+               %EpisodeRow.Upcoming{episode_number: 5}
              ] =
                items
     end
@@ -106,10 +106,10 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       [%SeasonView{items: items}] = view_model.seasons
 
       assert [
-               %EpisodeListItem.Library{episode: %{episode_number: 1}},
-               %EpisodeListItem.Library{episode: %{episode_number: 2}},
-               %EpisodeListItem.Missing{episode_number: 3},
-               %EpisodeListItem.Library{episode: %{episode_number: 1080}}
+               %EpisodeRow.Library{episode: %{episode_number: 1}},
+               %EpisodeRow.Library{episode: %{episode_number: 2}},
+               %EpisodeRow.Missing{episode_number: 3},
+               %EpisodeRow.Library{episode: %{episode_number: 1080}}
              ] = items
     end
 
@@ -128,11 +128,11 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       [%SeasonView{items: items}] = view_model.seasons
 
       assert [
-               %EpisodeListItem.Library{},
-               %EpisodeListItem.Library{},
-               %EpisodeListItem.Library{},
-               %EpisodeListItem.Upcoming{episode_number: 4},
-               %EpisodeListItem.Upcoming{episode_number: 9}
+               %EpisodeRow.Library{},
+               %EpisodeRow.Library{},
+               %EpisodeRow.Library{},
+               %EpisodeRow.Upcoming{episode_number: 4},
+               %EpisodeRow.Upcoming{episode_number: 9}
              ] = items
     end
 
@@ -146,9 +146,9 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       [%SeasonView{items: items}] = view_model.seasons
 
       assert [
-               %EpisodeListItem.Library{episode: %{episode_number: 1}},
-               %EpisodeListItem.Missing{episode_number: 2},
-               %EpisodeListItem.Library{episode: %{episode_number: 3}}
+               %EpisodeRow.Library{episode: %{episode_number: 1}},
+               %EpisodeRow.Missing{episode_number: 2},
+               %EpisodeRow.Library{episode: %{episode_number: 3}}
              ] = items
     end
 
@@ -174,7 +174,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
              ] = view_model.seasons
 
       assert length(future_items) == 2
-      assert Enum.all?(future_items, &match?(%EpisodeListItem.Upcoming{}, &1))
+      assert Enum.all?(future_items, &match?(%EpisodeRow.Upcoming{}, &1))
     end
 
     test "future-season items are sorted by episode_number regardless of input order" do
@@ -211,7 +211,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       [%SeasonView{items: [item]}] = view_model.seasons
 
-      assert %EpisodeListItem.Upcoming{sub_status: :aired_not_in_library, air_date: ~D[2026-04-01]} =
+      assert %EpisodeRow.Upcoming{sub_status: :aired_not_in_library, air_date: ~D[2026-04-01]} =
                item
     end
 
@@ -256,8 +256,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         )
 
       [%SeasonView{items: [item1, item2]}] = view_model.seasons
-      assert %EpisodeListItem.Library{is_resume_target: false} = item1
-      assert %EpisodeListItem.Library{is_resume_target: true} = item2
+      assert %EpisodeRow.Library{is_resume_target: false} = item1
+      assert %EpisodeRow.Library{is_resume_target: true} = item2
     end
 
     test "library_item.state reflects watch progress" do
@@ -283,9 +283,9 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
         )
 
       [%SeasonView{items: [item1, item2, item3]}] = view_model.seasons
-      assert %EpisodeListItem.Library{state: :watched} = item1
-      assert %EpisodeListItem.Library{state: :current} = item2
-      assert %EpisodeListItem.Library{state: :unwatched} = item3
+      assert %EpisodeRow.Library{state: :watched} = item1
+      assert %EpisodeRow.Library{state: :current} = item2
+      assert %EpisodeRow.Library{state: :unwatched} = item3
     end
 
     test "season with no episodes and zero number_of_episodes produces empty items" do
@@ -323,7 +323,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
 
       assert {:ok, view_model} = SeriesDetail.compose(tv.id)
       assert [%SeasonView{kind: :library, items: items}] = view_model.seasons
-      assert Enum.all?(items, &match?(%EpisodeListItem.Library{}, &1))
+      assert Enum.all?(items, &match?(%EpisodeRow.Library{}, &1))
     end
 
     test "tv_series with tracked Item and future-season releases produces a future bucket" do
@@ -352,7 +352,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
                %SeasonView{kind: :future, season_number: 2, items: [item]}
              ] = view_model.seasons
 
-      assert %EpisodeListItem.Upcoming{episode_number: 1, sub_status: :unaired} = item
+      assert %EpisodeRow.Upcoming{episode_number: 1, sub_status: :unaired} = item
     end
   end
 

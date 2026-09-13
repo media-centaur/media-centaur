@@ -1,16 +1,20 @@
-defmodule MediaCentaurWeb.ViewModel.EpisodeListItem do
+defmodule MediaCentaurWeb.ViewModel.EpisodeRow do
   @moduledoc """
-  Tagged-struct ADT for items in a TV-series season's episode list, as
-  consumed by `MediaCentaurWeb.Components.Detail.SeasonList`.
+  Tagged-struct ADT for the rows of a TV-series season, as consumed by
+  `MediaCentaurWeb.Components.Detail.SeasonList`.
+
+  "Episode list" names the data — `MediaCentaur.Library.Season`'s stored
+  list of the episodes TMDB says a season has. These are the rows that
+  list produces once it is joined against the files on disk, which is
+  why they are rows and not list items.
 
   Three variants:
 
     * `Library` — a real `MediaCentaur.Library.Episode` we have a file
       for. Carries precomputed `state` and `is_resume_target` so the
       renderer doesn't have to recompute them per row.
-    * `Missing` — a gap in the library episode list: TMDB says
-      episode N exists for the season but no file has been imported
-      yet. Rendered as a quiet placeholder.
+    * `Missing` — the season's episode list says episode N exists but
+      no file has been imported. Rendered as a quiet placeholder.
     * `Upcoming` — a `MediaCentaur.ReleaseTracking.Release` for an
       episode that's either unaired (`released: false`) or aired but
       not yet in the library (`released: true, in_library: false`).
@@ -47,9 +51,9 @@ defmodule MediaCentaurWeb.ViewModel.EpisodeListItem do
 
   defmodule Missing do
     @moduledoc """
-    A gap in the library episode list — `season.number_of_episodes`
-    says episode N exists but no file has been imported. No release
-    record either (otherwise it would be an `Upcoming`).
+    An episode the season's episode list names that no file has been
+    imported for. No release record either (otherwise it would be an
+    `Upcoming`).
     """
 
     @enforce_keys [:season_number, :episode_number]

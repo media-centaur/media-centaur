@@ -177,16 +177,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       "`[%MediaCentaurWeb.ViewModel.SeasonView{}]` typed view-model for the TV-series " <>
         "content list. Required when `entity.type == :tv_series`. Built by " <>
         "`MediaCentaurWeb.ViewModel.SeriesDetail.compose/1`. Each `SeasonView` carries " <>
-        "tagged `EpisodeListItem.{Library, Missing, Upcoming}` items the renderer " <>
+        "tagged `EpisodeRow.{Library, Missing, Upcoming}` items the renderer " <>
         "pattern-matches on — no tuple ADTs, no shape-guessing inside the component."
 
   attr :movies_view, :list,
     default: nil,
     doc:
-      "`[%MediaCentaurWeb.ViewModel.MovieListItem{}]` typed view-model for the " <>
+      "`[%MediaCentaurWeb.ViewModel.MovieRow{}]` typed view-model for the " <>
         "movie-collection poster rail. Required when `entity.type == :movie_series`. " <>
         "Built by `MediaCentaurWeb.ViewModel.CollectionDetail.compose/1`. Tagged " <>
-        "`MovieListItem.{Library, Upcoming}` items the rail pattern-matches on — " <>
+        "`MovieRow.{Library, Upcoming}` items the rail pattern-matches on — " <>
         "the collection counterpart of `:seasons_view`."
 
   attr :member_view, :any,

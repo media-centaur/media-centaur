@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentaurWeb.ViewModel.MovieListItem
+  alias MediaCentaurWeb.ViewModel.MovieRow
 
   def function, do: &MediaCentaurWeb.Components.Detail.CollectionRail.collection_rail/1
   def render_source, do: :function
@@ -54,7 +54,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
           movie_items:
             library_items() ++
               [
-                %MovieListItem.Upcoming{
+                %MovieRow.Upcoming{
                   part_tmdb_id: 900_004,
                   title: "Sample Picture IV",
                   air_date: ~D[2027-03-15],
@@ -93,19 +93,19 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
     [movie_1, movie_2, movie_3] = member_movies()
 
     [
-      %MovieListItem.Library{
+      %MovieRow.Library{
         movie: movie_1,
         progress: %{position_seconds: 5400.0, duration_seconds: 5400.0, completed: true},
         state: :watched,
         is_resume_target: false
       },
-      %MovieListItem.Library{
+      %MovieRow.Library{
         movie: movie_2,
         progress: %{position_seconds: 1500.0, duration_seconds: 5700.0, completed: false},
         state: :current,
         is_resume_target: true
       },
-      %MovieListItem.Library{
+      %MovieRow.Library{
         movie: movie_3,
         progress: nil,
         state: :unwatched,
@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
 
   defp untouched_items do
     for movie <- member_movies() do
-      %MovieListItem.Library{movie: movie, progress: nil, state: :unwatched, is_resume_target: false}
+      %MovieRow.Library{movie: movie, progress: nil, state: :unwatched, is_resume_target: false}
     end
   end
 

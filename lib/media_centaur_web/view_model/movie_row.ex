@@ -1,8 +1,8 @@
-defmodule MediaCentaurWeb.ViewModel.MovieListItem do
+defmodule MediaCentaurWeb.ViewModel.MovieRow do
   @moduledoc """
   Tagged-struct ADT for items in a movie collection's content list, as
   consumed by the detail modal's collection renderer. The movie-side
-  counterpart of `MediaCentaurWeb.ViewModel.EpisodeListItem`.
+  counterpart of `MediaCentaurWeb.ViewModel.EpisodeRow`.
 
   Two variants:
 

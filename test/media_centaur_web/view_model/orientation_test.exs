@@ -3,8 +3,8 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
 
   import MediaCentaur.TestFactory, only: [build_episode: 1, build_movie: 1]
 
-  alias MediaCentaurWeb.ViewModel.EpisodeListItem
-  alias MediaCentaurWeb.ViewModel.MovieListItem
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
+  alias MediaCentaurWeb.ViewModel.MovieRow
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeasonView
 
@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
       for episode_number <- 1..total do
         state = if episode_number <= watched, do: :watched, else: :unwatched
 
-        %EpisodeListItem.Library{
+        %EpisodeRow.Library{
           episode: build_episode(%{episode_number: episode_number, duration_seconds: runtime}),
           season_number: number,
           state: state,
@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
     for ordinal <- 1..total do
       state = if ordinal <= watched, do: :watched, else: :unwatched
 
-      %MovieListItem.Library{
+      %MovieRow.Library{
         movie: build_movie(%{name: "Movie #{ordinal}"}),
         state: state,
         is_resume_target: resume_target && ordinal == watched + 1
@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
   end
 
   defp upcoming_part(part_tmdb_id) do
-    %MovieListItem.Upcoming{part_tmdb_id: part_tmdb_id, sub_status: :unaired}
+    %MovieRow.Upcoming{part_tmdb_id: part_tmdb_id, sub_status: :unaired}
   end
 
   describe "for_series/2 mid-series" do

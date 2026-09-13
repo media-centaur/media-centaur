@@ -255,7 +255,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   describe "/library?selected=<id> with TV series that has tracked upcoming releases" do
     # The TV-series detail page composes a typed `[%SeasonView{}]` from
     # both Library episodes and ReleaseTracking releases. A render-path
-    # bug in any of the three EpisodeListItem variants (Library /
+    # bug in any of the three EpisodeRow variants (Library /
     # Missing / Upcoming) or in the future-season header crashes the
     # whole modal. This smoke pins the full cross-context render path:
     # an existing library season with a Missing slot replaced by an

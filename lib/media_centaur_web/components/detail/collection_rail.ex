@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   member via the host's `select_movie` event (URL patch). It never
   plays; Play stays the panel's only playback affordance.
 
-  Renders from the same typed `[%MediaCentaurWeb.ViewModel.MovieListItem{}]`
+  Renders from the same typed `[%MediaCentaurWeb.ViewModel.MovieRow{}]`
   list `CollectionDetail.compose/1` builds. Per-member state rides the
   tile: watched check badge, progress underline on the in-progress
   member (`Detail.PlayableRow.progress_underline/1`, shared with the
@@ -28,12 +28,12 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
 
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.PlayableRow
-  alias MediaCentaurWeb.ViewModel.MovieListItem
+  alias MediaCentaurWeb.ViewModel.MovieRow
 
   attr :movie_items, :list,
     required: true,
     doc:
-      "`[%MediaCentaurWeb.ViewModel.MovieListItem{}]` from `CollectionDetail.compose/1` — tagged `Library` / `Upcoming` items in display order."
+      "`[%MediaCentaurWeb.ViewModel.MovieRow{}]` from `CollectionDetail.compose/1` — tagged `Library` / `Upcoming` items in display order."
 
   attr :selected_id, :string,
     required: true,
@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
         <.rail_tile
           :for={item <- @movie_items}
           item={item}
-          selected={match?(%MovieListItem.Library{}, item) && item.movie.id == @selected_id}
+          selected={match?(%MovieRow.Library{}, item) && item.movie.id == @selected_id}
           available={@available}
         />
       </div>
@@ -68,9 +68,9 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
     """
   end
 
-  # --- Tile dispatch on the MovieListItem variant ---
+  # --- Tile dispatch on the MovieRow variant ---
 
-  attr :item, :map, required: true, doc: "%MovieListItem.{Library | Upcoming}{}"
+  attr :item, :map, required: true, doc: "%MovieRow.{Library | Upcoming}{}"
   attr :selected, :boolean, default: false
   attr :available, :boolean, default: true
 
@@ -78,7 +78,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   # the member's logo art (title-text fallback), the continue-watching
   # card idiom scaled to the rail. The tile previews exactly what
   # selecting does.
-  defp rail_tile(%{item: %MovieListItem.Library{}} = assigns) do
+  defp rail_tile(%{item: %MovieRow.Library{}} = assigns) do
     movie = assigns.item.movie
 
     assigns =
@@ -154,7 +154,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   # An announced part (release-tracking overlay): muted, unpickable —
   # same contract as the retired upcoming row, in tile form. Not a
   # nav item until it becomes selectable.
-  defp rail_tile(%{item: %MovieListItem.Upcoming{}} = assigns) do
+  defp rail_tile(%{item: %MovieRow.Upcoming{}} = assigns) do
     ~H"""
     <div
       id={"rail-upcoming-#{@item.part_tmdb_id}"}

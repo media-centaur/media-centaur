@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaurWeb.ViewModel.CollectionDetail
-  alias MediaCentaurWeb.ViewModel.MovieListItem
+  alias MediaCentaurWeb.ViewModel.MovieRow
 
   describe "build/3 — pure composition" do
     test "library items are chronological, content-bearing movies only" do
@@ -19,8 +19,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       assert [
-               %MovieListItem.Library{movie: %{name: "Movie A"}},
-               %MovieListItem.Library{movie: %{name: "Movie B"}}
+               %MovieRow.Library{movie: %{name: "Movie A"}},
+               %MovieRow.Library{movie: %{name: "Movie B"}}
              ] = view_model.movies
     end
 
@@ -48,9 +48,9 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       assert [
-               %MovieListItem.Library{state: :watched},
-               %MovieListItem.Library{state: :current, progress: %{position_seconds: 300.0}},
-               %MovieListItem.Library{state: :unwatched, progress: nil}
+               %MovieRow.Library{state: :watched},
+               %MovieRow.Library{state: :current, progress: %{position_seconds: 300.0}},
+               %MovieRow.Library{state: :unwatched, progress: nil}
              ] = view_model.movies
     end
 
@@ -69,8 +69,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       assert [
-               %MovieListItem.Library{is_resume_target: false},
-               %MovieListItem.Library{is_resume_target: true}
+               %MovieRow.Library{is_resume_target: false},
+               %MovieRow.Library{is_resume_target: true}
              ] = view_model.movies
     end
 
@@ -91,9 +91,9 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       assert [
-               %MovieListItem.Library{},
-               %MovieListItem.Upcoming{title: "Part Sooner", sub_status: :unaired},
-               %MovieListItem.Upcoming{title: "Part Later", sub_status: :unaired}
+               %MovieRow.Library{},
+               %MovieRow.Upcoming{title: "Part Sooner", sub_status: :unaired},
+               %MovieRow.Upcoming{title: "Part Later", sub_status: :unaired}
              ] = view_model.movies
     end
 
@@ -114,7 +114,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       expected_date = Date.add(Date.utc_today(), 60)
-      assert [%MovieListItem.Upcoming{part_tmdb_id: 33, air_date: ^expected_date}] = view_model.movies
+      assert [%MovieRow.Upcoming{part_tmdb_id: 33, air_date: ^expected_date}] = view_model.movies
     end
 
     test "a release matching a library movie's tmdb id is not listed as upcoming" do
@@ -142,8 +142,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       assert [
-               %MovieListItem.Library{},
-               %MovieListItem.Upcoming{part_tmdb_id: 900_011}
+               %MovieRow.Library{},
+               %MovieRow.Upcoming{part_tmdb_id: 900_011}
              ] = view_model.movies
     end
 
@@ -161,7 +161,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
           nil
         )
 
-      assert [%MovieListItem.Upcoming{sub_status: :aired_not_in_library}] = view_model.movies
+      assert [%MovieRow.Upcoming{sub_status: :aired_not_in_library}] = view_model.movies
     end
 
     test "no movies and no releases produce an empty item list" do
@@ -190,18 +190,18 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
         )
 
       assert [
-               %MovieListItem.Library{state: :unwatched},
-               %MovieListItem.Library{state: :unwatched},
-               %MovieListItem.Upcoming{}
+               %MovieRow.Library{state: :unwatched},
+               %MovieRow.Library{state: :unwatched},
+               %MovieRow.Upcoming{}
              ] = view_model.movies
 
       records = [build_progress(%{movie_id: movie_1.id, completed: true})]
       updated = CollectionDetail.with_progress(view_model, nil, records, nil)
 
       assert [
-               %MovieListItem.Library{state: :watched},
-               %MovieListItem.Library{state: :unwatched},
-               %MovieListItem.Upcoming{title: "Next Part"}
+               %MovieRow.Library{state: :watched},
+               %MovieRow.Library{state: :unwatched},
+               %MovieRow.Upcoming{title: "Next Part"}
              ] = updated.movies
     end
   end
@@ -220,8 +220,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       assert {:ok, view_model} = CollectionDetail.compose(collection.id)
 
       assert [
-               %MovieListItem.Library{movie: %{name: "Member One"}},
-               %MovieListItem.Library{movie: %{name: "Member Two"}}
+               %MovieRow.Library{movie: %{name: "Member One"}},
+               %MovieRow.Library{movie: %{name: "Member Two"}}
              ] = view_model.movies
     end
 
@@ -250,9 +250,9 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       assert {:ok, view_model} = CollectionDetail.compose(collection.id)
 
       assert [
-               %MovieListItem.Library{},
-               %MovieListItem.Library{},
-               %MovieListItem.Upcoming{title: "Member Three", sub_status: :unaired}
+               %MovieRow.Library{},
+               %MovieRow.Library{},
+               %MovieRow.Upcoming{title: "Member Three", sub_status: :unaired}
              ] = view_model.movies
     end
   end
@@ -289,17 +289,17 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       view_model: view_model,
       movie_3: movie_3
     } do
-      assert %MovieListItem.Library{movie: %{name: "Part Three"}} =
+      assert %MovieRow.Library{movie: %{name: "Part Three"}} =
                CollectionDetail.select_member(view_model, movie_3.id)
     end
 
     test "select_member/2 falls back to the resume target for nil or unknown ids", %{
       view_model: view_model
     } do
-      assert %MovieListItem.Library{movie: %{name: "Part Two"}} =
+      assert %MovieRow.Library{movie: %{name: "Part Two"}} =
                CollectionDetail.select_member(view_model, nil)
 
-      assert %MovieListItem.Library{movie: %{name: "Part Two"}} =
+      assert %MovieRow.Library{movie: %{name: "Part Two"}} =
                CollectionDetail.select_member(view_model, Ecto.UUID.generate())
     end
 
@@ -310,7 +310,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       view_model =
         CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil)
 
-      assert %MovieListItem.Library{movie: %{name: "Only Part"}} =
+      assert %MovieRow.Library{movie: %{name: "Only Part"}} =
                CollectionDetail.select_member(view_model, nil)
     end
 

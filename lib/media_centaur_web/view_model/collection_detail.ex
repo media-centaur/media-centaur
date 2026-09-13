@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   alias MediaCentaur.Library.Views.DetailItem
   alias MediaCentaur.Playback.ResumeTarget
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaurWeb.ViewModel.MovieListItem
+  alias MediaCentaurWeb.ViewModel.MovieRow
 
   @enforce_keys [:entity, :movies]
   defstruct [
@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
           entity: map(),
           progress: map() | nil,
           progress_records: list(),
-          movies: [MovieListItem.t()],
+          movies: [MovieRow.t()],
           extras: list(),
           resume_target: map() | nil,
           releases: [map()]
@@ -123,7 +123,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
       |> Enum.map(fn movie ->
         progress = Map.get(progress_by_movie_id, movie.id)
 
-        %MovieListItem.Library{
+        %MovieRow.Library{
           movie: movie,
           progress: progress,
           state: EpisodeList.state_from_progress(progress),
@@ -180,9 +180,9 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   race) fall through to the default rather than erroring — the URL is a
   preference, not an invariant.
   """
-  @spec select_member(t(), Ecto.UUID.t() | nil) :: MovieListItem.Library.t() | nil
+  @spec select_member(t(), Ecto.UUID.t() | nil) :: MovieRow.Library.t() | nil
   def select_member(%__MODULE__{movies: movies}, member_id) do
-    library_items = Enum.filter(movies, &match?(%MovieListItem.Library{}, &1))
+    library_items = Enum.filter(movies, &match?(%MovieRow.Library{}, &1))
 
     find_member(library_items, member_id) ||
       Enum.find(library_items, & &1.is_resume_target) ||
@@ -202,8 +202,8 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   Handles both member shapes (`Library.Movie` struct or the lean
   projection map); unloaded associations read as empty lists.
   """
-  @spec member_subject(MovieListItem.Library.t()) :: map()
-  def member_subject(%MovieListItem.Library{movie: movie}) do
+  @spec member_subject(MovieRow.Library.t()) :: map()
+  def member_subject(%MovieRow.Library{movie: movie}) do
     %{
       id: movie.id,
       type: :movie,
@@ -261,7 +261,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     |> Enum.map(fn {_part_tmdb_id, rows} -> Enum.min_by(rows, &air_date_sort_key/1) end)
     |> Enum.sort_by(&air_date_sort_key/1)
     |> Enum.map(fn release ->
-      %MovieListItem.Upcoming{
+      %MovieRow.Upcoming{
         part_tmdb_id: release.part_tmdb_id,
         title: release.title,
         air_date: release.air_date,
