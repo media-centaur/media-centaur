@@ -192,7 +192,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     progress is overlaid at the consumer (`Library.Progress.get/1`).
 
     `:number_of_episodes` mirrors the Season schema field — used by
-    `SeriesDetail.build/4` to gap-fill `EpisodeListItem.Missing` rows
+    `SeriesDetail.build/4` to gap-fill `EpisodeRow.Missing` rows
     when TMDB reports more episodes than the library has imported.
     """
 

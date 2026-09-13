@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        season header, the watched/current/unwatched episode row mix,
        and the missing-episode fallback for a gap in the episode list.
        The `seasons_view` attr is a `[%SeasonView{}]` carrying typed
-       `%EpisodeListItem.Library{}` and `%EpisodeListItem.Missing{}`
+       `%EpisodeRow.Library{}` and `%EpisodeRow.Missing{}`
        items — the TV-series content list reads exclusively from this
        structure (per ADR ViewModel migration).
     4. `:tv_series_spoiler_free` — same library shape as 3 but
@@ -37,7 +37,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        title, and description (`.spoiler-blur`); the leading episode
        number stays legible. Watched / current rows render unblurred.
     5. `:tv_series_with_upcoming_inline` — same shape as 3 but with
-       `%EpisodeListItem.Upcoming{}` items mixed in: one replacing a
+       `%EpisodeRow.Upcoming{}` items mixed in: one replacing a
        Missing slot, one appended after the last library episode in
        S1. Pill copy reads "in Xd" because `air_date` is in the
        future.
@@ -106,9 +106,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
     * **Both content-list paths are typed** —
       `MediaCentaurWeb.ViewModel.{SeriesDetail, SeasonView,
-      EpisodeListItem.{Library, Missing, Upcoming}}` for TV
+      EpisodeRow.{Library, Missing, Upcoming}}` for TV
       (`seasons_view`) and `MediaCentaurWeb.ViewModel.{CollectionDetail,
-      MovieListItem.{Library, Upcoming}}` for collections
+      MovieRow.{Library, Upcoming}}` for collections
       (`movies_view`). `Detail.SeasonList` / `Detail.CollectionRail`
       consume them exclusively.
     * `entity: :map` — still the biggest remaining smell on the
@@ -148,8 +148,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   # exported and stays aliased.
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.{Person, WatchedFile}
-  alias MediaCentaurWeb.ViewModel.EpisodeListItem
-  alias MediaCentaurWeb.ViewModel.MovieListItem
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
+  alias MediaCentaurWeb.ViewModel.MovieRow
   alias MediaCentaurWeb.ViewModel.SeasonView
 
   def function, do: &MediaCentaurWeb.Components.DetailPanel.detail_panel/1
@@ -359,7 +359,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :tv_series_with_upcoming_inline,
         description:
-          "Same library shape as 3, but with three `%EpisodeListItem.Upcoming{}` " <>
+          "Same library shape as 3, but with three `%EpisodeRow.Upcoming{}` " <>
             "rows mixed in: one fills the S1 episode-4 gap (replacing the missing " <>
             "row), one extends S1 past `number_of_episodes`, and one populates a " <>
             "future S2. All have `sub_status: :unaired` and `air_date` in the " <>
@@ -370,7 +370,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :tv_series_aired_not_in_library,
         description:
-          "TV variation with one `%EpisodeListItem.Upcoming{sub_status: " <>
+          "TV variation with one `%EpisodeRow.Upcoming{sub_status: " <>
             ":aired_not_in_library}` carrying a past `air_date` — TMDB knows it " <>
             "aired but the file hasn't been imported. Pill copy reads " <>
             "\"aired Xd ago\" instead of the future-tense form.",
@@ -410,14 +410,14 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "fraction and watched toggle — over the poster " <>
             "rail: watched check on movie 1, progress underline on the lit " <>
             "movie 2, dimmed movie 3. `movies_view` is the typed " <>
-            "`[%MovieListItem{}]` contract the rail reads exclusively.",
+            "`[%MovieRow{}]` contract the rail reads exclusively.",
         attributes: movie_series_attrs()
       },
       %Variation{
         id: :movie_series_with_upcoming,
         description:
           "Tracked collection with an announced fourth part: the " <>
-            "`MovieListItem.Upcoming` tile renders muted and unpickable after " <>
+            "`MovieRow.Upcoming` tile renders muted and unpickable after " <>
             "the library members, with the air-date pill (release-tracking " <>
             "overlay, same idiom as TV's upcoming episode rows).",
         attributes: movie_series_with_upcoming_attrs()
@@ -724,8 +724,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     # number_of_episodes.
     new_items =
       Enum.map(s1_view.items, fn
-        %EpisodeListItem.Missing{episode_number: 4} ->
-          %EpisodeListItem.Upcoming{
+        %EpisodeRow.Missing{episode_number: 4} ->
+          %EpisodeRow.Upcoming{
             season_number: 1,
             episode_number: 4,
             title: "The Far Hike",
@@ -737,7 +737,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           other
       end) ++
         [
-          %EpisodeListItem.Upcoming{
+          %EpisodeRow.Upcoming{
             season_number: 1,
             episode_number: 6,
             title: "After the Snow",
@@ -753,14 +753,14 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       name: nil,
       kind: :future,
       items: [
-        %EpisodeListItem.Upcoming{
+        %EpisodeRow.Upcoming{
           season_number: 3,
           episode_number: 1,
           title: "Spring Returns",
           air_date: Date.add(Date.utc_today(), 60),
           sub_status: :unaired
         },
-        %EpisodeListItem.Upcoming{
+        %EpisodeRow.Upcoming{
           season_number: 3,
           episode_number: 2,
           title: "An Old Letter",
@@ -792,8 +792,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       s1_view
       | items:
           Enum.map(s1_view.items, fn
-            %EpisodeListItem.Missing{episode_number: 4} ->
-              %EpisodeListItem.Upcoming{
+            %EpisodeRow.Missing{episode_number: 4} ->
+              %EpisodeRow.Upcoming{
                 season_number: 1,
                 episode_number: 4,
                 title: "The Quiet Hour",
@@ -820,14 +820,14 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       name: nil,
       kind: :future,
       items: [
-        %EpisodeListItem.Upcoming{
+        %EpisodeRow.Upcoming{
           season_number: 1,
           episode_number: 1,
           title: "Pilot",
           air_date: Date.add(Date.utc_today(), 14),
           sub_status: :unaired
         },
-        %EpisodeListItem.Upcoming{
+        %EpisodeRow.Upcoming{
           season_number: 1,
           episode_number: 2,
           title: "The Letter",
@@ -952,7 +952,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       for n <- 1..upper do
         case Map.get(episode_map, n) do
           nil ->
-            %EpisodeListItem.Missing{
+            %EpisodeRow.Missing{
               season_number: season.season_number,
               episode_number: n
             }
@@ -960,7 +960,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           episode ->
             progress = Map.get(progress_by_episode_id, episode.id)
 
-            %EpisodeListItem.Library{
+            %EpisodeRow.Library{
               episode: episode,
               season_number: season.season_number,
               progress: progress,
@@ -1150,7 +1150,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   defp movie_series_with_upcoming_attrs do
     base = movie_series_attrs()
 
-    upcoming = %MovieListItem.Upcoming{
+    upcoming = %MovieRow.Upcoming{
       part_tmdb_id: 900_004,
       title: "Sample Picture IV",
       air_date: Date.add(Date.utc_today(), 45),
@@ -1160,7 +1160,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     %{base | movies_view: base.movies_view ++ [upcoming]}
   end
 
-  # Typed `MovieListItem.Library` fixtures mirroring what
+  # Typed `MovieRow.Library` fixtures mirroring what
   # `CollectionDetail.build/4` composes: movie 1 watched, movie 2
   # current + resume target, movie 3 unwatched.
   defp movie_series_items(entity, progress_records) do
@@ -1168,9 +1168,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     [p1, p2] = progress_records
 
     [
-      %MovieListItem.Library{movie: m1, progress: p1, state: :watched, is_resume_target: false},
-      %MovieListItem.Library{movie: m2, progress: p2, state: :current, is_resume_target: true},
-      %MovieListItem.Library{movie: m3, progress: nil, state: :unwatched, is_resume_target: false}
+      %MovieRow.Library{movie: m1, progress: p1, state: :watched, is_resume_target: false},
+      %MovieRow.Library{movie: m2, progress: p2, state: :current, is_resume_target: true},
+      %MovieRow.Library{movie: m3, progress: nil, state: :unwatched, is_resume_target: false}
     ]
   end
 

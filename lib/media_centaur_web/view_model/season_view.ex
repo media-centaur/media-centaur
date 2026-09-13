@@ -8,16 +8,16 @@ defmodule MediaCentaurWeb.ViewModel.SeasonView do
       Carries the watched/total counts so the section header can show
       "3 remaining".
     * `:future` — TMDB knows the season exists but no library files
-      yet. `items` are all `EpisodeListItem.Upcoming`. Watched-count
+      yet. `items` are all `EpisodeRow.Upcoming`. Watched-count
       copy is suppressed in the renderer (nothing to count).
 
   `items` is ordered by episode number; the type is
-  `[MediaCentaurWeb.ViewModel.EpisodeListItem.t()]`.
+  `[MediaCentaurWeb.ViewModel.EpisodeRow.t()]`.
 
   Built by `MediaCentaurWeb.ViewModel.SeriesDetail.compose/2`.
   """
 
-  alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
 
   @enforce_keys [:season_number, :kind, :items]
   defstruct [
@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.ViewModel.SeasonView do
           season_number: non_neg_integer(),
           name: String.t() | nil,
           kind: kind,
-          items: [EpisodeListItem.t()],
+          items: [EpisodeRow.t()],
           extras: list() | nil,
           watched_count: non_neg_integer() | nil,
           total_count: non_neg_integer() | nil

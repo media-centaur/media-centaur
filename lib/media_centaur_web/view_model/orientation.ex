@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   fraction, and season/series counts come from the same
   `SeasonView.watched_count`/`total_count` the accordion headers render,
   so the hero and the season rows can never disagree. `for_collection/1`
-  derives from the `MovieListItem` list — the hairline reads the whole
+  derives from the `MovieRow` list — the hairline reads the whole
   collection's fraction, the same unit.
   Leaf titles (a bare movie) build no orientation: they are not
   positions in a set — their hero hairline reads the progress summary
@@ -32,8 +32,8 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   access.
   """
 
-  alias MediaCentaurWeb.ViewModel.EpisodeListItem
-  alias MediaCentaurWeb.ViewModel.MovieListItem
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
+  alias MediaCentaurWeb.ViewModel.MovieRow
   alias MediaCentaurWeb.ViewModel.SeasonView
 
   @enforce_keys [:state, :series, :fraction, :autoscroll?]
@@ -119,9 +119,9 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   nil. `:autoscroll?` is true only mid-collection *and* when a library
   row carries the resume-target flag (the row the scroll returns to).
   """
-  @spec for_collection([MovieListItem.t()]) :: t()
+  @spec for_collection([MovieRow.t()]) :: t()
   def for_collection(movie_items) do
-    library_items = Enum.filter(movie_items, &match?(%MovieListItem.Library{}, &1))
+    library_items = Enum.filter(movie_items, &match?(%MovieRow.Library{}, &1))
     watched = Enum.count(library_items, &(&1.state == :watched))
     total = length(library_items)
     percent = if total > 0, do: round(watched / total * 100), else: 0
@@ -205,7 +205,7 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   defp library_items(library_seasons) do
     library_seasons
     |> Enum.flat_map(& &1.items)
-    |> Enum.filter(&match?(%EpisodeListItem.Library{}, &1))
+    |> Enum.filter(&match?(%EpisodeRow.Library{}, &1))
   end
 
   defp current_season(library_seasons, next) do

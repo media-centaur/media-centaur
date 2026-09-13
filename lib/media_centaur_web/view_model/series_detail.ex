@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   alias MediaCentaur.Library.Views.DetailItem
   alias MediaCentaur.Playback.ResumeTarget
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.SeasonView
 
   # `MediaCentaur.ReleaseTracking.Release` is not exported by its
@@ -225,7 +225,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
           build_upcoming_item(release)
 
         true ->
-          %EpisodeListItem.Missing{
+          %EpisodeRow.Missing{
             season_number: season.season_number,
             episode_number: n
           }
@@ -236,7 +236,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   defp build_library_item(episode, season_number, progress_by_episode_id, resume_episode_key) do
     progress = Map.get(progress_by_episode_id, episode.id)
 
-    %EpisodeListItem.Library{
+    %EpisodeRow.Library{
       episode: episode,
       season_number: season_number,
       progress: progress,
@@ -265,7 +265,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   end
 
   defp build_upcoming_item(release) do
-    %EpisodeListItem.Upcoming{
+    %EpisodeRow.Upcoming{
       season_number: release.season_number,
       episode_number: release.episode_number,
       title: release.title,

@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   import MediaCentaurWeb.LibraryFormatters, only: [format_human_duration: 1]
 
   alias MediaCentaurWeb.Components.Detail.Facet
-  alias MediaCentaurWeb.ViewModel.MovieListItem
+  alias MediaCentaurWeb.ViewModel.MovieRow
 
   @doc """
   Playback props for a selected collection member (UIDR-023) — the
@@ -29,19 +29,19 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   A zero-duration progress row (position recorded before the duration
   probe) yields percent 0 rather than dividing by it.
   """
-  @spec member_playback(MovieListItem.Library.t()) :: %{
+  @spec member_playback(MovieRow.Library.t()) :: %{
           label: String.t(),
           target_id: Ecto.UUID.t(),
           percent: non_neg_integer(),
           remaining_text: String.t() | nil
         }
-  def member_playback(%MovieListItem.Library{movie: movie, state: :watched}),
+  def member_playback(%MovieRow.Library{movie: movie, state: :watched}),
     do: %{label: "Watch again", target_id: movie.id, percent: 100, remaining_text: nil}
 
-  def member_playback(%MovieListItem.Library{movie: movie, state: :unwatched}),
+  def member_playback(%MovieRow.Library{movie: movie, state: :unwatched}),
     do: %{label: "Play", target_id: movie.id, percent: 0, remaining_text: nil}
 
-  def member_playback(%MovieListItem.Library{movie: movie, state: :current, progress: progress}) do
+  def member_playback(%MovieRow.Library{movie: movie, state: :current, progress: progress}) do
     %{
       label: "Resume",
       target_id: movie.id,

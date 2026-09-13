@@ -794,7 +794,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   the URL-selected member, falling back through the resume target to the
   first member. Returns `nil` for non-collection entries or an empty
   collection, and `%{member, subject}` otherwise — `member` the
-  `MovieListItem.Library`, `subject` its `:movie`-shaped entity map.
+  `MovieRow.Library`, `subject` its `:movie`-shaped entity map.
 
   Derived at render time from the loaded entry, so progress merges and
   projection refreshes can never leave a stale subject behind.
@@ -1024,7 +1024,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def seasons_view_from_entry(_), do: nil
 
   @doc """
-  Extracts the typed `[%MovieListItem{}]` list from a `selected_entry`.
+  Extracts the typed `[%MovieRow{}]` list from a `selected_entry`.
   Returns `nil` for non-collection entries (TV / movie / no entry).
   """
   @spec movies_view_from_entry(CollectionDetail.t() | map() | nil) :: list() | nil

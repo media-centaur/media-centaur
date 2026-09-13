@@ -613,12 +613,12 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
   end
 
   describe "member_playback/1 — selected collection member (UIDR-023)" do
-    alias MediaCentaurWeb.ViewModel.MovieListItem
+    alias MediaCentaurWeb.ViewModel.MovieRow
 
     test "unwatched member plays fresh" do
       movie = build_movie(%{name: "Part One", content_url: "/m/1.mkv"})
 
-      member = %MovieListItem.Library{
+      member = %MovieRow.Library{
         movie: movie,
         progress: nil,
         state: :unwatched,
@@ -646,7 +646,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
           duration_seconds: 7200.0
         })
 
-      member = %MovieListItem.Library{
+      member = %MovieRow.Library{
         movie: movie,
         progress: progress,
         state: :current,
@@ -663,7 +663,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       movie = build_movie(%{name: "Part Three", content_url: "/m/3.mkv"})
       progress = build_progress(%{movie_id: movie.id, completed: true})
 
-      member = %MovieListItem.Library{
+      member = %MovieRow.Library{
         movie: movie,
         progress: progress,
         state: :watched,
@@ -687,7 +687,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
           duration_seconds: 0.0
         })
 
-      member = %MovieListItem.Library{
+      member = %MovieRow.Library{
         movie: movie,
         progress: progress,
         state: :current,
