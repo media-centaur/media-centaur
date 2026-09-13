@@ -21,6 +21,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.DownloadParams
   alias MediaCentaur.Acquisition.Jobs.RunPlan
   alias MediaCentaur.Acquisition.PlanEvents
+  alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Plans.{CommitPlan, DownloadScope, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.TitleDownloadParams
@@ -30,6 +31,23 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Topics
 
   @type unit_choice :: {pos_integer(), pos_integer()}
+
+  @doc """
+  The `{season, episode}` units of a TV title something is already
+  acquiring: claimed by an active pursuit, or by a live draft plan.
+
+  `Plans.Claims` is the single definition of a claim and stays internal to
+  the context; this is the read the surfaces outside it need — the library
+  detail modal renders a claimed episode as in flight rather than as a gap
+  to click, and the click itself would be refused.
+  """
+  @spec claimed_units(String.t()) :: MapSet.t({pos_integer(), pos_integer()})
+  def claimed_units(tmdb_id) when is_binary(tmdb_id) do
+    MapSet.union(
+      Plans.Claims.pursuit_claimed_units(tmdb_id),
+      Plans.Claims.draft_claimed_units(tmdb_id)
+    )
+  end
 
   @doc """
   Creates a draft plan for a series selection and the user's chosen

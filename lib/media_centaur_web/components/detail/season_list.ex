@@ -259,6 +259,12 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     """
   end
 
+  defp season_item(%{item: %EpisodeRow.InFlight{}} = assigns) do
+    ~H"""
+    <.in_flight_episode_row id={@id} item={@item} />
+    """
+  end
+
   defp season_item(%{item: %EpisodeRow.Upcoming{}} = assigns) do
     ~H"""
     <.upcoming_episode_row id={@id} item={@item} />
@@ -392,7 +398,8 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         "p-2 rounded group",
         if(@actionable,
           do:
-            "opacity-30 hover:opacity-90 focus-visible:opacity-90 cursor-pointer transition-opacity",
+            "opacity-40 cursor-pointer transition-all hover:opacity-100 hover:bg-base-content/10 " <>
+              "focus-visible:opacity-100 focus-visible:bg-base-content/10",
           else: "opacity-30"
         )
       ]}
@@ -417,8 +424,41 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         <.icon
           :if={@actionable}
           name="hero-arrow-down-tray-mini"
-          class="size-3.5 flex-shrink-0 text-base-content/0 group-hover:text-base-content/60 group-focus-visible:text-base-content/60 transition-colors"
+          class="size-3.5 flex-shrink-0 text-base-content/40 transition-colors group-hover:text-primary group-focus-visible:text-primary"
         />
+      </div>
+    </div>
+    """
+  end
+
+  # --- In-Flight Episode Row ---
+  #
+  # An aired episode something is already fetching. It carries the same
+  # dim treatment as a gap — you still don't have it — but no hover lift,
+  # no `data-nav-item` and no click, because there is nothing to do with
+  # it. When the claim goes (the download was stopped) it becomes a
+  # missing row again; when the file lands it becomes a library row.
+
+  attr :item, :map,
+    required: true,
+    doc: "`%MediaCentaurWeb.ViewModel.EpisodeRow.InFlight{}`"
+
+  attr :id, :string, required: true, doc: "stable DOM id for the row (UIDR-012)."
+
+  defp in_flight_episode_row(assigns) do
+    ~H"""
+    <div id={@id} class="p-2 rounded opacity-50" data-role="in-flight-episode-row">
+      <div class="flex items-center gap-3 text-sm">
+        <span class="w-6 flex-shrink-0 text-right text-base-content/55 font-mono text-xs tabular-nums">
+          {@item.episode_number}
+        </span>
+        <span class="flex-1 min-w-0 truncate text-base-content/70 italic">
+          {@item.title || "Episode #{@item.episode_number}"}
+        </span>
+        <.badge variant="ghost" size="sm" class="gap-1 flex-shrink-0">
+          <.icon name="hero-arrow-down-tray-mini" class="size-3 motion-safe:animate-pulse" />
+          Downloading
+        </.badge>
       </div>
     </div>
     """

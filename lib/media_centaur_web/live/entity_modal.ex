@@ -63,6 +63,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   alias MediaCentaur.{Activities, Capabilities, Discovery, Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Acquisition.AutoGrabSettings
+  alias MediaCentaur.Acquisition.PlanEvents
+
+  import MediaCentaur.Acquisition.Pursuits.Events, only: [is_event: 1]
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.DownloadParams
@@ -390,6 +393,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       Playback.subscribe()
       ReleaseTracking.subscribe()
       Activities.subscribe()
+      MediaCentaur.Acquisition.subscribe()
     end
 
     socket =
@@ -451,6 +455,15 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       when tag in [:activity_received, :activity_sent, :activity_deleted] do
     {:cont, assign_friend_activity(socket)}
   end
+
+  # A plan or a pursuit changing can change which episodes of the open
+  # series are claimed, and therefore whether their rows are gaps to click
+  # or downloads already under way. The claim set is read during compose,
+  # so re-composing is the whole update.
+  def handle_modal_pubsub(%PlanEvents.Changed{}, socket), do: {:cont, refresh_open_series(socket)}
+
+  def handle_modal_pubsub(%struct{}, socket) when is_event(struct),
+    do: {:cont, refresh_open_series(socket)}
 
   def handle_modal_pubsub({:library_view_updated, :detail, _id}, socket) do
     if socket.assigns[:selected_entity_id] do
@@ -848,6 +861,15 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           selected_entry: nil,
           detail_presentation: nil
         )
+    end
+  end
+
+  # Only a TV series reads the claim set, and only an open modal can show
+  # it — anything else and the acquisition traffic is ignored.
+  defp refresh_open_series(socket) do
+    case socket.assigns[:selected_entry] do
+      %MediaCentaurWeb.ViewModel.SeriesDetail{} -> refresh_selected_entry(socket)
+      _other -> socket
     end
   end
 

@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   the container kind once and dispatches between the three.
   """
 
+  alias MediaCentaur.Acquisition
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ProgressSummary
   alias MediaCentaur.Library.Views.DetailItem
@@ -44,7 +45,10 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     # Cached input to `build/4` — kept on the struct so in-memory
     # progress merges can rebuild `seasons` (which carries
     # per-episode state) without a fresh DB query per playback tick.
-    :releases
+    :releases,
+    # Cached for the same reason: the progress-tick rebuild must not
+    # re-query Acquisition either.
+    :claimed_units
   ]
 
   @type t :: %__MODULE__{
@@ -54,7 +58,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
           seasons: [SeasonView.t()],
           extras: list(),
           resume_target: map() | nil,
-          releases: [map()]
+          releases: [map()],
+          claimed_units: MapSet.t({pos_integer(), pos_integer()})
         }
 
   @doc """
@@ -99,8 +104,14 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     releases =
       ReleaseTracking.list_relevant_releases_for_library_container(entity_id, :tv_series)
 
+    claimed_units =
+      case entity.tmdb_id do
+        tmdb_id when is_binary(tmdb_id) -> Acquisition.Plans.claimed_units(tmdb_id)
+        _absent -> MapSet.new()
+      end
+
     resume_target = ResumeTarget.compute(entity, progress_records)
-    {:ok, build(entry, releases, resume_target)}
+    {:ok, build(entry, releases, resume_target, claimed_units)}
   end
 
   @doc """
@@ -114,8 +125,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   No database access. Tests construct the inputs as fixtures.
   """
-  @spec build(map(), [map()], map() | nil) :: t()
-  def build(entry, releases, resume_target) do
+  @spec build(map(), [map()], map() | nil, MapSet.t()) :: t()
+  def build(entry, releases, resume_target, claimed_units \\ MapSet.new()) do
     seasons = entry.entity.seasons || []
     releases_by_season = Enum.group_by(releases, & &1.season_number)
     library_season_numbers = MapSet.new(seasons, & &1.season_number)
@@ -128,7 +139,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
           season,
           Map.get(releases_by_season, season.season_number, []),
           progress_by_episode_id,
-          resume_episode_key
+          resume_episode_key,
+          claimed_units
         )
       end)
 
@@ -136,7 +148,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       releases_by_season
       |> Enum.reject(fn {n, _} -> MapSet.member?(library_season_numbers, n) end)
       |> Enum.sort_by(fn {n, _} -> n end)
-      |> Enum.map(fn {n, rels} -> build_future_season(n, rels) end)
+      |> Enum.map(fn {n, rels} -> build_future_season(n, rels, claimed_units) end)
 
     %__MODULE__{
       entity: entry.entity,
@@ -145,7 +157,8 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       seasons: library_seasons ++ future_seasons,
       extras: entry.entity.extras || [],
       resume_target: resume_target,
-      releases: releases
+      releases: releases,
+      claimed_units: claimed_units
     }
   end
 
@@ -166,18 +179,19 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
       progress_records: progress_records
     }
 
-    build(entry, sd.releases || [], resume_target)
+    build(entry, sd.releases || [], resume_target, sd.claimed_units || MapSet.new())
   end
 
   # --- Library season construction ---
 
-  defp build_library_season(season, season_releases, progress_by_episode_id, resume_episode_key) do
+  defp build_library_season(season, season_releases, progress_by_episode_id, resume_episode_key, claimed) do
     items =
       build_library_items(
         season,
         season_releases,
         progress_by_episode_id,
-        resume_episode_key
+        resume_episode_key,
+        claimed
       )
 
     watched_count = count_watched_episodes(season.episodes || [], progress_by_episode_id)
@@ -207,7 +221,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   # (*Refresh episode lists* under Settings → Maintenance); it renders
   # its library and release rows and nothing else, which is what it did
   # before the list existed.
-  defp build_library_items(season, releases, progress_by_episode_id, resume_episode_key) do
+  defp build_library_items(season, releases, progress_by_episode_id, resume_episode_key, claimed) do
     episode_map = Map.new(season.episodes || [], &{&1.episode_number, &1})
     release_map = Map.new(releases, &{&1.episode_number, &1})
     listed = Map.new(season.episode_list || [], &{&1.episode_number, &1})
@@ -222,10 +236,10 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
           build_library_item(episode, season.season_number, progress_by_episode_id, resume_episode_key)
 
         release = Map.get(release_map, number) ->
-          build_release_item(release)
+          build_release_item(release, claimed)
 
         true ->
-          build_listed_item(Map.fetch!(listed, number), season.season_number, today)
+          build_listed_item(Map.fetch!(listed, number), season.season_number, today, claimed)
       end
     end)
   end
@@ -234,7 +248,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   # future means it has not aired; a past date — or no date at all — is a
   # gap the person can act on, because absence of a date is not evidence
   # that an episode is still to come.
-  defp build_listed_item(entry, season_number, today) do
+  defp build_listed_item(entry, season_number, today, claimed) do
     fields = [
       season_number: season_number,
       episode_number: entry.episode_number,
@@ -244,7 +258,16 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
     if entry.air_date && Date.after?(entry.air_date, today),
       do: struct!(EpisodeRow.Upcoming, fields),
-      else: struct!(EpisodeRow.Missing, fields)
+      else: struct!(absent_variant(season_number, entry.episode_number, claimed), fields)
+  end
+
+  # An aired episode with no file is a gap the person can close, unless
+  # something is already closing it — an active pursuit's unit or a live
+  # draft plan's. `Plans.claimed_units/1` is that fact.
+  defp absent_variant(season_number, episode_number, claimed) do
+    if MapSet.member?(claimed, {season_number, episode_number}),
+      do: EpisodeRow.InFlight,
+      else: EpisodeRow.Missing
   end
 
   defp build_library_item(episode, season_number, progress_by_episode_id, resume_episode_key) do
@@ -261,11 +284,11 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   # --- Future season construction ---
 
-  defp build_future_season(season_number, releases) do
+  defp build_future_season(season_number, releases, claimed) do
     items =
       releases
       |> Enum.sort_by(& &1.episode_number)
-      |> Enum.map(&build_release_item/1)
+      |> Enum.map(&build_release_item(&1, claimed))
 
     %SeasonView{
       season_number: season_number,
@@ -283,7 +306,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   # here is one the library does not have — the same state an episode-list
   # entry with a past date describes, and therefore the same row. The
   # calendar knows the episode's title, so both carry it.
-  defp build_release_item(release) do
+  defp build_release_item(release, claimed) do
     fields = [
       season_number: release.season_number,
       episode_number: release.episode_number,
@@ -292,7 +315,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     ]
 
     if aired?(release),
-      do: struct!(EpisodeRow.Missing, fields),
+      do: struct!(absent_variant(release.season_number, release.episode_number, claimed), fields),
       else: struct!(EpisodeRow.Upcoming, fields)
   end
 

@@ -14,8 +14,11 @@ defmodule MediaCentaurWeb.ViewModel.EpisodeRow do
       for. Carries precomputed `state` and `is_resume_target` so the
       renderer doesn't have to recompute them per row.
     * `Missing` — an episode that has aired (or carries no air date)
-      that the library has no file for. Actionable: clicking it
-      downloads that episode.
+      that the library has no file for, and that nothing is already
+      acquiring. Actionable: clicking it downloads that episode.
+    * `InFlight` — the same, except an active pursuit or a live draft
+      plan already claims it. Shown as under way, and not clickable:
+      clicking would only draft a plan the claim rules discard.
     * `Upcoming` — an episode that has not aired yet. Rendered muted
       with a date pill, and not focusable — there is nothing to do
       with it.
@@ -94,5 +97,29 @@ defmodule MediaCentaurWeb.ViewModel.EpisodeRow do
           }
   end
 
-  @type t :: Library.t() | Missing.t() | Upcoming.t()
+  defmodule InFlight do
+    @moduledoc """
+    An aired episode the library has no file for that something is
+    already getting: an active pursuit's unit, or a unit of a live draft
+    plan. `MediaCentaur.Acquisition.Plans.claimed_units/1` decides.
+
+    It is `Missing` with a claim on it, and it is a separate variant
+    because the claim changes what the row *does*, not just how it
+    looks — there is nothing to click. When the claim goes away (the
+    download was stopped) the row becomes `Missing` again; when the file
+    lands it becomes `Library`.
+    """
+
+    @enforce_keys [:season_number, :episode_number]
+    defstruct [:season_number, :episode_number, :title, :air_date]
+
+    @type t :: %__MODULE__{
+            season_number: non_neg_integer(),
+            episode_number: non_neg_integer(),
+            title: String.t() | nil,
+            air_date: Date.t() | nil
+          }
+  end
+
+  @type t :: Library.t() | Missing.t() | InFlight.t() | Upcoming.t()
 end
