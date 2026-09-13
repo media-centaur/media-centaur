@@ -1284,10 +1284,10 @@ defmodule MediaCentaurWeb.SettingsLive do
           "Episode lists already up to date — nothing to refresh."
 
         failed > 0 ->
-          "Refreshed #{updated} season episode lists (#{skipped} skipped, #{failed} failed)."
+          "Refreshed the episode list for #{updated} seasons (#{skipped} skipped, #{failed} failed)."
 
         true ->
-          "Refreshed #{updated} season episode lists" <>
+          "Refreshed the episode list for #{updated} seasons" <>
             if(skipped > 0, do: " (#{skipped} already complete).", else: ".")
       end
 

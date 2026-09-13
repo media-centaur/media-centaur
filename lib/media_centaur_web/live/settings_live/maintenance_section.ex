@@ -174,7 +174,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
           <div class="min-w-0">
             <p class="text-sm font-medium">Refresh episode lists</p>
             <p class="text-xs text-base-content/55 mt-0.5">
-              Asks TMDB which episodes each season has, so a series page can tell an episode you're missing from one that hasn't aired. Only checks seasons you don't have in full — safe to re-run.
+              Asks TMDB which episodes each season has, so a show's episode list can tell an episode you're missing from one that hasn't aired yet. Only checks seasons you don't already have in full — safe to re-run.
             </p>
           </div>
           <.button

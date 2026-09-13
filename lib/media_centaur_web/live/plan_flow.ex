@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
   def failure_flash(_label, :unaired), do: "That episode hasn't aired yet."
   def failure_flash(_label, :already_here), do: "That episode is already in your library."
   def failure_flash(_label, :not_listed), do: "TMDB doesn't list that episode for this season."
-  def failure_flash(_label, :tracked), do: "Release tracking is already looking for that one."
+  def failure_flash(_label, :tracked), do: "That episode is already on its way."
 
   def failure_flash(label, _reason),
     do: "Couldn't plan #{label}. Check TMDB under Settings and try again."
