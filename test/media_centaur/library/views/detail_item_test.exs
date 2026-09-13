@@ -54,7 +54,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       assert season.name == nil
       assert season.episodes == []
       assert season.extras == []
-      assert season.number_of_episodes == nil
+      assert season.episode_list == nil
     end
 
     test "enforces season_number and episodes" do
@@ -222,7 +222,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
         %DetailItem.Season{
           season_number: 1,
           name: "Season 1",
-          number_of_episodes: 3,
+          episode_list: [%{episode_number: 1, name: "One", air_date: nil}],
           extras: [%{id: "extra-1", name: "Season Recap"}],
           episodes: [
             %DetailItem.Episode{
@@ -246,7 +246,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       assert [adapted_season] = entity.seasons
       assert adapted_season.season_number == 1
       assert adapted_season.name == "Season 1"
-      assert adapted_season.number_of_episodes == 3
+      assert adapted_season.episode_list == [%{episode_number: 1, name: "One", air_date: nil}]
       assert [%{name: "Season Recap"}] = adapted_season.extras
       assert [adapted_episode] = adapted_season.episodes
       assert adapted_episode.id == "11111111-1111-1111-1111-111111111111"

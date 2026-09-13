@@ -1196,11 +1196,17 @@ defmodule MediaCentaur.Library.Views.Detail do
       %DetailItem.Season{
         season_number: season.season_number,
         name: season.name,
-        number_of_episodes: season.number_of_episodes,
+        episode_list: Enum.map(season.episode_list || [], &shape_episode_list_entry/1),
         episodes: episodes,
         extras: Map.get(graph.extras_by_season_id, season.id, [])
       }
     end)
+  end
+
+  # The embed becomes a plain map: DetailItem is a lean projection and
+  # nothing downstream needs the struct.
+  defp shape_episode_list_entry(entry) do
+    %{episode_number: entry.episode_number, name: entry.name, air_date: entry.air_date}
   end
 
   defp shape_episode(episode, season_number, graph) do

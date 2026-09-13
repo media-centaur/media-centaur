@@ -191,19 +191,27 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     static season metadata + the `Episode` list. Per-episode watch
     progress is overlaid at the consumer (`Library.Progress.get/1`).
 
-    `:number_of_episodes` mirrors the Season schema field — used by
-    `SeriesDetail.build/4` to gap-fill `EpisodeRow.Missing` rows
-    when TMDB reports more episodes than the library has imported.
+    `:episode_list` mirrors the Season schema field — TMDB's episodes for
+    the season, including ones the library has no file for. Carried as
+    plain maps like the rest of this lean projection, and read by
+    `SeriesDetail.build/4` to decide which numbers become
+    `EpisodeRow.Missing` and which become `EpisodeRow.Upcoming`.
     """
 
     @enforce_keys [:season_number, :episodes]
-    defstruct [:season_number, :name, :episodes, :number_of_episodes, extras: []]
+    defstruct [:season_number, :name, :episodes, :episode_list, extras: []]
+
+    @type episode_list_entry :: %{
+            episode_number: non_neg_integer(),
+            name: String.t() | nil,
+            air_date: Date.t() | nil
+          }
 
     @type t :: %__MODULE__{
             season_number: non_neg_integer(),
             name: String.t() | nil,
             episodes: [MediaCentaur.Library.Views.DetailItem.Episode.t()],
-            number_of_episodes: non_neg_integer() | nil,
+            episode_list: [episode_list_entry()] | nil,
             extras: [struct()]
           }
   end
@@ -605,7 +613,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     %{
       season_number: season.season_number,
       name: season.name,
-      number_of_episodes: season.number_of_episodes,
+      episode_list: season.episode_list || [],
       extras: season.extras || [],
       episodes: Enum.map(season.episodes || [], &episode_to_map/1)
     }
