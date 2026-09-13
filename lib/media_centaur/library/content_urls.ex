@@ -9,7 +9,7 @@ defmodule MediaCentaur.Library.ContentUrls do
   only on `library_watched_files.file_path`, reachable via
   `PlayableItem`. This module is the single read-time seam that stamps
   the virtual back onto the struct, so downstream consumers
-  (`EntityShape`, `EpisodeList`, `MovieList`, the detail panel) keep
+  (`EntityShape`, `EpisodeOrder`, `MovieOrder`, the detail panel) keep
   their natural `record.content_url` reads.
 
   `populate/1` walks the record's preloaded `playable_items.watched_files`

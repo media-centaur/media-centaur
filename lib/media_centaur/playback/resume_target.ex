@@ -6,8 +6,9 @@ defmodule MediaCentaur.Playback.ResumeTarget do
   - `compute/2` returns the entity-level hint (`resumeTarget`)
   """
 
-  alias MediaCentaur.Library.{EpisodeList, MovieList}
+  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder}
   alias MediaCentaur.Playback.Resume
+  alias MediaCentaur.Library.ProgressRecords
 
   @doc """
   Computes the display hint for what will play next for this entity.
@@ -39,12 +40,12 @@ defmodule MediaCentaur.Playback.ResumeTarget do
   # --- Private helpers ---
 
   defp all_completed?(%{type: :tv_series} = entity, progress_records) do
-    episodes = EpisodeList.list_available(entity)
+    episodes = EpisodeOrder.list_available(entity)
     episodes != [] and length(episodes) == Enum.count(progress_records, & &1.completed)
   end
 
   defp all_completed?(%{type: :movie_series} = entity, progress_records) do
-    movies = MovieList.list_available(entity)
+    movies = MovieOrder.list_available(entity)
     movies != [] and length(movies) == Enum.count(progress_records, & &1.completed)
   end
 
@@ -53,9 +54,9 @@ defmodule MediaCentaur.Playback.ResumeTarget do
   end
 
   defp build_hint(action, %{type: :tv_series} = entity, url, timing) do
-    case EpisodeList.find_by_content_url(entity, url) do
+    case EpisodeOrder.find_by_content_url(entity, url) do
       {season_number, episode_number} ->
-        name = EpisodeList.find_episode_name(entity, season_number, episode_number)
+        name = EpisodeOrder.find_episode_name(entity, season_number, episode_number)
 
         episode =
           find_episode_struct(entity, season_number, episode_number)
@@ -77,9 +78,9 @@ defmodule MediaCentaur.Playback.ResumeTarget do
   end
 
   defp build_hint(action, %{type: :movie_series} = entity, url, timing) do
-    case MovieList.find_by_content_url(entity, url) do
+    case MovieOrder.find_by_content_url(entity, url) do
       {ordinal, movie_id, movie_name} ->
-        total = MovieList.total_available(entity)
+        total = MovieOrder.total_available(entity)
 
         maybe_add_timing(
           %{
@@ -114,16 +115,16 @@ defmodule MediaCentaur.Playback.ResumeTarget do
 
     if episode_id do
       Enum.find(progress_records, fn record ->
-        EpisodeList.progress_container_id(record) == episode_id
+        ProgressRecords.progress_container_id(record) == episode_id
       end)
     end
   end
 
   defp find_progress_for_url(%{type: :movie_series} = entity, url, progress_records) do
-    case MovieList.find_by_content_url(entity, url) do
+    case MovieOrder.find_by_content_url(entity, url) do
       {_ordinal, movie_id, _name} ->
         Enum.find(progress_records, fn record ->
-          EpisodeList.progress_container_id(record) == movie_id
+          ProgressRecords.progress_container_id(record) == movie_id
         end)
 
       nil ->

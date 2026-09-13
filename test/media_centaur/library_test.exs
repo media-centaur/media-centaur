@@ -3,6 +3,7 @@ defmodule MediaCentaur.LibraryTest do
 
   import MediaCentaur.TestFactory
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.ProgressRecords
 
   # Records the file as present in watcher_files so Browser queries include it.
 
@@ -1251,10 +1252,10 @@ defmodule MediaCentaur.LibraryTest do
     # WatchProgress to `build/4` after the projection flip. Returns the
     # same shape `EntityShape.extract_progress(_, :tv_series)` produced
     # for the legacy path — each record carries a synthesised
-    # `:playable_item` so `EpisodeList.progress_container_id/1` resolves
+    # `:playable_item` so `ProgressRecords.progress_container_id/1` resolves
     # to the Episode UUID.
 
-    alias MediaCentaur.Library.EpisodeList
+    alias MediaCentaur.Library.EpisodeOrder
 
     test "returns [] for a series with no episodes" do
       tv = create_tv_series(%{name: "Empty Series"})
@@ -1286,11 +1287,11 @@ defmodule MediaCentaur.LibraryTest do
 
       assert length(records) == 2
 
-      episode_ids = Enum.map(records, &EpisodeList.progress_container_id/1)
+      episode_ids = Enum.map(records, &ProgressRecords.progress_container_id/1)
       assert Enum.sort(episode_ids) == Enum.sort([episode1.id, episode2.id])
 
       completed = Enum.find(records, & &1.completed)
-      assert EpisodeList.progress_container_id(completed) == episode1.id
+      assert ProgressRecords.progress_container_id(completed) == episode1.id
     end
 
     test "ignores progress on episodes of other series" do
@@ -1311,7 +1312,7 @@ defmodule MediaCentaur.LibraryTest do
       records = Library.ProgressRecords.list_for_tv_series(tv_a.id)
 
       assert [record] = records
-      assert EpisodeList.progress_container_id(record) == episode_a.id
+      assert ProgressRecords.progress_container_id(record) == episode_a.id
     end
 
     test "returns [] for an unknown TVSeries id" do

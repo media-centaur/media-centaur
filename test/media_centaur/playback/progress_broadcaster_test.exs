@@ -137,7 +137,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       # Regression: subscribers (EntityModal hook) rebuild per-episode
       # state from the broadcast payload's `changed_record` by reading
       # `record.playable_item.container_id` (via
-      # `EpisodeList.progress_container_id/1`). The caller's raw record
+      # `ProgressRecords.progress_container_id/1`). The caller's raw record
       # — what `Library.fetch_watch_progress_by_fk/2` and
       # `mark_watch_completed!/1` return — has the `:playable_item`
       # association as `%Ecto.Association.NotLoaded{}`, so without

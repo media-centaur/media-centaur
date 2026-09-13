@@ -1,7 +1,7 @@
-defmodule MediaCentaur.Library.EpisodeListTest do
+defmodule MediaCentaur.Library.EpisodeOrderTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Library.EpisodeList
+  alias MediaCentaur.Library.EpisodeOrder
 
   import MediaCentaur.TestFactory
 
@@ -20,7 +20,7 @@ defmodule MediaCentaur.Library.EpisodeListTest do
           ]
         })
 
-      result = EpisodeList.list_available(entity)
+      result = EpisodeOrder.list_available(entity)
 
       assert [{1, 1, "/ep1.mkv", _id1}, {1, 2, "/ep2.mkv", _id2}] = result
     end
@@ -39,12 +39,12 @@ defmodule MediaCentaur.Library.EpisodeListTest do
           ]
         })
 
-      assert [{1, 1, "/ep1.mkv", _id}] = EpisodeList.list_available(entity)
+      assert [{1, 1, "/ep1.mkv", _id}] = EpisodeOrder.list_available(entity)
     end
 
     test "handles empty seasons list" do
       entity = build_entity(%{seasons: []})
-      assert EpisodeList.list_available(entity) == []
+      assert EpisodeOrder.list_available(entity) == []
     end
 
     test "sorts across multiple seasons" do
@@ -67,32 +67,13 @@ defmodule MediaCentaur.Library.EpisodeListTest do
           ]
         })
 
-      result = EpisodeList.list_available(entity)
+      result = EpisodeOrder.list_available(entity)
 
       assert [
                {1, 1, "/s1e1.mkv", _id1},
                {1, 3, "/s1e3.mkv", _id2},
                {2, 1, "/s2e1.mkv", _id3}
              ] = result
-    end
-  end
-
-  describe "index_progress_by_key/1" do
-    test "indexes by episode_id FK" do
-      ep_id_a = Ecto.UUID.generate()
-      ep_id_b = Ecto.UUID.generate()
-
-      progress_a =
-        build_progress(%{episode_id: ep_id_a, position_seconds: 30.0})
-
-      progress_b =
-        build_progress(%{episode_id: ep_id_b, position_seconds: 60.0})
-
-      index = EpisodeList.index_progress_by_key([progress_a, progress_b])
-
-      assert index[ep_id_a] == progress_a
-      assert index[ep_id_b] == progress_b
-      assert map_size(index) == 2
     end
   end
 
@@ -115,20 +96,20 @@ defmodule MediaCentaur.Library.EpisodeListTest do
     end
 
     test "returns name for valid season/episode", %{entity: entity} do
-      assert EpisodeList.find_episode_name(entity, 1, 1) == "Pilot"
-      assert EpisodeList.find_episode_name(entity, 1, 2) == "The Cat's in the Bag..."
+      assert EpisodeOrder.find_episode_name(entity, 1, 1) == "Pilot"
+      assert EpisodeOrder.find_episode_name(entity, 1, 2) == "The Cat's in the Bag..."
     end
 
     test "returns nil for missing season", %{entity: entity} do
-      assert EpisodeList.find_episode_name(entity, 99, 1) == nil
+      assert EpisodeOrder.find_episode_name(entity, 99, 1) == nil
     end
 
     test "returns nil when season_number is nil", %{entity: entity} do
-      assert EpisodeList.find_episode_name(entity, nil, 1) == nil
+      assert EpisodeOrder.find_episode_name(entity, nil, 1) == nil
     end
 
     test "returns nil when episode_number is nil", %{entity: entity} do
-      assert EpisodeList.find_episode_name(entity, 1, nil) == nil
+      assert EpisodeOrder.find_episode_name(entity, 1, nil) == nil
     end
   end
 
@@ -156,20 +137,20 @@ defmodule MediaCentaur.Library.EpisodeListTest do
 
     test "returns the next episode within a season", context do
       assert {1, 2, "/s1e2.mkv", id} =
-               EpisodeList.next_episode_after(context.entity, context.episode_s1e1.id)
+               EpisodeOrder.next_episode_after(context.entity, context.episode_s1e1.id)
 
       assert id == context.episode_s1e2.id
     end
 
     test "crosses a season boundary", context do
       assert {2, 1, "/s2e1.mkv", id} =
-               EpisodeList.next_episode_after(context.entity, context.episode_s1e2.id)
+               EpisodeOrder.next_episode_after(context.entity, context.episode_s1e2.id)
 
       assert id == context.episode_s2e1.id
     end
 
     test "returns nil after the final episode", context do
-      assert EpisodeList.next_episode_after(context.entity, context.episode_s2e1.id) == nil
+      assert EpisodeOrder.next_episode_after(context.entity, context.episode_s2e1.id) == nil
     end
 
     test "returns nil when the next episode has no content_url — never skips a gap" do
@@ -184,11 +165,11 @@ defmodule MediaCentaur.Library.EpisodeListTest do
           ]
         })
 
-      assert EpisodeList.next_episode_after(entity, episode_a.id) == nil
+      assert EpisodeOrder.next_episode_after(entity, episode_a.id) == nil
     end
 
     test "returns nil for an unknown episode id", context do
-      assert EpisodeList.next_episode_after(context.entity, Ecto.UUID.generate()) == nil
+      assert EpisodeOrder.next_episode_after(context.entity, Ecto.UUID.generate()) == nil
     end
   end
 
@@ -217,12 +198,12 @@ defmodule MediaCentaur.Library.EpisodeListTest do
     end
 
     test "returns {season_number, episode_number} for matching url", %{entity: entity} do
-      assert EpisodeList.find_by_content_url(entity, "/s1e2.mkv") == {1, 2}
-      assert EpisodeList.find_by_content_url(entity, "/s2e1.mkv") == {2, 1}
+      assert EpisodeOrder.find_by_content_url(entity, "/s1e2.mkv") == {1, 2}
+      assert EpisodeOrder.find_by_content_url(entity, "/s2e1.mkv") == {2, 1}
     end
 
     test "returns nil when no match", %{entity: entity} do
-      assert EpisodeList.find_by_content_url(entity, "/nonexistent.mkv") == nil
+      assert EpisodeOrder.find_by_content_url(entity, "/nonexistent.mkv") == nil
     end
   end
 end

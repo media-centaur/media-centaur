@@ -1,7 +1,14 @@
-defmodule MediaCentaur.Library.EpisodeList do
+defmodule MediaCentaur.Library.EpisodeOrder do
   @moduledoc """
-  Shared helpers for walking a TV series entity's seasons and episodes.
-  Used by Resume and ProgressSummary.
+  Ordering and position lookup over a TV series entity's seasons and
+  episodes: sorting, the playable sequence, and finding an episode by
+  position or by content URL. Used by Resume, ResumeTarget and
+  ProgressSummary.
+
+  The movie-collection parallel is `MediaCentaur.Library.MovieOrder`.
+  Reading a progress record — its container id, its watch state, indexing
+  a list of them — belongs to `MediaCentaur.Library.ProgressRecords`, and
+  lived here until 2026-09-13.
   """
 
   @doc "Sorts seasons by season_number."
@@ -26,51 +33,6 @@ defmodule MediaCentaur.Library.EpisodeList do
       |> sort_episodes()
       |> Enum.map(&{season.season_number, &1.episode_number, &1.content_url, &1.id})
     end)
-  end
-
-  @doc """
-  Indexes progress records by their container id (Movie or Episode id),
-  resolved through the linked `PlayableItem`. Expects `:playable_item` to
-  be preloaded on each record (Library Schema v2 Phase 2 Task C — the
-  three direct FKs `movie_id` / `episode_id` / `video_object_id` no
-  longer exist on `WatchProgress`).
-  """
-  def index_progress_by_key(progress_records) do
-    Map.new(progress_records, fn record ->
-      {progress_container_id(record), record}
-    end)
-  end
-
-  @doc """
-  Returns the container id (Movie / Episode / VideoObject UUID) for a
-  WatchProgress record. Requires `:playable_item` to be preloaded.
-  Returns `nil` when the association isn't loaded — callers that key on
-  this value will lose the entry, which is the same failure mode as the
-  previous direct-FK accessor when the FK was nil.
-  """
-  def progress_container_id(%{playable_item: %{container_id: id}}), do: id
-  def progress_container_id(_), do: nil
-
-  @doc """
-  Maps a `WatchProgress` record (or `nil`) to the three-state UI atom
-  used by the detail panel and the SeriesDetail view model:
-
-  - `:unwatched` — no progress, or progress at position 0 and not completed
-  - `:current`   — progress past position 0 but not completed
-  - `:watched`   — `completed: true`
-
-  Shared between the rendering layer (`DetailPanel`) and the
-  composition layer (`SeriesDetail`) so the rule lives in one place.
-  """
-  @spec state_from_progress(map() | nil) :: :unwatched | :current | :watched
-  def state_from_progress(nil), do: :unwatched
-
-  def state_from_progress(progress) do
-    cond do
-      progress.completed -> :watched
-      (progress.position_seconds || 0.0) > 0.0 -> :current
-      true -> :unwatched
-    end
   end
 
   @doc """

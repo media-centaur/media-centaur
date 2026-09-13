@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # the boundary.
   @doc_entity "`MediaCentaur.Library.EntityView` — the container-level read model (`:type | :name | :images | :seasons | :movies | :extras | :external_ids | :cast | :crew | :content_url | …`), produced by `Library.Views.DetailItem.to_entity_view/1` for the modal."
   @doc_progress "`MediaCentaur.Library.ProgressSummary.t() | nil` — composed at `Library.ModalEntry.load/1` from `list_progress_records_for_container/2` (Phase 3.2)."
-  @doc_progress_records "list of `MediaCentaur.Library.WatchProgress.t()` rows for the entity's leaves; each carries a synthesised `:playable_item` `(container_type, container_id)` so `EpisodeList.progress_container_id/1` resolves to the leaf UUID."
+  @doc_progress_records "list of `MediaCentaur.Library.WatchProgress.t()` rows for the entity's leaves; each carries a synthesised `:playable_item` `(container_type, container_id)` so `ProgressRecords.progress_container_id/1` resolves to the leaf UUID."
   @doc_resume "resume target map `%{kind, season, episode, ...} | nil` — see `LibraryProgress.resume_target_for/1`."
   @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`. The host's `delete_*_prompt` handlers compare against this to decide whether the click is the first (set pending) or second (execute). `:any` is intentional — it's a sum type, not a single shape."

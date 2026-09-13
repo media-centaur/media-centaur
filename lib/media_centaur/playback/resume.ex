@@ -4,8 +4,9 @@ defmodule MediaCentaur.Playback.Resume do
   and its watch progress records. No DB access, no side effects.
   """
 
-  alias MediaCentaur.Library.EpisodeList
-  alias MediaCentaur.Library.MovieList
+  alias MediaCentaur.Library.EpisodeOrder
+  alias MediaCentaur.Library.MovieOrder
+  alias MediaCentaur.Library.ProgressRecords
 
   @type result ::
           {:resume, String.t(), float()}
@@ -58,10 +59,10 @@ defmodule MediaCentaur.Playback.Resume do
   defp resolve_movie_series(entity, progress_records) do
     items =
       entity
-      |> MovieList.list_available()
+      |> MovieOrder.list_available()
       |> Enum.map(fn {_ordinal, movie_id, url} -> {url, movie_id} end)
 
-    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
+    progress_by_key = ProgressRecords.index_progress_by_key(progress_records)
     walk_ordered_items(items, progress_records, progress_by_key)
   end
 
@@ -69,10 +70,10 @@ defmodule MediaCentaur.Playback.Resume do
   defp resolve_tv_series(entity, progress_records) do
     items =
       entity
-      |> EpisodeList.list_available()
+      |> EpisodeOrder.list_available()
       |> Enum.map(fn {_season, _episode, url, episode_id} -> {url, episode_id} end)
 
-    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
+    progress_by_key = ProgressRecords.index_progress_by_key(progress_records)
     walk_ordered_items(items, progress_records, progress_by_key)
   end
 
@@ -101,7 +102,7 @@ defmodule MediaCentaur.Playback.Resume do
         {:play_next, url, 0.0}
 
       record ->
-        record_key = EpisodeList.progress_container_id(record)
+        record_key = ProgressRecords.progress_container_id(record)
 
         if record.completed do
           advance_from(record_key, items, progress_by_key)

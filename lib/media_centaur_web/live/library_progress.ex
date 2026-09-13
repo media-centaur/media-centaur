@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.LibraryProgress do
   without rebuilding the full entries list.
   """
 
-  alias MediaCentaur.Library.{EpisodeList, MovieList}
+  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder}
 
   # --- Completion percentage ---
 
@@ -68,8 +68,8 @@ defmodule MediaCentaurWeb.LibraryProgress do
   def episodes_remaining_label(entity, progress_records) do
     total =
       case entity.type do
-        :tv_series -> length(EpisodeList.list_available(entity))
-        :movie_series -> length(MovieList.list_available(entity))
+        :tv_series -> length(EpisodeOrder.list_available(entity))
+        :movie_series -> length(MovieOrder.list_available(entity))
         _ -> 0
       end
 

@@ -17,7 +17,7 @@ defmodule MediaCentaur.Library.EntityShape do
   returns the `WatchProgress` rows attached to each leaf, each carrying
   a synthesised `:playable_item` field with the leaf's `(container_type,
   container_id)`. Downstream consumers
-  (`MediaCentaur.Library.EpisodeList.index_progress_by_key/1`) key
+  (`MediaCentaur.Library.ProgressRecords.index_progress_by_key/1`) key
   progress by container id without an extra preload of the
   `belongs_to :playable_item` back-ref.
   """
@@ -133,7 +133,7 @@ defmodule MediaCentaur.Library.EntityShape do
   The `has_one :watch_progress, through: [:playable_items, :watch_progress]`
   preload path doesn't materialise the `belongs_to :playable_item` back-ref
   on the loaded progress record, so this function plugs in just enough
-  for downstream consumers (e.g. `EpisodeList.index_progress_by_key/1`)
+  for downstream consumers (e.g. `ProgressRecords.index_progress_by_key/1`)
   to key by container id.
   """
   def extract_progress(record, :tv_series), do: extract_episode_progress(record.seasons)
