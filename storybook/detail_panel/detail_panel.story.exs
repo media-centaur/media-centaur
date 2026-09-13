@@ -41,10 +41,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        Missing slot, one appended after the last library episode in
        S1. Pill copy reads "in Xd" because `air_date` is in the
        future.
-    6. `:tv_series_aired_not_in_library` — TV variation with an
-       Upcoming item whose `sub_status: :aired_not_in_library`
-       (released but file not yet imported). Pill copy reads
-       "aired Xd ago".
+    6. `:tv_series_aired_not_in_library` — TV variation with a Missing
+       item carrying a past `air_date` and a title (aired, no file
+       imported). Pill copy reads "aired Xd ago" and the row is
+       actionable.
     7. `:tv_series_only_future` — entity has zero library seasons;
        releases project a synthetic `kind: :future` SeasonView. Hits
        the no-watched-count branch on the season header.
@@ -362,7 +362,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "Same library shape as 3, but with three `%EpisodeRow.Upcoming{}` " <>
             "rows mixed in: one fills the S1 episode-4 gap (replacing the missing " <>
             "row), one extends S1 past `number_of_episodes`, and one populates a " <>
-            "future S2. All have `sub_status: :unaired` and `air_date` in the " <>
+            "future S2. All are Upcoming with `air_date` in the " <>
             "future, so the date pill reads \"in Xd\". The Upcoming row has " <>
             "no thumbnail, no watched toggle, and `data-nav-item` is omitted.",
         attributes: tv_series_with_upcoming_attrs()
@@ -370,10 +370,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :tv_series_aired_not_in_library,
         description:
-          "TV variation with one `%EpisodeRow.Upcoming{sub_status: " <>
-            ":aired_not_in_library}` carrying a past `air_date` — TMDB knows it " <>
-            "aired but the file hasn't been imported. Pill copy reads " <>
-            "\"aired Xd ago\" instead of the future-tense form.",
+          "TV variation with one `%EpisodeRow.Missing{}` carrying a past " <>
+            "`air_date` and a title — the calendar knows the episode aired and " <>
+            "no file was imported. The row wears an \"aired Xd ago\" pill and " <>
+            "is actionable, unlike an unaired Upcoming row.",
         attributes: tv_series_aired_not_in_library_attrs()
       },
       %Variation{
@@ -729,8 +729,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             season_number: 1,
             episode_number: 4,
             title: "The Far Hike",
-            air_date: Date.add(Date.utc_today(), 7),
-            sub_status: :unaired
+            air_date: Date.add(Date.utc_today(), 7)
           }
 
         other ->
@@ -741,8 +740,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             season_number: 1,
             episode_number: 6,
             title: "After the Snow",
-            air_date: Date.add(Date.utc_today(), 21),
-            sub_status: :unaired
+            air_date: Date.add(Date.utc_today(), 21)
           }
         ]
 
@@ -757,15 +755,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           season_number: 3,
           episode_number: 1,
           title: "Spring Returns",
-          air_date: Date.add(Date.utc_today(), 60),
-          sub_status: :unaired
+          air_date: Date.add(Date.utc_today(), 60)
         },
         %EpisodeRow.Upcoming{
           season_number: 3,
           episode_number: 2,
           title: "An Old Letter",
-          air_date: Date.add(Date.utc_today(), 67),
-          sub_status: :unaired
+          air_date: Date.add(Date.utc_today(), 67)
         }
       ],
       extras: [],
@@ -793,12 +789,11 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       | items:
           Enum.map(s1_view.items, fn
             %EpisodeRow.Missing{episode_number: 4} ->
-              %EpisodeRow.Upcoming{
+              %EpisodeRow.Missing{
                 season_number: 1,
                 episode_number: 4,
                 title: "The Quiet Hour",
-                air_date: Date.add(Date.utc_today(), -3),
-                sub_status: :aired_not_in_library
+                air_date: Date.add(Date.utc_today(), -3)
               }
 
             other ->
@@ -824,15 +819,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           season_number: 1,
           episode_number: 1,
           title: "Pilot",
-          air_date: Date.add(Date.utc_today(), 14),
-          sub_status: :unaired
+          air_date: Date.add(Date.utc_today(), 14)
         },
         %EpisodeRow.Upcoming{
           season_number: 1,
           episode_number: 2,
           title: "The Letter",
-          air_date: Date.add(Date.utc_today(), 21),
-          sub_status: :unaired
+          air_date: Date.add(Date.utc_today(), 21)
         }
       ],
       extras: [],
