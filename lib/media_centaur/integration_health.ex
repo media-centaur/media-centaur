@@ -13,18 +13,24 @@ defmodule MediaCentaur.IntegrationHealth do
 
   ## Lifecycle
 
-    * On boot: read Config, mark each integration `configured?` accordingly,
-      and kick a verify for every configured integration so the cached
-      state reflects reality without waiting for user action.
+    * On boot: seed each id from `Capabilities.configured?/1` and the
+      persisted test (`Capabilities.load_test_result/1`) — its status and
+      `tested_at` when there is one, `:unknown` when there is none.
+      Nothing is probed (UIDR-041 §7): an integration reads as it last
+      tested until someone tests it.
     * On `{:config_updated, key, _value}` for any tracked key: flip
-      `configured?` to match and reset `test_state` to `:pending`. The
-      verify itself is the caller's explicit act (`verify/1`, from the
-      setup tour or Settings), so a multi-field save cannot race a probe
-      against half-written credentials.
+      `configured?` to match and reset `test_state` to `:unknown` — the
+      old result no longer describes these settings. The verify itself
+      is the caller's explicit act (`verify/1`, from the setup tour or
+      Settings), so a multi-field save cannot race a probe against
+      half-written credentials. `:pending` means a verify is in flight
+      and nothing else.
     * On `verify/1`: spawn the test on `Task.Supervisor`, set
-      `test_state: :pending`, broadcast the change. The test result
-      arrives via `handle_info({:test_result, id, ...})` and updates the
-      cache + emits another broadcast.
+      `test_state: :pending`, broadcast the change. The result arrives
+      via `handle_info({:test_result, id, ...})`, is written here,
+      persisted through `Capabilities.save_test_result/2` (the readiness
+      gates read that), and broadcast again. This module is the one
+      writer of the persisted test.
 
   ## Read API (bypass-GenServer)
 
@@ -161,12 +167,7 @@ defmodule MediaCentaur.IntegrationHealth do
 
   @impl true
   def handle_continue(:seed, state) do
-    Enum.each(@integrations, fn id ->
-      configured? = configured_for?(id)
-      write(id, %Status{id: id, configured?: configured?, test_state: :unknown})
-      if configured?, do: kick_test(id)
-    end)
-
+    Enum.each(@integrations, fn id -> write(id, seeded(id)) end)
     {:noreply, state}
   end
 
@@ -196,11 +197,7 @@ defmodule MediaCentaur.IntegrationHealth do
         # races on stale config, so verification is always explicit via
         # `verify/1`. Callers that mutate config and want a fresh test
         # should call `verify/1` after the last write.
-        write(id, %Status{
-          id: id,
-          configured?: configured?,
-          test_state: if(configured?, do: :pending, else: :unknown)
-        })
+        write(id, %Status{id: id, configured?: configured?, test_state: :unknown})
 
         broadcast(id)
         {:noreply, state}
@@ -245,13 +242,9 @@ defmodule MediaCentaur.IntegrationHealth do
 
   defp apply_test_result(id, :ok) do
     current = status(id) || %Status{id: id, configured?: configured_for?(id), test_state: :unknown}
+    %{tested_at: tested_at} = Capabilities.save_test_result(id, :ok)
 
-    write(id, %{
-      current
-      | test_state: :ok,
-        test_error: nil,
-        last_tested_at: DateTime.utc_now()
-    })
+    write(id, %{current | test_state: :ok, test_error: nil, last_tested_at: tested_at})
 
     Log.info(:system, "#{id} test ok")
     broadcast(id)
@@ -259,16 +252,26 @@ defmodule MediaCentaur.IntegrationHealth do
 
   defp apply_test_result(id, {:error, reason}) do
     current = status(id) || %Status{id: id, configured?: configured_for?(id), test_state: :unknown}
+    %{tested_at: tested_at} = Capabilities.save_test_result(id, :error)
 
-    write(id, %{
-      current
-      | test_state: :error,
-        test_error: reason,
-        last_tested_at: DateTime.utc_now()
-    })
+    write(id, %{current | test_state: :error, test_error: reason, last_tested_at: tested_at})
 
     Log.warning(:system, "#{id} test failed — #{inspect(reason)}")
     broadcast(id)
+  end
+
+  # The boot state of one id: configured? from Config, and the persisted
+  # test when there is one (its status and when it ran). Never a probe.
+  defp seeded(id) do
+    configured? = configured_for?(id)
+
+    case Capabilities.load_test_result(id) do
+      %{status: status, tested_at: tested_at} when configured? ->
+        %Status{id: id, configured?: true, test_state: status, last_tested_at: tested_at}
+
+      _none ->
+        %Status{id: id, configured?: configured?, test_state: :unknown}
+    end
   end
 
   defp write(id, %Status{} = status) do
