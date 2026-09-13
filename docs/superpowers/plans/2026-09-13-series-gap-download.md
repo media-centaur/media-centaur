@@ -139,6 +139,12 @@ Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
 
 - [ ] **Step 1: Rename the two modules**
 
+**This task must run before Task 3.** Its `sed` matches the bare token
+`EpisodeList`, and Task 3 introduces `MediaCentaur.Library.EpisodeListEntry`
+— run them out of order and that becomes `EpisodeOrderEntry`. Task 1 must
+also already be done, so no `EpisodeListItem` remains for the same pattern
+to catch.
+
 ```bash
 cd /home/shawn/src/media-centaur/media-centaur-app
 find lib test -type f \( -name "*.ex" -o -name "*.exs" \) \
@@ -777,6 +783,11 @@ and add beside it:
   end
 ```
 
+`load_seasons/1` (`detail.ex:1116`) is a bare `from(s in Season, where:,
+order_by:)` with no narrowing `select:`, so the rows reaching
+`shape_seasons/2` are full structs and the embed is loaded. No change needed
+there — verified during the plan's `unify_design` pass.
+
 - [ ] **Step 5: Run the tests**
 
 ```bash
@@ -790,6 +801,251 @@ Expected: PASS. Three `number_of_episodes` fixtures in each file need swapping t
 ```bash
 git add -A
 git commit -m "feat(library): the detail projection carries the season episode list
+
+Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
+```
+
+## Task 6A: `Missing` absorbs the aired-and-absent state
+
+Found by the `unify_design` pass over this plan. Without it the feature is
+broken on exactly the shows you follow: a `Release` row wins over an
+episode-list entry, so an aired episode you don't have renders as
+`EpisodeRow.Upcoming{sub_status: :aired_not_in_library}` — a muted,
+unclickable row with an "aired 3d ago" pill — on a **tracked** series, and
+as a clickable `EpisodeRow.Missing` on an untracked one. One state, two
+renderings, decided by which table the fact came from.
+
+After this task `Upcoming` means *unaired*, full stop, and `Missing` means
+*aired, no file* whatever the source. `Missing` carries the title and air
+date when they are known, so it renders the same pill **and** is clickable.
+
+This task stands on its own: it needs no episode list, only the release
+rows the composer already reads.
+
+**Files:**
+- Modify: `lib/media_centaur_web/view_model/episode_row.ex`
+- Modify: `lib/media_centaur_web/view_model/series_detail.ex:270-285`
+- Modify: `lib/media_centaur_web/components/detail/season_list.ex:345-372`
+- Test: `test/media_centaur_web/view_model/series_detail_test.exs`
+
+- [ ] **Step 1: Write the failing test**
+
+Add to `test/media_centaur_web/view_model/series_detail_test.exs`:
+
+```elixir
+  describe "an aired release with no file" do
+    test "is a Missing row carrying the release's title and date" do
+      season = %{season_number: 1, name: "Season 1", episodes: [], episode_list: [], extras: []}
+
+      releases = [
+        %{
+          season_number: 1,
+          episode_number: 1,
+          title: "My Overkill",
+          air_date: ~D[2020-01-01],
+          released: true,
+          in_library: false
+        }
+      ]
+
+      [view] = SeriesDetail.build(entry_for(season), releases, nil).seasons
+
+      assert [
+               %EpisodeRow.Missing{
+                 episode_number: 1,
+                 title: "My Overkill",
+                 air_date: ~D[2020-01-01]
+               }
+             ] = view.items
+    end
+
+    test "an unaired release is still Upcoming" do
+      future = Date.add(Date.utc_today(), 30)
+      season = %{season_number: 1, name: "Season 1", episodes: [], episode_list: [], extras: []}
+
+      releases = [
+        %{
+          season_number: 1,
+          episode_number: 1,
+          title: "The Finale",
+          air_date: future,
+          released: false,
+          in_library: false
+        }
+      ]
+
+      [view] = SeriesDetail.build(entry_for(season), releases, nil).seasons
+
+      assert [%EpisodeRow.Upcoming{episode_number: 1, air_date: ^future}] = view.items
+    end
+  end
+```
+
+Add the `entry_for/1` helper from Task 8 Step 1 if it is not already in the
+file.
+
+- [ ] **Step 2: Run it to verify it fails**
+
+```bash
+~/scripts/agents/agent-mix test test/media_centaur_web/view_model/series_detail_test.exs
+```
+
+Expected: FAIL — an aired release currently yields `Upcoming`, and `Missing`
+has no `title` or `air_date`.
+
+- [ ] **Step 3: Change the ADT**
+
+In `lib/media_centaur_web/view_model/episode_row.ex`, replace both variant
+modules' contents:
+
+```elixir
+  defmodule Missing do
+    @moduledoc """
+    An episode that has aired — or carries no air date — that the library
+    holds no file for. Two sources produce it: an entry in the season's
+    `episode_list`, and a release-tracking row for a tracked series. They
+    are the same state, so they are the same row: the split that used to
+    exist (`Upcoming{sub_status: :aired_not_in_library}` when a release
+    row happened to exist) made a downloadable episode unclickable on
+    exactly the series a person follows.
+
+    `title` and `air_date` are whatever the producing source knew — a
+    release row's title beats a list entry's name, and the row wears an
+    "aired 3d ago" pill when it has a date.
+    """
+
+    @enforce_keys [:season_number, :episode_number]
+    defstruct [:season_number, :episode_number, :title, :air_date]
+
+    @type t :: %__MODULE__{
+            season_number: non_neg_integer(),
+            episode_number: non_neg_integer(),
+            title: String.t() | nil,
+            air_date: Date.t() | nil
+          }
+  end
+
+  defmodule Upcoming do
+    @moduledoc """
+    An episode that has not aired yet. `air_date` is in the future, or nil
+    for a release TMDB has scheduled without dating. Rendered muted with a
+    date pill and deliberately not focusable — there is nothing to do with
+    it.
+
+    Aired-but-absent is `Missing`, not a sub-status here.
+    """
+
+    @enforce_keys [:season_number, :episode_number]
+    defstruct [:season_number, :episode_number, :title, :air_date]
+
+    @type t :: %__MODULE__{
+            season_number: non_neg_integer(),
+            episode_number: non_neg_integer(),
+            title: String.t() | nil,
+            air_date: Date.t() | nil
+          }
+  end
+```
+
+Leave `MovieRow.Upcoming` alone: collections have no `Missing` variant, and
+its moduledoc already names collection completeness as when the gap rows
+join that ADT. Add a line to `movie_row.ex`'s moduledoc recording the
+divergence:
+
+```elixir
+  Note the asymmetry with `EpisodeRow` since 2026-09-13: there, aired-and-
+  absent is `Missing` and `Upcoming` means unaired only. Here `Upcoming`
+  still carries both through `sub_status`, because without a `Missing`
+  variant there is nowhere else for an aired-and-absent part to go. The
+  two converge when collection completeness lands.
+```
+
+- [ ] **Step 4: Split the release producer**
+
+In `lib/media_centaur_web/view_model/series_detail.ex`, replace
+`build_upcoming_item/1` and delete `upcoming_sub_status/1`:
+
+```elixir
+  # A release row becomes whichever row its air date says it is. The
+  # calendar knows the episode's title, so both carry it.
+  defp build_release_item(release) do
+    if aired?(release) do
+      %EpisodeRow.Missing{
+        season_number: release.season_number,
+        episode_number: release.episode_number,
+        title: release.title,
+        air_date: release.air_date
+      }
+    else
+      %EpisodeRow.Upcoming{
+        season_number: release.season_number,
+        episode_number: release.episode_number,
+        title: release.title,
+        air_date: release.air_date
+      }
+    end
+  end
+```
+
+Update both call sites (`build_library_items/4` and `build_future_season/2`)
+from `build_upcoming_item` to `build_release_item`. `aired?/1` stays as it is.
+
+- [ ] **Step 5: Give the missing row its pill**
+
+In `lib/media_centaur_web/components/detail/season_list.ex`, add the pill to
+`missing_episode_row/1`'s right-hand slot, before the closing `</div>` of
+the flex row:
+
+```heex
+        <.badge :if={@item.air_date} variant="ghost" size="sm" class="gap-1">
+          <.icon name="hero-calendar-mini" class="size-3" />
+          {Logic.upcoming_pill_copy(@item)}
+        </.badge>
+```
+
+`Logic.upcoming_pill_copy/2` matches on `%{air_date: ...}`, so it reads a
+`Missing` struct unchanged.
+
+Also change the row's label to use the title when there is one:
+
+```heex
+        <span class="flex-1 min-w-0 truncate text-base-content/70 italic">
+          {@item.title || "Episode #{@item.episode_number}"}
+        </span>
+```
+
+- [ ] **Step 6: Fix the upcoming row and the storybook**
+
+`upcoming_episode_row/1` no longer has `sub_status`; it reads
+`Logic.upcoming_pill_copy(@item)` already, so only remove any reference to
+`sub_status` it carries.
+
+In `storybook/detail_panel/detail_panel.story.exs`, the
+`:tv_series_aired_not_in_library` variation now demonstrates a `Missing` row
+with a date rather than an `Upcoming` one. Change its fixture from
+`%EpisodeRow.Upcoming{... sub_status: :aired_not_in_library}` to
+`%EpisodeRow.Missing{season_number: …, episode_number: …, title: …, air_date: …}`
+and update its `description` to say so. Drop `sub_status:` from every other
+`EpisodeRow.Upcoming{}` fixture in the file.
+
+- [ ] **Step 7: Run the tests**
+
+```bash
+~/scripts/agents/agent-mix test test/media_centaur_web/view_model/series_detail_test.exs test/storybook_render_test.exs
+```
+
+Expected: PASS.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add -A
+git commit -m "fix(detail): aired-and-absent is one row, whatever the source
+
+A release row won over everything else, so an aired episode you don't have
+was an unclickable 'aired 3d ago' pill on a tracked series and a plain gap
+on an untracked one. Upcoming now means unaired; Missing means aired and
+absent, carrying whatever title and date the source knew.
 
 Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
 ```
@@ -838,8 +1094,7 @@ Add to `test/media_centaur_web/view_model/series_detail_test.exs` (the file buil
 
       [view] = SeriesDetail.build(entry_for(season), [], nil).seasons
 
-      assert [%EpisodeRow.Upcoming{episode_number: 1, sub_status: :unaired, air_date: ^future}] =
-               view.items
+      assert [%EpisodeRow.Upcoming{episode_number: 1, air_date: ^future}] = view.items
     end
 
     test "an undated entry is Missing, not Upcoming", %{entry: entry} do
@@ -893,7 +1148,10 @@ Add to `test/media_centaur_web/view_model/series_detail_test.exs` (the file buil
 
       [view] = SeriesDetail.build(entry_for(season), releases, nil).seasons
 
-      assert [%EpisodeRow.Upcoming{title: "From the calendar"}] = view.items
+      # Aired, so Missing after Task 6A — but the calendar's title wins
+      # over the episode-list entry's name, which is the precedence
+      # this test exists to pin.
+      assert [%EpisodeRow.Missing{title: "From the calendar"}] = view.items
     end
   end
 ```
@@ -950,7 +1208,7 @@ and replace `build_library_items/4` entirely:
           build_library_item(episode, season.season_number, progress_by_episode_id, resume_episode_key)
 
         release = Map.get(release_map, number) ->
-          build_upcoming_item(release)
+          build_release_item(release)
 
         true ->
           build_listed_item(Map.fetch!(listed, number), season.season_number, today)
@@ -963,19 +1221,24 @@ and replace `build_library_items/4` entirely:
   # is a gap the person can act on, because absence of a date is not
   # evidence that an episode is still to come.
   defp build_listed_item(entry, season_number, today) do
+    fields = [
+      season_number: season_number,
+      episode_number: entry.episode_number,
+      title: entry.name,
+      air_date: entry.air_date
+    ]
+
     if entry.air_date && Date.compare(entry.air_date, today) == :gt do
-      %EpisodeRow.Upcoming{
-        season_number: season_number,
-        episode_number: entry.episode_number,
-        title: entry.name,
-        air_date: entry.air_date,
-        sub_status: :unaired
-      }
+      struct!(EpisodeRow.Upcoming, fields)
     else
-      %EpisodeRow.Missing{season_number: season_number, episode_number: entry.episode_number}
+      struct!(EpisodeRow.Missing, fields)
     end
   end
 ```
+
+Both variants carry the same four fields after Task 6A, which is what lets
+one keyword list build either — the air date is the only thing that decides
+between them.
 
 - [ ] **Step 4: Run the tests**
 
@@ -1639,6 +1902,162 @@ git commit -m "feat(detail): Download more of this show closes the season list
 Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
 ```
 
+## Task 11A: Extract the shared plan-flow ending
+
+Found by the `unify_design` pass over this plan. `TitleDetailHost.start_download/4`
+already owns the `download_pending` guard, the planning-mode → approval-policy
+mapping, the auto→flash / manual→board endings and the `download_flash/1`
+copy. **LibraryLive does not use `TitleDetailHost`** — it uses `EntityModal`
+plus five other traits — so writing that tail again inside `EntityModal`
+would leave two download flows that have to be kept in step forever.
+
+One concept: *perform a planning mode on some units, from a modal*. The
+units differ; the ending does not.
+
+**Files:**
+- Create: `lib/media_centaur_web/live/plan_flow.ex`
+- Modify: `lib/media_centaur_web/live/title_detail_host.ex:443-490`
+- Test: `test/media_centaur_web/live/plan_flow_test.exs`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `test/media_centaur_web/live/plan_flow_test.exs`:
+
+```elixir
+defmodule MediaCentaurWeb.Live.PlanFlowTest do
+  use ExUnit.Case, async: true
+
+  alias MediaCentaurWeb.Live.PlanFlow
+
+  describe "approval_policy/1" do
+    test "auto-select commits without anyone looking" do
+      assert PlanFlow.approval_policy(:auto_select_best_release) == "automatic"
+    end
+
+    test "manual select parks for review" do
+      assert PlanFlow.approval_policy(:manually_select_release) == "review"
+    end
+  end
+
+  describe "download_flash/1" do
+    test "names what is being looked for" do
+      assert PlanFlow.download_flash("Sample Show S1E2") == "Finding a release for Sample Show S1E2"
+    end
+  end
+end
+```
+
+- [ ] **Step 2: Run it to verify it fails**
+
+```bash
+~/scripts/agents/agent-mix test test/media_centaur_web/live/plan_flow_test.exs
+```
+
+Expected: FAIL — `MediaCentaurWeb.Live.PlanFlow` is undefined.
+
+- [ ] **Step 3: Create the module**
+
+`lib/media_centaur_web/live/plan_flow.ex`:
+
+```elixir
+defmodule MediaCentaurWeb.Live.PlanFlow do
+  @moduledoc """
+  The ending a download gets, in one place: how a planning mode maps to a
+  plan's approval policy, the flash auto-select raises, and the copy for
+  each way planning can fail.
+
+  Two surfaces start downloads and neither hosts the other. The title
+  detail modal (`TitleDetailHost`, on Discovery and Incoming) downloads a
+  whole title; the library detail modal (`Live.EntityModal`, on Library
+  and Home) downloads the one episode a missing row names. What they do
+  with the result is identical, and it lives here rather than in each of
+  them.
+
+  Deliberately not a `use` macro: it holds no state and attaches no
+  hooks. Both callers keep their own `download_pending` assign and their
+  own async naming, because what is pending differs — a title on one
+  side, a `{season, episode}` unit on the other.
+  """
+
+  alias MediaCentaur.Settings.Preferences.PlanningMode
+
+  @typedoc "Why a plan was not created."
+  @type failure :: :nothing_to_plan | :unaired | :already_here | :not_listed | :tracked | term()
+
+  @doc """
+  The approval policy a planning mode asks for. Auto-select commits a
+  clean plan with nobody looking; manual select parks it on its board.
+  """
+  @spec approval_policy(PlanningMode.mode()) :: String.t()
+  def approval_policy(:auto_select_best_release), do: "automatic"
+  def approval_policy(_manually_select_release), do: "review"
+
+  @doc "The flash a one-click download raises, for any label."
+  @spec download_flash(String.t()) :: String.t()
+  def download_flash(label), do: "Finding a release for #{label}"
+
+  @doc """
+  Plain words for each way planning can end without a plan. The first
+  four are facts about the library or the calendar; anything else is
+  TMDB's answer or its absence.
+  """
+  @spec failure_flash(String.t(), failure()) :: String.t()
+  def failure_flash(label, :nothing_to_plan),
+    do: "Nothing to download for #{label}: every aired episode is already in your library or on its way."
+
+  def failure_flash(_label, :unaired), do: "That episode hasn't aired yet."
+  def failure_flash(_label, :already_here), do: "That episode is already in your library."
+  def failure_flash(_label, :not_listed), do: "TMDB doesn't list that episode for this season."
+  def failure_flash(_label, :tracked), do: "Release tracking is already looking for that one."
+
+  def failure_flash(label, _reason),
+    do: "Couldn't plan #{label}. Check TMDB under Settings and try again."
+end
+```
+
+- [ ] **Step 4: Point `TitleDetailHost` at it**
+
+In `lib/media_centaur_web/live/title_detail_host.ex`:
+
+- Delete `download_flash/1` (line ~483) and `plan_failure_flash/2` (line ~487).
+- Add `alias MediaCentaurWeb.Live.PlanFlow` at the top.
+- Replace the body of `start_download/4`'s two clauses' policy strings with
+  `PlanFlow.approval_policy(:auto_select_best_release)` and
+  `PlanFlow.approval_policy(:manually_select_release)` respectively.
+- Replace `download_flash(title.name)` with `PlanFlow.download_flash(title.name)`
+  and the two `plan_failure_flash(name, reason)` calls with
+  `PlanFlow.failure_flash(name, reason)`.
+
+```bash
+grep -rn "download_flash\|plan_failure_flash" lib/ test/
+```
+
+Expected: only `PlanFlow.` call sites and `plan_flow.ex` itself.
+`TitleDetailHost.download_flash/1` is public — if a test or another module
+referenced it, point that at `PlanFlow.download_flash/1` too.
+
+- [ ] **Step 5: Run the tests**
+
+```bash
+~/scripts/agents/agent-mix test test/media_centaur_web/live/plan_flow_test.exs test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/live/incoming_live_test.exs
+```
+
+Expected: PASS. The two LiveView suites are `TitleDetailHost`'s consumers and
+must be unchanged in behaviour.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add -A
+git commit -m "refactor(web): one place decides what a download does when it lands
+
+TitleDetailHost owned the planning-mode mapping, the flash and the board
+navigation, and LibraryLive does not host it — so the library modal's
+download would have been a second copy of all of it.
+
+Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
+```
+
 ## Task 12: The missing row downloads its episode
 
 **Files:**
@@ -1702,8 +2121,8 @@ In `season_list.ex`, `season_item/1` dispatches to `missing_episode_row/1` — t
         )
       ]}
       data-role="missing-episode-row"
-      data-nav-item
-      tabindex="0"
+      data-nav-item={@actionable}
+      tabindex={@actionable && "0"}
       phx-click={@actionable && "download_missing_episode"}
       phx-value-season={@actionable && @item.season_number}
       phx-value-episode={@actionable && @item.episode_number}
@@ -1727,6 +2146,12 @@ In `season_list.ex`, `season_item/1` dispatches to `missing_episode_row/1` — t
 ```
 
 In `season_item/1`'s `Missing` clause, pass `actionable={@series_tmdb_id != nil && @acquisition?}`.
+
+Note `data-nav-item={@actionable}` and `tabindex={@actionable && "0"}`: an
+inert row must not be focusable. `upcoming_episode_row/1` twenty lines below
+states the rule — *"the row isn't focusable until it becomes clickable"* —
+and a focusable row that does nothing is the complaint this whole change
+started from.
 
 - [ ] **Step 4: Run the component tests**
 
@@ -1836,24 +2261,26 @@ and, as a public function on the module beside `handle_toggle_season/2`:
 
   # Runs in the async task: TMDB read, then the plan door.
   defp plan_missing_episode(tmdb_id, {season, episode} = unit, mode) do
-    policy =
-      case mode do
-        :auto_select_best_release -> "automatic"
-        _manual -> "review"
-      end
+    policy = PlanFlow.approval_policy(mode)
 
     with {:ok, selection} <- Acquisition.Targeting.series_selection(tmdb_id),
          :ok <- unit_plannable(selection, unit) do
       case Acquisition.Plans.create_series_plan(selection, [unit], approval_policy: policy) do
-        {:ok, plan} -> {:planned, plan, mode, selection.title, season, episode}
-        {:error, reason} -> {:plan_failed, reason}
+        {:ok, plan} -> {:planned, plan, mode, label(selection.title, season, episode)}
+        {:error, reason} -> {:plan_failed, label(selection.title, season, episode), reason}
       end
     else
-      {:error, reason} -> {:plan_failed, reason}
-      {:skip, reason} -> {:plan_skipped, reason}
+      {:error, reason} -> {:plan_failed, "that episode", reason}
+      {:skip, reason} -> {:plan_failed, "that episode", reason}
     end
   end
 
+  defp label(title, season, episode), do: "#{title} S#{season}E#{episode}"
+
+  # The selection is the guard, and it costs nothing: it was fetched a
+  # line ago. `tracked?` matters because Task 6A stopped the rendering
+  # from saying so — release tracking already holds an open want for the
+  # unit and its mode grabs, so planning here would duplicate the cadence.
   defp unit_plannable(selection, {season, episode}) do
     found =
       Enum.find_value(selection.seasons, fn s ->
@@ -1864,6 +2291,7 @@ and, as a public function on the module beside `handle_toggle_season/2`:
       is_nil(found) -> {:skip, :not_listed}
       not found.aired? -> {:skip, :unaired}
       found.in_library? -> {:skip, :already_here}
+      found.tracked? -> {:skip, :tracked}
       true -> :ok
     end
   end
@@ -1881,40 +2309,29 @@ and on the module:
 
 ```elixir
   @doc "Ends a missing-episode download: flash, or the plan's board."
-  def handle_missing_episode_result(_name, {:planned, plan, mode, title, season, episode}, socket) do
+  def handle_missing_episode_result(_name, {:planned, plan, mode, label}, socket) do
     socket = Phoenix.Component.assign(socket, :download_pending, nil)
-    label = "#{title} S#{season}E#{episode}"
 
     case mode do
       :auto_select_best_release ->
-        {:noreply, Phoenix.LiveView.put_flash(socket, :info, "Finding a release for #{label}")}
+        {:noreply, Phoenix.LiveView.put_flash(socket, :info, PlanFlow.download_flash(label))}
 
       _manual ->
-        {:noreply, Phoenix.LiveView.push_navigate(socket, to: "/incoming?plan=#{plan.id}")}
+        {:noreply, Phoenix.LiveView.push_navigate(socket, to: ~p"/incoming?plan=#{plan.id}")}
     end
   end
 
-  def handle_missing_episode_result(_name, {:plan_skipped, reason}, socket) do
-    copy =
-      case reason do
-        :unaired -> "That episode hasn't aired yet."
-        :already_here -> "That episode is already in your library."
-        :not_listed -> "TMDB doesn't list that episode for this season."
-      end
-
+  def handle_missing_episode_result(_name, {:plan_failed, label, reason}, socket) do
     {:noreply,
      socket
      |> Phoenix.Component.assign(:download_pending, nil)
-     |> Phoenix.LiveView.put_flash(:info, copy)}
-  end
-
-  def handle_missing_episode_result(_name, {:plan_failed, _reason}, socket) do
-    {:noreply,
-     socket
-     |> Phoenix.Component.assign(:download_pending, nil)
-     |> Phoenix.LiveView.put_flash(:error, "Couldn't plan that episode. Check TMDB under Settings and try again.")}
+     |> Phoenix.LiveView.put_flash(:info, PlanFlow.failure_flash(label, reason))}
   end
 ```
+
+Every string here comes from `PlanFlow` (Task 11A) — the title modal's
+Download and this one say the same words for the same outcome, because
+they read them from the same place.
 
 Add `download_pending: nil` to the modal's mount assigns wherever the other modal assigns are seeded, and the aliases `MediaCentaur.Acquisition` needs at the top of `entity_modal.ex`.
 
@@ -2008,12 +2425,11 @@ Invoke the `writing-copy` skill and settle these strings against it:
 
 - `Download more of this show` (the link)
 - `Refresh episode lists` and its Settings description
-- `Finding a release for Sample Show S1E2`
-- `That episode hasn't aired yet.`
-- `That episode is already in your library.`
-- `TMDB doesn't list that episode for this season.`
-- `Couldn't plan that episode. Check TMDB under Settings and try again.`
-- The three maintenance result flashes
+- Every string in `MediaCentaurWeb.Live.PlanFlow` — `download_flash/1` and the
+  six `failure_flash/2` clauses. They are now the words *both* download
+  surfaces say, so a change here shows up on the title modal too; check it
+  still reads right there.
+- The three maintenance result flashes in `settings_live.ex`
 
 Apply whatever it changes and re-run the affected tests.
 
@@ -2056,6 +2472,26 @@ Claude-Session: https://claude.ai/code/session_014xQc6Bh4f1qNaLESsiQmAV"
 Start the dev server (or use the running one) and press *Refresh episode lists* under Settings → Maintenance. Confirm afterwards that the Scrubs detail modal shows S2E13 as an actionable missing row, and that The Boys S5's absent episodes render according to their real air dates.
 
 ---
+
+## Recorded, not fixed
+
+Found by the `unify_design` pass over this plan and deliberately left alone,
+so they are not silent:
+
+- **`EpisodeListEntry` and `Acquisition.Targeting.Episode` are the same fact.**
+  One is a stored Library snapshot, the other a live Acquisition view carrying
+  `aired?` / `in_library?` / `tracked?`. Different owners, different lifetimes,
+  and Library cannot depend on Acquisition. Explicit non-convergence, same
+  reasoning as the `Release` rows in the spec.
+- **`total_count` counts unaired episodes.** A season still airing that you
+  have watched in full reads "3 remaining" and never shows its check, because
+  `total_count` is `max(library rows, episode list length)`. Unchanged by this
+  work — `number_of_episodes` behaved identically — and now cheaply fixable
+  since air dates are local. Not taken.
+- **`MovieRow.Upcoming` keeps `sub_status`** while `EpisodeRow.Upcoming` loses
+  it (Task 6A). Collections have no `Missing` variant for an aired-and-absent
+  part to become. Scheduled convergence, named in `movie_row.ex`'s moduledoc
+  and pinned to collection completeness.
 
 ## Deviations from the spec
 
