@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-09-13
 last_updated: 2026-09-13
 ---
@@ -17,8 +17,10 @@ floor and its 4K patience window.
 
 ## Status
 
-Design approved 2026-09-13 against an HTML mockup (three artboards).
-Spec, UIDR-041 and the implementation plan are written; no code yet.
+Phases A–D done 2026-09-13 (quality policy, kit + intros, one owner of
+connection state, Acquisition + TMDB as connection rows), each behind a
+green precommit; unpushed. Next: Phase E (Social), then F (the other
+sections), then G (closure).
 
 ## Decisions made
 

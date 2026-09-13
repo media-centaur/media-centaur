@@ -120,20 +120,29 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert Social.list_relays() == []
     end
 
-    test "connection state updates live and lights the section's status dot", %{conn: conn} do
+    test "connection state updates live; the row's dot follows it", %{conn: conn} do
       {:ok, _relay} = Social.add_relay(@relay_url)
       {:ok, view, _html} = live_async!(conn, @section)
       assert has_element?(view, relay_row(), "Not connected")
-      assert has_element?(view, "#settings-social [aria-label='Not configured']")
+      assert has_element?(view, relay_row() <> " .bg-error")
 
       # The owner is not started under :test — stand in for its re-broadcast.
       Events.broadcast_connection(@relay_url, :connected)
       render_until(view, fn _html -> has_element?(view, relay_row(), "Connected") end)
-      assert has_element?(view, "#settings-social [aria-label='Configured']")
+      assert has_element?(view, relay_row() <> " .bg-success")
 
       Events.broadcast_connection(@relay_url, {:auth, {:failed, "not on the allowlist"}})
       render_until(view, fn _html -> has_element?(view, relay_row(), "Rejected") end)
+      assert has_element?(view, relay_row() <> " .bg-error")
       assert has_element?(view, relay_row(), "not on the allowlist")
+    end
+
+    test "the section is three cards", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, @section)
+
+      for title <- ["Your identity", "Relays", "Sharing"] do
+        assert has_element?(view, "#settings-social h3", title)
+      end
     end
   end
 
