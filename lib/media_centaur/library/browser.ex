@@ -17,7 +17,7 @@ defmodule MediaCentaur.Library.Browser do
   }
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{EpisodeList, MovieList, ProgressSummary}
+  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder, ProgressSummary}
   alias MediaCentaur.Repo
 
   # Leaf preload chain for materialising the virtual `Episode.content_url` /
@@ -189,12 +189,12 @@ defmodule MediaCentaur.Library.Browser do
   defp pre_sort_children(entity) do
     seasons =
       (entity.seasons || [])
-      |> EpisodeList.sort_seasons()
+      |> EpisodeOrder.sort_seasons()
       |> Enum.map(fn season ->
-        %{season | episodes: EpisodeList.sort_episodes(season.episodes || [])}
+        %{season | episodes: EpisodeOrder.sort_episodes(season.episodes || [])}
       end)
 
-    movies = MovieList.sort_movies(entity.movies || [])
+    movies = MovieOrder.sort_movies(entity.movies || [])
 
     %{entity | seasons: seasons, movies: movies}
   end

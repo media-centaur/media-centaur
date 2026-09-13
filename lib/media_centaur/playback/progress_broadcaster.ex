@@ -32,7 +32,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   Both resolve, by `playable_item_id`, to the freshly-loaded record from
   `progress_records` — the version that carries the synthesised
   `:playable_item` subscribers need to key by container id
-  (`EpisodeList.progress_container_id/1`). Subscribers (LiveViews) use
+  (`ProgressRecords.progress_container_id/1`). Subscribers (LiveViews) use
   the result to keep their in-memory per-entity `progress_records` list
   in sync with the authoritative summary; without it the modal's
   in-memory merge no-ops and a per-episode badge never flips live.

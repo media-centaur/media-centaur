@@ -7,7 +7,7 @@ defmodule MediaCentaur.Playback.PlayableFks do
   place and can't drift when a new entity type is added.
   """
 
-  alias MediaCentaur.Library.{EpisodeList, MovieList}
+  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder}
 
   @doc """
   The WatchProgress FK map for `entity` at `content_url`:
@@ -32,7 +32,7 @@ defmodule MediaCentaur.Playback.PlayableFks do
 
   def resolve(%{type: :movie_series} = entity, content_url) do
     movie_id =
-      case MovieList.find_by_content_url(entity, content_url) do
+      case MovieOrder.find_by_content_url(entity, content_url) do
         {_ordinal, id, _name} -> id
         nil -> nil
       end
@@ -50,16 +50,16 @@ defmodule MediaCentaur.Playback.PlayableFks do
   @spec context_by_url(map(), String.t() | nil) ::
           {non_neg_integer() | nil, non_neg_integer() | nil, String.t() | nil}
   def context_by_url(%{type: :movie_series} = entity, content_url) do
-    case MovieList.find_by_content_url(entity, content_url) do
+    case MovieOrder.find_by_content_url(entity, content_url) do
       {ordinal, _movie_id, movie_name} -> {0, ordinal, movie_name}
       nil -> {nil, nil, nil}
     end
   end
 
   def context_by_url(%{type: :tv_series} = entity, content_url) do
-    case EpisodeList.find_by_content_url(entity, content_url) do
+    case EpisodeOrder.find_by_content_url(entity, content_url) do
       {season, episode} ->
-        {season, episode, EpisodeList.find_episode_name(entity, season, episode)}
+        {season, episode, EpisodeOrder.find_episode_name(entity, season, episode)}
 
       nil ->
         {nil, nil, nil}

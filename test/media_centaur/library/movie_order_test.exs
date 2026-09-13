@@ -1,7 +1,7 @@
-defmodule MediaCentaur.Library.MovieListTest do
+defmodule MediaCentaur.Library.MovieOrderTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Library.MovieList
+  alias MediaCentaur.Library.MovieOrder
 
   import MediaCentaur.TestFactory
 
@@ -11,7 +11,7 @@ defmodule MediaCentaur.Library.MovieListTest do
       movie_b = build_movie(%{name: "Part 2", content_url: "/m2.mkv", position: 1})
       entity = build_entity(%{type: :movie_series, movies: [movie_b, movie_a]})
 
-      assert MovieList.list_available(entity) == [
+      assert MovieOrder.list_available(entity) == [
                {1, movie_a.id, "/m1.mkv"},
                {2, movie_b.id, "/m2.mkv"}
              ]
@@ -22,12 +22,12 @@ defmodule MediaCentaur.Library.MovieListTest do
       movie_b = build_movie(%{name: "Part 2", content_url: nil, position: 1})
       entity = build_entity(%{type: :movie_series, movies: [movie_a, movie_b]})
 
-      assert MovieList.list_available(entity) == [{1, movie_a.id, "/m1.mkv"}]
+      assert MovieOrder.list_available(entity) == [{1, movie_a.id, "/m1.mkv"}]
     end
 
     test "handles empty movies list" do
       entity = build_entity(%{type: :movie_series, movies: []})
-      assert MovieList.list_available(entity) == []
+      assert MovieOrder.list_available(entity) == []
     end
 
     test "sorts chronologically by date_published, then position as tiebreaker" do
@@ -42,7 +42,7 @@ defmodule MediaCentaur.Library.MovieListTest do
 
       entity = build_entity(%{type: :movie_series, movies: [movie_a, movie_b, movie_c]})
 
-      result = MovieList.list_available(entity)
+      result = MovieOrder.list_available(entity)
       # Same date (2018-01-01): A (pos 2) before C (pos 3); then B (2020) last
       assert [{1, _, "/a.mkv"}, {2, _, "/c.mkv"}, {3, _, "/b.mkv"}] = result
     end
@@ -70,25 +70,8 @@ defmodule MediaCentaur.Library.MovieListTest do
 
       entity = %{type: :movie_series, movies: [movie_b, movie_c, movie_a]}
 
-      result = MovieList.list_available(entity)
+      result = MovieOrder.list_available(entity)
       assert [{1, _, "/a.mkv"}, {2, _, "/c.mkv"}, {3, _, "/b.mkv"}] = result
-    end
-  end
-
-  describe "EpisodeList.index_progress_by_key/1 keys movie-series progress by movie_id" do
-    test "indexes progress records by movie_id FK" do
-      movie_id_a = Ecto.UUID.generate()
-      movie_id_b = Ecto.UUID.generate()
-
-      progress_a = build_progress(%{movie_id: movie_id_a, position_seconds: 30.0})
-      progress_b = build_progress(%{movie_id: movie_id_b, position_seconds: 60.0})
-
-      alias MediaCentaur.Library.EpisodeList
-      index = EpisodeList.index_progress_by_key([progress_a, progress_b])
-
-      assert index[movie_id_a] == progress_a
-      assert index[movie_id_b] == progress_b
-      assert map_size(index) == 2
     end
   end
 
@@ -98,15 +81,15 @@ defmodule MediaCentaur.Library.MovieListTest do
       movie_b = build_movie(%{name: "Second", content_url: "/m2.mkv", position: 1})
       entity = build_entity(%{type: :movie_series, movies: [movie_a, movie_b]})
 
-      assert {1, movie_a.id, "First"} == MovieList.find_by_content_url(entity, "/m1.mkv")
-      assert {2, movie_b.id, "Second"} == MovieList.find_by_content_url(entity, "/m2.mkv")
+      assert {1, movie_a.id, "First"} == MovieOrder.find_by_content_url(entity, "/m1.mkv")
+      assert {2, movie_b.id, "Second"} == MovieOrder.find_by_content_url(entity, "/m2.mkv")
     end
 
     test "returns nil when no match" do
       movie = build_movie(%{name: "Only", content_url: "/m1.mkv", position: 0})
       entity = build_entity(%{type: :movie_series, movies: [movie]})
 
-      assert MovieList.find_by_content_url(entity, "/nonexistent.mkv") == nil
+      assert MovieOrder.find_by_content_url(entity, "/nonexistent.mkv") == nil
     end
   end
 
@@ -120,7 +103,7 @@ defmodule MediaCentaur.Library.MovieListTest do
       movie_c = build_movie(%{content_url: "/m3.mkv", position: 2})
       entity = build_entity(%{type: :movie_series, movies: [movie_a, movie_b, movie_c]})
 
-      assert MovieList.total_available(entity) == 2
+      assert MovieOrder.total_available(entity) == 2
     end
   end
 end

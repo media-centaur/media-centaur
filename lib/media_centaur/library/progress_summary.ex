@@ -4,7 +4,8 @@ defmodule MediaCentaur.Library.ProgressSummary do
   Pure function — no DB or side effects.
   """
 
-  alias MediaCentaur.Library.{EpisodeList, MovieList}
+  alias MediaCentaur.Library.{EpisodeOrder, MovieOrder}
+  alias MediaCentaur.Library.ProgressRecords
 
   @type t :: %{
           current_episode: %{season: integer(), episode: integer()} | nil,
@@ -46,7 +47,7 @@ defmodule MediaCentaur.Library.ProgressSummary do
   defp compute_tv_series(entity, progress_records) do
     items =
       entity
-      |> EpisodeList.list_available()
+      |> EpisodeOrder.list_available()
       |> Enum.map(fn {season, episode, _url, episode_id} ->
         {%{season: season, episode: episode}, episode_id}
       end)
@@ -68,7 +69,7 @@ defmodule MediaCentaur.Library.ProgressSummary do
   defp compute_movie_series(entity, progress_records) do
     items =
       entity
-      |> MovieList.list_available()
+      |> MovieOrder.list_available()
       |> Enum.map(fn {ordinal, movie_id, _url} ->
         {%{season: 0, episode: ordinal}, movie_id}
       end)
@@ -79,7 +80,7 @@ defmodule MediaCentaur.Library.ProgressSummary do
     episodes_completed =
       Enum.count(progress_records, fn record ->
         record.completed and
-          MapSet.member?(valid_ids, EpisodeList.progress_container_id(record))
+          MapSet.member?(valid_ids, ProgressRecords.progress_container_id(record))
       end)
 
     {current_episode, current_progress} = find_current_item(items, progress_records)
@@ -101,7 +102,7 @@ defmodule MediaCentaur.Library.ProgressSummary do
   #
   # Items are {label, fk_id} tuples. Labels are %{season:, episode:} maps for display.
   defp find_current_item(items, progress_records) do
-    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
+    progress_by_key = ProgressRecords.index_progress_by_key(progress_records)
 
     most_recent =
       Enum.max_by(progress_records, & &1.last_watched_at, DateTime, fn -> nil end)
@@ -111,7 +112,7 @@ defmodule MediaCentaur.Library.ProgressSummary do
         first_item_or_nil(items)
 
       record ->
-        record_key = EpisodeList.progress_container_id(record)
+        record_key = ProgressRecords.progress_container_id(record)
 
         cond do
           record.completed ->

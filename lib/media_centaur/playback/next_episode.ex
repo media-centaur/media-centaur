@@ -4,7 +4,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
 
   `resolve/1` answers "what does the mpv playlist get appended after this
   episode?" — the *literally next* episode in season/episode order
-  (`EpisodeList.next_episode_after/2` never skips a story-order gap),
+  (`EpisodeOrder.next_episode_after/2` never skips a story-order gap),
   carrying its own resume position. Returns `:none` when the chain ends:
   auto-play is switched off, the episode is the last one, the successor
   isn't downloaded, or its file is missing from disk.
@@ -23,8 +23,9 @@ defmodule MediaCentaur.Playback.NextEpisode do
 
   alias MediaCentaur.Settings.Preferences.AutoPlayNextEpisode
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{EntityShape, EpisodeList, TypeResolver}
+  alias MediaCentaur.Library.{EntityShape, EpisodeOrder, TypeResolver}
   alias MediaCentaur.Playback.PlayableFks
+  alias MediaCentaur.Library.ProgressRecords
 
   @type queue_item :: %{
           episode_id: String.t(),
@@ -114,7 +115,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
   end
 
   defp successor(entity, progress_records, episode_id) do
-    case EpisodeList.next_episode_after(entity, episode_id) do
+    case EpisodeOrder.next_episode_after(entity, episode_id) do
       nil ->
         :none
 
@@ -125,7 +126,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
              episode_id: next_episode_id,
              season_number: season_number,
              episode_number: episode_number,
-             episode_name: EpisodeList.find_episode_name(entity, season_number, episode_number),
+             episode_name: EpisodeOrder.find_episode_name(entity, season_number, episode_number),
              content_url: content_url,
              start_position: resume_position(progress_records, next_episode_id)
            }}
@@ -137,7 +138,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
 
   defp resume_position(progress_records, episode_id) do
     progress_records
-    |> EpisodeList.index_progress_by_key()
+    |> ProgressRecords.index_progress_by_key()
     |> Map.get(episode_id)
     |> case do
       %{completed: true} -> 0.0

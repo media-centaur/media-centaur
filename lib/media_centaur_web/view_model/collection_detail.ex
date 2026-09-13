@@ -23,13 +23,13 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   """
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.EpisodeList
-  alias MediaCentaur.Library.MovieList
+  alias MediaCentaur.Library.MovieOrder
   alias MediaCentaur.Library.ProgressSummary
   alias MediaCentaur.Library.Views.DetailItem
   alias MediaCentaur.Playback.ResumeTarget
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaurWeb.ViewModel.MovieRow
+  alias MediaCentaur.Library.ProgressRecords
 
   @enforce_keys [:entity, :movies]
   defstruct [
@@ -118,7 +118,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
     library_items =
       (entry.entity.movies || [])
-      |> MovieList.sort_movies()
+      |> MovieOrder.sort_movies()
       |> Enum.filter(& &1.content_url)
       |> Enum.map(fn movie ->
         progress = Map.get(progress_by_movie_id, movie.id)
@@ -126,7 +126,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
         %MovieRow.Library{
           movie: movie,
           progress: progress,
-          state: EpisodeList.state_from_progress(progress),
+          state: ProgressRecords.state_from_progress(progress),
           is_resume_target: resume_target_id != nil and movie.id == resume_target_id
         }
       end)
@@ -292,7 +292,7 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
   defp index_progress_by_movie_id(progress_records) do
     progress_records
-    |> Enum.map(fn record -> {EpisodeList.progress_container_id(record), record} end)
+    |> Enum.map(fn record -> {ProgressRecords.progress_container_id(record), record} end)
     |> Enum.reject(fn {movie_id, _record} -> is_nil(movie_id) end)
     |> Map.new()
   end

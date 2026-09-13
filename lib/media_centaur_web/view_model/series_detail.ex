@@ -290,7 +290,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   # same Library helper so the rendering layer and the composition
   # layer can't drift.
   defdelegate episode_state(progress),
-    to: MediaCentaur.Library.EpisodeList,
+    to: MediaCentaur.Library.ProgressRecords,
     as: :state_from_progress
 
   defp count_watched_episodes(episodes, progress_by_episode_id) do
@@ -310,7 +310,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     # tests inject via `build_progress`).
     progress_records
     |> Enum.map(fn record ->
-      {MediaCentaur.Library.EpisodeList.progress_container_id(record), record}
+      {MediaCentaur.Library.ProgressRecords.progress_container_id(record), record}
     end)
     |> Enum.reject(fn {episode_id, _record} -> is_nil(episode_id) end)
     |> Map.new()

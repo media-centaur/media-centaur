@@ -1,7 +1,7 @@
-defmodule MediaCentaur.Library.MovieList do
+defmodule MediaCentaur.Library.MovieOrder do
   @moduledoc """
   Shared helpers for walking a MovieSeries entity's child movies.
-  Parallel to EpisodeList but for MovieSeries.
+  Parallel to EpisodeOrder but for MovieSeries.
 
   Ordinals here are 1-based *walk positions* used by the playback
   resume chain and its display hints ("Play Movie 2") — they are not a

@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
   can't drift.
   """
   defdelegate state_from_progress(progress),
-    to: MediaCentaur.Library.EpisodeList
+    to: MediaCentaur.Library.ProgressRecords
 
   @doc """
   State-dependent classes for a playable row: resume target beats

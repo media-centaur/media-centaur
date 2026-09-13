@@ -30,7 +30,7 @@ defmodule MediaCentaur.Playback.PlayableFksTest do
     %{type: :movie_series, id: "series-1", movies: movies}
   end
 
-  # `MovieList.sort_movies/1` orders by release date then position, so the
+  # `MovieOrder.sort_movies/1` orders by release date then position, so the
   # fixture has to carry `:date_published` — a movie row without it is not
   # a shape the projection ever produces.
   defp movie(id, name, content_url, position, date_published) do
