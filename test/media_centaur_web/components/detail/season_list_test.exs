@@ -86,6 +86,26 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
       refute html =~ ~s(data-nav-item tabindex="0"><div class="flex items-center gap-3 text-sm">)
     end
 
+    test "an old air date is not shown — the gap already says it aired" do
+      season = %{
+        season_view()
+        | items: [
+            %EpisodeRow.Missing{
+              season_number: 1,
+              episode_number: 2,
+              title: "Second Sample",
+              air_date: ~D[1998-05-18]
+            }
+          ]
+      }
+
+      html = render_component(&SeasonList.season_list/1, assigns(%{seasons: [season]}))
+
+      assert html =~ "Second Sample"
+      refute html =~ "May 18"
+      assert html =~ ~s(phx-click="download_missing_episode")
+    end
+
     test "falls back to the episode number when the list has no title" do
       season = %{season_view() | items: [%EpisodeRow.Missing{season_number: 1, episode_number: 4}]}
       html = render_component(&SeasonList.season_list/1, assigns(%{seasons: [season]}))

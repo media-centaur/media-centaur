@@ -237,6 +237,31 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
   # the TV-series path migrated to typed view-models. Behavioural
   # coverage lives there now: gap-filling, watched_count, total_count.
 
+  describe "recently_aired?/2" do
+    test "a gap that opened in the last fortnight is worth dating" do
+      today = ~D[2026-05-08]
+
+      assert Logic.recently_aired?(~D[2026-05-08], today)
+      assert Logic.recently_aired?(~D[2026-05-05], today)
+      assert Logic.recently_aired?(~D[2026-04-24], today)
+    end
+
+    test "an old gap is not" do
+      today = ~D[2026-05-08]
+
+      refute Logic.recently_aired?(~D[2026-04-23], today)
+      refute Logic.recently_aired?(~D[1998-05-18], today)
+    end
+
+    test "a future date is not — that is an upcoming row's business" do
+      refute Logic.recently_aired?(~D[2026-06-01], ~D[2026-05-08])
+    end
+
+    test "no date, nothing to say" do
+      refute Logic.recently_aired?(nil, ~D[2026-05-08])
+    end
+  end
+
   describe "upcoming_pill_copy/2" do
     test "future date within 14 days reads 'in Xd'" do
       today = ~D[2026-05-08]
@@ -263,6 +288,13 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     test "further-out past date renders the formatted month/day" do
       today = ~D[2026-05-08]
       assert Logic.upcoming_pill_copy(%{air_date: ~D[2026-01-04]}, today) == "Jan 4"
+    end
+
+    test "carries the year when the date is not in the current one" do
+      today = ~D[2026-05-08]
+
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[1998-05-18]}, today) == "May 18, 1998"
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[2027-08-15]}, today) == "Aug 15, 2027"
     end
 
     test "nil air_date renders 'TBA'" do
