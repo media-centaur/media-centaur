@@ -88,11 +88,9 @@ defmodule MediaCentaur.Setup.Gate do
 
   defp health_check(step, nil), do: missing_test_reason(step)
   defp health_check(_, %Status{test_state: :ok}), do: :ok
-  # `:pending` is a transient re-verify-in-progress state — most often
-  # observed at boot when IntegrationHealth re-runs the test against
-  # credentials saved in a prior session. We trust `configured?` and
-  # let the user advance; the background test result still drives the
-  # next render's decision.
+  # `:pending` is a verify in flight — the one the tour kicks on save.
+  # We trust `configured?` and let the user advance; the result still
+  # drives the next render's decision.
   defp health_check(_, %Status{test_state: :pending}), do: :ok
   defp health_check(_, %Status{test_state: :error}), do: {:blocked, :test_failed}
   defp health_check(step, %Status{test_state: :unknown}), do: missing_test_reason(step)

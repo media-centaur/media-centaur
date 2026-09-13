@@ -13,7 +13,9 @@ end
 defmodule MediaCentaur.IntegrationHealthTest do
   # `async: false` — IntegrationHealth registers under a global name and
   # owns a named ETS table, so concurrent tests would clobber each other.
-  use MediaCentaur.Case, async: false
+  # DataCase: an explicit verify persists its result through Capabilities,
+  # and the shared sandbox (async: false) lets the GenServer write it.
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth
@@ -40,8 +42,8 @@ defmodule MediaCentaur.IntegrationHealthTest do
 
       for id <- IntegrationHealth.known() do
         status = IntegrationHealth.status(id)
-        assert %Status{id: ^id, test_state: state} = status
-        assert state in [:unknown, :pending, :ok]
+        # Nothing persisted and nothing probed at boot: every id is :unknown.
+        assert %Status{id: ^id, test_state: :unknown} = status
         # No Config key is set in test mode → configured? always false.
         assert status.configured? == false
       end
@@ -99,6 +101,84 @@ defmodule MediaCentaur.IntegrationHealthTest do
 
       assert_receive {:integration_health_changed, %Status{id: :usenet_download_client}}, 1_000
       refute_receive {:integration_health_changed, %Status{id: :download_client}}, 100
+    end
+  end
+
+  describe "verify/1 persists for readiness (UIDR-041 §7)" do
+    test "an :ok result is saved through Capabilities" do
+      Config.update(:prowlarr_url, "http://localhost:9696")
+      Config.update(:prowlarr_api_key, "k")
+      Application.put_env(:media_centaur, :integration_health_verifier, OkVerifier)
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+      IntegrationHealth.subscribe()
+
+      IntegrationHealth.verify(:prowlarr)
+
+      assert_receive {:integration_health_changed, %Status{id: :prowlarr, test_state: :pending}},
+                     1_000
+
+      assert_receive {:integration_health_changed, %Status{id: :prowlarr, test_state: :ok}},
+                     1_000
+
+      assert %{status: :ok} = MediaCentaur.Capabilities.load_test_result(:prowlarr)
+    end
+
+    test "an error result is saved too" do
+      Config.update(:tmdb_api_key, "k")
+      Application.put_env(:media_centaur, :integration_health_verifier, RejectVerifier)
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+      IntegrationHealth.subscribe()
+
+      IntegrationHealth.verify(:tmdb)
+
+      assert_receive {:integration_health_changed, %Status{id: :tmdb, test_state: :error}},
+                     1_000
+
+      assert %{status: :error} = MediaCentaur.Capabilities.load_test_result(:tmdb)
+    end
+  end
+
+  describe "boot" do
+    test "seeds from the persisted test and probes nothing" do
+      Config.update(:tmdb_api_key, "k")
+      Application.put_env(:media_centaur, :integration_health_verifier, RejectVerifier)
+      %{tested_at: tested_at} = MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
+      IntegrationHealth.subscribe()
+
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+
+      assert %Status{configured?: true, test_state: :ok, last_tested_at: ^tested_at} =
+               IntegrationHealth.status(:tmdb)
+
+      # A boot probe would have gone :pending then :error under RejectVerifier.
+      refute_receive {:integration_health_changed, %Status{id: :tmdb, test_state: :pending}}, 100
+      assert %Status{test_state: :ok} = IntegrationHealth.status(:tmdb)
+    end
+
+    test "a configured integration with no persisted test is :unknown" do
+      Config.update(:tmdb_api_key, "k")
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+
+      assert %Status{configured?: true, test_state: :unknown} = IntegrationHealth.status(:tmdb)
+    end
+  end
+
+  describe "a config change" do
+    test "resets the integration to :unknown, never :pending" do
+      Config.update(:tmdb_api_key, "k")
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+      IntegrationHealth.subscribe()
+
+      send(Process.whereis(IntegrationHealth), {:config_updated, :tmdb_api_key, "k2"})
+
+      assert_receive {:integration_health_changed,
+                      %Status{id: :tmdb, configured?: true, test_state: :unknown}},
+                     1_000
     end
   end
 
