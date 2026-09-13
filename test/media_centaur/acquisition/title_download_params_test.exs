@@ -12,12 +12,7 @@ defmodule MediaCentaur.Acquisition.TitleDownloadParamsTest do
 
   describe "get/2" do
     test "an untouched title has the default params, with no row written" do
-      assert %DownloadParams{
-               min_quality: nil,
-               max_quality: nil,
-               quality_4k_patience_hours: nil
-             } = TitleDownloadParams.get(1234, :tv_series)
-
+      assert %DownloadParams{min_quality: nil} = TitleDownloadParams.get(1234, :tv_series)
       assert TitleDownloadParams.stored?(1234, :tv_series) == false
     end
 
@@ -38,27 +33,12 @@ defmodule MediaCentaur.Acquisition.TitleDownloadParamsTest do
       assert TitleDownloadParams.get(1234, :movie).min_quality == "any"
     end
 
-    test "merges into an existing row rather than replacing it" do
-      {:ok, _} = TitleDownloadParams.put(1234, :tv_series, %{quality_4k_patience_hours: 24})
+    test "an explicit nil clears the acceptance and removes the emptied row" do
       {:ok, _} = TitleDownloadParams.put(1234, :tv_series, %{min_quality: "any"})
-
-      params = TitleDownloadParams.get(1234, :tv_series)
-      assert params.min_quality == "any"
-      assert params.quality_4k_patience_hours == 24
-    end
-
-    test "an explicit nil clears one param and leaves the others" do
-      {:ok, _} =
-        TitleDownloadParams.put(1234, :tv_series, %{
-          min_quality: "any",
-          quality_4k_patience_hours: 24
-        })
-
       {:ok, _} = TitleDownloadParams.put(1234, :tv_series, %{min_quality: nil})
 
-      params = TitleDownloadParams.get(1234, :tv_series)
-      assert params.min_quality == nil
-      assert params.quality_4k_patience_hours == 24
+      assert TitleDownloadParams.get(1234, :tv_series).min_quality == nil
+      assert TitleDownloadParams.stored?(1234, :tv_series) == false
     end
 
     test "rejects a quality outside the vocabulary" do
@@ -66,16 +46,8 @@ defmodule MediaCentaur.Acquisition.TitleDownloadParamsTest do
       assert %{min_quality: [_ | _]} = errors_on(changeset)
     end
 
-    test "rejects a negative patience window" do
-      assert {:error, changeset} =
-               TitleDownloadParams.put(1234, :tv_series, %{quality_4k_patience_hours: -1})
-
-      assert %{quality_4k_patience_hours: [_ | _]} = errors_on(changeset)
-    end
-
-    test "\"any\" is a floor value only, never a ceiling" do
-      assert {:ok, _} = TitleDownloadParams.put(1234, :tv_series, %{min_quality: "any"})
-      assert {:error, _} = TitleDownloadParams.put(1234, :tv_series, %{max_quality: "any"})
+    test "the embedded params carry only the acceptance" do
+      assert DownloadParams.__schema__(:fields) == [:min_quality]
     end
   end
 

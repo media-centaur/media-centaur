@@ -157,10 +157,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       force?: force?
     }
 
-    # One solve per quality-floor group (ADR-056 Q4): a unit inside its
-    # patience window carries an elevated `min_quality`, fails its
-    # group's acceptability, and stays in the residual — so the descent
-    # continues for it alone. The planner stays time-blind.
+    # One solve per quality-floor group: a unit's own `min_quality` is
+    # the title's lower-quality acceptance (ADR-063 §2); nothing else
+    # sets one. Grouping keeps the planner blind to where a floor came
+    # from.
     floor_groups =
       units
       |> Enum.group_by(&(&1.min_quality || plan_prefs.min_quality))
@@ -435,8 +435,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     criteria = MatchCriteria.from(plan)
     plan_prefs = prefs(plan)
 
-    # A movie plan has one unit; its floor override (patience
-    # elevation) wins over the plan criteria when present.
+    # A movie plan has one unit; its floor override (the title's
+    # lower-quality acceptance) wins over the plan criteria when present.
     min_quality =
       case units do
         [%PlanUnit{min_quality: floor} | _] when is_binary(floor) -> floor
@@ -621,7 +621,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     span_sizes = plan.span_sizes || %{}
 
     %{
-      min_quality: Map.get(criteria, "min_quality") || settings.default_min_quality,
+      min_quality: Map.get(criteria, "min_quality") || AutoGrabSettings.floor(),
       max_quality: Map.get(criteria, "max_quality") || settings.default_max_quality,
       size_preference: settings.size_preference,
       span_sizes: span_sizes,

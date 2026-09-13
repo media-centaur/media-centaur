@@ -13,11 +13,11 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   themselves on the next pass, and the mid-season backlog case is the
   weekly case with more wants.
 
-  Time policy lives here, not in the planner: a want inside its
-  patience window gets its quality floor stamped to the ceiling on the
-  plan unit (`min_quality`), and `WantSchedule` gates which wants are
-  searched at all. Wants included in a plan are stamped
-  `last_searched_at` at creation — the back-off anchor.
+  Time policy lives here, not in the planner: `WantSchedule` gates
+  which wants are searched at all. Every unit is planned at the
+  automatic floor (a title's lower-quality acceptance lowers it;
+  UIDR-041 §6 removed the patience window). Wants included in a plan
+  are stamped `last_searched_at` at creation — the back-off anchor.
 
   Claims (`Plans.Claims`) make the pipeline safe to run alongside any
   other pursuer: a unit claimed by an active pursuit or a live draft —
@@ -35,7 +35,6 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Identity, Item}
-  alias MediaCentaur.Search.Quality
 
   @doc """
   One pass over every watching item's open wants. Inert without a
@@ -58,8 +57,8 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   @doc """
   User-initiated "plan now" for one tracked item (replaces the legacy
   bulk-arm button): plans ALL of the item's open unclaimed wants
-  immediately — no due-ness gate, no patience floors (the user asked
-  for what's available now), and as an origin-"manual" draft with
+  immediately — no due-ness gate (the user asked for what's available
+  now), and as an origin-"manual" draft with
   tracking provenance, so the mode gate leaves it `ready` for the
   user's approval regardless of the item's auto-grab mode.
   """
@@ -175,20 +174,14 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
          mode when mode != "off" <-
            Discovery.grab_mode(item.tmdb_id, item.media_type, settings.default_mode) do
-      patience =
-        AutoGrabSettings.effective_patience_hours(
-          download_params(item).quality_4k_patience_hours,
-          settings
-        )
-
-      due = Enum.filter(wants, &WantSchedule.due?(&1, patience, now))
+      due = Enum.filter(wants, &WantSchedule.due?(&1, now))
 
       case item.media_type do
         :tv_series ->
-          plan_tv_drop(item, due, settings, patience, now)
+          plan_tv_drop(item, due, settings, now)
 
         :movie ->
-          Enum.each(due, &plan_movie_drop(item, &1, settings, patience, now))
+          Enum.each(due, &plan_movie_drop(item, &1, settings, now))
       end
     end
 
@@ -199,9 +192,9 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   # TV — one drop plan per title covering all due unclaimed wants.
   # ---------------------------------------------------------------------------
 
-  defp plan_tv_drop(_item, [], _settings, _patience, _now), do: :ok
+  defp plan_tv_drop(_item, [], _settings, _now), do: :ok
 
-  defp plan_tv_drop(item, due_wants, settings, patience, now) do
+  defp plan_tv_drop(item, due_wants, settings, now) do
     tmdb_id = to_string(item.tmdb_id)
 
     with false <- Plans.active_tracking_draft?(tmdb_id, "tv"),
@@ -223,7 +216,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
             air_date: want.air_date,
             label: unit_label(want),
             position: index,
-            min_quality: floor_for(want, patience, min_quality, max_quality, now),
+            min_quality: nil,
             excluded_release_guids: Map.get(failed_guids, {want.season_number, want.episode_number}, [])
           }
         end)
@@ -254,9 +247,9 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   # TMDB id (a collection part is its own movie).
   # ---------------------------------------------------------------------------
 
-  defp plan_movie_drop(_item, %{part_tmdb_id: nil}, _settings, _patience, _now), do: :ok
+  defp plan_movie_drop(_item, %{part_tmdb_id: nil}, _settings, _now), do: :ok
 
-  defp plan_movie_drop(item, want, settings, patience, now) do
+  defp plan_movie_drop(item, want, settings, now) do
     tmdb_id = to_string(want.part_tmdb_id)
 
     with false <- Plans.active_tracking_draft?(tmdb_id, "movie"),
@@ -268,7 +261,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
         episode_number: nil,
         label: want.title || item.name,
         position: 0,
-        min_quality: floor_for(want, patience, min_quality, max_quality, now)
+        min_quality: nil
       }
 
       case Plans.create_tracking_plan(
@@ -339,8 +332,8 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
     params = download_params(item)
 
     {
-      AutoGrabSettings.effective_min_quality(params.min_quality, settings),
-      AutoGrabSettings.effective_max_quality(params.max_quality, settings)
+      AutoGrabSettings.effective_min_quality(params.min_quality),
+      settings.default_max_quality
     }
   end
 
@@ -349,16 +342,6 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   # are kept.
   defp download_params(%Item{tmdb_id: tmdb_id, media_type: media_type}) do
     TitleDownloadParams.get(tmdb_id, media_type)
-  end
-
-  # The Q4 patience elevation: inside the window the unit demands the
-  # ceiling (`min := max`); nil means inherit the plan criteria. Only
-  # meaningful when there is headroom to be patient for.
-  defp floor_for(want, patience, min_quality, max_quality, now) do
-    if Quality.label_rank(max_quality) > Quality.label_rank(min_quality) and
-         WantSchedule.floor_elevated?(want, patience, now) do
-      max_quality
-    end
   end
 
   defp unit_label(%{season_number: season, episode_number: episode, title: title}),

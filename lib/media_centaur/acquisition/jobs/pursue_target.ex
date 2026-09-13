@@ -180,17 +180,16 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   defp with_cour_run(%Criteria{} = criteria, _pursuit, _unit), do: criteria
 
-  # Quality bounds live on the pursuit's `criteria` map, read as-is.
-  # 4K patience is a want-ledger concern applied at plan time as a
-  # quality-floor elevation (ADR-056 Q4) — the worker serves query-door
-  # pursuits and failed-grab degradation, where the user already picked
-  # the release, so a time-based floor has no meaning here.
+  # Quality bounds live on the pursuit's `criteria` map, read as-is; a
+  # `min_quality` there is the title's lower-quality acceptance (ADR-063
+  # §2). Nothing else sets one — there is no patience window (UIDR-041
+  # §6).
   defp effective_prefs(%Pursuit{} = pursuit) do
     settings = AutoGrabSettings.load()
     criteria = pursuit.criteria || %{}
 
     %{
-      min_quality: Map.get(criteria, "min_quality") || settings.default_min_quality,
+      min_quality: Map.get(criteria, "min_quality") || AutoGrabSettings.floor(),
       max_quality: Map.get(criteria, "max_quality") || settings.default_max_quality,
       size_preference: settings.size_preference
     }

@@ -35,7 +35,11 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
   attr :usenet_client_test, :any, required: true, doc: "connection-test result map or nil."
   attr :usenet_client_testing, :boolean, required: true
-  attr :auto_grab, :map, required: true, doc: "AutoGrabSettings map (default_mode, patience_hours)."
+
+  attr :auto_grab, :map,
+    required: true,
+    doc:
+      "AutoGrabSettings (default_mode, default_max_quality, size_preference, max_attempts, pack_min_fit)."
 
   attr :planning_mode, :atom,
     required: true,
@@ -566,44 +570,6 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
           <p class="text-xs text-base-content/55 mt-1">
             Applies to newly-tracked items. Existing items keep their per-item override.
           </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            4K patience (hours)
-          </label>
-          <input
-            type="number"
-            name="auto_grab[4k_patience_hours]"
-            value={@auto_grab.patience_hours}
-            min="0"
-            max="720"
-            class="input input-bordered w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/55 mt-1">
-            Wait this long for a 4K release before falling back to 1080p. Set to 0 to grab immediately.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/55 block mb-1.5">
-            Minimum quality (final fallback)
-          </label>
-          <select
-            name="auto_grab[default_min_quality]"
-            class="select select-bordered w-full"
-            data-nav-item
-            tabindex="0"
-          >
-            <option value="hd_1080p" selected={@auto_grab.default_min_quality == "hd_1080p"}>
-              1080p
-            </option>
-            <option value="uhd_4k" selected={@auto_grab.default_min_quality == "uhd_4k"}>
-              4K only
-            </option>
-          </select>
         </div>
 
         <div>
