@@ -188,6 +188,22 @@ defmodule MediaCentaur.CapabilitiesTest do
     end
   end
 
+  describe "clear_integration/1" do
+    test "empties every field of the slot and drops its test result" do
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://localhost:8080")
+      Config.update(:download_client_username, "admin")
+      Config.update(:download_client_password, "hunter2")
+      Capabilities.save_test_result(:download_client, :ok)
+
+      assert :ok = Capabilities.clear_integration(:download_client)
+
+      refute Capabilities.configured?(:download_client)
+      assert Config.get(:download_client_username) == nil
+      assert Capabilities.load_test_result(:download_client) == nil
+    end
+  end
+
   describe "relevant?/1" do
     test "accepts :capabilities_changed" do
       assert Capabilities.relevant?(:capabilities_changed)

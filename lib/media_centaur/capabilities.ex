@@ -146,6 +146,19 @@ defmodule MediaCentaur.Capabilities do
     changed?
   end
 
+  @doc """
+  Empties every field of an integration and drops its test result — the
+  Remove client action. The slot reads as never configured afterwards.
+  """
+  @spec clear_integration(subject()) :: :ok
+  def clear_integration(subject) do
+    @integration_fields
+    |> Map.fetch!(subject)
+    |> Enum.each(fn {key, _kind} -> Config.update(key, nil) end)
+
+    clear_test_result(subject)
+  end
+
   defp write_field(_key, _kind, nil), do: false
   defp write_field(_key, kind, "") when kind in [:setting, :secret], do: false
 
