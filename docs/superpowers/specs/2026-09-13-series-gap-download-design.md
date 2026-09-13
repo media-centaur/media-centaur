@@ -169,6 +169,35 @@ those rows actionable would offer to download episodes that don't exist yet.
     button on a title already pays. Nothing here fetches on modal open or on
     season expand.
 
+### The row's states
+
+*(Added 2026-09-13 after the owner tried it: clicking a missing row ten
+times drafted nine duplicate plans. The pending guard only held while the
+async ran, because "missing" was derived from library presence alone.)*
+
+19. **An aired episode with no file has two states, and Acquisition owns
+    which one.** `Plans.claimed_units/1` unions the active-pursuit and
+    live-draft claims that `Plans.Claims` already defines as *the* claim —
+    unclaimed is `EpisodeRow.Missing`, claimed is `EpisodeRow.InFlight`.
+    `Claims` stays internal to the context; the union is the one read the
+    surfaces outside it need.
+
+20. **`InFlight` is a variant, not a flag on `Missing`.** The claim changes
+    what the row *does* — there is nothing to click — not just how it
+    looks, and the file's dispatch is on struct type. It reads
+    "Downloading", carries no download glyph, and is not a `data-nav-item`.
+
+21. **All three transitions are live.** The modal subscribes to
+    `acquisition:updates` and re-composes on `PlanEvents.Changed` and on
+    any pursuit event, but only while a series detail is open. Stopping a
+    download drops the claim and the row is a gap again; finishing it lands
+    a file and the row becomes `Library` through the existing projection.
+
+22. **The clickable row shows its affordance at rest.** The download glyph
+    is present and quiet rather than revealed on hover, and hover or focus
+    lifts the whole row to full opacity with a background tint. A row you
+    can act on should look like one before you touch it.
+
 ### Keeping the episode list true
 
 14. **A Library Maintenance pass, `Maintenance.refresh_episode_lists/0`**
