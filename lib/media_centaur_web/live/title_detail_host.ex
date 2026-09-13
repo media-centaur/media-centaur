@@ -76,6 +76,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.TMDB.Client, as: TMDBClient
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
+  alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
@@ -267,7 +268,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     {:halt,
      socket
      |> assign(:download_pending, nil)
-     |> put_flash(:error, plan_failure_flash(name, reason))}
+     |> put_flash(:error, PlanFlow.failure_flash(name, reason))}
   end
 
   def handle_title_async({:title_download, _ref, name}, {:exit, reason}, socket) do
@@ -276,7 +277,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     {:halt,
      socket
      |> assign(:download_pending, nil)
-     |> put_flash(:error, plan_failure_flash(name, :crashed))}
+     |> put_flash(:error, PlanFlow.failure_flash(name, :crashed))}
   end
 
   def handle_title_async({:title_preview, ref}, {:ok, {:ok, %TitlePreview{} = preview}}, socket) do
@@ -450,14 +451,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       when not is_nil(name), do: socket
 
   def start_download(socket, %Title{} = title, :auto_select_best_release, scope) do
-    :ok = Plans.plan_title(title, [approval_policy: "automatic"] ++ scope_opts(scope))
+    policy = PlanFlow.approval_policy(:auto_select_best_release)
+    :ok = Plans.plan_title(title, [approval_policy: policy] ++ scope_opts(scope))
 
-    socket = put_flash(socket, :info, download_flash(title.name))
+    socket = put_flash(socket, :info, PlanFlow.download_flash(title.name))
     if socket.assigns.title_detail, do: push_close(socket), else: socket
   end
 
   def start_download(socket, %Title{} = title, :manually_select_release, scope) do
-    opts = [approval_policy: "review"] ++ scope_opts(scope)
+    opts = [approval_policy: PlanFlow.approval_policy(:manually_select_release)] ++ scope_opts(scope)
     name = {:title_download, Title.ref(title), title.name}
 
     socket
@@ -475,21 +477,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     do: TitleIntent.friend_provenance(id, note)
 
   defp provenance(_detail), do: %{}
-
-  @doc """
-  The flash a one-click download raises — the one wording, for the
-  modal's Download and the Feed toolbar's.
-  """
-  @spec download_flash(String.t()) :: String.t()
-  def download_flash(name), do: "Finding a release for #{name}"
-
-  # The one remedy that matters, per cause: nothing to plan is a fact
-  # about the library; anything else is TMDB's answer or its absence.
-  defp plan_failure_flash(name, :nothing_to_plan),
-    do: "Nothing to download for #{name}: every aired episode is already in your library or on its way."
-
-  defp plan_failure_flash(name, _reason),
-    do: "Couldn't plan #{name}. Check TMDB under Settings and try again."
 
   defp push_close(socket), do: push_patch(socket, to: socket.view.title_detail_path(socket, []))
 
