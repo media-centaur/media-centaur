@@ -93,4 +93,28 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
       assert html =~ "Episode 4"
     end
   end
+
+  describe "the in-flight episode row" do
+    test "says it is downloading and offers nothing to click" do
+      season = %{
+        season_view()
+        | items: [
+            %EpisodeRow.InFlight{
+              season_number: 1,
+              episode_number: 2,
+              title: "Second Sample",
+              air_date: Date.add(Date.utc_today(), -3)
+            }
+          ]
+      }
+
+      html = render_component(&SeasonList.season_list/1, assigns(%{seasons: [season]}))
+
+      assert html =~ ~s(data-role="in-flight-episode-row")
+      assert html =~ "Downloading"
+      assert html =~ "Second Sample"
+      refute html =~ "download_missing_episode"
+      refute html =~ ~s(data-role="missing-episode-row")
+    end
+  end
 end

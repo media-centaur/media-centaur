@@ -43,6 +43,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        Missing slot, one appended after the last library episode in
        S1. Pill copy reads "in Xd" because `air_date` is in the
        future.
+    5b. `:tv_series_gap_in_flight` — the gap is claimed: an InFlight row
+       reading "Downloading", not clickable, not focusable.
     6. `:tv_series_aired_not_in_library` — TV variation with a Missing
        item carrying a past `air_date` and a title (aired, no file
        imported). Pill copy reads "aired Xd ago" and the row is
@@ -321,6 +323,17 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "Episode 2** — driven by `resume_label_from_progress/2`. " <>
             "`seasons_view` is the typed `[%SeasonView{}]` contract.",
         attributes: tv_series_attrs()
+      },
+      %Variation{
+        id: :tv_series_gap_in_flight,
+        description:
+          "Same library shape as `:tv_series_with_seasons` with the gap " <>
+            "claimed: `%EpisodeRow.InFlight{}` in place of the Missing row. " <>
+            "Reads \"Downloading\", carries no download glyph and no click, and " <>
+            "is not focusable — an active pursuit or a live draft already has " <>
+            "the episode. It reverts to a Missing row if that stops, and " <>
+            "becomes a Library row when the file lands.",
+        attributes: tv_series_gap_in_flight_attrs()
       },
       %Variation{
         id: :tv_series_acquisition_off,
@@ -788,6 +801,30 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         expanded_seasons: MapSet.new([1, 3]),
         seasons_view: [s1_view, s2_view, s3_future]
     }
+  end
+
+  defp tv_series_gap_in_flight_attrs do
+    base = tv_series_attrs()
+    [s1_view, s2_view] = base.seasons_view
+
+    s1_view = %{
+      s1_view
+      | items:
+          Enum.map(s1_view.items, fn
+            %EpisodeRow.Missing{episode_number: 4} = row ->
+              %EpisodeRow.InFlight{
+                season_number: row.season_number,
+                episode_number: row.episode_number,
+                title: row.title,
+                air_date: row.air_date
+              }
+
+            other ->
+              other
+          end)
+    }
+
+    %{base | seasons_view: [s1_view, s2_view]}
   end
 
   defp tv_series_aired_not_in_library_attrs do

@@ -5,8 +5,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Playback.{Events, ProgressBroadcaster}
   alias MediaCentaur.Playback.Events.{PlaybackFailed, PlaybackStateChanged, TrackOverrideChanged}
@@ -2036,7 +2038,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
   describe "downloading a missing episode" do
     setup do
-      MediaCentaur.Settings.Preferences.PlanningMode.set(:auto_select_best_release)
+      PlanningMode.set(:auto_select_best_release)
       TmdbStubs.stub_series_universe_for_targeting()
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
@@ -2091,11 +2093,53 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert render_async(view) =~ "Finding a release for Sample Show S1E2"
 
-      assert [plan] = MediaCentaur.Acquisition.Plans.list_drafts()
+      assert [plan] = Plans.list_drafts()
 
       assert plan.id
-             |> MediaCentaur.Acquisition.Plans.units_for()
+             |> Plans.units_for()
              |> Enum.map(& &1.episode_number) == [2]
+    end
+
+    # Regression: the pending guard only held while the async ran, so once
+    # the plan existed the row was clickable again and every further click
+    # drafted another plan. Ten clicks made nine duplicate drafts on the
+    # owner's library before Claims discarded them.
+    test "the row stops being clickable once something claims the episode", %{conn: conn} do
+      series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810"})
+
+      season =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 1,
+          episode_list: [
+            %{episode_number: 1, name: "Pilot", air_date: "2020-01-01"},
+            %{episode_number: 2, name: "Second Sample", air_date: "2020-01-08"}
+          ]
+        })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        name: "Pilot",
+        content_url: "/tv/sample-show/s01e01.mkv"
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+
+      assert has_element?(view, "[data-role='missing-episode-row'][phx-value-episode='2']")
+
+      view
+      |> element("[data-role='missing-episode-row'][phx-value-episode='2']")
+      |> render_click()
+
+      assert render_async(view) =~ "Finding a release for"
+
+      # One plan, and the row now reads as under way rather than as a gap.
+      assert [_one] = Plans.list_drafts()
+
+      html = render(view)
+      assert html =~ ~s(data-role="in-flight-episode-row")
+      refute html =~ ~s(phx-value-episode="2")
     end
 
     test "the modal offers the link to the picker", %{conn: conn} do

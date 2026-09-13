@@ -224,6 +224,81 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
              } = item
     end
 
+    test "a claimed aired episode is InFlight, not Missing" do
+      season =
+        build_season(%{
+          season_number: 1,
+          episode_list: past_episode_list(2),
+          episodes: build_episodes([1])
+        })
+
+      tv = build_tv_series(%{seasons: [season]})
+      claimed = MapSet.new([{1, 2}])
+
+      view_model =
+        SeriesDetail.build(
+          %{entity: tv, progress: nil, progress_records: []},
+          [],
+          nil,
+          claimed
+        )
+
+      [%SeasonView{items: items}] = view_model.seasons
+
+      assert [%EpisodeRow.Library{}, %EpisodeRow.InFlight{episode_number: 2}] = items
+    end
+
+    test "a claimed aired release is InFlight too" do
+      tv = build_tv_series(%{seasons: []})
+
+      releases = [
+        release_map(%{
+          season_number: 1,
+          episode_number: 1,
+          released: true,
+          in_library: false,
+          air_date: ~D[2020-01-01]
+        })
+      ]
+
+      view_model =
+        SeriesDetail.build(
+          %{entity: tv, progress: nil, progress_records: []},
+          releases,
+          nil,
+          MapSet.new([{1, 1}])
+        )
+
+      [%SeasonView{items: [item]}] = view_model.seasons
+
+      assert %EpisodeRow.InFlight{episode_number: 1} = item
+    end
+
+    test "the claim never touches an unaired episode" do
+      future = Date.add(Date.utc_today(), 30)
+
+      season =
+        build_season(%{
+          season_number: 1,
+          episode_list: [%{episode_number: 1, name: "Later", air_date: future}],
+          episodes: []
+        })
+
+      tv = build_tv_series(%{seasons: [season]})
+
+      view_model =
+        SeriesDetail.build(
+          %{entity: tv, progress: nil, progress_records: []},
+          [],
+          nil,
+          MapSet.new([{1, 1}])
+        )
+
+      [%SeasonView{items: [item]}] = view_model.seasons
+
+      assert %EpisodeRow.Upcoming{episode_number: 1} = item
+    end
+
     test "an unaired release is still Upcoming" do
       future = Date.add(Date.utc_today(), 30)
       tv = build_tv_series(%{seasons: []})
