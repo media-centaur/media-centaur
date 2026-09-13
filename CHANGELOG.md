@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.25.0 — 2026-09-13
+
+### New
+
+- **Download an episode you're missing by clicking it.** In a series' episode list, an episode you have no file for shows as a dim row. If it has aired, clicking it looks for that one episode and downloads it, using whichever planning mode you've set under Settings → Acquisition. While something is fetching it the row reads **Downloading** and can't be clicked again; stop that download and it goes back to being a gap you can click, and when the file lands it becomes an ordinary row you can play.
+- **Download more of this show.** A link at the end of the season list opens the search picker for the whole series, with the seasons you already own greyed out. Seasons you don't have at all never appear in the episode list, so this is how you pick up a back catalogue or the next season.
+- **Refresh episode lists.** Settings → Maintenance asks TMDB which episodes each season contains and stores the answer. This release replaces the stored episode *count* with that list, so **every season starts empty and you should run this once after updating** — until you do, missing episodes don't show as gaps and Status → Library reports no incomplete seasons. It only checks seasons you don't already have in full, and it's safe to re-run.
+
+### Improved
+
+- **An episode that hasn't aired no longer looks like a hole in the season.** Before, any episode number TMDB knew about that you had no file for became the same dim placeholder, whether it had been broadcast or not. Now an episode still to come carries its air date, and a dim row means one you can actually go and get.
+- **Missing episodes show their title.** A gap that opened in the last fortnight also says when it aired — "aired 3d ago", which is usually why you don't have it yet. Older gaps show no date: on a series that finished decades ago it told you nothing.
+- **Status → Library counts incomplete seasons accurately.** It used to count series with a hole in the middle of a season, which missed a season that simply stops early and couldn't tell a missing episode from one that hasn't been broadcast. It now counts seasons holding an episode that aired and that you don't have. Expect the number to change.
+- **"Lower quality accepted" moved behind the gear.** The note and its **Reset** now sit in a title's Manage sheet, above the file list, instead of under the episode list. It's a setting you clear once, not something to read past on the way to the episodes.
+
 ## v1.24.1 — 2026-09-13
 
 ### Improved
