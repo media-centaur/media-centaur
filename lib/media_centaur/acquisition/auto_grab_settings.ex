@@ -1,42 +1,43 @@
 defmodule MediaCentaur.Acquisition.AutoGrabSettings do
   @moduledoc """
-  Resolves auto-grab preferences from per-item overrides + global defaults.
+  The global auto-grab defaults, and the one place they are written.
 
   Global defaults live in `Settings.Entry` rows under the `auto_grab.*`
-  key namespace. Per-item overrides live as columns on
-  `release_tracking_items`. This module is the single source of truth for
-  "what does the policy actually use for this item right now?"
+  key namespace; `put/2` is their only writer and refuses a field it does
+  not own, an enum value it does not list, or an integer off its ladder.
+  A title's own lower-quality acceptance lives in
+  `Acquisition.TitleDownloadParams`, resolved here by
+  `effective_min_quality/1`.
 
-  Built-in fallback values match the project defaults documented in
-  `decisions/architecture/...` (Phase 2 plan):
+  Built-in fallback values:
   - mode: `"all_releases"`
-  - min quality: `"hd_1080p"` (final acceptable floor)
   - max quality: `"uhd_4k"`
-  - 4K patience: 48 hours (insist on 4K for ~2 days before falling back)
   - max attempts: 12 (about a week at the snooze cap)
+  - pack fit: 75 %
+  - size preference: `"fidelity"` (ADR-061)
 
-  Pure resolution functions take primitive item-side values, not the
-  full `ReleaseTracking.Item` struct, to keep the inter-context surface
-  to nothing more than the column types.
+  The floor is fixed at 1080p (`floor/0`); there is no patience window
+  (UIDR-041 §6). Below the floor a release is taken only under a title's
+  acceptance (ADR-063 §2).
   """
 
   alias MediaCentaur.Settings
 
   @keys [
     "auto_grab.default_mode",
-    "auto_grab.default_min_quality",
     "auto_grab.default_max_quality",
-    "auto_grab.4k_patience_hours",
     "auto_grab.max_attempts",
     "auto_grab.pack_min_fit",
     "auto_grab.size_preference"
   ]
 
+  @floor "hd_1080p"
+  @pack_fit_ladder Enum.to_list(5..100//5)
+  @attempts_ladder Enum.to_list(1..50)
+
   @builtin_defaults %{
     default_mode: "all_releases",
-    default_min_quality: "hd_1080p",
     default_max_quality: "uhd_4k",
-    patience_hours: 48,
     max_attempts: 12,
     # Grab a season/series pack only when you want at least this % of the
     # episodes it lands (`wanted-in-span / span-total`). Below it, the
@@ -48,15 +49,30 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
     size_preference: "fidelity"
   }
 
+  @allowed %{
+    default_mode: ~w(all_releases ask off),
+    default_max_quality: ~w(uhd_4k hd_1080p),
+    size_preference: ~w(fidelity space),
+    pack_min_fit: @pack_fit_ladder,
+    max_attempts: @attempts_ladder
+  }
+
+  @storage_key %{
+    default_mode: "auto_grab.default_mode",
+    default_max_quality: "auto_grab.default_max_quality",
+    size_preference: "auto_grab.size_preference",
+    pack_min_fit: "auto_grab.pack_min_fit",
+    max_attempts: "auto_grab.max_attempts"
+  }
+
   defstruct Map.to_list(@builtin_defaults)
 
   @type mode :: String.t()
   @type quality :: String.t()
+  @type field :: :default_mode | :default_max_quality | :size_preference | :pack_min_fit | :max_attempts
   @type t :: %__MODULE__{
           default_mode: mode(),
-          default_min_quality: quality(),
           default_max_quality: quality(),
-          patience_hours: non_neg_integer(),
           max_attempts: pos_integer(),
           pack_min_fit: non_neg_integer(),
           size_preference: String.t()
@@ -69,37 +85,50 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
 
     %__MODULE__{
       default_mode: read(entries, "auto_grab.default_mode", @builtin_defaults.default_mode),
-      default_min_quality:
-        read(entries, "auto_grab.default_min_quality", @builtin_defaults.default_min_quality),
       default_max_quality:
         read(entries, "auto_grab.default_max_quality", @builtin_defaults.default_max_quality),
-      patience_hours: read(entries, "auto_grab.4k_patience_hours", @builtin_defaults.patience_hours),
       max_attempts: read(entries, "auto_grab.max_attempts", @builtin_defaults.max_attempts),
       pack_min_fit: read(entries, "auto_grab.pack_min_fit", @builtin_defaults.pack_min_fit),
       size_preference: read(entries, "auto_grab.size_preference", @builtin_defaults.size_preference)
     }
   end
 
-  @doc "Resolves an item's effective minimum quality bound."
-  @spec effective_min_quality(String.t() | nil, t()) :: quality()
-  def effective_min_quality(nil, %__MODULE__{} = settings), do: settings.default_min_quality
-  def effective_min_quality(value, %__MODULE__{}) when is_binary(value), do: value
+  @doc """
+  The automatic floor. Below it a release is taken only under a title's
+  own lower-quality acceptance (ADR-063 §2). Fixed, not a setting: the
+  policy is "the best available now, then down the ladder" (UIDR-041 §6).
+  """
+  @spec floor() :: quality()
+  def floor, do: @floor
 
-  @doc "Resolves an item's effective maximum quality bound."
-  @spec effective_max_quality(String.t() | nil, t()) :: quality()
-  def effective_max_quality(nil, %__MODULE__{} = settings), do: settings.default_max_quality
-  def effective_max_quality(value, %__MODULE__{}) when is_binary(value), do: value
+  @doc "A title's effective floor: its lower-quality acceptance when it has one, else `floor/0`."
+  @spec effective_min_quality(String.t() | nil) :: quality()
+  def effective_min_quality(nil), do: @floor
+  def effective_min_quality(value) when is_binary(value), do: value
+
+  @doc "The stepper ladder for `pack_min_fit`: 5–100 in steps of 5."
+  @spec pack_fit_ladder() :: [pos_integer()]
+  def pack_fit_ladder, do: @pack_fit_ladder
+
+  @doc "The stepper ladder for `max_attempts`: 1–50."
+  @spec attempts_ladder() :: [pos_integer()]
+  def attempts_ladder, do: @attempts_ladder
 
   @doc """
-  Resolves an item's effective 4K-patience window.
-
-  `0` is a meaningful per-item override (\"no patience — take whatever's
-  available immediately, ranking still prefers 4K\"). It is NOT treated
-  as falling back to the global default.
+  The one write for a global auto-grab default. Refuses a field it does
+  not own, an enum value it does not list, or an integer off the ladder.
   """
-  @spec effective_patience_hours(non_neg_integer() | nil, t()) :: non_neg_integer()
-  def effective_patience_hours(nil, %__MODULE__{} = settings), do: settings.patience_hours
-  def effective_patience_hours(hours, %__MODULE__{}) when is_integer(hours), do: hours
+  @spec put(atom(), term()) :: :ok | {:error, :invalid}
+  def put(field, value) when is_map_key(@allowed, field) do
+    if value in Map.fetch!(@allowed, field) do
+      Settings.find_or_create_entry!(%{key: Map.fetch!(@storage_key, field), value: %{"value" => value}})
+      :ok
+    else
+      {:error, :invalid}
+    end
+  end
+
+  def put(_field, _value), do: {:error, :invalid}
 
   defp read(entries, key, default) do
     case Map.get(entries, key) do

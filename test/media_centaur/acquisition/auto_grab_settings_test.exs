@@ -9,91 +9,85 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettingsTest do
       settings = AutoGrabSettings.load()
 
       assert settings.default_mode == "all_releases"
-      assert settings.default_min_quality == "hd_1080p"
       assert settings.default_max_quality == "uhd_4k"
-      assert settings.patience_hours == 48
       assert settings.max_attempts == 12
       assert settings.pack_min_fit == 75
       assert settings.size_preference == "fidelity"
+    end
+
+    test "the struct carries no floor or patience field" do
+      refute Map.has_key?(%AutoGrabSettings{}, :default_min_quality)
+      refute Map.has_key?(%AutoGrabSettings{}, :patience_hours)
     end
   end
 
   describe "load/0 — values overridden by Settings entries" do
     test "respects mode override" do
-      Settings.find_or_create_entry!(%{
-        key: "auto_grab.default_mode",
-        value: %{"value" => "off"}
-      })
-
+      Settings.find_or_create_entry!(%{key: "auto_grab.default_mode", value: %{"value" => "off"}})
       assert %{default_mode: "off"} = AutoGrabSettings.load()
     end
 
     test "respects integer overrides" do
-      Settings.find_or_create_entry!(%{
-        key: "auto_grab.4k_patience_hours",
-        value: %{"value" => 12}
-      })
-
-      Settings.find_or_create_entry!(%{
-        key: "auto_grab.max_attempts",
-        value: %{"value" => 6}
-      })
-
-      settings = AutoGrabSettings.load()
-      assert settings.patience_hours == 12
-      assert settings.max_attempts == 6
+      Settings.find_or_create_entry!(%{key: "auto_grab.max_attempts", value: %{"value" => 6}})
+      assert %{max_attempts: 6} = AutoGrabSettings.load()
     end
 
     test "respects pack-fit override" do
-      Settings.find_or_create_entry!(%{
-        key: "auto_grab.pack_min_fit",
-        value: %{"value" => 50}
-      })
-
+      Settings.find_or_create_entry!(%{key: "auto_grab.pack_min_fit", value: %{"value" => 50}})
       assert %{pack_min_fit: 50} = AutoGrabSettings.load()
     end
 
     test "respects size-preference override" do
-      Settings.find_or_create_entry!(%{
-        key: "auto_grab.size_preference",
-        value: %{"value" => "space"}
-      })
-
+      Settings.find_or_create_entry!(%{key: "auto_grab.size_preference", value: %{"value" => "space"}})
       assert %{size_preference: "space"} = AutoGrabSettings.load()
     end
   end
 
-  describe "effective_min_quality/2 + effective_max_quality/2" do
-    setup do
-      settings = %AutoGrabSettings{
-        default_min_quality: "hd_1080p",
-        default_max_quality: "uhd_4k"
-      }
-
-      {:ok, settings: settings}
+  describe "floor/0 and effective_min_quality/1" do
+    test "the automatic floor is 1080p" do
+      assert AutoGrabSettings.floor() == "hd_1080p"
     end
 
-    test "nil item value falls through to global default", %{settings: settings} do
-      assert AutoGrabSettings.effective_min_quality(nil, settings) == "hd_1080p"
-      assert AutoGrabSettings.effective_max_quality(nil, settings) == "uhd_4k"
+    test "a title with no acceptance uses the floor" do
+      assert AutoGrabSettings.effective_min_quality(nil) == "hd_1080p"
     end
 
-    test "concrete item value overrides default", %{settings: settings} do
-      assert AutoGrabSettings.effective_min_quality("uhd_4k", settings) == "uhd_4k"
-      assert AutoGrabSettings.effective_max_quality("hd_1080p", settings) == "hd_1080p"
+    test "a title's lower-quality acceptance overrides the floor" do
+      assert AutoGrabSettings.effective_min_quality("any") == "any"
     end
   end
 
-  describe "effective_patience_hours/2" do
-    test "nil item value falls through to global default" do
-      settings = %AutoGrabSettings{patience_hours: 48}
-      assert AutoGrabSettings.effective_patience_hours(nil, settings) == 48
+  describe "put/2 — the one write" do
+    test "persists an allowed enum value" do
+      assert :ok = AutoGrabSettings.put(:default_max_quality, "hd_1080p")
+      assert AutoGrabSettings.load().default_max_quality == "hd_1080p"
     end
 
-    test "concrete item value overrides default (including 0 = no patience)" do
-      settings = %AutoGrabSettings{patience_hours: 48}
-      assert AutoGrabSettings.effective_patience_hours(0, settings) == 0
-      assert AutoGrabSettings.effective_patience_hours(72, settings) == 72
+    test "persists an integer on its ladder" do
+      assert :ok = AutoGrabSettings.put(:pack_min_fit, 80)
+      assert :ok = AutoGrabSettings.put(:max_attempts, 3)
+      settings = AutoGrabSettings.load()
+      assert settings.pack_min_fit == 80
+      assert settings.max_attempts == 3
+    end
+
+    test "refuses a value outside the enum or off the ladder" do
+      assert {:error, :invalid} = AutoGrabSettings.put(:default_mode, "sometimes")
+      assert {:error, :invalid} = AutoGrabSettings.put(:pack_min_fit, 77)
+      assert {:error, :invalid} = AutoGrabSettings.put(:max_attempts, 0)
+      assert {:error, :invalid} = AutoGrabSettings.put(:size_preference, 3)
+      assert AutoGrabSettings.load() == %AutoGrabSettings{}
+    end
+
+    test "refuses an unknown field" do
+      assert {:error, :invalid} = AutoGrabSettings.put(:patience_hours, 24)
+    end
+  end
+
+  describe "ladders" do
+    test "pack fit runs 5–100 by 5; attempts 1–50" do
+      assert AutoGrabSettings.pack_fit_ladder() == Enum.to_list(5..100//5)
+      assert AutoGrabSettings.attempts_ladder() == Enum.to_list(1..50)
     end
   end
 end
