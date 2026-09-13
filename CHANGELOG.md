@@ -4,6 +4,32 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.26.0 — 2026-09-13
+
+### New
+
+- **Settings shows what you've set up instead of the forms you set it up with.** On Settings → Acquisition, Prowlarr and each download client are one row each: whether it's connected and when it was last tested, the address (a link to that service's own page), and which credential is stored. **Edit** opens the form under the row; **Set up** does the same for a connection you haven't configured. Cancel or Esc closes it unchanged, **Save** stores what you typed, and **Save and test** stores it and tests it — if the test fails the form stays open with your values. TMDB and each Social relay use the same row.
+- **Test from the row.** **Test** on a connected row re-runs the connection test on what's stored, with no form to open, and the row's dot and state follow the result.
+- **Detect from Prowlarr lands on the rows.** It sits on the Download clients card and marks each client Prowlarr knows as *Detected from Prowlarr, not saved*; **Review** opens the form pre-filled so you can add the password or API key and check the address, **Dismiss** drops it.
+- **Remove a download client.** A client's form has **Remove client**, which empties that slot.
+
+### Improved
+
+- **Every setting saves the moment you change it.** Toggles, the new pick-one pills, the −/+ steppers, the selects, and text fields (which commit when you press Enter or leave the field) all persist on the act. The only Save button left is the one inside a connection's form.
+- **Auto-acquisition is two quality choices.** **Highest resolution** (4K or 1080p) and **Within a resolution** (best fidelity or save space). The best release available at the time is taken right away and nothing found at the highest resolution falls back to 1080p. The *4K patience* wait and the *Minimum quality* setting are gone: a release grabbed at 1080p is not replaced when a 4K one appears later. Below 1080p a release is still taken only when you've accepted lower quality for that title.
+- **The Download button and Auto-acquisition cards stay on the page** while Prowlarr isn't ready, and say what they're waiting for, instead of disappearing.
+- **One look for every section.** Each section opens with its name and one line about it; every card carries a small uppercase title; numbers step along a ladder (cleanup windows, auto-approve threshold, mpv timeout, the update-check interval, release-date refresh), two- or three-way choices are pills, and the Language section's five audio and subtitle selects each save on their own.
+- **Folder names and excluded directories are lists.** Under Media Import, extras and ignored folder names are rows you add to and remove from one at a time, the way excluded directories already worked under Library. Excluded directories keep their live checks (absolute, exists, not already listed).
+- **Social is three cards.** Your identity, Relays and Sharing. Each relay row has its own dot: green while connected or synced, red when not connected or rejected. The gamepad glyph picker on Controls is a pill, and each binding category is its own card.
+
+### Fixed
+
+- **A connection test run from the setup tour now counts.** Before, the tour's test lit the tour's own indicator but the app didn't treat the integration as ready until you also pressed *Test connection* under Settings. Both now go through the same place, so passing the tour is enough.
+
+### Migration safety
+
+- This release runs a data migration: the retired auto-acquisition settings (*Minimum quality*, *4K patience*) are removed from the settings table, and a title's stored download preferences keep only the *lower quality accepted* flag. The update runs it automatically, nothing to do by hand.
+
 ## v1.25.0 — 2026-09-13
 
 ### New
