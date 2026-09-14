@@ -66,6 +66,10 @@ defmodule MediaCentaur.Pipeline.Stats do
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
+  @doc "Subscribes the caller to `Topics.pipeline_stats/0` — the `{:pipeline_stats_updated, kind}` broadcasts."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe, do: Topics.subscribe(Topics.pipeline_stats())
+
   @doc """
   Returns a snapshot of current pipeline statistics.
 

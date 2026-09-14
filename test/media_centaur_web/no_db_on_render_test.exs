@@ -325,7 +325,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       {:ok, fixture}
     end
 
-    test "GET /library?selected=<movie_id> mounts within budget", %{conn: conn, movie: movie} do
+    test "GET /library?entity=<movie_id> mounts within budget", %{conn: conn, movie: movie} do
       # The detail modal hydrates a single entity by id. After Phase
       # 3.2 Task D the modal-open path reads from Views.Detail
       # (Pillar-2 ETS in production, ~5 queries via DB-fallback in
@@ -339,7 +339,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # desktop trade.
       mount_and_assert(
         conn,
-        "/library?selected=#{movie.id}",
+        "/library?entity=#{movie.id}",
         130,
         "Views.Browse DB-fallback grid + Views.Detail DB-fallback modal-open + bulk progress/availability, grid load run on both renders (ADR-051; ~106 observed, test-mode only)"
       )

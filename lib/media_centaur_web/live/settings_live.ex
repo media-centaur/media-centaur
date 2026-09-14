@@ -39,6 +39,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.ConnectionState
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Watcher
+  alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.Pipeline
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaurWeb.SettingsLive.MediaDirsLogic
@@ -150,15 +151,23 @@ defmodule MediaCentaurWeb.SettingsLive do
     # subscription delivers every `:setting_changed` message — the trait
     # handles the spoiler_free key via attach_hook, and this LiveView's
     # own handle_info/2 clauses handle the other keys.
+    socket =
+      Enum.reduce(
+        [
+          Watcher.Supervisor,
+          SelfUpdate,
+          {SelfUpdate, :subscribe_progress},
+          Config,
+          Controls,
+          Social,
+          {Social, :subscribe_connections},
+          IntegrationHealth
+        ],
+        socket,
+        &Subscriptions.subscribe(&2, &1)
+      )
+
     if connected?(socket) do
-      Watcher.Supervisor.subscribe()
-      SelfUpdate.subscribe()
-      SelfUpdate.subscribe_progress()
-      Config.subscribe()
-      Controls.subscribe()
-      Social.subscribe()
-      Social.subscribe_connections()
-      IntegrationHealth.subscribe()
       # Coarse heartbeat so the "next check" estimate on the Updates card stays
       # roughly current without behaving like a per-second countdown. The
       # labels carry no seconds (minute grain at their finest), so a 60s

@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastSelection do
 
   At most `limit` cards render at once, `page_size/0` (24) at first —
   TMDB aggregate casts for long-running series run into the hundreds.
-  The host LiveView owns the limit (`EntityModal`'s `cast_limit`), bumps
+  The host owns the limit (`Title.ModalState.cast_limit`), bumps
   it on `show_more_cast`, and resets it on entity switch alongside the
   filter. The limit applies **after** filtering: filtering searches the
   whole cast because the point is to find someone billed 300th.

@@ -205,12 +205,43 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
       library ->
         case Library.EntityView.title_ref(library.subject) do
-          {_tmdb_id, _media_type} = ref ->
-            push_patch(socket, to: path(socket, [title: TitleRef.param(ref)] ++ view_query(params)))
-
-          nil ->
-            open_from_detail(socket, {:entity, id}, build_residue(socket, library), params)
+          {_tmdb_id, _media_type} = ref -> canonicalise(socket, ref, library, params)
+          nil -> open_residue(socket, id, library, params)
         end
+    end
+  end
+
+  # A re-patch of the open residue keeps its files and may change the
+  # view; another entity takes the modal.
+  defp open_residue(
+         %{assigns: %{title_detail: %TitleDetail{ref: nil} = open}} = socket,
+         id,
+         library,
+         params
+       ) do
+    if LibraryHalf.subject(open) == {:entity, id} do
+      detail = build_residue(socket, LibraryHalf.keep_files(library, open.library))
+
+      socket
+      |> assign(:title_detail, detail)
+      |> update(:modal_state, &%{&1 | view: resolve_view(detail, params["view"])})
+    else
+      open_from_detail(socket, {:entity, id}, build_residue(socket, library), params)
+    end
+  end
+
+  defp open_residue(socket, id, library, params),
+    do: open_from_detail(socket, {:entity, id}, build_residue(socket, library), params)
+
+  # A titled entity opens on its title address. The patch needs a live
+  # socket; the dead render opens the title in place from the half it
+  # already holds, and the join's params patch the URL.
+  defp canonicalise(socket, ref, library, params) do
+    if connected?(socket) do
+      push_patch(socket, to: path(socket, [title: TitleRef.param(ref)] ++ view_query(params)))
+    else
+      title = snapshot(socket, ref, library, nil, nil)
+      open_from_snapshot(socket, ref, title, %{library: library, activity: nil}, params)
     end
   end
 
@@ -286,16 +317,31 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # Another title takes the modal: whatever was open or opening is
   # dropped, the per-opening state starts fresh (the series' oriented
   # season expanded), and the owned title's files start loading.
+  # A switch to another member of the open collection is the same
+  # document (UIDR-023): the state stays, the view follows the params.
   defp open_from_detail(socket, subject, detail, params) do
-    socket
-    |> reset_detail()
-    |> assign(:title_detail, detail)
-    |> assign(
-      :modal_state,
-      ModalState.new(resolve_view(detail, params["view"]), initial_expanded_seasons(detail))
-    )
-    |> start_files_load(subject, detail)
+    view = resolve_view(detail, params["view"])
+
+    if same_document?(socket.assigns.title_detail, detail) do
+      library = LibraryHalf.keep_files(detail.library, socket.assigns.title_detail.library)
+
+      socket
+      |> cancel_opening()
+      |> assign(:title_detail, %{detail | library: library})
+      |> update(:modal_state, &%{&1 | view: view})
+    else
+      socket
+      |> reset_detail()
+      |> assign(:title_detail, detail)
+      |> assign(:modal_state, ModalState.new(view, initial_expanded_seasons(detail)))
+      |> start_files_load(subject, detail)
+    end
   end
+
+  defp same_document?(%TitleDetail{library: %{}} = open, %TitleDetail{library: %{}} = next),
+    do: LibraryHalf.container_id(open) == LibraryHalf.container_id(next)
+
+  defp same_document?(_open, _next), do: false
 
   defp start_files_load(socket, subject, %TitleDetail{library: %{}} = detail),
     do: LibraryHalf.start_files_load(socket, subject, LibraryHalf.container_id(detail))
@@ -723,8 +769,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def handle_title_event("select_entity", %{"id" => id}, socket) do
     query =
       case LibraryHalf.address(id) do
-        {:title, ref} -> [title: TitleRef.param(ref)]
-        {:entity, entity_id} -> [entity: entity_id]
+        {:title, ref, half} -> [title: TitleRef.param(ref)] ++ kept_view(socket, half)
+        {:entity, entity_id, half} -> [entity: entity_id] ++ kept_view(socket, half)
         :not_found -> []
       end
 
@@ -863,6 +909,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         %{assigns: %{title_detail: %TitleDetail{title: %Title{} = title} = detail}} = socket
       ), do: {:halt, ReviewFlow.open(socket, title, detail.poster_url)}
 
+  # Play needs no modal: the hero and the cards fire it too (UIDR-027).
+  def handle_title_event("play", %{"id" => id}, socket), do: {:halt, LibraryEvents.play(socket, id)}
+
   def handle_title_event(event, params, %{assigns: %{title_detail: %TitleDetail{library: %{}}}} = socket)
       when event in @library_events, do: {:halt, LibraryEvents.handle(event, params, socket)}
 
@@ -872,6 +921,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     do: {:halt, socket}
 
   def handle_title_event(_event, _params, socket), do: {:cont, socket}
+
+  # A rail pick lands on another member of the open collection — the
+  # same document — and keeps the sub-view it was on.
+  defp kept_view(
+         %{assigns: %{title_detail: %TitleDetail{library: %{}} = open, modal_state: state}},
+         half
+       ) do
+    if LibraryHalf.container_id(open) == half.entry.entity.id and state.view in [:info, :cast],
+      do: [view: state.view],
+      else: []
+  end
+
+  defp kept_view(_socket, _half), do: []
 
   defp toggle_menu(open, menu) when open == menu, do: nil
   defp toggle_menu(_open, menu), do: menu
@@ -903,6 +965,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   defp rung_atom("grab"), do: :grab
 
   # --- Addresses ---
+
+  @doc """
+  The open modal's own query — its address, the sub-view and the
+  activity it speaks for — for a page that patches its own params (a
+  tab, a sort, a filter) and keeps the modal open across them. `[]`
+  while closed.
+  """
+  @spec modal_query(Phoenix.LiveView.Socket.t()) :: keyword()
+  def modal_query(%{assigns: %{title_detail: %TitleDetail{} = detail, modal_state: state}}) do
+    address_query(detail) ++ if(state.view in [:info, :cast], do: [view: state.view], else: [])
+  end
+
+  def modal_query(_socket), do: []
 
   defp path(socket, query), do: socket.view.title_detail_path(socket, query)
 

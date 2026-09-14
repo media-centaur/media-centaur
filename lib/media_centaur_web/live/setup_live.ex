@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.SetupLive do
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth
+  alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.Secret
   alias MediaCentaur.Setup.Gate
   alias MediaCentaurWeb.Components.SetupSteps
@@ -32,7 +33,7 @@ defmodule MediaCentaurWeb.SetupLive do
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "Setup")
 
-    if connected?(socket), do: IntegrationHealth.subscribe()
+    socket = Subscriptions.subscribe(socket, IntegrationHealth)
 
     {:ok,
      assign(socket,

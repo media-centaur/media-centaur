@@ -185,7 +185,7 @@
           {MediaCentaur.Credo.Checks.PredicateNaming, []},
           {MediaCentaur.Credo.Checks.NoAbbreviatedNames, []},
           {MediaCentaur.Credo.Checks.ContextSubscribeFacade, []},
-          {MediaCentaur.Credo.Checks.EntityModalContract, []},
+          {MediaCentaur.Credo.Checks.LiveSubscriptions, []},
           {MediaCentaur.Credo.Checks.PlaybackEventsContract, []},
           {MediaCentaur.Credo.Checks.LibraryUpdatesContract, []},
           {MediaCentaur.Credo.Checks.TargetStatusContract, []},

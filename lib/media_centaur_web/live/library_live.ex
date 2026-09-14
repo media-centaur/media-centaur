@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     * `library:availability` — drive-mount / unmount events.
   """
   use MediaCentaurWeb, :live_view
-  use MediaCentaurWeb.Live.EntityModal
+  use MediaCentaurWeb.Live.TitleDetailHost
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LibraryCardInfoAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
@@ -45,7 +45,6 @@ defmodule MediaCentaurWeb.LibraryLive do
   }
 
   alias MediaCentaur.Pipeline.Stats
-  alias MediaCentaur.Topics
 
   alias MediaCentaurWeb.Components.LibraryCards
   alias MediaCentaurWeb.Live.ReviewModal
@@ -54,24 +53,28 @@ defmodule MediaCentaurWeb.LibraryLive do
   import MediaCentaurWeb.LibraryFormatters
   import MediaCentaurWeb.LibraryAvailability
 
+  alias MediaCentaurWeb.Components.DetailPanel
+  alias MediaCentaurWeb.Live.Subscriptions
+  alias MediaCentaurWeb.Live.TitleDetailHost
+
   @impl true
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "Library")
 
-    # `Library.subscribe()` and `Playback.subscribe()` are auto-wired
-    # by the EntityModal on_mount callback; `Settings.subscribe()` by
-    # SpoilerFreeAware; `Capabilities.subscribe()` by CapabilitiesAware.
-    # Do not duplicate any of them here.
-    if connected?(socket) do
-      Library.Views.subscribe()
-      Availability.subscribe()
-      Config.subscribe()
-      Topics.subscribe(Topics.pipeline_stats())
-    end
+    # Declared through the one door: the title detail host declares
+    # `library:updates` and `playback:events` for the modal, this page
+    # the projections, availability, config and the pipeline's stats.
+    socket =
+      Enum.reduce(
+        [Library.Views, Availability, Config, MediaCentaur.Pipeline.Stats],
+        socket,
+        &Subscriptions.subscribe(&2, &1)
+      )
 
     {:ok,
      socket
      |> assign(
+       today: Date.utc_today(),
        loaded?: false,
        entries: [],
        progress_by_id: %{},
@@ -118,7 +121,6 @@ defmodule MediaCentaurWeb.LibraryLive do
         filter_text: filter_text
       )
       |> then(fn socket -> if grid_changed, do: cache_visible_ids(socket), else: socket end)
-      |> apply_modal_params(params)
       |> then(fn socket -> if grid_changed, do: reset_stream(socket), else: socket end)
 
     {:noreply, socket}
@@ -215,7 +217,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_info({:entity_progress_updated, %{entity_id: entity_id}}, socket) do
-    # The EntityModal hook keeps `:selected_entry`'s progress fresh on
+    # The title detail host keeps the open modal's progress fresh on
     # its own. Here we refresh just the affected card's progress
     # summary so the bar / completion overlay reflects the change.
     updated_summaries = Library.ProgressRecords.summaries([entity_id])
@@ -233,7 +235,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_info({:playback_state_changed, %{entity_id: entity_id}}, socket) do
-    # The EntityModal hook owns the `:playback` map. Here we only
+    # The title detail host owns the playing set. Here we only
     # re-render the affected poster card so the "playing" badge
     # appears/disappears.
     {:noreply, touch_stream_entries(socket, [entity_id])}
@@ -326,7 +328,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         class="relative"
         data-page-behavior="library"
         data-nav-default-zone="library"
-        data-nav-transient-params="selected,view"
+        data-nav-transient-params="title,entity,view,activity"
       >
         <%!-- Same fixed dark scrim the home page uses (left-weighted + a
               vertical dim that holds down the page) so the library reads as a
@@ -437,8 +439,8 @@ defmodule MediaCentaurWeb.LibraryLive do
                   id={dom_id}
                   entry={entry}
                   progress={Map.get(@progress_by_id, entry.id)}
-                  selected={@selected_entity_id == entry.id}
-                  playing={playing?(@playback, entry.id)}
+                  selected={open_container_id(@title_detail) == entry.id}
+                  playing={playing?(@title_playback, entry.id)}
                   available={Map.get(@availability_map, entry.id, true)}
                   show_info={@show_card_info}
                   show_play_button={@show_play_button}
@@ -449,34 +451,14 @@ defmodule MediaCentaurWeb.LibraryLive do
         </div>
 
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
-        <.entity_modal
-          selected_entry={@selected_entry}
-          selected_entity_id={@selected_entity_id}
-          selected_member_id={@selected_member_id}
-          detail_view={@detail_view}
-          cast_filter={@cast_filter}
-          cast_limit={@cast_limit}
-          detail_files={@detail_files}
-          detail_files_status={@detail_files_status}
-          expanded_file_groups={@expanded_file_groups}
-          expanded_seasons={@expanded_seasons}
-          expanded_item_details={@expanded_item_details}
-          all_episode_details_open={@all_episode_details_open}
-          rematch_confirm={@rematch_confirm}
-          delete_confirm={@delete_confirm}
-          deleting={@deleting}
-          tracking={@tracking}
-          lower_quality_accepted?={@lower_quality_accepted?}
-          rung={@rung}
-          planning_mode={@planning_mode}
-          acquisition?={@acquisition?}
-          friend_activity={@friend_activity}
-          availability_map={@availability_map}
-          tmdb_ready={@tmdb_ready}
+        <DetailPanel.detail_panel
+          detail={@title_detail}
+          state={@modal_state}
+          today={@today}
+          review?={@show_discovery}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
-          show_discovery={@show_discovery}
-          today={@today}
+          tmdb_ready={@tmdb_ready}
         />
       </div>
     </Layouts.app>
@@ -593,29 +575,50 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp parse_sort(sort), do: Enum.find(@sort_options, :recent, &(Atom.to_string(&1) == sort))
 
-  @impl true
-  def build_modal_path(socket, overrides), do: build_path(socket, overrides)
+  # --- TitleDetailHost ---
+
+  # This page holds no snapshot of its own: every title it opens is one
+  # the library owns, and the host reads it by identity.
+  @impl TitleDetailHost
+  def page_facts(_socket, _ref, _params), do: {nil, %{}}
+
+  # The modal's query over the page's own params, so opening or closing
+  # a title never loses the tab, sort or filter.
+  @impl TitleDetailHost
+  def title_detail_path(socket, query), do: build_path(socket, %{}, query)
+
+  @impl TitleDetailHost
+  def open_plan_board(socket, plan_id), do: push_navigate(socket, to: ~p"/incoming?plan=#{plan_id}")
 
   # Build a URL path preserving current socket state with overrides.
-  # Page-level params here; the modal slice comes whole from
-  # `EntityModal.modal_query_params/2` so it can't drift per host.
-  defp build_path(socket, overrides) do
+  # Page-level params here; the modal's own query comes whole from the
+  # host (`TitleDetailHost.modal_query/1`) so it can't drift per host.
+  defp build_path(socket, overrides, modal_query \\ nil) do
     assigns = socket.assigns
 
     tab = Map.get(overrides, :tab, assigns.active_tab)
     sort = Map.get(overrides, :sort, assigns.sort_order)
     filter = Map.get(overrides, :filter, assigns.filter_text)
 
-    params = %{}
-    params = if tab == :all, do: params, else: Map.put(params, :tab, tab)
-    params = if sort == :recent, do: params, else: Map.put(params, :sort, sort)
-    params = if filter == "", do: params, else: Map.put(params, :filter, filter)
-    params = Map.merge(params, EntityModal.modal_query_params(assigns, overrides))
+    params =
+      Enum.reject(
+        [
+          tab: if(tab != :all, do: tab),
+          sort: if(sort != :recent, do: sort),
+          filter: if(filter != "", do: filter)
+        ],
+        fn {_key, value} -> is_nil(value) end
+      ) ++ (modal_query || TitleDetailHost.modal_query(socket))
 
-    if params == %{}, do: ~p"/library", else: ~p"/library?#{params}"
+    if params == [], do: ~p"/library", else: ~p"/library?#{params}"
   end
 
   # --- Helpers ---
 
   defp playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
+
+  # The grid's lit card: the open modal's container (a collection's card
+  # while one of its members is the subject).
+  defp open_container_id(nil), do: nil
+  defp open_container_id(detail), do: TitleDetailHost.LibraryHalf.container_id(detail)
 end

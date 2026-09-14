@@ -1,9 +1,9 @@
-defmodule MediaCentaurWeb.EntityModalTrackingTest do
+defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
   @moduledoc """
-  The library detail's tracking block (UIDR-035): the tracking rows
-  always, and the release timeline while the series is followed. Moving
-  the rung is the one act; dropping below Follow deletes the tracked
-  title, which is why the timeline goes with it.
+  The title detail's tracking card on Library (UIDR-042, UIDR-043): the
+  switches once the series is listed, and the release dates while it is
+  followed. Moving the rung is the one act; dropping below Follow
+  deletes the tracked title, which is why the dates go with it.
   """
 
   use MediaCentaurWeb.ConnCase, async: false
@@ -58,8 +58,8 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
   end
 
   test "a tracked series carries the timeline and the rows under its seasons; no bell",
-       %{conn: conn, series: series} do
-    {:ok, view, html} = live(conn, "/library?selected=#{series.id}")
+       %{conn: conn} do
+    {:ok, view, html} = live(conn, "/library?title=tv_series-424242")
 
     assert has_element?(view, "#detail-tracking[data-nav-zone='detail_tracking']")
     assert has_element?(view, "#detail-release-dates", "S02E01")
@@ -74,10 +74,9 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
 
   test "the rows move the rung; the bookmark deletes the tracked title and its timeline", %{
     conn: conn,
-    series: series,
     item: item
   } do
-    {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
+    {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")
 
     view |> element("#detail-tracking-controls-grab") |> render_click()
     await_supervised_tasks()
@@ -96,8 +95,7 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
   end
 
   test "an owned series not on the list offers Add to watchlist; the rows follow, and raise it", %{
-    conn: conn,
-    series: series
+    conn: conn
   } do
     {:ok, nil} =
       ReleaseTracking.set_rung(
@@ -109,7 +107,7 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
         :off
       )
 
-    {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
+    {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")
 
     # Owning a series is not listing it (UIDR-039): the action row's
     # bookmark is the one verb until the title is on the list, and there
@@ -134,21 +132,17 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
 
   # Moved behind the cog on 2026-09-13: it is a setting you reset once,
   # not a row to read past on the way to the episode list.
-  test "the per-title quality acceptance is shown and reset from Manage", %{
-    conn: conn,
-    series: series,
-    item: item
-  } do
+  test "the per-title quality acceptance is shown and reset from Manage", %{conn: conn, item: item} do
     {:ok, _} =
       MediaCentaur.Acquisition.TitleDownloadParams.put(item.tmdb_id, item.media_type, %{
         min_quality: "any"
       })
 
-    {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
+    {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")
 
     refute has_element?(view, "#detail-tracking #manage-lower-quality")
 
-    {:ok, view, _html} = live(conn, "/library?selected=#{series.id}&view=info")
+    {:ok, view, _html} = live(conn, "/library?title=tv_series-424242&view=info")
 
     assert has_element?(view, "#manage-lower-quality")
 

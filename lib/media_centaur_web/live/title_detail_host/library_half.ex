@@ -76,18 +76,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   when the subject has a TMDB identity, the entity address for the
   residue, `:not_found` for an id the library has no present file for.
   """
-  @spec address(Ecto.UUID.t()) :: {:title, TitleRef.ref()} | {:entity, Ecto.UUID.t()} | :not_found
+  @spec address(Ecto.UUID.t()) ::
+          {:title, TitleRef.ref(), Half.t()} | {:entity, Ecto.UUID.t(), Half.t()} | :not_found
   def address(id) do
     case load_entity(id) do
       nil -> :not_found
-      %Half{subject: subject} -> subject_address(subject, id)
+      %Half{subject: subject} = half -> subject_address(subject, id, half)
     end
   end
 
-  defp subject_address(subject, id) do
+  defp subject_address(subject, id, half) do
     case EntityView.title_ref(subject) do
-      {_tmdb_id, _media_type} = ref -> {:title, ref}
-      nil -> {:entity, id}
+      {_tmdb_id, _media_type} = ref -> {:title, ref, half}
+      nil -> {:entity, id, half}
     end
   end
 
