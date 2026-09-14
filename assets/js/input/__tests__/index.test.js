@@ -259,6 +259,27 @@ describe("Detail overlay cast region (real config)", () => {
     const graph = openDetail({ detail_actions: 3, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
     expect(graph.detail_actions.down).toBe("detail_list")
   })
+
+  // An unowned title's Download control opens a glass menu inside the action
+  // row (UIDR-043): the list is its own tree region, present only while
+  // open. DOWN from the row enters it ahead of any body; BACK returns to the
+  // row (the list's dismiss event closes it); when it is closed the candidate
+  // lists fall through to the body as before.
+  test("the open download menu is a tree region nested in the action row: DOWN enters it, BACK climbs out", () => {
+    expect(inputConfig.instanceTypes.detail_menu).toBe(Context.TREE)
+    expect(inputConfig.contextSelectors.detail_menu).toBe("[data-nav-zone='detail_menu'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry).toContain("detail_menu")
+    const graph = openDetail({ detail_actions: 3, detail_menu: 2, detail_tracking: 4, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("detail_menu")
+    expect(graph.detail_menu.up).toBe("detail_actions")
+    expect(graph.detail_menu.down).toBe("detail_tracking")
+    expect(graph.detail_menu.back).toBe("detail_actions")
+  })
+
+  test("with the menu closed, DOWN from the action row falls through to the tracking card", () => {
+    const graph = openDetail({ detail_actions: 3, detail_menu: 0, detail_tracking: 4, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("detail_tracking")
+  })
 })
 
 // The plan modal (UIDR-029): its board is a vertical head (status, verdict

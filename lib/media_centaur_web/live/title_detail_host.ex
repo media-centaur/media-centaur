@@ -93,6 +93,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Live.PlanFlow
+  alias MediaCentaurWeb.Live.TitleDetailHost.Acquisition
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
@@ -604,7 +605,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       when choice in @rungs do
     case title_for_param(socket, param) do
       %Title{} = title ->
-        socket = apply_rung(socket, title, rung_atom(choice), provenance(socket.assigns.title_detail))
+        socket =
+          Acquisition.apply_rung(
+            socket,
+            title,
+            rung_atom(choice),
+            provenance(socket.assigns.title_detail)
+          )
+
         {:halt, refresh_title_detail(socket)}
 
       nil ->
@@ -710,28 +718,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
       :error ->
         nil
-    end
-  end
-
-  # Raising onto a rung that follows releases needs the calendar, which is
-  # a TMDB fetch — so a title that has none yet is set asynchronously and
-  # the modal catches up on the broadcast. Every other move is local.
-  defp apply_rung(socket, %Title{} = title, :off, _attrs) do
-    {:ok, nil} = ReleaseTracking.set_rung(title, :off)
-    socket
-  end
-
-  defp apply_rung(socket, %Title{} = title, rung, attrs) do
-    needs_calendar? =
-      TitleIntent.follows_releases?(rung) and
-        is_nil(ReleaseTracking.get_item_by_tmdb(title.tmdb_id, title.media_type))
-
-    if needs_calendar? do
-      ReleaseTracking.set_rung_async(title, rung, attrs)
-      put_flash(socket, :info, "Tracking #{title.name} — releases will appear under Coming up.")
-    else
-      {:ok, _intent} = ReleaseTracking.set_rung(title, rung, attrs)
-      socket
     end
   end
 

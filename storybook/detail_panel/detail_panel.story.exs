@@ -1,210 +1,114 @@
 defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   @moduledoc """
-  The library detail modal — `DetailPanel` is the library tenant of
-  `CinematicShell`, so each variation renders the **whole modal**: the
-  always-in-DOM `<.modal>` shell, the panel-fixed backdrop + atmosphere,
-  the scrollport, the pinned orientation block (identity lockup,
-  metadata row, play card), and the type-specific content —
-  TV seasons + episodes, the collection poster rail (UIDR-023), extras
-  for leaves (no facet strip anywhere: every type dropped its catalog
-  facts with the Cast view). The Manage
-  sub-view (`detail_view: :info`) delegates to
-  `Detail.ManagePanel.manage_panel/1` — a toolbar card (Delete all,
-  Rematch, Refresh artwork, external IDs + UUID) over a collapsed
-  folder ledger; its state matrix lives in the ManagePanel story, the
-  variations here pin the view swap and attr forwarding. Delete
-  confirmations are *inline* — there is no secondary modal.
+  The title detail modal (UIDR-043) — `DetailPanel` is the tenant of
+  `CinematicShell` that renders one `Title.Detail`, owned or not, so
+  each variation renders the **whole modal**: the always-in-DOM shell,
+  the panel-fixed backdrop, the scrollport, the pinned orientation block
+  (identity lockup, hairline, metadata row, action row, prose), and the
+  body the facts call for — TV seasons + episodes, the collection poster
+  rail (UIDR-023), extras for leaves, Cast and Manage for an owned title,
+  and the tracking card (UIDR-042) for any title with something to say.
+  Delete confirmations are *inline* — there is no secondary modal.
 
   ## Variations covered
 
-    1. `:movie_basic` — `:movie` entity, never watched, available, the
-       simplest path through the play card and metadata row. No
-       seasons, no episodes — exercises `content_list/1`'s fallthrough
-       clause.
-    2. `:movie_with_progress` — same movie with a partial watch
-       progress record. The play CTA reads "Resume", the thin progress
-       bar above the play row appears, and "remaining" copy fills in.
-    3. `:tv_series_with_seasons` — `:tv_series` with two seasons; one
-       expanded via `expanded_seasons: MapSet.new([1])`. Hits the
-       season header, the watched/current/unwatched episode row mix,
-       and the missing-episode fallback for a gap in the episode list.
-       The `seasons_view` attr is a `[%SeasonView{}]` carrying typed
-       `%EpisodeRow.Library{}` and `%EpisodeRow.Missing{}`
-       items — the TV-series content list reads exclusively from this
-       structure (per ADR ViewModel migration).
-    3b. `:tv_series_acquisition_off` — the acquisition gate: missing rows
-       inert and unfocusable, no "Download more of this show".
-    4. `:tv_series_spoiler_free` — same library shape as 3 but
-       `spoiler_free: true`. Unwatched episodes blur their thumbnail,
-       title, and description (`.spoiler-blur`); the leading episode
-       number stays legible. Watched / current rows render unblurred.
-    5. `:tv_series_with_upcoming_inline` — same shape as 3 but with
-       `%EpisodeRow.Upcoming{}` items mixed in: one replacing a
-       Missing slot, one appended after the last library episode in
-       S1. Pill copy reads "in Xd" because `air_date` is in the
-       future.
-    5b. `:tv_series_gap_in_flight` — the gap is claimed: an InFlight row
-       reading "Downloading", not clickable, not focusable.
-    6. `:tv_series_aired_not_in_library` — TV variation with a Missing
-       item carrying a past `air_date` and a title (aired, no file
-       imported). Pill copy reads "aired Xd ago" and the row is
-       actionable.
-    7. `:tv_series_only_future` — entity has zero library seasons;
-       releases project a synthetic `kind: :future` SeasonView. Hits
-       the no-watched-count branch on the season header.
-    8. `:tv_series_untracked` — same library shape as 3 but
-       `tracking: nil`. Confirms the tracking block is absent and no
-       upcoming/future-season content renders.
-    8b. `:tv_series_disarmed` — tracked but Off: the control alone,
-       no timeline, no activity (the row is inert, ADR-066).
-    9. `:movie_series` — the movie-first collection modal (UIDR-023):
-       the selected member (movie 2, in progress) renders the
-       standalone-movie panel — member synopsis, Resume, the member's
-       own hairline fraction — over the poster rail built
-       from the typed `movies_view` (watched check on movie 1,
-       progress underline on the lit movie 2, unselected tiles dimmed).
-    9b. `:movie_series_with_upcoming` — a tracked collection's announced
-       fourth part renders as a muted, unpickable rail tile with the
-       air-date pill.
-    10. `:info_view_with_files` — `detail_view: :info` with a small
-       (≤ 6 files) inventory: the folder ledger auto-expands, showing
-       file rows (quality badges, "added Xd ago", per-file delete)
-       under the toolbar card.
-    10b. `:info_view_collapsed_ledger` — a large inventory rests as
-       collapsed folder summary rows; zero file rows at rest.
-    11. `:rematch_confirm` — `rematch_confirm: true` flips the Rematch
-       action to its confirm state ("Confirm?" copy, `btn-error`
-       styling). Captures the confirmation toggle.
-    12. `:delete_pending_all_inline` — `delete_confirm: :all` flips the
-       prominent danger button to "Click again to confirm — Delete
-       all files (size)" with an inline Cancel link. No separate
-       modal; the gesture lives where the button does.
-    13. `:delete_pending_file_inline` — `delete_confirm: {:file, path}`
-       targeting one of the rows in `detail_files`. That file row
-       gets a danger-tinted background + the trash button widens to
-       show "Click to confirm".
-    14. `:offline` — `available: false`, `tmdb_ready: false`. Play
-       button collapses to the "Offline" pill, episode thumbnails
-       become empty placeholder rectangles, the Rematch action is
-       replaced with the "needs TMDB" hint.
-    15. `:tv_series_all_episode_details_open` — `all_episode_details_open: true`
-       opens every episode row's synopsis/thumbnail block at once
-       (the list-level "Show details" toggle above the seasons,
-       ORed with per-row `expanded_item_details`).
+  The owned half — the library modal's presentation, the bar every
+  section is judged against:
+
+    * `:closed` — the shell alone (`detail: nil`).
+    * `:movie_basic`, `:movie_reviewed`, `:movie_with_progress` — a bare
+      movie: never watched; two friends' pennants on the mast; mid-watch
+      with Resume, the hairline and the time left.
+    * `:tv_series_all_collapsed`, `:tv_series_with_seasons`,
+      `:tv_series_gap_in_flight`, `:tv_series_acquisition_off`,
+      `:tv_series_episode_details_open`, `:tv_series_all_episode_details_open`,
+      `:tv_series_spoiler_free`, `:tv_series_with_upcoming_inline`,
+      `:tv_series_aired_not_in_library`, `:tv_series_only_future`,
+      `:tv_series_untracked`, `:tv_series_off` — the season accordion and
+      its row states, the tracking card at Grab, and its absence.
+    * `:movie_series`, `:movie_series_with_upcoming` — the movie-first
+      collection modal over the poster rail.
+    * `:info_view_with_files`, `:info_view_files_loading`,
+      `:info_view_files_failed`, `:info_view_collapsed_ledger`,
+      `:rematch_confirm`, `:delete_pending_all_inline`,
+      `:delete_pending_file_inline`, `:delete_in_flight_all` — Manage
+      and its gestures.
+    * `:tv_series_cast_view`, `:offline`.
+
+  The unowned half — a title without files, the former title modal's
+  states, on the same block structure:
+
+    * `:dressed` — the live TMDB preview has landed: tagline, the
+      preview's metadata row and overview.
+    * `:movie_download`, `:series_split`, `:series_mode_menu_open`,
+      `:series_auto_default`, `:series_scope_menu_open`,
+      `:series_all_seasons`, `:series_planning` — the Download split
+      control and the series scope select, their menus and the pending
+      state.
+    * `:from_friend`, `:every_flag`, `:own_note`, `:own_review`,
+      `:own_listing` — the pennants, a friend's note, your own note, and
+      Delete <noun> on an own activity.
+    * `:needs_review`, `:downloading`, `:not_out_yet` — the acquisition
+      state as a fact, and no verb at all.
+    * `:tracked_watch`, `:tracked_grab`, `:unowned_off`, `:forecast_only`,
+      `:listed`, `:with_review` — the tracking card's states.
 
   ## Fudged data
 
   Image URLs are intentionally absent — `image_url/2` always builds a
   `/media-images/<content_url>` path that our placeholder image server
   can't satisfy in storybook, so the hero falls back to its built-in
-  `hero-film` placeholder and episode thumbnails render as
-  `bg-base-300/30` rectangles. That's accurate to the "no artwork
-  scraped yet" state, just chosen here to avoid noise.
-
-  Showcase-style PD/CC titles only — generic "Sample Movie", "Quiet
-  Sample Series", and the like. No real titles per `CLAUDE.md`.
-
-  ## Contract observations (for Phase 3 typed-attr migration)
-
-  Recorded as input for `~/src/media-centaur/component-contract-plan.md`:
-
-    * **Both content-list paths are typed** —
-      `MediaCentaurWeb.ViewModel.{SeriesDetail, SeasonView,
-      EpisodeRow.{Library, Missing, Upcoming}}` for TV
-      (`seasons_view`) and `MediaCentaurWeb.ViewModel.{CollectionDetail,
-      MovieRow.{Library, Upcoming}}` for collections
-      (`movies_view`). `Detail.SeasonList` / `Detail.CollectionRail`
-      consume them exclusively.
-    * `entity: :map` — still the biggest remaining smell on the
-      top-level component. Movie and movie_series renders dispatch on
-      `entity.type` with `Map.get/3` field access. Same `Entity` ADT
-      idea applies; the TV-series migration is a working blueprint.
-    * `progress: :map` and `resume: :map` — two distinct map shapes
-      pretending to be one type. `progress` is
-      `ProgressSummary.t()` (already typespecced); `resume` is the
-      Hint shape Logic dispatches on (`%{"action" => "resume" |
-      "begin", "targetId" => ..., "seasonNumber" => ...}` —
-      string-keyed because it's deserialised from the browser).
-      Lifting both into named structs documents the boundary
-      between server-computed progress and client-derived resume
-      hints.
-    * `delete_confirm: :any` — actually a sum type identifying the
-      pending inline-confirm target: `nil | :all | {:file, path} |
-      {:folder, path}`. The `:any` hides the discriminator; a tagged
-      union (or `Ecto.Enum`-style atom + path payload struct) would
-      let dialyzer catch the per-button match expressions in the
-      template.
-    * `expanded_seasons: :any, default: nil` — really `MapSet.t() |
-      nil`, with `nil` meaning "compute the default with
-      `auto_expand_season/2`". Worth either documenting the
-      `nil`-as-sentinel contract or threading the default upstream.
-    * `progress_records: :list` — a list of `WatchProgress` schema
-      structs (preloaded), but the attr says nothing. Same fix as
-      above: name the element shape.
+  placeholder and episode thumbnails render as `bg-base-300/30`
+  rectangles. Showcase-style titles only — "Sample Movie", "Quiet Sample
+  Series", and the like.
   """
 
   use PhoenixStorybook.Story, :component
 
-  # Per the data-decoupling policy (ADR-029), `WatchProgress` is private
-  # to `MediaCentaur.Library` — its boundary doesn't export the schema.
-  # The component declares `attr :progress_records, :list` (loose-typed),
-  # so this story uses plain maps with the same fields. `WatchedFile` IS
-  # exported and stays aliased.
+  alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.{Person, WatchedFile}
+  alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
+  alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Detail.TitlePreview
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+  alias MediaCentaurWeb.Components.Title.Detail.Library
+  alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
+  alias MediaCentaurWeb.Components.Title.ModalState
+  alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.EpisodeRow
+  alias MediaCentaurWeb.ViewModel.LeafDetail
   alias MediaCentaurWeb.ViewModel.MovieRow
   alias MediaCentaurWeb.ViewModel.SeasonView
+  alias MediaCentaurWeb.ViewModel.SeriesDetail
+
+  @today ~D[2026-08-03]
 
   def function, do: &MediaCentaurWeb.Components.DetailPanel.detail_panel/1
   def render_source, do: :function
 
-  # The detail panel is naturally tall and wide — two-column would
-  # collapse the hero and stack the metadata. One column shows the
+  # The detail panel is naturally tall and wide — one column shows the
   # production layout end-to-end.
   def layout, do: :one_column
 
-  # Each variation renders a real `position: fixed` overlay (the
-  # component is the modal now), so they would otherwise stack in a
-  # shared DOM and only the last would be visible. Iframing isolates
-  # them.
+  # Each variation renders a real `position: fixed` overlay, so they would
+  # otherwise stack in a shared DOM and only the last would be visible.
+  # Iframing isolates them.
   def container, do: {:iframe, style: "min-height: 720px; width: 100%;"}
 
-  # Variations that start closed pair with this trigger; open ones wire
-  # `on_close` to the same event so closing updates the variation's
-  # assigns rather than walking the modal out of the DOM.
-  def template do
-    """
-    <div>
-      <button
-        type="button"
-        class="btn btn-sm btn-primary"
-        phx-click={Phoenix.LiveView.JS.push("psb-assign", value: %{open: true})}
-        psb-code-hidden
-      >
-        Open modal
-      </button>
-      <.psb-variation/>
-    </div>
-    """
-  end
-
   def variations do
-    [closed_variation() | Enum.map(content_variations(), &open_in_modal/1)]
+    [closed_variation() | Enum.map(open_variations(), &closable/1)]
   end
 
-  # Every content variation shows an open modal and closes via
-  # psb-assign, keeping the iframe's assigns in charge of visibility.
-  defp open_in_modal(%Variation{id: id, attributes: attributes} = variation) do
-    %{
-      variation
-      | attributes: Map.merge(attributes, %{open: true, on_close: close_event(id)})
-    }
+  # Closing a variation drops its detail, which renders the closed shell.
+  defp closable(%Variation{id: id, attributes: attributes} = variation) do
+    %{variation | attributes: Map.merge(%{today: @today, on_close: close_event(id)}, attributes)}
   end
 
   defp close_event(variation_id) do
     {:eval,
-     ~s|Phoenix.LiveView.JS.push("psb-assign", value: %{variation_id: #{inspect(variation_id)}, open: false})|}
+     ~s|Phoenix.LiveView.JS.push("psb-assign", value: %{variation_id: #{inspect(variation_id)}, detail: nil})|}
   end
 
   defp closed_variation do
@@ -212,29 +116,26 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       id: :closed,
       description:
         "Closed state — the modal shell is in the DOM but visually hidden via " <>
-          "`data-state=\"closed\"`, keeping the blur compositing layer warm. " <>
-          "Click *Open modal* above to flip the assigns.",
-      attributes: %{open: false, entity: nil}
+          "`data-state=\"closed\"`, keeping the blur compositing layer warm.",
+      attributes: %{today: @today, detail: nil}
     }
   end
 
-  defp content_variations do
+  defp open_variations, do: owned_variations() ++ unowned_variations()
+
+  # ===================================================================
+  # Owned titles — the library half
+  # ===================================================================
+
+  defp owned_variations do
     [
       %Variation{
         id: :movie_basic,
         description:
-          "`:movie` entity, never watched, storage available, default detail view. " <>
-            "Simplest path through `playback_props/3` (just `Play`), no progress bar, " <>
-            "no content list (the fallthrough `content_list/1` clause).",
-        attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          expanded_seasons: MapSet.new()
-        }
+          "A bare movie the library owns, never watched, storage available. " <>
+            "Simplest path through the action row (just Play), the hairline at " <>
+            "zero, no body (content-fit panel).",
+        attributes: %{detail: movie_detail()}
       },
       %Variation{
         id: :movie_reviewed,
@@ -242,401 +143,616 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "The same movie two friends reviewed: the pennants fly from the hero's " <>
             "right edge under the actions, love above like, the like body dark glass.",
         attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          expanded_seasons: MapSet.new(),
-          tracking: tracking(%{}),
-          friend_activity: [
-            %{
-              activity: %MediaCentaur.Activities.Activity{
-                kind: :review,
-                sentiment: :like,
-                tmdb_id: 603,
-                media_type: :movie,
-                acted_at: ~U[2026-09-01 10:00:00Z]
-              },
-              nickname: "Other Friend",
-              own?: false
-            },
-            %{
-              activity: %MediaCentaur.Activities.Activity{
-                kind: :review,
-                sentiment: :love,
-                tmdb_id: 603,
-                media_type: :movie,
-                acted_at: ~U[2026-09-01 10:00:00Z]
-              },
-              nickname: "Sample Friend",
-              own?: false
-            }
-          ]
+          detail:
+            movie_detail(%{
+              tracking: tracking(%{}),
+              friend_activity: [
+                act(603, :movie, "Other Friend", :review, :like),
+                act(603, :movie, "Sample Friend", :review, :love)
+              ]
+            })
         }
       },
       %Variation{
         id: :movie_with_progress,
         description:
-          "Same movie, mid-watch — `progress` carries `episode_position_seconds` " <>
-            "below `episode_duration_seconds`. The play card shows the thin " <>
-            "progress bar, the CTA flips to **Resume**, and the remaining-time " <>
-            "text appears at the right.",
-        attributes: %{
-          entity: sample_movie_entity(),
-          progress: %{
-            current_episode: nil,
-            episode_position_seconds: 1800.0,
-            episode_duration_seconds: 5400.0,
-            episodes_completed: 0,
-            episodes_total: 1
-          },
-          resume: nil,
-          progress_records: [movie_progress_record(sample_movie_entity().id, partial: true)],
-          available: true,
-          tmdb_ready: true,
-          expanded_seasons: MapSet.new()
-        }
+          "Same movie, mid-watch — the hairline at half, the CTA flips to **Resume**, " <>
+            "and the time left displaces the status on the metadata line (UIDR-024).",
+        attributes: %{detail: movie_detail(%{}, movie_progress())}
       },
       %Variation{
         id: :tv_series_all_collapsed,
         description:
-          "`expanded_seasons: MapSet.new()` — every season collapsed to its " <>
-            "header row. Since the 2026-08-05 auto-orient design this is no " <>
-            "longer how a series in progress opens (the host seeds the current " <>
-            "season from `Orientation.initial_expanded_seasons/1`); it is the " <>
-            "**completed-series** state, where there is no next episode and the " <>
-            "rows serve as a compact rewatch index. Play controls left, synopsis " <>
-            "right (top-aligned, no rule), progress hairline on the hero's bottom " <>
-            "edge. The PlayCard renders no progress row for TV.",
-        attributes: Map.put(tv_series_attrs(), :expanded_seasons, MapSet.new())
+          "Every season collapsed to its header row — the **completed-series** " <>
+            "state, where there is no next episode and the rows serve as a compact " <>
+            "rewatch index. Play controls left, synopsis right, hairline on the " <>
+            "hero's bottom edge.",
+        attributes: %{detail: series_detail(), state: ModalState.new(:main)}
       },
       %Variation{
         id: :tv_series_with_seasons,
         description:
-          "`:tv_series` with two seasons. `expanded_seasons: MapSet.new([1])` " <>
-            "expands season 1 into dense one-line episode rows (number · title · " <>
-            "runtime · watched toggle — no synopsis, no thumbnail) + a " <>
-            "missing-episode placeholder for the gap at episode 4. Season 2 stays " <>
-            "collapsed showing only its header. The Resume CTA reads **Resume " <>
-            "Episode 2** — driven by `resume_label_from_progress/2`. " <>
-            "`seasons_view` is the typed `[%SeasonView{}]` contract.",
-        attributes: tv_series_attrs()
+          "A series with two seasons, season 1 expanded into dense one-line episode " <>
+            "rows + a missing-episode placeholder for the gap at episode 4. Season 2 " <>
+            "stays collapsed. The CTA reads **Resume Episode 2**. The tracking card " <>
+            "under the list at Grab, with the calendar's dates.",
+        attributes: %{detail: series_detail(), state: series_state()}
       },
       %Variation{
         id: :tv_series_gap_in_flight,
         description:
-          "Same library shape as `:tv_series_with_seasons` with the gap " <>
-            "claimed: `%EpisodeRow.InFlight{}` in place of the Missing row. " <>
-            "Reads \"Downloading\", carries no download glyph and no click, and " <>
-            "is not focusable — an active pursuit or a live draft already has " <>
-            "the episode. It reverts to a Missing row if that stops, and " <>
-            "becomes a Library row when the file lands.",
-        attributes: tv_series_gap_in_flight_attrs()
+          "Same shape with the gap claimed: an InFlight row reading \"Downloading\", " <>
+            "not clickable, not focusable — an active pursuit already has the episode.",
+        attributes: %{detail: series_detail(seasons: gap_in_flight_seasons()), state: series_state()}
       },
       %Variation{
         id: :tv_series_acquisition_off,
         description:
-          "Same library shape as `:tv_series_with_seasons` with " <>
-            "`acquisition?: false`: the missing-episode row is inert — no " <>
-            "download glyph, no click, and not focusable — and \"Download more " <>
-            "of this show\" is absent. The gate for an install with no indexer " <>
-            "or download client configured.",
-        attributes: Map.put(tv_series_attrs(), :acquisition?, false)
+          "Same shape with `acquisition?: false`: the missing-episode row is inert " <>
+            "and \"Download more of this show\" is absent — the gate for an install " <>
+            "with no indexer or download client configured.",
+        attributes: %{detail: series_detail(detail: %{acquisition?: false}), state: series_state()}
       },
       %Variation{
         id: :tv_series_episode_details_open,
         description:
-          "Same shape, with episode 3's disclosure open " <>
-            "(`expanded_item_details` carrying its episode id) — the dense row " <>
-            "grows an inline synopsis + thumbnail block beneath it. The chevron " <>
-            "flips to point up and `aria-expanded` is true.",
-        attributes:
-          Map.put(
-            tv_series_attrs(),
-            :expanded_item_details,
-            MapSet.new(["33333333-3333-3333-3333-3333000s01e03"])
-          )
+          "Same shape with episode 3's disclosure open — the dense row grows an " <>
+            "inline synopsis + thumbnail block beneath it.",
+        attributes: %{
+          detail: series_detail(),
+          state: %{
+            series_state()
+            | expanded_item_details: MapSet.new(["33333333-3333-3333-3333-3333000s01e03"])
+          }
+        }
       },
       %Variation{
         id: :tv_series_all_episode_details_open,
         description:
-          "Same shape, with the list-level episode-details toggle on " <>
-            "(`all_episode_details_open: true`) — every episode row in the " <>
-            "expanded season grows its inline synopsis + thumbnail block, and " <>
-            "the toggle above the seasons reads **Hide details** " <>
-            "(`aria-pressed=\"true\"`). Per-row disclosures stay independent " <>
-            "underneath (ORed, not overwritten).",
-        attributes: Map.put(tv_series_attrs(), :all_episode_details_open, true)
+          "Same shape with the list-level episode-details toggle on — every episode " <>
+            "row in the expanded season grows its block, and the toggle reads **Hide details**.",
+        attributes: %{detail: series_detail(), state: %{series_state() | all_episode_details_open: true}}
       },
       %Variation{
         id: :tv_series_spoiler_free,
         description:
-          "Same library shape but `spoiler_free: true`. Unwatched episodes have " <>
-            "their title `.spoiler-blur`'d in the dense row (and synopsis/thumbnail " <>
-            "behind the disclosure); the leading episode number stays legible for " <>
-            "navigation. Watched / current rows (episodes 1–2) render unblurred. " <>
-            "Hover or keyboard focus on a row reveals it " <>
-            "(`[data-role=\"episode-row\"]:hover`).",
-        attributes: Map.put(tv_series_attrs(), :spoiler_free, true)
+          "Same shape with `spoiler_free`: unwatched episodes blur their titles; " <>
+            "the leading number stays legible; watched and current rows render clear.",
+        attributes: %{detail: series_detail(), state: series_state(), spoiler_free: true}
       },
       %Variation{
         id: :tv_series_with_upcoming_inline,
         description:
-          "Same library shape as 3, but with three `%EpisodeRow.Upcoming{}` " <>
-            "rows mixed in: one fills the S1 episode-4 gap (replacing the missing " <>
-            "row), one extends S1 past `number_of_episodes`, and one populates a " <>
-            "future S2. All are Upcoming with `air_date` in the " <>
-            "future, so the date pill reads \"in Xd\". The Upcoming row has " <>
-            "no thumbnail, no watched toggle, and `data-nav-item` is omitted.",
-        attributes: tv_series_with_upcoming_attrs()
+          "Three Upcoming rows mixed in: one fills the S1 gap, one extends S1, and " <>
+            "a future S3 appears as its own collapsible. Date pills read \"in Xd\".",
+        attributes: %{
+          detail: series_detail(seasons: upcoming_seasons()),
+          state: ModalState.new(:main, MapSet.new([1, 3]))
+        }
       },
       %Variation{
         id: :tv_series_aired_not_in_library,
         description:
-          "TV variation with one `%EpisodeRow.Missing{}` carrying a past " <>
-            "`air_date` and a title — the calendar knows the episode aired and " <>
-            "no file was imported. The row wears an \"aired Xd ago\" pill and " <>
-            "is actionable, unlike an unaired Upcoming row.",
-        attributes: tv_series_aired_not_in_library_attrs()
+          "One Missing row carrying a past air date and a title — the calendar " <>
+            "knows the episode aired and no file was imported: an \"aired Xd ago\" " <>
+            "pill, and the row is actionable.",
+        attributes: %{
+          detail: series_detail(seasons: aired_not_in_library_seasons()),
+          state: series_state()
+        }
       },
       %Variation{
         id: :tv_series_only_future,
         description:
-          "Library has one minimal season; releases project a synthetic " <>
-            "`%SeasonView{kind: :future}` for an upcoming Season 2. The future " <>
-            "season's header omits the watched-count copy (`watched_count: " <>
-            "nil`) — only library seasons display \"X remaining\".",
-        attributes: tv_series_only_future_attrs()
+          "Library has one minimal season; releases project a synthetic future " <>
+            "Season 2 whose header omits the watched-count copy.",
+        attributes: %{detail: only_future_detail(), state: series_state()}
       },
       %Variation{
         id: :tv_series_untracked,
         description:
-          "Same library shape as 3 but `tracking: nil`: the show isn't tracked " <>
-            "in `ReleaseTracking`, so no tracking block follows the seasons and " <>
-            "`seasons_view` carries no Upcoming items or future seasons. " <>
-            "Confirms no-regression for the untracked case.",
-        attributes: tv_series_untracked_attrs()
+          "Same library shape but `tracking: nil` at Grab: the switches without a " <>
+            "calendar readout beside them.",
+        attributes: %{detail: series_detail(detail: %{tracking: nil}), state: series_state()}
       },
       %Variation{
         id: :tv_series_off,
         description:
-          "An owned series nobody follows (UIDR-035): under the seasons only the ladder " <>
-            "control at Off — no timeline, no activity, because nothing is tracked.",
-        attributes: %{tv_series_attrs() | tracking: nil, rung: nil}
+          "An owned series nobody follows: no tracking card at all under the " <>
+            "seasons — listing comes first (UIDR-039).",
+        attributes: %{detail: series_detail(detail: %{tracking: nil, rung: nil}), state: series_state()}
       },
       %Variation{
         id: :movie_series,
         description:
-          "The movie-first collection modal (UIDR-023): the selected member " <>
-            "(movie 2, in progress) renders the standalone-movie panel — " <>
-            "member synopsis, **Resume** with the member's own hairline " <>
-            "fraction and watched toggle — over the poster " <>
-            "rail: watched check on movie 1, progress underline on the lit " <>
-            "movie 2, dimmed movie 3. `movies_view` is the typed " <>
-            "`[%MovieRow{}]` contract the rail reads exclusively.",
-        attributes: movie_series_attrs()
+          "The movie-first collection modal (UIDR-023): the selected member (movie 2, " <>
+            "in progress) renders the standalone-movie panel — member synopsis, " <>
+            "**Resume** with the member's own hairline fraction and Watched toggle — " <>
+            "over the poster rail: watched check on movie 1, progress underline on " <>
+            "the lit movie 2, dimmed movie 3.",
+        attributes: %{detail: collection_detail()}
       },
       %Variation{
         id: :movie_series_with_upcoming,
         description:
-          "Tracked collection with an announced fourth part: the " <>
-            "`MovieRow.Upcoming` tile renders muted and unpickable after " <>
-            "the library members, with the air-date pill (release-tracking " <>
-            "overlay, same idiom as TV's upcoming episode rows).",
-        attributes: movie_series_with_upcoming_attrs()
+          "A tracked collection's announced fourth part renders as a muted, " <>
+            "unpickable rail tile with the air-date pill.",
+        attributes: %{detail: collection_detail(upcoming: true)}
       },
       %Variation{
         id: :info_view_with_files,
         description:
-          "`detail_view: :info` swaps the content list for the Manage sheet " <>
-            "(`Detail.ManagePanel`): toolbar card (Delete all / Rematch / " <>
-            "Refresh artwork, external IDs + UUID as its quiet lower edge) over " <>
-            "the folder ledger. Three files ≤ the auto-expand threshold, so " <>
-            "every group opens and the file rows (quality badges, `added Xd " <>
-            "ago`, per-file delete) are visible. Files use `detail_files: " <>
-            "[%{file: %WatchedFile{}, size: bytes}]`.",
+          "Manage (`view: :info`) swaps the content list for the Manage sheet: " <>
+            "toolbar card (Delete all / Rematch / Refresh artwork, external IDs + " <>
+            "UUID) over the folder ledger. Three files ≤ the auto-expand threshold, " <>
+            "so every group opens.",
         attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          detail_view: :info,
-          detail_files: sample_detail_files(),
-          detail_files_status: :loaded,
-          expanded_seasons: MapSet.new()
+          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          state: ModalState.new(:info)
         }
       },
       %Variation{
         id: :info_view_files_loading,
         description:
           "The Manage sheet while the deferred file-info load is still running " <>
-            "— a status line where the ledger will be, no Delete all (DS21).",
-        attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          detail_view: :info,
-          detail_files: [],
-          detail_files_status: :loading,
-          expanded_seasons: MapSet.new()
-        }
+            "— a status line where the ledger will be, no Delete all.",
+        attributes: %{detail: movie_detail(%{}, nil, :loading), state: ModalState.new(:info)}
       },
       %Variation{
         id: :info_view_files_failed,
         description:
           "The Manage sheet after the file-info load crashed — the panel says " <>
-            "so rather than rendering an empty inventory as fact (DS16).",
-        attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          detail_view: :info,
-          detail_files: [],
-          detail_files_status: :failed,
-          expanded_seasons: MapSet.new()
-        }
+            "so rather than rendering an empty inventory as fact.",
+        attributes: %{detail: movie_detail(%{}, nil, :failed), state: ModalState.new(:info)}
       },
       %Variation{
         id: :info_view_collapsed_ledger,
         description:
           "A large inventory (8 files, two folders — above the auto-expand " <>
-            "threshold) rests as collapsed folder summary rows: name, count, " <>
-            "size, and a quiet Delete per row. Zero file rows at rest — the " <>
-            "wall of rows is the thing this layout killed. " <>
-            "`expanded_file_groups: nil` is the automatic default.",
+            "threshold) rests as collapsed folder summary rows. Zero file rows at rest.",
         attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          detail_view: :info,
-          detail_files: sample_season_detail_files(),
-          expanded_seasons: MapSet.new()
+          detail: movie_detail(%{}, nil, {:ok, sample_season_detail_files()}),
+          state: ModalState.new(:info)
         }
       },
       %Variation{
         id: :rematch_confirm,
         description:
-          "`rematch_confirm: true` — the **Rematch** action in the toolbar " <>
-            "card flips to a confirm prompt (button copy and `btn-error` " <>
-            "styling change). Captures the rematch-confirmation toggle state.",
+          "`rematch_confirm` — the **Rematch** action in the toolbar card flips to " <>
+            "its confirm prompt.",
         attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          detail_view: :info,
-          detail_files: sample_detail_files(),
-          rematch_confirm: true,
-          expanded_seasons: MapSet.new()
+          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          state: %{ModalState.new(:info) | rematch_confirm: true}
         }
       },
       %Variation{
         id: :delete_pending_all_inline,
         description:
-          "`delete_confirm: :all` — first click on the prominent danger button " <>
-            "set the pending target. Button text flips to **Click again to " <>
-            "confirm — Delete all files (size)** and an inline **Cancel** link " <>
-            "appears beside it. No secondary modal — the gesture lives where the " <>
-            "button does.",
+          "`delete_confirm: :all` — the prominent danger button reads **Click again " <>
+            "to confirm — Delete all files (size)** with an inline Cancel beside it.",
         attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          detail_view: :info,
-          detail_files: sample_detail_files(),
-          delete_confirm: :all,
-          expanded_seasons: MapSet.new()
+          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          state: %{ModalState.new(:info) | delete_confirm: :all}
         }
       },
       %Variation{
         id: :delete_pending_file_inline,
         description:
-          "`delete_confirm: {:file, path}` targeting one of the rows. That " <>
-            "row's background switches to the danger tint, gets a thin error " <>
-            "ring, and its trash button widens from the resting icon-only state " <>
-            "to **🗑 Click to confirm**.",
+          "`delete_confirm: {:file, path}` targeting one row: the danger tint, a " <>
+            "thin error ring, and the trash button widens to **Click to confirm**.",
         attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          detail_view: :info,
-          detail_files: sample_detail_files(),
-          delete_confirm: {:file, "/media/movies/Sample Movie (1922)/Sample.Movie.1922.1080p.mkv"},
-          expanded_seasons: MapSet.new()
+          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          state: %{
+            ModalState.new(:info)
+            | delete_confirm: {:file, "/media/movies/Sample Movie (1922)/Sample.Movie.1922.1080p.mkv"}
+          }
         }
       },
       %Variation{
         id: :delete_in_flight_all,
         description:
-          "`deleting: :all` — the async delete is running (the gesture's third " <>
-            "state, after idle → confirm). The prominent danger button reads " <>
-            "**Deleting… Delete all files (size)** and every delete button on " <>
-            "the panel is disabled so a second destructive op can't be stacked " <>
-            "on the busy modal. Captures the feedback that replaced the silent " <>
-            "process-blocking delete.",
+          "`deleting: :all` — the async delete is running: the danger button reads " <>
+            "**Deleting…** and every delete button on the panel is disabled.",
         attributes: %{
-          entity: sample_movie_entity(),
-          progress: nil,
-          resume: nil,
-          progress_records: [],
-          available: true,
-          tmdb_ready: true,
-          detail_view: :info,
-          detail_files: sample_detail_files(),
-          deleting: :all,
-          expanded_seasons: MapSet.new()
+          detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
+          state: %{ModalState.new(:info) | deleting: :all}
         }
       },
       %Variation{
         id: :tv_series_cast_view,
-        description:
-          "`detail_view: :cast` on a TV series — opens the Cast panel: " <>
-            "the aggregate-cast grid alone. The movie counterpart adds a " <>
-            "Directed by / Written by headline above the grid.",
-        attributes: Map.put(tv_series_attrs(), :detail_view, :cast)
+        description: "Cast (`view: :cast`) on a series — the aggregate-cast grid alone.",
+        attributes: %{detail: series_detail(), state: ModalState.new(:cast)}
       },
       %Variation{
         id: :offline,
         description:
-          "`available: false` + `tmdb_ready: false` — the play CTA collapses to " <>
-            "the disabled **Offline** pill, episode thumbnails become quiet " <>
-            "placeholder rectangles, and the info drawer's Rematch button is " <>
-            "replaced by the \"needs TMDB\" hint.",
-        attributes:
-          Map.merge(tv_series_attrs(), %{
-            available: false,
-            tmdb_ready: false,
-            detail_view: :info,
-            detail_files: []
-          })
+          "Storage offline and TMDB not configured: the play CTA collapses to the " <>
+            "disabled **Offline** pill, thumbnails become quiet placeholders, and " <>
+            "Manage's Rematch is replaced by the \"needs TMDB\" hint.",
+        attributes: %{
+          detail: series_detail(available: false, files: {:ok, []}),
+          state: ModalState.new(:info),
+          tmdb_ready: false
+        }
       }
     ]
+  end
+
+  # ===================================================================
+  # Unowned titles — the former title modal's states
+  # ===================================================================
+
+  defp unowned_variations do
+    [
+      %Variation{
+        id: :dressed,
+        description:
+          "The live TMDB preview has landed: tagline in the lockup, the preview's " <>
+            "metadata row and overview above the action row. Backdrop and logo are " <>
+            "hotlinked from TMDB in the app; nil here pins the frame's placeholder.",
+        attributes: %{detail: unowned(movie(), %{preview: preview(movie())})}
+      },
+      %Variation{
+        id: :movie_download,
+        description:
+          "A released movie with an indexer: Download, the bookmark, and nothing under the hero.",
+        attributes: %{detail: unowned(movie(), %{})}
+      },
+      %Variation{
+        id: :series_split,
+        description:
+          "A series: the split Download (main segment = the default planning mode, " <>
+            "chevron for the other) and the scope select beside it, on Season 1.",
+        attributes: %{detail: unowned(show(), %{})}
+      },
+      %Variation{
+        id: :series_mode_menu_open,
+        description: "The mode menu open: manual selection is the default, so it offers auto-select.",
+        attributes: %{detail: unowned(show(), %{}), state: %{ModalState.new() | open_menu: :mode}}
+      },
+      %Variation{
+        id: :series_auto_default,
+        description: "Auto-select as the default: the menu offers manual selection instead.",
+        attributes: %{
+          detail: unowned(show(), %{planning_mode: :auto_select_best_release}),
+          state: %{ModalState.new() | open_menu: :mode}
+        }
+      },
+      %Variation{
+        id: :series_scope_menu_open,
+        description: "The scope menu open, Season 1 active, All seasons on offer.",
+        attributes: %{detail: unowned(show(), %{}), state: %{ModalState.new() | open_menu: :scope}}
+      },
+      %Variation{
+        id: :series_all_seasons,
+        description: "All seasons chosen: the select shows it; nothing else moves.",
+        attributes: %{
+          detail: unowned(show(), %{}),
+          state: %{ModalState.new() | download_scope: :everything}
+        }
+      },
+      %Variation{
+        id: :series_planning,
+        description: "A manual plan is being created: the split is disabled and reads Planning…",
+        attributes: %{
+          detail: unowned(show(), %{}),
+          state: %{ModalState.new() | pending: {:download, "Sample Show"}}
+        }
+      },
+      %Variation{
+        id: :from_friend,
+        description:
+          "Opened from a friend's review: the love pennant on the mast says who, " <>
+            "and their note — the one thing a pennant cannot hold — leads the prose, attributed.",
+        attributes: %{
+          detail:
+            unowned(movie(), %{
+              activity:
+                act(
+                  777,
+                  :movie,
+                  "Sample Friend",
+                  :review,
+                  :love,
+                  "Watch it before anyone spoils the ending."
+                ),
+              rung: :follow,
+              friend_activity: [act(777, :movie, "Sample Friend", :review, :love)]
+            })
+        }
+      },
+      %Variation{
+        id: :every_flag,
+        description:
+          "Friends did everything: the pennants stack on the hero's right edge under the " <>
+            "actions — love, like, watched, listing — the neutral bodies dark glass over the art.",
+        attributes: %{
+          detail:
+            unowned(show(), %{
+              rung: :follow,
+              release_mode_available: false,
+              friend_activity: [
+                act(42, :tv_series, "Third Friend", :listing),
+                act(42, :tv_series, "Other Friend", :watched),
+                act(42, :tv_series, "Other Friend", :review),
+                act(42, :tv_series, "Sample Friend", :review, :love)
+              ]
+            })
+        }
+      },
+      %Variation{
+        id: :own_note,
+        description: "Your own watchlist note, unattributed, above the overview.",
+        attributes: %{
+          detail: unowned(movie(), %{rung: :list, intent_note: "Pick this for the long weekend."})
+        }
+      },
+      %Variation{
+        id: :own_review,
+        description:
+          "Opened from the You card: your own review flies You and carries " <>
+            "Delete review at the row's far end.",
+        attributes: %{
+          detail:
+            unowned(movie(), %{
+              activity: act(777, :movie, nil, :review),
+              friend_activity: [act(777, :movie, nil, :review)]
+            })
+        }
+      },
+      %Variation{
+        id: :own_listing,
+        description:
+          "Opened from the You card: an own listing broadcast carries Delete listing. " <>
+            "It flies no pennant — a pennant tells you what friends did.",
+        attributes: %{
+          detail:
+            unowned(show(), %{
+              activity: act(42, :tv_series, nil, :listing),
+              release_mode_available: false
+            })
+        }
+      },
+      %Variation{
+        id: :needs_review,
+        description: "A parked plan: Needs review links to Incoming.",
+        attributes: %{detail: unowned(movie(), %{acquisition_state: :needs_review})}
+      },
+      %Variation{
+        id: :downloading,
+        description: "A pursuit in flight: a stated fact, no verb.",
+        attributes: %{detail: unowned(movie(), %{acquisition_state: :downloading})}
+      },
+      %Variation{
+        id: :not_out_yet,
+        description:
+          "Not out yet (or no indexer): no primary verb — the tracking switches " <>
+            "below are the act once the title is listed.",
+        attributes: %{detail: unowned(movie(), %{release_mode_available: false})}
+      },
+      %Variation{
+        id: :tracked_watch,
+        description:
+          "A watchlisted series armed at Follow: the tracking card under the hero " <>
+            "with the switches and the calendar's dates.",
+        attributes: %{
+          detail:
+            unowned(show(), %{release_mode_available: false, rung: :follow, tracking: tracking(%{})})
+        }
+      },
+      %Variation{
+        id: :tracked_grab,
+        description:
+          "Armed at Grab with the per-title quality acceptance set: the acceptance " <>
+            "row follows the switches.",
+        attributes: %{
+          detail:
+            unowned(show(), %{
+              release_mode_available: false,
+              rung: :grab,
+              lower_quality_accepted?: true,
+              tracking:
+                tracking(%{
+                  timeline: [
+                    episode("s02e05", 2, 5, @today, :armed),
+                    episode("s02e06", 2, 6, ~D[2026-08-11], :armed)
+                  ]
+                })
+            })
+        }
+      },
+      %Variation{
+        id: :unowned_off,
+        description:
+          "A title with no record: the row's bookmark is empty and there is no " <>
+            "tracking card at all — listing comes first (UIDR-039).",
+        attributes: %{
+          detail: unowned(show(), %{release_mode_available: false, rung: nil, tracking: nil})
+        }
+      },
+      %Variation{
+        id: :forecast_only,
+        description:
+          "Acquisition not configured: the rows stay, and the note says nothing " <>
+            "downloads until it is; the dates carry no grab implication.",
+        attributes: %{
+          detail:
+            unowned(show(), %{
+              release_mode_available: false,
+              acquisition?: false,
+              rung: :grab,
+              tracking: tracking(%{})
+            })
+        }
+      },
+      %Variation{
+        id: :listed,
+        description:
+          "On the list: the bookmark is filled and the tracking switches appear " <>
+            "under the hero.",
+        attributes: %{detail: unowned(movie(), %{rung: :list})}
+      },
+      %Variation{
+        id: :with_review,
+        description: "Friend network on — the row offers the pencil Review.",
+        attributes: %{detail: unowned(movie(), %{}), review?: true}
+      }
+    ]
+  end
+
+  # ===================================================================
+  # Builders
+  # ===================================================================
+
+  # An owned title: the library half from a typed entry, the snapshot
+  # from the subject's own metadata — the way the hosts build it.
+  defp owned(entry, opts) do
+    library =
+      entry
+      |> Library.new(Keyword.get(opts, :member_id), available: Keyword.get(opts, :available, true))
+      |> Map.put(:files, Keyword.get(opts, :files, {:ok, []}))
+
+    title = TitleLogic.snapshot_from_entity(library.subject)
+
+    struct!(
+      %TitleDetail{
+        ref: title && Title.ref(title),
+        title: title,
+        library: library,
+        rung: nil,
+        acquisition?: true,
+        complete?: match?(%Title{media_type: :movie}, title),
+        planning_mode: :auto_select_best_release
+      },
+      Keyword.get(opts, :detail, %{})
+    )
+  end
+
+  defp unowned(title, overrides) do
+    struct!(
+      %TitleDetail{
+        ref: Title.ref(title),
+        title: title,
+        rung: nil,
+        acquisition?: true,
+        release_mode_available: true
+      },
+      overrides
+    )
+  end
+
+  defp leaf(entity, progress, records) do
+    %LeafDetail{entity: entity, progress: progress, progress_records: records, resume_target: nil}
+  end
+
+  defp movie do
+    Title.new!(%{
+      tmdb_id: 777,
+      media_type: :movie,
+      name: "Sample Movie",
+      year: "2010",
+      release_date: ~D[2010-03-05],
+      overview: "A sample movie overview that confirms this is the title you meant."
+    })
+  end
+
+  defp show do
+    Title.new!(%{
+      tmdb_id: 42,
+      media_type: :tv_series,
+      name: "Sample Show",
+      year: "2012",
+      release_date: ~D[2012-01-01],
+      overview: "A sample series overview."
+    })
+  end
+
+  defp act(tmdb_id, media_type, nickname, kind, sentiment \\ :like, text \\ nil) do
+    %{
+      activity: %Activity{
+        id:
+          "0d2c5cd6-0000-4000-8000-00000000000" <> Integer.to_string(:erlang.phash2({nickname, kind}, 9)),
+        kind: kind,
+        sentiment: sentiment,
+        text: text,
+        tmdb_id: tmdb_id,
+        media_type: media_type,
+        acted_at: ~U[2026-09-01 10:00:00Z]
+      },
+      nickname: nickname,
+      own?: is_nil(nickname)
+    }
+  end
+
+  defp preview(title) do
+    %TitlePreview{
+      media_type: title.media_type,
+      tmdb_id: to_string(title.tmdb_id),
+      title: title.name,
+      tagline: "Every confirmation counts.",
+      overview: title.overview,
+      metadata_items: ["2010", "2h 19m", "R", "US"],
+      facets: [],
+      cast: [
+        %Person{name: "Actor One", character: "The Drifter", order: 0},
+        %Person{name: "Actor Two", character: "Lighthouse Keeper", order: 1}
+      ],
+      in_library?: false
+    }
+  end
+
+  defp episode(id, season, episode, air_date, status) do
+    %Event{
+      id: id,
+      item_id: "sample-show",
+      item_name: "Sample Show",
+      media_type: :tv_series,
+      kind: :episode,
+      season_number: season,
+      episode_number: episode,
+      air_date: air_date,
+      status: status
+    }
+  end
+
+  # The tracked-title half the tracking card renders: armed at the app
+  # default with the next episode announced.
+  defp tracking(overrides) do
+    struct!(
+      %TrackingDetail{
+        item_id: "sample-item",
+        ref: "tv_series-42",
+        tracking_since: ~U[2026-03-14 12:00:00Z],
+        today: @today,
+        acquisition?: true,
+        timeline: [
+          episode("s02e05", 2, 5, @today, :upcoming),
+          episode("s02e06", 2, 6, ~D[2026-08-11], :upcoming),
+          episode("s02e04", 2, 4, ~D[2026-07-27], :in_library)
+        ]
+      },
+      overrides
+    )
   end
 
   # --- Movie fixture ----------------------------------------------------
 
   @movie_id "11111111-1111-1111-1111-111111111111"
+
+  defp movie_detail(overrides \\ %{}, progress \\ nil, files \\ {:ok, []}) do
+    records = if progress, do: [movie_progress_record(@movie_id)], else: []
+    owned(leaf(sample_movie_entity(), progress, records), files: files, detail: overrides)
+  end
+
+  defp movie_progress do
+    %{
+      current_episode: nil,
+      episode_position_seconds: 1800.0,
+      episode_duration_seconds: 5400.0,
+      episodes_completed: 0,
+      episodes_total: 1
+    }
+  end
 
   defp sample_movie_entity do
     struct!(EntityView,
@@ -645,8 +761,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       name: "A Sample Silent Picture",
       description:
         "An ordinary morning unspools into a series of small, surprising tableaux. " <>
-          "A demonstration entity — descriptions render as `line-clamp-4` under the " <>
-          "metadata row.",
+          "A demonstration entity — descriptions render under the metadata row.",
       tagline: "Look closer.",
       date_published: ~D[1922-09-04],
       duration_seconds: 5400,
@@ -666,9 +781,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         %{source: "imdb", external_id: "tt0000000"},
         %{source: "tmdb", external_id: "1001"}
       ],
-      # Top-level convenience ids mirror `DetailItem.to_entity_view/1`;
-      # `tmdb_id` also makes the movie variations render the Play-line
-      # Letterboxd link (default-on).
       imdb_id: "tt0000000",
       tmdb_id: "1001",
       extras: [],
@@ -685,11 +797,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   end
 
   # Plain-map progress records mirror `MediaCentaur.Library.WatchProgress`
-  # — all three foreign keys (`movie_id`, `episode_id`, `video_object_id`)
-  # included with explicit `nil` for the unused ones, since plain maps
-  # don't get the schema's struct defaults and the consuming code does
-  # `record.episode_id` which would otherwise raise KeyError.
-  defp movie_progress_record(movie_id, partial: true) do
+  # — all three foreign keys included with explicit `nil` for the unused
+  # ones, since the consuming code does `record.episode_id`.
+  defp movie_progress_record(movie_id) do
     %{
       id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
       movie_id: movie_id,
@@ -708,11 +818,16 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   @s1_id "22222222-2222-2222-2222-22220000s001"
   @s2_id "22222222-2222-2222-2222-22220000s002"
 
-  defp tv_series_attrs do
-    entity = sample_tv_entity()
-    progress_records = sample_tv_progress_records(entity)
+  defp series_state, do: ModalState.new(:main, MapSet.new([1]))
 
-    %{
+  defp series_detail(opts \\ []) do
+    entity = Keyword.get(opts, :entity, sample_tv_entity())
+    records = sample_tv_progress_records(entity)
+
+    seasons =
+      Keyword.get_lazy(opts, :seasons, fn -> build_library_only_seasons_view(entity, records, {1, 2}) end)
+
+    entry = %SeriesDetail{
       entity: entity,
       progress: %{
         current_episode: %{season: 1, episode: 2},
@@ -721,32 +836,27 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         episodes_completed: 1,
         episodes_total: 8
       },
-      resume: nil,
-      progress_records: progress_records,
-      available: true,
-      tmdb_ready: true,
-      tracking: tracking(%{}),
-      rung: :grab,
-      title_ref: "tv_series-42",
-      approval_policy: "automatic",
-      acquisition?: true,
-      expanded_seasons: MapSet.new([1]),
-      seasons_view: build_library_only_seasons_view(entity, progress_records, {1, 2})
+      progress_records: records,
+      seasons: seasons,
+      extras: [],
+      resume_target: nil,
+      releases: [],
+      claimed_units: MapSet.new()
     }
+
+    detail = Map.merge(%{tracking: tracking(%{}), rung: :grab}, Keyword.get(opts, :detail, %{}))
+    owned(entry, Keyword.merge([detail: detail], Keyword.take(opts, [:available, :files])))
   end
 
   # S1 has releases for the missing slot (episode 4, replaces the
-  # Missing) and one episode beyond number_of_episodes (episode 6, the
-  # season grows by one row). A second future season (S3) appears as
-  # its own collapsible — episodes 1 and 2 unaired.
-  defp tv_series_with_upcoming_attrs do
-    base = tv_series_attrs()
-    entity = base.entity
+  # Missing) and one episode beyond number_of_episodes (episode 6). A
+  # future season (S3) appears as its own collapsible.
+  defp upcoming_seasons do
+    entity = sample_tv_entity()
 
-    [s1_view, s2_view] = base.seasons_view
+    [s1_view, s2_view] =
+      build_library_only_seasons_view(entity, sample_tv_progress_records(entity), {1, 2})
 
-    # Replace Missing(4) with Upcoming(4); add Upcoming(6) past
-    # number_of_episodes.
     new_items =
       Enum.map(s1_view.items, fn
         %EpisodeRow.Missing{episode_number: 4} ->
@@ -768,8 +878,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             air_date: Date.add(Date.utc_today(), 21)
           }
         ]
-
-    s1_view = %{s1_view | items: new_items}
 
     s3_future = %SeasonView{
       season_number: 3,
@@ -794,66 +902,56 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       total_count: 2
     }
 
-    %{
-      base
-      | entity: entity,
-        # Expand S1 + S3 to actually show the new rows.
-        expanded_seasons: MapSet.new([1, 3]),
-        seasons_view: [s1_view, s2_view, s3_future]
-    }
+    [%{s1_view | items: new_items}, s2_view, s3_future]
   end
 
-  defp tv_series_gap_in_flight_attrs do
-    base = tv_series_attrs()
-    [s1_view, s2_view] = base.seasons_view
+  defp gap_in_flight_seasons do
+    entity = sample_tv_entity()
 
-    s1_view = %{
-      s1_view
-      | items:
-          Enum.map(s1_view.items, fn
-            %EpisodeRow.Missing{episode_number: 4} = row ->
-              %EpisodeRow.InFlight{
-                season_number: row.season_number,
-                episode_number: row.episode_number,
-                title: row.title,
-                air_date: row.air_date
-              }
+    [s1_view, s2_view] =
+      build_library_only_seasons_view(entity, sample_tv_progress_records(entity), {1, 2})
 
-            other ->
-              other
-          end)
-    }
+    items =
+      Enum.map(s1_view.items, fn
+        %EpisodeRow.Missing{episode_number: 4} = row ->
+          %EpisodeRow.InFlight{
+            season_number: row.season_number,
+            episode_number: row.episode_number,
+            title: row.title,
+            air_date: row.air_date
+          }
 
-    %{base | seasons_view: [s1_view, s2_view]}
+        other ->
+          other
+      end)
+
+    [%{s1_view | items: items}, s2_view]
   end
 
-  defp tv_series_aired_not_in_library_attrs do
-    base = tv_series_attrs()
-    [s1_view, s2_view] = base.seasons_view
+  defp aired_not_in_library_seasons do
+    entity = sample_tv_entity()
 
-    # Replace S1's missing(4) slot with an aired-not-in-library upcoming
-    # — air_date in the past. Pill copy reads "aired Xd ago".
-    s1_view = %{
-      s1_view
-      | items:
-          Enum.map(s1_view.items, fn
-            %EpisodeRow.Missing{episode_number: 4} ->
-              %EpisodeRow.Missing{
-                season_number: 1,
-                episode_number: 4,
-                title: "The Quiet Hour",
-                air_date: Date.add(Date.utc_today(), -3)
-              }
+    [s1_view, s2_view] =
+      build_library_only_seasons_view(entity, sample_tv_progress_records(entity), {1, 2})
 
-            other ->
-              other
-          end)
-    }
+    items =
+      Enum.map(s1_view.items, fn
+        %EpisodeRow.Missing{episode_number: 4} ->
+          %EpisodeRow.Missing{
+            season_number: 1,
+            episode_number: 4,
+            title: "The Quiet Hour",
+            air_date: Date.add(Date.utc_today(), -3)
+          }
 
-    %{base | seasons_view: [s1_view, s2_view]}
+        other ->
+          other
+      end)
+
+    [%{s1_view | items: items}, s2_view]
   end
 
-  defp tv_series_only_future_attrs do
+  defp only_future_detail do
     entity =
       sample_tv_entity()
       |> Map.put(:seasons, [])
@@ -882,50 +980,18 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       total_count: 2
     }
 
-    %{
+    entry = %SeriesDetail{
       entity: entity,
       progress: nil,
-      resume: nil,
       progress_records: [],
-      available: true,
-      tmdb_ready: true,
-      tracking: tracking(%{}),
-      expanded_seasons: MapSet.new([1]),
-      seasons_view: [s1_future]
+      seasons: [s1_future],
+      extras: [],
+      resume_target: nil,
+      releases: [],
+      claimed_units: MapSet.new()
     }
-  end
 
-  # The tracked-title half the tracking block renders (UIDR-035): armed at
-  # the app default with the next episode announced, and a short activity feed.
-  defp tracking(overrides) do
-    struct!(
-      %MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail{
-        item_id: "sample-item",
-        ref: "tv_series-42",
-        tracking_since: ~U[2026-03-14 12:00:00Z],
-        today: ~D[2026-08-03],
-        acquisition?: true,
-        timeline: [
-          %MediaCentaur.ReleaseTracking.UpcomingFeed.Event{
-            id: "s02e01",
-            item_id: "sample-item",
-            item_name: "Sample Show",
-            media_type: :tv_series,
-            kind: :episode,
-            season_number: 2,
-            episode_number: 1,
-            air_date: ~D[2026-08-10],
-            status: :armed
-          }
-        ]
-      },
-      overrides
-    )
-  end
-
-  defp tv_series_untracked_attrs do
-    base = tv_series_attrs()
-    %{base | tracking: nil}
+    owned(entry, detail: %{tracking: tracking(%{}), rung: :follow})
   end
 
   defp sample_tv_progress_records(entity) do
@@ -1020,11 +1086,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   end
 
   defp episode_state(nil), do: :unwatched
-
   defp episode_state(%{completed: true}), do: :watched
-
   defp episode_state(%{position_seconds: pos}) when is_number(pos) and pos > 0.0, do: :current
-
   defp episode_state(_), do: :unwatched
 
   defp sample_tv_entity do
@@ -1051,7 +1114,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       status: :ended,
       genres: ["Drama", "Anthology"],
       images: [],
-      external_ids: [%{source: "tmdb", external_id: "2002"}],
+      external_ids: [%{source: "tmdb", external_id: "246810"}],
       imdb_id: "tt0000200",
       cast:
         Enum.map(0..7, fn i ->
@@ -1100,9 +1163,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "The Mechanic",
             "An old engine is coaxed back to life."
           ),
-          # Episode 4 intentionally omitted — number_of_episodes: 5
-          # means the missing_episode_row placeholder fills in for
-          # both 4 and 5.
+          # Episode 4 intentionally omitted — number_of_episodes: 5 means
+          # the missing-episode row fills in for it.
           sample_episode(
             "33333333-3333-3333-3333-3333000s01e05",
             5,
@@ -1134,7 +1196,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
   @ms_id "44444444-4444-4444-4444-444444444444"
 
-  defp movie_series_attrs do
+  defp collection_detail(opts \\ []) do
     entity = sample_movie_series_entity()
     [m1, m2, _m3] = entity.movies
 
@@ -1161,9 +1223,21 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       }
     ]
 
-    [m1_item, m2_item, m3_item] = movie_series_items(entity, progress_records)
+    upcoming =
+      if Keyword.get(opts, :upcoming, false) do
+        [
+          %MovieRow.Upcoming{
+            part_tmdb_id: 900_004,
+            title: "Sample Picture IV",
+            air_date: Date.add(Date.utc_today(), 45),
+            sub_status: :unaired
+          }
+        ]
+      else
+        []
+      end
 
-    %{
+    entry = %CollectionDetail{
       entity: entity,
       progress: %{
         current_episode: %{season: 0, episode: 2},
@@ -1172,37 +1246,20 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         episodes_completed: 1,
         episodes_total: 3
       },
-      resume: nil,
       progress_records: progress_records,
-      movies_view: [m1_item, m2_item, m3_item],
-      # The movie-first subject (UIDR-023): movie 2 selected — composed
-      # through the same `member_subject/1` the live path uses, so the
-      # story breaks when the composition contract does.
-      member_view: %{
-        member: m2_item,
-        subject: MediaCentaurWeb.ViewModel.CollectionDetail.member_subject(m2_item)
-      },
-      available: true,
-      tmdb_ready: true,
-      expanded_seasons: MapSet.new()
-    }
-  end
-
-  defp movie_series_with_upcoming_attrs do
-    base = movie_series_attrs()
-
-    upcoming = %MovieRow.Upcoming{
-      part_tmdb_id: 900_004,
-      title: "Sample Picture IV",
-      air_date: Date.add(Date.utc_today(), 45),
-      sub_status: :unaired
+      movies: movie_series_items(entity, progress_records) ++ upcoming,
+      extras: [],
+      resume_target: nil,
+      releases: []
     }
 
-    %{base | movies_view: base.movies_view ++ [upcoming]}
+    # The movie-first subject (UIDR-023): movie 2 selected — composed
+    # through the same `Library.new/3` the live path uses.
+    owned(entry, member_id: m2.id)
   end
 
   # Typed `MovieRow.Library` fixtures mirroring what
-  # `CollectionDetail.build/4` composes: movie 1 watched, movie 2
+  # `CollectionDetail.build/3` composes: movie 1 watched, movie 2
   # current + resume target, movie 3 unwatched.
   defp movie_series_items(entity, progress_records) do
     [m1, m2, m3] = entity.movies
@@ -1224,6 +1281,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         5400,
         "/media/sample-picture-1.mkv",
         1,
+        900_001,
         "The first chapter — a rumour leads three siblings into the hills."
       ),
       sample_child_movie(
@@ -1233,6 +1291,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         5700,
         "/media/sample-picture-2.mkv",
         2,
+        900_002,
         "A return to the same valley, years later."
       ),
       sample_child_movie(
@@ -1242,6 +1301,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         6000,
         "/media/sample-picture-3.mkv",
         3,
+        900_003,
         "The valley closes its books."
       )
     ]
@@ -1333,12 +1393,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   #
   # Episode/Season/Movie are kept as plain maps rather than schema
   # structs because the detail panel digs into nested associations
-  # (`episode.images`, `movie.images`) via `image_url/2`, which calls
-  # `Enum.find/2` on the field. Schema structs default those to
-  # `%Ecto.Association.NotLoaded{}`, which is truthy but not enumerable
-  # — so the `entity.images || []` guard in `image_url/2` doesn't fall
-  # through and `Enum.find` crashes. Plain maps with `images: []`
-  # sidestep the whole NotLoaded ceremony.
+  # (`episode.images`, `movie.images`) via `image_url/2`. Schema structs
+  # default those to `%Ecto.Association.NotLoaded{}`, which is truthy but
+  # not enumerable. Plain maps with `images: []` sidestep that.
 
   defp sample_season(id, season_number, name, number_of_episodes, episodes) do
     %{
@@ -1363,7 +1420,16 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     }
   end
 
-  defp sample_child_movie(id, name, date_published, duration_seconds, content_url, position, description) do
+  defp sample_child_movie(
+         id,
+         name,
+         date_published,
+         duration_seconds,
+         content_url,
+         position,
+         tmdb_id,
+         description
+       ) do
     %{
       id: id,
       name: name,
@@ -1373,6 +1439,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       director: "Sample Director",
       content_url: content_url,
       position: position,
+      tmdb_id: tmdb_id,
       genres: ["Adventure"],
       status: :released,
       images: []

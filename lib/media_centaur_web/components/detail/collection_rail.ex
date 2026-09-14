@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   and a saga label line carrying the collection name and watched count.
 
   Picking a tile **selects** — it re-anchors the whole modal to that
-  member via the host's `select_movie` event (URL patch). It never
+  member via the host's `select_entity` event (URL patch), like any card. It never
   plays; Play stays the panel's only playback affordance.
 
   Renders from the same typed `[%MediaCentaurWeb.ViewModel.MovieRow{}]`
@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
     <button
       id={"rail-tile-#{@movie.id}"}
       type="button"
-      phx-click="select_movie"
+      phx-click="select_entity"
       phx-value-id={@movie.id}
       data-selected={@selected || nil}
       data-nav-item

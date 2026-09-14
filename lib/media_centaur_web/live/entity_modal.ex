@@ -30,9 +30,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   - Render `<.entity_modal ... />` once in the template.
   - Maintain these adjacent assigns (read by the modal renderer but owned
     by the host's surrounding context): `:media_dirs`, `:availability_map`,
-    `:tmdb_ready`, `:spoiler_free`, `:title_rungs`. Most are kept in
-    sync via the `SpoilerFreeAware` / `CapabilitiesAware` /
-    `IntentAware` traits (see ADR-038).
+    `:tmdb_ready`, `:spoiler_free`. Most are kept in sync via the
+    `SpoilerFreeAware` / `CapabilitiesAware` traits (see ADR-038).
+
+  The renderer is the unified `DetailPanel` (UIDR-043); `detail/1` and
+  `state/1` build its `Title.Detail` and `Title.ModalState` from this
+  host's assigns — a bridge until `TitleDetailHost` replaces this module.
 
   The on_mount hook subscribes for the host. Hosts MUST NOT call
   `Library.subscribe()` or `Playback.subscribe()` themselves — the
@@ -70,18 +73,24 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.Acquisition.DownloadParams
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Library.Deletion
-  alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
+  alias MediaCentaur.Library.EntityView
+  alias MediaCentaur.Playback.ProgressBroadcaster
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.DetailPanel
+  alias MediaCentaurWeb.Components.Title.Detail.Library, as: DetailLibrary
+  alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
+  alias MediaCentaurWeb.Components.Title.ModalState
+  alias MediaCentaurWeb.Live.TitleDetailHost.Acquisition
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.CollectionDetail
+  alias MediaCentaurWeb.ViewModel.LeafDetail
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
   alias MediaCentaurWeb.{LibraryProgress, LiveHelpers}
@@ -110,19 +119,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       # --- Modal: open / close ---
 
+      # Any entity emitter — a card, a rail tile (UIDR-023) — opens by
+      # id; opening the open subject again is a no-op patch. A member
+      # selection belongs to one collection — never carried across.
       @impl true
       def handle_event("select_entity", %{"id" => id}, socket) do
-        new_id = if socket.assigns.selected_entity_id != id, do: id
-
-        # A member selection belongs to one collection — never carry it
-        # across to the next entity.
-        {:noreply, push_patch(socket, to: build_modal_path(socket, %{selected: new_id, movie: nil}))}
-      end
-
-      # Poster-rail pick inside a collection modal (UIDR-023): re-anchors
-      # the panel to that member via the URL. Selecting never plays.
-      def handle_event("select_movie", %{"id" => id}, socket) do
-        {:noreply, push_patch(socket, to: build_modal_path(socket, %{movie: id}))}
+        {:noreply, push_patch(socket, to: build_modal_path(socket, %{selected: id, movie: nil}))}
       end
 
       def handle_event("close_detail", _params, socket) do
@@ -223,28 +225,20 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         {:noreply, put_flash(socket, level, message)}
       end
 
-      # --- Tracking (UIDR-035) ---
+      # --- Tracking (UIDR-042) — the bookmark and the switches, one write ---
 
       def handle_event("set_rung", params, socket) do
-        {:noreply, EntityModal.handle_set_rung(params, socket)}
+        {:noreply, EntityModal.set_rung(params, socket)}
       end
 
       def handle_event("reset_lower_quality", params, socket) do
         {:noreply, EntityModal.handle_reset_lower_quality(params, socket)}
       end
 
-      # --- Watchlist ---
-
-      def handle_event("modal_watchlist_toggle", %{"choice" => choice}, socket)
-          when choice in ["list", "off"] do
-        {:noreply, EntityModal.toggle_watchlist(socket, choice)}
-      end
-
       # --- Review ---
       use MediaCentaurWeb.Live.ReviewFlow
 
-      def handle_event("modal_review_open", _params, socket),
-        do: {:noreply, EntityModal.open_review(socket)}
+      def handle_event("review_open", _params, socket), do: {:noreply, EntityModal.open_review(socket)}
 
       # --- Track overrides ---
 
@@ -615,7 +609,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       selected_entity_id: nil,
       selected_member_id: nil,
       selected_entry: nil,
-      detail_presentation: nil,
       detail_view: :main,
       detail_files: [],
       detail_files_status: :loaded,
@@ -631,11 +624,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       tracking: nil,
       rung: nil,
       lower_quality_accepted?: false,
-      approval_policy: PlanningMode.approval_policy(PlanningMode.value()),
+      planning_mode: PlanningMode.value(),
       acquisition?: Capabilities.acquisition_ready?(),
       friend_activity: [],
       download_pending: nil,
-      playback: %{}
+      playback: %{},
+      today: Date.utc_today()
     )
   end
 
@@ -661,8 +655,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     detail_view = parse_view(params["view"])
 
     selection_changed = selected_id != socket.assigns.selected_entity_id
-    entity_switched = selection_changed && socket.assigns.selected_entity_id != nil
-    detail_view = if entity_switched, do: :main, else: detail_view
 
     # The season holding the next episode opens expanded (2026-08-05
     # auto-orient design, revising the blanket collapse of 2026-08-04).
@@ -683,6 +675,15 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           {socket.assigns.selected_entry, socket.assigns.expanded_seasons}
       end
 
+    # The document changes when the resolved container does — a rail
+    # pick lands on another member of the same collection, the same
+    # document, and keeps its view (UIDR-023).
+    entity_switched =
+      selection_changed and socket.assigns.selected_entry != nil and
+        container_id(selected_entry) != container_id(socket.assigns.selected_entry)
+
+    detail_view = if entity_switched, do: :main, else: detail_view
+
     # A tab that cannot render must never be the selected one, whether it
     # was asked for by URL, carried over from the previous entity, or
     # arrived at by default. `Logic.resolve_view/2` is the single place that
@@ -690,6 +691,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     detail_view = resolve_view(selected_entry, detail_view)
 
     selected_member_id = params["movie"] || implied_member_id(selected_entry, selected_id)
+    subject_ref = subject_ref(selected_entry, selected_member_id)
 
     # Files are loaded asynchronously so the modal can render immediately.
     # `load_entity_files/1` issues a `File.stat/1` per file; on a network
@@ -719,15 +721,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         true -> socket.assigns.detail_files_status
       end
 
-    tracking =
-      if selection_changed, do: load_tracking(selected_entry), else: socket.assigns.tracking
+    tracking = if selection_changed, do: load_tracking(subject_ref), else: socket.assigns.tracking
 
     lower_quality_accepted? =
       if selection_changed,
-        do: lower_quality_accepted?(selected_entry),
+        do: lower_quality_accepted?(subject_ref),
         else: socket.assigns.lower_quality_accepted?
 
-    rung = if selection_changed, do: entry_rung(selected_entry), else: socket.assigns.rung
+    rung = if selection_changed, do: subject_rung(subject_ref), else: socket.assigns.rung
 
     socket =
       socket
@@ -735,7 +736,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         selected_entity_id: selected_id,
         selected_member_id: selected_member_id,
         selected_entry: selected_entry,
-        detail_presentation: if(selected_id, do: :modal),
         detail_view: detail_view,
         detail_files: detail_files,
         detail_files_status: detail_files_status,
@@ -760,6 +760,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
        when selected_id != collection_id, do: selected_id
 
   defp implied_member_id(_selected_entry, _selected_id), do: nil
+
+  defp container_id(%{entity: %{id: id}}), do: id
+  defp container_id(_entry), do: nil
 
   # State the user built up against the entity that was open, which means
   # nothing against the next one: which episode disclosures they opened,
@@ -817,32 +820,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Resolves the member the movie-first collection modal shows (UIDR-023):
-  the URL-selected member, falling back through the resume target to the
-  first member. Returns `nil` for non-collection entries or an empty
-  collection, and `%{member, subject}` otherwise — `member` the
-  `MovieRow.Library`, `subject` its `:movie`-shaped entity map.
-
-  Derived at render time from the loaded entry, so progress merges and
-  projection refreshes can never leave a stale subject behind.
-  """
-  @spec member_view(CollectionDetail.t() | map() | nil, Ecto.UUID.t() | nil) :: map() | nil
-  def member_view(%CollectionDetail{} = entry, member_id) do
-    case CollectionDetail.select_member(entry, member_id) do
-      nil ->
-        nil
-
-      member ->
-        %{
-          member: member,
-          subject: CollectionDetail.member_subject(member)
-        }
-    end
-  end
-
-  def member_view(_entry, _member_id), do: nil
-
-  @doc """
   Reload the currently-selected entry from the database. Call from the
   host LiveView's PubSub handlers when the selected entity may have
   changed (e.g. on `:entities_changed` containing `selected_entity_id`).
@@ -856,11 +833,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         Phoenix.Component.assign(socket, :selected_entry, entry)
 
       :not_found ->
-        Phoenix.Component.assign(socket,
-          selected_entity_id: nil,
-          selected_entry: nil,
-          detail_presentation: nil
-        )
+        Phoenix.Component.assign(socket, selected_entity_id: nil, selected_entry: nil)
     end
   end
 
@@ -878,36 +851,23 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Renders the entity detail modal. Reads everything it needs from the
-  host LiveView's modal-related assigns plus a few shared assigns
-  (`@playback`, `@availability_map`, `@tmdb_ready`, `@spoiler_free`).
-
-  The resume target is read directly from the loaded entry — every place
-  that assigns `:selected_entry` is responsible for stamping it via
-  `put_resume_target/1`. This keeps the modal decoupled from how each
-  host LiveView tracks resume state for the rest of its UI.
+  Renders the title detail modal for this host's open entry: the unified
+  `DetailPanel` over the `Title.Detail` and `Title.ModalState` that
+  `detail/1` and `state/1` build from the loose assigns.
   """
   attr :selected_entry, :any,
     required: true,
     doc:
-      "the loaded library entry map (`%{entity, progress, progress_records, ...}`) or `nil` when no entity is open. Same shape as `LibraryCards.poster_card/1`'s `:entry`."
+      "the loaded library entry (`SeriesDetail`, `CollectionDetail` or `LeafDetail`) or `nil` when no entity is open."
 
-  attr :selected_entity_id, :any,
-    required: true,
-    doc: "the currently-selected entity id (`Ecto.UUID.t()`) or `nil`."
+  attr :selected_entity_id, :any, required: true, doc: "the currently-selected entity id or `nil`."
 
   attr :selected_member_id, :any,
     required: true,
-    doc:
-      "URL-selected collection member id (`Ecto.UUID.t()`) or `nil` — resolved through `member_view/2`; stale ids fall back to the default member."
-
-  attr :detail_presentation, :any,
-    required: true,
-    doc:
-      "presentation mode atom — `:modal`, `:inline`, or `nil`. Each host LiveView decides; `:any` keeps the door open for future modes."
+    doc: "URL-selected collection member id or `nil`; stale ids fall back to the default member."
 
   attr :detail_view, :atom, required: true
-  attr :detail_files, :list, required: true, doc: "list of file-info maps for the Files sub-view."
+  attr :detail_files, :list, required: true, doc: "list of file-info maps for the Manage view."
 
   attr :detail_files_status, :atom,
     values: [:loading, :loaded, :failed],
@@ -916,135 +876,53 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   attr :expanded_file_groups, :any,
     required: true,
-    doc:
-      "`MapSet.t()` of expanded Manage-ledger folder dirs, or `nil` for the automatic default. Owned here (`toggle_file_group`), reset on selection change."
+    doc: "`MapSet.t()` of expanded Manage folders, or nil for the automatic default."
 
-  attr :cast_filter, :string,
-    required: true,
-    doc: "current Cast-view filter query. Reset when the modal switches entities."
-
-  attr :cast_limit, :integer,
-    required: true,
-    doc:
-      "how many cast matches the Cast view renders. Bumped by `show_more_cast`, reset when the modal switches entities."
-
+  attr :cast_filter, :string, required: true
+  attr :cast_limit, :integer, required: true
   attr :expanded_seasons, MapSet, required: true
-
-  attr :expanded_item_details, MapSet,
-    required: true,
-    doc:
-      "leaf container ids of content rows whose synopsis disclosure is open — one key space for episodes and collection movies alike. Reset on selection change."
-
-  attr :all_episode_details_open, :boolean,
-    required: true,
-    doc:
-      "list-level episode-details toggle — opens every episode disclosure at once. Reset on selection change."
-
-  attr :rematch_confirm, :any,
-    required: true,
-    doc: "`true | false` — confirmation flag for the rematch destructive action."
+  attr :expanded_item_details, MapSet, required: true
+  attr :all_episode_details_open, :boolean, required: true
+  attr :rematch_confirm, :any, required: true, doc: "the entity id whose Rematch is armed, or nil."
 
   attr :delete_confirm, :any,
     required: true,
-    doc: "transient delete-confirmation state — see `DetailPanel`'s contract."
+    doc: "the armed delete target — `nil | :all | {:file, path} | {:folder, path}`, a sum type."
 
   attr :deleting, :any,
     required: true,
-    doc:
-      "in-flight async delete target — see `DetailPanel`'s `:deleting` contract. Required (no default) so a host can't silently drop it and lose the \"Deleting…\" feedback."
+    doc: "the in-flight delete target, the same sum type as `delete_confirm`."
 
-  attr :tracking, :any,
-    required: true,
-    doc:
-      "the open subject's `TrackingDetail` or nil — the release timeline and tracking-mode control under the list (UIDR-035). Required so a host cannot mount the modal without it."
-
-  attr :rung, :atom,
-    required: true,
-    doc:
-      "the open title's rung, nil for Off — the ladder control's state, from the modal's `:rung` assign. Required so a host cannot mount the modal without it."
-
-  attr :approval_policy, :string,
-    values: ["automatic", "review"],
-    required: true,
-    doc: "what a tracking plan is stamped with — whether an auto-grab asks first."
-
-  attr :acquisition?, :boolean,
-    required: true,
-    doc: "an indexer and a download client are ready; without them the grab rungs download nothing."
-
-  attr :lower_quality_accepted?, :boolean,
-    required: true,
-    doc:
-      "whether the open subject carries the per-title lower-quality acceptance (ADR-063 §2), from the modal's `:lower_quality_accepted?` assign. An Acquisition fact keyed by TMDB identity, so it outlives the title being tracked and cannot be read off `tracking`. Required so a host cannot mount the modal without it."
+  attr :tracking, :any, required: true, doc: "the open subject's `TrackingDetail` or nil."
+  attr :rung, :atom, required: true, doc: "the open subject's rung, nil for Off."
+  attr :planning_mode, :atom, required: true, doc: "the person's default planning mode."
+  attr :acquisition?, :boolean, required: true
+  attr :lower_quality_accepted?, :boolean, required: true
 
   attr :friend_activity, :list,
     required: true,
-    doc:
-      "the open subject's `Activities.friend_activity_for/1` rows, kept by the modal's `:friend_activity` assign — the hero pennants. Required so a host cannot mount the modal without them."
+    doc: "the subject's `Activities.friend_activity_for/1` rows — the pennants."
 
   attr :availability_map, :map,
     default: %{},
-    doc: "`%{entity_id => boolean}` from `MediaCentaurWeb.LibraryAvailability.availability_map/1`."
+    doc: "`%{entity_id => boolean}` from `LibraryAvailability.availability_map/1`."
 
   attr :tmdb_ready, :boolean, default: true
   attr :spoiler_free, :boolean, default: false
   attr :letterboxd_links, :boolean, default: true
-
-  attr :title_rungs, :any,
-    required: true,
-    doc:
-      "`%{{tmdb_id, media_type} => rung}` from the host's `IntentAware` trait — drives the view controls' list toggle. Required so a host cannot mount the modal without the trait."
-
-  attr :show_discovery, :boolean,
-    default: false,
-    doc:
-      "the session-wide `show_discovery` preference — gates the view controls' Review button (the friend network is a preview)."
+  attr :show_discovery, :boolean, default: false
+  attr :today, Date, required: true
 
   def entity_modal(assigns) do
     ~H"""
     <DetailPanel.detail_panel
-      open={@selected_entry != nil && @detail_presentation == :modal}
-      entity={(@selected_entry && @selected_entry.entity) || nil}
-      progress={@selected_entry && @selected_entry.progress}
-      resume={@selected_entry && Map.get(@selected_entry, :resume_target)}
-      progress_records={(@selected_entry && @selected_entry.progress_records) || []}
-      seasons_view={MediaCentaurWeb.Live.EntityModal.seasons_view_from_entry(@selected_entry)}
-      movies_view={MediaCentaurWeb.Live.EntityModal.movies_view_from_entry(@selected_entry)}
-      member_view={MediaCentaurWeb.Live.EntityModal.member_view(@selected_entry, @selected_member_id)}
-      expanded_seasons={@expanded_seasons}
-      expanded_item_details={@expanded_item_details}
-      all_episode_details_open={@all_episode_details_open}
-      rematch_confirm={@rematch_confirm == @selected_entity_id}
-      detail_view={@detail_view}
-      detail_files={@detail_files}
-      detail_files_status={@detail_files_status}
-      expanded_file_groups={@expanded_file_groups}
-      cast_filter={@cast_filter}
-      cast_limit={@cast_limit}
-      delete_confirm={@delete_confirm}
-      deleting={@deleting}
+      detail={MediaCentaurWeb.Live.EntityModal.detail(assigns)}
+      state={MediaCentaurWeb.Live.EntityModal.state(assigns)}
+      today={@today}
       spoiler_free={@spoiler_free}
       letterboxd_links={@letterboxd_links}
-      subject_rung={
-        MediaCentaurWeb.Live.EntityModal.subject_rung(
-          @selected_entry,
-          @selected_member_id,
-          @title_rungs
-        )
-      }
-      rung={@rung}
-      title_ref={MediaCentaurWeb.Live.EntityModal.title_ref(@selected_entry)}
-      approval_policy={@approval_policy}
-      acquisition?={@acquisition?}
-      lower_quality_accepted?={@lower_quality_accepted?}
-      review?={@show_discovery}
-      tracking={@tracking}
-      friend_activity={@friend_activity}
-      available={
-        @selected_entry == nil ||
-          Map.get(@availability_map, @selected_entry.entity.id, true)
-      }
       tmdb_ready={@tmdb_ready}
+      review?={@show_discovery}
       on_play="play"
       on_close="close_detail"
     />
@@ -1052,21 +930,61 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Extracts the typed `[%SeasonView{}]` list from a `selected_entry`.
-  Returns `nil` for non-TV entries (movie / movie_series / no entry),
-  triggering the extras-only fallback in the detail panel's content dispatch.
+  The unified view-model from this host's assigns: the library half
+  from the entry and the member the URL selected, its files from the
+  deferred load, the snapshot from the subject's own metadata
+  (`Title.Logic.snapshot_from_entity/1` — nil for the residue), and the
+  tracking facts this host already keeps by the subject's identity.
   """
-  @spec seasons_view_from_entry(SeriesDetail.t() | map() | nil) :: list() | nil
-  def seasons_view_from_entry(%SeriesDetail{seasons: seasons}), do: seasons
-  def seasons_view_from_entry(_), do: nil
+  @spec detail(map()) :: MediaCentaurWeb.Components.Title.Detail.t() | nil
+  def detail(%{selected_entry: nil}), do: nil
 
-  @doc """
-  Extracts the typed `[%MovieRow{}]` list from a `selected_entry`.
-  Returns `nil` for non-collection entries (TV / movie / no entry).
-  """
-  @spec movies_view_from_entry(CollectionDetail.t() | map() | nil) :: list() | nil
-  def movies_view_from_entry(%CollectionDetail{movies: movies}), do: movies
-  def movies_view_from_entry(_), do: nil
+  def detail(assigns) do
+    entry = assigns.selected_entry
+    available = Map.get(assigns.availability_map, entry.entity.id, true)
+
+    library =
+      entry
+      |> DetailLibrary.new(assigns.selected_member_id, available: available)
+      |> Map.put(:files, files_fact(assigns.detail_files, assigns.detail_files_status))
+
+    title = TitleLogic.snapshot_from_entity(library.subject)
+
+    TitleLogic.title_detail(title, %{
+      library: library,
+      rung: assigns.rung,
+      acquisition_state: nil,
+      release_mode_available: false,
+      tracking: assigns.tracking,
+      acquisition?: assigns.acquisition?,
+      lower_quality_accepted?: assigns.lower_quality_accepted?,
+      complete?: match?(%Title{media_type: :movie}, title),
+      planning_mode: assigns.planning_mode,
+      friend_activity: assigns.friend_activity
+    })
+  end
+
+  defp files_fact(_files, :loading), do: :loading
+  defp files_fact(_files, :failed), do: :failed
+  defp files_fact(files, :loaded), do: {:ok, files}
+
+  @doc "The per-opening state from this host's loose assigns."
+  @spec state(map()) :: ModalState.t()
+  def state(assigns) do
+    %ModalState{
+      view: assigns.detail_view,
+      expanded_seasons: assigns.expanded_seasons || MapSet.new(),
+      expanded_item_details: assigns.expanded_item_details || MapSet.new(),
+      all_episode_details_open: assigns.all_episode_details_open,
+      expanded_file_groups: assigns.expanded_file_groups,
+      cast_filter: assigns.cast_filter,
+      cast_limit: assigns.cast_limit,
+      delete_confirm: assigns.delete_confirm,
+      deleting: assigns.deleting,
+      rematch_confirm:
+        assigns.rematch_confirm != nil and assigns.rematch_confirm == assigns.selected_entity_id
+    }
+  end
 
   # ---------------------------------------------------------------------------
   # Internals shared with the macro (callable from injected handle_event)
@@ -1300,11 +1218,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def resolve_view(nil, requested_view), do: requested_view
 
   def resolve_view(%CollectionDetail{} = entry, requested_view) do
-    case member_view(entry, nil) do
+    case CollectionDetail.select_member(entry, nil) do
       nil ->
         Logic.resolve_view(entry.entity, requested_view)
 
-      %{subject: subject} ->
+      member ->
+        subject = CollectionDetail.member_subject(member)
         Logic.resolve_view(Map.put(subject, :extras, entry.extras || []), requested_view)
     end
   end
@@ -1382,142 +1301,65 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   def reset_track_override(socket), do: socket
 
+  @rungs ~w(off list follow grab)
+
   @doc """
-  Toggles the modal's subject between Off and List — the open entity, or
-  for a collection the selected member's `:movie`-shaped subject (the
-  same subject the view controls render, via `member_view/2`, so the
-  button and the action can never disagree).
-
-  Off at any listed rung — removing a title from the watchlist is one act
-  (UIDR-042), and what Off destroys is re-derivable: re-listing refetches
-  the calendar, and the per-title quality acceptance survives on its own.
-  The bookmark carries the choice it will set (`WatchlistToggle.choice/1`),
-  so this handler sets exactly what the control said rather than deciding
-  again.
-
-  No assign update: hosts carry `:title_rungs` via `IntentAware`,
-  refreshed by the Discovery broadcast. No-op when the subject carries no
-  TMDB id (the toggle isn't rendered then).
+  Moves the subject's rung — the bookmark (List / Off) and the tracking
+  switches (Follow / Grab) are one write (UIDR-042). The subject is the
+  open entity, or for a collection the selected member (UIDR-023), and
+  the click's `ref` must name it: a stale click after a switch is a
+  no-op. The write is `TitleDetailHost.Acquisition.apply_rung/4`, the
+  same one the title host performs; the tracking facts reload after it.
   """
-  @spec toggle_watchlist(Phoenix.LiveView.Socket.t(), String.t()) :: Phoenix.LiveView.Socket.t()
-  def toggle_watchlist(socket, choice) do
+  @spec set_rung(map(), Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def set_rung(%{"choice" => choice, "ref" => param}, socket) when choice in @rungs do
     subject = watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
 
-    case {watchlist_ref(subject), choice} do
-      {nil, _choice} ->
-        socket
-
-      {{tmdb_id, media_type}, "off"} ->
-        ReleaseTracking.set_rung(
-          Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: subject.name}),
-          :off
-        )
-
-        reload_tracking(socket)
-
-      {{tmdb_id, media_type}, "list"} ->
-        # No poster_path on purpose: library subjects don't carry a TMDB
-        # poster path — artwork arrives via Discovery's async TmdbArtwork.ensure.
-        ReleaseTracking.set_rung(
-          Title.new!(%{
-            tmdb_id: tmdb_id,
-            media_type: media_type,
-            name: subject.name,
-            year: watchlist_year(Map.get(subject, :date_published)),
-            release_date: Map.get(subject, :date_published),
-            overview: Map.get(subject, :description)
-          }),
-          :list
-        )
-
-        # The tracking block below reads the panel's own `rung`, which is a
-        # loaded projection, not `title_rungs` — so the bookmark's write
-        # re-reads it the way `handle_set_rung/2` does, and the controls
-        # appear under the freshly listed title (UIDR-039).
-        reload_tracking(socket)
+    with %Title{} = title <- subject && TitleLogic.snapshot_from_entity(subject),
+         true <- TitleRef.param(Title.ref(title)) == param do
+      socket
+      |> Acquisition.apply_rung(title, rung_atom(choice), %{})
+      |> reload_tracking()
+    else
+      _stale_or_unknown -> socket
     end
   end
 
+  def set_rung(_params, socket), do: socket
+
+  defp rung_atom("off"), do: :off
+  defp rung_atom("list"), do: :list
+  defp rung_atom("follow"), do: :follow
+  defp rung_atom("grab"), do: :grab
+
   @doc """
   Opens the Review modal on the panel's subject — the same subject
-  `toggle_watchlist/1` acts on, so the two controls can never disagree
-  about what the panel is showing. No-op when the subject carries no
-  TMDB id (the control isn't rendered then).
-
-  The title carries no poster path on purpose: library subjects have no
-  TMDB poster path, and the receiving install fetches its own artwork
-  from the TMDB identity. The modal itself paints the subject's library
-  poster, resolved here through `image_url/2` because this host owns the
+  `set_rung/2` acts on, so the two controls can never disagree about
+  what the panel is showing. No-op when the subject carries no TMDB
+  identity (the control isn't rendered then). The modal paints the
+  subject's library poster, resolved here because this host owns the
   entity and the modal only knows the TMDB identity.
   """
   @spec open_review(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def open_review(socket) do
     subject = watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
 
-    case watchlist_ref(subject) do
-      nil ->
-        socket
-
-      {tmdb_id, media_type} ->
-        ReviewFlow.open(
-          socket,
-          Title.new!(%{
-            tmdb_id: tmdb_id,
-            media_type: media_type,
-            name: subject.name,
-            year: watchlist_year(Map.get(subject, :date_published)),
-            release_date: Map.get(subject, :date_published),
-            overview: Map.get(subject, :description)
-          }),
-          LiveHelpers.image_url(subject, "poster")
-        )
+    case subject && TitleLogic.snapshot_from_entity(subject) do
+      %Title{} = title -> ReviewFlow.open(socket, title, LiveHelpers.image_url(subject, "poster"))
+      nil -> socket
     end
   end
 
-  @doc """
-  The rung the modal's list subject sits at, or nil for Off — the state
-  the view controls' bookmark renders. Resolves the subject exactly as
-  `toggle_watchlist/1` does.
-  """
-  @spec subject_rung(map() | nil, Ecto.UUID.t() | nil, map()) :: TitleIntent.rung() | nil
-  def subject_rung(selected_entry, selected_member_id, title_rungs) do
-    case watchlist_ref(watchlist_subject(selected_entry, selected_member_id)) do
-      nil -> nil
-      ref -> Map.get(title_rungs, ref)
-    end
-  end
+  # The subject's rung — what the bookmark and the switches show.
+  defp subject_rung({tmdb_id, media_type}), do: Discovery.rung(tmdb_id, media_type)
+  defp subject_rung(nil), do: nil
 
-  @doc """
-  The open title's `TitleRef` param, or nil when it carries no TMDB
-  identity — the ladder control's address for its clicks.
-  """
-  @spec title_ref(map() | nil) :: String.t() | nil
-  def title_ref(selected_entry) do
-    case find_tmdb_id(selected_entry) do
-      {_tmdb_id, _media_type} = ref -> MediaCentaurWeb.TitleRef.param(ref)
-      _no_identity -> nil
-    end
-  end
-
-  # The open title's own rung — what the ladder control shows. Distinct
-  # from `subject_rung/3`, which follows a collection down to the selected
-  # member; the ladder is about the entity the panel is showing.
-  defp entry_rung(selected_entry) do
-    case find_tmdb_id(selected_entry) do
-      {tmdb_id, media_type} -> Discovery.rung(tmdb_id, media_type)
-      _no_identity -> nil
-    end
-  end
-
-  # The open subject's reviews — the same subject the watchlist
-  # toggle and Review act on, so a collection shows the selected
-  # member's pennants. Empty when nothing is open or the subject has no
-  # TMDB identity.
+  # The open subject's reviews — the same subject the bookmark and Review
+  # act on, so a collection shows the selected member's pennants. Empty
+  # when nothing is open or the subject has no TMDB identity.
   defp assign_friend_activity(socket) do
     friend_activity =
-      case watchlist_ref(
-             watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
-           ) do
+      case subject_ref(socket.assigns.selected_entry, socket.assigns.selected_member_id) do
         nil -> []
         ref -> Map.get(Activities.friend_activity_for([ref]), ref, [])
       end
@@ -1525,37 +1367,27 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     Phoenix.Component.assign(socket, :friend_activity, friend_activity)
   end
 
-  # The entity the watchlist toggle acts on: the open entity, except in a
+  # The entity the bookmark acts on: the open entity, except in a
   # collection, where it is the selected member's subject (UIDR-023 —
   # downstream components never learn a collection is involved).
   defp watchlist_subject(nil, _member_id), do: nil
 
   defp watchlist_subject(%CollectionDetail{} = entry, member_id) do
-    case member_view(entry, member_id) do
-      %{subject: subject} -> subject
+    case CollectionDetail.select_member(entry, member_id) do
       nil -> nil
+      member -> CollectionDetail.member_subject(member)
     end
   end
 
   defp watchlist_subject(entry, _member_id), do: entry.entity
 
-  # `{tmdb_id, media_type}` for a watchlist-eligible subject, nil
-  # otherwise. `:movie` / `:tv_series` map 1:1 onto Discovery's media_type
-  # vocabulary. The subject's tmdb_id is a string on `DetailItem`
-  # entity maps and an integer on collection-member projections —
-  # normalized to the integer Discovery keys on.
-  defp watchlist_ref(%{type: type, tmdb_id: tmdb_id})
-       when type in [:movie, :tv_series] and not is_nil(tmdb_id) do
-    {normalize_tmdb_id(tmdb_id), type}
+  # `{tmdb_id, media_type}` for the subject, nil without a TMDB identity.
+  defp subject_ref(entry, member_id) do
+    case watchlist_subject(entry, member_id) do
+      nil -> nil
+      subject -> EntityView.title_ref(subject)
+    end
   end
-
-  defp watchlist_ref(_subject), do: nil
-
-  defp normalize_tmdb_id(tmdb_id) when is_integer(tmdb_id), do: tmdb_id
-  defp normalize_tmdb_id(tmdb_id) when is_binary(tmdb_id), do: String.to_integer(tmdb_id)
-
-  defp watchlist_year(%Date{year: year}), do: Integer.to_string(year)
-  defp watchlist_year(_date), do: nil
 
   # Replace the open entry's `:track_override` in place. Surgical so we
   # don't reload (and thereby downgrade) a composed `%SeriesDetail{}`
@@ -1645,57 +1477,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc false
-  def find_tmdb_id(%{entity: %{type: :tv_series} = entity}) do
-    case Enum.find(entity.external_ids, &(&1.source == "tmdb")) do
-      nil -> nil
-      ext_id -> {String.to_integer(ext_id.external_id), :tv_series}
-    end
-  end
-
-  def find_tmdb_id(%{entity: %{type: :movie_series} = entity}) do
-    case Enum.find(entity.external_ids, &(&1.source == "tmdb_collection")) do
-      nil -> nil
-      ext_id -> {String.to_integer(ext_id.external_id), :movie}
-    end
-  end
-
-  def find_tmdb_id(_), do: nil
-
-  @rungs ~w(off list follow grab)
-
-  @doc false
-  def handle_set_rung(%{"choice" => choice, "ref" => param}, socket) when choice in @rungs do
-    with {:ok, {tmdb_id, media_type} = ref} <- TitleRef.parse(param),
-         ^ref <- find_tmdb_id(socket.assigns.selected_entry) do
-      title =
-        Title.new!(%{
-          tmdb_id: tmdb_id,
-          media_type: media_type,
-          name: socket.assigns.selected_entry.entity.name
-        })
-
-      # One ladder, one write. The decision table this replaced existed
-      # only because listing and following were two records that had to be
-      # kept in agreement.
-      ReleaseTracking.set_rung_async(title, rung_atom(choice))
-
-      reload_tracking(socket)
-    else
-      _stale_or_unknown -> socket
-    end
-  end
-
-  def handle_set_rung(_params, socket), do: socket
-
-  defp rung_atom("off"), do: :off
-  defp rung_atom("list"), do: :list
-  defp rung_atom("follow"), do: :follow
-  defp rung_atom("grab"), do: :grab
-
-  @doc false
   def handle_reset_lower_quality(%{"ref" => param}, socket) do
     with {:ok, {tmdb_id, media_type} = ref} <- TitleRef.parse(param),
-         ^ref <- find_tmdb_id(socket.assigns.selected_entry) do
+         ^ref <- subject_ref(socket.assigns.selected_entry, socket.assigns.selected_member_id) do
       {:ok, _params} = TitleDownloadParams.put(tmdb_id, media_type, %{min_quality: nil})
       reload_tracking(socket)
     else
@@ -1705,21 +1489,17 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   def handle_reset_lower_quality(_params, socket), do: socket
 
-  # Whether the panel's subject carries the per-title lower-quality
-  # acceptance. An Acquisition fact keyed by TMDB identity, so it is read
-  # here rather than off the tracking record — the acceptance outlives the
-  # title being tracked (ADR-063 §2).
-  defp lower_quality_accepted?(selected_entry) do
-    case find_tmdb_id(selected_entry) do
-      {tmdb_id, media_type} ->
-        tmdb_id
-        |> TitleDownloadParams.get(media_type)
-        |> DownloadParams.lower_quality_accepted?()
-
-      _no_identity ->
-        false
-    end
+  # Whether the subject carries the per-title lower-quality acceptance.
+  # An Acquisition fact keyed by TMDB identity, so it is read here rather
+  # than off the tracking record — the acceptance outlives the title
+  # being tracked (ADR-063 §2).
+  defp lower_quality_accepted?({tmdb_id, media_type}) do
+    tmdb_id
+    |> TitleDownloadParams.get(media_type)
+    |> DownloadParams.lower_quality_accepted?()
   end
+
+  defp lower_quality_accepted?(nil), do: false
 
   @doc """
   Maps a `Pipeline.ImageRefresh.enqueue_refresh/2` result to a
@@ -1949,9 +1729,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # same hoist authority every read surface consults) and dispatched to
   # the matching composer: TV becomes a `%SeriesDetail{}`, a collection a
   # `%CollectionDetail{}` — typed content lists + cached `releases` — and
-  # leaf kinds (movie / video_object) stay the
-  # `%{entity, progress, progress_records, resume_target}` map from
-  # `ModalEntry.load_resolved/2` (leaves have no content list to type).
+  # leaf kinds (movie / video_object) a `%LeafDetail{}`.
   # All shapes carry the same fields the modal renderer reads, so the
   # template doesn't branch on entry type — but the renderer reads the
   # content lists *only* off the composed structs. When refresh loaded a
@@ -1966,55 +1744,36 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         CollectionDetail.compose(resolved_id)
 
       {kind, resolved_id} ->
-        case Library.ModalEntry.load_resolved(kind, resolved_id) do
-          {:ok, entry} -> {:ok, put_resume_target(entry)}
-          :not_found -> :not_found
-        end
+        LeafDetail.compose(kind, resolved_id)
 
       :not_found ->
         :not_found
     end
   end
 
-  @doc """
-  Stamps `:resume_target` on a loaded entry. Every host LiveView's path
-  to `:selected_entry` must run through this so the modal sees the
-  current hint without each host having to maintain its own
-  resume-target map (per ADR-038).
-  """
-  @spec put_resume_target(map()) :: map()
-  def put_resume_target(entry) do
-    Map.put(entry, :resume_target, ResumeTarget.compute(entry.entity, entry.progress_records))
+  # The tracked-title half for the subject (a bare movie in the library
+  # is complete and never tracked — see `ReleaseTracking.Reasons`).
+  defp load_tracking({_tmdb_id, _media_type} = ref) do
+    TrackingDetail.load(ref, %{
+      today: Date.utc_today(),
+      acquisition_ready?: Capabilities.acquisition_ready?(),
+      approval_policy: PlanningMode.approval_policy(PlanningMode.value())
+    })
   end
 
-  # The tracked-title half for the open container (a series or a
-  # collection; a bare movie in the library is complete and never
-  # tracked — see `ReleaseTracking.Reasons`).
-  defp load_tracking(entry) do
-    case find_tmdb_id(entry) do
-      {_tmdb_id, _media_type} = ref ->
-        TrackingDetail.load(ref, %{
-          today: Date.utc_today(),
-          acquisition_ready?: Capabilities.acquisition_ready?(),
-          approval_policy: PlanningMode.approval_policy(PlanningMode.value())
-        })
-
-      nil ->
-        nil
-    end
-  end
+  defp load_tracking(nil), do: nil
 
   defp reload_tracking(%{assigns: %{selected_entry: nil}} = socket), do: socket
 
-  # Both, always: `reset_lower_quality` moves only the acceptance, and an
-  # assign that never changes is one LiveView will not re-render.
+  # All three, always: `reset_lower_quality` moves only the acceptance,
+  # and an assign that never changes is one LiveView will not re-render.
   defp reload_tracking(socket) do
-    entry = socket.assigns.selected_entry
+    ref = subject_ref(socket.assigns.selected_entry, socket.assigns.selected_member_id)
 
     Phoenix.Component.assign(socket,
-      tracking: load_tracking(entry),
-      rung: entry_rung(entry),
-      lower_quality_accepted?: lower_quality_accepted?(entry)
+      tracking: load_tracking(ref),
+      rung: subject_rung(ref),
+      lower_quality_accepted?: lower_quality_accepted?(ref)
     )
   end
 end

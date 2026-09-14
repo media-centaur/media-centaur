@@ -1,98 +1,53 @@
 defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   @moduledoc """
-  The modal's view controls — a soft button and a Manage cog, sharing Play's
-  line.
+  The controls sharing the action row with the primary (UIDR-043): the
+  one view control, the Letterboxd link, the bookmark, Review and the
+  Manage cog — each present by what the detail's facts say.
 
-  ## One control, named for where it goes
+  ## The view control
 
-  Where the button leads is decided by `Logic.secondary_view/2`; this module
-  only turns that destination into a label and a glyph:
-
-  | destination | reads | glyph |
-  |---|---|---|
-  | `:main` | `Logic.body_label/1` — *Episodes*, *Movies*, *Extras*, *Overview* | list |
-  | `:cast` | *Cast* | people |
-  | `nil` | nothing — Play's line carries only the cog | — |
-
-  It is never labelled *Back*. "Episodes" says where you are going; "Back"
-  only says it is not here, and what it means depends on which view you
-  happen to be in. Every entity opens on its main view — for a bare movie
-  that is the hero page alone, so the control returning there from Cast or
-  Manage reads "Overview".
-
-  One control, in one slot. Until 2026-08-07 there were two, each
-  relabelling itself to "Back" when its own view was open, so the word moved
-  between the second and third slot depending on which sub-view was showing
-  and no position in the row meant one thing.
-
-  A tab strip was tried in between and reverted: it spans the panel and
-  lands a band of chrome on the exact seam the eye crosses going from Play
-  to the episode list, which is the worst place in the modal to put
-  anything.
+  One slot, named for its destination, never "Back". `Detail.Logic.secondary_view/2`
+  decides where it leads from the subject's type and extras: Cast on
+  the main view when the subject has a cast; back to the body from
+  anywhere else, labelled for that body (`body_label/1` — "Episodes",
+  "Movies", "Extras", "Overview"); nothing when the current view is the
+  only one. An unowned title has no views, so no control.
 
   ## Manage
 
-  A quiet icon button, last, carrying `aria-pressed` rather than a label
-  change — so the row's text never shifts. Files, external ids, rematch,
-  refresh artwork: work a title needs once, not a third thing to do with
-  it. Reachable from the couch because it is a `data-nav-item` of the
-  enclosing `detail_actions` zone (UIDR-019); the hero's icon cluster, the
-  other place it could live, is mouse-only.
+  The cog after everything else, only for an owned title (its files).
+  It keeps its label while Manage is open (`aria-pressed`); the way out
+  is the view control named for its destination.
 
-  ## Letterboxd
+  ## Letterboxd, bookmark, Review
 
-  A movie subject with a TMDB id gets a second quiet icon button before
-  the cog: the film's Letterboxd page, via the stable
-  `letterboxd.com/tmdb/<id>` redirect (no API or scraping) — where a
-  logged-in user logs a diary entry and reads community ratings. Movies
-  only (Letterboxd has no TV), gated by the `letterboxd_links` setting.
-  Deliberately NOT a `data-nav-item`: opening an external site from the
-  couch shell is a trap, so the couch walk skips it and the pointer gets
-  it.
-
-  ## Your list
-
-  A movie or TV subject with a TMDB id gets the bookmark
-  (`Title.WatchlistToggle`, the same control the title view wears beside
-  Download — UIDR-039) between the Letterboxd link and the cog. It fires
-  `modal_watchlist_toggle` with the `choice` the control decided (`list`
-  or `off`; none at Follow and above, where it is a marker), handled by
-  the injected `EntityModal` clause; the rendered state comes from the
-  host's `:title_rungs` (`IntentAware`), threaded down as `subject_rung`.
-  In-app action, so unlike Letterboxd it IS a `data-nav-item`.
-
-  ## Review
-
-  A pencil icon button after the bookmark opens the Review modal
-  on the panel's subject (`modal_review_open`, handled by the injected
-  `EntityModal` clause). Gated by `review?`, which the hosts wire to
-  the `show_discovery` preference: the friend network is a preview, and
-  this is the only control on the modal that belongs to it. A
-  `data-nav-item` like the bookmark.
+  A movie with a TMDB identity gets the Letterboxd link (gated by the
+  `letterboxd_links` setting). Any title with a TMDB identity gets the
+  bookmark (`Title.WatchlistToggle`, UIDR-039) firing `set_rung` with
+  the `choice` the control decided and the title's `ref`, and, when the
+  friend network is on (`review?`), the pencil that opens the Review
+  modal (`review_open`). The residue — an owned entity with no TMDB
+  identity — gets none of the three.
   """
 
   use MediaCentaurWeb, :html
 
   alias MediaCentaurWeb.Components.Detail.Logic
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.WatchlistToggle
+  alias MediaCentaurWeb.TitleRef
 
-  attr :entity, :map,
-    required: true,
-    doc:
-      "`MediaCentaur.Library.EntityView`. Read for `:type` and `:extras` (via `Detail.Logic`) to decide which control belongs here, and for `:tmdb_id` for the Letterboxd link."
+  attr :detail, TitleDetail, required: true
 
-  attr :detail_view, :atom,
+  attr :view, :atom,
     required: true,
-    doc: "the showing view — `:main`, `:cast` or `:info`."
+    values: [:main, :cast, :info],
+    doc: "the showing view."
 
   attr :letterboxd_links, :boolean,
     default: true,
-    doc: "the `letterboxd_links` setting — whether a movie subject gets the Letterboxd link."
-
-  attr :subject_rung, :atom,
-    default: nil,
     doc:
-      "the rung the subject sits at, nil for Off — the bookmark's state. Compute via `EntityModal.subject_rung/3` so it matches what `modal_watchlist_toggle` acts on."
+      "the `letterboxd_links` setting — whether a movie with a TMDB identity gets the Letterboxd link."
 
   attr :review?, :boolean,
     default: false,
@@ -100,7 +55,16 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       "whether the Review control is offered — the hosts pass `show_discovery`, the preference that gates the whole friend-network preview."
 
   def view_controls(assigns) do
-    assigns = assign(assigns, :destination, Logic.secondary_view(assigns.entity, assigns.detail_view))
+    detail = assigns.detail
+    entity = detail.library && Logic.controls_entity(detail.library)
+
+    assigns =
+      assigns
+      |> assign(:entity, entity)
+      |> assign(:destination, entity && Logic.secondary_view(entity, assigns.view))
+      |> assign(:ref, detail.ref && TitleRef.param(detail.ref))
+      |> assign(:letterboxd?, assigns.letterboxd_links and match?({_id, :movie}, detail.ref))
+      |> assign(:tmdb_id, detail.ref && elem(detail.ref, 0))
 
     ~H"""
     <.view_button
@@ -114,12 +78,12 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       Cast
     </.view_button>
     <.button
-      :if={@letterboxd_links && @entity.type == :movie && @entity.tmdb_id}
+      :if={@letterboxd?}
       variant="dismiss"
       size="sm"
       shape="circle"
       class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
-      href={Logic.letterboxd_url(@entity.tmdb_id)}
+      href={Logic.letterboxd_url(@tmdb_id)}
       target="_blank"
       rel="noopener"
       data-tip="Open on Letterboxd"
@@ -141,19 +105,20 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       </svg>
     </.button>
     <WatchlistToggle.watchlist_toggle
-      :if={@entity.tmdb_id && @entity.type in [:movie, :tv_series]}
+      :if={@ref}
       id="detail-watchlist-toggle"
-      rung={@subject_rung}
-      event="modal_watchlist_toggle"
+      rung={@detail.rung}
+      event="set_rung"
+      phx-value-ref={@ref}
     />
     <.button
-      :if={@review? && @entity.tmdb_id && @entity.type in [:movie, :tv_series]}
+      :if={@review? && @ref}
       id="detail-review"
       variant="dismiss"
       size="sm"
       shape="circle"
       class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
-      phx-click="modal_review_open"
+      phx-click="review_open"
       data-nav-item
       tabindex="0"
       data-tip="Review"
@@ -162,16 +127,17 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       <.icon name="hero-pencil-square" class="size-5" />
     </.button>
     <.button
+      :if={@entity}
       variant="dismiss"
       size="sm"
       shape="circle"
       class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
       phx-click="select_detail_view"
-      phx-value-view={if @detail_view == :info, do: "main", else: "info"}
+      phx-value-view={if @view == :info, do: "main", else: "info"}
       data-role="manage-toggle"
       data-nav-item
       tabindex="0"
-      aria-pressed={to_string(@detail_view == :info)}
+      aria-pressed={to_string(@view == :info)}
       aria-label="Manage"
       data-tip="Manage"
     >
@@ -180,7 +146,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
     """
   end
 
-  attr :view, :string, required: true, doc: "`detail_view` this button selects, as a URL value."
+  attr :view, :string, required: true, doc: "the view this button selects, as a URL value."
   attr :icon, :string, required: true
   slot :inner_block, required: true
 
@@ -200,8 +166,4 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
     </.button>
     """
   end
-
-  # The bookmark toggles the bottom of the ladder only. Above List a
-  # click would tear down a calendar and its wants as a side effect of a
-  # one-click affordance, so the label says where to go instead.
 end

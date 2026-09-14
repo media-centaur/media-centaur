@@ -1,11 +1,11 @@
 defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
   @moduledoc """
-  The detail modal's play control — the Play/Resume button and the view
-  controls sharing its line.
+  The detail modal's play control — the Play/Resume button, or the
+  Offline pill.
 
-  Play is the only primary button in the modal. The view controls that share
-  its line arrive through the `controls` slot (`Detail.ViewControls`), which
-  has its own story — so this component has exactly one job and no sub-view
+  One primary among the action row's four: the row, the view controls
+  beside it and the Download control an unowned title gets instead belong
+  to `DetailPanel` — so this component has exactly one job and no sub-view
   state to render.
 
   The card carries **no progress element** (UIDR-024): every subject's
