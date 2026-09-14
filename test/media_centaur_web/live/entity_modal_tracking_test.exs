@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     {:ok, view, html} = live(conn, "/library?selected=#{series.id}")
 
     assert has_element?(view, "#detail-tracking[data-nav-zone='detail_tracking']")
-    assert has_element?(view, "#detail-release-timeline-next", "S02E01")
+    assert has_element?(view, "#detail-release-dates", "S02E01")
     assert has_element?(view, "#detail-tracking-controls[data-rung='grab']")
     assert has_element?(view, "#detail-tracking-controls-track[aria-disabled='true']")
     # Listed at any rung: the bookmark is filled and a click removes the
@@ -83,7 +83,7 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     await_supervised_tasks()
     assert Discovery.rung(424_242, :tv_series) == :follow
     assert has_element?(view, "#detail-tracking-controls[data-rung='follow']")
-    assert has_element?(view, "#detail-release-timeline")
+    assert has_element?(view, "#detail-release-dates")
 
     view |> element("#detail-watchlist-toggle") |> render_click()
     await_supervised_tasks()
@@ -91,7 +91,7 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
     assert Discovery.rung(424_242, :tv_series) == nil
     refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
     assert has_element?(view, "#detail-tracking-controls[data-rung='off']")
-    refute has_element?(view, "#detail-release-timeline")
+    refute has_element?(view, "#detail-release-dates")
   end
 
   test "an owned series not on the list offers Add to watchlist; the rows follow, and raise it", %{

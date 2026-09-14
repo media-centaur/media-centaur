@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   `acquisition?`) and the `ref` param every control click carries. `nil` for a title that has never been tracked.
 
   Loaded by `load/2` for any host that mounts the shared tracking
-  components (`ReleaseTimeline`, `TrackingControls`): the title
+  components (`ReleaseDates`, `TrackingControls`): the title
   detail modal and the library detail panel (UIDR-035). The reads are
   local and cheap (ADR-051): the item, its releases, its recent events,
   and — only when acquisition is ready — which of those releases are

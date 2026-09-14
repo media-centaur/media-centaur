@@ -15,10 +15,11 @@ The seven-way strip (Ignore · Off · List · Follow · Ask · Grab · Default) 
 Chosen option: "three controls for three questions", because a person's intent about a title is on my list / keep its calendar / plan its releases, in that order, and who commits a plan is one preference.
 
 1. **The bookmark is membership.** It lists a title and removes it at any rung. Removal deletes the record and the calendar derived from it; re-listing derives it again.
-2. **Track release dates is Follow.** A Settings-kit toggle row, shown only while a release is ahead: an unreleased movie, or any series. Its description says what Coming up will show.
-3. **Auto-grab is Grab.** A toggle row shown for any title the library does not own outright. Its description says whether a drop downloads without asking or parks for approval, as the person's planning mode says, and where that is set.
-4. **The ladder is Ignored · List · Follow · Grab.** No per-title grab policy; `PlanningMode.approval_policy/1` stamps every plan. The global "When a release appears" setting is deleted.
-5. **Ignore belongs to the Feed.** It stays the Feed card's verb and leaves the title view.
+2. **Notify you via Coming up is Follow.** A compact switch, shown only while a release is ahead: an unreleased movie, or any series. Its line names the dates Coming up will carry.
+3. **Auto-grab is Grab.** A switch shown for any title the library does not own outright. Its line says whether a drop downloads or parks for approval, as the person's planning mode says.
+4. **The switches sit beside the release dates readout** in one card: what the app knows of the title's dates, from the live release window or the calendar, replacing the release timeline.
+5. **The ladder is Ignored · List · Follow · Grab.** No per-title grab policy; `PlanningMode.approval_policy/1` stamps every plan. The global "When a release appears" setting is deleted.
+6. **Ignore belongs to the Feed.** It stays the Feed card's verb and leaves the title view.
 
 ### Consequences
 

@@ -17,8 +17,6 @@ defmodule MediaCentaurWeb.Components.Settings do
   alias MediaCentaurWeb.Live.SettingsLive.PathCheck
   alias Phoenix.LiveView.JS
 
-  attr :id, :string, default: nil
-
   attr :label, :any,
     required: true,
     doc: "label content — accepts a string or a HEEx slot/AST. `:any` covers both."
@@ -28,25 +26,15 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :event, :string, required: true
   attr :event_value, :map, default: %{}, doc: "phx-value-* params map (string-keyed)."
 
-  attr :disabled?, :boolean,
-    default: false,
-    doc:
-      "no click and `aria-disabled`; the description says why. The row keeps its place so the nav graph never shifts."
-
   @doc "A boolean setting: label and description on the left, the toggle on the right, saved on click."
   def settings_row(assigns) do
     ~H"""
     <div
-      id={@id}
-      class={[
-        "flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg transition-colors duration-150",
-        if(@disabled?, do: "opacity-60", else: "cursor-pointer hover:bg-base-content/[0.04]")
-      ]}
+      class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg transition-colors duration-150 cursor-pointer hover:bg-base-content/[0.04]"
       data-nav-item
       tabindex="0"
-      aria-disabled={@disabled? && "true"}
-      phx-click={!@disabled? && @event}
-      {phx_values(if(@disabled?, do: %{}, else: @event_value))}
+      phx-click={@event}
+      {phx_values(@event_value)}
     >
       <div>
         <span class="font-medium">{@label}</span>

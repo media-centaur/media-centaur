@@ -67,11 +67,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
   def what_drops(%Event{kind: :movie, release_type: "theatrical"}), do: "In theaters"
   def what_drops(%Event{kind: :movie}), do: "Release"
 
-  @doc "Honest theatrical caveat — the app informs, it does not grab."
-  @spec theatrical_note?(Event.t()) :: boolean()
-  def theatrical_note?(%Event{status: :theatrical_info}), do: true
-  def theatrical_note?(%Event{}), do: false
-
   @doc ~S"""
   Relative-day copy for an air date, symmetric about today: "Today",
   "Tomorrow" / "Yesterday", "in N days" / "N days ago" out to a week either

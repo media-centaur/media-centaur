@@ -4,5 +4,5 @@ defmodule MediaCentaurWeb.Storybook.ReleaseTracking do
   def folder_open?, do: false
   def folder_icon, do: {:fa, "calendar", :light, "psb:mr-1"}
 
-  def entry("release_timeline"), do: [icon: {:fa, "timeline", :thin}, name: "Release timeline"]
+  def entry("release_dates"), do: [icon: {:fa, "calendar", :thin}, name: "Release dates"]
 end
