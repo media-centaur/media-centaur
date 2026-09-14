@@ -676,9 +676,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert item.tmdb_id == 5555
       assert item.last_library_season == 2
       assert item.last_library_episode == 5
-
-      events = ReleaseTracking.list_recent_events(5)
-      assert Enum.any?(events, &(&1.event_type == :began_tracking))
     end
 
     test "all upcoming excludes already-released episodes" do
@@ -773,9 +770,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       digital = Enum.find(releases, &(&1.release_type == "digital"))
       assert digital.air_date == ~D[2027-03-15]
-
-      events = ReleaseTracking.list_recent_events(5)
-      assert Enum.any?(events, &(&1.event_type == :began_tracking))
     end
 
     test "tracks a movie with no release date" do
@@ -851,46 +845,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       assert {:error, :already_tracked} = Onboarding.onboard(result, %{})
       assert ReleaseTracking.get_item_by_tmdb(6060, :movie).id == item.id
-    end
-  end
-
-  describe "create_event/1" do
-    test "creates a change event" do
-      item = create_tracking_item()
-
-      assert {:ok, event} =
-               ReleaseTracking.create_event(%{
-                 item_id: item.id,
-                 item_name: item.name,
-                 event_type: :began_tracking,
-                 description: "Now tracking #{item.name}"
-               })
-
-      assert event.event_type == :began_tracking
-    end
-  end
-
-  describe "list_recent_events/1" do
-    test "returns events in reverse chronological order" do
-      item = create_tracking_item()
-
-      ReleaseTracking.create_event!(%{
-        item_id: item.id,
-        item_name: item.name,
-        event_type: :began_tracking,
-        description: "First"
-      })
-
-      ReleaseTracking.create_event!(%{
-        item_id: item.id,
-        item_name: item.name,
-        event_type: :new_season_announced,
-        description: "Second"
-      })
-
-      events = ReleaseTracking.list_recent_events(10)
-      assert length(events) == 2
-      assert hd(events).description == "Second"
     end
   end
 
@@ -1092,40 +1046,6 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
     test ":movie translates to \"movie\"" do
       assert ReleaseTracking.tmdb_type_for(:movie) == "movie"
-    end
-  end
-
-  describe "prune_events/1" do
-    test "deletes events inserted before the cutoff" do
-      item = create_tracking_item()
-
-      ReleaseTracking.create_event!(%{
-        item_id: item.id,
-        item_name: item.name,
-        event_type: :began_tracking,
-        description: "Old enough to prune"
-      })
-
-      future_cutoff = DateTime.add(DateTime.utc_now(), 60, :second)
-
-      assert ReleaseTracking.prune_events(future_cutoff) == 1
-      assert ReleaseTracking.list_recent_events(10) == []
-    end
-
-    test "keeps events newer than the cutoff" do
-      item = create_tracking_item()
-
-      ReleaseTracking.create_event!(%{
-        item_id: item.id,
-        item_name: item.name,
-        event_type: :began_tracking,
-        description: "Fresh"
-      })
-
-      past_cutoff = DateTime.add(DateTime.utc_now(), -90 * 24 * 3600, :second)
-
-      assert ReleaseTracking.prune_events(past_cutoff) == 0
-      assert [_event] = ReleaseTracking.list_recent_events(10)
     end
   end
 

@@ -658,21 +658,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       class="space-y-6 border-t border-base-content/10 px-6 pb-6 pt-6"
       data-nav-zone="detail_tracking"
     >
-      <%!-- One card: the calendar's dates on the left, the switches on the
-            right (spec 2026-09-14, iteration 2). Complete is a film the
+      <%!-- One card: the switches on the left, the calendar's dates on the
+            right (spec 2026-09-14, iteration 3). Complete is a film the
             library owns (ReleaseTracking.complete?/2); a series is never
             complete and a collection is filing (UIDR-025) whose next
             part's date the library does not hold — so both switches are
             offered and the record says which are on. --%>
       <div class="glass-inset flex flex-wrap gap-x-8 gap-y-4 rounded-lg p-4">
-        <ReleaseDates.release_dates
-          :if={@tracking}
-          id="detail-release-dates"
-          media_type={if @entity_type == :tv_series, do: :tv_series, else: :movie}
-          timeline={@tracking.timeline}
-          today={@tracking.today}
-          class="min-w-[14rem] max-w-sm flex-1"
-        />
         <TrackingControls.tracking_controls
           :if={@ref}
           id="detail-tracking-controls"
@@ -684,6 +676,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           approval_policy={@approval_policy}
           acquisition?={@acquisition?}
           class="w-64 shrink-0"
+        />
+        <ReleaseDates.release_dates
+          :if={@tracking}
+          id="detail-release-dates"
+          media_type={if @entity_type == :tv_series, do: :tv_series, else: :movie}
+          timeline={@tracking.timeline}
+          today={@tracking.today}
+          class="min-w-[14rem] max-w-sm flex-1"
         />
       </div>
     </div>

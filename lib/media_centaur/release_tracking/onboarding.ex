@@ -13,10 +13,9 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   `MediaCentaur.Acquisition` context — two unrelated meanings for one
   word. Title search itself lives in `MediaCentaur.TMDB.TitleSearch`.
 
-  Persistence and event creation route back through the context
-  (`track_item`, `persist_release!`, `create_release!`,
-  `mark_in_library_releases`, `create_event!`, `update_item`,
-  `broadcast_releases_updated`), which own those concerns.
+  Persistence routes back through the context (`track_item`,
+  `persist_release!`, `create_release!`, `mark_in_library_releases`,
+  `update_item`, `broadcast_releases_updated`), which owns those concerns.
   """
 
   alias MediaCentaur.ReleaseTracking
@@ -70,7 +69,6 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
              }) do
           {:ok, item} ->
             persist_releases(item, releases)
-            create_began_tracking_event(item)
             schedule_image_downloads(item, title.tmdb_id, response)
 
             {:ok, item}
@@ -96,8 +94,6 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
           {:ok, item} ->
             releases = Extractor.extract_movie_release_dates(response)
             persist_movie_releases(item, releases)
-
-            create_began_tracking_event(item)
             schedule_image_downloads(item, title.tmdb_id, response)
 
             {:ok, item}
@@ -136,15 +132,6 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
     ReleaseTracking.replace_releases!(item, releases, &ReleaseTracking.persist_movie_release!/2)
 
     Wants.sync_item(item)
-  end
-
-  defp create_began_tracking_event(item) do
-    ReleaseTracking.create_event!(%{
-      item_id: item.id,
-      item_name: item.name,
-      event_type: :began_tracking,
-      description: "Now tracking #{item.name}"
-    })
   end
 
   defp schedule_image_downloads(item, tmdb_id, response),

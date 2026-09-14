@@ -3,6 +3,7 @@ import {
   COLD_DELAY_MS,
   WARM_WINDOW_MS,
   clickHides,
+  focusReveals,
   parseUiScale,
   shouldShow,
   showDelay,
@@ -31,6 +32,21 @@ describe("shouldShow", () => {
   test("no label → false anywhere", () => {
     expect(shouldShow({ inSidebar: true, sidebarState: "collapsed", label: undefined })).toBe(false)
     expect(shouldShow({ inSidebar: false, sidebarState: undefined, label: "" })).toBe(false)
+  })
+})
+
+// Focus reveals only under keyboard or gamepad steering — the focus-ring
+// rule. A pointer click that opens a modal lands programmatic focus on its
+// first action; a tooltip popping there is noise nobody asked for.
+describe("focusReveals", () => {
+  test("keyboard and gamepad → reveal", () => {
+    expect(focusReveals("keyboard")).toBe(true)
+    expect(focusReveals("gamepad")).toBe(true)
+  })
+
+  test("mouse, or no mode yet → no reveal", () => {
+    expect(focusReveals("mouse")).toBe(false)
+    expect(focusReveals(undefined)).toBe(false)
   })
 })
 

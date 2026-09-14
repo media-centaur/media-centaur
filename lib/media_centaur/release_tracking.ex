@@ -14,7 +14,6 @@ defmodule MediaCentaur.ReleaseTracking do
       Item,
       LibraryListener,
       Release,
-      Event,
       Want,
       Views,
       Views.ComingUp,
@@ -47,7 +46,6 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.Discovery.TitleIntent
 
   alias MediaCentaur.ReleaseTracking.{
-    Event,
     Helpers,
     Item,
     Onboarding,
@@ -250,20 +248,9 @@ defmodule MediaCentaur.ReleaseTracking do
             )
           )
 
-        Enum.each(items, &complete_tracking_for_item/1)
+        Enum.each(items, &delete_item/1)
         :ok
     end
-  end
-
-  defp complete_tracking_for_item(%Item{} = item) do
-    create_event!(%{
-      item_id: item.id,
-      item_name: item.name,
-      event_type: :stopped_tracking,
-      description: "#{item.name} is now in your library"
-    })
-
-    delete_item(item)
   end
 
   defp broadcast_item_removed(tmdb_id, tmdb_type) do
@@ -416,8 +403,8 @@ defmodule MediaCentaur.ReleaseTracking do
   Persists one episode/series release row for `item` from a release map,
   writing the full shape — including `release_type` and `part_tmdb_id`.
   Every TV-side persistence path (initial scan, refresh, auto-track) routes
-  through this so the Differ's keys stay stable across refreshes; dropping
-  either field churns the calendar. Movie collections use
+  through this so a release row keeps the same shape across refreshes;
+  dropping either field churns the calendar. Movie collections use
   `persist_movie_releases/2`. `released` is not stored — it derives from
   `air_date` on read (`Release.released?/2`).
   """
@@ -575,48 +562,6 @@ defmodule MediaCentaur.ReleaseTracking do
 
   @doc "See `MediaCentaur.ReleaseTracking.Wants.dismiss_units/2`."
   defdelegate dismiss_want_units(item_id, unit_keys), to: Wants, as: :dismiss_units
-
-  # --- Events ---
-
-  def create_event(attrs) do
-    Repo.insert(Event.create_changeset(attrs))
-  end
-
-  def create_event!(attrs) do
-    Repo.insert!(Event.create_changeset(attrs))
-  end
-
-  def list_recent_events(limit \\ 20) do
-    Repo.all(
-      from(e in Event,
-        order_by: [{:desc, e.inserted_at}, {:desc, fragment("rowid")}],
-        limit: ^limit
-      )
-    )
-  end
-
-  @doc "Recent events for a single tracked item — the per-title activity feed on the Upcoming detail panel."
-  def list_events_for_item(item_id, limit \\ 10) do
-    Repo.all(
-      from(e in Event,
-        where: e.item_id == ^item_id,
-        order_by: [{:desc, e.inserted_at}, {:desc, fragment("rowid")}],
-        limit: ^limit
-      )
-    )
-  end
-
-  @doc """
-  Deletes tracking events inserted before `cutoff`. Returns the number of
-  rows removed. Used by the retention sweep — events intentionally outlive
-  their item (`on_delete: :nilify_all`), so the time window is the only
-  thing bounding this log.
-  """
-  @spec prune_events(DateTime.t()) :: non_neg_integer()
-  def prune_events(%DateTime{} = cutoff) do
-    {count, _} = Repo.delete_all(from(e in Event, where: e.inserted_at < ^cutoff))
-    count
-  end
 
   # --- Bulk operations ---
 

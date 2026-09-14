@@ -44,6 +44,18 @@ export function shouldShow({ inSidebar, sidebarState, label }) {
 }
 
 /**
+ * Should focus reveal the tooltip? Only when the person is steering by
+ * keyboard or gamepad — the same rule as the focus ring. A pointer click
+ * that opens a modal lands programmatic focus on its first action, and a
+ * tooltip popping there would be noise the person did not ask for.
+ * @param {string|undefined} inputMode - value of <html data-input>
+ * @returns {boolean}
+ */
+export function focusReveals(inputMode) {
+  return inputMode === "keyboard" || inputMode === "gamepad"
+}
+
+/**
  * Delay before revealing: instant while warm, a beat when cold.
  * @param {{visible: boolean, hiddenAt: number|null, now: number}} state
  * @returns {number} milliseconds
@@ -141,10 +153,12 @@ export const Tooltip = {
       if (!anchor || anchor.contains(event.relatedTarget)) return
       this.hide()
     }
-    // Focus is deliberate (keyboard/gamepad nav) — reveal without delay.
+    // Focus under keyboard/gamepad steering is deliberate — reveal without
+    // delay. Focus a pointer click caused (a modal landing its cursor) is
+    // not, and reveals nothing.
     this.onFocusIn = (event) => {
       const anchor = event.target.closest?.("[data-tip]")
-      if (!anchor) return
+      if (!anchor || !focusReveals(document.documentElement.dataset.input)) return
       this.currentAnchor = anchor
       this.show(anchor, { immediate: true })
     }

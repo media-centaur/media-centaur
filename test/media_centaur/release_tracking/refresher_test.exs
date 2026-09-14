@@ -42,9 +42,6 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
 
       :ok = Refresher.refresh_item(item)
 
-      events = ReleaseTracking.list_recent_events(10)
-      assert Enum.any?(events, &(&1.event_type == :upcoming_release_date_changed))
-
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert hd(releases).air_date == ~D[2026-07-01]
     end
@@ -84,9 +81,6 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       ])
 
       :ok = Refresher.refresh_item(item)
-
-      events = ReleaseTracking.list_recent_events(10)
-      assert Enum.any?(events, &(&1.event_type == :upcoming_release_date_changed))
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert length(releases) == 1
@@ -236,12 +230,6 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       assert ReleaseTracking.get_item(item.id) == nil
       assert ReleaseTracking.get_item_by_tmdb(424_242, :movie) == nil
 
-      events = ReleaseTracking.list_recent_events(5)
-
-      assert Enum.any?(events, fn event ->
-               event.event_type == :stopped_tracking and event.item_name == "Solo Movie"
-             end)
-
       assert_received {:item_removed, "424242", "movie"}
     end
 
@@ -288,16 +276,11 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       })
 
       :ok = ReleaseTracking.complete_movie_tracking_for([movie.id])
-      events_after_first = ReleaseTracking.list_recent_events(10)
+      assert ReleaseTracking.get_item_by_tmdb(303_030, :movie) == nil
+      assert_received {:item_removed, "303030", "movie"}
 
       :ok = ReleaseTracking.complete_movie_tracking_for([movie.id])
-      events_after_second = ReleaseTracking.list_recent_events(10)
-
-      stopped_count = fn events ->
-        Enum.count(events, &(&1.event_type == :stopped_tracking))
-      end
-
-      assert stopped_count.(events_after_first) == stopped_count.(events_after_second)
+      refute_received {:item_removed, "303030", "movie"}
     end
 
     test "ignores library movies without a tmdb_id" do

@@ -873,19 +873,6 @@ defmodule MediaCentaur.TestFactory do
     struct(ReleaseTracking.Release, Map.merge(defaults, overrides))
   end
 
-  def build_tracking_event(overrides \\ %{}) do
-    defaults = %{
-      id: Ecto.UUID.generate(),
-      event_type: :began_tracking,
-      description: "Began tracking Test Series",
-      item_name: "Test Series",
-      metadata: %{},
-      item_id: nil
-    }
-
-    struct(ReleaseTracking.Event, Map.merge(defaults, overrides))
-  end
-
   @doc """
   Creates a tracked title *and* the title intent it is derived from,
   because a tracked title with no record behind it is a state the app
