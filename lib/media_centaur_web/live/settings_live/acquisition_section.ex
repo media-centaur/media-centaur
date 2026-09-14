@@ -239,7 +239,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
           :if={@prowlarr_ready}
           id="planning-mode"
           label="Default action on a title you don't own yet"
-          description="The other choice stays in the button's menu."
+          description="The other choice stays in the button's menu. Also decides whether auto-grab asks first."
           options={
             for mode <- PlanningMode.modes(),
                 do: {Atom.to_string(mode), Logic.planning_mode_label(mode)}
@@ -254,20 +254,11 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
         title="Auto-acquisition"
         description={
           @prowlarr_ready &&
-            "Applied when a tracked title's release appears. A title's own tracking controls take precedence."
+            "Applied to every release auto-grab takes."
         }
       >
         <.gate :if={!@prowlarr_ready} />
         <div :if={@prowlarr_ready} class="space-y-0.5">
-          <.settings_choice
-            id="auto-grab-default_mode"
-            label="When a release appears"
-            description="Ask first parks the plan on Incoming until you approve it."
-            options={[{"all_releases", "Grab it"}, {"ask", "Ask first"}, {"off", "Notify only"}]}
-            selected={@auto_grab.default_mode}
-            event="set_auto_grab"
-            event_value={%{"key" => "default_mode"}}
-          />
           <.settings_choice
             id="auto-grab-default_max_quality"
             label="Highest resolution"

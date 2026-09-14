@@ -9,8 +9,11 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
   `Acquisition.TitleDownloadParams`, resolved here by
   `effective_min_quality/1`.
 
+  There is no grab mode here. Whether a title auto-grabs is its rung
+  (`Discovery.TitleIntent.grabs?/1`); whether the plan commits alone is
+  the person's planning mode (`Settings.Preferences.PlanningMode`).
+
   Built-in fallback values:
-  - mode: `"all_releases"`
   - max quality: `"uhd_4k"`
   - max attempts: 12 (about a week at the snooze cap)
   - pack fit: 75 %
@@ -24,7 +27,6 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
   alias MediaCentaur.Settings
 
   @keys [
-    "auto_grab.default_mode",
     "auto_grab.default_max_quality",
     "auto_grab.max_attempts",
     "auto_grab.pack_min_fit",
@@ -36,7 +38,6 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
   @attempts_ladder Enum.to_list(1..50)
 
   @builtin_defaults %{
-    default_mode: "all_releases",
     default_max_quality: "uhd_4k",
     max_attempts: 12,
     # Grab a season/series pack only when you want at least this % of the
@@ -50,7 +51,6 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
   }
 
   @allowed %{
-    default_mode: ~w(all_releases ask off),
     default_max_quality: ~w(uhd_4k hd_1080p),
     size_preference: ~w(fidelity space),
     pack_min_fit: @pack_fit_ladder,
@@ -58,7 +58,6 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
   }
 
   @storage_key %{
-    default_mode: "auto_grab.default_mode",
     default_max_quality: "auto_grab.default_max_quality",
     size_preference: "auto_grab.size_preference",
     pack_min_fit: "auto_grab.pack_min_fit",
@@ -67,11 +66,9 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
 
   defstruct Map.to_list(@builtin_defaults)
 
-  @type mode :: String.t()
   @type quality :: String.t()
-  @type field :: :default_mode | :default_max_quality | :size_preference | :pack_min_fit | :max_attempts
+  @type field :: :default_max_quality | :size_preference | :pack_min_fit | :max_attempts
   @type t :: %__MODULE__{
-          default_mode: mode(),
           default_max_quality: quality(),
           max_attempts: pos_integer(),
           pack_min_fit: non_neg_integer(),
@@ -84,7 +81,6 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
     entries = Settings.get_by_keys(@keys)
 
     %__MODULE__{
-      default_mode: read(entries, "auto_grab.default_mode", @builtin_defaults.default_mode),
       default_max_quality:
         read(entries, "auto_grab.default_max_quality", @builtin_defaults.default_max_quality),
       max_attempts: read(entries, "auto_grab.max_attempts", @builtin_defaults.max_attempts),
