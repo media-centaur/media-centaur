@@ -2862,7 +2862,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp connection_name(:download_client), do: "Torrent client"
   defp connection_name(:usenet_download_client), do: "Usenet client"
 
-  @auto_grab_fields ~w(default_mode default_max_quality size_preference pack_min_fit max_attempts)
+  @auto_grab_fields ~w(default_max_quality size_preference pack_min_fit max_attempts)
 
   defp auto_grab_field(key) when key in @auto_grab_fields, do: String.to_existing_atom(key)
 

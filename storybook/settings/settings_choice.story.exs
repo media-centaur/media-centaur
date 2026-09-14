@@ -22,12 +22,12 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsChoice do
         id: :three,
         description: "Three options.",
         attributes: %{
-          label: "When a release appears",
-          description: "Ask first parks the plan on Incoming until you approve it.",
-          options: [{"all_releases", "Grab it"}, {"ask", "Ask first"}, {"off", "Notify only"}],
-          selected: "ask",
-          event: "set_auto_grab",
-          event_value: %{"key" => "default_mode"}
+          label: "Three-way example",
+          description: "A pill with three choices; the chosen one is lifted.",
+          options: [{"one", "One"}, {"two", "Two"}, {"three", "Three"}],
+          selected: "two",
+          event: "set_example",
+          event_value: %{"key" => "example"}
         }
       }
     ]

@@ -8,25 +8,20 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettingsTest do
     test "returns built-in defaults when no settings rows exist" do
       settings = AutoGrabSettings.load()
 
-      assert settings.default_mode == "all_releases"
       assert settings.default_max_quality == "uhd_4k"
       assert settings.max_attempts == 12
       assert settings.pack_min_fit == 75
       assert settings.size_preference == "fidelity"
     end
 
-    test "the struct carries no floor or patience field" do
+    test "the struct carries no grab mode, floor or patience field" do
+      refute Map.has_key?(%AutoGrabSettings{}, :default_mode)
       refute Map.has_key?(%AutoGrabSettings{}, :default_min_quality)
       refute Map.has_key?(%AutoGrabSettings{}, :patience_hours)
     end
   end
 
   describe "load/0 — values overridden by Settings entries" do
-    test "respects mode override" do
-      Settings.find_or_create_entry!(%{key: "auto_grab.default_mode", value: %{"value" => "off"}})
-      assert %{default_mode: "off"} = AutoGrabSettings.load()
-    end
-
     test "respects integer overrides" do
       Settings.find_or_create_entry!(%{key: "auto_grab.max_attempts", value: %{"value" => 6}})
       assert %{max_attempts: 6} = AutoGrabSettings.load()
@@ -72,7 +67,7 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettingsTest do
     end
 
     test "refuses a value outside the enum or off the ladder" do
-      assert {:error, :invalid} = AutoGrabSettings.put(:default_mode, "sometimes")
+      assert {:error, :invalid} = AutoGrabSettings.put(:default_mode, "all_releases")
       assert {:error, :invalid} = AutoGrabSettings.put(:pack_min_fit, 77)
       assert {:error, :invalid} = AutoGrabSettings.put(:max_attempts, 0)
       assert {:error, :invalid} = AutoGrabSettings.put(:size_preference, 3)
