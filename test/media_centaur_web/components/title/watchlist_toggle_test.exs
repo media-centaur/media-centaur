@@ -22,12 +22,9 @@ defmodule MediaCentaurWeb.Components.Title.WatchlistToggleTest do
     end
   end
 
-  describe "label/1 — the accessible name says what the click does" do
-    test "names the act" do
-      assert WatchlistToggle.label(nil) == "Add to watchlist"
-      assert WatchlistToggle.label(:ignored) == "Add to watchlist"
-      assert WatchlistToggle.label(:list) == "On your list — remove"
-      assert WatchlistToggle.label(:grab) == "On your list — remove"
+  describe "label/0 — the accessible name and the tooltip" do
+    test "is one name whatever the state; aria-pressed carries the state" do
+      assert WatchlistToggle.label() == "Toggle on watchlist"
     end
   end
 end

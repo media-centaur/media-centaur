@@ -242,21 +242,6 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
               />
             </div>
           </div>
-
-          <section :if={followed?(@tracking) and @tracking.activity != []} class="space-y-2">
-            <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
-              Recent activity
-            </h3>
-            <ul class="space-y-1.5">
-              <li
-                :for={entry <- @tracking.activity}
-                class="flex items-baseline justify-between gap-3 text-sm"
-              >
-                <span class="text-base-content/70">{entry.text}</span>
-                <span class="shrink-0 text-xs tabular-nums text-base-content/55">{entry.at}</span>
-              </li>
-            </ul>
-          </section>
         </div>
       </:body>
     </CinematicShell.cinematic_shell>

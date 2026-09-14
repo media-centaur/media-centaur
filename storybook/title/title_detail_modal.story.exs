@@ -105,10 +105,6 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
           episode("s02e05", 2, 5, @today, :upcoming),
           episode("s02e06", 2, 6, ~D[2026-08-11], :upcoming),
           episode("s02e04", 2, 4, ~D[2026-07-27], :in_library)
-        ],
-        activity: [
-          %{text: "Grabbed S02E04", at: "6 days ago"},
-          %{text: "Started tracking", at: "4 months ago"}
         ]
       },
       overrides

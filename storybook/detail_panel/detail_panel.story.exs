@@ -917,8 +917,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             air_date: ~D[2026-08-10],
             status: :armed
           }
-        ],
-        activity: [%{text: "1 new episode announced", at: "2 days ago"}]
+        ]
       },
       overrides
     )

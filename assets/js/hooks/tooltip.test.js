@@ -85,14 +85,14 @@ describe("tooltipPosition", () => {
     expect(tooltipPosition(rect, 1, "right")).toEqual({ x: 66, y: 118 })
   })
 
-  test("bottom (the default): x centers on the anchor, y clears its bottom edge by the gap", () => {
-    expect(tooltipPosition(rect, 1)).toEqual({ x: 34, y: 150 })
-    expect(tooltipPosition(rect, 1, "bottom")).toEqual({ x: 34, y: 150 })
+  test("bottom (the default): x centers on the anchor, y clears its bottom edge by a tighter gap", () => {
+    expect(tooltipPosition(rect, 1)).toEqual({ x: 34, y: 144 })
+    expect(tooltipPosition(rect, 1, "bottom")).toEqual({ x: 34, y: 144 })
   })
 
   test("rect coordinates are divided by the UI scale; the gap is local", () => {
     expect(tooltipPosition(rect, 2, "right")).toEqual({ x: 40, y: 59 })
-    expect(tooltipPosition(rect, 2, "bottom")).toEqual({ x: 17, y: 82 })
+    expect(tooltipPosition(rect, 2, "bottom")).toEqual({ x: 17, y: 76 })
   })
 })
 
