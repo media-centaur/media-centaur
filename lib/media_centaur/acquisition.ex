@@ -12,6 +12,7 @@ defmodule MediaCentaur.Acquisition do
       MediaCentaur.Review,
       MediaCentaur.Search,
       MediaCentaur.Settings,
+      MediaCentaur.Settings.Preferences,
       MediaCentaur.TMDB,
       MediaCentaur.TmdbArtwork
     ],

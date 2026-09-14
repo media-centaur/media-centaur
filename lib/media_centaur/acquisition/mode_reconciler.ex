@@ -1,14 +1,13 @@
 defmodule MediaCentaur.Acquisition.ModeReconciler do
   @moduledoc """
   Mode-off mid-flight cleanup (ADR-056 Q11), run on the sweep tick
-  before the drop planner: when an item's *effective* auto-grab mode is
-  `off` — flipped per-item or inherited from a global default change —
-  its automated in-flight artifacts are withdrawn.
+  before the drop planner: when a title no longer grabs
+  (`Discovery.grabs?/2` is false — its rung dropped below Grab) its
+  automated in-flight artifacts are withdrawn.
 
   Tick-driven rather than flip-driven for the same reason the planner
-  is (Q2, state-not-delta): one enforcement point sees per-item flips,
-  global-default flips, and restarts identically, and self-heals if a
-  pass is missed. Latency is bounded by the sweep cadence — the same
+  is (Q2, state-not-delta): one enforcement point sees rung drops and
+  restarts identically, and self-heals if a pass is missed. Latency is bounded by the sweep cadence — the same
   laziness the legacy per-event policy had.
 
   What a pass withdraws, per legacy-policy parity:
@@ -36,7 +35,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Discovery
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, CancelReasons, Plans, Target, TargetStatus}
+  alias MediaCentaur.Acquisition.{CancelReasons, Plans, Target, TargetStatus}
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.Acquisition.Pursuits.Commands.Cancel
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State}
@@ -46,23 +45,21 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
   @doc "One reconciliation pass. Cheap when nothing is off — two small queries."
   @spec run_pass() :: :ok
   def run_pass do
-    settings = AutoGrabSettings.load()
-
     _mode_cache =
       %{}
-      |> then(&discard_parked_drafts(settings, &1))
-      |> then(&cancel_seeking_pursuits(settings, &1))
+      |> discard_parked_drafts()
+      |> cancel_seeking_pursuits()
 
     :ok
   end
 
-  defp discard_parked_drafts(settings, off_items) do
+  defp discard_parked_drafts(off_items) do
     Plan
     |> where([p], p.origin == "tracking" and p.status == "ready")
     |> where([p], not is_nil(p.tracking_item_id))
     |> Repo.all()
     |> Enum.reduce(off_items, fn plan, cache ->
-      {off?, cache} = off?(plan.tracking_item_id, settings, cache)
+      {off?, cache} = off?(plan.tracking_item_id, cache)
 
       if off? do
         case Plans.discard(plan) do
@@ -78,7 +75,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
     end)
   end
 
-  defp cancel_seeking_pursuits(settings, off_items) do
+  defp cancel_seeking_pursuits(off_items) do
     Plan
     |> where([p], p.origin == "tracking")
     |> where([p], not is_nil(p.tracking_item_id) and not is_nil(p.pursuit_id))
@@ -87,7 +84,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
     |> select([p, pursuit], {p.tracking_item_id, pursuit})
     |> Repo.all()
     |> Enum.reduce(off_items, fn {item_id, pursuit}, cache ->
-      {off?, cache} = off?(item_id, settings, cache)
+      {off?, cache} = off?(item_id, cache)
 
       if off? and still_seeking?(pursuit) do
         case Cancel.execute(%{
@@ -119,7 +116,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
          |> Repo.exists?())
   end
 
-  defp off?(item_id, settings, cache) do
+  defp off?(item_id, cache) do
     case cache do
       %{^item_id => off?} ->
         {off?, cache}
@@ -128,7 +125,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
         off? =
           case ReleaseTracking.get_item(item_id) do
             nil -> false
-            item -> Discovery.grab_mode(item.tmdb_id, item.media_type, settings.default_mode) == "off"
+            item -> not Discovery.grabs?(item.tmdb_id, item.media_type)
           end
 
         {off?, Map.put(cache, item_id, off?)}

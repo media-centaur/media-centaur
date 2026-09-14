@@ -35,6 +35,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Identity, Item}
+  alias MediaCentaur.Settings.Preferences.PlanningMode
 
   @doc """
   One pass over every watching item's open wants. Inert without a
@@ -172,8 +173,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
-         mode when mode != "off" <-
-           Discovery.grab_mode(item.tmdb_id, item.media_type, settings.default_mode) do
+         true <- Discovery.grabs?(item.tmdb_id, item.media_type) do
       due = Enum.filter(wants, &WantSchedule.due?(&1, now))
 
       case item.media_type do
@@ -225,7 +225,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
              %{
                identity: Identity.for_item(item),
                tracking_item_id: item.id,
-               approval_policy: approval_policy(item, settings),
+               approval_policy: approval_policy(),
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
              },
              unit_specs
@@ -268,7 +268,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
              %{
                identity: Identity.for_want(item, want),
                tracking_item_id: item.id,
-               approval_policy: approval_policy(item, settings),
+               approval_policy: approval_policy(),
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
              },
              [unit_spec]
@@ -318,15 +318,11 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
     end)
   end
 
-  # The item's mode at creation decides the policy (spec 2026-09-05 §2):
-  # ask parks for a person, every other grabbing mode lets the gate
-  # commit. `off` items never reach here (`plan_item/4` guards it).
-  defp approval_policy(%Item{} = item, settings) do
-    case Discovery.grab_mode(item.tmdb_id, item.media_type, settings.default_mode) do
-      "ask" -> "review"
-      _grabbing_mode -> "automatic"
-    end
-  end
+  # Who commits the plan is the person's planning mode — the same answer
+  # the Download button gives (spec 2026-09-14): manual select parks it
+  # for review, auto-select lets the gate commit. Titles that do not grab
+  # never reach here (`plan_item/4` guards it).
+  defp approval_policy, do: PlanningMode.approval_policy(PlanningMode.value())
 
   defp bounds(item, settings) do
     params = download_params(item)
