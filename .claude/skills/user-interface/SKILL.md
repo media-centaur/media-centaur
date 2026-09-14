@@ -403,7 +403,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 032 | Page hero backdrops paint from a decoded-bitmap cache (canvas + `HeroBackdrop` hook; amends 012) |
 | 033 | Home is the only page that carries artwork; every other page gets the scrim alone |
 | 034 | An empty surface states the diagnosed reason it is empty, via one `empty_state/1` |
-| 035 | Two title surfaces, split by whether the title has files |
+| 035 | Two title surfaces, split by whether the title has files (rules 1–2 superseded by 043) |
 | 036 | One control per title, because there is one ladder |
 | 037 | Friend provenance is the pennant, on every title surface |
 | 038 | The Feed is friends' actions, one entry each |
@@ -411,6 +411,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 040 | A review is an opinion of any valence: the sentiment shows when given, nothing when none |
 | 041 | Settings cards are readouts with actions, from one kit; save on the act; gated cards state their prerequisite |
 | 042 | Tracking is the bookmark and two switches (Track release dates, Auto-grab) over one record |
+| 043 | One title detail, composed by facts — one modal for one TMDB identity on every page; files are one more fact (supersedes 035 rules 1–2) |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
@@ -438,7 +439,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `continue_watching_row/1` | `continue_watching_row.ex` | Home's Continue Watching backdrop cards |
 | `hero_card/1` | `hero_card.ex` | Home hero (Play + More info) |
 | `poster_row/1` | `poster_row.ex` | Horizontal poster shelf |
-| `detail_panel/1` | `detail_panel.ex` | Library detail modal (CinematicShell tenant); `detail/` holds its sub-views (Manage panel, seasons) |
+| `detail_panel/1` | `detail_panel.ex` | The title detail modal (CinematicShell tenant) for an owned or an unowned title, over `Title.Detail` + `Title.ModalState`; `detail/` holds its sub-views (Manage panel, seasons) | ✅ |
 | `cinematic_shell/1` | `cinematic_shell.ex` | Cinematic modal frame (pinned-block scroll system, UIDR-021) |
 | `modal/1` | `modal.ex` | House modal frame with the UIDR-013 dismissal seam |
 | `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027) |
@@ -471,7 +472,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 | **Guide** | `/guide`, `/guide/:slug` | In-app guide book |
 | **Console** | `/console` | Full-page log viewer (also `` ` `` drawer on every page) |
 
-`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the library tenant of CinematicShell; `EntityModal` is the shared host behaviour Home, Library and Incoming `use` for it.
+`lib/media_centaur_web/router.ex` is the authority. Every top-level page has a smoke test in `page_smoke_test.exs`. DetailPanel is the title detail modal, the tenant of CinematicShell rendering one `Title.Detail` for an owned or an unowned title; `Live.TitleDetailHost` is the host behaviour Home, Library, Discovery and Incoming `use` for it (UIDR-043).
 
 ## Anti-Patterns
 

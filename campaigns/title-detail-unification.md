@@ -74,9 +74,10 @@ and the library modal's refinement is the floor, not a casualty.
 
 ## Status
 
-Phases 0 to 4 landed on the branch 2026-09-14 (one session, after the
-spec's approval), each `mix precommit` clean. Phase 5 (records) is next;
-then the merge and the ship.
+Phases 0 to 5 landed on the branch 2026-09-14 (one session, after the
+spec's approval), each `mix precommit` clean. What remains is the owner's
+judgment of the bar checks, then the merge to `main` and `/ship minor`
+(with the wiki push — committed locally, unpushed).
 
 * **Phase 0** (`dce0cf6b`): Discovery's transient params comma-separated;
   MC0011 refreshed (dead key gone, `TitleDetailHost` and `IntentAware`
@@ -140,6 +141,18 @@ then the merge and the ship.
   per-opening state, an owned series' switches follow its calendar while
   an owned film is complete; `LibraryHalf.address/1`, `apply_files/3`,
   `LibraryEvents.apply_delete_result/3` drops a moved-on subject.
+* **Phase 5**: UIDR-043 accepted (with implementation notes); UIDR-019
+  amended (one overlay, `detail_menu`, the nested dismissal reads the
+  attribute); UIDR-023 amended (the member is the subject, `?movie=`
+  retired, a rail pick keeps the view); UIDR-035 marked superseded in
+  part; `decisions/README.md` regenerated. Glossary: *title detail
+  modal* rewritten for both halves, new rows *library half*, *residue*,
+  *modal state*, *subscribe door*. `docs/input-system.md` (one overlay,
+  `data-detail-mode` one value, the attribute examples),
+  `docs/architecture.md` (the door), the `user-interface` and
+  `input-system` skills, the wiki (Watchlist, Social, Searching and
+  Downloading, Keyboard and Gamepad — committed, unpushed), and the
+  CHANGELOG's Unreleased entry.
 * **Bar check 3** captured, not yet judged: `after-phase4/` — the same
   six shots as `before/`, on the new addresses.
 * **Bar check 2** captured, not yet judged: `after-phase3/` — the owned
@@ -327,21 +340,22 @@ spec's § Decisions carries each with the owner's words.
 
 ## Next steps
 
-1. **Owner:** judge the bar checks (`mockups/title-detail-unification-bar/before` vs `after-phase2`, `after-phase3`, `after-phase4`, and the `storybook-*` unowned shots).
-2. **Phase 5** — UIDR-043 accepted, UIDR-019 and UIDR-023 amended,
-   glossary, `docs/input-system.md`, `docs/architecture.md`, wiki,
-   CHANGELOG; campaign closed; merge to `main`; `/ship minor`.
+1. **Owner:** judge the bar checks (`mockups/title-detail-unification-bar/before` vs `after-phase2`, `after-phase3`, `after-phase4`, and the `storybook-*` unowned shots), and the decision-2 question the spec left to this look: no facet strip and no preview for an owned title.
+2. On a pass: merge `title-detail-unification` into `main` (fast-forward),
+   remove this file (its deferred items are bucketed below), push the
+   wiki, `/ship minor` (the Unreleased entry moves to the release).
+3. On a fail: fix in place on the branch — the presentation is one
+   module, `DetailPanel`, and every owned section renders from the
+   library half exactly as the bar's shots do.
 
-## Deferred (bucket at closure)
+## Deferred (bucketed at closure)
 
-* Collection identity — a `:collection` media type across `TitleRef`, `TitleIntent`, `ReleaseTracking.Item`, or deletion of the upcoming-parts rail path (`MovieRow.Upcoming`, `list_relevant_releases_for_library_container(_, :movie)`). Separate design.
-* Cast view for an unowned title, fed by the preview's ten people.
-* Hint-bar legend for overlay regions (`app.css:2472–2521` names none of them).
-* One-patch cursor leak when the region holding the cursor empties (`orchestrator.js:195–217, 380–382`); not runtime-verified.
-* The Offline placeholder in the play card is not focusable (`play_card.ex:53–63`).
-* `?view=info` names the Manage view; rename to `manage` once the address migration lands.
-* `TrackingDetail.today` duplicates the host's `today`; pass it once.
-* A better name than `set_rung` for the one intent event (owner).
+Each item's destination, per the closure-by-destination rule:
+
+* **Defer to a design** — Collection identity: a `:collection` media type across `TitleRef`, `TitleIntent`, `ReleaseTracking.Item`, or deletion of the upcoming-parts rail path (`MovieRow.Upcoming`, `list_relevant_releases_for_library_container(_, :movie)`). Recorded in UIDR-043's consequences.
+* **Defer to a follow-up** — Cast view for an unowned title, fed by the preview's ten people (UIDR-043 consequence).
+* **Defer to the input-system backlog** — Hint-bar legend for overlay regions (`app.css` names none of them); the one-patch cursor leak when the region holding the cursor empties (`orchestrator.js`, not runtime-verified); the Offline placeholder in the play card is not focusable.
+* **Ship-adjacent, one line each, when next touched** — `?view=info` names the Manage view (rename to `manage`: `TitleDetailHost.parse_view/1` and the tests); `TrackingDetail.today` duplicates the host's `today`; a better name than `set_rung` (owner's call).
 * **TMDB caching policy** (owner, 2026-09-14, later follow-up, not this
   campaign): cached TMDB data is refreshed only when the app is seeking
   *new* information — whether release dates have been announced, a

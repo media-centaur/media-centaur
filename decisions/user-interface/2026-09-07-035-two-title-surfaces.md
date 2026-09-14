@@ -7,6 +7,8 @@ amended: 2026-09-14
 
 Supersedes UIDR-017 (retired). UIDR-036 superseded its `Remove from watchlist` clause.
 
+> **Amendment 2026-09-14 (later) — superseded in part by UIDR-043.** Rules 1 and 2 (two surfaces split by whether the title has files) and the page-membership clause of the amendment below no longer hold: one title detail modal, composed by facts, opens on every page for every TMDB identity; files are one fact among the others. Rules 3–6 stand.
+
 > **Amendment 2026-09-14 — the title detail's subject is a TMDB identity,
 > not a page membership.** As shipped, the title detail modal on Discovery
 > and Incoming was held open only while the hosting page still listed the

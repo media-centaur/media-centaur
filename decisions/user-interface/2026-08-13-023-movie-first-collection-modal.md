@@ -1,6 +1,7 @@
 ---
 status: accepted
 date: 2026-08-13
+amended: 2026-09-14
 ---
 # Movie-first collection modal with a poster-rail picker
 
@@ -16,6 +17,7 @@ Collection members are full movies in the data model, but the collection modal r
 4. **The modal opens on the resume target**, so open → Play stays two clicks; the selection rides the URL and a fresh open returns to the resume target.
 5. **Dismissal is unchanged** (UIDR-013): one surface, no back level. Manage stays collection-scoped; the watched toggle acts on the selected movie.
 6. **Collection-level extras render as the standard `ExtrasSection`** in the body, the idiom a bare movie with bonus content uses.
+7. **The member is the subject** (amended 2026-09-14, UIDR-043): a collection is addressed through its selected member — `?title=movie-<member tmdb id>` — and `?movie=` retires. A rail tile is an entity emitter like any card (`select_entity`), and because another member of the open collection is the same document, a pick keeps the modal's state and sub-view. A collection has no tracking block of its own; the bookmark and the switches act on the member.
 
 ### Consequences
 

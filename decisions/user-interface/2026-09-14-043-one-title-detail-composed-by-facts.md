@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-14
 ---
 # One title detail, composed by facts
@@ -30,3 +30,7 @@ Chosen option: "one modal for one TMDB identity on every page, its sections pres
 * Bad, because roughly 180 tests and 51 story variations change address or fixture in one campaign; the branch does not merge until the bar holds.
 * Bad, because a collection can no longer be tracked as a whole until it has an identity of its own; that design is scheduled, not silent.
 * Bad, because an unowned title has no cast view until a follow-up feeds one from the preview.
+
+### Implementation notes (2026-09-14)
+
+Landed on the branch `title-detail-unification` in five phases the same day. Three points the design left open were settled in code: the residue's view-model is a `Title.Detail` with `ref` and `title` nil and the library half as its one fact; a switch to another member of the open collection is the same document, so the modal's state and sub-view stay (a rail pick keeps Cast); an address the library cannot open — an entity without a present file, a title nothing holds and TMDB cannot fetch — is abandoned with a flash on both forms, and a titled `?entity=` deep link opens the title in place on the dead render and canonicalises on the join. The subscribe door is `MediaCentaurWeb.Live.Subscriptions`, enforced by Credo MC0011 (`LiveSubscriptions`). The bar was judged from `mockups/title-detail-unification-bar/` captures at 1920×1080.
