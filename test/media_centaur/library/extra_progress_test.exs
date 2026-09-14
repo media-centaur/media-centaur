@@ -137,5 +137,25 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
       assert incomplete.completed == false
     end
+
+    # Extras share the transition with WatchProgress through
+    # `ProgressTracker`, so the position reset applies here too.
+    test "clears the position so the record reads unwatched" do
+      movie = create_entity(%{type: :movie, name: "Unwatch Extra Position"})
+      extra = create_extra(%{movie_id: movie.id, name: "BTS"})
+
+      progress =
+        create_extra_progress(%{
+          extra_id: extra.id,
+          position_seconds: 300.0,
+          duration_seconds: 300.0
+        })
+
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
+
+      assert incomplete.position_seconds == 0.0
+      assert incomplete.duration_seconds == 300.0
+    end
   end
 end
