@@ -33,6 +33,7 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
 
   use Ecto.Schema
 
+  alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TMDB.TitleIdentity
 
   import Ecto.Changeset
@@ -105,6 +106,24 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
       origin_country: plan.origin_country || []
     })
   end
+
+  @doc """
+  The plan's title as the app-wide `TMDB.Title` value — identity from the
+  row, name and year as its render snapshot. What the board's bookmark
+  lists (spec 2026-09-14); artwork for a listed title is fetched by id.
+  """
+  @spec tmdb_title(t()) :: Title.t()
+  def tmdb_title(%__MODULE__{} = plan) do
+    Title.new!(%{
+      tmdb_id: String.to_integer(plan.tmdb_id),
+      media_type: media_type(plan.tmdb_type),
+      name: plan.title,
+      year: plan.year && Integer.to_string(plan.year)
+    })
+  end
+
+  defp media_type("movie"), do: :movie
+  defp media_type("tv"), do: :tv_series
 
   @doc "The approval policy values."
   @spec approval_policies() :: [String.t()]

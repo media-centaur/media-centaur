@@ -321,4 +321,169 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
       refute String.downcase(verdict.evidence_line || "") =~ "floor"
     end
   end
+
+  describe "calendar worlds (spec 2026-09-14)" do
+    alias MediaCentaur.TMDB.ReleaseWindow
+
+    # @now is 2026-08-11: the window is read at that date.
+    defp window(stage, dates) do
+      struct!(%ReleaseWindow{stage: stage}, dates)
+    end
+
+    test "a movie still in theaters with a digital date ahead headlines the calendar" do
+      verdict =
+        build(evidence(%{raw_total: 0}),
+          release_window: window(:theatrical, theatrical: ~D[2026-07-24], digital: ~D[2026-10-14])
+        )
+
+      assert verdict.world == :in_theaters
+      assert verdict.headline == "In theaters since Jul 24 — digital release Oct 14."
+      # The receipts are the search diagnosis's, carried through.
+      assert verdict.evidence_line ==
+               "Searched “Sample Movie 1990” and “Sample Movie” — checked 1 minute ago."
+    end
+
+    test "a disc-only home date reads as on disc" do
+      verdict =
+        build(evidence(%{raw_total: 0}),
+          release_window: window(:theatrical, theatrical: ~D[2026-07-24], physical: ~D[2026-11-03])
+        )
+
+      assert verdict.headline == "In theaters since Jul 24 — on disc Nov 3."
+    end
+
+    test "the earlier home date carries when both are known" do
+      verdict =
+        build(evidence(%{raw_total: 0}),
+          release_window:
+            window(:theatrical,
+              theatrical: ~D[2026-07-24],
+              digital: ~D[2026-11-03],
+              physical: ~D[2026-10-14]
+            )
+        )
+
+      assert verdict.headline == "In theaters since Jul 24 — on disc Oct 14."
+    end
+
+    test "no home date says so, naming the source" do
+      verdict =
+        build(evidence(%{raw_total: 0}), release_window: window(:theatrical, theatrical: ~D[2026-07-24]))
+
+      assert verdict.headline == "In theaters since Jul 24 — TMDB has no home release date yet."
+    end
+
+    test "an unreleased movie names the theatrical opening and the home date when known" do
+      verdict =
+        build(evidence(%{raw_total: 0}),
+          release_window: window(:unreleased, theatrical: ~D[2026-10-03], digital: ~D[2026-12-12])
+        )
+
+      assert verdict.world == :unreleased
+      assert verdict.headline == "Not out yet — in theaters from Oct 3, digital release Dec 12."
+    end
+
+    test "an unreleased movie with only a theatrical date" do
+      verdict =
+        build(evidence(%{raw_total: 0}), release_window: window(:unreleased, theatrical: ~D[2026-10-03]))
+
+      assert verdict.headline == "Not out yet — in theaters from Oct 3."
+    end
+
+    test "an unreleased movie going straight to digital" do
+      verdict =
+        build(evidence(%{raw_total: 0}), release_window: window(:unreleased, digital: ~D[2026-10-14]))
+
+      assert verdict.headline == "Not out yet — digital release Oct 14."
+    end
+
+    test "an unreleased movie with only TMDB's primary date" do
+      verdict =
+        build(evidence(%{raw_total: 0}), release_window: window(:unreleased, primary: ~D[2027-03-05]))
+
+      assert verdict.headline == "Not out yet — releases Mar 5, 2027."
+    end
+
+    test "a date outside this year carries its year" do
+      verdict =
+        build(evidence(%{raw_total: 0}),
+          release_window: window(:theatrical, theatrical: ~D[2025-12-25], digital: ~D[2027-01-08])
+        )
+
+      assert verdict.headline == "In theaters since Dec 25, 2025 — digital release Jan 8, 2027."
+    end
+
+    test "the calendar outranks rejected results but keeps the escape hatch" do
+      verdict =
+        build(evidence(%{raw_total: 2, rejected: [rejected("a", :identity), rejected("b", :red_flag)]}),
+          release_window: window(:theatrical, theatrical: ~D[2026-07-24])
+        )
+
+      assert verdict.world == :in_theaters
+      assert verdict.rejected_count == 2
+      assert verdict.show_rejected?
+
+      assert verdict.evidence_line ==
+               "Searched “Sample Movie 1990” and “Sample Movie” — checked 1 minute ago."
+    end
+
+    test "the calendar outranks stale and absent evidence" do
+      stale =
+        build(evidence(%{raw_total: 0, checked_at: DateTime.add(@now, -7200, :second)}),
+          release_window: window(:unreleased, theatrical: ~D[2026-10-03])
+        )
+
+      assert stale.world == :unreleased
+
+      absent = build(nil, release_window: window(:unreleased, theatrical: ~D[2026-10-03]))
+      assert absent.world == :unreleased
+      assert absent.evidence_line == "Search again checks your indexers live."
+    end
+
+    test "blind outranks the calendar" do
+      verdict =
+        build(evidence(%{raw_total: 0}),
+          search_health: %IndexerHealth{state: :unreachable, checked_at: @now},
+          release_window: window(:unreleased, theatrical: ~D[2026-10-03])
+        )
+
+      assert verdict.world == :blind
+    end
+
+    test "below-preference outranks the calendar — real releases exist" do
+      verdict =
+        build(evidence(%{raw_total: 5}),
+          gaps: [],
+          below: %{units: 1, releases: 5},
+          release_window: window(:theatrical, theatrical: ~D[2026-07-24])
+        )
+
+      assert verdict.world == :below_preference
+    end
+
+    test "a home-released or unknown window changes nothing" do
+      for stage <- [:home, :unknown] do
+        verdict =
+          build(evidence(%{raw_total: 0}), release_window: window(stage, theatrical: ~D[2026-01-09]))
+
+        assert verdict.world == :nothing_live
+      end
+    end
+
+    test "a series plan ignores the window" do
+      verdict =
+        build(evidence(%{raw_total: 0}),
+          movie?: false,
+          gaps: ["S01E01 · Pilot"],
+          release_window: window(:unreleased, theatrical: ~D[2026-10-03])
+        )
+
+      assert verdict.world == :nothing_live
+    end
+
+    test "no window at all is the search diagnosis" do
+      assert build(evidence(%{raw_total: 0})).world == :nothing_live
+      assert build(evidence(%{raw_total: 0}), release_window: nil).world == :nothing_live
+    end
+  end
 end

@@ -82,3 +82,29 @@ identically on a re-opened modal days later.
   discards — the bulk of the implementation cost.
 * Bad, because TV gaps get only an aggregate sentence; per-unit world
   diagnosis is deferred.
+
+## Amendment 2026-09-14 — the calendar is a world; the empty board offers the watchlist
+
+Two additions from spec `docs/superpowers/specs/2026-09-14-plan-board-empty-outcome-design.md`:
+
+1. **Two calendar worlds**, `:unreleased` and `:in_theaters`, read from a
+   movie's release window (`TMDB.ReleaseWindow`: TMDB's US theatrical,
+   digital and physical dates at today's date). A movie no home release
+   exists for yet gets the calendar as its headline ("Not out yet — in
+   theaters from Oct 3." / "In theaters since Aug 21 — digital release
+   Oct 14.") in place of the search world's; the evidence line, rejected
+   count and *Show them anyway* are the search diagnosis's, carried
+   through. They outrank every search world and are outranked by `:blind`
+   and `:below_preference`. Still count-proven: the dates are TMDB's, and
+   the one bound (a theatrical opening with no home date counts as in
+   theaters for 180 days) is named in the module. Series plans are
+   unaffected. The host fetches the window once per board open, cache-
+   served; nothing is stored on the plan.
+2. **The empty board's footer carries the bookmark** (UIDR-039) in the
+   primary slot Approve would hold: *Add to watchlist*, or the *On your
+   watchlist* marker once listed. The remedy for "not out yet" is the
+   watchlist, so it is offered where the diagnosis is given, through the
+   same `set_rung` event the title view's bookmark pushes.
+
+The visual scope is unchanged: the same warning row, one sentence; the
+footer gains one control only when there is nothing to approve.

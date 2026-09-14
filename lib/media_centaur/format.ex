@@ -64,6 +64,18 @@ defmodule MediaCentaur.Format do
   def iso_date(%Date{} = date), do: Date.to_iso8601(date)
 
   @doc """
+  A date as its abbreviated month and unpadded day — the calendar
+  spelling user copy uses for a date within the year (Coming up's
+  shelf badges, the plan board's calendar verdict). Callers add the
+  year when it differs from today's.
+
+      iex> MediaCentaur.Format.month_day(~D[2026-10-03])
+      "Oct 3"
+  """
+  @spec month_day(Date.t()) :: String.t()
+  def month_day(%Date{} = date), do: "#{Calendar.strftime(date, "%b")} #{date.day}"
+
+  @doc """
   Zero-pads a non-negative integer to two digits.
 
       iex> MediaCentaur.Format.pad2(3)

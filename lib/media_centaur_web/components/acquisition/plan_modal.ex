@@ -23,7 +23,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     beneath with swap/exclude, below-floor offers ("lower quality
     available" with the picker as the explicit override), gaps as an
     explicit warning row, and the approval footer. Refresh-safe by
-    construction.
+    construction. An *empty* board — ready, nothing found — carries
+    the bookmark in the footer's primary slot instead of Approve (spec
+    2026-09-14): *Add to watchlist*, or the *On your watchlist* marker
+    once the subject is listed, because the remedy for a title that is
+    not out yet is the watchlist (UIDR-039). The button pushes the
+    host's `set_rung` with the subject's ref, as the title view's
+    bookmark does; the calendar the verdict speaks comes from
+    `TMDB.ReleaseWindow` through `gap_verdict`.
   * `:error` — targeting failed (TMDB unreachable etc.).
 
   Keyboard/gamepad navigation: the modal is a `plan` overlay with three
@@ -52,6 +59,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.TitleLayer
+  alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Title.WatchlistToggle
+  alias MediaCentaurWeb.TitleRef
 
   attr :open, :boolean, required: true
 
@@ -133,6 +143,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: false,
     doc: "host-owned: Discard's first click has landed (MC0027 tier 2 — no overlay)."
 
+  attr :subject, Title,
+    default: nil,
+    doc:
+      "the plan's title as the app-wide TMDB title value — what an empty board's bookmark " <>
+        "lists (`Title.ref/1` is its `phx-value-ref`). Nil hides the control."
+
+  attr :rung, :atom,
+    values: [nil, :ignored, :list, :follow, :ask, :grab, :default],
+    default: nil,
+    doc: "the subject's rung; nil is Off. At List and above the footer shows the marker."
+
   attr :on_close, :string, default: "close_plan"
 
   def plan_modal(assigns) do
@@ -213,6 +234,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           gap_verdict={@gap_verdict}
           rejected={@rejected}
           discard_armed={@discard_armed}
+          subject={@subject}
+          rung={@rung}
           on_close={@on_close}
         />
       </:body>
@@ -529,6 +552,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     doc: "%{unit_id, items} | nil — typed at the public attr."
 
   attr :discard_armed, :boolean, required: true
+
+  attr :subject, :any, required: true, doc: "Title.t() | nil — typed at the public attr."
+
+  attr :rung, :atom, required: true, doc: "the subject's rung — typed at the public attr."
 
   attr :on_close, :string, required: true
 
@@ -892,10 +919,53 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               <span :if={@approving} class="loading loading-spinner loading-xs"></span>
               {if @approving, do: "Approving…", else: "Approve plan"}
             </.button>
+            <.watchlist_slot
+              :if={@subject && PlanBoard.empty?(@board)}
+              subject={@subject}
+              rung={@rung}
+            />
           </div>
         </div>
       </div>
     </div>
+    """
+  end
+
+  # The empty board's remedy, in the footer's primary slot: the bookmark
+  # in its labelled form (UIDR-039 — the same glyph the title view and
+  # the Feed wear), or the marker once the subject is listed. One event,
+  # the host's `set_rung`, the same write the title view's bookmark makes.
+  attr :subject, Title, required: true
+  attr :rung, :atom, required: true, doc: "nil | TitleIntent.rung() — typed at the public attr."
+
+  defp watchlist_slot(assigns) do
+    assigns =
+      assign(assigns,
+        listed?: WatchlistToggle.listed?(assigns.rung),
+        ref: TitleRef.param(Title.ref(assigns.subject))
+      )
+
+    ~H"""
+    <span
+      :if={@listed?}
+      id="plan-on-watchlist"
+      class="inline-flex items-center gap-1.5 px-3 text-sm text-primary/80"
+    >
+      <.icon name="hero-bookmark-solid" class="size-4" /> On your watchlist
+    </span>
+    <.button
+      :if={!@listed?}
+      id="plan-add-to-watchlist"
+      variant="secondary"
+      size="sm"
+      phx-click="set_rung"
+      phx-value-choice="list"
+      phx-value-ref={@ref}
+      data-nav-item
+      tabindex="0"
+    >
+      <.icon name="hero-bookmark" class="size-4" /> Add to watchlist
+    </.button>
     """
   end
 

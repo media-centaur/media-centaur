@@ -200,6 +200,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
         }
 
   @doc """
+  A ready board with nothing to approve — every wanted unit unfound. Its
+  footer carries the watchlist in place of Approve (spec 2026-09-14).
+  """
+  @spec empty?(t()) :: boolean()
+  def empty?(%__MODULE__{status: :ready, releases: []}), do: true
+  def empty?(%__MODULE__{}), do: false
+
+  @doc """
   Duplicate-data warnings across the assigned releases. `claims` maps
   each release guid to the `{season, episode}` units assigned to it;
   a release whose *physical* scope (re-classified from its title)

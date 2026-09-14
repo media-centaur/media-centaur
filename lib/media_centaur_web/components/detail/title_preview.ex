@@ -23,9 +23,9 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   identity indexers declare on their own results, and both names a
   foreign release may be published under.
 
-  `upcoming?` says the title isn't out anywhere yet — its canonical date
-  is missing or still ahead. It gates the *Watch for release* verb:
-  watching for a release only makes sense while there is one to wait for.
+  Where a movie stands in its release sequence is not a preview fact:
+  `TMDB.ReleaseWindow` reads that from the same payload for the surfaces
+  that diagnose an empty search.
 
   `facets` are `Detail.Facet` structs (rendered by `Detail.FacetStrip`),
   `cast` are `Library.Person` structs (the library's cast shape), and the
@@ -57,8 +57,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
           metadata_items: [String.t()],
           facets: [Facet.t()],
           cast: [Person.t()],
-          in_library?: boolean(),
-          upcoming?: boolean()
+          in_library?: boolean()
         }
 
   @enforce_keys [:media_type, :tmdb_id, :in_library?]
@@ -77,8 +76,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
             metadata_items: [],
             facets: [],
             cast: [],
-            in_library?: false,
-            upcoming?: false
+            in_library?: false
 
   # The top-billed few — a compact confirmation strip, not the full
   # detail-panel cast grid. Mapper already sorts by billing order.
@@ -90,8 +88,8 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   def badge_text(%__MODULE__{media_type: :tv_series}), do: "TV series"
 
   @doc "Builds a movie preview from a `TMDB.Client.get_movie/2` payload."
-  @spec movie(map(), boolean(), Date.t()) :: t()
-  def movie(tmdb_movie, in_library?, today \\ Date.utc_today()) do
+  @spec movie(map(), boolean()) :: t()
+  def movie(tmdb_movie, in_library?) do
     tmdb_id = tmdb_movie["id"]
     attrs = Mapper.movie_attrs(tmdb_id, tmdb_movie, nil)
     images = Map.new(Mapper.image_list(tmdb_movie), &{&1.role, &1.url})
@@ -111,14 +109,13 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
       metadata_items: movie_metadata_items(attrs),
       facets: DetailLogic.facets_for(:movie, attrs),
       cast: top_cast(attrs.cast),
-      in_library?: in_library?,
-      upcoming?: upcoming?(attrs.date_published, today)
+      in_library?: in_library?
     }
   end
 
   @doc "Builds a series preview from a `TMDB.Client.get_tv/2` payload."
-  @spec tv(map(), boolean(), Date.t()) :: t()
-  def tv(tmdb_show, in_library?, today \\ Date.utc_today()) do
+  @spec tv(map(), boolean()) :: t()
+  def tv(tmdb_show, in_library?) do
     tmdb_id = tmdb_show["id"]
     attrs = Mapper.tv_attrs(tmdb_id, tmdb_show)
     identifiers = Identifiers.from_payload(:tv, tmdb_show)
@@ -140,13 +137,9 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
       metadata_items: tv_metadata_items(attrs),
       facets: DetailLogic.facets_for(:tv_series, attrs),
       cast: top_cast(attrs.cast),
-      in_library?: in_library?,
-      upcoming?: upcoming?(attrs.date_published, today)
+      in_library?: in_library?
     }
   end
-
-  defp upcoming?(nil, _today), do: true
-  defp upcoming?(%Date{} = release_date, today), do: Date.after?(release_date, today)
 
   # Non-facet row items: year and runtime plus certification and country,
   # mirroring the owned detail panel's metadata row. Rating, director,

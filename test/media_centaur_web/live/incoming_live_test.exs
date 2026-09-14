@@ -1066,6 +1066,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "the gap banner diagnoses rejected results and the override assigns one (UIDR-022)", %{
       conn: conn
     } do
+      # A movie board reads its release window from TMDB; the bare stub
+      # answers with no dates, so the search diagnosis stands.
+      TmdbStubs.setup_tmdb_client()
+
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
           {"GET", "/api/v1/indexer"} ->
@@ -1246,6 +1250,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "a below-floor movie offers the picker instead of a bare gap", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
           # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
@@ -1332,6 +1338,141 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       html = render(view)
       refute html =~ "Nothing matching your quality preference"
       assert html =~ "Sample.Movie.2005.720p.WEBRip.x264"
+    end
+
+    # --- the empty outcome (spec 2026-09-14) ---------------------------------
+
+    # The board reads a movie's release window only when TMDB is ready —
+    # the same gate the board's artwork fetch stands behind.
+    defp stub_movie_calendar(us_dates) do
+      enable_tmdb!()
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_get_movie(
+        "246813",
+        TmdbStubs.movie_detail(%{
+          "id" => 246_813,
+          "title" => "Sample Movie",
+          "release_dates" => %{
+            "results" => [
+              %{
+                "iso_3166_1" => "US",
+                "release_dates" =>
+                  Enum.map(us_dates, fn {type, date} ->
+                    %{"type" => type, "release_date" => "#{date}T00:00:00.000Z"}
+                  end)
+              }
+            ]
+          }
+        })
+      )
+    end
+
+    test "an empty movie board reads TMDB's calendar and lists the title on the watchlist", %{
+      conn: conn
+    } do
+      today = Date.utc_today()
+      opened = Date.add(today, -20)
+      digital = Date.add(today, 30)
+      stub_movie_calendar([{3, opened}, {4, digital}])
+
+      # Default Prowlarr stub returns nothing — the movie is a gap.
+      {:ok, plan} =
+        Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: today.year})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      html = render(view)
+
+      # The calendar is the diagnosis; the search receipts stay beneath it.
+      assert html =~ "In theaters since #{MediaCentaur.Format.month_day(opened)}"
+      assert html =~ "digital release #{MediaCentaur.Format.month_day(digital)}"
+      refute html =~ "No indexer had anything"
+      assert html =~ "checked just now"
+
+      # Nothing to approve, so the footer's primary slot is the bookmark.
+      refute has_element?(view, "button[phx-click='plan_approve']")
+      assert has_element?(view, "#plan-add-to-watchlist")
+      refute has_element?(view, "#plan-on-watchlist")
+
+      view |> element("#plan-add-to-watchlist") |> render_click()
+
+      assert Discovery.rung(246_813, :movie) == :list
+      assert has_element?(view, "#plan-on-watchlist")
+      refute has_element?(view, "#plan-add-to-watchlist")
+
+      # Listing fetches the title's artwork off-process.
+      await_supervised_tasks()
+    end
+
+    test "an unreleased movie says so", %{conn: conn} do
+      today = Date.utc_today()
+      opens = Date.add(today, 19)
+      stub_movie_calendar([{3, opens}])
+
+      {:ok, plan} =
+        Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: today.year})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+
+      assert render(view) =~ "Not out yet — in theaters from #{MediaCentaur.Format.month_day(opens)}"
+    end
+
+    test "a title already on the watchlist opens its empty board with the marker", %{conn: conn} do
+      enable_tmdb!()
+      TmdbStubs.setup_tmdb_client()
+      title = Title.new!(%{tmdb_id: 246_813, media_type: :movie, name: "Sample Movie"})
+      {:ok, _intent} = ReleaseTracking.set_rung(title, :list)
+      await_supervised_tasks()
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+
+      # A payload with no dates leaves the search diagnosis in place.
+      assert render(view) =~ "No indexer had anything for this title."
+      assert has_element?(view, "#plan-on-watchlist")
+      refute has_element?(view, "#plan-add-to-watchlist")
+    end
+
+    test "a TMDB failure leaves the search verdict and still offers the watchlist", %{conn: conn} do
+      enable_tmdb!()
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_tmdb_error("/movie/246813", 500)
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+
+      assert render(view) =~ "No indexer had anything for this title."
+      assert has_element?(view, "#plan-add-to-watchlist")
+    end
+
+    test "an empty series board offers the watchlist too", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      assert has_element?(view, "#plan-add-to-watchlist")
+
+      view |> element("#plan-add-to-watchlist") |> render_click()
+
+      assert Discovery.rung(246_810, :tv_series) == :list
+      assert has_element?(view, "#plan-on-watchlist")
+      await_supervised_tasks()
+    end
+
+    test "a board with releases offers Approve, not the watchlist", %{conn: conn} do
+      stub_plan_tmdb()
+      stub_plan_prowlarr()
+
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+
+      assert has_element?(view, "button[phx-click='plan_approve']")
+      refute has_element?(view, "#plan-add-to-watchlist")
+      refute has_element?(view, "#plan-on-watchlist")
     end
   end
 

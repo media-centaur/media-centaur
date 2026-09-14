@@ -162,4 +162,11 @@ defmodule MediaCentaur.FormatTest do
       assert Format.relative_ago(DateTime.add(now, -20 * 86_400, :second)) == "2w ago"
     end
   end
+
+  describe "month_day/1" do
+    test "abbreviated month and an unpadded day" do
+      assert Format.month_day(~D[2026-10-03]) == "Oct 3"
+      assert Format.month_day(~D[2026-12-25]) == "Dec 25"
+    end
+  end
 end
