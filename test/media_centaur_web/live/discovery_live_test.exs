@@ -789,8 +789,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # only verb a title that is not on the list offers; the tracking
       # block below is empty, so nothing above List is reachable.
       assert has_element?(view, "#title-watchlist[aria-pressed='false'][phx-value-choice='list']")
-      assert has_element?(view, "#title-tracking-controls[data-rung='off'][data-form='none']")
-      refute has_element?(view, "#title-tracking-controls [data-nav-item]")
+      # No record and, for a friend's snapshot, no dates yet: no card at all.
+      refute has_element?(view, "#title-tracking-controls")
+      refute has_element?(view, "[data-nav-zone='title_detail_tracking'] [data-nav-item]")
 
       view |> element("#title-watchlist") |> render_click()
 
@@ -821,7 +822,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element("#title-watchlist") |> render_click()
       assert Discovery.rung(777, :movie) == nil
       assert has_element?(view, "#title-watchlist[aria-pressed='false']")
-      assert has_element?(view, "#title-tracking-controls[data-form='none']")
+      refute has_element?(view, "#title-tracking-controls")
     end
 
     test "an ignored title says so and offers Add to watchlist, which replaces Ignore", %{conn: conn} do
@@ -1239,7 +1240,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # tracking-shaped shows.
       assert has_element?(view, "#title-tracking-controls[data-rung='list']")
       assert has_element?(view, "#title-tracking-controls-track[phx-value-choice='follow']")
-      refute has_element?(view, "#title-release-timeline")
+      refute has_element?(view, "#title-release-dates")
 
       view |> element("#title-tracking-controls-grab") |> render_click()
       assert render(view) =~ "Tracking Sample Show"
@@ -1252,7 +1253,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # and the row.
       render_until(view, fn _html -> has_element?(view, "#title-tracking-controls[data-rung='grab']") end)
 
-      assert has_element?(view, "#title-release-timeline")
+      assert has_element?(view, "#title-release-dates")
       assert has_element?(view, "#title-tracking-controls-track[aria-disabled='true']")
       assert has_element?(view, "#watchlist-item-tv_series-246810", "Auto-grab")
     end
@@ -1273,7 +1274,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element("#title-watchlist") |> render_click()
       assert Discovery.rung(777, :movie) == nil
       refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title too"
-      refute has_element?(view, "#title-release-timeline")
+      refute has_element?(view, "#title-release-dates")
       await_supervised_tasks()
     end
 
@@ -1332,7 +1333,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
 
-      assert has_element?(view, "#title-release-timeline-next", "Digital release")
+      assert has_element?(view, "#title-release-dates-digital", "Digital")
       refute html =~ "Tracking since"
       await_supervised_tasks()
     end

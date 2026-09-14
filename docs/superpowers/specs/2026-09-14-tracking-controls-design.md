@@ -221,3 +221,13 @@ fixtures, one settings section, three wiki pages, the glossary and a new
 UIDR. One session of implementation, one of review. The cheap path — hide
 two segments and rename three — would leave the second global policy, the
 marker bookmark and the Default rung in place, and was not considered.
+
+## Iteration 2 — 2026-09-14, on the owner's live review
+
+Working terms: **switch** — a toggle glyph and its label as one click, `role="switch"`, the compact form the tracking controls now take (no longer the Settings kit's full-width row, whose `id`/`disabled?` extension was reverted); **release dates readout** — `Components.ReleaseTracking.ReleaseDates`, what the app knows of a title's upcoming dates: a movie's theaters/digital/disc rows from the live release window or the calendar, a series' next dated episodes; **tooltip** — the one glass label (`#app-tooltip`, `hooks/tooltip.js`) for any `data-tip` anchor, the former sidebar-only element generalized.
+
+1. The Notify switch is labelled **Notify you via Coming up** (owner's words); its line names the dates Coming up will carry. Auto-grab's line is one short sentence.
+2. The block is one `glass-inset` card: the release dates readout on the left, the switches in a 16rem column on the right. The readout renders as soon as there is a calendar or a movie's release window — an unlisted movie already shows its dates; the switches once the title is listed.
+3. The release timeline (featured next release, dated list with status pills) is deleted from both title surfaces; the readout replaces it. The one word beside a row is the forecast status that matters: Will download, Downloading (a link to the pursuit), In your library.
+4. Native `title` tooltips on icon buttons are replaced by `data-tip` on the app tooltip, which now positions beneath any anchor and to the right of the sidebar's.
+5. A multi-value facet's separator travels with its chip, so a wrap never strands a dot.

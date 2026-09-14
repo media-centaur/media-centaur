@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Title.Pennant
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
-  alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
+  alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseDates
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Components.Title.TrackingControls
   alias MediaCentaurWeb.Components.Title.LowerQualityNote
@@ -173,7 +173,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
                 phx-click="title_review_open"
                 data-nav-item
                 tabindex="0"
-                title="Review"
+                data-tip="Review"
                 aria-label="Review"
               >
                 <.icon name="hero-pencil-square" class="size-5" />
@@ -200,31 +200,48 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
 
           <FacetStrip.facet_strip :if={@preview && @preview.facets != []} facets={@preview.facets} />
 
-          <div data-nav-zone="title_detail_tracking">
-            <TrackingControls.tracking_controls
-              id="title-tracking-controls"
-              ref={@ref}
-              rung={@detail.rung}
+          <%!-- One card: what TMDB knows of the title's dates on the left,
+                the switches on the right (spec 2026-09-14, iteration 2).
+                The dates read out as soon as there is a calendar or a
+                release window; the switches once the title is listed. --%>
+          <div
+            :if={tracking_block?(@detail, @tracking)}
+            class="glass-inset flex flex-wrap gap-x-8 gap-y-4 rounded-lg p-4"
+            data-nav-zone="title_detail_tracking"
+          >
+            <ReleaseDates.release_dates
+              :if={dates?(@detail, @tracking)}
+              id="title-release-dates"
               media_type={@detail.title.media_type}
-              release_ahead?={Logic.release_ahead?(@detail.title, @detail.release_window, @today)}
-              complete?={@detail.complete?}
-              approval_policy={PlanningMode.approval_policy(@detail.planning_mode)}
-              acquisition?={@detail.acquisition?}
+              release_window={@detail.release_window}
+              timeline={timeline(@tracking)}
+              today={@today}
+              class="min-w-[14rem] max-w-sm flex-1"
             />
-            <LowerQualityNote.lower_quality_note
-              id="title-lower-quality"
-              ref={@ref}
-              accepted?={@detail.lower_quality_accepted?}
-              class="pt-3"
-            />
+            <div
+              :if={
+                TrackingControls.control_form(@detail.rung) != :none or
+                  @detail.lower_quality_accepted?
+              }
+              class="w-64 shrink-0 space-y-3"
+            >
+              <TrackingControls.tracking_controls
+                id="title-tracking-controls"
+                ref={@ref}
+                rung={@detail.rung}
+                media_type={@detail.title.media_type}
+                release_ahead?={Logic.release_ahead?(@detail.title, @detail.release_window, @today)}
+                complete?={@detail.complete?}
+                approval_policy={PlanningMode.approval_policy(@detail.planning_mode)}
+                acquisition?={@detail.acquisition?}
+              />
+              <LowerQualityNote.lower_quality_note
+                id="title-lower-quality"
+                ref={@ref}
+                accepted?={@detail.lower_quality_accepted?}
+              />
+            </div>
           </div>
-
-          <ReleaseTimeline.release_timeline
-            :if={followed?(@tracking)}
-            id="title-release-timeline"
-            timeline={@tracking.timeline}
-            today={@today}
-          />
 
           <section :if={followed?(@tracking) and @tracking.activity != []} class="space-y-2">
             <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
@@ -387,4 +404,18 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
 
   defp media_label(:tv_series), do: "TV series"
   defp media_label(:movie), do: "Movie"
+
+  # The readout has something to say once there is a calendar, or a movie's
+  # live release window; the card renders when it has that or a listed
+  # title's switches to show.
+  defp dates?(%TitleDetail{title: %{media_type: :movie}, release_window: %{}}, _tracking), do: true
+  defp dates?(_detail, tracking), do: followed?(tracking)
+
+  defp tracking_block?(%TitleDetail{} = detail, tracking) do
+    dates?(detail, tracking) or TrackingControls.control_form(detail.rung) != :none or
+      detail.lower_quality_accepted?
+  end
+
+  defp timeline(%{timeline: timeline}), do: timeline
+  defp timeline(_untracked), do: []
 end

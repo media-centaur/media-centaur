@@ -23,20 +23,6 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsRow do
           checked: false,
           event: "toggle_share_watchlist"
         }
-      },
-      %Variation{
-        id: :disabled,
-        description:
-          "No click, `aria-disabled`, and the description says why — the row stays in " <>
-            "the nav graph. The title view's Track release dates row while auto-grab is on.",
-        attributes: %{
-          id: "settings-row-disabled",
-          label: "Track release dates",
-          description: "Stays on while auto-grab is on.",
-          checked: true,
-          disabled?: true,
-          event: "set_rung"
-        }
       }
     ]
   end

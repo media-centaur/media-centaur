@@ -153,7 +153,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # modal.
       assert_patch(view, "/incoming?title=movie-424242")
       assert has_element?(view, "#title-detail-modal[data-state='open']", "Sample Movie")
-      assert has_element?(view, "#title-tracking-controls[data-rung='off']")
+      refute has_element?(view, "#title-tracking-controls"), "no record, so no switches"
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       await_supervised_tasks()
@@ -3468,7 +3468,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert opened =~ "Detail Show"
       refute opened =~ "Stop tracking"
       assert has_element?(view, "#title-tracking-controls[data-rung='grab']")
-      assert has_element?(view, "#title-release-timeline-next")
+      assert has_element?(view, "#title-release-dates")
 
       render_hook(view, "close_title", %{})
       assert_patch(view, "/incoming")
@@ -3513,7 +3513,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # Nothing is tracked, so there is no timeline and no Coming up row —
       # and this page knows titles through the forecast, so the modal has
       # nothing left to render either.
-      refute has_element?(view, "#title-release-timeline")
+      refute has_element?(view, "#title-release-dates")
       refute has_element?(view, "#shelf-#{item.id}")
     end
 
