@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
 
   import MediaCentaur.TestFactory, only: [build_tracking_release: 1]
 
+  alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Logic
@@ -35,6 +36,22 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
       },
       overrides
     )
+  end
+
+  describe "title_detail/2 tracking facts" do
+    test "carries the release window (nil until the preview lands) and whether the title is complete" do
+      detail = Logic.title_detail(movie(), facts())
+      assert detail.release_window == nil
+      refute detail.complete?
+
+      window = %ReleaseWindow{stage: :theatrical}
+
+      detail =
+        Logic.title_detail(movie(), facts(%{release_window: window, complete?: true}))
+
+      assert detail.release_window == window
+      assert detail.complete?
+    end
   end
 
   describe "title_detail/2 primary action" do
@@ -132,40 +149,70 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
   end
 
   describe "row_markers/2 tracking" do
-    test "a listed or followed title states its rung, Default resolved; Off and owned say nothing" do
+    test "a followed title says Tracking, a grabbing one Auto-grab; Off and owned say nothing" do
       base = %{in_library?: false, acquisition_state: nil, rung: nil}
 
-      assert Logic.row_markers(Map.merge(base, %{rung: :follow, default_grab_mode: "ask"})) ==
-               ["Tracking: Follow"]
-
-      assert Logic.row_markers(Map.merge(base, %{rung: :default, default_grab_mode: "ask"})) ==
-               ["Tracking: Ask"]
-
-      assert Logic.row_markers(Map.merge(base, %{rung: :default, default_grab_mode: "off"})) ==
-               ["Tracking: Follow"]
-
-      assert Logic.row_markers(Map.merge(base, %{rung: :list, default_grab_mode: "ask"})) ==
-               ["On your list"]
-
-      assert Logic.row_markers(Map.merge(base, %{rung: nil, default_grab_mode: "ask"})) == []
-
-      assert Logic.row_markers(
-               Map.merge(base, %{in_library?: true, rung: :grab, default_grab_mode: "ask"})
-             ) == ["In library"]
+      assert Logic.row_markers(%{base | rung: :follow}) == ["Tracking"]
+      assert Logic.row_markers(%{base | rung: :grab}) == ["Auto-grab"]
+      assert Logic.row_markers(%{base | rung: :list}) == ["On your list"]
+      assert Logic.row_markers(base) == []
+      assert Logic.row_markers(%{base | in_library?: true, rung: :grab}) == ["In library"]
     end
 
     test "an ignored title says so — a search result you dismissed is still findable" do
-      base = %{in_library?: false, acquisition_state: nil, default_grab_mode: "ask"}
+      base = %{in_library?: false, acquisition_state: nil}
       assert Logic.row_markers(Map.put(base, :rung, :ignored)) == ["Ignored"]
       assert Logic.row_markers(Map.put(base, :rung, :ignored), true) == ["Ignored"]
     end
 
     test "list_implied? drops only the List marker" do
-      base = %{in_library?: false, acquisition_state: nil, rung: nil, default_grab_mode: "ask"}
+      base = %{in_library?: false, acquisition_state: nil, rung: nil}
 
       assert Logic.row_markers(Map.put(base, :rung, :list), true) == []
-      assert Logic.row_markers(Map.put(base, :rung, :follow), true) == ["Tracking: Follow"]
+      assert Logic.row_markers(Map.put(base, :rung, :follow), true) == ["Tracking"]
     end
+  end
+
+  describe "release_ahead?/3 — whether the Track release dates row has anything to track" do
+    test "a series always has a release ahead as far as the snapshot knows" do
+      show = Title.new!(%{tmdb_id: 2, media_type: :tv_series, name: "Sample Show"})
+      assert Logic.release_ahead?(show, nil, ~D[2026-09-14])
+    end
+
+    test "without the window, the snapshot's primary date decides" do
+      assert Logic.release_ahead?(dated_movie(~D[2026-12-01]), nil, ~D[2026-09-14])
+      assert Logic.release_ahead?(dated_movie(nil), nil, ~D[2026-09-14])
+      refute Logic.release_ahead?(dated_movie(~D[2020-01-01]), nil, ~D[2026-09-14])
+    end
+
+    test "with the window, only a home release that has passed says no" do
+      out = dated_movie(~D[2020-01-01])
+      assert Logic.release_ahead?(out, %ReleaseWindow{stage: :unreleased}, ~D[2026-09-14])
+      assert Logic.release_ahead?(out, %ReleaseWindow{stage: :theatrical}, ~D[2026-09-14])
+
+      refute Logic.release_ahead?(
+               dated_movie(~D[2026-12-01]),
+               %ReleaseWindow{stage: :home},
+               ~D[2026-09-14]
+             )
+    end
+
+    test "an unknown window defers to the snapshot" do
+      assert Logic.release_ahead?(
+               dated_movie(~D[2026-12-01]),
+               %ReleaseWindow{stage: :unknown},
+               ~D[2026-09-14]
+             )
+
+      refute Logic.release_ahead?(
+               dated_movie(~D[2020-01-01]),
+               %ReleaseWindow{stage: :unknown},
+               ~D[2026-09-14]
+             )
+    end
+
+    defp dated_movie(release_date),
+      do: Title.new!(%{tmdb_id: 1, media_type: :movie, name: "Movie A", release_date: release_date})
   end
 
   describe "row_markers/2 next release" do

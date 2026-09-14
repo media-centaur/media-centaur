@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
     * `:releases` — the `ReleaseTracking` read (items preloaded)
     * `:pursuit_rows` / `:drafts` — acquisition reads (the History
       archive reads separately via `compute_history_rows`)
-    * `:today`, `:acquisition_ready?`, `:auto_grab_default_mode`,
+    * `:today`, `:acquisition_ready?`, `:approval_policy`,
       `:grab_status_by_key` — the `UpcomingFeed` context facts
     * `:shelf_expanded?` — the shelf's "Show all" disclosure state
 
@@ -103,7 +103,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
     %{
       today: inputs.today,
       acquisition_ready?: inputs.acquisition_ready?,
-      auto_grab_default_mode: inputs.auto_grab_default_mode,
+      approval_policy: inputs.approval_policy,
       rungs: Map.get(inputs, :rungs, %{}),
       grab_status_by_key: if(inputs.acquisition_ready?, do: inputs.grab_status_by_key, else: %{})
     }

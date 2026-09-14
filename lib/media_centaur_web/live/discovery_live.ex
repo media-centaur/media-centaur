@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Acquisition
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, PlanEvents, TitleStates}
+  alias MediaCentaur.Acquisition.{PlanEvents, TitleStates}
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Activities
@@ -117,7 +117,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        expanded_people: MapSet.new(),
        ignore_undo: nil,
        warmed_artwork: MapSet.new(),
-       default_grab_mode: AutoGrabSettings.load().default_mode,
        today: Date.utc_today()
      )
      |> load_friends()
@@ -636,7 +635,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                     in_library?: not is_nil(row.library_owner_id),
                     acquisition_state: row.acquisition_state,
                     rung: row.rung,
-                    default_grab_mode: @default_grab_mode,
                     next_air_date: row.next_air_date,
                     today: @today
                   },

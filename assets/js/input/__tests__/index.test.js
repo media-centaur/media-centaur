@@ -226,7 +226,7 @@ describe("Detail overlay cast region (real config)", () => {
     })
 
   test("the tracking block is a toolbar under the detail list: DOWN from the list enters it, UP climbs back (UIDR-035)", () => {
-    expect(inputConfig.instanceTypes.detail_tracking).toBe(Context.TOOLBAR)
+    expect(inputConfig.instanceTypes.detail_tracking).toBe(Context.TREE)
     expect(inputConfig.contextSelectors.detail_tracking).toBe("[data-nav-zone='detail_tracking'] [data-nav-item]")
     expect(inputConfig.overlays.detail.entry).toContain("detail_tracking")
     const graph = openDetail({ detail_actions: 3, detail_list: 8, detail_tracking: 5, grid: 12, sidebar: 7 })

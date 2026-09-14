@@ -123,6 +123,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   }
 
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
   alias MediaCentaurWeb.Live.TitleDetailHost
   alias MediaCentaurWeb.TitleRef
@@ -130,7 +131,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TMDB.TitleSearch
 
-  alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
   alias MediaCentaurWeb.Components.Title.DetailModal, as: TitleDetailModal
@@ -218,7 +218,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          shelf_expanded?: false,
          view: %View{shelf: %View.ShelfSection{}},
          grab_status_by_key: %{},
-         auto_grab_default_mode: AutoGrabSettings.load().default_mode,
+         approval_policy: PlanningMode.approval_policy(PlanningMode.value()),
          loaded_history_params: nil,
          forecast_reload_timer: nil,
          storage_drives: [],
@@ -394,7 +394,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp build_view(socket) do
     releases = forecast_releases()
     acquisition? = Capabilities.acquisition_ready?()
-    default_mode = AutoGrabSettings.load().default_mode
+    approval_policy = PlanningMode.approval_policy(PlanningMode.value())
     grab = grab_status_by_key(releases, acquisition?)
 
     view =
@@ -405,7 +405,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         today: socket.assigns.today,
         prowlarr_ready?: Capabilities.prowlarr_ready?(),
         acquisition_ready?: acquisition?,
-        auto_grab_default_mode: default_mode,
+        approval_policy: approval_policy,
         rungs: socket.assigns.title_rungs,
         grab_status_by_key: grab,
         shelf_expanded?: socket.assigns.shelf_expanded?
@@ -414,7 +414,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     assign(socket,
       view: view,
       grab_status_by_key: grab,
-      auto_grab_default_mode: default_mode
+      approval_policy: approval_policy
     )
   end
 
@@ -889,7 +889,6 @@ defmodule MediaCentaurWeb.IncomingLive do
             scope={@omnibox_scope}
             title_rungs={@title_rungs}
             in_library_refs={@in_library_refs}
-            default_grab_mode={@auto_grab_default_mode}
             friend_activity_by_ref={@friend_activity_by_ref}
           />
 

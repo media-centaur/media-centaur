@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
   The flat media-search answer sheet — TMDB results as page content
   below the omnibox (no floating overlay). Each row is identity (poster
   thumb, name, quiet type/year text, overview) plus quiet text markers —
-  In library, On your list, Tracking: …, Next: … — with no verb or
+  In library, On your list, Tracking, Auto-grab, Next: … — with no verb or
   bookmark of its own; the whole card opens the title detail modal,
   where every action lives (spec 2026-09-05 §14). The header row holds
   the search status and the Clear search reset.
@@ -78,7 +78,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
             "(fake paths render broken outside the app; the icon fallback shows the " <>
             "no-poster treatment), identity line with quiet type/year text, and overview. " <>
             "Sample Show carries the quiet In library marker, Sample Movie reads On your " <>
-            "list, and Sample Upcoming Show reads Tracking: Follow. The upcoming/released " <>
+            "list, and Sample Upcoming Show reads Tracking. The upcoming/released " <>
             "chips sit between the box and the rows with counts; the whole card opens the " <>
             "title detail modal, where every action lives.",
         attributes: %{
@@ -89,7 +89,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           today: ~D[2026-08-02],
           title_rungs: %{{777, :movie} => :list, {779, :tv_series} => :follow},
           in_library_refs: MapSet.new([{246_810, :tv_series}]),
-          default_grab_mode: "off",
           friend_activity_by_ref: %{
             {777, :movie} => [review(777, "Sample Friend", :love)],
             {778, :movie} => [
@@ -109,8 +108,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           results: results(),
           searching?: false,
           scope: :upcoming,
-          today: ~D[2026-08-02],
-          default_grab_mode: "off"
+          today: ~D[2026-08-02]
         }
       },
       %Variation{
@@ -123,8 +121,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           results: Enum.take(results(), 2),
           searching?: false,
           scope: :upcoming,
-          today: ~D[2026-08-02],
-          default_grab_mode: "off"
+          today: ~D[2026-08-02]
         }
       },
       %Variation{
@@ -133,8 +130,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         attributes: %{
           query: "sample",
           results: Enum.take(results(), 1),
-          searching?: true,
-          default_grab_mode: "off"
+          searching?: true
         }
       },
       %Variation{
@@ -147,8 +143,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           results: [],
           searching?: false,
           metadata_available: true,
-          scope: :released,
-          default_grab_mode: "off"
+          scope: :released
         }
       },
       %Variation{
@@ -160,8 +155,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           query: "sample show",
           results: [],
           searching?: false,
-          metadata_available: false,
-          default_grab_mode: "off"
+          metadata_available: false
         }
       },
       %Variation{
@@ -172,8 +166,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         attributes: %{
           query: "z",
           results: [],
-          searching?: false,
-          default_grab_mode: "off"
+          searching?: false
         }
       }
     ]

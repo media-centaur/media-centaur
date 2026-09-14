@@ -13,14 +13,18 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   yet — the tracking-mode control is the arming surface, so there is
   no `Track` verb (ADR-066). `scoped?` says the download carries the
   series scope menu. `planning_mode` is the person's default planning
-  mode (`Settings.Preferences.PlanningMode`), read on build like
-  `default_grab_mode`: the main segment of Download performs it and the
-  menu names the other.
+  mode (`Settings.Preferences.PlanningMode`), read on build: the main
+  segment of Download performs it and the menu names the other.
 
   `tracking` is the tracked-title half (`TrackingDetail`): nil for a
-  title that has never been tracked. `acquisition?` and
-  `default_grab_mode` are what the tracking-mode control needs to say
-  honestly what each mode does right now.
+  title that has never been tracked. `acquisition?`, `planning_mode`,
+  `complete?` and `release_window` are what the tracking controls need:
+  whether a grab can fire, whether it asks first, whether the library
+  already owns the film (`ReleaseTracking.complete?/2`), and where a
+  movie stands in its release sequence — nil until the live preview
+  lands, and for a series. The rows derive their rule from these at the
+  mount (`Logic.release_ahead?/3`); the detail carries facts, not the
+  rule.
 
   `friend_activity` is the title's `Activities.friend_activity_for/1`
   rows — the hero's pennants, the one place who-did-what shows
@@ -41,6 +45,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
@@ -62,9 +67,10 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
     :own?,
     :activity_id,
     :preview,
+    :release_window,
     acquisition?: false,
     lower_quality_accepted?: false,
-    default_grab_mode: "off",
+    complete?: false,
     planning_mode: :manually_select_release,
     friend_activity: []
   ]
@@ -87,7 +93,8 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
           tracking: TrackingDetail.t() | nil,
           acquisition?: boolean(),
           lower_quality_accepted?: boolean(),
-          default_grab_mode: String.t(),
+          complete?: boolean(),
+          release_window: ReleaseWindow.t() | nil,
           planning_mode: PlanningMode.mode(),
           kind: Activity.kind() | nil,
           sender: String.t() | nil,

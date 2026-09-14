@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.EntityModalTrackingTest do
   @moduledoc """
-  The library detail's tracking block (UIDR-035): the ladder control
+  The library detail's tracking block (UIDR-035): the tracking rows
   always, and the release timeline while the series is followed. Moving
   the rung is the one act; dropping below Follow deletes the tracked
   title, which is why the timeline goes with it.
@@ -51,49 +51,50 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
       tmdb_id: 424_242,
       media_type: :tv_series,
       name: "Tracked Fixture Show",
-      rung: :default
+      rung: :grab
     })
 
     {:ok, series: series, item: item}
   end
 
-  test "a tracked series carries the timeline and the control under its seasons; no bell",
+  test "a tracked series carries the timeline and the rows under its seasons; no bell",
        %{conn: conn, series: series} do
     {:ok, view, html} = live(conn, "/library?selected=#{series.id}")
 
     assert has_element?(view, "#detail-tracking[data-nav-zone='detail_tracking']")
     assert has_element?(view, "#detail-release-timeline-next", "S02E01")
-    assert has_element?(view, "#detail-tracking-mode[data-rung='default']")
-    # Followed: the bookmark is a filled marker with no click — a one-click
-    # must not tear down the calendar; Off is in the tracking controls.
-    assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true']")
-    refute has_element?(view, "#detail-watchlist-toggle[phx-click]")
+    assert has_element?(view, "#detail-tracking-controls[data-rung='grab']")
+    assert has_element?(view, "#detail-tracking-controls-track[aria-disabled='true']")
+    # Listed at any rung: the bookmark is filled and a click removes the
+    # title — one act (spec 2026-09-14).
+    assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true'][phx-value-choice='off']")
     refute has_element?(view, "[phx-click='toggle_tracking']")
     refute html =~ "hero-bell"
   end
 
-  test "the control moves the rung; Off deletes the tracked title and its timeline", %{
+  test "the rows move the rung; the bookmark deletes the tracked title and its timeline", %{
     conn: conn,
     series: series,
     item: item
   } do
     {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
 
-    view |> element("#detail-tracking-mode-grab") |> render_click()
+    view |> element("#detail-tracking-controls-grab") |> render_click()
     await_supervised_tasks()
-    assert Discovery.rung(424_242, :tv_series) == :grab
-    assert has_element?(view, "#detail-tracking-mode[data-rung='grab']")
+    assert Discovery.rung(424_242, :tv_series) == :follow
+    assert has_element?(view, "#detail-tracking-controls[data-rung='follow']")
+    assert has_element?(view, "#detail-release-timeline")
 
-    view |> element("#detail-tracking-mode-off") |> render_click()
+    view |> element("#detail-watchlist-toggle") |> render_click()
     await_supervised_tasks()
 
     assert Discovery.rung(424_242, :tv_series) == nil
     refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
-    assert has_element?(view, "#detail-tracking-mode[data-rung='off']")
+    assert has_element?(view, "#detail-tracking-controls[data-rung='off']")
     refute has_element?(view, "#detail-release-timeline")
   end
 
-  test "an owned series not on the list offers Add to watchlist; the controls follow, and raise it", %{
+  test "an owned series not on the list offers Add to watchlist; the rows follow, and raise it", %{
     conn: conn,
     series: series
   } do
@@ -108,27 +109,28 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
       )
 
     {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
-    assert has_element?(view, "#detail-tracking-mode[data-rung='off']")
+    assert has_element?(view, "#detail-tracking-controls[data-rung='off']")
 
     # Owning a series is not listing it (UIDR-039): the view controls'
     # bookmark is the one verb until the title is on the list, and the
-    # tracking block holds no controls.
+    # tracking block holds no rows.
     assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
-    assert has_element?(view, "#detail-tracking-mode[data-form='none']")
-    refute has_element?(view, "#detail-tracking-mode-ask")
+    assert has_element?(view, "#detail-tracking-controls[data-form='none']")
+    refute has_element?(view, "#detail-tracking-controls-track")
 
     view |> element("#detail-watchlist-toggle") |> render_click()
     # Listing fetches artwork on a supervised task; drive it home (ADR-049).
     await_supervised_tasks()
     assert Discovery.rung(424_242, :tv_series) == :list
-    assert has_element?(view, "#detail-tracking-mode[data-rung='list']")
+    assert has_element?(view, "#detail-tracking-controls[data-rung='list']")
+    assert has_element?(view, "#detail-tracking-controls-track[phx-value-choice='follow']")
 
-    view |> element("#detail-tracking-mode-ask") |> render_click()
+    view |> element("#detail-tracking-controls-grab") |> render_click()
     await_supervised_tasks()
 
-    assert Discovery.rung(424_242, :tv_series) == :ask
+    assert Discovery.rung(424_242, :tv_series) == :grab
     assert Discovery.listed?(424_242, :tv_series)
-    assert has_element?(view, "#detail-tracking-mode[data-rung='ask']")
+    assert has_element?(view, "#detail-tracking-controls[data-rung='grab']")
   end
 
   # Moved behind the cog on 2026-09-13: it is a setting you reset once,

@@ -3,16 +3,6 @@ defmodule MediaCentaurWeb.Live.PlanFlowTest do
 
   alias MediaCentaurWeb.Live.PlanFlow
 
-  describe "approval_policy/1" do
-    test "auto-select commits without anyone looking" do
-      assert PlanFlow.approval_policy(:auto_select_best_release) == "automatic"
-    end
-
-    test "manual select parks for review" do
-      assert PlanFlow.approval_policy(:manually_select_release) == "review"
-    end
-  end
-
   describe "download_flash/1" do
     test "names what is being looked for" do
       assert PlanFlow.download_flash("Sample Show S1E2") ==

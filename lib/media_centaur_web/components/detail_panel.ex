@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.ProgressHairline
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
-  alias MediaCentaurWeb.Components.Title.IntentControl
+  alias MediaCentaurWeb.Components.Title.TrackingControls
   alias MediaCentaurWeb.ViewModel.Orientation
 
   # --- Public API ---
@@ -153,9 +153,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "the panel title's `TitleRef` param, or nil when it has no TMDB identity — the ladder control's address. Compute via `EntityModal.title_ref/1`."
 
-  attr :default_grab_mode, :string,
-    default: "off",
-    doc: "the global auto-grab default — what the ladder's Default rung resolves to right now."
+  attr :approval_policy, :string,
+    values: ["automatic", "review"],
+    default: "review",
+    doc:
+      "what a tracking plan is stamped with — whether an auto-grab asks first. The default is the built-in planning default."
 
   attr :acquisition?, :boolean,
     default: false,
@@ -522,7 +524,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               tracking={@tracking}
               rung={@rung}
               ref={@title_ref}
-              default_grab_mode={@default_grab_mode}
+              entity_type={@entity.type}
+              approval_policy={@approval_policy}
               acquisition?={@acquisition?}
               lower_quality_accepted?={@lower_quality_accepted?}
             />
@@ -641,7 +644,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :tracking, TrackingDetail, default: nil
   attr :rung, :atom, default: nil
   attr :ref, :string, default: nil
-  attr :default_grab_mode, :string, required: true
+  attr :entity_type, :atom, required: true
+  attr :approval_policy, :string, required: true
   attr :acquisition?, :boolean, required: true
   attr :lower_quality_accepted?, :boolean, required: true
 
@@ -654,12 +658,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       class="space-y-6 border-t border-base-content/10 px-6 pb-6 pt-6"
       data-nav-zone="detail_tracking"
     >
-      <IntentControl.intent_control
+      <%!-- Complete is a film the library owns (ReleaseTracking.complete?/2);
+            a series is never complete and a collection is filing
+            (UIDR-025) whose next part's date the library does not hold —
+            so both rows are offered and the record says which are on. --%>
+      <TrackingControls.tracking_controls
         :if={@ref}
-        id="detail-tracking-mode"
+        id="detail-tracking-controls"
         ref={@ref}
         rung={@rung}
-        default_grab_mode={@default_grab_mode}
+        media_type={if @entity_type == :tv_series, do: :tv_series, else: :movie}
+        release_ahead?={true}
+        complete?={false}
+        approval_policy={@approval_policy}
         acquisition?={@acquisition?}
       />
       <ReleaseTimeline.release_timeline

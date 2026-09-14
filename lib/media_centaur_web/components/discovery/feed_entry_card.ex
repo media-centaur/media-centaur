@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
   The toolbar is a fixed 20px seat at the bottom of the text block,
   empty at rest and shown while the card is hovered or holds focus, so
   hover never changes the card's height. Left to right: the List slot
-  (the bookmark verb, "Listed" filled, or "Following" as plain state),
+  (the bookmark verb, "Listed" filled, or "Tracking" as plain state),
   the Download slot (the verb, or plain state text — "Downloading" with
   a hairline, "In library"), and Ignore. State and verb are one control.
 
@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
           >
             <.icon name="hero-bookmark-solid" class="size-3.5" /> Listed
           </button>
-          <span :if={@entry.list_slot == :following} class={@state_class}>Following</span>
+          <span :if={@entry.list_slot == :following} class={@state_class}>Tracking</span>
 
           <button
             :if={@entry.download_slot == :download}

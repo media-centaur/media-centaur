@@ -48,10 +48,10 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
         today: @today,
         prowlarr_ready?: true,
         acquisition_ready?: true,
-        auto_grab_default_mode: "all_releases",
-        # Every fixture title sits at Default, so the global setting above
-        # is what decides whether a release reads as armed.
-        rungs: %{{1001, :tv_series} => :default, {2002, :movie} => :default},
+        approval_policy: "automatic",
+        # Every fixture title sits at Grab, so the policy above is what
+        # decides whether a release reads as armed.
+        rungs: %{{1001, :tv_series} => :grab, {2002, :movie} => :grab},
         grab_status_by_key: %{},
         shelf_expanded?: false
       },
@@ -116,9 +116,9 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
           inputs(%{
             releases: releases,
             rungs: %{
-              {1, :tv_series} => :default,
-              {2, :tv_series} => :default,
-              {2002, :movie} => :default
+              {1, :tv_series} => :grab,
+              {2, :tv_series} => :grab,
+              {2002, :movie} => :grab
             },
             grab_status_by_key: %{UpcomingFeed.release_key(pursued) => %{pursuit_id: pursuit_id}}
           })

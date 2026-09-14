@@ -892,8 +892,8 @@ defmodule MediaCentaur.TestFactory do
   cannot produce — `set_rung/3` writes both, and everything that reads a
   title's behaviour reads the rung.
 
-  `:rung` picks where the record sits (default `:default`, which follows
-  the global auto-grab setting). Pass `rung: nil` for the deliberately
+  `:rung` picks where the record sits (default `:grab`). Pass `rung: nil`
+  for the deliberately
   unreachable shape — a tracked title nobody asked for — which is what
   the reconcile and migration tests are about.
   """
@@ -904,7 +904,7 @@ defmodule MediaCentaur.TestFactory do
       name: "Test Tracked Series"
     }
 
-    {rung, attrs} = Map.pop(attrs, :rung, :default)
+    {rung, attrs} = Map.pop(attrs, :rung, :grab)
     attrs = Map.merge(defaults, attrs)
 
     {:ok, item} = ReleaseTracking.track_item(attrs)

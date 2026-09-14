@@ -32,16 +32,16 @@ defmodule MediaCentaurWeb.Storybook.Title.WatchlistToggle do
       },
       %Variation{
         id: :listed,
-        description: "At List: filled, and a click sets Off — nothing tracked is torn down.",
+        description: "At List: filled, and a click sets Off.",
         attributes: base(%{rung: :list})
       },
       %VariationGroup{
-        id: :followed_marker,
+        id: :followed,
         description:
-          "At Follow and above: filled, and no click at all — the marker. Off is in the " <>
-            "tracking controls, which state that they delete the calendar.",
+          "At Follow and Grab: filled, and a click sets Off — removing from the watchlist is " <>
+            "one act; the calendar is derived again when the title is re-listed.",
         variations:
-          for rung <- [:follow, :ask, :grab, :default] do
+          for rung <- [:follow, :grab] do
             %Variation{id: rung, attributes: base(%{rung: rung})}
           end
       }
