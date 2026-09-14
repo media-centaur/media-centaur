@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.Detail.TrackOverrideBadge do
   Rendered only when an override exists (movies + TV series carry it via
   `Library.MediaTrackOverrides.put_on_entity/1`); other container kinds
   and all-policy overrides render nothing. The Reset button clears the
-  override via the EntityModal-injected `reset_track_override` event.
+  override via the host's `reset_track_override` event.
   """
 
   use MediaCentaurWeb, :html

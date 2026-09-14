@@ -74,8 +74,9 @@ and the library modal's refinement is the floor, not a casualty.
 
 ## Status
 
-Phases 0 to 3 landed on the branch 2026-09-14 (one session, after the
-spec's approval), each `mix precommit` clean. Phase 4 is next.
+Phases 0 to 4 landed on the branch 2026-09-14 (one session, after the
+spec's approval), each `mix precommit` clean. Phase 5 (records) is next;
+then the merge and the ship.
 
 * **Phase 0** (`dce0cf6b`): Discovery's transient params comma-separated;
   MC0011 refreshed (dead key gone, `TitleDetailHost` and `IntentAware`
@@ -118,6 +119,29 @@ spec's approval), each `mix precommit` clean. Phase 4 is next.
   import turns Download into Play, owned series' seasons on Incoming, a
   friend's note by identity on Incoming, a rung set elsewhere refreshes
   Incoming's bookmark and rows; `subscriptions_test`.
+* **Phase 4**: Home and Library `use TitleDetailHost`; `EntityModal`
+  deleted with its unit tests moved to `title_detail_host/` (the
+  "episode list vanished on player close" regression now pins
+  `LibraryHalf.reload/1`; the folder-delete safety pins
+  `LibraryEvents.run_delete/1`; `entity_modal_tracking_test` is
+  `library_live_tracking_test` on the title address). `?selected=` and
+  `?movie=` are gone from Home and Library: a titled entity opens on
+  `?title=`, the residue on `?entity=`, a collection through its member.
+  The migration `20260914200000_drop_collection_title_intents` deletes
+  the intents and tracked titles the collection block wrote (run on the
+  dev database this session). MC0011 is `LiveSubscriptions`: every
+  subscribe under `live/` goes through the door — every page and trait
+  converted (`Pipeline.Stats.subscribe/0` added for the stats topic);
+  the doors registry names `TitleDetailHost.Acquisition.plan_missing_episode`.
+  New tests: a titled card opens on its title address, the residue on
+  its entity address without a bookmark, a deep link to a titled entity
+  opens the title, a collection card opens on the resume-target member
+  and a rail tile on the member it names, a subject switch resets the
+  per-opening state, an owned series' switches follow its calendar while
+  an owned film is complete; `LibraryHalf.address/1`, `apply_files/3`,
+  `LibraryEvents.apply_delete_result/3` drops a moved-on subject.
+* **Bar check 3** captured, not yet judged: `after-phase4/` — the same
+  six shots as `before/`, on the new addresses.
 * **Bar check 2** captured, not yet judged: `after-phase3/` — the owned
   series on Discovery, Incoming (main and Manage) and Library side by
   side, the owned movie on Discovery, and an unowned listed movie.
@@ -256,6 +280,12 @@ spec's § Decisions carries each with the owner's words.
   until the title is listed (UIDR-039), as the title modal already did.
   Two `entity_modal_tracking_test` assertions re-addressed to "no card".
   (this session)
+* `2026-09-14` — **An address the library cannot open is abandoned**
+  with a flash on both forms (`?entity=` to an entity without a present
+  file, `?title=` to a title nothing holds and TMDB cannot fetch), the
+  spec's one abandon path; a titled `?entity=` deep link opens the title
+  in place on the dead render and canonicalises its URL on the join
+  (a patch needs a live socket). (this session)
 * `2026-09-14` — **`snapshot_from_entity/1` carries no art paths**: a
   library image is a local file, not a TMDB path (the spec assumed a
   TMDB image record). An owned title's artwork comes from the library
@@ -297,11 +327,10 @@ spec's § Decisions carries each with the owner's words.
 
 ## Next steps
 
-1. **Owner:** judge bar checks 1 and 2 (`mockups/title-detail-unification-bar/before` vs `after-phase2` and `after-phase3`, and the `storybook-*` unowned shots).
-2. **Phase 4** — Home and Library adopt `TitleDetailHost`; `EntityModal`
-   deleted; `?selected=`/`?movie=` → `?title=`/`?entity=`; the
-   collection-tracking migration; MC0011 renamed and extended. Bar check 3.
-3. **Phase 5** — records, glossary, wiki, CHANGELOG; merge; `/ship minor`.
+1. **Owner:** judge the bar checks (`mockups/title-detail-unification-bar/before` vs `after-phase2`, `after-phase3`, `after-phase4`, and the `storybook-*` unowned shots).
+2. **Phase 5** — UIDR-043 accepted, UIDR-019 and UIDR-023 amended,
+   glossary, `docs/input-system.md`, `docs/architecture.md`, wiki,
+   CHANGELOG; campaign closed; merge to `main`; `/ship minor`.
 
 ## Deferred (bucket at closure)
 

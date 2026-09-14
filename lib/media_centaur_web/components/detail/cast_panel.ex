@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   attr :cast_limit, :integer,
     default: nil,
     doc:
-      "how many paged cast matches to render, owned by the host LiveView (`EntityModal`); `nil` falls back to one page."
+      "how many paged cast matches to render, owned by the host (`Title.ModalState`); `nil` falls back to one page."
 
   attr :resume_episode_key, :any,
     default: nil,

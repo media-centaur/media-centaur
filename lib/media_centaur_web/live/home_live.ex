@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.HomeLive do
   assembly lives in `MediaCentaurWeb.HomeLive.Logic` per ADR-030.
   """
   use MediaCentaurWeb, :live_view
-  use MediaCentaurWeb.Live.EntityModal
+  use MediaCentaurWeb.Live.TitleDetailHost
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
@@ -26,40 +26,38 @@ defmodule MediaCentaurWeb.HomeLive do
   alias MediaCentaurWeb.Components.{
     ComingUpMarquee,
     ContinueWatchingRow,
+    DetailPanel,
     HeroBackdrop,
     HeroCard,
     PosterRow
   }
 
   alias MediaCentaurWeb.Live.ReviewModal
+  alias MediaCentaurWeb.Live.Subscriptions
+  alias MediaCentaurWeb.Live.TitleDetailHost
   alias MediaCentaurWeb.HomeLive.Logic
 
   @impl true
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "Home")
 
-    # `Library.subscribe()` and `Playback.subscribe()` are auto-wired by
-    # the EntityModal on_mount callback; `Settings.subscribe()` by
-    # SpoilerFreeAware; `Capabilities.subscribe()` by CapabilitiesAware.
-    # Do not duplicate any of them here.
-    if connected?(socket) do
-      WatchHistory.subscribe()
-      Availability.subscribe()
-      # Subscribe to projection-refreshed events (ADR-041). Source
-      # topics — `library:updates`, `watch_history:events`,
-      # `playback:events`, `release_tracking:updates` — are observed
-      # by the projections themselves; the LiveView reacts only to
-      # `:library_view_updated` and `:release_tracking_view_updated`.
-      Views.subscribe()
-      ReleaseTrackingViews.subscribe()
-      # Drives the "Importing your media" empty-state reason; coalesced
-      # broadcasts, same source Library's empty state reads.
-      MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_stats())
-    end
+    # Declared through the one door: the title detail host declares the
+    # modal's topics; this page the projections (ADR-041 — the source
+    # topics are observed by the projections themselves; the page reacts
+    # to `:library_view_updated` and `:release_tracking_view_updated`),
+    # watch history, availability, and the pipeline's stats (the
+    # "Importing your media" empty-state reason).
+    socket =
+      Enum.reduce(
+        [WatchHistory, Availability, Views, ReleaseTrackingViews, MediaCentaur.Pipeline.Stats],
+        socket,
+        &Subscriptions.subscribe(&2, &1)
+      )
 
     socket =
       socket
       |> assign(:loaded?, false)
+      |> assign(:today, Date.utc_today())
       |> assign(:continue_timer, nil)
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
@@ -123,7 +121,7 @@ defmodule MediaCentaurWeb.HomeLive do
       <div
         class="relative"
         data-nav-default-zone="home"
-        data-nav-transient-params="selected,view"
+        data-nav-transient-params="title,entity,view,activity"
       >
         <%!-- ── Page atmosphere (z-index 0) ──
               Backdrop image fades into base-100 at the top of the page. The
@@ -245,34 +243,14 @@ defmodule MediaCentaurWeb.HomeLive do
         </div>
 
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
-        <.entity_modal
-          selected_entry={@selected_entry}
-          selected_entity_id={@selected_entity_id}
-          selected_member_id={@selected_member_id}
-          detail_view={@detail_view}
-          cast_filter={@cast_filter}
-          cast_limit={@cast_limit}
-          detail_files={@detail_files}
-          detail_files_status={@detail_files_status}
-          expanded_file_groups={@expanded_file_groups}
-          expanded_seasons={@expanded_seasons}
-          expanded_item_details={@expanded_item_details}
-          all_episode_details_open={@all_episode_details_open}
-          rematch_confirm={@rematch_confirm}
-          delete_confirm={@delete_confirm}
-          deleting={@deleting}
-          tracking={@tracking}
-          lower_quality_accepted?={@lower_quality_accepted?}
-          rung={@rung}
-          planning_mode={@planning_mode}
-          acquisition?={@acquisition?}
-          friend_activity={@friend_activity}
-          availability_map={@availability_map}
-          tmdb_ready={@tmdb_ready}
+        <DetailPanel.detail_panel
+          detail={@title_detail}
+          state={@modal_state}
+          today={@today}
+          review?={@show_discovery}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
-          show_discovery={@show_discovery}
-          today={@today}
+          tmdb_ready={@tmdb_ready}
         />
       </div>
     </Layouts.app>
@@ -294,13 +272,11 @@ defmodule MediaCentaurWeb.HomeLive do
     if destination do
       {:noreply, push_navigate(socket, to: destination <> query)}
     else
-      {:noreply, socket |> ensure_loaded() |> apply_modal_params(params)}
+      {:noreply, ensure_loaded(socket)}
     end
   end
 
-  def handle_params(params, _uri, socket) do
-    {:noreply, socket |> ensure_loaded() |> apply_modal_params(params)}
-  end
+  def handle_params(_params, _uri, socket), do: {:noreply, ensure_loaded(socket)}
 
   # First-render data load — runs on BOTH the disconnected (static) and
   # connected renders so the first paint already carries real sections, not
@@ -320,11 +296,19 @@ defmodule MediaCentaurWeb.HomeLive do
     end
   end
 
-  @impl true
-  def build_modal_path(socket, overrides) do
-    params = EntityModal.modal_query_params(socket.assigns, overrides)
-    if params == %{}, do: ~p"/", else: ~p"/?#{params}"
-  end
+  # --- TitleDetailHost ---
+
+  # This page holds no snapshot of its own: every title it opens is one
+  # the library owns, and the host reads it by identity.
+  @impl TitleDetailHost
+  def page_facts(_socket, _ref, _params), do: {nil, %{}}
+
+  @impl TitleDetailHost
+  def title_detail_path(_socket, []), do: ~p"/"
+  def title_detail_path(_socket, query), do: ~p"/?#{query}"
+
+  @impl TitleDetailHost
+  def open_plan_board(socket, plan_id), do: push_navigate(socket, to: ~p"/incoming?plan=#{plan_id}")
 
   @impl true
   def handle_info(:reload_hero, socket) do
@@ -345,8 +329,8 @@ defmodule MediaCentaurWeb.HomeLive do
 
   # Modal-state messages (`:entities_changed`, `:playback_state_changed`,
   # `:entity_progress_updated`, `:extra_progress_updated`) are handled by
-  # the EntityModal `:handle_info` hook before they land here. Host-level
-  # work (section reloads) happens via the catch-all below.
+  # the title detail host's `:handle_info` hook before they land here.
+  # Host-level work (section reloads) happens via the catch-all below.
 
   def handle_info({:playback_failed, %{payload: payload}}, socket) do
     {:noreply,

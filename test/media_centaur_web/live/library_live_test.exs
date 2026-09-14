@@ -272,7 +272,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "clicking the backdrop closes the modal", %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
 
@@ -289,7 +289,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # phx-click-away. That handler is document-scoped, so any sibling
       # overlay (Console drawer, future popover, toast) would dismiss
       # the modal when clicked. Dismissal lives on the backdrop instead.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal [phx-click-away]")
@@ -306,7 +306,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     test "movie detail links to the film's Letterboxd page", %{conn: conn} do
       movie = create_letterboxd_movie(%{name: "Letterboxd Fixture", tmdb_id: "603"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       assert has_element?(view, "#detail-modal a[href='https://letterboxd.com/tmdb/603']")
@@ -320,7 +320,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         value: %{"enabled" => false}
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal a[href='https://letterboxd.com/tmdb/603']")
@@ -339,7 +339,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           content_url: "/tv/letterboxd-fixture/s01e01.mkv"
         })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal a[href='https://letterboxd.com/tmdb/604']")
@@ -348,7 +348,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     test "no link when the movie has no TMDB id", %{conn: conn} do
       movie = create_letterboxd_movie(%{name: "Unmatched Letterboxd Fixture"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal a[href^='https://letterboxd.com/tmdb/']")
@@ -364,7 +364,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Watchlist Fixture", tmdb_id: "605"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
 
@@ -389,7 +389,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       view |> element("#detail-review") |> render_click()
       assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
@@ -440,7 +440,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
       refute has_element?(view, "#detail-modal .pennant")
 
       {:ok, _rec} = MediaCentaur.Activities.ingest(review.(:love))
@@ -462,7 +462,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       _ = create_linked_file(%{movie_id: movie.id})
       create_image(%{movie_id: movie.id, role: "poster", content_url: "#{movie.id}/poster.jpg"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       view |> element("#detail-review") |> render_click()
 
@@ -473,7 +473,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-review")
@@ -491,7 +491,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           content_url: "/tv/watchlist-fixture/s01e01.mkv"
         })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
 
@@ -517,7 +517,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         create_linked_file(%{movie_id: part.id})
       end
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
 
@@ -534,10 +534,139 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Unmatched Watchlist Fixture"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-watchlist-toggle")
+    end
+  end
+
+  describe "title addresses (UIDR-043)" do
+    test "a titled card opens on its title address", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library")
+
+      view
+      |> element("#library-grid [phx-click='select_entity'][phx-value-id='#{movie.id}']")
+      |> render_click()
+
+      assert_patch(view, ~p"/library?title=movie-777")
+      assert has_element?(view, "#detail-modal[data-state='open']", "Sample Movie")
+      assert has_element?(view, "#detail-watchlist-toggle")
+    end
+
+    test "the residue — an entity with no TMDB identity — opens on its entity address, without a bookmark",
+         %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Unmatched Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library")
+
+      view
+      |> element("#library-grid [phx-click='select_entity'][phx-value-id='#{movie.id}']")
+      |> render_click()
+
+      assert_patch(view, ~p"/library?entity=#{movie.id}")
+      assert has_element?(view, "#detail-modal[data-state='open']", "Unmatched Movie")
+      assert has_element?(view, "#detail-modal button[phx-click='play']")
+      refute has_element?(view, "#detail-watchlist-toggle")
+      refute has_element?(view, "#detail-tracking")
+    end
+
+    test "a deep link to a titled entity opens the title", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
+
+      assert has_element?(view, "#detail-modal[data-state='open']", "Sample Movie")
+      assert has_element?(view, "#detail-watchlist-toggle[phx-value-ref='movie-777']")
+    end
+
+    test "a collection card opens on the resume-target member's title address; a rail tile on the member it names",
+         %{conn: conn} do
+      collection = create_movie_series(%{name: "Address Collection"})
+
+      [part_1, part_2] =
+        for {name, position, tmdb_id} <- [{"Part 1", 0, "607"}, {"Part 2", 1, "608"}] do
+          part =
+            create_movie(%{
+              movie_series_id: collection.id,
+              name: name,
+              position: position,
+              tmdb_id: tmdb_id
+            })
+
+          create_linked_file(%{movie_id: part.id})
+          part
+        end
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library")
+
+      view
+      |> element("#library-grid [phx-click='select_entity'][phx-value-id='#{collection.id}']")
+      |> render_click()
+
+      # Nothing watched: the first member is the resume target.
+      assert_patch(view, ~p"/library?title=movie-607")
+      assert has_element?(view, "#rail-tile-#{part_1.id}[data-selected]")
+
+      view |> element("#rail-tile-#{part_2.id}") |> render_click()
+      assert_patch(view, ~p"/library?title=movie-608")
+      assert has_element?(view, "#rail-tile-#{part_2.id}[data-selected]")
+    end
+
+    test "a subject switch resets the per-opening state", %{conn: conn} do
+      first = create_standalone_movie(%{name: "First Movie", tmdb_id: "701"})
+      _ = create_linked_file(%{movie_id: first.id})
+      second = create_standalone_movie(%{name: "Second Movie", tmdb_id: "702"})
+      _ = create_linked_file(%{movie_id: second.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?title=movie-701")
+      render_hook(view, "filter_cast", %{"cast_filter" => "someone"})
+      render_hook(view, "delete_all_prompt", %{})
+
+      view
+      |> element("#library-grid [phx-click='select_entity'][phx-value-id='#{second.id}']")
+      |> render_click()
+
+      assert_patch(view, ~p"/library?title=movie-702")
+
+      # Neither the typed filter nor the armed delete survives onto the next title.
+      view |> element("[data-role='manage-toggle']") |> render_click()
+      refute has_element?(view, "[phx-click='delete_all_prompt']", "Click again to confirm")
+      refute has_element?(view, "input[name='cast_filter'][value='someone']")
+    end
+
+    test "an owned series' tracking switches follow its calendar; an owned film is complete",
+         %{conn: conn} do
+      series = create_tv_series(%{name: "Switch Show", tmdb_id: "246810"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      _ =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Episode S1E1",
+          content_url: "/tv/switch-show/s01e01.mkv"
+        })
+
+      create_title_intent(%{tmdb_id: 246_810, media_type: :tv_series, name: "Switch Show", rung: :list})
+
+      movie = create_standalone_movie(%{name: "Complete Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      create_title_intent(%{tmdb_id: 777, media_type: :movie, name: "Complete Movie", rung: :list})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?title=tv_series-246810")
+      assert has_element?(view, "#detail-tracking-controls-track[phx-value-choice='follow']")
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?title=movie-777")
+      # The library owns the film: nothing left to release, no Track row.
+      assert has_element?(view, "#detail-tracking-controls[data-rung='list']")
+      refute has_element?(view, "#detail-tracking-controls-track")
+      await_supervised_tasks()
     end
   end
 
@@ -590,14 +719,14 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "no tab strip — the seam below Play stays clear", %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       refute has_element?(view, "#detail-modal [role='tablist']")
       refute has_element?(view, "#detail-modal [role='tab']")
     end
 
     test "on the root view the control offers Cast", %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       assert has_element?(view, "[data-role='view-control']", "Cast")
       refute has_element?(view, "[data-role='manage-toggle'][aria-pressed='true']")
@@ -606,7 +735,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     test "off the root view the same slot names the way back", %{conn: conn, tv_series: tv_series} do
       # "Episodes", not "Back" — the label says where you are going. "Back"
       # only says it is not here, and what it means changes per view.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=cast")
 
       assert has_element?(view, "[data-role='view-control']", "Episodes")
       refute has_element?(view, "[data-role='view-control']", "Cast")
@@ -619,7 +748,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # A bare movie's main view is its hero page, so Manage returns to
       # "Overview" — labelling it "Episodes" would be a lie, and it has no
       # episode list to name anyway.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       assert has_element?(view, "[data-role='view-control']", "Overview")
     end
@@ -628,7 +757,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       assert has_element?(view, "[data-role='manage-toggle'][aria-pressed='true']")
       assert has_element?(view, "[data-role='manage-toggle'][aria-label='Manage']")
@@ -637,30 +766,30 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "Cast encodes itself into the URL", %{conn: conn, tv_series: tv_series} do
-      # Regression: build_modal_path/2 must encode `view=cast`, not just
-      # `view=info`. Without it the selection round-trips through
-      # `parse_view` and lands back on the body, making the control look dead.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      # Regression: the address must encode `view=cast`, not just
+      # `view=info`. Without it the selection round-trips through the view
+      # parser and lands back on the body, making the control look dead.
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       view |> element("[data-role='view-control']") |> render_click()
 
-      assert_patched(view, ~p"/library?selected=#{tv_series.id}&view=cast")
+      assert_patched(view, ~p"/library?entity=#{tv_series.id}&view=cast")
     end
 
     test "the control returns to the root view rather than closing", %{
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       view |> element("[data-role='view-control']") |> render_click()
 
-      assert_patched(view, ~p"/library?selected=#{tv_series.id}")
+      assert_patched(view, ~p"/library?entity=#{tv_series.id}")
       assert has_element?(view, "[data-role='view-control']", "Cast")
     end
 
     test "a movie with no extras offers Cast from its hero page", %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(view, "[data-role='view-control']", "Cast")
       assert has_element?(view, "[data-role='manage-toggle']")
@@ -670,14 +799,14 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       collection: collection
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       assert has_element?(view, "[data-role='view-control']", "Cast")
     end
 
     test "a collection without extras names the way back Overview — the member hero is its main view",
          %{conn: conn, collection: collection} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}&view=info")
 
       assert has_element?(view, "[data-role='view-control']", "Overview")
     end
@@ -692,7 +821,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # the scrollport collapses to the top and snaps back once the content
       # lands. Loading with the modal costs a stat per file on open and buys a
       # Manage view that is right on its first frame.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       html = view |> element("[data-role='manage-toggle']") |> render_click()
 
@@ -707,7 +836,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # UIDR-019 rule 2: DOWN from the action row lands on the episode you
       # would resume. The controls are items of that row, reached by
       # LEFT/RIGHT.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       assert has_element?(
                view,
@@ -745,7 +874,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the modal declares its navigation model", %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       assert has_element?(view, "#detail-modal[data-nav-overlay='detail']")
     end
@@ -754,7 +883,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # Both regions must exist and be populated: entry resolves to the first
       # populated one, so an unmarked action row would silently drop the cursor
@@ -767,7 +896,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # LEFT from an episode walks up to `[data-nav-group]` and collapses the
       # `[aria-expanded='true']` head it finds there.
@@ -783,7 +912,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       view |> element("[data-nav-group] [aria-expanded='true']") |> render_click()
 
@@ -791,7 +920,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the body opens on the episode Play would play", %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # `[data-resume-target]` is what the cursor seeds from when the list has
       # no remembered position — config names the selector, so it has to be on
@@ -803,7 +932,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       assert has_element?(view, "[data-role='episode-details-toggle']")
       refute has_element?(view, "[data-role='episode-details-toggle'][data-nav-item]")
@@ -827,7 +956,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           subtitle_lang: "eng"
         })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       html = render(view)
       assert html =~ "Remembered tracks"
@@ -837,7 +966,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "no badge when the entity has no override", %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       refute render(view) =~ "Remembered tracks"
     end
@@ -845,7 +974,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     test "Reset to default clears the override and drops the badge", %{conn: conn, movie: movie} do
       {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "jpn"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
       assert render(view) =~ "Remembered tracks"
 
       view |> element("button[phx-click='reset_track_override']") |> render_click()
@@ -858,7 +987,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       movie: movie
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
       refute render(view) =~ "Remembered tracks"
 
       # Simulate a mid-playback capture: the override lands in the DB and
@@ -873,7 +1002,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "TrackOverrideChanged for a different entity is ignored", %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       Events.broadcast(%TrackOverrideChanged{
         owner_type: :movie,
@@ -933,7 +1062,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     } do
       # The file's own claims sit on its Manage row, next to the
       # filename-parsed badges — a renamed fake release stays visible.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       html = render(view)
       assert html =~ "Container title"
@@ -974,7 +1103,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       assert has_element?(view, "[data-role='file-group-head'][aria-expanded='false']")
       refute has_element?(view, "[data-role='manage-file-row']")
@@ -984,7 +1113,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       # Same TREE contract as the season accordion: LEFT/RIGHT read
       # `aria-expanded` on a `data-nav-item` head inside `data-nav-group`.
@@ -1003,7 +1132,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       view
       |> element("[data-role='file-group-head'][phx-click='toggle_file_group']", "Season 1")
@@ -1022,7 +1151,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       view
       |> element("[data-role='file-group-head']", "Season 1")
@@ -1041,7 +1170,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       # Count and size are on the collapsed row — scoped cleanup needs
       # neither expansion nor arithmetic.
@@ -1052,7 +1181,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       assert has_element?(
                view,
@@ -1064,7 +1193,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       assert has_element?(view, "[data-role='manage-toolbar'] button[phx-click='delete_all_prompt']")
       assert has_element?(view, "[data-role='manage-toolbar'] button[phx-click='rematch']")
@@ -1083,7 +1212,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # ledger, with its buttons reachable by LEFT/RIGHT. That means a
       # TOOLBAR-typed `manage_tools` region (config.js overlays.detail),
       # never toolbar buttons walked as detail_list tree items.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
 
       assert has_element?(
                view,
@@ -1114,7 +1243,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       movie: movie
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       assert has_element?(view, "[data-role='file-group-head'][aria-expanded='true']")
       assert has_element?(view, "[data-role='manage-file-row']")
@@ -1154,7 +1283,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=cast")
 
       # One body zone at a time — nav zones must never nest, so the cast
       # region swaps in for the tree rather than wrapping inside it.
@@ -1163,7 +1292,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "every cast card is on the keyboard path", %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=cast")
 
       assert has_element?(view, "[data-nav-zone='detail_cast'] a[data-nav-item][tabindex='0']")
       assert has_element?(view, "[data-nav-zone='detail_cast'] div[data-nav-item][tabindex='0']")
@@ -1176,7 +1305,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "the episode list keeps the tree zone", %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       assert has_element?(view, "[data-nav-zone='detail_list']")
       refute has_element?(view, "[data-nav-zone='detail_cast']")
@@ -1208,7 +1337,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=cast")
 
       html = render(view)
       assert html =~ "Cast Member 24"
@@ -1220,7 +1349,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       tv_series: tv_series
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=cast")
 
       view |> element("[phx-click='show_more_cast']") |> render_click()
 
@@ -1255,7 +1384,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           cast_person_ids: [5001, 5003, 5030]
         })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}&view=cast")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}&view=cast")
 
       html = render(view)
       # Lead section renders in full, including the low-billed guest.
@@ -1277,7 +1406,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Casted Movie", cast: cast})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       # The main view is the orientation block alone — no cast grid.
       refute has_element?(view, "[data-nav-zone='detail_cast']")
@@ -1310,7 +1439,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           content_url: "/tv/other-big-cast/s01e01.mkv"
         })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=cast")
       view |> element("[phx-click='show_more_cast']") |> render_click()
       refute has_element?(view, "[phx-click='show_more_cast']")
 
@@ -1318,7 +1447,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # reset in apply_modal_params/2 is what's under test, not a remount.
       # An entity switch always lands on the main view (entity_switched in
       # apply_modal_params), so the Cast view is re-entered via its control.
-      render_patch(view, ~p"/library?selected=#{other.id}")
+      render_patch(view, ~p"/library?entity=#{other.id}")
       render_async(view)
 
       view |> element("[data-role='view-control']", "Cast") |> render_click()
@@ -1420,7 +1549,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
          %{conn: conn, tv_series: tv_series, episode: episode} do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # Season 1 holds the next episode, so it opens expanded and the
       # episode row (with its toggle) is on screen already
@@ -1457,7 +1586,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # Seasons open collapsed (2026-08-04 orientation design) — expand
       # season 1 so the episode row (and its toggle) renders.
@@ -1513,7 +1642,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
     test "opens on the default member's panel with a poster rail",
          %{conn: conn, collection: collection, part_1: part_1, part_2: part_2} do
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       # Unstarted collection → first member is the subject.
       assert html =~ "Coherent Part 1 synopsis"
@@ -1532,7 +1661,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
     test "selecting a poster re-anchors the panel without starting playback",
          %{conn: conn, collection: collection, part_1: part_1, part_2: part_2} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       view
       |> element("#rail-tile-#{part_2.id}")
@@ -1547,19 +1676,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "#rail-tile-#{part_2.id}[data-selected]")
       refute has_element?(view, "#rail-tile-#{part_1.id}[data-selected]")
 
-      # Selection is URL-reflected: a fresh mount restores it.
-      {:ok, _view, restored_html} =
-        live_async!(conn, ~p"/library?selected=#{collection.id}&movie=#{part_2.id}")
+      # Selection is URL-reflected: the member's own address restores it.
+      {:ok, _view, restored_html} = live_async!(conn, ~p"/library?entity=#{part_2.id}")
 
       assert restored_html =~ "Coherent Part 2 synopsis"
-    end
-
-    test "a stale movie param falls back to the default member",
-         %{conn: conn, collection: collection} do
-      {:ok, _view, html} =
-        live_async!(conn, ~p"/library?selected=#{collection.id}&movie=#{Ecto.UUID.generate()}")
-
-      assert html =~ "Coherent Part 1 synopsis"
     end
 
     # UIDR-025: activity surfaces present member movies as movies. Their
@@ -1570,19 +1690,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     # entered without one.
     test "opening by a member movie's id pre-selects that member",
          %{conn: conn, part_2: part_2} do
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{part_2.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{part_2.id}")
 
       assert html =~ "Coherent Part 2 synopsis"
       assert has_element?(view, "#rail-tile-#{part_2.id}[data-selected]")
-    end
-
-    test "an explicit movie param outranks the member-id implication",
-         %{conn: conn, part_1: part_1, part_2: part_2} do
-      {:ok, view, html} =
-        live_async!(conn, ~p"/library?selected=#{part_2.id}&movie=#{part_1.id}")
-
-      assert html =~ "Coherent Part 1 synopsis"
-      assert has_element?(view, "#rail-tile-#{part_1.id}[data-selected]")
     end
 
     test "opens on the resume-target member mid-collection",
@@ -1595,7 +1706,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           completed: true
         })
 
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       assert html =~ "Coherent Part 2 synopsis"
       assert has_element?(view, ~s|button[phx-click="play"][phx-value-id="#{part_2.id}"]|)
@@ -1608,7 +1719,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
          %{conn: conn, collection: collection, part_1: part_1} do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       view
       |> element(~s|button[phx-click="toggle_watched"][phx-value-container-id="#{part_1.id}"]|)
@@ -1625,7 +1736,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
     test "the Cast view shows the selected member's cast and follows selection",
          %{conn: conn, collection: collection, part_2: part_2} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}&view=cast")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}&view=cast")
 
       html = render(view)
       assert html =~ "Coherent Part 1 Lead Actor"
@@ -1658,7 +1769,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         part_tmdb_id: 900_888
       })
 
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       assert has_element?(view, "[data-role='rail-upcoming']", "Coherent Part 3")
       refute has_element?(view, ~s|[data-role='rail-upcoming'][phx-click]|)
@@ -1676,7 +1787,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         content_url: "/media/test/coherent-extra.mkv"
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       assert has_element?(view, "[data-role='extra-row']", "Coherent Making-Of")
     end
@@ -1727,7 +1838,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       movie: movie
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       assert has_element?(view, "button[phx-click='refresh_artwork']")
 
@@ -1749,7 +1860,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
       refute html =~ "/media-images/#{movie.id}/poster.jpg"
 
       # Artwork finished downloading: the Image row now exists in the DB.
@@ -1853,7 +1964,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       movie: movie
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       assert Library.Files.list_by_entity_id(movie.id) != [],
              "fixture must start with files on disk"
@@ -1890,7 +2001,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       movie: movie
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}&view=info")
 
       view
       |> element("button[phx-click='delete_all_prompt']")
@@ -1972,7 +2083,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
     test "an autoplay URL param is inert — the modal opens without side effects",
          %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live_async!(conn, "/library?selected=#{movie.id}&autoplay=1")
+      {:ok, view, _html} = live_async!(conn, "/library?entity=#{movie.id}&autoplay=1")
 
       assert has_element?(view, "#detail-modal[data-state='open']")
     end
@@ -2085,7 +2196,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         content_url: "/tv/sample-show/s01e01.mkv"
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
 
       view
       |> element("[data-role='missing-episode-row'][phx-value-episode='2']")
@@ -2124,7 +2235,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         content_url: "/tv/sample-show/s01e01.mkv"
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
 
       assert has_element?(view, "[data-role='missing-episode-row'][phx-value-episode='2']")
 
@@ -2159,7 +2270,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         content_url: "/tv/sample-show/s01e01.mkv"
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
       html = render(view)
 
       assert html =~ "Download more of this show"

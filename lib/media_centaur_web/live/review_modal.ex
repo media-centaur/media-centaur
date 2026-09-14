@@ -13,8 +13,8 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
 
   Pure rendering over `MediaCentaurWeb.Live.ReviewFlow`'s assigns;
   `review_sentiment` (a choice), `review_send` (form submit) and
-  `review_cancel` bubble to the host: any `EntityModal` host for a title
-  with files, any `TitleDetailHost` host for one without.
+  `review_cancel` bubble to the host: any `TitleDetailHost` host, for a
+  title with files or without.
   """
   use MediaCentaurWeb, :html
 

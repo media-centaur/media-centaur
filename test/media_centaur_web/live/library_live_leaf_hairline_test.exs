@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.LibraryLiveLeafHairlineTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(
                view,
@@ -53,7 +53,7 @@ defmodule MediaCentaurWeb.LibraryLiveLeafHairlineTest do
 
     test "unstarted: bare track at zero, metadata line unchanged",
          %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(
                view,
@@ -74,7 +74,7 @@ defmodule MediaCentaurWeb.LibraryLiveLeafHairlineTest do
         completed: true
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
       assert has_element?(
                view,
@@ -127,7 +127,7 @@ defmodule MediaCentaurWeb.LibraryLiveLeafHairlineTest do
 
       # Resume target is the in-progress part 2 → its fraction, not the
       # collection's.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       assert has_element?(
                view,
@@ -155,7 +155,7 @@ defmodule MediaCentaurWeb.LibraryLiveLeafHairlineTest do
 
     test "unstarted member shows the bare track",
          %{conn: conn, collection: collection} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{collection.id}")
 
       assert has_element?(
                view,
@@ -188,7 +188,7 @@ defmodule MediaCentaurWeb.LibraryLiveLeafHairlineTest do
         completed: true
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       assert has_element?(
                view,

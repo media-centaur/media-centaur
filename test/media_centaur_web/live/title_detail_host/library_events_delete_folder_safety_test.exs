@@ -1,20 +1,19 @@
-defmodule MediaCentaurWeb.Live.EntityModalDeleteFolderSafetyTest do
+defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEventsDeleteFolderSafetyTest do
   @moduledoc """
-  `EntityModal.run_delete/1`'s `{:folder, path}` and `:all` branches now
+  `LibraryEvents.run_delete/1`'s `{:folder, path}` and `:all` branches
   gate the recursive folder delete on
   `MediaCentaur.DeleteTargets.safe_to_delete_folder?/2` before calling
   `Deletion.delete_folder/2` — closing the gap where a folder
   shared with another already-imported entity's files could be wiped
-  wholesale. Split from `entity_modal_test.exs` (which is a plain
-  `ExUnit.Case, async: true` for pure-function tests) because this needs
-  DataCase for real `WatchedFile` rows and real files on disk.
+  wholesale. Needs DataCase for real `WatchedFile` rows and real files
+  on disk.
   """
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
-  alias MediaCentaurWeb.Live.EntityModal
+  alias MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents
 
   setup do
     media_dir =
@@ -45,7 +44,7 @@ defmodule MediaCentaurWeb.Live.EntityModalDeleteFolderSafetyTest do
       folder = Path.join(media_dir, "Solo.Release")
 
       assert {:ok, _} =
-               EntityModal.run_delete(%{
+               LibraryEvents.run_delete(%{
                  delete_confirm: {:folder, folder},
                  detail_files: detail_files,
                  media_dirs: [media_dir]
@@ -75,7 +74,7 @@ defmodule MediaCentaurWeb.Live.EntityModalDeleteFolderSafetyTest do
       folder = Path.join(media_dir, "ShowName")
 
       assert {:error, _reason} =
-               EntityModal.run_delete(%{
+               LibraryEvents.run_delete(%{
                  delete_confirm: {:folder, folder},
                  detail_files: detail_files,
                  media_dirs: [media_dir]
@@ -101,7 +100,7 @@ defmodule MediaCentaurWeb.Live.EntityModalDeleteFolderSafetyTest do
       detail_files = [%{file: %{file_path: path}, size: 1}]
 
       assert {:ok, []} =
-               EntityModal.run_delete(%{
+               LibraryEvents.run_delete(%{
                  delete_confirm: :all,
                  detail_files: detail_files,
                  media_dirs: [media_dir]

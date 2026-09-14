@@ -65,7 +65,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "the season holding the next episode opens expanded and scrolled to it",
          %{conn: conn, tv_series: tv_series} do
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # Next up is S2E1, so season 2 opens expanded with a scroll target
       # and season 1 (fully watched) stays collapsed.
@@ -78,7 +78,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "the expanded season collapses on click like any other",
          %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       view
       |> element(~s|button[phx-click="toggle_season"][phx-value-season="2"]|)
@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "hero carries the hairline; the Play button alone names the next episode",
          %{conn: conn, tv_series: tv_series} do
-      {:ok, _view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, _view, html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # The up-next marquee was removed as redundant with the Play
       # button's own label — the hairline is the only orientation
@@ -103,7 +103,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "expanding a collapsed season renders dense rows without synopses",
          %{conn: conn, tv_series: tv_series} do
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       refute html =~ "Episode S1E1"
 
@@ -118,7 +118,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "the episode-details disclosure reveals the synopsis inline",
          %{conn: conn, tv_series: tv_series, s2e1: s2e1} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       view
       |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{s2e1.id}"]|)
@@ -135,7 +135,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "the episode-details toggle opens every synopsis in expanded seasons at once",
          %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       refute render(view) =~ "Synopsis for S2E1"
 
@@ -157,7 +157,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "turning the episode-details toggle off keeps per-row disclosures open",
          %{conn: conn, tv_series: tv_series, s2e1: s2e1} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       view
       |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{s2e1.id}"]|)
@@ -173,7 +173,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "a fully watched season header shows only the check, no label",
          %{conn: conn, tv_series: tv_series} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       season_one_header =
         view
@@ -194,7 +194,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "catalog facts stay off the modal — the Cast view holds people, not facts",
          %{conn: conn, tv_series: tv_series} do
-      {:ok, _view, main_html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, _view, main_html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # The main view carries orientation + actions only — no facet
       # strip (network / rating / genres).
@@ -204,7 +204,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       # The Cast view dropped the meta block with the 2026-08-08 redesign:
       # cast is the page, catalog facts appear nowhere in the modal.
       {:ok, _view, cast_html} =
-        live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+        live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=cast")
 
       refute cast_html =~ "Sample Network"
       refute cast_html =~ "Genres"
@@ -222,7 +222,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
         })
       end
 
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # No completion marquee — the playback CTA carries the state.
       refute html =~ "Series complete"
@@ -256,7 +256,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "season one opens expanded but the document stays on the hero",
          %{conn: conn, tv_series: tv_series} do
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}")
 
       # A first episode, not a next one — nothing to scroll back to, so
       # the cinematic hero survives the open.

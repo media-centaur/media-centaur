@@ -18,13 +18,14 @@ defmodule MediaCentaurWeb.AppsLive do
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.Apps
+  alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.Apps.App
   alias MediaCentaur.Apps.Steam
   alias MediaCentaurWeb.Components.AppCards
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket), do: Apps.subscribe()
+    socket = Subscriptions.subscribe(socket, Apps)
 
     {:ok,
      socket

@@ -291,7 +291,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       # Modal opens; the card body still means details — direct play lives
       # on the hover overlay's own button (UIDR-027).
-      assert_patched(view, "/?selected=#{movie.id}")
+      assert_patched(view, "/?entity=#{movie.id}")
       assert render(view) =~ ~s|data-state="open"|
     end
 
@@ -339,7 +339,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       )
       |> render_click()
 
-      assert_patched(view, "/?selected=#{movie.id}")
+      assert_patched(view, "/?entity=#{movie.id}")
       assert render(view) =~ ~s|data-state="open"|
     end
 
@@ -371,7 +371,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, _view, html} = live_async!(conn, "/?selected=#{movie.id}")
+      {:ok, _view, html} = live_async!(conn, "/?entity=#{movie.id}")
 
       assert html =~ ~s|data-state="open"|
     end
@@ -449,7 +449,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
 
-      {:ok, view, html} = live_async!(conn, "/?selected=#{movie.id}")
+      {:ok, view, html} = live_async!(conn, "/?entity=#{movie.id}")
       refute html =~ "Watch again"
 
       {:ok, progress} =

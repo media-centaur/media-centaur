@@ -157,7 +157,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
-  # Click-to-confirm gesture (mirrors `EntityModal`'s delete_*_prompt, via
+  # Click-to-confirm gesture (mirrors the title detail's delete_*_prompt, via
   # the shared `LiveHelpers.delete_gesture_state/3`): the first click arms
   # `delete_confirm` for this group and the button flips to "Click again to
   # delete"; the second click on the SAME group actually deletes. Selecting

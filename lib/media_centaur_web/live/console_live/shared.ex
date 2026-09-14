@@ -33,9 +33,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
 
       @doc false
       defp console_mount(socket) do
-        if connected?(socket) do
-          Console.subscribe()
-        end
+        socket = MediaCentaurWeb.Live.Subscriptions.subscribe(socket, Console)
 
         # Both renders paint the buffer (ADR-051: a pure in-memory read
         # belongs on the first paint). Cap it at the default buffer size —

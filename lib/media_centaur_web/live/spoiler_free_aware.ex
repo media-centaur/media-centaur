@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Live.SpoilerFreeAware do
 
   The host cannot forget any of this — it is structurally impossible to
   mount the trait without the wiring. Hosts MUST NOT call
-  `Settings.subscribe()` themselves; the `EntityModalContract` Credo
+  `Settings.subscribe()` themselves; the `LiveSubscriptions` Credo
   check (which covers all auto-wiring traits) flags the duplicate.
 
   Decoupling rationale: see ADR-038. Before the on_mount migration each

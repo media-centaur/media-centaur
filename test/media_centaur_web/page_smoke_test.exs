@@ -193,7 +193,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
   defp record_present(_file), do: :ok
 
-  describe "/library?selected=<id> with movie that has duration_seconds" do
+  describe "/library?entity=<id> with movie that has duration_seconds" do
     # Detail-panel metadata row formats `entity.duration_seconds` (integer
     # seconds, post Library Schema v2 Phase 1 Task 3) for display. A
     # mismatched formatter would crash the whole LiveView; this smoke pins
@@ -208,17 +208,21 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           content_rating: "PG-13"
         })
 
+      # A title opens only with a present file; an address the library
+      # cannot open is abandoned with a flash.
+      _ = create_linked_file(%{movie_id: movie.id})
+
       {:ok, movie: movie}
     end
 
     test "library detail panel mounts for a movie with duration_seconds",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = smoke!(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = smoke!(conn, ~p"/library?entity=#{movie.id}")
       assert is_binary(html)
     end
   end
 
-  describe "/?selected=<id> with a movie collection containing downloaded movies" do
+  describe "/?entity=<id> with a movie collection containing downloaded movies" do
     # The home detail panel renders the movie-first collection modal
     # (UIDR-023): the selected member's panel over the poster rail. The
     # member subject and rail tiles read optional projection fields
@@ -242,7 +246,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "home detail panel mounts and renders the member panel + rail for a collection",
          %{conn: conn, series: series} do
-      assert {:ok, _view, html} = smoke!(conn, ~p"/?selected=#{series.id}")
+      assert {:ok, _view, html} = smoke!(conn, ~p"/?entity=#{series.id}")
       assert is_binary(html)
       # Proves the collection branch actually rendered — a false-pass
       # guard: if the constituent movies weren't present, this smoke
@@ -252,7 +256,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  describe "/library?selected=<id> with TV series that has tracked upcoming releases" do
+  describe "/library?entity=<id> with TV series that has tracked upcoming releases" do
     # The TV-series detail page composes a typed `[%SeasonView{}]` from
     # both Library episodes and ReleaseTracking releases. A render-path
     # bug in any of the three EpisodeRow variants (Library /
@@ -308,7 +312,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     test "library detail panel mounts for a TV series with upcoming + future-season releases",
          %{conn: conn, tv: tv} do
       assert {:ok, view, _html} =
-               smoke!(conn, ~p"/library?selected=#{tv.id}")
+               smoke!(conn, ~p"/library?entity=#{tv.id}")
 
       # Seasons open collapsed (2026-08-04 orientation design), so
       # expand season 1 to exercise the upcoming-row render path.
@@ -322,7 +326,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  describe "/library?selected=<id> with movie that has detected subtitles" do
+  describe "/library?entity=<id> with movie that has detected subtitles" do
     # SubtitlesRow renders the language list aggregated from a movie's
     # linked-file tracks (`subtitles_tracks` table, owned by the
     # Subtitles context). A render-path bug — bad query, missing
@@ -350,7 +354,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "library detail panel mounts when a linked file has subtitle tracks",
          %{conn: conn, movie: movie} do
-      assert {:ok, _view, html} = smoke!(conn, ~p"/library?selected=#{movie.id}")
+      assert {:ok, _view, html} = smoke!(conn, ~p"/library?entity=#{movie.id}")
       assert is_binary(html)
     end
   end

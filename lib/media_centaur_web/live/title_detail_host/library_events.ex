@@ -48,9 +48,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
   @spec events() :: [String.t()]
   def events, do: @events
 
-  @doc "Handles one library-section event for the open detail; the host has checked a library half is open."
-  @spec handle(String.t(), map(), socket()) :: socket()
-  def handle("play", %{"id" => id}, socket) do
+  @doc "Plays a playable id in place (UIDR-027); what stands in the way is flashed."
+  @spec play(socket(), Ecto.UUID.t()) :: socket()
+  def play(socket, id) do
     case Playback.play(id) do
       :ok ->
         socket
@@ -65,6 +65,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents do
         put_flash(socket, :error, "Couldn't start playback.")
     end
   end
+
+  @doc "Handles one library-section event for the open detail; the host has checked a library half is open."
+  @spec handle(String.t(), map(), socket()) :: socket()
+  def handle("play", %{"id" => id}, socket), do: play(socket, id)
 
   def handle(
         "toggle_watched",

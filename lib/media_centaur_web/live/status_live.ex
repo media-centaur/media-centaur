@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Activities
   alias MediaCentaur.Settings.Config
-  alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status, Topics}
+  alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status}
   alias MediaCentaur.SelfUpdate.Changelog
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaur.Watcher
+  alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.WatchHistory.Views.PlaybackActivity
   alias MediaCentaurWeb.StatusLive.ReportModal
   alias MediaCentaurWeb.Components.IssueView
@@ -39,25 +40,31 @@ defmodule MediaCentaurWeb.StatusLive do
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "Status")
 
-    if connected?(socket) do
-      Watcher.Supervisor.subscribe()
-      Playback.subscribe()
-      ErrorReports.subscribe()
-      SelfUpdate.subscribe()
-      SelfUpdate.subscribe_progress()
-      MediaCentaur.WatchHistory.subscribe()
-      Acquisition.subscribe_queue()
-      Capabilities.subscribe_changes()
-      Status.Views.subscribe()
-      Social.subscribe_connections()
+    socket =
+      Enum.reduce(
+        [
+          Watcher.Supervisor,
+          Playback,
+          ErrorReports,
+          SelfUpdate,
+          {SelfUpdate, :subscribe_progress},
+          MediaCentaur.WatchHistory,
+          {Acquisition, :subscribe_queue},
+          {Capabilities, :subscribe_changes},
+          Status.Views,
+          {Social, :subscribe_connections},
+          MediaCentaur.Pipeline.Stats
+        ],
+        socket,
+        &Subscriptions.subscribe(&2, &1)
+      )
 
+    if connected?(socket) do
       # Visiting /status marks auto-detected incidents as seen, clearing
       # the discovery badge on the Status nav item. The web layer owns
       # the diagnostics_seen_at timestamp (DiagnosticsBadge), so the
       # ErrorReports context stays free of any Settings dependency.
       MediaCentaurWeb.DiagnosticsBadge.mark_seen()
-
-      Topics.subscribe(Topics.pipeline_stats())
       Process.send_after(self(), :refresh_vitals, @vitals_refresh_ms)
     end
 

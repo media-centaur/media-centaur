@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
 
   Small inventories (≤ #{6} files total — typical movies) auto-expand:
   a single file hidden behind a chevron is bookkeeping, not calm. The
-  expanded set is host state (`expanded_file_groups` in `EntityModal`),
+  expanded set is host state (`expanded_file_groups` on `Title.ModalState`),
   `nil` meaning "the automatic default".
 
   ## Delete confirmation
@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   # showing them.
   @auto_expand_threshold 6
 
-  @doc_files "list of file-info maps (`%{file: KnownFile.t(), size: bytes | nil}`) built by `EntityModal.load_entity_files/1`."
+  @doc_files "list of file-info maps (`%{file: KnownFile.t(), size: bytes | nil}`) built by the host's deferred file-info load (`TitleDetailHost.LibraryHalf`)."
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`."
   @doc_deleting "in-flight delete target (same sum type as `delete_confirm`). Set while the async deletion runs so the matching button shows \"Deleting…\" and all delete buttons disable."
 

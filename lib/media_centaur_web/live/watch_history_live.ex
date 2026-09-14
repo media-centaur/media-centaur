@@ -6,6 +6,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.WatchHistory
+  alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaur.WatchHistory.Views, as: WatchHistoryViews
   alias MediaCentaurWeb.LibraryFormatters
 
@@ -15,13 +16,13 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "History")
 
-    if connected?(socket) do
-      # Source topic — drives the paginated events-list refresh.
-      WatchHistory.subscribe()
-      # Derived topic — drives the aggregate panel refresh (stats,
-      # heatmap, rewatch counts) via the projection (ADR-041).
-      WatchHistoryViews.subscribe()
-    end
+    # The source topic drives the paginated events-list refresh; the
+    # derived topic the aggregate panel (stats, heatmap, rewatch counts)
+    # via the projection (ADR-041).
+    socket =
+      socket
+      |> Subscriptions.subscribe(WatchHistory)
+      |> Subscriptions.subscribe(WatchHistoryViews)
 
     socket =
       assign(socket,

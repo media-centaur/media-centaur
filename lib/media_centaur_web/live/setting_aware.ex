@@ -18,17 +18,19 @@ defmodule MediaCentaurWeb.Live.SettingAware do
 
   Responsibilities, identical for every assign:
 
-    * subscribe to `MediaCentaur.Settings` **once per host** (no matter how
-      many SettingAware traits the host mounts)
+    * subscribe to `MediaCentaur.Settings` through the one door
+      (`Live.Subscriptions`), so the host and every SettingAware trait it
+      mounts share one subscription
     * seed the assign from `context.enabled?/0`
     * attach a `:handle_info` hook that re-assigns from `context.enabled?(value)`
       whenever `{:setting_changed, context.setting_key(), value}` arrives, then
       `{:cont, socket}` so the host's own clauses and other traits still run
 
-  Hosts MUST NOT call `Settings.subscribe/0` themselves (Credo MC0011).
+  Nothing calls `Settings.subscribe/0` itself (Credo MC0011).
   """
 
   alias MediaCentaur.Settings
+  alias MediaCentaurWeb.Live.Subscriptions
 
   def on_mount({context, assign, hook}, _params, _session, socket) do
     socket =
@@ -45,15 +47,8 @@ defmodule MediaCentaurWeb.Live.SettingAware do
   end
 
   # One subscribe regardless of how many setting-aware assigns the host
-  # mounts — a second subscribe to the same topic is wasted PubSub fanout.
-  defp subscribe_once(socket) do
-    if Phoenix.LiveView.connected?(socket) and !socket.assigns[:__settings_subscribed__] do
-      Settings.subscribe()
-      Phoenix.Component.assign(socket, :__settings_subscribed__, true)
-    else
-      socket
-    end
-  end
+  # mounts: the door subscribes a topic once per process.
+  defp subscribe_once(socket), do: Subscriptions.subscribe(socket, Settings)
 
   defp handle_setting_changed(context, assign, {:setting_changed, key, value}, socket) do
     if key == context.setting_key() do
