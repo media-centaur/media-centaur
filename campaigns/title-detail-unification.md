@@ -74,8 +74,9 @@ and the library modal's refinement is the floor, not a casualty.
 
 ## Status
 
-Research and spec drafted 2026-09-14 (second session, autonomous); awaiting
-the owner's decisions before phase 0. No implementation code on the branch.
+Spec approved in its decisions 2026-09-14 and refined by a `unify_design`
+pass (spec iteration 2). Ready for phase 0. No implementation code on the
+branch.
 
 * Reconciled: branch is one commit ahead of `main` (this file); pointers and
   line counts verified against `77714ea4`.
@@ -185,20 +186,8 @@ Which modules survive by name is a planning decision, not a design one. The
 
 ## Open decisions
 
-Recorded with recommendations in the spec (§ Open decisions). The owner
-decides each in the app's terms; the phase plan assumes the recommendation.
-
-1. The residue's address — `?entity=<uuid>`, canonicalised to `?title=`; no `:collection` media type in this campaign.
-   1b. Collection tracking — delete the collection-level block now; migration for the orphaned `(collection_id, :movie)` intents; a follow-up design for a collection identity or for deleting the upcoming-parts rail path.
-2. The preview for an owned title — none; one metadata builder per source; the facet strip goes for both.
-3. Collection member selection — the member ref is the subject; `?movie=` goes.
-4. Where the library half's state lives — host state, one `Title.ModalState` struct, reset on subject change.
-5. Event naming — library names kept, `title_` prefix dropped, `set_rung` / `review_open` / `close_title` shared.
-6. Nav overlay merge — one `detail` overlay with `detail_menu`; absent-zone skipping verified.
-7. Tests under ADR-027 — not covered; stricter self-rule: re-address 1:1, delete only tests of deleted behaviour, named per commit.
-8. Emitters — entity emitters keep `select_entity`, the host canonicalises; rail tile → `open_title`.
-9. Subscriptions — the host owns seven topics, pages piggyback, `IntentAware` deleted, MC0011 extended.
-10. Cast for an unowned title — out of scope, follow-up.
+None. The ten planning decisions were approved 2026-09-14 (below); the
+spec's § Decisions carries each with the owner's words.
 
 ## Decisions made
 
@@ -215,12 +204,31 @@ decides each in the app's terms; the phase plan assumes the recommendation.
   owned asyncs landing by identity. (owner's brief; ADR-049, ADR-051)
 * `2026-09-14` — Done right, not fast: research and a spec with a glossary
   precede any code; a UIDR supersedes UIDR-035. (owner)
+* `2026-09-14` — **The ten planning decisions approved as recommended**
+  (owner): residue on `?entity=`, no `:collection` media type; the
+  collection-level tracking block goes with a migration for its orphaned
+  intents; no preview for an owned title and no facet strip ("i guess?" —
+  judged at the phase-2 bar check, reversible there); the member movie is a
+  collection modal's subject; one `Title.ModalState`; library event names
+  kept, `title_` prefix dropped, `set_rung` shared ("a lame name, but fine");
+  one `detail` overlay; tests re-addressed 1:1 under a stricter-than-ADR-027
+  rule; entity emitters keep `select_entity`; the host declares its topics
+  and `IntentAware` goes; cast for unowned titles deferred. (owner)
+* `2026-09-14` — **Unify pass on the spec (iteration 2)**, owner-requested:
+  the view-model carries facts only (`primary`, `scoped?` and five activity
+  fields leave it; `Detail.Logic.primary_action/2` and `tracking_card?/1`
+  derive the rules); the activity is read by identity
+  (`Activities.get_row/1`); the library half is `entry` (`LeafDetail` new) +
+  `subject` + `member` + `files` + `available`; subscriptions go through one
+  idempotent door (`Live.Subscriptions`) and every consumer declares its own,
+  `title_rungs` moves to `IncomingLive`; `detail_presentation` and the
+  `select_entity` toggle go; the rail tile is an entity emitter. (this
+  session; spec § Iteration 2)
 
 ## Next steps
 
-1. **Owner reviews the spec's ten decisions** and the UIDR-043 draft; corrections go into the spec and this file's Decisions made.
-2. **Phase 0** (hygiene) once decided — tests first per the spec's Tests table; skills first: `automated-testing`, `elixir:phoenix-thinking`, `input-system`.
-3. Phases 1–5 as the spec's Phase plan, each closed by `mix precommit` and, for phases 2–4, the bar check (same titles, 1920×1080, `page-shot`, judged by the owner).
+1. **Phase 0** (hygiene) — tests first per the spec's Tests table; skills first: `automated-testing`, `elixir:phoenix-thinking`, `input-system`.
+2. Phases 1–5 as the spec's Phase plan, each closed by `mix precommit` and, for phases 2–4, the bar check (same titles, 1920×1080, `page-shot`, judged by the owner).
 
 ## Deferred (bucket at closure)
 
@@ -229,6 +237,9 @@ decides each in the app's terms; the phase plan assumes the recommendation.
 * Hint-bar legend for overlay regions (`app.css:2472–2521` names none of them).
 * One-patch cursor leak when the region holding the cursor empties (`orchestrator.js:195–217, 380–382`); not runtime-verified.
 * The Offline placeholder in the play card is not focusable (`play_card.ex:53–63`).
+* `?view=info` names the Manage view; rename to `manage` once the address migration lands.
+* `TrackingDetail.today` duplicates the host's `today`; pass it once.
+* A better name than `set_rung` for the one intent event (owner).
 
 ## Completion criteria
 

@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`title-detail-unification.md`](title-detail-unification.md) —
-  **spec drafted 2026-09-14, awaiting owner decisions; branch `title-detail-unification`.** One
+  **decisions approved 2026-09-14, phase 0 next; branch `title-detail-unification`.** One
   title detail modal for one TMDB identity on Home, Library, Discovery and
   Incoming, its sections present by facts (files, rung, calendar, friend
   activity, plan in flight). Replaces the library modal / title modal split
