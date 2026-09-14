@@ -147,7 +147,6 @@ config :media_centaur, :retention_policy_providers, [
   MediaCentaur.Retention.ObanPolicy,
   MediaCentaur.ErrorReports.RetentionPolicies,
   MediaCentaur.Acquisition.RetentionPolicies,
-  MediaCentaur.ReleaseTracking.RetentionPolicies,
   MediaCentaur.Pipeline.RetentionPolicies,
   MediaCentaur.SelfUpdate.RetentionPolicies,
   MediaCentaur.Library.RetentionPolicies,

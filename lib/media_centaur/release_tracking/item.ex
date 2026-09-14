@@ -60,7 +60,6 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :dismiss_released_before, :date
 
     has_many :releases, MediaCentaur.ReleaseTracking.Release
-    has_many :events, MediaCentaur.ReleaseTracking.Event
 
     timestamps()
   end

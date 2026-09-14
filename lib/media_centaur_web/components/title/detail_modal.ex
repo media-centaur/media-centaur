@@ -200,24 +200,15 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
 
           <FacetStrip.facet_strip :if={@preview && @preview.facets != []} facets={@preview.facets} />
 
-          <%!-- One card: what TMDB knows of the title's dates on the left,
-                the switches on the right (spec 2026-09-14, iteration 2).
-                The dates read out as soon as there is a calendar or a
-                release window; the switches once the title is listed. --%>
+          <%!-- One card: the switches on the left, what TMDB knows of the
+                title's dates on the right (spec 2026-09-14, iteration 3).
+                The switches show once the title is listed; the dates read
+                out as soon as there is a calendar or a release window. --%>
           <div
             :if={tracking_block?(@detail, @tracking)}
             class="glass-inset flex flex-wrap gap-x-8 gap-y-4 rounded-lg p-4"
             data-nav-zone="title_detail_tracking"
           >
-            <ReleaseDates.release_dates
-              :if={dates?(@detail, @tracking)}
-              id="title-release-dates"
-              media_type={@detail.title.media_type}
-              release_window={@detail.release_window}
-              timeline={timeline(@tracking)}
-              today={@today}
-              class="min-w-[14rem] max-w-sm flex-1"
-            />
             <div
               :if={
                 TrackingControls.control_form(@detail.rung) != :none or
@@ -241,6 +232,15 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
                 accepted?={@detail.lower_quality_accepted?}
               />
             </div>
+            <ReleaseDates.release_dates
+              :if={dates?(@detail, @tracking)}
+              id="title-release-dates"
+              media_type={@detail.title.media_type}
+              release_window={@detail.release_window}
+              timeline={timeline(@tracking)}
+              today={@today}
+              class="min-w-[14rem] max-w-sm flex-1"
+            />
           </div>
         </div>
       </:body>

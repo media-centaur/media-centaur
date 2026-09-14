@@ -17,7 +17,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Differ, Helpers, RefreshSchedule}
+  alias MediaCentaur.ReleaseTracking.{Helpers, RefreshSchedule}
   alias MediaCentaur.Settings
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.TitleIdentity
@@ -241,24 +241,9 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   defp commit_refresh(item, response, new_releases) do
-    old_releases = ReleaseTracking.list_releases_for_item(item.id)
-    events = Differ.diff(old_releases, new_releases, item.media_type)
-    write_events(item, events)
     replace_releases(item, new_releases)
     update_item_metadata(item, response)
     :ok
-  end
-
-  defp write_events(item, events) do
-    Enum.each(events, fn event ->
-      ReleaseTracking.create_event!(%{
-        item_id: item.id,
-        item_name: item.name,
-        event_type: event.event_type,
-        description: event.description,
-        metadata: event.metadata
-      })
-    end)
   end
 
   defp replace_releases(item, new_releases) do
