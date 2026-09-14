@@ -15,9 +15,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   | `:ignored` | keeps it off the Feed, and nothing else |
   | `:list` | keeps it on your list, and nothing else |
   | `:follow` | keeps its calendar, so releases appear under Coming up |
-  | `:ask` | parks a draft plan when a release drops |
-  | `:grab` | downloads it |
-  | `:default` | follows the global auto-grab setting, live |
+  | `:grab` | plans each release when it drops; the person's planning mode says whether the plan commits by itself or waits for approval |
 
   **Off is the absence of a record, never a stored value.** That is what
   makes "turning tracking off deletes it" a property of the schema
@@ -30,6 +28,13 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   does is keep friends' reviews and listings of it off the Feed.
   Wanting the title later — any rung at List or above — replaces it,
   the way every other move on the ladder does.
+
+  **There is no per-title grab policy.** Grab says the app plans the
+  release; whether that plan commits alone or parks for review is
+  `Settings.Preferences.PlanningMode`, the same answer the Download
+  button gives (spec 2026-09-14). The `:ask` and `:default` rungs that
+  used to carry a policy were folded into Grab and Follow by the
+  `TrackingIsTwoSwitches` data migration.
 
   Identity is `(tmdb_id, media_type)`, kept as indexed columns and
   derived from the embedded title on write so there is one write path
@@ -53,10 +58,10 @@ defmodule MediaCentaur.Discovery.TitleIntent do
 
   alias MediaCentaur.TMDB.Title
 
-  @rungs [:ignored, :list, :follow, :ask, :grab, :default]
+  @rungs [:ignored, :list, :follow, :grab]
 
   @typedoc "Where a person's intent about a title sits. Off is no record at all."
-  @type rung :: :ignored | :list | :follow | :ask | :grab | :default
+  @type rung :: :ignored | :list | :follow | :grab
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t(),
@@ -148,20 +153,13 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   def follows_releases?(rung), do: rung_at_least?(rung, :follow)
 
   @doc """
-  Resolves a rung into the grab decision acquisition acts on: `"off"`,
-  `"ask"` or `"all_releases"`.
-
-  The single representation of that mapping. Acquisition asks whether it
-  may grab; it does not model the ladder, so every rung below Ask is
-  simply off from there. `:default` defers to the global setting, live,
-  which is what makes flipping the global switch move every title whose
-  rung has never been set to a concrete value.
+  Whether the app plans the title's releases when they drop. Only Grab
+  does; the rungs below keep a list or a calendar and nothing more. The
+  one question acquisition asks about a title.
   """
-  @spec grab_mode(rung() | nil, String.t()) :: String.t()
-  def grab_mode(:default, default), do: default
-  def grab_mode(:grab, _default), do: "all_releases"
-  def grab_mode(:ask, _default), do: "ask"
-  def grab_mode(rung, _default) when rung in [nil, :ignored, :list, :follow], do: "off"
+  @spec grabs?(rung() | nil) :: boolean()
+  def grabs?(:grab), do: true
+  def grabs?(_rung), do: false
 
   # Provenance pairing: a friend-sourced item names the activity it came
   # from; a manual one carries none.
