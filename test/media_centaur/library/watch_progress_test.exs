@@ -256,6 +256,49 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
       assert DateTime.compare(incomplete.last_watched_at, completed.last_watched_at) in [:gt, :eq]
     end
+
+    # An episode that ran to the end unattended comes back at full
+    # position. Marking it unwatched must return it to a fresh state, not
+    # leave it in progress at 100% — where the progress bar reads full and
+    # Play resumes at the very end. The control says "Mark unwatched".
+    test "clears the position so the record reads unwatched" do
+      tv_series = create_entity(%{type: :tv_series, name: "Unattended Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      episode =
+        create_episode(%{season_id: season.id, episode_number: 1, name: "Ran To The End"})
+
+      progress =
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 2400.0,
+          duration_seconds: 2400.0
+        })
+
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
+
+      assert incomplete.position_seconds == 0.0
+      assert Library.ProgressRecords.state_from_progress(incomplete) == :unwatched
+    end
+
+    # `duration_seconds` describes the file, not the watching, so it
+    # survives the reset — the row still knows how long the episode is.
+    test "keeps the duration" do
+      movie = create_entity(%{type: :movie, name: "Unwatch Keeps Duration"})
+
+      progress =
+        create_watch_progress(%{
+          movie_id: movie.id,
+          position_seconds: 7100.0,
+          duration_seconds: 7200.0
+        })
+
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
+      {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
+
+      assert incomplete.duration_seconds == 7200.0
+    end
   end
 
   describe "unique constraint on playable_item_id" do

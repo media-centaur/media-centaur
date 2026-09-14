@@ -22,8 +22,27 @@ defmodule MediaCentaur.Library.ProgressTracker do
     change(record, completed: true, last_watched_at: DateTime.utc_now(:second))
   end
 
-  @doc "Flags the record as incomplete and stamps `last_watched_at`."
+  @doc """
+  Returns the record to unwatched: clears the position, drops the
+  completed flag, and stamps `last_watched_at`.
+
+  The position goes back to zero because the control that reaches here is
+  labelled "Mark unwatched". Leaving it where it stood would put an item
+  that ran to the end unattended back as "in progress at 100%" — a full
+  progress bar, and a Play that resumes at the last second. `ProgressRecords.state_from_progress/1`
+  reads position 0 with `completed: false` as `:unwatched`, so zeroing is
+  what makes the record say what the label promised.
+
+  `duration_seconds` describes the file rather than the watching, so it
+  survives. `last_watched_at` is stamped rather than cleared: it is the
+  anchor `Playback.Resume` and `Library.ProgressSummary` walk from, so the
+  item just unmarked becomes the one Play picks up — now from the start.
+  """
   def mark_incomplete_changeset(record) do
-    change(record, completed: false, last_watched_at: DateTime.utc_now(:second))
+    change(record,
+      completed: false,
+      position_seconds: 0.0,
+      last_watched_at: DateTime.utc_now(:second)
+    )
   end
 end
