@@ -129,32 +129,27 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # --- TitleDetailHost ---
 
-  # The title lives on whichever tab knows it: the watchlist item or an
-  # activity. The host's facts are the feed provenance and the pennants;
-  # the trait reads everything else from the contexts.
+  # What this page alone knows about a title is the feed: the activity
+  # the modal speaks for, its embedded snapshot, and its provenance. The
+  # review's words are the note when it has any; otherwise the intent's
+  # note stands. The snapshot, the rung, friend activity and the rest the
+  # host resolves by identity.
   @impl TitleDetailHost
-  def resolve_title(socket, ref, params) do
-    activity_id = Map.get(params, "activity")
-    watch_row = watch_row(socket, ref)
-    activity_row = activity_row(socket, ref, activity_id)
+  def page_facts(socket, ref, params) do
+    case activity_row(socket, ref, Map.get(params, "activity")) do
+      nil ->
+        {nil, %{}}
 
-    case {watch_row, activity_row} do
-      {nil, nil} ->
-        nil
+      row ->
+        facts = %{
+          kind: row.activity.kind,
+          sender: if(!row.own?, do: row.nickname),
+          own?: row.own?,
+          activity_id: row.activity.id
+        }
 
-      _known ->
-        title = if watch_row, do: watch_row.item.title, else: activity_row.activity.title
-
-        {title,
-         %{
-           kind: activity_row && activity_row.activity.kind,
-           sender: activity_row && !activity_row.own? && activity_row.nickname,
-           note: (activity_row && activity_row.activity.text) || (watch_row && watch_row.item.note),
-           own?: activity_row && activity_row.own?,
-           activity_id: activity_row && activity_row.activity.id,
-           friend_activity:
-             (watch_row && watch_row.friend_activity) || title_friend_activity(socket, ref)
-         }}
+        {row.activity.title,
+         if(row.activity.text, do: Map.put(facts, :note, row.activity.text), else: facts)}
     end
   end
 
@@ -163,9 +158,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   @impl TitleDetailHost
   def open_plan_board(socket, plan_id), do: push_navigate(socket, to: ~p"/incoming?plan=#{plan_id}")
-
-  defp watch_row(socket, ref),
-    do: Enum.find(socket.assigns.items, &({&1.item.tmdb_id, &1.item.media_type} == ref))
 
   # The activity the modal speaks for: the one named, else the title's
   # newest friend review (it carries the text), else any friend's
@@ -182,18 +174,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   defp activity_ref(%{activity: activity}), do: {activity.tmdb_id, activity.media_type}
-
-  # A title's friend activity, for a title the watchlist does not carry:
-  # every act on it by a current friend, plus own reviews — the
-  # feed rows are the one representation (a former friend's carries no
-  # name, so no pennant).
-  defp title_friend_activity(socket, ref) do
-    Enum.filter(
-      socket.assigns.activities,
-      &(activity_ref(&1) == ref and
-          ((&1.own? and &1.activity.kind == :review) or &1.nickname != nil))
-    )
-  end
 
   @impl true
   def handle_event("expand_person", %{"id" => id}, socket),

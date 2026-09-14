@@ -441,24 +441,15 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   # --- TitleDetailHost ---
 
-  # A ref this page knows: a tracked title (the Coming up rows), else the
-  # open plan's subject (its board's bookmark), else a search result on
-  # screen (a pick that has nothing to download opens the title detail,
-  # where the tracking-mode control is the arming surface). No
-  # page-specific facts.
+  # What this page alone holds is in memory: the omnibox's results (a pick
+  # that has nothing to download opens the title detail, where the
+  # tracking switches are the arming surface) and the open plan's subject
+  # (its board's bookmark) — TMDB titles nothing has recorded yet. A
+  # tracked title is on the ladder, so the host finds its snapshot by
+  # identity. No facts of its own.
   @impl TitleDetailHost
-  def resolve_title(socket, {tmdb_id, media_type} = ref, _params) do
-    case ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
-      %Item{} = item ->
-        {Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: item.name}), %{}}
-
-      nil ->
-        case Enum.find(known_titles(socket), &(Title.ref(&1) == ref)) do
-          %Title{} = title -> {title, %{}}
-          nil -> nil
-        end
-    end
-  end
+  def page_facts(socket, ref, _params),
+    do: {Enum.find(known_titles(socket), &(Title.ref(&1) == ref)), %{}}
 
   defp known_titles(%{assigns: %{plan_title: %Title{} = subject, omnibox_results: results}}),
     do: [subject | results]

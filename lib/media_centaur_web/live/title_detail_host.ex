@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   | Hook | Does |
   |---|---|
-  | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) and `&activity=<id>` — from the page's rows when they know the title, from TMDB when they do not |
+  | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) and `&activity=<id>` — from the snapshot resolved by identity, or from TMDB when nothing here holds one |
   | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_mode_toggle`, `title_scope_toggle`, `title_menu_close`, `title_scope`, `title_download`, `title_activity_delete`, `title_review_open`, `set_rung`, `reset_lower_quality` |
   | `:handle_async` | the fetched open (`{:title_open, ref}`), the live TMDB preview (`{:title_preview, ref}`) and the manual plan (`{:title_download, ref, name}`) that opens its board |
   | `:handle_info` | refreshes the open detail on `:releases_updated`, watchlist and library changes, then continues so the host's own clauses run |
@@ -33,22 +33,34 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   Beyond the `use`, the host implements three callbacks:
 
-  * `resolve_title/3` — the `TMDB.Title` a ref names on this page plus
-    any page-specific facts for `Logic.title_detail/2` (Discovery's feed
-    provenance and reviews), or nil when the page does not know the
-    title: a fresh open then fetches the detail from TMDB and opens when
-    it lands (a deep link to any TMDB title), and an open detail keeps
-    its own snapshot (`refresh_title_detail/1`).
+  * `page_facts/3` — what this page alone knows about a ref: an
+    in-memory snapshot when it holds one (an omnibox result, a plan's
+    subject, a feed activity's title) and the facts only it can supply
+    for `Logic.title_detail/2` (the feed's provenance: kind, sender,
+    activity id, the review's words as the note). `{nil, %{}}` when it
+    knows nothing, which is never a reason not to open.
   * `title_detail_path/2` — the page's own path with the modal query
     applied (`[]` closes), so leaving the modal never changes tab.
   * `open_plan_board/2` — navigates to Incoming with the plan's board
     open (`push_navigate` from another page, `push_patch` on Incoming
     itself).
 
-  and keeps a `:today` assign. The common facts — library owner,
-  watchlist membership, acquisition state, artwork, the tracked-title
-  half (`TrackingDetail`) — are read here from their owning contexts:
-  local reads, milliseconds (ADR-051).
+  and keeps a `:today` assign.
+
+  ## Resolving a title
+
+  The modal's subject is a TMDB identity, and the snapshot it opens from
+  is resolved here by that identity, in order: the open detail's own; the
+  title intent's embedded snapshot (`Discovery.get_intent/2` — any title
+  on the ladder, listed, ignored or tracked); the page's in-memory copy;
+  and TMDB itself, fetched asynchronously, for a deep link to a title
+  nothing here holds. The common facts — library owner, rung, acquisition
+  state, artwork, the tracked-title half (`TrackingDetail`), friend
+  activity for the pennants, the intent's note — are read from their
+  owning contexts by the same identity: local reads, milliseconds
+  (ADR-051). The page's facts merge over them. An open detail is never
+  closed by the lists changing beneath it (`refresh_title_detail/1`);
+  closing is an explicit act.
 
   ## Setting a rung
 
@@ -91,8 +103,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   require MediaCentaur.Log, as: Log
 
-  @callback resolve_title(socket :: Phoenix.LiveView.Socket.t(), TitleRef.ref(), params :: map()) ::
-              {Title.t(), facts :: map()} | nil
+  @callback page_facts(socket :: Phoenix.LiveView.Socket.t(), TitleRef.ref(), params :: map()) ::
+              {snapshot :: Title.t() | nil, facts :: map()}
 
   @callback title_detail_path(socket :: Phoenix.LiveView.Socket.t(), query :: keyword()) ::
               String.t()
@@ -138,17 +150,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # `?title=<media_type>-<tmdb_id>` drives the modal (UIDR-035): back
   # closes, refresh keeps it, the URL is shareable. `&activity=<id>` names
-  # the act a person card opened it from. The page's rows are the first
-  # source — they carry the snapshot and the host facts — and TMDB the
-  # second: a ref the page does not know is fetched, and the modal opens
-  # when the detail lands. A fresh open from a row starts the live preview
-  # fetch; a re-patch of the same title keeps the preview it already has.
-  # A malformed param names nothing to open.
+  # the act a person card opened it from. The snapshot is resolved by
+  # identity (`snapshot/3`), and TMDB is the last source: a ref nothing
+  # here holds is fetched, and the modal opens when the detail lands. A
+  # fresh open from a snapshot starts the live preview fetch; a re-patch of
+  # the open title keeps the preview it already has. A malformed param
+  # names nothing to open.
   def apply_title_params(%{"title" => param} = params, _uri, socket) do
     case TitleRef.parse(param) do
       {:ok, ref} ->
-        case socket.view.resolve_title(socket, ref, params) do
-          {%Title{} = title, facts} -> {:cont, open_from_page(socket, ref, title, facts)}
+        {page_snapshot, facts} = socket.view.page_facts(socket, ref, params)
+
+        case snapshot(socket, ref, page_snapshot) do
+          %Title{} = title -> {:cont, open_from_snapshot(socket, ref, title, facts)}
           nil -> {:cont, open_from_tmdb(socket, ref)}
         end
 
@@ -159,31 +173,44 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   def apply_title_params(_params, _uri, socket), do: {:cont, close(socket)}
 
-  defp open_from_page(
+  # The snapshot a ref opens from, by identity: the open detail's own,
+  # then the title intent's (any title on the ladder — listed, ignored,
+  # tracked), then the page's in-memory copy. Nil leaves TMDB as the one
+  # source.
+  defp snapshot(%{assigns: %{title_detail: %TitleDetail{ref: ref, title: title}}}, ref, _page_snapshot),
+    do: title
+
+  defp snapshot(_socket, ref, page_snapshot), do: intent_snapshot(ref) || page_snapshot
+
+  defp intent_snapshot({tmdb_id, media_type}) do
+    case Discovery.get_intent(tmdb_id, media_type) do
+      %TitleIntent{title: %Title{} = title} -> title
+      _none -> nil
+    end
+  end
+
+  # A re-patch of the open title keeps the preview it already has.
+  defp open_from_snapshot(
          %{assigns: %{title_detail: %TitleDetail{ref: ref} = open}} = socket,
          ref,
          title,
          facts
        ), do: assign(socket, :title_detail, build_detail(socket, title, facts, open.preview))
 
-  defp open_from_page(socket, _ref, title, facts) do
+  defp open_from_snapshot(socket, _ref, title, facts) do
     socket
     |> reset_detail()
     |> assign(:title_detail, build_detail(socket, title, facts, nil))
     |> fetch_preview(title)
   end
 
-  # The open detail is kept when its own ref is re-patched after the page
-  # forgot the title (its snapshot, no host facts), and a fetch already
-  # under way for the ref is left to land. Otherwise the fetch starts, once
-  # connected — the dead render has no process for it to answer to. What
-  # stands in the way (no TMDB key, no such title, TMDB not answering) is
-  # the fetch's result: flashed, and the param dropped, by the one result
-  # handler — which also keeps the page's path out of this hook, where on
-  # the first mount the page has not assigned its own URL state yet.
-  defp open_from_tmdb(%{assigns: %{title_detail: %TitleDetail{ref: ref} = open}} = socket, ref),
-    do: assign(socket, :title_detail, build_detail(socket, open.title, %{}, open.preview))
-
+  # A fetch already under way for the ref is left to land. Otherwise the
+  # fetch starts, once connected — the dead render has no process for it
+  # to answer to. What stands in the way (no TMDB key, no such title, TMDB
+  # not answering) is the fetch's result: flashed, and the param dropped,
+  # by the one result handler — which also keeps the page's path out of
+  # this hook, where on the first mount the page has not assigned its own
+  # URL state yet.
   defp open_from_tmdb(%{assigns: %{title_opening: ref}} = socket, ref), do: socket
 
   defp open_from_tmdb(socket, ref) do
@@ -221,11 +248,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   end
 
   @doc """
-  Rebuilds the open detail from current facts (a row reloaded, a mode
-  moved, a plan landed). An open detail is never closed by a refresh: when
-  the page no longer knows the title — the bookmark took it off the list,
-  Off deleted the tracked title — it is rebuilt from its own snapshot with
-  no host facts, so the control that removed it is still there to undo it.
+  Rebuilds the open detail from current facts (a rung moved, a plan
+  landed, a friend's act arrived). An open detail is never closed by a
+  refresh: it keeps its own snapshot and re-reads the facts the contexts
+  hold by identity, and the page's facts come and go with its rows — so
+  when the bookmark takes the title off the list, or Off deletes the
+  tracked title, the control that removed it is still there to undo it.
   Closing is an explicit act (the URL dropping `?title`, an own activity
   deleted, an auto-select download landing). A no-op while closed.
   """
@@ -234,19 +262,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   def refresh_title_detail(%{assigns: %{title_detail: %TitleDetail{} = detail}} = socket) do
     params = if detail.activity_id, do: %{"activity" => detail.activity_id}, else: %{}
-
-    {title, facts} =
-      case socket.view.resolve_title(socket, detail.ref, params) do
-        {%Title{} = title, facts} -> {title, facts}
-        nil -> {detail.title, %{}}
-      end
-
-    assign(socket, :title_detail, build_detail(socket, title, facts, detail.preview))
+    {_page_snapshot, facts} = socket.view.page_facts(socket, detail.ref, params)
+    assign(socket, :title_detail, build_detail(socket, detail.title, facts, detail.preview))
   end
 
-  # The common facts, from the contexts that own them; the host's facts
-  # (feed provenance, reviews) merge over them.
-  defp build_detail(socket, %Title{} = title, host_facts, preview) do
+  # The common facts, from the contexts that own them, by identity; the
+  # page's facts merge over them (a review's words over the intent's note).
+  defp build_detail(socket, %Title{} = title, page_facts, preview) do
     ref = Title.ref(title)
     artwork = TmdbArtwork.urls(title.media_type, title.tmdb_id)
     acquisition? = Capabilities.acquisition_ready?()
@@ -274,10 +296,21 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       complete?: ReleaseTracking.complete?(title.tmdb_id, title.media_type),
       release_window: nil,
       planning_mode: planning_mode,
+      friend_activity: Map.get(Activities.friend_activity_for([ref]), ref, []),
+      note: intent_note(ref),
       preview: preview
     }
 
-    Logic.title_detail(title, Map.merge(facts, host_facts))
+    Logic.title_detail(title, Map.merge(facts, page_facts))
+  end
+
+  # The person's own words on the record, or the review text copied in as
+  # provenance when the title was listed from a friend's review.
+  defp intent_note({tmdb_id, media_type}) do
+    case Discovery.get_intent(tmdb_id, media_type) do
+      %TitleIntent{note: note} -> note
+      nil -> nil
+    end
   end
 
   # The live preview runs as an owned async (cancelled with the view,
@@ -616,21 +649,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   defp tmdb_unreachable_flash, do: "TMDB didn't answer, so the title couldn't be opened."
 
-  # The open detail's title when the click names it (the modal), else
-  # whatever the page knows the ref as (a watchlist row).
+  # The title a click names, resolved as an open is: the open detail's,
+  # else by identity, else the page's in-memory copy.
   defp title_for_param(socket, param) do
     case TitleRef.parse(param) do
       {:ok, ref} ->
-        case socket.assigns.title_detail do
-          %TitleDetail{ref: ^ref, title: title} ->
-            title
-
-          _other ->
-            case socket.view.resolve_title(socket, ref, %{}) do
-              {%Title{} = title, _facts} -> title
-              nil -> nil
-            end
-        end
+        {page_snapshot, _facts} = socket.view.page_facts(socket, ref, %{})
+        snapshot(socket, ref, page_snapshot)
 
       :error ->
         nil
