@@ -40,8 +40,6 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.TMDB.Title
 
-  @mode_pointer "Change this under Settings → Acquisition → Download button."
-
   attr :id, :string, required: true
 
   attr :ref, :string,
@@ -170,19 +168,12 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   def track_description(:tv_series, _rung), do: "Upcoming episodes show under Coming up on Incoming."
 
-  @doc "The Auto-grab row's line: what a drop does under the approval policy, and where that is set."
+  @doc "The Auto-grab row's line: what a drop does under the approval policy."
   @spec grab_description(Title.media_type(), String.t()) :: String.t()
-  def grab_description(:movie, "automatic"),
-    do: "The release downloads when it drops, without asking. " <> @mode_pointer
-
-  def grab_description(:movie, "review"),
-    do: "When the release drops, a plan waits for your approval on Incoming. " <> @mode_pointer
-
-  def grab_description(:tv_series, "automatic"),
-    do: "New and missing episodes download without asking. " <> @mode_pointer
-
-  def grab_description(:tv_series, "review"),
-    do: "New and missing episodes are planned and wait for your approval on Incoming. " <> @mode_pointer
+  def grab_description(:movie, "automatic"), do: "Downloads when it drops."
+  def grab_description(:movie, "review"), do: "Plans when it drops and waits for your approval."
+  def grab_description(:tv_series, "automatic"), do: "Downloads episodes as they air."
+  def grab_description(:tv_series, "review"), do: "Plans episodes as they air and waits for your approval."
 
   @doc "The line an ignored title shows in place of the rows."
   @spec ignored_line() :: String.t()

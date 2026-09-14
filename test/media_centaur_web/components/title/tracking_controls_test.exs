@@ -58,23 +58,17 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControlsTest do
       assert TrackingControls.track_description(:movie, :grab) == "Stays on while auto-grab is on."
     end
 
-    test "Auto-grab follows the approval policy and the media type, and says where that is set" do
-      assert TrackingControls.grab_description(:movie, "review") =~
-               "a plan waits for your approval on Incoming"
+    test "Auto-grab follows the approval policy and the media type, in one short line" do
+      assert TrackingControls.grab_description(:movie, "automatic") == "Downloads when it drops."
 
-      assert TrackingControls.grab_description(:movie, "automatic") =~
-               "downloads when it drops, without asking"
+      assert TrackingControls.grab_description(:movie, "review") ==
+               "Plans when it drops and waits for your approval."
 
-      assert TrackingControls.grab_description(:tv_series, "review") =~
-               "New and missing episodes are planned"
+      assert TrackingControls.grab_description(:tv_series, "automatic") ==
+               "Downloads episodes as they air."
 
-      assert TrackingControls.grab_description(:tv_series, "automatic") =~
-               "New and missing episodes download without asking"
-
-      for media_type <- [:movie, :tv_series], policy <- ["review", "automatic"] do
-        assert TrackingControls.grab_description(media_type, policy) =~
-                 "Settings → Acquisition → Download button"
-      end
+      assert TrackingControls.grab_description(:tv_series, "review") ==
+               "Plans episodes as they air and waits for your approval."
     end
   end
 end
