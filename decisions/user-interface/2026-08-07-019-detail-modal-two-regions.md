@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-08-07
-amended: 2026-08-08
+amended: 2026-09-14
 ---
 # The detail modal navigates as two regions, and BACK peels containment
 
@@ -26,6 +26,7 @@ The detail modal carries Play, More info and Manage above the body of the title 
 5. **UP at the top of a body region follows a graph `up` edge** (amended 2026-08-08): the episode tree climbs through `manage_tools` when Manage shows, else to the action row; the cast grid (`detail_cast`, a spatial SHELF) climbs the same way. BACK stays the one-press way out; UP is the one-row way up.
 6. **Manage has its own regions** (amended 2026-08-08): `manage_tools` is a TOOLBAR (Delete all, Rematch, Refresh artwork, ID links; left/right along it, down past it, up to the action row) and the folder ledger is its own `manage_list` TREE, separate from `detail_list` so ledger activity never overwrites the episode list's remembered position.
 7. **An overlay declares its navigation model or stays a flat list.** `data-nav-overlay="detail"` names the input-config entry carrying the regions; the overlay's topology is merged over the page's while open. A confirm dialog or small form keeps the flat behaviour.
+8. **One overlay for every title** (amended 2026-09-14, UIDR-043): the `detail` overlay serves the unified title detail on every page. An unowned title's Download control opens a glass menu inside the action row — `detail_menu`, a TREE present only while open: DOWN from the row enters it ahead of any body, UP and BACK return to the row, and the list's `data-nav-dismiss-event` closes it. The former `title_detail` overlay is gone. Below the root view, BACK pushes the modal's declared `data-dismiss-event` like the flat path, rather than a hard-coded event.
 
 ### Consequences
 

@@ -72,11 +72,11 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 015 | 2026-07-11 | [Merge Upcoming and Downloads into one "Incoming" page](user-interface/2026-07-11-015-incoming-page.md) | accepted, amended 2026-08-02 |
 | 016 | 2026-08-01 | [Needs attention — one problem-only section for acquisition capability faults](user-interface/2026-08-01-016-needs-attention-section.md) | accepted, amended 2026-08-02 |
 | 018 | 2026-08-07 | [Focus cursor and scroll behaviour](user-interface/2026-08-07-018-focus-cursor-and-scroll.md) | accepted |
-| 019 | 2026-08-07 | [The detail modal navigates as two regions, and BACK peels containment](user-interface/2026-08-07-019-detail-modal-two-regions.md) | accepted, amended 2026-08-08 |
+| 019 | 2026-08-07 | [The detail modal navigates as two regions, and BACK peels containment](user-interface/2026-08-07-019-detail-modal-two-regions.md) | accepted, amended 2026-09-14 |
 | 020 | 2026-08-10 | [Cursor treatment tiers — ring by default, soft fill where the ring collides](user-interface/2026-08-10-020-cursor-treatment-tiers.md) | accepted |
 | 021 | 2026-08-11 | [Cinematic modal frame for TMDB-grounded modals; artwork promotion ladder](user-interface/2026-08-11-021-cinematic-frame-artwork-ladder.md) | accepted |
 | 022 | 2026-08-11 | [Gap banner states the diagnosed world, with its evidence — never a bare "not available"](user-interface/2026-08-11-022-gap-banner-adaptive-verdict.md) | accepted, amended 2026-09-14 |
-| 023 | 2026-08-13 | [Movie-first collection modal with a poster-rail picker](user-interface/2026-08-13-023-movie-first-collection-modal.md) | accepted |
+| 023 | 2026-08-13 | [Movie-first collection modal with a poster-rail picker](user-interface/2026-08-13-023-movie-first-collection-modal.md) | accepted, amended 2026-09-14 |
 | 024 | 2026-08-13 | [Subject progress lives in the hero hairline, from one shared component](user-interface/2026-08-13-024-subject-progress-hero-hairline.md) | accepted |
 | 025 | 2026-08-14 | [Collections are filing, not content — activity surfaces speak in movies](user-interface/2026-08-14-025-collections-are-filing-not-content.md) | accepted |
 | 026 | 2026-08-14 | [Re-selecting the current page in the main nav scrolls to the top](user-interface/2026-08-14-026-nav-reselect-scrolls-to-top.md) | accepted |
@@ -95,4 +95,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 040 | 2026-09-12 | [A review is an opinion of any valence: the sentiment shows when given, nothing when none](user-interface/2026-09-12-040-a-review-is-an-opinion-of-any-valence.md) | accepted |
 | 041 | 2026-09-13 | [Settings cards are readouts with actions, from one kit](user-interface/2026-09-13-041-settings-cards-are-readouts-with-actions.md) | accepted |
 | 042 | 2026-09-14 | [Tracking is the bookmark and two switches over one record](user-interface/2026-09-14-042-tracking-is-the-bookmark-and-two-switches.md) | accepted |
-| 043 | 2026-09-14 | [One title detail, composed by facts](user-interface/2026-09-14-043-one-title-detail-composed-by-facts.md) | proposed |
+| 043 | 2026-09-14 | [One title detail, composed by facts](user-interface/2026-09-14-043-one-title-detail-composed-by-facts.md) | accepted |

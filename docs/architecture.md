@@ -194,6 +194,14 @@ Three roles in the taxonomy (see `MediaCentaur.Cache` for how they compose):
   to earn a projection.
 * **Command topics** (`library:commands`) carry external write requests.
 
+A LiveView process subscribes to any of these through one door,
+`MediaCentaurWeb.Live.Subscriptions.subscribe/2`, which subscribes a
+topic once per process whichever consumer declares it — a page for its
+rows, a mounted trait, the title detail host (`Live.TitleDetailHost`,
+the one host of the title detail modal on Home, Library, Discovery and
+Incoming) for the open modal. Credo MC0011 refuses a direct `subscribe/0`
+call under `live/`.
+
 ## Key Principles
 
 - **Ecto is the data interface.** All persistence goes through context modules that wrap `Ecto.Repo` and broadcast `{:entities_changed, ids}` on `library:updates` for every mutation. Raw SQL is reserved for SQLite-specific features (e.g. `json_extract`).

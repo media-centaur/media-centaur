@@ -134,7 +134,7 @@ All config changes go in `config.js`:
 | `data-nav-enter-scroll-top` | On a zone container: spatially crossing into the zone glides its nearest scrollable ancestor to the top — for pinned zones where reveal is a no-op (detail action row). BACK/restores don't move the scroll |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused |
-| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`, `plan`, `title_detail`) |
+| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`, `plan`) |
 | `data-nav-dismiss-event` | On a zone container: the LiveView event BACK pushes when it leaves the zone along its `back` edge (`title_menu_close`, `close_sort`) — a menu list closes itself this way |
 | `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head |
 | `aria-expanded` | Disclosure state on a nav item, read directly by TREE navigation |
