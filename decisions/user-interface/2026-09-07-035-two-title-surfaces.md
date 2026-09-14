@@ -1,11 +1,31 @@
 ---
 status: accepted
 date: 2026-09-07
-amended: 2026-09-07
+amended: 2026-09-14
 ---
 # Two title surfaces, split by whether the title has files
 
 Supersedes UIDR-017 (retired). UIDR-036 superseded its `Remove from watchlist` clause.
+
+> **Amendment 2026-09-14 — the title detail's subject is a TMDB identity,
+> not a page membership.** As shipped, the title detail modal on Discovery
+> and Incoming was held open only while the hosting page still listed the
+> title, and its URL (`?title=<media_type>-<tmdb_id>`) opened only a title
+> the receiving page already knew. Two consequences the owner named as
+> hostile: un-bookmarking a title you had listed yourself removed it *and*
+> closed the modal, taking the toggle's own undo with it (a title with
+> friend activity stayed open); and "the URL is shareable" held only between
+> installs with the same lists. Decided: the host (`Live.TitleDetailHost`)
+> resolves the snapshot by identity — the open detail's own, the title
+> intent's, the page's in-memory copy, then TMDB itself fetched
+> asynchronously — so a deep link opens any TMDB title, on any install with
+> a TMDB key, and an open detail is never closed by the lists changing
+> beneath it. What stands in the way of a fetched open (no key, no such
+> title, no answer) is flashed and the param dropped. Friend activity and
+> the intent's note are read by identity too, so the pennant flies on the
+> Incoming surface as UIDR-037 requires. A page supplies only what it alone
+> holds (`page_facts/3`). Campaign `title-detail-deep-links` (completed and
+> removed — see git history).
 
 ## Context and Problem Statement
 
