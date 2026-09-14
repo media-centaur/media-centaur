@@ -24,7 +24,7 @@ defmodule MediaCentaur.Search do
     ]
 
   @moduledoc """
-  Stateless Prowlarr-facing search boundary (ADR-043 Phase 2).
+  Stateless Prowlarr-facing search boundary.
 
   Owns:
 

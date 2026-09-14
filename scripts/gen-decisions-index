@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Regenerate decisions/README.md from filenames, frontmatter and first headings.
+set -euo pipefail
+cd "$(dirname "$0")/../decisions"
+row() { # dir prefix
+  local dir="$1"
+  for f in "$dir"/*.md; do
+    [ "$(basename "$f")" = template.md ] && continue
+    local base num date title status amended
+    base=$(basename "$f")
+    date=${base:0:10}; num=${base:11:3}
+    title=$(grep -m1 '^# ' "$f" | cut -c3-)
+    status=$(awk '/^---$/{c++; next} c==1 && /^status:/{sub(/^status: */,""); print; exit}' "$f")
+    amended=$(awk '/^---$/{c++; next} c==1 && /^amended:/{sub(/^amended: */,""); print; exit}' "$f")
+    [ -n "$amended" ] && status="$status, amended $amended"
+    printf '| %s | %s | [%s](%s/%s) | %s |\n' "$num" "$date" "$title" "$dir" "$base" "$status"
+  done | sort -t'|' -k2,2
+}
+{
+cat <<'HDR'
+# Decision Records
+
+Decision records organized by category, in the [MADR 4.0 lean template](https://adr.github.io/madr/).
+
+**Filename convention:** `YYYY-MM-DD-NNN-short-title.md` — sequential numbering is per category.
+
+Gaps in the numbering are deliberate: a record whose decision became fictional,
+was fully superseded, or is now enforced by code-as-spec gets retired rather than
+left to mislead. Git history is the archive. A record captures a point in time;
+verify any claim about current behaviour against the code before relying on it,
+and correct a wrong record in place with a dated amendment.
+
+> This index is generated from the filenames, frontmatter and first headings
+> (`scripts/gen-decisions-index`). Regenerate it when you add, amend or retire a record.
+
+## Architecture (`architecture/`)
+
+System design, data model, integration patterns, and engineering standards. Cited as **ADR-NNN**.
+
+| # | Date | Decision | Status |
+|---|------|----------|--------|
+HDR
+row architecture
+cat <<'HDR'
+
+## User Interface (`user-interface/`)
+
+Visual conventions, component behavior, layout patterns, and interaction design. Cited as **UIDR-NNN**.
+
+| # | Date | Decision | Status |
+|---|------|----------|--------|
+HDR
+row user-interface
+} > README.md
+echo "wrote README.md: $(grep -c '^| [0-9]' README.md) rows"

@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   @moduledoc """
-  One person on the Friends tab (UIDR-031): the name as the card's
+  One person on the Friends tab (UIDR-038): the name as the card's
   title, the presence line on the right, a *Recently watched* strip of
   up to #{5} posters with an "all N" tile that grows the strip in
   place, then Wants to watch and Reviewed as text rows of up to #{3}

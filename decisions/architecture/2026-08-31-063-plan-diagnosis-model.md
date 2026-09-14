@@ -1,67 +1,45 @@
 ---
 status: accepted
 date: 2026-08-31
+amended: 2026-09-07
 ---
 # Plan diagnosis model: per-unit outcomes, per-title quality bounds, status-observed cancellation
 
 ## Context and Problem Statement
 
-Three surfaces re-derived "what the search found" from different data:
-the descent narrative (rung arithmetic), the gap verdict/evidence
-(aggregate, movie-centric), and below-preference counting (movie path
-only). TV plans therefore reported below-preference episodes as
-unfindable. Separately, the quality bound resolved per-unit patience →
-global default with no durable per-title layer, so a show whose world
-is SD-only (e.g. a pre-HD sitcom) stays stranded behind a global 1080p
-default forever, and any acceptance of that reality had nowhere to
-live. Finally, discarding a plan mid-run only flipped its status; the
-run searched to completion regardless.
+Three surfaces re-derived "what the search found" from different data, so
+TV plans reported below-preference episodes as unfindable. Quality bounds
+had no durable per-title layer, so a show whose world is SD-only stayed
+stranded behind the 1080p default with nowhere to record acceptance.
+Discarding a plan mid-run only flipped its status; the run searched on.
 
 ## Decision Outcome
 
-Chosen option: "one diagnosis model", because the board copy, the
-acceptance policy, and cancellation are all views of the same fact set
-and must not fork.
+One diagnosis model: the board copy, the acceptance policy and cancellation
+are views of the same fact set and must not fork.
 
-1. **Per-unit outcome is the one representation.** Each wanted unit's
-   solve produces a closed-vocabulary outcome — kept /
-   below_preference (with count and best release) / nothing — computed
-   identically for movies and TV, persisted on the plan unit. Verdict,
-   grid, and outcome rows are folds of it; no surface re-derives the
-   facts. (Exact vocabulary and struct shape are moduledoc contracts.)
-2. **Quality bounds resolve unit override → per-title preference →
-   global default.** The per-title layer is the release-tracking item's
-   `min_quality` (the home the drop planner already snapshots into
-   `plan.criteria` — implementation showed criteria was never dormant:
-   it is the live snapshot mechanism, and stays exactly that). "Take
-   lower quality for this show" therefore **tracks the title** when it
-   isn't tracked yet (owner decision, 2026-08-31) and stores
-   `min_quality: "any"` — a new bound value admitting unranked
-   releases — on the item; manual plans resolve a tracked title's
-   bounds into their criteria snapshot at creation. Visible and
-   reversible (Undo on the board; the item's auto-grab settings
-   elsewhere). ADR-061's invariant is intact and amended: gates still
-   express bounds; bounds are per-title-resolvable.
-3. **Plan status is the cancellation channel.** The run observes status
-   at search-term boundaries and stops within one term; the existing
-   discard transition machinery already treats mid-run exit as normal.
-   No parallel cancel flag.
+1. **Per-unit outcome is the one representation.** Each wanted unit's solve
+   yields a closed-vocabulary outcome — kept, below preference (with count
+   and best release), or nothing — computed identically for movies and TV
+   and persisted on the plan unit. Verdict, grid and outcome rows are folds
+   of it. The vocabulary and struct shape are moduledoc contracts.
+2. **Quality bounds resolve unit override → per-title acceptance → global
+   default.** The per-title layer is `Acquisition.TitleDownloadParams`,
+   keyed by TMDB identity (moved there 2026-09-07 by
+   [ADR-066](2026-09-07-066-one-ladder-per-title.md) §6; it was first a
+   column on the tracked title, which forced "accept lower quality" to start
+   tracking a show). Acceptance stores `min_quality: "any"`, a bound
+   admitting unranked releases; manual plans snapshot a title's bounds into
+   `plan.criteria` at creation. The gates of
+   [ADR-061](2026-08-16-061-source-quality-ladder.md) still express bounds;
+   bounds are per-title-resolvable.
+3. **Plan status is the cancellation channel.** The run observes status at
+   search-term boundaries and stops within one term; the existing discard
+   transition treats mid-run exit as normal. No parallel cancel flag.
 
 ### Consequences
 
-* Good, because TV gains below-preference parity as a by-product of
-  unification rather than a copied banner path.
-* Good, because acceptance persists correctly for free — later seasons
-  and re-plans resolve the same per-title preference with no re-asking
-  mechanism.
-* Good, because stop-searching costs no new state and ends indexer
-  traffic promptly.
-* Bad, because the solve loop, unit persistence, and all board view
-  models change together — campaign-sized, not a patch.
-* Neutral, because auto-upgrade after acceptance (grab HD if it appears
-  later) is explicitly out of scope; accepting lower quality promises
-  nothing about upgrades.
-* Neutral, because accepting lower quality on an untracked title makes
-  it tracked — deliberate: the acceptance is a durable per-title fact,
-  and the tracking item is its one home (no parallel preference
-  store).
+* Accepting lower quality promises nothing about upgrades; grabbing HD later
+  if it appears is out of scope.
+* The solve loop, unit persistence and every board view model change
+  together.

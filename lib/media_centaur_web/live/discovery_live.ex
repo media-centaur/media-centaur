@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   Rows come from `Discovery.list_watchlist/0` (library presence derived
   live), each showing its tracking mode and, when it has one, its next
   release date as quiet markers — joined here from `ReleaseTracking`,
-  because Discovery stays free of tracking (ADR-065); a row is armed
+  because Discovery stays free of tracking (ADR-066); a row is armed
   from its modal. A row added from a friend's action carries a bare
   `activity_id`, and this page turns it into `from <nickname>`
   (`Activities.get_many/1` → `Social.list_friends/0`) — the join neither

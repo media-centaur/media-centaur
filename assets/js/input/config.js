@@ -44,7 +44,7 @@ export const inputConfig = {
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     // Discovery's Friends tab: person cards, each a poster strip over text
     // rows over a footer — arrangement carries the meaning, so geometry
-    // answers adjacency (UIDR-031).
+    // answers adjacency (UIDR-038).
     people: "[data-nav-zone='people'] [data-nav-item]",
     // Discovery's Feed and watchlist rows: a vertical list whose
     // rows carry a control (Ignore) — a TREE, so RIGHT steps into it.

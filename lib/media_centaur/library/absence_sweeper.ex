@@ -15,9 +15,10 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   invariant: a file on an offline drive is *unverifiable*, not
   *deleted*, and must never be destroyed.
 
-  On purge, the row is deleted from `library_file_presences` and
-  the FK cascade (`on_delete: :delete_all` from Phase 3) removes
-  the dependent `WatchedFile` / `ExtraFile`. The
+  On purge, `Library.Deletion.cleanup_removed_files/1` runs
+  first and removes the dependent `WatchedFile` / `ExtraFile` rows;
+  only then is the row deleted from `library_file_presences`. There is
+  no FK cascade (ADR-046: the application owns cascading deletes). The
   `{:files_removed, paths}` broadcast on
   `MediaCentaur.Topics.library_file_events()` is preserved
   byte-for-byte from `Watcher.AbsencePolicy` so

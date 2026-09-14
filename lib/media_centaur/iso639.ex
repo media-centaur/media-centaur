@@ -9,13 +9,13 @@ defmodule MediaCentaur.Iso639 do
   French) that an encoder may emit either way. These forms are not
   string-equal but denote the same language.
 
-  This module is the single owner of the code table (ADR-048's
-  single-table intent). It is **boundary-neutral** — declared with the
+  This module is the single owner of the code table. It is **boundary-neutral** — declared with the
   `top_level?` escape hatch (as `Topics` / `WatcherStatus` are) so both
   the `Playback` and `Subtitles` bounded contexts can normalize codes
-  without either depending on the other. `Playback.Iso639` is a thin
-  facade over this module (preserving the ADR-048-named API), and
-  `Subtitles.LanguageCode` is a thin projection over `to_iso1/1`.
+  without either depending on the other. `Playback` normalizes every code
+  at its boundary (`LanguageContext`, `LanguagePolicy`) so only canonical
+  forms are ever compared; `Subtitles.LanguageCode` is a thin projection
+  over `to_iso1/1`.
 
   Two projections of the same table:
 

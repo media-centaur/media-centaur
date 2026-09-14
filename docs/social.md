@@ -277,7 +277,7 @@ disagree with the owner about what a message meant.
 `MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
 (`:feed` at `/discovery`, `:watchlist`, `:friends`). Both social tabs
 project one enriched list — every live activity with its actor
-(`Activities.list_activities/0`) — two ways (UIDR-031, UIDR-038):
+(`Activities.list_activities/0`) — two ways (UIDR-038):
 
 - **Feed** — `DiscoveryLive.FeedEntries`: friends' reviews and
   listings, one `Components.Discovery.FeedEntry` per action, newest

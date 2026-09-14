@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   Planning / Downloading / Needs review → a stated fact (Needs review
   links to Incoming); Download when the title is out and an indexer is
   ready; otherwise no primary verb — there is no `Track`, because
-  arming is the ladder control's job (ADR-065). Download is a split
+  arming is the ladder control's job (ADR-066). Download is a split
   button (`GlassMenu.split_button`): its main segment performs the
   person's default planning mode (`Settings.Preferences.PlanningMode`)
   and its menu names the other; a series adds a scope select beside it

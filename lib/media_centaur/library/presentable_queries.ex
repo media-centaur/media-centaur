@@ -24,11 +24,11 @@ defmodule MediaCentaur.Library.PresentableQueries do
   level. Each is a query fragment — callers compose `order_by`, `limit`, and
   `Repo.preload/2` per surface.
 
-  All three require at least one `WatchedFile`, which by the Phase-3 FK
-  (`on_delete: :delete_all` from `Library.FilePresence`) implies a live
-  file-presence row — the same semantic the earlier `KnownFile :present`
-  filter encoded, now enforced structurally instead of via a watcher
-  join.
+  All three require at least one `WatchedFile`. A `WatchedFile` carries a
+  required `file_presence_id` (changeset-enforced; ADR-046 dropped the DB
+  FK), so this implies a live file-presence row — the same semantic the
+  earlier `KnownFile :present` filter encoded, now carried by the row
+  itself instead of a watcher join.
 
   All queries name their primary binding `:item` so callers can compose with
   `from([m] in PresentableQueries.standalone_movies(), where: ...)` or use

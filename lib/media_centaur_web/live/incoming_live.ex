@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   @moduledoc """
   The Incoming page at `/incoming` (UIDR-015) — Upcoming and Downloads
   merged into one collection-growth destination. The hero omnibox is
-  the standing front door; below it, zone tabs (UIDR-006, `?zone=`)
+  the standing front door; below it, zone tabs (UIDR-015, `?zone=`)
   split the content into three calm views — **Coming up** (default),
   **Activity**, and **History**. While a search owns the page
   (`Logic.search_owns_page?/3`) the tabs and their content recede
@@ -555,7 +555,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # The zone tabs (Coming up | Activity | History) are URL state
-  # (UIDR-006). Runs after `ensure_loaded/1` so the first bare-path load
+  # (UIDR-015). Runs after `ensure_loaded/1` so the first bare-path load
   # can smart-default to Activity when something is actually going on
   # (live pursuits or draft plans) — the reads are already in assigns,
   # so the decision costs nothing. Forecast-only installs have nothing
@@ -920,7 +920,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             and this box finds anything on The Movie Database.
           </p>
 
-          <%!-- Zone tabs (UIDR-006): the page's three calm views. Only
+          <%!-- Zone tabs (UIDR-015): the page's three calm views. Only
                 rendered when acquisition exists — forecast-only installs
                 have nothing to tab between — and receded while a search
                 owns the page, like everything below the omnibox. --%>
@@ -1491,7 +1491,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, push_patch(socket, to: incoming_path(socket))}
   end
 
-  # Zone-tab switching is a URL patch (UIDR-006) — the default zone
+  # Zone-tab switching is a URL patch (UIDR-015) — the default zone
   # keeps a clean URL so data-nav-remember doesn't pin a stale param.
   def handle_event("switch_zone", %{"zone" => zone}, socket)
       when zone in ~w(coming_up activity history) do

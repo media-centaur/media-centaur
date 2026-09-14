@@ -14,7 +14,7 @@ defmodule MediaCentaur.Discovery do
   Discovery stores the rung and knows nothing about what it causes: no
   calendars, no wants, no grabs. `ReleaseTracking.set_rung/3` is the one
   write path, because deriving the machinery needs to see both sides, and
-  the dependency runs that way (ADR-065 §6/§7).
+  the dependency runs that way (ADR-066).
 
   Accepts `MediaCentaur.TMDB.Title` at the boundary — the app-wide title
   value every candidate source produces (converged 2026-09-02; see

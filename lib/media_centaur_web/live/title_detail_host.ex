@@ -126,7 +126,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # --- URL ---
 
-  # `?title=<media_type>-<tmdb_id>` drives the modal (UIDR-017 idiom):
+  # `?title=<media_type>-<tmdb_id>` drives the modal (UIDR-035):
   # back closes, refresh keeps it, the URL is shareable. `&activity=<id>`
   # names the act a person card opened it from. A ref the page does not
   # know leaves it closed. A fresh open starts the live TMDB preview

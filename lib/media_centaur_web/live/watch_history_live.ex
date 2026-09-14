@@ -280,7 +280,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
             <span class="text-xs text-base-content/55 whitespace-nowrap shrink-0">
               {format_completed_at(event.completed_at)}
             </span>
-            <%!-- `Xh Ym`, the app-wide duration vocabulary (UIDR-004). The
+            <%!-- `Xh Ym`, the app-wide duration vocabulary. The
                   clock-style `Format.format_seconds/1` belongs to player
                   overlays, where a scrub position is the point. --%>
             <span class="text-xs text-base-content/55 whitespace-nowrap shrink-0 tabular-nums w-16 text-right">

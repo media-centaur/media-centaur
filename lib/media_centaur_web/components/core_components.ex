@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.CoreComponents do
   end
 
   @doc """
-  Renders a button or link styled per UIDR-003.
+  Renders a button or link styled per the button convention in the `user-interface` skill.
 
   All site buttons should go through this component — raw daisyUI `btn`
   classes in templates are flagged by `MediaCentaur.Credo.Checks.RawButtonClass`.
@@ -336,8 +336,7 @@ defmodule MediaCentaurWeb.CoreComponents do
   in templates under `lib/media_centaur_web/`. Pass extra Tailwind utilities
   via the `class` attribute.
 
-  See [UIDR-002](decisions/user-interface/2026-03-03-002-badge-style-convention.md)
-  for the underlying rules.
+  See the Badges section of the `user-interface` skill for the underlying rules.
 
   ## Variants
 
@@ -353,7 +352,7 @@ defmodule MediaCentaurWeb.CoreComponents do
   | `"primary"` | Solid primary — active filter pill, attention-grabbing label | `badge-primary` |
   | `"soft_primary"` | Soft primary — tonal annotation (rewatch count, manual origin) | `badge-soft badge-primary` |
 
-  > For *status reasons* (review reasons, free-text entity states), UIDR-002
+  > For *status reasons* (review reasons, free-text entity states), the badge convention
   > requires plain colored text — `<span class="text-error">…</span>` — **not**
   > a badge. This component covers the metric/type/state-chip cases only.
 

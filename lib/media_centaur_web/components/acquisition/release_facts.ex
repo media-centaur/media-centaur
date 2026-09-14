@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
 
   * **quality** — tier-colored bold label (4K healthy-green, 1080p info,
     muted otherwise, "Unknown" when the release doesn't say). Plain
-    colored text, never a badge (UIDR-002 #1). Accepts the search
+    colored text, never a badge (the badge convention). Accepts the search
     ladder's atoms and the plan board's pre-labeled strings.
   * **source** — muted label parsed from the title (`Quality.source_label/1`,
     ADR-061): Remux / WEB-DL / BluRay / WEBRip / HDTV; absent when the

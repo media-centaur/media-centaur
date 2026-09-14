@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.DiscoveryLive.People do
   @moduledoc """
   Folds the page's enriched activity rows into the Friends tab's
-  `Person` cards (ADR-030, UIDR-031): You first when an identity exists,
+  `Person` cards (ADR-030, UIDR-038): You first when an identity exists,
   then friends by their latest activity, then friends with nothing
   shared by name. A former friend's activities (no nickname, not own)
   belong to nobody on the roster and get no card.

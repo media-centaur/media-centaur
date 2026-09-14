@@ -45,7 +45,7 @@ defmodule MediaCentaurWeb.StatusHelpers do
   @doc """
   Formats remaining playback time for the Status playback card.
 
-  Sub-minute durations round up to `"< 1m remaining"` (UIDR-004 forbids
+  Sub-minute durations round up to `"< 1m remaining"` (the duration format forbids
   seconds in user-facing durations). Otherwise delegates to
   `LibraryFormatters.format_human_duration/1` for the canonical `"Xh Ym"` shape.
   """

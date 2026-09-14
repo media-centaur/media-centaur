@@ -7,7 +7,7 @@ defmodule MediaCentaur.Credo.Checks.RawBadgeClass do
       check: """
       Templates under `lib/media_centaur_web/` must not use raw daisyUI
       `badge` classes directly. Go through the `<.badge>` component, which
-      encodes the UIDR-002 badge variants (metric, type, info, success,
+      encodes the badge variants (metric, type, info, success,
       warning, error, ghost) and sizes (xs, sm, md).
 
           # preferred
@@ -20,7 +20,7 @@ defmodule MediaCentaur.Credo.Checks.RawBadgeClass do
           <span class="badge badge-outline badge-sm">Movie</span>
           <span class={["badge badge-sm", state_class(@state)]}>...</span>
 
-      For *status reasons* (review reasons, free-text entity states), UIDR-002
+      For *status reasons* (review reasons, free-text entity states), the badge convention
       requires plain colored text — `<span class="text-error">…</span>` —
       **not** a badge. The `<.badge>` component covers metric/type/state-chip
       cases only.
@@ -35,7 +35,7 @@ defmodule MediaCentaur.Credo.Checks.RawBadgeClass do
       `state_badge_class/1` is also exempt for now (returns class strings
       for legacy callers awaiting migration).
 
-      Source: CLAUDE.md / UIDR-002.
+      Source: the `user-interface` skill (Badges). This check and `badge/1` are the spec.
       """
     ]
 
@@ -112,7 +112,7 @@ defmodule MediaCentaur.Credo.Checks.RawBadgeClass do
       issue_meta,
       message:
         "Use the `<.badge>` component (with `variant` and `size`) instead of raw `badge` classes. " <>
-          "See UIDR-002 / `MediaCentaurWeb.CoreComponents.badge/1`.",
+          "See `MediaCentaurWeb.CoreComponents.badge/1`.",
       trigger: "badge",
       line_no: line_no
     )

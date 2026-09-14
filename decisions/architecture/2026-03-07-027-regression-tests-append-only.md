@@ -6,20 +6,18 @@ date: 2026-03-07
 
 ## Context and Problem Statement
 
-The parser and Broadway pipeline process files silently in the background. Bugs in either produce invisible data corruption — a misparsed filename, a dropped entity, a malformed push to the frontend. Both subsystems have accumulated test suites where each test represents a specific real-world scenario that has caused or could cause silent failure. When code changes cause these tests to fail, there is a temptation to delete or weaken the failing test rather than fix the underlying code.
+The parser and the pipeline run in the background, so a bug in either produces silent data corruption. Their test suites are a record of real scenarios that caused or could cause such a failure, and a failing test invites weakening it instead of fixing the code.
 
 ## Decision Outcome
 
-Chosen option: "Regression tests may only be added, never removed or weakened", because each test represents a real scenario and removing it re-opens the door to that failure.
+Regression tests may be added, never removed or weakened.
 
-1. **Parser tests use real file paths observed in the wild** — never synthetic/invented paths. Each distinct filename convention gets its own test case. If a parser change causes an existing test to fail, fix the parser.
-2. **Pipeline tests represent real processing scenarios.** Each test guards against a specific failure mode — silent data corruption, dropped files, malformed entities. If a pipeline change causes a test to fail, fix the pipeline.
-3. **Test assertions must not be weakened** (e.g., changing an exact match to a substring match, loosening numeric bounds) to accommodate a code change.
+1. Parser tests use real file paths observed in the wild, never invented ones; each distinct naming convention gets its own case. A parser change that breaks an existing case is a parser bug.
+2. Pipeline tests each guard a specific failure mode. A pipeline change that breaks one is a pipeline bug.
+3. Assertions are never loosened (exact match to substring, tighter to looser bound) to accommodate a code change.
 
-Test-first discipline is documented in `CLAUDE.md` ("Testing Strategy") and the `automated-testing` skill.
+The test-first workflow and the factories these tests use are in the `automated-testing` skill.
 
 ### Consequences
 
-* Good, because the test suite is a monotonically growing record of real failure modes
-* Good, because developers are forced to maintain backward compatibility or consciously handle migration
-* Bad, because the test suite grows indefinitely and may slow down over time
+* The suites grow monotonically; [ADR-049](2026-05-22-049-testing-principles.md) keeps that growth inside a wall-time budget.

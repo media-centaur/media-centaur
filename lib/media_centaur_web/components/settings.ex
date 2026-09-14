@@ -419,7 +419,7 @@ defmodule MediaCentaurWeb.Components.Settings do
 
   attr :truncate_left, :boolean,
     default: false,
-    doc: "entries are file paths: keep the filename visible and elide the prefix (UIDR-001)."
+    doc: "entries are file paths: keep the filename visible and elide the prefix."
 
   @doc "A string-list setting (UIDR-041 §32): one row per entry with Remove, an inline input with Add, an optional error line."
   def settings_list(assigns) do

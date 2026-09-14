@@ -60,7 +60,7 @@ defmodule MediaCentaur.Credo.Checks.RawBadgeClassTest do
       |> refute_issues()
     end
 
-    test "plain colored text (UIDR-002 status reasons) is allowed" do
+    test "plain colored text (status reasons) is allowed" do
       ~S'''
       defmodule MediaCentaurWeb.SomeLive do
         use Phoenix.LiveView

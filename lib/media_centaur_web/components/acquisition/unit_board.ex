@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
 
   Renders one dense row per unit: the unit's label (the expanded term
   for a collapsed brace-expansion), the release its current target
-  carries, a plain-colored state label (UIDR-002 — status labels are
+  carries, a plain-colored state label (the badge convention — status labels are
   text, not badges), and a per-unit "Change target" affordance for
   in-flight units. A thin progress bar summarizes *units satisfied /
   units wanted* — never a count of targets.
@@ -178,7 +178,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.UnitBoard do
 
   defp progress_width(_vm), do: 0
 
-  # Plain colored text per UIDR-002 — color is reserved for outcomes
+  # Plain colored text per the badge convention — color is reserved for outcomes
   # that need attention; the routine in-flight state stays muted.
   defp state_label(%UnitBoard.Row{awaiting_decision?: true}), do: "Decision"
   defp state_label(%UnitBoard.Row{state: :active}), do: "Active"

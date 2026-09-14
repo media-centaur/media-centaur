@@ -92,7 +92,7 @@ The full philosophy and triage table live at [`docs/storybook.md`](../../../docs
 
 ## Component Recipes
 
-### Buttons ([UIDR-003])
+### Buttons
 
 **Always** use the `<.button>` component with a `variant` and `size`. Raw `class="btn ..."` strings in templates are flagged by `MediaCentaur.Credo.Checks.RawButtonClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
 
@@ -120,7 +120,7 @@ Sizes: `"xs"`, `"sm"`, `"md"` (default), `"lg"`. Shapes: `"circle"`, `"square"` 
 
 **Never** use solid-fill semantic buttons (`btn-success`, `btn-error` alone) — text washes out on glass.
 
-**Standard labels.** Use `"More info"` (not `"Details"`, `"More"`, or `"Info"`) for the secondary action that *opens* an entity's detail view from a card or hero — the hero CTA pair is always **Play** + **More info**. *Inside* the detail modal, the secondary toggle is **Manage** (cog icon); it keeps that label while the sub-view is open (`aria-pressed`), and the way out is the view control named for its destination ("Overview", "Episodes"). See [UIDR-003].
+**Standard labels.** Use `"More info"` (not `"Details"`, `"More"`, or `"Info"`) for the secondary action that *opens* an entity's detail view from a card or hero — the hero CTA pair is always **Play** + **More info**. *Inside* the detail modal, the secondary toggle is **Manage** (cog icon); it keeps that label while the sub-view is open (`aria-pressed`), and the way out is the view control named for its destination ("Overview", "Episodes").
 
 ### Glass menu
 
@@ -167,7 +167,7 @@ A capability gap is a diagnosis too: a surface whose content all comes from an
 integration says so rather than reporting an empty result the query never had a
 chance to fill.
 
-### Badges ([UIDR-002])
+### Badges
 
 **Always** use the `<.badge>` component with a `variant` and `size` for any `badge`-styled element. Raw `class="badge ..."` strings (and `class={["badge ...", ...]}` list expressions) in templates are flagged by `MediaCentaur.Credo.Checks.RawBadgeClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
 
@@ -192,7 +192,7 @@ Sizes: `"xs"`, `"sm"` (default), `"md"`.
 <.badge variant="ghost" class="ml-1">×{bucket.count}</.badge>
 ```
 
-**Status / reason labels** (review reasons, entity states) remain **plain colored text**, not a badge: `<span class="text-error">…</span>`. The `<.badge>` component covers metric/type/state-chip cases only — UIDR-002 #1 deliberately has no badge element.
+**Status / reason labels** (review reasons, entity states) remain **plain colored text**, not a badge: `<span class="text-error">…</span>`. The `<.badge>` component covers metric/type/state-chip cases only; status labels deliberately have no badge element.
 
 ### Cards
 
@@ -222,7 +222,7 @@ Modals are **never** conditionally rendered with `:if={}`. They stay in the DOM 
 ```
 
 - `.modal-backdrop`: full inset, z-50, dark overlay with blur, opacity transition
-- `.modal-panel`: centered, max 700px, scale+fade transition, inherits `color: var(--color-base-content)` ([UIDR-009])
+- `.modal-panel`: centered, max 700px, scale+fade transition, inherits `color: var(--color-base-content)`
 - `.modal-panel-sm`: smaller variant, 480px max
 - Dismissal: `phx-click` on the `.modal-backdrop` plus `phx-window-keydown` for Escape, both conditionally bound with `@open && @on_close`. Never `phx-click-away` on the panel — it installs a document-scoped listener that fires from overlays above the modal (Credo **MC0006**). The ephemeral/persistent dismissal mode goes through one seam ([UIDR-013]).
 
@@ -249,7 +249,7 @@ shares. Never a provenance line elsewhere; a friend's review text is the
 one thing that stays in the body. Never on poster cards. Story:
 `/storybook/title/pennants`.
 
-### File Paths ([UIDR-001])
+### File Paths
 
 ```html
 <span class="truncate-left" title={full_path}>
@@ -259,7 +259,7 @@ one thing that stays in the body. Never on poster cards. Story:
 
 Start-truncation: filename (most identifying part) always visible, directory prefix elided. Full path in `title` tooltip. The `<bdo>` prevents RTL reordering of path separators.
 
-### Durations ([UIDR-004])
+### Durations
 
 Display: `3h 48m` or `45m` (omit hours when zero). Space-separated, no leading zeros, no seconds. Storage stays in seconds. Use `MediaCentaur.Format.format_human_duration/1`; `Format.format_seconds/1` is the clock-style `H:MM:SS` for player overlays only.
 
@@ -380,23 +380,13 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 
 | UIDR | Decision |
 |------|----------|
-| 001 | File paths: start-truncation (`.truncate-left` + `<bdo>` + `title`) |
-| 002 | Badges: plain text for status, solid for metrics, outline for type |
-| 003 | Buttons: `btn-soft` for actions, `btn-ghost` for dismiss, never solid semantic |
-| 004 | Durations: `Xh Ym` format, no seconds, display-layer only |
-| 005 | Playback card: three-row hierarchy (header, identity, progress bar) |
-| 006 | Library zones: three tabs in single LiveView, `push_patch` switching |
-| 007 | Sidebar: collapsible (200px/52px), replaced left-wall nav |
-| 008 | Flex rows: `align-items: baseline` for mixed text sizes |
-| 009 | Modal panels: explicit `color: var(--color-base-content)` inheritance |
-| 010 | Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History |
+| 010 | Page redistribution: Watch / System sidebar groups + dedicated Home, Library, History (Upcoming later merged into Incoming, 015) |
 | 011 | Text on imagery: `.text-on-image` (body, text-shadow) + `.text-on-image-lg` (title/logo, filter:drop-shadow) |
 | 012 | Desktop-app rendering defaults — eager, sync, stable ids, no entrance animations (Credo MC0016) |
 | 013 | Modals declare an ephemeral or persistent dismissal mode through one seam |
 | 014 | Media-search front door — omnibox, coverage language, imagery discipline |
 | 015 | Upcoming + Downloads merged into one Incoming page |
 | 016 | Needs attention — one problem-only section for acquisition capability faults |
-| 017 | Coming Up depth is the house modal; unscheduled titles are rows |
 | 018 | Focus cursor and scroll behaviour |
 | 019 | The detail modal navigates as two regions; BACK peels containment |
 | 020 | Cursor treatment tiers — ring by default, soft fill where the ring collides |
@@ -410,7 +400,6 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 028 | Back enters the main menu; left stays in the page |
 | 029 | The plan board narrates a diagnosis, not a procedure |
 | 030 | Follow-up pill and condition dot — the sidebar's two badge idioms |
-| 031 | Friends carry the shelves; the feed is recommendations |
 | 032 | Page hero backdrops paint from a decoded-bitmap cache (canvas + `HeroBackdrop` hook; amends 012) |
 | 033 | Home is the only page that carries artwork; every other page gets the scrim alone |
 | 034 | An empty surface states the diagnosed reason it is empty, via one `empty_state/1` |
@@ -432,7 +421,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 |-----------|------|---------|-------|
 | `flash/1` | `core_components.ex` | Toast notifications | ✅ stub |
 | `button/1` | `core_components.ex` | Links and buttons (default: soft primary) | ✅ seed |
-| `badge/1` | `core_components.ex` | Metric / type / state chip (UIDR-002) | ✅ |
+| `badge/1` | `core_components.ex` | Metric / type / state chip | ✅ |
 | `input/1` | `core_components.ex` | Form fields with label + errors | ✅ stub |
 | `page_header/1` | `core_components.ex` | The one page-title treatment (`<h1>` + subtitle line, audit DS12) | ✅ |
 | `empty_state/1` | `core_components.ex` | The one empty-surface treatment (UIDR-034) | ✅ |
@@ -454,7 +443,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027) |
 | `progress_hairline/1` | `progress_hairline.ex` | Subject progress hairline (UIDR-024) |
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
-| `coming_up_marquee/1` | `coming_up_marquee.ex` | Incoming's Coming Up shelf (UIDR-017) |
+| `coming_up_marquee/1` | `coming_up_marquee.ex` | Incoming's Coming Up shelf (UIDR-015) |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
 | `log_list/1` | `console_components.ex` | Monospace log stream |
 | `action_footer/1` | `console_components.ex` | Console controls |

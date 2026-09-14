@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
   cancelled reads muted; the watch-only and waiting statuses (in
   theaters, tracked, searching) stay neutral.
 
-  Copy states what happens (UIDR-017): the `:armed` status reads
+  Copy states what happens: the `:armed` status reads
   "Will grab" — the internal atom keeps its name, the user never
   sees it.
 

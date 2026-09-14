@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitStyle do
   attr :state, :atom, required: true
   attr :awaiting_decision?, :boolean, default: false
 
-  # States render as plain colored text per UIDR-002 #1 — solid chips
+  # States render as plain colored text per the badge convention — solid chips
   # carried far too much visual weight on every card and hero. The
   # awaiting-decision case keeps a soft badge: it's a call to action,
   # not a state label.

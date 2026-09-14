@@ -82,16 +82,16 @@ section in one or two sentences; each drift is a finding. Specific checks:
 For every UIDR on disk, read its Decision section and check the files it governs.
 The mechanical ones:
 
-- **UIDR-001 file paths:** `.truncate-left` + `title` + `<bdo dir="ltr">` at every
+- **File paths:** `.truncate-left` + `title` + `<bdo dir="ltr">` at every
   path-rendering site (grep `path`, `file_path`, `WatchedFile`, `truncate`). Raw
   path with no tooltip → Critical; end-truncation → Moderate; missing `<bdo>` →
   Moderate.
-- **UIDR-002 badges / UIDR-003 buttons:** the component layer enforces classes, so
+- **Badges / buttons:** the component layer enforces classes, so
   audit *usage*: a status or reason rendered as a solid badge, a destructive action
   that is not `btn-ghost`, more than one dominant `btn-primary` on a page.
-- **UIDR-004 durations:** `"PT`, raw seconds, or `runtime`/`duration` interpolated
+- **Durations:** `"PT`, raw seconds, or `runtime`/`duration` interpolated
   without the `LiveHelpers` formatter → Critical for ISO leaks, Moderate otherwise.
-- **UIDR-008 baseline alignment:** `items-center` on rows mixing text sizes.
+- **Baseline alignment:** `items-center` on rows mixing text sizes.
 - **UIDR-011 text on imagery:** text over artwork without `.text-on-image`.
 - **UIDR-012 rendering defaults:** lazy images, unstable ids, entrance animations.
 - **UIDR-013 modal dismissal / UIDR-019 detail modal two regions / UIDR-021

@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        `tracking: nil`. Confirms the tracking block is absent and no
        upcoming/future-season content renders.
     8b. `:tv_series_disarmed` — tracked but Off: the control alone,
-       no timeline, no activity (the row is inert, ADR-065).
+       no timeline, no activity (the row is inert, ADR-066).
     9. `:movie_series` — the movie-first collection modal (UIDR-023):
        the selected member (movie 2, in progress) renders the
        standalone-movie panel — member synopsis, Resume, the member's

@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Components.Discovery.Person do
   @moduledoc """
   One person on the Friends tab — a friend, or You — with their shelves:
   the current set of their activities by kind, one entry per title,
-  newest first (UIDR-031). `presence` is their latest activity of any
+  newest first (UIDR-038). `presence` is their latest activity of any
   kind as a sentence plus how long ago; `nil` when nothing has been
   shared. `pubkey`, `short_npub` and `added_on` are `nil` on the You
   card, which has no footer.

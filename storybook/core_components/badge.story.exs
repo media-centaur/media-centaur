@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Storybook.CoreComponents.Badge do
   @moduledoc """
-  Story for the `<.badge>` component — UIDR-002 codified as typed variants.
+  Story for the `<.badge>` component — the badge convention codified as typed variants.
 
   Covers the variant matrix, size axis, and real-world examples. Keep in sync
   with the recipes in the `user-interface` skill.
@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.Badge do
       },
       %VariationGroup{
         id: :type_classification,
-        description: "Type classification — outline, no color ([UIDR-002] #3)",
+        description: "Type classification — outline, no color",
         variations:
           for label <- ~w(Movie TV Extra) do
             %Variation{
