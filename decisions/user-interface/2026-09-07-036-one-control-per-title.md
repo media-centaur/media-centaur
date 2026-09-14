@@ -1,7 +1,7 @@
 ---
 status: accepted
 date: 2026-09-07
-amended: 2026-09-11
+amended: 2026-09-14
 ---
 # One control per title, because there is one ladder
 
@@ -24,3 +24,7 @@ Listing a title and following its releases are one decision at different strengt
 ### Consequences
 
 * `Remove from watchlist` disappears as a named verb; the consequence line carries it. Off on the Watchlist tab or Coming up closes the modal.
+
+## Amendment 2026-09-14
+
+Rules 1, 4's bookmark exception and 5 are superseded by [UIDR-042](2026-09-14-042-tracking-is-the-bookmark-and-two-switches.md): the seven-way strip became the bookmark and two switches, the ladder lost Ask and Default, and the bookmark removes at any rung. The premise stands — one record, one ladder (ADR-066) — and rules 2 and 3 stand as written.

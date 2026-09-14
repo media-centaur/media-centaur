@@ -315,7 +315,7 @@ Plain text links with animated underline. `.zone-tab-active` expands underline f
 
 ### Library Toolbar
 
-- **Type tabs:** `.tabs.tabs-boxed.segmented-control` — the house pick-one pill (glass container, the chosen `.tab` lifted on `bg-neutral/80`; also `aria-selected` / `aria-pressed`). The title ladder (`IntentControl`) wears the same pill with a `.segment-rule` before Default.
+- **Type tabs:** `.tabs.tabs-boxed.segmented-control` — the house pick-one pill (glass container, the chosen `.tab` lifted on `bg-neutral/80`; also `aria-selected` / `aria-pressed`). A title's tracking controls are not a pill: they are two Settings-kit toggle rows (`Title.TrackingControls`, UIDR-042).
 - **Sort:** `GlassMenu.menu_select` (see Glass menu under Component Recipes); its open list is the `library_sort_menu` nav zone
 - **Filter input:** `.library-filter` — pill with glass border, blue focus ring
 
@@ -410,6 +410,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 039 | Add to watchlist first, then the tracking controls |
 | 040 | A review is an opinion of any valence: the sentiment shows when given, nothing when none |
 | 041 | Settings cards are readouts with actions, from one kit; save on the act; gated cards state their prerequisite |
+| 042 | Tracking is the bookmark and two switches (Track release dates, Auto-grab) over one record |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
