@@ -7,6 +7,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
   alias MediaCentaur.Acquisition.Reactor.Handlers
   alias MediaCentaur.Capabilities
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.Settings.Preferences.PlanningMode
 
   @last_month Date.add(Date.utc_today(), -30)
 
@@ -28,6 +29,10 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     )
 
     Capabilities.save_test_result(:prowlarr, :ok)
+    # Tracking plans are stamped with the person's planning mode; the
+    # built-in default asks first, and most of this file is about the
+    # unattended posture.
+    PlanningMode.set(:auto_select_best_release)
 
     :ok
   end
@@ -264,15 +269,16 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
   end
 
   describe "run_tick/0 — modes" do
-    test "ask mode leaves the solved plan ready and a second tick does not duplicate it" do
+    test "under manual planning the solved plan parks ready, and a second tick does not duplicate it" do
       stub_results(%{
         "Sample Show Season 1" => [
           release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
         ]
       })
 
+      PlanningMode.set(:manually_select_release)
       item = create_tracked_show()
-      create_intent_for(item, :ask)
+      create_intent_for(item, :grab)
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
@@ -289,7 +295,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert [_still_just_one] = Plans.list_drafts()
     end
 
-    test "off mode plans nothing" do
+    test "a title at Follow plans nothing" do
       item = create_tracked_show()
       create_intent_for(item, :follow)
       create_aired_release(item, 1, 1, @last_month)
@@ -328,11 +334,12 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       })
     end
 
-    test "a parked ask draft is discarded on the tick after the flip; wants stay open" do
+    test "a parked review draft is discarded on the tick after auto-grab goes off; wants stay open" do
       episode_stub()
 
+      PlanningMode.set(:manually_select_release)
       item = create_tracked_show()
-      create_intent_for(item, :ask)
+      create_intent_for(item, :grab)
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
@@ -410,23 +417,19 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert [_still_there] = Plans.list_drafts()
     end
 
-    test "an item inheriting a global default of off is reconciled too" do
+    test "a title moved from Grab to List is reconciled too — the calendar goes with the draft" do
       episode_stub()
 
+      PlanningMode.set(:manually_select_release)
       item = create_tracked_show()
-      create_intent_for(item, :ask)
+      create_intent_for(item, :grab)
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
       tick_and_gate()
       assert [_parked] = Plans.list_drafts()
 
-      create_intent_for(item, :default)
-
-      MediaCentaur.Settings.find_or_create_entry!(%{
-        key: "auto_grab.default_mode",
-        value: %{"value" => "off"}
-      })
+      create_intent_for(item, :list)
 
       Handlers.tracking_sweep_completed()
 

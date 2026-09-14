@@ -20,7 +20,7 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Discovery
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, DropPlanner, ModeReconciler, PlanEvents, Plans}
+  alias MediaCentaur.Acquisition.{DropPlanner, ModeReconciler, PlanEvents, Plans}
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.ReleaseTracking
 
@@ -95,8 +95,7 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
         true
 
       item ->
-        Discovery.grab_mode(item.tmdb_id, item.media_type, AutoGrabSettings.load().default_mode) ==
-          "off"
+        not Discovery.grabs?(item.tmdb_id, item.media_type)
     end
   end
 

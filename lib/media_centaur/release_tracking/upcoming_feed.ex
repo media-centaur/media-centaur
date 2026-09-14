@@ -12,9 +12,10 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:today` — `Date` to measure relative time against.
     * `:acquisition_ready?` — can a grab actually fire (indexer + download
       client; `Capabilities.acquisition_ready?/0`)? Gates the `:armed` status.
-    * `:auto_grab_default_mode` — the global auto-grab default
-      (`AutoGrabSettings.load/0` → `default_mode`) that an item's `"global"`
-      mode inherits.
+    * `:approval_policy` — what the drop planner will stamp a tracking
+      plan with: `"automatic"` (the gate commits it) or `"review"` (a
+      person does). `PlanningMode.approval_policy/1` of the person's
+      planning mode, mapped by the caller. Only `"automatic"` arms.
     * `:grab_status_by_key` — `%{release_key => %{pursuit_id: uuid}}` for
       releases currently under an active pursuit (built by the caller from
       `Acquisition.statuses_for_releases/1`). Presence ⇒ `:under_pursuit`.
@@ -35,8 +36,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:under_pursuit` — released and being acquired now; carries `pursuit_id`
       so the UI can deep-link to Downloads.
     * `:armed` — a future release that **will** auto-grab when it drops (only
-      when acquisition is ready AND the effective auto-grab mode is
-      `"all_releases"`). Honest: never shown when a grab won't actually fire.
+      when acquisition is ready AND the title's rung is Grab AND the approval
+      policy is automatic). Honest: never shown when a grab won't actually fire.
       A past armed release stays listed while it is still missing — the app
       is searching for it, and the shelf says so (`forecast_worthy?/2`).
     * `:armed_fallback` — a movie's later acquirable date (its physical
@@ -283,16 +284,16 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
   defp pursuit_id_for(_release, _context, _status), do: nil
 
-  # Honest "armed": a grab only fires when acquisition is live AND the effective
-  # auto-grab mode is the full-auto posture. Anything else reads as :upcoming.
-  # Pure: the rung comes in on the context, keyed by title, exactly as
-  # `auto_grab_default_mode` does. Looking it up here would make a
-  # presentation module read the database.
+  # Honest "armed": a grab only fires when acquisition is live, the title
+  # grabs, and the plan the drop makes commits without a person. Pure:
+  # the rung and the policy come in on the context, keyed by title.
+  # Looking them up here would make a presentation module read the
+  # database.
   defp will_auto_grab?(item, context) do
     rung = Map.get(context[:rungs] || %{}, {item.tmdb_id, item.media_type})
 
-    context.acquisition_ready? and
-      TitleIntent.grab_mode(rung, context.auto_grab_default_mode) == "all_releases"
+    context.acquisition_ready? and TitleIntent.grabs?(rung) and
+      context.approval_policy == "automatic"
   end
 
   # A forecast is about the future. A *past* release earns a spot while the

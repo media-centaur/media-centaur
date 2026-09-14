@@ -215,18 +215,12 @@ defmodule MediaCentaur.Acquisition.Targeting do
   end
 
   # Open wants of the title's tracking item, as a `{season, episode}`
-  # set — empty when untracked or when the effective auto-grab mode is
-  # off (nothing is going to grab them, so media search shouldn't
-  # subtract them).
+  # set — empty when untracked or when the title does not grab (nothing
+  # is going to grab them, so media search shouldn't subtract them).
   defp tracked_want_units(tmdb_id) do
     with {numeric_id, ""} <- Integer.parse(tmdb_id),
          %{} = item <- ReleaseTracking.get_item_by_tmdb(numeric_id, :tv_series),
-         mode when mode != "off" <-
-           MediaCentaur.Discovery.grab_mode(
-             item.tmdb_id,
-             item.media_type,
-             MediaCentaur.Acquisition.AutoGrabSettings.load().default_mode
-           ) do
+         true <- MediaCentaur.Discovery.grabs?(item.tmdb_id, item.media_type) do
       item.id
       |> ReleaseTracking.open_wants_for_item()
       |> Enum.map(&{&1.season_number, &1.episode_number})

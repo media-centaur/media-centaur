@@ -1,8 +1,9 @@
 defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
   @moduledoc """
   Pure unit tests for the Upcoming page view-model. No DB, no network — the
-  builder takes already-read facts (today, capability flags, the global
-  auto-grab default, and the per-release pursuit linkage) as injected data and
+  builder takes already-read facts (today, capability flags, the approval
+  policy tracking plans are stamped with, and the per-release pursuit
+  linkage) as injected data and
   is a pure function over `Release` structs (with `:item` preloaded).
   """
   use MediaCentaur.Case, async: true
@@ -12,17 +13,16 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
   @today ~D[2026-06-14]
 
-  # A context where acquisition is live and the global default auto-grabs
-  # everything — the common "trusting automation" posture. Every title in
-  # it sits at Default unless a test says otherwise, so the global default
-  # is what decides.
+  # A context where acquisition is live and tracking plans commit by
+  # themselves — the "trusting automation" posture. Every title in it
+  # sits at Grab unless a test says otherwise.
   defp armed_context(overrides \\ %{}) do
     Map.merge(
       %{
         today: @today,
         acquisition_ready?: true,
-        auto_grab_default_mode: "all_releases",
-        rungs: %{{1001, :tv_series} => :default, {2002, :movie} => :default},
+        approval_policy: "automatic",
+        rungs: %{{1001, :tv_series} => :grab, {2002, :movie} => :grab},
         grab_status_by_key: %{}
       },
       overrides
@@ -330,31 +330,22 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert find_event(feed, "ep").status == :upcoming
     end
 
-    test ~s(global default "off" + a title at Default → neutral :upcoming) do
+    test "a review policy parks the drop for a person → neutral :upcoming" do
       item = tv_item()
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([episode], armed_context(%{auto_grab_default_mode: "off"}))
+      feed = UpcomingFeed.build([episode], armed_context(%{approval_policy: "review"}))
 
       assert find_event(feed, "ep").status == :upcoming
     end
 
-    test ~s(a title at Default inherits an "all_releases" default → :armed) do
+    test "a title at Grab under an automatic policy → :armed" do
       item = tv_item()
       episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([episode], armed_context(%{auto_grab_default_mode: "all_releases"}))
+      feed = UpcomingFeed.build([episode], armed_context(at_rung(item, :grab)))
 
       assert find_event(feed, "ep").status == :armed
-    end
-
-    test "Ask is not full-auto → neutral :upcoming" do
-      item = tv_item()
-      episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
-
-      feed = UpcomingFeed.build([episode], armed_context(at_rung(item, :ask)))
-
-      assert find_event(feed, "ep").status == :upcoming
     end
   end
 
