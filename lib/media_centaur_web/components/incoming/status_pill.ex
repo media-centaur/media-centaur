@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
       :if={@anchor}
       href={@anchor}
       class={[base_class(), tone_class(@status), anchor_hover_class(@status)]}
-      title="Jump to the live download"
+      data-tip="Jump to the live download"
       onclick="event.stopPropagation()"
     >
       <.icon name={icon_name(@status)} class="size-3 shrink-0" /> {@label}

@@ -425,7 +425,7 @@ html.psb .psb-variation-block .media-centaur {
    - auto (attribute absent): rests at 52px, expands while the mouse is
      over it — or, in keyboard/gamepad mode, while the nav cursor is
      inside it (:focus-within; sidebar items receive real DOM focus).
-   - pinned (data-sidebar="collapsed"): always 52px; the glass tooltip
+   - pinned (data-sidebar="collapsed"): always 52px; the app tooltip
      labels the hovered/focused icon instead.
 
    `--sidebar-expanded` (0/1) is the single expansion switch — every
@@ -558,14 +558,15 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   transition: transform 0.25s;
 }
 
-/* Collapsed-rail tooltip — a single element in <body>, driven by the
-   SidebarTooltip hook (hooks/sidebar_tooltip.js). Lives outside the rail
-   because the rail (overflow-y: auto) and each link (overflow: hidden)
-   clip pseudo-element tooltips at the 52px collapsed width. Position is
-   set entirely via transform by the hook; the transform transition is what
-   lets the open tooltip glide between icons. Blur is static — only
+/* The tooltip — one element in <body> for every data-tip anchor in the
+   app, driven by the Tooltip hook (hooks/tooltip.js). Lives outside every
+   surface because the sidebar rail (overflow-y: auto) and each link
+   (overflow: hidden) clip pseudo-element tooltips at the 52px collapsed
+   width, and one element is one look. Position is set entirely via
+   transform by the hook; the transform transition is what lets the open
+   tooltip glide between neighbouring anchors. Blur is static — only
    opacity/transform animate. */
-.sidebar-tooltip {
+.app-tooltip {
   position: fixed;
   top: 0;
   left: 0;
@@ -589,7 +590,7 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   transition: opacity 0.12s ease-out, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.sidebar-tooltip[data-state="open"] {
+.app-tooltip[data-state="open"] {
   opacity: 1;
 }
 

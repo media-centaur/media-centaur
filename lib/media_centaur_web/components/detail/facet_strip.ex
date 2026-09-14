@@ -91,11 +91,12 @@ defmodule MediaCentaurWeb.Components.Detail.FacetStrip do
 
   defp facet_value(%{facet: %Facet{kind: :chips}} = assigns) do
     ~H"""
-    <span class="text-sm text-base-content/80">
-      <%= for {item, idx} <- Enum.with_index(@facet.value) do %>
-        <span :if={idx > 0} class="text-base-content/30 select-none mx-1">·</span>
-        <span>{item}</span>
-      <% end %>
+    <%!-- Each separator travels with its chip, so a wrap never strands a
+          dot at the end or start of a line. --%>
+    <span class="inline-flex flex-wrap gap-x-1.5 text-sm text-base-content/80">
+      <span :for={{item, idx} <- Enum.with_index(@facet.value)} class="whitespace-nowrap">
+        <span :if={idx > 0} class="text-base-content/30 select-none mr-1.5">·</span>{item}
+      </span>
     </span>
     """
   end

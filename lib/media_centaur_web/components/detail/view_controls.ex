@@ -122,7 +122,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       href={Logic.letterboxd_url(@entity.tmdb_id)}
       target="_blank"
       rel="noopener"
-      title="Open on Letterboxd"
+      data-tip="Open on Letterboxd"
       aria-label="Open on Letterboxd"
     >
       <svg
@@ -156,7 +156,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       phx-click="modal_review_open"
       data-nav-item
       tabindex="0"
-      title="Review"
+      data-tip="Review"
       aria-label="Review"
     >
       <.icon name="hero-pencil-square" class="size-5" />
@@ -173,7 +173,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
       tabindex="0"
       aria-pressed={to_string(@detail_view == :info)}
       aria-label="Manage"
-      title="Manage"
+      data-tip="Manage"
     >
       <.icon name="hero-cog-6-tooth-mini" class="size-5" />
     </.button>

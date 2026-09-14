@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Components.Title.WatchlistToggle do
       data-nav-item
       tabindex="0"
       aria-pressed={to_string(@listed?)}
-      title={@label}
+      data-tip={@label}
       aria-label={@label}
       {@rest}
     >

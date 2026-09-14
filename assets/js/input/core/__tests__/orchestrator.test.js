@@ -1449,7 +1449,7 @@ describe("Orchestrator", () => {
       expect(escapeCalled).toBe(false)
       expect(system.focusMachine.context).toBe("sidebar")
       // Rail stays at the user's chosen width — the collapsed rail labels
-      // the focused icon via the SidebarTooltip hook instead
+      // the focused icon via the Tooltip hook instead
       const sidebarCalls = calls.filter(c => c.method === "setSidebarState")
       expect(sidebarCalls.length).toBe(0)
       // Lands on the active item, and records where it came from for exit
