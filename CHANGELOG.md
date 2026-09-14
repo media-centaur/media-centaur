@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.27.0 — 2026-09-14
+
+### New
+
+- **A download plan that finds nothing tells you why, from the calendar.** When a movie has no release to find, the plan's verdict now reads TMDB's release dates instead of the search: *Not out yet — in theaters from Oct 3*, or *In theaters since Aug 21 — digital release Oct 14* (or *on disc*, or that TMDB has no home release date yet). The search receipts stay beneath it, and **Search again** and **Show them anyway** stay where they were.
+- **Add to watchlist from an empty plan.** When a plan found nothing at all, its footer offers **Add to watchlist** in the spot Approve would take. One press lists the title; the footer then reads *On your watchlist*. Follow — so the release shows under Coming up when it lands — is on the watchlist and the title's own view, as before.
+
+### Fixed
+
+- **Marking an item unwatched starts it over.** An episode or movie that had run to the end and was then marked unwatched kept its position at the last second, so it showed as in progress at 100%, lost its spoiler-free blur, and Play resumed at the end and rolled straight into the next episode. It now goes back to the start.
+
 ## v1.26.0 — 2026-09-13
 
 ### New
