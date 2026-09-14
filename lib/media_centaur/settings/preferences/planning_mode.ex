@@ -6,7 +6,8 @@ defmodule MediaCentaur.Settings.Preferences.PlanningMode do
   plan for review and opens its board on Incoming; `:auto_select_best_release`
   creates it `automatic`, so a clean plan commits with nobody looking.
   The other mode is always one click away in the button's menu; this
-  entry only names the default.
+  entry only names the default. It is also the approval policy every
+  tracking plan is stamped with (`approval_policy/1`).
 
   Default `:manually_select_release`: an absent, malformed or unknown
   value all read as it, so a bad row can never turn on unattended
@@ -52,6 +53,17 @@ defmodule MediaCentaur.Settings.Preferences.PlanningMode do
   @spec other(mode()) :: mode()
   def other(:manually_select_release), do: :auto_select_best_release
   def other(:auto_select_best_release), do: :manually_select_release
+
+  @doc """
+  The approval policy a plan made under `mode` carries: auto-select
+  commits a clean plan with nobody looking; manual select parks it for a
+  person. The one mapping, read by the Download button and by the drop
+  planner alike (spec 2026-09-14) — a tracking plan asks first exactly
+  when a manual download would.
+  """
+  @spec approval_policy(mode()) :: String.t()
+  def approval_policy(:auto_select_best_release), do: "automatic"
+  def approval_policy(:manually_select_release), do: "review"
 
   @doc "Persists the default mode. Subscribers learn of it through `{:setting_changed, key, value}`."
   @spec set(mode()) :: Settings.Entry.t()

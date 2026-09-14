@@ -35,7 +35,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
     end
 
     test "Follow and above derive a tracked title, and list it as part of the act" do
-      for rung <- [:follow, :ask, :grab, :default] do
+      for rung <- [:follow, :grab] do
         assert {:ok, intent} = ReleaseTracking.set_rung(show(), rung)
         assert intent.rung == rung
         assert Discovery.listed?(@tmdb_id, :tv_series)
@@ -106,6 +106,16 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
   end
 
   describe "a film you already own" do
+    test "complete?/2 is the one spelling of the rule: an owned film, never a series" do
+      movie = create_movie(%{name: "Owned Movie"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
+      create_linked_file(%{movie_id: movie.id})
+
+      assert ReleaseTracking.complete?(777, :movie)
+      refute ReleaseTracking.complete?(778, :movie)
+      refute ReleaseTracking.complete?(@tmdb_id, :tv_series)
+    end
+
     test "is complete: the rung stands, the machinery does not" do
       movie = create_standalone_movie(%{name: "Owned Film"})
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})

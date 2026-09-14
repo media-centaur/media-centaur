@@ -126,14 +126,9 @@ defmodule MediaCentaur.Discovery do
     )
   end
 
-  @doc """
-  The grab decision for a title, resolved from its rung against the
-  global default. The one question acquisition asks about a title, so it
-  asks it here rather than modelling the ladder itself.
-  """
-  @spec grab_mode(integer(), media_type(), String.t()) :: String.t()
-  def grab_mode(tmdb_id, media_type, default),
-    do: TitleIntent.grab_mode(rung(tmdb_id, media_type), default)
+  @doc "Whether the title auto-grabs — plans its releases when they drop. The one question acquisition asks about a title."
+  @spec grabs?(integer(), media_type()) :: boolean()
+  def grabs?(tmdb_id, media_type), do: TitleIntent.grabs?(rung(tmdb_id, media_type))
 
   @doc "Whether the title is on the list at all — List or above; Off and Ignored are not."
   @spec listed?(integer(), media_type()) :: boolean()

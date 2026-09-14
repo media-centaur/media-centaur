@@ -66,6 +66,13 @@ defmodule MediaCentaur.Settings.Preferences.PlanningModeTest do
     end
   end
 
+  describe "approval_policy/1" do
+    test "auto-select commits alone; manual select parks for review" do
+      assert PlanningMode.approval_policy(:auto_select_best_release) == "automatic"
+      assert PlanningMode.approval_policy(:manually_select_release) == "review"
+    end
+  end
+
   defp store(value) do
     Settings.find_or_create_entry!(%{key: PlanningMode.setting_key(), value: value})
   end

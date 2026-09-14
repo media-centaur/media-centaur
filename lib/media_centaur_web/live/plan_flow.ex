@@ -1,8 +1,9 @@
 defmodule MediaCentaurWeb.Live.PlanFlow do
   @moduledoc """
-  The ending a download gets, in one place: how a planning mode maps to a
-  plan's approval policy, the flash auto-select raises, and the words for
-  each way planning can fail.
+  The ending a download gets, in one place: the flash auto-select raises,
+  and the words for each way planning can fail. How a planning mode maps
+  to a plan's approval policy is the setting's own
+  (`Settings.Preferences.PlanningMode.approval_policy/1`).
 
   Two surfaces start downloads and neither hosts the other. The title detail
   modal (`MediaCentaurWeb.TitleDetailHost`, on Discovery and Incoming)
@@ -17,18 +18,8 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
   `{season, episode}` unit on the other.
   """
 
-  alias MediaCentaur.Settings.Preferences.PlanningMode
-
   @typedoc "Why a plan was not created."
   @type failure :: :nothing_to_plan | :unaired | :already_here | :not_listed | :tracked | term()
-
-  @doc """
-  The approval policy a planning mode asks for. Auto-select commits a clean
-  plan with nobody looking; manual select parks it on its board.
-  """
-  @spec approval_policy(PlanningMode.mode()) :: String.t()
-  def approval_policy(:auto_select_best_release), do: "automatic"
-  def approval_policy(_manually_select_release), do: "review"
 
   @doc "The flash a one-click download raises, for any label."
   @spec download_flash(String.t()) :: String.t()
