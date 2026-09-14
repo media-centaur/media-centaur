@@ -3484,10 +3484,35 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert render(view) =~ "Deep Link Show"
     end
 
-    test "an unknown ?title= ref renders the page with the modal closed", %{conn: conn} do
+    test "a deep link to a title this page does not know, without TMDB, says what it needs and drops the param",
+         %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-424242")
 
+      render_async(view, 1_000)
+      assert_patch(view, "/incoming")
       assert has_element?(view, "#title-detail-modal[data-state=closed]")
+      assert render(view) =~ "TMDB API key"
+    end
+
+    test "a deep link to a series no list knows opens the modal from TMDB", %{conn: conn} do
+      enable_tmdb!()
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_get_tv(
+        424_242,
+        TmdbStubs.tv_detail(%{
+          "id" => 424_242,
+          "name" => "Unlisted Show",
+          "first_air_date" => "2012-03-04"
+        })
+      )
+
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-424242")
+
+      html = render_async(view, 1_000)
+      assert has_element?(view, "#title-detail-modal[data-state=open]")
+      assert html =~ "Unlisted Show"
+      assert has_element?(view, "#title-watchlist[aria-pressed='false'][phx-value-choice='list']")
     end
   end
 

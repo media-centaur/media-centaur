@@ -11,14 +11,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   `use MediaCentaurWeb.Live.TitleDetailHost` registers an `on_mount`
   that subscribes to `release_tracking:updates`, seeds `:title_detail`,
-  `:open_menu`, `:download_scope` and `:download_pending`, and attaches
+  `:title_opening`, `:open_menu`, `:download_scope` and `:download_pending`,
+  and attaches
   four lifecycle hooks:
 
   | Hook | Does |
   |---|---|
-  | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) and `&activity=<id>` |
+  | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) and `&activity=<id>` — from the page's rows when they know the title, from TMDB when they do not |
   | `:handle_event` | every modal control, halting: `open_title`, `close_title`, `title_mode_toggle`, `title_scope_toggle`, `title_menu_close`, `title_scope`, `title_download`, `title_activity_delete`, `title_review_open`, `set_rung`, `reset_lower_quality` |
-  | `:handle_async` | the live TMDB preview (`{:title_preview, ref}`) and the manual plan (`{:title_download, ref, name}`) that opens its board |
+  | `:handle_async` | the fetched open (`{:title_open, ref}`), the live TMDB preview (`{:title_preview, ref}`) and the manual plan (`{:title_download, ref, name}`) that opens its board |
   | `:handle_info` | refreshes the open detail on `:releases_updated`, watchlist and library changes, then continues so the host's own clauses run |
   | `use ReviewFlow` | injects the Review modal's own controls; `title_review_open` opens it on the detail's title |
 
@@ -35,8 +36,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   * `resolve_title/3` — the `TMDB.Title` a ref names on this page plus
     any page-specific facts for `Logic.title_detail/2` (Discovery's feed
     provenance and reviews), or nil when the page does not know the
-    title: a fresh open stays closed, an open detail keeps its own
-    snapshot (`refresh_title_detail/1`).
+    title: a fresh open then fetches the detail from TMDB and opens when
+    it lands (a deep link to any TMDB title), and an open detail keeps
+    its own snapshot (`refresh_title_detail/1`).
   * `title_detail_path/2` — the page's own path with the modal query
     applied (`[]` closes), so leaving the modal never changes tab.
   * `open_plan_board/2` — navigates to Incoming with the plan's board
@@ -116,7 +118,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
     socket =
       socket
-      |> assign(title_detail: nil, open_menu: nil, download_scope: :first_season, download_pending: nil)
+      |> assign(
+        title_detail: nil,
+        title_opening: nil,
+        open_menu: nil,
+        download_scope: :first_season,
+        download_pending: nil
+      )
       |> ReviewFlow.init()
       |> attach_hook(:title_detail_params, :handle_params, &apply_title_params/3)
       |> attach_hook(:title_detail_events, :handle_event, &handle_title_event/3)
@@ -128,47 +136,88 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # --- URL ---
 
-  # `?title=<media_type>-<tmdb_id>` drives the modal (UIDR-035):
-  # back closes, refresh keeps it, the URL is shareable. `&activity=<id>`
-  # names the act a person card opened it from. A ref the page does not
-  # know leaves it closed. A fresh open starts the live TMDB preview
+  # `?title=<media_type>-<tmdb_id>` drives the modal (UIDR-035): back
+  # closes, refresh keeps it, the URL is shareable. `&activity=<id>` names
+  # the act a person card opened it from. The page's rows are the first
+  # source — they carry the snapshot and the host facts — and TMDB the
+  # second: a ref the page does not know is fetched, and the modal opens
+  # when the detail lands. A fresh open from a row starts the live preview
   # fetch; a re-patch of the same title keeps the preview it already has.
+  # A malformed param names nothing to open.
   def apply_title_params(%{"title" => param} = params, _uri, socket) do
-    with {:ok, ref} <- TitleRef.parse(param),
-         {%Title{} = title, facts} <- socket.view.resolve_title(socket, ref, params) do
-      case socket.assigns.title_detail do
-        %TitleDetail{ref: ^ref} = open ->
-          {:cont, assign(socket, :title_detail, build_detail(socket, title, facts, open.preview))}
+    case TitleRef.parse(param) do
+      {:ok, ref} ->
+        case socket.view.resolve_title(socket, ref, params) do
+          {%Title{} = title, facts} -> {:cont, open_from_page(socket, ref, title, facts)}
+          nil -> {:cont, open_from_tmdb(socket, ref)}
+        end
 
-        _closed_or_other ->
-          socket =
-            socket
-            |> assign(
-              title_detail: build_detail(socket, title, facts, nil),
-              open_menu: nil,
-              download_scope: :first_season
-            )
-            |> fetch_preview(title)
-
-          {:cont, socket}
-      end
-    else
-      _unknown -> {:cont, close(socket)}
+      :error ->
+        {:cont, close(socket)}
     end
   end
 
   def apply_title_params(_params, _uri, socket), do: {:cont, close(socket)}
 
-  # Closing while a manual plan is being created abandons it: the person
-  # left, so nobody should be taken to its board.
-  defp close(socket) do
-    socket =
-      case socket.assigns.download_pending do
-        nil -> socket
-        name -> socket |> cancel_async(name) |> assign(:download_pending, nil)
-      end
+  defp open_from_page(
+         %{assigns: %{title_detail: %TitleDetail{ref: ref} = open}} = socket,
+         ref,
+         title,
+         facts
+       ), do: assign(socket, :title_detail, build_detail(socket, title, facts, open.preview))
 
-    assign(socket, title_detail: nil, open_menu: nil, download_scope: :first_season)
+  defp open_from_page(socket, _ref, title, facts) do
+    socket
+    |> reset_detail()
+    |> assign(:title_detail, build_detail(socket, title, facts, nil))
+    |> fetch_preview(title)
+  end
+
+  # The open detail is kept when its own ref is re-patched after the page
+  # forgot the title (its snapshot, no host facts), and a fetch already
+  # under way for the ref is left to land. Otherwise the fetch starts, once
+  # connected — the dead render has no process for it to answer to. What
+  # stands in the way (no TMDB key, no such title, TMDB not answering) is
+  # the fetch's result: flashed, and the param dropped, by the one result
+  # handler — which also keeps the page's path out of this hook, where on
+  # the first mount the page has not assigned its own URL state yet.
+  defp open_from_tmdb(%{assigns: %{title_detail: %TitleDetail{ref: ref} = open}} = socket, ref),
+    do: assign(socket, :title_detail, build_detail(socket, open.title, %{}, open.preview))
+
+  defp open_from_tmdb(%{assigns: %{title_opening: ref}} = socket, ref), do: socket
+
+  defp open_from_tmdb(socket, ref) do
+    socket = reset_detail(socket)
+
+    if connected?(socket) do
+      socket
+      |> assign(:title_opening, ref)
+      |> start_async({:title_open, ref}, fn -> fetch_title(ref) end)
+    else
+      socket
+    end
+  end
+
+  # Another title takes the modal: whatever was open or opening is dropped.
+  defp reset_detail(socket) do
+    socket
+    |> cancel_pending(:title_opening, &{:title_open, &1})
+    |> assign(title_detail: nil, open_menu: nil, download_scope: :first_season)
+  end
+
+  # Closing also abandons a manual plan being created: the person left, so
+  # nobody should be taken to its board.
+  defp close(socket) do
+    socket
+    |> cancel_pending(:download_pending, & &1)
+    |> reset_detail()
+  end
+
+  defp cancel_pending(socket, key, name_of) do
+    case socket.assigns[key] do
+      nil -> socket
+      pending -> socket |> cancel_async(name_of.(pending)) |> assign(key, nil)
+    end
   end
 
   @doc """
@@ -246,16 +295,40 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
-  # The movie payload also says where the film stands in its release
-  # sequence — the fact that decides whether there is a release to track.
-  defp load_preview(%Title{media_type: :movie, tmdb_id: id}, in_library?, today) do
-    with {:ok, movie} <- TMDBClient.get_movie(id),
-         do: {:ok, {TitlePreview.movie(movie, in_library?), ReleaseWindow.from_payload(movie, today)}}
+  defp load_preview(%Title{} = title, in_library?, today) do
+    with {:ok, payload} <- fetch_payload(Title.ref(title)),
+         do: {:ok, preview_from_payload(title, payload, in_library?, today)}
   end
 
-  defp load_preview(%Title{media_type: :tv_series, tmdb_id: id}, in_library?, _today) do
-    with {:ok, show} <- TMDBClient.get_tv(id), do: {:ok, {TitlePreview.tv(show, in_library?), nil}}
+  # A deep link to a title no row knows: the detail payload is both the
+  # snapshot the modal opens from and the preview that dresses it, so one
+  # fetch serves both. The fetch needs TMDB, so its readiness is the first
+  # thing checked. TMDB's 404 is "no such title"; a payload without an
+  # identity or a name is reported the same way.
+  defp fetch_title({_tmdb_id, media_type} = ref) do
+    with :ok <- tmdb_ready(),
+         {:ok, payload} <- fetch_payload(ref),
+         {:ok, %Title{} = title} <- Title.from_tmdb(payload, media_type) do
+      {:ok, {title, payload}}
+    else
+      {:error, {:http_error, 404, _body}} -> {:error, :not_found}
+      {:error, %Ecto.Changeset{}} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
   end
+
+  defp tmdb_ready, do: if(Capabilities.tmdb_ready?(), do: :ok, else: {:error, :tmdb_not_ready})
+
+  defp fetch_payload({tmdb_id, :movie}), do: TMDBClient.get_movie(tmdb_id)
+  defp fetch_payload({tmdb_id, :tv_series}), do: TMDBClient.get_tv(tmdb_id)
+
+  # The movie payload also says where the film stands in its release
+  # sequence — the fact that decides whether there is a release to track.
+  defp preview_from_payload(%Title{media_type: :movie}, movie, in_library?, today),
+    do: {TitlePreview.movie(movie, in_library?), ReleaseWindow.from_payload(movie, today)}
+
+  defp preview_from_payload(%Title{media_type: :tv_series}, show, in_library?, _today),
+    do: {TitlePreview.tv(show, in_library?), nil}
 
   # A result for a plan the person walked away from — the cancel's own
   # exit, or a reply already queued when the modal closed — is dropped.
@@ -289,6 +362,42 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
      socket
      |> assign(:download_pending, nil)
      |> put_flash(:error, PlanFlow.failure_flash(name, :crashed))}
+  end
+
+  # The fetched open. A result for a ref the person has moved on from — the
+  # URL dropped it, or names another title — is dropped with it, the
+  # cancel's own exit included.
+  def handle_title_async({:title_open, ref}, _result, %{assigns: %{title_opening: opening}} = socket)
+      when opening != ref, do: {:halt, socket}
+
+  def handle_title_async({:title_open, _ref}, {:ok, {:ok, {%Title{} = title, payload}}}, socket) do
+    detail = build_detail(socket, title, %{}, nil)
+    in_library? = match?({:in_library, _owner}, detail.primary)
+    {preview, window} = preview_from_payload(title, payload, in_library?, socket.assigns.today)
+
+    {:halt,
+     assign(socket,
+       title_detail: %{detail | preview: preview, release_window: window},
+       title_opening: nil,
+       open_menu: nil,
+       download_scope: :first_season
+     )}
+  end
+
+  def handle_title_async({:title_open, _ref}, {:ok, {:error, :tmdb_not_ready}}, socket),
+    do: {:halt, abandon_open(socket, tmdb_needed_flash())}
+
+  def handle_title_async({:title_open, ref}, {:ok, {:error, :not_found}}, socket),
+    do: {:halt, abandon_open(socket, no_such_title_flash(ref))}
+
+  def handle_title_async({:title_open, ref}, {:ok, {:error, reason}}, socket) do
+    Log.warning(:tmdb, "could not open #{TitleRef.param(ref)} from TMDB — #{inspect(reason)}")
+    {:halt, abandon_open(socket, tmdb_unreachable_flash())}
+  end
+
+  def handle_title_async({:title_open, ref}, {:exit, reason}, socket) do
+    Log.warning(:tmdb, "opening #{TitleRef.param(ref)} from TMDB crashed — #{inspect(reason)}")
+    {:halt, abandon_open(socket, tmdb_unreachable_flash())}
   end
 
   def handle_title_async(
@@ -494,6 +603,18 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   defp provenance(_detail), do: %{}
 
   defp push_close(socket), do: push_patch(socket, to: socket.view.title_detail_path(socket, []))
+
+  defp abandon_open(socket, flash),
+    do: socket |> assign(:title_opening, nil) |> put_flash(:error, flash) |> push_close()
+
+  # What stood in the way of a fetched open, and for the key, where it is set.
+  defp tmdb_needed_flash,
+    do: "Opening a title that isn't on your lists needs a TMDB API key. Add one in Settings under TMDB."
+
+  defp no_such_title_flash({_tmdb_id, :movie}), do: "TMDB has no movie with that id."
+  defp no_such_title_flash({_tmdb_id, :tv_series}), do: "TMDB has no TV series with that id."
+
+  defp tmdb_unreachable_flash, do: "TMDB didn't answer, so the title couldn't be opened."
 
   # The open detail's title when the click names it (the modal), else
   # whatever the page knows the ref as (a watchlist row).
