@@ -658,3 +658,153 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     end
   end
 end
+
+defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
+  use MediaCentaur.Case, async: true
+
+  alias MediaCentaur.TMDB.ReleaseWindow
+  alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Detail.Logic
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+  alias MediaCentaurWeb.ViewModel.LeafDetail
+  alias MediaCentaurWeb.ViewModel.MovieRow
+
+  @today ~D[2026-09-05]
+
+  defp title(overrides \\ %{}) do
+    Title.new!(
+      Map.merge(
+        %{
+          tmdb_id: 777,
+          media_type: :movie,
+          name: "Sample Movie",
+          year: "2010",
+          release_date: ~D[2010-03-05]
+        },
+        overrides
+      )
+    )
+  end
+
+  defp detail(overrides \\ %{}) do
+    title = Map.get(overrides, :title, title())
+
+    struct!(
+      TitleDetail,
+      Map.merge(%{ref: Title.ref(title), title: title, rung: nil, acquisition_state: nil}, overrides)
+    )
+  end
+
+  defp owned(entity, overrides \\ %{}) do
+    Map.merge(
+      %TitleDetail.Library{
+        entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], resume_target: nil},
+        subject: entity,
+        member: nil,
+        files: :loading,
+        available: true
+      },
+      overrides
+    )
+  end
+
+  describe "primary_action/2 — the one honest primary action, from facts" do
+    test "files win over everything: an owned title plays" do
+      movie = %{type: :movie, id: "mv-uuid"}
+
+      detail =
+        detail(%{library: owned(movie), acquisition_state: :downloading, release_mode_available: true})
+
+      assert Logic.primary_action(detail, @today) ==
+               {:play, %{label: "Play", target_id: "mv-uuid", percent: 0, remaining_text: nil}}
+    end
+
+    test "an owned title mid-watch resumes, with its fraction and the time left" do
+      movie = %{type: :movie, id: "mv-uuid", duration_seconds: 7200}
+
+      progress = %{
+        episodes_completed: 0,
+        episodes_total: 1,
+        episode_position_seconds: 3600.0,
+        episode_duration_seconds: 7200.0
+      }
+
+      library = owned(movie)
+      library = %{library | entry: %{library.entry | progress: progress}}
+
+      assert {:play, props} = Logic.primary_action(detail(%{library: library}), @today)
+      assert props.label == "Resume"
+      assert props.target_id == "mv-uuid"
+      assert props.percent == 50
+      assert props.remaining_text == "1h left"
+    end
+
+    test "a collection member plays as the member — the rail's selection" do
+      member = %MovieRow.Library{
+        movie: %{id: "part-2", name: "Part 2"},
+        progress: nil,
+        state: :unwatched,
+        is_resume_target: false
+      }
+
+      library = owned(%{type: :movie, id: "part-2"}, %{member: member})
+
+      assert Logic.primary_action(detail(%{library: library}), @today) ==
+               {:play, Logic.member_playback(member)}
+    end
+
+    test "downloading, needs review and planning are states, not actions" do
+      for state <- [:downloading, :needs_review, :planning] do
+        assert Logic.primary_action(
+                 detail(%{acquisition_state: state, release_mode_available: true}),
+                 @today
+               ) == {:state, state}
+      end
+    end
+
+    test "released with an indexer downloads; a series carries the scope menu" do
+      assert Logic.primary_action(detail(%{release_mode_available: true}), @today) == {:download, false}
+
+      show = title(%{media_type: :tv_series, name: "Sample Show"})
+
+      assert Logic.primary_action(detail(%{title: show, release_mode_available: true}), @today) ==
+               {:download, true}
+    end
+
+    test "upcoming, or no indexer, offers no verb — the tracking-mode control arms" do
+      upcoming = title(%{release_date: ~D[2027-01-01]})
+
+      assert Logic.primary_action(detail(%{title: upcoming, release_mode_available: true}), @today) ==
+               :none
+
+      assert Logic.primary_action(detail(%{release_mode_available: false}), @today) == :none
+    end
+  end
+
+  describe "tracking_card?/1 — one rule for the card under the body" do
+    test "nothing listed, tracked, dated or accepted: no card" do
+      refute Logic.tracking_card?(detail())
+    end
+
+    test "a listed title shows its switches" do
+      assert Logic.tracking_card?(detail(%{rung: :list}))
+    end
+
+    test "an ignored title says so" do
+      assert Logic.tracking_card?(detail(%{rung: :ignored}))
+    end
+
+    test "a tracked title shows its dates" do
+      assert Logic.tracking_card?(detail(%{tracking: %TrackingDetail{}}))
+    end
+
+    test "a movie with a live release window shows its dates" do
+      assert Logic.tracking_card?(detail(%{release_window: %ReleaseWindow{stage: :theatrical}}))
+    end
+
+    test "an accepted lower quality shows the note" do
+      assert Logic.tracking_card?(detail(%{lower_quality_accepted?: true}))
+    end
+  end
+end

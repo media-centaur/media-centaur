@@ -129,27 +129,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # --- TitleDetailHost ---
 
-  # What this page alone knows about a title is the feed: the activity
-  # the modal speaks for, its embedded snapshot, and its provenance. The
-  # review's words are the note when it has any; otherwise the intent's
-  # note stands. The snapshot, the rung, friend activity and the rest the
-  # host resolves by identity.
+  # What this page alone holds is in memory: the feed's activities and
+  # the snapshots embedded in them. The activity the modal speaks for,
+  # the rung, friend activity and the rest the host reads by identity.
   @impl TitleDetailHost
   def page_facts(socket, ref, params) do
     case activity_row(socket, ref, Map.get(params, "activity")) do
-      nil ->
-        {nil, %{}}
-
-      row ->
-        facts = %{
-          kind: row.activity.kind,
-          sender: if(!row.own?, do: row.nickname),
-          own?: row.own?,
-          activity_id: row.activity.id
-        }
-
-        {row.activity.title,
-         if(row.activity.text, do: Map.put(facts, :note, row.activity.text), else: facts)}
+      nil -> {nil, %{}}
+      row -> {row.activity.title, %{}}
     end
   end
 

@@ -11,6 +11,8 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
 
   alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Format
+  alias MediaCentaur.Library.EntityView
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.ReleaseWindow
@@ -22,15 +24,15 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   @type acquisition_state :: :planning | :downloading | :needs_review | nil
 
   @doc """
-  Builds the detail for a title from the facts the host resolved:
-  `library_owner_id`, `rung`, `acquisition_state`,
-  `release_mode_available`, `today`, plus optional `poster_url`,
-  `backdrop_url`, `logo_url`, `tracking`, `acquisition?`,
-  `lower_quality_accepted?`, `complete?`, `release_window`, `planning_mode`, `kind`,
-  `sender`, `note`, `own?`, `activity_id`, `friend_activity`, `preview`.
-  The primary action is In library, else the acquisition state, else
-  Download when the title is out and an indexer is ready — else nothing:
-  arming is the tracking-mode control's job, not a verb in the strip.
+  Builds the detail for a title from the facts the host resolved by
+  identity: `rung`, `acquisition_state` and `release_mode_available`
+  always; `library` (the `Detail.Library` half, nil when unowned),
+  `activity`, `intent_note`, `poster_url`, `backdrop_url`, `logo_url`,
+  `tracking`, `acquisition?`, `lower_quality_accepted?`, `complete?`,
+  `release_window`, `planning_mode`, `friend_activity` and `preview`
+  when the host has them. Nothing here decides: the action row and the
+  tracking card derive their rules from these facts where they mount
+  (`Detail.Logic`).
   """
   @spec title_detail(Title.t(), map()) :: TitleDetail.t()
   def title_detail(%Title{} = title, facts) do
@@ -40,8 +42,9 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       poster_url: Map.get(facts, :poster_url),
       backdrop_url: Map.get(facts, :backdrop_url),
       logo_url: Map.get(facts, :logo_url),
-      primary: primary(title, facts),
-      scoped?: title.media_type == :tv_series,
+      library: Map.get(facts, :library),
+      acquisition_state: Map.fetch!(facts, :acquisition_state),
+      release_mode_available: Map.fetch!(facts, :release_mode_available),
       rung: Map.fetch!(facts, :rung),
       tracking: Map.get(facts, :tracking),
       acquisition?: Map.get(facts, :acquisition?, false),
@@ -49,14 +52,40 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       complete?: Map.get(facts, :complete?, false),
       release_window: Map.get(facts, :release_window),
       planning_mode: Map.get(facts, :planning_mode, :manually_select_release),
-      kind: Map.get(facts, :kind),
-      sender: Map.get(facts, :sender),
-      note: Map.get(facts, :note),
-      own?: Map.get(facts, :own?),
-      activity_id: Map.get(facts, :activity_id),
+      activity: Map.get(facts, :activity),
+      intent_note: Map.get(facts, :intent_note),
       friend_activity: Map.get(facts, :friend_activity, []),
       preview: Map.get(facts, :preview)
     }
+  end
+
+  @doc """
+  The owner's entity as the title's snapshot — the source between the
+  intent's embedded title and the page's in-memory copy in the host's
+  resolution order, so a title the library owns never needs a TMDB
+  fetch to open. Name, year, release date and overview come from the
+  entity; a library image is a local file, not a TMDB path, so the art
+  paths stay empty and the artwork comes from the library half. Nil
+  for an entity with no title identity (`EntityView.title_ref/1`).
+  """
+  @spec snapshot_from_entity(map()) :: Title.t() | nil
+  def snapshot_from_entity(entity) do
+    case EntityView.title_ref(entity) do
+      {tmdb_id, media_type} ->
+        date = Map.get(entity, :date_published)
+
+        Title.new!(%{
+          tmdb_id: tmdb_id,
+          media_type: media_type,
+          name: entity.name,
+          year: Format.year(date),
+          release_date: date,
+          overview: Map.get(entity, :description)
+        })
+
+      nil ->
+        nil
+    end
   end
 
   @doc """
@@ -79,20 +108,6 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
 
   def release_ahead?(%Title{media_type: :movie} = title, nil, today),
     do: MediaResults.release_status(title, today) == :upcoming
-
-  defp primary(title, facts) do
-    cond do
-      owner = Map.fetch!(facts, :library_owner_id) -> {:in_library, owner}
-      state = Map.fetch!(facts, :acquisition_state) -> {:state, state}
-      downloadable?(title, facts) -> :download
-      true -> nil
-    end
-  end
-
-  defp downloadable?(title, facts) do
-    Map.fetch!(facts, :release_mode_available) and
-      MediaResults.release_status(title, Map.fetch!(facts, :today)) == :released
-  end
 
   @doc "A watchlist note as the row's `notes`: one unattributed entry, or none."
   @spec note_list(String.t() | nil) :: [%{name: nil, text: String.t()}]

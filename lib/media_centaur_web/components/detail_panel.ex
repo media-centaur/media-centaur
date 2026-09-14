@@ -562,8 +562,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     %{
       label: label,
       target_id: target_id,
-      percent: overall_progress_percent(assigns.progress, assigns.entity),
-      remaining_text: progress_remaining_text(assigns.progress, assigns.entity)
+      percent: Logic.overall_progress_percent(assigns.progress, assigns.entity),
+      remaining_text: Logic.progress_remaining_text(assigns.progress, assigns.entity)
     }
   end
 
@@ -688,32 +688,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       </div>
     </div>
     """
-  end
-
-  # Leaf-only (movie / video_object): containers derive their hairline
-  # fraction from `ViewModel.Orientation`; a leaf's comes from its
-  # progress summary via this percent (UIDR-024).
-  def overall_progress_percent(nil, _entity), do: 0
-
-  def overall_progress_percent(progress, _entity) do
-    if progress.episode_duration_seconds > 0 do
-      min(round(progress.episode_position_seconds / progress.episode_duration_seconds * 100), 100)
-    else
-      if progress.episodes_completed > 0, do: 100, else: 0
-    end
-  end
-
-  # The metadata line's remaining item (UIDR-024). Completed titles
-  # yield nil — the full hairline and the watched toggle carry that
-  # state; the metadata line goes back to showing the status.
-  def progress_remaining_text(nil, _entity), do: nil
-
-  def progress_remaining_text(progress, _entity) do
-    if progress.episodes_completed == 0 && progress.episode_duration_seconds > 0 &&
-         progress.episode_position_seconds > 0 do
-      remaining_seconds = progress.episode_duration_seconds - progress.episode_position_seconds
-      "#{format_human_duration(trunc(remaining_seconds))} left"
-    end
   end
 
   # --- Content List (type-dependent) ---

@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
+  alias MediaCentaurWeb.ViewModel.LeafDetail
 
   @today ~D[2026-08-03]
 
@@ -53,11 +54,14 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
     })
   end
 
-  defp act(title, nickname, kind, sentiment \\ :like) do
+  defp act(title, nickname, kind, sentiment \\ :like, text \\ nil) do
     %{
       activity: %Activity{
+        id:
+          "0d2c5cd6-0000-4000-8000-00000000000" <> Integer.to_string(:erlang.phash2({nickname, kind}, 9)),
         kind: kind,
         sentiment: sentiment,
+        text: text,
         tmdb_id: title.tmdb_id,
         media_type: title.media_type,
         title: title,
@@ -68,18 +72,29 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
     }
   end
 
+  # A released title with an indexer ready: the action row derives
+  # Download from these facts.
   defp detail(title, overrides) do
     struct!(
       %TitleDetail{
         ref: {title.tmdb_id, title.media_type},
         title: title,
-        primary: :download,
-        scoped?: title.media_type == :tv_series,
         rung: nil,
-        acquisition?: true
+        acquisition?: true,
+        release_mode_available: true
       },
       overrides
     )
+  end
+
+  # The library half of an owned movie: a leaf entry with no progress.
+  defp owned(title) do
+    entity = %{id: "0d2c5cd6-0000-4000-8000-000000000001", type: :movie, name: title.name, images: []}
+
+    %TitleDetail.Library{
+      entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], resume_target: nil},
+      subject: entity
+    }
   end
 
   defp episode(id, season, episode, air_date, status) do
@@ -193,10 +208,14 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
           today: @today,
           detail:
             detail(movie(), %{
-              kind: :review,
-              sender: "Sample Friend",
-              note: "Watch it before anyone spoils the ending.",
-              own?: false,
+              activity:
+                act(
+                  movie(),
+                  "Sample Friend",
+                  :review,
+                  :love,
+                  "Watch it before anyone spoils the ending."
+                ),
               rung: :follow,
               friend_activity: [act(movie(), "Sample Friend", :review, :love)]
             })
@@ -212,7 +231,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
           detail:
             detail(show(), %{
               rung: :follow,
-              primary: nil,
+              release_mode_available: false,
               friend_activity: [
                 act(show(), "Third Friend", :listing),
                 act(show(), "Other Friend", :watched),
@@ -227,7 +246,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
         description: "Your own watchlist note, unattributed.",
         attributes: %{
           today: @today,
-          detail: detail(movie(), %{rung: :list, note: "Pick this for the long weekend."})
+          detail: detail(movie(), %{rung: :list, intent_note: "Pick this for the long weekend."})
         }
       },
       %Variation{
@@ -239,9 +258,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
           today: @today,
           detail:
             detail(movie(), %{
-              kind: :review,
-              own?: true,
-              activity_id: "0d2c5cd6-0000-4000-8000-000000000002",
+              activity: act(movie(), nil, :review),
               friend_activity: [act(movie(), nil, :review)]
             })
         }
@@ -255,10 +272,8 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
           today: @today,
           detail:
             detail(show(), %{
-              kind: :listing,
-              own?: true,
-              activity_id: "0d2c5cd6-0000-4000-8000-000000000003",
-              primary: nil
+              activity: act(show(), nil, :listing),
+              release_mode_available: false
             })
         }
       },
@@ -269,25 +284,25 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
             "no tracking sections either, that detail is the library's.",
         attributes: %{
           today: @today,
-          detail: detail(movie(), %{primary: {:in_library, "0d2c5cd6-0000-4000-8000-000000000001"}})
+          detail: detail(movie(), %{library: owned(movie())})
         }
       },
       %Variation{
         id: :needs_review,
         description: "A parked plan: Needs review links to Downloads.",
-        attributes: %{today: @today, detail: detail(movie(), %{primary: {:state, :needs_review}})}
+        attributes: %{today: @today, detail: detail(movie(), %{acquisition_state: :needs_review})}
       },
       %Variation{
         id: :downloading,
         description: "A pursuit in flight: a stated fact, no verb.",
-        attributes: %{today: @today, detail: detail(movie(), %{primary: {:state, :downloading}})}
+        attributes: %{today: @today, detail: detail(movie(), %{acquisition_state: :downloading})}
       },
       %Variation{
         id: :not_out_yet,
         description:
           "Not out yet (or no indexer): no primary verb — the tracking-mode control " <>
             "below is the act, and its copy says arming adds the title to the watchlist.",
-        attributes: %{today: @today, detail: detail(movie(), %{primary: nil})}
+        attributes: %{today: @today, detail: detail(movie(), %{release_mode_available: false})}
       },
       %Variation{
         id: :tracked_watch,
@@ -297,7 +312,8 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
             "recent activity, then the overview.",
         attributes: %{
           today: @today,
-          detail: detail(show(), %{primary: nil, rung: :follow, tracking: tracking(%{})})
+          detail:
+            detail(show(), %{release_mode_available: false, rung: :follow, tracking: tracking(%{})})
         }
       },
       %Variation{
@@ -309,7 +325,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
           today: @today,
           detail:
             detail(show(), %{
-              primary: nil,
+              release_mode_available: false,
               rung: :grab,
               lower_quality_accepted?: true,
               tracking:
@@ -329,7 +345,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
             "tracking block at all — listing comes first (UIDR-039).",
         attributes: %{
           today: @today,
-          detail: detail(show(), %{primary: nil, rung: nil, tracking: nil})
+          detail: detail(show(), %{release_mode_available: false, rung: nil, tracking: nil})
         }
       },
       %Variation{
@@ -341,7 +357,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
           today: @today,
           detail:
             detail(show(), %{
-              primary: nil,
+              release_mode_available: false,
               acquisition?: false,
               rung: :grab,
               tracking: tracking(%{})

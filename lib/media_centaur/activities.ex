@@ -318,6 +318,25 @@ defmodule MediaCentaur.Activities do
   def get(id), do: Repo.get(Activity, id)
 
   @doc """
+  One live activity by id as the rows carry it — `%{activity, nickname,
+  own?}`, the same shape `friend_activity_for/1` groups — or nil for an
+  unknown, malformed or withdrawn id. The title detail reads the
+  activity it speaks for through this, by identity, on every page.
+  """
+  @spec get_row(String.t()) :: activity_row() | nil
+  def get_row(id) when is_binary(id) do
+    with {:ok, uuid} <- Ecto.UUID.cast(id),
+         %Activity{} = activity <- Activity |> live() |> where([a], a.id == ^uuid) |> Repo.one() do
+      friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
+      activity_row(activity, Identity.pubkey(), friends)
+    else
+      _none -> nil
+    end
+  end
+
+  def get_row(_id), do: nil
+
+  @doc """
   What an own event with this id is — the kind of a live row's activity,
   the deletion of a withdrawn one — or `nil` for an id no row holds (a
   stranger's event, or a deletion since superseded by a revival).

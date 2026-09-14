@@ -83,7 +83,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   describe "overall_progress_percent/2" do
     test "returns 0 for nil progress" do
-      assert DetailPanel.overall_progress_percent(nil, build_entity()) == 0
+      assert Logic.overall_progress_percent(nil, build_entity()) == 0
     end
 
     test "computes position-based percentage for standalone movie" do
@@ -95,7 +95,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
       entity = build_entity(%{type: :movie})
 
-      assert DetailPanel.overall_progress_percent(progress, entity) == 50
+      assert Logic.overall_progress_percent(progress, entity) == 50
     end
 
     test "returns 100 when completed but no duration for movie" do
@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
       entity = build_entity(%{type: :movie})
 
-      assert DetailPanel.overall_progress_percent(progress, entity) == 100
+      assert Logic.overall_progress_percent(progress, entity) == 100
     end
 
     test "caps at 100" do
@@ -119,7 +119,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
       entity = build_entity(%{type: :movie})
 
-      assert DetailPanel.overall_progress_percent(progress, entity) == 100
+      assert Logic.overall_progress_percent(progress, entity) == 100
     end
   end
 
@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   describe "progress_remaining_text/2" do
     test "returns nil for nil progress" do
-      assert DetailPanel.progress_remaining_text(nil, build_entity()) == nil
+      assert Logic.progress_remaining_text(nil, build_entity()) == nil
     end
 
     # No container cases: TV and collection remaining-text moved to the
@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
       entity = build_entity(%{type: :movie})
 
-      assert DetailPanel.progress_remaining_text(progress, entity) == nil
+      assert Logic.progress_remaining_text(progress, entity) == nil
     end
 
     test "returns time left for in-progress standalone movie" do
@@ -160,7 +160,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
       entity = build_entity(%{type: :movie})
 
-      assert DetailPanel.progress_remaining_text(progress, entity) == "1h left"
+      assert Logic.progress_remaining_text(progress, entity) == "1h left"
     end
   end
 

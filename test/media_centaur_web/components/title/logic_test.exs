@@ -1,12 +1,13 @@
 defmodule MediaCentaurWeb.Components.Title.LogicTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.TestFactory, only: [build_tracking_release: 1]
+  import MediaCentaur.TestFactory, only: [build_activity: 1, build_entity: 1, build_tracking_release: 1]
 
   alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.Title.Logic
+  alias MediaCentaurWeb.ViewModel.LeafDetail
 
   @today ~D[2026-09-05]
 
@@ -27,13 +28,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
 
   defp facts(overrides \\ %{}) do
     Map.merge(
-      %{
-        library_owner_id: nil,
-        rung: nil,
-        acquisition_state: nil,
-        release_mode_available: true,
-        today: @today
-      },
+      %{rung: nil, acquisition_state: nil, release_mode_available: true},
       overrides
     )
   end
@@ -54,66 +49,98 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
   end
 
-  describe "title_detail/2 primary action" do
-    test "in library wins over everything" do
-      detail =
-        Logic.title_detail(movie(), facts(%{library_owner_id: "owner", acquisition_state: :downloading}))
-
-      assert detail.primary == {:in_library, "owner"}
-    end
-
-    test "downloading, needs review and planning are states, not actions" do
-      assert Logic.title_detail(movie(), facts(%{acquisition_state: :downloading})).primary ==
-               {:state, :downloading}
-
-      assert Logic.title_detail(movie(), facts(%{acquisition_state: :needs_review})).primary ==
-               {:state, :needs_review}
-
-      assert Logic.title_detail(movie(), facts(%{acquisition_state: :planning})).primary ==
-               {:state, :planning}
-    end
-
-    test "released with an indexer downloads; a series carries the scope menu" do
-      assert Logic.title_detail(movie(), facts()).primary == :download
-
-      show =
-        Title.new!(%{
-          tmdb_id: 42,
-          media_type: :tv_series,
-          name: "Sample Show",
-          release_date: ~D[2010-01-01]
-        })
-
-      detail = Logic.title_detail(show, facts())
-      assert detail.primary == :download
-      assert detail.scoped?
-    end
-
-    test "upcoming, or no indexer, offers no verb — the tracking-mode control arms" do
-      assert Logic.title_detail(movie(%{release_date: ~D[2999-01-01]}), facts()).primary == nil
-      assert Logic.title_detail(movie(), facts(%{release_mode_available: false})).primary == nil
-    end
-  end
-
-  describe "title_detail/2 secondary and provenance" do
-    test "the detail carries the title's rung, Off included" do
+  describe "title_detail/2 facts" do
+    test "carries the title's rung, Off included" do
+      assert Logic.title_detail(movie(), facts(%{rung: :list})).rung == :list
       assert Logic.title_detail(movie(), facts()).rung == nil
-      assert Logic.title_detail(movie(), facts(%{rung: :grab})).rung == :grab
     end
 
-    test "carries the feed provenance when given" do
+    test "carries the acquisition state and the indexer's readiness as facts — the action is derived where it mounts" do
       detail =
         Logic.title_detail(
           movie(),
-          facts(%{
-            sender: "Sample Friend",
-            note: "Watch it",
-            acted_at: ~U[2026-09-01 10:00:00Z],
-            own?: false
-          })
+          facts(%{acquisition_state: :downloading, release_mode_available: false})
         )
 
-      assert %TitleDetail{sender: "Sample Friend", note: "Watch it", own?: false} = detail
+      assert detail.acquisition_state == :downloading
+      refute detail.release_mode_available
+      refute Map.has_key?(detail, :primary)
+    end
+
+    test "carries the library half when the library owns the title, nil when it does not" do
+      entity = %{type: :movie, id: "mv-uuid", name: "Sample Movie"}
+
+      library = %TitleDetail.Library{
+        entry: %LeafDetail{entity: entity, progress: nil, progress_records: [], resume_target: nil},
+        subject: entity,
+        member: nil,
+        files: :loading,
+        available: true
+      }
+
+      assert Logic.title_detail(movie(), facts(%{library: library})).library == library
+      assert Logic.title_detail(movie(), facts()).library == nil
+    end
+
+    test "carries the activity it speaks for as one row, and the intent's note beside it" do
+      row = %{activity: build_activity(%{text: "Watch it."}), nickname: "Sample Friend", own?: false}
+
+      detail = Logic.title_detail(movie(), facts(%{activity: row, intent_note: "Mine."}))
+      assert detail.activity == row
+      assert detail.intent_note == "Mine."
+
+      bare = Logic.title_detail(movie(), facts())
+      assert bare.activity == nil
+      assert bare.intent_note == nil
+    end
+  end
+
+  describe "snapshot_from_entity/1 — the owner's entity as the title's snapshot" do
+    test "a movie: name, year, release date and overview from the entity" do
+      entity =
+        build_entity(%{
+          type: :movie,
+          tmdb_id: "603",
+          name: "Sample Movie",
+          date_published: ~D[1999-03-31],
+          description: "A sample overview."
+        })
+
+      assert %Title{
+               tmdb_id: 603,
+               media_type: :movie,
+               name: "Sample Movie",
+               year: "1999",
+               release_date: ~D[1999-03-31],
+               overview: "A sample overview.",
+               poster_path: nil,
+               backdrop_path: nil
+             } = Logic.snapshot_from_entity(entity)
+    end
+
+    test "a series" do
+      entity =
+        build_entity(%{
+          type: :tv_series,
+          tmdb_id: "1399",
+          name: "Sample Show",
+          date_published: ~D[2011-04-17]
+        })
+
+      assert %Title{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show", year: "2011"} =
+               Logic.snapshot_from_entity(entity)
+    end
+
+    test "a collection member — the projection's integer id, no date" do
+      subject = %{type: :movie, tmdb_id: 604, name: "Part 2", date_published: nil, description: nil}
+
+      assert %Title{tmdb_id: 604, media_type: :movie, name: "Part 2", year: nil, release_date: nil} =
+               Logic.snapshot_from_entity(subject)
+    end
+
+    test "a collection, or an entity without a TMDB identity, has no snapshot" do
+      assert Logic.snapshot_from_entity(build_entity(%{type: :movie_series, tmdb_id: "10"})) == nil
+      assert Logic.snapshot_from_entity(build_entity(%{type: :movie, tmdb_id: nil})) == nil
     end
   end
 

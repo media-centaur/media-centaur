@@ -194,6 +194,38 @@ defmodule MediaCentaur.ActivitiesTest do
     end
   end
 
+  describe "get_row/1 — one activity, as the rows carry it, by identity" do
+    test "an own review is own, unattributed" do
+      {:ok, rec} = Activities.review(title(), :like, "Go.")
+      await_supervised_tasks()
+
+      assert %{activity: %Activity{id: id}, nickname: nil, own?: true} = Activities.get_row(rec.id)
+      assert id == rec.id
+    end
+
+    test "a friend's activity carries the friend's nickname" do
+      {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000))
+
+      assert %{activity: %Activity{text: "theirs"}, nickname: "Sample Friend", own?: false} =
+               Activities.get_row(rec.id)
+    end
+
+    test "an unknown or malformed id is nil" do
+      assert Activities.get_row(Ecto.UUID.generate()) == nil
+      assert Activities.get_row("not-a-uuid") == nil
+    end
+
+    test "a withdrawn activity is nil — the modal has nothing to speak for" do
+      {:ok, rec} = Activities.review(title(), :like, "Go.")
+      await_supervised_tasks()
+      {:ok, _deleted} = Activities.delete(rec.id)
+      await_supervised_tasks()
+
+      assert Activities.get_row(rec.id) == nil
+    end
+  end
+
   describe "ingest/1" do
     test "accepts a friend's verified event, decorates the feed with the nickname, broadcasts" do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")

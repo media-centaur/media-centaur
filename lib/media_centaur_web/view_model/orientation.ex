@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   collection's fraction, the same unit.
   Leaf titles (a bare movie) build no orientation: they are not
   positions in a set — their hero hairline reads the progress summary
-  directly (UIDR-024, via `DetailPanel.overall_progress_percent/2`).
+  directly (UIDR-024, via `Detail.Logic.overall_progress_percent/2`).
   `:future` seasons and `Upcoming` parts are excluded from all
   counts — you can't be "through" what you can't watch.
 
