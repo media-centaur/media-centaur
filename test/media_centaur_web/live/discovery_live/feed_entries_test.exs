@@ -128,7 +128,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
       assert FeedEntries.list_slot(%{rung: :ignored}) == :list
       assert FeedEntries.list_slot(%{rung: :list}) == :listed
 
-      for rung <- [:follow, :ask, :grab, :default],
+      for rung <- [:follow, :grab],
           do: assert(FeedEntries.list_slot(%{rung: rung}) == :following)
     end
   end

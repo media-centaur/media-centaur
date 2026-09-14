@@ -364,7 +364,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             "list (Off, Ignored), the marker — nothing to click — at List and above " <>
             "(`WatchlistToggle.listed?/1` is the one rule).",
         variations:
-          for rung <- [:ignored, :list, :follow, :ask, :grab, :default] do
+          for rung <- [:ignored, :list, :follow, :grab] do
             %Variation{
               id: rung,
               attributes: %{

@@ -63,7 +63,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   import Phoenix.LiveView
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1, tmdb_cdn_url: 2]
 
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, DownloadParams, Plans, TitleStates}
+  alias MediaCentaur.Acquisition.{DownloadParams, Plans, TitleStates}
   alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Activities
@@ -74,6 +74,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Client, as: TMDBClient
+  alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Live.PlanFlow
@@ -97,7 +98,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
               Phoenix.LiveView.Socket.t()
 
   @modal_events ~w(title_mode_toggle title_scope_toggle title_menu_close title_scope title_download title_activity_delete title_review_open)
-  @rungs ~w(ignored off list follow ask grab default)
+  @rungs ~w(off list follow grab)
 
   defmacro __using__(_opts) do
     quote do
@@ -195,7 +196,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     ref = Title.ref(title)
     artwork = TmdbArtwork.urls(title.media_type, title.tmdb_id)
     acquisition? = Capabilities.acquisition_ready?()
-    default_grab_mode = AutoGrabSettings.load().default_mode
+    planning_mode = PlanningMode.value()
     today = socket.assigns.today
 
     facts = %{
@@ -213,11 +214,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         TrackingDetail.load(ref, %{
           today: today,
           acquisition_ready?: acquisition?,
-          auto_grab_default_mode: default_grab_mode
+          approval_policy: PlanningMode.approval_policy(planning_mode)
         }),
       acquisition?: acquisition?,
-      default_grab_mode: default_grab_mode,
-      planning_mode: PlanningMode.value(),
+      complete?: ReleaseTracking.complete?(title.tmdb_id, title.media_type),
+      release_window: nil,
+      planning_mode: planning_mode,
       preview: preview
     }
 
@@ -232,18 +234,22 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       ref = Title.ref(title)
       in_library? = match?({:in_library, _owner}, socket.assigns.title_detail.primary)
 
-      start_async(socket, {:title_preview, ref}, fn -> load_preview(title, in_library?) end)
+      today = socket.assigns.today
+      start_async(socket, {:title_preview, ref}, fn -> load_preview(title, in_library?, today) end)
     else
       socket
     end
   end
 
-  defp load_preview(%Title{media_type: :movie, tmdb_id: id}, in_library?) do
-    with {:ok, movie} <- TMDBClient.get_movie(id), do: {:ok, TitlePreview.movie(movie, in_library?)}
+  # The movie payload also says where the film stands in its release
+  # sequence — the fact that decides whether there is a release to track.
+  defp load_preview(%Title{media_type: :movie, tmdb_id: id}, in_library?, today) do
+    with {:ok, movie} <- TMDBClient.get_movie(id),
+         do: {:ok, {TitlePreview.movie(movie, in_library?), ReleaseWindow.from_payload(movie, today)}}
   end
 
-  defp load_preview(%Title{media_type: :tv_series, tmdb_id: id}, in_library?) do
-    with {:ok, show} <- TMDBClient.get_tv(id), do: {:ok, TitlePreview.tv(show, in_library?)}
+  defp load_preview(%Title{media_type: :tv_series, tmdb_id: id}, in_library?, _today) do
+    with {:ok, show} <- TMDBClient.get_tv(id), do: {:ok, {TitlePreview.tv(show, in_library?), nil}}
   end
 
   # A result for a plan the person walked away from — the cancel's own
@@ -280,10 +286,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
      |> put_flash(:error, PlanFlow.failure_flash(name, :crashed))}
   end
 
-  def handle_title_async({:title_preview, ref}, {:ok, {:ok, %TitlePreview{} = preview}}, socket) do
+  def handle_title_async(
+        {:title_preview, ref},
+        {:ok, {:ok, {%TitlePreview{} = preview, window}}},
+        socket
+      ) do
     case socket.assigns.title_detail do
       %TitleDetail{ref: ^ref} = detail ->
-        {:halt, assign(socket, :title_detail, %{detail | preview: preview})}
+        {:halt, assign(socket, :title_detail, %{detail | preview: preview, release_window: window})}
 
       _closed_or_other ->
         {:halt, socket}
@@ -523,11 +533,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
-  defp rung_atom("ignored"), do: :ignored
   defp rung_atom("off"), do: :off
   defp rung_atom("list"), do: :list
   defp rung_atom("follow"), do: :follow
-  defp rung_atom("ask"), do: :ask
   defp rung_atom("grab"), do: :grab
-  defp rung_atom("default"), do: :default
 end

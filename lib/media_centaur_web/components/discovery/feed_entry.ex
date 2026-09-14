@@ -8,8 +8,8 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
   the card decides nothing.
 
   `list_slot` is what the List position holds: the verb `:list`, the
-  filled `:listed`, or the state `:following` (Follow and above, per
-  UIDR-036's bookmark rule). `download_slot` is the verb `:download` or
+  filled `:listed`, or the state `:following` (Follow and above; the
+  card renders it as "Tracking", the UI word for a kept calendar). `download_slot` is the verb `:download` or
   `{:state, word}` — "In library", or the acquisition marker while a
   plan runs. `ago` is the relative time, anchored by the host's `now`.
   Where this could be confused with a library entry, say *feed entry*.

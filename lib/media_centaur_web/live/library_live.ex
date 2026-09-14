@@ -470,7 +470,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           tracking={@tracking}
           lower_quality_accepted?={@lower_quality_accepted?}
           rung={@rung}
-          default_grab_mode={@default_grab_mode}
+          approval_policy={@approval_policy}
           acquisition?={@acquisition?}
           friend_activity={@friend_activity}
           availability_map={@availability_map}

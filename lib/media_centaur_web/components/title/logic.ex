@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
@@ -25,7 +26,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   `library_owner_id`, `rung`, `acquisition_state`,
   `release_mode_available`, `today`, plus optional `poster_url`,
   `backdrop_url`, `logo_url`, `tracking`, `acquisition?`,
-  `lower_quality_accepted?`, `default_grab_mode`, `planning_mode`, `kind`,
+  `lower_quality_accepted?`, `complete?`, `release_window`, `planning_mode`, `kind`,
   `sender`, `note`, `own?`, `activity_id`, `friend_activity`, `preview`.
   The primary action is In library, else the acquisition state, else
   Download when the title is out and an indexer is ready — else nothing:
@@ -45,7 +46,8 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       tracking: Map.get(facts, :tracking),
       acquisition?: Map.get(facts, :acquisition?, false),
       lower_quality_accepted?: Map.get(facts, :lower_quality_accepted?, false),
-      default_grab_mode: Map.get(facts, :default_grab_mode, "off"),
+      complete?: Map.get(facts, :complete?, false),
+      release_window: Map.get(facts, :release_window),
       planning_mode: Map.get(facts, :planning_mode, :manually_select_release),
       kind: Map.get(facts, :kind),
       sender: Map.get(facts, :sender),
@@ -56,6 +58,27 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
       preview: Map.get(facts, :preview)
     }
   end
+
+  @doc """
+  Whether a release is still ahead — what decides if the Track release
+  dates row renders (`TrackingControls.rows/1`). A series always has one
+  ahead as far as the snapshot knows. For a movie the release window
+  read from the live TMDB payload answers once it has landed
+  (`:unreleased` and `:theatrical` are ahead, `:home` is not, `:unknown`
+  says nothing and defers to the snapshot); until then the snapshot's
+  primary date against `today` (`MediaResults.release_status/2`).
+  """
+  @spec release_ahead?(Title.t(), ReleaseWindow.t() | nil, Date.t()) :: boolean()
+  def release_ahead?(%Title{media_type: :tv_series}, _window, _today), do: true
+
+  def release_ahead?(%Title{media_type: :movie} = title, %ReleaseWindow{stage: :unknown}, today),
+    do: release_ahead?(title, nil, today)
+
+  def release_ahead?(%Title{media_type: :movie}, %ReleaseWindow{stage: stage}, _today),
+    do: stage in [:unreleased, :theatrical]
+
+  def release_ahead?(%Title{media_type: :movie} = title, nil, today),
+    do: MediaResults.release_status(title, today) == :upcoming
 
   defp primary(title, facts) do
     cond do
@@ -96,10 +119,10 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   @doc """
   The quiet text markers a title row shows after its type and year, in
   order: the library or acquisition state (one of them — In library
-  wins), then the tracking rung (`rung` + `default_grab_mode`, Default
-  resolved to what it does; never for an owned title, whose tracking is
-  the library detail's) and the next release date when the facts carry
-  one (`next_air_date` + `today`).
+  wins), then the tracking rung (Tracking at Follow, Auto-grab at Grab;
+  never for an owned title, whose tracking is the library detail's) and
+  the next release date when the facts carry one (`next_air_date` +
+  `today`).
 
   `list_implied?` is a fact about the *container*, not the title: pass
   true where every row is on the list — Discovery's watchlist tab — and
@@ -114,7 +137,6 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
             required(:in_library?) => boolean(),
             required(:acquisition_state) => acquisition_state(),
             optional(:rung) => TitleIntent.rung() | nil,
-            optional(:default_grab_mode) => String.t(),
             optional(:next_air_date) => Date.t() | nil,
             optional(:today) => Date.t()
           },
@@ -130,7 +152,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
 
     tracking =
       if not facts.in_library? do
-        rung_marker(Map.get(facts, :rung), Map.get(facts, :default_grab_mode), list_implied?)
+        rung_marker(Map.get(facts, :rung), list_implied?)
       end
 
     next =
@@ -143,25 +165,15 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   end
 
   # Off says nothing — the row would not be here. Ignored says so: the
-  # Feed hides it, but a search result must still say the
-  # reader dismissed it. List says it is on the list, except where the
-  # container already says so. Default says what it resolves to, so the
-  # row never asks the reader to know the setting.
-  defp rung_marker(nil, _default, _list_implied?), do: nil
-  defp rung_marker(:ignored, _default, _list_implied?), do: "Ignored"
-  defp rung_marker(:list, _default, true), do: nil
-  defp rung_marker(:list, _default, false), do: "On your list"
-  defp rung_marker(:follow, _default, _list_implied?), do: "Tracking: Follow"
-  defp rung_marker(:ask, _default, _list_implied?), do: "Tracking: Ask"
-  defp rung_marker(:grab, _default, _list_implied?), do: "Tracking: Grab"
-
-  defp rung_marker(:default, default, _list_implied?) do
-    case TitleIntent.grab_mode(:default, default) do
-      "all_releases" -> "Tracking: Grab"
-      "ask" -> "Tracking: Ask"
-      _off -> "Tracking: Follow"
-    end
-  end
+  # Feed hides it, but a search result must still say the reader
+  # dismissed it. List says it is on the list, except where the
+  # container already says so.
+  defp rung_marker(nil, _list_implied?), do: nil
+  defp rung_marker(:ignored, _list_implied?), do: "Ignored"
+  defp rung_marker(:list, true), do: nil
+  defp rung_marker(:list, false), do: "On your list"
+  defp rung_marker(:follow, _list_implied?), do: "Tracking"
+  defp rung_marker(:grab, _list_implied?), do: "Auto-grab"
 
   @doc """
   A tracked title's next release date — the earliest air date today or

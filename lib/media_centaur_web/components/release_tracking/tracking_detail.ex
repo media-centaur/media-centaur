@@ -4,11 +4,10 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   release timeline, recent per-title activity, the per-title quality
   acceptance and when tracking began — plus the facts the two shared
   components need to say honestly what the title will do right now (`today`,
-  `acquisition?`, `default_grab_mode`) and the `ref` param every control
-  click carries. `nil` for a title that has never been tracked.
+  `acquisition?`) and the `ref` param every control click carries. `nil` for a title that has never been tracked.
 
   Loaded by `load/2` for any host that mounts the shared tracking
-  components (`ReleaseTimeline`, `TrackingModeControl`): the title
+  components (`ReleaseTimeline`, `TrackingControls`): the title
   detail modal and the library detail panel (UIDR-035). The reads are
   local and cheap (ADR-051): the item, its releases, its recent events,
   and — only when acquisition is ready — which of those releases are
@@ -28,7 +27,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
     :tracking_since,
     :today,
     acquisition?: false,
-    default_grab_mode: "off",
     timeline: [],
     activity: []
   ]
@@ -41,7 +39,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
           tracking_since: DateTime.t() | nil,
           today: Date.t(),
           acquisition?: boolean(),
-          default_grab_mode: String.t(),
           timeline: [Event.t()],
           activity: [activity_entry()]
         }
@@ -49,12 +46,13 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   @typedoc """
   The impure facts the timeline classification needs, resolved by the
   host: `today`, `acquisition_ready?` (`Capabilities.acquisition_ready?/0`)
-  and `auto_grab_default_mode` (`AutoGrabSettings.load/0`).
+  and `approval_policy` (`PlanningMode.approval_policy/1` of the person's
+  planning mode — what a tracking plan will be stamped with).
   """
   @type context :: %{
           today: Date.t(),
           acquisition_ready?: boolean(),
-          auto_grab_default_mode: String.t()
+          approval_policy: String.t()
         }
 
   @recent_activity 8
@@ -76,7 +74,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
         today: context.today,
         rungs: %{{item.tmdb_id, item.media_type} => Discovery.rung(item.tmdb_id, item.media_type)},
         acquisition_ready?: context.acquisition_ready?,
-        auto_grab_default_mode: context.auto_grab_default_mode,
+        approval_policy: context.approval_policy,
         grab_status_by_key: grab_status_by_key(releases, context.acquisition_ready?)
       })
 
@@ -86,7 +84,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
       tracking_since: item.inserted_at,
       today: context.today,
       acquisition?: context.acquisition_ready?,
-      default_grab_mode: context.auto_grab_default_mode,
       timeline: flatten(feed),
       activity: activity(item.id)
     }

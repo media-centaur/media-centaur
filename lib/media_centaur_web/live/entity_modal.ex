@@ -62,7 +62,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   require Phoenix.LiveView
 
   alias MediaCentaur.{Activities, Capabilities, Discovery, Format, Library, Playback, ReleaseTracking}
-  alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.PlanEvents
 
   import MediaCentaur.Acquisition.Pursuits.Events, only: [is_event: 1]
@@ -632,7 +631,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       tracking: nil,
       rung: nil,
       lower_quality_accepted?: false,
-      default_grab_mode: AutoGrabSettings.load().default_mode,
+      approval_policy: PlanningMode.approval_policy(PlanningMode.value()),
       acquisition?: Capabilities.acquisition_ready?(),
       friend_activity: [],
       download_pending: nil,
@@ -964,9 +963,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     doc:
       "the open title's rung, nil for Off — the ladder control's state, from the modal's `:rung` assign. Required so a host cannot mount the modal without it."
 
-  attr :default_grab_mode, :string,
+  attr :approval_policy, :string,
+    values: ["automatic", "review"],
     required: true,
-    doc: "the global auto-grab default — what the ladder's Default rung resolves to right now."
+    doc: "what a tracking plan is stamped with — whether an auto-grab asks first."
 
   attr :acquisition?, :boolean,
     required: true,
@@ -1034,7 +1034,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       }
       rung={@rung}
       title_ref={MediaCentaurWeb.Live.EntityModal.title_ref(@selected_entry)}
-      default_grab_mode={@default_grab_mode}
+      approval_policy={@approval_policy}
       acquisition?={@acquisition?}
       lower_quality_accepted?={@lower_quality_accepted?}
       review?={@show_discovery}
@@ -1660,7 +1660,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   def find_tmdb_id(_), do: nil
 
-  @rungs ~w(ignored off list follow ask grab default)
+  @rungs ~w(off list follow grab)
 
   @doc false
   def handle_set_rung(%{"choice" => choice, "ref" => param}, socket) when choice in @rungs do
@@ -1686,13 +1686,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   def handle_set_rung(_params, socket), do: socket
 
-  defp rung_atom("ignored"), do: :ignored
   defp rung_atom("off"), do: :off
   defp rung_atom("list"), do: :list
   defp rung_atom("follow"), do: :follow
-  defp rung_atom("ask"), do: :ask
   defp rung_atom("grab"), do: :grab
-  defp rung_atom("default"), do: :default
 
   @doc false
   def handle_reset_lower_quality(%{"ref" => param}, socket) do
@@ -1998,7 +1995,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         TrackingDetail.load(ref, %{
           today: Date.utc_today(),
           acquisition_ready?: Capabilities.acquisition_ready?(),
-          auto_grab_default_mode: AutoGrabSettings.load().default_mode
+          approval_policy: PlanningMode.approval_policy(PlanningMode.value())
         })
 
       nil ->

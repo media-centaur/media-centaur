@@ -76,8 +76,7 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
         primary: :download,
         scoped?: title.media_type == :tv_series,
         rung: nil,
-        acquisition?: true,
-        default_grab_mode: "ask"
+        acquisition?: true
       },
       overrides
     )
@@ -340,15 +339,15 @@ defmodule MediaCentaurWeb.Storybook.Title.DetailModal do
       %Variation{
         id: :forecast_only,
         description:
-          "Acquisition not configured: the grab modes stay selectable and the note " <>
-            "says nothing downloads until it is; the timeline carries no grab implication.",
+          "Acquisition not configured: the rows stay, and the note says nothing " <>
+            "downloads until it is; the timeline carries no grab implication.",
         attributes: %{
           today: @today,
           detail:
             detail(show(), %{
               primary: nil,
               acquisition?: false,
-              rung: :default,
+              rung: :grab,
               tracking: tracking(%{})
             })
         }

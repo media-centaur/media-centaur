@@ -150,7 +150,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         "lists (`Title.ref/1` is its `phx-value-ref`). Nil hides the control."
 
   attr :rung, :atom,
-    values: [nil, :ignored, :list, :follow, :ask, :grab, :default],
+    values: [nil, :ignored, :list, :follow, :grab],
     default: nil,
     doc: "the subject's rung; nil is Off. At List and above the footer shows the marker."
 

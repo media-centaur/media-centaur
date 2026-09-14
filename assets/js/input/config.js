@@ -115,9 +115,9 @@ export const inputConfig = {
     manage_list: Context.TREE,
     detail_list: Context.TREE,
     detail_cast: Context.SHELF,
-    // The tracking block under the detail list (UIDR-035): the mode strip
-    // and the acceptance Reset walk LEFT/RIGHT.
-    detail_tracking: Context.TOOLBAR,
+    // The tracking block under the detail list (UIDR-035, UIDR-042): the
+    // two switch rows and the acceptance Reset stack vertically — UP/DOWN.
+    detail_tracking: Context.TREE,
     // The plan modal: two vertical lists around the episode grid. The grid's
     // arrangement carries its meaning (season rows, capsules for packs), so
     // it is a SHELF — geometry answers adjacency across wrapped rows and
@@ -131,9 +131,10 @@ export const inputConfig = {
     // Whichever Download menu is open — the other planning mode, or the
     // scope — a short vertical list under the strip.
     title_detail_menu: Context.TREE,
-    // The tracking-mode strip in the body (Off · Watch · Ask · Grab ·
-    // Default, plus the acceptance Reset when set) walks LEFT/RIGHT.
-    title_detail_tracking: Context.TOOLBAR,
+    // The tracking block in the body (UIDR-042): the Track release dates
+    // and Auto-grab rows, plus the acceptance Reset when set, stack
+    // vertically — UP/DOWN.
+    title_detail_tracking: Context.TREE,
     // The library sort menu, present only while open: a short list under the toolbar's Sort trigger.
     library_sort_menu: Context.TREE,
   },

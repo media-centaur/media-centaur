@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.ReleaseTimeline
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
-  alias MediaCentaurWeb.Components.Title.IntentControl
+  alias MediaCentaurWeb.Components.Title.TrackingControls
   alias MediaCentaurWeb.Components.Title.LowerQualityNote
   alias MediaCentaurWeb.Components.Title.WatchlistToggle
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
@@ -201,11 +201,14 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
           <FacetStrip.facet_strip :if={@preview && @preview.facets != []} facets={@preview.facets} />
 
           <div data-nav-zone="title_detail_tracking">
-            <IntentControl.intent_control
-              id="title-tracking-mode"
+            <TrackingControls.tracking_controls
+              id="title-tracking-controls"
               ref={@ref}
               rung={@detail.rung}
-              default_grab_mode={@detail.default_grab_mode}
+              media_type={@detail.title.media_type}
+              release_ahead?={Logic.release_ahead?(@detail.title, @detail.release_window, @today)}
+              complete?={@detail.complete?}
+              approval_policy={PlanningMode.approval_policy(@detail.planning_mode)}
               acquisition?={@detail.acquisition?}
             />
             <LowerQualityNote.lower_quality_note

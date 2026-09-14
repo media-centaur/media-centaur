@@ -726,9 +726,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       available: true,
       tmdb_ready: true,
       tracking: tracking(%{}),
-      rung: :default,
+      rung: :grab,
       title_ref: "tv_series-42",
-      default_grab_mode: "all_releases",
+      approval_policy: "automatic",
       acquisition?: true,
       expanded_seasons: MapSet.new([1]),
       seasons_view: build_library_only_seasons_view(entity, progress_records, {1, 2})
@@ -905,7 +905,6 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         tracking_since: ~U[2026-03-14 12:00:00Z],
         today: ~D[2026-08-03],
         acquisition?: true,
-        default_grab_mode: "all_releases",
         timeline: [
           %MediaCentaur.ReleaseTracking.UpcomingFeed.Event{
             id: "s02e01",

@@ -149,11 +149,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_click()
 
       # Nothing to download without an indexer: the pick opens the title
-      # detail, where the tracking-mode control arms it — never the plan
-      # (grab) modal.
+      # detail, where the tracking rows arm it — never the plan (grab)
+      # modal.
       assert_patch(view, "/incoming?title=movie-424242")
       assert has_element?(view, "#title-detail-modal[data-state='open']", "Sample Movie")
-      assert has_element?(view, "#title-tracking-mode[data-rung='off']")
+      assert has_element?(view, "#title-tracking-controls[data-rung='off']")
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       await_supervised_tasks()
@@ -1786,13 +1786,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       # A search result is not on the list: the one verb is Add to watchlist
-      # (UIDR-039), and the tracking controls appear once it is listed.
-      refute has_element?(view, "#title-tracking-mode-follow")
+      # (UIDR-039), and the tracking rows appear once it is listed.
+      refute has_element?(view, "#title-tracking-controls-track")
       view |> element("#title-watchlist") |> render_click()
       assert Discovery.rung(888, :movie) == :list
 
       # Arming from there tracks it; the row flips to Tracked on the broadcast.
-      view |> element("#title-tracking-mode-follow") |> render_click()
+      view |> element("#title-tracking-controls-track") |> render_click()
       await_supervised_tasks()
       assert Discovery.rung(888, :movie) == :follow
       assert ReleaseTracking.get_item_by_tmdb(888, :movie)
@@ -1827,10 +1827,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       render_async(view, 2_000)
 
-      # `create_tracking_item/1` also puts the title on the ladder at the
-      # Default rung, which the row states as what Default resolves to.
-      assert has_element?(view, "#omnibox-result-tv_series-200", "Tracking:")
-      refute has_element?(view, "#omnibox-result-movie-777", "Tracking:")
+      # `create_tracking_item/1` also puts the title on the ladder at Grab,
+      # which the row states as Auto-grab.
+      assert has_element?(view, "#omnibox-result-tv_series-200", "Auto-grab")
+      refute has_element?(view, "#omnibox-result-movie-777", "Auto-grab")
+      refute has_element?(view, "#omnibox-result-movie-777", "Tracking")
     end
 
     test "the upcoming/released chips scope the results; the active chip toggles back off", %{
@@ -3466,7 +3467,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       opened = render(view)
       assert opened =~ "Detail Show"
       refute opened =~ "Stop tracking"
-      assert has_element?(view, "#title-tracking-mode[data-rung='default']")
+      assert has_element?(view, "#title-tracking-controls[data-rung='grab']")
       assert has_element?(view, "#title-release-timeline-next")
 
       render_hook(view, "close_title", %{})
@@ -3491,18 +3492,22 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "tracking management" do
-    test "the control moves the rung; Off deletes the tracked title and its row", %{conn: conn} do
+    test "the rows move the rung; the bookmark deletes the tracked title and its row", %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Mode Show"})
 
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      view |> element("#title-tracking-mode-follow") |> render_click()
-      assert Discovery.rung(item.tmdb_id, item.media_type) == :follow
+      # Tracked at Grab: Auto-grab holds the Track row on.
+      assert has_element?(view, "#title-tracking-controls-track[aria-disabled='true']")
 
-      view |> element("#title-tracking-mode-grab") |> render_click()
+      view |> element("#title-tracking-controls-grab") |> render_click()
+      assert Discovery.rung(item.tmdb_id, item.media_type) == :follow
+      assert has_element?(view, "#title-tracking-controls-track[phx-value-choice='list']")
+
+      view |> element("#title-tracking-controls-grab") |> render_click()
       assert Discovery.rung(item.tmdb_id, item.media_type) == :grab
 
-      view |> element("#title-tracking-mode-off") |> render_click()
+      view |> element("#title-watchlist") |> render_click()
       assert Discovery.rung(item.tmdb_id, item.media_type) == nil
       refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
       # Nothing is tracked, so there is no timeline and no Coming up row —
@@ -3536,14 +3541,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#title-lower-quality")
     end
 
-    test "the title modal shows no acceptance row while the title inherits the default", %{
+    test "the title modal shows no acceptance row while the title has none", %{
       conn: conn
     } do
       {item, _release} = tracked_with_release(%{name: "Default Show"})
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-tracking-mode")
+      assert has_element?(view, "#title-tracking-controls")
       refute has_element?(view, "#title-lower-quality")
     end
   end

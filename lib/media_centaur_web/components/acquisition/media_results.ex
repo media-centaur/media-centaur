@@ -60,11 +60,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     default: MapSet.new(),
     doc: "`{tmdb_id, media_type}` refs the library has a presentable container for."
 
-  attr :default_grab_mode, :string,
-    required: true,
-    doc:
-      "the resolved Default rung, for the row's tracking marker — `AutoGrabSettings.load().default_mode`."
-
   attr :friend_activity_by_ref, :map,
     default: %{},
     doc:
@@ -212,8 +207,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     Logic.row_markers(%{
       in_library?: MapSet.member?(assigns.in_library_refs, ref),
       acquisition_state: nil,
-      rung: Map.get(assigns.title_rungs, ref),
-      default_grab_mode: assigns.default_grab_mode
+      rung: Map.get(assigns.title_rungs, ref)
     })
   end
 
