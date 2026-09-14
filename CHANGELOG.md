@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## Unreleased
+
+### Improved
+
+- **Tracking a watchlist title is two switches.** Under a listed title's details, **Track release dates** keeps its calendar so its dates show on Coming up, and **Auto-grab** plans each release when it drops. The seven-way strip (Ignore · Off · List · Follow · Ask · Grab · Default) is gone: the bookmark beside Download is the whole of on-or-off-the-list, and removes a title at any point; Ignore stays on the Feed card. A movie that is already out shows only Auto-grab, and a movie in your library shows neither.
+- **One rule for asking first.** Whether an auto-grab downloads without asking or waits for your approval is now your Download button default under Settings → Acquisition, the same choice a manual download uses. The separate **When a release appears** setting is gone. Titles that were set to Ask or Grab are now Auto-grab; titles that followed the global setting are Auto-grab, or Track release dates only if that setting was *Notify only*.
+
 ## v1.27.0 — 2026-09-14
 
 ### New
