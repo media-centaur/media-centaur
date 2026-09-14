@@ -89,10 +89,12 @@ Rows are the Settings kit's toggle row (`settings_row/1`, extended with
 | Track (movie) | Track release dates | Theatrical, digital and disc dates show under Coming up on Incoming. |
 | Track (series) | Track release dates | Upcoming episodes show under Coming up on Incoming. |
 | Track while auto-grab is on | Track release dates | Stays on while auto-grab is on. |
-| Auto-grab (movie, auto-select) | Auto-grab | The release downloads when it drops, without asking. Change this under Settings → Acquisition → Download button. |
-| Auto-grab (movie, manual) | Auto-grab | When the release drops, a plan waits for your approval on Incoming. Change this under Settings → Acquisition → Download button. |
-| Auto-grab (series, auto-select) | Auto-grab | New and missing episodes download without asking. Change this under Settings → Acquisition → Download button. |
-| Auto-grab (series, manual) | Auto-grab | New and missing episodes are planned and wait for your approval on Incoming. Change this under Settings → Acquisition → Download button. |
+| Auto-grab (movie, auto-select) | Auto-grab | Downloads when it drops. |
+| Auto-grab (movie, manual) | Auto-grab | Plans when it drops and waits for your approval. |
+| Auto-grab (series, auto-select) | Auto-grab | Downloads episodes as they air. |
+| Auto-grab (series, manual) | Auto-grab | Plans episodes as they air and waits for your approval. |
+
+(Shortened 2026-09-14 on the owner's review: one line, no pointer to where the ask-first policy lives — Settings is where a person would look for it anyway.)
 
 Beneath the rows, only while acquisition is not ready: *Auto-grab
 downloads nothing until an indexer and a download client are set up under
