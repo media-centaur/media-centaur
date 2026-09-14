@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.28.0 — 2026-09-14
+
+### Improved
+
+- **Tracking a watchlist title is two switches.** Beside a listed title's release dates, **Notify you via Coming up** keeps its calendar so its dates show on Coming up, and **Auto-grab** plans each release when it drops. The seven-way strip (Ignore · Off · List · Follow · Ask · Grab · Default) is gone: the bookmark beside Download is the whole of on-or-off-the-list, and removes a title at any point; Ignore stays on the Feed card. A movie that is already out shows only Auto-grab, and a movie in your library shows neither.
+- **A title's release dates, plainly.** The title view's release timeline is replaced by what TMDB knows: a movie's theaters, digital and disc dates — shown as soon as they are known, even before the title is on your list — or a series' next episodes, with a word beside the one that will download or is downloading.
+- **One rule for asking first.** Whether an auto-grab downloads without asking or waits for your approval is now your Download button default under Settings → Acquisition, the same choice a manual download uses. The separate **When a release appears** setting is gone. Titles that were set to Ask or Grab are now Auto-grab; titles that followed the global setting are Auto-grab, or Notify you via Coming up only if that setting was *Notify only*.
+- **One tooltip.** Icon buttons now show the same glass label the collapsed sidebar uses, instead of the browser's own tooltip. It appears on hover, or on focus when you steer by keyboard or gamepad. The bookmark's reads *Toggle on watchlist*.
+- **No more Recent activity** under a title. The release dates say what is coming; the log of calendar changes is no longer kept, and its "Tracking activity log" retention row is gone.
+
+### Fixed
+
+- **A wrapped genres list no longer strands its dot.** When a title's genres wrap to a second line, the separator stays with the genre it belongs to.
+
+This release runs two migrations on first start: one folds each tracked title's old Ask or Default setting into the two switches, the other drops the calendar activity log. Neither touches your files or your watchlist.
+
 ## v1.27.0 — 2026-09-14
 
 ### New
