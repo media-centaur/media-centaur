@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.29.0 — 2026-09-14
+
+### Improved
+
+- **Removing a title from your watchlist keeps its page open.** The bookmark still takes a title off your list in one press, and the title's page now stays where it was — outline bookmark, switches gone — so a second press puts it back. Before, a title only you had listed closed as soon as you removed it.
+- **A link opens any title.** On Discovery and Incoming the address carries the open title as `?title=movie-<id>` or `?title=tv_series-<id>` with TMDB's id, and such a link now opens any TMDB title — one on no list and not in your library included — on any Media Centaur with a TMDB API key. Without a key, or for an id TMDB does not have, the page says so.
+
+### Fixed
+
+- **Friends' pennants on Incoming.** A title opened from Coming up now shows what your friends did with it, as the watchlist's titles already did.
+
 ## v1.28.0 — 2026-09-14
 
 ### Improved
