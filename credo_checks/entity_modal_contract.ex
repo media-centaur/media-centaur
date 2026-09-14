@@ -13,8 +13,7 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
 
           Trait                                         Forbidden subscribes
           MediaCentaurWeb.Live.EntityModal              Library, Playback, ReleaseTracking, Activities, Acquisition
-          MediaCentaurWeb.Live.TitleDetailHost          ReleaseTracking
-          MediaCentaurWeb.Live.IntentAware              Discovery
+          MediaCentaurWeb.Live.TitleDetailHost          Library, Playback, ReleaseTracking, Activities, Acquisition, Discovery
           MediaCentaurWeb.Live.SpoilerFreeAware         Settings
           MediaCentaurWeb.Live.CapabilitiesAware        Capabilities
 
@@ -68,8 +67,14 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
       :Activities,
       :Acquisition
     ],
-    [:MediaCentaurWeb, :Live, :TitleDetailHost] => [:ReleaseTracking],
-    [:MediaCentaurWeb, :Live, :IntentAware] => [:Discovery],
+    [:MediaCentaurWeb, :Live, :TitleDetailHost] => [
+      :Library,
+      :Playback,
+      :ReleaseTracking,
+      :Activities,
+      :Acquisition,
+      :Discovery
+    ],
     [:MediaCentaurWeb, :Live, :SpoilerFreeAware] => [:Settings],
     [:MediaCentaurWeb, :Live, :CapabilitiesAware] => [:Capabilities]
   }

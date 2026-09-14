@@ -72,7 +72,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.DownloadParams
   alias MediaCentaur.Acquisition.TitleDownloadParams
-  alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Playback.ProgressBroadcaster
   alias MediaCentaur.TMDB.Title
@@ -1582,54 +1581,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc false
-  def run_delete(%{delete_confirm: delete_confirm, detail_files: detail_files, media_dirs: media_dirs}) do
-    case delete_confirm do
-      {:file, file_path} ->
-        Deletion.delete_file(file_path)
-
-      {:folder, folder_path} ->
-        file_paths =
-          detail_files
-          |> Enum.map(& &1.file.file_path)
-          |> Enum.filter(&String.starts_with?(&1, folder_path <> "/"))
-
-        # Belt-and-suspenders: `folder_path` is already derived from this
-        # entity's own files (never user-typed), but this confirms nothing
-        # ELSE already in the library also lives under it before the
-        # recursive `rm -rf` — see `MediaCentaur.DeleteTargets`.
-        if MediaCentaur.DeleteTargets.safe_to_delete_folder?(folder_path, file_paths) do
-          Deletion.delete_folder(folder_path, file_paths)
-        else
-          {:error, "folder also contains other library content"}
-        end
-
-      :all ->
-        payload =
-          ManagePanel.build_delete_all_payload(
-            detail_files,
-            MapSet.new(media_dirs)
-          )
-
-        Enum.each(payload.file_groups, fn group ->
-          file_paths = Enum.map(group.files, & &1.path)
-
-          if !group.is_media_dir and
-               MediaCentaur.DeleteTargets.safe_to_delete_folder?(group.dir, file_paths) do
-            Deletion.delete_folder(group.dir, file_paths)
-          else
-            # A media directory root, or a folder that also holds other
-            # already-imported content, can't be `rm -rf`'d wholesale — fall
-            # back to deleting just this entity's own files in it.
-            Deletion.delete_files(file_paths)
-          end
-        end)
-
-        {:ok, []}
-
-      nil ->
-        {:ok, []}
-    end
-  end
+  defdelegate run_delete(args), to: MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents
 
   @doc """
   Kicks off the pending delete in `socket.assigns.delete_confirm` as an

@@ -16,6 +16,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Activities.Translation
+  alias MediaCentaur.Nostr.Event
+  alias MediaCentaur.Social
   alias MediaCentaur.Secret
   alias MediaCentaur.TMDB.Title
 
@@ -152,8 +155,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # detail, where the tracking rows arm it — never the plan (grab)
       # modal.
       assert_patch(view, "/incoming?title=movie-424242")
-      assert has_element?(view, "#title-detail-modal[data-state='open']", "Sample Movie")
-      refute has_element?(view, "#title-tracking-controls"), "no record, so no switches"
+      assert has_element?(view, "#detail-modal[data-state='open']", "Sample Movie")
+      refute has_element?(view, "#detail-tracking-controls"), "no record, so no switches"
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       await_supervised_tasks()
@@ -1517,7 +1520,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_click()
 
       assert_patch(view, "/incoming?title=tv_series-246810")
-      assert has_element?(view, "#title-detail-modal[data-state='open']", "Sample Show")
+      assert has_element?(view, "#detail-modal[data-state='open']", "Sample Show")
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       await_supervised_tasks()
@@ -1547,7 +1550,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # The targeting fetch behind Download reads the series universe.
       TmdbStubs.stub_series_universe_for_targeting()
-      view |> element("#title-download") |> render_click()
+      view |> element("#detail-download") |> render_click()
 
       # The plan is made under the view's own task; awaiting it means the
       # view has handled the result, so the patch is already here.
@@ -1556,7 +1559,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert plan.approval_policy == "review"
       assert_patch(view, "/incoming?plan=#{plan.id}")
       assert has_element?(view, "#plan-modal[data-state='open']")
-      refute has_element?(view, "#title-detail-modal[data-state='open']")
+      refute has_element?(view, "#detail-modal[data-state='open']")
     end
 
     test "a search row carries the overlay-restore origin", %{conn: conn} do
@@ -1663,14 +1666,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         }
       ])
 
-      friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
+      friend_secret = Secret.wrap(String.duplicate("0", 63) <> "3")
       friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
-      {:ok, _} = MediaCentaur.Social.add_friend(friend_pubkey, "Sample Friend")
-      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      {:ok, _} = Social.add_friend(friend_pubkey, "Sample Friend")
+      title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       event =
-        MediaCentaur.Nostr.Event.sign(
-          MediaCentaur.Activities.Translation.to_event(
+        Event.sign(
+          Translation.to_event(
             :review,
             title,
             [text: nil, sentiment: :love],
@@ -1679,7 +1682,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
           friend_secret
         )
 
-      {:ok, _rec} = MediaCentaur.Activities.ingest(event)
+      {:ok, _rec} = Activities.ingest(event)
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
 
@@ -1782,21 +1785,21 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_click()
 
       assert_patch(view, "/incoming?title=movie-888")
-      assert has_element?(view, "#title-detail-modal[data-state='open']", "Upcoming Movie")
+      assert has_element?(view, "#detail-modal[data-state='open']", "Upcoming Movie")
       refute has_element?(view, "#plan-modal[data-state='open']")
 
       # A search result is not on the list: the one verb is Add to watchlist
       # (UIDR-039), and the tracking rows appear once it is listed.
-      refute has_element?(view, "#title-tracking-controls-track")
-      view |> element("#title-watchlist") |> render_click()
+      refute has_element?(view, "#detail-tracking-controls-track")
+      view |> element("#detail-watchlist-toggle") |> render_click()
       assert Discovery.rung(888, :movie) == :list
 
       # Arming from there tracks it; the row flips to Tracked on the broadcast.
-      view |> element("#title-tracking-controls-track") |> render_click()
+      view |> element("#detail-tracking-controls-track") |> render_click()
       await_supervised_tasks()
       assert Discovery.rung(888, :movie) == :follow
       assert ReleaseTracking.get_item_by_tmdb(888, :movie)
-      assert MediaCentaur.Discovery.listed?(888, :movie)
+      assert Discovery.listed?(888, :movie)
     end
 
     test "an already-tracked title carries its ladder rung as a marker", %{conn: conn} do
@@ -2140,7 +2143,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       view |> element("#omnibox-result-movie-424242") |> render_click()
       assert_patch(view, "/incoming?title=movie-424242")
 
-      view |> element("#title-review") |> render_click()
+      view |> element("#detail-review") |> render_click()
       assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
 
       # Clicking Review puts the cursor in the text box for a pointer
@@ -3463,36 +3466,36 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       render_hook(view, "select_event", %{"item-id" => item.id})
       assert_patch(view, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-detail-modal[data-state=open]")
+      assert has_element?(view, "#detail-modal[data-state=open]")
       opened = render(view)
       assert opened =~ "Detail Show"
       refute opened =~ "Stop tracking"
-      assert has_element?(view, "#title-tracking-controls[data-rung='grab']")
-      assert has_element?(view, "#title-release-dates")
+      assert has_element?(view, "#detail-tracking-controls[data-rung='grab']")
+      assert has_element?(view, "#detail-release-dates")
 
       render_hook(view, "close_title", %{})
       assert_patch(view, "/incoming")
-      assert has_element?(view, "#title-detail-modal[data-state=closed]")
+      assert has_element?(view, "#detail-modal[data-state=closed]")
     end
 
     test "the modal flies a friend's pennant on a title opened from Coming up — resolved by identity, not by the page",
          %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Pennant Show"})
 
-      friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
+      friend_secret = Secret.wrap(String.duplicate("0", 63) <> "3")
       friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
-      {:ok, _} = MediaCentaur.Social.add_friend(friend_pubkey, "Sample Friend")
+      {:ok, _} = Social.add_friend(friend_pubkey, "Sample Friend")
 
       title =
-        MediaCentaur.TMDB.Title.new!(%{
+        Title.new!(%{
           tmdb_id: item.tmdb_id,
           media_type: item.media_type,
           name: "Pennant Show"
         })
 
       event =
-        MediaCentaur.Nostr.Event.sign(
-          MediaCentaur.Activities.Translation.to_event(
+        Event.sign(
+          Translation.to_event(
             :review,
             title,
             [text: "Worth the wait.", sentiment: :love],
@@ -3509,15 +3512,110 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         TmdbStubs.tv_detail(%{"id" => item.tmdb_id, "name" => "Pennant Show"})
       )
 
-      {:ok, _rec} = MediaCentaur.Activities.ingest(event)
+      {:ok, _rec} = Activities.ingest(event)
       await_supervised_tasks()
 
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-detail-modal[data-state=open]")
+      assert has_element?(view, "#detail-modal[data-state=open]")
       # UIDR-037: friend provenance is the pennant, on every title surface —
       # this one included, now that the host reads it by identity.
-      assert has_element?(view, "#title-detail-modal .pennant[data-flag='love']", "Sample Friend")
+      assert has_element?(view, "#detail-modal .pennant[data-flag='love']", "Sample Friend")
+    end
+
+    test "a deep link to a series the library owns renders its seasons and offers Play", %{conn: conn} do
+      series = create_tv_series(%{name: "Owned Show", tmdb_id: "246810"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      _ =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Episode S1E1",
+          content_url: "/tv/owned-show/s01e01.mkv"
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-246810")
+
+      assert has_element?(view, "#detail-modal[data-state=open]", "Owned Show")
+      assert has_element?(view, "#detail-modal [data-nav-zone='detail_list']", "Episode S1E1")
+      assert has_element?(view, "#detail-modal button[phx-click='play']")
+      refute has_element?(view, "#detail-download")
+    end
+
+    test "a link naming a friend's activity shows their words on Incoming too — read by identity",
+         %{conn: conn} do
+      friend_secret = Secret.wrap(String.duplicate("0", 63) <> "3")
+      friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+      {:ok, _} = Social.add_friend(friend_pubkey, "Sample Friend")
+
+      title = Title.new!(%{tmdb_id: 424_242, media_type: :movie, name: "Noted Movie"})
+
+      event =
+        Event.sign(
+          Translation.to_event(
+            :review,
+            title,
+            [text: "Worth the wait.", sentiment: :love],
+            friend_pubkey
+          ),
+          friend_secret
+        )
+
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_get_movie(
+        424_242,
+        TmdbStubs.movie_detail(%{"id" => 424_242, "title" => "Noted Movie"})
+      )
+
+      {:ok, rec} = Activities.ingest(event)
+      await_supervised_tasks()
+
+      # The activity's own snapshot opens the title — no page row, no fetch.
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=movie-424242&activity=#{rec.id}")
+
+      assert has_element?(view, "#detail-modal[data-state=open]", "Noted Movie")
+      assert has_element?(view, "#detail-note", "Sample Friend")
+      assert has_element?(view, "#detail-note", "Worth the wait.")
+    end
+
+    test "a rung set elsewhere refreshes the open modal's bookmark and the search rows", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 246_810,
+          "media_type" => "tv",
+          "name" => "Sample Show",
+          "first_air_date" => "2010-06-16"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+      view |> element("#omnibox-result-tv_series-246810") |> render_click()
+      assert_patch(view, "/incoming?title=tv_series-246810")
+      assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
+      refute has_element?(view, "#omnibox-result-tv_series-246810", "On your list")
+
+      {:ok, _} =
+        Discovery.put_rung(
+          Title.new!(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"}),
+          :list
+        )
+
+      render_until(view, fn _html ->
+        has_element?(view, "#detail-watchlist-toggle[aria-pressed='true']")
+      end)
+
+      assert has_element?(view, "#omnibox-result-tv_series-246810", "On your list")
+      await_supervised_tasks()
     end
 
     test "mounting with ?title= opens the modal directly (shareable URL)", %{conn: conn} do
@@ -3525,7 +3623,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-detail-modal[data-state=open]")
+      assert has_element?(view, "#detail-modal[data-state=open]")
       assert render(view) =~ "Deep Link Show"
     end
 
@@ -3535,7 +3633,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       render_async(view, 1_000)
       assert_patch(view, "/incoming")
-      assert has_element?(view, "#title-detail-modal[data-state=closed]")
+      assert has_element?(view, "#detail-modal[data-state=closed]")
       assert render(view) =~ "TMDB API key"
     end
 
@@ -3555,9 +3653,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-424242")
 
       html = render_async(view, 1_000)
-      assert has_element?(view, "#title-detail-modal[data-state=open]")
+      assert has_element?(view, "#detail-modal[data-state=open]")
       assert html =~ "Unlisted Show"
-      assert has_element?(view, "#title-watchlist[aria-pressed='false'][phx-value-choice='list']")
+
+      assert has_element?(
+               view,
+               "#detail-watchlist-toggle[aria-pressed='false'][phx-value-choice='list']"
+             )
     end
   end
 
@@ -3568,21 +3670,21 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
       # Tracked at Grab: Auto-grab holds the Track row on.
-      assert has_element?(view, "#title-tracking-controls-track[aria-disabled='true']")
+      assert has_element?(view, "#detail-tracking-controls-track[aria-disabled='true']")
 
-      view |> element("#title-tracking-controls-grab") |> render_click()
+      view |> element("#detail-tracking-controls-grab") |> render_click()
       assert Discovery.rung(item.tmdb_id, item.media_type) == :follow
-      assert has_element?(view, "#title-tracking-controls-track[phx-value-choice='list']")
+      assert has_element?(view, "#detail-tracking-controls-track[phx-value-choice='list']")
 
-      view |> element("#title-tracking-controls-grab") |> render_click()
+      view |> element("#detail-tracking-controls-grab") |> render_click()
       assert Discovery.rung(item.tmdb_id, item.media_type) == :grab
 
-      view |> element("#title-watchlist") |> render_click()
+      view |> element("#detail-watchlist-toggle") |> render_click()
       assert Discovery.rung(item.tmdb_id, item.media_type) == nil
       refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
       # Nothing is tracked, so there is no calendar to read dates from and
       # no Coming up row; the modal itself stays (the test below).
-      refute has_element?(view, "#title-release-dates")
+      refute has_element?(view, "#detail-release-dates")
       refute has_element?(view, "#shelf-#{item.id}")
     end
 
@@ -3592,7 +3694,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
 
-      view |> element("#title-watchlist") |> render_click()
+      view |> element("#detail-watchlist-toggle") |> render_click()
       assert Discovery.rung(item.tmdb_id, item.media_type) == nil
       refute ReleaseTracking.get_item(item.id)
 
@@ -3600,7 +3702,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # deleted: the open detail keeps its own snapshot.
       assert has_element?(
                view,
-               "#title-detail-modal[data-state='open'] #title-watchlist[aria-pressed='false'][phx-value-choice='list']"
+               "#detail-modal[data-state='open'] #detail-watchlist-toggle[aria-pressed='false'][phx-value-choice='list']"
              )
 
       assert render(view) =~ "Kept Show"
@@ -3613,10 +3715,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         TmdbStubs.tv_detail(%{"id" => item.tmdb_id, "name" => "Kept Show"})
       )
 
-      view |> element("#title-watchlist") |> render_click()
+      view |> element("#detail-watchlist-toggle") |> render_click()
       await_supervised_tasks()
       assert Discovery.rung(item.tmdb_id, item.media_type) == :list
-      assert has_element?(view, "#title-watchlist[aria-pressed='true'][phx-value-choice='off']")
+      assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true'][phx-value-choice='off']")
     end
 
     test "the title modal surfaces the per-title lower-quality acceptance and resets it", %{
@@ -3631,16 +3733,16 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-lower-quality")
+      assert has_element?(view, "#detail-lower-quality")
 
       view
-      |> element("#title-lower-quality button[phx-click='reset_lower_quality']")
+      |> element("#detail-lower-quality button[phx-click='reset_lower_quality']")
       |> render_click()
 
       assert TitleDownloadParams.get(item.tmdb_id, item.media_type).min_quality ==
                nil
 
-      refute has_element?(view, "#title-lower-quality")
+      refute has_element?(view, "#detail-lower-quality")
     end
 
     test "the title modal shows no acceptance row while the title has none", %{
@@ -3650,8 +3752,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-#{item.tmdb_id}")
 
-      assert has_element?(view, "#title-tracking-controls")
-      refute has_element?(view, "#title-lower-quality")
+      assert has_element?(view, "#detail-tracking-controls")
+      refute has_element?(view, "#detail-lower-quality")
     end
   end
 
