@@ -13,7 +13,9 @@ Research inputs (2026-09-14, this session): a section matrix, an event /
 async / PubSub inventory of both hosts, an emitter inventory, a nav-overlay
 inventory, a test and story inventory, and a residue count on the dev
 database read through context functions. Their findings are folded into
-the tables below; file:line references are to the branch at `77714ea4`.
+the tables below; the raw inventories are in the sibling folder
+`2026-09-14-title-detail-unification-research/`; file:line references are
+to the branch at `77714ea4`.
 
 Iteration 2 (2026-09-14, after the owner approved the ten decisions): a
 `unify_design` pass over this document itself. What it changed is in the

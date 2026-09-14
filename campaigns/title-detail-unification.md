@@ -240,6 +240,11 @@ spec's § Decisions carries each with the owner's words.
 * `?view=info` names the Manage view; rename to `manage` once the address migration lands.
 * `TrackingDetail.today` duplicates the host's `today`; pass it once.
 * A better name than `set_rung` for the one intent event (owner).
+* **TMDB caching policy** (owner, 2026-09-14, later follow-up, not this
+  campaign): cached TMDB data is refreshed only when the app is seeking
+  *new* information — whether release dates have been announced, a
+  season landed — never on open for its own sake. Touches the preview
+  fetch, `TmdbArtwork`, the calendar refresh. Separate campaign.
 
 ## Completion criteria
 
@@ -282,6 +287,8 @@ spec's § Decisions carries each with the owner's words.
   (collections), UIDR-036, UIDR-037, UIDR-039, UIDR-042; ADR-030 (logic
   hoisting), ADR-038 (traits), ADR-049 (owned async), ADR-051 (sync local
   loads), ADR-066, ADR-067.
+* Spec: `docs/superpowers/specs/2026-09-14-title-detail-unification-design.md`;
+  research inventories beside it in `2026-09-14-title-detail-unification-research/`.
 * Specs: `docs/superpowers/specs/2026-09-14-tracking-controls-design.md`
   (incoherence 12: the collection identity), `2026-09-07-tracking-is-a-persons-act-design.md`.
 * Campaign `title-detail-deep-links` — the identity resolution this builds on.
