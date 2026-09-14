@@ -126,8 +126,8 @@ defmodule MediaCentaur.Activities.PublisherTest do
       settle()
       assert [%Activity{kind: :listing} = first] = listings()
 
-      # `:follow` needs a calendar, which is a TMDB fetch; `:ask` stays local.
-      {:ok, _intent} = ReleaseTracking.set_rung(show(), :ask)
+      # Raising within the list publishes nothing new.
+      {:ok, _intent} = ReleaseTracking.set_rung(show(), :grab)
       settle()
       assert [%Activity{id: id}] = listings()
       assert id == first.id
