@@ -95,12 +95,27 @@ next.
    `{:title_open, ref}` when `Capabilities.tmdb_ready?/0`; `handle_title_async`
    builds the detail from the fetched snapshot and starts the preview as a
    fresh open does. A known title is unaffected.
-3. **Phase 3 — record and ship.** `TitleDetailHost` moduledoc (resolution
-   order: page rows, then TMDB); dated amendment to UIDR-035 (the URL is
-   shareable across installs; the modal outlives the lists); `GLOSSARY.md`
-   *Title detail modal* row (add the deep link and the two sources);
-   wiki `Watchlist.md` (the bookmark paragraph: the modal stays open) and
-   `FAQ.md` (linking to a title); CHANGELOG. Retire this file on ship.
+3. **Phase 3 — audit and decommission.** Owner's brief (2026-09-14): once
+   the behaviour is complete, audit every part of the app whose existence
+   rested on "the page must know the title" and remove what the deep link
+   makes obsolete, so the capability is first-class rather than a fallback.
+   The guiding question: is the page still a *snapshot* source at all, or
+   only a *host facts* source, with the snapshot resolved by identity from
+   the contexts that hold one (`Discovery.get_intent/2` embeds a `Title`,
+   activities embed one, a tracked title carries the name, TMDB has the
+   rest)? Candidates to weigh, each kept with a reason or removed:
+   `resolve_title/3`'s snapshot half; `known_titles/1` on Incoming (plan
+   subject and omnibox results as title sources); `title_for_param/2`'s
+   page lookup for `set_rung` clicks; the "unknown ref stays closed" rule and
+   its tests; Discovery's `title_friend_activity/2` beside
+   `watch_row.friend_activity`; every sentence in `TitleDetailHost`'s
+   moduledoc and UIDR-035 that describes page membership as the gate.
+4. **Phase 4 — record and ship.** `TitleDetailHost` moduledoc (resolution
+   order); dated amendment to UIDR-035 (the URL is shareable across
+   installs; the modal outlives the lists); `GLOSSARY.md` *Title detail
+   modal* row (add the deep link and the sources); wiki `Watchlist.md` (the
+   bookmark paragraph: the modal stays open) and `FAQ.md` (linking to a
+   title); CHANGELOG. Retire this file on ship.
 
 ## Completion criteria
 

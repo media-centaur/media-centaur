@@ -34,8 +34,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   * `resolve_title/3` — the `TMDB.Title` a ref names on this page plus
     any page-specific facts for `Logic.title_detail/2` (Discovery's feed
-    provenance and reviews), or nil when the page does not know
-    the title, which leaves the modal closed.
+    provenance and reviews), or nil when the page does not know the
+    title: a fresh open stays closed, an open detail keeps its own
+    snapshot (`refresh_title_detail/1`).
   * `title_detail_path/2` — the page's own path with the modal query
     applied (`[]` closes), so leaving the modal never changes tab.
   * `open_plan_board/2` — navigates to Incoming with the plan's board
@@ -172,8 +173,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   @doc """
   Rebuilds the open detail from current facts (a row reloaded, a mode
-  moved, a plan landed). Closes it when the page no longer knows the
-  title. A no-op while closed.
+  moved, a plan landed). An open detail is never closed by a refresh: when
+  the page no longer knows the title — the bookmark took it off the list,
+  Off deleted the tracked title — it is rebuilt from its own snapshot with
+  no host facts, so the control that removed it is still there to undo it.
+  Closing is an explicit act (the URL dropping `?title`, an own activity
+  deleted, an auto-select download landing). A no-op while closed.
   """
   @spec refresh_title_detail(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def refresh_title_detail(%{assigns: %{title_detail: nil}} = socket), do: socket
@@ -181,13 +186,13 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def refresh_title_detail(%{assigns: %{title_detail: %TitleDetail{} = detail}} = socket) do
     params = if detail.activity_id, do: %{"activity" => detail.activity_id}, else: %{}
 
-    case socket.view.resolve_title(socket, detail.ref, params) do
-      {%Title{} = title, facts} ->
-        assign(socket, :title_detail, build_detail(socket, title, facts, detail.preview))
+    {title, facts} =
+      case socket.view.resolve_title(socket, detail.ref, params) do
+        {%Title{} = title, facts} -> {title, facts}
+        nil -> {detail.title, %{}}
+      end
 
-      nil ->
-        close(socket)
-    end
+    assign(socket, :title_detail, build_detail(socket, title, facts, detail.preview))
   end
 
   # The common facts, from the contexts that own them; the host's facts
