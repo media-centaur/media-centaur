@@ -25,6 +25,7 @@ defmodule MediaCentaur.Library.EntityView do
   :video_object`, ADR-050); `:collection` is the `%{id, name}` of the
   collection a hoisted movie belongs to, else nil; `:track_override` is
   attached by `Library.MediaTrackOverrides.put_on_entity/1`.
+  `title_ref/1` is the entity's TMDB title identity, when it has one.
   """
 
   @enforce_keys [:id, :type, :name]
@@ -76,4 +77,23 @@ defmodule MediaCentaur.Library.EntityView do
           name: String.t(),
           collection: %{id: Ecto.UUID.t(), name: String.t()} | nil
         }
+
+  @doc """
+  The TMDB title identity a library entity answers to — `{tmdb_id,
+  media_type}` for a movie or a series with a TMDB id, nil for a
+  collection (its collection id is not a title id), a video object, or
+  an unmatched entity. Reads the `:tmdb_id` the projection carries (a
+  string on an `EntityView`, an integer on a collection member's
+  projection map), so a `:movie`-shaped member subject answers too.
+  """
+  @spec title_ref(map()) :: {integer(), :movie | :tv_series} | nil
+  def title_ref(%{type: type, tmdb_id: tmdb_id}) when type in [:movie, :tv_series] do
+    case tmdb_id do
+      id when is_integer(id) -> {id, type}
+      id when is_binary(id) and id != "" -> {String.to_integer(id), type}
+      _none -> nil
+    end
+  end
+
+  def title_ref(_entity), do: nil
 end

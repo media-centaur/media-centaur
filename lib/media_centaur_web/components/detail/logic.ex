@@ -12,6 +12,11 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
   alias MediaCentaurWeb.Components.Detail.Facet
   alias MediaCentaurWeb.ViewModel.MovieRow
+  alias MediaCentaurWeb.Components.Acquisition.MediaResults
+  alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+  alias MediaCentaurWeb.Components.Title.Detail.Library
+  alias MediaCentaurWeb.Components.Title.TrackingControls
 
   @doc """
   Playback props for a selected collection member (UIDR-023) — the
@@ -461,4 +466,107 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   @spec letterboxd_url(String.t() | nil) :: String.t() | nil
   def letterboxd_url(nil), do: nil
   def letterboxd_url(tmdb_id), do: "https://letterboxd.com/tmdb/#{tmdb_id}"
+
+  @doc """
+  The one honest primary action for a title detail, from its facts
+  (UIDR-043): files win — an owned title plays, `{:play, props}` with the
+  play card's label and target and the subject's watched fraction and
+  time left (`member_playback/1` for a collection member, `playback_props/3`
+  for anything else); then a plan or pursuit in flight is a stated fact,
+  `{:state, state}`; then a title that is out with an indexer ready
+  downloads, `{:download, scoped?}` — a series carries the scope menu;
+  else `:none` — arming is the tracking controls' job, not a verb in the
+  strip (ADR-066).
+  """
+  @spec primary_action(TitleDetail.t(), Date.t()) ::
+          {:play,
+           %{
+             label: String.t(),
+             target_id: String.t(),
+             percent: number(),
+             remaining_text: String.t() | nil
+           }}
+          | {:state, :planning | :downloading | :needs_review}
+          | {:download, boolean()}
+          | :none
+  def primary_action(%TitleDetail{library: %Library{} = library}, _today),
+    do: {:play, library_playback(library)}
+
+  def primary_action(%TitleDetail{acquisition_state: state}, _today) when not is_nil(state),
+    do: {:state, state}
+
+  def primary_action(%TitleDetail{release_mode_available: true, title: title}, today) do
+    if MediaResults.release_status(title, today) == :released,
+      do: {:download, title.media_type == :tv_series},
+      else: :none
+  end
+
+  def primary_action(%TitleDetail{}, _today), do: :none
+
+  defp library_playback(%Library{member: %MovieRow.Library{} = member}), do: member_playback(member)
+
+  defp library_playback(%Library{entry: entry}) do
+    {label, target_id} = playback_props(entry.entity, entry.resume_target, entry.progress)
+
+    %{
+      label: label,
+      target_id: target_id,
+      percent: overall_progress_percent(entry.progress, entry.entity),
+      remaining_text: progress_remaining_text(entry.progress, entry.entity)
+    }
+  end
+
+  @doc """
+  Whether the tracking card under the body has anything to show — one
+  rule for an owned and an unowned title alike: the switches once the
+  title is listed (or the Ignored word), the dates once there is a
+  calendar or a movie's live release window, the note once a lower
+  quality is accepted.
+  """
+  @spec tracking_card?(TitleDetail.t()) :: boolean()
+  def tracking_card?(%TitleDetail{} = detail) do
+    release_dates?(detail) or TrackingControls.control_form(detail.rung) != :none or
+      detail.lower_quality_accepted?
+  end
+
+  @doc """
+  Whether the release dates readout has something to say: a calendar
+  (the title is tracked), or a movie's live release window.
+  """
+  @spec release_dates?(TitleDetail.t()) :: boolean()
+  def release_dates?(%TitleDetail{title: %{media_type: :movie}, release_window: %{}}), do: true
+  def release_dates?(%TitleDetail{tracking: %TrackingDetail{}}), do: true
+  def release_dates?(_detail), do: false
+
+  @doc """
+  A leaf's watched fraction as a percent (UIDR-024): containers derive
+  theirs from `ViewModel.Orientation`; a movie's or member's comes from
+  its progress summary here.
+  """
+  @spec overall_progress_percent(map() | nil, map()) :: non_neg_integer()
+  def overall_progress_percent(nil, _entity), do: 0
+
+  def overall_progress_percent(progress, _entity) do
+    if progress.episode_duration_seconds > 0 do
+      min(round(progress.episode_position_seconds / progress.episode_duration_seconds * 100), 100)
+    else
+      if progress.episodes_completed > 0, do: 100, else: 0
+    end
+  end
+
+  @doc """
+  The metadata line's remaining item (UIDR-024). Completed titles yield
+  nil — the full hairline and the watched toggle carry that state; the
+  metadata line goes back to showing the status.
+  """
+  @spec progress_remaining_text(map() | nil, map()) :: String.t() | nil
+  def progress_remaining_text(nil, _entity), do: nil
+
+  def progress_remaining_text(progress, _entity) do
+    if progress.episodes_completed == 0 && progress.episode_duration_seconds > 0 &&
+         progress.episode_position_seconds > 0 do
+      remaining_seconds = progress.episode_duration_seconds - progress.episode_position_seconds
+      "#{format_human_duration(trunc(remaining_seconds))} left"
+    end
+  end
 end

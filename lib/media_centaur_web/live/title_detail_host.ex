@@ -33,12 +33,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   Beyond the `use`, the host implements three callbacks:
 
-  * `page_facts/3` — what this page alone knows about a ref: an
-    in-memory snapshot when it holds one (an omnibox result, a plan's
-    subject, a feed activity's title) and the facts only it can supply
-    for `Logic.title_detail/2` (the feed's provenance: kind, sender,
-    activity id, the review's words as the note). `{nil, %{}}` when it
-    knows nothing, which is never a reason not to open.
+  * `page_facts/3` — what this page alone holds about a ref: an
+    in-memory snapshot when it has one (an omnibox result, a plan's
+    subject, a feed activity's title). `{nil, %{}}` when it knows
+    nothing, which is never a reason not to open. Every other fact —
+    the activity the modal speaks for included — is read by identity.
   * `title_detail_path/2` — the page's own path with the modal query
     applied (`[]` closes), so leaving the modal never changes tab.
   * `open_plan_board/2` — navigates to Incoming with the plan's board
@@ -52,15 +51,17 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   The modal's subject is a TMDB identity, and the snapshot it opens from
   is resolved here by that identity, in order: the open detail's own; the
   title intent's embedded snapshot (`Discovery.get_intent/2` — any title
-  on the ladder, listed, ignored or tracked); the page's in-memory copy;
-  and TMDB itself, fetched asynchronously, for a deep link to a title
-  nothing here holds. The common facts — library owner, rung, acquisition
-  state, artwork, the tracked-title half (`TrackingDetail`), friend
-  activity for the pennants, the intent's note — are read from their
+  on the ladder, listed, ignored or tracked); the owner's entity when the
+  library owns the title (`Logic.snapshot_from_entity/1`); the activity
+  the modal was opened from; the page's in-memory copy; and TMDB itself,
+  fetched asynchronously, for a deep link to a title nothing here holds.
+  The facts — the library half (`LibraryHalf`), rung, acquisition state,
+  artwork, the tracked-title half (`TrackingDetail`), friend activity for
+  the pennants, the activity the modal speaks for (`Activities.get_row/1`,
+  from the `activity` param), the intent's note — are read from their
   owning contexts by the same identity: local reads, milliseconds
-  (ADR-051). The page's facts merge over them. An open detail is never
-  closed by the lists changing beneath it (`refresh_title_detail/1`);
-  closing is an explicit act.
+  (ADR-051). An open detail is never closed by the lists changing
+  beneath it (`refresh_title_detail/1`); closing is an explicit act.
 
   ## Setting a rung
 
@@ -76,7 +77,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   import Phoenix.Component, only: [assign: 2, assign: 3, update: 3]
   import Phoenix.LiveView
-  import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1, tmdb_cdn_url: 2]
+  import MediaCentaurWeb.LiveHelpers, only: [image_url: 2, title_poster_url: 1, tmdb_cdn_url: 2]
 
   alias MediaCentaur.Acquisition.{DownloadParams, Plans, TitleStates}
   alias MediaCentaur.Acquisition.Plans.DownloadScope
@@ -85,7 +86,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Discovery
   alias MediaCentaur.Discovery.TitleIntent
-  alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Client, as: TMDBClient
@@ -93,6 +93,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Live.PlanFlow
+  alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
@@ -160,8 +161,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     case TitleRef.parse(param) do
       {:ok, ref} ->
         {page_snapshot, facts} = socket.view.page_facts(socket, ref, params)
+        library = LibraryHalf.load(ref)
+        activity = activity_for(ref, params)
+        facts = Map.merge(facts, %{library: library, activity: activity})
 
-        case snapshot(socket, ref, page_snapshot) do
+        case snapshot(socket, ref, library, activity, page_snapshot) do
           %Title{} = title -> {:cont, open_from_snapshot(socket, ref, title, facts)}
           nil -> {:cont, open_from_tmdb(socket, ref)}
         end
@@ -175,12 +179,43 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # The snapshot a ref opens from, by identity: the open detail's own,
   # then the title intent's (any title on the ladder — listed, ignored,
-  # tracked), then the page's in-memory copy. Nil leaves TMDB as the one
+  # tracked), then the owner's entity, then the activity's embedded
+  # title, then the page's in-memory copy. Nil leaves TMDB as the one
   # source.
-  defp snapshot(%{assigns: %{title_detail: %TitleDetail{ref: ref, title: title}}}, ref, _page_snapshot),
-    do: title
+  defp snapshot(
+         %{assigns: %{title_detail: %TitleDetail{ref: ref, title: title}}},
+         ref,
+         _library,
+         _activity,
+         _page_snapshot
+       ), do: title
 
-  defp snapshot(_socket, ref, page_snapshot), do: intent_snapshot(ref) || page_snapshot
+  defp snapshot(_socket, ref, library, activity, page_snapshot) do
+    intent_snapshot(ref) || entity_snapshot(library) || activity_snapshot(activity) || page_snapshot
+  end
+
+  defp entity_snapshot(%{subject: subject}), do: Logic.snapshot_from_entity(subject)
+  defp entity_snapshot(nil), do: nil
+
+  defp activity_snapshot(%{activity: %{title: %Title{} = title}}), do: title
+  defp activity_snapshot(_none), do: nil
+
+  # The activity the modal speaks for, by identity — and only for the
+  # open title: a link naming another title's activity says nothing.
+  defp activity_for(ref, %{"activity" => id}) when is_binary(id) do
+    case Activities.get_row(id) do
+      %{activity: %{tmdb_id: tmdb_id, media_type: media_type}} = row when {tmdb_id, media_type} == ref ->
+        row
+
+      _other ->
+        nil
+    end
+  end
+
+  defp activity_for(_ref, _params), do: nil
+
+  defp activity_params(%TitleDetail{activity: %{activity: %{id: id}}}), do: %{"activity" => id}
+  defp activity_params(_detail), do: %{}
 
   defp intent_snapshot({tmdb_id, media_type}) do
     case Discovery.get_intent(tmdb_id, media_type) do
@@ -261,31 +296,38 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def refresh_title_detail(%{assigns: %{title_detail: nil}} = socket), do: socket
 
   def refresh_title_detail(%{assigns: %{title_detail: %TitleDetail{} = detail}} = socket) do
-    params = if detail.activity_id, do: %{"activity" => detail.activity_id}, else: %{}
+    params = activity_params(detail)
     {_page_snapshot, facts} = socket.view.page_facts(socket, detail.ref, params)
+    facts = Map.put(facts, :activity, activity_for(detail.ref, params))
     assign(socket, :title_detail, build_detail(socket, detail.title, facts, detail.preview))
   end
 
-  # The common facts, from the contexts that own them, by identity; the
-  # page's facts merge over them (a review's words over the intent's note).
-  defp build_detail(socket, %Title{} = title, page_facts, preview) do
+  # The facts, from the contexts that own them, by identity. The library
+  # half and the activity arrive in `given` when the caller has already
+  # read them; the rest is read here. An owned title dresses itself from
+  # the library's images; an unowned one from the artwork cache and the
+  # snapshot's paths.
+  defp build_detail(socket, %Title{} = title, given, preview) do
     ref = Title.ref(title)
+    library = Map.get_lazy(given, :library, fn -> LibraryHalf.load(ref) end)
     artwork = TmdbArtwork.urls(title.media_type, title.tmdb_id)
     acquisition? = Capabilities.acquisition_ready?()
     planning_mode = PlanningMode.value()
     today = socket.assigns.today
 
     facts = %{
-      library_owner_id: Map.get(ExternalIds.tmdb_owners([ref]), ref),
+      library: library,
+      activity: Map.get(given, :activity),
       rung: Discovery.rung(title.tmdb_id, title.media_type),
       lower_quality_accepted?:
         DownloadParams.lower_quality_accepted?(TitleDownloadParams.get(title.tmdb_id, title.media_type)),
       acquisition_state: Map.get(TitleStates.for_refs([ref]), ref),
       release_mode_available: Capabilities.prowlarr_ready?(),
-      today: today,
-      poster_url: title_poster_url(title),
-      backdrop_url: artwork.backdrop_url || tmdb_cdn_url(title.backdrop_path, :w1280),
-      logo_url: artwork.logo_url,
+      poster_url: library_image(library, "poster") || title_poster_url(title),
+      backdrop_url:
+        library_image(library, "backdrop") || artwork.backdrop_url ||
+          tmdb_cdn_url(title.backdrop_path, :w1280),
+      logo_url: library_image(library, "logo") || artwork.logo_url,
       tracking:
         TrackingDetail.load(ref, %{
           today: today,
@@ -297,12 +339,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       release_window: nil,
       planning_mode: planning_mode,
       friend_activity: Map.get(Activities.friend_activity_for([ref]), ref, []),
-      note: intent_note(ref),
+      intent_note: intent_note(ref),
       preview: preview
     }
 
-    Logic.title_detail(title, Map.merge(facts, page_facts))
+    Logic.title_detail(title, facts)
   end
+
+  # The library's image ladder (UIDR-021): the subject's art, then the
+  # container's — a collection member rarely carries its own backdrop.
+  defp library_image(nil, _role), do: nil
+
+  defp library_image(%{subject: subject, entry: %{entity: entity}}, role),
+    do: image_url(subject, role) || image_url(entity, role)
 
   # The person's own words on the record, or the review text copied in as
   # provenance when the title was listed from a friend's review.
@@ -316,13 +365,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # The live preview runs as an owned async (cancelled with the view,
   # awaitable in tests); the modal reads the snapshot until it lands.
   # Without a working TMDB key the snapshot is all there is.
+  # An owned title has no preview: its entity is the richer source.
   defp fetch_preview(socket, %Title{} = title) do
-    if Capabilities.tmdb_ready?() do
+    if Capabilities.tmdb_ready?() and is_nil(socket.assigns.title_detail.library) do
       ref = Title.ref(title)
-      in_library? = match?({:in_library, _owner}, socket.assigns.title_detail.primary)
-
       today = socket.assigns.today
-      start_async(socket, {:title_preview, ref}, fn -> load_preview(title, in_library?, today) end)
+      start_async(socket, {:title_preview, ref}, fn -> load_preview(title, false, today) end)
     else
       socket
     end
@@ -405,7 +453,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   def handle_title_async({:title_open, _ref}, {:ok, {:ok, {%Title{} = title, payload}}}, socket) do
     detail = build_detail(socket, title, %{}, nil)
-    in_library? = match?({:in_library, _owner}, detail.primary)
+    in_library? = detail.library != nil
     {preview, window} = preview_from_payload(title, payload, in_library?, socket.assigns.today)
 
     {:halt,
@@ -526,7 +574,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         _default -> detail.planning_mode
       end
 
-    scope = if detail.scoped?, do: socket.assigns.download_scope
+    scope = if detail.title.media_type == :tv_series, do: socket.assigns.download_scope
 
     {:halt, socket |> assign(:open_menu, nil) |> start_download(detail.title, mode, scope)}
   end
@@ -534,9 +582,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   def handle_title_event(
         "title_activity_delete",
         _params,
-        %{assigns: %{title_detail: %TitleDetail{activity_id: id, kind: kind}}} = socket
-      )
-      when is_binary(id) do
+        %{
+          assigns: %{
+            title_detail: %TitleDetail{activity: %{activity: %{id: id, kind: kind}, own?: true}}
+          }
+        } = socket
+      ) do
     case Activities.delete(id) do
       {:ok, _activity} ->
         {:halt,
@@ -630,8 +681,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # A feed-born detail carries the review's provenance onto the
   # record the raise creates — who sent it, and what they said. It applies
   # on creation only, so re-raising an existing record leaves it alone.
-  defp provenance(%TitleDetail{activity_id: id, own?: own?, note: note}) when is_binary(id) and not own?,
-    do: TitleIntent.friend_provenance(id, note)
+  defp provenance(%TitleDetail{activity: %{activity: %{id: id, text: text}, own?: false}}),
+    do: TitleIntent.friend_provenance(id, text)
 
   defp provenance(_detail), do: %{}
 
@@ -655,7 +706,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     case TitleRef.parse(param) do
       {:ok, ref} ->
         {page_snapshot, _facts} = socket.view.page_facts(socket, ref, %{})
-        snapshot(socket, ref, page_snapshot)
+        snapshot(socket, ref, LibraryHalf.load(ref), nil, page_snapshot)
 
       :error ->
         nil

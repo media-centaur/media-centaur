@@ -60,6 +60,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.FacetStrip
+  alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
   alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.TitlePreview
@@ -101,6 +102,8 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
       |> assign(:preview, assigns.detail && assigns.detail.preview)
       |> assign(:ref, assigns.detail && TitleRef.param(assigns.detail.ref))
       |> assign(:tracking, assigns.detail && assigns.detail.tracking)
+      |> assign(:action, assigns.detail && DetailLogic.primary_action(assigns.detail, assigns.today))
+      |> assign(:note, assigns.detail && note_line(assigns.detail))
 
     ~H"""
     <CinematicShell.cinematic_shell
@@ -153,6 +156,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
             <div class="flex flex-wrap items-center gap-3" data-nav-zone="title_detail_body">
               <.primary
                 detail={@detail}
+                action={@action}
                 open_menu={@open_menu}
                 download_scope={@download_scope}
                 download_pending?={@download_pending?}
@@ -187,11 +191,11 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
         <div :if={@detail} class="space-y-6 px-1 pt-2">
           <%!-- The one thing a pennant cannot hold: a friend's words, in
                 the list row's note idiom — name, then text. --%>
-          <p :if={@detail.note} id="title-note" class="text-sm text-base-content/80">
-            <span :if={@detail.sender} class="font-medium text-base-content/70">
-              {@detail.sender}
+          <p :if={@note} id="title-note" class="text-sm text-base-content/80">
+            <span :if={@note.sender} class="font-medium text-base-content/70">
+              {@note.sender}
             </span>
-            {@detail.note}
+            {@note.text}
           </p>
 
           <p :if={overview(@detail, @preview)} class="text-sm text-base-content/70">
@@ -205,7 +209,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
                 The switches show once the title is listed; the dates read
                 out as soon as there is a calendar or a release window. --%>
           <div
-            :if={tracking_block?(@detail, @tracking)}
+            :if={DetailLogic.tracking_card?(@detail)}
             class="glass-inset flex flex-wrap gap-x-8 gap-y-4 rounded-lg p-4"
             data-nav-zone="title_detail_tracking"
           >
@@ -233,7 +237,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
               />
             </div>
             <ReleaseDates.release_dates
-              :if={dates?(@detail, @tracking)}
+              :if={DetailLogic.release_dates?(@detail)}
               id="title-release-dates"
               media_type={@detail.title.media_type}
               release_window={@detail.release_window}
@@ -249,17 +253,26 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   end
 
   attr :detail, TitleDetail, required: true
+
+  attr :action, :any,
+    required: true,
+    doc:
+      "`Detail.Logic.primary_action/2` — `{:play, _}`, `{:state, _}`, `{:download, scoped?}` or `:none`"
+
   attr :open_menu, :atom, required: true, values: [nil, :mode, :scope]
   attr :download_scope, :atom, required: true, values: [:first_season, :everything]
   attr :download_pending?, :boolean, required: true
 
-  defp primary(%{detail: %{primary: {:in_library, owner_id}}} = assigns) do
-    assigns = assign(assigns, :owner_id, owner_id)
+  # The library owns it: until the unified panel renders Play here, the
+  # bridge to the library detail stands (deleted in phase 3 of the
+  # title-detail-unification campaign).
+  defp primary(%{action: {:play, _props}} = assigns) do
+    assigns = assign(assigns, :path, library_path(assigns.detail.library))
 
     ~H"""
     <.button
       id="title-in-library"
-      navigate={"/library?selected=#{@owner_id}"}
+      navigate={@path}
       variant="primary"
       size="sm"
       data-nav-item
@@ -270,7 +283,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
     """
   end
 
-  defp primary(%{detail: %{primary: {:state, :needs_review}}} = assigns) do
+  defp primary(%{action: {:state, :needs_review}} = assigns) do
     ~H"""
     <.link
       id="title-needs-review"
@@ -284,7 +297,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
     """
   end
 
-  defp primary(%{detail: %{primary: {:state, state}}} = assigns) do
+  defp primary(%{action: {:state, state}} = assigns) do
     assigns = assign(assigns, :marker, Logic.acquisition_marker(state))
 
     ~H"""
@@ -294,8 +307,11 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
 
   # The split's main segment performs the person's default planning
   # mode; the menu names the other. A series adds the scope select.
-  defp primary(%{detail: %{primary: :download}} = assigns) do
-    assigns = assign(assigns, :other_mode, PlanningMode.other(assigns.detail.planning_mode))
+  defp primary(%{action: {:download, scoped?}} = assigns) do
+    assigns =
+      assigns
+      |> assign(:other_mode, PlanningMode.other(assigns.detail.planning_mode))
+      |> assign(:scoped?, scoped?)
 
     ~H"""
     <GlassMenu.split_button
@@ -318,7 +334,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
       </:item>
     </GlassMenu.split_button>
     <GlassMenu.menu_select
-      :if={@detail.scoped?}
+      :if={@scoped?}
       id="title-scope"
       open={@open_menu == :scope}
       on_toggle="title_scope_toggle"
@@ -341,7 +357,7 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   end
 
   # Nothing to download yet: the tracking-mode control below is the act.
-  defp primary(%{detail: %{primary: nil}} = assigns), do: ~H""
+  defp primary(%{action: :none} = assigns), do: ~H""
 
   attr :detail, TitleDetail, required: true
 
@@ -349,10 +365,12 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
   # was opened from. Listing and de-listing were here as separate verbs
   # until the ladder made them two rungs of the control below.
   defp tertiary(assigns) do
+    assigns = assign(assigns, :own, own_activity(assigns.detail))
+
     ~H"""
     <span class="ml-auto flex items-center gap-3">
       <button
-        :if={@detail.own?}
+        :if={@own}
         id="title-activity-delete"
         type="button"
         class="cursor-pointer text-xs text-base-content/55 transition-colors hover:text-base-content/60"
@@ -360,11 +378,31 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
         data-nav-item
         tabindex="0"
       >
-        Delete {ActivityWords.noun(@detail.kind)}
+        Delete {ActivityWords.noun(@own.kind)}
       </button>
     </span>
     """
   end
+
+  defp own_activity(%TitleDetail{activity: %{activity: activity, own?: true}}), do: activity
+  defp own_activity(_detail), do: nil
+
+  # The words under the hero: the activity's text attributed to its
+  # nickname when it has any, else the person's own watchlist note.
+  defp note_line(%TitleDetail{activity: %{activity: %{text: text}, nickname: nickname}})
+       when is_binary(text) and text != "", do: %{sender: nickname, text: text}
+
+  defp note_line(%TitleDetail{intent_note: note}) when is_binary(note) and note != "",
+    do: %{sender: nil, text: note}
+
+  defp note_line(_detail), do: nil
+
+  # The library detail's address for the owner: the container, and the
+  # member a collection speaks of.
+  defp library_path(%{entry: %{entity: %{id: container_id}}, member: %{movie: %{id: member_id}}}),
+    do: "/library?selected=#{container_id}&movie=#{member_id}"
+
+  defp library_path(%{entry: %{entity: %{id: container_id}}}), do: "/library?selected=#{container_id}"
 
   @doc "Whether the title is tracked above Off — the timeline and activity are only worth showing then."
   @spec followed?(TrackingDetail.t() | nil) :: boolean()
@@ -389,17 +427,6 @@ defmodule MediaCentaurWeb.Components.Title.DetailModal do
 
   defp media_label(:tv_series), do: "TV series"
   defp media_label(:movie), do: "Movie"
-
-  # The readout has something to say once there is a calendar, or a movie's
-  # live release window; the card renders when it has that or a listed
-  # title's switches to show.
-  defp dates?(%TitleDetail{title: %{media_type: :movie}, release_window: %{}}, _tracking), do: true
-  defp dates?(_detail, tracking), do: followed?(tracking)
-
-  defp tracking_block?(%TitleDetail{} = detail, tracking) do
-    dates?(detail, tracking) or TrackingControls.control_form(detail.rung) != :none or
-      detail.lower_quality_accepted?
-  end
 
   defp timeline(%{timeline: timeline}), do: timeline
   defp timeline(_untracked), do: []
