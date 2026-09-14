@@ -32,12 +32,13 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   `release_window`, `planning_mode`, `friend_activity` and `preview`
   when the host has them. Nothing here decides: the action row and the
   tracking card derive their rules from these facts where they mount
-  (`Detail.Logic`).
+  (`Detail.Logic`). The residue — an owned entity with no TMDB identity
+  — builds from a nil title and its library half.
   """
-  @spec title_detail(Title.t(), map()) :: TitleDetail.t()
-  def title_detail(%Title{} = title, facts) do
+  @spec title_detail(Title.t() | nil, map()) :: TitleDetail.t()
+  def title_detail(title, facts) when is_nil(title) or is_struct(title, Title) do
     %TitleDetail{
-      ref: Title.ref(title),
+      ref: title && Title.ref(title),
       title: title,
       poster_url: Map.get(facts, :poster_url),
       backdrop_url: Map.get(facts, :backdrop_url),

@@ -11,7 +11,10 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   `library` is the library half (`Detail.Library`) when the library owns
   the title — the typed entry, the subject, the selected member, the
   files, availability — and nil when it does not; files are one more
-  fact, not a different surface. `acquisition_state` is the title's
+  fact, not a different surface. The residue — a library entity with no
+  TMDB identity (a video object, an unmatched container), addressed by
+  entity id — is a detail with `ref` and `title` nil and the library
+  half as its one fact. `acquisition_state` is the title's
   plan or pursuit in flight (`Acquisition.TitleStates`), and
   `release_mode_available` whether an indexer is ready to be asked for
   a release. `planning_mode` is the person's default planning mode
@@ -74,8 +77,8 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   @type acquisition_state :: :planning | :downloading | :needs_review | nil
 
   @type t :: %__MODULE__{
-          ref: {integer(), Title.media_type()},
-          title: Title.t(),
+          ref: {integer(), Title.media_type()} | nil,
+          title: Title.t() | nil,
           poster_url: String.t() | nil,
           backdrop_url: String.t() | nil,
           logo_url: String.t() | nil,

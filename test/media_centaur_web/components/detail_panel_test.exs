@@ -6,48 +6,97 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.PlayableRow
   alias MediaCentaurWeb.Components.DetailPanel
+  alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+  alias MediaCentaurWeb.ViewModel.LeafDetail
+  alias MediaCentaurWeb.ViewModel.SeriesDetail
 
-  describe "scrollable_content?/2" do
-    # Entities arrive as the loose modal-entry map shape (`entity: :map`
-    # on the component) — minimal maps mirror that contract.
+  describe "body?/2 — whether the document scrolls" do
+    # The view-model carries the facts; minimal entities mirror the
+    # library half's `entity` map.
+    defp owned(entity, overrides \\ %{}) do
+      struct!(
+        TitleDetail,
+        Map.merge(
+          %{
+            ref: nil,
+            title: nil,
+            library: %TitleDetail.Library{
+              entry: %LeafDetail{
+                entity: entity,
+                progress: nil,
+                progress_records: [],
+                resume_target: nil
+              },
+              subject: entity
+            }
+          },
+          overrides
+        )
+      )
+    end
+
+    defp owned_series(entity) do
+      %TitleDetail{
+        ref: nil,
+        title: nil,
+        library: %TitleDetail.Library{
+          entry: %SeriesDetail{
+            entity: entity,
+            seasons: [],
+            progress_records: [],
+            releases: [],
+            claimed_units: MapSet.new()
+          },
+          subject: entity
+        }
+      }
+    end
 
     test "true for TV series regardless of view" do
-      assert DetailPanel.scrollable_content?(%{type: :tv_series}, :main)
+      assert DetailPanel.body?(owned_series(%{type: :tv_series, extras: []}), :main)
     end
 
     test "false for a movie series without extras on the main view — the rail lives in the pinned block (UIDR-023)" do
-      refute DetailPanel.scrollable_content?(%{type: :movie_series, extras: []}, :main)
+      refute DetailPanel.body?(owned(%{type: :movie_series, extras: []}), :main)
     end
 
-    test "true for a tracked movie series — the tracking block sits under the list" do
+    test "true for a tracked movie series — the tracking card sits under the list" do
       tracking = %MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail{}
-      assert DetailPanel.scrollable_content?(%{type: :movie_series, extras: []}, :main, tracking)
+      assert DetailPanel.body?(owned(%{type: :movie_series, extras: []}, %{tracking: tracking}), :main)
     end
 
     test "true for a movie series carrying entity-level extras" do
       extra = build_extra(%{owner_type: :movie_series})
-      assert DetailPanel.scrollable_content?(%{type: :movie_series, extras: [extra]}, :main)
+      assert DetailPanel.body?(owned(%{type: :movie_series, extras: [extra]}), :main)
     end
 
     test "false for a bare movie on the main view" do
-      refute DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :main)
+      refute DetailPanel.body?(owned(%{type: :movie, extras: []}), :main)
     end
 
     test "true for any entity on the Manage or Cast sub-views" do
-      assert DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :info)
-      assert DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :cast)
+      assert DetailPanel.body?(owned(%{type: :movie, extras: []}), :info)
+      assert DetailPanel.body?(owned(%{type: :movie, extras: []}), :cast)
     end
 
     test "true for a movie carrying entity-level extras" do
       extra = build_extra(%{owner_type: :movie})
 
-      assert DetailPanel.scrollable_content?(%{type: :movie, extras: [extra]}, :main)
+      assert DetailPanel.body?(owned(%{type: :movie, extras: [extra]}), :main)
     end
 
     test "season-owned extras alone do not make a movie scrollable" do
       extra = build_extra(%{owner_type: :season})
 
-      refute DetailPanel.scrollable_content?(%{type: :movie, extras: [extra]}, :main)
+      refute DetailPanel.body?(owned(%{type: :movie, extras: [extra]}), :main)
+    end
+
+    test "an unowned title scrolls only for its tracking card" do
+      title = MediaCentaur.TMDB.Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
+      unowned = %TitleDetail{ref: {777, :movie}, title: title}
+
+      refute DetailPanel.body?(unowned, :main)
+      assert DetailPanel.body?(%{unowned | rung: :list}, :main)
     end
   end
 

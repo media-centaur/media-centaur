@@ -11,7 +11,6 @@ defmodule MediaCentaurWeb.HomeLive do
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
-  use MediaCentaurWeb.Live.IntentAware
 
   alias MediaCentaur.{
     Acquisition,
@@ -250,7 +249,6 @@ defmodule MediaCentaurWeb.HomeLive do
           selected_entry={@selected_entry}
           selected_entity_id={@selected_entity_id}
           selected_member_id={@selected_member_id}
-          detail_presentation={@detail_presentation}
           detail_view={@detail_view}
           cast_filter={@cast_filter}
           cast_limit={@cast_limit}
@@ -266,15 +264,15 @@ defmodule MediaCentaurWeb.HomeLive do
           tracking={@tracking}
           lower_quality_accepted?={@lower_quality_accepted?}
           rung={@rung}
-          approval_policy={@approval_policy}
+          planning_mode={@planning_mode}
           acquisition?={@acquisition?}
           friend_activity={@friend_activity}
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
-          title_rungs={@title_rungs}
           show_discovery={@show_discovery}
+          today={@today}
         />
       </div>
     </Layouts.app>

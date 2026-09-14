@@ -517,6 +517,18 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   end
 
   @doc """
+  The entity the view control answers for: the subject's cast (the Cast
+  view shows the member) with the *collection's* extras (the body below
+  the rail shows those) — a subject that answers for the whole page
+  structure (UIDR-023). Any other subject answers for itself.
+  """
+  @spec controls_entity(Library.t()) :: map()
+  def controls_entity(%Library{member: %MovieRow.Library{}, subject: subject, entry: entry}),
+    do: Map.put(subject, :extras, entity_extras(entry.entity))
+
+  def controls_entity(%Library{subject: subject}), do: subject
+
+  @doc """
   Whether the tracking card under the body has anything to show — one
   rule for an owned and an unowned title alike: the switches once the
   title is listed (or the Ignored word), the dates once there is a

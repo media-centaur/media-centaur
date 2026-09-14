@@ -90,7 +90,8 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
 
     assert Discovery.rung(424_242, :tv_series) == nil
     refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
-    assert has_element?(view, "#detail-tracking-controls[data-rung='off']")
+    # Off leaves nothing to show: no switches, no dates, no card.
+    refute has_element?(view, "#detail-tracking")
     refute has_element?(view, "#detail-release-dates")
   end
 
@@ -109,14 +110,12 @@ defmodule MediaCentaurWeb.EntityModalTrackingTest do
       )
 
     {:ok, view, _html} = live(conn, "/library?selected=#{series.id}")
-    assert has_element?(view, "#detail-tracking-controls[data-rung='off']")
 
-    # Owning a series is not listing it (UIDR-039): the view controls'
-    # bookmark is the one verb until the title is on the list, and the
-    # tracking block holds no rows.
+    # Owning a series is not listing it (UIDR-039): the action row's
+    # bookmark is the one verb until the title is on the list, and there
+    # is no tracking card at all until then.
     assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
-    assert has_element?(view, "#detail-tracking-controls[data-form='none']")
-    refute has_element?(view, "#detail-tracking-controls-track")
+    refute has_element?(view, "#detail-tracking")
 
     view |> element("#detail-watchlist-toggle") |> render_click()
     # Listing fetches artwork on a supervised task; drive it home (ADR-049).

@@ -19,6 +19,7 @@ export const inputConfig = {
     // and its items fail `checkVisibility()`, so these count zero until it
     // opens — no modal scoping needed on the selectors.
     detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]",
+    detail_menu: "[data-nav-zone='detail_menu'] [data-nav-item]",
     detail_rail: "[data-nav-zone='detail_rail'] [data-nav-item]",
     manage_tools: "[data-nav-zone='manage_tools'] [data-nav-item]",
     manage_list: "[data-nav-zone='manage_list'] [data-nav-item]",
@@ -110,6 +111,9 @@ export const inputConfig = {
     // walks the two grid sections and the Show more button without an
     // adjacency table.
     detail_actions: Context.TOOLBAR,
+    // Whichever Download menu is open — the other planning mode, or the
+    // scope — a short vertical list nested inside the action row.
+    detail_menu: Context.TREE,
     detail_rail: Context.TOOLBAR,
     manage_tools: Context.TOOLBAR,
     manage_list: Context.TREE,
@@ -158,8 +162,12 @@ export const inputConfig = {
   // a dead end.
   overlays: {
     detail: {
-      entry: ["detail_actions", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
+      entry: ["detail_actions", "detail_menu", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
       layout: {
+        // detail_menu is whichever glass menu the action row has open —
+        // an unowned title's Download mode or scope list — present only
+        // while open. DOWN from the row enters it; BACK leaves it for the
+        // row and, through the list's `data-nav-dismiss-event`, closes it.
         // manage_tools is the Manage sub-view's toolbar card — a horizontal
         // strip (Delete all, Rematch, Refresh artwork, ID links) that is its
         // own TOOLBAR region so DOWN drops past it instead of walking it.
@@ -174,7 +182,12 @@ export const inputConfig = {
         // body. Present only for collections; everywhere else the
         // candidate lists fall through past it.
         detail_actions: {
+          down: ["detail_menu", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
+        },
+        detail_menu: {
+          up: ["detail_actions"],
           down: ["detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
+          back: ["detail_actions"],
         },
         detail_rail: {
           up: ["detail_actions"],

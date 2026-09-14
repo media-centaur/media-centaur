@@ -1,5 +1,5 @@
 ---
-status: planning
+status: active
 started: 2026-09-14
 last_updated: 2026-09-14
 ---
@@ -74,12 +74,40 @@ and the library modal's refinement is the floor, not a casualty.
 
 ## Status
 
-Spec approved in its decisions 2026-09-14 and refined by a `unify_design`
-pass (spec iteration 2). Ready for phase 0. No implementation code on the
-branch.
+Phases 0, 1 and 2 landed on the branch 2026-09-14 (one session, after the
+spec's approval), each `mix precommit` clean. Phase 3 is next.
 
-* Reconciled: branch is one commit ahead of `main` (this file); pointers and
-  line counts verified against `77714ea4`.
+* **Phase 0** (`dce0cf6b`): Discovery's transient params comma-separated;
+  MC0011 refreshed (dead key gone, `TitleDetailHost` and `IntentAware`
+  covered, qualified `MediaCentaur.X.subscribe()` matched, own test);
+  `facets_for(:movie_series, …)` and `list_tmdb_entities/0` deleted.
+* **Phase 1** (`dafe1a5d`): `Title.Detail` reshaped to facts only, with
+  `Title.Detail.Library` (entry / subject / member / files / available),
+  `ViewModel.LeafDetail`, `Title.ModalState`, `EntityView.title_ref/1`,
+  `Activities.get_row/1`, `Title.Logic.snapshot_from_entity/1`,
+  `Detail.Logic.primary_action/2`, `tracking_card?/1`, `release_dates?/1`,
+  `controls_entity/1`. The title host reads the activity by identity on
+  every page and loads the library half by ref
+  (`TitleDetailHost.LibraryHalf`, started early — the phase-3 module with
+  only its loader); Discovery's `page_facts/3` keeps the snapshot alone.
+* **Phase 2**: `DetailPanel` renders a `Title.Detail` + `Title.ModalState`
+  for both halves — the action row (Play / Download split + scope /
+  acquisition state / nothing, the view controls, the member Watched
+  toggle, Delete <noun>), the note line, the preview-fed metadata and
+  overview, one tracking card by one rule, content-fit height by
+  `body?/2`. `PlayCard` is the button alone; `ViewControls` takes the
+  detail; the rail tile emits `select_entity`; `EntityModal` is the
+  bridge (`detail/1`, `state/1`, `set_rung/2` through the shared
+  `TitleDetailHost.Acquisition.apply_rung/4`); Home and Library drop
+  `IntentAware`. Stories: `detail_panel` rewritten (28 owned + 22 unowned
+  variations), `view_controls` and `play_card` re-pinned.
+* **Bar check 1** captured, not yet judged: `mockups/title-detail-unification-bar/`
+  (git-ignored) — `before/` from `main`+phase 0, `after-phase2/` the same
+  six shots (movie, series main / cast / manage, collection, Home series)
+  plus `storybook-*.png` for seven unowned variations. Owner judges in
+  the morning; phase 3 does not wait on it (fixable in place).
+* Reconciled 2026-09-14 (end of session): branch is seven commits ahead
+  of `main`.
 * Research done as six inventories (sections, host events / asyncs / PubSub,
   emitters, nav overlays, tests and stories, residue). Findings that changed
   the plan: four `Title.new!` mints, not two; the collection tracking block
@@ -191,6 +219,28 @@ spec's § Decisions carries each with the owner's words.
 
 ## Decisions made
 
+* `2026-09-14` — **The residue's view-model** (spec gap): a `Title.Detail`
+  with `ref` and `title` nil and the library half as its one fact; every
+  rule tolerates it (no action but Play, no tracking card, no bookmark).
+  Renderer and bridge handle it; `?entity=` addressing is phase 4. (this
+  session, under the spec's "one modal, one view-model")
+* `2026-09-14` — **A rail pick keeps the view.** The tile is an entity
+  emitter (`select_entity`), so in the library host a member switch is a
+  selection change; the document changes only when the resolved
+  *container* does, so Cast follows the member instead of resetting to
+  the main view (the library modal's behaviour, the bar). The unified
+  host keeps this rule in phase 3/4. (this session)
+* `2026-09-14` — **No tracking card at Off** for an owned title: the
+  library modal drew an empty glass box holding a `data-form="none"`
+  shell; the one rule (`Detail.Logic.tracking_card?/1`) draws nothing
+  until the title is listed (UIDR-039), as the title modal already did.
+  Two `entity_modal_tracking_test` assertions re-addressed to "no card".
+  (this session)
+* `2026-09-14` — **`snapshot_from_entity/1` carries no art paths**: a
+  library image is a local file, not a TMDB path (the spec assumed a
+  TMDB image record). An owned title's artwork comes from the library
+  half's images in the host. (this session)
+
 * `2026-09-14` — Unify the two modals into one, composed by facts, on all
   four pages. Owner's call after the diagnosis above. (conversation)
 * `2026-09-14` — On a branch (`title-detail-unification`), revertable;
@@ -227,8 +277,18 @@ spec's § Decisions carries each with the owner's words.
 
 ## Next steps
 
-1. **Phase 0** (hygiene) — tests first per the spec's Tests table; skills first: `automated-testing`, `elixir:phoenix-thinking`, `input-system`.
-2. Phases 1–5 as the spec's Phase plan, each closed by `mix precommit` and, for phases 2–4, the bar check (same titles, 1920×1080, `page-shot`, judged by the owner).
+1. **Owner:** judge bar check 1 (`mockups/title-detail-unification-bar/before` vs `after-phase2`, and the `storybook-*` unowned shots).
+2. **Phase 3** — `Live.Subscriptions`; `TitleDetailHost` gains the
+   library half's events (`LibraryEvents`), the files async, the
+   subscription set, `ModalState`, the entity address; Discovery and
+   Incoming render `DetailPanel`; `Title.DetailModal`, its story, the
+   `title_detail` overlay and the bridge's title-side go; `detail_menu`
+   added; `IntentAware` deleted; JS nested dismissal reads the attribute.
+   Tests per the spec's table (`#title-*` → `#detail-*`). Bar check 2.
+3. **Phase 4** — Home and Library adopt `TitleDetailHost`; `EntityModal`
+   deleted; `?selected=`/`?movie=` → `?title=`/`?entity=`; the
+   collection-tracking migration; MC0011 renamed and extended. Bar check 3.
+4. **Phase 5** — records, glossary, wiki, CHANGELOG; merge; `/ship minor`.
 
 ## Deferred (bucket at closure)
 
