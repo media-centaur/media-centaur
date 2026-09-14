@@ -92,11 +92,23 @@ defmodule MediaCentaurWeb.Layouts do
       data-input-bindings={Jason.encode!(input_bindings())}
       data-global-bindings={Jason.encode!(global_bindings())}
     >
+      <%!-- The one tooltip (hooks/tooltip.js): fixed, outside every clipping
+            surface, moved beside whichever [data-tip] anchor is hovered or
+            focused. The sidebar's links tip to the right of the rail; every
+            other anchor tips beneath itself. --%>
+      <div
+        id="app-tooltip"
+        class="app-tooltip"
+        phx-hook="Tooltip"
+        data-state="closed"
+        aria-hidden="true"
+      >
+      </div>
       <aside
         id="sidebar"
         class="sidebar glass-sidebar"
         data-nav-zone="sidebar"
-        phx-hook="SidebarTooltip"
+        data-tip-placement="right"
       >
         <div class="sidebar-group-label sidebar-label">Watch</div>
         <nav class="flex flex-col gap-0.5">
@@ -435,7 +447,7 @@ defmodule MediaCentaurWeb.Layouts do
 
   # `paths` may be a list when one nav entry fronts several routes — the
   # Review entry covers both review dimensions (/review and /reconcile).
-  # Collapsed-rail tooltips come from the SidebarTooltip hook reading each
+  # Collapsed-rail tooltips come from the Tooltip hook reading each
   # link's data-tip — no tooltip classes here.
   defp sidebar_link_class(current_path, paths) do
     base = "sidebar-link"

@@ -30,7 +30,7 @@ import {CopyButton} from "./hooks/copy_button"
 import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {HeroBackdrop, heroBitmapCache, warmHeroBackdrops} from "./hooks/hero_backdrop"
-import {SidebarTooltip} from "./hooks/sidebar_tooltip"
+import {Tooltip} from "./hooks/tooltip"
 import {pinReserve, sheetMaxRise} from "./hooks/detail_scroll_geometry"
 import {DetailBodyScroll} from "./hooks/detail_body_scroll"
 import {PlanGridCaption} from "./hooks/plan_grid_caption"
@@ -50,7 +50,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     MouseAutofocus,
     FlashAutoDismiss,
     HeroBackdrop,
-    SidebarTooltip,
+    Tooltip,
     PlanGridCaption,
     // Publishes the detail scroller's measured geometry as CSS vars for
     // the pinned orientation block's backing replicas — layout facts CSS

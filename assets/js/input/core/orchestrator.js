@@ -1398,7 +1398,7 @@ export class Orchestrator {
 
   _executeEnterSidebar() {
     // The rail keeps the user's chosen width — a collapsed rail labels the
-    // focused icon via the SidebarTooltip hook (focusin), no auto-expand.
+    // focused icon via the Tooltip hook (focusin), no auto-expand.
     const primaryMenu = this._config.primaryMenu
     const activeIndex = this.reader.getActiveItemIndex(primaryMenu)
     if (activeIndex >= 0) {

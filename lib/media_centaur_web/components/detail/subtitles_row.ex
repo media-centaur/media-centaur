@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
           id="subtitles-row-folded"
           type="button"
           class="cursor-pointer hover:text-base-content"
-          title="Show all subtitle languages"
+          data-tip="Show all subtitle languages"
           phx-click={
             JS.hide(to: "#subtitles-row-folded")
             |> JS.show(to: "#subtitles-row-all", display: "inline")
