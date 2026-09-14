@@ -7,6 +7,7 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
   """
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TmdbStubs
 
   alias MediaCentaur.Discovery
@@ -32,6 +33,8 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       assert intent.rung == :list
       assert Discovery.listed?(@tmdb_id, :tv_series)
       refute tracked?()
+
+      await_supervised_tasks()
     end
 
     test "Follow and above derive a tracked title, and list it as part of the act" do
@@ -41,6 +44,8 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
         assert Discovery.listed?(@tmdb_id, :tv_series)
         assert tracked?(), "#{rung} must derive a tracked title"
       end
+
+      await_supervised_tasks()
     end
 
     test "the calendar is fetched once, not on every raise" do
@@ -50,6 +55,8 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       {:ok, _} = ReleaseTracking.set_rung(show(), :grab)
 
       assert ReleaseTracking.get_item_by_tmdb(@tmdb_id, :tv_series).id == item.id
+
+      await_supervised_tasks()
     end
 
     test "provenance is carried onto a record that did not exist" do
@@ -65,6 +72,8 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       assert intent.source == :friend
       assert intent.activity_id == activity_id
       assert intent.note == "you'll like this"
+
+      await_supervised_tasks()
     end
   end
 
@@ -78,6 +87,8 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       assert intent.rung == :list
       assert Discovery.listed?(@tmdb_id, :tv_series)
       refute tracked?()
+
+      await_supervised_tasks()
     end
 
     test "Off deletes the record and everything derived from it" do
@@ -88,11 +99,15 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       refute Discovery.listed?(@tmdb_id, :tv_series)
       refute tracked?()
       assert Discovery.rung(@tmdb_id, :tv_series) == nil
+
+      await_supervised_tasks()
     end
 
     test "Off on a title that was never on the ladder is a no-op" do
       assert {:ok, nil} = ReleaseTracking.set_rung(show(), :off)
       refute tracked?()
+
+      await_supervised_tasks()
     end
 
     test "re-raising after Off starts fresh — there is no disarmed row to remember" do
@@ -102,6 +117,8 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
       assert {:ok, intent} = ReleaseTracking.set_rung(show(), :follow)
       assert intent.rung == :follow
       assert tracked?()
+
+      await_supervised_tasks()
     end
   end
 
@@ -131,6 +148,9 @@ defmodule MediaCentaur.ReleaseTracking.SetRungTest do
 
       refute ReleaseTracking.get_item_by_tmdb(777, :movie),
              "an owned film has no future release to follow"
+
+      # Listing fetches artwork on a supervised task; drive it home (ADR-049).
+      await_supervised_tasks()
     end
   end
 end
