@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.Components.Title.WatchlistToggle do
       assign(assigns,
         choice: choice(assigns.rung),
         listed?: listed?(assigns.rung),
-        label: label(assigns.rung)
+        label: label()
       )
 
     ~H"""
@@ -81,9 +81,7 @@ defmodule MediaCentaurWeb.Components.Title.WatchlistToggle do
   def listed?(:ignored), do: false
   def listed?(_listed), do: true
 
-  @doc "The accessible name — what the click does."
-  @spec label(TitleIntent.rung() | nil) :: String.t()
-  def label(nil), do: "Add to watchlist"
-  def label(:ignored), do: "Add to watchlist"
-  def label(_listed), do: "On your list — remove"
+  @doc "The accessible name and the tooltip — one, whatever the state; the state is `aria-pressed`."
+  @spec label() :: String.t()
+  def label, do: "Toggle on watchlist"
 end

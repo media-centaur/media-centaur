@@ -1,17 +1,18 @@
 defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
   @moduledoc """
-  The tracked-title half of a title's detail: its
-  release timeline, recent per-title activity, the per-title quality
-  acceptance and when tracking began — plus the facts the two shared
-  components need to say honestly what the title will do right now (`today`,
-  `acquisition?`) and the `ref` param every control click carries. `nil` for a title that has never been tracked.
+  The tracked-title half of a title's detail: its calendar as forecast
+  events (`timeline`, the release dates readout's source) and when
+  tracking began — plus the facts the two shared components need to say
+  honestly what the title will do right now (`today`, `acquisition?`)
+  and the `ref` param every control click carries. `nil` for a title
+  that has never been tracked.
 
   Loaded by `load/2` for any host that mounts the shared tracking
   components (`ReleaseDates`, `TrackingControls`): the title
   detail modal and the library detail panel (UIDR-035). The reads are
-  local and cheap (ADR-051): the item, its releases, its recent events,
-  and — only when acquisition is ready — which of those releases are
-  under an active pursuit.
+  local and cheap (ADR-051): the item, its releases, and — only when
+  acquisition is ready — which of those releases are under an active
+  pursuit.
   """
 
   alias MediaCentaur.Acquisition
@@ -27,11 +28,8 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
     :tracking_since,
     :today,
     acquisition?: false,
-    timeline: [],
-    activity: []
+    timeline: []
   ]
-
-  @type activity_entry :: %{text: String.t(), at: String.t()}
 
   @type t :: %__MODULE__{
           item_id: Ecto.UUID.t(),
@@ -39,8 +37,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
           tracking_since: DateTime.t() | nil,
           today: Date.t(),
           acquisition?: boolean(),
-          timeline: [Event.t()],
-          activity: [activity_entry()]
+          timeline: [Event.t()]
         }
 
   @typedoc """
@@ -54,8 +51,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
           acquisition_ready?: boolean(),
           approval_policy: String.t()
         }
-
-  @recent_activity 8
 
   @doc "The tracking detail for a title ref, or nil when it is not tracked."
   @spec load({integer(), Item.media_type()}, context()) :: t() | nil
@@ -84,20 +79,13 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail do
       tracking_since: item.inserted_at,
       today: context.today,
       acquisition?: context.acquisition_ready?,
-      timeline: flatten(feed),
-      activity: activity(item.id)
+      timeline: flatten(feed)
     }
   end
 
   # Nearness-first: bucket order, date-ascending within, undated last.
   defp flatten(%UpcomingFeed{buckets: buckets, unscheduled: unscheduled}) do
     Enum.flat_map(UpcomingFeed.bucket_order(), &Map.get(buckets, &1, [])) ++ unscheduled
-  end
-
-  defp activity(item_id) do
-    item_id
-    |> ReleaseTracking.list_events_for_item(@recent_activity)
-    |> Enum.map(&%{text: &1.description, at: MediaCentaur.Format.relative_ago(&1.inserted_at)})
   end
 
   # `statuses_for_releases/1` also returns cancelled and complete pursuits;

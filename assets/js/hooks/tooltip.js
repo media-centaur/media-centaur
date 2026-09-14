@@ -27,7 +27,10 @@
 export const COLD_DELAY_MS = 300
 export const WARM_WINDOW_MS = 250
 
-const GAP_PX = 14
+// Beside the rail the label has room to breathe; beneath a small icon
+// button the same gap read as detached, so the bottom gap is tighter.
+const GAP_RIGHT_PX = 14
+const GAP_BELOW_PX = 8
 
 /**
  * Should a tooltip show at all? A label is required; a sidebar anchor also
@@ -52,8 +55,9 @@ export function showDelay({ visible, hiddenAt, now }) {
 }
 
 /**
- * Anchor point. "right": right of the anchor with a gap, vertically
- * centered. "bottom": under the anchor with a gap, horizontally centered.
+ * Anchor point. "right": right of the anchor with a 14px gap, vertically
+ * centered. "bottom": under the anchor with an 8px gap, horizontally
+ * centered.
  * The rect comes from getBoundingClientRect — viewport coordinates, already
  * multiplied by the root `zoom` UI scale — while the tooltip's transform
  * lengths are multiplied by that zoom again at render. Dividing by the scale
@@ -66,9 +70,9 @@ export function showDelay({ visible, hiddenAt, now }) {
  */
 export function tooltipPosition(rect, scale, placement = "bottom") {
   if (placement === "right") {
-    return { x: rect.right / scale + GAP_PX, y: (rect.top + rect.height / 2) / scale }
+    return { x: rect.right / scale + GAP_RIGHT_PX, y: (rect.top + rect.height / 2) / scale }
   }
-  return { x: (rect.left + rect.width / 2) / scale, y: rect.bottom / scale + GAP_PX }
+  return { x: (rect.left + rect.width / 2) / scale, y: rect.bottom / scale + GAP_BELOW_PX }
 }
 
 /**
