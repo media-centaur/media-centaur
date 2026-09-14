@@ -74,8 +74,8 @@ and the library modal's refinement is the floor, not a casualty.
 
 ## Status
 
-Phases 0, 1 and 2 landed on the branch 2026-09-14 (one session, after the
-spec's approval), each `mix precommit` clean. Phase 3 is next.
+Phases 0 to 3 landed on the branch 2026-09-14 (one session, after the
+spec's approval), each `mix precommit` clean. Phase 4 is next.
 
 * **Phase 0** (`dce0cf6b`): Discovery's transient params comma-separated;
   MC0011 refreshed (dead key gone, `TitleDetailHost` and `IntentAware`
@@ -101,6 +101,26 @@ spec's approval), each `mix precommit` clean. Phase 3 is next.
   `TitleDetailHost.Acquisition.apply_rung/4`); Home and Library drop
   `IntentAware`. Stories: `detail_panel` rewritten (28 owned + 22 unowned
   variations), `view_controls` and `play_card` re-pinned.
+* **Phase 3**: `Live.Subscriptions` is the one subscribe door (keyed by
+  context, or `{context, function}` for a second door like
+  `Acquisition.subscribe_queue`); `TitleDetailHost` is the unified host —
+  `?title=` and `?entity=` (canonicalised, or the residue), `ModalState`,
+  every event of both modals, the asyncs keyed by subject, eight declared
+  topics with reactions by identity — split into `LibraryHalf` (load by
+  ref or entity id, reload, the playback merges, the files load),
+  `LibraryEvents` (the library sections' events, the delete gesture) and
+  `Acquisition` (rung, Download, the missing-episode plan). Discovery and
+  Incoming render `DetailPanel` and declare their topics through the door;
+  Incoming keeps its own `title_rungs` clause. Deleted: `Title.DetailModal`
+  and its story, `IntentAware`, the `title_detail` overlay. The JS
+  nested-view dismissal reads `data-dismiss-event`. Tests re-pointed
+  `#title-*` → `#detail-*`; new: owned title plays in place on Discovery,
+  import turns Download into Play, owned series' seasons on Incoming, a
+  friend's note by identity on Incoming, a rung set elsewhere refreshes
+  Incoming's bookmark and rows; `subscriptions_test`.
+* **Bar check 2** captured, not yet judged: `after-phase3/` — the owned
+  series on Discovery, Incoming (main and Manage) and Library side by
+  side, the owned movie on Discovery, and an unowned listed movie.
 * **Bar check 1** captured, not yet judged: `mockups/title-detail-unification-bar/`
   (git-ignored) — `before/` from `main`+phase 0, `after-phase2/` the same
   six shots (movie, series main / cast / manage, collection, Home series)
@@ -277,18 +297,11 @@ spec's § Decisions carries each with the owner's words.
 
 ## Next steps
 
-1. **Owner:** judge bar check 1 (`mockups/title-detail-unification-bar/before` vs `after-phase2`, and the `storybook-*` unowned shots).
-2. **Phase 3** — `Live.Subscriptions`; `TitleDetailHost` gains the
-   library half's events (`LibraryEvents`), the files async, the
-   subscription set, `ModalState`, the entity address; Discovery and
-   Incoming render `DetailPanel`; `Title.DetailModal`, its story, the
-   `title_detail` overlay and the bridge's title-side go; `detail_menu`
-   added; `IntentAware` deleted; JS nested dismissal reads the attribute.
-   Tests per the spec's table (`#title-*` → `#detail-*`). Bar check 2.
-3. **Phase 4** — Home and Library adopt `TitleDetailHost`; `EntityModal`
+1. **Owner:** judge bar checks 1 and 2 (`mockups/title-detail-unification-bar/before` vs `after-phase2` and `after-phase3`, and the `storybook-*` unowned shots).
+2. **Phase 4** — Home and Library adopt `TitleDetailHost`; `EntityModal`
    deleted; `?selected=`/`?movie=` → `?title=`/`?entity=`; the
    collection-tracking migration; MC0011 renamed and extended. Bar check 3.
-4. **Phase 5** — records, glossary, wiki, CHANGELOG; merge; `/ship minor`.
+3. **Phase 5** — records, glossary, wiki, CHANGELOG; merge; `/ship minor`.
 
 ## Deferred (bucket at closure)
 

@@ -106,7 +106,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       test "#{label} (#{path}) renders without crashing", %{conn: conn} do
         assert {:ok, view, html} = smoke!(conn, unquote(path))
         assert is_binary(html)
-        assert Phoenix.LiveViewTest.has_element?(view, "#title-detail-modal")
+        assert Phoenix.LiveViewTest.has_element?(view, "#detail-modal")
       end
     end
   end
@@ -645,8 +645,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert {:ok, view, _html} =
                smoke!(conn, "/incoming?title=tv_series-#{shelf_item.tmdb_id}")
 
-      assert has_element?(view, "#title-detail-modal[data-state=open]")
-      assert has_element?(view, "#title-detail-modal", "Smoke Shelf Show")
+      assert has_element?(view, "#detail-modal[data-state=open]")
+      assert has_element?(view, "#detail-modal", "Smoke Shelf Show")
     end
 
     test "renders without crashing (?zone=history)", %{conn: conn} do

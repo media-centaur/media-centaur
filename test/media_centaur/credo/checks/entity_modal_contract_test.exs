@@ -111,10 +111,10 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContractTest do
       |> assert_issue()
     end
 
-    test "IntentAware owns Discovery" do
+    test "the title detail host owns Discovery too" do
       ~S'''
       defmodule MediaCentaurWeb.MyLive do
-        use MediaCentaurWeb.Live.IntentAware
+        use MediaCentaurWeb.Live.TitleDetailHost
 
         def mount(_, _, socket) do
           if connected?(socket), do: Discovery.subscribe()

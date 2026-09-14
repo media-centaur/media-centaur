@@ -3,12 +3,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   The Discovery page — the surface every candidate source lands on. Three
   tabs, one LiveView with a `live_action` per tab. Every title on every
   tab is a click target opening the title detail modal
-  (`TitleDetailModal`, hosted through `TitleDetailHost` and driven by
+  (`DetailPanel`, hosted through `TitleDetailHost` and driven by
   `?title=<media_type>-<id>` on the current tab, plus `&activity=<id>`
   when an entry or a person card opened it — refresh keeps it open, back
-  closes it), where the verbs live: Download (the one-click plan), the
-  ladder, Delete (an own activity of any kind), and the tracking-mode
-  control.
+  closes it), where the verbs live: Play for a title the library owns,
+  Download (the one-click plan) for one it does not, the bookmark and
+  the tracking switches, Delete (an own activity of any kind).
 
   The social projections come from one list: every live activity with
   its actor (`Activities.list_activities/0`), enriched here with what
@@ -51,11 +51,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   download's progress lands without a reload, the way `library:updates`
   flips a title to In library when the file lands.
 
-  Subscribes to Discovery directly (it needs the full item list, not the
-  `IntentAware` rung map — see that trait's moduledoc).
+  Declares its topics through `Live.Subscriptions`, the door the title
+  detail host declares its own through, so a topic both need is
+  subscribed once.
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
+  use MediaCentaurWeb.Live.SpoilerFreeAware
+  use MediaCentaurWeb.Live.LetterboxdLinksAware
 
   import MediaCentaurWeb.Components.TabStrip, only: [tab_strip: 1]
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
@@ -80,7 +83,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.Discovery.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
-  alias MediaCentaurWeb.Components.Title.DetailModal, as: TitleDetailModal
+  alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
   alias MediaCentaurWeb.DiscoveryLive.ActivityPosters
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
@@ -88,6 +91,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.DiscoveryLive.People
+  alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
 
   require MediaCentaur.Log, as: Log
@@ -95,13 +99,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      Discovery.subscribe()
-      Library.subscribe()
-      Social.subscribe()
-      Activities.subscribe()
-      Acquisition.subscribe()
-    end
+    socket =
+      Enum.reduce(
+        [Discovery, Library, Social, Activities, Acquisition],
+        socket,
+        &Subscriptions.subscribe(&2, &1)
+      )
 
     {:ok,
      socket
@@ -205,12 +208,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   # The row's plain Download performs the default planning mode on the
   # default scope (season 1 for a series); the full control is in the
-  # modal. The host owns the two paths (TitleDetailHost.start_download/4).
+  # modal. The host's acquisition module owns the two paths.
   def handle_event("feed_download", %{"activity" => id}, socket) do
     case feed_entry(socket, id) do
       %FeedEntry{download_slot: :download} = entry ->
         scope = if entry.title.media_type == :tv_series, do: :first_season
-        {:noreply, TitleDetailHost.start_download(socket, entry.title, PlanningMode.value(), scope)}
+
+        {:noreply,
+         TitleDetailHost.Acquisition.start_download(socket, entry.title, PlanningMode.value(), scope)}
 
       _state_or_unknown ->
         {:noreply, socket}
@@ -468,13 +473,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
     >
       <:overlays>
-        <TitleDetailModal.title_detail_modal
+        <DetailPanel.detail_panel
           detail={@title_detail}
-          open_menu={@open_menu}
-          download_scope={@download_scope}
-          download_pending?={@download_pending != nil}
+          state={@modal_state}
           today={@today}
           review?={@show_discovery}
+          spoiler_free={@spoiler_free}
+          letterboxd_links={@letterboxd_links}
+          tmdb_ready={@tmdb_ready}
         />
         <ReviewModal.review_modal
           subject={@review_subject}
@@ -483,14 +489,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
           relay_counts={@review_relay_counts}
         />
       </:overlays>
-      <%!-- `title` and `activity` are modal state: stripped from the
+      <%!-- The modal's params are modal state: stripped from the
             remembered URL so leaving the section closes the modal rather
             than reopening it on return. --%>
       <div
         class="relative"
         data-page-behavior="discovery"
         data-nav-default-zone="discovery"
-        data-nav-transient-params="title,activity"
+        data-nav-transient-params="title,entity,view,activity"
       >
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <.page_header title="Discovery" class="px-1" />

@@ -109,6 +109,18 @@ defmodule MediaCentaur.Acquisition.Plans.Doors do
             "create_series_plan's picker door. The click guards on that selection " <>
             "before planning: unaired, already in the library, or already wanted by " <>
             "release tracking all decline instead of drafting."
+      },
+      %{
+        module: MediaCentaurWeb.Live.TitleDetailHost.Acquisition,
+        function: :plan_missing_episode,
+        opens:
+          "the person clicking a missing-episode row in the title detail modal — " <>
+            "one {season, episode} unit of a series they already partly own",
+        identity_from:
+          "the Targeting.Selection its own TMDB fetch produces, the same as " <>
+            "create_series_plan's picker door. The click guards on that selection " <>
+            "before planning: unaired, already in the library, or already wanted by " <>
+            "release tracking all decline instead of drafting."
       }
     ]
   end

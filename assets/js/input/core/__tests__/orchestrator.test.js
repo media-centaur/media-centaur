@@ -1580,6 +1580,30 @@ describe("Orchestrator", () => {
       expect(system.focusMachine.inOverlay).toBe(true)
     })
 
+    test("BACK below the root view pushes the modal's declared dismiss event, like the flat path", () => {
+      let onActionCallback = null
+      const hookEl = { pushEvent: mock(() => {}) }
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPresentation: () => "modal",
+        isDetailNested: () => true,
+        getDismissEvent: () => "close_title",
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start(hookEl)
+
+      onActionCallback(Action.BACK)
+
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_title", {})
+      expect(system.focusMachine.inOverlay).toBe(true)
+    })
+
     test("BACK on the detail modal's root view dismisses, whichever view that is", () => {
       // The root view is not always "main": a movie with no extras has no
       // body tab, so it opens on More info and BACK there must close the

@@ -79,14 +79,14 @@ defmodule MediaCentaurWeb.IncomingLive do
   """
 
   use MediaCentaurWeb, :live_view
-  # TitleDetailHost first: its handle_info hook must see the watchlist
-  # messages IntentAware halts (hooks run in attach order).
   use MediaCentaurWeb.Live.TitleDetailHost
-  use MediaCentaurWeb.Live.IntentAware
+  use MediaCentaurWeb.Live.SpoilerFreeAware
+  use MediaCentaurWeb.Live.LetterboxdLinksAware
 
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition
+  alias MediaCentaur.Discovery
   alias MediaCentaur.Acquisition.{CancelReasons, QueueMatcher}
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
@@ -125,6 +125,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
+  alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaur.TMDB.ReleaseWindow
@@ -133,7 +134,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
-  alias MediaCentaurWeb.Components.Title.DetailModal, as: TitleDetailModal
+  alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
@@ -200,12 +201,12 @@ defmodule MediaCentaurWeb.IncomingLive do
     # from (re-checked in `:capabilities_changed` for mid-session setup).
     prowlarr? = Capabilities.prowlarr_ready?()
 
-    # `release_tracking:updates` is TitleDetailHost's subscription.
-    if connected?(socket) do
-      MediaCentaur.Library.subscribe()
-      Activities.subscribe()
-      if prowlarr?, do: subscribe_acquisition()
-    end
+    # The rows' rungs (the omnibox results, the plan board's bookmark)
+    # come from the ladder; `discovery:updates` keeps them live.
+    socket =
+      [MediaCentaur.Library, Activities, Discovery]
+      |> Enum.reduce(socket, &Subscriptions.subscribe(&2, &1))
+      |> then(&if(prowlarr?, do: subscribe_acquisition(&1), else: &1))
 
     today = Date.utc_today()
 
@@ -214,6 +215,7 @@ defmodule MediaCentaurWeb.IncomingLive do
        assign(socket,
          loaded?: false,
          subscribed_acquisition?: prowlarr? and connected?(socket),
+         title_rungs: Discovery.rungs(),
          today: today,
          shelf_expanded?: false,
          view: %View{shelf: %View.ShelfSection{}},
@@ -279,18 +281,18 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp friend_activity_for_results(rows),
     do: Activities.friend_activity_for(Enum.map(rows, &{&1.tmdb_id, &1.media_type}))
 
-  defp subscribe_acquisition do
-    Acquisition.subscribe()
-    Acquisition.subscribe_queue()
-    SearchSession.subscribe()
+  defp subscribe_acquisition(socket) do
+    socket
+    |> Subscriptions.subscribe(Acquisition)
+    |> Subscriptions.subscribe({Acquisition, :subscribe_queue})
+    |> Subscriptions.subscribe(SearchSession)
   end
 
   defp subscribe_acquisition_once(socket) do
     if socket.assigns.subscribed_acquisition? or not connected?(socket) do
       socket
     else
-      subscribe_acquisition()
-      assign(socket, subscribed_acquisition?: true)
+      socket |> subscribe_acquisition() |> assign(subscribed_acquisition?: true)
     end
   end
 
@@ -816,13 +818,14 @@ defmodule MediaCentaurWeb.IncomingLive do
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
           cancel_armed={@selected_pursuit_id != nil and @cancel_pursuit_armed == @selected_pursuit_id}
         />
-        <TitleDetailModal.title_detail_modal
+        <DetailPanel.detail_panel
           detail={@title_detail}
-          open_menu={@open_menu}
-          download_scope={@download_scope}
-          download_pending?={@download_pending != nil}
+          state={@modal_state}
           today={@today}
           review?={@show_discovery}
+          spoiler_free={@spoiler_free}
+          letterboxd_links={@letterboxd_links}
+          tmdb_ready={@tmdb_ready}
         />
         <ReviewModal.review_modal
           subject={@review_subject}
@@ -838,7 +841,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         class="relative"
         data-page-behavior="incoming"
         data-nav-default-zone="incoming"
-        data-nav-transient-params="selected,title,plan,prowlarr_search"
+        data-nav-transient-params="selected,title,entity,view,activity,plan,prowlarr_search"
       >
         <%!-- The calm ramp gives this search-first page the same quiet depth
               as Settings/Status: it opens on a bare input with no dense block
@@ -1925,6 +1928,11 @@ defmodule MediaCentaurWeb.IncomingLive do
 
     {:noreply, build_view(socket)}
   end
+
+  # A rung moved anywhere: the rows' markers and the plan board's
+  # bookmark read the ladder again.
+  def handle_info({:title_intent_changed, _event}, socket),
+    do: {:noreply, socket |> assign(:title_rungs, Discovery.rungs()) |> build_view()}
 
   # A review arriving or withdrawn while results are up re-reads
   # the pennants for exactly those results.

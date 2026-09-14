@@ -27,17 +27,15 @@ describe("discovery behavior", () => {
     expect(inputConfig.cursorStartPriority.discovery).toEqual(["title_rows", "people", "zone_tabs", "sidebar"])
   })
 
-  test("the title_detail overlay is the action strip over the open menu over the tracking strip, DOWN/UP between them, BACK out of the menu", () => {
-    expect(inputConfig.overlays.title_detail).toEqual({
-      entry: ["title_detail_body", "title_detail_menu", "title_detail_tracking"],
-      layout: {
-        title_detail_body: { down: ["title_detail_menu", "title_detail_tracking"] },
-        title_detail_menu: { up: ["title_detail_body"], down: ["title_detail_tracking"], back: ["title_detail_body"] },
-        title_detail_tracking: { up: ["title_detail_menu", "title_detail_body"] },
-      },
+  test("a title opened on Discovery navigates as the one detail overlay: the action row over an open menu over the tracking card (UIDR-043)", () => {
+    expect(inputConfig.overlays.title_detail).toBeUndefined()
+    expect(inputConfig.contextSelectors.title_detail_body).toBeUndefined()
+    expect(inputConfig.overlays.detail.entry.slice(0, 2)).toEqual(["detail_actions", "detail_menu"])
+    expect(inputConfig.overlays.detail.layout.detail_menu).toEqual({
+      up: ["detail_actions"],
+      down: ["detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast", "detail_tracking"],
+      back: ["detail_actions"],
     })
-    expect(inputConfig.contextSelectors.title_detail_body).toBe("[data-nav-zone='title_detail_body'] [data-nav-item]")
-    expect(inputConfig.contextSelectors.title_detail_menu).toBe("[data-nav-zone='title_detail_menu'] [data-nav-item]")
-    expect(inputConfig.contextSelectors.title_detail_tracking).toBe("[data-nav-zone='title_detail_tracking'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.layout.detail_tracking.back).toEqual(["detail_actions"])
   })
 })

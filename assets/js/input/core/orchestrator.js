@@ -1234,7 +1234,7 @@ export class Orchestrator {
     // dismissing. Push the event and let LiveView handle it — keep focus
     // context in the modal so the user stays in the overlay.
     if (this.reader.isDetailNested?.()) {
-      this._hookEl.pushEvent("close_detail", {})
+      this._hookEl.pushEvent(this.reader.getDismissEvent?.() ?? "close_detail", {})
       // The LiveView patch back to the root view will remove the focused
       // element. Flag _syncState to refocus the modal after the DOM updates.
       this._pendingModalRefocus = true

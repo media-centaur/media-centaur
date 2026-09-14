@@ -34,9 +34,6 @@ export const inputConfig = {
     plan_grid: "[data-nav-zone='plan_grid'] [data-nav-item]",
     plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
     // The Discovery title detail modal's action row (spec 2026-09-05).
-    title_detail_body: "[data-nav-zone='title_detail_body'] [data-nav-item]",
-    title_detail_menu: "[data-nav-zone='title_detail_menu'] [data-nav-item]",
-    title_detail_tracking: "[data-nav-zone='title_detail_tracking'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     // The library toolbar's sort menu — a GlassMenu.menu_select list nested in the toolbar zone.
     library_sort_menu: "[data-nav-zone='library_sort_menu'] [data-nav-item]",
@@ -129,16 +126,6 @@ export const inputConfig = {
     plan_head: Context.TREE,
     plan_grid: Context.SHELF,
     plan_body: Context.TREE,
-    // The title detail modal's action row walks LEFT/RIGHT like the
-    // library detail's action row; its menus are zones nested inside it.
-    title_detail_body: Context.TOOLBAR,
-    // Whichever Download menu is open — the other planning mode, or the
-    // scope — a short vertical list under the strip.
-    title_detail_menu: Context.TREE,
-    // The tracking block in the body (UIDR-042): the Track release dates
-    // and Auto-grab rows, plus the acceptance Reset when set, stack
-    // vertically — UP/DOWN.
-    title_detail_tracking: Context.TREE,
     // The library sort menu, present only while open: a short list under the toolbar's Sort trigger.
     library_sort_menu: Context.TREE,
   },
@@ -215,21 +202,6 @@ export const inputConfig = {
         plan_head: { down: ["plan_grid", "plan_body"] },
         plan_grid: { up: ["plan_head"], down: ["plan_body"] },
         plan_body: { up: ["plan_grid", "plan_head"] },
-      },
-    },
-    // The title detail modal (UIDR-035): the action strip (primary,
-    // secondary, tertiary verbs) over whichever Download menu is open,
-    // over the tracking-mode strip, which exists for any title the
-    // library does not own — DOWN descends, UP climbs back.
-    title_detail: {
-      entry: ["title_detail_body", "title_detail_menu", "title_detail_tracking"],
-      layout: {
-        title_detail_body: { down: ["title_detail_menu", "title_detail_tracking"] },
-        // The open menu (the other planning mode, or the scope) is a list
-        // nested inside the strip; BACK leaves it for the strip and, through
-        // the list's `data-nav-dismiss-event`, closes it.
-        title_detail_menu: { up: ["title_detail_body"], down: ["title_detail_tracking"], back: ["title_detail_body"] },
-        title_detail_tracking: { up: ["title_detail_menu", "title_detail_body"] },
       },
     },
   },
