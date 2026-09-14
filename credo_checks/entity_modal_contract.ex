@@ -12,10 +12,11 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
       message is delivered twice.
 
           Trait                                         Forbidden subscribes
-          MediaCentaurWeb.Live.EntityModal              Library, Playback
+          MediaCentaurWeb.Live.EntityModal              Library, Playback, ReleaseTracking, Activities, Acquisition
+          MediaCentaurWeb.Live.TitleDetailHost          ReleaseTracking
+          MediaCentaurWeb.Live.IntentAware              Discovery
           MediaCentaurWeb.Live.SpoilerFreeAware         Settings
           MediaCentaurWeb.Live.CapabilitiesAware        Capabilities
-          MediaCentaurWeb.Live.WatchlistAware           Discovery
 
       The historical bug this prevents (the EntityModal case): a host that
       mounted the modal but forgot to wire one of the four PubSub messages
@@ -28,7 +29,7 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
           use MediaCentaurWeb.Live.EntityModal
 
           def mount(_, _, socket) do
-            if connected?(socket), do: ReleaseTracking.subscribe()
+            if connected?(socket), do: WatchHistory.subscribe()
             # Library.subscribe() / Playback.subscribe() are auto-wired.
             {:ok, socket}
           end
@@ -39,10 +40,14 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
           def mount(_, _, socket) do
             if connected?(socket) do
               Library.subscribe()
-              Playback.subscribe()
+              MediaCentaur.Playback.subscribe()
             end
             {:ok, socket}
           end
+
+      The short alias and the fully qualified spelling are the same call;
+      both are reported. A nested alias (`Library.Views.subscribe()`) is a
+      different context and is not.
 
       A host that needs the trait's underlying context for additional
       reasons does NOT need to subscribe twice — the on_mount subscription
@@ -53,13 +58,24 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
     ]
 
   # Mapping of trait module → context modules whose `subscribe/0` the
-  # trait owns. Add new entries as new auto-wiring traits are introduced.
+  # trait owns. Add new entries as new auto-wiring traits are introduced;
+  # the check's test asserts every trait named here exists.
   @trait_subscribes %{
-    [:MediaCentaurWeb, :Live, :EntityModal] => [:Library, :Playback],
+    [:MediaCentaurWeb, :Live, :EntityModal] => [
+      :Library,
+      :Playback,
+      :ReleaseTracking,
+      :Activities,
+      :Acquisition
+    ],
+    [:MediaCentaurWeb, :Live, :TitleDetailHost] => [:ReleaseTracking],
+    [:MediaCentaurWeb, :Live, :IntentAware] => [:Discovery],
     [:MediaCentaurWeb, :Live, :SpoilerFreeAware] => [:Settings],
-    [:MediaCentaurWeb, :Live, :CapabilitiesAware] => [:Capabilities],
-    [:MediaCentaurWeb, :Live, :WatchlistAware] => [:Discovery]
+    [:MediaCentaurWeb, :Live, :CapabilitiesAware] => [:Capabilities]
   }
+
+  @doc "The trait → owned-context map this check enforces."
+  def trait_subscribes, do: @trait_subscribes
 
   @impl true
   def run(%SourceFile{filename: filename} = source_file, params) do
@@ -96,21 +112,29 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
 
   defp collect_forbidden(_ast, acc), do: acc
 
-  # Looks for `Foo.subscribe(...)` where `Foo` is in the forbidden list.
+  # Looks for `Foo.subscribe(...)` or `MediaCentaur.Foo.subscribe(...)`
+  # where `Foo` is in the forbidden list. A deeper alias
+  # (`Foo.Views.subscribe()`) names another context and passes.
   defp traverse(
-         {{:., meta, [{:__aliases__, _, [module]}, :subscribe]}, _, _args} = ast,
+         {{:., meta, [{:__aliases__, _, alias_path}, :subscribe]}, _, _args} = ast,
          issues,
          issue_meta,
          forbidden
        ) do
-    if module in forbidden do
-      {ast, [issue_for(issue_meta, "#{module}.subscribe", meta[:line]) | issues]}
-    else
-      {ast, issues}
+    case owned_context(alias_path, forbidden) do
+      nil -> {ast, issues}
+      module -> {ast, [issue_for(issue_meta, "#{module}.subscribe", meta[:line]) | issues]}
     end
   end
 
   defp traverse(ast, issues, _issue_meta, _forbidden), do: {ast, issues}
+
+  defp owned_context([module], forbidden) when is_atom(module) do
+    if module in forbidden, do: module
+  end
+
+  defp owned_context([:MediaCentaur, module], forbidden), do: owned_context([module], forbidden)
+  defp owned_context(_alias_path, _forbidden), do: nil
 
   defp issue_for(issue_meta, trigger, line_no) do
     format_issue(

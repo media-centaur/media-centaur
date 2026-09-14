@@ -503,7 +503,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         class="relative"
         data-page-behavior="discovery"
         data-nav-default-zone="discovery"
-        data-nav-transient-params="title activity"
+        data-nav-transient-params="title,activity"
       >
         <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
           <.page_header title="Discovery" class="px-1" />

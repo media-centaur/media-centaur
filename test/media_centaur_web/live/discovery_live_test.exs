@@ -42,6 +42,15 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     assert has_element?(view, "#watchlist-empty")
   end
 
+  test "the page root declares its modal params transient, comma-separated", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/discovery/watchlist")
+
+    assert has_element?(
+             view,
+             "[data-page-behavior='discovery'][data-nav-transient-params='title,activity']"
+           )
+  end
+
   test "rows show state; the modal offers the honest action per state", %{conn: conn} do
     {:ok, _} =
       Discovery.put_rung(

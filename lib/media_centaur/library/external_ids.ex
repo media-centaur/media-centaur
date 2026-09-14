@@ -371,54 +371,6 @@ defmodule MediaCentaur.Library.ExternalIds do
     )
   end
 
-  @doc """
-  Returns every entity in the library that has a TMDB ExternalId,
-  tagged with its type. Used by ReleaseTracking to scan for tracking
-  candidates.
-
-  Each row is `%{source: String.t(), external_id: String.t(),
-  owner_type: atom(), owner_id: Ecto.UUID.t()}`. The `:source` is
-  `"tmdb"` for movies / TV / video objects and `"tmdb_collection"` for
-  movie series; `:owner_type` is the canonical container type atom.
-
-  Standalone movies (no `movie_series_id`) are surfaced; movies that
-  belong to a movie_series are skipped — release tracking handles them
-  through the collection.
-  """
-  def list_tmdb_entities do
-    tv_and_movie_series =
-      Repo.all(
-        from(e in ExternalId,
-          where:
-            (e.owner_type == :tv_series and e.source == "tmdb") or
-              (e.owner_type == :movie_series and e.source == "tmdb_collection"),
-          select: %{
-            source: e.source,
-            external_id: e.external_id,
-            owner_type: e.owner_type,
-            owner_id: e.owner_id
-          }
-        )
-      )
-
-    standalone_movies =
-      Repo.all(
-        from(m in Movie,
-          join: e in ExternalId,
-          on: e.owner_id == m.id and e.owner_type == :movie,
-          where: e.source == "tmdb" and is_nil(m.movie_series_id),
-          select: %{
-            source: e.source,
-            external_id: e.external_id,
-            owner_type: e.owner_type,
-            owner_id: e.owner_id
-          }
-        )
-      )
-
-    tv_and_movie_series ++ standalone_movies
-  end
-
   defp owner_type(%Movie{}), do: :movie
   defp owner_type(%TVSeries{}), do: :tv_series
   defp owner_type(%MovieSeries{}), do: :movie_series

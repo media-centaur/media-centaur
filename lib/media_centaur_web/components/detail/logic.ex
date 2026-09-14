@@ -74,7 +74,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
     * `facets_for(:movie, movie)` — Director, Rating, Original language, Studio, Genres
     * `facets_for(:tv_series, tv)` — Network, Rating, Original language, Genres
-    * `facets_for(:movie_series, ms, movies)` — Rating, First released, Latest, Genres
 
   Rating sits right after the primary identity field so the stacked
   2-column layout pairs them on the same row — keeps the eye flowing
@@ -106,28 +105,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
         Facet.rating("Rating", tv.aggregate_rating_value, Map.get(tv, :vote_count)),
         Facet.text("Original language", tv.original_language),
         Facet.chips("Genres", Map.get(tv, :genres))
-      ],
-      &blank_facet?/1
-    )
-  end
-
-  @spec facets_for(:movie_series, map(), [map()]) :: [Facet.t()]
-  def facets_for(:movie_series, movie_series, movies) when is_list(movies) do
-    years = movie_series_years(movies)
-
-    # No "Movies" count facet — the metadata row above the strip already
-    # reads "N movies", same duplicate rule that keeps Country and
-    # Status out of every strip.
-    Enum.reject(
-      [
-        Facet.rating(
-          "Rating",
-          Map.get(movie_series, :aggregate_rating_value),
-          Map.get(movie_series, :vote_count)
-        ),
-        Facet.text("First released", List.first(years)),
-        Facet.text("Latest", List.last(years)),
-        Facet.chips("Genres", Map.get(movie_series, :genres))
       ],
       &blank_facet?/1
     )
@@ -357,13 +334,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
     |> Atom.to_string()
     |> String.replace("_", " ")
     |> String.capitalize()
-  end
-
-  defp movie_series_years(movies) do
-    movies
-    |> Enum.map(&MediaCentaur.Format.year(&1.date_published))
-    |> Enum.reject(&is_nil/1)
-    |> Enum.sort()
   end
 
   defp blank_facet?(%Facet{kind: :text, value: value}), do: blank_string?(value)
