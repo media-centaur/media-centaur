@@ -78,6 +78,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.TitleRef
@@ -1144,7 +1145,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   defp start_missing_episode_plan(socket, entity, unit) do
     name = {:missing_episode, entity.id, unit}
     tmdb_id = entity.tmdb_id
-    mode = MediaCentaur.Settings.Preferences.PlanningMode.value()
+    mode = PlanningMode.value()
 
     {:noreply,
      socket
@@ -1157,7 +1158,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     with {:ok, selection} <- Targeting.series_selection(tmdb_id),
          label = "#{selection.title} S#{season}E#{episode}",
          :ok <- unit_plannable(selection, unit) do
-      opts = [approval_policy: PlanFlow.approval_policy(mode)]
+      opts = [approval_policy: PlanningMode.approval_policy(mode)]
 
       case Plans.create_series_plan(selection, [unit], opts) do
         {:ok, plan} -> {:planned, plan, mode, label}

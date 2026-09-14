@@ -159,7 +159,7 @@ defmodule MediaCentaur.ReleaseTracking do
   defp reconcile_item(%Item{} = item) do
     rung = Discovery.rung(item.tmdb_id, item.media_type)
 
-    if TitleIntent.follows_releases?(rung) and not owned_film?(item) do
+    if TitleIntent.follows_releases?(rung) and not complete?(item.tmdb_id, item.media_type) do
       :ok
     else
       delete_item(item)
@@ -167,11 +167,16 @@ defmodule MediaCentaur.ReleaseTracking do
     end
   end
 
-  # A single film in the library is complete — nothing left to release.
-  defp owned_film?(%Item{media_type: :movie, tmdb_id: tmdb_id}),
-    do: ExternalIds.tmdb_owners([{tmdb_id, :movie}]) != %{}
-
-  defp owned_film?(%Item{}), do: false
+  @doc """
+  Whether nothing is left to release: a film the library owns. The one
+  spelling of the rule `derive/3` and `reconcile/2` apply — a tracked
+  title exists only while the title is followed *and* incomplete — and
+  the title view reads to show no tracking rows. A series is never
+  complete, and neither is a collection: no movie owns a collection's id.
+  """
+  @spec complete?(integer(), Title.media_type()) :: boolean()
+  def complete?(tmdb_id, :movie), do: ExternalIds.tmdb_owners([{tmdb_id, :movie}]) != %{}
+  def complete?(_tmdb_id, :tv_series), do: false
 
   # Artwork is deliberately NOT removed here: untracking releases the
   # item's hold, and the TmdbArtwork sweep ages the entry out after its
@@ -358,7 +363,7 @@ defmodule MediaCentaur.ReleaseTracking do
 
   # The derivation rule, in one place. A tracked title exists exactly
   # when the person follows the title *and* there is a future to follow —
-  # a single film already in the library is complete, so it has neither
+  # a film already in the library is complete (`complete?/2`), so it has neither
   # calendar nor wants however high the rung sits. The rung is never
   # lowered to express that: the system does not move a person's intent.
   defp derive(%Title{} = title, rung, attrs) do
@@ -366,7 +371,7 @@ defmodule MediaCentaur.ReleaseTracking do
       not TitleIntent.follows_releases?(rung) ->
         drop_machinery(title.tmdb_id, title.media_type)
 
-      movie_in_library?(title) ->
+      complete?(title.tmdb_id, title.media_type) ->
         drop_machinery(title.tmdb_id, title.media_type)
 
       true ->
@@ -391,11 +396,6 @@ defmodule MediaCentaur.ReleaseTracking do
       %Item{} = item -> with {:ok, _} <- delete_item(item), do: :ok
     end
   end
-
-  defp movie_in_library?(%Title{media_type: :movie, tmdb_id: tmdb_id}),
-    do: ExternalIds.tmdb_owners([{tmdb_id, :movie}]) != %{}
-
-  defp movie_in_library?(%Title{}), do: false
 
   # --- Releases ---
 

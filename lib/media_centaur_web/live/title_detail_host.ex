@@ -451,7 +451,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       when not is_nil(name), do: socket
 
   def start_download(socket, %Title{} = title, :auto_select_best_release, scope) do
-    policy = PlanFlow.approval_policy(:auto_select_best_release)
+    policy = PlanningMode.approval_policy(:auto_select_best_release)
     :ok = Plans.plan_title(title, [approval_policy: policy] ++ scope_opts(scope))
 
     socket = put_flash(socket, :info, PlanFlow.download_flash(title.name))
@@ -459,7 +459,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   end
 
   def start_download(socket, %Title{} = title, :manually_select_release, scope) do
-    opts = [approval_policy: PlanFlow.approval_policy(:manually_select_release)] ++ scope_opts(scope)
+    opts = [approval_policy: PlanningMode.approval_policy(:manually_select_release)] ++ scope_opts(scope)
     name = {:title_download, Title.ref(title), title.name}
 
     socket
