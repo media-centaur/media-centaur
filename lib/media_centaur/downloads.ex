@@ -17,7 +17,7 @@ defmodule MediaCentaur.Downloads do
     ]
 
   @moduledoc """
-  Download-client integration boundary (ADR-043 Phase 1).
+  Download-client integration boundary.
 
   Owns:
 
@@ -28,7 +28,7 @@ defmodule MediaCentaur.Downloads do
     * **Queue monitor** — `QueueMonitor` polls the configured drivers,
       snapshots the merged queue into `:persistent_term` + GenServer
       state, and broadcasts it on `acquisition:queue` (the topic name
-      predates the context split; rename deferred per ADR-043).
+      predates the context split; rename deferred).
     * **Health classification** — `Health.classify/3` interprets a
       `QueueItem` against its history (`HealthHistory`) into one of the
       `Health.status/0` grades. Read by Acquisition's Pursuits subsystem

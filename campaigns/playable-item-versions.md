@@ -85,7 +85,7 @@ Phase 1 — renditions (the HDR/SDR case):
    quality). Regression tests pin the ranking.
 4. **Manage modal: versions section** — list versions with badges
    (`2160p · HDR10+DV · Remux · 48 GB`), radio-select the active one,
-   explicit per-file delete (two-phase, ADR-015), total-disk footprint.
+   explicit per-file delete (ADR-045), total-disk footprint.
 5. **Entity-scoped "grab another version"** — release search from the
    detail page, prefilled query, results annotated against existing
    renditions ("you have this quality already"); the one sanctioned

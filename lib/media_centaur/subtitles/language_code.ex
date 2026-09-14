@@ -9,7 +9,7 @@ defmodule MediaCentaur.Subtitles.LanguageCode do
   through one mapping.
 
   Thin projection over `MediaCentaur.Iso639` — the boundary-neutral owner
-  of the one code table (ADR-048). This module used to hard-code its own
+  of the one code table. This module used to hard-code its own
   smaller 3→2 table, which drifted from the playback table (e.g. `est` /
   `hrv` resolved for playback but returned `nil` here). Sharing the table
   *widens* subtitle detection to the fuller language set — an intended

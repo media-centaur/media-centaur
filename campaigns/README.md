@@ -123,7 +123,7 @@ Use [`template.md`](template.md) as a starter.
   **versioned, loopback-only, confirm-in-MC provisioning handshake** lets the
   installer auto-wire MC ("detected MC on :2160 — configure?"). Greenfield-with-
   heritage: ports prowlarr-stack's proven parts; old repo removed at parity-
-  plus-maturity. ADR-052 (amends ADR-035) is the first deliverable. Seven phases;
+  plus-maturity. ADR-052 (amends ADR-037) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
   **planning.** Reproducible install environments for media-centaur and
@@ -151,7 +151,7 @@ where any leftover went.
 * **Watchlist and release tracking** — **shipped v1.16.0 2026-09-07; file
   retired 2026-09-11.** Four representations of one idea collapsed into one
   authored intent and one derived machine, three title modals into two
-  ([ADR-065](../decisions/architecture/2026-09-07-065-tracking-reasons-and-the-derived-tracked-title.md),
+  (ADR-065, retired into [ADR-066](../decisions/architecture/2026-09-07-066-one-ladder-per-title.md),
   [UIDR-035](../decisions/user-interface/2026-09-07-035-two-title-surfaces.md));
   superseded in part by *Tracking is a person's act* below. Phase 6 ("a title
   resolves to one surface") was abandoned before planning: an owned title

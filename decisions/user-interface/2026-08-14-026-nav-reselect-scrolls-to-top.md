@@ -6,42 +6,14 @@ date: 2026-08-14
 
 ## Context and Problem Statement
 
-Clicking a sidebar link for the page already on screen did nothing useful:
-LiveView performed a full live navigation to the same route, remounting the
-page and resetting its state, while the scroll position survived the patch.
-The reader who scrolled deep into Home and clicked "Home" expected the
-universal idiom — nav re-click means "take me back to the top of this page"
-— and instead got a flash and no movement.
+Clicking the sidebar link for the page already on screen remounted the page and reset its state while the scroll position survived. A nav re-click universally means "back to the top".
 
 ## Decision Outcome
 
-**Re-selecting the current page in the sidebar scrolls the page to the top.
-It never remounts the page.** Implemented once, at the sidebar seam
-(`assets/js/nav_reselect.js`, installed from `app.js`): a capture-phase
-click listener intercepts sidebar links whose destination pathname equals
-the current one, suppresses LiveView's link handling, and issues a smooth
-`window.scrollTo(0)`.
-
-* When the current URL carries a query string the bare nav link doesn't
-  (a filtered view such as `/incoming?q=…`), the navigation is real and
-  proceeds — but the scroll-to-top still applies, so the gesture's outcome
-  is the same from the reader's seat.
-* The rule keys on pathname, so it covers every sidebar entry uniformly,
-  including ones whose target varies (Review → `/review` or `/reconcile`).
-* This is a principle, not a page feature: any future main-nav surface
-  inherits the same contract — re-selecting where you are returns you to
-  the top, never reloads.
+1. Re-selecting the current page scrolls the window to the top and never remounts. `assets/js/nav_reselect.js` intercepts sidebar clicks whose destination pathname equals the current one and issues a smooth scroll instead of LiveView navigation.
+2. When the current URL carries a query string the bare link does not (a filtered view), the navigation proceeds; the scroll-to-top still applies.
+3. The rule keys on pathname, so every sidebar entry inherits it, including entries whose target varies.
 
 ### Consequences
 
-* Good, because the nav gains the behaviour every reader already expects
-  from browsers, mobile apps, and TV shells alike.
-* Good, because the pointless same-page remount (state reset, image
-  re-decode, hero repaint) disappears — the click is now cheaper as well
-  as more useful.
-* Neutral, because split-pane pages whose window doesn't scroll (Review,
-  Reconcile) see a no-op scroll; nothing moves because nothing was
-  scrolled.
-* Bad, because anyone who relied on the nav link as a "reset this page"
-  button loses the remount when the URL matches exactly; a filtered URL
-  still resets, and a reload remains available.
+* A nav link no longer resets the page when the URL matches exactly; a filtered URL still resets.

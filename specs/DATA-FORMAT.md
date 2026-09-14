@@ -31,7 +31,7 @@ schema; read the module to see its fields.
 Every type record has:
 
 - a UUID primary key (the `id` field), assigned at creation and never
-  changed — see [ADR-005](../decisions/architecture/2026-02-20-005-entity-identity-and-image-storage.md)
+  changed (see *Entity* in [`docs/GLOSSARY.md`](../docs/GLOSSARY.md))
 - snake_case field names that match the Ecto schema declaration
   (`name`, `description`, `date_published`, `content_url`, `genres`,
   `duration`, `director`, `content_rating`, `aggregate_rating_value`,

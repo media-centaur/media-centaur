@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanelTest do
                "1h 41m · HEVC · 3840×2160 · TrueHD 7.1"
     end
 
-    test "durations under an hour omit the hour segment (UIDR-004)" do
+    test "durations under an hour omit the hour segment" do
       assert ManagePanel.file_tech_line(probed_media_info(%{duration_seconds: 2712})) =~ "45m ·"
       refute ManagePanel.file_tech_line(probed_media_info(%{duration_seconds: 2712})) =~ "0h"
     end

@@ -21,7 +21,7 @@ defmodule MediaCentaur.Acquisition.DownloadParams do
   carried are gone (UIDR-041 §6): the highest resolution is a global
   choice and there is no window to be patient for.
 
-  [ADR-063]: `decisions/architecture/2026-06-27-063-plan-board-quality-acceptance.md`
+  [ADR-063]: `decisions/architecture/2026-08-31-063-plan-diagnosis-model.md`
   """
   use Ecto.Schema
 

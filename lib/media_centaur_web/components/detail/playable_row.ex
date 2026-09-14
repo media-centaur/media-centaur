@@ -202,7 +202,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
   # Layout + hover styling for the watched/unwatched toggle button.
   # Padding (`p-1.5`) with a cancelling negative margin keeps the
   # circle's click/focus target comfortably larger than the 20px dot
-  # (UIDR-003) without affecting layout or reaching the text.
+  # (button convention) without affecting layout or reaching the text.
   defp watched_toggle_button_class do
     [
       "group/toggle flex items-center flex-shrink-0 cursor-pointer",

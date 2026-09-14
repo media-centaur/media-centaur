@@ -7,7 +7,7 @@ defmodule MediaCentaur.Credo.Checks.RawButtonClass do
       check: """
       Templates under `lib/media_centaur_web/` must not use raw daisyUI
       `btn` classes directly. Go through the `<.button>` component, which
-      encodes the UIDR-003 button variants (primary, secondary, action,
+      encodes the button variants (primary, secondary, action,
       info, risky, danger, dismiss, destructive_inline, neutral, outline)
       and sizes (xs, sm, md, lg).
 
@@ -27,7 +27,7 @@ defmodule MediaCentaur.Credo.Checks.RawButtonClass do
       The button component itself (`core_components.ex`) is exempt — it
       owns the literal `btn` string.
 
-      Source: CLAUDE.md / UIDR-003.
+      Source: the `user-interface` skill (Buttons). This check and `button/1` are the spec.
       """
     ]
 
@@ -88,7 +88,7 @@ defmodule MediaCentaur.Credo.Checks.RawButtonClass do
       issue_meta,
       message:
         "Use the `<.button>` component (with `variant` and `size`) instead of raw `btn` classes. " <>
-          "See UIDR-003 / `MediaCentaurWeb.CoreComponents.button/1`.",
+          "See `MediaCentaurWeb.CoreComponents.button/1`.",
       trigger: "btn",
       line_no: line_no
     )

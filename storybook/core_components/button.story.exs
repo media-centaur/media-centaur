@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.Button do
       },
       %VariationGroup{
         id: :hero_pair,
-        description: "Standard hero CTA pair — Play + More info ([UIDR-003])",
+        description: "Standard hero CTA pair — Play + More info",
         variations: [
           %Variation{
             id: :play,

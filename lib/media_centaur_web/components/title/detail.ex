@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Components.Title.Detail do
   acquisition_state}` (Planning / Downloading / Needs review — a fact,
   not a verb), `:download`, or `nil` when there is nothing to download
   yet — the tracking-mode control is the arming surface, so there is
-  no `Track` verb (ADR-065). `scoped?` says the download carries the
+  no `Track` verb (ADR-066). `scoped?` says the download carries the
   series scope menu. `planning_mode` is the person's default planning
   mode (`Settings.Preferences.PlanningMode`), read on build like
   `default_grab_mode`: the main segment of Download performs it and the

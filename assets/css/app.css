@@ -318,7 +318,7 @@ html.psb .psb-variation-block .media-centaur {
 
 /* Flash toasts — glass panel replacing the solid daisy alert-info/alert-error
    fill (solid semantic fills wash out against the dark glass surfaces — same
-   rationale as UIDR-003). Uses the more opaque nav-tier background because
+   rationale as the button convention). Uses the more opaque nav-tier background because
    toasts float over arbitrary content, including imagery, and readability
    comes first. A custom class because the glass background/shadow would
    clobber the equivalent Tailwind utilities.
@@ -2994,7 +2994,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 /* Landing target of a shelf pill's "jump to the live download" anchor —
    the row the browser scrolled to reads brighter, so the jump lands
-   legibly. Static state, not an animation (ADR-012). */
+   legibly. Static state, not an animation (UIDR-012). */
 [id^="pursuit-"]:target {
   filter: brightness(1.35);
 }

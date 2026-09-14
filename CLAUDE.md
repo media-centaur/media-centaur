@@ -183,7 +183,7 @@ If a feature is WIP and the user-visible shape hasn't settled, note the wiki upd
 
 ## Decision Records
 
-Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)). Filename convention: `YYYY-MM-DD-NNN-short-title.md`, numbered per category (`architecture/`, `user-interface/`). [`decisions/README.md`](decisions/README.md) indexes every record — regenerate it when you add or retire one.
+Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)). Filename convention: `YYYY-MM-DD-NNN-short-title.md`, numbered per category (`architecture/`, `user-interface/`). [`decisions/README.md`](decisions/README.md) indexes every record — regenerate it with `scripts/gen-decisions-index` when you add, amend, or retire one.
 
 **A decision record captures a point in time — it is not living documentation and cannot be trusted to reflect the current state of the system.** It records what was decided, and what was believed true, on its date. Read it for rationale, never as present-tense fact: verify any claim about how the system behaves against the code before relying on it. A record can also be flatly wrong — its premise may have been an untested assumption, or the code may have moved on since. When you find one that no longer matches reality, correct it in place with a **dated amendment** (see ADR-023's 2026-09-12 amendment) and put the enforceable truth where it will be met — a moduledoc, a Credo check, a test — not prose alone.
 

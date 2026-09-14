@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   @moduledoc """
-  One person on the Friends tab (UIDR-031): name as the title, the
+  One person on the Friends tab (UIDR-038): name as the title, the
   presence line, the Recently watched strip with its "all N" tile, the
   Wants to watch and Reviewed rows, and a friend's footer. The You card
   differs in border, subtitle and the missing footer. Expansion is the

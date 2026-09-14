@@ -471,7 +471,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   def state_label(_), do: "Unknown"
 
   @doc """
-  Maps a `QueueItem` state to a `<.badge>` variant (UIDR-002 /
+  Maps a `QueueItem` state to a `<.badge>` variant (see
   `MediaCentaurWeb.CoreComponents.badge/1`).
   """
   @spec state_badge_variant(QueueItem.state() | nil) :: String.t()
@@ -490,7 +490,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
 
   @doc """
   Text-color class for a queue state rendered as plain colored text
-  (UIDR-002 #1 — status labels are text, not chips).
+  (status labels are text, not chips).
   """
   @spec state_text_class(QueueItem.state() | nil) :: String.t()
   def state_text_class(:downloading), do: "text-info/80"

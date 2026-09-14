@@ -15,7 +15,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
 
   `loadfile_command/1` builds the IPC command for the append. The resume
   position rides a **per-entry** `start` option — the global `--start`
-  launch flag (ADR-013) applies only to the first file and must never
+  launch flag (ADR-062) applies only to the first file and must never
   leak onto appended entries. The 5-argument `loadfile` form (with the
   insertion index) requires mpv ≥ 0.38; entries starting at zero use the
   plain 3-argument form.

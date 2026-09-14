@@ -45,7 +45,7 @@ defmodule MediaCentaur.Subtitles.LanguageCodeTest do
       assert LanguageCode.normalize(nil) == nil
     end
 
-    # Sharing the one MediaCentaur.Iso639 table (ADR-048) widened subtitle
+    # Sharing the one MediaCentaur.Iso639 table widened subtitle
     # detection beyond the old hard-coded 3→2 table: these languages used to
     # return nil here (they only resolved for playback) and now normalise.
     test "recognises the wider MediaCentaur.Iso639 language set (was nil pre-consolidation)" do

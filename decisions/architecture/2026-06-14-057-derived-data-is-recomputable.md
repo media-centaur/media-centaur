@@ -6,62 +6,39 @@ date: 2026-06-14
 
 ## Context and Problem Statement
 
-A library record mixes two kinds of fact with very different economics:
-
-* **Identity** — which show/movie a file is, its TMDB link, its external IDs.
-  Expensive to compute (a network round-trip plus matching), and stable once
-  known. Recomputing it is costly and pointless.
-* **Derived** — values a deterministic local rule reads off the file path: the
-  display name of a bonus feature, its season/episode number. Cheap to compute
-  (re-read one filename), and *wrong whenever the rule has a bug*.
-
-The discovery pipeline freezes both at import behind a single boolean,
-`Discovery.already_linked?/1`: once a file is linked it is skipped on every
-later scan. That skip is correct for identity — it stops the pipeline re-hitting
-TMDB and creating duplicates. But by bundling "linked" and "named" into one bit,
-it also freezes the derived values forever. When a parsing rule is *improved*,
-records already on disk never benefit.
-
-This surfaced as the Frieren "Web Previews" bug (v0.95.2): a parser fix corrected
-the rule, but the 28 already-imported extras stayed blank and needed a
-hand-written backfill. That backfill is a symptom — the design makes every
-parser improvement require a bespoke data migration.
+A library record mixes identity (which title a file is, its TMDB link —
+expensive to compute, stable once known) with derived values a local rule
+reads off the file path (a bonus feature's display name, a season or episode
+number — cheap to compute, wrong whenever the rule has a bug). The discovery
+pipeline froze both behind one boolean, `Discovery.already_linked?/1`, so a
+parser improvement never reached records already on disk; a tracked show's
+28 blank extras needed a hand-written backfill after a parser fix.
 
 ## Decision Outcome
 
-Chosen option: **treat derived data as recomputable**, because a value that is a
-pure function of inputs the system still holds (the file path) should never be
-frozen — it should be re-derivable on demand, with no network and no bespoke
-migration.
+Derived data is recomputable: a value that is a pure function of inputs the
+system still holds is never frozen.
 
-Concretely:
+1. **Identity is separate from derived.** Identity stays frozen behind the
+   link gate, which is the only path that hits TMDB. Derived fields (today
+   `Extra.name`) are refreshable.
+2. **Re-derivation is version-free.** It re-parses the path and updates the
+   value only where the fresh result differs and is non-empty; it is pure,
+   idempotent and network-free. A version stamp may later optimize which
+   files to re-parse, never decide correctness.
+3. **An empty derived value is never persisted**, enforced at the writer
+   (`Extra.update_name_changeset/2`), so no producer can store a blank.
+4. **Re-derivation must not overwrite a human edit.** No edit affordance
+   exists for derived names today; whoever adds one adds the guard with it.
 
-1. **Separate identity from derived.** Identity stays frozen behind the link
-   gate. Derived fields (today: `Extra.name`) are refreshable.
-2. **Correctness is version-free.** Re-derivation re-parses the path and updates
-   the value only where the freshly-derived result differs and is non-empty. It
-   is pure, idempotent, and network-free. A version stamp may be added later
-   purely to *optimize* which files to re-parse on a normal scan — it is never a
-   correctness dependency.
-3. **The link gate becomes a reconciliation decision**, not a boolean: `fresh`
-   (full intake — the only path that hits TMDB), `relink` (moved/renamed),
-   `refresh` (derived value stale → re-derive, no network), `up_to_date`.
-4. **Never persist an empty derived value** — enforced at the writer (changeset),
-   so no producer, present or future, can store a blank.
-
-The rollout is tracked in `campaigns/deriver-model.md`.
+What shipped: `Pipeline.ExtraRederive`, run through
+`Maintenance.rederive_extra_names/0`. The link gate is still the boolean; the
+four-way reconciliation decision this record proposed (`fresh` / `relink` /
+`refresh` / `up_to_date`) was not built, so re-derivation is a maintenance
+sweep rather than a scan-path step.
 
 ### Consequences
 
-* Good, because a parsing-rule fix heals existing records on the next sweep or
-  scan, with no hand-written backfill — the class of work the Frieren bug forced.
-* Good, because re-derivation is cheap and safe (no TMDB, idempotent), so it can
-  run on ordinary scans without cost or duplication risk.
-* Good, because separating identity from derived makes the model honest and gives
-  the long-planned relink-on-move work a natural home (the `relink` branch).
-* Bad, because the link gate grows from one `if` into a four-way decision plus
-  (optionally) a version stamp — more surface to test and reason about.
-* Bad, because re-derivation must not overwrite a human edit. Today no edit
-  affordance exists for derived names, so this is latent; if one is added, a
-  "user-edited" guard must land with it. We design the seam to accept that guard
-  but do not build it pre-emptively.
+* A parser fix heals existing records on the next sweep with no bespoke
+  migration; it does not heal them on an ordinary scan until the gate
+  becomes a decision.

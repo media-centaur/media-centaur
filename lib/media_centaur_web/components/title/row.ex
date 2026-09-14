@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   2026-09-05 §14). The shared `title_summary/1` identity block, the
   quiet markers the host computed (`Logic.row_markers/2`), and the
   notes in place of the overview: one unattributed note reads plain,
-  several carry their names (UIDR-031). State is shown, never acted on
+  several carry their names (UIDR-038). State is shown, never acted on
   here: every verb lives in the modal. (The Feed's entries are
   `Discovery.FeedEntryCard`, which carries its own toolbar.)
 

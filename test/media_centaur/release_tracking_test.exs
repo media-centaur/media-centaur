@@ -1132,9 +1132,8 @@ defmodule MediaCentaur.ReleaseTrackingTest do
   describe "detach_library_containers/1" do
     # Deleting a series from the library unlinks it and reconciles. The
     # rung decides what survives: a title nobody follows goes, and a title
-    # a person put on the ladder keeps following it. That is the opposite
-    # of ADR-065's library reason, and deliberately so — only a person
-    # starts tracking, so only a person stops it.
+    # a person put on the ladder keeps following it (ADR-066: the library is
+    # never a reason — only a person starts tracking, so only a person stops it).
     test "a title nobody asked for stops being tracked" do
       container_id = Ecto.UUID.generate()
 

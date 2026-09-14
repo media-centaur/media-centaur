@@ -90,7 +90,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
       %Variation{
         id: :reviewed_by_two,
         description:
-          "Two friends on one title (UIDR-031): each note carries its name, " <>
+          "Two friends on one title (UIDR-038): each note carries its name, " <>
             "and the mast stacks love above like.",
         attributes: %{
           id: "row-reviewed-by-two",

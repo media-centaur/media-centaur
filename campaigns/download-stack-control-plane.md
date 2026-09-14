@@ -133,7 +133,7 @@ one-client → set-of-clients refactor + the SABnzbd driver).
 
 Design settled 2026-05-31. **ADR-052 written and committed (`2e942044`)** — that
 commit also carries this campaign, the `usenet-download-client` P0 reconciliation,
-and the ADR-035 cross-link. No stack or MC code yet. Next concrete work: P0
+and the ADR-037 cross-link. No stack or MC code yet. Next concrete work: P0
 (new repo scaffold + name), or the independently-shippable **P4 handshake
 MC-receiver** in this repo.
 
@@ -198,7 +198,7 @@ independently valuable and can be sequenced early.
 
 1. **P0 · ADR-052 + repo scaffold.** ✅ ADR-052 written + committed (`2e942044`)
    — control-plane-in-stack / thin versioned MC↔stack seam / drain-before-change,
-   amending ADR-035. **Remaining:** create the new `download-stack` repo; settle
+   amending ADR-037. **Remaining:** create the new `download-stack` repo; settle
    its name (open — `download-stack` / `acquisition-stack` / TBD).
 2. **P1 · Parity port + SABnzbd.** Bring prowlarr-stack's proven pieces into the
    new repo (compose topology, gluetun kill-switch, mountpoint /
@@ -263,7 +263,7 @@ independently valuable and can be sequenced early.
   POSTs the wiring bundle, MC stages it, user accepts in MC, acquisition is
   wired — versioned, loopback-only, confirm-gated.
 * Drain-before-change precondition is enforced/warned.
-* ADR-052 written (amends ADR-035); docs/wiki/install one-liners migrated.
+* ADR-052 written (amends ADR-037); docs/wiki/install one-liners migrated.
 * `prowlarr-stack` deprecated and removed; references in sibling campaigns
   updated.
 
@@ -280,11 +280,8 @@ independently valuable and can be sequenced early.
   (Prowlarr API client), `downloads/download_client/dispatcher.ex` +
   `qbittorrent.ex` (MC polls clients directly), `downloads/queue_monitor.ex`.
   The provisioning endpoint is net-new web surface.
-* **ADRs** — [ADR-035](../decisions/architecture/2026-04-15-035-acquisition-prowlarr-integration.md)
-  (Prowlarr integration — **ADR-052 amends its single-stack assumption**),
-  [ADR-037](../decisions/architecture/2026-04-16-037-acquisition-integration-scope.md)
-  (integration scope), [ADR-043](../decisions/architecture/2026-05-10-043-acquisition-split.md)
-  (Search/Downloads split), [ADR-042](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
+* **ADRs** — [ADR-037](../decisions/architecture/2026-04-16-037-acquisition-integration-scope.md)
+  (integration scope; **ADR-052 amends its single-stack assumption**), [ADR-042](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
   (campaign convention).
 * **Sibling campaigns** —
   `usenet-download-client` (campaign complete 2026-09-01, in git history) (the SABnzbd service

@@ -96,13 +96,11 @@ defmodule MediaCentaur.ReleaseTracking do
   reacts to `:containers_deleted`): the container reference has no FK, so
   without this the item would dangle against a deleted UUID forever.
 
-  The reconcile is the point ([ADR-065]). The library reason is a
-  *default* — the app tracked the title because you owned it — so it
-  evaporates with the container, and a title left with no reason stops
-  being tracked. A title a person armed has the watchlist reason and
-  keeps going at the mode they set; a disarmed one keeps its disarm.
-  Before ADR-065 this kept *every* item, so a deleted series went on
-  grabbing whether or not anyone had asked.
+  The reconcile is the point (ADR-066): the rung decides what survives.
+  A title nobody put on the ladder had only a derived tracked title and
+  stops being tracked; a title a person follows keeps following at the
+  rung they set. Earlier code kept *every* item, so a deleted series
+  went on grabbing whether or not anyone had asked.
   """
   @spec detach_library_containers([Ecto.UUID.t()]) :: non_neg_integer()
   def detach_library_containers([]), do: 0
@@ -323,7 +321,7 @@ defmodule MediaCentaur.ReleaseTracking do
 
   It lives here rather than in `Discovery` only because deriving needs to
   see both sides and the dependency runs this way — `Discovery` must stay
-  free of tracking ([ADR-065] §6/§7).
+  free of tracking (ADR-066).
 
   `attrs` may carry `:source`, `:note` and `:activity_id` (applied on
   creation), and `:start_season` / `:start_episode` to scope a first

@@ -11,7 +11,7 @@ End-user setup lives on the wiki:
 ## The two-slot model
 
 One client per **protocol slot** — torrent and usenet. Prowlarr is configured
-with both clients and routes each grab by the indexer's protocol (ADR-035:
+with both clients and routes each grab by the indexer's protocol (ADR-037:
 Prowlarr is the integration point; MC never picks a client at grab time).
 MC's drivers exist for the *queue view*, in-app cancel, and pursuit matching.
 
