@@ -23,6 +23,8 @@ defmodule MediaCentaur.TMDB.Title do
 
   import Ecto.Changeset
 
+  alias MediaCentaur.DateUtil
+
   @type media_type :: :movie | :tv_series
 
   @type t :: %__MODULE__{
@@ -57,6 +59,47 @@ defmodule MediaCentaur.TMDB.Title do
     |> cast(attrs, @fields)
     |> validate_required([:tmdb_id, :media_type, :name])
   end
+
+  @doc """
+  Builds the snapshot from a TMDB payload — a search hit or a detail
+  response, which share the fields the snapshot keeps. TMDB names a
+  movie's title `title` and dates it by `release_date`; a series is
+  `name` and `first_air_date`. The media type is the caller's: a multi
+  search hit carries one, a per-type hit or a detail response does not.
+  A missing or partial date is nil, and its year survives when the string
+  starts with one. A payload without an identity or a name is an error
+  rather than a title. The one field mapping every TMDB-fed builder
+  shares.
+  """
+  @spec from_tmdb(map(), media_type()) :: {:ok, t()} | {:error, Ecto.Changeset.t()}
+  def from_tmdb(%{} = tmdb, :movie), do: from_fields(tmdb, :movie, tmdb["title"], tmdb["release_date"])
+
+  def from_tmdb(%{} = tmdb, :tv_series),
+    do: from_fields(tmdb, :tv_series, tmdb["name"], tmdb["first_air_date"])
+
+  defp from_fields(tmdb, media_type, name, date_string) do
+    %{
+      tmdb_id: tmdb["id"],
+      media_type: media_type,
+      name: name,
+      year: DateUtil.extract_year(date_string),
+      release_date: parse_date(date_string),
+      poster_path: tmdb["poster_path"],
+      backdrop_path: tmdb["backdrop_path"],
+      overview: tmdb["overview"]
+    }
+    |> changeset()
+    |> apply_action(:insert)
+  end
+
+  defp parse_date(date_string) when is_binary(date_string) do
+    case Date.from_iso8601(date_string) do
+      {:ok, date} -> date
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp parse_date(_missing), do: nil
 
   @doc """
   Builds a title from plain attrs, raising `ArgumentError` when the

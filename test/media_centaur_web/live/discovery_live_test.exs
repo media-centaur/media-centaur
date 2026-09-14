@@ -1021,6 +1021,69 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#title-tracking-controls[data-rung='list']")
     end
 
+    test "a deep link to a title no list knows opens the modal from TMDB", %{conn: conn} do
+      enable_tmdb!()
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.setup_artwork_cache()
+
+      TmdbStubs.stub_get_movie(
+        424_242,
+        TmdbStubs.movie_detail(%{
+          "id" => 424_242,
+          "title" => "Unlisted Movie",
+          "tagline" => "Nobody listed this one.",
+          "release_date" => "2010-06-15"
+        })
+      )
+
+      {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-424242")
+
+      # No row knows the title, so there is no snapshot to open from: the
+      # modal appears when the TMDB detail lands.
+      refute html =~ "Unlisted Movie"
+      html = render_async(view, 1_000)
+      assert has_element?(view, "#title-detail-modal[data-state='open']")
+      assert html =~ "Unlisted Movie"
+      # One fetch dresses the detail too — the preview is already there.
+      assert html =~ "Nobody listed this one."
+      assert has_element?(view, "#title-watchlist[aria-pressed='false'][phx-value-choice='list']")
+      refute has_element?(view, "#title-tracking-controls")
+
+      # Every verb works on it: the bookmark lists it and the modal stays.
+      view |> element("#title-watchlist") |> render_click()
+      await_supervised_tasks()
+      assert Discovery.rung(424_242, :movie) == :list
+
+      assert has_element?(
+               view,
+               "#title-detail-modal[data-state='open'] #title-tracking-controls[data-rung='list']"
+             )
+    end
+
+    test "a deep link to a title no list knows, without TMDB, says what it needs and drops the param",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-424242")
+
+      # The fetch is what needs TMDB, so the answer arrives as its result.
+      render_async(view, 1_000)
+      assert_patch(view, "/discovery/watchlist")
+      assert has_element?(view, "#title-detail-modal[data-state='closed']")
+      assert render(view) =~ "TMDB API key"
+    end
+
+    test "a deep link to an id TMDB does not have says so and drops the param", %{conn: conn} do
+      enable_tmdb!()
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_tmdb_error("/movie/424242", 404)
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-424242")
+
+      render_async(view, 1_000)
+      assert_patch(view, "/discovery/watchlist")
+      assert has_element?(view, "#title-detail-modal[data-state='closed']")
+      assert render(view) =~ "TMDB has no movie"
+    end
+
     test "the modal opens from the snapshot, then dresses itself from the live TMDB detail",
          %{conn: conn} do
       # A ready TMDB capability: a key in config plus a passed test.

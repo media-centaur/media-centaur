@@ -21,7 +21,6 @@ defmodule MediaCentaur.TMDB.TitleSearch do
   """
 
   alias MediaCentaur.TMDB.{Client, Title}
-  alias MediaCentaur.DateUtil
 
   require MediaCentaur.Log, as: Log
 
@@ -67,63 +66,25 @@ defmodule MediaCentaur.TMDB.TitleSearch do
 
   defp tag_media_type({:error, _reason}, _media_type), do: []
 
-  defp normalize_multi_result(%{"media_type" => "movie"} = tmdb), do: normalize_movie_result(tmdb)
-  defp normalize_multi_result(%{"media_type" => "tv"} = tmdb), do: normalize_tv_result(tmdb)
+  defp normalize_multi_result(%{"media_type" => "movie"} = tmdb), do: normalize(tmdb, :movie)
+  defp normalize_multi_result(%{"media_type" => "tv"} = tmdb), do: normalize(tmdb, :tv_series)
   defp normalize_multi_result(_person_or_unknown), do: []
-
-  defp normalize_movie_result(tmdb) do
-    build_title(%{
-      tmdb_id: tmdb["id"],
-      media_type: :movie,
-      name: tmdb["title"],
-      year: DateUtil.extract_year(tmdb["release_date"]),
-      release_date: extract_date(tmdb["release_date"]),
-      poster_path: tmdb["poster_path"],
-      backdrop_path: tmdb["backdrop_path"],
-      overview: tmdb["overview"]
-    })
-  end
-
-  defp normalize_tv_result(tmdb) do
-    build_title(%{
-      tmdb_id: tmdb["id"],
-      media_type: :tv_series,
-      name: tmdb["name"],
-      year: DateUtil.extract_year(tmdb["first_air_date"]),
-      release_date: extract_date(tmdb["first_air_date"]),
-      poster_path: tmdb["poster_path"],
-      backdrop_path: tmdb["backdrop_path"],
-      overview: tmdb["overview"]
-    })
-  end
 
   # A TMDB hit missing its id or title is junk, not a crash: drop it and
   # keep the rest of the results. `Title.new!/1` stays the enforced
   # constructor for in-app builders, where a bad title is a programmer error.
-  defp build_title(attrs) do
-    case Ecto.Changeset.apply_action(Title.changeset(attrs), :insert) do
+  defp normalize(tmdb, media_type) do
+    case Title.from_tmdb(tmdb, media_type) do
       {:ok, title} ->
         [title]
 
       {:error, changeset} ->
         Log.debug(
           :tmdb,
-          "dropped malformed title hit #{inspect(attrs[:tmdb_id])}: #{inspect(changeset.errors)}"
+          "dropped malformed title hit #{inspect(tmdb["id"])}: #{inspect(changeset.errors)}"
         )
 
         []
     end
   end
-
-  # Full date, not just the year — the results' upcoming/released scoping
-  # compares against today. TMDB leaves unreleased titles undated or with
-  # partial strings; both come through as nil.
-  defp extract_date(date_string) when is_binary(date_string) do
-    case Date.from_iso8601(date_string) do
-      {:ok, date} -> date
-      {:error, _reason} -> nil
-    end
-  end
-
-  defp extract_date(_missing), do: nil
 end
