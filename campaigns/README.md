@@ -21,17 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`title-detail-deep-links.md`](title-detail-deep-links.md) —
-  **in progress, opened 2026-09-14.** The title detail modal's subject is a
-  TMDB identity, but the host holds it open only while the page still lists
-  the title: un-bookmarking a title you listed yourself removes it *and*
-  closes the modal (a title with friend activity stays open, which is why the
-  existing test is green), and a deep link (`?title=<media_type>-<tmdb_id>`)
-  opens only a title the receiving page already knows. Phase 1: an open
-  detail keeps its own snapshot, so the bookmark is its own undo. Phase 2: a
-  deep link to an unknown title fetches the detail from TMDB and opens from
-  it, with a diagnosed flash when TMDB is not ready or has no such title.
-  Phase 3: UIDR-035 amendment, glossary, wiki, ship.
 * [`review-replaces-recommendation.md`](review-replaces-recommendation.md) —
   **shipped v1.23.0 2026-09-12; owner check open.** "Recommend" becomes "review": one person's opinion of one
   title, told to their friends — an optional sentiment (thumbs down, thumbs
