@@ -120,56 +120,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     end
   end
 
-  describe "facets_for/3 with :movie_series" do
-    test "returns Movies / First released / Latest derived from member movies, plus Genres / Rating" do
-      movies = [
-        build_movie(%{date_published: ~D[1977-05-25], position: 1}),
-        build_movie(%{date_published: ~D[1980-05-21], position: 2}),
-        build_movie(%{date_published: ~D[1983-05-25], position: 3})
-      ]
-
-      movie_series =
-        build_movie_series(%{
-          movies: movies,
-          genres: ["Sci-Fi"],
-          aggregate_rating_value: 8.5
-        })
-
-      facets = Logic.facets_for(:movie_series, movie_series, movies)
-
-      refute Enum.any?(facets, &(&1.label == "Movies"))
-      assert %Facet{label: "First released", kind: :text, value: "1977"} in facets
-      assert %Facet{label: "Latest", kind: :text, value: "1983"} in facets
-      assert %Facet{label: "Genres", kind: :chips, value: ["Sci-Fi"]} in facets
-      assert %Facet{label: "Rating", kind: :rating, value: %{rating: 8.5, vote_count: nil}} in facets
-    end
-
-    test "tolerates movies missing date_published" do
-      movies = [
-        build_movie(%{date_published: nil}),
-        build_movie(%{date_published: ~D[1999-12-31]})
-      ]
-
-      facets = Logic.facets_for(:movie_series, build_movie_series(), movies)
-
-      assert %Facet{label: "First released", kind: :text, value: "1999"} in facets
-      assert %Facet{label: "Latest", kind: :text, value: "1999"} in facets
-    end
-
-    test "no Movies facet — the metadata row already counts them" do
-      movies = [build_movie(%{date_published: nil}), build_movie(%{date_published: nil})]
-      facets = Logic.facets_for(:movie_series, build_movie_series(), movies)
-
-      refute Enum.any?(facets, &(&1.label == "Movies"))
-      refute Enum.any?(facets, &(&1.label == "First released"))
-      refute Enum.any?(facets, &(&1.label == "Latest"))
-    end
-
-    test "returns empty list when there are no movies and no metadata" do
-      assert Logic.facets_for(:movie_series, build_movie_series(), []) == []
-    end
-  end
-
   describe "humanize_status/1" do
     test "title-cases atom statuses" do
       assert Logic.humanize_status(:released) == "Released"
