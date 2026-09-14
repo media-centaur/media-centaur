@@ -74,9 +74,33 @@ and the library modal's refinement is the floor, not a casualty.
 
 ## Status
 
-Planning. Diagnosis done in conversation on 2026-09-14 (recorded below);
-branch cut; no code. Next session: reconcile, research, spec, UIDR, phase
-plan — in that order, no implementation before the owner approves the spec.
+Research and spec drafted 2026-09-14 (second session, autonomous); awaiting
+the owner's decisions before phase 0. No implementation code on the branch.
+
+* Reconciled: branch is one commit ahead of `main` (this file); pointers and
+  line counts verified against `77714ea4`.
+* Research done as six inventories (sections, host events / asyncs / PubSub,
+  emitters, nav overlays, tests and stories, residue). Findings that changed
+  the plan: four `Title.new!` mints, not two; the collection tracking block
+  writes a `{collection_id, :movie}` ref that nothing reads
+  (`ReleaseTracking.LibraryLinks` links `tv_series` only); Incoming never
+  refreshes an open title modal on activity or plan events; `IntentAware`
+  exists on Home and Library only to feed the modal's bookmark; `?selected=`
+  is a pursuit on Incoming; Discovery's `data-nav-transient-params` is
+  space-separated against a comma-splitting reader; ADR-027 does not cover
+  the modal's LiveView tests.
+* Residue on the dev database (context functions, 2026-09-14): 15 series
+  (all with a TMDB id), 30 movies (all with one; 26 presentable), 14
+  collections (0 title ids, 14 `tmdb_collection` ids; 3 presentable, one
+  hoisted to its sole movie), 0 video objects. The residue in practice is
+  the collection, which the spec addresses through its members.
+* Spec: `docs/superpowers/specs/2026-09-14-title-detail-unification-design.md`
+  — glossary, four layers with module owners, view-model and modal-state
+  shapes, host contract (events, subscriptions), presentation table, one
+  overlay, emitters, 27 incoherences with dispositions, ten decisions with
+  recommendations, tests per phase, six-phase plan, scope cost.
+* UIDR-043 drafted as `proposed`:
+  `decisions/user-interface/2026-09-14-043-one-title-detail-composed-by-facts.md`.
 
 Note: the `title-detail-deep-links` campaign shipped as v1.29.0 on
 2026-09-14 and is retired; this branch is rebased onto that release and
@@ -159,48 +183,22 @@ Which modules survive by name is a planning decision, not a design one. The
 `TitleDetailHost`'s identity resolution; the *library half* is
 `EntityModal`'s loading and events, moved, not rewritten.
 
-## Open decisions for the planning phase
+## Open decisions
 
-Each is decided explicitly with the owner (define the working terms as the
-app's controls first), recorded under Decisions made, then enacted. None is
-worked around.
+Recorded with recommendations in the spec (§ Open decisions). The owner
+decides each in the app's terms; the phase plan assumes the recommendation.
 
-1. **The residue's address.** Video objects, unmatched entities and
-   collections have no TMDB title identity. Recommendation from the
-   diagnosis: keep an entity-address form (`?selected=<uuid>`) for the
-   residue, resolved by the same host to the same view-model — one modal,
-   two address forms, the second stating honestly that the residue exists.
-   A library card with a TMDB identity emits the title address. Open: does
-   `TitleRef` learn a `:collection` media type instead, and what does that
-   do to intent, tracking and activities, which key on `:movie | :tv_series`?
-2. **The preview for an owned title.** The scraped entity is local and
-   richer (cast with images, facets from the entity). Recommendation: no
-   preview fetch when the library half is present; the metadata row and facet
-   strip have one builder per source, replacing today's two
-   (`Detail.Logic.facets_for` from the entity, `TitlePreview` from the
-   payload).
-3. **Collection member selection** (`?movie=`, `subject_rung` vs `rung`, the
-   member subject for the bookmark and Review) is library-only. It lives
-   inside the library half. Confirm nothing on the detail needs it.
-4. **Where the library half's state lives.** The per-selection state
-   (`expanded_seasons`, `cast_filter`, `detail_view`, `delete_confirm`, …) is
-   host state today. Decide whether it stays loose on the socket under one
-   namespaced assign, or rides on the view-model. Bias: host state, one
-   struct, reset on subject change — not on the view-model, which is facts.
-5. **Event naming.** Two vocabularies (`close_detail` / `close_title`,
-   `modal_watchlist_toggle` / `set_rung`, `modal_review_open` /
-   `title_review_open`). One set; the `EventChokepoint` check and the input
-   system's `data-dismiss-event` follow.
-6. **Nav overlay merge.** One overlay; zones absent from the DOM must be
-   skipped by `entry` order (verify in `assets/js/input/config.js` and the
-   `input-system` skill before relying on it).
-7. **Tests under ADR-027** (regression tests append-only). The library
-   modal's tests address `?selected=`; the unified address is `?title=` for
-   titled entities. Decide how a test whose URL form changes is migrated
-   without deleting a regression.
-8. **Home's Coming up cards and any other surface** that opens a modal today
-   — inventory every `select_entity` / `open_title` emitter and what
-   identity it holds.
+1. The residue's address — `?entity=<uuid>`, canonicalised to `?title=`; no `:collection` media type in this campaign.
+   1b. Collection tracking — delete the collection-level block now; migration for the orphaned `(collection_id, :movie)` intents; a follow-up design for a collection identity or for deleting the upcoming-parts rail path.
+2. The preview for an owned title — none; one metadata builder per source; the facet strip goes for both.
+3. Collection member selection — the member ref is the subject; `?movie=` goes.
+4. Where the library half's state lives — host state, one `Title.ModalState` struct, reset on subject change.
+5. Event naming — library names kept, `title_` prefix dropped, `set_rung` / `review_open` / `close_title` shared.
+6. Nav overlay merge — one `detail` overlay with `detail_menu`; absent-zone skipping verified.
+7. Tests under ADR-027 — not covered; stricter self-rule: re-address 1:1, delete only tests of deleted behaviour, named per commit.
+8. Emitters — entity emitters keep `select_entity`, the host canonicalises; rail tile → `open_title`.
+9. Subscriptions — the host owns seven topics, pages piggyback, `IntentAware` deleted, MC0011 extended.
+10. Cast for an unowned title — out of scope, follow-up.
 
 ## Decisions made
 
@@ -220,54 +218,17 @@ worked around.
 
 ## Next steps
 
-For the fresh session, in order. Skills first: `unify_design`,
-`elixir:phoenix-thinking`, `user-interface`, `storybook`, `input-system`,
-`automated-testing`.
+1. **Owner reviews the spec's ten decisions** and the UIDR-043 draft; corrections go into the spec and this file's Decisions made.
+2. **Phase 0** (hygiene) once decided — tests first per the spec's Tests table; skills first: `automated-testing`, `elixir:phoenix-thinking`, `input-system`.
+3. Phases 1–5 as the spec's Phase plan, each closed by `mix precommit` and, for phases 2–4, the bar check (same titles, 1920×1080, `page-shot`, judged by the owner).
 
-1. **Reconcile** this file against `git log` and the code (ADR-042 rule).
-2. **Research, producing tables in the spec, not prose:**
-   * *Section matrix* — every section of both modals: the facts it needs, the
-     source of each fact, local or remote, which modal has it today, and
-     what turns it on in the unified modal.
-   * *Event inventory* — every `handle_event` clause of both hosts, its
-     params, what it writes, and whether it needs the library half.
-   * *Emitter inventory* — every place that opens a modal (cards, rows,
-     omnibox, feed, plan board, Coming up) and the identity it holds.
-   * *Async and PubSub inventory* — every `start_async` name and every
-     message either hook reacts to, and the refresh it triggers.
-   * *Nav inventory* — the two overlays' zones, contexts, entry order and
-     defaults.
-   * *Test and story inventory* — the LiveView test files for each modal
-     (library: `entity_modal_test`, `entity_modal_refresh_test`,
-     `entity_modal_tracking_test`, `entity_modal_delete_folder_safety_test`,
-     `library_live_test`, `library_live_leaf_hairline_test`,
-     `library_live_tv_orientation_test`, `home_live_test`; title:
-     `discovery_live_test`, `incoming_live_test`, `components/title/logic_test`;
-     both: `page_smoke_test`, `no_db_on_render_test`) and the stories
-     (`storybook/detail_panel/detail_panel.story.exs`, `storybook/detail/*`,
-     `storybook/title/title_detail_modal.story.exs`).
-   * *Residue inventory* — how many library entities of each kind carry no
-     TMDB title identity on the dev database, read through context functions.
-3. **Decide the open decisions** with the owner, in the app's terms.
-4. **Write the spec** —
-   `docs/superpowers/specs/2026-09-14-title-detail-unification-design.md`:
-   glossary; the four layers with the module that owns each; the section
-   matrix; the view-model shape; the address forms; the diff against the
-   code with every incoherence and its disposition; the phase plan with
-   tests first per phase; the honest scope cost.
-5. **Draft the UIDR** superseding UIDR-035 (one title surface, composed by
-   facts; the residue's address; the presentation bar).
-6. **Phase plan** — each phase leaves a working product, tested first, and
-   the library modal's look verified against the bar before the phase
-   closes (same owned titles, same viewport, side by side, judged by the
-   owner). Provisional order, to be confirmed by the spec: (a) the
-   view-model gains the library half and the one snapshot mapping, rendered
-   by nothing yet; (b) the presentation trunk renders the title-only
-   sections for an unowned title, behind the library hosts, verified at the
-   bar; (c) Discovery and Incoming adopt the unified host and renderer, the
-   "In library" bridge goes; (d) the title modal, its host, its overlay and
-   its story are deleted; the contract check names the one trait; (e) docs,
-   wiki, changelog, merge.
+## Deferred (bucket at closure)
+
+* Collection identity — a `:collection` media type across `TitleRef`, `TitleIntent`, `ReleaseTracking.Item`, or deletion of the upcoming-parts rail path (`MovieRow.Upcoming`, `list_relevant_releases_for_library_container(_, :movie)`). Separate design.
+* Cast view for an unowned title, fed by the preview's ten people.
+* Hint-bar legend for overlay regions (`app.css:2472–2521` names none of them).
+* One-patch cursor leak when the region holding the cursor empties (`orchestrator.js:195–217, 380–382`); not runtime-verified.
+* The Offline placeholder in the play card is not focusable (`play_card.ex:53–63`).
 
 ## Completion criteria
 
