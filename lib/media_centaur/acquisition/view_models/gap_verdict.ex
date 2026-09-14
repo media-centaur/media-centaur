@@ -12,6 +12,15 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     the quality preference (UIDR-029). Applies only when there are no
     bare gaps: a bare gap's diagnosis (below) outranks it. Never says
     "floor" — user copy calls it the quality preference.
+  * `:unreleased` / `:in_theaters` — the calendar worlds (spec
+    2026-09-14): a movie whose `TMDB.ReleaseWindow` says no home
+    release exists yet, so no search could have found one. The
+    headline speaks the dates; the evidence line, rejected count and
+    escape hatch are the underlying search diagnosis's, carried
+    through — the receipts are still true. Movies only: a series plan
+    wants aired episodes by construction. Outranked by blind (fix the
+    fault regardless) and by below-preference (real releases exist, so
+    "not out" would be false).
   * `:no_evidence` — no ladder term has a corpus record (never
     searched, search failed, or pruned past retention).
   * `:rejected` — raw results exist, none qualified. Movie plans get
@@ -33,7 +42,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.PlanEvents.DescentStatus
   alias MediaCentaur.Acquisition.ViewModels.GapEvidence
+  alias MediaCentaur.Format
   alias MediaCentaur.Search.IndexerHealth
+  alias MediaCentaur.TMDB.ReleaseWindow
 
   import MediaCentaur.Acquisition.ViewModels.Formatting, only: [count: 2]
 
@@ -43,6 +54,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   @type world ::
           :blind
           | :below_preference
+          | :unreleased
+          | :in_theaters
           | :no_evidence
           | :rejected
           | :nothing_live
@@ -61,7 +74,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   Builds the verdict. Options: `gaps` (unit labels), `movie?`,
   `search_health` (`IndexerHealth.t()` or nil), `now` — plus, for the
   below-preference world (UIDR-029), `below` (`%{units: n, releases: n}`
-  or nil), `wanted` and `covered`.
+  or nil), `wanted` and `covered`; and, for the calendar worlds,
+  `release_window` (`ReleaseWindow.t()` or nil, read at `now`'s date).
   """
   @spec build(GapEvidence.t() | nil, keyword()) :: t()
   def build(evidence, opts) do
@@ -69,6 +83,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     movie? = Keyword.fetch!(opts, :movie?)
     now = Keyword.fetch!(opts, :now)
     below = Keyword.get(opts, :below)
+    window = Keyword.get(opts, :release_window)
 
     cond do
       reason = blind_reason(Keyword.fetch!(opts, :search_health)) ->
@@ -77,10 +92,62 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
       gaps == [] and match?(%{units: units} when units > 0, below) ->
         below_preference(evidence, below, movie?, Keyword.get(opts, :covered, 0), now)
 
+      world = movie? and calendar_world(window) ->
+        calendar(world, window, diagnose(evidence, gaps, movie?, now), DateTime.to_date(now))
+
       true ->
         diagnose(evidence, gaps, movie?, now)
     end
   end
+
+  defp calendar_world(%ReleaseWindow{stage: :unreleased}), do: :unreleased
+  defp calendar_world(%ReleaseWindow{stage: :theatrical}), do: :in_theaters
+  defp calendar_world(_absent_or_out), do: nil
+
+  # The search diagnosis keeps its receipts; only the world and the
+  # sentence change.
+  defp calendar(world, window, %__MODULE__{} = diagnosis, today) do
+    %{diagnosis | world: world, headline: calendar_headline(world, window, today)}
+  end
+
+  defp calendar_headline(:in_theaters, %ReleaseWindow{} = window, today) do
+    since = "In theaters since #{calendar_day(window.theatrical, today)}"
+
+    case ReleaseWindow.home_release(window) do
+      {type, date} -> "#{since} — #{home_phrase(type, date, today)}."
+      nil -> "#{since} — TMDB has no home release date yet."
+    end
+  end
+
+  defp calendar_headline(:unreleased, %ReleaseWindow{} = window, today) do
+    home = ReleaseWindow.home_release(window)
+
+    what =
+      cond do
+        window.theatrical && home ->
+          {type, date} = home
+          "in theaters from #{calendar_day(window.theatrical, today)}, #{home_phrase(type, date, today)}"
+
+        window.theatrical ->
+          "in theaters from #{calendar_day(window.theatrical, today)}"
+
+        home ->
+          {type, date} = home
+          home_phrase(type, date, today)
+
+        true ->
+          "releases #{calendar_day(window.primary, today)}"
+      end
+
+    "Not out yet — #{what}."
+  end
+
+  defp home_phrase(:digital, date, today), do: "digital release #{calendar_day(date, today)}"
+  defp home_phrase(:physical, date, today), do: "on disc #{calendar_day(date, today)}"
+
+  # The year rides along only when it is not this year.
+  defp calendar_day(%Date{year: year} = date, %Date{year: year}), do: Format.month_day(date)
+  defp calendar_day(%Date{} = date, _today), do: "#{Format.month_day(date)}, #{date.year}"
 
   @planning_headline "Planning the search — broadest releases first, drilling down only for what's still missing."
 

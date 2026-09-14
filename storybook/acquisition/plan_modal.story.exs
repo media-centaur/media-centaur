@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict}
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Library.Person
-  alias MediaCentaur.TMDB.Title
+  alias MediaCentaur.TMDB.{ReleaseWindow, Title}
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.Detail.Facet
@@ -34,6 +34,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
                      "<stop offset='0' stop-color='%232b3a5c'/>" <>
                      "<stop offset='1' stop-color='%230d1017'/></linearGradient></defs>" <>
                      "<rect width='1280' height='720' fill='url(%23g)'/></svg>"
+
+  # The movie boards' subject — what an empty board's bookmark lists.
+  @subject Title.new!(%{tmdb_id: 246_813, media_type: :movie, name: "Sample Movie", year: "2026"})
 
   def variations do
     [
@@ -152,8 +155,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             overview: "Announced, dated, and not yet released — nothing to grab, only to watch for.",
             metadata_items: ["2027", "PG-13", "US"],
             facets: [Facet.text("Director", "Jane Director")],
-            in_library?: false,
-            upcoming?: true
+            in_library?: false
           }
         }
       },
@@ -262,7 +264,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             enabled_count: 1,
             backed_off: [%{name: "Indexer A", retry_at: ~U[2026-08-01 00:25:00Z]}]
           },
-          last_activity: "Searched: Sample Movie — couldn't reach any indexer"
+          last_activity: "Searched: Sample Movie — couldn't reach any indexer",
+          subject: @subject
         }
       },
       %Variation{
@@ -276,7 +279,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           stage: :board,
           backdrop_url: @sample_backdrop,
           board: board(:blind_gap),
-          gap_verdict: gap_verdict(:rejected)
+          gap_verdict: gap_verdict(:rejected),
+          subject: @subject
         }
       },
       %Variation{
@@ -305,7 +309,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           stage: :board,
           backdrop_url: @sample_backdrop,
           board: board(:blind_gap),
-          gap_verdict: gap_verdict(:stale)
+          gap_verdict: gap_verdict(:stale),
+          subject: @subject
         }
       },
       %Variation{
@@ -318,8 +323,61 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           stage: :board,
           backdrop_url: @sample_backdrop,
           board: board(:blind_gap),
-          gap_verdict: gap_verdict(:no_evidence)
+          gap_verdict: gap_verdict(:no_evidence),
+          subject: @subject
         }
+      },
+      %Variation{
+        id: :board_gap_in_theaters,
+        description:
+          "The calendar world (spec 2026-09-14): TMDB says the film opened and has no home " <>
+            "release yet, so the verdict speaks the dates instead of the search — the receipts " <>
+            "stay beneath — and the footer's primary slot is the bookmark, because the remedy " <>
+            "for a title that is not out yet is the watchlist (UIDR-039).",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:blind_gap),
+          gap_verdict: gap_verdict(:in_theaters),
+          subject: @subject
+        }
+      },
+      %Variation{
+        id: :board_gap_unreleased,
+        description:
+          "Not out anywhere yet — the opening and the home date TMDB knows, with the same " <>
+            "footer.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:blind_gap),
+          gap_verdict: gap_verdict(:unreleased),
+          subject: @subject
+        }
+      },
+      %VariationGroup{
+        id: :board_gap_by_rung,
+        description:
+          "The same board by the subject's rung: the bookmark while the title is off the " <>
+            "list (Off, Ignored), the marker — nothing to click — at List and above " <>
+            "(`WatchlistToggle.listed?/1` is the one rule).",
+        variations:
+          for rung <- [:ignored, :list, :follow, :ask, :grab, :default] do
+            %Variation{
+              id: rung,
+              attributes: %{
+                open: true,
+                stage: :board,
+                backdrop_url: @sample_backdrop,
+                board: board(:blind_gap),
+                gap_verdict: gap_verdict(:in_theaters),
+                subject: @subject,
+                rung: rung
+              }
+            }
+          end
       },
       %Variation{
         id: :board_long_season,
@@ -896,6 +954,34 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       movie?: true,
       search_health: nil,
       now: @story_now
+    )
+  end
+
+  defp gap_verdict(:in_theaters) do
+    GapVerdict.build(movie_evidence(-45, 0, []),
+      gaps: ["Sample Movie"],
+      movie?: true,
+      search_health: nil,
+      now: @story_now,
+      release_window: %ReleaseWindow{
+        stage: :theatrical,
+        theatrical: ~D[2026-07-24],
+        digital: ~D[2026-10-14]
+      }
+    )
+  end
+
+  defp gap_verdict(:unreleased) do
+    GapVerdict.build(nil,
+      gaps: ["Sample Movie"],
+      movie?: true,
+      search_health: nil,
+      now: @story_now,
+      release_window: %ReleaseWindow{
+        stage: :unreleased,
+        theatrical: ~D[2026-10-03],
+        digital: ~D[2026-12-12]
+      }
     )
   end
 

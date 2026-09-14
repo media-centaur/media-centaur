@@ -171,15 +171,12 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       diff < 0 and date.year == today.year -> Calendar.strftime(date, "%b %-d")
       diff < 0 -> Calendar.strftime(date, "%b %Y")
       diff < 7 -> weekday_abbr(date)
-      diff <= 30 -> "#{weekday_abbr(date)} #{month_day(date)}"
-      true -> month_day(date)
+      diff <= 30 -> "#{weekday_abbr(date)} #{MediaCentaur.Format.month_day(date)}"
+      true -> MediaCentaur.Format.month_day(date)
     end
   end
 
   defp weekday_abbr(date), do: Calendar.strftime(date, "%a")
-
-  # Manual day interpolation — Calendar.strftime has no unpadded-day directive.
-  defp month_day(date), do: "#{Calendar.strftime(date, "%b")} #{date.day}"
 
   # Same-(item, season, air_date) episodes are one drop, not N rail entries.
   # Movies and undated/episode-less TV rows pass through untouched.

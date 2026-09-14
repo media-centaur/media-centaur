@@ -8,6 +8,7 @@ defmodule MediaCentaur.TMDB do
       Mapper,
       MetadataStats,
       RateLimiter,
+      ReleaseWindow,
       Title,
       TitleIdentity,
       TitleSearch
@@ -23,6 +24,8 @@ defmodule MediaCentaur.TMDB do
   app-wide title value — an embedded schema every title-carrying context
   (release tracking, discovery (watchlist), and the web layer) reuses — and
   `TitleSearch` is the normalized title search built on it, for the omnibox
-  and track flow. `RateLimiter` is internal.
+  and track flow. `ReleaseWindow` reads where a movie stands in its release
+  sequence from a payload, for the surfaces that diagnose an empty search.
+  `RateLimiter` is internal.
   """
 end

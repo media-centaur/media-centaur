@@ -126,6 +126,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
   alias MediaCentaurWeb.Live.TitleDetailHost
   alias MediaCentaurWeb.TitleRef
+  alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TMDB.TitleSearch
 
@@ -268,6 +269,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_discard_armed?: false,
          plan_identity: nil,
          plan_artwork: nil,
+         plan_title: nil,
+         plan_release_window: nil,
          plan_drafts: []
        )
      )}
@@ -438,10 +441,11 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   # --- TitleDetailHost ---
 
-  # A ref this page knows: a tracked title (the Coming up rows), else a
-  # search result on screen (a pick that has nothing to download opens
-  # the title detail, where the tracking-mode control is the arming
-  # surface). No page-specific facts.
+  # A ref this page knows: a tracked title (the Coming up rows), else the
+  # open plan's subject (its board's bookmark), else a search result on
+  # screen (a pick that has nothing to download opens the title detail,
+  # where the tracking-mode control is the arming surface). No
+  # page-specific facts.
   @impl TitleDetailHost
   def resolve_title(socket, {tmdb_id, media_type} = ref, _params) do
     case ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) do
@@ -449,12 +453,17 @@ defmodule MediaCentaurWeb.IncomingLive do
         {Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: item.name}), %{}}
 
       nil ->
-        case Enum.find(socket.assigns.omnibox_results, &(Title.ref(&1) == ref)) do
-          %Title{} = result -> {result, %{}}
+        case Enum.find(known_titles(socket), &(Title.ref(&1) == ref)) do
+          %Title{} = title -> {title, %{}}
           nil -> nil
         end
     end
   end
+
+  defp known_titles(%{assigns: %{plan_title: %Title{} = subject, omnibox_results: results}}),
+    do: [subject | results]
+
+  defp known_titles(%{assigns: %{omnibox_results: results}}), do: results
 
   @impl TitleDetailHost
   def title_detail_path(socket, query),
@@ -800,6 +809,8 @@ defmodule MediaCentaurWeb.IncomingLive do
           search_health={@search_health}
           gap_verdict={@plan_gap_verdict}
           rejected={@plan_rejected}
+          subject={@plan_title}
+          rung={@plan_title && Map.get(@title_rungs, Title.ref(@plan_title))}
         />
         <PursuitModal.pursuit_modal
           open={@selected_pursuit_id != nil}
@@ -2140,6 +2151,23 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket}
   end
 
+  # The window landed: re-read the board so a ready verdict speaks it.
+  # The durable rows are the state of record, so a re-read is the whole
+  # of what "recompute" means here.
+  def handle_async({:plan_release_window, plan_id}, {:ok, {:ok, payload}}, socket) do
+    if socket.assigns.plan_param == plan_id do
+      window = ReleaseWindow.from_payload(payload, socket.assigns.today)
+      {:noreply, socket |> assign(:plan_release_window, window) |> load_plan_board(plan_id)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_async({:plan_release_window, _plan_id}, {:ok, {:error, reason}}, socket) do
+    Log.debug(:tmdb, "release window unavailable — #{inspect(reason)}")
+    {:noreply, socket}
+  end
+
   def handle_async(:plan_approve, {:ok, outcome}, socket) do
     socket = assign(socket, plan_approving?: false)
 
@@ -2500,7 +2528,9 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_error: nil,
           plan_discard_armed?: false,
           plan_identity: nil,
-          plan_artwork: nil
+          plan_artwork: nil,
+          plan_title: nil,
+          plan_release_window: nil
         )
 
       "new" ->
@@ -2578,11 +2608,12 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # The adaptive verdict (UIDR-022, extended by UIDR-029) — a ready
-  # board with gaps or below-preference units leads with the world the
-  # counts prove; recomputed on every board re-read so a forced
-  # re-search refreshes the evidence's freshness.
-  defp plan_gap_verdict(plan, board, search_health) do
+  # The adaptive verdict (UIDR-022, extended by UIDR-029 and the calendar
+  # worlds of spec 2026-09-14) — a ready board with gaps or
+  # below-preference units leads with the world the counts prove;
+  # recomputed on every board re-read so a forced re-search refreshes
+  # the evidence's freshness and a late-arriving release window is read.
+  defp plan_gap_verdict(plan, board, search_health, release_window) do
     if board.status == :ready and (board.gaps != [] or board.below_preference != nil) do
       below =
         case board.below_preference do
@@ -2598,7 +2629,8 @@ defmodule MediaCentaurWeb.IncomingLive do
         now: DateTime.utc_now(),
         below: below,
         wanted: board.wanted,
-        covered: board.covered
+        covered: board.covered,
+        release_window: release_window
       )
     end
   end
@@ -2611,12 +2643,17 @@ defmodule MediaCentaurWeb.IncomingLive do
         # switching to a different plan must drop the previous plan's ticker
         # line rather than let it linger as if it described this one.
         switching_plan? = socket.assigns.plan_param != plan_id
-        socket = maybe_load_plan_artwork(socket, plan_id, plan)
+
+        socket =
+          socket
+          |> maybe_load_plan_artwork(plan_id, plan)
+          |> maybe_load_plan_release_window(plan_id, plan)
 
         assign(socket,
           plan_param: plan_id,
           plan_stage: :board,
           plan_board: board,
+          plan_title: Plans.Plan.tmdb_title(plan),
           plan_gap_verdict: plan_verdict_for(socket, plan_id, plan, board),
           plan_descent: plan_descent_for(socket, plan_id, board),
           plan_error: nil,
@@ -2653,6 +2690,28 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
+  # A movie's release window — the calendar the verdict speaks (spec
+  # 2026-09-14) — fetched once per board open, off-process, served from
+  # the response cache the plan's own creation just filled. Never stored
+  # on the plan: a draft can sit for days, and a digital date announced
+  # since must read as TMDB says it today. Series boards read nothing.
+  defp maybe_load_plan_release_window(socket, plan_id, plan) do
+    cond do
+      socket.assigns.plan_param == plan_id ->
+        socket
+
+      plan.tmdb_type == "movie" and Capabilities.tmdb_ready?() ->
+        socket
+        |> assign(:plan_release_window, nil)
+        |> start_async({:plan_release_window, plan_id}, fn ->
+          MediaCentaur.TMDB.Client.get_movie(plan.tmdb_id)
+        end)
+
+      true ->
+        assign(socket, :plan_release_window, nil)
+    end
+  end
+
   # Keep a live-updated panel across board reloads; seed the itinerary
   # for a freshly-opened planning board; movies don't narrate.
   # A planning TV board's verdict is the searching world (kept across
@@ -2671,7 +2730,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         GapVerdict.searching_initial(board.wanted)
 
       true ->
-        plan_gap_verdict(plan, board, socket.assigns.search_health)
+        plan_gap_verdict(plan, board, socket.assigns.search_health, socket.assigns.plan_release_window)
     end
   end
 

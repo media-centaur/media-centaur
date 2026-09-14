@@ -111,51 +111,6 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreviewTest do
     assert "2025" in preview.metadata_items
   end
 
-  test "movie/3 marks a movie whose earliest typed release is still ahead as upcoming" do
-    tmdb_movie = %{
-      "id" => 1_422_011,
-      "title" => "Sample Movie",
-      "release_date" => "2027-03-05",
-      "release_dates" => %{
-        "results" => [
-          %{
-            "iso_3166_1" => "US",
-            "release_dates" => [%{"type" => 3, "release_date" => "2027-03-05T00:00:00.000Z"}]
-          }
-        ]
-      }
-    }
-
-    assert TitlePreview.movie(tmdb_movie, false, ~D[2026-08-06]).upcoming?
-  end
-
-  test "movie/3 marks a released movie as not upcoming" do
-    tmdb_movie = %{
-      "id" => 550,
-      "title" => "Sample Movie",
-      "release_date" => "2016-03-18",
-      "release_dates" => %{
-        "results" => [
-          %{
-            "iso_3166_1" => "US",
-            "release_dates" => [%{"type" => 3, "release_date" => "2016-03-18T00:00:00.000Z"}]
-          }
-        ]
-      }
-    }
-
-    refute TitlePreview.movie(tmdb_movie, false, ~D[2026-08-06]).upcoming?
-
-    # Out today counts as out.
-    refute TitlePreview.movie(tmdb_movie, false, ~D[2016-03-18]).upcoming?
-  end
-
-  test "movie/3 treats an undated movie as upcoming" do
-    tmdb_movie = %{"id" => 550, "title" => "Sample Movie"}
-
-    assert TitlePreview.movie(tmdb_movie, false, ~D[2026-08-06]).upcoming?
-  end
-
   test "movie/3 tolerates a sparse TMDB payload" do
     tmdb_movie = %{"id" => 550, "title" => "Sample Movie", "overview" => ""}
 
@@ -209,7 +164,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreviewTest do
       }
     }
 
-    preview = TitlePreview.tv(tmdb_show, false, ~D[2026-09-05])
+    preview = TitlePreview.tv(tmdb_show, false)
 
     assert %TitlePreview{media_type: :tv_series, tmdb_id: "1396", title: "Sample Show"} = preview
     assert preview.tagline == "Every season counts."
@@ -221,16 +176,6 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreviewTest do
     assert "US" in preview.metadata_items
     assert Enum.find(preview.facets, &(&1.label == "Network")).value == "Sample Network"
     assert [%Person{name: "Actor One"}] = preview.cast
-    refute preview.upcoming?
     assert TitlePreview.badge_text(preview) == "TV series"
-  end
-
-  test "tv/3 marks an unaired or undated series as upcoming" do
-    assert TitlePreview.tv(
-             %{"id" => 1, "name" => "Sample Show", "first_air_date" => "2999-01-01"},
-             false
-           ).upcoming?
-
-    assert TitlePreview.tv(%{"id" => 1, "name" => "Sample Show"}, false).upcoming?
   end
 end
