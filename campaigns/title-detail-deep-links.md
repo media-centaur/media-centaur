@@ -15,14 +15,18 @@ Existing terms are in [`docs/GLOSSARY.md`](../docs/GLOSSARY.md): *title*
   hosts it: `?title=<media_type>-<tmdb_id>` on `/discovery/*` and
   `/incoming`, parsed by `MediaCentaurWeb.TitleRef`. The industry term; the
   code says *title param*.
-* **Known title** — a title the hosting page can produce a snapshot for from
-  its own rows: a watchlist row, a feed activity, a tracked title, an omnibox
-  result, the plan's subject. `TitleDetailHost.resolve_title/3` returning
-  `{title, facts}` is the contract; nil means unknown.
-* **Host facts** — what only the page knows about a title beyond the
-  snapshot: feed provenance (sender, note, activity id), friend activity, the
-  watchlist note. The second element `resolve_title/3` returns; empty for a
-  title the page does not know.
+* **Known title** — (Phases 1–2) a title the hosting page could produce a
+  snapshot for from its own rows: a watchlist row, a feed activity, a tracked
+  title, an omnibox result, the plan's subject. `TitleDetailHost.resolve_title/3`
+  returning `{title, facts}` was the contract; nil meant unknown. Retired in
+  Phase 3: the host resolves the snapshot by identity.
+* **Page facts** — (Phase 3) what the hosting page alone knows about a title:
+  an in-memory snapshot when it holds one (an omnibox result, a plan's
+  subject, a feed activity's title) and the facts only it can supply (the
+  feed's provenance: kind, sender, activity id, the review's text as the
+  note). `TitleDetailHost.page_facts/3` returning `{snapshot | nil, facts}`;
+  `{nil, %{}}` is never a reason not to open. Replaces *host facts*, the
+  Phase 1–2 name.
 * **Fetched snapshot** — a `TMDB.Title` built from the TMDB detail payload
   (`get_movie` / `get_tv`) rather than carried by a page row. The snapshot a
   deep link to an unknown title opens from.
@@ -44,9 +48,20 @@ the title and from TMDB when it does not.
 
 ## Status
 
-**Campaign opened 2026-09-14.** Diagnosis done; a throwaway test reproduced
-the own-listed close on Discovery (removed again, the tree is clean). Phase 1
-next.
+**Phases 1–3 landed 2026-09-14** (`d7bc150a`, `7cbb23aa`, Phase 3 in the
+working tree; unpushed). An open detail keeps its own snapshot, so the
+bookmark is its own undo on both hosts; a deep link to a title nothing holds
+fetches the detail from TMDB and opens from it, with the readiness check
+inside the fetch so every failure (no key, no such title, no answer) is one
+result path: a flash and the param dropped. `Title.from_tmdb/2` is the one
+payload-to-snapshot mapping, shared with the search normalisers. Phase 3
+made the identity the resolver: the host finds the snapshot by identity
+(open detail → title intent → page's in-memory copy → TMDB) and reads friend
+activity and the intent's note by identity; `resolve_title/3` is retired for
+`page_facts/3`; Incoming's modal flies pennants (UIDR-037). Verified in the
+real dev server: a cold `?title=movie-10331` opened with its TMDB preview.
+Phase 4 docs written (UIDR-035 amendment, glossary, wiki, changelog); the
+wiki commit and the release remain.
 
 ## Decisions made
 
@@ -68,11 +83,36 @@ next.
   set up; TMDB has no such title) and the URL is patched back to the tab.
   The page's rows stay the first source: they carry host facts a fetch
   cannot.
-* `2026-09-14` — The fetched snapshot is built by the same normalisers that
-  turn a search hit into a `Title` (`TMDB.TitleSearch`), exposed for a
-  detail payload; no second field mapping.
+* `2026-09-14` — The fetched snapshot is built by the one payload-to-snapshot
+  mapping, `TMDB.Title.from_tmdb/2`, which the search normalisers now use
+  too; no second field mapping.
+* `2026-09-14` — Readiness is part of the fetch. `Capabilities.tmdb_ready?/0`
+  is checked inside the async task, so "no TMDB key" reaches the page as a
+  fetch result like "no such title" and "no answer": one handler flashes and
+  drops the param, after mount — a `push_patch` inside the `handle_params`
+  hook ran before the page's own `handle_params` on first mount (Incoming
+  had no zone yet) and was folded into the join reply.
+* `2026-09-14` — Phase 3 audit dispositions. **Removed:** the "unknown ref
+  stays closed" rule and its test; Discovery's `watch_row/2` and
+  `title_friend_activity/2` (the modal's snapshot and friend activity are
+  the intent's and `Activities.friend_activity_for/1`'s, by identity);
+  Incoming's tracked-title lookup (a tracked title is on the ladder, and the
+  intent's snapshot is the fuller one); `resolve_title/3` as a name and a
+  contract (nil could never again mean "do not open"). **Kept, with the
+  reason:** the page's in-memory snapshot slot (`page_facts/3`) for titles
+  nothing has recorded — omnibox results, the plan's subject, the You card's
+  own act; Incoming's `known_titles/1` as that slot's source; the feed
+  provenance as page facts (the "which activity the modal speaks for" rule
+  is the Feed's). **Resolution order** open detail → title intent → page →
+  TMDB, so a listed title opens instantly with no fetch and a cold link
+  costs one round trip. `Discovery.get_intent/2` is read twice per open
+  (snapshot, note) beside `Discovery.rung/2`; local reads, left as is.
 
 ## Next steps
+
+Remaining: `mix precommit`; commit Phase 3 and the docs; commit and push the
+wiki (`Watchlist.md`, `FAQ.md`); ship as a minor release; retire this file.
+The phases as planned, for the record:
 
 1. **Phase 1 — the bookmark keeps the modal open.** Test first: on
    Discovery, list a movie with no friend activity, open it, click the
