@@ -3475,6 +3475,51 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "#title-detail-modal[data-state=closed]")
     end
 
+    test "the modal flies a friend's pennant on a title opened from Coming up — resolved by identity, not by the page",
+         %{conn: conn} do
+      {item, _release} = tracked_with_release(%{name: "Pennant Show"})
+
+      friend_secret = MediaCentaur.Secret.wrap(String.duplicate("0", 63) <> "3")
+      friend_pubkey = "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+      {:ok, _} = MediaCentaur.Social.add_friend(friend_pubkey, "Sample Friend")
+
+      title =
+        MediaCentaur.TMDB.Title.new!(%{
+          tmdb_id: item.tmdb_id,
+          media_type: item.media_type,
+          name: "Pennant Show"
+        })
+
+      event =
+        MediaCentaur.Nostr.Event.sign(
+          MediaCentaur.Activities.Translation.to_event(
+            :review,
+            title,
+            [text: "Worth the wait.", sentiment: :love],
+            friend_pubkey
+          ),
+          friend_secret
+        )
+
+      # Ingesting a friend's act warms the title's artwork.
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_get_tv(
+        item.tmdb_id,
+        TmdbStubs.tv_detail(%{"id" => item.tmdb_id, "name" => "Pennant Show"})
+      )
+
+      {:ok, _rec} = MediaCentaur.Activities.ingest(event)
+      await_supervised_tasks()
+
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
+
+      assert has_element?(view, "#title-detail-modal[data-state=open]")
+      # UIDR-037: friend provenance is the pennant, on every title surface —
+      # this one included, now that the host reads it by identity.
+      assert has_element?(view, "#title-detail-modal .pennant[data-flag='love']", "Sample Friend")
+    end
+
     test "mounting with ?title= opens the modal directly (shareable URL)", %{conn: conn} do
       {item, _release} = tracked_with_release(%{name: "Deep Link Show"})
 
