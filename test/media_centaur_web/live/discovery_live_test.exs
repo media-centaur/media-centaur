@@ -993,6 +993,34 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       })
     end
 
+    test "the bookmark on a title only you listed leaves the modal open — the toggle is its own undo",
+         %{conn: conn} do
+      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
+
+      assert has_element?(
+               view,
+               "#title-detail-modal[data-state='open'] #title-watchlist[aria-pressed='true'][phx-value-choice='off']"
+             )
+
+      view |> element("#title-watchlist") |> render_click()
+      assert Discovery.rung(777, :movie) == nil
+
+      # No row and no friend activity know the title now: the open detail
+      # keeps its own snapshot, so the bookmark is there to click again.
+      assert has_element?(
+               view,
+               "#title-detail-modal[data-state='open'] #title-watchlist[aria-pressed='false'][phx-value-choice='list']"
+             )
+
+      refute has_element?(view, "#title-tracking-controls")
+
+      view |> element("#title-watchlist") |> render_click()
+      assert Discovery.rung(777, :movie) == :list
+      assert has_element?(view, "#title-watchlist[aria-pressed='true'][phx-value-choice='off']")
+      assert has_element?(view, "#title-tracking-controls[data-rung='list']")
+    end
+
     test "the modal opens from the snapshot, then dresses itself from the live TMDB detail",
          %{conn: conn} do
       # A ready TMDB capability: a key in config plus a passed test.

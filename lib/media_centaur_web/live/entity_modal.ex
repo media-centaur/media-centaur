@@ -1388,11 +1388,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   same subject the view controls render, via `member_view/2`, so the
   button and the action can never disagree).
 
-  Only the bottom of the ladder: a title already at Follow or above is
-  not toggled off by a bookmark click, because that would tear down its
-  calendar and wants as a side effect of a one-click affordance. The
-  control renders as a marker at those rungs and the modal's own ladder
-  is where they move.
+  Off at any listed rung — removing a title from the watchlist is one act
+  (UIDR-042), and what Off destroys is re-derivable: re-listing refetches
+  the calendar, and the per-title quality acceptance survives on its own.
+  The bookmark carries the choice it will set (`WatchlistToggle.choice/1`),
+  so this handler sets exactly what the control said rather than deciding
+  again.
 
   No assign update: hosts carry `:title_rungs` via `IntentAware`,
   refreshed by the Discovery broadcast. No-op when the subject carries no

@@ -3510,11 +3510,43 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       view |> element("#title-watchlist") |> render_click()
       assert Discovery.rung(item.tmdb_id, item.media_type) == nil
       refute ReleaseTracking.get_item(item.id), "Off deletes the tracked title"
-      # Nothing is tracked, so there is no timeline and no Coming up row —
-      # and this page knows titles through the forecast, so the modal has
-      # nothing left to render either.
+      # Nothing is tracked, so there is no calendar to read dates from and
+      # no Coming up row; the modal itself stays (the test below).
       refute has_element?(view, "#title-release-dates")
       refute has_element?(view, "#shelf-#{item.id}")
+    end
+
+    test "the bookmark leaves the modal open once the tracked title is gone — the toggle is its own undo",
+         %{conn: conn} do
+      {item, _release} = tracked_with_release(%{name: "Kept Show"})
+
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=tv_series-#{item.tmdb_id}")
+
+      view |> element("#title-watchlist") |> render_click()
+      assert Discovery.rung(item.tmdb_id, item.media_type) == nil
+      refute ReleaseTracking.get_item(item.id)
+
+      # This page knew the title through the tracked title, which Off
+      # deleted: the open detail keeps its own snapshot.
+      assert has_element?(
+               view,
+               "#title-detail-modal[data-state='open'] #title-watchlist[aria-pressed='false'][phx-value-choice='list']"
+             )
+
+      assert render(view) =~ "Kept Show"
+
+      # Re-listing fetches the title's artwork.
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_get_tv(
+        item.tmdb_id,
+        TmdbStubs.tv_detail(%{"id" => item.tmdb_id, "name" => "Kept Show"})
+      )
+
+      view |> element("#title-watchlist") |> render_click()
+      await_supervised_tasks()
+      assert Discovery.rung(item.tmdb_id, item.media_type) == :list
+      assert has_element?(view, "#title-watchlist[aria-pressed='true'][phx-value-choice='off']")
     end
 
     test "the title modal surfaces the per-title lower-quality acceptance and resets it", %{
