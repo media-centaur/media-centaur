@@ -1,7 +1,7 @@
 ---
 status: active
 started: 2026-09-14
-last_updated: 2026-09-14
+last_updated: 2026-09-15
 ---
 # One title detail modal, composed by facts, on every page
 
@@ -16,15 +16,18 @@ Existing terms are in [`docs/GLOSSARY.md`](../docs/GLOSSARY.md): *title*
 *tracked title*, *deep link*, *page facts*, *fetched snapshot*, *glass
 menu*. This campaign uses these, defined before first use:
 
-* **Library modal** — the depth surface for a title with files as it exists
-  today: `Components.DetailPanel` rendered by the `Live.EntityModal` trait on
-  Home and Library, addressed by `?selected=<entity uuid>` (plus `movie` for
-  a collection member and `view` for Cast / Manage). UIDR-035 calls it
-  *library detail*.
-* **Title modal** — the depth surface for a title without files as it exists
-  today: `Components.Title.DetailModal` rendered by the `Live.TitleDetailHost`
-  trait on Discovery and Incoming, addressed by `?title=<media_type>-<tmdb_id>`
-  (plus `activity`). UIDR-035 calls it *title detail*.
+* **Library modal** (retired by phase 4) — the depth surface for a title
+  with files as it was before this campaign: `Components.DetailPanel`
+  rendered by the `Live.EntityModal` trait on Home and Library, addressed
+  by `?selected=<entity uuid>` (plus `movie` for a collection member and
+  `view` for Cast / Manage). UIDR-035 called it *library detail*. The
+  name survives here only as the bar's source.
+* **Title modal** (retired by phase 3) — the depth surface for a title
+  without files as it was before this campaign:
+  `Components.Title.DetailModal` rendered by the `Live.TitleDetailHost`
+  trait on Discovery and Incoming, addressed by
+  `?title=<media_type>-<tmdb_id>` (plus `activity`). UIDR-035 called it
+  *title detail*.
 * **Unified modal** — what this campaign builds: one depth surface for one
   TMDB identity, on all four pages, whose sections are present or absent by
   facts. When done it takes the glossary's *title detail modal* name and the
@@ -75,9 +78,17 @@ and the library modal's refinement is the floor, not a casualty.
 ## Status
 
 Phases 0 to 5 landed on the branch 2026-09-14 (one session, after the
-spec's approval), each `mix precommit` clean. What remains is the owner's
-judgment of the bar checks, then the merge to `main` and `/ship minor`
-(with the wiki push — committed locally, unpushed).
+spec's approval), each `mix precommit` clean (last run: 7183 tests, credo
+clean, 828 JS tests, zero warnings). **The owner's review pass is in
+progress from 2026-09-15** — see § Review below, which is the tracker:
+every item to judge, the deviations from the spec made in code, and the
+revision loop. Revisions land in place on the branch. After the pass:
+merge to `main`, `/ship minor`, wiki push (`../media-centaur.wiki`
+commit `4a7c5ff`, unpushed).
+
+* Reconciled 2026-09-15: branch is ten commits ahead of `main` (four
+  docs commits, six phase commits `dce0cf6b` → `bcbbf940`); working tree
+  clean; nothing pushed.
 
 * **Phase 0** (`dce0cf6b`): Discovery's transient params comma-separated;
   MC0011 refreshed (dead key gone, `TitleDetailHost` and `IntentAware`
@@ -153,18 +164,8 @@ judgment of the bar checks, then the merge to `main` and `/ship minor`
   `input-system` skills, the wiki (Watchlist, Social, Searching and
   Downloading, Keyboard and Gamepad — committed, unpushed), and the
   CHANGELOG's Unreleased entry.
-* **Bar check 3** captured, not yet judged: `after-phase4/` — the same
-  six shots as `before/`, on the new addresses.
-* **Bar check 2** captured, not yet judged: `after-phase3/` — the owned
-  series on Discovery, Incoming (main and Manage) and Library side by
-  side, the owned movie on Discovery, and an unowned listed movie.
-* **Bar check 1** captured, not yet judged: `mockups/title-detail-unification-bar/`
-  (git-ignored) — `before/` from `main`+phase 0, `after-phase2/` the same
-  six shots (movie, series main / cast / manage, collection, Home series)
-  plus `storybook-*.png` for seven unowned variations. Owner judges in
-  the morning; phase 3 does not wait on it (fixable in place).
-* Reconciled 2026-09-14 (end of session): branch is seven commits ahead
-  of `main`.
+* **Bar checks** captured after phases 2, 3 and 4 — the inventory and
+  the pairs to compare are in § Review.
 * Research done as six inventories (sections, host events / asyncs / PubSub,
   emitters, nav overlays, tests and stories, residue). Findings that changed
   the plan: four `Title.new!` mints, not two; the collection tracking block
@@ -269,10 +270,80 @@ Which modules survive by name is a planning decision, not a design one. The
 `TitleDetailHost`'s identity resolution; the *library half* is
 `EntityModal`'s loading and events, moved, not rewritten.
 
+## Review (owner's pass, from 2026-09-15)
+
+The owner judges the branch against the bar and the spec; each revision
+lands in place on the branch. This section is the tracker for a review
+that spans sessions: an item's state moves `open` → `accepted`, or
+`revise: <what>` → `done <commit>`. A session resuming the review reads
+this section first and updates it before touching code.
+
+### The shots
+
+`mockups/title-detail-unification-bar/` (git-ignored), every shot at
+1920×1080 on the same dev-database titles. `capture <set-name>` in that
+directory recaptures the whole set against the dev server on the unified
+addresses (owned: Library movie / series main, Cast, Manage / collection,
+Home series, Discovery series and movie, Incoming series main and
+Manage; unowned: a listed movie on Discovery and seven `detail_panel`
+story variations). Pairs to compare:
+
+| Judged | File(s) | Against |
+|---|---|---|
+| Owned on Library and Home | `after-phase4/{library-movie,library-series,library-series-cast,library-series-manage,library-collection,home-series}.png` | `before/` same names (the bar). `after-phase2/` is the intermediate. |
+| Owned on Discovery and Incoming | `after-phase3/{discovery-series,discovery-movie,incoming-series,incoming-series-manage}.png` | `before/library-series.png`, `before/library-movie.png` — no prior surface; the bar is the library modal's look. |
+| Unowned | `after-phase2/storybook-{dressed,from_friend,listed,movie_download,own_review,series_split,tracked_watch}.png`, `after-phase3/discovery-unowned-listed-movie.png` | The retired title modal (no shot kept; judged on its own). |
+
+One deliberate difference from `before/` in the owned shots: no glass
+box under the content list at Off (item 5).
+
+### Items to judge
+
+| # | Item | Where it lives | State |
+|---|---|---|---|
+| 1 | **Bar: owned titles on Library and Home** — every section renders as `before/` does | `DetailPanel`, `Components.Detail.*` | open |
+| 2 | **Bar: owned titles on Discovery and Incoming** — Play, seasons, Cast, Manage with files, the rail, identical to Library | same | open |
+| 3 | **Unowned titles' look** — Download split + scope, the note line, acquisition state, tracking card, the seven story variations | same; `detail_panel.story.exs` | open |
+| 4 | **Spec decision 2** — no facet strip and no preview for an owned title (owner's "i guess?", judged at this look; reversible in `DetailPanel` alone) | `DetailPanel` hero/prose facts | open |
+| 5 | **No tracking card at Off** for an owned title — the library modal drew an empty glass box holding a hidden control shell; one rule (`Detail.Logic.tracking_card?/1`) draws nothing until the title is listed | `Detail.Logic`, two assertions in `library_live_tracking_test.exs` | open |
+| 6 | **The residue's view-model** — a `Title.Detail` with `ref` and `title` nil, the library half its one fact: Play only, no bookmark, no tracking card, no Download | `Title.Logic.title_detail/2`, `Detail.Logic` | open |
+| 7 | **A rail pick keeps the modal state and the sub-view** — a member of the open collection is the same document (`same_document?/2`, `kept_view/2`), so Cast stays Cast; a different container resets | `TitleDetailHost` | open |
+| 8 | **Unopenable address abandoned with a flash** on both forms; on the dead render that is a redirect (a deep link to an entity without a present file lands on the page with the flash, where the old code silently drew no modal). A titled `?entity=` opens in place on the dead render and canonicalises to `?title=` on the join | `TitleDetailHost`, `LibraryHalf.address/1` | open |
+| 9 | **The entity snapshot carries no art paths** — a library image is a local file, not a TMDB path (the spec assumed a TMDB image record); an owned title's poster / backdrop / logo come from the library half in the host | `Title.Logic.snapshot_from_entity/1`, host | open |
+| 10 | **The note line's sources** — only the `activity` address param (read by identity via `Activities.get_row/1`) or the person's own intent note. Discovery's former implicit inference (the newest friend review with text) is gone; the activity's embedded title is a snapshot source, so a `?title=…&activity=…` link opens on Incoming without a fetch | `Title.Logic`, `TitleDetailHost` | open |
+| 11 | **`play` handled by the host with or without an open modal** — the Home hero's Play no-op'd once the host owned the event | `TitleDetailHost` | open |
+| 12 | **MC0011 is `LiveSubscriptions`** and every page and trait under `live/` was converted to the door in phase 4 (the spec named the host and five subscriptions; the sweep grew to all of `live/`, plus `Pipeline.Stats.subscribe/0`) | `credo_checks/live_subscriptions.ex`, `Live.Subscriptions` | open |
+| 13 | **Test addresses migrated `?selected=` → `?entity=`** (canonicalised on join) rather than to `?title=`; the two `?movie=` tests deleted as deleted behaviour (the stricter-than-ADR-027 rule from decision 8) | `library_live_test.exs`, `home_live_test.exs`, `library_live_tracking_test.exs` | open |
+| 14 | **Element ids** — the tracking controls keep `detail-*`; the title modal's tests were re-pointed `#title-*` → `#detail-*` (`#detail-download`, `#detail-scope`, `#detail-watchlist-toggle`, `#detail-review`, `#detail-note`, `#detail-activity-delete`, `#detail-tracking*`) | `DetailPanel`, `ViewControls`, tests | open |
+
+Already deferred, not for this pass: the `set_rung` name, `?view=info`
+for Manage, `TrackingDetail.today` (§ Deferred).
+
+### Revision loop
+
+1. Fix in place on the branch. Presentation: `DetailPanel` and
+   `Components.Detail.*`; composition: `Title.Logic`, `Detail.Logic`;
+   host: `TitleDetailHost` and its three modules.
+2. A visual change edits the story variation first (`storybook` skill);
+   a behaviour change gets its failing test first.
+3. `~/scripts/agents/agent-mix precommit` (never bare `mix`).
+4. `mockups/title-detail-unification-bar/capture after-r<N>` and compare
+   with `before/` and `after-phase3/` per the table above.
+5. Commit on the branch (no push), update the item's state, add a row
+   below.
+
+### Revision log
+
+| Date | Item(s) | Change | Commit |
+|---|---|---|---|
+| | | | |
+
 ## Open decisions
 
-None. The ten planning decisions were approved 2026-09-14 (below); the
-spec's § Decisions carries each with the owner's words.
+Every row of § Review / Items to judge is open until the owner marks it.
+The ten planning decisions were approved 2026-09-14 (below); items 5–14
+are the calls made in code where the spec was silent or the code
+disagreed with it, and are the owner's to accept or send back.
 
 ## Decisions made
 
@@ -303,6 +374,20 @@ spec's § Decisions carries each with the owner's words.
   library image is a local file, not a TMDB path (the spec assumed a
   TMDB image record). An owned title's artwork comes from the library
   half's images in the host. (this session)
+* `2026-09-14` — **The note line reads two sources only**: the
+  `activity` param by identity, or the intent note. Discovery's
+  implicit "newest friend review" inference is deleted; the activity's
+  embedded title joins the snapshot resolution order so a
+  `?title&activity` link opens on Incoming without a fetch. (this
+  session; review item 10)
+* `2026-09-14` — **`play` is the host's whether or not a modal is
+  open** — the Home hero fires it with no modal. (this session; item 11)
+* `2026-09-14` — **Test addresses migrate to `?entity=`**, the
+  canonicalised form, not `?title=`; the `?movie=` tests go with the
+  behaviour. (this session; item 13)
+* `2026-09-14` — **One id family, `detail-*`**: the tracking controls'
+  ids stay, the title modal's `title-*` ids are re-pointed. (this
+  session; item 14)
 
 * `2026-09-14` — Unify the two modals into one, composed by facts, on all
   four pages. Owner's call after the diagnosis above. (conversation)
@@ -340,13 +425,15 @@ spec's § Decisions carries each with the owner's words.
 
 ## Next steps
 
-1. **Owner:** judge the bar checks (`mockups/title-detail-unification-bar/before` vs `after-phase2`, `after-phase3`, `after-phase4`, and the `storybook-*` unowned shots), and the decision-2 question the spec left to this look: no facet strip and no preview for an owned title.
-2. On a pass: merge `title-detail-unification` into `main` (fast-forward),
-   remove this file (its deferred items are bucketed below), push the
-   wiki, `/ship minor` (the Unreleased entry moves to the release).
-3. On a fail: fix in place on the branch — the presentation is one
-   module, `DetailPanel`, and every owned section renders from the
-   library half exactly as the bar's shots do.
+1. **Owner:** work through § Review / Items to judge — the three bar
+   checks, spec decision 2, and the ten in-code calls. Each `revise`
+   follows the revision loop and is logged.
+2. When every item is `accepted` or `done`: fast-forward merge
+   `title-detail-unification` into `main`, remove this file (its
+   deferred items are bucketed below), push the wiki, `/ship minor`
+   (the CHANGELOG's Unreleased entry moves to the release).
+3. If the result is not good: delete the branch and this file; `main`
+   is untouched at v1.29.0.
 
 ## Deferred (bucketed at closure)
 
@@ -380,26 +467,58 @@ Each item's destination, per the closure-by-destination rule:
 * Merged to `main` and shipped, or abandoned with the branch deleted — in
   either case this file removed.
 
-## Pointers
+## Pointers (as built)
 
-* `lib/media_centaur_web/live/entity_modal.ex`,
-  `lib/media_centaur_web/components/detail_panel.ex`,
-  `lib/media_centaur_web/components/detail/` — the library modal.
-* `lib/media_centaur_web/live/title_detail_host.ex`,
-  `lib/media_centaur_web/components/title/detail_modal.ex`,
-  `lib/media_centaur_web/components/title/detail.ex`,
-  `lib/media_centaur_web/components/title/logic.ex` — the title modal.
-* `lib/media_centaur_web/components/cinematic_shell.ex` — the shared frame.
-* `lib/media_centaur_web/view_model/series_detail.ex`,
-  `collection_detail.ex`, `episode_row.ex`, `orientation.ex` — the library
-  half's composers.
-* `lib/media_centaur/library/modal_entry.ex`, `presentable.ex`,
-  `external_ids.ex` (`tmdb_owners/1`) — the library half's sources.
-* `lib/media_centaur_web/title_ref.ex` — the title address.
-* `assets/js/input/config.js` — the two overlays.
-* `credo_checks/entity_modal_contract.ex` — MC0011.
-* Decision records: UIDR-035 (two surfaces; amended 2026-09-14), UIDR-019
-  (two nav regions), UIDR-021 (artwork ladder), UIDR-023 / UIDR-025
+* **Host:** `lib/media_centaur_web/live/title_detail_host.ex` (URL,
+  events, asyncs, PubSub reactions; `modal_query/1`,
+  `refresh_title_detail/1`) and `title_detail_host/library_half.ex`
+  (load by ref or entity id, `address/1`, reload, playback merges, the
+  files load), `library_events.ex` (the library sections' events, the
+  delete gesture), `acquisition.ex` (`apply_rung/4`, `start_download/4`,
+  the missing-episode plan). Home, Library, Discovery and Incoming
+  `use TitleDetailHost` and implement `page_facts/3`,
+  `title_detail_path/2`, `open_plan_board/2`.
+* **Composition:** `components/title/detail.ex` (`Title.Detail`, facts
+  only), `title/detail/library.ex` (the library half),
+  `title/modal_state.ex`, `title/logic.ex` (`title_detail/2`,
+  `snapshot_from_entity/1`), `components/detail/logic.ex`
+  (`primary_action/2`, `tracking_card?/1`, `release_dates?/1`,
+  `controls_entity/1`), `view_model/leaf_detail.ex`,
+  `view_model/series_detail.ex`, `collection_detail.ex`.
+* **Presentation:** `components/detail_panel.ex` (`detail`, `state`,
+  `today`, `spoiler_free`, `letterboxd_links`, `tmdb_ready`, `review?`,
+  `on_play`, `on_close`) and `components/detail/` (`play_card`,
+  `view_controls`, `collection_rail`, `cast_panel`, `manage_panel`,
+  `season_list`, …); `components/cinematic_shell.ex` the frame.
+  Story: `storybook/detail_panel/detail_panel.story.exs` (28 owned + 22
+  unowned variations), `storybook/detail/view_controls.story.exs`,
+  `play_card.story.exs`.
+* **Sources:** `lib/media_centaur/library/modal_entry.ex`,
+  `presentable.ex`, `external_ids.ex` (`tmdb_owners/1`),
+  `entity_view.ex` (`title_ref/1`); `lib/media_centaur/activities.ex`
+  (`get_row/1`).
+* **Door:** `lib/media_centaur_web/live/subscriptions.ex`;
+  `credo_checks/live_subscriptions.ex` (MC0011).
+* **Address:** `lib/media_centaur_web/title_ref.ex`; `?title=<ref>`
+  (+ `view`, `activity`), `?entity=<uuid>` (residue; canonicalised when
+  titled). `?selected=` remains only for Incoming's pursuit modal.
+* **Nav:** `assets/js/input/config.js` — the one `detail` overlay and
+  the `detail_menu` TREE; `orchestrator.js` reads `data-dismiss-event`.
+* **Tests:** `test/media_centaur_web/live/title_detail_host/`
+  (`library_half_test`, `library_events_test`,
+  `library_events_delete_folder_safety_test`),
+  `live/library_live_tracking_test.exs`, `live/library_live_test.exs`
+  ("title addresses (UIDR-043)"), `discovery_live_test.exs`,
+  `incoming_live_test.exs`, `home_live_test.exs`,
+  `components/detail_panel_test.exs`, `live/subscriptions_test.exs`,
+  `test/media_centaur/credo/checks/live_subscriptions_test.exs`.
+* **Migration:** `priv/repo/migrations/20260914200000_drop_collection_title_intents.exs`
+  (run on the dev database 2026-09-14).
+* **Shots and recapture:** `mockups/title-detail-unification-bar/`
+  (git-ignored) — `before/`, `after-phase2/`, `after-phase3/`,
+  `after-phase4/`, and the `capture` script.
+* Decision records: UIDR-043 (accepted 2026-09-14, supersedes 035 in
+  part), UIDR-035 (amended), UIDR-019 (one overlay, amended), UIDR-021 (artwork ladder), UIDR-023 / UIDR-025
   (collections), UIDR-036, UIDR-037, UIDR-039, UIDR-042; ADR-030 (logic
   hoisting), ADR-038 (traits), ADR-049 (owned async), ADR-051 (sync local
   loads), ADR-066, ADR-067.
