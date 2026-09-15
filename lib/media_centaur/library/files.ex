@@ -127,13 +127,63 @@ defmodule MediaCentaur.Library.Files do
   def playable_file_path(_), do: nil
 
   @doc """
-  An Ecto subquery selecting `file_path` from every linked WatchedFile.
+  An Ecto subquery selecting `file_path` from every linked file — both
+  presence tables, `WatchedFile` and `ExtraFile`.
 
-  Exposed so cross-context queries (Watcher's `rescan_unlinked`) can
-  compose against linked-file state without reaching into the schema.
+  The single definition of "linked". It selected `WatchedFile` alone
+  until 2026-09-15, which made every imported bonus feature look
+  stranded to `Watcher.Rescan.rescan_unlinked/0` and re-emitted it on
+  every boot; `Pipeline.Discovery` had the right definition privately,
+  and now shares this one.
+
+  Exposed so cross-context queries can compose against linked-file
+  state without reaching into the schemas.
   """
   @spec linked_paths_subquery() :: Ecto.Query.t()
-  def linked_paths_subquery, do: from(w in WatchedFile, select: w.file_path)
+  def linked_paths_subquery do
+    union_all(
+      from(w in WatchedFile, select: w.file_path),
+      ^from(e in ExtraFile, select: e.file_path)
+    )
+  end
+
+  @doc """
+  Every linked file path, both presence tables.
+
+  For callers that need to test a rule against the whole library rather
+  than a known set of paths — the Settings ignore-rule guard.
+  """
+  @spec all_linked_paths() :: [String.t()]
+  def all_linked_paths, do: Repo.all(linked_paths_subquery())
+
+  @doc """
+  The subset of `file_paths` owned by either presence table.
+
+  The in-memory form of `linked_paths_subquery/0`, for callers holding
+  a list of paths rather than composing a query. Two indexed queries
+  rather than one union so the result is a plain `MapSet` without a
+  subquery wrapper.
+  """
+  @spec linked_paths([String.t()]) :: MapSet.t(String.t())
+  def linked_paths([]), do: MapSet.new()
+
+  def linked_paths(file_paths) when is_list(file_paths) do
+    watched = Repo.all(from(w in WatchedFile, where: w.file_path in ^file_paths, select: w.file_path))
+    extras = Repo.all(from(e in ExtraFile, where: e.file_path in ^file_paths, select: e.file_path))
+
+    MapSet.new(watched ++ extras)
+  end
+
+  @doc """
+  True when `file_path` is owned by either presence table.
+
+  Derived from `linked_paths/1` rather than repeating the two-table
+  disjunction, so there is one definition of "linked" and not three.
+  """
+  @spec linked?(String.t()) :: boolean()
+  def linked?(file_path) when is_binary(file_path) do
+    file_path in linked_paths([file_path])
+  end
 
   @doc """
   Watched files belonging to a top-level entity, whichever container type

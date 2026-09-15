@@ -22,6 +22,18 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
   removed and deleted from disk leaves the exact same shape (presence
   row, no link) with no file to recover.
 
+  Two further classes of row must never be re-emitted. One is a file
+  linked as an `ExtraFile` — a bonus feature — which
+  `Library.Files.linked_paths_subquery/0` used to miss because it read
+  `library_watched_files` alone, making every imported extra look
+  stranded on every boot.
+
+  The other is a row under an ignore rule. `exclude_dirs` (a path rule) and `skip_dirs` (a name rule) only
+  ever filtered the directory *walk*, so presence rows recorded before
+  a rule was added kept being re-emitted on every boot — each one
+  costing a parse and two TMDB searches that could not resolve. See
+  `docs/plans/2026-09-15-ignore-rules-unification.md`.
+
   Append-only per ADR-027.
   """
   use MediaCentaur.DataCase, async: false
@@ -29,6 +41,7 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library.FilePresence
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Topics
   alias MediaCentaur.Watcher.Rescan
 
@@ -117,6 +130,74 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
 
       assert_receive {:file_detected, %{path: ^stranded_path, media_dir: ^media_dir}}, 500
       refute_receive {:file_detected, %{path: ^gone_path}}, 100
+    end
+
+    test "does not re-emit a presence row under a path rule", %{media_dir: media_dir} do
+      captures_dir = Path.join(media_dir, "Captures")
+      File.mkdir_p!(captures_dir)
+      ignored_path = write_stranded_file!(captures_dir, "Sample Capture 2025-06-29 13-19-52.mkv")
+
+      :ok = Config.update(:exclude_dirs, [captures_dir])
+
+      assert {:ok, 0} = Rescan.rescan_unlinked()
+      refute_receive {:file_detected, %{path: ^ignored_path}}, 100
+    end
+
+    test "does not re-emit a presence row under a name rule", %{media_dir: media_dir} do
+      sample_dir = Path.join(media_dir, "Sample")
+      File.mkdir_p!(sample_dir)
+      ignored_path = write_stranded_file!(sample_dir, "padding.mkv")
+
+      assert {:ok, 0} = Rescan.rescan_unlinked()
+      refute_receive {:file_detected, %{path: ^ignored_path}}, 100
+    end
+
+    test "does not re-emit a presence row for a file that is not a recognised video", %{
+      media_dir: media_dir
+    } do
+      ignored_path = write_stranded_file!(media_dir, "cover.jpg")
+
+      assert {:ok, 0} = Rescan.rescan_unlinked()
+      refute_receive {:file_detected, %{path: ^ignored_path}}, 100
+    end
+
+    test "does not re-emit a file linked as an extra", %{media_dir: media_dir} do
+      # Bonus features are linked through `library_extra_files`, not
+      # `library_watched_files`. Treating them as stranded re-fed every
+      # imported extra to the pipeline on each boot.
+      extra_path = Path.join(media_dir, "behind the scenes.mkv")
+      File.write!(extra_path, "extra")
+
+      movie = create_movie(%{name: "Sample Movie C"})
+
+      extra =
+        create_extra(%{
+          movie_id: movie.id,
+          name: "Behind the Scenes",
+          kind: :featurette,
+          content_url: extra_path
+        })
+
+      create_extra_file_for_extra(extra, %{media_dir: media_dir})
+
+      assert {:ok, 0} = Rescan.rescan_unlinked()
+      refute_receive {:file_detected, %{path: ^extra_path}}, 100
+    end
+
+    test "still recovers a stranded file alongside one under a path rule", %{
+      media_dir: media_dir
+    } do
+      captures_dir = Path.join(media_dir, "Captures")
+      File.mkdir_p!(captures_dir)
+      ignored_path = write_stranded_file!(captures_dir, "Sample Capture 2025-06-29 13-19-52.mkv")
+      stranded_path = write_stranded_file!(media_dir, "stranded.mkv")
+
+      :ok = Config.update(:exclude_dirs, [captures_dir])
+
+      assert {:ok, 1} = Rescan.rescan_unlinked()
+
+      assert_receive {:file_detected, %{path: ^stranded_path, media_dir: ^media_dir}}, 500
+      refute_receive {:file_detected, %{path: ^ignored_path}}, 100
     end
   end
 end

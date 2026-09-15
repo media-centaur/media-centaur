@@ -1,8 +1,12 @@
 defmodule MediaCentaurWeb.SettingsLive.ImportSection do
   @moduledoc """
   The Media Import section of the Settings page (UIDR-041): the extras
-  and ignored folder names as list settings, the match auto-approve
-  threshold as a stepper, and the artwork resolution as a choice. (Named
+  folder names as a list setting, the match auto-approve threshold as a
+  stepper, and the artwork resolution as a choice. Ignore rules used to
+  sit here as a second list; they moved to Library → Ignore rules, where
+  the path-matched half already lived. Extras names stay because they
+  are classification — which title a file belongs to — not admission.
+  (Named
   for the user-facing task; the machinery behind it is the Broadway
   pipeline.) `SettingsLive` delegates to `render/1` and hosts the
   `config_list_add` / `config_list_remove` / `set_*` handlers.
@@ -18,7 +22,7 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
 
   attr :config, :map,
     required: true,
-    doc: "settings config map (reads :extras_dirs, :skip_dirs, :auto_approve_threshold)."
+    doc: "settings config map (reads :extras_dirs, :auto_approve_threshold)."
 
   def render(assigns) do
     assigns = assign(assigns, :threshold, assigns.config[:auto_approve_threshold] || threshold_default())
@@ -36,20 +40,6 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
           add_event="config_list_add"
           event_value={%{"key" => "extras_dirs"}}
           placeholder="Featurettes"
-        />
-      </.settings_card>
-
-      <.settings_card
-        title="Ignored folder names"
-        description="Folder names ignored wherever they appear within your media. To exclude a specific path, use Library → Excluded directories."
-      >
-        <.settings_list
-          id="skip-dirs"
-          items={@config[:skip_dirs] || []}
-          remove_event="config_list_remove"
-          add_event="config_list_add"
-          event_value={%{"key" => "skip_dirs"}}
-          placeholder="Sample"
         />
       </.settings_card>
 

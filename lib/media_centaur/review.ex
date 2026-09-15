@@ -155,6 +155,35 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
+  Drops the queue rows for `file_paths` — the files are no longer
+  library content, so there is no decision left to make about them.
+
+  Status-blind on purpose: a `:dismissed` row is queue state too, and
+  `find_or_create_pending_file/1` keys on `file_path` regardless of
+  status, so leaving one behind would keep the path permanently
+  un-queueable if it ever came back.
+
+  Called by `Review.FileEventHandler` for both producers of
+  `{:files_removed, paths}` — a deletion observed on disk, and an
+  ignore rule retracting a path. Returns `{:ok, count}`.
+  """
+  @spec drop_pending_files([String.t()]) :: {:ok, non_neg_integer()}
+  def drop_pending_files([]), do: {:ok, 0}
+
+  def drop_pending_files(file_paths) when is_list(file_paths) do
+    dropped_ids =
+      PendingFile
+      |> where([p], p.file_path in ^file_paths)
+      |> select([p], p.id)
+      |> Repo.all()
+
+    {count, _} = Repo.delete_all(from(p in PendingFile, where: p.id in ^dropped_ids))
+    Enum.each(dropped_ids, &broadcast_reviewed/1)
+
+    {:ok, count}
+  end
+
+  @doc """
   Removes a file from the review queue once its import has finished and
   broadcasts `FileReviewed`. `:ok` even when the record is already gone.
   """

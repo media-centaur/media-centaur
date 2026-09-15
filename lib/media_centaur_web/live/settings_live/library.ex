@@ -2,11 +2,16 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
   @moduledoc """
   The Library section of the Settings page (UIDR-041): the data directory
   as a text row, the media directories (add/edit/remove, scan), the
-  excluded directories as a list setting with live validation, and the
-  cleanup windows as steppers. `SettingsLive` delegates to `render/1` and
-  hosts the media_dir / exclude_dir / save / set event handlers.
-  `days_ladder/0` is the cleanup steppers' rungs, shared with the handler
-  that validates them.
+  ignore rules as two validated list settings, and the cleanup windows as
+  steppers. `SettingsLive` delegates to `render/1` and hosts the
+  media_dir / ignore_rule / save / set event handlers. `days_ladder/0` is
+  the cleanup steppers' rungs, shared with the handler that validates
+  them.
+
+  The two ignore-rule lists share one card because they are one idea
+  with two matching modes — a path and everything under it, or a folder
+  name wherever it appears. They were two cards in separate sections
+  that each pointed at the other in prose.
   """
 
   use MediaCentaurWeb, :html
@@ -30,9 +35,15 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
   attr :media_dir_delete_confirm, :any, required: true, doc: "id of the dir pending delete, or nil"
   attr :scanning, :boolean, required: true
 
-  attr :exclude_dirs, :list, required: true, doc: "list of excluded path strings."
-  attr :exclude_dir_input, :string, required: true
-  attr :exclude_dir_error, :any, required: true, doc: "validation error string or nil"
+  attr :ignore_rules, :map,
+    required: true,
+    doc: "`%{path: [absolute paths], name: [folder names]}` — the two ignore-rule kinds."
+
+  attr :ignore_rule_input, :map, required: true, doc: "the add input's text, keyed by kind."
+
+  attr :ignore_rule_error, :map,
+    required: true,
+    doc: "inline validation error per kind — a string or nil."
 
   def render(assigns) do
     assigns =
@@ -186,22 +197,39 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
       </.settings_card>
 
       <.settings_card
-        title="Excluded directories"
-        description="Specific paths inside your media directories that are never scanned. To ignore folders by name wherever they appear, use Media Import → Ignored folder names."
+        title="Ignore rules"
+        description="Parts of your media directories that are never scanned. Nothing inside them is imported; to ignore somewhere you have already imported from, remove those titles from your library first."
       >
-        <.settings_list
-          id="exclude-dirs"
-          items={@exclude_dirs}
-          remove_event="exclude_dir:delete"
-          add_event="exclude_dir:add"
-          change_event="exclude_dir:validate"
-          value={@exclude_dir_input}
-          add_disabled={exclude_dir_add_disabled?(@exclude_dir_input, @exclude_dir_error)}
-          error={@exclude_dir_error}
-          placeholder="/absolute/path/to/exclude"
-          mono
-          truncate_left
-        />
+        <div class="space-y-5">
+          <.settings_list
+            id="ignore-rules-path"
+            label="By path"
+            items={@ignore_rules.path}
+            remove_event="ignore_rule:delete"
+            add_event="ignore_rule:add"
+            change_event="ignore_rule:validate"
+            event_value={%{"kind" => "path"}}
+            value={@ignore_rule_input.path}
+            add_disabled={add_disabled?(@ignore_rule_input.path, @ignore_rule_error.path)}
+            error={@ignore_rule_error.path}
+            placeholder="/absolute/path/to/ignore"
+            mono
+            truncate_left
+          />
+          <.settings_list
+            id="ignore-rules-name"
+            label="By folder name"
+            items={@ignore_rules.name}
+            remove_event="ignore_rule:delete"
+            add_event="ignore_rule:add"
+            change_event="ignore_rule:validate"
+            event_value={%{"kind" => "name"}}
+            value={@ignore_rule_input.name}
+            add_disabled={add_disabled?(@ignore_rule_input.name, @ignore_rule_error.name)}
+            error={@ignore_rule_error.name}
+            placeholder="Sample"
+          />
+        </div>
       </.settings_card>
 
       <.settings_card title="Cleanup">
@@ -245,7 +273,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
   defp days(1), do: "1 day"
   defp days(n), do: "#{n} days"
 
-  defp exclude_dir_add_disabled?(path, error) do
-    String.trim(path || "") == "" or is_binary(error)
+  defp add_disabled?(input, error) do
+    String.trim(input || "") == "" or is_binary(error)
   end
 end

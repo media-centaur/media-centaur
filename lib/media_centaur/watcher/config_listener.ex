@@ -1,19 +1,31 @@
 defmodule MediaCentaur.Watcher.ConfigListener do
   @moduledoc """
-  Subscribes to `Topics.config_updates()` and calls
-  `Watcher.Supervisor.reconcile/1` on every media-dir change broadcast.
+  Bridges `Topics.config_updates()` to the watcher subsystem: the two
+  config changes the subsystem has to act on, and nothing else.
 
-  Thin PubSub bridge — the reconcile itself is synchronous and idempotent.
+  - **`:media_dirs`** → `Watcher.Supervisor.reconcile/1`, synchronous
+    and idempotent. Only while watching is on
+    (`Watcher.Supervisor.enabled?/0`): with watchers off — the service
+    flag at boot, or the Settings toggle — a media-dir edit starts
+    nothing. Turning them back on
+    (`Watcher.Supervisor.start_watchers/0`) reads the current dirs, so
+    nothing is lost in between.
+  - **`:exclude_dirs` / `:skip_dirs`** → `Watcher.Rescan.retract_ignored/0`.
+    Saving an ignore rule has to reconcile what is already recorded
+    under it, or the user is left with rows they cannot see and cannot
+    clear. Run on a task because it reads every presence row, and
+    *not* gated on watching: the rule was saved, so the database must
+    match it either way, and with watchers off nothing will re-add the
+    rows.
 
-  Only while watching is on (`Watcher.Supervisor.enabled?/0`): with
-  watchers off — the service flag at boot, or the Settings toggle — a
-  media-dir edit starts nothing. Turning them back on
-  (`Watcher.Supervisor.start_watchers/0`) reads the current dirs, so
-  nothing is lost in between.
+  Each watcher refreshes its own cached rule set from the same
+  broadcast; the retraction is the once-per-change, cross-directory
+  half, which is why it lives here rather than in each watcher.
   """
   use GenServer
 
   alias MediaCentaur.Watcher
+  alias MediaCentaur.Watcher.Rescan
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
@@ -37,6 +49,11 @@ defmodule MediaCentaur.Watcher.ConfigListener do
       Watcher.Supervisor.reconcile_image_dir_monitors()
     end
 
+    {:noreply, state}
+  end
+
+  def handle_info({:config_updated, key, _value}, state) when key in [:exclude_dirs, :skip_dirs] do
+    Rescan.retract_ignored_async()
     {:noreply, state}
   end
 
