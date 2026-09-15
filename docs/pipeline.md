@@ -169,7 +169,11 @@ Watchers and pipelines can be independently stopped/started via config (`start_w
 
 ## Idempotency & Concurrency Safety
 
-- **Already-linked check:** Discovery queries `library_watched_files` directly (via the `WatchedFile` schema + Repo, not through the Library context) to skip files that are already linked to an entity. A file is "linked" when any one of `movie_id`, `tv_series_id`, `movie_series_id`, `video_object_id` is set.
+- **Already-settled check:** before parsing anything, Discovery asks whether the file has already been decided, and skips it if so. Two terminal states, each answered by the context that owns the table:
+  - **linked** — `Library.Files.linked?/1`, true when either presence table (`library_watched_files` for playable items, `library_extra_files` for bonus features) owns the path. Shares its definition with `Library.Files.linked_paths_subquery/0`, which is what `Watcher.Rescan.rescan_unlinked/0` composes against, so the two cannot disagree.
+  - **dismissed** — `Review.dismissed?/1`, true when a person decided in review that the file is not library content. `Review.add_pending_file/1` keys on `file_path` regardless of status, so a dismissed row can never be replaced by a fresh pending one: any match computed for that path afterwards is discarded. Stopping here is what makes the decision free instead of costing a parse and two TMDB searches on every scan and restart.
+
+  A `:pending` row is deliberately **not** settled — it is an open question, and `rescan_unlinked/0` exists to re-run those once a transient failure (a rejected TMDB key) is resolved. The skip reason is logged rather than collapsed to a bare "skipped", because the Console line is the only place a dismissal is visible at runtime.
 - **Entity deduplication:** `Library.Inbound` looks up existing entities by TMDB ID via `Library.ExternalId`, which has a unique constraint on `(source, external_id)`
 - **Race-loss recovery:** If two processors create entities for the same TMDB ID, the `ExternalId` insert detects the race; the loser destroys its orphan entity
 - **Find-or-create patterns:** Season, Episode, Movie, and Extra creation uses find-or-create — existing records are returned without modification

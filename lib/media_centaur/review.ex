@@ -155,6 +155,27 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
+  True when `file_path` was dismissed in review — a person decided it
+  is not library content.
+
+  Terminal, the same way being linked is. `find_or_create_pending_file/1`
+  keys on `file_path` regardless of status, so a dismissed row can never
+  be replaced by a fresh pending one: any match computed for that path
+  afterwards is discarded. `Pipeline.Discovery` reads this to stop before
+  the parse and the two TMDB searches whose result it could not use.
+
+  A `:pending` row is deliberately *not* terminal — it is an open
+  question, and `Watcher.Rescan.rescan_unlinked/0` exists to re-run those
+  once a transient failure (a rejected TMDB key) is resolved.
+  """
+  @spec dismissed?(String.t()) :: boolean()
+  def dismissed?(file_path) when is_binary(file_path) do
+    Repo.exists?(
+      from(p in PendingFile, where: p.file_path == ^file_path and p.status == :dismissed, limit: 1)
+    )
+  end
+
+  @doc """
   Drops the queue rows for `file_paths` — the files are no longer
   library content, so there is no decision left to make about them.
 
