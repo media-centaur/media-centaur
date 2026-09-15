@@ -140,7 +140,10 @@ defmodule MediaCentaurWeb.LibraryLiveTrackingTest do
 
     {:ok, view, _html} = live(conn, "/library?title=tv_series-424242")
 
-    refute has_element?(view, "#detail-tracking #manage-lower-quality")
+    # The episode list is not where it goes: an owned title carries the
+    # acceptance behind the cog and nowhere else.
+    refute has_element?(view, "#detail-lower-quality")
+    refute has_element?(view, "[data-role='lower-quality-note']")
 
     {:ok, view, _html} = live(conn, "/library?title=tv_series-424242&view=info")
 

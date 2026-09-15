@@ -532,14 +532,27 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   Whether the tracking card under the body has anything to show — one
   rule for an owned and an unowned title alike: the switches once the
   title is listed (or the Ignored word), the dates once there is a
-  calendar or a movie's live release window, the note once a lower
-  quality is accepted.
+  calendar or a movie's live release window, the lower-quality note once
+  the card is the place for it (`lower_quality_note?/1`).
   """
   @spec tracking_card?(TitleDetail.t()) :: boolean()
   def tracking_card?(%TitleDetail{} = detail) do
     release_dates?(detail) or TrackingControls.control_form(detail.rung) != :none or
-      detail.lower_quality_accepted?
+      lower_quality_note?(detail)
   end
+
+  @doc """
+  Whether the lower-quality acceptance belongs on the tracking card: only
+  for a title with no files, because only an owned title has the Manage
+  sheet the acceptance otherwise lives in (`Title.LowerQualityNote`).
+
+  One acceptance, one place. Counting it here for an owned title too put
+  it under the episode list *and* behind the cog.
+  """
+  @spec lower_quality_note?(TitleDetail.t()) :: boolean()
+  def lower_quality_note?(%TitleDetail{library: nil, lower_quality_accepted?: accepted?}), do: accepted?
+
+  def lower_quality_note?(%TitleDetail{}), do: false
 
   @doc """
   Whether the release dates readout has something to say: a calendar

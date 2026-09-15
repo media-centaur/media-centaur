@@ -803,8 +803,25 @@ defmodule MediaCentaurWeb.Components.Detail.LogicPrimaryActionTest do
       assert Logic.tracking_card?(detail(%{release_window: %ReleaseWindow{stage: :theatrical}}))
     end
 
-    test "an accepted lower quality shows the note" do
+    test "an accepted lower quality shows the note on an unowned title" do
       assert Logic.tracking_card?(detail(%{lower_quality_accepted?: true}))
+    end
+
+    # An owned title has the Manage sheet, which is where the acceptance
+    # lives (`Title.LowerQualityNote`). Counting it here too put the note
+    # under the episode list as well as behind the cog.
+    test "an owned title's acceptance is Manage's business, not the card's" do
+      detail =
+        detail(%{library: owned(%{type: :tv_series, id: "tv-uuid"}), lower_quality_accepted?: true})
+
+      refute Logic.tracking_card?(detail)
+    end
+
+    test "an owned title still shows the card for its own reasons" do
+      library = owned(%{type: :tv_series, id: "tv-uuid"})
+
+      assert Logic.tracking_card?(detail(%{library: library, rung: :list}))
+      assert Logic.tracking_card?(detail(%{library: library, tracking: %TrackingDetail{}}))
     end
   end
 end

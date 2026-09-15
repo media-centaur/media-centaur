@@ -30,11 +30,22 @@ defmodule MediaCentaur.TMDB.Client do
 
   `configuration/1` always reloads; it exists to prove the key against
   the network.
+
+  ## The console line
+
+  Every answered call logs one line, after the fact, naming where the
+  answer came from (`log_line/2`): `fetched movie tmdb:1317149 — from
+  cache` for a table read, `— from TMDB` for a network call, and
+  `— revalidated with TMDB` / `— refetched from TMDB` for the two other
+  ways a request reaches the API. It used to log "fetched" before the
+  request, so a hit and a miss read identically and a failure still
+  claimed a fetch.
   """
 
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.HttpClient
+  alias MediaCentaur.HttpClient.Cache
   alias MediaCentaur.TMDB.RateLimiter
 
   @base_url "https://api.themoviedb.org/3"
@@ -76,15 +87,15 @@ defmodule MediaCentaur.TMDB.Client do
   """
   @spec configuration(opts()) :: {:ok, map()} | {:error, any()}
   def configuration(opts \\ []) do
-    get(Keyword.put(opts, :reload, true), url: "/configuration")
+    get(Keyword.put(opts, :reload, true), [url: "/configuration"], "configuration")
   end
 
   @spec search_movie(String.t(), integer() | nil, opts()) :: {:ok, list(map())} | {:error, any()}
   def search_movie(title, year \\ nil, opts \\ []) do
     params = [query: title] ++ if(year, do: [year: year], else: [])
-    Log.info(:tmdb, "searched movies — #{title}#{if year, do: " (#{year})", else: ""}")
 
-    with {:ok, body} <- get(opts, url: "/search/movie", params: params) do
+    with {:ok, body} <-
+           get(opts, [url: "/search/movie", params: params], "movies for #{query_words(title, year)}") do
       results = body["results"] || []
       Log.info(:tmdb, "found #{length(results)} movie results")
       {:ok, results}
@@ -94,9 +105,9 @@ defmodule MediaCentaur.TMDB.Client do
   @spec search_tv(String.t(), integer() | nil, opts()) :: {:ok, list(map())} | {:error, any()}
   def search_tv(title, year \\ nil, opts \\ []) do
     params = [query: title] ++ if(year, do: [first_air_date_year: year], else: [])
-    Log.info(:tmdb, "searched TV — #{title}#{if year, do: " (#{year})", else: ""}")
 
-    with {:ok, body} <- get(opts, url: "/search/tv", params: params) do
+    with {:ok, body} <-
+           get(opts, [url: "/search/tv", params: params], "TV for #{query_words(title, year)}") do
       results = body["results"] || []
       Log.info(:tmdb, "found #{length(results)} TV results")
       {:ok, results}
@@ -111,9 +122,8 @@ defmodule MediaCentaur.TMDB.Client do
   """
   @spec search_multi(String.t(), opts()) :: {:ok, list(map())} | {:error, any()}
   def search_multi(title, opts \\ []) do
-    Log.info(:tmdb, "searched media — #{title}")
-
-    with {:ok, body} <- get(opts, url: "/search/multi", params: [query: title]) do
+    with {:ok, body} <-
+           get(opts, [url: "/search/multi", params: [query: title]], "media for #{title}") do
       results = body["results"] || []
       Log.info(:tmdb, "found #{length(results)} media results")
       {:ok, results}
@@ -122,60 +132,96 @@ defmodule MediaCentaur.TMDB.Client do
 
   @spec get_movie(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_movie(tmdb_id, opts \\ []) do
-    Log.info(:tmdb, "fetched movie tmdb:#{tmdb_id}")
-
-    get(opts,
-      url: "/movie/#{tmdb_id}",
-      params: [
-        append_to_response: "credits,release_dates,images",
-        include_image_language: "en,null"
-      ]
+    get(
+      opts,
+      [
+        url: "/movie/#{tmdb_id}",
+        params: [
+          append_to_response: "credits,release_dates,images",
+          include_image_language: "en,null"
+        ]
+      ],
+      "movie tmdb:#{tmdb_id}"
     )
   end
 
   @spec get_tv(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_tv(tmdb_id, opts \\ []) do
-    Log.info(:tmdb, "fetched TV tmdb:#{tmdb_id}")
-
-    get(opts,
-      url: "/tv/#{tmdb_id}",
-      params: [
-        append_to_response: "aggregate_credits,external_ids,images",
-        include_image_language: "en,null"
-      ]
+    get(
+      opts,
+      [
+        url: "/tv/#{tmdb_id}",
+        params: [
+          append_to_response: "aggregate_credits,external_ids,images",
+          include_image_language: "en,null"
+        ]
+      ],
+      "TV tmdb:#{tmdb_id}"
     )
   end
 
   @spec get_collection(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_collection(collection_id, opts \\ []) do
-    Log.info(:tmdb, "fetched collection tmdb:#{collection_id}")
-
-    get(opts,
-      url: "/collection/#{collection_id}",
-      params: [append_to_response: "images", include_image_language: "en,null"]
+    get(
+      opts,
+      [
+        url: "/collection/#{collection_id}",
+        params: [append_to_response: "images", include_image_language: "en,null"]
+      ],
+      "collection tmdb:#{collection_id}"
     )
   end
 
   @spec get_season(String.t() | integer(), integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_season(tmdb_id, season_number, opts \\ []) do
-    Log.info(:tmdb, "fetched season tmdb:#{tmdb_id} S#{season_number}")
-
     # `credits` rides along for per-episode cast membership: season
     # regulars come from the appended credits, guest stars ride on each
     # episode object (`Mapper.episode_attrs/2`).
-    get(opts,
-      url: "/tv/#{tmdb_id}/season/#{season_number}",
-      params: [append_to_response: "credits"]
+    get(
+      opts,
+      [url: "/tv/#{tmdb_id}/season/#{season_number}", params: [append_to_response: "credits"]],
+      "season tmdb:#{tmdb_id} S#{season_number}"
     )
   end
 
-  defp get(opts, request) do
+  @doc """
+  The console line for a call that was answered: what was asked for, and
+  where the answer came from.
+
+  `subject` is the noun phrase the endpoint names itself with
+  (`"movie tmdb:1317149"`, `"movies for Sample Show (2010)"`). The
+  outcome is `MediaCentaur.HttpClient.Cache.outcome/1`; `:uncached`
+  reads as a plain fetch, which is what it is for a client with no cache
+  attached.
+  """
+  @spec log_line(String.t(), Cache.outcome()) :: String.t()
+  def log_line(subject, outcome), do: "fetched #{subject} — #{source(outcome)}"
+
+  defp source(:hit), do: "from cache"
+  defp source(:revalidate), do: "revalidated with TMDB"
+  defp source(:reload), do: "refetched from TMDB"
+  defp source(_fetched), do: "from TMDB"
+
+  defp query_words(title, nil), do: title
+  defp query_words(title, year), do: "#{title} (#{year})"
+
+  # Logged after the fact and only for an answered request: the outcome
+  # is not known until the response is in hand, and a failure is the
+  # caller's to report (`auth_failure?/1`) rather than something to
+  # announce as a fetch.
+  defp get(opts, request, subject) do
     {client, opts} = Keyword.pop_lazy(opts, :client, &default_client/0)
 
     case Req.get(client, request ++ opts) do
-      {:ok, %{status: 200, body: body}} -> {:ok, body}
-      {:ok, %{status: status, body: body}} -> {:error, {:http_error, status, body}}
-      {:error, reason} -> {:error, reason}
+      {:ok, %{status: 200, body: body} = response} ->
+        Log.info(:tmdb, log_line(subject, Cache.outcome(response)))
+        {:ok, body}
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

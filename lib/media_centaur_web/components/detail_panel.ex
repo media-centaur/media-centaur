@@ -144,7 +144,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     {files, files_status} = files(half.library)
 
     cast_filter_in_header? =
-      view == :cast && prose.description_right? &&
+      view == :cast && prose.prose? &&
         CastSelection.show_filter?(Map.get(half.subject, :cast) || [])
 
     assigns =
@@ -217,87 +217,70 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               the panel's rounded bottom edge, which needs real breathing
               room. --%>
         <div class={["px-4 pt-6", (@body? && "pb-4") || "pb-8"]}>
-          <%!-- Two real columns sharing one top line: identity facts +
-                the action row on the left, prose on the right. The
-                metadata row lives INSIDE the left column — as a
-                full-width line above the grid it left the buttons alone
-                with dead space while the synopsis floated anchorless at
-                mid-page. Titles without prose collapse to a single
-                full-width stack. Below xl everything is one column,
-                metadata and controls first. Asymmetric split: the
-                controls row is a fixed-size cluster, the prose wants
-                measure — 2/5 vs 3/5. --%>
-          <div class={[
-            "space-y-4",
-            @description_right? && "xl:space-y-0 xl:grid xl:grid-cols-5 xl:gap-8 xl:items-start"
-          ]}>
-            <div class="space-y-4 min-w-0 xl:col-span-2 xl:col-start-1 xl:row-start-1">
-              <MetadataRow.metadata_row
-                badge_text={@badge_text}
-                items={@metadata_items}
-                remaining_text={@metadata_remaining}
+          <%!-- One column, three stacked bands: identity facts, the
+                action row, then the prose across the panel's full
+                width. It was a 2/5–3/5 split until 2026-09-15, which
+                gave the synopsis ~62ch and cut a 546-character series
+                overview mid-sentence at `line-clamp-6`. The panel is
+                the measure now, so the same clamp holds about twice the
+                words and a typical overview lands whole. --%>
+          <div class="space-y-4 min-w-0">
+            <MetadataRow.metadata_row
+              badge_text={@badge_text}
+              items={@metadata_items}
+              remaining_text={@metadata_remaining}
+            />
+            <%!-- The action row. The Download control's menus are zones
+                  nested inside it: the input system counts an item for
+                  its nearest zone, and BACK out of an open list closes
+                  it (`data-nav-dismiss-event`). data-nav-enter-scroll-top:
+                  arrowing up out of the body list glides the modal back
+                  to the hero; BACK lands here without moving it. --%>
+            <div
+              class="flex items-center gap-2 pt-1"
+              data-nav-zone="detail_actions"
+              data-nav-enter-scroll-top
+            >
+              <.primary
+                detail={@detail}
+                action={@action}
+                state={@state}
+                on_play={@on_play}
+                available={@available}
               />
-              <%!-- The action row. The Download control's menus are zones
-                    nested inside it: the input system counts an item for
-                    its nearest zone, and BACK out of an open list closes
-                    it (`data-nav-dismiss-event`). data-nav-enter-scroll-top:
-                    arrowing up out of the body list glides the modal back
-                    to the hero; BACK lands here without moving it. --%>
-              <div
-                class="flex items-center gap-2 pt-1"
-                data-nav-zone="detail_actions"
-                data-nav-enter-scroll-top
-              >
-                <.primary
-                  detail={@detail}
-                  action={@action}
-                  state={@state}
-                  on_play={@on_play}
-                  available={@available}
+              <ViewControls.view_controls
+                detail={@detail}
+                view={@view}
+                letterboxd_links={@letterboxd_links}
+                review?={@review?}
+              />
+              <%!-- Member watched toggle: acting on the *selected*
+                    movie is what the movie-first modal is for, and
+                    Play's line is the one place every input method
+                    reaches (UIDR-023). Far right with its label, away
+                    from the play cluster; a first-class nav item so the
+                    toolbar walk reaches it. --%>
+              <span :if={@member} class="ml-auto flex items-center gap-2">
+                <span class="text-xs text-base-content/55">Watched</span>
+                <PlayableRow.watched_toggle
+                  event="toggle_watched"
+                  state={@member.state}
+                  progress={@member.progress}
+                  duration_seconds={Map.get(@member.movie, :duration_seconds)}
+                  show_duration={false}
+                  nav_item
+                  phx-value-entity-id={@entity.id}
+                  phx-value-container-type="movie"
+                  phx-value-container-id={@member.movie.id}
                 />
-                <ViewControls.view_controls
-                  detail={@detail}
-                  view={@view}
-                  letterboxd_links={@letterboxd_links}
-                  review?={@review?}
-                />
-                <%!-- Member watched toggle: acting on the *selected*
-                      movie is what the movie-first modal is for, and
-                      Play's line is the one place every input method
-                      reaches (UIDR-023). Far right with its label, away
-                      from the play cluster; a first-class nav item so the
-                      toolbar walk reaches it. --%>
-                <span :if={@member} class="ml-auto flex items-center gap-2">
-                  <span class="text-xs text-base-content/55">Watched</span>
-                  <PlayableRow.watched_toggle
-                    event="toggle_watched"
-                    state={@member.state}
-                    progress={@member.progress}
-                    duration_seconds={Map.get(@member.movie, :duration_seconds)}
-                    show_duration={false}
-                    nav_item
-                    phx-value-entity-id={@entity.id}
-                    phx-value-container-type="movie"
-                    phx-value-container-id={@member.movie.id}
-                  />
-                </span>
-                <.activity_delete detail={@detail} />
-              </div>
-              <div :if={not @description_right? and (@description != nil or @note != nil)}>
-                <.note_line note={@note} />
-                <p
-                  :if={@description}
-                  class="text-sm text-base-content/70 line-clamp-8 xl:max-w-[50ch]"
-                >
-                  {@description}
-                </p>
-              </div>
+              </span>
+              <.activity_delete detail={@detail} />
             </div>
-            <div :if={@description_right?} class="min-w-0 xl:col-span-3 xl:col-start-3 xl:row-start-1">
+            <div :if={@prose?}>
               <.note_line note={@note} />
               <p
                 :if={@description}
-                class="text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[72ch]"
+                class="text-[15px] leading-relaxed text-base-content/75 line-clamp-6"
               >
                 {@description}
               </p>
@@ -305,7 +288,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                     orientation block, rather than in the scrolling sheet —
                     it fills the slack under the synopsis and stays reachable
                     however deep the grid is scrolled. cast_panel renders its
-                    own inline fallback when this column doesn't exist. --%>
+                    own inline fallback when this band doesn't exist. --%>
               <CastPanel.cast_filter_form
                 :if={@cast_filter_in_header?}
                 filter={@state.cast_filter}
@@ -443,18 +426,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     }
   end
 
-  # The prose column: the synopsis and the note, and whether they take
-  # the right column (a movie or series subject with words) or stack
-  # under the controls.
+  # The prose band under the action row: the synopsis and the note, and
+  # whether there is a band at all. The Cast view's filter form rides in
+  # the band when there is one, so `prose?` answers for both.
   defp prose_facts(detail, subject) do
     description = prose(detail, subject)
     note = note_words(detail)
-    prose? = description != nil or note != nil
 
     %{
       description: description,
       note: note,
-      description_right?: prose? and (is_nil(subject) or subject.type in [:movie, :tv_series])
+      prose?: description != nil or note != nil
     }
   end
 
@@ -612,12 +594,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # rung adds content below it and never moves it.
   defp tracking_card(assigns) do
     assigns =
-      assign(
-        assigns,
+      assigns
+      |> assign(
         :controls?,
         TrackingControls.control_form(assigns.detail.rung) != :none or
-          assigns.detail.lower_quality_accepted?
+          Logic.lower_quality_note?(assigns.detail)
       )
+      |> assign(:lower_quality_note?, Logic.lower_quality_note?(assigns.detail))
 
     ~H"""
     <div
@@ -637,10 +620,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             approval_policy={PlanningMode.approval_policy(@detail.planning_mode)}
             acquisition?={@detail.acquisition?}
           />
+          <%!-- Only for a title with no Manage sheet: an owned one carries
+                the acceptance behind the cog and nowhere else. --%>
           <LowerQualityNote.lower_quality_note
             id="detail-lower-quality"
             ref={@ref}
-            accepted?={@detail.lower_quality_accepted?}
+            accepted?={@lower_quality_note?}
           />
         </div>
         <ReleaseDates.release_dates
