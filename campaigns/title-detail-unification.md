@@ -1,7 +1,8 @@
 ---
-status: active
+status: complete
 started: 2026-09-14
 last_updated: 2026-09-15
+closed: 2026-09-15
 ---
 # One title detail modal, composed by facts, on every page
 
@@ -301,20 +302,20 @@ box under the content list at Off (item 5).
 
 | # | Item | Where it lives | State |
 |---|---|---|---|
-| 1 | **Bar: owned titles on Library and Home** — every section renders as `before/` does | `DetailPanel`, `Components.Detail.*` | open |
-| 2 | **Bar: owned titles on Discovery and Incoming** — Play, seasons, Cast, Manage with files, the rail, identical to Library | same | open |
-| 3 | **Unowned titles' look** — Download split + scope, the note line, acquisition state, tracking card, the seven story variations | same; `detail_panel.story.exs` | open |
-| 4 | **Spec decision 2** — no facet strip and no preview for an owned title (owner's "i guess?", judged at this look; reversible in `DetailPanel` alone) | `DetailPanel` hero/prose facts | open |
-| 5 | **No tracking card at Off** for an owned title — the library modal drew an empty glass box holding a hidden control shell; one rule (`Detail.Logic.tracking_card?/1`) draws nothing until the title is listed | `Detail.Logic`, two assertions in `library_live_tracking_test.exs` | open |
-| 6 | **The residue's view-model** — a `Title.Detail` with `ref` and `title` nil, the library half its one fact: Play only, no bookmark, no tracking card, no Download | `Title.Logic.title_detail/2`, `Detail.Logic` | open |
-| 7 | **A rail pick keeps the modal state and the sub-view** — a member of the open collection is the same document (`same_document?/2`, `kept_view/2`), so Cast stays Cast; a different container resets | `TitleDetailHost` | open |
-| 8 | **Unopenable address abandoned with a flash** on both forms; on the dead render that is a redirect (a deep link to an entity without a present file lands on the page with the flash, where the old code silently drew no modal). A titled `?entity=` opens in place on the dead render and canonicalises to `?title=` on the join | `TitleDetailHost`, `LibraryHalf.address/1` | open |
-| 9 | **The entity snapshot carries no art paths** — a library image is a local file, not a TMDB path (the spec assumed a TMDB image record); an owned title's poster / backdrop / logo come from the library half in the host | `Title.Logic.snapshot_from_entity/1`, host | open |
-| 10 | **The note line's sources** — only the `activity` address param (read by identity via `Activities.get_row/1`) or the person's own intent note. Discovery's former implicit inference (the newest friend review with text) is gone; the activity's embedded title is a snapshot source, so a `?title=…&activity=…` link opens on Incoming without a fetch | `Title.Logic`, `TitleDetailHost` | open |
-| 11 | **`play` handled by the host with or without an open modal** — the Home hero's Play no-op'd once the host owned the event | `TitleDetailHost` | open |
-| 12 | **MC0011 is `LiveSubscriptions`** and every page and trait under `live/` was converted to the door in phase 4 (the spec named the host and five subscriptions; the sweep grew to all of `live/`, plus `Pipeline.Stats.subscribe/0`) | `credo_checks/live_subscriptions.ex`, `Live.Subscriptions` | open |
-| 13 | **Test addresses migrated `?selected=` → `?entity=`** (canonicalised on join) rather than to `?title=`; the two `?movie=` tests deleted as deleted behaviour (the stricter-than-ADR-027 rule from decision 8) | `library_live_test.exs`, `home_live_test.exs`, `library_live_tracking_test.exs` | open |
-| 14 | **Element ids** — the tracking controls keep `detail-*`; the title modal's tests were re-pointed `#title-*` → `#detail-*` (`#detail-download`, `#detail-scope`, `#detail-watchlist-toggle`, `#detail-review`, `#detail-note`, `#detail-activity-delete`, `#detail-tracking*`) | `DetailPanel`, `ViewControls`, tests | open |
+| 1 | **Bar: owned titles on Library and Home** — every section renders as `before/` does | `DetailPanel`, `Components.Detail.*` | accepted |
+| 2 | **Bar: owned titles on Discovery and Incoming** — Play, seasons, Cast, Manage with files, the rail, identical to Library | same | accepted |
+| 3 | **Unowned titles' look** — Download split + scope, the note line, acquisition state, tracking card, the seven story variations | same; `detail_panel.story.exs` | accepted |
+| 4 | **Spec decision 2** — no facet strip and no preview for an owned title (owner's "i guess?", judged at this look; reversible in `DetailPanel` alone) | `DetailPanel` hero/prose facts | accepted |
+| 5 | **No tracking card at Off** for an owned title — the library modal drew an empty glass box holding a hidden control shell; one rule (`Detail.Logic.tracking_card?/1`) draws nothing until the title is listed | `Detail.Logic`, two assertions in `library_live_tracking_test.exs` | accepted |
+| 6 | **The residue's view-model** — a `Title.Detail` with `ref` and `title` nil, the library half its one fact: Play only, no bookmark, no tracking card, no Download | `Title.Logic.title_detail/2`, `Detail.Logic` | accepted |
+| 7 | **A rail pick keeps the modal state and the sub-view** — a member of the open collection is the same document (`same_document?/2`, `kept_view/2`), so Cast stays Cast; a different container resets | `TitleDetailHost` | accepted |
+| 8 | **Unopenable address abandoned with a flash** on both forms; on the dead render that is a redirect (a deep link to an entity without a present file lands on the page with the flash, where the old code silently drew no modal). A titled `?entity=` opens in place on the dead render and canonicalises to `?title=` on the join | `TitleDetailHost`, `LibraryHalf.address/1` | accepted |
+| 9 | **The entity snapshot carries no art paths** — a library image is a local file, not a TMDB path (the spec assumed a TMDB image record); an owned title's poster / backdrop / logo come from the library half in the host | `Title.Logic.snapshot_from_entity/1`, host | accepted |
+| 10 | **The note line's sources** — only the `activity` address param (read by identity via `Activities.get_row/1`) or the person's own intent note. Discovery's former implicit inference (the newest friend review with text) is gone; the activity's embedded title is a snapshot source, so a `?title=…&activity=…` link opens on Incoming without a fetch | `Title.Logic`, `TitleDetailHost` | accepted |
+| 11 | **`play` handled by the host with or without an open modal** — the Home hero's Play no-op'd once the host owned the event | `TitleDetailHost` | accepted |
+| 12 | **MC0011 is `LiveSubscriptions`** and every page and trait under `live/` was converted to the door in phase 4 (the spec named the host and five subscriptions; the sweep grew to all of `live/`, plus `Pipeline.Stats.subscribe/0`) | `credo_checks/live_subscriptions.ex`, `Live.Subscriptions` | accepted |
+| 13 | **Test addresses migrated `?selected=` → `?entity=`** (canonicalised on join) rather than to `?title=`; the two `?movie=` tests deleted as deleted behaviour (the stricter-than-ADR-027 rule from decision 8) | `library_live_test.exs`, `home_live_test.exs`, `library_live_tracking_test.exs` | accepted |
+| 14 | **Element ids** — the tracking controls keep `detail-*`; the title modal's tests were re-pointed `#title-*` → `#detail-*` (`#detail-download`, `#detail-scope`, `#detail-watchlist-toggle`, `#detail-review`, `#detail-note`, `#detail-activity-delete`, `#detail-tracking*`) | `DetailPanel`, `ViewControls`, tests | accepted |
 | 15 | **The lower-quality note showed twice on an owned title** (owner, 2026-09-15) — the tracking card read `lower_quality_accepted?` directly, so the note sat under the episode list *and* behind the cog. One rule now (`Detail.Logic.lower_quality_note?/1`): the card carries it only for a title with no Manage sheet | `Detail.Logic`, `DetailPanel`, `Title.LowerQualityNote` | fixed |
 | 16 | **The synopsis was cut at 2/5 of the panel** (owner, 2026-09-15) — the 2/5–3/5 grid gave it ~62ch and `line-clamp-6` cut a 546-character series overview mid-sentence. The prose is its own full-width band under the action row now, same clamp; measured at 1920×1080, Murphy Brown's overview lands in 4.02 of the 6 lines with nothing clipped. Clamp kept deliberately — the band is inside the *pinned* block, so its height is the episode list's ceiling | `DetailPanel` orientation block | fixed |
 
@@ -338,7 +339,11 @@ for Manage, `TrackingDetail.today` (§ Deferred).
 
 | Date | Item(s) | Change | Commit |
 |---|---|---|---|
-| 2026-09-15 | 15, 16 | Lower-quality note gated on the absence of a Manage sheet; synopsis moved to a full-width band under the action row | (this commit) |
+| 2026-09-15 | 15, 16 | Lower-quality note gated on the absence of a Manage sheet; synopsis moved to a full-width band under the action row | `5ae68638` |
+
+**Pass closed 2026-09-15.** The owner reviewed the branch, raised items
+15 and 16, and on their fix said "merge back to main and ship minor" —
+which accepts every remaining row.
 
 ## Open decisions
 

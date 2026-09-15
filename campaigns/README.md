@@ -21,14 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`title-detail-unification.md`](title-detail-unification.md) —
-  **decisions approved 2026-09-14, phase 0 next; branch `title-detail-unification`.** One
-  title detail modal for one TMDB identity on Home, Library, Discovery and
-  Incoming, its sections present by facts (files, rung, calendar, friend
-  activity, plan in flight). Replaces the library modal / title modal split
-  of UIDR-035. The library modal's refinement is the floor; architecture in
-  four layers (sources → composition → host → presentation); spec and a
-  superseding UIDR before any code.
 * [`review-replaces-recommendation.md`](review-replaces-recommendation.md) —
   **shipped v1.23.0 2026-09-12; owner check open.** "Recommend" becomes "review": one person's opinion of one
   title, told to their friends — an optional sentiment (thumbs down, thumbs
