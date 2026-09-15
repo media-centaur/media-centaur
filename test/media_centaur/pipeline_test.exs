@@ -285,6 +285,53 @@ defmodule MediaCentaur.PipelineTest do
       # Still only one WatchedFile
       assert length(Library.Files.list_all()) == 1
     end
+
+    test "discovery skips a file dismissed in review, without searching TMDB" do
+      # Dismiss is a person deciding the file is not library content —
+      # a terminal answer, same as being linked. Re-searching it is
+      # work whose result can never be used: `add_pending_file/1` keys
+      # on file_path and returns the existing dismissed row, so the
+      # match is computed and thrown away on every scan and restart.
+      #
+      # No TMDB stub is installed on purpose. Under ADR-016 an
+      # unstubbed request fails loudly, so `:skipped` is proof the
+      # search never ran — not merely that its result was ignored.
+      path = "/media/pipeline/Sample.Capture.2025-06-29.mkv"
+      pending = create_pending_file(%{file_path: path, media_directory: "/media/pipeline"})
+      {:ok, _dismissed} = Review.dismiss(pending)
+
+      payload = %Payload{file_path: path, media_directory: "/media/pipeline"}
+
+      assert :skipped = Discovery.process(payload)
+      assert Review.count_pending() == 0
+    end
+
+    test "discovery does not skip a file still awaiting review" do
+      # The counterpart: a pending row is an open question, not a
+      # decision. `rescan_unlinked/0` exists to re-run these once a
+      # transient failure (a rejected TMDB key) is resolved, so they
+      # have to stay searchable.
+      path = "/media/pipeline/Sample.Movie.2010.mkv"
+      create_pending_file(%{file_path: path, media_directory: "/media/pipeline"})
+
+      stub_routes([
+        {"/search/movie",
+         %{
+           "results" => [
+             movie_search_result(%{
+               "id" => 4242,
+               "title" => "Sample Movie",
+               "release_date" => "2010-03-01"
+             })
+           ]
+         }},
+        {"/search/tv", %{"results" => []}}
+      ])
+
+      payload = %Payload{file_path: path, media_directory: "/media/pipeline"}
+
+      refute Discovery.process(payload) == :skipped
+    end
   end
 
   # ---------------------------------------------------------------------------

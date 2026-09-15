@@ -14,6 +14,45 @@ defmodule MediaCentaur.ReviewTest do
     %{media_dir: media_dir}
   end
 
+  describe "dismissed?/1" do
+    # Dismiss is a person deciding the file is not library content, and
+    # `find_or_create_pending_file/1` keys on file_path regardless of
+    # status — so the decision is terminal whether or not anything reads
+    # it. `Pipeline.Discovery` reads it to stop before the parse and the
+    # TMDB searches it would then discard.
+    test "true for a path dismissed in review" do
+      pending = create_pending_file(%{file_path: "/media/test/capture.mkv"})
+      {:ok, _} = Review.dismiss(pending)
+
+      assert Review.dismissed?("/media/test/capture.mkv")
+    end
+
+    test "false for a path still awaiting review" do
+      create_pending_file(%{file_path: "/media/test/awaiting.mkv"})
+
+      refute Review.dismissed?("/media/test/awaiting.mkv")
+    end
+
+    test "false for a path that was approved" do
+      pending = create_pending_file(%{file_path: "/media/test/approved.mkv"})
+      {:ok, _} = Review.approve_pending_file(pending)
+
+      refute Review.dismissed?("/media/test/approved.mkv")
+    end
+
+    test "false for a path the queue has never seen" do
+      refute Review.dismissed?("/media/test/unknown.mkv")
+    end
+
+    test "false once the dismissed row is dropped" do
+      pending = create_pending_file(%{file_path: "/media/test/capture.mkv"})
+      {:ok, _} = Review.dismiss(pending)
+      {:ok, 1} = Review.drop_pending_files(["/media/test/capture.mkv"])
+
+      refute Review.dismissed?("/media/test/capture.mkv")
+    end
+  end
+
   describe "clear_all/0" do
     test "destroys every pending file, whatever its status" do
       create_pending_file()

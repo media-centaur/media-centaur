@@ -11,6 +11,7 @@ see the git history for the full engineering trail.
 - **An ignored folder stays ignored.** Excluding a folder used to stop future scans only: anything Media Centaur had already recorded from it stayed in the Review Queue and was re-checked against TMDB on every restart. Screen recordings and game captures in a media directory could sit there for months, costing two failed lookups each on every start. Adding a rule now clears what was recorded under it — Review Queue entries included — and your files on disk are untouched. Anything left over from before clears itself the first time you start this version.
 - **A folder-name rule takes effect immediately.** Adding or removing one under **Ignore rules** used to leave live file detection on the old list until the next restart; only the path-based rules refreshed.
 - **Bonus features no longer look lost on every restart.** Extras were re-checked at each start as though they had never been imported.
+- **Dismissing a file now actually costs nothing.** **Dismiss** in the Review Queue is your decision that a file is not library content, but Media Centaur kept re-reading the filename and asking TMDB about it on every scan and restart — then throwing the answer away, because a dismissed file can't re-enter the queue. It now stops before any of that, and the Console says which files it skipped and why.
 
 ### Improved
 

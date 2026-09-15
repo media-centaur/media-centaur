@@ -20,6 +20,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
   alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{Parse, Search}
+  alias MediaCentaur.Review
   alias MediaCentaur.Review.PendingFile
 
   @processor_concurrency 10
@@ -132,8 +133,8 @@ defmodule MediaCentaur.Pipeline.Discovery do
   - `{:error, reason}` — TMDB failure or parse error
   """
   def process(%Payload{} = payload) do
-    if already_linked?(payload.file_path) do
-      Log.info(:pipeline, "skipped #{Path.basename(payload.file_path)} — already linked")
+    if reason = settled_reason(payload.file_path) do
+      Log.info(:pipeline, "skipped #{Path.basename(payload.file_path)} — #{reason}")
       :skipped
     else
       case run_discovery(payload) do
@@ -209,10 +210,29 @@ defmodule MediaCentaur.Pipeline.Discovery do
     }
   end
 
-  # Once a file is owned by either presence table — `WatchedFile` for
-  # playable items, `ExtraFile` for bonus features — Discovery treats it
-  # as done. That definition of "linked" lives in `Library.Files` so
-  # this check and `Watcher.Rescan.rescan_unlinked/0` cannot disagree
-  # about it; they did until 2026-09-15.
-  defp already_linked?(file_path), do: Library.Files.linked?(file_path)
+  # Why a file can already be settled, or `nil` when there is still an
+  # answer to compute. Two terminal states, and the reason is logged
+  # rather than collapsed to a bare "skipped" so the Console says which
+  # one applies — the only place a dismissal is visible at runtime.
+  #
+  # - **linked** — owned by either presence table (`WatchedFile` for
+  #   playable items, `ExtraFile` for bonus features). That definition
+  #   lives in `Library.Files` so this check and
+  #   `Watcher.Rescan.rescan_unlinked/0` cannot disagree about it; they
+  #   did until 2026-09-15.
+  # - **dismissed** — a person decided it is not library content.
+  #   `Review.add_pending_file/1` keys on file_path regardless of
+  #   status, so a match computed for a dismissed path is thrown away.
+  #   Stopping here is what makes the decision free instead of costing a
+  #   parse and two TMDB searches on every scan and restart.
+  #
+  # A `:pending` row is not settled: it is an open question, and the
+  # recovery re-emit exists to re-run it.
+  defp settled_reason(file_path) do
+    cond do
+      Library.Files.linked?(file_path) -> "already linked"
+      Review.dismissed?(file_path) -> "dismissed in review"
+      true -> nil
+    end
+  end
 end
