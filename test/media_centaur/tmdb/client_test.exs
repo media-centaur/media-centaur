@@ -4,6 +4,7 @@ defmodule MediaCentaur.TMDB.ClientTest do
 
   alias MediaCentaur.HttpClient.Cache.Coordinator
   alias MediaCentaur.TMDB.Client
+  alias MediaCentaur.TMDB.RateLimiter
 
   setup do
     start_supervised!(Coordinator)
@@ -51,6 +52,46 @@ defmodule MediaCentaur.TMDB.ClientTest do
 
     assert {:ok, [%{"id" => 9}]} = Client.search_movie("Sample Movie", 2010, client: client)
     refute_receive {:tmdb_hit, _path}
+  end
+
+  # The console line is copy, and copy is pinned where it can be read
+  # without a global Logger level: `log_line/2` is the whole vocabulary,
+  # and `get/3` is the only caller — in the 200 branch, so a failed
+  # request never claims a fetch.
+  describe "log_line/2 — the console line says where the answer came from" do
+    test "a detail fetch names its source" do
+      assert Client.log_line("movie tmdb:1", :miss) == "fetched movie tmdb:1 — from TMDB"
+      assert Client.log_line("movie tmdb:1", :hit) == "fetched movie tmdb:1 — from cache"
+
+      assert Client.log_line("movie tmdb:1", :revalidate) ==
+               "fetched movie tmdb:1 — revalidated with TMDB"
+
+      assert Client.log_line("movie tmdb:1", :reload) == "fetched movie tmdb:1 — refetched from TMDB"
+    end
+
+    test "a client with no cache attached reads as a plain fetch" do
+      assert Client.log_line("configuration", :uncached) == "fetched configuration — from TMDB"
+    end
+
+    test "a search carries its query" do
+      assert Client.log_line("movies for Sample Showpiece (2010)", :hit) ==
+               "fetched movies for Sample Showpiece (2010) — from cache"
+    end
+  end
+
+  # The invariant both the client's and the limiter's moduledoc claim:
+  # the rate-limit step is appended AFTER the cache lookup, and Req halts
+  # the request steps the moment the lookup answers, so a hit never
+  # spends a slot.
+  test "a cache hit does not spend a rate-limit slot" do
+    :ok = RateLimiter.reset()
+
+    assert {:ok, _} = Client.get_movie(778_200)
+    assert %{used: spent_by_fetch} = RateLimiter.status()
+    assert spent_by_fetch >= 1
+
+    assert {:ok, _} = Client.get_movie(778_200)
+    assert %{used: ^spent_by_fetch} = RateLimiter.status()
   end
 
   test "every request goes through the rate limiter and reports its wait" do

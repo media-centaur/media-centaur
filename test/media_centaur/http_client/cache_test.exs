@@ -106,6 +106,51 @@ defmodule MediaCentaur.HttpClient.CacheTest do
     end
   end
 
+  describe "outcome/1 — what the cache did, on the response" do
+    test "a caller can tell a hit from a fetch", %{stub: stub, client: client} do
+      stub_json(stub, %{"id" => 1}, [{"cache-control", "public, max-age=60"}])
+
+      assert {:ok, fetched} = Req.get(client, url: "/movie/1")
+      assert Cache.outcome(fetched) == :miss
+
+      assert {:ok, served} = Req.get(client, url: "/movie/1")
+      assert Cache.outcome(served) == :hit
+    end
+
+    test "a forced reload says so", %{stub: stub, client: client} do
+      stub_json(stub, %{"id" => 1}, [{"cache-control", "public, max-age=60"}])
+
+      assert {:ok, _} = Req.get(client, url: "/movie/1")
+      assert {:ok, reloaded} = Req.get(client, url: "/movie/1", reload: true)
+
+      assert Cache.outcome(reloaded) == :reload
+    end
+
+    test "a revalidated entry says so", %{stub: stub, client: client} do
+      stub_json(stub, %{"id" => 1}, [{"cache-control", "max-age=0"}, {"etag", ~s(W/"a")}])
+
+      assert {:ok, _} = Req.get(client, url: "/movie/1")
+      assert {:ok, revalidated} = Req.get(client, url: "/movie/1")
+
+      assert Cache.outcome(revalidated) == :revalidate
+    end
+
+    test "a client with no cache attached reports :uncached" do
+      bare =
+        HttpClient.new(__MODULE__,
+          upstream: :tmdb,
+          base_url: "http://cache.test",
+          plug: {Req.Test, :outcome_bare_stub},
+          retry: false
+        )
+
+      Req.Test.stub(:outcome_bare_stub, &Req.Test.json(&1, %{"id" => 1}))
+
+      assert {:ok, response} = Req.get(bare, url: "/movie/1")
+      assert Cache.outcome(response) == :uncached
+    end
+  end
+
   describe "what is never cached" do
     test "a response without max-age", %{stub: stub, client: client} do
       stub_json(stub, %{"id" => 1}, [])

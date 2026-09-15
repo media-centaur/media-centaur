@@ -13,17 +13,20 @@ defmodule MediaCentaurWeb.Components.Title.LowerQualityNote do
 
   ## Where it goes
 
-  Two surfaces show it, and they place it differently because they are
-  shaped differently.
+  One title detail (UIDR-043), one acceptance, one place for it — and
+  which place follows the one fact that differs: whether the title has
+  files.
 
-  * The **title detail modal** (Discovery, Incoming) has no Manage sheet,
-    so it sits with the tracking controls, which is where every other
-    acquisition setting on that surface lives.
-  * The **library detail modal** puts it in the Manage sheet behind the
-    cog, above the file ledger. It is a setting you reset once, not
-    something to read past on the way to the episode list — and it moved
-    there on 2026-09-13 because sitting under the episode list is exactly
-    what it is not.
+  * **Owned** — the Manage sheet behind the cog, above the file ledger.
+    It is a setting you reset once, not something to read past on the way
+    to the episode list.
+  * **Unowned** — there is no Manage sheet, so it sits with the tracking
+    controls, where every other acquisition setting on that title lives.
+
+  `Detail.Logic.lower_quality_note?/1` is that rule; the tracking card
+  asks it rather than reading the acceptance directly. Until 2026-09-15
+  the card read the acceptance itself and an owned title showed the note
+  in both places at once.
   """
   use MediaCentaurWeb, :html
 

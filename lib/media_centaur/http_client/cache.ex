@@ -37,6 +37,8 @@ defmodule MediaCentaur.HttpClient.Cache do
 
   alias MediaCentaur.HttpClient.Cache.{Coordinator, Entry, Key}
 
+  @type outcome :: :uncached | :hit | :miss | :revalidate | :reload
+
   @doc "Attaches the cache steps to `request`."
   @spec attach(Req.Request.t(), keyword()) :: Req.Request.t()
   def attach(%Req.Request{} = request, opts) do
@@ -50,7 +52,21 @@ defmodule MediaCentaur.HttpClient.Cache do
     |> Req.Request.put_private(:http_cache_config, config)
     |> Req.Request.append_request_steps(http_cache_lookup: &lookup/1)
     |> insert_before_decode(http_cache_store: &store/1)
+    |> Req.Request.append_response_steps(http_cache_outcome: &stamp_outcome/1)
     |> Req.Request.append_error_steps(http_cache_release: &release/1)
+  end
+
+  @doc """
+  What the cache did for the request that produced `response`.
+
+  The outcome is decided on the request and read back off the response,
+  so a caller holding only `Req.get/2`'s return value can still tell a
+  network call from a table read — `MediaCentaur.TMDB.Client` says so in
+  its console line. `:uncached` for a client with no cache attached.
+  """
+  @spec outcome(Req.Response.t()) :: outcome()
+  def outcome(%Req.Response{} = response) do
+    Req.Response.get_private(response, :http_cache, :uncached)
   end
 
   @doc "Table statistics for the default coordinator, or for a client's."
@@ -116,6 +132,15 @@ defmodule MediaCentaur.HttpClient.Cache do
   end
 
   defp put_if_none_match(request, _entry), do: request
+
+  # --- Response step (every request) ---
+
+  # The outcome lives on the request; a caller only ever sees the
+  # response, so carry it across.
+  defp stamp_outcome({request, response}) do
+    outcome = Req.Request.get_private(request, :http_cache, :uncached)
+    {request, Req.Response.put_private(response, :http_cache, outcome)}
+  end
 
   # --- Response step (leader only) ---
 

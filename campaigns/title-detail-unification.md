@@ -315,6 +315,8 @@ box under the content list at Off (item 5).
 | 12 | **MC0011 is `LiveSubscriptions`** and every page and trait under `live/` was converted to the door in phase 4 (the spec named the host and five subscriptions; the sweep grew to all of `live/`, plus `Pipeline.Stats.subscribe/0`) | `credo_checks/live_subscriptions.ex`, `Live.Subscriptions` | open |
 | 13 | **Test addresses migrated `?selected=` → `?entity=`** (canonicalised on join) rather than to `?title=`; the two `?movie=` tests deleted as deleted behaviour (the stricter-than-ADR-027 rule from decision 8) | `library_live_test.exs`, `home_live_test.exs`, `library_live_tracking_test.exs` | open |
 | 14 | **Element ids** — the tracking controls keep `detail-*`; the title modal's tests were re-pointed `#title-*` → `#detail-*` (`#detail-download`, `#detail-scope`, `#detail-watchlist-toggle`, `#detail-review`, `#detail-note`, `#detail-activity-delete`, `#detail-tracking*`) | `DetailPanel`, `ViewControls`, tests | open |
+| 15 | **The lower-quality note showed twice on an owned title** (owner, 2026-09-15) — the tracking card read `lower_quality_accepted?` directly, so the note sat under the episode list *and* behind the cog. One rule now (`Detail.Logic.lower_quality_note?/1`): the card carries it only for a title with no Manage sheet | `Detail.Logic`, `DetailPanel`, `Title.LowerQualityNote` | fixed |
+| 16 | **The synopsis was cut at 2/5 of the panel** (owner, 2026-09-15) — the 2/5–3/5 grid gave it ~62ch and `line-clamp-6` cut a 546-character series overview mid-sentence. The prose is its own full-width band under the action row now, same clamp; measured at 1920×1080, Murphy Brown's overview lands in 4.02 of the 6 lines with nothing clipped. Clamp kept deliberately — the band is inside the *pinned* block, so its height is the episode list's ceiling | `DetailPanel` orientation block | fixed |
 
 Already deferred, not for this pass: the `set_rung` name, `?view=info`
 for Manage, `TrackingDetail.today` (§ Deferred).
@@ -336,7 +338,7 @@ for Manage, `TrackingDetail.today` (§ Deferred).
 
 | Date | Item(s) | Change | Commit |
 |---|---|---|---|
-| | | | |
+| 2026-09-15 | 15, 16 | Lower-quality note gated on the absence of a Manage sheet; synopsis moved to a full-width band under the action row | (this commit) |
 
 ## Open decisions
 
