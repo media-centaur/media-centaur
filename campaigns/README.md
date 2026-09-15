@@ -21,6 +21,15 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`collection-identity.md`](collection-identity.md) —
+  **planning 2026-09-15; successor to `title-detail-unification`.** A
+  collection has a TMDB id but is not a title, and v1.30.0's migration
+  deleted the rows that pretended otherwise — leaving the upcoming-parts
+  path (collection rail tiles, the refresher's collection branch)
+  apparently unreachable. Confirm that, then either delete it or give
+  collections a real identity across `TMDB.Title` / `TitleRef` /
+  `TitleIntent` / `ReleaseTracking.Item`. Also closes the four small
+  items the unification campaign deferred.
 * [`review-replaces-recommendation.md`](review-replaces-recommendation.md) —
   **shipped v1.23.0 2026-09-12; owner check open.** "Recommend" becomes "review": one person's opinion of one
   title, told to their friends — an optional sentiment (thumbs down, thumbs
