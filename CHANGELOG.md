@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.30.0 — 2026-09-15
+
+### Improved
+
+- **A title opens the same way everywhere.** One detail view serves every film and show — on Home, Library, Discovery and Incoming alike — and what it shows follows what Media Centaur knows: a title in your library shows **Play**, its seasons, Cast and Manage wherever you open it, Discovery and Incoming included; a title you don't own shows **Download** (or its download's state) on Home and Library too, where a link can open it. The **In library** link between the two views is gone, and so is the empty tracking box an owned title showed before it was on your list. The bookmark, **Review**, a friend's note and the release dates card appear on either.
+- **Links to a title work on every page.** The address carries the open title as `?title=movie-<id>` or `?title=tv_series-<id>` on Home and Library now as well; a link naming a friend's activity shows their words on any page. A title without a TMDB match keeps its page at `?entity=<id>`. Old `?selected=` links to Home and Library no longer open a title.
+- **A collection is its films.** Opening a collection opens the film you'd continue with, on that film's own address; picking another poster moves to that film and keeps the view you were on (Cast stays Cast). The collection-wide tracking switches are gone — they wrote a record nothing read; a film's own switches act on that film.
+- **The console says where TMDB data came from.** A TMDB line now ends in *from cache*, *from TMDB*, or *revalidated with TMDB*, so you can see which lookups actually cost a request. Before, every lookup read the same whether or not anything was fetched, and a request that failed still reported as a fetch.
+
+### Fixed
+
+- **A title's description is no longer cut short.** The synopsis runs the full width of the title view instead of a narrow column beside the buttons, so a description that used to break off mid-sentence now fits.
+- **"Lower quality accepted" appears once.** For a title in your library the note lives behind the cog with the rest of that title's settings; it was showing above the episode list as well.
+
+This release runs one migration on first start, clearing watchlist and tracking rows that the old collection-wide switches wrote against a collection instead of a film. Nothing read them, and a film that happens to share a collection's TMDB number is kept. Your files, your other watchlist entries and your watch history are untouched.
+
 ## v1.29.0 — 2026-09-14
 
 ### Improved
