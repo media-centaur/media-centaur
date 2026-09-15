@@ -283,6 +283,7 @@ defmodule MediaCentaur.Application do
     [
       MediaCentaur.Library.Inbound,
       MediaCentaur.Review.Intake,
+      MediaCentaur.Review.FileEventHandler,
       MediaCentaur.ReleaseTracking.Refresher,
       MediaCentaur.ReleaseTracking.LibraryListener,
       MediaCentaur.WatchHistory.Recorder,

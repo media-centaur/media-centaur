@@ -19,6 +19,19 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsList do
         }
       },
       %Variation{
+        id: :labelled,
+        description: "Named, for a card that holds more than one list.",
+        attributes: %{
+          label: "By folder name",
+          items: ["Sample"],
+          remove_event: "config_list_remove",
+          add_event: "config_list_add",
+          event_value: %{"key" => "skip_dirs"},
+          placeholder: "Sample",
+          add_label: "Add"
+        }
+      },
+      %Variation{
         id: :empty_with_error,
         description: "Nothing listed yet; the last add was refused and says why.",
         attributes: %{

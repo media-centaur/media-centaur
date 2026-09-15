@@ -421,10 +421,15 @@ defmodule MediaCentaurWeb.Components.Settings do
     default: false,
     doc: "entries are file paths: keep the filename visible and elide the prefix."
 
+  attr :label, :string,
+    default: nil,
+    doc: "names this list when a card holds more than one — omit it for a card's only list."
+
   @doc "A string-list setting (UIDR-041 §32): one row per entry with Remove, an inline input with Add, an optional error line."
   def settings_list(assigns) do
     ~H"""
     <div id={@id} class="space-y-2">
+      <span :if={@label} class="block text-sm font-medium">{@label}</span>
       <ul :if={@items != []} class="space-y-2">
         <li
           :for={item <- @items}

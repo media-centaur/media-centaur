@@ -541,24 +541,26 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   end
 
   describe "directory-ignore naming" do
-    # Excluded directories (Library) are absolute paths in your library
-    # layout; Skip/Extras (Media Import) are folder names found within
-    # incoming content. The card names carry that distinction
-    # (settings-coherence item 4): name-based cards say "folder names".
-    test "Media Import cards are named for folder names, not directories", %{conn: conn} do
+    # Media Import keeps the one list that classifies content — which
+    # title a file belongs to. Admission (what is scanned at all) is
+    # Library → Ignore rules, both matching modes in one card; they used
+    # to be two cards in two sections that pointed at each other.
+    test "Media Import keeps extras names and no longer holds ignore rules", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, ~p"/settings?section=import")
 
       assert html =~ "Extras folder names"
-      assert html =~ "Ignored folder names"
       refute html =~ "Extras directories"
-      refute html =~ "Skip directories"
+      refute html =~ "Ignored folder names"
     end
 
-    test "the Excluded directories card cross-links name-based ignores", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=library")
+    test "Library holds one Ignore rules card with both matching modes", %{conn: conn} do
+      {:ok, view, html} = live_async!(conn, ~p"/settings?section=library")
 
-      assert html =~ "Excluded directories"
-      assert html =~ "Ignored folder names"
+      assert html =~ "Ignore rules"
+      refute html =~ "Excluded directories"
+
+      assert has_element?(view, "#ignore-rules-path")
+      assert has_element?(view, "#ignore-rules-name")
     end
   end
 

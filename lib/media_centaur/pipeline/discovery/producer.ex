@@ -73,18 +73,19 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
     end
   end
 
-  # Startup reconciliation (ADR-023): rescan all media directories to re-detect
-  # files that were missed while the pipeline was down, and re-emit any files
-  # the watcher already knows about but the pipeline never finished ingesting
-  # (stranded by a transient TMDB/network failure on a prior run).
+  # Startup reconciliation (ADR-023), delegated whole to
+  # `Watcher.Rescan.reconcile/0`: retract what the ignore rules no longer
+  # admit, rescan all media directories to re-detect files that were missed
+  # while the pipeline was down, and re-emit any files the watcher already
+  # knows about but the pipeline never finished ingesting (stranded by a
+  # transient TMDB/network failure on a prior run).
   def handle_info({:reconcile, attempt}, state) do
     case reconcile_action(attempt, MediaCentaur.Watcher.Supervisor.running?()) do
       :run ->
         Log.info(:pipeline, "triggered watcher rescan — startup reconciliation")
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-          MediaCentaur.Watcher.Rescan.scan()
-          MediaCentaur.Watcher.Rescan.rescan_unlinked()
+          MediaCentaur.Watcher.Rescan.reconcile()
         end)
 
       {:retry, delay_ms} ->

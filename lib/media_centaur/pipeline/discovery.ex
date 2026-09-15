@@ -16,13 +16,10 @@ defmodule MediaCentaur.Pipeline.Discovery do
   use Broadway
   require MediaCentaur.Log, as: Log
 
-  import Ecto.Query
-
   alias MediaCentaur.DateUtil
-  alias MediaCentaur.Library.{ExtraFile, WatchedFile}
+  alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{Parse, Search}
-  alias MediaCentaur.Repo
   alias MediaCentaur.Review.PendingFile
 
   @processor_concurrency 10
@@ -212,16 +209,10 @@ defmodule MediaCentaur.Pipeline.Discovery do
     }
   end
 
-  defp already_linked?(file_path) do
-    # Post-Phase-2-Task-B every WatchedFile carries a non-null
-    # `playable_item_id` (the column is NOT NULL at the schema level),
-    # so the legacy "any per-type FK set" disjunction collapses to a
-    # simple existence check by path. The parallel ExtraFile path
-    # (bonus features ingested via a different writer) also short-
-    # circuits the pipeline — once a file is owned by either, the
-    # presence-unification campaign Phase 5 requires Discovery to
-    # treat it as done.
-    Repo.exists?(from(w in WatchedFile, where: w.file_path == ^file_path, limit: 1)) or
-      Repo.exists?(from(e in ExtraFile, where: e.file_path == ^file_path, limit: 1))
-  end
+  # Once a file is owned by either presence table — `WatchedFile` for
+  # playable items, `ExtraFile` for bonus features — Discovery treats it
+  # as done. That definition of "linked" lives in `Library.Files` so
+  # this check and `Watcher.Rescan.rescan_unlinked/0` cannot disagree
+  # about it; they did until 2026-09-15.
+  defp already_linked?(file_path), do: Library.Files.linked?(file_path)
 end

@@ -51,6 +51,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
   alias MediaCentaurWeb.SettingsLive.Language
   alias MediaCentaurWeb.SettingsLive.Library
+  alias MediaCentaurWeb.SettingsLive.IgnoreRulesLogic
   alias MediaCentaurWeb.SettingsLive.ImportSection
   alias MediaCentaurWeb.SettingsLive.MaintenanceSection
   alias MediaCentaurWeb.SettingsLive.Playback
@@ -187,7 +188,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(image_pipeline_running: false)
      |> assign(acquisition_running: false)
      |> assign(media_dirs: [])
-     |> assign(exclude_dirs: [])
+     |> assign(ignore_rules: %{path: [], name: []})
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
      |> assign(blank_extra_names_count: 0)
      |> assign(controls_reset_armed: false)
@@ -210,8 +211,8 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(relays: [], relay_status: %{}, share_watched?: false, share_watchlist?: false)
      |> assign(
        sections: @sections,
-       exclude_dir_input: "",
-       exclude_dir_error: nil,
+       ignore_rule_input: %{path: "", name: ""},
+       ignore_rule_error: %{path: nil, name: nil},
        media_dir_dialog: nil,
        media_dir_delete_confirm: nil,
        scanning: false,
@@ -375,7 +376,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?(),
       acquisition_running: Acquisition.auto_grab_running?(),
       media_dirs: Config.media_dirs_entries(),
-      exclude_dirs: Config.get(:exclude_dirs) || [],
+      ignore_rules: load_ignore_rules(),
       # The per-image disk walk already ran in the Overview projection;
       # read its result instead of walking every file on each mount
       # (audit P4). A repair re-walks live in its own result handler.
@@ -608,42 +609,75 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, :media_dir_delete_confirm, nil)}
   end
 
-  # --- Exclude-dir card events ---
+  # Ignore-rule `kind` param => {assign key, config key}. The param is
+  # the wire form; only these two are admitted.
+  @ignore_rule_kinds %{"path" => {:path, :exclude_dirs}, "name" => {:name, :skip_dirs}}
 
-  def handle_event("exclude_dir:validate", %{"item" => path}, socket) do
-    error = validate_exclude_dir_error(path, socket.assigns.exclude_dirs)
+  # --- Ignore-rule card events ---
+  #
+  # One handler set for both rule kinds, discriminated by `kind`: they
+  # are one idea with two matching modes, and two near-identical
+  # handler triples is how they drifted apart in the first place.
+  # `Config.update/2` broadcasts, which is what triggers the retraction
+  # pass in `Watcher.ConfigListener` — saving a rule reconciles what is
+  # already recorded under it.
+
+  def handle_event("ignore_rule:validate", %{"item" => input, "kind" => kind}, socket)
+      when is_map_key(@ignore_rule_kinds, kind) do
+    {kind_key, _config_key} = @ignore_rule_kinds[kind]
+    {:error, rejection} = wrap_error(validate_ignore_rule(kind_key, input, socket))
 
     socket =
       socket
-      |> assign(:exclude_dir_input, path)
-      |> assign(:exclude_dir_error, error)
+      |> assign(:ignore_rule_input, Map.put(socket.assigns.ignore_rule_input, kind_key, input))
+      |> assign(
+        :ignore_rule_error,
+        Map.put(
+          socket.assigns.ignore_rule_error,
+          kind_key,
+          IgnoreRulesLogic.error_message(rejection, kind_key)
+        )
+      )
 
     {:noreply, socket}
   end
 
-  def handle_event("exclude_dir:add", %{"item" => path}, socket) do
-    case validate_exclude_dir(path, socket.assigns.exclude_dirs) do
+  def handle_event("ignore_rule:add", %{"item" => input, "kind" => kind}, socket)
+      when is_map_key(@ignore_rule_kinds, kind) do
+    {kind_key, config_key} = @ignore_rule_kinds[kind]
+
+    case validate_ignore_rule(kind_key, input, socket) do
       {:ok, trimmed} ->
-        new_list = [trimmed | socket.assigns.exclude_dirs]
-        :ok = Config.update(:exclude_dirs, new_list)
+        :ok = Config.update(config_key, [trimmed | socket.assigns.ignore_rules[kind_key]])
 
         socket =
           socket
-          |> assign(:exclude_dirs, new_list)
-          |> assign(:exclude_dir_input, "")
-          |> assign(:exclude_dir_error, nil)
+          |> assign(:ignore_rules, load_ignore_rules())
+          |> assign(:ignore_rule_input, Map.put(socket.assigns.ignore_rule_input, kind_key, ""))
+          |> assign(:ignore_rule_error, Map.put(socket.assigns.ignore_rule_error, kind_key, nil))
 
         {:noreply, socket}
 
-      _ ->
-        {:noreply, socket}
+      {:error, rejection} ->
+        {:noreply,
+         assign(
+           socket,
+           :ignore_rule_error,
+           Map.put(
+             socket.assigns.ignore_rule_error,
+             kind_key,
+             IgnoreRulesLogic.error_message(rejection, kind_key)
+           )
+         )}
     end
   end
 
-  def handle_event("exclude_dir:delete", %{"item" => path}, socket) do
-    new_list = Enum.reject(socket.assigns.exclude_dirs, &(&1 == path))
-    :ok = Config.update(:exclude_dirs, new_list)
-    {:noreply, assign(socket, :exclude_dirs, new_list)}
+  def handle_event("ignore_rule:delete", %{"item" => item, "kind" => kind}, socket)
+      when is_map_key(@ignore_rule_kinds, kind) do
+    {kind_key, config_key} = @ignore_rule_kinds[kind]
+    :ok = Config.update(config_key, List.delete(socket.assigns.ignore_rules[kind_key], item))
+
+    {:noreply, assign(socket, :ignore_rules, load_ignore_rules())}
   end
 
   def handle_event("scan", _params, socket) do
@@ -992,9 +1026,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, download_client_detecting: true, download_client_detect_status: nil)}
   end
 
-  # The two folder-name lists share one pair of handlers; `key` names the
-  # config list, and only these two are admitted.
-  @config_lists %{"extras_dirs" => :extras_dirs, "skip_dirs" => :skip_dirs}
+  # `key` names the config list, and only this one is admitted. Ignore
+  # rules used to ride these handlers too; they have their own now,
+  # because they validate.
+  @config_lists %{"extras_dirs" => :extras_dirs}
 
   def handle_event("config_list_add", %{"key" => key, "item" => raw}, socket)
       when is_map_key(@config_lists, key) do
@@ -1687,29 +1722,35 @@ defmodule MediaCentaurWeb.SettingsLive do
   # Live validation for the Excluded Directories add-row input.
   # Called on every keystroke via phx-change. The checks are cheap
   # (string ops + one File.stat) so no debounce is needed.
-  defp validate_exclude_dir(path, existing_list) do
-    trimmed = String.trim(path || "")
-
-    cond do
-      trimmed == "" -> {:error, :empty}
-      Path.type(trimmed) != :absolute -> {:error, :relative}
-      trimmed in existing_list -> {:error, :duplicate}
-      not File.dir?(trimmed) -> {:error, :not_a_directory}
-      not path_readable?(trimmed) -> {:error, :not_readable}
-      true -> {:ok, trimmed}
-    end
+  defp load_ignore_rules do
+    %{path: Config.get(:exclude_dirs) || [], name: Config.get(:skip_dirs) || []}
   end
 
-  defp validate_exclude_dir_error(path, existing_list) do
-    case validate_exclude_dir(path, existing_list) do
-      {:ok, _} -> nil
-      {:error, :empty} -> nil
-      {:error, :relative} -> "Must be an absolute path (starts with /)."
-      {:error, :duplicate} -> "Already in the list."
-      {:error, :not_a_directory} -> "Path does not exist or is not a directory."
-      {:error, :not_readable} -> "Path exists but isn't readable by the app."
-    end
+  # The decision itself is pure (ADR-030, `IgnoreRulesLogic`); this
+  # supplies the filesystem and database facts it needs.
+  defp validate_ignore_rule(:path, input, socket) do
+    trimmed = String.trim(input || "")
+
+    IgnoreRulesLogic.validate_path_rule(input, %{
+      existing: socket.assigns.ignore_rules.path,
+      linked_paths: MediaCentaur.Library.Files.all_linked_paths(),
+      media_dirs: Enum.map(socket.assigns.media_dirs, & &1["dir"]),
+      exists?: File.dir?(trimmed),
+      readable?: path_readable?(trimmed)
+    })
   end
+
+  defp validate_ignore_rule(:name, input, socket) do
+    IgnoreRulesLogic.validate_name_rule(input, %{
+      existing: socket.assigns.ignore_rules.name,
+      linked_paths: MediaCentaur.Library.Files.all_linked_paths()
+    })
+  end
+
+  # `:empty` on an `{:ok, _}` keeps the per-keystroke path single-shaped:
+  # a valid entry has no error to show, same as a half-typed one.
+  defp wrap_error({:ok, _trimmed}), do: {:error, nil}
+  defp wrap_error({:error, rejection}), do: {:error, rejection}
 
   defp path_readable?(path) do
     case File.stat(path) do
@@ -1879,9 +1920,9 @@ defmodule MediaCentaurWeb.SettingsLive do
                 service_action_pending={@service_action_pending}
                 media_dirs={@media_dirs}
                 media_dir_delete_confirm={@media_dir_delete_confirm}
-                exclude_dirs={@exclude_dirs}
-                exclude_dir_input={@exclude_dir_input}
-                exclude_dir_error={@exclude_dir_error}
+                ignore_rules={@ignore_rules}
+                ignore_rule_input={@ignore_rule_input}
+                ignore_rule_error={@ignore_rule_error}
                 bindings={@bindings}
                 glyph_style={@glyph_style}
                 listening={@listening}
@@ -2084,9 +2125,9 @@ defmodule MediaCentaurWeb.SettingsLive do
       media_dirs={@media_dirs}
       media_dir_delete_confirm={@media_dir_delete_confirm}
       scanning={@scanning}
-      exclude_dirs={@exclude_dirs}
-      exclude_dir_input={@exclude_dir_input}
-      exclude_dir_error={@exclude_dir_error}
+      ignore_rules={@ignore_rules}
+      ignore_rule_input={@ignore_rule_input}
+      ignore_rule_error={@ignore_rule_error}
     />
     """
   end

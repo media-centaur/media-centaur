@@ -1,7 +1,11 @@
 defmodule MediaCentaur.Watcher do
   use Boundary,
     deps: [MediaCentaur.Library],
-    exports: [Rescan, Supervisor]
+    # `IgnoreRules` is exported because "is this path library content?"
+    # is asked outside this subsystem too: Settings validates a new rule
+    # against the same matcher rather than re-deriving path matching in
+    # the web layer.
+    exports: [IgnoreRules, Rescan, Supervisor]
 
   @moduledoc """
   Per-directory inotify GenServer plus the watcher subsystem's module-level
@@ -41,7 +45,9 @@ defmodule MediaCentaur.Watcher do
   - `Watcher.DeletionBuffer` — debouncing buffer for deleted-path events
   - `Watcher.Walk` — recursive directory walk with FS adapter
   - `Watcher.MountStatus` — health-check decision logic
-  - `Watcher.ExcludeDirs` — precompiled prefix-match filter
+  - `Watcher.IgnoreRules` — the single "is this path library content?"
+    predicate, shared by the inotify event filter, the scan and
+    `Watcher.Rescan.rescan_unlinked/0`
   - `Watcher.VideoFile` — canonical video extension list and predicate
 
   ## Mount Resilience
@@ -63,15 +69,13 @@ defmodule MediaCentaur.Watcher do
 
   alias MediaCentaur.Settings.Config
 
-  alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Library
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.WatchedFile
   alias MediaCentaur.Platform.WatcherEvents
   alias MediaCentaur.Watcher.DeletionBuffer
-  alias MediaCentaur.Watcher.ExcludeDirs
+  alias MediaCentaur.Watcher.IgnoreRules
   alias MediaCentaur.Watcher.MountStatus
-  alias MediaCentaur.Watcher.VideoFile
   alias MediaCentaur.Watcher.Walk
 
   @size_stability_interval 5_000
@@ -87,8 +91,9 @@ defmodule MediaCentaur.Watcher do
     was_unavailable: false,
     pending_files: %{},
     deletion_buffer: %DeletionBuffer{},
-    skip_dirs: [],
-    exclude_dirs: %ExcludeDirs.Prepared{entries: []}
+    # Built in `init/1` and refreshed on a config broadcast; cached here
+    # purely to keep a config read off the inotify event path.
+    ignore_rules: nil
   ]
 
   def start_link(dir) do
@@ -159,12 +164,7 @@ defmodule MediaCentaur.Watcher do
     send(self(), :start_watching)
     :ok = Config.subscribe()
 
-    {:ok,
-     %__MODULE__{
-       dir: dir,
-       skip_dirs: load_skip_dirs(),
-       exclude_dirs: ExcludeDirs.prepare(load_exclude_dirs(dir))
-     }}
+    {:ok, %__MODULE__{dir: dir, ignore_rules: IgnoreRules.load(dir)}}
   end
 
   @impl true
@@ -183,10 +183,10 @@ defmodule MediaCentaur.Watcher do
 
   def handle_call(:scan, from, state) do
     dir = state.dir
-    exclude_dirs = state.exclude_dirs
+    rules = state.ignore_rules
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      count = scan_directory(dir, exclude_dirs)
+      count = scan_directory(dir, rules)
       GenServer.reply(from, {:ok, count})
     end)
 
@@ -313,10 +313,10 @@ defmodule MediaCentaur.Watcher do
 
   def handle_info({:auto_scan, opts}, state) do
     dir = state.dir
-    exclude_dirs = state.exclude_dirs
+    rules = state.ignore_rules
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      scan_directory(dir, exclude_dirs, opts)
+      scan_directory(dir, rules, opts)
     end)
 
     {:noreply, state}
@@ -327,10 +327,16 @@ defmodule MediaCentaur.Watcher do
     {:noreply, state}
   end
 
-  def handle_info({:config_updated, :exclude_dirs, _entries}, state) do
-    state = refresh_exclude_dirs(state)
-    count = length(state.exclude_dirs.entries)
-    Log.info(:watcher, "exclude_dirs refreshed — #{count} entries (#{state.dir})")
+  def handle_info({:config_updated, key, _value}, state) when key in [:exclude_dirs, :skip_dirs] do
+    state = %{state | ignore_rules: IgnoreRules.load(state.dir)}
+    rules = state.ignore_rules
+
+    Log.info(
+      :watcher,
+      "ignore rules refreshed — #{length(rules.path_rules)} path, " <>
+        "#{length(rules.name_rules)} name (#{state.dir})"
+    )
+
     {:noreply, state}
   end
 
@@ -418,11 +424,7 @@ defmodule MediaCentaur.Watcher do
     end
   end
 
-  defp interesting?(path, state) do
-    VideoFile.video?(path) and
-      not ExcludeDirs.excluded?(path, state.exclude_dirs) and
-      not in_skip_dir?(path, state.skip_dirs)
-  end
+  defp interesting?(path, state), do: IgnoreRules.library_content?(path, state.ignore_rules)
 
   defp buffer_deletion(state, path) do
     buffer = DeletionBuffer.add(state.deletion_buffer, path, state.dir)
@@ -434,24 +436,22 @@ defmodule MediaCentaur.Watcher do
     %{state | deletion_buffer: buffer, deletion_timer: timer}
   end
 
-  defp scan_directory(dir, %ExcludeDirs.Prepared{} = exclude_dirs, opts \\ []) do
+  defp scan_directory(dir, %IgnoreRules{} = rules, opts \\ []) do
     recovery = Keyword.get(opts, :recovery, false)
     Log.info(:watcher, "scanning #{dir}#{if recovery, do: " (recovery)", else: ""}")
 
     # `Library.FilePresence` is the sole presence record post-Phase-7;
     # `watcher_files` and the dual-write KnownFile module are gone.
     known_paths = FilePresence.list_paths_for_media_dir(dir)
-    scan_directory_with_paths(dir, exclude_dirs, known_paths, recovery: recovery)
+    scan_directory_with_paths(dir, rules, known_paths, recovery: recovery)
   end
 
-  defp scan_directory_with_paths(dir, %ExcludeDirs.Prepared{} = exclude_dirs, known_paths, opts) do
+  defp scan_directory_with_paths(dir, %IgnoreRules{} = rules, known_paths, opts) do
     start_time = System.monotonic_time()
-    skip_dirs = load_skip_dirs()
 
     video_files_with_size =
       dir
-      |> Walk.walk(exclude_dirs, skip_dirs)
-      |> Enum.filter(&VideoFile.video?/1)
+      |> Walk.walk(rules)
       |> Enum.map(fn path -> {path, file_size(path)} end)
 
     new_files_with_size =
@@ -573,27 +573,6 @@ defmodule MediaCentaur.Watcher do
     end
 
     %{state | watcher_pid: nil}
-  end
-
-  defp load_skip_dirs do
-    Enum.map(Config.get(:skip_dirs) || [], &String.downcase/1)
-  end
-
-  defp in_skip_dir?(path, skip_dirs), do: Walk.in_skip_dir?(path, skip_dirs)
-
-  defp refresh_exclude_dirs(state) do
-    %{state | exclude_dirs: ExcludeDirs.prepare(load_exclude_dirs(state.dir))}
-  end
-
-  defp load_exclude_dirs(media_dir) do
-    configured = Config.get(:exclude_dirs) || []
-    images_dir = ImageCache.dir_for(media_dir)
-    staging_base = ImageCache.staging_dir_for(media_dir)
-
-    auto_excludes =
-      Enum.filter([images_dir, staging_base], &String.starts_with?(&1, media_dir <> "/"))
-
-    Enum.uniq(configured ++ auto_excludes)
   end
 
   # Single place that flips a watcher into the unavailable state, tagging the
