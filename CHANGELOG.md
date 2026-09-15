@@ -4,20 +4,6 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
-## Unreleased
-
-### Fixed
-
-- **An ignored folder stays ignored.** Excluding a folder used to stop future scans only: anything Media Centaur had already recorded from it stayed in the Review Queue and was re-checked against TMDB on every restart. Screen recordings and game captures in a media directory could sit there for months, costing two failed lookups each on every start. Adding a rule now clears what was recorded under it — Review Queue entries included — and your files on disk are untouched. Anything left over from before clears itself the first time you start this version.
-- **A folder-name rule takes effect immediately.** Adding or removing one under **Ignore rules** used to leave live file detection on the old list until the next restart; only the path-based rules refreshed.
-- **Bonus features no longer look lost on every restart.** Extras were re-checked at each start as though they had never been imported.
-- **Dismissing a file now actually costs nothing.** **Dismiss** in the Review Queue is your decision that a file is not library content, but Media Centaur kept re-reading the filename and asking TMDB about it on every scan and restart — then throwing the answer away, because a dismissed file can't re-enter the queue. It now stops before any of that, and the Console says which files it skipped and why.
-
-### Improved
-
-- **One card for both kinds of ignore rule.** **Settings → Library → Ignore rules** now holds both: **By path** for a folder and everything under it, **By folder name** for a name wherever it appears. They were two cards in two sections that pointed at each other in prose. Folder names moved here from Media Import, which keeps Extras folder names.
-- **A rule can't quietly delete a title.** Ignoring a folder you have already imported from is refused, naming how many files are involved, and asks you to remove those titles from your library first. Before, those entries stopped being seen by the scan and were cleaned up as missing once the absence window elapsed — for files still sitting on disk. A path outside every media directory is refused too; it did nothing.
-
 ## v1.30.0 — 2026-09-15
 
 ### Improved
