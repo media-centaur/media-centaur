@@ -608,10 +608,30 @@ Settings.find_or_create_entry!(%{
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Carry-over fixes from Tasks 2-4**
+
+Two small corrections deferred to this task because both depend on the final cap constants:
+
+1. **`read/2`'s `@spec` and guard disagree.** The spec says `pos_integer()` but the guard is `when is_integer(limit) and limit >= 0`. Change the spec to `non_neg_integer()` so they match:
+
+```elixir
+@spec read(Filter.t(), non_neg_integer()) :: [Entry.t()]
+```
+
+(both the `read/2` and `read/3` specs).
+
+2. **`test/support/state_probe_formatter.ex` uses an arbitrary ceiling.** It currently reads `Console.read(Filter.all(), 1_000_000)` as a stand-in for the old `recent(nil)` ("everything"). Replace the magic number with the real whole-store bound now that the constants are settled:
+
+```elixir
+# The whole store at its ceiling: every ring at the maximum per-component cap.
+Console.read(Filter.all(), Buffer.max_cap() * length(MediaCentaur.Log.Component.all()))
+```
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add lib/media_centaur/console/buffer.ex test/media_centaur/console/buffer_test.exs
+git add lib/media_centaur/console/buffer.ex test/media_centaur/console/buffer_test.exs \
+        test/support/state_probe_formatter.ex
 git commit -m "feat(console): cap is per component, 200 default
 
 New settings key console_lines_per_component; console_buffer_size is
@@ -794,10 +814,12 @@ Expected: PASS.
 - [ ] **Step 2: Grep for any surviving references to the deleted API**
 
 ```bash
-grep -rn "snapshot_window\|Console.snapshot\|recent_entries\|console_buffer_size" lib test storybook
+grep -rn "snapshot_window\|Console\.snapshot\|Console\.recent\|Buffer\.recent\|recent_entries\|console_buffer_size" lib test storybook
 ```
 
 Expected: no hits outside this plan's own documentation. Fix any that remain.
+
+**`Buffer.recent` is in that pattern deliberately.** An earlier draft of this grep omitted it and missed two production call sites the plan owned nowhere — `lib/media_centaur/diagnostics.ex:30` (`log_recent/1`) and `lib/media_centaur/error_reports/context_snapshot.ex:44` (the incident lead-up slice, which runs on **every** incident). Both were converted during Tasks 2-4. Do not narrow this pattern.
 
 - [ ] **Step 3: Run precommit**
 
