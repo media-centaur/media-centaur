@@ -95,7 +95,7 @@ defmodule MediaCentaur.StateProbeFormatter do
             length(
               MediaCentaur.Console.read(
                 MediaCentaur.Console.Filter.all(),
-                Buffer.max_cap() * length(MediaCentaur.Log.Component.all())
+                Buffer.whole_store_limit()
               )
             )
           end)

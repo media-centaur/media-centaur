@@ -74,7 +74,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
         # stream has been populated, so a dynamic limit would crash on resize.
         |> stream_configure(:entries,
           dom_id: &Logic.entry_dom_id/1,
-          limit: -whole_store_limit()
+          limit: -Buffer.whole_store_limit()
         )
         |> stream(:entries, Enum.reverse(visible_entries))
         |> stream_configure(:journal, dom_id: &Logic.entry_dom_id/1, limit: -500)
@@ -87,7 +87,6 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
       # across every ring — using it would silently drop entries the buffer
       # legitimately delivers.
       @doc false
-      defp whole_store_limit, do: Buffer.max_cap() * length(View.known_components())
 
       # Download and copy both hand over everything the store holds under the
       # current filter — a person saving the log wants the whole thing, not the
@@ -97,7 +96,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
         filter = socket.assigns.filter
 
         filter
-        |> Console.read(whole_store_limit())
+        |> Console.read(Buffer.whole_store_limit())
         |> Logic.format_visible_payload(filter)
       end
 
@@ -128,7 +127,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
         # match the newly-truncated buffer — so read the whole store and let
         # the new cap do the truncating.
         filter = socket.assigns.filter
-        visible = Logic.visible_entries(Console.read(filter, whole_store_limit()), filter)
+        visible = Logic.visible_entries(Console.read(filter, Buffer.whole_store_limit()), filter)
 
         socket =
           socket
@@ -169,7 +168,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
         else
           # Same redraw as a resize: the stream is reset to everything the
           # store holds under the new filter.
-          visible = Logic.visible_entries(Console.read(filter, whole_store_limit()), filter)
+          visible = Logic.visible_entries(Console.read(filter, Buffer.whole_store_limit()), filter)
 
           socket =
             socket

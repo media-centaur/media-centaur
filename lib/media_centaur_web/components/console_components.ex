@@ -235,7 +235,7 @@ defmodule MediaCentaurWeb.ConsoleComponents do
   ## Attributes
 
   - `:paused` — whether log streaming is paused
-  - `:buffer_size` — current buffer capacity
+  - `:buffer_size` — current per-component buffer capacity
   - `:show_fullpage_link` — whether to render the "full page" link (default: `true`)
   """
   attr :paused, :boolean, required: true
@@ -275,13 +275,13 @@ defmodule MediaCentaurWeb.ConsoleComponents do
             type="range"
             name="size"
             min="100"
-            max="50000"
+            max="1000"
             step="100"
             value={@buffer_size}
             class="range range-xs"
           />
         </form>
-        <span class="console-buffer-size-label text-xs">{@buffer_size}</span>
+        <span class="console-buffer-size-label text-xs">{@buffer_size} / subsystem</span>
       </div>
     </footer>
     """
