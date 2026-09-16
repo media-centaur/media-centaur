@@ -9,6 +9,8 @@ see the git history for the full engineering trail.
 ### Fixed
 
 - **Extras folder names you change are honoured everywhere.** Adding your own folder name under **Settings → Media Import → Extras folder names**, or removing one of the defaults, only took effect while a file was being identified. Two later steps — the import itself, and re-queueing a file for review after a re-match — fell back to a built-in list you can't edit, so the same file could count as a bonus feature at one step and a title at another.
+- **Re-matching a show whose files were already imported works again.** A queue row is removed once its import finishes, but if that signal was missed the row stayed behind invisibly — and because a file has at most one row, re-matching it landed on the leftover instead of opening a fresh review. The file left your library and never appeared in the Review Queue. Leftovers are now cleared on startup, so this heals itself on first run.
+- **Re-matching a file you marked unidentifiable puts it back in the queue.** Marking a file unidentifiable stops everything automatic from reconsidering it — the watcher, scans, recovery — but re-matching its title is you asking to decide again, so the file returns to the Review Queue. It is currently the only way to undo that mark.
 - **`Samples` folders are ignored by default.** `Sample` already was. A folder named `Samples` was scanned, and the short encode clip inside it went to the Review Queue with nothing to match against. Both spellings are now default ignore rules — if you had added `Samples` under **Ignore rules** yourself, nothing changes for you.
 
 ## v1.31.0 — 2026-09-15
