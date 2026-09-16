@@ -73,12 +73,22 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
     end
   end
 
-  # Startup reconciliation (ADR-023), delegated whole to
-  # `Watcher.Rescan.reconcile/0`: retract what the ignore rules no longer
-  # admit, rescan all media directories to re-detect files that were missed
-  # while the pipeline was down, and re-emit any files the watcher already
-  # knows about but the pipeline never finished ingesting (stranded by a
-  # transient TMDB/network failure on a prior run).
+  # Startup reconciliation (ADR-023), in two named operations. The
+  # ingestion path spans two contexts and `Pipeline` is the boundary that
+  # depends on both, so this is where they compose; neither can call the
+  # other (`Watcher` deps `[Library]`, and `Review` is above it).
+  #
+  # - `Watcher.Rescan.reconcile/0` — retract what the ignore rules no
+  #   longer admit, rescan all media directories to re-detect files
+  #   missed while the pipeline was down, and re-emit files the watcher
+  #   knows about but the pipeline never finished ingesting (stranded by
+  #   a transient TMDB/network failure on a prior run).
+  # - `Review.sweep_completed_reviews/0` — delete queue rows whose
+  #   import already finished. `complete_review/1` destroys the row when
+  #   `{:review_completed, id}` arrives, and PubSub has no replay, so a
+  #   dropped message orphans one at `:approved` forever. Sweeping here
+  #   heals it on the next start instead of letting it accumulate into a
+  #   row the queue does not list and a re-match cannot get past.
   def handle_info({:reconcile, attempt}, state) do
     case reconcile_action(attempt, MediaCentaur.Watcher.Supervisor.running?()) do
       :run ->
@@ -86,6 +96,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
 
         Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
           MediaCentaur.Watcher.Rescan.reconcile()
+          MediaCentaur.Review.sweep_completed_reviews()
         end)
 
       {:retry, delay_ms} ->

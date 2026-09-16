@@ -28,6 +28,7 @@ defmodule MediaCentaur.Review do
   import Ecto.Query
 
   alias MediaCentaur.Repo
+  alias MediaCentaur.Library
   alias MediaCentaur.Library.Deletion
   alias MediaCentaur.Review.PendingFile
 
@@ -107,13 +108,104 @@ defmodule MediaCentaur.Review do
 
   def create_pending_file!(attrs), do: Repo.bang!(create_pending_file(attrs))
 
+  @doc """
+  The open review for `attrs`' path, creating one if there is none.
+
+  `file_path` is unique, so there is at most one row per path and its
+  status says what state that path's review is in:
+
+    * `:pending` — an open review; returned unchanged, which is what
+      makes repeated detection idempotent.
+    * `:approved` **and the file is linked** — the import finished, so
+      `complete_review/1` should have destroyed this row and a dropped
+      `{:review_completed, id}` message left it behind. Stale: reopened,
+      because otherwise the row exists but the queue does not list it and
+      the path can never be reviewed again.
+    * `:approved` **and the file is not linked** — the decision is made
+      and the import is still outstanding. Returned unchanged; reopening
+      would put a file back in the queue while it is being imported.
+    * `:dismissed` — a person decided the path is not library content.
+      Returned unchanged, so it keeps blocking. `reopen_for_review/1` is
+      the deliberate override.
+  """
   def find_or_create_pending_file(attrs) do
     file_path = attrs[:file_path] || attrs["file_path"]
 
     case Repo.get_by(PendingFile, file_path: file_path) do
       nil -> Repo.insert(PendingFile.create_changeset(attrs))
+      %PendingFile{status: :approved} = existing -> maybe_reopen_completed(existing, attrs)
       existing -> {:ok, existing}
     end
+  end
+
+  defp maybe_reopen_completed(%PendingFile{file_path: file_path} = existing, attrs) do
+    if Library.Files.linked?(file_path) do
+      Repo.update(PendingFile.reopen_changeset(existing, attrs))
+    else
+      {:ok, existing}
+    end
+  end
+
+  @doc """
+  Puts a path back in the queue whatever was decided about it before,
+  and broadcasts `FileAdded`.
+
+  The re-match path (`Library.Inbound` handing an entity's files back).
+  Unlike detection it is an explicit act on files the user owns, so it
+  supersedes an older decision — a dismissal included, which every
+  automatic path still refuses to reconsider. It is also, for now, the
+  only way to undo a dismissal: nothing in the UI lists dismissed files.
+  """
+  @spec reopen_for_review(map()) :: {:ok, PendingFile.t()} | {:error, term()}
+  def reopen_for_review(attrs) do
+    file_path = attrs[:file_path] || attrs["file_path"]
+
+    result =
+      case Repo.get_by(PendingFile, file_path: file_path) do
+        nil -> Repo.insert(PendingFile.create_changeset(attrs))
+        existing -> Repo.update(PendingFile.reopen_changeset(existing, attrs))
+      end
+
+    with {:ok, pending_file} <- result do
+      Events.broadcast(%FileAdded{pending_file_id: pending_file.id})
+      {:ok, pending_file}
+    end
+  end
+
+  @doc """
+  Deletes every queue row whose review is already complete: `:approved`
+  with the file linked.
+
+  `complete_review/1` destroys the row when an import finishes, driven by
+  `{:review_completed, id}` from `Pipeline.Import`. PubSub has no replay,
+  so a listener that was not subscribed at that instant loses the message
+  and the row is orphaned at `:approved` with nothing to notice. A live
+  instance carried 73 of them from one bulk approve three months earlier.
+
+  Run from the startup reconciliation, so a dropped completion heals on
+  the next start rather than accumulating. `:approved` with no link is
+  the legitimate in-flight state and is left alone; so are `:pending` and
+  `:dismissed`. Nothing user-visible changes — these rows were already
+  out of the queue — so there is no broadcast.
+  """
+  @spec sweep_completed_reviews() :: {:ok, non_neg_integer()}
+  def sweep_completed_reviews do
+    approved =
+      PendingFile
+      |> where([p], p.status == :approved)
+      |> select([p], %{id: p.id, file_path: p.file_path})
+      |> Repo.all()
+
+    linked = Library.Files.linked_paths(Enum.map(approved, & &1.file_path))
+    stale_ids = for row <- approved, MapSet.member?(linked, row.file_path), do: row.id
+
+    {count, _} = Repo.delete_all(from(p in PendingFile, where: p.id in ^stale_ids))
+
+    if count > 0 do
+      Log.info(:review, "swept #{count} completed review row(s) whose import had finished")
+    end
+
+    {:ok, count}
   end
 
   def find_or_create_pending_file!(attrs), do: Repo.bang!(find_or_create_pending_file(attrs))
@@ -140,7 +232,7 @@ defmodule MediaCentaur.Review do
   def add_files_for_review(files) do
     added =
       Enum.count(files, fn file ->
-        case add_pending_file(parsed_pending_attrs(file)) do
+        case reopen_for_review(parsed_pending_attrs(file)) do
           {:ok, _pending_file} ->
             true
 

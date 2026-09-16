@@ -201,7 +201,26 @@ Files with low-confidence TMDB matches stop at Discovery. Discovery broadcasts `
 The `/review` UI surfaces PendingFiles. The reviewer can:
 1. **Approve** — accepts the match, broadcasts `{:file_matched, ...}` to `"pipeline:matched"` → Import processes it
 2. **Search** — manual TMDB search, then approve with selected result
-3. **Dismiss** — flips the PendingFile to `status: :dismissed` (the row stays; `complete_review/1` is what deletes one). Terminal: `find_or_create_pending_file/1` keys on `file_path` regardless of status, so the file can never re-enter the queue, and `Discovery.process/1` skips it before parsing or searching — see the already-settled check above
+3. **Dismiss** — flips the PendingFile to `status: :dismissed` (the row stays; `complete_review/1` is what deletes one). Terminal: `Discovery.process/1` skips a dismissed path before parsing or searching — see the already-settled check above
+
+### One row per path, and what its status means
+
+`file_path` carries a unique index, so a path has at most one queue row and its status *is* the state of that path's review. `find_or_create_pending_file/1` reads it:
+
+| Status | Meaning | On re-detection |
+|---|---|---|
+| `:pending` | an open review | returned unchanged — this is what makes repeated detection idempotent |
+| `:approved`, file linked | the import finished; `complete_review/1` should have destroyed this row | **reopened** — stale, see below |
+| `:approved`, file not linked | decision made, import outstanding | returned unchanged; reopening would re-queue a file mid-import |
+| `:dismissed` | a person decided it is not library content | returned unchanged, so it keeps blocking |
+
+`Review.reopen_for_review/1` is the deliberate override, used by the re-match path (`Library.Inbound` handing an entity's files back on `{:files_for_review, …}`). A re-match is an explicit act on files the user owns, so it supersedes any earlier decision including a dismissal — and is currently the only way to undo one, since nothing in the UI lists dismissed files.
+
+### The startup sweep
+
+`complete_review/1` destroys the row when `{:review_completed, id}` arrives from `Pipeline.Import.handle_complete/1`. PubSub has no replay, so a listener that was not subscribed at that instant loses the message and the row is orphaned at `:approved` with nothing to notice. A live instance carried 73 such rows from one bulk approve three months earlier.
+
+Orphans are not inert. With one row per path, a re-match landing on one used to get a row the queue does not list — the file left the library and could never be re-reviewed. `Review.sweep_completed_reviews/0` deletes `:approved` rows whose file is linked, run from the startup reconciliation alongside `Watcher.Rescan.reconcile/0` (composed in `Discovery.Producer`, the boundary that can see both contexts), so a dropped completion heals on the next start.
 
 After Import finishes, it broadcasts `{:review_completed, pending_file_id}` to `"review:intake"` → Intake destroys the PendingFile.
 
