@@ -184,7 +184,11 @@ Watchers and pipelines can be independently stopped/started via config (`start_w
 
 ## Extras (Bonus Features)
 
-Extras (featurettes, behind-the-scenes, deleted scenes) are detected by the Parser when a file's parent directory matches configured extras directory names.
+Extras (featurettes, behind-the-scenes, deleted scenes) are detected by the Parser when a file's parent directory matches one of the configured **extras names**.
+
+That list comes from `Settings.Config.extras_dirs/0` — one accessor, read by every site that parses a *path*: `Stages.Parse` (discovery), `Pipeline.Import`, `Review.add_files_for_review/1` (rematch intake) and `Pipeline.ExtraRederive`. They parse the same file at different stages, so a second source would let the same path be a title to one and a bonus feature to another; two of them fell through to `Parser`'s own literal list until 2026-09-16, which no user can change.
+
+`Parser`'s literal list stays the fallback for callers parsing a bare release name (`Search.TitleMatcher`, `Pursuits.Commands.StartFromPick`), where there are no path components to match and no setting to read. It intentionally differs from the configured default by including `sample`/`samples`, which the append-only parser corpus depends on (`parser_test.exs` "extra — sample files"); both spellings are default **name rules**, so no admitted path can contain one and the difference is unreachable for a real file.
 
 **Flow:** Parse sets `type: :extra` → Search routes to the parent movie match → FetchMetadata fetches parent metadata → Ingest creates the parent record (Movie / TVSeries / MovieSeries, without `content_url`) plus an `Extra` row linked via the type-specific FK → the parent record's `content_url` is never set to the extra's file path.
 
@@ -197,7 +201,7 @@ Files with low-confidence TMDB matches stop at Discovery. Discovery broadcasts `
 The `/review` UI surfaces PendingFiles. The reviewer can:
 1. **Approve** — accepts the match, broadcasts `{:file_matched, ...}` to `"pipeline:matched"` → Import processes it
 2. **Search** — manual TMDB search, then approve with selected result
-3. **Dismiss** — destroys the PendingFile
+3. **Dismiss** — flips the PendingFile to `status: :dismissed` (the row stays; `complete_review/1` is what deletes one). Terminal: `find_or_create_pending_file/1` keys on `file_path` regardless of status, so the file can never re-enter the queue, and `Discovery.process/1` skips it before parsing or searching — see the already-settled check above
 
 After Import finishes, it broadcasts `{:review_completed, pending_file_id}` to `"review:intake"` → Intake destroys the PendingFile.
 

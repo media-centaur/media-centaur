@@ -28,6 +28,7 @@ defmodule MediaCentaur.Pipeline.Import do
   alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Pipeline.{Payload, Stage}
   alias MediaCentaur.Pipeline.Stages.{FetchMetadata, Ingest}
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Storage
 
   @processor_concurrency 5
@@ -79,7 +80,13 @@ defmodule MediaCentaur.Pipeline.Import do
   Returns `{:ok, payload}` or `{:error, reason}`.
   """
   def process_payload(%Payload{} = payload) do
-    payload = %{payload | parsed: Parser.parse(payload.file_path)}
+    # The payload arrives over `pipeline:matched` from Discovery or a
+    # review approval, built by `Import.Producer.build_payload/1`, which
+    # carries no parse — so this stage genuinely parses rather than
+    # re-parsing. It has to use the same extras setting as the stage that
+    # classified the file, or the same path is a title to one and a bonus
+    # feature to the other.
+    payload = %{payload | parsed: Parser.parse(payload.file_path, extras_dirs: Config.extras_dirs())}
 
     with :ok <- check_disk_space(payload.media_directory),
          {:ok, payload} <- Stage.run(:fetch_metadata, FetchMetadata, payload),

@@ -1,7 +1,8 @@
 defmodule MediaCentaur.Settings.ConfigTest do
   @moduledoc """
-  Tests for Config: image_resolution/0, update-check keys, config_path/0
-  and media_dirs parsing (plain strings, inline tables, legacy media_dir).
+  Tests for Config: image_resolution/0, extras_dirs/0, update-check keys,
+  config_path/0 and media_dirs parsing (plain strings, inline tables,
+  legacy media_dir).
   """
   use MediaCentaur.Case, async: false
 
@@ -33,6 +34,51 @@ defmodule MediaCentaur.Settings.ConfigTest do
       assert Config.image_resolution() == "1080p"
     after
       Process.delete(:image_resolution_override)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # extras_dirs/0
+  # ---------------------------------------------------------------------------
+
+  describe "extras_dirs/0" do
+    # The one accessor for the extras names. Every site that parses a
+    # *path* reads it, so discovery, import and review intake cannot
+    # disagree about whether a file is a bonus feature. `Parser`'s own
+    # literal list stays the fallback for callers parsing a bare release
+    # name, where there are no path components to match.
+    test "returns the stored list, downcased for the parser" do
+      :persistent_term.put({Config, :config}, %{extras_dirs: ["Extras", "Special Features"]})
+      assert Config.extras_dirs() == ["extras", "special features"]
+    end
+
+    test "honours an empty list — the user cleared it" do
+      :persistent_term.put({Config, :config}, %{extras_dirs: []})
+      assert Config.extras_dirs() == []
+    end
+
+    test "falls back to the default when the key is absent" do
+      :persistent_term.put({Config, :config}, %{})
+      assert "extras" in Config.extras_dirs()
+    end
+
+    test "falls back to the default for a non-list stored value" do
+      # Never nil: `Parser.parse/2` takes the list as an option, and
+      # `Keyword.get/3` returns a present `nil` rather than its default,
+      # so handing it nil raised Protocol.UndefinedError inside
+      # find_extras_ancestor/2 instead of parsing.
+      :persistent_term.put({Config, :config}, %{extras_dirs: "Extras"})
+      assert is_list(Config.extras_dirs())
+      assert "extras" in Config.extras_dirs()
+    end
+
+    test "is always a list of binaries, whatever is stored" do
+      for stored <- [nil, "Extras", 42, %{}] do
+        :persistent_term.put({Config, :config}, %{extras_dirs: stored})
+        result = Config.extras_dirs()
+        assert is_list(result)
+        assert Enum.all?(result, &is_binary/1)
+      end
     end
   end
 

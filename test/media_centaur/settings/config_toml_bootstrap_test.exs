@@ -70,7 +70,11 @@ defmodule MediaCentaur.Settings.ConfigTomlBootstrapTest do
     end
 
     test "ignores runtime keys present in the TOML, keeping defaults" do
-      assert Config.get(:skip_dirs) == ["Sample"]
+      # The claim is that the TOML's value lost, not what the default
+      # happens to contain — pinning the default's folder names here made
+      # this test fail on a change to the shipped list, which is content
+      # rather than behaviour.
+      refute "IgnoreMe" in Config.get(:skip_dirs)
       assert Config.get(:recent_changes_days) == 3
       assert Config.get(:file_absence_ttl_days) == 30
       assert Config.get(:mpv_socket_timeout_ms) == 5000
