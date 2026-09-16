@@ -147,6 +147,27 @@ defmodule MediaCentaur.Watcher.IgnoreRulesTest do
     end
   end
 
+  describe "load/1 — the shipped defaults" do
+    # Behavioural, not a check on the literal: what matters is that a
+    # stock install does not admit either spelling of the encode-sample
+    # folder. `Samples/` used to be admitted and parsed, which produced a
+    # Review Queue entry with no possible TMDB match.
+    test "neither spelling of the sample folder is library content" do
+      rules = IgnoreRules.load("/media")
+
+      refute IgnoreRules.library_content?("/media/Film/Sample/clip.mkv", rules)
+      refute IgnoreRules.library_content?("/media/Film/Samples/clip.mkv", rules)
+      assert IgnoreRules.ignored_dir?("/media/Film/Sample", rules)
+      assert IgnoreRules.ignored_dir?("/media/Film/Samples", rules)
+    end
+
+    test "a real title beside them is still library content" do
+      rules = IgnoreRules.load("/media")
+
+      assert IgnoreRules.library_content?("/media/Film/Sample.Movie.2010.mkv", rules)
+    end
+  end
+
   describe "type safety" do
     test "every predicate raises if handed a raw list instead of the struct" do
       # The struct pattern in each function head catches misuse at the

@@ -104,6 +104,25 @@ defmodule MediaCentaur.Settings.Config do
   @image_resolutions ["4k", "1080p"]
   @image_resolution_default "4k"
 
+  # Folder names whose video contents are bonus features of the enclosing
+  # title. Read through `extras_dirs/0`, never from the defaults map
+  # directly, so the accessor's fallback and the seeded default cannot
+  # drift apart.
+  @extras_dirs_default [
+    "Extras",
+    "Featurettes",
+    "Special Features",
+    "Behind The Scenes",
+    "Bonus",
+    "Deleted Scenes"
+  ]
+
+  # Folder names that are never library content, wherever they appear —
+  # the name-rule half of `Watcher.IgnoreRules`. Both spellings of the
+  # encode-sample folder: a sample clip is padding, not a bonus feature,
+  # and admitting one only produces a Review Queue entry with no match.
+  @skip_dirs_default ["Sample", "Samples"]
+
   # Floor on the GitHub release-poll interval. The check hits the
   # unauthenticated GitHub API (~60 requests/hour per network IP), so a
   # tighter interval risks rate-limiting with no benefit — releases are
@@ -175,6 +194,36 @@ defmodule MediaCentaur.Settings.Config do
   @doc "The valid artwork resolution presets, for UI rendering and validation."
   @spec image_resolutions() :: [String.t()]
   def image_resolutions, do: @image_resolutions
+
+  @doc """
+  The extras folder names, downcased as `MediaCentaur.Parser` matches
+  them. Always a list of binaries.
+
+  The single source for every site that parses a **path** — discovery
+  (`Pipeline.Stages.Parse`), import (`Pipeline.Import`), review intake
+  (`Review.add_files_for_review/1`) and the re-derive sweep
+  (`Pipeline.ExtraRederive`). They each parse the same file at a
+  different stage, and before this accessor two of them fell through to
+  `Parser`'s own literal list instead, so the same path could be a title
+  to one stage and a bonus feature to another.
+
+  `Parser`'s literal stays the fallback for callers parsing a bare
+  release name (`Search.TitleMatcher`, `Pursuits.Commands.StartFromPick`),
+  where there are no path components to match and no setting to read.
+
+  Never `nil`: `Parser.parse/2` takes this as an option and
+  `Keyword.get/3` returns a present `nil` rather than its default, so a
+  nil here raised `Protocol.UndefinedError` inside the parser instead of
+  falling back. An empty list is honoured — that is the user clearing
+  the setting.
+  """
+  @spec extras_dirs() :: [String.t()]
+  def extras_dirs do
+    case get(:extras_dirs) do
+      dirs when is_list(dirs) -> Enum.map(dirs, &String.downcase/1)
+      _ -> Enum.map(@extras_dirs_default, &String.downcase/1)
+    end
+  end
 
   @doc """
   The config keys that can be updated at runtime via `update/2` and
@@ -396,15 +445,8 @@ defmodule MediaCentaur.Settings.Config do
       ffprobe_path: MediaCentaur.Platform.Defaults.ffprobe_path(),
       setup_wizard_dismissed: false,
       exclude_dirs: [],
-      extras_dirs: [
-        "Extras",
-        "Featurettes",
-        "Special Features",
-        "Behind The Scenes",
-        "Bonus",
-        "Deleted Scenes"
-      ],
-      skip_dirs: ["Sample"],
+      extras_dirs: @extras_dirs_default,
+      skip_dirs: @skip_dirs_default,
       file_absence_ttl_days: 30,
       recent_changes_days: 3,
       release_tracking_refresh_interval_hours: 6,

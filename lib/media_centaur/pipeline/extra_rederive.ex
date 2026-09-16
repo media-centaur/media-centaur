@@ -6,7 +6,7 @@ defmodule MediaCentaur.Pipeline.ExtraRederive do
 
   Pure and network-free: it reads filenames, never TMDB. Idempotent: a name is
   only updated when the freshly-derived value differs from what's stored. It
-  parses with the same `extras_dirs` hint import used, and **only touches extras
+  parses with the same extras setting import uses (`Settings.Config.extras_dirs/0`), and **only touches extras
   whose path still parses as an extra** — a `content_url` that now parses as a
   movie/episode (e.g. a collection-backfilled extra) is left untouched rather
   than overwritten with a wrong name.
@@ -17,7 +17,7 @@ defmodule MediaCentaur.Pipeline.ExtraRederive do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.{Library, Parser}
-  alias MediaCentaur.Pipeline.Stages.Parse
+  alias MediaCentaur.Settings.Config
 
   @type summary :: %{
           scanned: non_neg_integer(),
@@ -31,7 +31,7 @@ defmodule MediaCentaur.Pipeline.ExtraRederive do
   """
   @spec rederive_all() :: {:ok, summary()}
   def rederive_all do
-    extras_dirs = Parse.extras_dirs_from_config()
+    extras_dirs = Config.extras_dirs()
 
     summary =
       Enum.reduce(Library.Extras.list_rederivable(), %{scanned: 0, updated: 0, skipped: 0}, fn extra,

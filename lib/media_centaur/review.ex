@@ -220,9 +220,14 @@ defmodule MediaCentaur.Review do
     end
   end
 
+  # Parses the same path discovery and import parse, so it reads the same
+  # extras setting. It used to fall through to `Parser`'s own literal
+  # list, which no user can change: a folder name the user added was
+  # ignored here, and one the user removed still classified as a bonus
+  # feature.
   defp parsed_pending_attrs(file) do
     file.file_path
-    |> Parser.parse()
+    |> Parser.parse(extras_dirs: MediaCentaur.Settings.Config.extras_dirs())
     |> PendingFile.parsed_attrs()
     |> Map.merge(%{file_path: file.file_path, media_directory: file.media_dir})
   end

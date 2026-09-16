@@ -165,12 +165,24 @@ configured `extras_dirs` (6 entries); `Pipeline.Import` (`import.ex:82`) and
 `sample`/`samples`). A file at `<media>/Film/Samples/clip.mkv` is admitted — the
 name rule is `Sample`, not `Samples` — then classified as a normal title by
 discovery and as an extra by import.
-→ **Scheduled convergence, not this change.** It is the extras-*classification*
-slice, not admission, and closing it means deciding which list wins, which
-changes how existing installs import. Convergence point: the next change that
-touches extras classification — `Pipeline.ExtraRederive` is the natural one,
-since it already re-derives extras names from config. Until then the fallback
-stays, and this paragraph is the record.
+→ **CLOSED 2026-09-16**, in the change that follows this file. The owner chose
+to make the difference unreachable rather than collapse the two lists.
+`Settings.Config.extras_dirs/0` became the one accessor and all four
+path-parsing sites read it (`Stages.Parse`, `Pipeline.Import`,
+`Review.add_files_for_review/1`, `Pipeline.ExtraRederive`), so the three stages
+that parse one file now agree. `Parser`'s literal keeps `sample`/`samples` for
+bare release names and the append-only corpus, and `Samples` joined `Sample` in
+the default name rules — so no admitted path can hold a sample component and
+the remaining difference cannot affect a real file.
+
+Found while fixing it: `Stages.Parse` passed `extras_dirs: nil` whenever the
+config value was not a list, and `Keyword.get/3` returns a present `nil` rather
+than its default, so `find_extras_ancestor/2` raised `Protocol.UndefinedError`
+instead of parsing. The accessor never returns nil.
+
+Also corrected: `Pipeline.Import`'s parse is **not** redundant. Its payload
+arrives over `pipeline:matched` from `Import.Producer.build_payload/1`, which
+carries no parse, so the stage genuinely parses. Only the list was wrong.
 
 **I-7 — A path rule is accepted for any absolute readable directory,** including
 one outside every media directory, where it does nothing.

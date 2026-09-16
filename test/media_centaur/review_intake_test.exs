@@ -237,6 +237,43 @@ defmodule MediaCentaur.ReviewIntakeTest do
       # Still only one PendingFile
       assert length(MediaCentaur.Review.list_pending_files_for_review()) == 1
     end
+
+    # Review intake parses the same path discovery and import parse, so it
+    # has to read the same extras setting. It fell through to `Parser`'s
+    # own literal list instead, which no user can change: a folder name
+    # the user added was ignored here, and one the user removed still
+    # classified as a bonus feature.
+    test "an extras folder the user added is honoured" do
+      :ok = MediaCentaur.Settings.Config.update(:extras_dirs, ["Extras", "Proofs"])
+
+      files = [
+        %{
+          file_path: "/media/movies/Sample Movie (2010)/Proofs/Colour test.mkv",
+          media_dir: "/media/movies"
+        }
+      ]
+
+      assert {:ok, 1} = Review.add_files_for_review(files)
+
+      [pending] = Review.list_pending_files_for_review()
+      assert pending.parsed_type == "extra"
+    end
+
+    test "an extras folder the user removed is no longer treated as one" do
+      :ok = MediaCentaur.Settings.Config.update(:extras_dirs, ["Extras"])
+
+      files = [
+        %{
+          file_path: "/media/movies/Sample Movie (2010)/Bonus/Sample Featurette.mkv",
+          media_dir: "/media/movies"
+        }
+      ]
+
+      assert {:ok, 1} = Review.add_files_for_review(files)
+
+      [pending] = Review.list_pending_files_for_review()
+      refute pending.parsed_type == "extra"
+    end
   end
 
   describe "complete_review/1" do
