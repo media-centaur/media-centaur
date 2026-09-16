@@ -22,11 +22,9 @@ defmodule MediaCentaur.Console do
   alias MediaCentaur.Topics
 
   # reads
-  defdelegate snapshot(), to: Buffer
-  defdelegate snapshot_window(n), to: Buffer
+  defdelegate read(filter, limit), to: Buffer
+  defdelegate config(), to: Buffer
   defdelegate flush(), to: Buffer
-  defdelegate recent_entries(), to: Buffer, as: :recent
-  defdelegate recent_entries(n), to: Buffer, as: :recent
   defdelegate get_filter(), to: Buffer
   defdelegate known_components(), to: View
 

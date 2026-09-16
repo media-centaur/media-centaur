@@ -4,6 +4,7 @@ defmodule MediaCentaur.Activities.SyncTest do
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
   alias MediaCentaur.Console
+  alias MediaCentaur.Console.Filter
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
@@ -235,12 +236,12 @@ defmodule MediaCentaur.Activities.SyncTest do
     eventually(
       fn ->
         Console.Buffer.flush()
-        Enum.any?(Console.Buffer.recent(), &Regex.match?(regex, &1.message))
+        Enum.any?(Console.read(Filter.all(), 1_000), &Regex.match?(regex, &1.message))
       end,
       timeout: timeout_ms,
       message: fn ->
         "expected a console line matching #{inspect(regex)}, buffer holds: " <>
-          inspect(Enum.map(Console.Buffer.recent(), & &1.message))
+          inspect(Enum.map(Console.read(Filter.all(), 1_000), & &1.message))
       end
     )
   end

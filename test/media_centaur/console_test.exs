@@ -4,14 +4,19 @@ defmodule MediaCentaur.ConsoleTest do
   alias MediaCentaur.Console
   alias MediaCentaur.Console.Filter
 
-  describe "snapshot/0" do
-    test "returns the expected map shape" do
-      snapshot = Console.snapshot()
+  describe "read/2" do
+    test "returns a list of entries" do
+      assert is_list(Console.read(Filter.all(), 1_000))
+    end
+  end
 
-      assert is_map(snapshot)
-      assert Map.has_key?(snapshot, :entries)
-      assert Map.has_key?(snapshot, :cap)
-      assert Map.has_key?(snapshot, :filter)
+  describe "config/0" do
+    test "returns the cap and the filter" do
+      config = Console.config()
+
+      assert is_map(config)
+      assert is_integer(config.cap)
+      assert %Filter{} = config.filter
     end
   end
 
@@ -33,8 +38,7 @@ defmodule MediaCentaur.ConsoleTest do
       # entry-clearing behavior itself is thoroughly covered by buffer_test.exs.
       # This test verifies only that the facade delegation chain works.
       assert Console.clear() == :ok
-      assert Console.recent_entries() == []
-      assert Console.snapshot().entries == []
+      assert Console.read(Filter.all(), 1_000) == []
     end
   end
 

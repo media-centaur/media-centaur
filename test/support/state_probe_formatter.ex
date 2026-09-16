@@ -84,7 +84,14 @@ defmodule MediaCentaur.StateProbeFormatter do
       reg: Process.registered() |> Enum.filter(&ours_name?/1) |> Map.new(&{&1, true}),
       tasks: %{count: length(Task.Supervisor.children(MediaCentaur.TaskSupervisor))},
       buckets: %{count: safe(fn -> length(MediaCentaur.ErrorReports.list_buckets()) end)},
-      console: %{count: safe(fn -> length(MediaCentaur.Console.Buffer.recent(nil)) end)}
+      # read/2 takes a limit; the probe only needs a count that moves when a
+      # test leaves entries behind, so a ceiling above any reachable total works.
+      console: %{
+        count:
+          safe(fn ->
+            length(MediaCentaur.Console.read(MediaCentaur.Console.Filter.all(), 1_000_000))
+          end)
+      }
     }
   end
 

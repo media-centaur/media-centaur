@@ -4,6 +4,7 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
 
   alias MediaCentaur.Console.Buffer
   alias MediaCentaur.Console.Entry
+  alias MediaCentaur.Console.Filter
   alias MediaCentaur.ErrorReports.Buckets
   alias MediaCentaur.GlobalStateSandbox
   alias MediaCentaur.GlobalStateSandbox.Leak
@@ -57,11 +58,11 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
     test "the Console ring buffer is emptied" do
       Buffer.append(entry(:info, "a line from an earlier test"))
       Buffer.flush()
-      assert Buffer.recent(nil) != []
+      assert Buffer.read(Filter.all(), 1_000) != []
 
       GlobalStateSandbox.checkin()
 
-      assert Buffer.recent(nil) == []
+      assert Buffer.read(Filter.all(), 1_000) == []
     end
 
     test "the incident bucket cache is emptied" do

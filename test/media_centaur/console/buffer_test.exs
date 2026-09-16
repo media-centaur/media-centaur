@@ -25,7 +25,7 @@ defmodule MediaCentaur.Console.BufferTest do
     {pid, name}
   end
 
-  describe "start_link + append + recent" do
+  describe "start_link + append + read" do
     test "entries come back newest-first" do
       {_pid, name} = start_buffer()
 
@@ -37,7 +37,7 @@ defmodule MediaCentaur.Console.BufferTest do
       Buffer.append(second, name)
       Buffer.append(third, name)
 
-      entries = Buffer.recent(nil, name)
+      entries = Buffer.read(Filter.all(), 1_000, name)
 
       assert length(entries) == 3
       assert Enum.at(entries, 0).message == "third"
@@ -54,7 +54,7 @@ defmodule MediaCentaur.Console.BufferTest do
         Buffer.append(build_entry(id: i, message: "msg #{i}"), name)
       end
 
-      entries = Buffer.recent(nil, name)
+      entries = Buffer.read(Filter.all(), 1_000, name)
 
       assert length(entries) == 3
       messages = Enum.map(entries, & &1.message)
@@ -66,36 +66,17 @@ defmodule MediaCentaur.Console.BufferTest do
     end
   end
 
-  describe "snapshot/1" do
-    test "returns expected map shape" do
-      {_pid, name} = start_buffer()
-      entry = build_entry()
-      Buffer.append(entry, name)
-
-      snapshot = Buffer.snapshot(name)
-
-      assert is_map(snapshot)
-      assert Map.has_key?(snapshot, :entries)
-      assert Map.has_key?(snapshot, :cap)
-      assert Map.has_key?(snapshot, :filter)
-      assert is_list(snapshot.entries)
-      assert is_integer(snapshot.cap)
-      assert %Filter{} = snapshot.filter
-      assert length(snapshot.entries) == 1
-    end
-  end
-
   describe "clear/1" do
     test "wipes entries and broadcasts :buffer_cleared" do
       {_pid, name} = start_buffer()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.console_logs())
 
       Buffer.append(build_entry(), name)
-      assert length(Buffer.recent(nil, name)) == 1
+      assert length(Buffer.read(Filter.all(), 1_000, name)) == 1
 
       Buffer.clear(name)
 
-      assert Buffer.recent(nil, name) == []
+      assert Buffer.read(Filter.all(), 1_000, name) == []
       assert_receive :buffer_cleared, 500
     end
   end
@@ -124,7 +105,7 @@ defmodule MediaCentaur.Console.BufferTest do
       # fired well within it.
       Process.sleep(150)
       assert %{value: %{"value" => 200}} = MediaCentaur.Settings.get_by_key("console_buffer_size")
-      assert Buffer.recent(nil, name) == []
+      assert Buffer.read(Filter.all(), 1_000, name) == []
     end
   end
 
@@ -139,17 +120,17 @@ defmodule MediaCentaur.Console.BufferTest do
         Buffer.append(build_entry(id: i), name)
       end
 
-      assert length(Buffer.recent(nil, name)) == 400
+      assert length(Buffer.read(Filter.all(), 1_000, name)) == 400
 
       # Shrink BELOW current count — resize must drop the oldest 300
       # entries in place, not just cap future appends.
       Buffer.resize(100, name)
 
-      recent_after_shrink = Buffer.recent(nil, name)
-      assert length(recent_after_shrink) == 100
+      after_shrink = Buffer.read(Filter.all(), 1_000, name)
+      assert length(after_shrink) == 100
       # The newest 100 entries (ids 301..400) must remain; oldest dropped.
-      assert hd(recent_after_shrink).id == 400
-      assert List.last(recent_after_shrink).id == 301
+      assert hd(after_shrink).id == 400
+      assert List.last(after_shrink).id == 301
     end
 
     test "growing cap accepts more entries after being capped" do
@@ -159,7 +140,7 @@ defmodule MediaCentaur.Console.BufferTest do
         Buffer.append(build_entry(id: i), name)
       end
 
-      assert length(Buffer.recent(nil, name)) == 100
+      assert length(Buffer.read(Filter.all(), 1_000, name)) == 100
 
       Buffer.resize(500, name)
 
@@ -167,7 +148,7 @@ defmodule MediaCentaur.Console.BufferTest do
         Buffer.append(build_entry(id: i), name)
       end
 
-      assert length(Buffer.recent(nil, name)) == 300
+      assert length(Buffer.read(Filter.all(), 1_000, name)) == 300
     end
 
     test "broadcasts {:buffer_resized, n} on resize" do
@@ -297,7 +278,7 @@ defmodule MediaCentaur.Console.BufferTest do
       send(pid, :persist)
 
       # Sync: issue a call that will only complete after :persist has been processed.
-      Buffer.snapshot(name)
+      Buffer.config(name)
 
       # Now verify the settings row exists.
       settings_entry = MediaCentaur.Settings.get_by_key("console_filter")
@@ -313,12 +294,12 @@ defmodule MediaCentaur.Console.BufferTest do
       # but the buffer must always start without crashing and with valid defaults.
       {_pid, name} = start_buffer()
 
-      snapshot = Buffer.snapshot(name)
+      config = Buffer.config(name)
 
       # cap defaults to 2_000 (or whatever was persisted; just check it's in range)
-      assert snapshot.cap >= 100
-      assert snapshot.cap <= 50_000
-      assert %Filter{} = snapshot.filter
+      assert config.cap >= 100
+      assert config.cap <= 50_000
+      assert %Filter{} = config.filter
     end
   end
 
@@ -329,17 +310,133 @@ defmodule MediaCentaur.Console.BufferTest do
     end
   end
 
-  describe "recent/2 with limit" do
-    test "returns at most n entries" do
-      {_pid, name} = start_buffer()
+  describe "per-component rings" do
+    test "a chatty component does not evict a quiet component's entries" do
+      {_pid, name} = start_buffer(cap: 10, persist_debounce_ms: 50_000)
 
-      for i <- 1..10 do
-        Buffer.append(build_entry(id: i), name)
+      Buffer.append(build_entry(component: :watcher, message: "watcher line"), name)
+
+      for n <- 1..500 do
+        Buffer.append(build_entry(component: :ecto, message: "ecto #{n}"), name)
       end
 
-      entries = Buffer.recent(3, name)
+      :ok = Buffer.flush(name)
 
-      assert length(entries) == 3
+      messages = Filter.all() |> Buffer.read(1_000, name) |> Enum.map(& &1.message)
+
+      assert "watcher line" in messages
+    end
+
+    test "each component's ring is capped independently" do
+      {_pid, name} = start_buffer(cap: 10, persist_debounce_ms: 50_000)
+
+      for n <- 1..50 do
+        Buffer.append(build_entry(component: :watcher, message: "w#{n}"), name)
+        Buffer.append(build_entry(component: :pipeline, message: "p#{n}"), name)
+      end
+
+      :ok = Buffer.flush(name)
+
+      watcher = Filter.new(components: %{watcher: :show}, default_component: :hide, level: :debug)
+      pipeline = Filter.new(components: %{pipeline: :show}, default_component: :hide, level: :debug)
+
+      assert length(Buffer.read(watcher, 1_000, name)) == 10
+      assert length(Buffer.read(pipeline, 1_000, name)) == 10
+    end
+
+    test "a ring read between trims still yields at most the cap" do
+      # Each ring is trimmed once per cap/4 appends, not on every append, so
+      # between trims it runs over. 110 appends at cap 100 trims on the 100th
+      # and leaves ten un-trimmed — the read must still cap at 100.
+      {_pid, name} = start_buffer(cap: 100, persist_debounce_ms: 50_000)
+
+      for n <- 1..110 do
+        Buffer.append(build_entry(id: n, component: :watcher, message: "w#{n}"), name)
+      end
+
+      :ok = Buffer.flush(name)
+
+      entries = Buffer.read(Filter.all(), 1_000, name)
+
+      assert length(entries) == 100
+      # Newest-first, and the over-run is dropped from the tail, not the head.
+      assert hd(entries).message == "w110"
+      assert List.last(entries).message == "w11"
+    end
+  end
+
+  describe "read/2" do
+    test "returns entries newest-first across rings, ordered by id" do
+      {_pid, name} = start_buffer(cap: 10, persist_debounce_ms: 50_000)
+
+      first = build_entry(component: :watcher, message: "first")
+      second = build_entry(component: :pipeline, message: "second")
+      third = build_entry(component: :watcher, message: "third")
+
+      for entry <- [first, second, third], do: Buffer.append(entry, name)
+      :ok = Buffer.flush(name)
+
+      assert ["third", "second", "first"] =
+               Filter.all() |> Buffer.read(10, name) |> Enum.map(& &1.message)
+    end
+
+    test "pulls only the rings the filter makes visible" do
+      {_pid, name} = start_buffer(cap: 10, persist_debounce_ms: 50_000)
+
+      Buffer.append(build_entry(component: :watcher, message: "watcher line"), name)
+      Buffer.append(build_entry(component: :ecto, message: "ecto line"), name)
+      :ok = Buffer.flush(name)
+
+      filter = Filter.new(components: %{watcher: :show}, default_component: :hide, level: :debug)
+
+      assert ["watcher line"] = filter |> Buffer.read(10, name) |> Enum.map(& &1.message)
+    end
+
+    test "applies the filter's level floor" do
+      {_pid, name} = start_buffer(cap: 10, persist_debounce_ms: 50_000)
+
+      Buffer.append(build_entry(component: :watcher, level: :debug, message: "noisy"), name)
+      Buffer.append(build_entry(component: :watcher, level: :warning, message: "important"), name)
+      :ok = Buffer.flush(name)
+
+      filter = Filter.new(level: :info, default_component: :show)
+
+      assert ["important"] = filter |> Buffer.read(10, name) |> Enum.map(& &1.message)
+    end
+
+    test "honours the limit" do
+      {_pid, name} = start_buffer(cap: 100, persist_debounce_ms: 50_000)
+
+      for n <- 1..20, do: Buffer.append(build_entry(component: :watcher, message: "m#{n}"), name)
+      :ok = Buffer.flush(name)
+
+      assert length(Buffer.read(Filter.all(), 5, name)) == 5
+    end
+
+    test "folds an unknown component into the :system ring" do
+      {_pid, name} = start_buffer(cap: 10, persist_debounce_ms: 50_000)
+
+      Buffer.append(build_entry(component: :not_a_real_component, message: "stray"), name)
+      :ok = Buffer.flush(name)
+
+      system_filter =
+        Filter.new(components: %{system: :show}, default_component: :hide, level: :debug)
+
+      assert ["stray"] = system_filter |> Buffer.read(10, name) |> Enum.map(& &1.message)
+    end
+  end
+
+  describe "config/0" do
+    test "reports the current cap and filter" do
+      {_pid, name} = start_buffer(cap: 10, persist_debounce_ms: 50_000)
+
+      filter = Filter.new(level: :warning, default_component: :show)
+      :ok = Buffer.put_filter(filter, name)
+
+      config = Buffer.config(name)
+
+      assert config.cap == 10
+      assert config.filter.level == :warning
     end
   end
 end

@@ -25,6 +25,7 @@ defmodule MediaCentaur.ErrorReports.ContextSnapshot do
   """
   alias MediaCentaur.Console.Buffer
   alias MediaCentaur.Console.Entry
+  alias MediaCentaur.Console.Filter
   alias MediaCentaur.ErrorReports.Contributors
   alias MediaCentaur.ErrorReports.Redactor
 
@@ -41,7 +42,11 @@ defmodule MediaCentaur.ErrorReports.ContextSnapshot do
   """
   @spec assemble(atom(), map(), keyword()) :: map()
   def assemble(component, triggering_ids, opts \\ []) do
-    buffer_entries = Keyword.get_lazy(opts, :buffer_entries, fn -> Buffer.recent(@lead_up_lines) end)
+    buffer_entries =
+      Keyword.get_lazy(opts, :buffer_entries, fn ->
+        Buffer.read(Filter.all(), @lead_up_lines)
+      end)
+
     registry = Keyword.get_lazy(opts, :registry, &Contributors.registry/0)
     id_values = triggering_ids |> Map.values() |> Enum.map(&to_string/1) |> Enum.reject(&(&1 == ""))
 
