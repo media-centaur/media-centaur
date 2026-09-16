@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.ConsoleLive.LogicTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Console.{Buffer, Entry, Filter}
+  alias MediaCentaur.Console.{Entry, Filter}
   alias MediaCentaurWeb.ConsoleLive.Logic
 
   # --- Helpers ---
@@ -18,21 +18,6 @@ defmodule MediaCentaurWeb.ConsoleLive.LogicTest do
     }
 
     Entry.new(Map.merge(defaults, overrides))
-  end
-
-  # --- initial_snapshot/0 ---
-
-  describe "initial_snapshot/0" do
-    test "returns a snapshot shape with empty entries, default cap, and default filter" do
-      snapshot = Logic.initial_snapshot()
-
-      assert snapshot.entries == []
-      assert snapshot.cap == Buffer.default_cap()
-      assert %Filter{} = snapshot.filter
-      # Default filter has app components visible, framework hidden
-      assert snapshot.filter.components[:pipeline] == :show
-      assert snapshot.filter.components[:ecto] == :hide
-    end
   end
 
   # --- should_insert_entry?/3 ---
@@ -66,20 +51,35 @@ defmodule MediaCentaurWeb.ConsoleLive.LogicTest do
   # --- visible_entries/2 ---
 
   describe "visible_entries/2" do
-    test "returns empty list for empty snapshot" do
-      snapshot = %{entries: []}
-      assert Logic.visible_entries(snapshot, Filter.new_with_defaults()) == []
+    test "returns empty list for no entries" do
+      assert Logic.visible_entries([], Filter.new_with_defaults()) == []
     end
 
-    test "filters out entries that do not match the filter" do
-      filter = Filter.new_with_defaults()
-      keep = build_entry(%{level: :warning, component: :pipeline, message: "keep"})
-      drop = build_entry(%{level: :debug, component: :pipeline, message: "drop"})
+    test "filters out entries whose message misses the search term" do
+      filter = Filter.new(search: "keep")
+      keep = build_entry(%{message: "please keep me"})
+      drop = build_entry(%{message: "drop me"})
 
-      result = Logic.visible_entries(%{entries: [keep, drop]}, filter)
+      result = Logic.visible_entries([keep, drop], filter)
 
       assert length(result) == 1
-      assert hd(result).message == "keep"
+      assert hd(result).message == "please keep me"
+    end
+
+    test "matches the search term case-insensitively" do
+      filter = Filter.new(search: "KEEP")
+      entry = build_entry(%{message: "please keep me"})
+
+      assert Logic.visible_entries([entry], filter) == [entry]
+    end
+
+    test "leaves component and level to the store's read selector" do
+      # Console.read/2 already applied them; re-applying here would drop
+      # entries the store deliberately delivered.
+      filter = Filter.new_with_defaults()
+      below_floor = build_entry(%{level: :debug, component: :ecto, message: "from the store"})
+
+      assert Logic.visible_entries([below_floor], filter) == [below_floor]
     end
 
     test "preserves the order of the input entries" do
@@ -88,7 +88,7 @@ defmodule MediaCentaurWeb.ConsoleLive.LogicTest do
       second = build_entry(%{message: "second"})
       third = build_entry(%{message: "third"})
 
-      result = Logic.visible_entries(%{entries: [first, second, third]}, filter)
+      result = Logic.visible_entries([first, second, third], filter)
 
       assert Enum.map(result, & &1.message) == ["first", "second", "third"]
     end
@@ -101,19 +101,19 @@ defmodule MediaCentaurWeb.ConsoleLive.LogicTest do
       assert Logic.format_visible_payload([], Filter.new_with_defaults()) == ""
     end
 
-    test "filters then formats the surviving entries as multi-line text" do
-      filter = Filter.new_with_defaults()
+    test "filters by search then formats the surviving entries as multi-line text" do
+      filter = Filter.new(search: "match")
 
       entries = [
-        build_entry(%{level: :warning, message: "first"}),
-        build_entry(%{level: :debug, message: "dropped"}),
-        build_entry(%{level: :info, message: "second"})
+        build_entry(%{message: "first match"}),
+        build_entry(%{message: "dropped"}),
+        build_entry(%{message: "second match"})
       ]
 
       payload = Logic.format_visible_payload(entries, filter)
 
-      assert payload =~ "first"
-      assert payload =~ "second"
+      assert payload =~ "first match"
+      assert payload =~ "second match"
       refute payload =~ "dropped"
       assert String.contains?(payload, "\n")
     end

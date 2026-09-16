@@ -96,6 +96,14 @@ defmodule MediaCentaur.Console.Filter do
     Map.get(filter.components, component, filter.default_component) == :show
   end
 
+  @doc "Whether `entry`'s message contains the filter's search term (case-insensitive)."
+  @spec search_passes?(Entry.t(), t()) :: boolean()
+  def search_passes?(%Entry{}, %__MODULE__{search: ""}), do: true
+
+  def search_passes?(%Entry{message: message}, %__MODULE__{search_lower: search_lower}) do
+    String.contains?(String.downcase(message), search_lower)
+  end
+
   @doc "Toggles a component between :show and :hide. Unknown components default to :show before flipping."
   @spec toggle_component(t(), atom()) :: t()
   def toggle_component(%__MODULE__{} = filter, component) do
@@ -222,12 +230,6 @@ defmodule MediaCentaur.Console.Filter do
 
   defp component_passes?(%Entry{component: component}, %__MODULE__{} = filter) do
     component_visible?(filter, component)
-  end
-
-  defp search_passes?(%Entry{}, %__MODULE__{search: ""}), do: true
-
-  defp search_passes?(%Entry{message: message}, %__MODULE__{search_lower: search_lower}) do
-    String.contains?(String.downcase(message), search_lower)
   end
 
   # Derived cache — keeps `search_passes?/2` from paying `String.downcase/1`
