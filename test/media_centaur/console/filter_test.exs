@@ -355,4 +355,38 @@ defmodule MediaCentaur.Console.FilterTest do
       assert filter.components[:system] == :show
     end
   end
+
+  describe "component_visible?/2" do
+    test "returns true for a component explicitly shown" do
+      filter = Filter.new(components: %{watcher: :show}, default_component: :hide)
+      assert Filter.component_visible?(filter, :watcher)
+    end
+
+    test "returns false for a component explicitly hidden" do
+      filter = Filter.new(components: %{ecto: :hide}, default_component: :show)
+      refute Filter.component_visible?(filter, :ecto)
+    end
+
+    test "falls back to default_component for an unlisted component" do
+      filter = Filter.new(components: %{}, default_component: :hide)
+      refute Filter.component_visible?(filter, :pipeline)
+
+      permissive = Filter.new(components: %{}, default_component: :show)
+      assert Filter.component_visible?(permissive, :pipeline)
+    end
+  end
+
+  describe "all/0" do
+    test "admits every level and every component" do
+      filter = Filter.all()
+
+      assert Filter.component_visible?(filter, :ecto)
+      assert Filter.component_visible?(filter, :some_unknown_component)
+
+      for level <- [:debug, :info, :warning, :error] do
+        entry = build_entry(level: level, component: :ecto)
+        assert Filter.matches?(entry, filter)
+      end
+    end
+  end
 end

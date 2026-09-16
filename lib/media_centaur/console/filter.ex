@@ -60,6 +60,15 @@ defmodule MediaCentaur.Console.Filter do
   end
 
   @doc """
+  A filter that admits everything — every level, every component, no search.
+
+  The "give me the whole store" selection. Named so call sites don't restate
+  `level: :debug, default_component: :show` and drift apart.
+  """
+  @spec all() :: t()
+  def all, do: new(level: :debug, components: %{}, default_component: :show)
+
+  @doc """
   Returns `true` iff the entry passes all three filter dimensions:
   level floor, component visibility, and search substring.
   """
@@ -68,6 +77,23 @@ defmodule MediaCentaur.Console.Filter do
     level_passes?(entry, filter) and
       component_passes?(entry, filter) and
       search_passes?(entry, filter)
+  end
+
+  @doc "Whether `entry`'s level clears the filter's level floor."
+  @spec level_passes?(Entry.t(), t()) :: boolean()
+  def level_passes?(%Entry{level: entry_level}, %__MODULE__{level: floor_level}) do
+    Map.get(@level_ranks, entry_level, 0) >= Map.get(@level_ranks, floor_level, 0)
+  end
+
+  @doc """
+  Whether a component is visible under this filter.
+
+  Takes the component atom rather than an `%Entry{}` so the store can select
+  which rings to read before it holds any entries.
+  """
+  @spec component_visible?(t(), atom()) :: boolean()
+  def component_visible?(%__MODULE__{} = filter, component) when is_atom(component) do
+    Map.get(filter.components, component, filter.default_component) == :show
   end
 
   @doc "Toggles a component between :show and :hide. Unknown components default to :show before flipping."
@@ -194,13 +220,8 @@ defmodule MediaCentaur.Console.Filter do
 
   # Private helpers
 
-  defp level_passes?(%Entry{level: entry_level}, %__MODULE__{level: floor_level}) do
-    Map.get(@level_ranks, entry_level, 0) >= Map.get(@level_ranks, floor_level, 0)
-  end
-
   defp component_passes?(%Entry{component: component}, %__MODULE__{} = filter) do
-    visibility = Map.get(filter.components, component, filter.default_component)
-    visibility == :show
+    component_visible?(filter, component)
   end
 
   defp search_passes?(%Entry{}, %__MODULE__{search: ""}), do: true
