@@ -10,6 +10,8 @@ defmodule MediaCentaur.Diagnostics do
   Each function prints formatted output to stdout.
   """
 
+  alias MediaCentaur.Console
+  alias MediaCentaur.Console.Filter
   alias MediaCentaur.ErrorReports
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.ErrorReports.Incident
@@ -26,8 +28,8 @@ defmodule MediaCentaur.Diagnostics do
   @doc "Prints the N most recent console buffer entries (default 20), oldest first."
   @spec log_recent(pos_integer()) :: :ok
   def log_recent(count \\ 20) when is_integer(count) and count > 0 do
-    count
-    |> MediaCentaur.Console.Buffer.recent()
+    Filter.all()
+    |> Console.read(count)
     |> Enum.reverse()
     |> Enum.each(fn entry ->
       IO.puts(

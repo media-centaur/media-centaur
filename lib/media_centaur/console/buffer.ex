@@ -1,6 +1,18 @@
 defmodule MediaCentaur.Console.Buffer do
   @moduledoc """
-  A GenServer ring buffer that holds the most recent log entries in a capped list.
+  A GenServer holding one capped ring of log entries **per component**.
+
+  A single shared ring let a chatty component evict every other component's
+  history — `:ecto` emits on the order of a thousand SQL debug lines an hour,
+  so filtering the console to `:watcher` showed almost nothing. Each component
+  now gets its own ring of `cap` entries, so one subsystem's volume cannot
+  crowd out another's.
+
+  `read/2` is the only way entries leave the store. It takes a `%Filter{}` and
+  a limit, and uses the filter's component and level dimensions as a read
+  selector: only visible rings are pulled, below-floor entries never leave, and
+  the surviving entries merge newest-first by id. `config/0` reports the cap
+  and filter separately.
 
   This is the runtime state of the console. The buffer cap and filter are
   persisted to `MediaCentaur.Settings` with a debounce to avoid excessive DB writes.
@@ -11,6 +23,7 @@ defmodule MediaCentaur.Console.Buffer do
   use GenServer
 
   alias MediaCentaur.Console.{Entry, Filter}
+  alias MediaCentaur.Log.Component
   alias MediaCentaur.Settings
   alias MediaCentaur.Topics
 
@@ -49,42 +62,29 @@ defmodule MediaCentaur.Console.Buffer do
   @spec flush(atom()) :: :ok
   def flush(name \\ __MODULE__), do: GenServer.call(name, :flush)
 
-  @doc "Returns `%{entries: [...], cap: integer, filter: %Filter{}}` for the default buffer."
-  @spec snapshot() :: map()
-  def snapshot, do: snapshot(__MODULE__)
-
-  @doc "Explicit name variant for tests."
-  @spec snapshot(atom()) :: map()
-  def snapshot(name) do
-    GenServer.call(name, :snapshot)
-  end
-
   @doc """
-  Like `snapshot/0`, but caps the `:entries` list at `n` newest entries.
+  Entries matching `filter`, newest-first, capped at `limit`.
 
-  Preferred over `snapshot/0` for LiveView mount, where copying the full
-  50k-cap buffer into the LiveView process heap on every page load is
-  wasteful — the initial stream paint only needs enough history to fill
-  the viewport; new entries arrive via PubSub.
+  The filter's component and level dimensions act as a **read selector** — only
+  visible rings are pulled, and below-floor entries never leave the store. Search
+  is not applied here: it is per-keystroke and handled at the call site.
   """
-  @spec snapshot_window(non_neg_integer()) :: map()
-  def snapshot_window(n), do: snapshot_window(n, __MODULE__)
+  @spec read(Filter.t(), pos_integer()) :: [Entry.t()]
+  def read(%Filter{} = filter, limit), do: read(filter, limit, __MODULE__)
 
   @doc "Explicit name variant for tests."
-  @spec snapshot_window(non_neg_integer(), atom()) :: map()
-  def snapshot_window(n, name) when is_integer(n) and n >= 0 do
-    GenServer.call(name, {:snapshot_window, n})
+  @spec read(Filter.t(), pos_integer(), atom()) :: [Entry.t()]
+  def read(%Filter{} = filter, limit, name) when is_integer(limit) and limit >= 0 do
+    GenServer.call(name, {:read, filter, limit})
   end
 
-  @doc "Returns up to `n` entries newest-first. Pass `nil` for all entries."
-  @spec recent(non_neg_integer() | nil) :: [Entry.t()]
-  def recent(n \\ nil), do: recent(n, __MODULE__)
+  @doc "The buffer's current cap (per component) and filter."
+  @spec config() :: %{cap: pos_integer(), filter: Filter.t()}
+  def config, do: config(__MODULE__)
 
   @doc "Explicit name variant for tests."
-  @spec recent(non_neg_integer() | nil, atom()) :: [Entry.t()]
-  def recent(n, name) do
-    GenServer.call(name, {:recent, n})
-  end
+  @spec config(atom()) :: %{cap: pos_integer(), filter: Filter.t()}
+  def config(name), do: GenServer.call(name, :config)
 
   @doc "Clears all entries from the buffer."
   @spec clear() :: :ok
@@ -169,7 +169,8 @@ defmodule MediaCentaur.Console.Buffer do
       end
 
     state = %{
-      entries: [],
+      rings: %{},
+      overflow: %{},
       cap: cap,
       filter: filter,
       persist_ref: nil,
@@ -177,8 +178,7 @@ defmodule MediaCentaur.Console.Buffer do
       # used in tests so the timer fires inside the test that armed it.
       persist_debounce_ms: Keyword.get(opts, :persist_debounce_ms, @persist_debounce_ms),
       pending: [],
-      flush_ref: nil,
-      overflow: 0
+      flush_ref: nil
     }
 
     {:ok, state}
@@ -192,39 +192,66 @@ defmodule MediaCentaur.Console.Buffer do
   # flight (campaigns/instant-navigation.md Phase 5). The buffer itself
   # is updated immediately — only the broadcast batches.
   #
-  # Trimming to the cap on every append walked `cap` entries per log line
-  # (audit P8). The list may now run over the cap by up to a quarter and
-  # is trimmed once per that many appends; every read takes the cap, so
-  # the overflow is never observable.
+  # Each component gets its own capped ring, so a chatty component (`:ecto`
+  # emits ~1000 SQL debug lines an hour) cannot evict a quiet one's history.
   @impl true
   def handle_cast({:append, entry}, state) do
-    state = %{state | entries: [entry | state.entries], pending: [entry | state.pending]}
-    {:noreply, state |> trim_if_over() |> schedule_flush()}
+    component = ring_key(entry.component)
+    ring = Map.get(state.rings, component, [])
+
+    state = %{
+      state
+      | rings: Map.put(state.rings, component, [entry | ring]),
+        pending: [entry | state.pending]
+    }
+
+    {:noreply, state |> trim_if_over(component) |> schedule_flush()}
   end
 
-  defp trim_if_over(%{overflow: overflow, cap: cap} = state) when overflow >= max(div(cap, 4), 1) do
-    %{state | entries: Enum.take(state.entries, cap), overflow: 0}
+  # Rings key on the known component vocabulary. `Entry.from_log_event/3`
+  # lets an explicit `meta[:component]` through as an arbitrary atom, so
+  # without this fold the ring count would be unbounded. Anything
+  # unrecognised joins :system, which is already the catch-all everywhere else.
+  defp ring_key(component) do
+    if component in Component.all(), do: component, else: :system
   end
 
-  defp trim_if_over(state), do: %{state | overflow: state.overflow + 1}
+  # Trimming on every append walked `cap` entries per log line (audit P8).
+  # Each ring may run over by up to a quarter and is trimmed once per that
+  # many appends; every read takes the cap, so the overflow is never observable.
+  defp trim_if_over(state, component) do
+    seen = Map.get(state.overflow, component, 0) + 1
+
+    if seen >= max(div(state.cap, 4), 1) do
+      ring = state.rings |> Map.fetch!(component) |> Enum.take(state.cap)
+
+      %{
+        state
+        | rings: Map.put(state.rings, component, ring),
+          overflow: Map.put(state.overflow, component, 0)
+      }
+    else
+      %{state | overflow: Map.put(state.overflow, component, seen)}
+    end
+  end
 
   @impl true
-  def handle_call({:recent, nil}, _from, state) do
-    {:reply, Enum.take(state.entries, state.cap), state}
+  def handle_call({:read, filter, limit}, _from, state) do
+    entries =
+      state.rings
+      |> Enum.filter(fn {component, _ring} -> Filter.component_visible?(filter, component) end)
+      |> Enum.flat_map(fn {_component, ring} -> Enum.take(ring, state.cap) end)
+      |> Enum.filter(&Filter.level_passes?(&1, filter))
+      # Entry ids come from System.unique_integer([:monotonic, :positive]), so a
+      # descending id sort is exact global recency across rings.
+      |> Enum.sort_by(& &1.id, :desc)
+      |> Enum.take(limit)
+
+    {:reply, entries, state}
   end
 
-  def handle_call({:recent, n}, _from, state) when is_integer(n) do
-    {:reply, Enum.take(state.entries, n), state}
-  end
-
-  def handle_call(:snapshot, _from, state) do
-    snapshot = %{entries: Enum.take(state.entries, state.cap), cap: state.cap, filter: state.filter}
-    {:reply, snapshot, state}
-  end
-
-  def handle_call({:snapshot_window, n}, _from, state) do
-    snapshot = %{entries: Enum.take(state.entries, n), cap: state.cap, filter: state.filter}
-    {:reply, snapshot, state}
+  def handle_call(:config, _from, state) do
+    {:reply, %{cap: state.cap, filter: state.filter}, state}
   end
 
   def handle_call(:clear, _from, state) do
@@ -232,7 +259,7 @@ defmodule MediaCentaur.Console.Buffer do
     # resurrect rows the UI just emptied.
     if state.flush_ref, do: Process.cancel_timer(state.flush_ref)
     broadcast(:buffer_cleared)
-    {:reply, :ok, %{state | entries: [], pending: [], flush_ref: nil, overflow: 0}}
+    {:reply, :ok, %{state | rings: %{}, overflow: %{}, pending: [], flush_ref: nil}}
   end
 
   def handle_call(:reset, from, state) do
@@ -241,11 +268,10 @@ defmodule MediaCentaur.Console.Buffer do
   end
 
   def handle_call({:resize, n}, _from, state) do
-    new_entries = Enum.take(state.entries, n)
-    new_state = %{state | cap: n, entries: new_entries, overflow: 0}
+    rings = Map.new(state.rings, fn {component, ring} -> {component, Enum.take(ring, n)} end)
+    new_state = %{state | cap: n, rings: rings, overflow: %{}}
     broadcast({:buffer_resized, n})
-    new_state = schedule_persist(new_state)
-    {:reply, :ok, new_state}
+    {:reply, :ok, schedule_persist(new_state)}
   end
 
   def handle_call({:put_filter, filter}, _from, state) do
