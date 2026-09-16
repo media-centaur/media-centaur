@@ -107,9 +107,20 @@ defmodule MediaCentaur.Console.Buffer do
   @spec reset(atom()) :: :ok
   def reset(name \\ __MODULE__), do: GenServer.call(name, :reset)
 
-  @doc "Maximum allowed buffer cap. Used by LiveViews to size the stream once."
+  @doc "Maximum allowed per-component cap."
   @spec max_cap() :: pos_integer()
   def max_cap, do: @max_cap
+
+  @doc """
+  The whole store at its ceiling: every ring full at the maximum per-component
+  cap.
+
+  The bound for any read or stream that spans every component. `max_cap/0`
+  alone is a *per-component* number and silently truncates a merged view — the
+  mistake this function exists to prevent.
+  """
+  @spec whole_store_limit() :: pos_integer()
+  def whole_store_limit, do: @max_cap * length(Component.all())
 
   @doc "Minimum allowed buffer cap."
   @spec min_cap() :: pos_integer()
