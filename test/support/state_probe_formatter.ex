@@ -29,6 +29,8 @@ defmodule MediaCentaur.StateProbeFormatter do
 
   use GenServer
 
+  alias MediaCentaur.Console.Buffer
+
   @app_ets ~w(library_view_ status_view_ release_tracking_view_ integration_health pipeline_discovery_inflight)
 
   def init(_opts) do
@@ -85,11 +87,17 @@ defmodule MediaCentaur.StateProbeFormatter do
       tasks: %{count: length(Task.Supervisor.children(MediaCentaur.TaskSupervisor))},
       buckets: %{count: safe(fn -> length(MediaCentaur.ErrorReports.list_buckets()) end)},
       # read/2 takes a limit; the probe only needs a count that moves when a
-      # test leaves entries behind, so a ceiling above any reachable total works.
+      # test leaves entries behind, so it reads the whole store at its
+      # ceiling: every ring at the maximum per-component cap.
       console: %{
         count:
           safe(fn ->
-            length(MediaCentaur.Console.read(MediaCentaur.Console.Filter.all(), 1_000_000))
+            length(
+              MediaCentaur.Console.read(
+                MediaCentaur.Console.Filter.all(),
+                Buffer.max_cap() * length(MediaCentaur.Log.Component.all())
+              )
+            )
           end)
       }
     }

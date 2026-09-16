@@ -93,7 +93,10 @@ defmodule MediaCentaur.Console.BufferTest do
       # clear/1 keeps the pending write: a person emptying the console has
       # not changed their mind about its size.
       eventually(fn ->
-        match?(%{value: %{"value" => 200}}, MediaCentaur.Settings.get_by_key("console_buffer_size")) ||
+        match?(
+          %{value: %{"value" => 200}},
+          MediaCentaur.Settings.get_by_key("console_lines_per_component")
+        ) ||
           nil
       end)
 
@@ -104,7 +107,10 @@ defmodule MediaCentaur.Console.BufferTest do
       # A negative needs a bounded wait: an uncancelled timer would have
       # fired well within it.
       Process.sleep(150)
-      assert %{value: %{"value" => 200}} = MediaCentaur.Settings.get_by_key("console_buffer_size")
+
+      assert %{value: %{"value" => 200}} =
+               MediaCentaur.Settings.get_by_key("console_lines_per_component")
+
       assert Buffer.read(Filter.all(), 1_000, name) == []
     end
   end
@@ -296,9 +302,10 @@ defmodule MediaCentaur.Console.BufferTest do
 
       config = Buffer.config(name)
 
-      # cap defaults to 2_000 (or whatever was persisted; just check it's in range)
-      assert config.cap >= 100
-      assert config.cap <= 50_000
+      # cap defaults to Buffer.default_cap() (or whatever was persisted;
+      # just check it is in the settable per-component range)
+      assert config.cap >= Buffer.min_cap()
+      assert config.cap <= Buffer.max_cap()
       assert %Filter{} = config.filter
     end
   end
@@ -437,6 +444,14 @@ defmodule MediaCentaur.Console.BufferTest do
 
       assert config.cap == 10
       assert config.filter.level == :warning
+    end
+  end
+
+  describe "cap range" do
+    test "the per-component defaults are in force" do
+      assert Buffer.default_cap() == 200
+      assert Buffer.min_cap() == 100
+      assert Buffer.max_cap() == 1_000
     end
   end
 end
