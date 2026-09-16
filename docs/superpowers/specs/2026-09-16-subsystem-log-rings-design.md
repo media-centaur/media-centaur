@@ -379,6 +379,33 @@ fixed, with a named trigger — **the next time a third context needs the
 subsystem vocabulary**, it gets promoted to the domain and `Retention`'s prose
 constraint becomes a code reference.
 
+**Pending-review count is rendered in two widgets.**
+The Library widget carries "pending review + in-flight acquisitions"
+(`status_widgets/library.ex:20`); the Metadata widget carries a pending-review
+low-confidence match count with a `~p"/review"` link
+(`status_widgets/tmdb.ex:30,86,93`). One idea, two representations, in adjacent
+tiles.
+
+This is also the reason a **Review tile** looks unnecessary today: `:review` is
+a real user-facing feature with its own context, wiki page and 11 log call
+sites, and it currently folds into `:system` — but its health is already on the
+board, twice. Named trigger: **consolidate the two readouts first**; only then
+is "does Review deserve a tile?" a question with a clean answer. Adding a tile
+before that would make it a third representation.
+
+**`:http` / "Connections" is a lens, not a subsystem.**
+Every other tile's description names a capability; this one names a layer —
+"every request Media Centaur makes to another server." Its log panel will show
+requests made *on behalf of* TMDB, Downloads, Social and Updates, so one
+subsystem's failure can legitimately appear in two tiles' logs.
+
+Not wrong enough to remove — HTTP has genuine health of its own (rate limiters,
+cache hit rate, an `IncidentContext`, a widget), and "is my network working" is
+a real question with one right place to ask it. Recorded because it is a
+different *kind* of thing sitting in a list of features. Named trigger: **the
+next time the board's tile vocabulary is revisited**, decide explicitly whether
+cross-cutting lenses get their own row or a different visual treatment.
+
 ## Out of scope
 
 - **Giving `:self_update` its own component tag.** That reverses a deliberate
