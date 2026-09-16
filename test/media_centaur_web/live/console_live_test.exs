@@ -47,7 +47,7 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
     # entry has actually landed in the (global) buffer, then force the batch out,
     # so the broadcast and the LV re-render below are deterministic.
     eventually(fn ->
-      Enum.any?(Console.snapshot().entries, &(&1.message == "integration test entry"))
+      Enum.any?(whole_store(), &(&1.message == "integration test entry"))
     end)
 
     :ok = Console.flush()
@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
     Log.warning(:phoenix, "excluded framework entry")
 
     # Once the broadcasts land, the entries are in the buffer: the append cast is
-    # processed before the later snapshot_window call (same GenServer, serialized).
+    # processed before the later Console.read call (same GenServer, serialized).
     await_log_broadcast(["admitted app entry", "excluded framework entry"])
 
     {:ok, parent_view, _html} = live(conn, ~p"/")
@@ -111,7 +111,7 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
     # Wait for the :buffer_cleared broadcast before asserting emptiness.
     assert_receive :buffer_cleared, 500
 
-    assert Console.recent_entries() == []
+    assert whole_store() == []
   end
 
   test "sticky drawer is not rendered on /console", %{conn: conn} do
@@ -121,6 +121,11 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
     refute html =~ "console-sticky-root"
     assert html =~ "console-fullpage"
   end
+
+  # Everything the store holds, unfiltered. `Filter.all()` is the read
+  # selector that admits every component and level; the limit is well above
+  # the per-component cap these tests ever fill.
+  defp whole_store, do: Console.read(Filter.all(), 1_000)
 
   # Batched broadcast contract (instant-navigation P5): appends arrive as
   # {:log_entries, entries} flushes, possibly several messages per batch.

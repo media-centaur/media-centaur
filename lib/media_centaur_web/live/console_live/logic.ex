@@ -12,17 +12,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Logic do
   unit tests without mocking a socket.
   """
 
-  alias MediaCentaur.Console.{Buffer, Entry, Filter, View}
-
-  @doc """
-  Default snapshot used in mount when the socket is not yet connected.
-  Mirrors the shape returned by `Console.snapshot/0` so both LVs can
-  unconditionally feed it into their assigns pipeline.
-  """
-  @spec initial_snapshot() :: %{entries: [], cap: pos_integer(), filter: Filter.t()}
-  def initial_snapshot do
-    %{entries: [], cap: Buffer.default_cap(), filter: Filter.new_with_defaults()}
-  end
+  alias MediaCentaur.Console.{Entry, Filter, View}
 
   @doc """
   Decides whether a newly broadcast entry should be streamed given the
@@ -37,24 +27,25 @@ defmodule MediaCentaurWeb.ConsoleLive.Logic do
   end
 
   @doc """
-  Returns the subset of a snapshot's entries that pass the given filter,
-  preserving input order. Used for buffer resize / filter change redraws
-  and for building download/copy payloads.
+  Returns the subset of `entries` matching the filter's search term, preserving
+  order. Component and level are applied by `Console.read/2` as a read selector,
+  so search is the one dimension left at the call site.
   """
-  @spec visible_entries(%{entries: [Entry.t()]}, Filter.t()) :: [Entry.t()]
-  def visible_entries(%{entries: entries}, %Filter{} = filter) do
-    Enum.filter(entries, &Filter.matches?(&1, filter))
+  @spec visible_entries([Entry.t()], Filter.t()) :: [Entry.t()]
+  def visible_entries(entries, %Filter{} = filter) when is_list(entries) do
+    Enum.filter(entries, &Filter.search_passes?(&1, filter))
   end
 
   @doc """
-  Formats the entries that pass the filter as a multi-line plain-text
-  payload suitable for download or clipboard copy. Delegates to
-  `View.format_lines/1` after filtering.
+  Formats the visible entries as a multi-line plain-text payload suitable for
+  download or clipboard copy. Shares one notion of "visible" with
+  `visible_entries/2` — the caller reads through `Console.read/2`, which has
+  already applied component and level — then delegates to `View.format_lines/1`.
   """
   @spec format_visible_payload([Entry.t()], Filter.t()) :: String.t()
   def format_visible_payload(entries, %Filter{} = filter) do
     entries
-    |> Enum.filter(&Filter.matches?(&1, filter))
+    |> visible_entries(filter)
     |> View.format_lines()
   end
 

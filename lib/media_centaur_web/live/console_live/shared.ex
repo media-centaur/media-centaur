@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
   event that only the sticky version needs.
 
   This module injects:
-  - `console_mount/1` — shared mount setup (subscribe, snapshot, assigns, stream)
+  - `console_mount/1` — shared mount setup (subscribe, read, assigns, stream)
   - `handle_info` clauses for PubSub messages (plus a catch-all for
     messages forwarded by session-wide on_mount hooks)
   - the `handle_event` clauses for user interactions
@@ -35,46 +35,70 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
       defp console_mount(socket) do
         socket = MediaCentaurWeb.Live.Subscriptions.subscribe(socket, Console)
 
+        config = Console.config()
+
         # Both renders paint the buffer (ADR-051: a pure in-memory read
-        # belongs on the first paint). Cap it at the default buffer size —
-        # the buffer may hold up to 50k entries on a bumped cap, but the
-        # initial viewport never needs that many; new entries arrive via
-        # PubSub. See Buffer.snapshot_window/1.
-        snapshot = Console.snapshot_window(Buffer.default_cap())
+        # belongs on the first paint). Cap it at the default per-component
+        # size — the store may hold far more across its rings on a bumped
+        # cap, but the initial viewport never needs that many; new entries
+        # arrive via PubSub.
+        #
+        # The filter reaches the entries before they reach the stream, exactly
+        # like every other entry-producing path (`should_insert_entry?` on new
+        # entries, `:filter_changed`, `:buffer_resized`). Streaming an
+        # unfiltered window here was the one path that bypassed the filter, so
+        # excluded entries (hidden components, below-floor levels, non-matching
+        # search) painted on first load and were only scrolled away by later
+        # live entries — the "flash of unfiltered text". Component and level
+        # are now applied *in the store* by `Console.read/2`, which is strictly
+        # stronger than filtering before streaming: excluded entries never
+        # leave the buffer. Search is still applied here.
+        visible_entries =
+          config.filter
+          |> Console.read(Buffer.default_cap())
+          |> Logic.visible_entries(config.filter)
 
         journal_available =
           if connected?(socket), do: Console.journal_available?(), else: false
 
-        # Apply the filter before the entries reach the stream, exactly like
-        # every other entry-producing path (`should_insert_entry?` on new
-        # entries, `:filter_changed`, `:buffer_resized`). Streaming the raw
-        # window here was the one path that bypassed the filter, so excluded
-        # entries (hidden components, below-floor levels, non-matching search)
-        # painted on first load and were only scrolled away by later live
-        # entries — the "flash of unfiltered text". Filtering at the source
-        # means excluded entries never reach the DOM.
-        visible_entries = Logic.visible_entries(snapshot, snapshot.filter)
-
         socket
-        |> assign(:filter, snapshot.filter)
+        |> assign(:filter, config.filter)
         |> assign(:paused, false)
-        |> assign(:buffer_size, snapshot.cap)
+        |> assign(:buffer_size, config.cap)
         |> assign(:app_components, View.app_components())
         |> assign(:framework_components, View.framework_components())
         |> assign(:active_source, :app)
         |> assign(:journal_available, journal_available)
-        # Stream limit is pinned at the buffer's max_cap and never reconfigured.
-        # Phoenix LiveView forbids stream_configure/3 after a stream has been
-        # populated, so a dynamic limit would crash on resize. The buffer itself
-        # caps entries at the user-chosen size; the stream just mirrors whatever
-        # the buffer delivers.
+        # Stream limit is pinned at the whole-store ceiling and never
+        # reconfigured. Phoenix LiveView forbids stream_configure/3 after a
+        # stream has been populated, so a dynamic limit would crash on resize.
         |> stream_configure(:entries,
           dom_id: &Logic.entry_dom_id/1,
-          limit: -Buffer.max_cap()
+          limit: -whole_store_limit()
         )
         |> stream(:entries, Enum.reverse(visible_entries))
         |> stream_configure(:journal, dom_id: &Logic.entry_dom_id/1, limit: -500)
         |> stream(:journal, [])
+      end
+
+      # The whole store at its ceiling: one ring per component, each at the
+      # maximum per-component cap. `Buffer.max_cap()` alone undercounts by the
+      # component count, because every entry path here works on the merged view
+      # across every ring — using it would silently drop entries the buffer
+      # legitimately delivers.
+      @doc false
+      defp whole_store_limit, do: Buffer.max_cap() * length(View.known_components())
+
+      # Download and copy both hand over everything the store holds under the
+      # current filter — a person saving the log wants the whole thing, not the
+      # first-paint window.
+      @doc false
+      defp visible_payload(socket) do
+        filter = socket.assigns.filter
+
+        filter
+        |> Console.read(whole_store_limit())
+        |> Logic.format_visible_payload(filter)
       end
 
       # --- PubSub handlers ---
@@ -99,10 +123,12 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
       def handle_info({:buffer_resized, new_cap}, socket) do
         # Phoenix LiveView does NOT allow stream_configure/3 after the stream
         # has been populated (raises ArgumentError). The stream limit was fixed
-        # at Buffer.max_cap() in mount; the Buffer itself enforces the user's
-        # chosen cap. On resize we just reset the stream contents to match the
-        # newly-truncated buffer.
-        visible = Logic.visible_entries(Console.snapshot(), socket.assigns.filter)
+        # at the whole-store ceiling in mount; the Buffer itself enforces the
+        # user's chosen cap. On resize we just reset the stream contents to
+        # match the newly-truncated buffer — so read the whole store and let
+        # the new cap do the truncating.
+        filter = socket.assigns.filter
+        visible = Logic.visible_entries(Console.read(filter, whole_store_limit()), filter)
 
         socket =
           socket
@@ -141,7 +167,9 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
           # re-stream would cause.
           {:noreply, assign(socket, :filter, filter)}
         else
-          visible = Logic.visible_entries(Console.snapshot(), filter)
+          # Same redraw as a resize: the stream is reset to everything the
+          # store holds under the new filter.
+          visible = Logic.visible_entries(Console.read(filter, whole_store_limit()), filter)
 
           socket =
             socket
@@ -213,18 +241,14 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
       end
 
       def handle_event("download_buffer", _params, socket) do
-        snapshot = Console.snapshot()
-        payload = Logic.format_visible_payload(snapshot.entries, socket.assigns.filter)
+        payload = visible_payload(socket)
         filename = Logic.download_filename()
 
         {:noreply, push_event(socket, "console:download", %{filename: filename, content: payload})}
       end
 
       def handle_event("copy_visible", _params, socket) do
-        snapshot = Console.snapshot()
-        payload = Logic.format_visible_payload(snapshot.entries, socket.assigns.filter)
-
-        {:noreply, push_event(socket, "console:copy", %{content: payload})}
+        {:noreply, push_event(socket, "console:copy", %{content: visible_payload(socket)})}
       end
 
       def handle_event("set_log_source", %{"source" => source_string}, socket) do
