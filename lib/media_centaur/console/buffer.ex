@@ -27,9 +27,9 @@ defmodule MediaCentaur.Console.Buffer do
   alias MediaCentaur.Settings
   alias MediaCentaur.Topics
 
-  @default_cap 2_000
+  @default_cap 200
   @min_cap 100
-  @max_cap 50_000
+  @max_cap 1_000
   @persist_debounce_ms 2_000
 
   # --- Public API ---
@@ -69,11 +69,11 @@ defmodule MediaCentaur.Console.Buffer do
   visible rings are pulled, and below-floor entries never leave the store. Search
   is not applied here: it is per-keystroke and handled at the call site.
   """
-  @spec read(Filter.t(), pos_integer()) :: [Entry.t()]
+  @spec read(Filter.t(), non_neg_integer()) :: [Entry.t()]
   def read(%Filter{} = filter, limit), do: read(filter, limit, __MODULE__)
 
   @doc "Explicit name variant for tests."
-  @spec read(Filter.t(), pos_integer(), atom()) :: [Entry.t()]
+  @spec read(Filter.t(), non_neg_integer(), atom()) :: [Entry.t()]
   def read(%Filter{} = filter, limit, name) when is_integer(limit) and limit >= 0 do
     GenServer.call(name, {:read, filter, limit})
   end
@@ -346,7 +346,7 @@ defmodule MediaCentaur.Console.Buffer do
 
   defp load_settings do
     cap =
-      case Settings.get_by_key("console_buffer_size") do
+      case Settings.get_by_key("console_lines_per_component") do
         %{value: %{"value" => value}} when is_integer(value) ->
           if value in @min_cap..@max_cap, do: value, else: @default_cap
 
@@ -369,7 +369,10 @@ defmodule MediaCentaur.Console.Buffer do
   end
 
   defp persist_to_settings(state) do
-    Settings.find_or_create_entry!(%{key: "console_buffer_size", value: %{"value" => state.cap}})
+    Settings.find_or_create_entry!(%{
+      key: "console_lines_per_component",
+      value: %{"value" => state.cap}
+    })
 
     Settings.find_or_create_entry!(%{
       key: "console_filter",
