@@ -3,7 +3,7 @@ defmodule MediaCentaur.Acquisition.IncidentContext do
   The `acquisition` component's single `:subsystem` assessor — composes
   the download-client probe (`Downloads.IncidentContext`), the hand-off
   probe (`Pursuits.IncidentContext`: Prowlarr's own link to the client,
-  seen through failed grabs) and the search-provider probe
+  read from `IntegrationAvailability`) and the search-provider probe
   (`Search.IncidentContext`) into one condition (ADR-054, UIDR-016).
 
   The evaluator contract is one assessor per component reporting *the*
