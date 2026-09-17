@@ -299,13 +299,17 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert unit.status == "unfound"
       assert unit.offered_guid == "pack-s1"
 
-      # The gate drops a tracking draft that found nothing — the want
-      # stays open for the next tick. It must not turn the offer into a
-      # grab.
+      # An offer needs a person (spec 2026-09-17 decision 7): the gate
+      # keeps the draft on the board instead of deleting it, grabs
+      # nothing, and the want stays open behind the one-active-draft
+      # rule until someone acts.
       Handlers.plan_changed(%PlanEvents.Changed{plan_id: plan.id, status: plan.status})
 
       assert Repo.all(Pursuit) == []
+      assert {:ok, %Plans.Plan{status: "ready"}} = Plans.fetch(plan.id)
+      assert [%{offered_guid: "pack-s1"}] = Plans.units_for(plan.id)
       assert ReleaseTracking.open_wants_for_item(item.id) != []
+      assert Plans.active_tracking_draft?(to_string(item.tmdb_id), "tv")
     end
   end
 

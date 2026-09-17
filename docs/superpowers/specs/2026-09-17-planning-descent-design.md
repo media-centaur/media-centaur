@@ -255,6 +255,18 @@ All 2026-09-17, with the owner.
    them. Owner's principle: no terms coined to be unique across bounded
    contexts. (`TitleIntent.rung/0`, the tracking level, is a different
    word in a different context and is not in scope.)
+7. **A tracking draft with an offer stays on the board** (added
+   2026-09-17 after step 3). `Reactor.Handlers.gate/1` deleted every
+   tracking draft that found nothing, so a weekly drop whose only copy is
+   a season pack produced an offer nobody could see, and the want retried
+   each tick. Now a draft that found nothing but carries an offer stays
+   `ready` for a person, whatever the planning mode — an offer is never
+   automatic — and the one-active-draft rule keeps the want from being
+   re-planned until someone acts on it. A draft with nothing found and
+   nothing to offer is still deleted. Owner: option 1 of two, 2026-09-17.
+   Open follow-up: a draft parked on an offer is not re-searched, so a
+   single that appears later is only found after the draft is discarded
+   or "Search again" is pressed.
 
 ## Out of scope
 

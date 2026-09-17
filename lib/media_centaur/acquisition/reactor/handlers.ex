@@ -41,9 +41,12 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   rules): when any plan finishes solving, decide its fate from the
   stamped `approval_policy` —
 
-  * tracking plan, zero found units → delete the draft (the wants
-    remain the durable intent; an automated tick that found nothing
-    has no record value)
+  * tracking plan, zero found units and nothing offered → delete the
+    draft (the wants remain the durable intent; an automated tick that
+    found nothing has no record value)
+  * tracking plan, zero found units but a pack offered → leave it
+    `ready`, whatever the policy: an offer needs a person, and the
+    draft on the board is where they see it (spec 2026-09-17 decision 7)
   * tracking plan whose item's mode is now `off` (or whose item is
     gone) → discard. The one live read left: off is a kill switch, not
     a policy, so a mid-solve flip still wins.
@@ -70,11 +73,17 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   def plan_changed(%PlanEvents.Changed{}), do: :ok
 
   defp gate(%Plan{origin: "tracking"} = plan) do
-    found = plan.id |> Plans.units_for() |> Enum.count(&(&1.status == "found"))
+    units = Plans.units_for(plan.id)
+    found = Enum.count(units, &(&1.status == "found"))
+    offered? = Enum.any?(units, &(&1.status == "unfound" and is_binary(&1.offered_guid)))
 
     cond do
-      found == 0 -> Plans.delete_tracking_draft(plan)
+      found == 0 and not offered? -> Plans.delete_tracking_draft(plan)
       tracking_item_off?(plan) -> discard(plan)
+      # An offer is never automatic: the draft waits on the board for a
+      # person, and the one-active-draft rule keeps the want from being
+      # re-planned underneath it (spec 2026-09-17 decision 7).
+      found == 0 -> :ok
       plan.approval_policy == "review" -> :ok
       true -> approve_or_discard(plan)
     end
