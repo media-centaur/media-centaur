@@ -337,8 +337,10 @@ defmodule MediaCentaur.IntegrationAvailability do
   @spec available?(Status.integration()) :: boolean()
   def available?(:prowlarr), do: Capabilities.prowlarr_ready?() and up?(:prowlarr)
 
-  def available?({:handoff, slot} = integration),
-    do: Capabilities.prowlarr_ready?() and Capabilities.client_ready?(slot) and up?(integration)
+  # The hand-off is Prowlarr's link to *its* client; the app's own client
+  # configuration plays no part (corrected in the Task 5 review).
+  def available?({:handoff, _slot} = integration),
+    do: Capabilities.prowlarr_ready?() and up?(integration)
 
   def available?(:tmdb), do: Capabilities.tmdb_ready?() and up?(:tmdb)
 

@@ -87,10 +87,17 @@ Only four integrations gate metered work: `:prowlarr`,
   `{:integration_availability_changed, integration, state}` on
   `Topics.integration_availability_updates/0`.
 - `status(integration)` reads the value. `available?(integration)` is the
-  gate: configured **and** up — `Capabilities` stays the configuration
-  half (durable, settings-backed, "Test connection" passed);
-  availability is the runtime half. One function answers "can I use
-  it now", so gate sites never combine the two themselves.
+  boolean gate: configured **and** up — `Capabilities` stays the
+  configuration half (durable, settings-backed, "Test connection"
+  passed); availability is the runtime half. For a hand-off,
+  "configured" means Prowlarr is configured — the hand-off is
+  Prowlarr's link to *its* client, so the app's own client
+  configuration (`Capabilities.client_ready?/1`, `Downloads.Connectivity`)
+  plays no part (review, 2026-09-17). `available?/1` serves callers
+  that need one answer (the drop planner, the refresher). A caller
+  that waits differently on the two halves — the pursuit job snoozes
+  an hour on an unconfigured Prowlarr and the probe cadence on a down
+  one — consults them separately.
 
 A grab answered with a 5xx that is not the hand-off exception is about
 the release, not an outage (review, 2026-09-17): Prowlarr answered, so
