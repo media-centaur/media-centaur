@@ -88,6 +88,7 @@ defmodule MediaCentaur.Search.Prowlarr do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Search.ProwlarrAvailability
   alias MediaCentaur.Search.SearchResult
 
   @doc "A Req client for Prowlarr, built from the configured URL and key."
@@ -152,31 +153,36 @@ defmodule MediaCentaur.Search.Prowlarr do
     params = [query: query, type: "search"] ++ maybe_categories(opts)
     Log.info(:acquisition, "prowlarr search — #{query}")
 
-    case Req.get(client, url: "/api/v1/search", params: params) do
-      {:ok, %{status: 200, body: results}} when is_list(results) ->
-        search_results = Enum.map(results, &SearchResult.from_prowlarr/1)
-        Log.info(:acquisition, "prowlarr found #{length(search_results)} results for #{query}")
-        {:ok, search_results}
+    result =
+      case Req.get(client, url: "/api/v1/search", params: params) do
+        {:ok, %{status: 200, body: results}} when is_list(results) ->
+          search_results = Enum.map(results, &SearchResult.from_prowlarr/1)
+          Log.info(:acquisition, "prowlarr found #{length(search_results)} results for #{query}")
+          {:ok, search_results}
 
-      {:ok, %{status: status, body: body}} ->
-        Log.warning(
-          :acquisition,
-          "prowlarr search failed — status=#{status} body=#{inspect(body)}"
-        )
+        {:ok, %{status: status, body: body}} ->
+          Log.warning(
+            :acquisition,
+            "prowlarr search failed — status=#{status} body=#{inspect(body)}"
+          )
 
-        {:error, {:http_error, status, body}}
+          {:error, {:http_error, status, body}}
 
-      {:error, reason} ->
-        # Req returned `{:error, _}` — the indexer was unreachable (timeout,
-        # refused, DNS). That is transient external-dependency connectivity, not
-        # an application fault, so it stays in the console but mints no `:log`
-        # incident (`mc_incident: :skip`) — the same treatment as the download
-        # client's connectivity. A persistent indexer *misconfiguration* surfaces
-        # via the non-200 "prowlarr search failed — status=" path above, which
-        # still mints.
-        Log.warning(:acquisition, "prowlarr search error — #{inspect(reason)}", mc_incident: :skip)
-        {:error, reason}
-    end
+        {:error, reason} ->
+          # Req returned `{:error, _}` — the indexer was unreachable (timeout,
+          # refused, DNS). That is transient external-dependency connectivity, not
+          # an application fault, so it stays in the console but mints no `:log`
+          # incident (`mc_incident: :skip`) — the same treatment as the download
+          # client's connectivity. A persistent indexer *misconfiguration* surfaces
+          # via the non-200 "prowlarr search failed — status=" path above, which
+          # still mints.
+          Log.warning(:acquisition, "prowlarr search error — #{inspect(reason)}", mc_incident: :skip)
+
+          {:error, reason}
+      end
+
+    ProwlarrAvailability.observe_request(result)
+    result
   end
 
   def grab(result, client \\ default_client())
@@ -196,19 +202,24 @@ defmodule MediaCentaur.Search.Prowlarr do
 
     payload = %{"guid" => result.guid, "indexerId" => result.indexer_id}
 
-    case Req.post(client, url: "/api/v1/search", json: payload) do
-      {:ok, %{status: 200}} ->
-        Log.info(:acquisition, "prowlarr grab submitted — #{result.title}")
-        :ok
+    outcome =
+      case Req.post(client, url: "/api/v1/search", json: payload) do
+        {:ok, %{status: 200}} ->
+          Log.info(:acquisition, "prowlarr grab submitted — #{result.title}")
+          :ok
 
-      {:ok, %{status: status, body: body}} ->
-        Log.warning(:acquisition, "prowlarr grab failed — status=#{status} body=#{inspect(body)}")
-        {:error, {:http_error, status, body}}
+        {:ok, %{status: status, body: body}} ->
+          Log.warning(:acquisition, "prowlarr grab failed — status=#{status} body=#{inspect(body)}")
 
-      {:error, reason} ->
-        Log.warning(:acquisition, "prowlarr grab error — #{inspect(reason)}")
-        {:error, reason}
-    end
+          {:error, {:http_error, status, body}}
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "prowlarr grab error — #{inspect(reason)}")
+          {:error, reason}
+      end
+
+    ProwlarrAvailability.observe_grab(outcome, result.protocol)
+    outcome
   end
 
   @doc """
@@ -300,7 +311,8 @@ defmodule MediaCentaur.Search.Prowlarr do
   @doc """
   Lists download clients configured in Prowlarr.
 
-  Returns a list of `%{name, type, url, username, enabled}` maps. The
+  Returns a list of `%{id, name, type, protocol, url, username, enabled}`
+  maps. The
   `type` is normalized to a lowercase string suitable for the
   `:download_client_type` config key. Passwords are NOT returned —
   Prowlarr deliberately omits them from the API for security.
@@ -328,6 +340,36 @@ defmodule MediaCentaur.Search.Prowlarr do
     end
   end
 
+  @doc """
+  Prowlarr tests every configured download client from its own side and
+  answers per client — the hand-off probe. Reaches the clients from
+  inside Prowlarr's network; touches no indexer. ~10 ms.
+  """
+  @spec test_download_clients(Req.Request.t()) ::
+          {:ok, [%{id: integer(), valid?: boolean()}]} | {:error, term()}
+  def test_download_clients(client \\ default_client()) do
+    case Req.post(client, url: "/api/v1/downloadclient/testall", receive_timeout: @ping_timeout_ms) do
+      {:ok, %{status: 200, body: results}} when is_list(results) ->
+        {:ok, Enum.map(results, &%{id: &1["id"], valid?: &1["isValid"] == true})}
+
+      {:ok, %{status: status, body: body}} ->
+        Log.warning(
+          :acquisition,
+          "prowlarr downloadclient/testall failed — status=#{status} body=#{inspect(body)}",
+          mc_incident: :skip
+        )
+
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "prowlarr downloadclient/testall error — #{inspect(reason)}",
+          mc_incident: :skip
+        )
+
+        {:error, reason}
+    end
+  end
+
   defp parse_download_client(raw) do
     fields = field_map(raw["fields"])
 
@@ -337,8 +379,10 @@ defmodule MediaCentaur.Search.Prowlarr do
     scheme = if use_ssl, do: "https", else: "http"
 
     %{
+      id: raw["id"],
       name: raw["name"],
       type: normalize_type(raw["implementation"]),
+      protocol: normalize_protocol(raw["protocol"]),
       url: build_url(scheme, host, port),
       username: blank_to_nil(fields["username"]),
       enabled: raw["enable"] == true
@@ -362,6 +406,10 @@ defmodule MediaCentaur.Search.Prowlarr do
   defp normalize_type("QBittorrent"), do: "qbittorrent"
 
   defp normalize_type(implementation) when is_binary(implementation), do: String.downcase(implementation)
+
+  defp normalize_protocol("usenet"), do: :usenet
+  defp normalize_protocol("torrent"), do: :torrent
+  defp normalize_protocol(_other), do: nil
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(value), do: value

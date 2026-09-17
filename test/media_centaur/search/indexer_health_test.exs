@@ -1,5 +1,8 @@
 defmodule MediaCentaur.Search.IndexerHealthTest do
-  use MediaCentaur.Case, async: false
+  # DataCase for the SQL sandbox: `check/1` now reports its observation
+  # through `ProwlarrAvailability`, which reads `Capabilities` (Settings)
+  # before enqueueing a probe.
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.Search.Prowlarr
