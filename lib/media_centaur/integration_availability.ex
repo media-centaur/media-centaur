@@ -18,7 +18,10 @@ defmodule MediaCentaur.IntegrationAvailability do
   `available?/1` is the gate callers use: configured (`Capabilities`,
   the durable half — credentials present and the last "Test connection"
   passed) **and** up (this module, the runtime half). Neither half is
-  folded into the other: one is settings, the other observation.
+  folded into the other: one is settings, the other observation. For a
+  hand-off the configured half is Prowlarr's — the hand-off is
+  Prowlarr's link to *its* download client, and the app's own client
+  link is `Downloads.Connectivity`'s business.
 
   Writes happen on a transition and on every down observation (so
   `observed_at` says when a down integration was last probed); an up
@@ -54,12 +57,24 @@ defmodule MediaCentaur.IntegrationAvailability do
   @spec up?(Status.integration()) :: boolean()
   def up?(integration), do: integration |> status() |> Status.up?()
 
-  @doc "Configured and up. The gate before a metered request."
+  @doc """
+  Configured and up — the gate a caller uses before offering to spend a
+  metered request. Read by the drop planner, which will not plan an
+  acquisition it cannot carry out, and by the pursuit refresher.
+
+  `Jobs.PursueTarget` asks the two halves separately instead, because an
+  unconfigured Prowlarr and a down one warrant different waits.
+
+  A hand-off needs Prowlarr configured, **not** a download client of the
+  app's own: the hand-off is Prowlarr's link to *its* download client.
+  The app's own client link is `Downloads.Connectivity`'s business and
+  says nothing about whether Prowlarr can pass a release along.
+  """
   @spec available?(Status.integration()) :: boolean()
   def available?(:prowlarr), do: Capabilities.prowlarr_ready?() and up?(:prowlarr)
 
-  def available?({:handoff, slot} = integration),
-    do: Capabilities.prowlarr_ready?() and Capabilities.client_ready?(slot) and up?(integration)
+  def available?({:handoff, _slot} = integration),
+    do: Capabilities.prowlarr_ready?() and up?(integration)
 
   def available?(:tmdb), do: Capabilities.tmdb_ready?() and up?(:tmdb)
 

@@ -32,6 +32,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
               ─► (no acceptable result)           ─► snoozed via Oban (exp. backoff)
               ─► (max attempts, a pack has it)    ─► (pursuit awaiting decision)
               ─► (max attempts exceeded)          ─► failed
+              ─► (Prowlarr not configured)       ─► snoozed 1h, NO request, NO bump
               ─► (integration known down)         ─► held, NO request, NO bump
               ─► (Prowlarr error mid-search)      ─► snoozed at the cadence, NO bump
               ─► (download client unreachable)    ─► snoozed at the cadence, NO bump
@@ -46,7 +47,9 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   `MediaCentaur.Search.ProbeJob.cadence_seconds/0`, so the pursuit
   resumes within a minute of recovery. An *unconfigured* Prowlarr is
   not an outage: nothing can change until Settings do, so that is a
-  long snooze instead.
+  long snooze instead. The worker reads the two halves separately —
+  rather than `IntegrationAvailability.available?/1`, which folds them
+  together — precisely because they warrant different waits.
 
   Exponential backoff: `min(4 * 2^(attempt - 1), 24)` hours, capped at 24h.
   The attempt cap is `AutoGrabSettings.max_attempts` (Settings →
@@ -98,6 +101,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   alias MediaCentaur.Repo
 
   @snooze_cap_hours 24
+  @handoff_slots IntegrationAvailability.handoff_slots()
   # An unconfigured Prowlarr fails every request instantly; nothing to
   # do until Settings change. Not availability's business.
   @unconfigured_snooze_seconds 60 * 60
@@ -186,9 +190,15 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   # Held: no request, no attempt, no stamp. Ask again at the probe
   # cadence; a snooze is a database write, free.
   defp hold(%Target{} = target, integration) do
-    Log.info(:acquisition, "acquisition held — #{target.title} (#{inspect(integration)} is down)")
+    Log.info(:acquisition, "acquisition held — #{target.title} (#{held_reason(integration)})")
     {:snooze, ProbeJob.cadence_seconds()}
   end
+
+  # This line lands in the Status drill-in, so it reads as a sentence
+  # rather than a term.
+  defp held_reason(:prowlarr), do: "Prowlarr is down"
+
+  defp held_reason({:handoff, slot}), do: "Prowlarr cannot reach the #{slot} download client"
 
   defp search_and_act(%Target{} = target, %Pursuit{} = pursuit, %Unit{} = unit) do
     Log.info(
@@ -366,7 +376,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   # A result without a protocol cannot be attributed to a slot: grab,
   # and let the outcome be the evidence.
-  defp held_handoff?(%SearchResult{protocol: protocol}) when protocol in [:usenet, :torrent],
+  defp held_handoff?(%SearchResult{protocol: protocol}) when protocol in @handoff_slots,
     do: not IntegrationAvailability.up?({:handoff, protocol})
 
   defp held_handoff?(%SearchResult{}), do: false

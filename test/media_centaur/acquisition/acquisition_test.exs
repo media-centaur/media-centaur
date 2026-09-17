@@ -7,7 +7,7 @@ defmodule MediaCentaur.AcquisitionTest do
   alias MediaCentaur.Acquisition.CancelReasons
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Corpus
-  alias MediaCentaur.Capabilities
+  alias MediaCentaur.ProwlarrStubs
   alias MediaCentaur.Acquisition.Targets
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Search.SearchResult
@@ -30,18 +30,8 @@ defmodule MediaCentaur.AcquisitionTest do
     MediaCentaur.TmdbStubs.setup_tmdb_client(self())
     Req.Test.stub(:tmdb, fn conn -> Req.Test.json(conn, %{"episodes" => []}) end)
 
-    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-
-    :persistent_term.put(
-      {MediaCentaur.Settings.Config, :config},
-      config
-      |> Map.put(:prowlarr_url, "http://prowlarr.test")
-      |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
-    )
-
-    # The worker holds an unconfigured Prowlarr instead of searching it,
-    # so readiness needs the passing connection test too, not just a URL.
-    Capabilities.save_test_result(:prowlarr, :ok)
+    # The worker holds an unconfigured Prowlarr instead of searching it.
+    :ok = ProwlarrStubs.mark_ready!()
 
     :ok
   end
