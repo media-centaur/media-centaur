@@ -63,9 +63,22 @@ indexer request when the single exists. Steps 3–6 not started.
    `Alternatives.for_unit` on the same order.~~ Done 2026-09-17
    (`search_order_test.exs` pins the use-case table; `run_plan_test.exs`
    pins U1, U4 and the U1 miss with its fallback offer).
-3. Span sizes for tracking plans from the tracking calendar
-   (`create_tracking_plan/2` callers). Regression test: a lone unit with
-   no span sizes and a pack option is not assigned the pack.
+3. Season sizes recorded on the tracking item at refresh (spec decision
+   3, corrected 2026-09-17: the calendar holds only post-library
+   episodes; the refresher's own TMDB responses carry the counts) and
+   passed into drop plans as `span_sizes`. Additive migration
+   `release_tracking_items.season_sizes` — mention in the CHANGELOG at
+   ship. Regression: a drop plan for one episode with a 4K season pack
+   and a 1080p single on the indexer assigns the single and offers the
+   pack.
+   Follow-ups noted from step 2: `SearchProgressPanel.initial/1` still
+   promises the three primary steps before the first broadcast, so the
+   pre-event itinerary can show a series row a fit-first run never takes
+   (replaced on the first event) — derive it from `SearchOrder` when
+   convenient. The alternatives picker judges fit against the unit's own
+   want, so for one episode of a whole-season plan it lists the episode
+   term first while the plan ran season-first; same candidate set, only
+   the recorded term can differ.
 4. Retry loop: fallback search once before exhausting; decision prompt
    when a pack contains the unit.
 5. Check what Status shows while a download client is unreachable; add

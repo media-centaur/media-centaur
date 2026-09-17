@@ -197,9 +197,23 @@ All 2026-09-17, with the owner.
    call. It costs at most `seasons-in-residual + 1` terms, once, only when
    something was not found, and an unfound old episode whose only copy
    is a season pack should show the offer without a second click.
-3. **Tracking plans derive span sizes from the tracking calendar** (F4),
-   not from a TMDB fetch; the planner's "unknown → not judged" contract
-   stays. Owner: yes.
+3. **Tracking plans get span sizes from the tracking item** (F4); the
+   planner's "unknown → not judged" contract stays. Owner: yes.
+
+   *Corrected 2026-09-17, same day.* The first wording said "from the
+   tracking calendar". The calendar cannot supply them: it holds only
+   the episodes after the library's last one
+   (`Helpers.fetch_tv_releases/4` → `Extractor.extract_episodes_since/3`),
+   so a count from it would make a one-episode want look like the whole
+   season. The refresher already fetches the show details (per-season
+   `episode_count`) and the full detail of every season it walks (each
+   episode with its air date) on every pass. Season sizes — aired count
+   where the season detail was fetched, `episode_count` otherwise — are
+   recorded on the tracking item (`season_sizes`, same shape as
+   `Plan.span_sizes`) at refresh, and the drop planner passes them into
+   the plan. Zero extra TMDB requests; no TMDB call in the plan-creating
+   path. Until an item's first refresh after the upgrade its sizes are
+   empty and its drop plans keep today's behavior.
 4. **The retry loop runs the fallback search once before exhausting** and,
    if a pack contains the unit, raises a decision ("only a season pack has
    it — grab it?") instead of exhausting silently (F5). Owner had no
