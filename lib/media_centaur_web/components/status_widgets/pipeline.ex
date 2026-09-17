@@ -2,6 +2,10 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
   @moduledoc """
   Pipeline subsystem Activity widget: content + image pipeline stages.
 
+  Each content stage is shown against the processor width of the pipeline
+  that owns it (`Pipeline.Stats.stage_concurrency/0`), not one number for
+  all four — Discovery and Import do not run at the same width.
+
   Rendered into the health-board drill-in's :activity slot via
   MediaCentaurWeb.StatusLive.ActivityWidgets, invoked with a plain data
   bundle (no change-tracking) from StatusLive.activity_bundle/1 — derive
@@ -26,7 +30,10 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
     default: nil,
     doc: "%{retrying_count: integer} from the image queue, or nil when unavailable"
 
-  attr :pipeline_concurrency, :integer, required: true
+  attr :stage_concurrency, :map,
+    required: true,
+    doc: "`Pipeline.Stats.stage_concurrency/0` — processor slots per stage atom"
+
   attr :image_concurrency, :integer, required: true
 
   def pipeline_widget(assigns) do
@@ -70,7 +77,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
             :for={stage <- @stage_order}
             stage={stage}
             data={@content_stats.stages[stage]}
-            concurrency={@pipeline_concurrency}
+            concurrency={@stage_concurrency[stage]}
             grid_columns={@grid_columns}
           />
         </div>

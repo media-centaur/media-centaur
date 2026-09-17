@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Storybook.Status.PipelineWidget do
           content_stats: empty_content_stats(),
           image_stats: empty_image_stats(),
           retry_status: %{retrying_count: 0},
-          pipeline_concurrency: 4,
+          stage_concurrency: %{parse: 10, search: 10, fetch_metadata: 5, ingest: 5},
           image_concurrency: 8
         }
       },
@@ -84,7 +84,7 @@ defmodule MediaCentaurWeb.Storybook.Status.PipelineWidget do
             last_error: nil
           },
           retry_status: %{retrying_count: 2},
-          pipeline_concurrency: 4,
+          stage_concurrency: %{parse: 10, search: 10, fetch_metadata: 5, ingest: 5},
           image_concurrency: 8
         }
       }
