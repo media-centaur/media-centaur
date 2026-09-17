@@ -15,11 +15,28 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
+  alias MediaCentaur.Capabilities
+  alias MediaCentaur.IntegrationAvailability
 
   setup do
     # Install a stub that crashes if invoked — any Prowlarr call is a
     # bug since the worker should early-exit before reaching the network.
     Req.Test.stub(:prowlarr, fn _conn -> flunk("Prowlarr must not be called") end)
+
+    # The worker refuses to search an unconfigured Prowlarr, so every
+    # test that expects a search needs Prowlarr configured and its last
+    # connection test passing. Configuration is the durable half;
+    # `IntegrationAvailability` is the runtime half these tests drive.
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+    :persistent_term.put(
+      {MediaCentaur.Settings.Config, :config},
+      config
+      |> Map.put(:prowlarr_url, "http://prowlarr.test")
+      |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
+    )
+
+    Capabilities.save_test_result(:prowlarr, :ok)
 
     :ok
   end
@@ -171,11 +188,22 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
 
           {"GET", "/api/v1/search"} ->
             Req.Test.json(conn, [
-              movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "only-copy", %{grabs: 40})
+              movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "only-copy", %{
+                grabs: 40,
+                protocol: "usenet"
+              })
             ])
 
           {"POST", "/api/v1/search"} ->
             reply.(conn)
+
+          # A hand-off that goes down enqueues the hand-off probe, which
+          # Oban runs inline — these are the requests it makes.
+          {"GET", "/api/v1/downloadclient"} ->
+            Req.Test.json(conn, [])
+
+          {"POST", "/api/v1/downloadclient/testall"} ->
+            Req.Test.json(conn, [])
         end
       end)
     end
@@ -201,12 +229,11 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
       })
     end
 
-    test "a 5xx from grab keeps the attempt count and snoozes briefly under download_client_unavailable" do
+    test "a 5xx from grab keeps the attempt count and snoozes at the cadence under download_client_unavailable" do
       stub_grab_reply(&download_client_unavailable/1)
       target = seeking_movie_target()
 
-      assert {:snooze, seconds} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
-      assert seconds < 60 * 60
+      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
 
       reloaded = MediaCentaur.Repo.reload!(target)
       assert reloaded.attempt_count == 0
@@ -325,6 +352,66 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
 
       assert :ok = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
       assert MediaCentaur.Repo.reload!(target).status == "failed"
+    end
+  end
+
+  describe "held work — a known-down integration is not asked" do
+    # Rollout step 1 of the availability design: a pursuit never spends a
+    # Prowlarr search or a grab while the integration it needs is known
+    # down. It is held — no request, no attempt, no stamp — and asks
+    # again at the probe cadence.
+
+    test "Prowlarr down: no search, no grab, no attempt charged, snoozed at the probe cadence" do
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
+      target = seeking_movie_target()
+      Req.Test.stub(:prowlarr, fn _conn -> flunk("Prowlarr must not be called while down") end)
+
+      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      reloaded = MediaCentaur.Repo.reload!(target)
+      assert reloaded.attempt_count == target.attempt_count
+      assert reloaded.last_attempt_outcome == target.last_attempt_outcome
+      assert reloaded.next_attempt_at == target.next_attempt_at
+    end
+
+    test "hand-off down for the release's protocol: the search runs from the corpus, the grab does not" do
+      {:changed, _state} =
+        IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
+
+      target = seeking_movie_target()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            Req.Test.json(conn, [
+              movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "only-copy", %{
+                grabs: 40,
+                protocol: "usenet"
+              })
+            ])
+
+          {"POST", "/api/v1/search"} ->
+            flunk("no grab while the hand-off is down")
+
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      assert MediaCentaur.Repo.reload!(target).attempt_count == target.attempt_count
+    end
+
+    test "the discovering grab still snoozes only at the probe cadence" do
+      stub_grab_reply(&download_client_unavailable/1)
+      target = seeking_movie_target()
+
+      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      assert MediaCentaur.Repo.reload!(target).last_attempt_outcome == "download_client_unavailable"
+      refute IntegrationAvailability.up?({:handoff, :usenet})
     end
   end
 end

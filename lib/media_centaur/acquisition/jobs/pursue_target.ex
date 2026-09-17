@@ -32,8 +32,21 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
               ─► (no acceptable result)           ─► snoozed via Oban (exp. backoff)
               ─► (max attempts, a pack has it)    ─► (pursuit awaiting decision)
               ─► (max attempts exceeded)          ─► failed
-              ─► (Prowlarr down)                  ─► snoozed 1h, NO bump
-              ─► (download client unreachable)    ─► snoozed 15m, NO bump
+              ─► (integration known down)         ─► held, NO request, NO bump
+              ─► (Prowlarr error mid-search)      ─► snoozed at the cadence, NO bump
+              ─► (download client unreachable)    ─► snoozed at the cadence, NO bump
+
+  ## Held work
+
+  Before each metered request the worker asks
+  `MediaCentaur.IntegrationAvailability` whether the integration it
+  needs is up: `:prowlarr` before the search, `{:handoff, protocol}`
+  before the grab. A known-down integration holds the work — no
+  request, no attempt, no outcome stamp — and snoozes at
+  `MediaCentaur.Search.ProbeJob.cadence_seconds/0`, so the pursuit
+  resumes within a minute of recovery. An *unconfigured* Prowlarr is
+  not an outage: nothing can change until Settings do, so that is a
+  long snooze instead.
 
   Exponential backoff: `min(4 * 2^(attempt - 1), 24)` hours, capped at 24h.
   The attempt cap is `AutoGrabSettings.max_attempts` (Settings →
@@ -56,6 +69,8 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   alias MediaCentaur.Acquisition.CancelReasons
 
   alias MediaCentaur.Acquisition
+  alias MediaCentaur.Capabilities
+  alias MediaCentaur.IntegrationAvailability
 
   alias MediaCentaur.Acquisition.{
     AutoGrabSettings,
@@ -69,6 +84,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   alias MediaCentaur.Search.{
     Criteria,
+    ProbeJob,
     Prowlarr,
     Quality,
     QueryBuilder,
@@ -82,11 +98,9 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   alias MediaCentaur.Repo
 
   @snooze_cap_hours 24
-  @prowlarr_error_snooze_seconds 60 * 60
-  # A download client that Prowlarr cannot reach is usually a restart
-  # away; the queue monitor polls it every 10s, so a short snooze costs
-  # nothing and a long one leaves a found release idle for hours.
-  @download_client_snooze_seconds 15 * 60
+  # An unconfigured Prowlarr fails every request instantly; nothing to
+  # do until Settings change. Not availability's business.
+  @unconfigured_snooze_seconds 60 * 60
   @needs_decision_prompt "Pick a release."
   @pack_prompt "Only a pack has this episode. Picking it downloads the whole pack."
 
@@ -156,6 +170,27 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   end
 
   defp pursue(%Target{} = target, %Pursuit{} = pursuit, %Unit{} = unit) do
+    cond do
+      not Capabilities.prowlarr_ready?() ->
+        Log.info(:acquisition, "acquisition waiting — #{target.title} (Prowlarr is not configured)")
+        {:snooze, @unconfigured_snooze_seconds}
+
+      not IntegrationAvailability.up?(:prowlarr) ->
+        hold(target, :prowlarr)
+
+      true ->
+        search_and_act(target, pursuit, unit)
+    end
+  end
+
+  # Held: no request, no attempt, no stamp. Ask again at the probe
+  # cadence; a snooze is a database write, free.
+  defp hold(%Target{} = target, integration) do
+    Log.info(:acquisition, "acquisition held — #{target.title} (#{inspect(integration)} is down)")
+    {:snooze, ProbeJob.cadence_seconds()}
+  end
+
+  defp search_and_act(%Target{} = target, %Pursuit{} = pursuit, %Unit{} = unit) do
     Log.info(
       :acquisition,
       "acquisition search — #{target.title} (attempt #{target.attempt_count + 1})"
@@ -321,7 +356,22 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     end
   end
 
-  defp handle_found(target, pursuit, unit, criteria, result) do
+  defp handle_found(target, pursuit, unit, criteria, %SearchResult{} = result) do
+    if held_handoff?(result) do
+      hold(target, {:handoff, result.protocol})
+    else
+      grab_found(target, pursuit, unit, criteria, result)
+    end
+  end
+
+  # A result without a protocol cannot be attributed to a slot: grab,
+  # and let the outcome be the evidence.
+  defp held_handoff?(%SearchResult{protocol: protocol}) when protocol in [:usenet, :torrent],
+    do: not IntegrationAvailability.up?({:handoff, protocol})
+
+  defp held_handoff?(%SearchResult{}), do: false
+
+  defp grab_found(target, pursuit, unit, criteria, result) do
     case Prowlarr.grab(result) do
       :ok ->
         quality_label = Quality.label(result.quality)
@@ -348,7 +398,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
           handle_infrastructure_failure(
             target,
             "download_client_unavailable",
-            @download_client_snooze_seconds
+            ProbeJob.cadence_seconds()
           )
         else
           handle_no_results(target, pursuit, unit, criteria, "grab_failed")
@@ -460,7 +510,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   defp handle_prowlarr_error(target, reason) do
     Log.warning(:acquisition, "acquisition prowlarr error — #{inspect(reason)}")
-    handle_infrastructure_failure(target, "prowlarr_error", @prowlarr_error_snooze_seconds)
+    handle_infrastructure_failure(target, "prowlarr_error", ProbeJob.cadence_seconds())
   end
 
   # The search or the grab could not reach the infrastructure — Prowlarr
