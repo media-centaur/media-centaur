@@ -17,11 +17,16 @@ defmodule MediaCentaur.IntegrationAvailability.StatusTest do
   end
 
   describe "fold/4" do
-    test "up to up is unchanged and only moves observed_at" do
+    test "up to up is unchanged — the value is returned untouched" do
       status = Status.initial(:prowlarr)
 
-      assert {:unchanged, %Status{state: :up, observed_at: @t1}} =
-               Status.fold(status, :up, @t1, [])
+      # The store writes nothing on an up observation of an up
+      # integration, so the value must not claim a fresher observation
+      # than the one `:persistent_term` holds.
+      assert {:unchanged, ^status} = Status.fold(status, :up, @t1, [])
+
+      observed = %{status | observed_at: @t0}
+      assert {:unchanged, ^observed} = Status.fold(observed, :up, @t1, [])
     end
 
     test "up to down is a change dated now, carrying the reason" do

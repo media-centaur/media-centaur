@@ -433,10 +433,48 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
 
       assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
 
+      # A hand-off hold is per-pursuit — only a release on the broken
+      # protocol is held — so it is recorded on the target, which is
+      # what the Waiting copy reads. No attempt is charged.
       reloaded = MediaCentaur.Repo.reload!(target)
       assert reloaded.attempt_count == target.attempt_count
-      assert reloaded.last_attempt_outcome == target.last_attempt_outcome
-      assert reloaded.next_attempt_at == target.next_attempt_at
+      assert reloaded.last_attempt_outcome == "download_client_unavailable"
+      assert %DateTime{} = reloaded.next_attempt_at
+    end
+
+    test "a second held run leaves the scheduled next attempt alone" do
+      {:changed, _state} =
+        IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
+
+      target = seeking_movie_target()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            Req.Test.json(conn, [
+              movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "only-copy", %{
+                grabs: 40,
+                protocol: "usenet"
+              })
+            ])
+
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      first = MediaCentaur.Repo.reload!(target)
+
+      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      second = MediaCentaur.Repo.reload!(target)
+
+      assert second.next_attempt_at == first.next_attempt_at
+      assert second.last_attempt_at == first.last_attempt_at
+      assert second.attempt_count == target.attempt_count
     end
   end
 end

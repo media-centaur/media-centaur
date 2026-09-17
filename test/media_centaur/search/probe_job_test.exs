@@ -53,6 +53,22 @@ defmodule MediaCentaur.Search.ProbeJobTest do
   end
 
   describe "perform/1 for the hand-off" do
+    setup do
+      MediaCentaur.ProwlarrStubs.mark_ready!()
+      :ok
+    end
+
+    test "completes when Prowlarr is no longer configured — nothing left to probe" do
+      {:changed, _state} =
+        IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
+
+      MediaCentaur.ProwlarrStubs.mark_unconfigured!()
+
+      Req.Test.stub(:prowlarr, fn _conn -> flunk("Prowlarr must not be called when unconfigured") end)
+
+      assert :ok = ProbeJob.perform(%Oban.Job{args: %{"integration" => "handoff"}})
+    end
+
     test "snoozes while any hand-off is down, completes when both are up" do
       {:changed, _state} =
         IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})

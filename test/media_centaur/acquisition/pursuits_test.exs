@@ -629,10 +629,14 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       assert status.next_step == nil
     end
 
-    test "a seeking pursuit waits on the download client while the hand-off is down" do
-      {pursuit, _target} = create_pursuit_with_target(%{status: "seeking"})
+    test "a hand-off held pursuit waits on the download client — the target row says so" do
+      {pursuit, target} = create_pursuit_with_target(%{status: "seeking"})
 
-      MediaCentaur.IntegrationAvailability.report({:handoff, :torrent}, {:down, :client_unavailable})
+      # What the worker stamps when it holds a grab on a down hand-off.
+      force_attrs(target, %{
+        last_attempt_outcome: "download_client_unavailable",
+        next_attempt_at: DateTime.add(DateTime.utc_now(:second), 60, :second)
+      })
 
       status = Pursuits.status_from(pursuit, [])
 
@@ -640,16 +644,37 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       assert status.current_action.description =~ "could not reach your download client"
     end
 
+    test "a hand-off down with nothing stamped is still Searching — the other protocol works" do
+      {pursuit, _target} = create_pursuit_with_target(%{status: "seeking"})
+
+      MediaCentaur.IntegrationAvailability.report({:handoff, :torrent}, {:down, :client_unavailable})
+
+      status = Pursuits.status_from(pursuit, [])
+
+      assert status.current_action.verb == "Searching"
+    end
+
     test "the Downloads index card says Waiting too" do
       create_pursuit_with_target(%{status: "seeking"})
 
-      MediaCentaur.IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
+      MediaCentaur.IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
 
       assert [row] = Pursuits.list_active_rows()
       assert row.status.verb == "Waiting"
+      assert row.status.description == "Prowlarr is unreachable. Resumes when it answers again."
+    end
 
-      assert row.status.description ==
-               "Prowlarr could not reach your download client. Resumes when it can."
+    test "the Downloads index card reads the hand-off hold off the target row" do
+      {_pursuit, target} = create_pursuit_with_target(%{status: "seeking"})
+
+      force_attrs(target, %{
+        last_attempt_outcome: "download_client_unavailable",
+        next_attempt_at: DateTime.add(DateTime.utc_now(:second), 60, :second)
+      })
+
+      assert [row] = Pursuits.list_active_rows()
+      assert row.status.verb == "Waiting"
+      assert row.status.description =~ "could not reach your download client"
     end
 
     test "everything up keeps the searching copy" do

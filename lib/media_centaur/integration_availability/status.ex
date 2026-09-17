@@ -47,8 +47,11 @@ defmodule MediaCentaur.IntegrationAvailability.Status do
   kept on a down status and cleared on up.
   """
   @spec fold(t(), observation(), DateTime.t(), keyword()) :: {:changed | :unchanged, t()}
-  def fold(%__MODULE__{state: :up} = status, :up, now, _opts),
-    do: {:unchanged, %{status | observed_at: now}}
+  # Untouched, not re-dated: the store writes nothing here (an
+  # `:persistent_term` update costs a global scan and Prowlarr answers
+  # many times a minute), so a fresher `observed_at` would be a claim
+  # nobody keeps.
+  def fold(%__MODULE__{state: :up} = status, :up, _now, _opts), do: {:unchanged, status}
 
   def fold(%__MODULE__{state: {:down, _since, _reason}} = status, :up, now, _opts),
     do: {:changed, %{status | state: :up, observed_at: now, retry_at: nil}}
