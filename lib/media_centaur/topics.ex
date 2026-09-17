@@ -53,7 +53,7 @@ defmodule MediaCentaur.Topics do
   | `settings:updates` | `Settings` | per-key changes |
   | `config:updates` | `Config` | TOML reload |
   | `capabilities:updates` | `Capabilities` | service-readiness flips |
-  | `availability:updates` | `Availability` | `{:availability_changed, dependency, state}` |
+  | `integration_availability:updates` | `IntegrationAvailability` | `{:integration_availability_changed, integration, state}` |
   | `controls:updates` | `Controls` | global control changes |
   | `watcher:state` | `Watcher` | dir-watch state transitions |
   | `review:intake` | `Review` | inbound files awaiting review |
@@ -182,8 +182,8 @@ defmodule MediaCentaur.Topics do
   def acquisition_search, do: "acquisition:search"
   def capabilities_updates, do: "capabilities:updates"
 
-  @doc "`{:availability_changed, dependency, state}` on every up/down transition (`MediaCentaur.Availability`)."
-  def availability_updates, do: "availability:updates"
+  @doc "`{:integration_availability_changed, integration, state}` on every up/down transition (`MediaCentaur.IntegrationAvailability`)."
+  def integration_availability_updates, do: "integration_availability:updates"
 
   def self_update_status, do: "self_update:status"
   def self_update_progress, do: "self_update:progress"
