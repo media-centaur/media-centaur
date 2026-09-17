@@ -3,9 +3,10 @@ defmodule MediaCentaur.Search.ProwlarrGrabOutageTest do
 
   alias MediaCentaur.Search.Prowlarr
 
-  # The one classification both the retry loop and the manual pick read:
-  # is a failed grab about the infrastructure (Prowlarr, or the client
-  # behind it) rather than the release?
+  # The classification the retry loop reads: is a failed grab about the
+  # infrastructure (Prowlarr unreachable, or the client behind it) rather
+  # than the release? The manual pick reads the narrower
+  # `download_client_unavailable?/1` to word its flash.
   describe "grab_outage?/1" do
     test "Prowlarr's 5xx for a download client it cannot reach is an outage" do
       body = %{"description" => "DownloadClientUnavailableException: Unable to connect to SABnzbd"}
