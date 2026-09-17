@@ -24,20 +24,6 @@ defmodule MediaCentaurWeb.LibraryAvailability do
   end
 
   @doc """
-  Re-resolves the full availability map after a single media dir's
-  state changes. The watcher fires `:availability_changed` for one
-  dir; we re-issue the bulk lookup so every BrowseItem under that dir
-  flips together. The query is bounded (kind-grouped, not per-id), so
-  rebuilding the whole map is cheaper than tracking which entries
-  live under which dir at the LiveView layer.
-  """
-  @spec availability_for_dir([map()], String.t(), %{String.t() => boolean()}) ::
-          %{String.t() => boolean()}
-  def availability_for_dir(entries, _dir, _current_map) do
-    availability_map(entries)
-  end
-
-  @doc """
   Builds the one-line summary shown in the `storage_offline_banner`.
 
   Takes the per-dir state map (from `Library.Availability.dir_status/0`)

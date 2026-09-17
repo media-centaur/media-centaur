@@ -74,9 +74,6 @@ defmodule MediaCentaur.Profile.Reporter do
     end
   end
 
-  @doc false
-  def runs_dir, do: @runs_dir
-
   defp update_latest_symlink(path, runs_dir, link_name) do
     latest = Path.join(runs_dir, link_name)
     _ = File.rm(latest)

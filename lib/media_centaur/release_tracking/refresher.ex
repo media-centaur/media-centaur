@@ -29,10 +29,6 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def refresh_all do
-    GenServer.cast(__MODULE__, :refresh_all)
-  end
-
   @doc "Refresh a single item. Can be called directly in tests."
   def refresh_item(%ReleaseTracking.Item{} = item) do
     case fetch_for_item(item) do
@@ -89,12 +85,6 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   def handle_info(:sweep, state) do
     tick("sweep", &do_sweep/0)
     schedule_sweep(sweep_interval_ms())
-    {:noreply, state}
-  end
-
-  @impl true
-  def handle_cast(:refresh_all, state) do
-    tick("refresh cycle", &do_refresh_all/0)
     {:noreply, state}
   end
 

@@ -77,10 +77,6 @@ defmodule MediaCentaur.Social.Connections do
   @spec publish(String.t(), Event.t()) :: :ok
   def publish(url, event), do: Owner.publish(url, event)
 
-  @doc "Subscribes every connection with the same filters under `sub_id` (re-applied to connections started later)."
-  @spec subscribe_all(String.t(), [Filter.t()]) :: :ok
-  def subscribe_all(sub_id, filters), do: Owner.subscribe_all(sub_id, filters)
-
   @doc "Subscribes one relay under `sub_id` (per-relay; re-applied if that connection restarts)."
   @spec subscribe(String.t(), String.t(), [Filter.t()]) :: :ok
   def subscribe(url, sub_id, filters), do: Owner.subscribe(url, sub_id, filters)
