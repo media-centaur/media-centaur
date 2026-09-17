@@ -48,7 +48,7 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   defp do_onboard(%Title{media_type: :tv_series} = title, start_season, start_episode) do
     case Client.get_tv(title.tmdb_id) do
       {:ok, response} ->
-        all_releases =
+        {all_releases, season_sizes} =
           Helpers.fetch_tv_releases(title.tmdb_id, start_season, start_episode, response)
 
         # "All upcoming" (0,0) = only future episodes. Custom scope = include released too.
@@ -65,7 +65,8 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
                name: response["name"] || title.name,
                last_refreshed_at: DateTime.utc_now(),
                last_library_season: start_season,
-               last_library_episode: start_episode
+               last_library_episode: start_episode,
+               season_sizes: season_sizes
              }) do
           {:ok, item} ->
             persist_releases(item, releases)

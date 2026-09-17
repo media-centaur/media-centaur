@@ -30,7 +30,9 @@ download client". Step 2 (fit-first order + plain names) implemented
 (`Plans.SearchOrder` + `Plans.Fit`; `RunPlan` walks primary then
 fallback steps; the picker and gap evidence read terms in the same
 order; board copy and story updated). A one-episode plan now makes one
-indexer request when the single exists. Steps 3–6 not started.
+indexer request when the single exists. Step 3 (season sizes on the
+tracking item → drop plans get fit gating) implemented 2026-09-17,
+unpushed, with an additive migration. Steps 4–6 not started.
 
 ## Decisions made
 
@@ -63,14 +65,18 @@ indexer request when the single exists. Steps 3–6 not started.
    `Alternatives.for_unit` on the same order.~~ Done 2026-09-17
    (`search_order_test.exs` pins the use-case table; `run_plan_test.exs`
    pins U1, U4 and the U1 miss with its fallback offer).
-3. Season sizes recorded on the tracking item at refresh (spec decision
+3. ~~Season sizes recorded on the tracking item at refresh (spec decision
    3, corrected 2026-09-17: the calendar holds only post-library
    episodes; the refresher's own TMDB responses carry the counts) and
-   passed into drop plans as `span_sizes`. Additive migration
-   `release_tracking_items.season_sizes` — mention in the CHANGELOG at
-   ship. Regression: a drop plan for one episode with a 4K season pack
-   and a 1080p single on the indexer assigns the single and offers the
-   pack.
+   passed into drop plans as `span_sizes`.~~ Done 2026-09-17. Additive
+   migration `20260917190000_add_release_tracking_item_season_sizes`
+   (`release_tracking_items.season_sizes`, default `%{}`) — **mention in
+   the CHANGELOG at ship**; an item fills in at onboarding or on its next
+   refresh, and its drop plans plan as before until then. Pinned by
+   `helpers_tv_calendar_test.exs` (sizing), `refresher_test.exs`
+   (persisted), and `drop_planner_test.exs` (span sizes on the plan; one
+   new episode takes its single, never the pack; a pack-only indexer
+   yields an offer and no grab).
    Follow-ups noted from step 2: `SearchProgressPanel.initial/1` still
    promises the three primary steps before the first broadcast, so the
    pre-event itinerary can show a series row a fit-first run never takes

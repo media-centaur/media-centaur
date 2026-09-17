@@ -32,8 +32,8 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   @doc "Refresh a single item. Can be called directly in tests."
   def refresh_item(%ReleaseTracking.Item{} = item) do
     case fetch_for_item(item) do
-      {:ok, ^item, response, new_releases} ->
-        commit_refresh(item, response, new_releases)
+      {:ok, ^item, response, calendar} ->
+        commit_refresh(item, response, calendar)
 
       {:error, ^item, reason} ->
         {:error, reason}
@@ -145,8 +145,8 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     # comes with four concurrent write transactions.
     successful =
       Enum.flat_map(fetched, fn
-        {:ok, {:ok, item, response, new_releases}} ->
-          commit_refresh(item, response, new_releases)
+        {:ok, {:ok, item, response, calendar}} ->
+          commit_refresh(item, response, calendar)
           [{item, response}]
 
         {:ok, {:error, item, reason}} ->
@@ -194,10 +194,12 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   # `reload: true` on every scheduled fetch: TMDB marks details fresh for
   # about eight hours, longer than the refresh interval, and this sweep
   # exists to notice what changed since last time.
+  # Every fetch yields a calendar — `releases` to replace the item's
+  # rows with, and `season_sizes` (TV only; `%{}` for movies).
   defp fetch_for_item(%{media_type: :tv_series} = item) do
     case Client.get_tv(item.tmdb_id, reload: true) do
       {:ok, response} ->
-        new_releases =
+        {releases, season_sizes} =
           Helpers.fetch_tv_releases(
             item.tmdb_id,
             item.last_library_season,
@@ -205,7 +207,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
             response
           )
 
-        {:ok, item, response, new_releases}
+        {:ok, item, response, %{releases: releases, season_sizes: season_sizes}}
 
       {:error, reason} ->
         {:error, item, reason}
@@ -218,21 +220,26 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   # movie item tracks one film (a manual track from search).
   defp fetch_for_item(%{media_type: :movie, library_container_type: :movie_series} = item) do
     case Client.get_collection(item.tmdb_id, reload: true) do
-      {:ok, response} -> {:ok, item, response, Helpers.fetch_collection_releases(response)}
-      {:error, reason} -> {:error, item, reason}
+      {:ok, response} ->
+        {:ok, item, response, movie_calendar(Helpers.fetch_collection_releases(response))}
+
+      {:error, reason} ->
+        {:error, item, reason}
     end
   end
 
   defp fetch_for_item(%{media_type: :movie} = item) do
     case Client.get_movie(item.tmdb_id, reload: true) do
-      {:ok, response} -> {:ok, item, response, Helpers.fetch_movie_releases(response)}
+      {:ok, response} -> {:ok, item, response, movie_calendar(Helpers.fetch_movie_releases(response))}
       {:error, reason} -> {:error, item, reason}
     end
   end
 
-  defp commit_refresh(item, response, new_releases) do
-    replace_releases(item, new_releases)
-    update_item_metadata(item, response)
+  defp movie_calendar(releases), do: %{releases: releases, season_sizes: %{}}
+
+  defp commit_refresh(item, response, %{releases: releases, season_sizes: season_sizes}) do
+    replace_releases(item, releases)
+    update_item_metadata(item, response, season_sizes)
     :ok
   end
 
@@ -243,7 +250,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     ReleaseTracking.sync_wants(item)
   end
 
-  defp update_item_metadata(item, response) do
+  defp update_item_metadata(item, response, season_sizes) do
     # One read of TMDB's shape rather than four — `TitleIdentity` owns
     # where each field lives in a movie vs a series payload.
     declared = TitleIdentity.from_payload(item.media_type, response)
@@ -251,6 +258,9 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     ReleaseTracking.update_item(item, %{
       name: declared.title || item.name,
       last_refreshed_at: DateTime.utc_now(),
+      # The fit denominator for this item's drop plans; every refresh
+      # rewrites it as seasons air out.
+      season_sizes: season_sizes,
       # Self-heals items created before the columns existed; a collection
       # response carries none of these and keeps the stored values.
       origin_country: presence(declared.origin_country) || item.origin_country,

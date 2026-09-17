@@ -99,31 +99,82 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   end
 
   @doc """
-  Fetch upcoming releases for a TV series from TMDB.
-  Tries season-level extraction first, falls back to next_episode_to_air.
+  Fetches a TV series' calendar from TMDB: the releases still to come
+  (season-level extraction first, falling back to `next_episode_to_air`)
+  and the show's **season sizes** — how many episodes each season has,
+  keyed by season-number string, specials excluded — which the drop
+  planner hands to every plan as its `span_sizes`, the fit denominator
+  (`Acquisition.Plans.Fit`).
+
+  A season whose detail was fetched here is sized by the episodes that
+  aired on or before `opts[:today]` (default: today) — the count
+  `Targeting.aired_counts/1` produces; every other season takes the
+  show detail's `episode_count`, exact for a finished season. No extra
+  request: both come from responses this fetch makes anyway.
+
+  Returns `{releases, season_sizes}`.
   """
-  def fetch_tv_releases(tmdb_id, last_season, last_episode, response) do
+  @spec fetch_tv_releases(integer(), non_neg_integer(), non_neg_integer(), map(), keyword()) ::
+          {[map()], %{String.t() => non_neg_integer()}}
+  def fetch_tv_releases(tmdb_id, last_season, last_episode, response, opts \\ []) do
     alias MediaCentaur.TMDB.Client
     alias MediaCentaur.ReleaseTracking.Extractor
 
-    seasons = seasons_to_fetch(response, last_season)
+    today = Keyword.get_lazy(opts, :today, &Date.utc_today/0)
 
-    releases =
-      Enum.flat_map(seasons, fn season_num ->
-        case Client.get_season(tmdb_id, season_num) do
-          {:ok, season_data} ->
-            Extractor.extract_episodes_since(season_data, last_season, last_episode)
+    # A season detail is only usable with its episode list; anything
+    # else (an error, a payload without one) counts as not fetched.
+    fetched =
+      response
+      |> seasons_to_fetch(last_season)
+      |> Enum.flat_map(fn season_number ->
+        case Client.get_season(tmdb_id, season_number) do
+          {:ok, %{"episodes" => episodes} = season_data} when is_list(episodes) ->
+            [{season_number, season_data}]
 
-          {:error, _} ->
+          _not_usable ->
             []
         end
       end)
 
-    if releases == [] do
-      Extractor.extract_tv_releases(response)
-    else
-      releases
-    end
+    releases =
+      Enum.flat_map(fetched, fn {_season_number, season_data} ->
+        Extractor.extract_episodes_since(season_data, last_season, last_episode)
+      end)
+
+    releases = if releases == [], do: Extractor.extract_tv_releases(response), else: releases
+
+    {releases, season_sizes(response, Map.new(fetched), today)}
+  end
+
+  # Specials (season 0) are extras, not coverage units — the exclusion
+  # `Targeting.aired_counts/1` makes too.
+  defp season_sizes(response, fetched_by_number, today) do
+    response
+    |> Map.get("seasons", [])
+    |> Enum.filter(fn season ->
+      is_integer(season["season_number"]) and season["season_number"] > 0
+    end)
+    |> Map.new(fn season ->
+      number = season["season_number"]
+
+      size =
+        case Map.fetch(fetched_by_number, number) do
+          {:ok, season_data} -> aired_count(season_data, today)
+          :error -> season["episode_count"] || 0
+        end
+
+      {Integer.to_string(number), size}
+    end)
+  end
+
+  defp aired_count(%{"episodes" => episodes}, today) do
+    Enum.count(episodes, fn episode ->
+      case MediaCentaur.TMDB.Mapper.parse_date(episode["air_date"]) do
+        %Date{} = air_date -> Date.compare(air_date, today) != :gt
+        nil -> false
+      end
+    end)
   end
 
   @doc """

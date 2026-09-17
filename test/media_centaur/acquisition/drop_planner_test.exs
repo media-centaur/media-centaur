@@ -235,6 +235,80 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     end
   end
 
+  describe "run_tick/0 — fit gating for tracked shows (season sizes)" do
+    # A drop plan used to carry no span sizes, so the planner never
+    # judged a pack's fit and a season pack could be auto-grabbed for one
+    # new episode (spec 2026-09-17, F4). The item now carries the show's
+    # season sizes and hands them to every drop plan.
+
+    test "a drop plan carries the item's season sizes as its span sizes" do
+      item = create_tracked_show(%{season_sizes: %{"1" => 22}})
+      create_aired_release(item, 1, 13, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      DropPlanner.run_tick()
+
+      [plan] = Repo.all(Plans.Plan)
+      assert plan.span_sizes == %{"1" => 22}
+    end
+
+    test "one new episode takes its single, never the season pack" do
+      stub_results(%{
+        "Sample Show S01E13" => [
+          release("Sample.Show.S01E13.1080p.WEB-DL", "single-13", %{seeders: 30})
+        ],
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ],
+        "Sample Show S01" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ]
+      })
+
+      item = create_tracked_show(%{season_sizes: %{"1" => 22}})
+      create_aired_release(item, 1, 13, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+
+      pursuit = sole_pursuit()
+      [unit] = Units.for_pursuit(pursuit.id)
+      assert Units.current_target(unit).release_title == "Sample.Show.S01E13.1080p.WEB-DL"
+    end
+
+    test "when only a season pack has the episode, the plan offers the pack instead of grabbing it" do
+      stub_results(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ],
+        "Sample Show S01" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ]
+      })
+
+      item = create_tracked_show(%{season_sizes: %{"1" => 22}})
+      create_aired_release(item, 1, 13, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      DropPlanner.run_tick()
+
+      [plan] = Repo.all(Plans.Plan)
+      assert plan.status == "ready"
+
+      [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.offered_guid == "pack-s1"
+
+      # The gate drops a tracking draft that found nothing — the want
+      # stays open for the next tick. It must not turn the offer into a
+      # grab.
+      Handlers.plan_changed(%PlanEvents.Changed{plan_id: plan.id, status: plan.status})
+
+      assert Repo.all(Pursuit) == []
+      assert ReleaseTracking.open_wants_for_item(item.id) != []
+    end
+  end
+
   describe "run_tick/0 — no patience window" do
     test "a day-of want takes the best release available now, like an aged one" do
       stub_results(%{
