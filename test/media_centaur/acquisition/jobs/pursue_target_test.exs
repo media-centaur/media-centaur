@@ -119,4 +119,94 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
       assert MediaCentaur.Repo.reload!(target).prowlarr_guid == "many-grabs"
     end
   end
+
+  describe "grab failure — an unreachable download client is an outage, not a bad release" do
+    # Evidence run 2026-09-17: Prowlarr found the right release in two
+    # seconds, then answered the grab with HTTP 500
+    # DownloadClientUnavailableException because SABnzbd was down. The
+    # worker charged that to the release — attempt consumed, four-hour
+    # snooze — and the modal asked the user to pick an alternative.
+    # Search errors already snooze without charging an attempt; grab
+    # errors from the infrastructure must do the same.
+
+    defp stub_grab_reply(reply) do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/search"} ->
+            Req.Test.json(conn, [
+              movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "only-copy", %{grabs: 40})
+            ])
+
+          {"POST", "/api/v1/search"} ->
+            reply.(conn)
+        end
+      end)
+    end
+
+    defp seeking_movie_target do
+      {_pursuit, target} =
+        create_pursuit_with_target(%{
+          state: "seeking",
+          status: "seeking",
+          title: "Sample Movie",
+          year: 2005
+        })
+
+      target
+    end
+
+    defp download_client_unavailable(conn) do
+      conn
+      |> Plug.Conn.put_status(500)
+      |> Req.Test.json(%{
+        "description" =>
+          "NzbDrone.Core.Download.Clients.DownloadClientUnavailableException: Unable to connect to SABnzbd"
+      })
+    end
+
+    test "a 5xx from grab keeps the attempt count and snoozes briefly under download_client_unavailable" do
+      stub_grab_reply(&download_client_unavailable/1)
+      target = seeking_movie_target()
+
+      assert {:snooze, seconds} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      assert seconds < 60 * 60
+
+      reloaded = MediaCentaur.Repo.reload!(target)
+      assert reloaded.attempt_count == 0
+      assert reloaded.last_attempt_outcome == "download_client_unavailable"
+      assert reloaded.status == "seeking"
+      assert %DateTime{} = reloaded.next_attempt_at
+    end
+
+    test "a transport error from grab is the same outage" do
+      stub_grab_reply(&Req.Test.transport_error(&1, :econnrefused))
+      target = seeking_movie_target()
+
+      assert {:snooze, _seconds} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      reloaded = MediaCentaur.Repo.reload!(target)
+      assert reloaded.attempt_count == 0
+      assert reloaded.last_attempt_outcome == "download_client_unavailable"
+    end
+
+    test "a 4xx from grab still charges the release" do
+      stub_grab_reply(fn conn ->
+        conn |> Plug.Conn.put_status(400) |> Req.Test.json(%{"message" => "guid not found"})
+      end)
+
+      target = seeking_movie_target()
+
+      assert {:snooze, _seconds} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      reloaded = MediaCentaur.Repo.reload!(target)
+      assert reloaded.attempt_count == 1
+      assert reloaded.last_attempt_outcome == "grab_failed"
+    end
+  end
 end

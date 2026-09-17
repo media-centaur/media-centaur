@@ -171,6 +171,29 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
+  # The last grab reached Prowlarr but not the download client behind it
+  # — an outage, not a bad release. The worker snoozed briefly without
+  # charging an attempt; say so, or the user reaches for an alternative
+  # release that cannot help.
+  def derive(
+        %Pursuit{state: "active"},
+        _unit,
+        %Target{status: "seeking", last_attempt_outcome: "download_client_unavailable"} = t,
+        _qi
+      ) do
+    {
+      %CurrentAction{
+        verb: "Waiting",
+        description: outage_description(t),
+        severity: :warning
+      },
+      %NextStep{
+        description: "Check that the download client is running. The same release will be retried."
+      },
+      [:cancel, :request_decision]
+    }
+  end
+
   def derive(%Pursuit{state: "active"}, _unit, %Target{status: "seeking"} = t, _qi) do
     {
       %CurrentAction{
@@ -276,6 +299,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
 
   defp searching_description(%Target{next_attempt_at: %DateTime{} = at, attempt_count: n}),
     do: "Next attempt #{Format.relative_in(at)} (attempt #{n + 1})."
+
+  # No attempt number: an outage does not charge one, so counting would
+  # contradict the row.
+  defp outage_description(%Target{next_attempt_at: nil}),
+    do: "Prowlarr could not reach your download client."
+
+  defp outage_description(%Target{next_attempt_at: %DateTime{} = at}),
+    do: "Prowlarr could not reach your download client. Next attempt #{Format.relative_in(at)}."
 
   defp derive_acquired_in_queue(%QueueItem{state: :downloading} = qi) do
     {

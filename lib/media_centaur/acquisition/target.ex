@@ -35,8 +35,9 @@ defmodule MediaCentaur.Acquisition.Target do
   ## Attempt accounting
 
   - `attempt_count` increments on every "no acceptable result" outcome.
-    Prowlarr-down outcomes do NOT increment — the search infrastructure
-    being unavailable shouldn't burn the patience budget.
+    Infrastructure outcomes (`prowlarr_error`, `download_client_unavailable`)
+    do NOT increment — Prowlarr or the download client being unavailable
+    says nothing about the release and shouldn't burn the patience budget.
   - `last_attempt_at` and `last_attempt_outcome` capture the most
     recent attempt regardless of whether it bumped `attempt_count`.
 
