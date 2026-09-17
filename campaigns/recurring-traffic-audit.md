@@ -33,9 +33,11 @@ what it does during an outage, and gives each one logic that fits.
   `Prowlarr.grab_outage?/1`.
 - **Back-off** — retry spacing that grows with consecutive failures, to
   a cap.
-- **Circuit** — a per-dependency switch: while the dependency is known
-  down, requests that need it are held, not sent; the first success (or
-  a probe) closes it again.
+- **Availability** — the published answer per dependency, `:up` or
+  `{:down, since, reason}`; while a dependency is down, requests that
+  need it are held, not sent, and the first good probe or request marks
+  it up again. Earlier drafts of this file called this "the circuit";
+  the code name is `MediaCentaur.Availability` (owner, 2026-09-17).
 - **Coalescing** — many callers with the same need against one
   dependency make one request, not N.
 - **Recovery wake** — resuming held work from a recovery signal instead
@@ -57,9 +59,9 @@ what it does during an outage, and gives each one logic that fits.
 Measured, shape decided, defects 1 and 3 landed, design drafted —
 2026-09-17 evening. The design spec is
 `docs/superpowers/specs/2026-09-17-availability-design.md`; two owner
-decisions are marked in it (the name `Availability` vs
-`CircuitBreaker`; replacing the search incident's staleness rule with
-the probe). The inventory below is
+decisions in it are taken (`Availability`; the search incident persists
+while down). Implementation in progress from the plan. The inventory
+below is
 verified against the code (constants cited) and against one day of
 observation: the dev node's log ring, the day's systemd journal (seven
 boots, one real download-client outage 16:47–16:56 CEST, and the
@@ -266,6 +268,12 @@ up to 18 simultaneous outbound requests when three jobs search at once
   Using Media Centaur page changes only if the circuit surfaces in the
   UI (the pursuit's Waiting state, the Downloads tile). Language terse
   and informative — nothing is being sold.
+* `2026-09-17` (late evening, owner) — Spec approved
+  (`docs/superpowers/specs/2026-09-17-availability-design.md`). Name:
+  `MediaCentaur.Availability`; "circuit" retired. The search-provider
+  incident persists while the probe says down, replacing the 900 s
+  staleness rule — this closes the indexer-blindness gap the owner had
+  reserved to design together.
 * `2026-09-17` (evening) — The tracking refresher's `reload: true`
   policy (re-read every item every 6 h whether or not anything could
   have changed) is the deferred TMDB-caching campaign's question

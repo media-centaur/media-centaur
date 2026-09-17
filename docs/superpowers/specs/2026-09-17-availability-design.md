@@ -1,7 +1,8 @@
 # Availability: held work for metered dependencies — design
 
 Date: 2026-09-17. Campaign: `campaigns/recurring-traffic-audit.md`.
-Status: draft for owner review; two decisions marked **Owner**.
+Status: approved by the owner 2026-09-17 (both decisions below taken as
+recommended). Implementation plan: `docs/superpowers/plans/2026-09-17-availability-plan.md`.
 
 ## Problem
 
@@ -204,22 +205,23 @@ with a richer grade the Downloads UI needs.
    availability. Shorten both to the probe cadence so the discovering
    pursuit is not the slow one.
 
-## Owner decisions
+## Owner decisions (taken 2026-09-17)
 
-1. **Name.** `MediaCentaur.Availability` (recommended: the value is an
+1. **Name: `MediaCentaur.Availability`.** `MediaCentaur.Availability` (recommended: the value is an
    availability state with probes, not a failure-counting breaker with
    half-open trials) or `MediaCentaur.CircuitBreaker` (the industry
    pattern name; misleading about the mechanism). Whichever is chosen
    is the only term in code and prose; the campaign glossary's
    "circuit" is retired.
-2. **Search incident persistence.** Today a blind-indexer incident
+2. **Search incident persistence: persist while down.** Today a blind-indexer incident
    auto-resolves after 15 minutes without a fresh observation
    (`@staleness_seconds`), which is why a three-day outage read as
    "nothing wrong" (memory `project-status-indexer-blindness-gap`, an
    item you asked to design together). With the probe keeping the
    observation fresh while down, the staleness rule goes: the incident
    persists exactly as long as the probe says down, and clears within
-   one probe of recovery. Confirm this is the resolution you want.
+   one probe of recovery. Confirmed by the owner as the resolution of
+   that open item.
 
 ## Scope and cost
 
