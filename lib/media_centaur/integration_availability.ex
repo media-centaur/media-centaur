@@ -35,6 +35,14 @@ defmodule MediaCentaur.IntegrationAvailability do
 
   @integrations [:prowlarr, {:handoff, :usenet}, {:handoff, :torrent}, :tmdb]
 
+  @doc """
+  The download-client protocols the hand-off is tracked per — one
+  `{:handoff, slot}` integration each. The writer and the probe both
+  fold over this list.
+  """
+  @spec handoff_slots() :: [:usenet | :torrent]
+  def handoff_slots, do: [:usenet, :torrent]
+
   @spec status(Status.integration()) :: Status.t()
   def status(integration) when integration in @integrations do
     case :persistent_term.get(key(integration), :unobserved) do

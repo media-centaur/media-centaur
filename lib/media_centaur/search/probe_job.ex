@@ -26,13 +26,14 @@ defmodule MediaCentaur.Search.ProbeJob do
       states: [:available, :scheduled, :executing, :retryable]
     ]
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.Search.ProwlarrAvailability
 
   @cadence_seconds 60
   @max_snooze_seconds 60 * 60
-  @slots [:usenet, :torrent]
 
   @doc "Seconds between probes while down; also the snooze of held work."
   @spec cadence_seconds() :: pos_integer()
@@ -40,23 +41,51 @@ defmodule MediaCentaur.Search.ProbeJob do
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"integration" => "prowlarr"}}) do
-    _health = IndexerHealth.check()
+    probe("prowlarr", fn ->
+      _health = IndexerHealth.check()
 
-    case IntegrationAvailability.status(:prowlarr) do
-      %{state: :up} ->
-        :ok
+      case IntegrationAvailability.status(:prowlarr) do
+        %{state: :up} ->
+          :ok
 
-      %{state: {:down, _since, _reason}, retry_at: retry_at} ->
-        {:snooze, snooze_for(retry_at, DateTime.utc_now())}
-    end
+        %{state: {:down, _since, _reason}, retry_at: retry_at} ->
+          {:snooze, snooze_for(retry_at, DateTime.utc_now())}
+      end
+    end)
   end
 
   def perform(%Oban.Job{args: %{"integration" => "handoff"}}) do
-    _outcome = ProwlarrAvailability.probe_handoff()
+    probe("handoff", fn ->
+      _outcome = ProwlarrAvailability.probe_handoff()
 
-    if Enum.all?(@slots, &IntegrationAvailability.up?({:handoff, &1})),
-      do: :ok,
-      else: {:snooze, @cadence_seconds}
+      if Enum.all?(
+           IntegrationAvailability.handoff_slots(),
+           &IntegrationAvailability.up?({:handoff, &1})
+         ),
+         do: :ok,
+         else: {:snooze, @cadence_seconds}
+    end)
+  end
+
+  # A probe that breaks must not burn an attempt: three raises would
+  # discard the job and leave a down integration with nothing watching
+  # it, so held work would stall with no path back. Snooze instead.
+  defp probe(integration, fun) do
+    fun.()
+  rescue
+    error ->
+      Log.warning(:acquisition, "probe failed for #{integration} — #{Exception.message(error)}",
+        mc_incident: :skip
+      )
+
+      {:snooze, @cadence_seconds}
+  catch
+    :exit, reason ->
+      Log.warning(:acquisition, "probe exited for #{integration} — #{inspect(reason)}",
+        mc_incident: :skip
+      )
+
+      {:snooze, @cadence_seconds}
   end
 
   @doc "The next probe delay: the cadence, or Prowlarr's own retry time when later, capped."

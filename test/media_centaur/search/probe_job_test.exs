@@ -67,6 +67,25 @@ defmodule MediaCentaur.Search.ProbeJobTest do
       assert :ok = ProbeJob.perform(%Oban.Job{args: %{"integration" => "handoff"}})
       assert IntegrationAvailability.up?({:handoff, :usenet})
     end
+
+    test "completes when Prowlarr lists no client at all for the down slot" do
+      {:changed, _state} =
+        IntegrationAvailability.report({:handoff, :torrent}, {:down, :client_unavailable})
+
+      stub_handoff(true)
+
+      assert :ok = ProbeJob.perform(%Oban.Job{args: %{"integration" => "handoff"}})
+      assert IntegrationAvailability.up?({:handoff, :torrent})
+    end
+  end
+
+  describe "perform/1 when the probe itself breaks" do
+    test "a probe that raises snoozes at the cadence instead of burning an attempt" do
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
+      Req.Test.stub(:prowlarr, fn _conn -> raise "sample probe fault" end)
+
+      assert {:snooze, 60} = ProbeJob.perform(%Oban.Job{args: %{"integration" => "prowlarr"}})
+    end
   end
 
   describe "snooze_for/2" do

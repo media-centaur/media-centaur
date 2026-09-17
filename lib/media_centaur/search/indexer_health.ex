@@ -74,6 +74,9 @@ defmodule MediaCentaur.Search.IndexerHealth do
         {:error, reason} -> unreachable(reason, now)
       end
 
+    # `cache_put/1` stamps the fault onset; `check/1` has always returned
+    # the stamped struct, so the rebind keeps that contract while the
+    # observer reads the same value the caller gets.
     health = cache_put(health)
     ProwlarrAvailability.observe_roster(health)
     health

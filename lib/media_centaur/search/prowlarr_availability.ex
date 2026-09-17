@@ -16,10 +16,25 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
   an unconfigured Prowlarr — a missing URL fails every request instantly
   and probing it would be noise.
 
-  `probe_handoff/1` is the hand-off probe: one `downloadclient/testall`
-  call, which reaches the clients from inside Prowlarr's network and
-  touches no indexer, folded per slot.
+  `probe_handoff/1` is the hand-off probe: two requests — the download
+  client list, then `downloadclient/testall`, which reaches the clients
+  from inside Prowlarr's network and touches no indexer — folded per
+  slot. Two rules keep it honest:
+
+    * A slot Prowlarr has **no enabled client** for is reported **up**.
+      The value means "Prowlarr's link to a client of this protocol is
+      known broken"; with no client there is no link to break. A grab of
+      that protocol then proceeds and fails with Prowlarr's own answer,
+      which is what the user needs to see — and a slot that went down
+      before its client was removed can still clear.
+    * A probe request that does not complete is **inconclusive**: it
+      moves neither the hand-off nor `:prowlarr`. A client the probe
+      cannot reach is no evidence about Prowlarr, and holding every
+      search on it would be the wrong blame. Only `observe_roster/1` and
+      `observe_request/1` decide `:prowlarr`.
   """
+
+  require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Capabilities
   alias MediaCentaur.IntegrationAvailability
@@ -27,8 +42,6 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.Search.ProbeJob
   alias MediaCentaur.Search.Prowlarr
-
-  @slots [:usenet, :torrent]
 
   @type verdict :: :unchanged | {:changed, Status.state()}
 
@@ -57,11 +70,19 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
   end
 
   def observe_grab({:error, reason} = error, protocol) do
-    if Prowlarr.download_client_unavailable?(reason) do
-      report(:prowlarr, :up)
-      report_handoff(protocol, {:down, :client_unavailable})
-    else
-      observe_request(error)
+    cond do
+      Prowlarr.download_client_unavailable?(reason) ->
+        report(:prowlarr, :up)
+        report_handoff(protocol, {:down, :client_unavailable})
+
+      # Any other status — Prowlarr answered. A 5xx that is not the
+      # hand-off exception is Prowlarr's own fault with this release or
+      # its indexer, not evidence that Prowlarr is unreachable.
+      match?({:http_error, _status, _body}, reason) ->
+        report(:prowlarr, :up)
+
+      true ->
+        observe_request(error)
     end
 
     :ok
@@ -83,21 +104,24 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
          {:ok, results} <- Prowlarr.test_download_clients(client) do
       valid_by_id = Map.new(results, &{&1.id, &1.valid?})
 
-      for slot <- @slots do
+      for slot <- IntegrationAvailability.handoff_slots() do
         fold_slot(slot, Enum.filter(clients, &(&1.enabled and &1.protocol == slot)), valid_by_id)
       end
 
       :ok
     else
-      {:error, _reason} = error ->
-        observe_request(error)
+      {:error, reason} = error ->
+        # Inconclusive — see the moduledoc. The probe job snoozes and asks again.
+        Log.warning(:acquisition, "prowlarr hand-off probe inconclusive — #{inspect(reason)}",
+          mc_incident: :skip
+        )
+
         error
     end
   end
 
-  # A slot Prowlarr has no enabled client for says nothing about the
-  # hand-off: leave whatever the last real observation put there.
-  defp fold_slot(_slot, [], _valid_by_id), do: :unchanged
+  # No enabled client of this protocol: there is no link to be broken.
+  defp fold_slot(slot, [], _valid_by_id), do: IntegrationAvailability.report({:handoff, slot}, :up)
 
   defp fold_slot(slot, enabled, valid_by_id) do
     if Enum.all?(enabled, &Map.get(valid_by_id, &1.id, false)),
@@ -105,7 +129,10 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
       else: IntegrationAvailability.report({:handoff, slot}, {:down, :client_unavailable})
   end
 
-  defp report_handoff(protocol, observation) when protocol in @slots do
+  # Prowlarr omitted the protocol: nothing to attribute the outcome to.
+  defp report_handoff(nil, _observation), do: :unchanged
+
+  defp report_handoff(protocol, observation) do
     case IntegrationAvailability.report({:handoff, protocol}, observation) do
       {:changed, {:down, _since, _reason}} = changed ->
         enqueue_probe("handoff")
@@ -115,9 +142,6 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
         other
     end
   end
-
-  # Prowlarr omitted the protocol: nothing to attribute the outcome to.
-  defp report_handoff(_protocol, _observation), do: :unchanged
 
   defp report(:prowlarr, observation, opts \\ []) do
     case IntegrationAvailability.report(:prowlarr, observation, opts) do
@@ -132,10 +156,19 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
 
   defp enqueue_probe(integration) do
     if Capabilities.prowlarr_ready?() do
-      {:ok, _job} =
-        %{integration: integration}
-        |> ProbeJob.new(schedule_in: ProbeJob.cadence_seconds())
-        |> Oban.insert()
+      job = ProbeJob.new(%{integration: integration}, schedule_in: ProbeJob.cadence_seconds())
+
+      # The enqueue sits on the request path: a database hiccup must
+      # cost the probe, never the search that observed the outage.
+      case Oban.insert(job) do
+        {:ok, _job} ->
+          :ok
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "probe not enqueued for #{integration} — #{inspect(reason)}",
+            mc_incident: :skip
+          )
+      end
     end
 
     :ok
