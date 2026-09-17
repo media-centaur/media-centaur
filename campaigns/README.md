@@ -21,6 +21,15 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`dead-code-detection.md`](dead-code-detection.md) —
+  **planning 2026-09-17.** Nothing in the toolchain sees a `def` with no
+  callers — `--warnings-as-errors` catches private functions, `boundaries`
+  catches illegal edges, but a public function whose last caller was deleted
+  is invisible in both Elixir and JS. The v1.32.0 console rework produced four
+  verified instances, one of them live in the incident-report path. Enable
+  dependency-cruiser's `no-orphans` (config, free), then spike `mix_unused`
+  — which predates Elixir 1.20 and may not run.
+
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
