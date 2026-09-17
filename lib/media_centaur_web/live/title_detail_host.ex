@@ -129,7 +129,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @topics [
     Library,
     Library.Views,
-    Library.Availability,
+    Library.MediaFileAvailability,
     MediaCentaur.Playback,
     ReleaseTracking,
     Activities,

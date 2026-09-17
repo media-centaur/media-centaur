@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.LibraryAvailability do
+defmodule MediaCentaurWeb.MediaFileAvailability do
   @moduledoc """
   Pure helpers for computing storage-availability state shown to the user —
   per-card lookup map, total offline count, and the offline banner summary.
@@ -7,10 +7,10 @@ defmodule MediaCentaurWeb.LibraryAvailability do
   produced by the Browse projection (Library Schema v2 Phase 3.1). The
   rich `entity.watched_files` preload is no longer available at this
   layer; availability lookups go through the bulk
-  `Library.Availability.available_for_ids/1` context function instead.
+  `Library.MediaFileAvailability.available_for_ids/1` context function instead.
   """
 
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
 
   @doc """
   Builds `%{entity_id => available?}` for the template's per-card
@@ -20,13 +20,13 @@ defmodule MediaCentaurWeb.LibraryAvailability do
   """
   @spec availability_map([map()]) :: %{String.t() => boolean()}
   def availability_map(entries) do
-    Availability.available_for_ids(Enum.map(entries, & &1.id))
+    MediaFileAvailability.available_for_ids(Enum.map(entries, & &1.id))
   end
 
   @doc """
   Builds the one-line summary shown in the `storage_offline_banner`.
 
-  Takes the per-dir state map (from `Library.Availability.dir_status/0`)
+  Takes the per-dir state map (from `Library.MediaFileAvailability.dir_status/0`)
   and a count of library entries currently unavailable. Returns a
   human-readable string or `nil` when no dir is offline.
   """

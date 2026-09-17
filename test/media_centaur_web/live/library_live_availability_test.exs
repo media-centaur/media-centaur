@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
   @moduledoc """
   End-to-end coverage for the "storage unmounted → placeholder tiles +
   banner" chain. Drives the flow through the real PubSub channels used
-  in production (`Topics.dir_state/0` → `Library.Availability` GenServer
+  in production (`Topics.dir_state/0` → `Library.MediaFileAvailability` GenServer
   → `"library:availability"` topic → `LibraryLive.handle_info/2`).
   """
 
@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
 
   # Replays the watcher's broadcast format so we exercise the real
   # GenServer path without needing a drive unmount. The public
@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
       {:dir_state_changed, dir, :media_dir, state}
     )
 
-    :ok = Availability.__sync_for_test__()
+    :ok = MediaFileAvailability.__sync_for_test__()
   end
 
   # Forces a LiveView re-render and waits for any pending messages
@@ -80,17 +80,17 @@ defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
     end
   end
 
-  describe "Availability cache updates via watcher PubSub" do
+  describe "MediaFileAvailability cache updates via watcher PubSub" do
     test "dir_state_changed updates the persistent_term cache" do
-      assert Availability.dir_status() == %{}
+      assert MediaFileAvailability.dir_status() == %{}
 
       broadcast_dir_state("/mnt/test-dir", :unavailable)
 
-      assert Availability.dir_status()["/mnt/test-dir"] == :unavailable
+      assert MediaFileAvailability.dir_status()["/mnt/test-dir"] == :unavailable
     end
 
     test "rebroadcasts availability_changed to subscribers" do
-      :ok = Availability.subscribe()
+      :ok = MediaFileAvailability.subscribe()
 
       broadcast_dir_state("/mnt/test-dir-2", :watching)
 

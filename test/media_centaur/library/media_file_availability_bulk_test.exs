@@ -1,11 +1,11 @@
-defmodule MediaCentaur.Library.AvailabilityBulkTest do
+defmodule MediaCentaur.Library.MediaFileAvailabilityBulkTest do
   @moduledoc """
-  Spec for `Library.Availability.available_for_ids/1` — the bulk variant
+  Spec for `Library.MediaFileAvailability.available_for_ids/1` — the bulk variant
   used by projection consumers (Phase 3.1). Resolves availability for
   many container UUIDs without preloading `entity.watched_files` per
   entity; one DB roundtrip pulls every file row in one shot.
 
-  Sibling to `MediaCentaur.Library.AvailabilityTest` which covers the
+  Sibling to `MediaCentaur.Library.MediaFileAvailabilityTest` which covers the
   preloaded-entity `available?/1` path. Split into a separate file so
   the DB-backed tests (`use DataCase`) don't share a setup block with
   the pure persistent-term tests (`use ExUnit.Case`).
@@ -14,11 +14,11 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
 
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.FilePresence
 
   setup do
-    :persistent_term.put({Availability, :state}, %{
+    :persistent_term.put({MediaFileAvailability, :state}, %{
       "/media/test" => :watching,
       "/mnt/offline" => :unavailable
     })
@@ -28,7 +28,7 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
 
   describe "available_for_ids/1" do
     test "returns empty map for empty id list" do
-      assert Availability.available_for_ids([]) == %{}
+      assert MediaFileAvailability.available_for_ids([]) == %{}
     end
 
     test "movie under a :watching dir is available" do
@@ -43,7 +43,7 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
 
       FilePresence.stamp(file.file_path, file.media_dir)
 
-      assert Availability.available_for_ids([movie.id]) == %{movie.id => true}
+      assert MediaFileAvailability.available_for_ids([movie.id]) == %{movie.id => true}
     end
 
     test "movie under an :unavailable dir is reported unavailable" do
@@ -58,7 +58,7 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
 
       FilePresence.stamp(file.file_path, file.media_dir)
 
-      assert Availability.available_for_ids([movie.id]) == %{movie.id => false}
+      assert MediaFileAvailability.available_for_ids([movie.id]) == %{movie.id => false}
     end
 
     test "tv series under a :watching dir is available" do
@@ -73,7 +73,7 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
 
       FilePresence.stamp(file.file_path, file.media_dir)
 
-      assert Availability.available_for_ids([tv.id]) == %{tv.id => true}
+      assert MediaFileAvailability.available_for_ids([tv.id]) == %{tv.id => true}
     end
 
     test "movie series and video object containers are resolved" do
@@ -99,7 +99,7 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
 
       FilePresence.stamp(vof.file_path, vof.media_dir)
 
-      assert Availability.available_for_ids([ms.id, vo.id]) == %{
+      assert MediaFileAvailability.available_for_ids([ms.id, vo.id]) == %{
                ms.id => true,
                vo.id => false
              }
@@ -107,7 +107,7 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
 
     test "entity not in DB resolves as available (optimistic, matches available?/1)" do
       missing = Ecto.UUID.generate()
-      assert Availability.available_for_ids([missing]) == %{missing => true}
+      assert MediaFileAvailability.available_for_ids([missing]) == %{missing => true}
     end
 
     test "mixed online + offline batch resolves each id independently" do
@@ -133,7 +133,7 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
 
       FilePresence.stamp(offf.file_path, offf.media_dir)
 
-      result = Availability.available_for_ids([online.id, offline.id])
+      result = MediaFileAvailability.available_for_ids([online.id, offline.id])
 
       assert result[online.id] == true
       assert result[offline.id] == false

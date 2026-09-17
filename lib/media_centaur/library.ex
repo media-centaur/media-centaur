@@ -3,7 +3,6 @@ defmodule MediaCentaur.Library do
     deps: [MediaCentaur.Retention, MediaCentaur.Subtitles],
     exports: [
       AbsenceSweeper,
-      Availability,
       Browser,
       ChangeLog,
       Completeness,
@@ -31,6 +30,7 @@ defmodule MediaCentaur.Library do
       ImageCache,
       ImageHealth,
       Images,
+      MediaFileAvailability,
       MediaInfo,
       MediaTrackOverride,
       MediaTrackOverrides,

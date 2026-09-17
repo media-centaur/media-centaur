@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   (`inserted_at desc`) order. Progress and availability live in
   separate per-id maps populated via the bulk context functions
   `Library.ProgressRecords.summaries/1` and
-  `Library.Availability.available_for_ids/1`. The mount issues a
+  `Library.MediaFileAvailability.available_for_ids/1`. The mount issues a
   bounded number of queries that does not scale with catalog size.
 
   ## Update path
@@ -41,7 +41,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   alias MediaCentaur.{
     Library,
-    Library.Availability
+    Library.MediaFileAvailability
   }
 
   alias MediaCentaur.Pipeline.Stats
@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   import MediaCentaurWeb.LibraryHelpers
   import MediaCentaurWeb.LibraryFormatters
-  import MediaCentaurWeb.LibraryAvailability
+  import MediaCentaurWeb.MediaFileAvailability
 
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Live.Subscriptions
@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     # the projections, availability, config and the pipeline's stats.
     socket =
       Enum.reduce(
-        [Library.Views, Availability, Config, MediaCentaur.Pipeline.Stats],
+        [Library.Views, MediaFileAvailability, Config, MediaCentaur.Pipeline.Stats],
         socket,
         &Subscriptions.subscribe(&2, &1)
       )
@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        unavailable_count: 0,
        media_dirs: Config.get(:media_dirs) || [],
        media_dirs_configured: media_dirs_configured?(),
-       dir_status: Availability.dir_status(),
+       dir_status: MediaFileAvailability.dir_status(),
        pipeline_queue_depth: 0,
        scanning: false
      )
@@ -250,7 +250,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     socket =
       assign(socket,
-        dir_status: Availability.dir_status(),
+        dir_status: MediaFileAvailability.dir_status(),
         availability_map: availability_map,
         unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end)
       )
@@ -492,7 +492,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     entries = Library.Views.browse()
     ids = Enum.map(entries, & &1.id)
     progress_by_id = Library.ProgressRecords.summaries(ids)
-    availability_map = Availability.available_for_ids(ids)
+    availability_map = MediaFileAvailability.available_for_ids(ids)
 
     assign(socket,
       entries: entries,

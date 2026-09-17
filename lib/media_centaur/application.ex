@@ -94,7 +94,7 @@ defmodule MediaCentaur.Application do
         activities_sync_children() ++
         [
           MediaCentaur.Library.BroadcastCoalescer,
-          MediaCentaur.Library.Availability,
+          MediaCentaur.Library.MediaFileAvailability,
           MediaCentaur.Pipeline.Supervisor,
           MediaCentaur.Pipeline.Image.Supervisor,
           %{

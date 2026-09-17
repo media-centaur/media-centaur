@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.HomeLive do
   alias MediaCentaur.{
     Acquisition,
     Capabilities,
-    Library.Availability,
+    Library.MediaFileAvailability,
     Library.Views,
     ReleaseTracking,
     WatchHistory
@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.HomeLive do
     # "Importing your media" empty-state reason).
     socket =
       Enum.reduce(
-        [WatchHistory, Availability, Views, ReleaseTrackingViews, MediaCentaur.Pipeline.Stats],
+        [WatchHistory, MediaFileAvailability, Views, ReleaseTrackingViews, MediaCentaur.Pipeline.Stats],
         socket,
         &Subscriptions.subscribe(&2, &1)
       )

@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Library do
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.LibraryOverviewComponents
 
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Status.LibraryOverview
 
   @doc """
@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Library do
     at_risk =
       summarize_at_risk(
         assigns.at_risk_summary,
-        Availability.dir_status(),
+        MediaFileAvailability.dir_status(),
         DateTime.utc_now(),
         assigns.ttl_days
       )

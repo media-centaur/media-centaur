@@ -289,7 +289,7 @@ defmodule MediaCentaurWeb.StatusHelpers do
   scan). Returns `nil` when nothing is at risk, otherwise the total file count
   and the soonest purge horizon across the offline dirs.
 
-  `dir_status` is `Library.Availability.dir_status/0`; an unknown dir is treated
+  `dir_status` is `Library.MediaFileAvailability.dir_status/0`; an unknown dir is treated
   as offline so a warning is never silently suppressed. `now` and `ttl_days` are
   passed in so the helper stays pure and async-testable (ADR-030).
   """
@@ -339,7 +339,7 @@ defmodule MediaCentaurWeb.StatusHelpers do
   - `at_risk_summary` — the map returned by
     `MediaCentaur.Library.AbsenceSweeper.at_risk_summary/0`.
   - `dir_status` — the map returned by
-    `MediaCentaur.Library.Availability.dir_status/0` (or `%{}` if not
+    `MediaCentaur.Library.MediaFileAvailability.dir_status/0` (or `%{}` if not
     yet seeded — treat unknown dirs as offline so the warning isn't
     silently suppressed).
   - `now` and `ttl_days` — usually `DateTime.utc_now()` and the

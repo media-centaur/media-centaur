@@ -29,7 +29,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
   @behaviour MediaCentaur.Cache
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Library.Views.RecentlyAddedItem
   alias MediaCentaur.Topics
@@ -40,7 +40,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
   @impl MediaCentaur.Cache
   def subscribe do
     Topics.subscribe(Topics.library_updates())
-    Availability.subscribe()
+    MediaFileAvailability.subscribe()
     :ok
   end
 

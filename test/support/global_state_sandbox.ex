@@ -81,7 +81,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
 
   @dispositions %{
     MediaCentaur.Repo => {:sandboxed, "Ecto SQL sandbox, per-test owner"},
-    MediaCentaur.Library.Availability =>
+    MediaCentaur.Library.MediaFileAvailability =>
       {:sandboxed, "the per-dir map lives only in :persistent_term, which check-in restores"},
     MediaCentaur.TaskSupervisor => {:sandboxed, "live children are a verified store — see checkin/0"},
     MediaCentaur.Console.Buffer =>

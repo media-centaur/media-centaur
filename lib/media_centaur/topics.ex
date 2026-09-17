@@ -42,7 +42,7 @@ defmodule MediaCentaur.Topics do
   | `library:commands` | `Library` | external write commands |
   | `library:file_events` | `Library` | per-file lifecycle |
   | `library:watch_completed` | `Library` | end-of-watch markers |
-  | `library:availability` | `Library.Availability` | `{:availability_changed, dir, state}` |
+  | `library:availability` | `Library.MediaFileAvailability` | `{:availability_changed, dir, state}` |
   | `library:progress` | `Library.Progress` | `{:progress_ticked, _}`, `{:progress_flushed, _}`, `{:progress_hydrated, _}` |
   | `playback:events` | `Playback` | progress + state-change events |
   | `watch_history:events` | `WatchHistory` | `{:watch_event_created, _}`, `{:watch_event_deleted, _}` |
