@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.LibraryHelpers do
 
   Display formatting lives in `LibraryFormatters`, progress and resume
   logic in `LibraryProgress`, and storage-availability state in
-  `LibraryAvailability`.
+  `MediaFileAvailability`.
   """
 
   alias MediaCentaur.Library.Views.BrowseItem

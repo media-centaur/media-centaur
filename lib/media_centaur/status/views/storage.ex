@@ -33,7 +33,7 @@ defmodule MediaCentaur.Status.Views.Storage do
 
   alias MediaCentaur.Library.ImageCache
   alias MediaCentaur.Library.AbsenceSweeper
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Status.Views.StorageSnapshot
   alias MediaCentaur.Storage
   alias MediaCentaur.Topics
@@ -42,7 +42,7 @@ defmodule MediaCentaur.Status.Views.Storage do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Availability.subscribe()
+    MediaFileAvailability.subscribe()
     Topics.subscribe(Topics.dir_state())
     Topics.subscribe(Topics.config_updates())
     :ok

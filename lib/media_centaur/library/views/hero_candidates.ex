@@ -33,7 +33,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   @behaviour MediaCentaur.Cache
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views.HeroCandidatesItem
   alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
@@ -51,7 +51,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   @impl MediaCentaur.Cache
   def subscribe do
     Topics.subscribe(Topics.library_updates())
-    Availability.subscribe()
+    MediaFileAvailability.subscribe()
     :ok
   end
 

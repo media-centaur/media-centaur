@@ -290,7 +290,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
         settling_count: non_neg_integer, pending_deletions: non_neg_integer}
 
   `dir` and `state` are the load-bearing keys (consumed by `status/0` and, via
-  `MediaCentaur.WatcherStatus`, by `Library.Availability`); the rest drive the
+  `MediaCentaur.WatcherStatus`, by `Library.MediaFileAvailability`); the rest drive the
   Status page's watcher activity narrative and are purely additive.
   """
   def statuses do

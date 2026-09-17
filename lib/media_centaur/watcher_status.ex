@@ -4,7 +4,7 @@ defmodule MediaCentaur.WatcherStatus do
   @moduledoc """
   Boundary-neutral pass-through for `Watcher.Supervisor.statuses/0`.
 
-  Library.Availability needs to consult per-media-dir state on init, but
+  Library.MediaFileAvailability needs to consult per-media-dir state on init, but
   Library cannot directly `dep:` on Watcher because Watcher already
   `dep:`s on Library (for `WatchedFile` reads in the recovery rebroadcast
   path). Adding the dep would create a Boundary cycle.
@@ -25,7 +25,7 @@ defmodule MediaCentaur.WatcherStatus do
 
   `Watcher.Supervisor.statuses/0` returns internal vocabulary
   (`:watching | :initializing | :unavailable`); broadcasts use
-  (`:available | :unavailable`). `Library.Availability.init/1`
+  (`:available | :unavailable`). `Library.MediaFileAvailability.init/1`
   normalises the snapshot to broadcast vocabulary so downstream code
   sees one set of values. Keep that in mind when adding new states here.
   """
@@ -35,7 +35,7 @@ defmodule MediaCentaur.WatcherStatus do
 
   Same shape as `MediaCentaur.Watcher.Supervisor.statuses/0` — this
   module is a thin, boundary-neutral pass-through. Only `dir` and `state`
-  are load-bearing for `Library.Availability`; the additional keys
+  are load-bearing for `Library.MediaFileAvailability`; the additional keys
   (`reason`, `settling_count`, `pending_deletions`) carry the Status
   page's activity narrative and are ignored here.
   """

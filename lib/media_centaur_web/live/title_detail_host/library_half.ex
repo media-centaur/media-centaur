@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   import Phoenix.LiveView, only: [connected?: 1, start_async: 3]
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Library.Presentable
@@ -125,7 +125,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf do
   defp member_id(_entry, _tmdb_id), do: nil
 
   # Whether the container's media directory is online — one bounded read.
-  defp available?(%{entity: %{id: id}}), do: Map.get(Availability.available_for_ids([id]), id, true)
+  defp available?(%{entity: %{id: id}}),
+    do: Map.get(MediaFileAvailability.available_for_ids([id]), id, true)
 
   # --- The subject and its container ---
 

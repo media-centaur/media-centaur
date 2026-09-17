@@ -73,7 +73,7 @@ defmodule MediaCentaur.Library.Views.Search do
   @behaviour MediaCentaur.Cache
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views.Search.Scorer
   alias MediaCentaur.Library.Views.SearchItem
   alias MediaCentaur.Topics
@@ -84,7 +84,7 @@ defmodule MediaCentaur.Library.Views.Search do
   @impl MediaCentaur.Cache
   def subscribe do
     Topics.subscribe(Topics.library_updates())
-    Availability.subscribe()
+    MediaFileAvailability.subscribe()
     :ok
   end
 

@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
   import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1]
   import MediaCentaurWeb.Components.StatusWidgets.Shared
 
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
 
   @doc "Watcher subsystem Activity widget: media directories + per-drive storage headroom + at-risk state."
   attr :dir_health, :list,
@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
     assigns =
       assigns
       |> Map.put(:db_drive, db_drive)
-      |> Map.put(:dir_status, Availability.dir_status())
+      |> Map.put(:dir_status, MediaFileAvailability.dir_status())
       |> Map.put(:now, DateTime.utc_now())
 
     ~H"""

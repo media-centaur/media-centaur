@@ -62,7 +62,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   @behaviour MediaCentaur.Cache
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views.ContinueWatchingItem
   alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
@@ -75,7 +75,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
     Topics.subscribe(Topics.library_updates())
     Topics.subscribe(Topics.watch_history_events())
     Topics.subscribe(Topics.playback_events())
-    Availability.subscribe()
+    MediaFileAvailability.subscribe()
     :ok
   end
 

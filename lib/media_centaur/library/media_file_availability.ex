@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Library.Availability do
+defmodule MediaCentaur.Library.MediaFileAvailability do
   @moduledoc """
   Single source of truth for "is this entity's file reachable right now?".
 
@@ -14,7 +14,7 @@ defmodule MediaCentaur.Library.Availability do
 
   ## Granularity
 
-  Availability is per-entity: we find the entity's media directory via
+  Reachability is per-entity: we find the entity's media directory via
   a longest-prefix match on its file path, then consult the per-dir
   state the watcher is publishing. An entity whose media dir is
   `:unavailable` is considered unreachable; anything else (`:watching`,

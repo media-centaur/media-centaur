@@ -69,7 +69,7 @@ defmodule MediaCentaur.Library.Views.Detail do
   import Ecto.Query
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.CollectionArtwork
   alias MediaCentaur.Library.Episode
   alias MediaCentaur.Library.Image
@@ -119,7 +119,7 @@ defmodule MediaCentaur.Library.Views.Detail do
   @impl MediaCentaur.Cache
   def subscribe do
     Topics.subscribe(Topics.library_updates())
-    Availability.subscribe()
+    MediaFileAvailability.subscribe()
     :ok
   end
 
