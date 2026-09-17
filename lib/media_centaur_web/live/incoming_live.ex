@@ -247,6 +247,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          selected_pursuit_id: nil,
          cancel_pursuit_armed: nil,
          pursuit_detail: nil,
+         alternatives_fetches_in_flight: MapSet.new(),
          omnibox_mode: :media,
          omnibox_query: "",
          omnibox_results: [],
@@ -2286,6 +2287,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_async({:alternatives_fetch, pursuit_id}, {:ok, decision}, socket) do
+    socket = clear_alternatives_fetch(socket, pursuit_id)
+
     case socket.assigns do
       %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->
         {:noreply,
@@ -2300,6 +2303,13 @@ defmodule MediaCentaurWeb.IncomingLive do
       _ ->
         {:noreply, socket}
     end
+  end
+
+  # A crashed fetch releases the mark too, or the modal would never
+  # search that pursuit again for the life of the LiveView.
+  def handle_async({:alternatives_fetch, pursuit_id}, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "alternatives fetch for #{pursuit_id} failed — #{inspect(reason)}")
+    {:noreply, clear_alternatives_fetch(socket, pursuit_id)}
   end
 
   # "Search Prowlarr again" refresh. Same stale-guard; flashes on empty.
@@ -2497,17 +2507,51 @@ defmodule MediaCentaurWeb.IncomingLive do
   # LiveView, and tests can await it. Result lands in
   # `handle_async({:alternatives_fetch, pursuit_id}, …)`, which ignores it
   # if the user has closed the modal or selected a different pursuit.
+  #
+  # One fetch per pursuit at a time. `load_pursuit_detail/1` runs on every
+  # pursuit lifecycle event while the modal is open, and until the first
+  # fetch lands there is no cached card, so each event looked like a first
+  # open and asked for another search set. LiveView does NOT cancel a task
+  # when `start_async/3` is called with a name already in flight — it
+  # overwrites the tracking entry (`Phoenix.LiveView.Async.run_async_task/5`)
+  # and drops the older task's result, but the task itself runs to
+  # completion. Both sets hit Prowlarr; only the later one is rendered.
+  # Prowlarr searches are metered, so the duplicate is real cost.
+  #
+  # `alternatives_fetches_in_flight` is the mark, keyed by pursuit id so
+  # pivoting to another pursuit is never blocked by the previous one's
+  # fetch. It is cleared in `handle_async/3` on both the `{:ok, _}` and
+  # `{:exit, _}` landings. The user-initiated "Search Prowlarr again"
+  # (`{:alternatives_refresh, _}`) is a different async name and is
+  # deliberately not gated — it bypasses the corpus by design.
   defp start_async_alternatives_fetch(socket, pursuit_id) do
-    start_async(socket, {:alternatives_fetch, pursuit_id}, fn ->
-      case Pursuits.fetch(pursuit_id) do
-        {:ok, pursuit} ->
-          header = Pursuits.header_from(pursuit)
-          build_decision(pursuit, header.awaiting_decision?, header.search_queries, nil)
+    if MapSet.member?(socket.assigns.alternatives_fetches_in_flight, pursuit_id) do
+      socket
+    else
+      socket
+      |> assign(
+        :alternatives_fetches_in_flight,
+        MapSet.put(socket.assigns.alternatives_fetches_in_flight, pursuit_id)
+      )
+      |> start_async({:alternatives_fetch, pursuit_id}, fn ->
+        case Pursuits.fetch(pursuit_id) do
+          {:ok, pursuit} ->
+            header = Pursuits.header_from(pursuit)
+            build_decision(pursuit, header.awaiting_decision?, header.search_queries, nil)
 
-        _ ->
-          %{card: nil, results_by_guid: %{}}
-      end
-    end)
+          _ ->
+            %{card: nil, results_by_guid: %{}}
+        end
+      end)
+    end
+  end
+
+  defp clear_alternatives_fetch(socket, pursuit_id) do
+    assign(
+      socket,
+      :alternatives_fetches_in_flight,
+      MapSet.delete(socket.assigns.alternatives_fetches_in_flight, pursuit_id)
+    )
   end
 
   # Cheap refresh — re-derives only the queue-dependent fields against
