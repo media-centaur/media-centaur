@@ -39,6 +39,7 @@ defmodule MediaCentaur.Search.IndexerHealth do
   """
 
   alias MediaCentaur.Search.Prowlarr
+  alias MediaCentaur.Search.ProwlarrAvailability
 
   @enforce_keys [:state, :checked_at]
   defstruct [:state, :checked_at, :retry_at, :since, :reason, enabled_count: 0, backed_off: []]
@@ -73,7 +74,9 @@ defmodule MediaCentaur.Search.IndexerHealth do
         {:error, reason} -> unreachable(reason, now)
       end
 
-    cache_put(health)
+    health = cache_put(health)
+    ProwlarrAvailability.observe_roster(health)
+    health
   end
 
   @doc """

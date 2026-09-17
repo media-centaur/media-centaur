@@ -1,8 +1,10 @@
 defmodule MediaCentaur.Search do
   use Boundary,
     deps: [
+      MediaCentaur.Capabilities,
       MediaCentaur.ErrorReports,
       MediaCentaur.HttpClient,
+      MediaCentaur.IntegrationAvailability,
       MediaCentaur.Settings
     ],
     exports: [
@@ -11,7 +13,9 @@ defmodule MediaCentaur.Search do
       Criteria,
       IncidentContext,
       IndexerHealth,
+      ProbeJob,
       Prowlarr,
+      ProwlarrAvailability,
       QueryBuilder,
       QueryExpander,
       TitleForm,

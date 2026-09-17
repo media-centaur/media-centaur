@@ -1,5 +1,8 @@
 defmodule MediaCentaur.Search.ProwlarrTest do
-  use MediaCentaur.Case, async: false
+  # DataCase for the SQL sandbox: every request now reports its outcome
+  # through `ProwlarrAvailability`, which reads `Capabilities` (Settings)
+  # before enqueueing a probe.
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
 
