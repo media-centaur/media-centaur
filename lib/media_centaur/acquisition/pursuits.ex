@@ -521,6 +521,21 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   @doc """
+  The prompt of the pursuit's most recent `user_decision_requested`
+  event — what the worker said when it handed the decision over — or
+  nil when nobody has asked yet.
+  """
+  @spec latest_decision_prompt(Ecto.UUID.t()) :: String.t() | nil
+  def latest_decision_prompt(pursuit_id) do
+    Event
+    |> where([e], e.pursuit_id == ^pursuit_id and e.kind == "user_decision_requested")
+    |> order_by([e], desc: e.occurred_at)
+    |> limit(1)
+    |> select([e], e.payload["prompt"])
+    |> Repo.one()
+  end
+
+  @doc """
   Returns events for a pursuit, newest first. Empty list for unknown
   pursuit_id — events with nilified `pursuit_id` are not surfaced here.
   """

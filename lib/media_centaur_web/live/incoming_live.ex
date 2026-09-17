@@ -2444,7 +2444,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       _ ->
         loading = %ViewModels.DecisionCard{
           pursuit_id: pursuit.id,
-          prompt: @decision_prompt,
+          prompt: decision_prompt(pursuit),
           alternatives: [],
           loading?: true,
           search_queries: queries
@@ -2455,6 +2455,12 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   defp decision_card_or_placeholder(_pursuit, _awaiting?, _queries, _cached), do: {nil, %{}, false}
+
+  # The worker that asked for the decision said why ("Only a pack has
+  # this episode…"); the card repeats its words. The generic prompt is
+  # for decisions the user opened themselves.
+  defp decision_prompt(%Pursuit{} = pursuit),
+    do: Pursuits.latest_decision_prompt(pursuit.id) || @decision_prompt
 
   # Owned async (ADR-049): runs off the LV process via start_async/3 so the
   # WebSocket handler returns immediately, the task is cancelled with the
@@ -2822,8 +2828,8 @@ defmodule MediaCentaurWeb.IncomingLive do
 
         card = %ViewModels.DecisionCard{
           pursuit_id: pursuit.id,
-          prompt: @decision_prompt,
-          alternatives: Enum.map(results, &search_result_to_alternative/1),
+          prompt: decision_prompt(pursuit),
+          alternatives: Enum.map(results, &Alternative.from/1),
           loading?: false,
           search_queries: search_queries
         }
@@ -2834,24 +2840,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp build_decision(_pursuit, _awaiting?, _search_queries, _cached, _search_opts),
     do: %{card: nil, results_by_guid: %{}}
-
-  defp search_result_to_alternative(result) do
-    %Alternative{
-      guid: result.guid,
-      title: result.title,
-      indexer: indexer_name(result),
-      quality: quality_label(result),
-      size_bytes: Map.get(result, :size_bytes),
-      seeders: Map.get(result, :seeders),
-      indexer_id: Map.get(result, :indexer_id)
-    }
-  end
-
-  defp indexer_name(%{indexer: indexer}) when is_binary(indexer), do: indexer
-  defp indexer_name(_), do: "Unknown"
-
-  defp quality_label(%{quality: q}) when is_atom(q), do: MediaCentaur.Search.Quality.label(q)
-  defp quality_label(_), do: nil
 
   defp load_history(socket) do
     {rows, has_older?} =

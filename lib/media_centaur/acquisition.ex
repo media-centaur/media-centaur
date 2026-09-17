@@ -140,12 +140,13 @@ defmodule MediaCentaur.Acquisition do
     AutoGrabService,
     CancelReasons,
     Corpus,
+    Cours,
     Target,
     TargetEvents,
     Targets
   }
 
-  alias MediaCentaur.Search.{Prowlarr, QueryExpander, SearchResult}
+  alias MediaCentaur.Search.{Prowlarr, QueryBuilder, QueryExpander, SearchResult, TitleMatcher}
 
   alias MediaCentaur.Acquisition.Pursuits.Commands.{PickTarget, StartFromPick}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Units}
@@ -507,7 +508,7 @@ defmodule MediaCentaur.Acquisition do
     # re-expanding the whole braced query.
     unit = Units.lead(pursuit.id)
 
-    case do_search_for_pursuit(pursuit, unit, search_opts) do
+    case search_for_pursuit(pursuit, unit, search_opts) do
       {:ok, results} ->
         excluded = MapSet.new((unit && unit.tried_release_guids) || [])
 
@@ -521,15 +522,49 @@ defmodule MediaCentaur.Acquisition do
   end
 
   # Single source of truth for "search Prowlarr the way THIS pursuit
-  # wants to be searched". Brace-aware, type-aware, year-aware,
-  # unit-aware, corpus-aware. Adding a new consumer just calls
-  # `list_alternatives_for/2` (filtered) or `do_search_for_pursuit/3`
-  # (raw, internal-only) — the recipe can't drift between call sites.
-  defp do_search_for_pursuit(%Pursuit{} = pursuit, unit \\ nil, search_opts \\ []) do
-    pursuit |> Recipe.for_unit(unit) |> do_search_for_recipe(search_opts)
+  # wants to be searched". Brace-aware, unit-aware, corpus-aware. Adding
+  # a new consumer just calls `list_alternatives_for/2` (filtered) or
+  # `search_for_pursuit/3` (raw, internal-only) — the recipe can't drift
+  # between call sites.
+  #
+  # A TV unit searches exactly as the plan side and the retry loop do:
+  # its own terms first (`QueryBuilder.build/1`), then the wider terms
+  # that can only offer a pack (`QueryBuilder.fallback/1`), and only
+  # releases that contain the unit are kept (`TitleMatcher.covers?/2`).
+  # A movie or a user-typed query searches its phrasing as before.
+  defp search_for_pursuit(%Pursuit{} = pursuit, unit, search_opts) do
+    case Recipe.for_unit(pursuit, unit) do
+      %Recipe{type: :tmdb, tmdb_type: :tv} = recipe ->
+        search_for_unit(recipe, pursuit.tmdb_id, search_opts)
+
+      %Recipe{} = recipe ->
+        search_for_recipe(recipe, search_opts)
+    end
   end
 
-  defp do_search_for_recipe(%Recipe{type: :tmdb} = recipe, search_opts) do
+  defp search_for_unit(%Recipe{} = recipe, tmdb_id, search_opts) do
+    if available?() do
+      criteria = recipe |> Recipe.to_criteria() |> Cours.with_run(tmdb_id)
+      force? = Keyword.get(search_opts, :force, false)
+
+      results =
+        (QueryBuilder.build(criteria) ++ QueryBuilder.fallback(criteria))
+        |> Enum.flat_map(fn {term, opts} ->
+          case Corpus.search(term, Keyword.put(opts, :force, force?)) do
+            {:ok, results} -> results
+            {:error, _reason} -> []
+          end
+        end)
+        |> Enum.uniq_by(& &1.guid)
+        |> Enum.filter(&TitleMatcher.covers?(&1, criteria))
+
+      {:ok, results}
+    else
+      {:error, :not_configured}
+    end
+  end
+
+  defp search_for_recipe(%Recipe{type: :tmdb} = recipe, search_opts) do
     opts =
       search_opts
       |> put_when_present(:type, recipe.tmdb_type)
@@ -538,15 +573,14 @@ defmodule MediaCentaur.Acquisition do
     search_expanded(recipe.title, opts)
   end
 
-  defp do_search_for_recipe(
-         %Recipe{type: :prowlarr_query, manual_query: query, title: title},
-         search_opts
-       ) do
+  defp search_for_recipe(%Recipe{type: :prowlarr_query, manual_query: query, title: title}, search_opts) do
     search_expanded(query || title, search_opts)
   end
 
+  # Resolves a picked guid with the unit-aware search the card listed it
+  # from, so a pick can never miss what the card showed.
   defp find_alternative(%Pursuit{} = pursuit, guid) do
-    case do_search_for_pursuit(pursuit) do
+    case search_for_pursuit(pursuit, Units.lead(pursuit.id), []) do
       {:ok, results} ->
         case Enum.find(results, &(&1.guid == guid)) do
           nil -> {:error, :alternative_unavailable}

@@ -30,6 +30,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       seeking ─► (acceptable TMDB result)         ─► acquired
               ─► (any Prowlarr-query result)      ─► (pursuit awaiting decision)
               ─► (no acceptable result)           ─► snoozed via Oban (exp. backoff)
+              ─► (max attempts, a pack has it)    ─► (pursuit awaiting decision)
               ─► (max attempts exceeded)          ─► failed
               ─► (Prowlarr down)                  ─► snoozed 1h, NO bump
               ─► (download client unreachable)    ─► snoozed 15m, NO bump
@@ -86,6 +87,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   # nothing and a long one leaves a found release idle for hours.
   @download_client_snooze_seconds 15 * 60
   @needs_decision_prompt "Pick a release."
+  @pack_prompt "Only a pack has this episode. Picking it downloads the whole pack."
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"target_id" => target_id}}) do
@@ -159,33 +161,20 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     )
 
     prefs = effective_prefs(pursuit)
-    criteria = pursuit |> Recipe.for_unit(unit) |> Recipe.to_criteria() |> with_cour_run(pursuit, unit)
+
+    # Cour-aware: a unit in a later broadcast run searches run-shaped
+    # queries (`Cours.with_run/2`), or a committed later-cour release
+    # can't be re-found on retry.
+    criteria =
+      pursuit |> Recipe.for_unit(unit) |> Recipe.to_criteria() |> Cours.with_run(pursuit.tmdb_id)
 
     case search_until_match(unit, criteria, QueryBuilder.build(criteria), prefs) do
-      {:ok, best} -> handle_found(target, pursuit, best)
+      {:ok, best} -> handle_found(target, pursuit, unit, criteria, best)
       {:needs_decision, _results} -> handle_needs_decision(target, pursuit, unit)
-      {:no_match, outcome} -> handle_no_results(target, pursuit, outcome)
+      {:no_match, outcome} -> handle_no_results(target, pursuit, unit, criteria, outcome)
       {:error, reason} -> handle_prowlarr_error(target, reason)
     end
   end
-
-  # Cour-aware re-search: when this TV unit belongs to a later broadcast
-  # run, set the criteria's `run` so `QueryBuilder` emits run-shaped
-  # queries (e.g. "Title 2nd Season") instead of the first-run "Season N"
-  # — without it a committed later-cour release can't be re-found on
-  # retry. One season fetch per attempt (a low-frequency seeking/retry
-  # job); degrades to the regular queries on a TMDB error.
-  defp with_cour_run(
-         %Criteria{tmdb_type: :tv, season_number: season, episode_number: episode} = criteria,
-         %Pursuit{tmdb_id: tmdb_id},
-         _unit
-       )
-       when is_integer(season) and is_integer(episode) and is_binary(tmdb_id) do
-    runs = Cours.runs_for_season(tmdb_id, season)
-    %{criteria | run: Cours.later_run(runs, {season, episode})}
-  end
-
-  defp with_cour_run(%Criteria{} = criteria, _pursuit, _unit), do: criteria
 
   # Quality bounds live on the pursuit's `criteria` map, read as-is; a
   # `min_quality` there is the title's lower-quality acceptance (ADR-063
@@ -331,7 +320,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     end
   end
 
-  defp handle_found(target, _pursuit, result) do
+  defp handle_found(target, pursuit, unit, criteria, result) do
     case Prowlarr.grab(result) do
       :ok ->
         quality_label = Quality.label(result.quality)
@@ -361,8 +350,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
             @download_client_snooze_seconds
           )
         else
-          pursuit = Repo.get(Pursuit, target.pursuit_id)
-          handle_no_results(target, pursuit, "grab_failed")
+          handle_no_results(target, pursuit, unit, criteria, "grab_failed")
         end
     end
   end
@@ -399,29 +387,80 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     end
   end
 
-  defp handle_no_results(target, _pursuit, outcome) do
+  defp handle_no_results(target, pursuit, unit, criteria, outcome) do
     {:ok, updated} =
       target
       |> Target.attempt_changeset(outcome)
       |> Repo.update()
 
-    if updated.attempt_count >= @max_attempts do
-      {:ok, failed} = Repo.update(Target.failed_changeset(updated, CancelReasons.exhausted()))
-      broadcast(%TargetEvents.Failed{target: failed})
-      Log.info(:acquisition, "acquisition exhausted — #{target.title} (#{@max_attempts} attempts)")
-      :ok
-    else
-      seconds = snooze_seconds(updated.attempt_count)
-      {:ok, scheduled} = persist_next_attempt(updated, seconds)
-      broadcast(%TargetEvents.Snoozed{target: scheduled})
+    cond do
+      updated.attempt_count < @max_attempts ->
+        snooze(updated)
 
-      Log.info(
-        :acquisition,
-        "acquisition snooze — #{target.title} (attempt #{scheduled.attempt_count})"
-      )
+      pack_covers_unit?(unit, criteria) ->
+        offer_pack(updated, pursuit, unit)
 
-      {:snooze, seconds}
+      true ->
+        {:ok, failed} = Repo.update(Target.failed_changeset(updated, CancelReasons.exhausted()))
+        broadcast(%TargetEvents.Failed{target: failed})
+        Log.info(:acquisition, "acquisition exhausted — #{target.title} (#{@max_attempts} attempts)")
+        :ok
     end
+  end
+
+  # The attempt that would exhaust looks wider first: the episode term
+  # has come up empty for a week, but a season or series pack the unit
+  # never asked for may still contain it. Only a TV episode has anything
+  # wider to look at; the corpus keeps this to one live search per term.
+  defp pack_covers_unit?(unit, %Criteria{type: :tmdb, tmdb_type: :tv} = criteria) do
+    excluded = MapSet.new(unit.tried_release_guids || [])
+
+    criteria
+    |> QueryBuilder.fallback()
+    |> Enum.flat_map(fn {query, opts} ->
+      case Corpus.search(query, opts) do
+        {:ok, results} -> results
+        {:error, _reason} -> []
+      end
+    end)
+    |> Enum.uniq_by(& &1.guid)
+    |> Enum.reject(&MapSet.member?(excluded, &1.guid))
+    |> Enum.any?(&TitleMatcher.covers?(&1, criteria))
+  end
+
+  defp pack_covers_unit?(_unit, %Criteria{}), do: false
+
+  # Asking beats exhausting: the decision card lists the pack, the
+  # user decides whether the whole thing is worth the one episode.
+  defp offer_pack(target, pursuit, unit) do
+    {:ok, _updated} = Repo.update(Target.outcome_changeset(target, "pack_offered"))
+
+    case Commands.RequestDecision.execute(%{
+           pursuit_id: pursuit.id,
+           unit_id: unit.id,
+           prompt: @pack_prompt
+         }) do
+      {:ok, _pursuit} ->
+        Log.info(:acquisition, "acquisition offers a pack — #{target.title} (awaiting pick)")
+        {:ok, :needs_decision}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "request_decision failed — #{inspect(reason)}")
+        {:ok, :needs_decision_failed}
+    end
+  end
+
+  defp snooze(target) do
+    seconds = snooze_seconds(target.attempt_count)
+    {:ok, scheduled} = persist_next_attempt(target, seconds)
+    broadcast(%TargetEvents.Snoozed{target: scheduled})
+
+    Log.info(
+      :acquisition,
+      "acquisition snooze — #{target.title} (attempt #{scheduled.attempt_count})"
+    )
+
+    {:snooze, seconds}
   end
 
   defp handle_prowlarr_error(target, reason) do
@@ -436,7 +475,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   defp handle_infrastructure_failure(target, outcome, snooze_seconds) do
     {:ok, updated} =
       target
-      |> Target.infrastructure_failure_changeset(outcome)
+      |> Target.outcome_changeset(outcome)
       |> Repo.update()
 
     {:ok, scheduled} = persist_next_attempt(updated, snooze_seconds)

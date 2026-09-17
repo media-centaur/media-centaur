@@ -89,6 +89,45 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
         }
       },
       %Variation{
+        id: :pack_alternative,
+        description: "Only a season pack has the episode — the worker asked instead of exhausting",
+        attributes: %{
+          vm: %DecisionCard{
+            pursuit_id: "story-pack",
+            prompt: "Only a pack has this episode. Picking it downloads the whole pack.",
+            search_queries: [
+              "Sample Show S01E03",
+              "Sample Show Season 1",
+              "Sample Show S01",
+              "Sample Show"
+            ],
+            alternatives: [
+              alternative(
+                guid: "alt-pack",
+                title: "Sample.Show.S01.1080p.WEB-DL.H264-NTG",
+                indexer: "ExampleIndexer",
+                quality: "1080p",
+                size_bytes: 24_000_000_000,
+                seeders: 14,
+                scope: {:season, 1}
+              ),
+              alternative(
+                guid: "alt-series",
+                title: "Sample.Show.COMPLETE.720p.BluRay.x264-GRP",
+                indexer: "AnotherIndexer",
+                quality: "720p",
+                size_bytes: 88_000_000_000,
+                seeders: 3,
+                scope: :series
+              )
+            ],
+            loading?: false
+          },
+          on_cancel: "noop",
+          on_cancel_arm: "noop"
+        }
+      },
+      %Variation{
         id: :many_alternatives,
         description: "Multiple alternatives ranked by quality and seeder count",
         attributes: %{
@@ -146,7 +185,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
       indexer: Keyword.fetch!(opts, :indexer),
       quality: Keyword.get(opts, :quality),
       size_bytes: Keyword.get(opts, :size_bytes),
-      seeders: Keyword.get(opts, :seeders)
+      seeders: Keyword.get(opts, :seeders),
+      scope: Keyword.get(opts, :scope)
     }
   end
 end
