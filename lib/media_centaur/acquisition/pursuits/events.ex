@@ -116,13 +116,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Events do
 
   @doc """
   True when `module` is one of the registered pursuit event struct modules.
-  Use this to identify event broadcasts received over PubSub without
+  Written as a guard so a subscriber identifies an event broadcast in a
+  `handle_info(%struct{}, _) when is_event(struct)` head, without
   string-matching on `Atom.to_string(module)`.
   """
-  @spec event?(module()) :: boolean()
-  def event?(module) when is_atom(module), do: module in @event_modules
-
-  @doc "Guard form of `event?/1`, for a `handle_info(%struct{}, _) when is_event(struct)` head."
   defguard is_event(module) when module in @event_modules
 
   @doc """

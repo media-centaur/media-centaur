@@ -58,10 +58,4 @@ defmodule MediaCentaur.Acquisition.PlanEvents do
             stages: [stage()]
           }
   end
-
-  @doc "True when the struct is one of this module's event kinds."
-  def event?(Changed), do: true
-  def event?(SearchActivity), do: true
-  def event?(DescentStatus), do: true
-  def event?(_module), do: false
 end

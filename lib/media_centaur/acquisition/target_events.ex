@@ -16,7 +16,7 @@ defmodule MediaCentaur.Acquisition.TargetEvents do
   pursuit events AND legacy tuples — on the same `handle_info`
   function. Phase 5 of the pursuits-maturation campaign collapsed that
   to a single dialect: every broadcast on `acquisition:updates` is now
-  a struct, and subscribers do `event?/1` to recognise the family.
+  a struct, and subscribers do `is_event/1` to recognise the family.
 
   ## Why not persist these too?
 
@@ -75,12 +75,9 @@ defmodule MediaCentaur.Acquisition.TargetEvents do
 
   @doc """
   True when `module` is one of the registered TargetEvents structs.
-  Subscribers use this in a catch-all `handle_info(%struct{}, socket)`
-  to identify lifecycle broadcasts without enumerating every kind.
+  Written as a guard so a subscriber identifies the whole family in one
+  `handle_info(%struct{}, _) when is_event(struct)` head instead of
+  enumerating every kind.
   """
-  @spec event?(module()) :: boolean()
-  def event?(module) when is_atom(module), do: module in @event_modules
-
-  @doc "Guard form of `event?/1`, for a `handle_info(%struct{}, _) when is_event(struct)` head."
   defguard is_event(module) when module in @event_modules
 end
