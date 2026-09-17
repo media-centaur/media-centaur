@@ -773,6 +773,60 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     end
   end
 
+  describe "excluding a unit from the plan" do
+    # The `excluded` status was honoured by the planner, Claims, Alternatives
+    # and the board — and rendered with its own strikethrough treatment and
+    # the copy "you excluded this earlier" — while nothing could ever set it.
+    # These guard the round trip now that the board offers the control.
+    #
+    # Asserted on unit status rather than `Board.wanted`: `Board.build/1`
+    # calls `String.to_existing_atom(plan.status)`, which depends on whether
+    # some other module has already put that atom in the table, so it is
+    # load-order fragile in an isolated test.
+    test "exclude_unit takes the unit out of what the plan wants" do
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      [first, second] = plan.id |> Plans.units_for() |> Enum.sort_by(& &1.episode_number)
+
+      assert {:ok, _plan} = Plans.exclude_unit(first.id)
+
+      units = Plans.units_for(plan.id)
+      assert Enum.find(units, &(&1.id == first.id)).status == "excluded"
+      refute Enum.find(units, &(&1.id == second.id)).status == "excluded"
+    end
+
+    test "include_unit puts an excluded unit back in play" do
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      [first, _second] = plan.id |> Plans.units_for() |> Enum.sort_by(& &1.episode_number)
+
+      {:ok, _plan} = Plans.exclude_unit(first.id)
+      assert {:ok, _plan} = Plans.include_unit(first.id)
+
+      # Back in play, not necessarily back to `pending`: `include_unit/1`
+      # re-plans, so the planner has already looked and — with nothing on
+      # offer from the stub — settled it at `unfound`. The contract is that
+      # it is no longer excluded, which is what the board counts.
+      restored = plan.id |> Plans.units_for() |> Enum.find(&(&1.id == first.id))
+      refute restored.status == "excluded"
+      assert restored.status in ["pending", "unfound", "found"]
+      assert restored.assigned_guid == nil
+    end
+
+    test "toggle_unit_excluded flips whichever way the unit currently sits" do
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      [first, _second] = plan.id |> Plans.units_for() |> Enum.sort_by(& &1.episode_number)
+
+      assert {:ok, _plan} = Plans.toggle_unit_excluded(first.id)
+      assert status_of(plan, first) == "excluded"
+
+      assert {:ok, _plan} = Plans.toggle_unit_excluded(first.id)
+      refute status_of(plan, first) == "excluded"
+    end
+
+    defp status_of(plan, unit) do
+      plan.id |> Plans.units_for() |> Enum.find(&(&1.id == unit.id)) |> Map.fetch!(:status)
+    end
+  end
+
   describe "external identity on the plan" do
     test "a series plan snapshots how TMDB spells the show elsewhere" do
       stub_ladder_results()

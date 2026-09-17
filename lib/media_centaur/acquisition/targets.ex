@@ -171,6 +171,32 @@ defmodule MediaCentaur.Acquisition.Targets do
   end
 
   @doc """
+  Closes the in-flight target pursuing `download_id`, if one owns it.
+
+  Cancelling a download at the client used to leave its target in `seeking`:
+  `Pursuits.Policy` decides on queue *observations* and has no rule for "the
+  item is gone", so nothing closed the row until the attempt budget ran out.
+  The user's act closes it directly.
+
+  Torrent ids are the infohash the target already stores. A usenet id is the
+  client's own job id, which no target carries, so those fall through
+  untouched — the watcher remains their only closer.
+  """
+  @spec cancel_for_download(String.t(), String.t()) :: :ok
+  def cancel_for_download(download_id, reason) when is_binary(download_id) and is_binary(reason) do
+    query =
+      from(t in Target,
+        where: t.torrent_hash == ^download_id and t.status in ^TargetStatus.cancellable(),
+        limit: 1
+      )
+
+    case Repo.one(query) do
+      nil -> :ok
+      %Target{id: id} -> with {:ok, _cancelled} <- cancel_target(id, reason), do: :ok
+    end
+  end
+
+  @doc """
   Unit-scoped variant of `in_flight_hashes/1`: hashes of the
   in-flight targets *covering one unit* — what a pivot or swap
   abandons. Read before the command flips their status.

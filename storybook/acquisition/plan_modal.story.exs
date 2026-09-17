@@ -631,7 +631,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           cells: [
             cell(1, 1, :assigned, "pack"),
             cell(1, 2, :assigned, "pack"),
-            cell(1, 3, :searching, nil)
+            cell(1, 3, :searching, nil),
+            # Struck through: the user dropped this one from the plan. Clicking
+            # a cell toggles it, so every cell here is an active control.
+            cell(1, 4, :excluded, nil)
           ]
         },
         %PlanBoard.SeasonRow{season_number: 2, cells: [cell(2, 1, :searching, nil)]}

@@ -4,6 +4,7 @@ defmodule MediaCentaur.AcquisitionTest do
 
   import MediaCentaur.TestFactory
 
+  alias MediaCentaur.Acquisition.CancelReasons
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
@@ -180,7 +181,7 @@ defmodule MediaCentaur.AcquisitionTest do
     test "flips a cancelled target back to seeking, broadcasts" do
       target = create_target(%{tmdb_id: "rearm-1", title: "Comeback"})
 
-      force_attrs(target, status: "cancelled", cancelled_reason: "user_disabled")
+      force_attrs(target, status: "cancelled", cancelled_reason: CancelReasons.user_request())
 
       assert {:ok, rearmed} = Acquisition.rearm_target(target.id)
 
@@ -195,6 +196,34 @@ defmodule MediaCentaur.AcquisitionTest do
     end
   end
 
+  describe "cancel_download/1" do
+    # Cancelling from the UI cancelled the download at the client and left
+    # the Target row in `seeking` — nothing closed it, because
+    # `Pursuits.Policy` has no rule for "the download left the queue". The
+    # row is now closed on the same act.
+    setup do
+      MediaCentaur.DownloadClientStubs.setup_qbittorrent_client()
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_updates())
+      :ok
+    end
+
+    test "closes the in-flight target that was pursuing the cancelled download" do
+      hash = String.duplicate("a1", 20)
+      target = create_target(%{tmdb_id: "cancel-dl", title: "Sample Movie"})
+      force_attrs(target, status: "seeking", torrent_hash: hash)
+
+      assert :ok = Acquisition.cancel_download(hash)
+
+      reloaded = Repo.get!(Target, target.id)
+      assert reloaded.status == "cancelled"
+      assert reloaded.cancelled_reason == CancelReasons.user_request()
+    end
+
+    test "is still :ok when no target owns the download" do
+      assert :ok = Acquisition.cancel_download(String.duplicate("b2", 20))
+    end
+  end
+
   describe "cancel_target/2" do
     setup do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_updates())
@@ -203,13 +232,15 @@ defmodule MediaCentaur.AcquisitionTest do
 
     test "marks status cancelled, sets reason and timestamp, broadcasts" do
       target = create_target()
+      reason = CancelReasons.user_request()
 
-      assert {:ok, cancelled} = Acquisition.cancel_target(target.id, "user_disabled")
+      assert {:ok, cancelled} = Acquisition.cancel_target(target.id, reason)
 
       assert cancelled.status == "cancelled"
-      assert cancelled.cancelled_reason == "user_disabled"
+      assert cancelled.cancelled_reason == reason
       assert cancelled.cancelled_at != nil
-      assert_received %TargetEvents.Cancelled{target: %Target{cancelled_reason: "user_disabled"}}
+
+      assert_received %TargetEvents.Cancelled{target: %Target{cancelled_reason: ^reason}}
     end
 
     test "returns :not_found for unknown target id" do

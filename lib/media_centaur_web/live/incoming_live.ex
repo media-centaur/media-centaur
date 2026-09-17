@@ -1388,6 +1388,20 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
+  # The board cell is the control. Which way it runs is read from the stored
+  # unit, not from what this page last rendered, so a stale board cannot
+  # exclude the same unit twice.
+  def handle_event("plan_toggle_unit_excluded", %{"unit-id" => unit_id}, socket) do
+    case Plans.toggle_unit_excluded(unit_id) do
+      {:ok, _plan} ->
+        {:noreply, socket}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "plan unit toggle failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not change that episode.")}
+    end
+  end
+
   def handle_event("plan_search_again", _params, socket) do
     with %{plan_id: plan_id} <- socket.assigns.plan_board,
          {:ok, plan} <- Plans.fetch(plan_id),

@@ -146,6 +146,18 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     clear_assignment(unit, "excluded")
   end
 
+  @doc """
+  Undoes `exclude_unit_changeset/1` — the plan wants the unit again and the
+  next solve may assign it.
+
+  Back to `pending`, not to whatever it held before: the exclusion cleared the
+  assignment, and the releases available now are not the ones that were
+  available then.
+  """
+  def include_unit_changeset(%__MODULE__{} = unit) do
+    clear_assignment(unit, "pending")
+  end
+
   defp clear_assignment(unit, status) when status in @statuses do
     unit
     |> change(
