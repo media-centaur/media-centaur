@@ -373,6 +373,10 @@ for a passer-by. Closing the drill-in unsubscribes."
 
 `console_live/shared.ex` is a `__using__` macro that exists solely to share mount/handlers between the drawer and the page. With one consumer it is indirection wrapping no duplication. Move its contents into `console_page_live.ex` as ordinary functions and delete `shared.ex`. Keep `logic.ex` — it is pure functions, tested independently, and stays a module.
 
+**`/console` is URL-only after this.** Decided 2026-09-17: no nav link, no Status-page link, no per-panel escalation link. The *only* link to `/console` in the app today is the "full page" button in the drawer's own footer (`console_components.ex:261`, gated by `show_fullpage_link`). With the drawer gone that attr is permanently false, so delete the button and the attr rather than leaving a link to nowhere. The URL-param filter preset stays dropped.
+
+This makes Phase F load-bearing: **the docs become the only place `/console` is discoverable.** Every doc surface in F1/F2 must name the literal URL.
+
 Drop from the page while inlining: `source_tabs/1`, `journal_list/1`, the `:active_source` assign, `:journal` stream, and the `{:journal_line, _}` / `{:journal_reset}` handlers. The journal now lives on Status. `/console` becomes one source with no tabs. Delete `source_tabs/1` and `journal_list/1` from `console_components.ex`.
 
 - [ ] **E3. JavaScript**
