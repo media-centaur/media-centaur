@@ -57,6 +57,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 066 | 2026-09-07 | [One ladder per title: an authored rung, and machinery derived from it](architecture/2026-09-07-066-one-ladder-per-title.md) | accepted, amended 2026-09-09 |
 | 067 | 2026-09-11 | [A listing replaces tracking as the shared act about wanting a title](architecture/2026-09-11-067-listing-replaces-tracking-on-the-wire.md) | accepted |
 | 068 | 2026-09-12 | [A review replaces the recommendation as the shared opinion about a title](architecture/2026-09-12-068-review-replaces-recommendation-on-the-wire.md) | accepted |
+| 069 | 2026-09-17 | [No Elixir dead-code gate; JS keeps one](architecture/2026-09-17-069-no-elixir-dead-code-gate.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
