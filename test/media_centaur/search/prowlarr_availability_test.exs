@@ -2,6 +2,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
   # Sync: reports write :persistent_term; Oban runs the probe job inline.
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.Search.Prowlarr
@@ -147,6 +148,72 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
 
       assert %{state: {:down, _since, :blind}, retry_at: ^retry_at} =
                IntegrationAvailability.status(:prowlarr)
+    end
+  end
+
+  describe "a down transition enqueues the probe" do
+    # Oban runs inline in tests, so the job the transition inserts executes
+    # in this process — the probe's own request on the stub is the proof.
+    setup do
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentaur.Settings.Config, :config},
+        config
+        |> Map.put(:prowlarr_url, "http://prowlarr.test")
+        |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
+      )
+
+      Capabilities.save_test_result(:prowlarr, :ok)
+      assert Capabilities.prowlarr_ready?()
+
+      {:ok, tag: System.unique_integer([:positive]), test_pid: self()}
+    end
+
+    test "an unreachable search enqueues the Prowlarr probe, which reads the roster", context do
+      %{tag: tag, test_pid: test_pid} = context
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/indexer"} ->
+            send(test_pid, {:roster_probed, tag})
+            Req.Test.json(conn, @roster_ok)
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/search"} ->
+            Req.Test.transport_error(conn, :econnrefused)
+        end
+      end)
+
+      assert {:error, _reason} = Prowlarr.search("Sample Movie")
+
+      assert_receive {:roster_probed, ^tag}, 1_000
+      assert IntegrationAvailability.up?(:prowlarr)
+    end
+
+    test "a hand-off failure enqueues the hand-off probe, which tests the clients", context do
+      %{tag: tag, test_pid: test_pid} = context
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"POST", "/api/v1/search"} ->
+            client_unavailable(conn)
+
+          {"GET", "/api/v1/downloadclient"} ->
+            Req.Test.json(conn, download_clients())
+
+          {"POST", "/api/v1/downloadclient/testall"} ->
+            send(test_pid, {:handoff_probed, tag})
+            Req.Test.json(conn, testall_all_valid())
+        end
+      end)
+
+      assert {:error, _reason} = Prowlarr.grab(usenet_release())
+
+      assert_receive {:handoff_probed, ^tag}, 1_000
+      assert IntegrationAvailability.up?({:handoff, :usenet})
     end
   end
 
