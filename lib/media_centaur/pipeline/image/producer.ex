@@ -8,6 +8,7 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
   and dispatches one work item per entry.
   """
   use GenStage
+  @behaviour Broadway.Acknowledger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Format
@@ -68,6 +69,7 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
     {:noreply, [], state}
   end
 
+  @impl Broadway.Acknowledger
   def ack(:ack_id, _successful, _failed), do: :ok
 
   # ---------------------------------------------------------------------------

@@ -2001,8 +2001,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   def handle_info({:queue_state, %MediaCentaur.Downloads.QueueState{} = state}, socket) do
     # Pass the items list through to the modal refresh so the modal's
     # download progress updates from the same snapshot the queue zone
-    # is rendering — and without firing the three DB reads that the
-    # previous `Pursuits.status_for/1` path required.
+    # is rendering — and without the DB reads a full `Pursuits.status_from/2`
+    # rebuild would cost on every tick.
     socket =
       socket
       |> assign_queue_from_state(state)

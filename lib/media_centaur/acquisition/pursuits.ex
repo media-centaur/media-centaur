@@ -321,18 +321,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   def header_from(%Pursuit{} = pursuit), do: build_header(pursuit)
 
   @doc """
-  Returns the full `PursuitStatus` view-model for the detail page —
-  identity + current activity + available manual triggers + staleness.
-  """
-  @spec status_for(Ecto.UUID.t()) :: {:ok, PursuitStatus.t()} | {:error, :not_found}
-  def status_for(id) do
-    case fetch(id) do
-      {:error, :not_found} = error -> error
-      {:ok, pursuit} -> {:ok, status_from(pursuit)}
-    end
-  end
-
-  @doc """
   Refreshes only the queue-derived fields of an existing `PursuitStatus`
   view-model against a fresh queue snapshot, without re-reading the
   pursuit, target, or last-event row from the DB.
@@ -341,7 +329,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   modal's download progress updates without firing three Repo queries on
   every snapshot. The static block (state, recipe, staleness, last
   activity) is unchanged — pursuit-lifecycle events still trigger a
-  full reload via `status_for/1`.
+  full reload via `status_from/2`.
   """
   @spec refresh_status_download(PursuitStatus.t(), [MediaCentaur.Downloads.QueueItem.t()]) ::
           PursuitStatus.t()
@@ -377,8 +365,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   @doc """
-  Like `status_for/1` but skips the DB read for the pursuit — for callers
-  that already hold the `%Pursuit{}`. Uses the cached `QueueMonitor`
+  Builds the full `PursuitStatus` view-model — identity, current activity,
+  available manual triggers, staleness — from a `%Pursuit{}` the caller
+  already holds, so there is no DB read. Uses the cached `QueueMonitor`
   snapshot for the live download field; pass a queue items list as the
   second argument to reuse a snapshot the caller already has (saves an
   ETS read on the LiveView's queue-tick path).
@@ -625,15 +614,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     end
   end
 
-  @doc "Returns all targets for a pursuit, newest-inserted first."
-  @spec targets_for(Ecto.UUID.t()) :: [Target.t()]
-  def targets_for(pursuit_id) do
-    Target
-    |> where([t], t.pursuit_id == ^pursuit_id)
-    |> order_by([t], desc: t.inserted_at)
-    |> Repo.all()
-  end
-
   # --- ViewModel assembly ----------------------------------------------------
 
   defp fetch_targets_by_id([]), do: %{}
@@ -741,7 +721,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   # User-facing copy lives with the view model (`PursuitStatus.criteria_summary/1`).
   defp summarize_criteria(map), do: PursuitStatus.criteria_summary(map)
 
-  # --- status_for helpers ----------------------------------------------------
+  # --- status_from helpers ---------------------------------------------------
 
   # `QueryBuilder.build/1` returns `[{query, opts}]` ordered best-to-worst.
   # The UI only needs the query strings, so we strip the opts here. Kept

@@ -7,6 +7,7 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
   `%Payload{}` structs and dispatches to Broadway processors on demand.
   """
   use GenStage
+  @behaviour Broadway.Acknowledger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Pipeline.Payload
@@ -53,6 +54,7 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
     {:noreply, [], state}
   end
 
+  @impl Broadway.Acknowledger
   def ack(:ack_id, _successful, _failed), do: :ok
 
   @doc """

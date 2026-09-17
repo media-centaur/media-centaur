@@ -2,7 +2,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   @moduledoc """
   Display contract for the pursuit detail page.
 
-  Built by `MediaCentaur.Acquisition.Pursuits.status_for/1` — joins the
+  Built by `MediaCentaur.Acquisition.Pursuits.status_from/2` — joins the
   pursuit row with its unit, the unit's current target, and any
   matching download-client queue item, then routes through the pure
   `derive/4` function to produce `current_action`, `next_step`, and

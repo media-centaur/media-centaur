@@ -9,6 +9,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   On startup, sends `{:reconcile, 0}` to trigger watcher rescan (ADR-023).
   """
   use GenStage
+  @behaviour Broadway.Acknowledger
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Pipeline.Discovery.InflightSet
@@ -113,6 +114,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
     {:noreply, [], state}
   end
 
+  @impl Broadway.Acknowledger
   def ack(:ack_id, successful, failed) do
     Enum.each(successful ++ failed, fn %Broadway.Message{data: %Payload{file_path: path}} ->
       InflightSet.release(path)
