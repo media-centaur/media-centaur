@@ -41,7 +41,7 @@ defmodule MediaCentaur.Acquisition.Corpus do
   # `q`). Both nonetheless split the key space, so one movie cached into
   # two rows depending on which subsystem asked and neither could see the
   # other's knowledge. Anything keyed here MUST be passed identically by
-  # every caller reading the same term — `LadderTerms.search_opts/1` and
+  # every caller reading the same term — `SearchTerms.search_opts/1` and
   # `QueryBuilder` are the two places that decide it.
   @keyed_opts [:categories]
 

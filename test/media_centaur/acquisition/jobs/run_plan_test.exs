@@ -81,7 +81,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   end
 
   # Serves results_by_query and reports every live GET search back to
-  # the test process — the descent assertions read the mailbox.
+  # the test process — the search-order assertions read the mailbox.
   defp stub_recording_searches(results_by_query) do
     test_pid = self()
 
@@ -109,8 +109,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end)
   end
 
-  describe "residual-driven descent" do
-    test "an acceptable complete-series pack stops the descent at the series rung" do
+  describe "residual-driven search" do
+    test "an acceptable complete-series pack stops the search at the series scope" do
       stub_recording_searches(%{
         "Sample Show" => [
           release("Sample.Show.S01-02.COMPLETE.1080p.WEB-DL", "series-pack", %{seeders: 20})
@@ -159,7 +159,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert Enum.all?(units, &(&1.status == "unfound"))
     end
 
-    test "season packs satisfy the residual — the episode rung is never searched" do
+    test "season packs satisfy the residual — the episode scope is never searched" do
       stub_recording_searches(%{
         "Sample Show Season 1" => [
           release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
@@ -187,7 +187,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       refute_received {:searched, "Sample Show S02E01"}
     end
 
-    test "episode terms are searched only for units the broader rungs left uncovered" do
+    test "episode terms are searched only for units the wider scopes left uncovered" do
       stub_recording_searches(%{
         "Sample Show Season 1" => [
           release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
@@ -208,7 +208,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       refute_received {:searched, "Sample Show S01E03"}
     end
 
-    test "one wanted episode never grabs the series pack — it descends to the single (the bug)" do
+    test "one wanted episode never grabs the series pack — it narrows to the single (the bug)" do
       stub_recording_searches(%{
         "Sample Show" => [
           release("Sample.Show.S01-02.COMPLETE.1080p.WEB-DL", "series-pack", %{seeders: 900})
@@ -219,8 +219,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       })
 
       # Want just one of season 1's three aired episodes: fit 1/3 < 0.75,
-      # so the series pack is set aside and the descent reaches the
-      # episode rung that the old broad-first halt never ran.
+      # so the series pack is set aside and the search reaches the
+      # episode scope that the old broad-first halt never ran.
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
 
       assert [unit] = Plans.units_for(plan.id)
@@ -250,7 +250,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert unit.offered_size_bytes == 9_000_000_000
     end
 
-    test "a dry show walks the full ladder and reports every unit unfound" do
+    test "a dry show searches every scope and reports every unit unfound" do
       stub_recording_searches(%{})
 
       {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
@@ -289,13 +289,13 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert Enum.find(units, &(&1.episode_number == 2)).assigned_guid == "pack-s1"
       assert Enum.find(units, &(&1.episode_number == 3)).assigned_guid == "pack-s1"
 
-      # Descent was per-unit: only the elevated unit's episode term ran.
+      # The narrowing was per-unit: only the elevated unit's episode term ran.
       assert_received {:searched, "Sample Show S01E01"}
       refute_received {:searched, "Sample Show S01E02"}
       refute_received {:searched, "Sample Show S01E03"}
     end
 
-    test "the descent narrates itself — full itinerary snapshots on acquisition:updates" do
+    test "the search narrates itself — full itinerary snapshots on acquisition:updates" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_updates())
 
       stub_recording_searches(%{
@@ -309,16 +309,16 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       {:ok, _plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}, {1, 3}, {2, 1}])
 
-      assert_received %PlanEvents.DescentStatus{wanted: 4} = series_active
-      assert descent_states(series_active) == [series: :active, seasons: :pending, episodes: :pending]
+      assert_received %PlanEvents.SearchProgress{wanted: 4} = series_active
+      assert progress_states(series_active) == [series: :active, season: :pending, episode: :pending]
 
-      assert_received %PlanEvents.DescentStatus{} = seasons_active
-      assert descent_states(seasons_active) == [series: :done, seasons: :active, episodes: :pending]
+      assert_received %PlanEvents.SearchProgress{} = seasons_active
+      assert progress_states(seasons_active) == [series: :done, season: :active, episode: :pending]
 
-      assert_received %PlanEvents.DescentStatus{} = final
-      assert descent_states(final) == [series: :done, seasons: :done, episodes: :skipped]
-      assert Enum.find(final.stages, &(&1.id == :seasons)).residual_after == 0
-      refute_received %PlanEvents.DescentStatus{}
+      assert_received %PlanEvents.SearchProgress{} = final
+      assert progress_states(final) == [series: :done, season: :done, episode: :skipped]
+      assert Enum.find(final.steps, &(&1.scope == :season)).residual_after == 0
+      refute_received %PlanEvents.SearchProgress{}
     end
   end
 
@@ -480,8 +480,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
             size: 1_000_000_000
           })
         ],
-        # The year-less rung re-surfaces one of the same releases — the
-        # count dedups by guid across rungs.
+        # The year-less term re-surfaces one of the same releases — the
+        # count dedups by guid across terms.
         "Sample Movie" => [
           release("Sample.Movie.2005.720p.WEBRip.x264", "bf-720p", %{
             seeders: 9,
@@ -625,7 +625,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     # physically contain (aired on or before its publish date).
 
     # Season 1 spans two cours — E1–E3 (2023) and E4–E5 (2026). Stubbed
-    # so the post-descent cour pass can segment and detect the later run.
+    # so the post-search cour pass can segment and detect the later run.
     setup do
       TmdbStubs.setup_tmdb_client(self())
 
@@ -680,8 +680,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert Enum.all?(units, &(&1.assigned_guid == nil))
       assert Enum.all?(units, &(&1.offered_guid == nil))
 
-      # Coverage denied → the residual stayed non-empty → the descent
-      # kept going to the episode rung instead of falsely halting.
+      # Coverage denied → the residual stayed non-empty → the search
+      # kept going to the episode scope instead of falsely halting.
       assert_received {:searched, "Sample Show S01E04"}
       assert_received {:searched, "Sample Show S01E05"}
     end
@@ -811,8 +811,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
-  defp descent_states(%PlanEvents.DescentStatus{stages: stages}) do
-    Enum.map(stages, &{&1.id, &1.state})
+  defp progress_states(%PlanEvents.SearchProgress{steps: steps}) do
+    Enum.map(steps, &{&1.scope, &1.state})
   end
 
   describe "TV below-preference counting" do

@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Acquisition.ViewModels.Formatting do
   @moduledoc """
-  Shared text helpers for the acquisition view-models (DescentNarrative,
+  Shared text helpers for the acquisition view-models (SearchProgressPanel,
   PlanBoard). Pure — no DB, no I/O.
   """
 

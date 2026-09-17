@@ -47,7 +47,7 @@ defmodule MediaCentaur.Acquisition.Cours do
   The later run (index > 0) a `{season, episode}` unit belongs to, given
   the season's pre-segmented `runs`. `nil` when the season is a single
   run or the unit is in the first run — the cases where the regular
-  ladder already searches correctly.
+  search terms already cover.
   """
   @spec later_run([CourSegmentation.run()], CourSegmentation.unit()) ::
           CourSegmentation.run() | nil

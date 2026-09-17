@@ -1,21 +1,22 @@
-defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
+defmodule MediaCentaur.Acquisition.Plans.SearchTerms do
   @moduledoc """
-  The coverage ladder's search terms — single source of truth shared by
-  the plan runner (rung by rung, via `series_terms/1` / `season_terms/2`
-  / `episode_terms/2`), the alternatives picker (one unit), and the
-  corpus keys, so none of them can drift on what "this plan's searches"
-  means. `for_plan/2` is exactly the rung constructors concatenated —
-  an invariant pinned by the test suite.
+  A plan's search terms, one constructor per scope — single source of
+  truth shared by the plan runner (scope by scope, via `series_terms/1`
+  / `season_terms/2` / `episode_terms/2`), the alternatives picker (one
+  unit), and the corpus keys, so none of them can drift on what "this
+  plan's searches" means. `for_plan/2` is exactly the scope constructors
+  concatenated — an invariant pinned by the test suite.
 
-  TV terms run broad-to-narrow: the series title, `Title Season N` +
-  `Title SNN` per season, `Title SNNENN` per episode — a narrowing
-  ladder, walked only as far as coverage requires. Movie terms are not a
-  ladder at all: `Title year`, the year-less `Title` and — when the film
-  has a different original-language title — that title are alternate
-  phrasings of the same want, and the runner searches all of them and
-  picks the best of the union. Their order still matters, because an exact tie
-  keeps the earlier (year-matched) candidate. Every title is sanitized
-  via `Search.QueryTerm` (scene names carry no apostrophes).
+  TV terms come in three scopes, widest first: the series title, `Title
+  Season N` + `Title SNN` per season, `Title SNNENN` per episode. The
+  runner decides which scopes to search and in what order; this module
+  only spells the terms. Movie terms have no scope: `Title year`, the
+  year-less `Title` and — when the film has a different
+  original-language title — that title are alternate phrasings of the
+  same want, and the runner searches all of them and picks the best of
+  the union. Their order still matters, because an exact tie keeps the
+  earlier (year-matched) candidate. Every title is sanitized via
+  `Search.TitleForm` (scene names carry no apostrophes).
   """
 
   alias MediaCentaur.Acquisition.Plans.{Plan, PlanUnit}
@@ -40,7 +41,7 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   def search_opts(%Plan{tmdb_type: "movie"}), do: [categories: :movie]
   def search_opts(%Plan{tmdb_type: "tv"}), do: [categories: :tv]
 
-  @doc "Every ladder term for the plan's wanted `{season, episode}` units."
+  @doc "Every search term for the plan's wanted `{season, episode}` units, widest scope first."
   @spec for_plan(Plan.t(), [{pos_integer(), pos_integer()}]) :: [search_term()]
   def for_plan(%Plan{tmdb_type: "movie"} = plan, _wanted), do: movie_terms(plan)
 
@@ -49,12 +50,12 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
     series_terms(plan) ++ season_terms(plan, seasons) ++ episode_terms(plan, wanted)
   end
 
-  @doc "The broadest rung — one term for an all-in-one release."
+  @doc "The series scope — one term for an all-in-one release."
   @spec series_terms(Plan.t()) :: [search_term()]
   def series_terms(%Plan{tmdb_type: "tv"} = plan), do: [title(plan)]
 
   @doc """
-  The season rung — both text forms per season, broad-to-narrow within the rung.
+  The season scope — both text forms per season, the long form first.
 
   Expects unique, ascending seasons (the residual derivation provides this).
   """
@@ -65,7 +66,7 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
     end)
   end
 
-  @doc "The episode rung — one term per `{season, episode}` unit."
+  @doc "The episode scope — one term per `{season, episode}` unit."
   @spec episode_terms(Plan.t(), [{pos_integer(), pos_integer()}]) :: [search_term()]
   def episode_terms(%Plan{tmdb_type: "tv"} = plan, units) do
     Enum.map(units, fn {season, episode} ->
@@ -73,7 +74,7 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
     end)
   end
 
-  @doc "The ladder terms that can cover ONE unit: series, its season, its episode."
+  @doc "The terms that can cover ONE unit: series, its season, its episode."
   @spec for_unit(Plan.t(), PlanUnit.t()) :: [search_term()]
   def for_unit(%Plan{tmdb_type: "movie"} = plan, %PlanUnit{}), do: movie_terms(plan)
 

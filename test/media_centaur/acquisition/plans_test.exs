@@ -128,12 +128,12 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     end)
   end
 
-  # The exclusion replan legitimately descends to the episode rung for
+  # The exclusion replan legitimately narrows to the episode scope for
   # the newly-uncovered units — those terms were never searched in the
   # first pass (the pack covered them), so they aren't fresh. The
-  # broad rungs MUST still come from the corpus: a series/season
+  # wider scopes MUST still come from the corpus: a series/season
   # re-search here would be the consult-first regression this guards.
-  defp poison_broad_searches_allow_episode_descent do
+  defp poison_wide_searches_allow_episode_terms do
     Req.Test.stub(:prowlarr, fn conn ->
       case {conn.method, conn.request_path} do
         # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
@@ -151,7 +151,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
           %{"query" => query} = URI.decode_query(conn.query_string)
 
           if !(query =~ ~r/S\d{2}E\d{2}$/) do
-            raise "broad rung searched (#{query}) despite a fresh corpus"
+            raise "wide scope searched (#{query}) despite a fresh corpus"
           end
 
           results =
@@ -352,9 +352,9 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert s2_unit.status == "unfound"
 
       # ── Steer: "not this release" on the pack. The replan re-reads
-      # the fresh corpus for the broad rungs and descends live only to
+      # the fresh corpus for the wider scopes and goes live only for
       # the episode terms the first pass never needed. ──────────────────
-      poison_broad_searches_allow_episode_descent()
+      poison_wide_searches_allow_episode_terms()
 
       [first_s1 | _] = s1_units
       assert {:ok, _plan} = Plans.exclude_release(first_s1.id, "pack-s1")
@@ -516,7 +516,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       [first_unit | _rest] = units
 
-      # The descent stopped at the season rung, so the corpus holds
+      # The search stopped at the season scope, so the corpus holds
       # nothing deeper — the picker starts honest and empty.
       assert {:ok, []} = Plans.Alternatives.for_unit(first_unit.id)
 
@@ -564,7 +564,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       # Taking the CTA (exclude the container, re-solve) resolves the
       # overlap and keeps the user's narrower choice. The replan's episode
-      # descent for E02/E03 legitimately goes live — allow it, empty.
+      # search for E02/E03 legitimately goes live — allow it, empty.
       Req.Test.stub(:prowlarr, fn conn ->
         case conn.method do
           "POST" -> Req.Test.json(conn, %{"approved" => true})
@@ -738,7 +738,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
     test "movie plans: a drifted release year descends to the year-less term and still matches" do
       # TMDB says 2000 (theatrical); every release says 1999 (festival
-      # premiere). The year term finds nothing; the year-less rung plus
+      # premiere). The year term finds nothing; the year-less term plus
       # the ±1 year tolerance land the release.
       stub_movie_searches(%{
         "Sample Movie" => [

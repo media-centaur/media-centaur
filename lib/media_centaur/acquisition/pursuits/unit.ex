@@ -46,7 +46,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Unit do
     field :state, :string, default: "active"
     # Stable ordering inside the composite, derived from season/episode
     # at creation time (`Pursuits.UnitOrder`). Governs both display and
-    # the order the residual-driven descent searches/grabs units; no
+    # the order the residual-driven search searches/grabs units; no
     # uniqueness guarantee.
     field :position, :integer, default: 0
     # Display name for the unit ("S01E03", an expanded query). Nullable —

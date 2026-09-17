@@ -21,7 +21,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     wants aired episodes by construction. Outranked by blind (fix the
     fault regardless) and by below-preference (real releases exist, so
     "not out" would be false).
-  * `:no_evidence` — no ladder term has a corpus record (never
+  * `:no_evidence` — no search term has a corpus record (never
     searched, search failed, or pruned past retention).
   * `:rejected` — raw results exist, none qualified. Movie plans get
     the escape hatch (`show_rejected?`); TV stays aggregate.
@@ -30,17 +30,17 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   * `:nothing_stale` — zero raw results, but the knowledge is older
     than the freshness window; Search again is the remedy.
   * `:searching` — the board is still planning: the headline says what
-    the descent is doing right now (`searching/1`, from a
-    `PlanEvents.DescentStatus`) or, before the first event, what it is
+    the search is doing right now (`searching/1`, from a
+    `PlanEvents.SearchProgress`) or, before the first event, what it is
     about to do (`searching_initial/1`). One verdict slot for the board
-    in every state — the expectation panel's rows (`DescentNarrative`)
+    in every state — the expectation panel's rows (`SearchProgressPanel`)
     sit beneath it and never headline (UIDR-029, audit DS24).
 
   Pure — the LiveView assigns the built struct (ADR-030).
   """
 
   alias MediaCentaur.Acquisition.Corpus
-  alias MediaCentaur.Acquisition.PlanEvents.DescentStatus
+  alias MediaCentaur.Acquisition.PlanEvents.SearchProgress
   alias MediaCentaur.Acquisition.ViewModels.GapEvidence
   alias MediaCentaur.Format
   alias MediaCentaur.Search.IndexerHealth
@@ -151,25 +151,25 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
 
   @planning_headline "Planning the search — broadest releases first, drilling down only for what's still missing."
 
-  @doc "The searching verdict before the first descent event — the strategy, as a promise."
+  @doc "The searching verdict before the first progress event — the strategy, as a promise."
   @spec searching_initial(pos_integer()) :: t()
   def searching_initial(_wanted), do: %__MODULE__{world: :searching, headline: @planning_headline}
 
   @doc """
-  The searching verdict for a live descent snapshot: the active rung and
-  its residual. `nil` once the descent has finished — the ready board's
-  verdict (or its kept releases) speaks then.
+  The searching verdict for a live progress snapshot: the active step
+  and its residual. `nil` once the search has finished — the ready
+  board's verdict (or its kept releases) speaks then.
   """
-  @spec searching(DescentStatus.t()) :: t() | nil
-  def searching(%DescentStatus{stages: stages, wanted: wanted}) do
+  @spec searching(SearchProgress.t()) :: t() | nil
+  def searching(%SearchProgress{steps: steps, wanted: wanted}) do
     cond do
-      active = Enum.find(stages, &(&1.state == :active)) ->
+      active = Enum.find(steps, &(&1.state == :active)) ->
         %__MODULE__{
           world: :searching,
-          headline: active_headline(active.id, residual_before_active(stages, wanted))
+          headline: active_headline(active.scope, residual_before_active(steps, wanted))
         }
 
-      Enum.all?(stages, &(&1.state == :pending)) ->
+      Enum.all?(steps, &(&1.state == :pending)) ->
         %__MODULE__{world: :searching, headline: @planning_headline}
 
       true ->
@@ -180,14 +180,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   defp active_headline(:series, _residual),
     do: "First, looking for one release that covers the whole show…"
 
-  defp active_headline(:seasons, residual),
+  defp active_headline(:season, residual),
     do: "Now searching season packs — #{count(residual, "episode")} still #{need(residual)} coverage…"
 
-  defp active_headline(:episodes, residual),
+  defp active_headline(:episode, residual),
     do: "Now hunting individual episodes — #{count(residual, "episode")} still uncovered…"
 
-  defp residual_before_active(stages, wanted) do
-    stages
+  defp residual_before_active(steps, wanted) do
+    steps
     |> Enum.take_while(&(&1.state != :active))
     |> Enum.filter(&(&1.state == :done))
     |> List.last()
@@ -302,7 +302,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   end
 
   # Movies list the literal query strings (there are at most two); TV
-  # ladders run too many terms to enumerate, so the count carries it.
+  # searches run too many terms to enumerate, so the count carries it.
   defp intro(evidence, true), do: "Searched #{quoted_terms(evidence.searches)}"
   defp intro(%{searches: [_single]}, false), do: "1 search"
   defp intro(evidence, false), do: "#{length(evidence.searches)} searches"

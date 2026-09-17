@@ -20,7 +20,7 @@ defmodule MediaCentaur.Acquisition.PlanEvents do
   end
 
   defmodule SearchActivity do
-    @moduledoc "One ladder search ran (live activity feed fodder): the term and how it resolved."
+    @moduledoc "One search term ran (live activity feed fodder): the term and how it resolved."
 
     @enforce_keys [:plan_id, :term, :outcome]
     defstruct [:plan_id, :term, :outcome, result_count: 0]
@@ -33,21 +33,28 @@ defmodule MediaCentaur.Acquisition.PlanEvents do
           }
   end
 
-  defmodule DescentStatus do
+  defmodule SearchProgress do
     @moduledoc """
-    Itinerary snapshot for the coverage-ladder descent (TV plans): every
-    rung with its state, so the board can narrate what will happen,
-    what's happening, and what changed. Each broadcast carries the FULL
-    snapshot — subscribers replace, never merge, so a modal opened
-    mid-run self-heals on the next event.
+    Itinerary snapshot of a TV plan's search: every step — one scope
+    (series, season, episode) searched for one purpose — with its
+    state, so the board can narrate what will happen, what's happening,
+    and what changed. A `:primary` step may assign what it finds; a
+    `:fallback` step only gathers packs to offer. Each broadcast carries
+    the FULL snapshot — subscribers replace, never merge, so a modal
+    opened mid-run self-heals on the next event.
     """
 
-    @enforce_keys [:plan_id, :wanted, :stages]
-    defstruct [:plan_id, :wanted, :stages]
+    @enforce_keys [:plan_id, :wanted, :steps]
+    defstruct [:plan_id, :wanted, :steps]
 
-    @type stage :: %{
-            id: :series | :seasons | :episodes,
-            state: :pending | :active | :done | :skipped,
+    @type scope :: :series | :season | :episode
+    @type kind :: :primary | :fallback
+    @type state :: :pending | :active | :done | :skipped
+
+    @type step :: %{
+            scope: scope(),
+            kind: kind(),
+            state: state(),
             term_count: non_neg_integer() | nil,
             residual_after: non_neg_integer() | nil
           }
@@ -55,7 +62,7 @@ defmodule MediaCentaur.Acquisition.PlanEvents do
     @type t :: %__MODULE__{
             plan_id: Ecto.UUID.t() | nil,
             wanted: pos_integer(),
-            stages: [stage()]
+            steps: [step()]
           }
   end
 end

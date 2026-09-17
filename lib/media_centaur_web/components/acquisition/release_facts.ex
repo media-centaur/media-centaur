@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
   * **quality** — tier-colored bold label (4K healthy-green, 1080p info,
     muted otherwise, "Unknown" when the release doesn't say). Plain
     colored text, never a badge (the badge convention). Accepts the search
-    ladder's atoms and the plan board's pre-labeled strings.
+    quality atoms and the plan board's pre-labeled strings.
   * **source** — muted label parsed from the title (`Quality.source_label/1`,
     ADR-061): Remux / WEB-DL / BluRay / WEBRip / HDTV; absent when the
     title carries no source token. Makes the within-tier pick legible.
@@ -96,7 +96,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
 
   @doc """
   Tier color for a quality value — the same signal whether the caller
-  holds the search ladder's atom or the plan board's label string.
+  holds the search's quality atom or the plan board's label string.
   """
   @spec quality_color(atom() | String.t() | nil) :: String.t()
   def quality_color(quality) when quality in [:uhd_4k, "4K", "2160p"], do: "text-success"

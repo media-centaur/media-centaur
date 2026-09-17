@@ -5,7 +5,7 @@ defmodule MediaCentaur.Acquisition.Planner do
 
       Coverage → Consolidation → User preference → Health
 
-  and the automatic granularity ladder (complete series → season range
+  and the scopes it may take (complete series → season range
   → season pack → episode span → single episode). The user picks
   *what* they want; this module picks *how*.
 

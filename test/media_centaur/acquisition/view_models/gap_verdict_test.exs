@@ -6,18 +6,19 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
 
   @now ~U[2026-08-11 12:00:00Z]
 
-  alias MediaCentaur.Acquisition.PlanEvents.DescentStatus
+  alias MediaCentaur.Acquisition.PlanEvents.SearchProgress
 
-  defp stage(id, state, attrs \\ []) do
+  defp step(scope, state, attrs \\ []) do
     %{
-      id: id,
+      scope: scope,
+      kind: Keyword.get(attrs, :kind, :primary),
       state: state,
       term_count: Keyword.get(attrs, :term_count),
       residual_after: Keyword.get(attrs, :residual_after)
     }
   end
 
-  defp descent(stages, wanted), do: %DescentStatus{plan_id: "plan-1", wanted: wanted, stages: stages}
+  defp progress(steps, wanted), do: %SearchProgress{plan_id: "plan-1", wanted: wanted, steps: steps}
 
   describe "the searching world (a planning board's one verdict slot — UIDR-029, audit DS24)" do
     test "before any event lands it narrates the strategy" do
@@ -28,13 +29,13 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
       assert verdict.evidence_line == nil
     end
 
-    test "an active rung headlines what's happening with the live residual" do
+    test "an active step headlines what's happening with the live residual" do
       status =
-        descent(
+        progress(
           [
-            stage(:series, :done, residual_after: 4),
-            stage(:seasons, :active, term_count: 2),
-            stage(:episodes, :pending)
+            step(:series, :done, residual_after: 4),
+            step(:season, :active, term_count: 2),
+            step(:episode, :pending)
           ],
           6
         )
@@ -44,19 +45,19 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
     end
 
     test "a single-episode residual reads grammatically" do
-      status = descent([stage(:series, :done, residual_after: 1), stage(:seasons, :active)], 6)
+      status = progress([step(:series, :done, residual_after: 1), step(:season, :active)], 6)
 
       assert GapVerdict.searching(status).headline ==
                "Now searching season packs — 1 episode still needs coverage…"
     end
 
-    test "the episodes rung names the hunt" do
+    test "the episode scope names the hunt" do
       status =
-        descent(
+        progress(
           [
-            stage(:series, :done, residual_after: 3),
-            stage(:seasons, :done, residual_after: 1),
-            stage(:episodes, :active, term_count: 1)
+            step(:series, :done, residual_after: 3),
+            step(:season, :done, residual_after: 1),
+            step(:episode, :active, term_count: 1)
           ],
           6
         )
@@ -65,15 +66,15 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
                "Now hunting individual episodes — 1 episode still uncovered…"
     end
 
-    test "all rungs pending narrates the strategy" do
+    test "all steps pending narrates the strategy" do
       status =
-        descent([stage(:series, :pending), stage(:seasons, :pending), stage(:episodes, :pending)], 6)
+        progress([step(:series, :pending), step(:season, :pending), step(:episode, :pending)], 6)
 
       assert GapVerdict.searching(status).headline =~ "Planning the search"
     end
 
-    test "a finished descent has no searching verdict — the ready board's verdict takes over" do
-      status = descent([stage(:series, :done, residual_after: 0), stage(:seasons, :skipped)], 6)
+    test "a finished search has no searching verdict — the ready board's verdict takes over" do
+      status = progress([step(:series, :done, residual_after: 0), step(:season, :skipped)], 6)
       assert GapVerdict.searching(status) == nil
     end
   end

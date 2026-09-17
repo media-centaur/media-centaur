@@ -8,13 +8,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   preference, UIDR-029), unfound (amber hollow) — is the same language
   the pursuit card's segmented progress and the UnitBoard drill-down
   speak. A ready board leads with the adaptive verdict headline and
-  demotes the descent narrative to a "How we searched" disclosure.
+  demotes the search-progress panel to a "How we searched" disclosure.
   """
 
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Acquisition.Targeting
-  alias MediaCentaur.Acquisition.ViewModels.DescentNarrative
+  alias MediaCentaur.Acquisition.ViewModels.SearchProgressPanel
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict}
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Library.Person
@@ -179,7 +179,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :board_planning,
         description:
-          "Mid-flight — the expectation panel narrates the descent (done/active/pending rungs), " <>
+          "Mid-flight — the expectation panel narrates the search (done/active/pending steps), " <>
             "dashed searching cells, the activity ticker, no spinner-only state. The footer is a " <>
             "one-press Stop searching (no confirmation — nothing is lost by stopping); Discard " <>
             "with confirmation belongs to ready boards only (UIDR-029).",
@@ -188,22 +188,25 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           stage: :board,
           board: board(:planning),
           gap_verdict: gap_verdict(:searching),
-          descent: %DescentNarrative.View{
+          search_progress: %SearchProgressPanel.View{
             rows: [
-              %DescentNarrative.Row{
-                id: :series,
+              %SearchProgressPanel.Row{
+                scope: :series,
+                kind: :primary,
                 state: :done,
                 label: "Complete series",
                 detail: "nothing usable found"
               },
-              %DescentNarrative.Row{
-                id: :seasons,
+              %SearchProgressPanel.Row{
+                scope: :season,
+                kind: :primary,
                 state: :active,
                 label: "Season packs",
                 detail: "searching — 4 terms…"
               },
-              %DescentNarrative.Row{
-                id: :episodes,
+              %SearchProgressPanel.Row{
+                scope: :episode,
+                kind: :primary,
                 state: :pending,
                 label: "Individual episodes",
                 detail: "single episodes, only for what's still missing"
@@ -316,7 +319,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :board_gap_no_evidence,
         description:
-          "No ladder term has a corpus record (search failed or records aged out) — an " <>
+          "No search term has a corpus record (search failed or records aged out) — an " <>
             "unknown, not a verdict.",
         attributes: %{
           open: true,
@@ -487,7 +490,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             "has SD. One episode found at the preference, the rest available only lower — the " <>
             "verdict headline states it, the grouped row carries the one decision (Take lower " <>
             "quality for this show) with the scope note, below-preference cells read as " <>
-            "info-tinted availability rather than amber gaps, and the rung narrative sits in " <>
+            "info-tinted availability rather than amber gaps, and the search-progress rows sit in " <>
             "the collapsed How-we-searched disclosure.",
         attributes: %{
           open: true,
@@ -495,7 +498,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           backdrop_url: @sample_backdrop,
           board: board(:below_preference_tv),
           gap_verdict: gap_verdict(:below_preference_tv),
-          descent: descent(:finished_below),
+          search_progress: search_progress(:finished_below),
           last_activity: "24 searches · 3 indexers · live just now"
         }
       },
@@ -857,23 +860,26 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     }
   end
 
-  defp descent(:finished_below) do
-    %DescentNarrative.View{
+  defp search_progress(:finished_below) do
+    %SearchProgressPanel.View{
       rows: [
-        %DescentNarrative.Row{
-          id: :series,
+        %SearchProgressPanel.Row{
+          scope: :series,
+          kind: :primary,
           state: :done,
           label: "Complete series",
           detail: "nothing usable found"
         },
-        %DescentNarrative.Row{
-          id: :seasons,
+        %SearchProgressPanel.Row{
+          scope: :season,
+          kind: :primary,
           state: :done,
           label: "Season packs",
           detail: "covered 1 episode — 7 still missing"
         },
-        %DescentNarrative.Row{
-          id: :episodes,
+        %SearchProgressPanel.Row{
+          scope: :episode,
+          kind: :primary,
           state: :done,
           label: "Individual episodes",
           detail: "nothing usable found"
@@ -883,13 +889,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   end
 
   defp gap_verdict(:searching) do
-    GapVerdict.searching(%MediaCentaur.Acquisition.PlanEvents.DescentStatus{
+    GapVerdict.searching(%MediaCentaur.Acquisition.PlanEvents.SearchProgress{
       plan_id: "story",
       wanted: 6,
-      stages: [
-        %{id: :series, state: :done, term_count: 1, residual_after: 2},
-        %{id: :seasons, state: :active, term_count: 4, residual_after: nil},
-        %{id: :episodes, state: :pending, term_count: nil, residual_after: nil}
+      steps: [
+        %{scope: :series, kind: :primary, state: :done, term_count: 1, residual_after: 2},
+        %{scope: :season, kind: :primary, state: :active, term_count: 4, residual_after: nil},
+        %{scope: :episode, kind: :primary, state: :pending, term_count: nil, residual_after: nil}
       ]
     })
   end

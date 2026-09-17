@@ -110,10 +110,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: nil,
     doc: "Latest PlanEvents.SearchActivity line for the board's ticker, or nil."
 
-  attr :descent, :any,
+  attr :search_progress, :any,
     default: nil,
     doc:
-      "%DescentNarrative.View{} | nil — the board's expectation rows (TV plans); the headline is `gap_verdict`'s searching world."
+      "%SearchProgressPanel.View{} | nil — the board's expectation rows (TV plans); the headline is `gap_verdict`'s searching world."
 
   attr :alternatives, :any,
     default: nil,
@@ -229,7 +229,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           alternatives={@alternatives}
           approving={@approving}
           last_activity={@last_activity}
-          descent={@descent}
+          search_progress={@search_progress}
           search_health={@search_health}
           gap_verdict={@gap_verdict}
           rejected={@rejected}
@@ -535,9 +535,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :approving, :boolean, required: true
   attr :last_activity, :string, required: true
 
-  attr :descent, :any,
+  attr :search_progress, :any,
     required: true,
-    doc: "%DescentNarrative.View{} | nil — typed at the public attr."
+    doc: "%SearchProgressPanel.View{} | nil — typed at the public attr."
 
   attr :search_health, :any,
     required: true,
@@ -655,17 +655,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </div>
 
         <div
-          :if={@descent && @board.status == :planning}
+          :if={@search_progress && @board.status == :planning}
           class="glass-inset rounded-lg px-4 py-3 space-y-2"
         >
           <%!-- The board's one verdict slot while planning (UIDR-029): the
-                searching world's headline, over the rung rows. --%>
+                searching world's headline, over the step rows. --%>
           <p :if={@gap_verdict} class="text-sm text-base-content/70">{@gap_verdict.headline}</p>
-          <.descent_rows descent={@descent} />
+          <.search_progress_rows search_progress={@search_progress} />
         </div>
 
         <details
-          :if={@descent && @board.status != :planning}
+          :if={@search_progress && @board.status != :planning}
           id="plan-how-we-searched"
           class="glass-inset rounded-lg px-4 py-3"
         >
@@ -673,7 +673,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             How we searched
           </summary>
           <div class="mt-2 space-y-2">
-            <.descent_rows descent={@descent} />
+            <.search_progress_rows search_progress={@search_progress} />
           </div>
         </details>
       </div>
@@ -1081,12 +1081,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     """
   end
 
-  attr :descent, :any, required: true, doc: "%DescentNarrative.View{} — typed at the public attr."
+  attr :search_progress, :any,
+    required: true,
+    doc: "%SearchProgressPanel.View{} — typed at the public attr."
 
-  defp descent_rows(assigns) do
+  defp search_progress_rows(assigns) do
     ~H"""
-    <div :for={row <- @descent.rows} class="flex items-center gap-2 text-xs">
-      <span class={["size-1.5 rounded-full flex-shrink-0", descent_dot(row.state)]}></span>
+    <div :for={row <- @search_progress.rows} class="flex items-center gap-2 text-xs">
+      <span class={["size-1.5 rounded-full flex-shrink-0", progress_dot(row.state)]}></span>
       <span class={[
         "w-32 flex-shrink-0 text-base-content/60",
         row.state == :skipped && "line-through text-base-content/55"
@@ -1200,7 +1202,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     }
   end
 
-  defp descent_dot(:active), do: "bg-info animate-pulse"
-  defp descent_dot(:done), do: "bg-success/70"
-  defp descent_dot(_pending_or_skipped), do: "bg-base-content/20"
+  defp progress_dot(:active), do: "bg-info animate-pulse"
+  defp progress_dot(:done), do: "bg-success/70"
+  defp progress_dot(_pending_or_skipped), do: "bg-base-content/20"
 end

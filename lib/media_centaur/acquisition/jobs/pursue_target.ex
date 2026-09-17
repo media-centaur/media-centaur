@@ -210,7 +210,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   }
 
   # Movie queries are alternate phrasings of ONE want; TV queries are a
-  # narrowing ladder over a unit that is either covered or not. So movies
+  # narrowing sequence of scopes over a unit that is either covered or not. So movies
   # exhaust every query and keep the best, while TV still stops at the
   # first query that satisfies the unit. The two function names carry the
   # difference.

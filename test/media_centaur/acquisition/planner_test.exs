@@ -166,7 +166,7 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
     end
   end
 
-  describe "solve/3 — the coverage ladder" do
+  describe "solve/3 — coverage across scopes" do
     test "coverage first: a pack covering more wanted units beats higher-quality singles" do
       wanted = [{1, 1}, {1, 2}, {1, 3}]
 
