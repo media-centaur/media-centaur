@@ -26,6 +26,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   }
 
   alias MediaCentaur.Downloads.QueueMonitor
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Repo
   alias MediaCentaur.Review
 
@@ -348,7 +349,14 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     download = QueueMatcher.to_download(queue_item)
 
     {current_action, next_step, actions} =
-      PursuitStatus.derive(status.pursuit, status.unit, status.target, queue_item)
+      PursuitStatus.derive(
+        status.pursuit,
+        status.unit,
+        status.target,
+        queue_item,
+        :none,
+        held: held_integration()
+      )
 
     {current_action, downloads, downloads_done} =
       PursuitStatus.compose_downloads(
@@ -393,7 +401,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     location = download_location(target, Review.pending_file_paths())
 
     {current_action, next_step, actions} =
-      PursuitStatus.derive(pursuit, unit, target, queue_item, location)
+      PursuitStatus.derive(pursuit, unit, target, queue_item, location, held: held_integration())
 
     {current_action, downloads, downloads_done} =
       PursuitStatus.compose_downloads(current_action, all_downloads(pursuit, target, queue_items))
@@ -421,6 +429,27 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       unit: unit,
       target: target
     }
+  end
+
+  # What a seeking target is waiting on, for the Waiting copy. A held
+  # pursuit leaves no trace on its target — no request, no attempt, no
+  # stamp — so the view-model has to be told. Prowlarr down outranks a
+  # hand-off (nothing gets as far as a grab), and either slot's hand-off
+  # counts: a seeking target has not chosen a protocol yet.
+  defp held_integration do
+    cond do
+      not IntegrationAvailability.up?(:prowlarr) ->
+        :prowlarr
+
+      Enum.any?(
+        IntegrationAvailability.handoff_slots(),
+        &(not IntegrationAvailability.up?({:handoff, &1}))
+      ) ->
+        :handoff
+
+      true ->
+        nil
+    end
   end
 
   # The thread the detail modal renders — Units.lead_of/1 is the single

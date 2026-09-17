@@ -116,6 +116,78 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     end
   end
 
+  describe "derive/5 — held on a down integration" do
+    test "Prowlarr down reads as waiting on Prowlarr, with no attempt clock" do
+      {action, next_step, actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          unit(),
+          target(:seeking, %{attempt_count: 2, next_attempt_at: nil}),
+          nil,
+          :none,
+          held: :prowlarr
+        )
+
+      assert action.verb == "Waiting"
+      assert action.severity == :warning
+      assert action.description == "Prowlarr is unreachable. Resumes when it answers again."
+      assert next_step == nil
+      assert :cancel in actions
+    end
+
+    test "the hand-off down reads as waiting on the download client" do
+      {action, _next_step, _actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          unit(),
+          target(:seeking),
+          nil,
+          :none,
+          held: :handoff
+        )
+
+      assert action.verb == "Waiting"
+
+      assert action.description ==
+               "Prowlarr could not reach your download client. Resumes when it can."
+    end
+
+    test "nothing held keeps today's copy" do
+      {action, _next_step, _actions} =
+        PursuitStatus.derive(pursuit(:active), unit(), target(:seeking), nil, :none, held: nil)
+
+      assert action.description == "Looking for an acceptable release (attempt 1)."
+    end
+
+    test "a pending decision outranks the hold — the pick is still the user's" do
+      {action, _next_step, _actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          unit(%{awaiting_decision_at: DateTime.utc_now()}),
+          target(:seeking),
+          nil,
+          :none,
+          held: :prowlarr
+        )
+
+      assert action.verb == "Decision needed"
+    end
+
+    test "a target that is not seeking ignores the hold" do
+      {action, _next_step, _actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired),
+          nil,
+          :none,
+          held: :prowlarr
+        )
+
+      assert action.verb == "Downloaded"
+    end
+  end
+
   describe "derive/3 — active + acquired + queue states" do
     test "downloading -> Downloading, cancel only" do
       {action, _next, actions} =
