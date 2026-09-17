@@ -125,6 +125,11 @@ defmodule MediaCentaurWeb.ConsoleComponents do
     default: true,
     doc: "render the component badge; false on single-component surfaces where it is noise"
 
+  attr :show_timestamp, :boolean,
+    default: true,
+    doc:
+      "render the entry's arrival time; false where the source writes its own timestamp into the message (the systemd journal), which would otherwise print twice — and disagree, because a backlog seeded on subscribe all arrives at once"
+
   def log_line(assigns) do
     ~H"""
     <div
@@ -134,7 +139,9 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       data-component={@entry.component}
       data-message={View.entry_search_text(@entry)}
     >
-      <span class="console-timestamp">{View.format_timestamp(@entry.timestamp)}</span>
+      <span :if={@show_timestamp} class="console-timestamp">
+        {View.format_timestamp(@entry.timestamp)}
+      </span>
       <span
         :if={@show_component}
         class={["console-component-badge", View.component_badge_class(@entry.component)]}

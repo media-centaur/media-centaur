@@ -558,6 +558,27 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     defp position(html, needle), do: html |> :binary.match(needle) |> elem(0)
   end
 
+  describe "systemd journal panel" do
+    # The BEAM runs under no systemd unit in the test environment, so
+    # `Console.journal_available?/0` is false and the control never renders.
+    # That is the default path on every install that isn't running the
+    # service — a laptop `mix phx.server`, a container — and the panel has to
+    # stay out of the rail there rather than offer a disclosure onto nothing.
+    #
+    # The subscribe/unsubscribe transitions are pure and live in
+    # `StatusLive.JournalPanel` (journal_panel_test.exs); the refcount and
+    # port lifecycle they drive are covered against a named instance in
+    # `MediaCentaur.Console.JournalSourceTest`.
+    test "the System drill-in offers no journal where no unit is detected", %{conn: conn} do
+      refute MediaCentaur.Console.journal_available?()
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=system")
+
+      assert has_element?(view, "#health-drill-in")
+      refute has_element?(view, "#subsystem-journal")
+    end
+  end
+
   defp put_config(key, value) do
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))

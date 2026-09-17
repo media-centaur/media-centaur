@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
+  alias MediaCentaurWeb.StatusLive.JournalPanel
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaur.Watcher
@@ -84,7 +85,14 @@ defmodule MediaCentaurWeb.StatusLive do
        show_report_modal: false,
        report_payload: nil,
        report_snapshot: nil,
-       self_update_apply_progress: nil
+       self_update_apply_progress: nil,
+       # Unit detection is immutable over the BEAM's lifetime, so this is read
+       # once and never refreshed. Un-gated on `connected?` (ADR-051): it is a
+       # call to a supervised singleton holding a stored boolean, and gating it
+       # would flash the control in on the second render.
+       journal_available: Console.journal_available?(),
+       journal_open: false,
+       journal_lines: []
      )}
   end
 
@@ -225,6 +233,7 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply,
      socket
      |> assign_log_panel(subsystem)
+     |> assign_journal(subsystem)
      |> assign(
        selected_subsystem: subsystem,
        selected_incident: parse_incident(params, socket.assigns.error_buckets)
@@ -241,6 +250,49 @@ defmodule MediaCentaurWeb.StatusLive do
   defp assign_log_panel(socket, subsystem) do
     assign(socket, log_lines: Console.read(HealthBoard.log_filter(subsystem), @log_panel_lines))
   end
+
+  # --- Systemd journal panel ---
+  #
+  # Unlike the log panel above, the journal is NOT held for the page's
+  # lifetime: `Console.JournalSource` refcounts its subscribers and runs
+  # `journalctl -f` only while someone is reading, so the subscription is taken
+  # on expand and released on every path that takes the panel away. Navigating
+  # out of the System drill-in is one of those paths — without this the OS
+  # process outlives the reader by the life of the VM.
+  defp assign_journal(socket, subsystem) do
+    was = socket.assigns.journal_open
+    apply_journal(socket, was, JournalPanel.open_on?(was, subsystem))
+  end
+
+  defp apply_journal(socket, was, now) do
+    case JournalPanel.action(was, now) do
+      :subscribe -> subscribe_journal(socket)
+      :unsubscribe -> release_journal(socket)
+      :none -> socket
+    end
+  end
+
+  defp subscribe_journal(socket) do
+    case Console.journal_subscribe() do
+      {:ok, entries} ->
+        assign(socket, journal_open: true, journal_lines: journal_seed(entries))
+
+      # The unit went away between mount and the click (or was never there on
+      # a dead render): drop the control rather than leave a button that opens
+      # onto nothing.
+      {:error, :no_unit_detected} ->
+        assign(socket, journal_available: false, journal_open: false, journal_lines: [])
+    end
+  end
+
+  defp release_journal(socket) do
+    :ok = Console.journal_unsubscribe()
+    assign(socket, journal_open: false, journal_lines: [])
+  end
+
+  # The rail reads newest-first, like the ring panel above it; the journal's
+  # own snapshot arrives oldest-first, the order `journalctl -f` writes in.
+  defp journal_seed(entries), do: entries |> Enum.reverse() |> Enum.take(@log_panel_lines)
 
   defp parse_subsystem(%{"subsystem" => raw}) do
     atom = safe_existing_atom(raw)
@@ -345,6 +397,13 @@ defmodule MediaCentaurWeb.StatusLive do
   @impl true
   def handle_event("select_subsystem", %{"subsystem" => subsystem}, socket) do
     {:noreply, push_patch(socket, to: status_path(subsystem, nil))}
+  end
+
+  # Expanding is what subscribes — an assign rather than a `<details>`,
+  # because opening the tile must not spawn `journalctl` for a passer-by.
+  def handle_event("toggle_journal", _params, socket) do
+    was = socket.assigns.journal_open
+    {:noreply, apply_journal(socket, was, not was)}
   end
 
   def handle_event("close_subsystem", _params, socket) do
@@ -606,6 +665,20 @@ defmodule MediaCentaurWeb.StatusLive do
     end
   end
 
+  # --- Systemd journal panel ---
+  #
+  # Lines keep arriving through the debounced close window after a collapse,
+  # so the open flag — not the subscription — is what decides whether they are
+  # kept.
+  def handle_info({:journal_line, entry}, %{assigns: %{journal_open: true}} = socket) do
+    lines = Enum.take([entry | socket.assigns.journal_lines], @log_panel_lines)
+    {:noreply, assign(socket, :journal_lines, lines)}
+  end
+
+  def handle_info({:journal_reset}, %{assigns: %{journal_open: true}} = socket) do
+    {:noreply, assign(socket, :journal_lines, journal_seed(Console.journal_snapshot()))}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -698,6 +771,13 @@ defmodule MediaCentaurWeb.StatusLive do
               <:activity :if={ActivityWidgets.widget_for(@selected_subsystem)}>
                 {ActivityWidgets.render(@selected_subsystem, activity_bundle(assigns))}
               </:activity>
+              <%!-- The journal is the service's, not a subsystem's, so it
+                    hangs off System — the drill-in that already owns the
+                    running process. Absent where no systemd unit is
+                    detected. --%>
+              <:rail :if={@journal_available and @selected_subsystem == :system}>
+                <.journal_panel lines={@journal_lines} open={@journal_open} />
+              </:rail>
             </.health_drill_in>
           </div>
         </div>
