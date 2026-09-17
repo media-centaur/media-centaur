@@ -4,24 +4,25 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   phase (media-search campaign Phase 3) as a **residual-driven
   search**, one scope at a time.
 
-  One run walks the scopes widest to narrowest — series term,
-  per-season terms, per-unit episode terms — but each scope is searched
-  **only for the units the previous steps' solve left uncovered** (the
-  solver's residual — the wanted units no quality-floor group's solve
-  assigned). A pack only ends the search for the units it *fits*
-  (`Planner` fit gating): wanting most of a season takes the season
-  pack and stops there, but wanting a sparse slice leaves those units
-  in the residual so the search keeps going to the right-sized episode
-  terms — picking one episode never grabs the whole series. Every
-  search still goes through the corpus (`Corpus.search/2`,
-  consult-first citizenship; `force: true` only on a user-initiated
-  re-search), and a forced re-run also narrows lazily — it re-hammers
-  only as deep as the residual requires.
+  One run walks the steps `Plans.SearchOrder` lays out for the want —
+  the scopes whose pack could fit, widest first, then the rest as
+  offers — but each step is searched **only for the units the previous
+  steps' solve left uncovered** (the solver's residual — the wanted
+  units no quality-floor group's solve assigned), and the run halts the
+  moment the residual is empty. Wanting one episode of a finished
+  season searches that episode's term and, when the single exists,
+  nothing else; wanting most of a season starts at the season pack;
+  wanting the show starts at the series term. A pack only ends the
+  search for the units it *fits* (`Planner` fit gating), so a sparse
+  want never grabs the whole series. Every search still goes through
+  the corpus (`Corpus.search/2`, consult-first citizenship; `force:
+  true` only on a user-initiated re-search), and a forced re-run also
+  narrows lazily — it re-hammers only as deep as the residual requires.
 
-  A unit the search can't right-size — nothing but an over-broad pack
-  covers it — lands `unfound` carrying that pack as an *offer* (the
-  pack the user can opt into, over-grab spelled out on the board),
-  never an auto-grab.
+  A unit the primary steps can't right-size — nothing but an over-broad
+  pack covers it — lands `unfound` carrying the best pack the fallback
+  steps found as an *offer* (the pack the user can opt into, over-grab
+  spelled out on the board), never an auto-grab.
 
   Results are identity-verified (`TitleMatcher.coverage/2`), plan-wide
   exclusions filtered, and `Planner.solve/3` assigns candidates by the
@@ -59,13 +60,11 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     Plans
   }
 
-  alias MediaCentaur.Acquisition.Plans.{SearchTerms, MatchCriteria, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder, SearchTerms}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{CourCoverage, CourQueries, Quality, ReleaseCoverage}
   alias MediaCentaur.Search.{ReleasePreference, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Topics
-
-  @scopes [:series, :season, :episode]
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"plan_id" => plan_id} = args}) do
@@ -168,6 +167,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         {floor, Enum.map(group_units, &{&1.season_number, &1.episode_number})}
       end)
 
+    # `steps` (walked, done) and `passed` (reached with nothing to
+    # search for the residual) together say which of the order's steps
+    # the run has been through; the rest report as skipped at the end.
     initial = %{
       options: [],
       terms_by_guid: %{},
@@ -176,33 +178,40 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       below_floor_by_unit: %{},
       halted?: false,
       residual: wanted,
-      steps: []
+      steps: [],
+      passed: []
     }
 
+    order = SearchOrder.steps(plan, wanted, plan_prefs)
+
     state =
-      Enum.reduce_while(search_steps(plan), initial, fn {scope, terms_for}, state ->
-        terms = terms_for.(state.residual)
+      Enum.reduce_while(order, initial, fn step, state ->
+        case step.terms.(state.residual) do
+          [] ->
+            {:cont, %{state | passed: [{step.scope, step.kind} | state.passed]}}
 
-        active = %{
-          scope: scope,
-          kind: :primary,
-          state: :active,
-          term_count: length(terms),
-          residual_after: nil
-        }
+          terms ->
+            active = %{
+              scope: step.scope,
+              kind: step.kind,
+              state: :active,
+              term_count: length(terms),
+              residual_after: nil
+            }
 
-        broadcast_progress(plan, length(wanted), state.steps, active)
+            broadcast_progress(plan, length(wanted), order, state, active)
 
-        state = gather_step(state, plan, terms, search_context)
+            state = gather_step(state, plan, terms, search_context)
 
-        if state.halted? do
-          {:halt, state}
-        else
-          state = solve_groups(state, wanted, floor_groups, plan_prefs)
-          done = %{active | state: :done, residual_after: length(state.residual)}
-          state = %{state | steps: state.steps ++ [done]}
+            if state.halted? do
+              {:halt, state}
+            else
+              state = solve_groups(state, wanted, floor_groups, plan_prefs)
+              done = %{active | state: :done, residual_after: length(state.residual)}
+              state = %{state | steps: state.steps ++ [done]}
 
-          if state.residual == [], do: {:halt, state}, else: {:cont, state}
+              if state.residual == [], do: {:halt, state}, else: {:cont, state}
+            end
         end
       end)
 
@@ -212,11 +221,17 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       :ok
     else
       skipped =
-        for {scope, _terms_for} <- search_steps(plan),
-            not Enum.any?(state.steps, &(&1.scope == scope)),
-            do: %{scope: scope, kind: :primary, state: :skipped, term_count: nil, residual_after: nil}
+        for step <- order,
+            not been_through?(state, step),
+            do: %{
+              scope: step.scope,
+              kind: step.kind,
+              state: :skipped,
+              term_count: nil,
+              residual_after: nil
+            }
 
-      broadcast_progress(plan, length(wanted), state.steps ++ skipped, nil)
+      broadcast_progress(plan, length(wanted), order, %{state | steps: state.steps ++ skipped}, nil)
 
       state = add_cour_offers(state, plan, wanted, excluded, force?, plan_prefs)
 
@@ -239,20 +254,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     end
   end
 
-  # The search steps, widest scope first. Each step sees the current
-  # residual — the wanted units no acceptable option covers yet — and
-  # emits only the terms that residual justifies. The search never
-  # goes narrower than a span the solver already covered.
-  defp search_steps(plan) do
-    [
-      {:series, fn _residual -> SearchTerms.series_terms(plan) end},
-      {:season,
-       fn residual ->
-         seasons = residual |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
-         SearchTerms.season_terms(plan, seasons)
-       end},
-      {:episode, fn residual -> SearchTerms.episode_terms(plan, residual) end}
-    ]
+  defp been_through?(state, step) do
+    key = {step.scope, step.kind}
+    key in state.passed or Enum.any?(state.steps, &({&1.scope, &1.kind} == key))
   end
 
   # One step's searches folded into the cumulative option pool. Every
@@ -475,7 +479,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     # verdict the unit carries instead of a bare unfound.
     {best, below_floor_guids} =
       plan
-      |> SearchTerms.for_plan([])
+      |> SearchTerms.movie_terms()
       |> Enum.reduce_while({nil, MapSet.new()}, fn term, acc ->
         if still_planning?(plan) do
           {:cont, movie_term_step(plan, term, acc, movie_context)}
@@ -604,39 +608,48 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   end
 
   # Full itinerary snapshot: steps already walked (done/skipped), the
-  # active step if any, then the untouched scopes as pending.
-  defp broadcast_progress(plan, wanted_count, walked_steps, active) do
-    taken = Enum.map(walked_steps, & &1.scope) ++ if active, do: [active.scope], else: []
+  # active step if any, then the order's untouched steps as pending. A
+  # step passed with nothing to search never appears.
+  defp broadcast_progress(plan, wanted_count, order, state, active) do
+    taken =
+      Enum.map(state.steps, &{&1.scope, &1.kind}) ++
+        state.passed ++ if active, do: [{active.scope, active.kind}], else: []
 
     pending =
-      for scope <- @scopes,
-          scope not in taken,
-          do: %{scope: scope, kind: :primary, state: :pending, term_count: nil, residual_after: nil}
+      for step <- order,
+          {step.scope, step.kind} not in taken,
+          do: %{
+            scope: step.scope,
+            kind: step.kind,
+            state: :pending,
+            term_count: nil,
+            residual_after: nil
+          }
 
     progress = %PlanEvents.SearchProgress{
       plan_id: plan.id,
       wanted: wanted_count,
-      steps: walked_steps ++ List.wrap(active) ++ pending
+      steps: state.steps ++ List.wrap(active) ++ pending
     }
 
     Topics.publish(Topics.acquisition_updates(), progress)
   end
 
+  # Quality bounds from the plan's criteria; the fit inputs (span sizes
+  # and threshold) the one way every reader must build them
+  # (`SearchOrder.fit_prefs/2`), so the gate and the order agree.
   defp prefs(plan) do
     settings = AutoGrabSettings.load()
     criteria = plan.criteria || %{}
-    span_sizes = plan.span_sizes || %{}
 
-    %{
-      min_quality: Map.get(criteria, "min_quality") || AutoGrabSettings.floor(),
-      max_quality: Map.get(criteria, "max_quality") || settings.default_max_quality,
-      size_preference: settings.size_preference,
-      span_sizes: span_sizes,
-      # Fit-gating is media-search's lever: only plans that captured the
-      # span sizes (TV selections) opt in. Movies and tracking drops have
-      # none → `nil` → the planner stays broad-first. Percent → fraction.
-      pack_min_fit: if(span_sizes != %{}, do: settings.pack_min_fit / 100)
-    }
+    Map.merge(
+      %{
+        min_quality: Map.get(criteria, "min_quality") || AutoGrabSettings.floor(),
+        max_quality: Map.get(criteria, "max_quality") || settings.default_max_quality,
+        size_preference: settings.size_preference
+      },
+      SearchOrder.fit_prefs(plan, settings)
+    )
   end
 
   # ADR-063 §3: plan status is the cancellation channel — the run

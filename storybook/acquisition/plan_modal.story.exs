@@ -217,6 +217,45 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       },
       %Variation{
+        id: :board_planning_fallback,
+        description:
+          "One wanted episode whose single was not found — the primary step is done and the " <>
+            "search has moved to the fallback steps, which only look for packs to offer " <>
+            "(spec 2026-09-17, fit-first search order). The headline says so.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          board: board(:planning),
+          gap_verdict: gap_verdict(:searching_fallback),
+          search_progress: %SearchProgressPanel.View{
+            rows: [
+              %SearchProgressPanel.Row{
+                scope: :episode,
+                kind: :primary,
+                state: :done,
+                label: "Individual episodes",
+                detail: "nothing usable found"
+              },
+              %SearchProgressPanel.Row{
+                scope: :season,
+                kind: :fallback,
+                state: :active,
+                label: "Season packs to offer",
+                detail: "searching — 2 terms…"
+              },
+              %SearchProgressPanel.Row{
+                scope: :series,
+                kind: :fallback,
+                state: :pending,
+                label: "Complete series to offer",
+                detail: "a wider pack to offer, only if something is still missing"
+              }
+            ]
+          },
+          last_activity: "Sample Show S01E03 — 0 known (live)"
+        }
+      },
+      %Variation{
         id: :board_ready,
         description:
           "Ready — the shell keeps the title's backdrop through the board (no themed → plain " <>
@@ -896,6 +935,18 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         %{scope: :series, kind: :primary, state: :done, term_count: 1, residual_after: 2},
         %{scope: :season, kind: :primary, state: :active, term_count: 4, residual_after: nil},
         %{scope: :episode, kind: :primary, state: :pending, term_count: nil, residual_after: nil}
+      ]
+    })
+  end
+
+  defp gap_verdict(:searching_fallback) do
+    GapVerdict.searching(%MediaCentaur.Acquisition.PlanEvents.SearchProgress{
+      plan_id: "story",
+      wanted: 1,
+      steps: [
+        %{scope: :episode, kind: :primary, state: :done, term_count: 1, residual_after: 1},
+        %{scope: :season, kind: :fallback, state: :active, term_count: 2, residual_after: nil},
+        %{scope: :series, kind: :fallback, state: :pending, term_count: nil, residual_after: nil}
       ]
     })
   end

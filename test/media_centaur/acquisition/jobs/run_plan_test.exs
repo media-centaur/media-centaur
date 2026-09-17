@@ -67,6 +67,33 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     }
   end
 
+  # Two seasons of ten aired episodes: wide enough that one season is
+  # half the show (the series pack never fits a one-season want) and one
+  # episode is a twentieth of it.
+  defp wide_selection do
+    %Targeting.Selection{
+      tmdb_id: "246810",
+      title: "Sample Show",
+      tracked?: false,
+      seasons:
+        for season <- 1..2 do
+          %Targeting.Season{
+            season_number: season,
+            episodes:
+              for episode <- 1..10 do
+                %Targeting.Episode{
+                  season_number: season,
+                  episode_number: episode,
+                  label: "Episode #{episode}",
+                  aired?: true,
+                  in_library?: false
+                }
+              end
+          }
+        end
+    }
+  end
+
   defp release(title, guid, attrs) do
     Map.merge(
       %{
@@ -319,6 +346,102 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert progress_states(final) == [series: :done, season: :done, episode: :skipped]
       assert Enum.find(final.steps, &(&1.scope == :season)).residual_after == 0
       refute_received %PlanEvents.SearchProgress{}
+    end
+  end
+
+  describe "fit-first search order (spec 2026-09-17)" do
+    # Every {:searched, term} the stub reported, in the order the run
+    # made them. Drains the mailbox — bind it once per test.
+    defp searched_terms(acc \\ []) do
+      receive do
+        {:searched, term} -> searched_terms([term | acc])
+      after
+        0 -> Enum.reverse(acc)
+      end
+    end
+
+    defp progress_events(acc \\ []) do
+      receive do
+        %PlanEvents.SearchProgress{} = event -> progress_events([event | acc])
+      after
+        0 -> Enum.reverse(acc)
+      end
+    end
+
+    test "U1 — one episode of a finished season is one indexer request when the single exists" do
+      stub_recording_searches(%{
+        "Sample Show" => [
+          release("Sample.Show.S01-02.COMPLETE.1080p.WEB-DL", "series-pack", %{seeders: 900})
+        ],
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ],
+        "Sample Show S01E01" => [
+          release("Sample.Show.S01E01.1080p.WEB-DL", "single-s1e1", %{seeders: 5})
+        ]
+      })
+
+      {:ok, plan} = Plans.create_series_plan(wide_selection(), [{1, 1}])
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.assigned_guid == "single-s1e1"
+      assert searched_terms() == ["Sample Show S01E01"]
+    end
+
+    test "U4 — a whole season starts at the season term, never the series" do
+      stub_recording_searches(%{
+        "Sample Show" => [
+          release("Sample.Show.S01-02.COMPLETE.1080p.WEB-DL", "series-pack", %{seeders: 900})
+        ],
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ]
+      })
+
+      wanted = for episode <- 1..10, do: {1, episode}
+      {:ok, plan} = Plans.create_series_plan(wide_selection(), wanted)
+
+      units = Plans.units_for(plan.id)
+      assert Enum.all?(units, &(&1.assigned_guid == "pack-s1"))
+
+      searched = searched_terms()
+      assert ["Sample Show Season 1" | _] = searched
+      refute "Sample Show" in searched
+    end
+
+    test "U1 miss — no single: the season term runs as fallback, the pack is offered, nothing is assigned" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_updates())
+
+      stub_recording_searches(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{
+            seeders: 30,
+            size: 9_000_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_series_plan(wide_selection(), [{1, 1}])
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.assigned_guid == nil
+      assert unit.offered_guid == "pack-s1"
+
+      assert searched_terms() == [
+               "Sample Show S01E01",
+               "Sample Show Season 1",
+               "Sample Show S01",
+               "Sample Show"
+             ]
+
+      active_steps =
+        progress_events()
+        |> Enum.flat_map(& &1.steps)
+        |> Enum.filter(&(&1.state == :active))
+        |> Enum.map(&{&1.scope, &1.kind})
+
+      assert active_steps == [episode: :primary, season: :fallback, series: :fallback]
     end
   end
 

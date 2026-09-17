@@ -77,6 +77,44 @@ defmodule MediaCentaur.Acquisition.ViewModels.SearchProgressPanelTest do
     assert Enum.find(view.rows, &(&1.scope == :season)).detail == "covered everything that was left"
   end
 
+  test "a fallback step is labelled as a search for packs to offer" do
+    view =
+      SearchProgressPanel.build(
+        status(
+          [
+            step(:episode, :done, residual_after: 1),
+            step(:season, :active, term_count: 2, kind: :fallback),
+            step(:series, :pending, kind: :fallback)
+          ],
+          1
+        )
+      )
+
+    rows = Map.new(view.rows, &{{&1.scope, &1.kind}, &1})
+
+    assert rows[{:season, :fallback}].label == "Season packs to offer"
+    assert rows[{:season, :fallback}].detail == "searching — 2 terms…"
+    assert rows[{:series, :fallback}].label == "Complete series to offer"
+
+    assert rows[{:series, :fallback}].detail ==
+             "a wider pack to offer, only if something is still missing"
+  end
+
+  test "a done fallback step says what it was for" do
+    view =
+      SearchProgressPanel.build(
+        status(
+          [
+            step(:episode, :done, residual_after: 1),
+            step(:season, :done, residual_after: 1, kind: :fallback)
+          ],
+          1
+        )
+      )
+
+    assert Enum.find(view.rows, &(&1.kind == :fallback)).detail == "searched for packs to offer"
+  end
+
   test "a finished search with leftovers reports the gap" do
     view =
       SearchProgressPanel.build(

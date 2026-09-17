@@ -64,7 +64,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.SearchProgressPanel do
         scope: step.scope,
         kind: step.kind,
         state: step.state,
-        label: label(step.scope),
+        label: label(step.scope, step.kind),
         detail: detail(step, residual_before)
       }
 
@@ -73,9 +73,18 @@ defmodule MediaCentaur.Acquisition.ViewModels.SearchProgressPanel do
     |> elem(0)
   end
 
-  defp label(:series), do: "Complete series"
-  defp label(:season), do: "Season packs"
-  defp label(:episode), do: "Individual episodes"
+  defp label(:series, :primary), do: "Complete series"
+  defp label(:season, :primary), do: "Season packs"
+  defp label(:episode, :primary), do: "Individual episodes"
+  defp label(:series, :fallback), do: "Complete series to offer"
+  defp label(:season, :fallback), do: "Season packs to offer"
+
+  # A fallback step never assigns, so its residual never moves; the
+  # detail says what it was for instead of counting what it covered.
+  defp detail(%{kind: :fallback, state: :pending}, _residual),
+    do: "a wider pack to offer, only if something is still missing"
+
+  defp detail(%{kind: :fallback, state: :done}, _residual), do: "searched for packs to offer"
 
   defp detail(%{state: :pending, scope: :series}, _residual), do: "one search for an all-in-one release"
 

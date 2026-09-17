@@ -23,7 +23,14 @@ from their units). Step 1 (grab-failure classification) implemented
 2026-09-17, unpushed: a 5xx or transport error from `Prowlarr.grab/1`
 lands `download_client_unavailable`, no attempt charged, 15-minute
 snooze, and the pursuit reads "Waiting — Prowlarr could not reach your
-download client". Steps 2–6 not started.
+download client". Step 2 (fit-first order + plain names) implemented
+2026-09-17, unpushed, as two commits: the rename (`SearchTerms`,
+`SearchProgress`, `SearchProgressPanel`; no "rung", "ladder" or
+"descent" left in the acquisition code) and the behavior
+(`Plans.SearchOrder` + `Plans.Fit`; `RunPlan` walks primary then
+fallback steps; the picker and gap evidence read terms in the same
+order; board copy and story updated). A one-episode plan now makes one
+indexer request when the single exists. Steps 3–6 not started.
 
 ## Decisions made
 
@@ -50,10 +57,12 @@ download client". Steps 2–6 not started.
 1. ~~Grab-failure classification in `Jobs.PursueTarget` + the pursuit
    status copy.~~ Done 2026-09-17 (three worker tests, one status test,
    wiki Troubleshooting entry).
-2. `Plans.SearchOrder` (pure) + `RunPlan` on it; `LadderTerms` →
+2. ~~`Plans.SearchOrder` (pure) + `RunPlan` on it; `LadderTerms` →
    `SearchTerms`; `PlanEvents.DescentStatus` → `SearchProgress` with the
    primary/fallback kind; board headline and `GapVerdict` copy;
-   `Alternatives.for_unit` on the same order.
+   `Alternatives.for_unit` on the same order.~~ Done 2026-09-17
+   (`search_order_test.exs` pins the use-case table; `run_plan_test.exs`
+   pins U1, U4 and the U1 miss with its fallback offer).
 3. Span sizes for tracking plans from the tracking calendar
    (`create_tracking_plan/2` callers). Regression test: a lone unit with
    no span sizes and a pack option is not assigned the pack.

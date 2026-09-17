@@ -1,16 +1,15 @@
 defmodule MediaCentaur.Acquisition.Plans.SearchTerms do
   @moduledoc """
   A plan's search terms, one constructor per scope — single source of
-  truth shared by the plan runner (scope by scope, via `series_terms/1`
-  / `season_terms/2` / `episode_terms/2`), the alternatives picker (one
-  unit), and the corpus keys, so none of them can drift on what "this
-  plan's searches" means. `for_plan/2` is exactly the scope constructors
-  concatenated — an invariant pinned by the test suite.
+  truth for how a term is spelled, shared by the plan runner, the
+  alternatives picker and the corpus keys (all through
+  `Plans.SearchOrder`, which decides which scopes to search and in what
+  order), so none of them can drift on what "this plan's searches"
+  means.
 
-  TV terms come in three scopes, widest first: the series title, `Title
-  Season N` + `Title SNN` per season, `Title SNNENN` per episode. The
-  runner decides which scopes to search and in what order; this module
-  only spells the terms. Movie terms have no scope: `Title year`, the
+  TV terms come in three scopes: the series title, `Title Season N` +
+  `Title SNN` per season, `Title SNNENN` per episode. Movie terms have
+  no scope: `Title year`, the
   year-less `Title` and — when the film has a different
   original-language title — that title are alternate phrasings of the
   same want, and the runner searches all of them and picks the best of
@@ -19,7 +18,7 @@ defmodule MediaCentaur.Acquisition.Plans.SearchTerms do
   `Search.TitleForm` (scene names carry no apostrophes).
   """
 
-  alias MediaCentaur.Acquisition.Plans.{Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.Format
   alias MediaCentaur.Search.TitleForm
 
@@ -40,15 +39,6 @@ defmodule MediaCentaur.Acquisition.Plans.SearchTerms do
   @spec search_opts(Plan.t()) :: keyword()
   def search_opts(%Plan{tmdb_type: "movie"}), do: [categories: :movie]
   def search_opts(%Plan{tmdb_type: "tv"}), do: [categories: :tv]
-
-  @doc "Every search term for the plan's wanted `{season, episode}` units, widest scope first."
-  @spec for_plan(Plan.t(), [{pos_integer(), pos_integer()}]) :: [search_term()]
-  def for_plan(%Plan{tmdb_type: "movie"} = plan, _wanted), do: movie_terms(plan)
-
-  def for_plan(%Plan{tmdb_type: "tv"} = plan, wanted) do
-    seasons = wanted |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
-    series_terms(plan) ++ season_terms(plan, seasons) ++ episode_terms(plan, wanted)
-  end
 
   @doc "The series scope — one term for an all-in-one release."
   @spec series_terms(Plan.t()) :: [search_term()]
@@ -72,14 +62,6 @@ defmodule MediaCentaur.Acquisition.Plans.SearchTerms do
     Enum.map(units, fn {season, episode} ->
       "#{title(plan)} #{Format.episode_label(season, episode)}"
     end)
-  end
-
-  @doc "The terms that can cover ONE unit: series, its season, its episode."
-  @spec for_unit(Plan.t(), PlanUnit.t()) :: [search_term()]
-  def for_unit(%Plan{tmdb_type: "movie"} = plan, %PlanUnit{}), do: movie_terms(plan)
-
-  def for_unit(%Plan{tmdb_type: "tv"} = plan, %PlanUnit{} = unit) do
-    for_plan(plan, [{unit.season_number, unit.episode_number}])
   end
 
   @doc """

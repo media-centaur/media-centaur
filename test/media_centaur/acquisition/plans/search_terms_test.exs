@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.Plans.SearchTermsTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Acquisition.Plans.{SearchTerms, Plan}
+  alias MediaCentaur.Acquisition.Plans.{Plan, SearchTerms}
 
   defp plan, do: %Plan{title: "Sample Show", tmdb_type: "tv"}
 
@@ -24,7 +24,7 @@ defmodule MediaCentaur.Acquisition.Plans.SearchTermsTest do
 
       movie_plan = %Plan{title: "Sample's Movie", tmdb_type: "movie", year: 2010}
 
-      assert SearchTerms.for_plan(movie_plan, []) == [
+      assert SearchTerms.movie_terms(movie_plan) == [
                "Samples Movie 2010",
                "Samples Movie"
              ]
@@ -47,20 +47,7 @@ defmodule MediaCentaur.Acquisition.Plans.SearchTermsTest do
     end
   end
 
-  describe "the for_plan invariant" do
-    # for_unit/2 (the swap picker's term universe) and the corpus keys
-    # both build on for_plan/2 — the scope constructors must concatenate
-    # to exactly it, or the plan run and the picker drift apart.
-    test "for_plan/2 is series ++ seasons ++ episodes" do
-      wanted = [{2, 1}, {1, 3}, {1, 1}]
-      seasons = wanted |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
-
-      assert SearchTerms.for_plan(plan(), wanted) ==
-               SearchTerms.series_terms(plan()) ++
-                 SearchTerms.season_terms(plan(), seasons) ++
-                 SearchTerms.episode_terms(plan(), wanted)
-    end
-
+  describe "movie terms" do
     test "a movie's original title is one more phrasing, broadest last" do
       movie_plan = %Plan{
         title: "Sample Movie",
@@ -69,7 +56,7 @@ defmodule MediaCentaur.Acquisition.Plans.SearchTermsTest do
         original_title: "Le Fabuleux Destin de Sample"
       }
 
-      assert SearchTerms.for_plan(movie_plan, []) == [
+      assert SearchTerms.movie_terms(movie_plan) == [
                "Sample Movie 2010",
                "Sample Movie",
                "Le Fabuleux Destin de Sample"
@@ -84,7 +71,7 @@ defmodule MediaCentaur.Acquisition.Plans.SearchTermsTest do
         original_title: "Amelie"
       }
 
-      assert SearchTerms.for_plan(movie_plan, []) == ["Amelie 2001", "Amelie"]
+      assert SearchTerms.movie_terms(movie_plan) == ["Amelie 2001", "Amelie"]
     end
 
     test "movie plans fall back from the year term to the year-less term" do
@@ -92,7 +79,7 @@ defmodule MediaCentaur.Acquisition.Plans.SearchTermsTest do
       # year-less term keeps a wrong year from becoming a silent miss.
       movie_plan = %Plan{title: "Sample Movie", tmdb_type: "movie", year: 2010}
 
-      assert SearchTerms.for_plan(movie_plan, []) == [
+      assert SearchTerms.movie_terms(movie_plan) == [
                "Sample Movie 2010",
                "Sample Movie"
              ]
