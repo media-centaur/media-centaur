@@ -102,8 +102,8 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
   The fit inputs a plan carries, read the one way every caller must
   read them: span sizes from the plan, the threshold from the auto-grab
   settings as a fraction — and no threshold at all when the plan
-  captured no span sizes (movies, tracking-born plans), which turns
-  judging off.
+  captured no span sizes (movies, and a tracking plan whose item has no
+  season sizes yet), which turns judging off.
   """
   @spec fit_prefs(Plan.t(), %{pack_min_fit: number()}) :: prefs()
   def fit_prefs(%Plan{} = plan, %{pack_min_fit: percent}) do

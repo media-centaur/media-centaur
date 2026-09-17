@@ -243,8 +243,10 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   @doc """
   Creates a release-tracking drop plan (ADR-056 Phase 2) and starts the
-  planning run. `plan_attrs` carries the tmdb identity plus
-  `tracking_item_id`; `unit_specs` come from the item's due wants. A
+  planning run. `plan_attrs` carries the tmdb identity, `tracking_item_id`
+  and the item's `span_sizes` (its recorded season sizes — the fit
+  denominator, so one new episode never takes a season pack);
+  `unit_specs` come from the item's due wants. A
   per-unit `min_quality` is a title's lower-quality acceptance (ADR-063
   §2); nothing else sets one.
   """

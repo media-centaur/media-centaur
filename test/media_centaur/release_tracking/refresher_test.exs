@@ -46,6 +46,47 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       assert hd(releases).air_date == ~D[2026-07-01]
     end
 
+    test "records the show's season sizes on the item — aired count for a fetched season, episode_count for the rest" do
+      item = create_tracking_item(%{tmdb_id: 2468, media_type: :tv_series, name: "Sample Show"})
+
+      # Route order matters: `stub_routes/1` matches by prefix, so the
+      # season route must precede the show route. Season 1 is asked for
+      # too and answered with the show payload (no episode list), which
+      # is what an unfetched season looks like.
+      stub_routes([
+        {"/tv/2468/season/6",
+         %{
+           "season_number" => 6,
+           "episodes" => [
+             %{"episode_number" => 1, "name" => "First", "air_date" => "2020-01-01"},
+             %{"episode_number" => 2, "name" => "Second", "air_date" => "2099-01-08"}
+           ]
+         }},
+        {"/tv/2468",
+         %{
+           "id" => 2468,
+           "name" => "Sample Show",
+           "status" => "Returning Series",
+           "number_of_seasons" => 6,
+           "next_episode_to_air" => %{
+             "air_date" => "2099-01-08",
+             "season_number" => 6,
+             "episode_number" => 2,
+             "name" => "Second"
+           },
+           "seasons" => [
+             %{"season_number" => 0, "episode_count" => 4},
+             %{"season_number" => 1, "episode_count" => 22},
+             %{"season_number" => 6, "episode_count" => 13}
+           ]
+         }}
+      ])
+
+      :ok = Refresher.refresh_item(item)
+
+      assert ReleaseTracking.get_item(item.id).season_sizes == %{"1" => 22, "6" => 1}
+    end
+
     test "refreshes movie collection releases" do
       # A collection is a movie item linked to a library MovieSeries.
       item =

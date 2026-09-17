@@ -57,6 +57,15 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :year, :integer
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
+    # How many episodes each season of a tracked show has, keyed by
+    # season-number string (`%{"1" => 22, "2" => 10}`, specials
+    # excluded) — the same shape as `Acquisition.Plans.Plan.span_sizes`.
+    # Written by onboarding and by every refresh from the TMDB responses
+    # they already fetch (`Helpers.fetch_tv_releases/5`); read by the
+    # drop planner, which hands it to each drop plan as the fit
+    # denominator. Empty for movies and for a TV item not refreshed
+    # since the column arrived.
+    field :season_sizes, :map, default: %{}
     field :dismiss_released_before, :date
 
     has_many :releases, MediaCentaur.ReleaseTracking.Release
@@ -79,7 +88,8 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :original_title,
       :year,
       :last_library_season,
-      :last_library_episode
+      :last_library_episode,
+      :season_sizes
     ])
     |> validate_required([:tmdb_id, :media_type, :name])
     |> validate_container_pair()
@@ -102,6 +112,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :year,
       :last_library_season,
       :last_library_episode,
+      :season_sizes,
       :dismiss_released_before
     ])
     |> validate_container_pair()

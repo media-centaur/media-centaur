@@ -110,7 +110,10 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                identity: Identity.for_item(item),
                tracking_item_id: item.id,
                approval_policy: approval_policy(),
-               criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
+               criteria: %{"min_quality" => min_quality, "max_quality" => max_quality},
+               # The item's season sizes are the plan's fit denominator:
+               # without them one new episode could take a season pack.
+               span_sizes: item.season_sizes
              },
              unit_specs
            ) do
