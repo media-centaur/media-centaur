@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
     * **Download client** (`Acquisition.client_health/0`) — the app
       can't reach it or it rejected the credentials
       (`Downloads.IncidentContext`), or Prowlarr can't hand releases to
-      it (`Pursuits.IncidentContext`, seen through failed grabs).
+      it (`Pursuits.IncidentContext`, read from `IntegrationAvailability`).
     * **Search health** (`Search.IndexerHealth`) — Prowlarr unreachable
       or every enabled indexer backed off (error tone), some indexers
       backed off (warning tone).

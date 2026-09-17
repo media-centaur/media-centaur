@@ -233,8 +233,9 @@ defmodule MediaCentaur.Acquisition do
   @doc """
   The download-client condition as the Incoming Heads-up glyph reads it:
   the worse of the app's own link to the client
-  (`Downloads.IncidentContext`) and Prowlarr's, seen through failed grabs
-  (`Pursuits.IncidentContext`). `:ok` while both are healthy. The same
+  (`Downloads.IncidentContext`) and Prowlarr's own, read from
+  `IntegrationAvailability` (`Pursuits.IncidentContext`). `:ok` while
+  both are healthy. The same
   probes the Status page's acquisition incident is built from (ADR-054),
   read live — the glyph shows a condition while it holds, never a
   history.
