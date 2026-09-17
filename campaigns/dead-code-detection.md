@@ -26,11 +26,11 @@ Both detectors exist. **JS is gated**; Elixir is not yet.
 | | state |
 |---|---|
 | JS | **Done.** `no-unreachable-from-app` at `error` in `.dependency-cruiser.cjs`, gating through `mix boundaries`, which is already in `precommit`. Tree clean. |
-| Elixir | `mix_unused` configured and working, behind `MC_UNUSED=1`. **363 raw hints, 25 with no caller anywhere.** Not in `precommit` — gating before the list is empty means a red gate nobody can clear. |
+| Elixir | `mix_unused` configured and working, behind `MC_UNUSED=1`. **338 raw hints.** Not in `precommit` — and gating is now **blocked on a tool decision**, not on the candidate list: 40 of the hints are default-argument heads the analyzer cannot see through, and 39 of those 40 are live code (see *The third blind spot*). |
 
-Twelve commits, `f2d63496`..`615c7ac0`, unpushed. 19 functions deleted, two
-features wired rather than deleted, two behaviours added, one architectural
-defect fixed (`CancelReasons`).
+Sixteen commits, `f2d63496`..`93323fac`, unpushed. 36 functions deleted, three
+features wired rather than deleted, three behaviours declared, two architectural
+defects fixed (`CancelReasons`, per-stage pipeline width).
 
 # START HERE — how to work this
 
@@ -52,7 +52,7 @@ public functions used only inside their own module. They are an encapsulation
 question, not dead code, and are out of scope until the dead-code list is
 empty. `MixUnused.Config` does not let you disable that analyzer.
 
-## Two blind spots — check BOTH before believing any hint
+## Three blind spots — check ALL THREE before believing any hint
 
 1. **Calls from a module body.** `Unused.analyze/2` builds its graph with
    `for {mfa, %{caller: {f, a}}} <- calls`; a module-body call carries
@@ -62,10 +62,51 @@ empty. `MixUnused.Config` does not let you disable that analyzer.
    through `apply/3`, or from a `{module, function}` tuple in config (Phoenix
    `put_root_layout`, our own registries).
 
+3. **Default arguments** — and this one is a *class*, not an occurrence.
+   A function defined `def f(a, b \\ x)` appears in the docs chunk **once, at
+   its maximum arity**, carrying `defaults: 1`. Callers using the shorter
+   arity produce call edges to `f/1`, which never match the `f/2` the
+   analyzer is holding, so `f/2` is reported. **40 of the 338 hints are this,
+   and 39 of the 40 are live code** — `CoreComponents.show/2`,
+   `Prowlarr.search/3`, every `Platform.Autostart` door, the whole
+   `SearchSession` API. Only `Pipeline.Stats.stage_stop_at/7` is uncalled at
+   every arity. `Watcher.Walk.real_fs/0` in the known-alive table below is
+   *not* this class — it is a call inside a default expression, which is
+   blind spot 1.
+
 There is **no template blind spot.** That was believed briefly and written
 into this file; it was wrong, asserted from one data point. `~H` and `.heex`
 both trace correctly — 127 function components exist and only 19 were ever
 flagged.
+
+## The third blind spot blocks the gate — decision needed
+
+This is the campaign's open question, and it is not about any candidate.
+
+`mix_unused` has no default-argument handling anywhere in its source; it is a
+genuine gap in the tool, not a misconfiguration. The data needed to fix it is
+present — `MixUnused.Exports` already reads `doc_meta`, which carries
+`defaults: n` — and the fix is small: treat a function as called when **any**
+arity in `arity - defaults .. arity` is reached. But `MixUnused.Config`'s
+`checks:` field is a hardcoded struct default that `Config.build/2` never
+reads from `mix.exs`, so a corrected analyzer cannot be injected.
+
+What *is* reachable from `mix.exs`: `Filter` accepts a **2-arity predicate**
+receiving `(mfa, meta)`, so `fn _mfa, meta -> Map.has_key?(meta.doc_meta,
+:defaults) end` silences the class in one line. It is blunt — **253 public
+functions in `lib/` are defined with a default argument**, and all 253 would
+stop being checked to remove 39 false positives.
+
+The three ways out, none free:
+
+| | cost |
+|---|---|
+| **Own the analyzer** — a compile task in `lib/mix/tasks/`, the shape `mix boundaries` already uses for the JS half, reusing `MixUnused.{Tracer,Exports,Filter,Analyze}` with a corrected `Unused`. | ~80 lines of ours, coupled to four `@moduledoc false` modules. Precise: no coverage lost. |
+| **The blunt predicate** in `mix.exs` `unused: [ignore: …]`. | One line. 253 functions leave the gate's reach; at least one known-dead function (`stage_stop_at/7`) hides behind it today. |
+| **Upstream the fix**, git-dep until merged. | Right for the ecosystem. Last release 2023 — merge latency is likely long or never. |
+
+Until this is answered the Elixir half **cannot** gate: 39 green-code hints
+would fail every build.
 
 ## The transitive cascade — why one seam hides many functions
 
@@ -108,9 +149,31 @@ until the read side says otherwise.
 
 # What is left
 
-## The 25 with no caller anywhere
+The original candidate list is **worked through**. What remains is one
+homeless function, the deferred questions below, and the 338-hint report whose
+structure is now understood rather than enumerated.
 
-**Seven are known-alive cascade artifacts — do not delete.** Verified callers:
+## The named list, closed
+
+Every item the earlier sweep named has a disposition. The three `event?/1`
+predicates, `Pursuits.status_for/1` and `targets_for/1`,
+`Detail.Section.section/1`, `Detail.TitleLayer.title_layer/1`,
+`CourSegmentation.default_gap_days/0`, `TitleDownloadParams.{for_ref/2,
+get_many/1}`, `Activities.get_many/1`, `Format.iso_date/1`,
+`Playback.Sessions.playing?/1`, `SelfUpdate.Changelog.recent/1` and the
+`WatchHistory.Stats` in-memory half were deleted;
+`Pipeline.Import.processor_concurrency/0` was wired (it was the right number,
+unread, while the page showed the wrong one); `GuideMarkdown.prose/1` is kept
+with `@doc export: true` because the storybook mounts it; the three Broadway
+`ack/3` callbacks now declare `@behaviour Broadway.Acknowledger`.
+
+**Still homeless:** `Acquisition.plan_tracked_item_now/1` — a `defdelegate`
+to `DropPlanner.plan_item_now/2`, documented as *"the bulk gesture since
+ADR-056"*, with no UI control and no caller but its own test. Same shape as
+`exclude_unit` was, and **no campaign owns it**; it needs a home before this
+file can be deleted.
+
+## The seven known-alive cascade artifacts — do not delete
 
 | function | real caller |
 |---|---|
@@ -119,30 +182,17 @@ until the read side says otherwise.
 | `ReleaseTracking.Wants.dismiss_for_release/1` | `ReleaseTracking` |
 | `TMDB.Client.search_multi/2` | `TMDB.TitleSearch` |
 | `ReleaseTracking.find_last_library_episode/1` | its own `defdelegate` + `LibraryLinks` |
-| `Watcher.Walk.real_fs/0` | a default argument in `walk/3` |
+| `Watcher.Walk.real_fs/0` | a call inside a default expression in `walk/3` (blind spot 1) |
 | `Library.PlayableItems.leaf_types/0` | rehomed — see `playable-item-versions.md` |
 
-**The remaining ~18, grouped by the question each poses:**
+## The rest of the 338
 
-* **A feature missing its control.** `Acquisition.plan_tracked_item_now/1` —
-  a `defdelegate` to `DropPlanner.plan_item_now/2`, documented as *"the bulk
-  gesture since ADR-056"*, with no UI control and no caller but its own test.
-  Same shape as `exclude_unit` was. **No campaign owns it**; it needs a home
-  before this file can be deleted.
-* **Event predicates (3).** `event?/1` on `PlanEvents`, `TargetEvents`,
-  `Pursuits.Events` — identical shape in three places, no caller in any. Looks
-  like a dispatcher that never landed. Check for a seam before deleting.
-* **Superseded pursuit doors (2).** `Pursuits.status_for/1`, `targets_for/1` —
-  `incoming_live.ex:2005` carries a comment about *"the previous
-  `Pursuits.status_for/1` path"*, so these read as superseded, not unfinished.
-* **Two function components.** `Detail.Section.section/1`,
-  `Detail.TitleLayer.title_layer/1` — both have stories (MC0009). Check
-  whether anything mounts them.
-* **The rest, one at a time.** `CourSegmentation.default_gap_days/0`,
-  `TitleDownloadParams.{for_ref/2, get_many/1}`, `Activities.get_many/1`,
-  `Format.iso_date/1`, `Pipeline.Import.processor_concurrency/0`,
-  `Playback.Sessions.playing?/1`, `SelfUpdate.Changelog.recent/1`,
-  `WatchHistory.Stats.total_seconds/1`, `GuideMarkdown.prose/1`.
+40 are the default-argument class above. The remainder is mostly transitive
+fallout: **re-derive per seam from the raw report, never from a name grep**
+(see the counts decision below), and work the seam rather than the symptom.
+Two productive readings so far — "which context's facade has doors nobody
+opens" and "which rewrite left its predecessor standing" — the second of
+which produced this session's whole `WatchHistory` group.
 
 ## Deferred with a reason
 
@@ -192,6 +242,17 @@ Once the list is empty: move `:unused` out from behind `MC_UNUSED=1`, set
   scoped it could never have seen `hooks/`.
 * `2026-09-17` — **Prefer a behaviour over an ignore entry for a dispatch
   seam** (see the mechanism table above).
+* `2026-09-17` — **Default arguments are a false-positive class, and they
+  block the gate.** Measured, not inferred: 40 of the hints sit on a function
+  defined with a default argument, and 39 of those 40 are called at a shorter
+  arity. The decision on how to handle it is open — see *The third blind spot*.
+* `2026-09-17` — **A story is a caller the tracer cannot see.** A function
+  component mounted only by `storybook/**` is reached from outside the
+  compiled tree, so `@doc export: true` is the honest declaration
+  (`GuideMarkdown.prose/1`). This is *not* a blanket excuse: `Section.section/1`
+  and `TitleLayer.title_layer/1` also had only stories, and were deleted —
+  their stories existed because the component did, not the other way round.
+  The question is which one is the reason for the other.
 * `2026-09-17` — **Candidate counts are a floor.** Group counts were built
   from a name-only grep of `test/`, which hides any candidate whose function
   name appears anywhere in the suite. The vocabulary group was listed as 8 and
@@ -208,6 +269,9 @@ Four groups worked. Detail is in the commits; the lessons are in START HERE.
 | **Vocabulary** (16, not the 8 listed) | `b224eb3d`, `2251dcf2`. 2 struck as module-attribute artifacts, 3 rehomed to `playable-item-versions.md`, 5 schema enum getters deleted, and `CancelReasons` rewritten — see below. |
 | **Changesets** (22, not 12) | `2251dcf2`, `f9e1275b`. **20 of 22 were not dead.** One `Library.Writable` behaviour cleared 17; `Image.update_changeset/2` was the one genuinely dead function hiding among eleven live look-alikes. ImageQueue's per-entry API deleted — production used only the batch forms. |
 | **Containers** (7) | `5ee09e24`. Half the module's public surface had no production caller — an over-complete CRUD shape left by the refactor that collapsed four per-type modules into one. Four deleted, three kept with reasons at the definition site. Surfaced a second dispatch seam → `Library.OwnerTyped`. |
+| **Event predicates + superseded doors** (10) | `bc1131d2`. `event?/1` existed three times; on two modules it was a second spelling of the `defguard is_event/1` beside it, and both moduledocs credited the function form nobody used. `Pursuits.status_for/1` / `targets_for/1` and two story-only components went with them. The three Broadway `ack/3` got `@behaviour Broadway.Acknowledger` — mechanism A, not an ignore entry. |
+| **A rewrite's leftovers** (12) | `32a8dcce`. `WatchHistory.stats/0` moved to SQL aggregates and its in-memory predecessor stayed standing — `Stats.compute/1` plus the three helpers it alone called. Also `Activities.get_many/1` (superseded by `friend_activity_for/1`), `WatchHistoryLive.update_rewatch_counts/3` (public only so a test could inject a spy) and `PlaybackActivity.empty/0` (a constant its own test compared production against). |
+| **Pipeline width** (1, wired) | `93323fac`. See below. |
 
 ## The `CancelReasons` case — the campaign's exemplar
 
@@ -227,6 +291,26 @@ reason and failed red before the fix.
 
 Deleting its seven uncalled accessors — the obvious reading — would have
 cemented the drift.
+
+## The pipeline-width case — the exemplar, repeated
+
+`Pipeline.Import.processor_concurrency/0` looked exactly like the five schema
+enum getters this campaign deleted: a public reader for a module attribute,
+no caller. It was the opposite.
+
+The Status page's Media import panel passed **one** slot count — Discovery's
+10 — to all four content stages, and `Pipeline.Stats`' own moduledoc says
+Import owns two of them and runs five processors. Saturation compared against
+the same fixed 10, so `fetch_metadata` and `ingest` could never read as
+saturated at all: full meant `5/10`, which renders as "active". A test asserted
+saturation on `:fetch_metadata` by driving ten concurrent starts — a state that
+stage can never reach. **Green, and guarding a fiction**, exactly as
+`CancelReasons`' test was.
+
+The fix was the seam: `@stage_owners` makes the stage-to-pipeline map code
+instead of moduledoc prose, `stage_concurrency/0` reads each owner's width,
+and both consumers derive from it. `Pipeline.Image` gained the declaration its
+siblings had, retiring a literal `8` that had been typed twice.
 
 ## Wired, not deleted
 
@@ -325,6 +409,13 @@ Each has a named trigger; see
 
 ### Smaller
 
+* **Nine detail siblings hand-roll the section header.** `Detail.Section.section/1`
+  was the wrapper meant to pin that rhythm and nothing ever adopted it, so it
+  was deleted. The siblings render the same uppercase header at four sizes
+  (`0.65rem`, `0.7rem`, `text-xs`, `text-sm`) and two opacities. Which is
+  canonical is a `user-interface` question, not a dead-code one — noted here so
+  deleting the wrapper does not also delete the observation.
+
 * **Owner-deferred docs:** `docs/GLOSSARY.md` and `.claude/skills/troubleshoot/SKILL.md`
   still describe the retired console drawer. `CLAUDE.md`, `docs/architecture.md`,
   `docs/playback.md` and the wiki were updated in v1.32.0.
@@ -345,6 +436,8 @@ Each has a named trigger; see
   deliberate keep (with the reason at the definition site), or delete.
   Silencing the report without deciding is a failure of this campaign, not a
   completion of it.
+* The default-argument decision is made and recorded, because the gate cannot
+  exist without it.
 * Every **Inherited follow-up** still open has been rehomed before this file
   is deleted. They do not gate the campaign, but they must not disappear with
   it. `Acquisition.plan_tracked_item_now/1` currently has no home.
