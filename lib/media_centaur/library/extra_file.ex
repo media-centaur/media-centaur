@@ -39,6 +39,7 @@ defmodule MediaCentaur.Library.ExtraFile do
   (`MediaCentaur.BootHeal.backfill_extra_files/1`).
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.Writable
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}

@@ -5,6 +5,22 @@ defmodule MediaCentaur.Library.ContainersTest do
 
   import MediaCentaur.TestFactory
 
+  describe "the Writable contract" do
+    # `Containers.create/2` dispatches `schema(type).create_changeset/1` on a
+    # module it resolves at runtime. Nothing else checks that a newly added
+    # container type actually carries the contract, and the dispatch would
+    # only fail at the point a user creates one.
+    test "every container schema declares MediaCentaur.Library.Writable" do
+      for type <- Containers.types() do
+        schema = Containers.schema(type)
+        behaviours = schema.__info__(:attributes) |> Keyword.get_values(:behaviour) |> List.flatten()
+
+        assert MediaCentaur.Library.Writable in behaviours,
+               "#{inspect(schema)} backs container type #{inspect(type)} but does not declare the contract"
+      end
+    end
+  end
+
   describe "existing_ids/2" do
     test "keeps only the ids that name a live container of that type" do
       series = create_tv_series(%{name: "Sample Show"})

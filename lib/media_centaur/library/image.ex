@@ -41,8 +41,4 @@ defmodule MediaCentaur.Library.Image do
       name: :library_images_owner_type_owner_id_role_index
     )
   end
-
-  def update_changeset(image, attrs) do
-    cast(image, attrs, [:content_url, :extension])
-  end
 end

@@ -18,6 +18,7 @@ defmodule MediaCentaur.Library.Extra do
   `Library.Files.backfill_extras/0` on boot.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.Writable
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}

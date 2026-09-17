@@ -125,10 +125,6 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
   defp media_type("movie"), do: :movie
   defp media_type("tv"), do: :tv_series
 
-  @doc "The approval policy values."
-  @spec approval_policies() :: [String.t()]
-  def approval_policies, do: @approval_policies
-
   @doc "Builds a new plan in `planning`."
   def create_changeset(attrs) do
     %__MODULE__{}

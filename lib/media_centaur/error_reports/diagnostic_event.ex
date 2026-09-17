@@ -48,10 +48,6 @@ defmodule MediaCentaur.ErrorReports.DiagnosticEvent do
     timestamps()
   end
 
-  @doc "Captured levels persisted as diagnostic events."
-  @spec levels() :: [atom()]
-  def levels, do: @levels
-
   @doc """
   Builds the insert changeset for a captured event.
 

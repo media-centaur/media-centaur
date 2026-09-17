@@ -15,6 +15,7 @@ defmodule MediaCentaur.Library.MovieSeries do
   this schema (Library Schema v2 Phase 1 Task 6).
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.Writable
   import Ecto.Changeset
 
   alias MediaCentaur.Library.Person

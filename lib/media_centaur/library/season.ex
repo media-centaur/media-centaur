@@ -10,6 +10,7 @@ defmodule MediaCentaur.Library.Season do
   separately.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.Writable
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
