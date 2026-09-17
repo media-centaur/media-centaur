@@ -11,7 +11,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.CoverageGuard
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder, SearchTerms}
+  alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder}
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
@@ -74,7 +74,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   def search(plan_unit_id) do
     with {:ok, unit} <- Plans.fetch_unit(plan_unit_id),
          {:ok, plan} <- Plans.fetch(unit.plan_id) do
-      opts = SearchTerms.search_opts(plan)
+      opts = SearchOrder.search_opts(plan)
 
       plan
       |> unit_terms(unit)
@@ -101,7 +101,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
       |> Enum.filter(&(&1.status == "unfound"))
 
     terms = evidence_terms(plan, gap_units)
-    opts = SearchTerms.search_opts(plan)
+    opts = SearchOrder.search_opts(plan)
 
     searches =
       for term <- terms,
@@ -216,7 +216,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   defp rejected_choosable(%Plan{}), do: {:error, :not_ready}
 
   defp find_raw_candidate(plan, unit, guid) do
-    opts = SearchTerms.search_opts(plan)
+    opts = SearchOrder.search_opts(plan)
 
     plan
     |> unit_terms(unit)
@@ -279,7 +279,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   # All identity-verified corpus candidates that can cover this unit,
   # as {result, scope} pairs (movies carry the :movie pseudo-scope).
   defp unit_candidates(plan, unit) do
-    opts = SearchTerms.search_opts(plan)
+    opts = SearchOrder.search_opts(plan)
 
     plan
     |> unit_terms(unit)
@@ -299,7 +299,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   end
 
   defp find_candidate(plan, unit, guid) do
-    opts = SearchTerms.search_opts(plan)
+    opts = SearchOrder.search_opts(plan)
 
     plan
     |> unit_terms(unit)

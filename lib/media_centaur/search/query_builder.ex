@@ -5,10 +5,12 @@ defmodule MediaCentaur.Search.QueryBuilder do
 
   Returns `[{query_string, opts}]`. Opts carry `:categories`
   (`:movie` or `:tv`) for TMDB criteria and nothing for a user-typed
-  query. The order is precise-to-broad, but it is the *caller* that
-  decides what to do with it: a movie's queries are alternate phrasings
-  of one want and every one is searched, while TV's are a narrowing
-  ladder walked only as far as coverage requires.
+  query. The strings themselves come from `SearchTerms`, the one place
+  a term is spelled, so a pursuit and a plan search the same want with
+  the same query. The order is precise-to-broad, but it is the *caller*
+  that decides what to do with it: a movie's queries are alternate
+  phrasings of one want and every one is searched, while a TV unit is
+  either covered by a query's results or not.
 
   ## Criteria variants
 
@@ -21,100 +23,88 @@ defmodule MediaCentaur.Search.QueryBuilder do
     considered a match, and the worker routes through the decision card
     for the user to pick.
 
-  Pure function module — no I/O, no DB. Caller projects its
-  domain-specific shape (e.g. `Acquisition.Pursuits.Recipe`) into
-  `Criteria` via the caller's own `to_criteria/1`.
+  `build/1` is what a search *for* the criteria runs. `fallback/1` is
+  what a search runs when that found nothing and the caller is willing
+  to be offered a pack: for a TV episode, its season's terms then the
+  series term, narrowest first. Pure function module — no I/O, no DB.
+  Caller projects its domain-specific shape (e.g.
+  `Acquisition.Pursuits.Recipe`) into `Criteria` via the caller's own
+  `to_criteria/1`.
   """
 
-  alias MediaCentaur.Search.{CourQueries, Criteria, QueryExpander, TitleForm}
-  alias MediaCentaur.Format
+  alias MediaCentaur.Search.{CourQueries, Criteria, QueryExpander, SearchTerms, TitleForm}
 
   @type opt :: {:categories, :movie | :tv}
   @type query :: {String.t(), [opt()]}
 
   @spec build(Criteria.t()) :: [query()]
   def build(%Criteria{type: :tmdb, tmdb_type: :movie} = criteria),
-    do: criteria |> sanitize_title() |> build_movie() |> with_categories(:movie)
+    do: criteria |> SearchTerms.movie_terms() |> with_categories(criteria)
 
   def build(%Criteria{type: :tmdb, tmdb_type: :tv} = criteria),
-    do: criteria |> sanitize_title() |> build_tv() |> with_categories(:tv)
+    do: criteria |> build_tv() |> with_categories(criteria)
 
   def build(%Criteria{type: :prowlarr_query} = criteria), do: build_prowlarr_query(criteria)
 
-  # Constructed queries only — scene names carry neither apostrophes nor
-  # accented letters, so a verbatim TMDB title can miss almost every
-  # release of the right title. User-typed queries pass through untouched.
-  defp sanitize_title(criteria), do: %{criteria | title: TitleForm.query(criteria.title)}
-
-  defp build_movie(%Criteria{title: title, year: nil} = criteria),
-    do: [{title, []}] ++ original_title_query(criteria)
-
-  # Year query first, year-less fallback second — release names carry
-  # whichever year the group's source used (festival premiere vs
-  # theatrical), so the year query alone can miss every release of the
-  # right movie. The worker tries queries in order.
-  defp build_movie(%Criteria{title: title, year: year} = criteria) when is_integer(year) do
-    [{"#{title} #{year}", []}, {title, []}] ++ original_title_query(criteria)
+  @doc """
+  The wider queries that can only offer a pack for a TV episode: its
+  season's two terms, then the series term — narrowest first, so the
+  least over-broad pack surfaces first. Empty for every other criteria:
+  a movie's phrasings are all in `build/1`, a season or series criteria
+  is already the widest thing it could want, and a user-typed query has
+  no scope to widen.
+  """
+  @spec fallback(Criteria.t()) :: [query()]
+  def fallback(
+        %Criteria{type: :tmdb, tmdb_type: :tv, season_number: season, episode_number: episode} = criteria
+      )
+      when is_integer(season) and is_integer(episode) do
+    with_categories(
+      SearchTerms.season_terms(criteria, [season]) ++ SearchTerms.series_terms(criteria),
+      criteria
+    )
   end
 
-  # A foreign film is released under either name, so its original title
-  # is one more phrasing of the same want — broadest, hence last. Only
-  # when it is genuinely a different title: for the great majority it
-  # folds to the canonical one and costs no extra indexer request.
-  defp original_title_query(%Criteria{original_title: original, title: title})
-       when is_binary(original) do
-    folded = TitleForm.query(original)
-
-    if TitleForm.compare(folded) == TitleForm.compare(title), do: [], else: [{folded, []}]
-  end
-
-  defp original_title_query(%Criteria{}), do: []
+  def fallback(%Criteria{}), do: []
 
   # Later-cour residual: the first-run `Season N` query is wrong (it
   # surfaces the first-run pack the coverage guard refused), so emit the
   # run-shaped queries instead. A residual episode keeps its precise
   # `SxxExx` query as a fallback alongside the cour queries.
-  defp build_tv(%Criteria{run: %{index: index} = run, title: title} = criteria)
-       when is_integer(index) and index > 0 do
-    cour = CourQueries.build(title, run)
+  defp build_tv(%Criteria{run: %{index: index} = run} = criteria) when is_integer(index) and index > 0 do
+    cour = criteria.title |> TitleForm.query() |> CourQueries.build(run) |> Enum.map(&elem(&1, 0))
 
     case criteria.episode_number do
       episode when is_integer(episode) ->
-        season = criteria.season_number
-        Enum.uniq(cour ++ [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", []}])
+        Enum.uniq(cour ++ SearchTerms.episode_terms(criteria, [{criteria.season_number, episode}]))
 
       nil ->
         cour
     end
   end
 
-  defp build_tv(%Criteria{title: title, season_number: season, episode_number: nil})
-       when is_integer(season) do
-    [
-      {"#{title} Season #{season}", []},
-      {"#{title} #{season_tag(season)}", []}
-    ]
-  end
+  defp build_tv(%Criteria{season_number: season, episode_number: nil} = criteria)
+       when is_integer(season), do: SearchTerms.season_terms(criteria, [season])
 
-  defp build_tv(%Criteria{title: title, season_number: season, episode_number: episode})
-       when is_integer(season) and is_integer(episode) do
-    [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", []}]
-  end
+  defp build_tv(%Criteria{season_number: season, episode_number: episode} = criteria)
+       when is_integer(season) and is_integer(episode),
+       do: SearchTerms.episode_terms(criteria, [{season, episode}])
 
-  # Whole-series fallback (no season/episode known) — rare in the
+  # Whole-series query (no season/episode known) — rare in the
   # auto-acquisition flow because Refresher always emits a release with
   # episode info, but legitimate when a manual TMDB pursuit targets the
   # series itself.
-  defp build_tv(%Criteria{title: title, season_number: nil, episode_number: nil}) do
-    [{title, []}]
-  end
+  defp build_tv(%Criteria{season_number: nil, episode_number: nil} = criteria),
+    do: SearchTerms.series_terms(criteria)
 
   # Every TMDB-derived query is scoped to the category its type implies,
   # so an unfiltered title never spends the indexer's result page on the
   # books, music and anime that merely share a word with it. A user-typed
   # query gets none — routing a manual search is the user's business.
-  defp with_categories(queries, kind),
-    do: Enum.map(queries, fn {query, opts} -> {query, Keyword.put(opts, :categories, kind)} end)
+  defp with_categories(terms, %Criteria{} = criteria) do
+    opts = SearchTerms.search_opts(criteria)
+    Enum.map(terms, &{&1, opts})
+  end
 
   defp build_prowlarr_query(%Criteria{manual_query: nil}), do: []
 
@@ -124,7 +114,4 @@ defmodule MediaCentaur.Search.QueryBuilder do
       {:error, _} -> [{query, []}]
     end
   end
-
-  defp season_tag(season), do: "S" <> Format.pad2(season)
-  defp episode_tag(episode), do: "E" <> Format.pad2(episode)
 end

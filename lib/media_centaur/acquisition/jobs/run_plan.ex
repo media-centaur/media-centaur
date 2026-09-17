@@ -60,7 +60,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     Plans
   }
 
-  alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder, SearchTerms}
+  alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{CourCoverage, CourQueries, Quality, ReleaseCoverage}
   alias MediaCentaur.Search.{ReleasePreference, ReleaseRedFlags, TitleMatcher}
@@ -479,7 +479,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     # verdict the unit carries instead of a bare unfound.
     {best, below_floor_guids} =
       plan
-      |> SearchTerms.movie_terms()
+      |> SearchOrder.terms([], %{})
       |> Enum.reduce_while({nil, MapSet.new()}, fn term, acc ->
         if still_planning?(plan) do
           {:cont, movie_term_step(plan, term, acc, movie_context)}
@@ -568,7 +568,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   # ---------------------------------------------------------------------------
 
   defp search(plan, term, force?) do
-    opts = SearchTerms.search_opts(plan)
+    opts = SearchOrder.search_opts(plan)
     served_from = if not force? and Corpus.fresh?(term, opts), do: :corpus, else: :live
     outcome = Corpus.search(term, Keyword.put(opts, :force, force?))
 

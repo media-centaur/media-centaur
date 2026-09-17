@@ -18,18 +18,20 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
   wider term happens to return can still be assigned.
 
   When fit cannot be judged — no span sizes, or no threshold, which is
-  every movie and every tracking-born plan today — every scope fits and
-  the order is widest first with no fallback: the search as it was
-  before this module.
+  every movie and a tracking-born plan whose item has no season sizes
+  yet — every scope fits and the order is widest first with no
+  fallback: the search as it was before this module.
 
   Each step carries `terms/1`, a function of the current residual, so
   the runner spends only the terms the residual justifies; a step whose
   terms come back empty is skipped. A step that could never yield a
-  term for this want is not returned at all. Pure — no I/O, no DB.
+  term for this want is not returned at all. The strings come from
+  `Search.SearchTerms`, the one place a term is spelled, through the
+  plan's identity criteria (`MatchCriteria`). Pure — no I/O, no DB.
   """
 
-  alias MediaCentaur.Acquisition.Plans.{Fit, Plan, PlanUnit, SearchTerms}
-  alias MediaCentaur.Search.ReleaseCoverage
+  alias MediaCentaur.Acquisition.Plans.{Fit, MatchCriteria, Plan, PlanUnit}
+  alias MediaCentaur.Search.{Criteria, ReleaseCoverage, SearchTerms}
 
   @type scope :: :series | :season | :episode
   @type kind :: :primary | :fallback
@@ -46,9 +48,19 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
           optional(:pack_min_fit) => number() | nil
         }
 
+  @doc """
+  The Prowlarr/corpus options every one of this plan's terms is searched
+  with (`Search.SearchTerms.search_opts/1` for the plan's identity).
+  Part of the corpus key: the plan runner, the alternatives picker and
+  the commit path must all pass these when addressing a plan's terms.
+  """
+  @spec search_opts(Plan.t()) :: keyword()
+  def search_opts(%Plan{} = plan), do: plan |> MatchCriteria.from() |> SearchTerms.search_opts()
+
   @doc "The ordered steps for a TV plan's want."
   @spec steps(Plan.t(), [ReleaseCoverage.unit()], prefs()) :: [step()]
   def steps(%Plan{tmdb_type: "tv"} = plan, wanted, prefs) do
+    criteria = MatchCriteria.from(plan)
     threshold = Map.get(prefs, :pack_min_fit)
     span_sizes = Map.get(prefs, :span_sizes, %{})
 
@@ -60,14 +72,14 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
       |> Enum.split_with(&season_fits?(&1, wanted, span_sizes, threshold))
 
     primary = [
-      series_step(plan, :primary, series_fits?),
-      season_step(plan, :primary, fitting_seasons),
-      %{scope: :episode, kind: :primary, terms: &SearchTerms.episode_terms(plan, &1)}
+      series_step(criteria, :primary, series_fits?),
+      season_step(criteria, :primary, fitting_seasons),
+      %{scope: :episode, kind: :primary, terms: &SearchTerms.episode_terms(criteria, &1)}
     ]
 
     fallback = [
-      season_step(plan, :fallback, other_seasons),
-      series_step(plan, :fallback, not series_fits?)
+      season_step(criteria, :fallback, other_seasons),
+      series_step(criteria, :fallback, not series_fits?)
     ]
 
     Enum.reject(primary ++ fallback, &is_nil/1)
@@ -81,7 +93,8 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
   straight from `SearchTerms`.
   """
   @spec terms(Plan.t(), [ReleaseCoverage.unit()], prefs()) :: [SearchTerms.search_term()]
-  def terms(%Plan{tmdb_type: "movie"} = plan, _wanted, _prefs), do: SearchTerms.movie_terms(plan)
+  def terms(%Plan{tmdb_type: "movie"} = plan, _wanted, _prefs),
+    do: plan |> MatchCriteria.from() |> SearchTerms.movie_terms()
 
   def terms(%Plan{tmdb_type: "tv"} = plan, wanted, prefs) do
     plan
@@ -91,8 +104,7 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
 
   @doc "`terms/3` for one plan unit's own want."
   @spec terms_for_unit(Plan.t(), PlanUnit.t(), prefs()) :: [SearchTerms.search_term()]
-  def terms_for_unit(%Plan{tmdb_type: "movie"} = plan, %PlanUnit{}, _prefs),
-    do: SearchTerms.movie_terms(plan)
+  def terms_for_unit(%Plan{tmdb_type: "movie"} = plan, %PlanUnit{}, prefs), do: terms(plan, [], prefs)
 
   def terms_for_unit(%Plan{tmdb_type: "tv"} = plan, %PlanUnit{} = unit, prefs) do
     terms(plan, [{unit.season_number, unit.episode_number}], prefs)
@@ -111,19 +123,19 @@ defmodule MediaCentaur.Acquisition.Plans.SearchOrder do
     %{span_sizes: span_sizes, pack_min_fit: if(span_sizes != %{}, do: percent / 100)}
   end
 
-  defp series_step(_plan, _kind, false), do: nil
+  defp series_step(_criteria, _kind, false), do: nil
 
-  defp series_step(plan, kind, true),
-    do: %{scope: :series, kind: kind, terms: fn _residual -> SearchTerms.series_terms(plan) end}
+  defp series_step(%Criteria{} = criteria, kind, true),
+    do: %{scope: :series, kind: kind, terms: fn _residual -> SearchTerms.series_terms(criteria) end}
 
-  defp season_step(_plan, _kind, []), do: nil
+  defp season_step(_criteria, _kind, []), do: nil
 
-  defp season_step(plan, kind, seasons) do
+  defp season_step(%Criteria{} = criteria, kind, seasons) do
     %{
       scope: :season,
       kind: kind,
       terms: fn residual ->
-        SearchTerms.season_terms(plan, residual |> seasons() |> Enum.filter(&(&1 in seasons)))
+        SearchTerms.season_terms(criteria, residual |> seasons() |> Enum.filter(&(&1 in seasons)))
       end
     }
   end

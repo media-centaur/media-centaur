@@ -20,6 +20,7 @@ defmodule MediaCentaur.Search do
       ReleasePreference,
       ReleaseRedFlags,
       SearchResult,
+      SearchTerms,
       TitleMatcher
     ]
 
