@@ -1,22 +1,25 @@
 defmodule MediaCentaur.Acquisition.IncidentContext do
   @moduledoc """
   The `acquisition` component's single `:subsystem` assessor — composes
-  the download-client probe (`Downloads.IncidentContext`) and the
-  search-provider probe (`Search.IncidentContext`) into one condition
-  (ADR-054, UIDR-016).
+  the download-client probe (`Downloads.IncidentContext`), the hand-off
+  probe (`Pursuits.IncidentContext`: Prowlarr's own link to the client,
+  seen through failed grabs) and the search-provider probe
+  (`Search.IncidentContext`) into one condition (ADR-054, UIDR-016).
 
   The evaluator contract is one assessor per component reporting *the*
-  single current condition; both probes are acquisition capabilities
-  (search finds releases, the client lands them), so they share the
-  component. `worst/1` picks what surfaces when both fault: highest
-  severity first, probe order (client before search) on a tie — the
-  client is the more directly actionable of the two.
+  single current condition; all three probes are acquisition
+  capabilities (search finds releases, the client lands them), so they
+  share the component. `worst/1` picks what surfaces when several
+  fault: highest severity first, probe order (the app's client link,
+  then Prowlarr's, then search) on a tie — the client is the more
+  directly actionable of the three.
 
   Registered under `:acquisition` in
   `config :media_centaur, :diagnostics_contributors`.
   """
   @behaviour MediaCentaur.ErrorReports.IncidentContext
 
+  alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Downloads
   alias MediaCentaur.Search
 
@@ -26,7 +29,11 @@ defmodule MediaCentaur.Acquisition.IncidentContext do
   @spec assess() :: assessment()
   @impl true
   def assess do
-    worst([Downloads.IncidentContext.assess(), Search.IncidentContext.assess()])
+    worst([
+      Downloads.IncidentContext.assess(),
+      Pursuits.IncidentContext.assess(),
+      Search.IncidentContext.assess()
+    ])
   end
 
   @doc """
