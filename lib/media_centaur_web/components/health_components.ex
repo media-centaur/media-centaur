@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.HealthComponents do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.RetentionPanel, only: [retention_panel: 1]
+  import MediaCentaurWeb.ConsoleComponents, only: [log_line: 1]
 
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaurWeb.StatusLive.HealthBoard
@@ -116,6 +117,15 @@ defmodule MediaCentaurWeb.HealthComponents do
   attr :view, SubsystemView, required: true
   attr :buckets, :list, required: true, doc: "[Bucket.t()] for this subsystem"
   attr :retention, :list, default: [], doc: "[Retention.PolicyStatus.t()] for this subsystem"
+
+  attr :log_lines, :list,
+    default: [],
+    doc: "[Console.Entry.t()] recent lines for this subsystem, newest first"
+
+  attr :show_log_components, :boolean,
+    default: false,
+    doc: "per-line component badges; true only where a subsystem folds more than one tag"
+
   attr :on_select, :string, default: "select_incident"
   attr :on_dismiss, :string, default: "dismiss_incident"
   attr :on_dismiss_all, :string, default: "dismiss_all"
@@ -221,7 +231,10 @@ defmodule MediaCentaurWeb.HealthComponents do
 
           <.retention_panel :if={@retention != []} policies={@retention} />
 
-          <details class="glass-inset rounded-xl">
+          <%!-- Absence is the empty state: a subsystem with nothing recent in
+                its rings gets no disclosure at all, rather than a permanent
+                shut drawer that opens onto "No recent log lines." --%>
+          <details :if={@log_lines != []} id="subsystem-logs" class="glass-inset rounded-xl">
             <summary
               data-nav-item
               tabindex="0"
@@ -229,9 +242,12 @@ defmodule MediaCentaurWeb.HealthComponents do
             >
               Technical logs
             </summary>
-            <div class="space-y-0.5 border-t border-base-content/10 px-4 py-3 font-mono text-xs text-base-content/55">
-              <p :for={line <- HealthBoard.log_lines(@buckets)}>{line}</p>
-              <p :if={HealthBoard.log_lines(@buckets) == []}>No recent log lines.</p>
+            <div class="max-h-96 overflow-y-auto border-t border-base-content/10 px-4 py-3">
+              <.log_line
+                :for={entry <- @log_lines}
+                entry={entry}
+                show_component={@show_log_components}
+              />
             </div>
           </details>
         </aside>

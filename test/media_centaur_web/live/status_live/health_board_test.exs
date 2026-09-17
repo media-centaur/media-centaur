@@ -276,4 +276,64 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       assert HealthBoard.components_for(:self_update) == []
     end
   end
+
+  describe "log_filter/1" do
+    alias MediaCentaur.Console.Entry
+    alias MediaCentaur.Console.Filter
+
+    defp entry(component, level) do
+      %Entry{
+        id: 1,
+        timestamp: ~U[2026-09-17 10:00:00Z],
+        level: level,
+        component: component,
+        message: "sample line"
+      }
+    end
+
+    test "admits an info entry from the subsystem's own component" do
+      assert Filter.matches?(entry(:watcher, :info), HealthBoard.log_filter(:watcher))
+    end
+
+    test "applies an :info floor, so debug never reaches a status panel" do
+      refute Filter.matches?(entry(:watcher, :debug), HealthBoard.log_filter(:watcher))
+    end
+
+    test "rejects every component outside the subsystem" do
+      filter = HealthBoard.log_filter(:watcher)
+
+      refute Filter.matches?(entry(:ecto, :info), filter)
+      refute Filter.matches?(entry(:pipeline, :error), filter)
+    end
+
+    test "a folded subsystem admits every component it folds" do
+      filter = HealthBoard.log_filter(:social)
+
+      assert Filter.matches?(entry(:social, :info), filter)
+      assert Filter.matches?(entry(:nostr, :info), filter)
+    end
+
+    test "a subsystem with no components admits nothing" do
+      filter = HealthBoard.log_filter(:self_update)
+
+      refute Filter.matches?(entry(:system, :error), filter)
+      refute Filter.matches?(entry(:self_update, :error), filter)
+    end
+  end
+
+  describe "multi_component?/1" do
+    test "true when the subsystem folds more than one component" do
+      assert HealthBoard.multi_component?(:social)
+      assert HealthBoard.multi_component?(:system)
+    end
+
+    test "false when the subsystem is its own single component" do
+      refute HealthBoard.multi_component?(:watcher)
+      refute HealthBoard.multi_component?(:acquisition)
+    end
+
+    test "false when the subsystem has no components at all" do
+      refute HealthBoard.multi_component?(:self_update)
+    end
+  end
 end

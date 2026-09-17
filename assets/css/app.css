@@ -2819,24 +2819,27 @@ body:has(.modal-backdrop[data-state="open"]) {
   min-width: 12rem;
 }
 
-/* Main log list — scrollable, monospace, tight */
+/* Main log list — scrollable, tight */
 .console-log {
   flex: 1 1 auto;
   overflow-y: auto;
   padding: 0.5rem 1rem;
-  font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.75rem;
-  line-height: 1.4;
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
 }
 
+/* Typography rides the row, not the container: the same row renders inside
+   the console's scroller and inside the Status subsystem log panel, which
+   has no `.console-log` ancestor to inherit from. */
 .console-entry {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.125rem 0;
+  font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.4;
 }
 
 .console-timestamp {
