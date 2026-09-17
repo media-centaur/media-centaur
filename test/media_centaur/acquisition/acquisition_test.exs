@@ -10,8 +10,11 @@ defmodule MediaCentaur.AcquisitionTest do
   alias MediaCentaur.Acquisition.Targets
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Search.SearchResult
+  alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
+  alias MediaCentaur.Acquisition.ViewModels.Alternative
   alias MediaCentaur.Repo
+  alias MediaCentaur.TmdbStubs
 
   setup do
     # Oban runs jobs inline in tests (`testing: :inline` in config/test.exs).
@@ -609,6 +612,8 @@ defmodule MediaCentaur.AcquisitionTest do
     test "excludes guids in tried_release_guids and caps the list at 8" do
       # Pre-tried guids 0..4; expect the next eight from a deeper Prowlarr
       # response back (0..4 are filtered out, 5..12 remain — top 8 = 5..12).
+      # Every release contains the episode — the cap is what is under test.
+      TmdbStubs.setup_tmdb_client()
       tried = Enum.map(0..4, &"guid-#{&1}")
 
       pursuit =
@@ -616,6 +621,8 @@ defmodule MediaCentaur.AcquisitionTest do
           tmdb_id: "tt-tried",
           tmdb_type: "tv",
           title: "Sample Show",
+          season_number: 1,
+          episode_number: 3,
           tried_release_guids: tried
         })
 
@@ -623,7 +630,7 @@ defmodule MediaCentaur.AcquisitionTest do
         results =
           for n <- 0..15 do
             %{
-              "title" => "Sample.Show.Release.#{n}",
+              "title" => "Sample.Show.S01E03.1080p.WEB-DL-GROUP#{n}",
               "guid" => "guid-#{n}",
               "indexerId" => 1,
               "size" => 1_000_000_000,
@@ -642,6 +649,99 @@ defmodule MediaCentaur.AcquisitionTest do
       guids = Enum.map(results, & &1.guid)
       assert length(guids) == 8
       assert Enum.all?(tried, &(&1 not in guids))
+    end
+  end
+
+  describe "list_alternatives_for/2 — a TMDB episode unit searches like the plan side" do
+    # F10 (spec 2026-09-17): the decision card searched the bare show
+    # title with options Prowlarr ignores and listed the first eight
+    # results whatever they were. For an episode unit that is eight
+    # arbitrary releases of the show. The card must search the unit's
+    # own terms in plan order — the episode term first, then the season
+    # and series terms that can only offer a pack — and list only what
+    # contains the episode.
+
+    setup do
+      TmdbStubs.setup_tmdb_client()
+
+      pursuit =
+        create_pursuit(%{
+          tmdb_id: "500",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 3
+        })
+
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.method do
+          "GET" ->
+            send(test_pid, {:prowlarr_query, conn.query_params["query"]})
+
+            Req.Test.json(conn, [
+              release("Sample.Show.Release.7", "unknown-7"),
+              release("Sample.Show.S02.1080p.WEB-DL", "pack-s02"),
+              release("Sample.Show.S01E03.1080p.WEB-DL", "single-s01e03"),
+              release("Sample.Show.S01.1080p.WEB-DL", "pack-s01")
+            ])
+
+          "POST" ->
+            Req.Test.json(conn, %{"approved" => true})
+        end
+      end)
+
+      %{pursuit: pursuit}
+    end
+
+    defp release(title, guid) do
+      %{
+        "title" => title,
+        "guid" => guid,
+        "indexerId" => 1,
+        "size" => 1_000_000_000,
+        "seeders" => 10,
+        "leechers" => 0,
+        "indexer" => "Test Indexer",
+        "publishDate" => "2026-04-01T00:00:00Z"
+      }
+    end
+
+    test "asks the episode term first, then the wider terms that can only offer a pack", %{
+      pursuit: pursuit
+    } do
+      Acquisition.list_alternatives_for(pursuit)
+
+      assert_received {:prowlarr_query, "Sample Show S01E03"}
+      assert_received {:prowlarr_query, "Sample Show Season 1"}
+      assert_received {:prowlarr_query, "Sample Show S01"}
+      assert_received {:prowlarr_query, "Sample Show"}
+      refute_received {:prowlarr_query, _other}
+    end
+
+    test "lists only releases that contain the episode — the single and its season pack", %{
+      pursuit: pursuit
+    } do
+      guids = pursuit |> Acquisition.list_alternatives_for() |> Enum.map(& &1.guid)
+
+      assert guids == ["single-s01e03", "pack-s01"]
+    end
+
+    test "a pack alternative carries its scope for the card", %{pursuit: pursuit} do
+      pack = pursuit |> Acquisition.list_alternatives_for() |> Enum.find(&(&1.guid == "pack-s01"))
+
+      assert %Alternative{scope: {:season, 1}} = Alternative.from(pack)
+
+      assert %Alternative{scope: {:episode, 1, 3}} =
+               Alternative.from(%{pack | title: "Sample.Show.S01E03.1080p.WEB-DL"})
+    end
+
+    test "picking the pack by guid resolves it through the same search", %{pursuit: pursuit} do
+      assert {:ok, %Pursuit{} = picked} =
+               Acquisition.pick_alternative(pursuit.id, "pack-s01", "Season 1 pack")
+
+      assert %{release_title: "Sample.Show.S01.1080p.WEB-DL"} = Pursuits.current_target(picked)
     end
 
     test "pick_alternative succeeds against a brace-expanded prowlarr_query pursuit" do

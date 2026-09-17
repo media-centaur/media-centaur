@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1, armed_button: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.{Alternative, DecisionCard}
+  alias MediaCentaur.Search.ReleaseCoverage
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
 
   attr :vm, DecisionCard, required: true
@@ -110,8 +111,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
   attr :alt, Alternative, required: true
 
   defp alternative_row(assigns) do
+    assigns = assign(assigns, :pack_label, pack_label(assigns.alt.scope))
+
     ~H"""
     <div class="glass-inset rounded-lg p-3 flex items-center gap-3">
+      <%!-- A pack is shown as one: picking it downloads more than the
+            episode, and the user should know that before "Try this one". --%>
+      <span
+        :if={@pack_label}
+        class="shrink-0 text-xs uppercase tracking-wider text-base-content/55"
+      >
+        {@pack_label}
+      </span>
       <ReleaseFacts.release_facts entry={
         %ReleaseFacts.Entry{
           title: @alt.title,
@@ -139,4 +150,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
 
   defp search_label([_]), do: "Search query"
   defp search_label(_), do: "Search queries"
+
+  # Only a release wider than one episode gets a label; a single, an
+  # unclassifiable name, or a movie (no scope) reads as itself.
+  defp pack_label(nil), do: nil
+  defp pack_label(:unknown), do: nil
+  defp pack_label({:episode, _season, _episode}), do: nil
+  defp pack_label(scope), do: ReleaseCoverage.scope_label(scope)
 end

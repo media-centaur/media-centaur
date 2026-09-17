@@ -154,6 +154,37 @@ defmodule MediaCentaur.Search.TitleMatcher do
 
   def coverage(%SearchResult{}, %Criteria{}), do: :no_match
 
+  @doc """
+  Whether a release verified by `coverage/2` contains the criteria's
+  own unit — its season and episode when the criteria name one, any
+  part of its season when only the season is named, anything of the
+  show when neither is. What a decision card lists and what a retry
+  loop may offer: the same test on both sides, so "contains this
+  episode" cannot mean two things.
+  """
+  @spec covers?(SearchResult.t(), Criteria.t()) :: boolean()
+  def covers?(%SearchResult{} = result, %Criteria{} = criteria) do
+    case coverage(result, criteria) do
+      {:ok, scope} -> scope_covers?(scope, criteria)
+      :no_match -> false
+    end
+  end
+
+  defp scope_covers?(scope, %Criteria{season_number: season, episode_number: episode})
+       when is_integer(season) and is_integer(episode),
+       do: ReleaseCoverage.covers?(scope, season, episode)
+
+  defp scope_covers?(scope, %Criteria{season_number: season, episode_number: nil})
+       when is_integer(season) do
+    case scope do
+      {:episode, ^season, _episode} -> true
+      {:episodes, ^season, _first, _last} -> true
+      wider -> ReleaseCoverage.covers?(wider, season, 1)
+    end
+  end
+
+  defp scope_covers?(_scope, %Criteria{}), do: true
+
   # Pack shapes (S02.COMPLETE, S01-S05, Complete Series) don't parse as
   # files, so identity comes from the prefix before the first scope
   # token — normalized, with a trailing year token tolerated (release

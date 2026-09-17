@@ -207,11 +207,12 @@ defmodule MediaCentaur.Acquisition.Target do
   @doc """
   Records an attempt outcome WITHOUT bumping `attempt_count`.
 
-  Used when the failure is on the search infrastructure (Prowlarr
-  down, network error) — we still want to record the attempt for
-  visibility but shouldn't penalise the target toward failure.
+  For outcomes that say nothing against the release: the search
+  infrastructure was unavailable (Prowlarr down, the download client
+  unreachable), or the attempt ended by handing a decision to the user.
+  The attempt stays visible on the row without counting toward failure.
   """
-  def infrastructure_failure_changeset(target, outcome) do
+  def outcome_changeset(target, outcome) do
     change(target,
       last_attempt_at: DateTime.utc_now(:second),
       last_attempt_outcome: outcome

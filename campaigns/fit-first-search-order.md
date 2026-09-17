@@ -32,7 +32,10 @@ fallback steps; the picker and gap evidence read terms in the same
 order; board copy and story updated). A one-episode plan now makes one
 indexer request when the single exists. Step 3 (season sizes on the
 tracking item → drop plans get fit gating) implemented 2026-09-17,
-unpushed, with an additive migration. Steps 4–6 not started.
+unpushed, with an additive migration. Step 4 (the pursuit side searches
+like the plan side: one term builder, coverage-filtered decision card
+with pack alternatives, pre-exhaust pack decision) implemented
+2026-09-17, unpushed. Steps 5–6 not started.
 
 ## Decisions made
 
@@ -85,8 +88,21 @@ unpushed, with an additive migration. Steps 4–6 not started.
    want, so for one episode of a whole-season plan it lists the episode
    term first while the plan ran season-first; same candidate set, only
    the recorded term can differ.
-4. Retry loop: fallback search once before exhausting; decision prompt
-   when a pack contains the unit.
+4. ~~Retry loop: fallback search once before exhausting; decision prompt
+   when a pack contains the unit.~~ Done 2026-09-17, widened by F10, as
+   two commits: `refactor(search): one builder for every search term`
+   (`Search.SearchTerms` spells every constructed term; `QueryBuilder`
+   and `Plans.SearchOrder` both build there; `QueryBuilder.fallback/1`
+   is the episode's season-then-series widening) and
+   `feat(acquisition): the pursuit side searches like the plan side`
+   (the decision card searches the unit's terms in plan order through
+   the corpus and lists only what `TitleMatcher.covers?/2` says contains
+   the episode, a pack labelled as one; picking a pack covers every live
+   unit of the pursuit its scope contains; the attempt that would
+   exhaust runs the fallback terms once and asks "Only a pack has this
+   episode. Picking it downloads the whole pack." instead of failing;
+   the card repeats the worker's prompt). Movies and typed queries on
+   the card are unchanged.
 5. Check what Status shows while a download client is unreachable; add
    a Needs-attention item if nothing does.
 6. Wiki: Searching-and-Downloading (search order), Troubleshooting

@@ -209,4 +209,91 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
       assert reloaded.last_attempt_outcome == "grab_failed"
     end
   end
+
+  describe "the attempt that would exhaust asks about a pack first" do
+    # F5 (spec 2026-09-17): the retry loop only ever searched the episode
+    # term, so an episode that survives only inside a season pack was
+    # invisible to it — twelve attempts over a week, then a silent
+    # exhaustion. Before giving up, the worker runs the wider terms once
+    # and, when a pack contains the episode, asks instead of exhausting.
+
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+
+      {pursuit, target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "500",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 3,
+          state: "seeking",
+          status: "seeking",
+          attempt_count: 11
+        })
+
+      %{pursuit: pursuit, target: target}
+    end
+
+    defp stub_indexer(results_by_query) do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+            Req.Test.json(conn, Map.get(results_by_query, query, []))
+        end
+      end)
+    end
+
+    defp season_pack do
+      %{
+        "title" => "Sample.Show.S01.1080p.WEB-DL",
+        "guid" => "pack-s01",
+        "indexerId" => 1,
+        "indexer" => "indexer-a",
+        "size" => 20_000_000_000,
+        "grabs" => 40,
+        "publishDate" => "2026-04-01T00:00:00Z"
+      }
+    end
+
+    test "a pack-only indexer turns the exhausting attempt into a decision", %{
+      pursuit: pursuit,
+      target: target
+    } do
+      stub_indexer(%{"Sample Show S01E03" => [], "Sample Show S01" => [season_pack()]})
+
+      assert {:ok, :needs_decision} =
+               PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      assert MediaCentaur.Repo.reload!(target).status == "seeking"
+
+      assert %{awaiting_decision_at: %DateTime{}} =
+               MediaCentaur.Acquisition.Pursuits.Units.lead(pursuit.id)
+
+      assert [
+               %{
+                 payload: %{
+                   "prompt" => "Only a pack has this episode. Picking it downloads the whole pack."
+                 }
+               }
+             ] =
+               pursuit.id
+               |> MediaCentaur.Acquisition.Pursuits.events_for()
+               |> Enum.filter(&(&1.kind == "user_decision_requested"))
+    end
+
+    test "with nothing covering the episode it exhausts as before", %{target: target} do
+      stub_indexer(%{})
+
+      assert :ok = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      assert MediaCentaur.Repo.reload!(target).status == "failed"
+    end
+  end
 end

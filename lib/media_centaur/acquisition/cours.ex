@@ -16,6 +16,7 @@ defmodule MediaCentaur.Acquisition.Cours do
   """
 
   alias MediaCentaur.Acquisition.CourSegmentation
+  alias MediaCentaur.Search.Criteria
   alias MediaCentaur.TMDB
 
   @doc """
@@ -42,6 +43,27 @@ defmodule MediaCentaur.Acquisition.Cours do
         []
     end
   end
+
+  @doc """
+  The criteria with its later broadcast run set, when the wanted episode
+  belongs to one — so `Search.QueryBuilder` emits run-shaped queries
+  ("Title 2nd Season") instead of the first-run "Season N" that would
+  surface the pack the coverage guard already refused. One season fetch
+  per call (the caller is a retry attempt or an opened decision card, both
+  low-frequency); degrades to the regular queries on a TMDB error. A
+  criteria without an episode, or without a TMDB id, is returned as-is.
+  """
+  @spec with_run(Criteria.t(), String.t() | nil) :: Criteria.t()
+  def with_run(
+        %Criteria{tmdb_type: :tv, season_number: season, episode_number: episode} = criteria,
+        tmdb_id
+      )
+      when is_integer(season) and is_integer(episode) and is_binary(tmdb_id) do
+    runs = runs_for_season(tmdb_id, season)
+    %{criteria | run: later_run(runs, {season, episode})}
+  end
+
+  def with_run(%Criteria{} = criteria, _tmdb_id), do: criteria
 
   @doc """
   The later run (index > 0) a `{season, episode}` unit belongs to, given

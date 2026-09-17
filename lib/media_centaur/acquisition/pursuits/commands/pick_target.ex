@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   @moduledoc """
   Records the user's chosen release as the new target — used by both
-  the decision card ("Pick this") and the manual-search submit flow.
+  the decision card ("Try this one") and the manual-search submit flow.
 
   Replaces v0.54/0.55's `RecordUserChoice` command, and unifies it
   with the manual-grab target-creation that previously lived inline
@@ -13,19 +13,22 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
 
   ## Side effects
 
-  Inside one Repo transaction, on the pursuit's unit (`Units.single!/1`
-  until unit-scoped args land — ADR-055):
+  Inside one Repo transaction, on the units the pick covers — the
+  awaiting-or-lead unit (`Units.lead/1`), plus, when the picked release
+  is a pack on a TV pursuit, every other live unit of the pursuit whose
+  episode the pack contains (a season pack picked for one episode lands
+  the pursuit's other episodes of that season too, so their own targets
+  stop searching for what is already on its way):
 
-  1. Mark the unit's previous `current_target` as `failed`
-     (reason `"replaced_by_pick"`) if it isn't already terminal.
-  2. Insert a new target in `acquired` carrying the picked release's
-     guid / title / quality, covering the unit.
-  3. Update `unit.current_target_id` to the new target.
-  4. Bump `unit.attempt_count` and append the picked guid to
+  1. Insert a new target in `acquired` carrying the picked release's
+     guid / title / quality.
+  2. For each covered unit: mark its previous `current_target` as
+     `failed` (reason `"replaced_by_pick"`) if it isn't already terminal,
+     record the coverage row, point `unit.current_target_id` at the new
+     target, bump `unit.attempt_count` and append the picked guid to
      `unit.tried_release_guids` (so a subsequent `ChangeTarget` won't
-     re-suggest the same release).
-  5. Clear `unit.awaiting_decision_at` (the user just picked).
-  6. Record `user_decision_recorded` + `fallback_initiated` events.
+     re-suggest the same release), and clear `unit.awaiting_decision_at`.
+  3. Record `user_decision_recorded` + `fallback_initiated` events.
   """
 
   alias MediaCentaur.Acquisition.CancelReasons
@@ -33,8 +36,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Helpers, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{FallbackInitiated, UserDecisionRecorded}
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units}
-  alias MediaCentaur.Search.SearchResult
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units, UnitState}
+  alias MediaCentaur.Search.{ReleaseCoverage, SearchResult}
   alias MediaCentaur.Acquisition.{InfoHash, Target}
   alias MediaCentaur.Repo
 
@@ -63,17 +66,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
       previous_guid = List.last(unit.tried_release_guids || [])
       now = DateTime.utc_now(:second)
 
-      with {:ok, _previous_target} <-
-             Helpers.fail_current_target(unit, CancelReasons.replaced_by_pick()),
-           {:ok, new_target} <- insert_acquired_target(pursuit, result, origin, torrent_hash),
-           {:ok, _coverage} <-
-             Repo.insert(TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: unit.id})),
-           {:ok, attempted} <-
-             Repo.update(Unit.record_attempt_changeset(unit, result.guid)),
-           {:ok, with_target} <-
-             Repo.update(Unit.set_current_target_changeset(attempted, new_target.id)),
-           {:ok, _resumed} <-
-             Repo.update(Unit.clear_awaiting_decision_changeset(with_target)),
+      with {:ok, new_target} <- insert_acquired_target(pursuit, result, origin, torrent_hash),
+           :ok <- cover(covered_units(pursuit, unit, result), new_target, result),
            {:ok, _decision_event} <-
              Events.record(%UserDecisionRecorded{
                pursuit_id: pursuit.id,
@@ -90,6 +84,41 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
                reason: "user_choice"
              }) do
         {:ok, pursuit}
+      end
+    end)
+  end
+
+  # The lead unit always; on a TV pursuit, every other live unit whose
+  # episode the picked release's scope contains as well.
+  defp covered_units(%Pursuit{recipe_type: "tmdb", tmdb_type: "tv"} = pursuit, %Unit{} = lead, result) do
+    scope = ReleaseCoverage.classify(result.title)
+
+    others =
+      pursuit.id
+      |> Units.for_pursuit()
+      |> Enum.filter(fn unit ->
+        unit.id != lead.id and not UnitState.terminal?(unit.state) and
+          is_integer(unit.season_number) and is_integer(unit.episode_number) and
+          ReleaseCoverage.covers?(scope, unit.season_number, unit.episode_number)
+      end)
+
+    [lead | others]
+  end
+
+  defp covered_units(%Pursuit{}, %Unit{} = lead, _result), do: [lead]
+
+  defp cover(units, %Target{} = target, %SearchResult{} = result) do
+    Enum.reduce_while(units, :ok, fn unit, :ok ->
+      with {:ok, _previous_target} <-
+             Helpers.fail_current_target(unit, CancelReasons.replaced_by_pick()),
+           {:ok, _coverage} <-
+             Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id})),
+           {:ok, attempted} <- Repo.update(Unit.record_attempt_changeset(unit, result.guid)),
+           {:ok, with_target} <- Repo.update(Unit.set_current_target_changeset(attempted, target.id)),
+           {:ok, _resumed} <- Repo.update(Unit.clear_awaiting_decision_changeset(with_target)) do
+        {:cont, :ok}
+      else
+        {:error, _reason} = error -> {:halt, error}
       end
     end)
   end
