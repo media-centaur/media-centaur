@@ -183,7 +183,10 @@ defmodule MediaCentaur.Acquisition.Targets do
 
   Torrent ids are the infohash the target already stores. A usenet id is the
   client's own job id, which no target carries, so those fall through
-  untouched — the watcher remains their only closer.
+  untouched — the watcher remains their only closer. The complete fix is a
+  `Pursuits.Policy` rule for "the download left the queue", which needs an
+  observation window so a single missing snapshot cannot cancel a live
+  download; that is why this closes the row from the user's act instead.
   """
   @spec cancel_for_download(String.t(), String.t()) :: :ok
   def cancel_for_download(download_id, reason) when is_binary(download_id) and is_binary(reason) do

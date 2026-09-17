@@ -15,6 +15,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   with the tracking card under it for any title that has something to
   say (UIDR-042).
 
+  ## The section header is not pinned anywhere
+
+  Nine components under `components/detail/` render the same small
+  uppercase section header at four sizes (`0.65rem`, `0.7rem`, `text-xs`,
+  `text-sm`) and two opacities. A `Detail.Section` wrapper existed to pin
+  that rhythm and nothing ever adopted it, so it was removed rather than
+  left as an unused promise. Which treatment is canonical is an open design
+  question — settle it before adding a tenth.
+
   ## The subject (UIDR-023)
 
   For an owned title the panel speaks of the library half's `subject`:

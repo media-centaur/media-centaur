@@ -3,6 +3,14 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   Pure view-model helpers for the Subsystem Health Board. Turns the
   `ErrorReports` store rollups into renderable per-subsystem view-models.
   No DB, no rendering — unit-tested in isolation (ADR-030).
+
+  **Scheduled convergence — `:http` is a lens, not a subsystem.** Every other
+  tile's description names a capability; this one names a layer. Its log panel
+  shows requests made *on behalf of* TMDB, Downloads, Social and Updates, so
+  one subsystem's failure can legitimately appear in two tiles' logs. Not
+  wrong enough to remove — it has real health of its own. The next time this
+  tile vocabulary is revisited, decide explicitly whether cross-cutting lenses
+  get their own row or a different visual treatment.
   """
 
   @board_subsystems [
