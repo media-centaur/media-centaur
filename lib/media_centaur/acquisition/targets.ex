@@ -3,16 +3,19 @@ defmodule MediaCentaur.Acquisition.Targets do
   Target-row query + lifecycle operations sitting *between* the typed
   command surface (`Pursuits.Commands.*`) and the facade.
 
-  `list_auto_targets/1` is a flat read filtered by lifecycle stage —
-  used by the auto-acquisition admin UI to render the all-targets table
-  without going through the per-pursuit aggregation that the main
-  Downloads page uses.
+  `cancel_target/2` flips a single target row in place — distinct from
+  `Pursuits.Commands.ChangeTarget`, which pivots the *pursuit* to a
+  freshly-inserted target row. It is reached through
+  `cancel_active_targets_for/3`.
 
-  `rearm_target/1` and `cancel_target/2` flip a single target row in
-  place — distinct from `Pursuits.Commands.ChangeTarget` (which pivots
-  the *pursuit* to a freshly-inserted target row). The in-place
-  operations are the right shape when the UI shows individual targets
-  and a row-level affordance flips just that row.
+  **`list_auto_targets/1` and `rearm_target/1` have no caller in the app.**
+  Both were shaped for a per-target admin table with row-level
+  affordances; Downloads shows pursuits, not target rows, so nothing
+  lists targets flatly and nothing offers "re-arm this row" — a user
+  re-plans the title instead. They are kept, tested, and reachable only
+  from tests. Either build the surface that opens them or remove them
+  and `TargetStatus.rearmable?/1` with them; leaving a capability with
+  no door is the state this comment exists to make visible.
 
   `cancel_active_targets_for/3` bulk-cancels every in-flight target on
   every pursuit matching a TMDB tuple — used by the Reactor when a

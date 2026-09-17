@@ -40,7 +40,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   The worker reads its target row on every wake. Terminal-state
   targets cause an immediate `:ok` early-exit with no Prowlarr call.
-  This is how `Acquisition.cancel_target/2` cuts a snoozed job short
+  This is how `Targets.cancel_target/2` cuts a snoozed job short
   — it flips the row, the next wake sees it.
   """
   use Oban.Worker, queue: :acquisition, unique: [period: 300, keys: [:target_id]]

@@ -399,24 +399,6 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert Repo.get!(Pursuit, pursuit.id).state == "active"
     end
 
-    test "a user-initiated plan-now draft survives the flip" do
-      episode_stub()
-
-      item = create_tracked_show()
-      create_intent_for(item, :follow)
-      create_aired_release(item, 1, 1, @last_month)
-      :ok = ReleaseTracking.sync_wants(item)
-
-      {:ok, :planned} = DropPlanner.plan_item_now(item.id)
-      [draft] = Plans.list_drafts()
-      assert draft.origin == "manual"
-      assert draft.approval_policy == "review"
-
-      Handlers.tracking_sweep_completed()
-
-      assert [_still_there] = Plans.list_drafts()
-    end
-
     test "a title moved from Grab to List is reconciled too — the calendar goes with the draft" do
       episode_stub()
 

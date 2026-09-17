@@ -272,9 +272,8 @@ defmodule MediaCentaur.Acquisition.Plans do
   @doc """
   The tracking item id behind a committed pursuit, when the pursuit was
   born from a plan carrying tracking provenance — the cancel-dismisses
-  back-pointer. Covers both automated drop plans (origin "tracking")
-  and user-initiated "plan now" drafts (origin "manual" with a
-  tracking_item_id). Nil for plain media-search and legacy pursuits.
+  back-pointer. That is the automated drop plans (origin "tracking");
+  nil for plain media-search and legacy pursuits.
   """
   @spec tracking_item_id_for_pursuit(Ecto.UUID.t()) :: Ecto.UUID.t() | nil
   def tracking_item_id_for_pursuit(pursuit_id) do

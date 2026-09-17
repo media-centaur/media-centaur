@@ -140,7 +140,6 @@ defmodule MediaCentaur.Acquisition do
     AutoGrabService,
     CancelReasons,
     Corpus,
-    DropPlanner,
     Target,
     TargetEvents,
     Targets
@@ -634,23 +633,6 @@ defmodule MediaCentaur.Acquisition do
   @spec statuses_for_releases([PursuitsContext.release_key()]) ::
           %{PursuitsContext.release_key() => {Pursuit.t(), Target.t() | nil}}
   defdelegate statuses_for_releases(keys), to: PursuitsContext
-
-  @doc """
-  User-initiated "plan now" for a tracked item — plans all open
-  unclaimed wants as a ready draft for the user to steer and approve.
-  See `MediaCentaur.Acquisition.DropPlanner.plan_item_now/2`. The bulk
-  gesture since ADR-056 (the legacy queue-everything path is gone).
-  """
-  defdelegate plan_tracked_item_now(item_id), to: DropPlanner, as: :plan_item_now
-
-  @doc "See `Acquisition.Targets.list_auto_targets/1`."
-  defdelegate list_auto_targets(filter \\ :all), to: Targets
-
-  @doc "See `Acquisition.Targets.rearm_target/1`."
-  defdelegate rearm_target(target_id), to: Targets
-
-  @doc "See `Acquisition.Targets.cancel_target/2`."
-  defdelegate cancel_target(target_id, reason), to: Targets
 
   @doc "See `Acquisition.Targets.cancel_active_targets_for/3`."
   defdelegate cancel_active_targets_for(tmdb_id, tmdb_type, reason), to: Targets

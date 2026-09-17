@@ -7,6 +7,7 @@ defmodule MediaCentaur.AcquisitionTest do
   alias MediaCentaur.Acquisition.CancelReasons
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Corpus
+  alias MediaCentaur.Acquisition.Targets
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Search.SearchResult
   alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
@@ -167,7 +168,7 @@ defmodule MediaCentaur.AcquisitionTest do
       _t1 = create_target(%{tmdb_id: "1", title: "First"})
       _t2 = create_target(%{tmdb_id: "2", title: "Second"})
 
-      assert targets = Acquisition.list_auto_targets(:all)
+      assert targets = Targets.list_auto_targets(:all)
       assert length(targets) == 2
     end
   end
@@ -183,7 +184,7 @@ defmodule MediaCentaur.AcquisitionTest do
 
       force_attrs(target, status: "cancelled", cancelled_reason: CancelReasons.user_request())
 
-      assert {:ok, rearmed} = Acquisition.rearm_target(target.id)
+      assert {:ok, rearmed} = Targets.rearm_target(target.id)
 
       assert rearmed.status == "seeking"
       assert rearmed.cancelled_at == nil
@@ -192,7 +193,7 @@ defmodule MediaCentaur.AcquisitionTest do
     end
 
     test "returns :not_found for unknown id" do
-      assert {:error, :not_found} = Acquisition.rearm_target(Ecto.UUID.generate())
+      assert {:error, :not_found} = Targets.rearm_target(Ecto.UUID.generate())
     end
   end
 
@@ -234,7 +235,7 @@ defmodule MediaCentaur.AcquisitionTest do
       target = create_target()
       reason = CancelReasons.user_request()
 
-      assert {:ok, cancelled} = Acquisition.cancel_target(target.id, reason)
+      assert {:ok, cancelled} = Targets.cancel_target(target.id, reason)
 
       assert cancelled.status == "cancelled"
       assert cancelled.cancelled_reason == reason
@@ -244,7 +245,7 @@ defmodule MediaCentaur.AcquisitionTest do
     end
 
     test "returns :not_found for unknown target id" do
-      assert {:error, :not_found} = Acquisition.cancel_target(Ecto.UUID.generate(), "x")
+      assert {:error, :not_found} = Targets.cancel_target(Ecto.UUID.generate(), "x")
     end
   end
 
