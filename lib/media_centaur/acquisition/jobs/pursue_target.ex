@@ -196,7 +196,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   # This line lands in the Status drill-in, so it reads as a sentence
   # rather than a term.
-  defp held_reason(:prowlarr), do: "Prowlarr is down"
+  defp held_reason(:prowlarr), do: "Prowlarr is unreachable"
 
   defp held_reason({:handoff, slot}), do: "Prowlarr cannot reach the #{slot} download client"
 
