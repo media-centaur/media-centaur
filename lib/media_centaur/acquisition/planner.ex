@@ -60,6 +60,7 @@ defmodule MediaCentaur.Acquisition.Planner do
   filtering excluded releases before solving.
   """
 
+  alias MediaCentaur.Acquisition.Plans.Fit
   alias MediaCentaur.Search.{Quality, ReleaseCoverage, SearchResult}
 
   defmodule Option do
@@ -243,50 +244,17 @@ defmodule MediaCentaur.Acquisition.Planner do
   # short, so unknown spans (and every single episode) always survive.
   # ---------------------------------------------------------------------------
 
-  defp partition_by_fit(options, all_wanted, %{pack_min_fit: threshold} = prefs)
-       when is_number(threshold) do
+  # `Plans.Fit` owns the arithmetic so the search order judges a scope
+  # exactly as this gate judges a pack.
+  defp partition_by_fit(options, all_wanted, prefs) do
+    threshold = Map.get(prefs, :pack_min_fit)
     span_sizes = Map.get(prefs, :span_sizes, %{})
 
-    Enum.split_with(options, fn %Option{} = option ->
-      fit_ok?(option, all_wanted, span_sizes, threshold)
+    Enum.split_with(options, fn %Option{scope: scope} = option ->
+      wanted_in_span = length(option_covered_units(option, all_wanted))
+      Fit.fits?(wanted_in_span, Fit.span_total(scope, span_sizes), threshold)
     end)
   end
-
-  defp partition_by_fit(options, _all_wanted, _prefs), do: {options, []}
-
-  defp fit_ok?(%Option{scope: scope} = option, wanted, span_sizes, threshold) do
-    case span_total(scope, span_sizes) do
-      nil ->
-        true
-
-      total when total > 0 ->
-        length(option_covered_units(option, wanted)) / total >= threshold
-
-      _zero_or_negative ->
-        true
-    end
-  end
-
-  # The realistic episode count a grab of this scope lands on disk — the
-  # fit denominator. `nil` means "can't tell" (no span sizes for a
-  # season/series), which the gate reads as "don't judge".
-  defp span_total({:episode, _season, _episode}, _span_sizes), do: 1
-  defp span_total({:episodes, _season, first, last}, _span_sizes), do: last - first + 1
-  defp span_total({:season, season}, span_sizes), do: season_size(span_sizes, season)
-
-  defp span_total({:seasons, first, last}, span_sizes) do
-    sizes = Enum.map(first..last, &season_size(span_sizes, &1))
-    if Enum.all?(sizes, &is_integer/1), do: Enum.sum(sizes)
-  end
-
-  defp span_total(:series, span_sizes) do
-    sizes = Map.values(span_sizes)
-    if sizes != [], do: Enum.sum(sizes)
-  end
-
-  defp span_total(:unknown, _span_sizes), do: nil
-
-  defp season_size(span_sizes, season), do: Map.get(span_sizes, Integer.to_string(season))
 
   # Best fit-gated pack per unfound unit: narrowest scope first (least
   # over-grab), then quality, then source, then seeders.

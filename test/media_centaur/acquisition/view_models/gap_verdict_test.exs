@@ -41,29 +41,76 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
         )
 
       assert GapVerdict.searching(status).headline ==
-               "Now searching season packs — 4 episodes still need coverage…"
+               "Searching for season packs — 4 episodes still missing…"
     end
 
     test "a single-episode residual reads grammatically" do
       status = progress([step(:series, :done, residual_after: 1), step(:season, :active)], 6)
 
       assert GapVerdict.searching(status).headline ==
-               "Now searching season packs — 1 episode still needs coverage…"
+               "Searching for season packs — 1 episode still missing…"
     end
 
-    test "the episode scope names the hunt" do
+    test "the primary series scope names the whole-show search" do
+      status = progress([step(:series, :active, term_count: 1), step(:episode, :pending)], 6)
+
+      assert GapVerdict.searching(status).headline ==
+               "Searching for a complete-series release…"
+    end
+
+    test "the episode scope names the singles" do
       status =
         progress(
           [
             step(:series, :done, residual_after: 3),
-            step(:season, :done, residual_after: 1),
-            step(:episode, :active, term_count: 1)
+            step(:season, :done, residual_after: 2),
+            step(:episode, :active, term_count: 2)
           ],
           6
         )
 
       assert GapVerdict.searching(status).headline ==
-               "Now hunting individual episodes — 1 episode still uncovered…"
+               "Searching for the 2 missing episodes one by one…"
+    end
+
+    test "a single missing episode reads without a count" do
+      status = progress([step(:episode, :active, term_count: 1)], 1)
+
+      assert GapVerdict.searching(status).headline == "Searching for the missing episode…"
+    end
+
+    test "a fallback season step says it is looking for a pack to offer" do
+      status =
+        progress(
+          [
+            step(:episode, :done, residual_after: 1),
+            step(:season, :active, term_count: 2, kind: :fallback)
+          ],
+          1
+        )
+
+      assert GapVerdict.searching(status).headline ==
+               "Looking for a season pack to offer for the 1 episode still missing…"
+    end
+
+    test "a fallback series step says the same for the whole show" do
+      status =
+        progress(
+          [
+            step(:episode, :done, residual_after: 2),
+            step(:season, :done, residual_after: 2, kind: :fallback),
+            step(:series, :active, term_count: 1, kind: :fallback)
+          ],
+          2
+        )
+
+      assert GapVerdict.searching(status).headline ==
+               "Looking for a complete-series pack to offer…"
+    end
+
+    test "the planning headline promises right-sized releases first" do
+      assert GapVerdict.searching_initial(6).headline ==
+               "Planning the search — right-sized releases first, wider packs only for what's still missing."
     end
 
     test "all steps pending narrates the strategy" do

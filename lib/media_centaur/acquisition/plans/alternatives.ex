@@ -11,7 +11,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.CoverageGuard
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaur.Acquisition.Plans.{SearchTerms, MatchCriteria, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder, SearchTerms}
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
@@ -77,7 +77,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
       opts = SearchTerms.search_opts(plan)
 
       plan
-      |> SearchTerms.for_unit(unit)
+      |> unit_terms(unit)
       |> Enum.each(&Corpus.search(&1, opts))
 
       for_unit(plan_unit_id)
@@ -127,11 +127,19 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
     }
   end
 
-  defp evidence_terms(%Plan{tmdb_type: "movie"} = plan, _gap_units), do: SearchTerms.for_plan(plan, [])
-
-  defp evidence_terms(%Plan{tmdb_type: "tv"} = plan, gap_units) do
-    SearchTerms.for_plan(plan, Enum.map(gap_units, &{&1.season_number, &1.episode_number}))
+  # The gap units' terms in the order the run searched them, so the
+  # evidence reads the corpus the way it was filled.
+  defp evidence_terms(%Plan{} = plan, gap_units) do
+    wanted = Enum.map(gap_units, &{&1.season_number, &1.episode_number})
+    SearchOrder.terms(plan, wanted, fit_prefs(plan))
   end
+
+  # One unit's terms in search order — the picker's term universe and
+  # the corpus keys a chosen candidate is found under.
+  defp unit_terms(%Plan{} = plan, %PlanUnit{} = unit),
+    do: SearchOrder.terms_for_unit(plan, unit, fit_prefs(plan))
+
+  defp fit_prefs(%Plan{} = plan), do: SearchOrder.fit_prefs(plan, AutoGrabSettings.load())
 
   # Movie-only classification (TV recourse is deferred — UIDR-022): each
   # raw candidate carries the FIRST gate it fails, mirroring the run's
@@ -211,7 +219,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
     opts = SearchTerms.search_opts(plan)
 
     plan
-    |> SearchTerms.for_unit(unit)
+    |> unit_terms(unit)
     |> Enum.find_value(fn term ->
       term
       |> Corpus.candidates_for(opts)
@@ -274,7 +282,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
     opts = SearchTerms.search_opts(plan)
 
     plan
-    |> SearchTerms.for_unit(unit)
+    |> unit_terms(unit)
     |> Enum.flat_map(fn term ->
       term
       |> Corpus.candidates_for(opts)
@@ -294,7 +302,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
     opts = SearchTerms.search_opts(plan)
 
     plan
-    |> SearchTerms.for_unit(unit)
+    |> unit_terms(unit)
     |> Enum.find_value({:error, :alternative_unavailable}, fn term ->
       candidate =
         term

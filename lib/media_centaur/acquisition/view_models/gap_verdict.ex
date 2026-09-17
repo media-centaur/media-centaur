@@ -149,7 +149,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   defp calendar_day(%Date{year: year} = date, %Date{year: year}), do: Format.month_day(date)
   defp calendar_day(%Date{} = date, _today), do: "#{Format.month_day(date)}, #{date.year}"
 
-  @planning_headline "Planning the search — broadest releases first, drilling down only for what's still missing."
+  @planning_headline "Planning the search — right-sized releases first, wider packs only for what's still missing."
 
   @doc "The searching verdict before the first progress event — the strategy, as a promise."
   @spec searching_initial(pos_integer()) :: t()
@@ -166,7 +166,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
       active = Enum.find(steps, &(&1.state == :active)) ->
         %__MODULE__{
           world: :searching,
-          headline: active_headline(active.scope, residual_before_active(steps, wanted))
+          headline: active_headline(active.scope, active.kind, residual_before_active(steps, wanted))
         }
 
       Enum.all?(steps, &(&1.state == :pending)) ->
@@ -177,14 +177,23 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     end
   end
 
-  defp active_headline(:series, _residual),
-    do: "First, looking for one release that covers the whole show…"
+  # A primary step may assign what it finds; a fallback step only looks
+  # for a pack to offer — the copy says which, so the user is never
+  # surprised by an offer where they expected a grab.
+  defp active_headline(:series, :primary, _residual), do: "Searching for a complete-series release…"
 
-  defp active_headline(:season, residual),
-    do: "Now searching season packs — #{count(residual, "episode")} still #{need(residual)} coverage…"
+  defp active_headline(:season, :primary, residual),
+    do: "Searching for season packs — #{count(residual, "episode")} still missing…"
 
-  defp active_headline(:episode, residual),
-    do: "Now hunting individual episodes — #{count(residual, "episode")} still uncovered…"
+  defp active_headline(:episode, :primary, 1), do: "Searching for the missing episode…"
+
+  defp active_headline(:episode, :primary, residual),
+    do: "Searching for the #{residual} missing episodes one by one…"
+
+  defp active_headline(:season, :fallback, residual),
+    do: "Looking for a season pack to offer for the #{count(residual, "episode")} still missing…"
+
+  defp active_headline(:series, :fallback, _residual), do: "Looking for a complete-series pack to offer…"
 
   defp residual_before_active(steps, wanted) do
     steps
@@ -196,9 +205,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
       %{residual_after: residual} -> residual
     end
   end
-
-  defp need(1), do: "needs"
-  defp need(_quantity), do: "need"
 
   defp below_preference(evidence, %{units: units, releases: releases}, movie?, covered, now) do
     %__MODULE__{
