@@ -577,6 +577,19 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       assert has_element?(view, "#health-drill-in")
       refute has_element?(view, "#subsystem-journal")
     end
+
+    # `journalctl` can die between the render that drew Reconnect and the
+    # click on it, so the handler has to answer a *failing* reconnect rather
+    # than match on `:ok`. Driving the event directly is the only way to reach
+    # it here — the control renders only where a unit exists.
+    test "Reconnect is answered where no unit is detected", %{conn: conn} do
+      refute MediaCentaur.Console.journal_available?()
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=system")
+
+      assert render_click(view, "journal_reconnect")
+      assert has_element?(view, "#health-drill-in")
+    end
   end
 
   defp put_config(key, value) do

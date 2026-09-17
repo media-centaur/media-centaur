@@ -57,7 +57,7 @@ defmodule MediaCentaur.Console do
   @spec journal_unsubscribe() :: :ok
   defdelegate journal_unsubscribe(), to: JournalSource, as: :unsubscribe
 
-  @doc "Force-respawns journalctl — the Reconnect button on the Systemd tab calls this."
+  @doc "Force-respawns journalctl — the Reconnect button on the Status journal panel calls this."
   @spec journal_reconnect() :: :ok | {:error, :no_unit_detected | :no_subscribers}
   defdelegate journal_reconnect(), to: JournalSource, as: :reconnect
 

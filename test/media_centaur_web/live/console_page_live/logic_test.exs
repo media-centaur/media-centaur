@@ -161,32 +161,6 @@ defmodule MediaCentaurWeb.ConsolePageLive.LogicTest do
     end
   end
 
-  # --- solo_component/2 ---
-
-  describe "solo_component/2" do
-    test "solos a single known component" do
-      filter = Filter.new_with_defaults()
-      updated = Logic.solo_component(filter, "pipeline")
-
-      assert updated.components[:pipeline] == :show
-      assert updated.components[:watcher] == :hide
-      assert updated.components[:tmdb] == :hide
-    end
-  end
-
-  # --- mute_component/2 ---
-
-  describe "mute_component/2" do
-    test "mutes a single known component while showing others" do
-      filter = Filter.new_with_defaults()
-      updated = Logic.mute_component(filter, "pipeline")
-
-      assert updated.components[:pipeline] == :hide
-      assert updated.components[:watcher] == :show
-      assert updated.components[:tmdb] == :show
-    end
-  end
-
   # --- set_level/2 ---
 
   describe "set_level/2" do

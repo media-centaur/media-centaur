@@ -281,6 +281,7 @@ defmodule MediaCentaurWeb.HealthComponents do
 
   attr :open, :boolean, default: false
   attr :on_toggle, :string, default: "toggle_journal"
+  attr :on_reconnect, :string, default: "journal_reconnect"
 
   def journal_panel(assigns) do
     ~H"""
@@ -305,9 +306,24 @@ defmodule MediaCentaurWeb.HealthComponents do
         id="subsystem-journal-lines"
         class="border-t border-base-content/10 px-4 py-3"
       >
-        <p class="text-xs text-base-content/55">
-          The service unit's own log, kept across restarts.
-        </p>
+        <div class="flex items-start justify-between gap-3">
+          <p class="text-xs text-base-content/55">
+            The service unit's own log, kept across restarts.
+          </p>
+          <%!-- The tail can die while the panel stays open — the unit
+                restarts, the pipe breaks — and nothing else respawns it
+                under a reader who is watching for the next line. --%>
+          <.button
+            variant="neutral"
+            size="xs"
+            phx-click={@on_reconnect}
+            class="shrink-0"
+            data-nav-item
+            tabindex="0"
+          >
+            Reconnect
+          </.button>
+        </div>
         <%!-- The tail spawns on expand, so the first frame is routinely
               empty — it says what fills the space rather than reporting the
               emptiness the reader can already see. --%>

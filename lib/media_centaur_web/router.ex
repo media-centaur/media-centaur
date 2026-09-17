@@ -12,10 +12,6 @@ defmodule MediaCentaurWeb.Router do
     plug MediaCentaurWeb.Plugs.SetupRedirect
   end
 
-  pipeline :api do
-    plug :accepts, ["json"]
-  end
-
   scope "/", MediaCentaurWeb do
     pipe_through :browser
 
@@ -89,9 +85,4 @@ defmodule MediaCentaurWeb.Router do
       __ENV__
     )
   end
-
-  # Other scopes may use custom stacks.
-  # scope "/api", MediaCentaurWeb do
-  #   pipe_through :api
-  # end
 end

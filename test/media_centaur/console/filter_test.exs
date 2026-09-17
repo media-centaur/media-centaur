@@ -3,7 +3,6 @@ defmodule MediaCentaur.Console.FilterTest do
 
   alias MediaCentaur.Console.Entry
   alias MediaCentaur.Console.Filter
-  alias MediaCentaur.Console.View
 
   defp build_entry(overrides) do
     defaults = [
@@ -184,73 +183,6 @@ defmodule MediaCentaur.Console.FilterTest do
       filter = Filter.new(components: %{}, default_component: :show)
       toggled = Filter.toggle_component(filter, :pipeline)
       assert toggled.components[:pipeline] == :hide
-    end
-  end
-
-  describe "solo_component/2" do
-    test "only the given component is :show, all known others are :hide" do
-      filter = Filter.new_with_defaults()
-      soloed = Filter.solo_component(filter, :pipeline)
-
-      assert soloed.components[:pipeline] == :show
-
-      known_components = View.known_components()
-
-      for component <- known_components, component != :pipeline do
-        assert soloed.components[component] == :hide,
-               "expected #{component} to be :hide after solo_component(:pipeline)"
-      end
-    end
-
-    test "solo on a filter where the target started :hide flips it to :show" do
-      filter = Filter.new(components: %{pipeline: :show, tmdb: :hide, ecto: :show})
-      soloed = Filter.solo_component(filter, :tmdb)
-
-      assert soloed.components[:tmdb] == :show
-      assert soloed.components[:pipeline] == :hide
-      assert soloed.components[:ecto] == :hide
-    end
-
-    test "solo on an unknown component writes it explicitly as :show" do
-      filter = Filter.new_with_defaults()
-      unknown = :some_unrecognized_component
-
-      soloed = Filter.solo_component(filter, unknown)
-
-      assert soloed.components[unknown] == :show
-
-      for known_component <- View.known_components() do
-        assert soloed.components[known_component] == :hide
-      end
-    end
-  end
-
-  describe "mute_component/2" do
-    test "given component is :hide, all known others are :show" do
-      filter = Filter.new_with_defaults()
-      muted = Filter.mute_component(filter, :pipeline)
-
-      assert muted.components[:pipeline] == :hide
-
-      known_components = View.known_components()
-
-      for component <- known_components, component != :pipeline do
-        assert muted.components[component] == :show,
-               "expected #{component} to be :show after mute_component(:pipeline)"
-      end
-    end
-
-    test "mute on an unknown component writes it explicitly as :hide" do
-      filter = Filter.new_with_defaults()
-      unknown = :some_unrecognized_component
-
-      muted = Filter.mute_component(filter, unknown)
-
-      assert muted.components[unknown] == :hide
-
-      for known_component <- View.known_components() do
-        assert muted.components[known_component] == :show
-      end
     end
   end
 
