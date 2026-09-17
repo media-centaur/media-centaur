@@ -268,6 +268,19 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
       assert_receive {:queue_state, %QueueState{connectivity: :auth_failed} = state}, 1000
       assert state.client_connectivity[:torrent] == :live
     end
+
+    # The same rejection delivered as HTTP 403 with a plain-string body —
+    # what SABnzbd returns for a bad key under hostname verification.
+    # Graded :unreachable it told the user the client was offline and
+    # held the 10 s cadence instead of the auth backoff.
+    test "a 403 API-key rejection grades the merged snapshot :auth_failed" do
+      Req.Test.stub(:sabnzbd, fn conn -> Plug.Conn.send_resp(conn, 403, "API Key Incorrect") end)
+
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: :auth_failed} = state}, 1000
+      assert state.client_connectivity[:usenet] == :auth_failed
+      assert state.client_connectivity[:torrent] == :live
+    end
   end
 
   describe "cadence_ms/3" do

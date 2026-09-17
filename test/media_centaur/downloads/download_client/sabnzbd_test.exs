@@ -108,6 +108,33 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbdTest do
 
       assert {:error, :auth_failed} = SABnzbd.test_connection(config)
     end
+
+    # SABnzbd's other rejection shape: HTTP 403 with a plain-string body,
+    # which is what a wrong key — or a hostname the instance doesn't
+    # whitelist under `inet_exposure` — actually returns. Graded as a
+    # transport error it told the user "unreachable" and kept the fast
+    # poll cadence instead of backing off.
+    test "returns :auth_failed for a 403 whose body names the API key", %{config: config} do
+      Req.Test.stub(:sabnzbd, fn conn -> Plug.Conn.send_resp(conn, 403, "API Key Incorrect") end)
+
+      assert {:error, :auth_failed} = SABnzbd.test_connection(config)
+    end
+
+    test "returns :auth_failed for a 403 whose JSON body names the API key", %{config: config} do
+      Req.Test.stub(:sabnzbd, fn conn ->
+        conn
+        |> Plug.Conn.put_status(403)
+        |> Req.Test.json(%{"error" => "API Key Required"})
+      end)
+
+      assert {:error, :auth_failed} = SABnzbd.test_connection(config)
+    end
+
+    test "a 403 for an unrelated reason stays a transport error", %{config: config} do
+      Req.Test.stub(:sabnzbd, fn conn -> Plug.Conn.send_resp(conn, 403, "Forbidden") end)
+
+      assert {:error, {:http_error, 403, _}} = SABnzbd.test_connection(config)
+    end
   end
 
   describe "cancel_download/2" do
