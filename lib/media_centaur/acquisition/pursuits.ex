@@ -248,6 +248,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       |> fetch_targets_by_id()
 
     pending_paths = Review.pending_file_paths()
+    # Read once for the whole page: the hold is a property of the
+    # integrations, not of a row.
+    held = held_integration()
 
     Enum.map(pursuits, fn pursuit ->
       units = Map.get(units_by_pursuit, pursuit.id, [])
@@ -262,7 +265,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
         lead_unit,
         target,
         download_location(target, pending_paths),
-        current_targets
+        current_targets,
+        held
       )
     end)
   end
@@ -685,7 +689,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> Map.new(fn target -> {target.id, target} end)
   end
 
-  defp build_row(%Pursuit{} = pursuit, units, lead_unit, target, location, current_targets) do
+  defp build_row(%Pursuit{} = pursuit, units, lead_unit, target, location, current_targets, held) do
     {release_title, target_status, torrent_hash} =
       case target do
         %Target{release_title: rt, status: status, torrent_hash: hash} ->
@@ -700,7 +704,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     # footer is paired — derive here without a queue item so the row
     # is independent of QueueMonitor cadence. `location` resolves the
     # post-download stage when the torrent has left the client.
-    {status, _next_step, _actions} = PursuitStatus.derive(pursuit, lead_unit, target, nil, location)
+    {status, _next_step, _actions} =
+      PursuitStatus.derive(pursuit, lead_unit, target, nil, location, held: held)
+
     {season_number, episode_number} = row_scope(units, lead_unit)
 
     %PursuitRow{

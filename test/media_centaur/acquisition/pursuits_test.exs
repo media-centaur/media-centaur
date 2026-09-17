@@ -640,6 +640,18 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       assert status.current_action.description =~ "could not reach your download client"
     end
 
+    test "the Downloads index card says Waiting too" do
+      create_pursuit_with_target(%{status: "seeking"})
+
+      MediaCentaur.IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
+
+      assert [row] = Pursuits.list_active_rows()
+      assert row.status.verb == "Waiting"
+
+      assert row.status.description ==
+               "Prowlarr could not reach your download client. Resumes when it can."
+    end
+
     test "everything up keeps the searching copy" do
       {pursuit, _target} = create_pursuit_with_target(%{status: "seeking"})
 
