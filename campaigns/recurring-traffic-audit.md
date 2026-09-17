@@ -68,8 +68,13 @@ and hand-off writers (`Search.ProwlarrAvailability`), `Search.ProbeJob`,
 snoozes an hour, a down one the probe cadence), a non-hand-off grab 5xx
 charges an attempt, the Waiting copy and the Downloads index read the
 value, the hand-off incident reads it instead of grab stamps, wiki
-Troubleshooting updated. Reviewed task by task (spec, then quality).
-Steps 2–5 next. The inventory below is
+Troubleshooting updated. Reviewed task by task (spec, then quality), a
+whole-step review last; final precommit 7,451 Elixir + 811 JS tests
+green (HEAD `49fc475f`). Droppable follow-ups the reviews left: pin the
+two re-stamp branches of the hand-off hold with tests; a recovered
+hand-off's stamped copy lingers on the target until its next run (at
+most one cadence); `ProwlarrStubs` moduledoc should mention
+`mark_unconfigured!/0`. Steps 2–5 next. The inventory below is
 verified against the code (constants cited) and against one day of
 observation: the dev node's log ring, the day's systemd journal (seven
 boots, one real download-client outage 16:47–16:56 CEST, and the
