@@ -22,13 +22,15 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`dead-code-detection.md`](dead-code-detection.md) —
-  **planning 2026-09-17.** Nothing in the toolchain sees a `def` with no
+  **in progress 2026-09-17.** Nothing in the toolchain saw a `def` with no
   callers — `--warnings-as-errors` catches private functions, `boundaries`
   catches illegal edges, but a public function whose last caller was deleted
-  is invisible in both Elixir and JS. The v1.32.0 console rework produced four
-  verified instances, one of them live in the incident-report path. Enable
-  dependency-cruiser's `no-orphans` (config, free), then spike `mix_unused`
-  — which predates Elixir 1.20 and may not run.
+  was invisible in both Elixir and JS. **JS is now gated**: a dependency-cruiser
+  reachability rule from `app.js` (`no-orphans` was measured and does nothing —
+  every module is imported by its own test). **Elixir has the tool**:
+  `mix_unused` runs on 1.20/OTP 29 behind `MC_UNUSED=1`, configured down from
+  1317 hints to 66 candidates. Gating waits on those 66 being dispositioned —
+  each one deleted, declared, or kept with a reason at the definition site.
 
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A

@@ -23,6 +23,16 @@ no code. Triggered by a real need: grabbing an SDR copy of an HDR film
 for comparison, and discovering the second file would be invisible and
 unplayable through the UI.
 
+### Inherited from the dead-code campaign (2026-09-17)
+
+`MediaCentaur.Library.PlayableItems` has three public functions with no caller
+anywhere — `leaf_types/0`, `create!/1`, `fetch/1` — while `create/1` *is*
+used. They are unused API of the half-landed "Library Schema v2 Phase 2", not
+dead code, so they were rehomed here rather than deleted. Either this campaign
+adopts them as it finishes the migration, or they go when it decides the
+shape. Surfaced by `MC_UNUSED=1 mix compile --force`; see
+[`dead-code-detection.md`](dead-code-detection.md).
+
 ## Context (verified in code 2026-07-12)
 
 * **Schema is ready** — ADR-047 reified `PlayableItem` precisely so a
