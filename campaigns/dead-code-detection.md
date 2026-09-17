@@ -472,14 +472,21 @@ Verified callers; they appear only because something above them is unreached.
 | `Library.FilePresence.list_relink_candidates/1` | `Relink` |
 | `ReleaseTracking.Wants.dismiss_for_release/1` | `ReleaseTracking` |
 | `TMDB.Client.search_multi/2` | `TMDB.TitleSearch` |
-| `MediaCentaurWeb.ArtworkWarmup.poster_urls/0` | `root.html.heex` — a **HEEx template**, a caller class the tracer cannot see at all |
+| `MediaCentaurWeb.ArtworkWarmup.poster_urls/0` | `root.html.heex`, via `Layouts.root/1` |
 | `ReleaseTracking.find_last_library_episode/1` | its own `defdelegate` + `LibraryLinks` |
 | `Watcher.Walk.real_fs/0` | a default argument in `walk/3` |
 
-`poster_urls/0` is the important one: a `.heex` file is not compiled through
-the tracer, so **anything called only from a template reads as dead**. That is
-a third blind spot alongside module bodies and dynamic dispatch, and it was
-not on the list before this sweep.
+**Correction, same day.** `poster_urls/0` was first written up here as proof
+of a third blind spot — "templates are not compiled through the tracer". That
+was wrong, and asserted from one data point. Templates trace fine: 127 function
+components exist and only 19 were ever flagged. The repo has exactly one
+`.heex` file, and the actual cause is the ordinary one — `put_root_layout,
+html: {Layouts, :root}` is a runtime config tuple, so `Layouts.root/1` is
+itself flagged and everything its template calls cascades from it.
+
+The fix was an `ignore` entry naming the layout seam, which cleared both.
+There is no template blind spot; there are two, module bodies and dynamic
+dispatch, and Phoenix's layout resolution is an instance of the second.
 
 ### Still to disposition (~19)
 

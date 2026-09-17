@@ -184,6 +184,10 @@ defmodule MediaCentaur.MixProject do
         # surface we neither write nor call.
         {MediaCentaur.Repo, :_, :_},
         {MediaCentaurWeb.Storybook, :_, :_},
+        # Phoenix resolves the layouts from `{module, function}` tuples in
+        # config (`put_root_layout`, `put_layout`), so the entry points and
+        # everything their templates call read as uncalled.
+        {MediaCentaurWeb.Layouts, :_, 1},
         # Status Activity widgets are resolved at runtime from the
         # `:health_activity_widgets` config registry by
         # `StatusLive.ActivityWidgets.render/3`. Ignored rather than declared
