@@ -1,4 +1,4 @@
-# Availability: held work for metered dependencies — design
+# Availability: held work for metered integrations — design
 
 Date: 2026-09-17. Campaign: `campaigns/recurring-traffic-audit.md`.
 Status: approved by the owner 2026-09-17 (both decisions below taken as
@@ -14,43 +14,43 @@ pursuits with no shared memory of the answer; the release tracker
 re-planned every young want through the dead link every 30 minutes;
 the Incoming page and the corpus re-probed Prowlarr every 30 seconds
 with no memory of the last answer. The owner's principle for the fix:
-treat each source by what a request **costs**. Free dependencies may
+treat each source by what a request **costs**. Free integrations may
 poll at any cadence. Metered ones must never be asked to learn what a
 free probe could tell.
 
 ## Core idea
 
 Every metered outbound request is preceded by a free question — is the
-dependency up right now? — answered from one published availability
-value per dependency that free probes keep current. Work whose
-dependency is down is held, not attempted, and resumes on the first
+integration up right now? — answered from one published availability
+value per integration that free probes keep current. Work whose
+integration is down is held, not attempted, and resumes on the first
 good probe.
 
 ## Glossary
 
-- **Dependency** — a server the app talks to on its own: Prowlarr (and
+- **Integration** — a server the app talks to on its own: Prowlarr (and
   the indexers behind it), a download client, TMDB and its image CDN,
   GitHub, a Nostr relay.
 - **Hand-off** — Prowlarr's own link to a download client, which the
   app cannot see directly. It fails as HTTP 500
   `DownloadClientUnavailableException` on a grab. One per download-client
   slot: `{:handoff, :usenet}`, `{:handoff, :torrent}`.
-- **Metered dependency** — counts requests against a limit or escalates
-  a back-off when hit repeatedly. **Free dependency** — does neither;
+- **Metered integration** — counts requests against a limit or escalates
+  a back-off when hit repeatedly. **Free integration** — does neither;
   its only cost is log noise.
 - **Probe** — a free request whose only purpose is to learn whether a
-  dependency can do the job.
-- **Availability** — the published answer per dependency: `:up`, or
+  integration can do the job.
+- **Availability** — the published answer per integration: `:up`, or
   `{:down, since, reason}`. The code's name for what the campaign
   called the circuit.
 - **Held work** — a job or tick that consulted availability, found its
-  dependency down, and waits without spending a request.
+  integration down, and waits without spending a request.
 - **Watched / idle cadence** — the queue monitor's 10 s poll while a
   page subscribes, 30 s otherwise. Unchanged by this design.
 
 ## Cost classes
 
-| Dependency | Class | Treatment |
+| Integration | Class | Treatment |
 |---|---|---|
 | Download clients (LAN) | free | Polling unchanged, outage included. Log noise reduced to transitions. |
 | Prowlarr live searches | metered, × indexers | Held while Prowlarr is down or blind. |
@@ -59,7 +59,7 @@ good probe.
 | GitHub | metered, small | Unchanged; a failed check retries on the 15-minute cron, within budget. |
 | Nostr relays | metered | Unchanged; already backed off exponentially. |
 
-Only four dependencies gate metered work: `:prowlarr`,
+Only four integrations gate metered work: `:prowlarr`,
 `{:handoff, :usenet}`, `{:handoff, :torrent}`, `:tmdb`.
 
 ## Greenfield design
@@ -67,26 +67,26 @@ Only four dependencies gate metered work: `:prowlarr`,
 ### The availability value
 
 ```
-%MediaCentaur.Availability.Status{
-  dependency: :prowlarr | {:handoff, :usenet | :torrent} | :tmdb,
+%MediaCentaur.IntegrationAvailability.Status{
+  integration: :prowlarr | {:handoff, :usenet | :torrent} | :tmdb,
   state: :up | {:down, since :: DateTime.t(), reason :: atom()},
   observed_at: DateTime.t()
 }
 ```
 
-- Runtime-only, in `:persistent_term`, one entry per dependency, like
+- Runtime-only, in `:persistent_term`, one entry per integration, like
   `IndexerHealth` and `QueueState`. Nothing durable: a restart starts
   `:up` and the first request or probe corrects it.
-- **One writer per dependency**: the module that owns the client.
+- **One writer per integration**: the module that owns the client.
   `Search.Prowlarr` writes `:prowlarr` (from every request outcome and
   from `IndexerHealth` observations) and both hand-offs (from grab
   outcomes and the hand-off probe). `TMDB.Client` writes `:tmdb`.
   Nobody else calls `report/2`.
-- `report(dependency, :up | {:down, reason}) :: :unchanged | {:changed, state}`
+- `report(integration, :up | {:down, reason}) :: :unchanged | {:changed, state}`
   writes only on transition, and on transition broadcasts
-  `{:availability_changed, dependency, state}` on
-  `Topics.availability_updates/0`.
-- `status(dependency)` reads the value. `available?(dependency)` is the
+  `{:integration_availability_changed, integration, state}` on
+  `Topics.integration_availability_updates/0`.
+- `status(integration)` reads the value. `available?(integration)` is the
   gate: configured **and** up — `Capabilities` stays the configuration
   half (durable, settings-backed, "Test connection" passed);
   availability is the runtime half. One function answers "can I use
@@ -99,7 +99,7 @@ carries Prowlarr's `retry_at`), `:client_unavailable` (hand-off).
 
 ### Evidence and probes
 
-| Dependency | Opens on | Probe while down | Cadence | Closes on |
+| Integration | Opens on | Probe while down | Cadence | Closes on |
 |---|---|---|---|---|
 | `:prowlarr` | any Prowlarr request failing at transport, 5xx, 401/403; an `IndexerHealth` observation of `:unreachable` or `:blind` | the indexer roster read (`IndexerHealth.check/0`), free | 60 s; for `:blind`, at Prowlarr's own `retry_at` when it is later | any successful Prowlarr request; a roster read that is `:ok` or `:degraded` |
 | `{:handoff, slot}` | a grab answered with `DownloadClientUnavailableException` for a release of that protocol | `POST /api/v1/downloadclient/testall`, free (12 ms, verified) — the slot is down when Prowlarr's enabled client of that protocol is invalid | 60 s | a valid probe result for the slot; any successful grab of that protocol |
@@ -107,10 +107,10 @@ carries Prowlarr's `retry_at`), `:client_unavailable` (hand-off).
 
 The probe is an Oban job per owning context — `Search.ProbeJob` for
 `:prowlarr` and the hand-offs, `TMDB.ProbeJob` for `:tmdb` — on the
-`:maintenance` queue, `unique` per dependency. The owner module
+`:maintenance` queue, `unique` per integration. The owner module
 enqueues it when `report/2` answers `{:changed, {:down, _}}`. The job
 probes, reports, and `{:snooze, cadence}` while still down; it
-completes when the dependency is up. While up there is no probing: the
+completes when the integration is up. While up there is no probing: the
 real requests are the evidence. Oban is the timer because it already
 is one; no new process (Iron Law).
 
@@ -135,7 +135,7 @@ for jobs. Oban 2.24 does not charge `max_attempts` for a snooze.
 
 ### Recovery
 
-`{:availability_changed, dependency, :up}` on `Topics.availability_updates/0`:
+`{:integration_availability_changed, integration, :up}` on `Topics.integration_availability_updates/0`:
 
 - `Acquisition.Reactor` — `:prowlarr` up runs a drop-planner tick at
   once, so wants held through the outage are planned within seconds,
@@ -169,7 +169,7 @@ run within 60 s.
 ## Diff against the code
 
 **Seams reused as they are.** `HttpClient.Upstream` ids for the
-upstream dependencies; `Search.Prowlarr` as the single Prowlarr call
+upstream integrations; `Search.Prowlarr` as the single Prowlarr call
 site (search, grab, roster, download clients) and
 `Prowlarr.grab_outage?/1` as the hand-off classifier; `SearchResult.protocol`
 to pick the slot; `IndexerHealth` as the Prowlarr observer with its
@@ -184,13 +184,13 @@ with one writer each: `IndexerHealth` cache plus `Search.IncidentContext`'s
 900 s staleness rule (Prowlarr); grab stamps plus a 30-minute window in
 `Pursuits.IncidentContext` (hand-off); nothing at all for TMDB. The
 incident contexts become thin readers of `status/1` plus their grace
-window. `Downloads.Connectivity` stays as it is: a free dependency
+window. `Downloads.Connectivity` stays as it is: a free integration
 with a richer grade the Downloads UI needs.
 
 **Incoherences, decided.**
 
 1. `IntegrationHealth`'s moduledoc says nothing is probed on a schedule.
-   After this, free probes run on a schedule while a dependency is
+   After this, free probes run on a schedule while an integration is
    down, and only then. Amend the moduledoc in the same change.
 2. `Capabilities` and availability both answer "can I use X" from
    different evidence. Kept as two inputs behind one `available?/1`,
@@ -207,12 +207,15 @@ with a richer grade the Downloads UI needs.
 
 ## Owner decisions (taken 2026-09-17)
 
-1. **Name: `MediaCentaur.Availability`.** `MediaCentaur.Availability` (recommended: the value is an
-   availability state with probes, not a failure-counting breaker with
-   half-open trials) or `MediaCentaur.CircuitBreaker` (the industry
-   pattern name; misleading about the mechanism). Whichever is chosen
-   is the only term in code and prose; the campaign glossary's
-   "circuit" is retired.
+1. **Name: `MediaCentaur.IntegrationAvailability`.** First chosen as
+   `Availability`; renamed when the review surfaced that
+   `MediaCentaur.Library.Availability` already meant "is this entity's
+   media file reachable". The owner split the word: that module became
+   `Library.MediaFileAvailability`, this one `IntegrationAvailability` —
+   "integration" being the codebase's existing word for the external
+   servers (`Capabilities.save_integration/2`, `IntegrationHealth`).
+   The campaign's "dependency" and "circuit" are retired in favour of
+   "integration" and "availability".
 2. **Search incident persistence: persist while down.** Today a blind-indexer incident
    auto-resolves after 15 minutes without a fresh observation
    (`@staleness_seconds`), which is why a three-day outage read as
@@ -225,7 +228,7 @@ with a richer grade the Downloads UI needs.
 
 ## Scope and cost
 
-New: `Availability` (value, store, report, gate, topic) with unit
+New: `IntegrationAvailability` (value, store, report, gate, topic) with unit
 tests; `Search.ProbeJob` and `TMDB.ProbeJob`; the hand-off probe call
 in `Search.Prowlarr`. Changed: gates at five sites, two incident
 contexts, `PursuitStatus` copy source, `GapVerdict` reason, `Reactor`
@@ -233,7 +236,7 @@ and `Refresher` subscribers, queue-monitor logging, Connections tile,
 `IntegrationHealth` moduledoc. Each step test-first; wiki entry per
 step. Estimate: five sessions in the campaign's rollout order:
 
-1. `Availability` + `:prowlarr` and hand-off writers + `Search.ProbeJob`
+1. `IntegrationAvailability` + `:prowlarr` and hand-off writers + `Search.ProbeJob`
    + `PursueTarget` gates + `PursuitStatus` copy. Wiki: the pursuit
    Waiting entry.
 2. `RunPlan`, `DropPlanner`, `Corpus` report, `IncomingLive` loop,

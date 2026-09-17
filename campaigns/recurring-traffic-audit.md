@@ -22,10 +22,10 @@ what it does during an outage, and gives each one logic that fits.
 
 - **Recurring traffic** — a request the app issues without a person
   asking at that moment: a poll, a retry, a refresh, a scheduled tick.
-- **Dependency** — the server a request goes to: Prowlarr (and behind
+- **Integration** — the server a request goes to: Prowlarr (and behind
   it the indexers), a download client, TMDB and its image CDN, GitHub,
   a Nostr relay.
-- **Outage** — a dependency that is reachable but cannot do the job
+- **Outage** — an integration that is reachable but cannot do the job
   (Prowlarr answering 500 on grabs), or not reachable at all.
 - **Hand-off outage** — the specific outage where Prowlarr answers
   searches but cannot pass a release to the download client (HTTP 500,
@@ -33,25 +33,25 @@ what it does during an outage, and gives each one logic that fits.
   `Prowlarr.grab_outage?/1`.
 - **Back-off** — retry spacing that grows with consecutive failures, to
   a cap.
-- **Availability** — the published answer per dependency, `:up` or
-  `{:down, since, reason}`; while a dependency is down, requests that
+- **Availability** — the published answer per integration, `:up` or
+  `{:down, since, reason}`; while an integration is down, requests that
   need it are held, not sent, and the first good probe or request marks
   it up again. Earlier drafts of this file called this "the circuit";
-  the code name is `MediaCentaur.Availability` (owner, 2026-09-17).
+  the code name is `MediaCentaur.IntegrationAvailability` (owner, 2026-09-17).
 - **Coalescing** — many callers with the same need against one
-  dependency make one request, not N.
+  integration make one request, not N.
 - **Recovery wake** — resuming held work from a recovery signal instead
   of the next scheduled poll.
 - **Watched cadence** — the queue monitor's faster poll (10 s) while at
   least one LiveView subscribes to it; **idle cadence** is 30 s.
-- **Metered dependency** — one that counts requests against a limit, or
+- **Metered integration** — one that counts requests against a limit, or
   escalates a back-off when hit repeatedly: TMDB and its image CDN,
   Prowlarr's live searches and grabs (the indexers behind them), GitHub,
   Nostr relays.
-- **Free dependency** — one that does neither: the download clients on
+- **Free integration** — one that does neither: the download clients on
   the LAN, answered in under a millisecond. Its only cost is log noise.
 - **Probe** — a free request whose only purpose is to learn whether a
-  dependency can do the job, so that no metered request is spent to
+  integration can do the job, so that no metered request is spent to
   learn it.
 
 ## Status
@@ -59,7 +59,7 @@ what it does during an outage, and gives each one logic that fits.
 Measured, shape decided, defects 1 and 3 landed, design drafted —
 2026-09-17 evening. The design spec is
 `docs/superpowers/specs/2026-09-17-availability-design.md`; two owner
-decisions in it are taken (`Availability`; the search incident persists
+decisions in it are taken (`IntegrationAvailability`; the search incident persists
 while down). Implementation in progress from the plan. The inventory
 below is
 verified against the code (constants cited) and against one day of
@@ -152,11 +152,11 @@ What each source did in an outage, observed:
 ## Cost classes
 
 The principle (owner, 2026-09-17): treat each source by what a request
-**costs**, not by how often it runs. A poll against a free dependency is
+**costs**, not by how often it runs. A poll against a free integration is
 fine at any cadence, in outage too. A request against a metered one is
 never spent to learn what a probe could tell.
 
-| Dependency | Class | Consequence for the audit |
+| Integration | Class | Consequence for the audit |
 |---|---|---|
 | Download clients on the LAN | free | Polling stays as it is, outage included. Only the noise is fixed: two warnings per poll, and SABnzbd's 403 graded "unreachable" instead of "check your key". |
 | Prowlarr live searches | metered, × indexer count | Every live search in an outage burns indexer quota and deepens Prowlarr's persistent back-off. The corpus already makes repeats free for 30 min. |
@@ -171,7 +171,7 @@ Verified against the code 2026-09-17. "Local only" rows were checked
 and carry no outbound traffic; they stay listed so nobody re-audits
 them. Policies are assigned once the shape is decided.
 
-| Source | Dependency | Cadence (code) | On failure today | Gate today |
+| Source | Integration | Cadence (code) | On failure today | Gate today |
 |---|---|---|---|---|
 | Pursuit retry, hand-off outage — `Jobs.PursueTarget` | Prowlarr → client | 15 min, no attempt charged (`@download_client_snooze_seconds`) | fixed, never exhausts | none — each target snoozes alone |
 | Pursuit retry, Prowlarr error — `Jobs.PursueTarget` | Prowlarr | 1 h, no attempt charged (`@prowlarr_error_snooze_seconds`) | fixed, never exhausts | none |
@@ -200,8 +200,8 @@ up to 18 simultaneous outbound requests when three jobs search at once
 1. **Back-off on failure, capped.** A retry loop whose last answer was
    an outage waits longer each time, to a cap, and never charges the
    patience budget for it.
-2. **A circuit per metered dependency, fed by free probes.** While a
-   dependency is known down, work that needs it is held, not attempted.
+2. **A circuit per metered integration, fed by free probes.** While a
+   integration is known down, work that needs it is held, not attempted.
    The probes are free requests: the queue monitor's poll for a client
    link, Prowlarr's own download-client test call for the hand-off
    (it reaches the client from inside Prowlarr's network without
@@ -212,7 +212,7 @@ up to 18 simultaneous outbound requests when three jobs search at once
 3. **Recovery wakes the work.** The first successful poll or grab
    re-schedules whatever the circuit held, so recovery is not paid for
    with a 15-minute wait.
-4. **Coalesce by dependency.** Two pursuits against one dead client
+4. **Coalesce by integration.** Two pursuits against one dead client
    should cost one probe, not two retry loops.
 5. **Visible budgets.** Requests/hour per server stay on the Connections
    tile; an audit target is a number, not a feeling.
@@ -227,10 +227,10 @@ up to 18 simultaneous outbound requests when three jobs search at once
   local-only and kept in the table so they are not re-audited.
 * `2026-09-17` (evening, owner) — **Cost, not cadence, decides the
   treatment.** Sources are classed metered or free (glossary, *Cost
-  classes*). Free dependencies keep polling at today's cadence and get
+  classes*). Free integrations keep polling at today's cadence and get
   quieter logs; metered ones get the circuit.
 * `2026-09-17` (evening, owner) — **Shape: a circuit per metered
-  dependency, opened and closed by free probes, with held work resumed
+  integration, opened and closed by free probes, with held work resumed
   on the first good probe.** Per-source back-off is rejected as the
   primary mechanism (N pursuits would still probe N times, the
   plan-then-pursuit double grab would survive, recovery would wait for
@@ -263,14 +263,18 @@ up to 18 simultaneous outbound requests when three jobs search at once
   verification; the relay case is dropped (already mature). The two
   Prowlarr facts under *Open items* are verified before the spec.
 * `2026-09-17` (evening, owner) — **Wiki rides each rollout step**, in
-  the same commit series: Troubleshooting gets one entry per dependency
+  the same commit series: Troubleshooting gets one entry per integration
   saying what the app does while it is down and when it resumes; the
   Using Media Centaur page changes only if the circuit surfaces in the
   UI (the pursuit's Waiting state, the Downloads tile). Language terse
   and informative — nothing is being sold.
 * `2026-09-17` (late evening, owner) — Spec approved
   (`docs/superpowers/specs/2026-09-17-availability-design.md`). Name:
-  `MediaCentaur.Availability`; "circuit" retired. The search-provider
+  `MediaCentaur.IntegrationAvailability` (first `Availability`; renamed
+  the same evening when review surfaced `Library.Availability`, which
+  the owner renamed `MediaFileAvailability` — one word, two meanings,
+  split); "circuit" and "dependency" retired for "availability" and
+  "integration". The search-provider
   incident persists while the probe says down, replacing the 900 s
   staleness rule — this closes the indexer-blindness gap the owner had
   reserved to design together.
@@ -332,18 +336,18 @@ successfully.
 4. ~~Fix defects 1 and 3~~ — landed 2026-09-17 (SABnzbd 403 →
    `:auth_failed`; one alternatives fetch per pursuit). 2 and 4 ride the
    circuit.
-5. Wiki, per step: Troubleshooting's outage entry for that dependency
+5. Wiki, per step: Troubleshooting's outage entry for that integration
    says what the app does while it is down and when it resumes. Terse.
 
 ## Completion criteria
 
 * Every row in the inventory has a measured cadence, healthy and in
   outage, and a stated policy.
-* No source retries a request a known-down dependency cannot serve
+* No source retries a request a known-down integration cannot serve
   more than once per back-off step; the pursuit retry during a
   hand-off outage costs at most a probe per interval, not a search plus
   a grab per pursuit.
-* Recovery of a dependency resumes held work within one poll interval.
+* Recovery of an integration resumes held work within one poll interval.
 * Requests/hour per server during a simulated outage are below the
   healthy-day rate, not above it.
 

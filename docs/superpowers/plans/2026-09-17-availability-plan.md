@@ -4,7 +4,7 @@
 
 **Goal:** A pursuit never spends a Prowlarr search or grab while Prowlarr, or Prowlarr's link to the download client, is known down; it is held and resumes within a minute of recovery.
 
-**Architecture:** One `MediaCentaur.Availability` value per dependency (`:prowlarr`, `{:handoff, :usenet}`, `{:handoff, :torrent}`, `:tmdb` reserved for step 3) in `:persistent_term`, written only by the Prowlarr client's observer module from real request outcomes, kept fresh while down by an Oban probe job that makes free requests (indexer roster read; download-client test-all). `Jobs.PursueTarget` consults it before its search and before its grab and snoozes at the probe cadence when held. The pursuit's Waiting copy and the hand-off incident read the value instead of inferring from grab stamps. Spec: `docs/superpowers/specs/2026-09-17-availability-design.md`.
+**Architecture:** One `MediaCentaur.IntegrationAvailability` value per integration (`:prowlarr`, `{:handoff, :usenet}`, `{:handoff, :torrent}`, `:tmdb` reserved for step 3) in `:persistent_term`, written only by the Prowlarr client's observer module from real request outcomes, kept fresh while down by an Oban probe job that makes free requests (indexer roster read; download-client test-all). `Jobs.PursueTarget` consults it before its search and before its grab and snoozes at the probe cadence when held. The pursuit's Waiting copy and the hand-off incident read the value instead of inferring from grab stamps. Spec: `docs/superpowers/specs/2026-09-17-availability-design.md`.
 
 **Tech Stack:** Elixir/Phoenix, Oban 2.24 (Lite engine; `testing: :inline` in tests), Req + `Req.Test` stubs (`:prowlarr`), Boundary, ExUnit with `MediaCentaur.DataCase` / `MediaCentaur.Case`.
 
@@ -14,7 +14,7 @@
 
 - **Never run `mix` directly.** Every mix invocation is `~/scripts/agents/agent-mix <task>` (`~/scripts/agents/agent-mix test path`, `~/scripts/agents/agent-mix format`, …). A bare `mix` takes the running dev server down.
 - **Test-first.** Write the test, run it red for the right reason, implement, run green.
-- **Sandbox rules.** Tests that write `:persistent_term` (any `Availability.report/3` call) must be sync: `use MediaCentaur.Case, async: false` or `use MediaCentaur.DataCase` (already sync). Pure tests are `use MediaCentaur.Case, async: true`. The sandbox restores app-owned `:persistent_term` keys at check-in, so tests never clean up availability themselves.
+- **Sandbox rules.** Tests that write `:persistent_term` (any `IntegrationAvailability.report/3` call) must be sync: `use MediaCentaur.Case, async: false` or `use MediaCentaur.DataCase` (already sync). Pure tests are `use MediaCentaur.Case, async: true`. The sandbox restores app-owned `:persistent_term` keys at check-in, so tests never clean up availability themselves.
 - **Oban runs inline in tests.** `Oban.insert/1` executes the job at once in the calling process. When a test drives a *down* transition, the probe job runs immediately and hits the `:prowlarr` stub — the stub must answer `GET /api/v1/indexer`, `GET /api/v1/indexerstatus`, `GET /api/v1/downloadclient`, `POST /api/v1/downloadclient/testall`, or the test fails with an unanswered request.
 - **Placeholders only** in tests and docs: "Sample Movie", never a real title.
 - **Zero warnings.** `--warnings-as-errors` is on.
@@ -25,9 +25,9 @@
 
 | File | Responsibility |
 |---|---|
-| Create `lib/media_centaur/availability/status.ex` | The value type and its pure fold |
-| Create `lib/media_centaur/availability.ex` | Store (`:persistent_term`), `status/1`, `up?/1`, `available?/1`, `report/3`, the change broadcast; Boundary context |
-| Modify `lib/media_centaur/topics.ex` | `availability_updates/0` |
+| Create `lib/media_centaur/integration_availability/status.ex` | The value type and its pure fold |
+| Create `lib/media_centaur/integration_availability.ex` | Store (`:persistent_term`), `status/1`, `up?/1`, `available?/1`, `report/3`, the change broadcast; Boundary context |
+| Modify `lib/media_centaur/topics.ex` | `integration_availability_updates/0` |
 | Create `lib/media_centaur/search/prowlarr_availability.ex` | The one writer for `:prowlarr` and the hand-offs: folds request, grab and roster outcomes; the hand-off probe; enqueues the probe job on a down transition |
 | Modify `lib/media_centaur/search/prowlarr.ex` | `search/3` and `grab/2` report their outcome; `list_download_clients/1` exposes `id` and `protocol`; new `test_download_clients/1` |
 | Modify `lib/media_centaur/search/indexer_health.ex` | `check/1` reports its observation |
@@ -36,34 +36,34 @@
 | Modify `lib/media_centaur/acquisition/jobs/pursue_target.ex` | Hold before search and before grab; the discovering request's snoozes shortened to the cadence |
 | Modify `lib/media_centaur/acquisition/pursuits.ex`, `lib/media_centaur/acquisition/view_models/pursuit_status.ex` | Held copy |
 | Modify `lib/media_centaur/acquisition/pursuits/incident_context.ex` | Reads the hand-off availability instead of grab stamps |
-| Modify `lib/media_centaur/integration_health.ex` | Moduledoc: probes now run on a schedule while a dependency is down |
+| Modify `lib/media_centaur/integration_health.ex` | Moduledoc: probes now run on a schedule while an integration is down |
 | Wiki `../media-centaur.wiki/Troubleshooting.md` | The pursuit Waiting entry |
 
 ---
 
-### Task 1: `Availability.Status` — the value and its pure fold
+### Task 1: `IntegrationAvailability.Status` — the value and its pure fold
 
 **Files:**
-- Create: `lib/media_centaur/availability/status.ex`
-- Test: `test/media_centaur/availability/status_test.exs`
+- Create: `lib/media_centaur/integration_availability/status.ex`
+- Test: `test/media_centaur/integration_availability/status_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
 ```elixir
-defmodule MediaCentaur.Availability.StatusTest do
+defmodule MediaCentaur.IntegrationIntegrationAvailability.StatusTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Availability.Status
+  alias MediaCentaur.IntegrationIntegrationAvailability.Status
 
   @t0 ~U[2026-09-17 20:00:00Z]
   @t1 ~U[2026-09-17 20:01:00Z]
   @t2 ~U[2026-09-17 20:02:00Z]
 
   describe "initial/2" do
-    test "a never-observed dependency is up" do
+    test "a never-observed integration is up" do
       status = Status.initial(:prowlarr, @t0)
 
-      assert %Status{dependency: :prowlarr, state: :up, observed_at: @t0, retry_at: nil} = status
+      assert %Status{integration: :prowlarr, state: :up, observed_at: @t0, retry_at: nil} = status
       assert Status.up?(status)
     end
   end
@@ -103,18 +103,18 @@ end
 
 - [ ] **Step 2: Run it red**
 
-Run: `~/scripts/agents/agent-mix test test/media_centaur/availability/status_test.exs`
-Expected: compile error — `MediaCentaur.Availability.Status` is undefined.
+Run: `~/scripts/agents/agent-mix test test/media_centaur/integration_availability/status_test.exs`
+Expected: compile error — `MediaCentaur.IntegrationIntegrationAvailability.Status` is undefined.
 
 - [ ] **Step 3: Implement**
 
 ```elixir
-defmodule MediaCentaur.Availability.Status do
+defmodule MediaCentaur.IntegrationIntegrationAvailability.Status do
   @moduledoc """
-  One dependency's availability: `:up`, or `{:down, since, reason}`.
+  One integration's availability: `:up`, or `{:down, since, reason}`.
 
   A pure value. `fold/4` folds one observation into it and says whether
-  the state changed, so the store (`MediaCentaur.Availability`) can
+  the state changed, so the store (`MediaCentaur.IntegrationAvailability`) can
   write and broadcast only on transitions. The onset `since` survives
   consecutive down observations — one outage stays one outage even when
   its reason moves (unreachable, then blind, as a dead VPN presents).
@@ -126,24 +126,24 @@ defmodule MediaCentaur.Availability.Status do
   (Prowlarr cannot hand a release to the download client).
   """
 
-  @enforce_keys [:dependency, :state, :observed_at]
-  defstruct [:dependency, :state, :observed_at, :retry_at]
+  @enforce_keys [:integration, :state]
+  defstruct [:integration, :state, :observed_at, :retry_at]
 
-  @type dependency :: :prowlarr | {:handoff, :usenet | :torrent} | :tmdb
+  @type integration :: :prowlarr | {:handoff, :usenet | :torrent} | :tmdb
   @type reason :: :unreachable | :rejected | :blind | :client_unavailable
   @type observation :: :up | {:down, reason()}
   @type state :: :up | {:down, DateTime.t(), reason()}
   @type t :: %__MODULE__{
-          dependency: dependency(),
+          integration: integration(),
           state: state(),
           observed_at: DateTime.t(),
           retry_at: DateTime.t() | nil
         }
 
   @doc "The status before any observation: up."
-  @spec initial(dependency(), DateTime.t()) :: t()
-  def initial(dependency, %DateTime{} = now),
-    do: %__MODULE__{dependency: dependency, state: :up, observed_at: now}
+  @spec initial(integration(), DateTime.t()) :: t()
+  def initial(integration, %DateTime{} = now),
+    do: %__MODULE__{integration: integration, state: :up, observed_at: now}
 
   @spec up?(t()) :: boolean()
   def up?(%__MODULE__{state: :up}), do: true
@@ -171,14 +171,14 @@ end
 
 - [ ] **Step 4: Run it green**
 
-Run: `~/scripts/agents/agent-mix test test/media_centaur/availability/status_test.exs`
+Run: `~/scripts/agents/agent-mix test test/media_centaur/integration_availability/status_test.exs`
 Expected: 5 tests, 0 failures.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lib/media_centaur/availability/status.ex test/media_centaur/availability/status_test.exs
-git commit -m "feat(availability): the per-dependency status value and its fold" -m "Claude-Session: https://claude.ai/code/session_01DartCM8viJppYVfPnQFUhF"
+git add lib/media_centaur/integration_availability/status.ex test/media_centaur/integration_availability/status_test.exs
+git commit -m "feat(availability): the per-integration status value and its fold" -m "Claude-Session: https://claude.ai/code/session_01DartCM8viJppYVfPnQFUhF"
 ```
 
 ---
@@ -186,27 +186,27 @@ git commit -m "feat(availability): the per-dependency status value and its fold"
 ### Task 2: `Availability` — store, gate, broadcast
 
 **Files:**
-- Create: `lib/media_centaur/availability.ex`
+- Create: `lib/media_centaur/integration_availability.ex`
 - Modify: `lib/media_centaur/topics.ex` (add one topic beside `capabilities_updates/0`, line ~182)
-- Test: `test/media_centaur/availability_test.exs`
+- Test: `test/media_centaur/integration_availability_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
 ```elixir
-defmodule MediaCentaur.AvailabilityTest do
+defmodule MediaCentaur.IntegrationAvailabilityTest do
   # Sync: `report/3` writes `:persistent_term`, which the sandbox restores at check-in.
   use MediaCentaur.Case, async: false
 
-  alias MediaCentaur.Availability
-  alias MediaCentaur.Availability.Status
+  alias MediaCentaur.IntegrationAvailability
+  alias MediaCentaur.IntegrationIntegrationAvailability.Status
   alias MediaCentaur.Topics
 
   @t0 ~U[2026-09-17 20:00:00Z]
   @t1 ~U[2026-09-17 20:01:00Z]
 
   describe "status/1 and up?/1" do
-    test "a dependency nobody has observed is up" do
-      assert %Status{dependency: :prowlarr, state: :up} = Availability.status(:prowlarr)
+    test "an integration nobody has observed is up" do
+      assert %Status{integration: :prowlarr, state: :up} = IntegrationAvailability.status(:prowlarr)
       assert Availability.up?(:prowlarr)
       assert Availability.up?({:handoff, :usenet})
     end
@@ -214,48 +214,48 @@ defmodule MediaCentaur.AvailabilityTest do
 
   describe "report/3" do
     test "the first down observation is a change, broadcast on the availability topic" do
-      Topics.subscribe(Topics.availability_updates())
+      Topics.subscribe(Topics.integration_availability_updates())
 
       assert {:changed, {:down, @t0, :unreachable}} =
-               Availability.report(:prowlarr, {:down, :unreachable}, now: @t0)
+               IntegrationAvailability.report(:prowlarr, {:down, :unreachable}, now: @t0)
 
-      assert_receive {:availability_changed, :prowlarr, {:down, @t0, :unreachable}}
+      assert_receive {:integration_availability_changed, :prowlarr, {:down, @t0, :unreachable}}
       refute Availability.up?(:prowlarr)
       assert Availability.up?({:handoff, :usenet})
     end
 
     test "a repeated down observation is unchanged and not broadcast, but is recorded" do
-      Topics.subscribe(Topics.availability_updates())
-      {:changed, _} = Availability.report(:prowlarr, {:down, :unreachable}, now: @t0)
-      assert_receive {:availability_changed, :prowlarr, _}
+      Topics.subscribe(Topics.integration_availability_updates())
+      {:changed, _} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable}, now: @t0)
+      assert_receive {:integration_availability_changed, :prowlarr, _}
 
-      assert :unchanged = Availability.report(:prowlarr, {:down, :blind}, now: @t1, retry_at: @t1)
+      assert :unchanged = IntegrationAvailability.report(:prowlarr, {:down, :blind}, now: @t1, retry_at: @t1)
 
-      refute_receive {:availability_changed, :prowlarr, _}, 50
-      assert %Status{state: {:down, @t0, :blind}, observed_at: @t1, retry_at: @t1} = Availability.status(:prowlarr)
+      refute_receive {:integration_availability_changed, :prowlarr, _}, 50
+      assert %Status{state: {:down, @t0, :blind}, observed_at: @t1, retry_at: @t1} = IntegrationAvailability.status(:prowlarr)
     end
 
     test "recovery is a change back to up" do
-      Topics.subscribe(Topics.availability_updates())
-      {:changed, _} = Availability.report({:handoff, :torrent}, {:down, :client_unavailable}, now: @t0)
-      assert_receive {:availability_changed, {:handoff, :torrent}, _}
+      Topics.subscribe(Topics.integration_availability_updates())
+      {:changed, _} = IntegrationAvailability.report({:handoff, :torrent}, {:down, :client_unavailable}, now: @t0)
+      assert_receive {:integration_availability_changed, {:handoff, :torrent}, _}
 
-      assert {:changed, :up} = Availability.report({:handoff, :torrent}, :up, now: @t1)
-      assert_receive {:availability_changed, {:handoff, :torrent}, :up}
+      assert {:changed, :up} = IntegrationAvailability.report({:handoff, :torrent}, :up, now: @t1)
+      assert_receive {:integration_availability_changed, {:handoff, :torrent}, :up}
       assert Availability.up?({:handoff, :torrent})
     end
 
-    test "an up observation on an up dependency is unchanged and writes nothing" do
-      before = Availability.status(:prowlarr)
+    test "an up observation on an up integration is unchanged and writes nothing" do
+      before = IntegrationAvailability.status(:prowlarr)
 
-      assert :unchanged = Availability.report(:prowlarr, :up, now: @t1)
-      assert Availability.status(:prowlarr).observed_at == before.observed_at
+      assert :unchanged = IntegrationAvailability.report(:prowlarr, :up, now: @t1)
+      assert IntegrationAvailability.status(:prowlarr).observed_at == before.observed_at
     end
   end
 
   describe "available?/1" do
     test "is false while down even when the integration is configured" do
-      {:changed, _} = Availability.report(:prowlarr, {:down, :rejected}, now: @t0)
+      {:changed, _} = IntegrationAvailability.report(:prowlarr, {:down, :rejected}, now: @t0)
 
       refute Availability.available?(:prowlarr)
     end
@@ -271,35 +271,35 @@ end
 
 - [ ] **Step 2: Run it red**
 
-Run: `~/scripts/agents/agent-mix test test/media_centaur/availability_test.exs`
-Expected: compile error — `MediaCentaur.Availability` is undefined.
+Run: `~/scripts/agents/agent-mix test test/media_centaur/integration_availability_test.exs`
+Expected: compile error — `MediaCentaur.IntegrationAvailability` is undefined.
 
 - [ ] **Step 3: Add the topic**
 
 In `lib/media_centaur/topics.ex`, next to `def capabilities_updates, do: "capabilities:updates"`:
 
 ```elixir
-  @doc "`{:availability_changed, dependency, state}` on every up/down transition (`MediaCentaur.Availability`)."
-  def availability_updates, do: "availability:updates"
+  @doc "`{:integration_availability_changed, integration, state}` on every up/down transition (`MediaCentaur.IntegrationAvailability`)."
+  def integration_availability_updates, do: "availability:updates"
 ```
 
 - [ ] **Step 4: Implement the store**
 
 ```elixir
-defmodule MediaCentaur.Availability do
+defmodule MediaCentaur.IntegrationAvailability do
   use Boundary, deps: [MediaCentaur.Capabilities], exports: [Status]
 
   @moduledoc """
-  Whether a metered dependency can do its job right now.
+  Whether a metered integration can do its job right now.
 
   Every metered outbound request is preceded by a free question — is
-  the dependency up? — answered here. One `Status` per dependency lives
+  the integration up? — answered here. One `Status` per integration lives
   in `:persistent_term`, runtime-only: a restart starts everything up
   and the first request or probe corrects it. Free probes keep a down
-  dependency's status current (`MediaCentaur.Search.ProbeJob`); while
+  integration's status current (`MediaCentaur.Search.ProbeJob`); while
   up, real requests are the evidence.
 
-  **One writer per dependency.** The module that owns the client calls
+  **One writer per integration.** The module that owns the client calls
   `report/3` — `MediaCentaur.Search.ProwlarrAvailability` for `:prowlarr`
   and both hand-offs. Everyone else reads.
 
@@ -309,36 +309,36 @@ defmodule MediaCentaur.Availability do
   folded into the other: one is settings, the other observation.
 
   Writes happen on a transition and on every down observation (so
-  `observed_at` says when a down dependency was last probed); an up
-  observation on an up dependency writes nothing — `:persistent_term`
+  `observed_at` says when a down integration was last probed); an up
+  observation on an up integration writes nothing — `:persistent_term`
   updates cost a global scan, and Prowlarr answers many times a minute.
-  Transitions broadcast `{:availability_changed, dependency, state}` on
-  `Topics.availability_updates/0`.
+  Transitions broadcast `{:integration_availability_changed, integration, state}` on
+  `Topics.integration_availability_updates/0`.
   """
 
-  alias MediaCentaur.Availability.Status
+  alias MediaCentaur.IntegrationIntegrationAvailability.Status
   alias MediaCentaur.{Capabilities, Topics}
 
-  @dependencies [:prowlarr, {:handoff, :usenet}, {:handoff, :torrent}, :tmdb]
+  @integrations [:prowlarr, {:handoff, :usenet}, {:handoff, :torrent}, :tmdb]
 
-  @doc "Every dependency this module tracks."
-  @spec dependencies() :: [Status.dependency()]
-  def dependencies, do: @dependencies
+  @doc "Every integration this module tracks."
+  @spec integrations() :: [Status.integration()]
+  def integrations, do: @integrations
 
-  @spec status(Status.dependency()) :: Status.t()
-  def status(dependency) when dependency in @dependencies do
-    :persistent_term.get(key(dependency), nil) || Status.initial(dependency, DateTime.utc_now())
+  @spec status(Status.integration()) :: Status.t()
+  def status(integration) when integration in @integrations do
+    :persistent_term.get(key(integration), nil) || Status.initial(integration, DateTime.utc_now())
   end
 
-  @spec up?(Status.dependency()) :: boolean()
-  def up?(dependency), do: dependency |> status() |> Status.up?()
+  @spec up?(Status.integration()) :: boolean()
+  def up?(integration), do: integration |> status() |> Status.up?()
 
   @doc "Configured and up. The gate before a metered request."
-  @spec available?(Status.dependency()) :: boolean()
+  @spec available?(Status.integration()) :: boolean()
   def available?(:prowlarr), do: Capabilities.prowlarr_ready?() and up?(:prowlarr)
 
-  def available?({:handoff, slot} = dependency),
-    do: Capabilities.prowlarr_ready?() and Capabilities.client_ready?(slot) and up?(dependency)
+  def available?({:handoff, slot} = integration),
+    do: Capabilities.prowlarr_ready?() and Capabilities.client_ready?(slot) and up?(integration)
 
   def available?(:tmdb), do: Capabilities.tmdb_ready?() and up?(:tmdb)
 
@@ -347,28 +347,28 @@ defmodule MediaCentaur.Availability do
   on a down status). Returns `{:changed, state}` on a transition,
   `:unchanged` otherwise.
   """
-  @spec report(Status.dependency(), Status.observation(), keyword()) ::
+  @spec report(Status.integration(), Status.observation(), keyword()) ::
           :unchanged | {:changed, Status.state()}
-  def report(dependency, observation, opts \\ []) when dependency in @dependencies do
+  def report(integration, observation, opts \\ []) when integration in @integrations do
     now = Keyword.get(opts, :now, DateTime.utc_now())
-    {verdict, next} = Status.fold(status(dependency), observation, now, opts)
+    {verdict, next} = Status.fold(status(integration), observation, now, opts)
 
     case {verdict, next.state} do
       {:unchanged, :up} ->
         :unchanged
 
       {:unchanged, _down} ->
-        :persistent_term.put(key(dependency), next)
+        :persistent_term.put(key(integration), next)
         :unchanged
 
       {:changed, state} ->
-        :persistent_term.put(key(dependency), next)
-        Topics.publish(Topics.availability_updates(), {:availability_changed, dependency, state})
+        :persistent_term.put(key(integration), next)
+        Topics.publish(Topics.integration_availability_updates(), {:integration_availability_changed, integration, state})
         {:changed, state}
     end
   end
 
-  defp key(dependency), do: {__MODULE__, dependency}
+  defp key(integration), do: {__MODULE__, integration}
 end
 ```
 
@@ -376,13 +376,13 @@ If the Boundary compiler reports that `MediaCentaur.Topics` must be listed, add 
 
 - [ ] **Step 5: Run it green, then the sandbox test**
 
-Run: `~/scripts/agents/agent-mix test test/media_centaur/availability_test.exs test/media_centaur/global_state_sandbox_test.exs`
-Expected: all green. If the sandbox test says the key `{MediaCentaur.Availability, _}` is not restored, register it the way `MediaCentaur.Search.IndexerHealth`'s cache key is registered in `test/support/global_state_sandbox.ex`, and re-run.
+Run: `~/scripts/agents/agent-mix test test/media_centaur/integration_availability_test.exs test/media_centaur/global_state_sandbox_test.exs`
+Expected: all green. If the sandbox test says the key `{MediaCentaur.IntegrationAvailability, _}` is not restored, register it the way `MediaCentaur.Search.IndexerHealth`'s cache key is registered in `test/support/global_state_sandbox.ex`, and re-run.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/media_centaur/availability.ex lib/media_centaur/topics.ex test/media_centaur/availability_test.exs
+git add lib/media_centaur/integration_availability.ex lib/media_centaur/topics.ex test/media_centaur/integration_availability_test.exs
 git commit -m "feat(availability): the store, the gate, and the change broadcast" -m "Claude-Session: https://claude.ai/code/session_01DartCM8viJppYVfPnQFUhF"
 ```
 
@@ -394,7 +394,7 @@ git commit -m "feat(availability): the store, the gate, and the change broadcast
 - Create: `lib/media_centaur/search/prowlarr_availability.ex`
 - Modify: `lib/media_centaur/search/prowlarr.ex` — `search/3` (~151-180), `grab/2` (~194-212), `parse_download_client/1` (~331), new `test_download_clients/1`
 - Modify: `lib/media_centaur/search/indexer_health.ex` — `check/1` (~67)
-- Modify: `lib/media_centaur/search.ex` — Boundary `deps:` add `MediaCentaur.Availability`, `MediaCentaur.Capabilities`; `exports:` add `ProwlarrAvailability`, `ProbeJob`
+- Modify: `lib/media_centaur/search.ex` — Boundary `deps:` add `MediaCentaur.IntegrationAvailability`, `MediaCentaur.Capabilities`; `exports:` add `ProwlarrAvailability`, `ProbeJob`
 - Test: `test/media_centaur/search/prowlarr_availability_test.exs`
 
 `ProbeJob` does not exist until Task 4. In this task `ProwlarrAvailability.enqueue_probe/1` is written against it, so **do Task 3 and Task 4 in one go before running the suite**, or stub the enqueue with a `@doc false` no-op that Task 4 replaces. Preferred: write Task 4's module first (it is small), then this task.
@@ -406,7 +406,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
   # Sync: reports write :persistent_term; Oban runs the probe job inline.
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Availability
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.{IndexerHealth, Prowlarr, ProwlarrAvailability}
 
   @roster_ok [%{"id" => 1, "name" => "Sample Indexer", "enable" => true, "protocol" => "usenet"}]
@@ -444,18 +444,18 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
       stub_prowlarr(fn conn, _ -> Req.Test.transport_error(conn, :econnrefused) end)
 
       assert {:error, _} = Prowlarr.search("Sample Movie")
-      assert %{state: {:down, _, :unreachable}} = Availability.status(:prowlarr)
+      assert %{state: {:down, _, :unreachable}} = IntegrationAvailability.status(:prowlarr)
     end
 
     test "a 401 marks Prowlarr rejected" do
       stub_prowlarr(fn conn, _ -> conn |> Plug.Conn.put_status(401) |> Req.Test.text("") end)
 
       assert {:error, _} = Prowlarr.search("Sample Movie")
-      assert %{state: {:down, _, :rejected}} = Availability.status(:prowlarr)
+      assert %{state: {:down, _, :rejected}} = IntegrationAvailability.status(:prowlarr)
     end
 
     test "a successful search marks Prowlarr up again" do
-      {:changed, _} = Availability.report(:prowlarr, {:down, :unreachable})
+      {:changed, _} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
       stub_prowlarr(fn conn, _ -> Req.Test.json(conn, []) end)
 
       assert {:ok, []} = Prowlarr.search("Sample Movie")
@@ -469,13 +469,13 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
       result = %MediaCentaur.Search.SearchResult{guid: "g1", indexer_id: 1, title: "Sample.Movie.2005", protocol: :usenet}
 
       assert {:error, _} = Prowlarr.grab(result)
-      assert %{state: {:down, _, :client_unavailable}} = Availability.status({:handoff, :usenet})
+      assert %{state: {:down, _, :client_unavailable}} = IntegrationAvailability.status({:handoff, :usenet})
       assert Availability.up?({:handoff, :torrent})
       assert Availability.up?(:prowlarr)
     end
 
     test "a successful grab marks the hand-off up" do
-      {:changed, _} = Availability.report({:handoff, :usenet}, {:down, :client_unavailable})
+      {:changed, _} = IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
       stub_prowlarr(fn conn, {"POST", "/api/v1/search"} -> Req.Test.json(conn, %{}) end)
       result = %MediaCentaur.Search.SearchResult{guid: "g1", indexer_id: 1, title: "Sample.Movie.2005", protocol: :usenet}
 
@@ -488,7 +488,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
     test "an unreachable roster marks Prowlarr unreachable; an ok roster marks it up" do
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.transport_error(conn, :timeout) end)
       assert %IndexerHealth{state: :unreachable} = IndexerHealth.check()
-      assert %{state: {:down, _, :unreachable}} = Availability.status(:prowlarr)
+      assert %{state: {:down, _, :unreachable}} = IntegrationAvailability.status(:prowlarr)
 
       stub_prowlarr(fn conn, _ -> Req.Test.json(conn, []) end)
       assert %IndexerHealth{state: :ok} = IndexerHealth.check()
@@ -506,7 +506,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
       end)
 
       assert %IndexerHealth{state: :blind} = IndexerHealth.check()
-      assert %{state: {:down, _, :blind}, retry_at: ^retry_at} = Availability.status(:prowlarr)
+      assert %{state: {:down, _, :blind}, retry_at: ^retry_at} = IntegrationAvailability.status(:prowlarr)
     end
   end
 
@@ -521,7 +521,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
       end)
 
       assert :ok = ProwlarrAvailability.probe_handoff()
-      assert %{state: {:down, _, :client_unavailable}} = Availability.status({:handoff, :usenet})
+      assert %{state: {:down, _, :client_unavailable}} = IntegrationAvailability.status({:handoff, :usenet})
       assert Availability.up?({:handoff, :torrent})
     end
 
@@ -533,7 +533,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
         end
       end)
 
-      {:changed, _} = Availability.report({:handoff, :torrent}, {:down, :client_unavailable})
+      {:changed, _} = IntegrationAvailability.report({:handoff, :torrent}, {:down, :client_unavailable})
       assert :ok = ProwlarrAvailability.probe_handoff()
       refute Availability.up?({:handoff, :torrent})
       assert Availability.up?({:handoff, :usenet})
@@ -555,7 +555,7 @@ Expected: compile error — `ProwlarrAvailability` undefined.
 defmodule MediaCentaur.Search.ProwlarrAvailability do
   @moduledoc """
   The one writer of `:prowlarr` and hand-off availability
-  (`MediaCentaur.Availability`).
+  (`MediaCentaur.IntegrationAvailability`).
 
   `Search.Prowlarr` calls `observe_request/1` after every search and
   `observe_grab/2` after every grab; `Search.IndexerHealth` calls
@@ -564,7 +564,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
   and the hand-off for that release's protocol is down.
 
   On a transition to down the owner enqueues `Search.ProbeJob`, which
-  keeps the status fresh with free requests until the dependency
+  keeps the status fresh with free requests until the integration
   answers again. Nothing is enqueued for an unconfigured Prowlarr — a
   missing URL fails every request instantly and probing it would be
   noise.
@@ -574,13 +574,13 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
   touches no indexer, folded per slot.
   """
 
-  alias MediaCentaur.{Availability, Capabilities}
+  alias MediaCentaur.{Capabilities, IntegrationAvailability}
   alias MediaCentaur.Search.{IndexerHealth, ProbeJob, Prowlarr}
 
   @slots [:usenet, :torrent]
 
   @doc "Folds a search or roster request outcome into `:prowlarr`."
-  @spec observe_request(:ok | {:ok, term()} | {:error, term()}) :: :unchanged | {:changed, Availability.Status.state()}
+  @spec observe_request(:ok | {:ok, term()} | {:error, term()}) :: :unchanged | {:changed, IntegrationAvailability.Status.state()}
   def observe_request(:ok), do: report(:prowlarr, :up)
   def observe_request({:ok, _}), do: report(:prowlarr, :up)
   def observe_request({:error, {:http_error, status, _body}}) when status in [401, 403], do: report(:prowlarr, {:down, :rejected})
@@ -610,7 +610,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
   end
 
   @doc "Folds a roster observation into `:prowlarr`."
-  @spec observe_roster(IndexerHealth.t()) :: :unchanged | {:changed, Availability.Status.state()}
+  @spec observe_roster(IndexerHealth.t()) :: :unchanged | {:changed, IntegrationAvailability.Status.state()}
   def observe_roster(%IndexerHealth{state: :unreachable}), do: report(:prowlarr, {:down, :unreachable})
 
   def observe_roster(%IndexerHealth{state: :blind, retry_at: retry_at}),
@@ -630,8 +630,8 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
           [] -> :unchanged
           enabled ->
             if Enum.all?(enabled, &Map.get(valid_by_id, &1.id, false)),
-              do: Availability.report({:handoff, slot}, :up),
-              else: Availability.report({:handoff, slot}, {:down, :client_unavailable})
+              do: IntegrationAvailability.report({:handoff, slot}, :up),
+              else: IntegrationAvailability.report({:handoff, slot}, {:down, :client_unavailable})
         end
       end
 
@@ -644,7 +644,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
   end
 
   defp report_handoff(protocol, observation) when protocol in @slots do
-    case Availability.report({:handoff, protocol}, observation) do
+    case IntegrationAvailability.report({:handoff, protocol}, observation) do
       {:changed, {:down, _, _}} = changed ->
         enqueue_probe("handoff")
         changed
@@ -658,7 +658,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
   defp report_handoff(_protocol, _observation), do: :unchanged
 
   defp report(:prowlarr, observation, opts \\ []) do
-    case Availability.report(:prowlarr, observation, opts) do
+    case IntegrationAvailability.report(:prowlarr, observation, opts) do
       {:changed, {:down, _, _}} = changed ->
         enqueue_probe("prowlarr")
         changed
@@ -668,9 +668,9 @@ defmodule MediaCentaur.Search.ProwlarrAvailability do
     end
   end
 
-  defp enqueue_probe(dependency) do
+  defp enqueue_probe(integration) do
     if Capabilities.prowlarr_ready?() do
-      {:ok, _job} = %{dependency: dependency} |> ProbeJob.new(schedule_in: ProbeJob.cadence_seconds()) |> Oban.insert()
+      {:ok, _job} = %{integration: integration} |> ProbeJob.new(schedule_in: ProbeJob.cadence_seconds()) |> Oban.insert()
     end
 
     :ok
@@ -763,7 +763,7 @@ Add `alias MediaCentaur.Search.ProwlarrAvailability` at the top of `prowlarr.ex`
 
 In `lib/media_centaur/search/indexer_health.ex`, `check/1` — after the health is built and `cache_put/1` is called, add `ProwlarrAvailability.observe_roster(health)` (read the function; it ends by caching the classified or unreachable struct — observe the same struct it caches).
 
-In `lib/media_centaur/search.ex` add `MediaCentaur.Availability` and `MediaCentaur.Capabilities` to `deps:` and `ProwlarrAvailability`, `ProbeJob` to `exports:`.
+In `lib/media_centaur/search.ex` add `MediaCentaur.IntegrationAvailability` and `MediaCentaur.Capabilities` to `deps:` and `ProwlarrAvailability`, `ProbeJob` to `exports:`.
 
 - [ ] **Step 5: Run green**
 
@@ -791,22 +791,22 @@ git commit -m "feat(search): Prowlarr writes its own availability and the hand-o
 defmodule MediaCentaur.Search.ProbeJobTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Availability
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.ProbeJob
 
   @roster_ok [%{"id" => 1, "name" => "Sample Indexer", "enable" => true, "protocol" => "usenet"}]
 
   describe "perform/1 for prowlarr" do
     test "snoozes at the cadence while Prowlarr stays unreachable" do
-      {:changed, _} = Availability.report(:prowlarr, {:down, :unreachable})
+      {:changed, _} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
 
-      assert {:snooze, 60} = ProbeJob.perform(%Oban.Job{args: %{"dependency" => "prowlarr"}})
+      assert {:snooze, 60} = ProbeJob.perform(%Oban.Job{args: %{"integration" => "prowlarr"}})
       refute Availability.up?(:prowlarr)
     end
 
     test "completes once the roster answers" do
-      {:changed, _} = Availability.report(:prowlarr, {:down, :unreachable})
+      {:changed, _} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
 
       Req.Test.stub(:prowlarr, fn conn ->
         case conn.request_path do
@@ -815,14 +815,14 @@ defmodule MediaCentaur.Search.ProbeJobTest do
         end
       end)
 
-      assert :ok = ProbeJob.perform(%Oban.Job{args: %{"dependency" => "prowlarr"}})
+      assert :ok = ProbeJob.perform(%Oban.Job{args: %{"integration" => "prowlarr"}})
       assert Availability.up?(:prowlarr)
     end
   end
 
   describe "perform/1 for the hand-off" do
     test "snoozes while any hand-off is down, completes when both are up" do
-      {:changed, _} = Availability.report({:handoff, :usenet}, {:down, :client_unavailable})
+      {:changed, _} = IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
 
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
@@ -834,7 +834,7 @@ defmodule MediaCentaur.Search.ProbeJobTest do
         end
       end)
 
-      assert {:snooze, 60} = ProbeJob.perform(%Oban.Job{args: %{"dependency" => "handoff"}})
+      assert {:snooze, 60} = ProbeJob.perform(%Oban.Job{args: %{"integration" => "handoff"}})
 
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
@@ -846,7 +846,7 @@ defmodule MediaCentaur.Search.ProbeJobTest do
         end
       end)
 
-      assert :ok = ProbeJob.perform(%Oban.Job{args: %{"dependency" => "handoff"}})
+      assert :ok = ProbeJob.perform(%Oban.Job{args: %{"integration" => "handoff"}})
       assert Availability.up?({:handoff, :usenet})
     end
   end
@@ -874,10 +874,10 @@ Expected: compile error — `ProbeJob` undefined.
 ```elixir
 defmodule MediaCentaur.Search.ProbeJob do
   @moduledoc """
-  Keeps a down dependency's availability fresh with free requests.
+  Keeps a down integration's availability fresh with free requests.
 
   Enqueued by `Search.ProwlarrAvailability` on a transition to down, one
-  job per dependency (`unique` on `dependency`). Each run probes —
+  job per integration (`unique` on `integration`). Each run probes —
   the indexer roster read for `"prowlarr"`, `downloadclient/testall`
   for `"handoff"` — which reports through the same observers real
   requests use, then snoozes at the cadence while still down and
@@ -894,9 +894,9 @@ defmodule MediaCentaur.Search.ProbeJob do
   use Oban.Worker,
     queue: :maintenance,
     max_attempts: 3,
-    unique: [period: :infinity, keys: [:dependency], states: [:available, :scheduled, :executing, :retryable]]
+    unique: [period: :infinity, keys: [:integration], states: [:available, :scheduled, :executing, :retryable]]
 
-  alias MediaCentaur.Availability
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.{IndexerHealth, ProwlarrAvailability}
 
   @cadence_seconds 60
@@ -908,16 +908,16 @@ defmodule MediaCentaur.Search.ProbeJob do
   def cadence_seconds, do: @cadence_seconds
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"dependency" => "prowlarr"}}) do
+  def perform(%Oban.Job{args: %{"integration" => "prowlarr"}}) do
     _health = IndexerHealth.check()
 
-    case Availability.status(:prowlarr) do
+    case IntegrationAvailability.status(:prowlarr) do
       %{state: :up} -> :ok
       %{state: {:down, _, _}, retry_at: retry_at} -> {:snooze, snooze_for(retry_at, DateTime.utc_now())}
     end
   end
 
-  def perform(%Oban.Job{args: %{"dependency" => "handoff"}}) do
+  def perform(%Oban.Job{args: %{"integration" => "handoff"}}) do
     _outcome = ProwlarrAvailability.probe_handoff()
 
     if Enum.all?(@slots, &Availability.up?({:handoff, &1})),
@@ -953,13 +953,13 @@ git commit -m "feat(search): probe a down Prowlarr or hand-off with free request
 
 **Files:**
 - Modify: `lib/media_centaur/acquisition/jobs/pursue_target.ex` — constants (~84-89), `pursue/3` (~158), `handle_found/5` (~324)
-- Modify: `lib/media_centaur/acquisition.ex` — Boundary `deps:` add `MediaCentaur.Availability`
+- Modify: `lib/media_centaur/acquisition.ex` — Boundary `deps:` add `MediaCentaur.IntegrationAvailability`
 - Test: `test/media_centaur/acquisition/jobs/pursue_target_test.exs` (append a `describe`)
 
 - [ ] **Step 1: Write the failing tests** (append to the existing file; reuse its `create_pursuit_with_target/1`, `movie_release/3`, `download_client_unavailable/1` helpers — read them first)
 
 ```elixir
-  describe "held work — a known-down dependency is not asked" do
+  describe "held work — a known-down integration is not asked" do
     setup do
       # Prowlarr and a download client are configured in the test env
       # only when a test says so; these tests need both "ready" so the
@@ -971,7 +971,7 @@ git commit -m "feat(search): probe a down Prowlarr or hand-off with free request
     end
 
     test "Prowlarr down: no search, no grab, no attempt charged, snoozed at the probe cadence" do
-      {:changed, _} = MediaCentaur.Availability.report(:prowlarr, {:down, :unreachable})
+      {:changed, _} = MediaCentaur.IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
       target = seeking_movie_target()
       Req.Test.stub(:prowlarr, fn _conn -> flunk("Prowlarr must not be called while down") end)
 
@@ -983,7 +983,7 @@ git commit -m "feat(search): probe a down Prowlarr or hand-off with free request
     end
 
     test "hand-off down for the release's protocol: the search runs from the corpus, the grab does not" do
-      {:changed, _} = MediaCentaur.Availability.report({:handoff, :usenet}, {:down, :client_unavailable})
+      {:changed, _} = MediaCentaur.IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
       target = seeking_movie_target()
 
       Req.Test.stub(:prowlarr, fn conn ->
@@ -1009,7 +1009,7 @@ git commit -m "feat(search): probe a down Prowlarr or hand-off with free request
 
       assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
       assert Repo.get!(MediaCentaur.Acquisition.Target, target.id).last_attempt_outcome == "download_client_unavailable"
-      refute MediaCentaur.Availability.up?({:handoff, :usenet})
+      refute MediaCentaur.IntegrationAvailability.up?({:handoff, :usenet})
     end
   end
 ```
@@ -1026,7 +1026,7 @@ Expected: the three new tests fail — the first flunks because Prowlarr was cal
 Constants — both discovering snoozes become the cadence (the next run is held by availability; the discovering request must not be the slow one):
 
 ```elixir
-  alias MediaCentaur.Availability
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.ProbeJob
 
   @snooze_cap_hours 24
@@ -1081,8 +1081,8 @@ and in `handle_found/5`'s outage branch: `handle_infrastructure_failure(target, 
 
   # Held: no request, no attempt, no stamp. Ask again at the probe
   # cadence; a snooze is a database write, free.
-  defp hold(%Target{} = target, dependency) do
-    Log.info(:acquisition, "acquisition held — #{target.title} (#{inspect(dependency)} is down)")
+  defp hold(%Target{} = target, integration) do
+    Log.info(:acquisition, "acquisition held — #{target.title} (#{inspect(integration)} is down)")
     {:snooze, ProbeJob.cadence_seconds()}
   end
 ```
@@ -1113,7 +1113,7 @@ and in `handle_found/5`'s outage branch: `handle_infrastructure_failure(target, 
   end
 ```
 
-Add `alias MediaCentaur.Capabilities` if not already aliased. Add `MediaCentaur.Availability` to `lib/media_centaur/acquisition.ex` `deps:`.
+Add `alias MediaCentaur.Capabilities` if not already aliased. Add `MediaCentaur.IntegrationAvailability` to `lib/media_centaur/acquisition.ex` `deps:`.
 
 Confirm the test environment's `Capabilities.prowlarr_ready?/0` for these tests: the existing outage tests reach the grab, so Prowlarr is ready there — reuse whatever they do (the `setup` hint above). If the existing tests rely on Prowlarr being *unconfigured* being irrelevant today, the new `@unconfigured_snooze_seconds` branch will surface it as `{:snooze, 3600}` — then mark Prowlarr ready in those tests the same way the Incoming page tests do (`Capabilities.save_integration/2` with a URL and key).
 
@@ -1135,13 +1135,13 @@ git commit -m "feat(acquisition): a pursuit is held while Prowlarr or the hand-o
 
 **Files:**
 - Modify: `lib/media_centaur/acquisition/view_models/pursuit_status.ex` — `derive` for a seeking target (~300-312 and the clause that calls `outage_description/1` / `searching_description/1`)
-- Modify: `lib/media_centaur/acquisition/pursuits.ex` — `status_from/2` (~389) and `refresh_status_download/2` (~346) pass the held dependency
+- Modify: `lib/media_centaur/acquisition/pursuits.ex` — `status_from/2` (~389) and `refresh_status_download/2` (~346) pass the held integration
 - Test: `test/media_centaur/acquisition/view_models/pursuit_status_test.exs` (append)
 
 - [ ] **Step 1: Write the failing test** (append beside the existing seeking-target tests; use their `build_*` factories)
 
 ```elixir
-  describe "derive/5 — held on a down dependency" do
+  describe "derive/5 — held on a down integration" do
     test "Prowlarr down reads as waiting on Prowlarr, with no attempt clock" do
       pursuit = build_pursuit(%{state: "active", title: "Sample Movie"})
       unit = build_unit(%{pursuit_id: pursuit.id})
@@ -1202,19 +1202,19 @@ In the seeking-target `derive` clause (the one that today chooses between `outag
       description =
         case held do
           nil -> seeking_or_outage_description(target)
-          dependency -> held_description(dependency)
+          integration -> held_description(integration)
         end
 ```
 
 with `verb: "Waiting"` and `next_step: nil` when held. Keep the existing branch for `held == nil` byte-for-byte.
 
-In `pursuits.ex`, `status_from/2` and `refresh_status_download/2` compute the held dependency once and pass it:
+In `pursuits.ex`, `status_from/2` and `refresh_status_download/2` compute the held integration once and pass it:
 
 ```elixir
   # The Waiting copy's reason. Prowlarr down outranks a hand-off, and any
   # configured slot's hand-off counts: a seeking target has not chosen a
   # protocol yet.
-  defp held_dependency do
+  defp held_integration do
     cond do
       not Availability.up?(:prowlarr) -> :prowlarr
       Enum.any?([:usenet, :torrent], &(Capabilities.client_ready?(&1) and not Availability.up?({:handoff, &1}))) -> :handoff
@@ -1223,7 +1223,7 @@ In `pursuits.ex`, `status_from/2` and `refresh_status_download/2` compute the he
   end
 ```
 
-and `PursuitStatus.derive(pursuit, unit, target, queue_item, location, held: held_dependency())` at both call sites.
+and `PursuitStatus.derive(pursuit, unit, target, queue_item, location, held: held_integration())` at both call sites.
 
 - [ ] **Step 4: Run green**
 
@@ -1234,7 +1234,7 @@ Expected: green.
 
 ```bash
 git add lib/media_centaur/acquisition/view_models/pursuit_status.ex lib/media_centaur/acquisition/pursuits.ex test/media_centaur/acquisition/view_models/pursuit_status_test.exs
-git commit -m "feat(acquisition): a held pursuit says which dependency it waits on" -m "Claude-Session: https://claude.ai/code/session_01DartCM8viJppYVfPnQFUhF"
+git commit -m "feat(acquisition): a held pursuit says which integration it waits on" -m "Claude-Session: https://claude.ai/code/session_01DartCM8viJppYVfPnQFUhF"
 ```
 
 ---
@@ -1252,12 +1252,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContextTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.Pursuits.IncidentContext
-  alias MediaCentaur.Availability.Status
+  alias MediaCentaur.IntegrationIntegrationAvailability.Status
 
   @t0 ~U[2026-09-17 20:00:00Z]
 
-  defp down(slot, since), do: %Status{dependency: {:handoff, slot}, state: {:down, since, :client_unavailable}, observed_at: since}
-  defp up(slot), do: %Status{dependency: {:handoff, slot}, state: :up, observed_at: @t0}
+  defp down(slot, since), do: %Status{integration: {:handoff, slot}, state: {:down, since, :client_unavailable}, observed_at: since}
+  defp up(slot), do: %Status{integration: {:handoff, slot}, state: :up, observed_at: @t0}
 
   describe "decide/3" do
     test "both hand-offs up is ok" do
@@ -1294,7 +1294,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContext do
   `assess/0` that `Acquisition.IncidentContext` composes into the
   `acquisition` component's single condition (ADR-054).
 
-  Reads `MediaCentaur.Availability` for both hand-off slots. The value
+  Reads `MediaCentaur.IntegrationAvailability` for both hand-off slots. The value
   is written by the grab that discovers an outage and kept fresh by
   `Search.ProbeJob` while down, so the fault lasts exactly as long as
   the outage and clears within one probe of recovery. A grace window
@@ -1303,8 +1303,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContext do
 
   @behaviour MediaCentaur.ErrorReports.IncidentContext
 
-  alias MediaCentaur.Availability
-  alias MediaCentaur.Availability.Status
+  alias MediaCentaur.IntegrationAvailability
+  alias MediaCentaur.IntegrationIntegrationAvailability.Status
 
   # Aligned with the download client's and search's grace.
   @grace_seconds 180
@@ -1317,7 +1317,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.IncidentContext do
   @impl true
   def assess do
     @slots
-    |> Enum.map(&Availability.status({:handoff, &1}))
+    |> Enum.map(&IntegrationAvailability.status({:handoff, &1}))
     |> decide(DateTime.utc_now(), @grace_seconds)
   end
 
@@ -1342,7 +1342,7 @@ end
 - [ ] **Step 4: Run green, plus the acquisition incident composite and the Status page smoke**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur/acquisition/pursuits/incident_context_test.exs test/media_centaur/acquisition/incident_context_test.exs test/media_centaur_web/page_smoke_test.exs`
-Expected: green. If `test/media_centaur/acquisition/incident_context_test.exs` drove the hand-off fault through grab stamps, rewrite that case to `Availability.report({:handoff, :usenet}, {:down, :client_unavailable}, now: <past the grace>)` in a sync test.
+Expected: green. If `test/media_centaur/acquisition/incident_context_test.exs` drove the hand-off fault through grab stamps, rewrite that case to `IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable}, now: <past the grace>)` in a sync test.
 
 - [ ] **Step 5: Commit**
 
@@ -1364,8 +1364,8 @@ git commit -m "feat(acquisition): the hand-off incident reads availability, not 
 
 ```
   Nothing here probes on a schedule. The one scheduled probe in the app is
-  `MediaCentaur.Search.ProbeJob`, which runs only while a dependency is
-  known down (`MediaCentaur.Availability`) and stops on recovery.
+  `MediaCentaur.Search.ProbeJob`, which runs only while an integration is
+  known down (`MediaCentaur.IntegrationAvailability`) and stops on recovery.
 ```
 
 - [ ] **Step 2: Wiki** — replace the Waiting bullet's second and third sentences ("The release is kept and retried every 15 minutes; nothing counts against the pursuit's attempts, and picking a different release will not help.") with:
@@ -1403,7 +1403,7 @@ git commit -m "docs: availability step 1 — moduledoc, campaign status" -m "Cla
 - Value, one writer, write-on-transition, broadcast — Tasks 1–2.
 - Prowlarr opens on transport/5xx/401/403 and roster `:unreachable`/`:blind` (with `retry_at`), closes on any success — Task 3.
 - Hand-off opens on `DownloadClientUnavailable` per protocol, probe is test-all, closes on valid probe or successful grab — Tasks 3–4.
-- Probe job on `:maintenance`, unique per dependency, snoozes at cadence, honours `retry_at` capped — Task 4.
+- Probe job on `:maintenance`, unique per integration, snoozes at cadence, honours `retry_at` capped — Task 4.
 - PursueTarget holds before search and before grab, no attempt, no stamp, snooze at cadence; discovering snoozes shortened; unconfigured Prowlarr is not held at the cadence — Task 5.
 - CommitPlan-then-pursuit double grab closes by construction (the pursuit's grab step is gated) — Task 5, no separate code.
 - Waiting copy from availability — Task 6.
