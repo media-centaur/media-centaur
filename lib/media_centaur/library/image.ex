@@ -9,6 +9,7 @@ defmodule MediaCentaur.Library.Image do
   per owner.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.OwnerTyped
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}

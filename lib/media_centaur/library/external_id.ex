@@ -10,6 +10,7 @@ defmodule MediaCentaur.Library.ExternalId do
   #12345 are legitimately different namespaces.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.OwnerTyped
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}

@@ -27,6 +27,7 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
   that reorder track indices in the file.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.OwnerTyped
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
