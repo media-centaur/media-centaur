@@ -250,35 +250,30 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
     end
   end
 
-  describe "log_lines/1" do
-    test "flattens, newest-first, formats, caps at 20" do
-      bucket = fn entries ->
-        %MediaCentaur.ErrorReports.Bucket{
-          fingerprint: "fp",
-          component: :pipeline,
-          normalized_message: "m",
-          display_title: "t",
-          severity: :error,
-          count: 1,
-          first_seen: ~U[2026-06-01 10:00:00Z],
-          last_seen: ~U[2026-06-01 12:00:00Z],
-          sample_entries: entries
-        }
-      end
-
-      buckets = [
-        bucket.([%{timestamp: ~U[2026-06-01 10:00:00Z], message: "older"}]),
-        bucket.([%{timestamp: ~U[2026-06-01 12:00:00Z], message: "newer"}])
-      ]
-
-      lines = HealthBoard.log_lines(buckets)
-      assert [first | _] = lines
-      assert first =~ "12:00:00"
-      assert first =~ "newer"
+  describe "components_for/1" do
+    test "a subsystem that is its own component returns just itself" do
+      assert HealthBoard.components_for(:watcher) == [:watcher]
+      assert HealthBoard.components_for(:acquisition) == [:acquisition]
     end
 
-    test "no entries => empty list" do
-      assert HealthBoard.log_lines([]) == []
+    test "social folds in the nostr wire tag" do
+      assert Enum.sort(HealthBoard.components_for(:social)) == [:nostr, :social]
+    end
+
+    test "system absorbs the app components with no tile of their own" do
+      assert Enum.sort(HealthBoard.components_for(:system)) == [:apps, :review, :settings, :system]
+    end
+
+    test "framework components never reach a subsystem" do
+      all_mapped = Enum.flat_map(HealthBoard.board_subsystems(), &HealthBoard.components_for/1)
+
+      for framework <- MediaCentaur.Log.Component.framework() do
+        refute framework in all_mapped
+      end
+    end
+
+    test "self_update is a declared hole — it has no component tag" do
+      assert HealthBoard.components_for(:self_update) == []
     end
   end
 end

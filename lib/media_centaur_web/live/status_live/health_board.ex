@@ -94,6 +94,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   }
 
   alias MediaCentaur.ErrorReports.Bucket
+  alias MediaCentaur.Log.Component
   alias MediaCentaurWeb.StatusLive.SubsystemView
 
   @spec board_subsystems() :: [atom()]
@@ -199,16 +200,23 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     |> Enum.join(" · ")
   end
 
-  @doc "Newest-first, formatted log lines drawn from a subsystem's buckets (capped at 20)."
-  @spec log_lines([Bucket.t()]) :: [String.t()]
-  def log_lines(buckets) do
-    buckets
-    |> Enum.flat_map(& &1.sample_entries)
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-    |> Enum.take(20)
-    |> Enum.map(fn %{timestamp: timestamp, message: message} ->
-      "#{Calendar.strftime(timestamp, "%H:%M:%S")}  #{message}"
-    end)
+  @doc """
+  The log components whose lines belong to `subsystem`.
+
+  Derived by folding `Log.Component.app/0` through `normalize/1`, so the
+  board's fold has exactly one definition and the inverse cannot drift from it.
+
+  Framework components (`:phoenix`, `:ecto`, `:live_view`) are excluded — a
+  subsystem panel never shows framework logs. Those stay on `/console`, behind
+  the same opt-in that hides them there by default.
+
+  `:self_update` returns `[]`. SelfUpdate's logs were deliberately unified onto
+  `:system` (see `MediaCentaur.Log.Component`'s moduledoc), so the Updates tile
+  has no log section. That is a declared hole, asserted by test.
+  """
+  @spec components_for(atom()) :: [atom()]
+  def components_for(subsystem) do
+    Enum.filter(Component.app(), &(normalize(&1) == subsystem))
   end
 
   # Dormancy is a statement about capability, not about failure, so it only
