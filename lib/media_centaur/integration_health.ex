@@ -16,8 +16,11 @@ defmodule MediaCentaur.IntegrationHealth do
     * On boot: seed each id from `Capabilities.configured?/1` and the
       persisted test (`Capabilities.load_test_result/1`) — its status and
       `tested_at` when there is one, `:unknown` when there is none.
-      Nothing is probed (UIDR-041 §7): an integration reads as it last
-      tested until someone tests it.
+      Nothing here is probed (UIDR-041 §7): an integration reads as it
+      last tested until someone tests it. The one scheduled probe in
+      the app is `MediaCentaur.Search.ProbeJob`, which runs only while
+      an integration is known down (`MediaCentaur.IntegrationAvailability`)
+      and stops on recovery; it never writes these rows.
     * On `{:config_updated, key, _value}` for any tracked key: re-seed
       the id from Config and the persisted test. A person's save clears
       the persisted test before it writes a field
