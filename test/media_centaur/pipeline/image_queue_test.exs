@@ -6,6 +6,7 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Pipeline.ImageQueue
+  alias MediaCentaur.Pipeline.ImageQueueEntry
   alias MediaCentaur.Repo
 
   defp queue_attrs(overrides \\ %{}) do
@@ -60,39 +61,52 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
     test "excludes non-pending entries" do
       entity_id = Ecto.UUID.generate()
       {:ok, entry} = ImageQueue.create(queue_attrs(%{entity_id: entity_id}))
-      ImageQueue.update_status(entry, :complete)
+      ImageQueue.update_statuses([entry], :complete)
 
       assert ImageQueue.list_pending(entity_id) == []
     end
   end
 
+  # These guards were written against the per-entry `mark_failed/1`,
+  # `reset_to_pending/1` and `update_status/2`, which production never called —
+  # the pipeline only ever used the batch forms. The functions are gone; the
+  # failure modes they guarded are kept here against the surviving API
+  # (ADR-027: a regression guard moves, it does not disappear).
   describe "status transitions" do
-    test "mark_failed increments retry_count and sets status" do
+    test "successive failures keep incrementing retry_count" do
       {:ok, entry} = ImageQueue.create(queue_attrs())
       assert entry.retry_count == 0
 
-      {:ok, failed} = ImageQueue.mark_failed(entry)
+      {1, _} = ImageQueue.mark_failed_batch([entry])
+      failed = Repo.get!(ImageQueueEntry, entry.id)
       assert failed.status == "failed"
       assert failed.retry_count == 1
 
-      {:ok, failed_again} = ImageQueue.mark_failed(failed)
-      assert failed_again.retry_count == 2
+      {1, _} = ImageQueue.mark_failed_batch([failed])
+      assert Repo.get!(ImageQueueEntry, entry.id).retry_count == 2
     end
 
-    test "reset_to_pending sets status back to pending" do
+    test "reset_to_pending_all sets status back to pending without clearing retries" do
       {:ok, entry} = ImageQueue.create(queue_attrs())
-      {:ok, failed} = ImageQueue.mark_failed(entry)
+      {1, _} = ImageQueue.mark_failed_batch([entry])
+      failed = Repo.get!(ImageQueueEntry, entry.id)
 
-      {:ok, reset} = ImageQueue.reset_to_pending(failed)
+      {1, _} = ImageQueue.reset_to_pending_all([failed])
+
+      reset = Repo.get!(ImageQueueEntry, entry.id)
       assert reset.status == "pending"
       assert reset.retry_count == 1
     end
 
-    test "update_status sets arbitrary status" do
+    test "reset_to_pending_all no-ops on an empty list" do
+      assert ImageQueue.reset_to_pending_all([]) == {0, nil}
+    end
+
+    test "update_statuses sets an arbitrary status" do
       {:ok, entry} = ImageQueue.create(queue_attrs())
 
-      {:ok, updated} = ImageQueue.update_status(entry, :complete)
-      assert updated.status == "complete"
+      {1, _} = ImageQueue.update_statuses([entry], :complete)
+      assert Repo.get!(ImageQueueEntry, entry.id).status == "complete"
     end
   end
 
@@ -100,9 +114,9 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
     test "returns pending and failed entries" do
       {:ok, pending} = ImageQueue.create(queue_attrs(%{role: "poster"}))
       {:ok, failed_entry} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
-      {:ok, _failed} = ImageQueue.mark_failed(failed_entry)
+      {1, _} = ImageQueue.mark_failed_batch([failed_entry])
       {:ok, complete_entry} = ImageQueue.create(queue_attrs(%{role: "logo"}))
-      ImageQueue.update_status(complete_entry, :complete)
+      ImageQueue.update_statuses([complete_entry], :complete)
 
       retryable = ImageQueue.list_retryable()
       retryable_ids = MapSet.new(retryable, & &1.id)
@@ -117,7 +131,7 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
   describe "retrying_count" do
     test "counts only failed entries" do
       {:ok, entry} = ImageQueue.create(queue_attrs(%{role: "poster"}))
-      {:ok, _} = ImageQueue.mark_failed(entry)
+      {1, _} = ImageQueue.mark_failed_batch([entry])
 
       {:ok, _} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
 
@@ -135,7 +149,7 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
       assert count == 3
 
       for entry <- [a, b, c] do
-        refreshed = Repo.get!(MediaCentaur.Pipeline.ImageQueueEntry, entry.id)
+        refreshed = Repo.get!(ImageQueueEntry, entry.id)
         assert refreshed.status == "complete"
       end
     end
@@ -154,7 +168,7 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
       assert count == 2
 
       for entry <- [a, b] do
-        refreshed = Repo.get!(MediaCentaur.Pipeline.ImageQueueEntry, entry.id)
+        refreshed = Repo.get!(ImageQueueEntry, entry.id)
         assert refreshed.status == "failed"
         assert refreshed.retry_count == entry.retry_count + 1
       end
@@ -168,15 +182,15 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
   describe "prune/2" do
     test "deletes complete entries past the completed cutoff and keeps fresh pending ones" do
       {:ok, complete} = ImageQueue.create(queue_attrs(%{role: "poster"}))
-      {:ok, _} = ImageQueue.update_status(complete, :complete)
+      {1, _} = ImageQueue.update_statuses([complete], :complete)
       {:ok, pending} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
 
       future_completed_cutoff = DateTime.add(DateTime.utc_now(), 60, :second)
       distant_stale_cutoff = DateTime.add(DateTime.utc_now(), -30 * 24 * 3600, :second)
 
       assert ImageQueue.prune(future_completed_cutoff, distant_stale_cutoff) == 1
-      assert Repo.get(MediaCentaur.Pipeline.ImageQueueEntry, complete.id) == nil
-      assert Repo.get!(MediaCentaur.Pipeline.ImageQueueEntry, pending.id)
+      assert Repo.get(ImageQueueEntry, complete.id) == nil
+      assert Repo.get!(ImageQueueEntry, pending.id)
     end
 
     test "deletes entries of any status not touched since the stale cutoff" do
@@ -186,20 +200,20 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
       distant_completed_cutoff = DateTime.add(DateTime.utc_now(), -7 * 24 * 3600, :second)
 
       assert ImageQueue.prune(distant_completed_cutoff, future_stale_cutoff) == 1
-      assert Repo.get(MediaCentaur.Pipeline.ImageQueueEntry, abandoned_pending.id) == nil
+      assert Repo.get(ImageQueueEntry, abandoned_pending.id) == nil
     end
 
     test "keeps recently-touched entries of every status" do
       {:ok, pending} = ImageQueue.create(queue_attrs(%{role: "poster"}))
       {:ok, failed} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
-      {:ok, _} = ImageQueue.mark_failed(failed)
+      {1, _} = ImageQueue.mark_failed_batch([failed])
 
       completed_cutoff = DateTime.add(DateTime.utc_now(), -7 * 24 * 3600, :second)
       stale_cutoff = DateTime.add(DateTime.utc_now(), -30 * 24 * 3600, :second)
 
       assert ImageQueue.prune(completed_cutoff, stale_cutoff) == 0
-      assert Repo.get!(MediaCentaur.Pipeline.ImageQueueEntry, pending.id)
-      assert Repo.get!(MediaCentaur.Pipeline.ImageQueueEntry, failed.id)
+      assert Repo.get!(ImageQueueEntry, pending.id)
+      assert Repo.get!(ImageQueueEntry, failed.id)
     end
   end
 end
