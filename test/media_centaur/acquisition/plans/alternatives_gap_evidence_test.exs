@@ -158,7 +158,7 @@ defmodule MediaCentaur.Acquisition.Plans.AlternativesGapEvidenceTest do
   end
 
   describe "gap_evidence/1 — TV aggregate" do
-    test "counts raw candidates across the gap units' ladder terms without classifying" do
+    test "counts raw candidates across the gap units' search terms without classifying" do
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
           {"GET", "/api/v1/indexer"} ->

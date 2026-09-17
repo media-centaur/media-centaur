@@ -37,7 +37,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
   end
 
   describe "movie search — best of every query, not the first that hits" do
-    # Same defect as the plan runner's movie ladder, on the unattended
+    # Same defect as the plan runner's movie terms, on the unattended
     # path: the movie queries are alternate phrasings of ONE want, so
     # halting on the first that yields an acceptable release let the year
     # term decide the quality ceiling. Nobody clicks "Find more" on a

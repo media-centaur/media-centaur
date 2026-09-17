@@ -725,7 +725,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("button[phx-click='plan_show_alternatives'][phx-value-unit-id='#{unit.id}']")
       |> render_click()
 
-      # The descent never searched episode terms — the picker starts empty.
+      # The search never reached episode terms — the picker starts empty.
       # The current assignment anchors the list, marked as such.
       html = render(view)
       assert html =~ "Nothing else in the corpus yet"
@@ -876,7 +876,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute html =~ "Searching…"
     end
 
-    test "the board narrates the descent as status events land", %{conn: conn} do
+    test "the board narrates the search as progress events land", %{conn: conn} do
       stub_plan_tmdb()
 
       Req.Test.stub(:prowlarr, fn conn ->
@@ -918,22 +918,22 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
-      # Ready board, no descent event yet, panel not seeded (only
+      # Ready board, no progress event yet, panel not seeded (only
       # still-planning boards seed the initial itinerary).
       html = render(view)
       refute html =~ "Planning the search"
 
-      send(view.pid, %PlanEvents.DescentStatus{
+      send(view.pid, %PlanEvents.SearchProgress{
         plan_id: plan.id,
         wanted: 2,
-        stages: [
-          %{id: :series, state: :done, term_count: 1, residual_after: 2},
-          %{id: :seasons, state: :done, term_count: 2, residual_after: 0},
-          %{id: :episodes, state: :skipped, term_count: nil, residual_after: nil}
+        steps: [
+          %{scope: :series, kind: :primary, state: :done, term_count: 1, residual_after: 2},
+          %{scope: :season, kind: :primary, state: :done, term_count: 2, residual_after: 0},
+          %{scope: :episode, kind: :primary, state: :skipped, term_count: nil, residual_after: nil}
         ]
       })
 
-      # On a ready board the rung narrative lives in the collapsed
+      # On a ready board the step rows live in the collapsed
       # How-we-searched disclosure; the headline duty moved to the
       # adaptive verdict (UIDR-029).
       html = render(view)
@@ -950,13 +950,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ "not needed — already covered"
 
       # A status for some other plan must not clobber the open board's panel.
-      send(view.pid, %PlanEvents.DescentStatus{
+      send(view.pid, %PlanEvents.SearchProgress{
         plan_id: Ecto.UUID.generate(),
         wanted: 9,
-        stages: [
-          %{id: :series, state: :active, term_count: 1, residual_after: nil},
-          %{id: :seasons, state: :pending, term_count: nil, residual_after: nil},
-          %{id: :episodes, state: :pending, term_count: nil, residual_after: nil}
+        steps: [
+          %{scope: :series, kind: :primary, state: :active, term_count: 1, residual_after: nil},
+          %{scope: :season, kind: :primary, state: :pending, term_count: nil, residual_after: nil},
+          %{scope: :episode, kind: :primary, state: :pending, term_count: nil, residual_after: nil}
         ]
       })
 

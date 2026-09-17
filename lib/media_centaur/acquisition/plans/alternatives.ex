@@ -11,14 +11,14 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.CoverageGuard
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaur.Acquisition.Plans.{LadderTerms, MatchCriteria, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{SearchTerms, MatchCriteria, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
 
   @doc """
   The choosable alternatives for one plan unit — corpus candidates
-  across the unit's ladder terms (zero indexer traffic), identity-
+  across the unit's search terms (zero indexer traffic), identity-
   verified, covering the unit, minus exclusions and the current
   assignment. Suspicious (bait-pattern) titles are **flagged, not
   hidden** — never auto-picked, but a deliberate human may choose one.
@@ -62,8 +62,8 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
 
   @doc """
   The swap picker's "find more" action: live-fills the corpus for the
-  unit's ladder terms (consult-first — fresh terms cost nothing; terms
-  the descent never reached go to the indexer), then returns the
+  unit's search terms (consult-first — fresh terms cost nothing; terms
+  the plan run never reached go to the indexer), then returns the
   refreshed alternatives. Individual search failures are skipped, not
   raised — the picker shows whatever the corpus knows. Blocking and
   potentially slow (live indexer fan-out per stale term) — UI callers
@@ -74,10 +74,10 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   def search(plan_unit_id) do
     with {:ok, unit} <- Plans.fetch_unit(plan_unit_id),
          {:ok, plan} <- Plans.fetch(unit.plan_id) do
-      opts = LadderTerms.search_opts(plan)
+      opts = SearchTerms.search_opts(plan)
 
       plan
-      |> LadderTerms.for_unit(unit)
+      |> SearchTerms.for_unit(unit)
       |> Enum.each(&Corpus.search(&1, opts))
 
       for_unit(plan_unit_id)
@@ -89,7 +89,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   derived from the search corpus — never the transient activity
   ticker, so a re-opened board reads the same days later. Movie plans
   get per-candidate rejection reasons in the run's gate order
-  (red-flag, exclusion, identity); TV plans stay aggregate. Ladder
+  (red-flag, exclusion, identity); TV plans stay aggregate. Search
   terms without a corpus record (never searched, search failed, or
   pruned past retention) are absent from `searches`.
   """
@@ -101,7 +101,7 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
       |> Enum.filter(&(&1.status == "unfound"))
 
     terms = evidence_terms(plan, gap_units)
-    opts = LadderTerms.search_opts(plan)
+    opts = SearchTerms.search_opts(plan)
 
     searches =
       for term <- terms,
@@ -127,10 +127,10 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
     }
   end
 
-  defp evidence_terms(%Plan{tmdb_type: "movie"} = plan, _gap_units), do: LadderTerms.for_plan(plan, [])
+  defp evidence_terms(%Plan{tmdb_type: "movie"} = plan, _gap_units), do: SearchTerms.for_plan(plan, [])
 
   defp evidence_terms(%Plan{tmdb_type: "tv"} = plan, gap_units) do
-    LadderTerms.for_plan(plan, Enum.map(gap_units, &{&1.season_number, &1.episode_number}))
+    SearchTerms.for_plan(plan, Enum.map(gap_units, &{&1.season_number, &1.episode_number}))
   end
 
   # Movie-only classification (TV recourse is deferred — UIDR-022): each
@@ -208,10 +208,10 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   defp rejected_choosable(%Plan{}), do: {:error, :not_ready}
 
   defp find_raw_candidate(plan, unit, guid) do
-    opts = LadderTerms.search_opts(plan)
+    opts = SearchTerms.search_opts(plan)
 
     plan
-    |> LadderTerms.for_unit(unit)
+    |> SearchTerms.for_unit(unit)
     |> Enum.find_value(fn term ->
       term
       |> Corpus.candidates_for(opts)
@@ -271,10 +271,10 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   # All identity-verified corpus candidates that can cover this unit,
   # as {result, scope} pairs (movies carry the :movie pseudo-scope).
   defp unit_candidates(plan, unit) do
-    opts = LadderTerms.search_opts(plan)
+    opts = SearchTerms.search_opts(plan)
 
     plan
-    |> LadderTerms.for_unit(unit)
+    |> SearchTerms.for_unit(unit)
     |> Enum.flat_map(fn term ->
       term
       |> Corpus.candidates_for(opts)
@@ -291,10 +291,10 @@ defmodule MediaCentaur.Acquisition.Plans.Alternatives do
   end
 
   defp find_candidate(plan, unit, guid) do
-    opts = LadderTerms.search_opts(plan)
+    opts = SearchTerms.search_opts(plan)
 
     plan
-    |> LadderTerms.for_unit(unit)
+    |> SearchTerms.for_unit(unit)
     |> Enum.find_value({:error, :alternative_unavailable}, fn term ->
       candidate =
         term

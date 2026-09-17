@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.ViewModels.GapEvidence do
   @moduledoc """
   The durable evidence behind a plan's gap verdict (UIDR-022): which
-  ladder searches have corpus records, what they returned, and — for
+  search terms have corpus records, what they returned, and — for
   movie plans — every raw candidate with the reason the run rejected
   it. Built by `Plans.Alternatives.gap_evidence/1` from the search corpus, never
   from the transient activity ticker, so a re-opened board shows the
@@ -9,7 +9,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapEvidence do
   """
 
   defmodule Search do
-    @moduledoc "One ladder term's corpus record: when it last ran and what it returned."
+    @moduledoc "One search term's corpus record: when it last ran and what it returned."
 
     @enforce_keys [:term, :searched_at, :result_count]
     defstruct [:term, :searched_at, :result_count]
@@ -47,8 +47,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapEvidence do
   defstruct [:searches, :rejected, :raw_total, :checked_at]
 
   @typedoc """
-  - `searches` — the plan's gap-surface ladder terms that have a corpus
-    record, in ladder order. Terms never searched (or pruned past
+  - `searches` — the plan's gap-surface search terms that have a corpus
+    record, in search order. Terms never searched (or pruned past
     retention) are absent.
   - `rejected` — classified raw candidates, deduped by guid. Movie
     plans only; TV stays aggregate (`raw_total`).

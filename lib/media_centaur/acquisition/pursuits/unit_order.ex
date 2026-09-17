@@ -6,7 +6,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.UnitOrder do
   A pursuit's units carry `season_number`/`episode_number`
   ([ADR-055](../../../../decisions/architecture/2026-06-09-055-composite-pursuits.md)),
   but are otherwise created in insertion order (brace-expansion / pick
-  order). Because unit queries and the residual-driven descent
+  order). Because unit queries and the residual-driven search
   (`Jobs.RunPlan`) walk units by `position`, deriving `position` from
   airing order makes searches/grabs proceed season → episode rather
   than in whichever order the user happened to pick.

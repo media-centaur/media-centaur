@@ -15,7 +15,7 @@ defmodule MediaCentaur.Search.TitleForm do
   the query builder and one in the matcher: the two must agree, and a
   rule written twice is a rule that drifts.
 
-  Applies to constructed terms only (`Acquisition.Plans.LadderTerms`,
+  Applies to constructed terms only (`Acquisition.Plans.SearchTerms`,
   `Search.QueryBuilder`'s tmdb variants) and to `Search.TitleMatcher`.
   A user-typed `manual_query` passes through untouched — the user
   already trusts their query.

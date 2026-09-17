@@ -75,7 +75,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Start do
   defp flatten_identity(args), do: args
 
   # Positions derive from airing order (season → episode) so the
-  # residual-driven descent and unit queries walk units in sequence
+  # residual-driven search and unit queries walk units in sequence
   # regardless of the order specs arrive in; specs lacking season/episode
   # keep their input order (UnitOrder is a stable sort).
   defp insert_units(%Pursuit{} = pursuit, unit_specs) do

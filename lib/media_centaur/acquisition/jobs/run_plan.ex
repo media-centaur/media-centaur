@@ -2,23 +2,23 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   @moduledoc """
   Oban worker that runs a draft plan's autonomous search-and-solve
   phase (media-search campaign Phase 3) as a **residual-driven
-  descent** of the coverage ladder.
+  search**, one scope at a time.
 
-  One run walks the rungs broad-to-narrow — series term, per-season
-  terms, per-unit episode terms — but each rung is searched **only for
-  the units the previous rungs' solve left uncovered** (the solver's
-  residual — the wanted units no quality-floor group's solve
-  assigned). A pack only ends the descent for the units it *fits*
+  One run walks the scopes widest to narrowest — series term,
+  per-season terms, per-unit episode terms — but each scope is searched
+  **only for the units the previous steps' solve left uncovered** (the
+  solver's residual — the wanted units no quality-floor group's solve
+  assigned). A pack only ends the search for the units it *fits*
   (`Planner` fit gating): wanting most of a season takes the season
   pack and stops there, but wanting a sparse slice leaves those units
-  in the residual so the descent keeps going to the right-sized
-  episode terms — picking one episode never grabs the whole series.
-  Every search still goes through the corpus (`Corpus.search/2`,
+  in the residual so the search keeps going to the right-sized episode
+  terms — picking one episode never grabs the whole series. Every
+  search still goes through the corpus (`Corpus.search/2`,
   consult-first citizenship; `force: true` only on a user-initiated
-  re-search), and a forced re-run also descends lazily — it re-hammers
+  re-search), and a forced re-run also narrows lazily — it re-hammers
   only as deep as the residual requires.
 
-  A unit the descent can't right-size — nothing but an over-broad pack
+  A unit the search can't right-size — nothing but an over-broad pack
   covers it — lands `unfound` carrying that pack as an *offer* (the
   pack the user can opt into, over-grab spelled out on the board),
   never an auto-grab.
@@ -29,9 +29,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   (found / unfound) and the plan transitions to `ready` for the user's
   steering pass.
 
-  Movie plans skip the coverage ladder. Their terms are alternate
-  phrasings of one want rather than a narrowing ladder, so **every** term
-  is searched and the pick is the best of the union, ordered by
+  Movie plans have no scopes to walk. Their terms are alternate
+  phrasings of one want rather than a narrowing sequence, so **every**
+  term is searched and the pick is the best of the union, ordered by
   `Search.ReleasePreference` (`TitleMatcher.matches?/2` identity). When
   nothing acceptable exists but identity-verified releases do, the unit
   lands unfound carrying `below_floor_count` — the "lower quality
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   gap (campaign `below-floor-releases`).
 
   Broadcasts `PlanEvents.SearchActivity` per term (the live activity
-  feed), `PlanEvents.DescentStatus` per rung (the board's expectation
+  feed), `PlanEvents.SearchProgress` per step (the board's expectation
   panel), and `PlanEvents.Changed` when the rows move. Failures mark
   the plan's `error` and still transition to `ready` — a reported gap,
   not a stuck spinner.
@@ -59,13 +59,13 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     Plans
   }
 
-  alias MediaCentaur.Acquisition.Plans.{LadderTerms, MatchCriteria, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{SearchTerms, MatchCriteria, Plan, PlanUnit}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{CourCoverage, CourQueries, Quality, ReleaseCoverage}
   alias MediaCentaur.Search.{ReleasePreference, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Topics
 
-  @rung_ids [:series, :seasons, :episodes]
+  @scopes [:series, :season, :episode]
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"plan_id" => plan_id} = args}) do
@@ -135,7 +135,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   end
 
   # ---------------------------------------------------------------------------
-  # TV — the coverage ladder + planner
+  # TV — the search steps + planner
   # ---------------------------------------------------------------------------
 
   defp run_tv(plan, units, force?) do
@@ -176,23 +176,31 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       below_floor_by_unit: %{},
       halted?: false,
       residual: wanted,
-      stages: []
+      steps: []
     }
 
     state =
-      Enum.reduce_while(rungs(plan), initial, fn {rung_id, terms_for}, state ->
+      Enum.reduce_while(search_steps(plan), initial, fn {scope, terms_for}, state ->
         terms = terms_for.(state.residual)
-        active = %{id: rung_id, state: :active, term_count: length(terms), residual_after: nil}
-        broadcast_descent(plan, length(wanted), state.stages, active)
 
-        state = gather_rung(state, plan, terms, search_context)
+        active = %{
+          scope: scope,
+          kind: :primary,
+          state: :active,
+          term_count: length(terms),
+          residual_after: nil
+        }
+
+        broadcast_progress(plan, length(wanted), state.steps, active)
+
+        state = gather_step(state, plan, terms, search_context)
 
         if state.halted? do
           {:halt, state}
         else
           state = solve_groups(state, wanted, floor_groups, plan_prefs)
           done = %{active | state: :done, residual_after: length(state.residual)}
-          state = %{state | stages: state.stages ++ [done]}
+          state = %{state | steps: state.steps ++ [done]}
 
           if state.residual == [], do: {:halt, state}, else: {:cont, state}
         end
@@ -204,11 +212,11 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       :ok
     else
       skipped =
-        for {rung_id, _terms_for} <- rungs(plan),
-            not Enum.any?(state.stages, &(&1.id == rung_id)),
-            do: %{id: rung_id, state: :skipped, term_count: nil, residual_after: nil}
+        for {scope, _terms_for} <- search_steps(plan),
+            not Enum.any?(state.steps, &(&1.scope == scope)),
+            do: %{scope: scope, kind: :primary, state: :skipped, term_count: nil, residual_after: nil}
 
-      broadcast_descent(plan, length(wanted), state.stages ++ skipped, nil)
+      broadcast_progress(plan, length(wanted), state.steps ++ skipped, nil)
 
       state = add_cour_offers(state, plan, wanted, excluded, force?, plan_prefs)
 
@@ -231,28 +239,28 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     end
   end
 
-  # The coverage ladder, broad to narrow. Each rung sees the current
+  # The search steps, widest scope first. Each step sees the current
   # residual — the wanted units no acceptable option covers yet — and
-  # emits only the terms that residual justifies. The descent never
-  # searches below a span the solver already covered.
-  defp rungs(plan) do
+  # emits only the terms that residual justifies. The search never
+  # goes narrower than a span the solver already covered.
+  defp search_steps(plan) do
     [
-      {:series, fn _residual -> LadderTerms.series_terms(plan) end},
-      {:seasons,
+      {:series, fn _residual -> SearchTerms.series_terms(plan) end},
+      {:season,
        fn residual ->
          seasons = residual |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
-         LadderTerms.season_terms(plan, seasons)
+         SearchTerms.season_terms(plan, seasons)
        end},
-      {:episodes, fn residual -> LadderTerms.episode_terms(plan, residual) end}
+      {:episode, fn residual -> SearchTerms.episode_terms(plan, residual) end}
     ]
   end
 
-  # One rung's searches folded into the cumulative option pool. Every
+  # One step's searches folded into the cumulative option pool. Every
   # term goes through the corpus; identity is verified per result;
   # plan-wide exclusions are dropped before solving (a release the user
   # rejected for one episode is almost never what they want for
   # another); guid dedup keeps the first term that surfaced a release.
-  defp gather_rung(state, plan, terms, search_context) do
+  defp gather_step(state, plan, terms, search_context) do
     Enum.reduce_while(terms, state, fn term, state ->
       if still_planning?(plan) do
         {:cont, gather_term(state, plan, term, search_context)}
@@ -293,8 +301,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   end
 
   # Re-solves every floor group over the cumulative pool and recomputes
-  # the residual. Rebuilt from scratch each rung — the planner is pure
-  # and cheap, and a later rung's options only ever improve coverage.
+  # the residual. Rebuilt from scratch each step — the planner is pure
+  # and cheap, and a later step's options only ever improve coverage.
   defp solve_groups(state, wanted, floor_groups, plan_prefs) do
     options = Enum.reverse(state.options)
 
@@ -321,7 +329,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     }
   end
 
-  # Cour-aware surfacing (Phase 2). For units the descent left unfound
+  # Cour-aware surfacing (Phase 2). For units the search left unfound
   # *because* the coverage guard trimmed an otherwise-covering pack (the
   # later-cour signal), fetch the season, confirm the unit is in a later
   # broadcast run, search run-shaped queries, and attach any matching
@@ -451,9 +459,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       force?: force?
     }
 
-    # Same residual discipline as the TV ladder: the broader (year-less)
-    # Unlike the TV ladder, the movie terms are **alternate phrasings of
-    # one want**, not a narrowing ladder: there is a single unit, so
+    # Unlike the TV search, the movie terms are **alternate phrasings of
+    # one want**, not a narrowing sequence: there is a single unit, so
     # "covered" happens on the first hit and stopping there would let
     # whichever term the year happened to match decide the quality
     # ceiling. Release groups tag a film with whichever year their source
@@ -462,13 +469,13 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     # therefore searched and the pick is the best of the union — the only
     # early exit is the user discarding the plan.
     #
-    # Alongside the pick, every rung accumulates the identity-verified
-    # releases *below* the floor (by guid — rungs overlap): when nothing
+    # Alongside the pick, every term accumulates the identity-verified
+    # releases *below* the floor (by guid — terms overlap): when nothing
     # acceptable exists, that count is the "lower quality available"
     # verdict the unit carries instead of a bare unfound.
     {best, below_floor_guids} =
       plan
-      |> LadderTerms.for_plan([])
+      |> SearchTerms.for_plan([])
       |> Enum.reduce_while({nil, MapSet.new()}, fn term, acc ->
         if still_planning?(plan) do
           {:cont, movie_term_step(plan, term, acc, movie_context)}
@@ -557,7 +564,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   # ---------------------------------------------------------------------------
 
   defp search(plan, term, force?) do
-    opts = LadderTerms.search_opts(plan)
+    opts = SearchTerms.search_opts(plan)
     served_from = if not force? and Corpus.fresh?(term, opts), do: :corpus, else: :live
     outcome = Corpus.search(term, Keyword.put(opts, :force, force?))
 
@@ -596,23 +603,23 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     end
   end
 
-  # Full itinerary snapshot: stages already walked (done/skipped), the
-  # active rung if any, then the untouched rungs as pending.
-  defp broadcast_descent(plan, wanted_count, walked_stages, active) do
-    taken = Enum.map(walked_stages, & &1.id) ++ if active, do: [active.id], else: []
+  # Full itinerary snapshot: steps already walked (done/skipped), the
+  # active step if any, then the untouched scopes as pending.
+  defp broadcast_progress(plan, wanted_count, walked_steps, active) do
+    taken = Enum.map(walked_steps, & &1.scope) ++ if active, do: [active.scope], else: []
 
     pending =
-      for rung_id <- @rung_ids,
-          rung_id not in taken,
-          do: %{id: rung_id, state: :pending, term_count: nil, residual_after: nil}
+      for scope <- @scopes,
+          scope not in taken,
+          do: %{scope: scope, kind: :primary, state: :pending, term_count: nil, residual_after: nil}
 
-    status = %PlanEvents.DescentStatus{
+    progress = %PlanEvents.SearchProgress{
       plan_id: plan.id,
       wanted: wanted_count,
-      stages: walked_stages ++ List.wrap(active) ++ pending
+      steps: walked_steps ++ List.wrap(active) ++ pending
     }
 
-    Topics.publish(Topics.acquisition_updates(), status)
+    Topics.publish(Topics.acquisition_updates(), progress)
   end
 
   defp prefs(plan) do
@@ -634,7 +641,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
   # ADR-063 §3: plan status is the cancellation channel — the run
   # re-checks it between search terms so a Stop lands within one
-  # search, never at the end of the ladder.
+  # search, never at the end of the run.
   defp still_planning?(plan) do
     match?(%Plan{status: "planning"}, Repo.reload(plan))
   end

@@ -105,7 +105,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Acquisition.ViewModels.{
     Alternative,
-    DescentNarrative,
+    SearchProgressPanel,
     GapVerdict,
     PursuitWithDownload
   }
@@ -265,7 +265,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_rejected: nil,
          plan_error: nil,
          plan_last_activity: nil,
-         plan_descent: nil,
+         plan_search_progress: nil,
          plan_alternatives: nil,
          plan_approving?: false,
          plan_discard_armed?: false,
@@ -794,7 +794,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           board={@plan_board}
           error={@plan_error}
           last_activity={@plan_last_activity}
-          descent={@plan_descent}
+          search_progress={@plan_search_progress}
           alternatives={@plan_alternatives}
           approving={@plan_approving?}
           discard_armed={@plan_discard_armed?}
@@ -2040,8 +2040,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   def handle_info(%PlanEvents.SearchActivity{} = event, socket),
     do: {:noreply, maybe_note_plan_activity(socket, event)}
 
-  def handle_info(%PlanEvents.DescentStatus{} = event, socket),
-    do: {:noreply, maybe_note_plan_descent(socket, event)}
+  def handle_info(%PlanEvents.SearchProgress{} = event, socket),
+    do: {:noreply, maybe_note_plan_search_progress(socket, event)}
 
   # The two event families are open sets (one struct per kind), so their
   # membership is a guard rather than one head per kind.
@@ -2534,7 +2534,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_board: nil,
           plan_gap_verdict: nil,
           plan_rejected: nil,
-          plan_descent: nil,
+          plan_search_progress: nil,
           plan_alternatives: nil,
           plan_error: nil,
           plan_discard_armed?: false,
@@ -2666,7 +2666,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_board: board,
           plan_title: Plans.Plan.tmdb_title(plan),
           plan_gap_verdict: plan_verdict_for(socket, plan_id, plan, board),
-          plan_descent: plan_descent_for(socket, plan_id, board),
+          plan_search_progress: plan_search_progress_for(socket, plan_id, board),
           plan_error: nil,
           plan_last_activity: if(!switching_plan?, do: socket.assigns.plan_last_activity)
         )
@@ -2726,7 +2726,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # Keep a live-updated panel across board reloads; seed the itinerary
   # for a freshly-opened planning board; movies don't narrate.
   # A planning TV board's verdict is the searching world (kept across
-  # re-reads of the same plan so a DescentStatus event's headline is
+  # re-reads of the same plan so a SearchProgress event's headline is
   # not clobbered by the initial one); a ready board's is the diagnosis.
   defp plan_verdict_for(socket, plan_id, plan, board) do
     cond do
@@ -2745,13 +2745,13 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  defp plan_descent_for(socket, plan_id, board) do
+  defp plan_search_progress_for(socket, plan_id, board) do
     cond do
-      socket.assigns.plan_param == plan_id && socket.assigns.plan_descent ->
-        socket.assigns.plan_descent
+      socket.assigns.plan_param == plan_id && socket.assigns.plan_search_progress ->
+        socket.assigns.plan_search_progress
 
       board.status == :planning and not board.movie? ->
-        DescentNarrative.initial(board.wanted)
+        SearchProgressPanel.initial(board.wanted)
 
       true ->
         nil
@@ -2787,10 +2787,10 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  defp maybe_note_plan_descent(socket, %PlanEvents.DescentStatus{} = status) do
+  defp maybe_note_plan_search_progress(socket, %PlanEvents.SearchProgress{} = status) do
     if socket.assigns.plan_param == status.plan_id do
       assign(socket,
-        plan_descent: DescentNarrative.build(status),
+        plan_search_progress: SearchProgressPanel.build(status),
         plan_gap_verdict: GapVerdict.searching(status) || socket.assigns.plan_gap_verdict
       )
     else
