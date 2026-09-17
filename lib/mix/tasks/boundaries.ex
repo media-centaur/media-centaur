@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Boundaries do
-  @shortdoc "Check JS input system import boundaries"
+  @shortdoc "Check JS import boundaries and reachability"
   use Boundary, top_level?: true, check: [in: false, out: false]
   use Mix.Task
 
@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Boundaries do
     {output, status} =
       System.cmd(
         "bunx",
-        ["dependency-cruiser", "assets/js/input/", "--config", ".dependency-cruiser.cjs"],
+        ["dependency-cruiser", "assets/js/", "--config", ".dependency-cruiser.cjs"],
         stderr_to_stdout: true
       )
 
