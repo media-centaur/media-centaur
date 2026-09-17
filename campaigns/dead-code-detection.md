@@ -72,6 +72,74 @@ time of writing; re-confirm before deleting.
 | `data-pin-to="bottom"` mode | The attribute appears only in `log_tail.js`'s own comments. No markup sets it, so bottom-pin is unreachable. Removing it deletes a `describe` block of LogTail tests. |
 | `solo_component` / `mute_component` handlers | `console_page_live.ex:173-180`. `chip_row` only ever emits `toggle_component`. Pre-dates the console rework. |
 
+## Inherited follow-ups
+
+Carried from the console/log-rings campaign (shipped v1.32.0) so they live in
+the repo rather than in one contributor's notes. **They are deliberately NOT in
+this campaign's completion criteria** — they are unrelated scope and would turn
+a sharp goal into a bucket.
+
+**This file is deleted when the campaign completes (ADR-042). Anything still
+open here must be rehomed first — its own campaign, an issue, or a moduledoc —
+never dropped with the file.**
+
+### Testing seams
+
+* **The journal toggle's happy path has no CI coverage.** Nothing exercises
+  "expand → subscribe → lines render → close → unsubscribe". The decision is
+  pinned by `StatusLive.JournalPanel` (pure) and the lifecycle by
+  `journal_source_test.exs` against a named instance, but the *join* between
+  them was proven only by a manual browser probe (a `pgrep journalctl` poller
+  showing the process appear on expand and die 5s after the drill-in closed).
+  Closing it properly needs a named-instance seam on `JournalSource` reached
+  through config. That is a **production** change and was deliberately not made
+  for testability alone — it is a decision, not a test hack.
+
+* **`console_page_live_test.exs` seeds the ring with `Log.warning`.** That is
+  captured by `ErrorReports.LogHandler`, mints an incident, and the `Buckets`
+  server's async `{:buckets_changed, snapshot}` lands in a *later* test's Status
+  LiveView, replacing its injected fixture. Real, pre-existing, seed-dependent
+  flake source — it bit once during Phase C and was worked around there by
+  seeding via `Console.Buffer.append/1` + `Console.flush()` instead. The test
+  file still does it the old way.
+
+### Scheduled convergences (from the log-rings spec)
+
+Each has a named trigger; see
+`docs/superpowers/specs/2026-09-16-subsystem-log-rings-design.md`.
+
+* **`Retention` ↔ `HealthBoard` subsystem vocabulary.**
+  `Retention.Policy.subsystem` is a **domain** field whose moduledoc constrains
+  it to "one of the Status-page health-board subsystem keys" — a domain context
+  constrained by a web module, enforced by prose alone. `ErrorReports` likewise
+  folds via `HealthBoard.normalize/1` at display time. *Trigger: the next time a
+  third context needs the subsystem vocabulary*, promote it to a domain module
+  and make Retention's constraint a code reference.
+
+* **Pending-review count is rendered in two widgets.** The Library widget shows
+  "pending review + in-flight acquisitions"; the Metadata widget shows a
+  pending-review low-confidence match count with a `~p"/review"` link. One idea,
+  two representations, in adjacent tiles. *Trigger: consolidate these before
+  anyone asks whether Review deserves its own Status tile* — it currently looks
+  unnecessary precisely because its health is already on the board twice.
+
+* **`:http` / "Connections" is a lens, not a subsystem.** Every other tile's
+  description names a capability; this one names a layer. Its log panel shows
+  requests made *on behalf of* TMDB, Downloads, Social and Updates, so one
+  subsystem's failure can legitimately appear in two tiles' logs. Not wrong
+  enough to remove — it has real health of its own. *Trigger: the next time the
+  board's tile vocabulary is revisited*, decide explicitly whether cross-cutting
+  lenses get their own row or a different visual treatment.
+
+### Smaller
+
+* **Owner-deferred docs:** `docs/GLOSSARY.md` and `.claude/skills/troubleshoot/SKILL.md`
+  still describe the retired console drawer. `CLAUDE.md`, `docs/architecture.md`,
+  `docs/playback.md` and the wiki were updated in v1.32.0.
+* **`StatusLive.handle_params` re-reads 200 log lines from the Buffer on every
+  patch** while a drill-in is open, including opening/closing an incident. A
+  GenServer call on an operator page — acceptable, but noted.
+
 ## Completion criteria
 
 * A tool in `mix precommit` (or `mix boundaries`) fails on an unused public
@@ -81,6 +149,9 @@ time of writing; re-confirm before deleting.
   its own moduledoc.
 * If a tool lands, its exemption mechanism is documented where a contributor
   will meet it — the check's own message, not prose here.
+* Every **Inherited follow-up** still open has been rehomed (its own campaign,
+  an issue, or a moduledoc) before this file is deleted. They do not gate the
+  campaign, but they must not disappear with it.
 
 ## Pointers
 
