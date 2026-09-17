@@ -27,6 +27,13 @@ WorkingDirectory=/path/to/media-centaur/media-centaur
 # a window. Leading `-` makes this best-effort; the app's DisplayEnv resolver
 # falls back to socket discovery if the import didn't fire.
 ExecStartPre=-/usr/bin/systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE
+# Bring the dev database up to the checkout's migrations before the server
+# boots. The daily driver runs the checkout, so every migration commit lands
+# here on the next restart; without this step a boot-time read of a new column
+# crash-loops the unit until someone runs `mix ecto.migrate` by hand (journal
+# 2026-09-17 19:37, "no such column: r1.season_sizes"). A release does the
+# same on boot through its migrator.
+ExecStartPre=/usr/bin/mise exec -- mix ecto.migrate
 ExecStart=/usr/bin/mise exec -- mix phx.server
 Environment=MIX_ENV=dev
 # Make an application shutdown a process exit systemd can act on. Without
