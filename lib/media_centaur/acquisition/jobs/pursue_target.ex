@@ -32,7 +32,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
               ─► (no acceptable result)           ─► snoozed via Oban (exp. backoff)
               ─► (max attempts, a pack has it)    ─► (pursuit awaiting decision)
               ─► (max attempts exceeded)          ─► failed
-              ─► (Prowlarr not configured)       ─► snoozed 1h, NO request, NO bump
+              ─► (Prowlarr not configured)        ─► snoozed 1h, NO request, NO bump
               ─► (integration known down)         ─► held, NO request, NO bump
               ─► (Prowlarr error mid-search)      ─► snoozed at the cadence, NO bump
               ─► (download client unreachable)    ─► snoozed at the cadence, NO bump

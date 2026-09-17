@@ -60,8 +60,16 @@ Measured, shape decided, defects 1 and 3 landed, design drafted —
 2026-09-17 evening. The design spec is
 `docs/superpowers/specs/2026-09-17-availability-design.md`; two owner
 decisions in it are taken (`IntegrationAvailability`; the search incident persists
-while down). Implementation in progress from the plan. The inventory
-below is
+while down). **Rollout step 1 landed 2026-09-17** from the plan
+(`docs/superpowers/plans/2026-09-17-availability-plan.md`):
+`IntegrationAvailability` (value, store, gate, broadcast), the Prowlarr
+and hand-off writers (`Search.ProwlarrAvailability`), `Search.ProbeJob`,
+`PursueTarget` holds before search and grab (an unconfigured Prowlarr
+snoozes an hour, a down one the probe cadence), a non-hand-off grab 5xx
+charges an attempt, the Waiting copy and the Downloads index read the
+value, the hand-off incident reads it instead of grab stamps, wiki
+Troubleshooting updated. Reviewed task by task (spec, then quality).
+Steps 2–5 next. The inventory below is
 verified against the code (constants cited) and against one day of
 observation: the dev node's log ring, the day's systemd journal (seven
 boots, one real download-client outage 16:47–16:56 CEST, and the
@@ -329,10 +337,13 @@ successfully.
 2. ~~Decide the shape~~ — decided; facts verified; spec drafted
    2026-09-17 (`2026-09-17-availability-design.md`). Next: the two owner
    decisions in the spec, then a plan from it.
-3. Apply in the decided order: hand-off circuit (pursuit retries),
-   Prowlarr circuit (release-tracking re-planning, corpus probe,
-   Incoming loop), TMDB hold, GitHub and relays confirmed, client log
-   noise last.
+3. Apply in the decided order: ~~hand-off availability (pursuit
+   retries)~~ landed 2026-09-17; next the Prowlarr gate for
+   release-tracking re-planning (`RunPlan`, `DropPlanner`), the corpus
+   and Incoming-loop reads, the `GapVerdict` reason, the `Reactor`
+   recovery tick, and `Search.IncidentContext` without staleness (plan
+   step 2); then TMDB hold (step 3), GitHub and relays confirmed (4),
+   client log noise and the Connections tile (5).
 4. ~~Fix defects 1 and 3~~ — landed 2026-09-17 (SABnzbd 403 →
    `:auth_failed`; one alternatives fetch per pursuit). 2 and 4 ride the
    circuit.
