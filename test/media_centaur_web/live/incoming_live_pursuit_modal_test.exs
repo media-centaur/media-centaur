@@ -19,6 +19,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Acquisition.Pursuits.Event
+  alias MediaCentaur.Acquisition.Pursuits.Events.SearchStarted
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Repo
   alias MediaCentaur.Secret
@@ -250,6 +251,69 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       # so the 800 ms-sleeping fetch task can't outlive the test and
       # race the next test's teardown (ADR-049).
       render_async(view, 1500)
+    end
+
+    test "a lifecycle event during the alternatives fetch does not start a second search",
+         %{conn: conn} do
+      # Regression: opening the modal on an awaiting-decision pursuit
+      # dispatches the alternatives fetch (one full Prowlarr search set).
+      # A pursuit lifecycle event arriving while that fetch is still in
+      # flight reloaded the modal, saw no cached card, and started a
+      # SECOND `{:alternatives_fetch, pursuit_id}`. LiveView does not
+      # cancel the first on a duplicate name — both tasks run, both
+      # search — so every indexer in the set was queried twice.
+      {pursuit, _target} =
+        create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
+
+      pursuit.id
+      |> Units.single!()
+      |> MediaCentaur.TestFactory.force_attrs(awaiting_decision_at: DateTime.utc_now(:second))
+
+      test_pid = self()
+
+      # Per-test unique tag: the mailbox is this test's own, but the tag
+      # keeps the assertion readable and immune to a stray message.
+      tag = "alternatives-coalesce"
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        if conn.request_path == "/api/v1/search" do
+          send(test_pid, {:prowlarr_search, tag, self()})
+
+          # The first fetch stays in flight until the test releases it,
+          # so the lifecycle event below always lands while it is
+          # running — no timing window.
+          receive do
+            :release -> :ok
+          after
+            5_000 -> :ok
+          end
+        end
+
+        Req.Test.json(conn, [])
+      end)
+
+      # Intentionally NOT live_async! — the fetch must still be in flight.
+      {:ok, view, _html} = live(conn, "/incoming?selected=#{pursuit.id}")
+
+      assert_receive {:prowlarr_search, ^tag, stub_pid}, 1_000
+
+      send(view.pid, %SearchStarted{
+        pursuit_id: pursuit.id,
+        pursuit_title: "Sample Movie",
+        occurred_at: DateTime.utc_now(:second)
+      })
+
+      # The modal reload runs inside the event's `handle_info`, so this
+      # synchronous render proves it has run — and asked for its fetch —
+      # before the first fetch is allowed to finish.
+      render(view)
+      send(stub_pid, :release)
+
+      # Drives the in-flight fetch to completion (ADR-049); a second
+      # search, had one started, would already be in the mailbox.
+      render_async(view, 2_000)
+
+      refute_receive {:prowlarr_search, ^tag, _}, 100
     end
 
     test "no `?selected=` param leaves the modal closed", %{conn: conn} do
