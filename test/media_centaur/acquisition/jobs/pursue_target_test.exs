@@ -15,30 +15,87 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
-  alias MediaCentaur.Capabilities
   alias MediaCentaur.IntegrationAvailability
+  alias MediaCentaur.ProwlarrStubs
 
   setup do
     # Install a stub that crashes if invoked — any Prowlarr call is a
     # bug since the worker should early-exit before reaching the network.
     Req.Test.stub(:prowlarr, fn _conn -> flunk("Prowlarr must not be called") end)
 
-    # The worker refuses to search an unconfigured Prowlarr, so every
-    # test that expects a search needs Prowlarr configured and its last
-    # connection test passing. Configuration is the durable half;
-    # `IntegrationAvailability` is the runtime half these tests drive.
-    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-
-    :persistent_term.put(
-      {MediaCentaur.Settings.Config, :config},
-      config
-      |> Map.put(:prowlarr_url, "http://prowlarr.test")
-      |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
-    )
-
-    Capabilities.save_test_result(:prowlarr, :ok)
+    # The worker refuses to search an unconfigured Prowlarr. Configuration
+    # is the durable half; `IntegrationAvailability` is the runtime half
+    # these tests drive.
+    :ok = ProwlarrStubs.mark_ready!()
 
     :ok
+  end
+
+  # Shared fixtures — two describes build the same seeking movie target
+  # and drive the same Prowlarr stub.
+
+  defp movie_release(title, guid, attrs) do
+    Map.merge(
+      %{"title" => title, "guid" => guid, "indexerId" => 1, "indexer" => "indexer-a"},
+      Map.new(attrs, fn {key, value} -> {to_string(key), value} end)
+    )
+  end
+
+  defp stub_grab_reply(reply) do
+    Req.Test.stub(:prowlarr, fn conn ->
+      case {conn.method, conn.request_path} do
+        {"GET", "/api/v1/indexer"} ->
+          Req.Test.json(conn, [])
+
+        {"GET", "/api/v1/indexerstatus"} ->
+          Req.Test.json(conn, [])
+
+        {"GET", "/api/v1/search"} ->
+          Req.Test.json(conn, [
+            movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "only-copy", %{
+              grabs: 40,
+              protocol: "usenet"
+            })
+          ])
+
+        {"POST", "/api/v1/search"} ->
+          reply.(conn)
+
+        # A hand-off that goes down enqueues the hand-off probe, which
+        # Oban runs inline — these are the requests it makes. The
+        # client Prowlarr could not hand the release to is still
+        # configured and still failing its test.
+        {"GET", "/api/v1/downloadclient"} ->
+          Req.Test.json(conn, [
+            %{
+              "id" => 1,
+              "name" => "Sample Usenet Client",
+              "implementation" => "Sabnzbd",
+              "protocol" => "usenet",
+              "enable" => true,
+              "fields" => [
+                %{"name" => "host", "value" => "usenet.test"},
+                %{"name" => "port", "value" => 8080}
+              ]
+            }
+          ])
+
+        {"POST", "/api/v1/downloadclient/testall"} ->
+          Req.Test.json(conn, [%{"id" => 1, "isValid" => false}])
+      end
+    end)
+  end
+
+  defp seeking_movie_target do
+    {_pursuit, target} =
+      create_pursuit_with_target(%{
+        state: "seeking",
+        status: "seeking",
+        title: "Sample Movie",
+        year: 2005
+      })
+
+    target
   end
 
   describe "perform/1 — pursuit-state guard" do
@@ -78,13 +135,6 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
             Req.Test.json(conn, %{"approved" => true})
         end
       end)
-    end
-
-    defp movie_release(title, guid, attrs) do
-      Map.merge(
-        %{"title" => title, "guid" => guid, "indexerId" => 1, "indexer" => "indexer-a"},
-        Map.new(attrs, fn {key, value} -> {to_string(key), value} end)
-      )
     end
 
     test "grabs the better release found behind the year-less query" do
@@ -177,63 +227,6 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
     # Search errors already snooze without charging an attempt; grab
     # errors from the infrastructure must do the same.
 
-    defp stub_grab_reply(reply) do
-      Req.Test.stub(:prowlarr, fn conn ->
-        case {conn.method, conn.request_path} do
-          {"GET", "/api/v1/indexer"} ->
-            Req.Test.json(conn, [])
-
-          {"GET", "/api/v1/indexerstatus"} ->
-            Req.Test.json(conn, [])
-
-          {"GET", "/api/v1/search"} ->
-            Req.Test.json(conn, [
-              movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "only-copy", %{
-                grabs: 40,
-                protocol: "usenet"
-              })
-            ])
-
-          {"POST", "/api/v1/search"} ->
-            reply.(conn)
-
-          # A hand-off that goes down enqueues the hand-off probe, which
-          # Oban runs inline — these are the requests it makes. The
-          # client Prowlarr could not hand the release to is still
-          # configured and still failing its test.
-          {"GET", "/api/v1/downloadclient"} ->
-            Req.Test.json(conn, [
-              %{
-                "id" => 1,
-                "name" => "Sample Usenet Client",
-                "implementation" => "Sabnzbd",
-                "protocol" => "usenet",
-                "enable" => true,
-                "fields" => [
-                  %{"name" => "host", "value" => "usenet.test"},
-                  %{"name" => "port", "value" => 8080}
-                ]
-              }
-            ])
-
-          {"POST", "/api/v1/downloadclient/testall"} ->
-            Req.Test.json(conn, [%{"id" => 1, "isValid" => false}])
-        end
-      end)
-    end
-
-    defp seeking_movie_target do
-      {_pursuit, target} =
-        create_pursuit_with_target(%{
-          state: "seeking",
-          status: "seeking",
-          title: "Sample Movie",
-          year: 2005
-        })
-
-      target
-    end
-
     defp download_client_unavailable(conn) do
       conn
       |> Plug.Conn.put_status(500)
@@ -254,6 +247,10 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
       assert reloaded.last_attempt_outcome == "download_client_unavailable"
       assert reloaded.status == "seeking"
       assert %DateTime{} = reloaded.next_attempt_at
+
+      # The grab that discovered the outage is also what put the hand-off
+      # down, so the next wake is held rather than discovering it again.
+      refute IntegrationAvailability.up?({:handoff, :usenet})
     end
 
     test "a transport error from grab is the same outage" do
@@ -416,16 +413,11 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
       end)
 
       assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
-      assert MediaCentaur.Repo.reload!(target).attempt_count == target.attempt_count
-    end
 
-    test "the discovering grab still snoozes only at the probe cadence" do
-      stub_grab_reply(&download_client_unavailable/1)
-      target = seeking_movie_target()
-
-      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
-      assert MediaCentaur.Repo.reload!(target).last_attempt_outcome == "download_client_unavailable"
-      refute IntegrationAvailability.up?({:handoff, :usenet})
+      reloaded = MediaCentaur.Repo.reload!(target)
+      assert reloaded.attempt_count == target.attempt_count
+      assert reloaded.last_attempt_outcome == target.last_attempt_outcome
+      assert reloaded.next_attempt_at == target.next_attempt_at
     end
   end
 end

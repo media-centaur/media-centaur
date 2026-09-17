@@ -1,9 +1,12 @@
 defmodule MediaCentaur.IntegrationAvailabilityTest do
-  # Sync: `report/3` writes `:persistent_term`, which the sandbox restores at check-in.
-  use MediaCentaur.Case, async: false
+  # Sync: `report/3` writes `:persistent_term`, which the sandbox restores at
+  # check-in. `DataCase` for the Settings row `Capabilities` reads.
+  use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.IntegrationAvailability.Status
+  alias MediaCentaur.ProwlarrStubs
   alias MediaCentaur.Topics
 
   @t0 ~U[2026-09-17 20:00:00Z]
@@ -92,6 +95,16 @@ defmodule MediaCentaur.IntegrationAvailabilityTest do
       assert IntegrationAvailability.up?(:prowlarr)
       refute IntegrationAvailability.available?(:prowlarr)
       refute IntegrationAvailability.available?({:handoff, :usenet})
+    end
+
+    test "a hand-off needs Prowlarr configured, not a download client of the app's own" do
+      # The hand-off is Prowlarr's link to *its* download client. The
+      # app's own client link is `Downloads.Connectivity`'s business and
+      # says nothing about whether Prowlarr can pass a release along.
+      :ok = ProwlarrStubs.mark_ready!()
+      refute Capabilities.client_ready?(:usenet)
+
+      assert IntegrationAvailability.available?({:handoff, :usenet})
     end
   end
 end

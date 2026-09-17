@@ -6,6 +6,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
   alias MediaCentaur.Acquisition.Reactor.Handlers
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.ProwlarrStubs
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
 
@@ -19,16 +20,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     MediaCentaur.TmdbStubs.setup_tmdb_client()
     Req.Test.stub(:tmdb, fn conn -> Req.Test.json(conn, %{"episodes" => []}) end)
 
-    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-
-    :persistent_term.put(
-      {MediaCentaur.Settings.Config, :config},
-      config
-      |> Map.put(:prowlarr_url, "http://prowlarr.test")
-      |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
-    )
-
-    Capabilities.save_test_result(:prowlarr, :ok)
+    :ok = ProwlarrStubs.mark_ready!()
     # Tracking plans are stamped with the person's planning mode; the
     # built-in default asks first, and most of this file is about the
     # unattended posture.
