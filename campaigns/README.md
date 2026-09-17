@@ -25,12 +25,14 @@ Use [`template.md`](template.md) as a starter.
   **in progress 2026-09-17.** Nothing in the toolchain saw a `def` with no
   callers — `--warnings-as-errors` catches private functions, `boundaries`
   catches illegal edges, but a public function whose last caller was deleted
-  was invisible in both Elixir and JS. **JS is now gated**: a dependency-cruiser
+  was invisible in both Elixir and JS. **JS is gated**: a dependency-cruiser
   reachability rule from `app.js` (`no-orphans` was measured and does nothing —
-  every module is imported by its own test). **Elixir has the tool**:
-  `mix_unused` runs on 1.20/OTP 29 behind `MC_UNUSED=1`, configured down from
-  1317 hints to 66 candidates. Gating waits on those 66 being dispositioned —
-  each one deleted, declared, or kept with a reason at the definition site.
+  every module is imported by its own test). **Elixir has the tool but is not
+  gated yet**: `mix_unused` behind `MC_UNUSED=1`, 363 raw hints and 25
+  candidates left, down from 1317 unconfigured. Four groups worked, 19
+  functions deleted, and two candidates turned out to be features missing
+  their control and were wired instead. Of ~51 examined, 19 were deletable —
+  read the campaign's **START HERE** section before dispositioning anything.
 
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
