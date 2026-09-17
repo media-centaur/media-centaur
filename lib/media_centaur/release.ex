@@ -19,7 +19,6 @@ defmodule MediaCentaur.Release do
 
   @app :media_centaur
 
-  @doc export: true
   def migrate do
     load_app()
 
@@ -32,7 +31,6 @@ defmodule MediaCentaur.Release do
   Runs every pending data migration. Idempotent across deploys — the
   `data_migrations` table tracks which versions have already applied.
   """
-  @doc export: true
   def migrate_data do
     load_app()
 
@@ -44,7 +42,6 @@ defmodule MediaCentaur.Release do
     end
   end
 
-  @doc export: true
   def rollback(repo, version) do
     load_app()
     {:ok, _, _} = Ecto.Migrator.with_repo(repo, &Ecto.Migrator.run(&1, :down, to: version))
