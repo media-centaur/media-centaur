@@ -11,8 +11,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogic do
   @category_labels %{
     navigation: "Navigation",
     zones: "Zones",
-    playback: "Playback",
-    system: "System"
+    playback: "Playback"
   }
 
   @doc """
@@ -32,8 +31,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogic do
             name: binding.name,
             description: binding.description,
             key: slot.key,
-            button: slot.button,
-            scope: binding.scope
+            button: slot.button
           }
         end)
 

@@ -24,7 +24,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/media_centaur"
 import {createInputHook} from "./input/index"
-import {Console} from "./hooks/console"
+import {ConsolePage} from "./hooks/console_page"
 import {LogTail} from "./hooks/log_tail"
 import {CopyButton} from "./hooks/copy_button"
 import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
@@ -44,7 +44,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     ...colocatedHooks,
     InputSystem: createInputHook(),
-    Console,
+    ConsolePage,
     LogTail,
     CopyButton,
     MouseAutofocus,
@@ -208,49 +208,6 @@ window.addEventListener("phx:mc:update:applying", () =>
   document.documentElement.setAttribute("data-update-applying", "1"))
 window.addEventListener("phx:mc:update:aborted", () =>
   document.documentElement.removeAttribute("data-update-applying"))
-
-// Global bindings (backtick, etc.). Reads the current binding from the
-// root layout's data-global-bindings attr and listens for updates.
-let globalBindings = parseGlobalBindings()
-
-function parseGlobalBindings() {
-  try {
-    return JSON.parse(document.getElementById("input-system")?.dataset?.globalBindings ?? "{}")
-  } catch {
-    return {}
-  }
-}
-
-// Global hotkey to toggle the console. Registered in CAPTURE phase
-// so it fires before the input system's bubble-phase keydown listener (which
-// calls stopPropagation on unknown keys, which would swallow our hotkey).
-//
-// The key is read from data-global-bindings (defaults to "`") so the user
-// can rebind it from Settings > Controls without a page reload.
-//
-// Skipped when focused in an input/textarea so the user can type the key
-// in form fields normally.
-document.addEventListener(
-  "keydown",
-  (event) => {
-    const tag = event.target?.tagName
-    if (tag === "INPUT" || tag === "TEXTAREA") return
-    if (event.target?.isContentEditable) return
-    if (event.ctrlKey || event.metaKey || event.altKey) return
-
-    const consoleKey = globalBindings.toggle_console
-    if (!consoleKey || event.key !== consoleKey) return
-
-    event.preventDefault()
-    event.stopPropagation()
-    window.dispatchEvent(new CustomEvent("mc:console:toggle"))
-  },
-  { capture: true }
-)
-
-window.addEventListener("input:rebindMaps", () => {
-  globalBindings = parseGlobalBindings()
-})
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()

@@ -629,8 +629,7 @@ body:has(.modal-backdrop[data-state="open"]) {
    backdrop then ties and paint order falls to DOM order, which put Incoming's
    confirmations *behind* the modals they belong to.
 
-   Sits between modals (50) and `.console-overlay` (60), which stays above
-   everything. */
+   Sits just above the modals it stacks over (50). */
 .modal-backdrop--raised {
   z-index: 55;
 }
@@ -2615,102 +2614,13 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* ============================================================================
-   Console Overlay (Guake-style dropdown)
+   Console (/console page)
    ============================================================================
 
-   Always-in-DOM pattern (see CLAUDE.md CSS rules). The root element stays
-   mounted across navigation (sticky LiveView); visibility toggles via
-   `data-state="open"` set by the JS hook.
-
-   Only `opacity` and `transform` are animated — both are GPU-cheap
-   compositor-only properties. `backdrop-filter` is applied but never
-   animated (per CLAUDE.md rule).
+   The chip row, log list and footer of `ConsolePageLive`. `.console-entry`
+   and its children also render on the Status subsystem log panel, so their
+   typography rides the row rather than the `.console-log` scroller.
 */
-
-.console-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 60;                       /* above modals (z-50) */
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 200ms ease-in, visibility 0s 200ms;
-
-  /* backdrop-filter and background applied statically so the compositing
-     layer stays warm across open/close cycles — per CLAUDE.md rule
-     "backdrop-filter elements must stay in the DOM" the corollary is that
-     the filter itself should be set unconditionally in the base rule. Only
-     opacity and visibility toggle between states. */
-  background: oklch(0% 0 0 / 0.55);
-  @apply backdrop-blur-[6px];
-}
-
-.console-overlay[data-state="open"] {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transition: opacity 250ms ease-out, visibility 0s;
-}
-
-.console-panel {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  /* 55% of the physical viewport — bare `55vh` would overshoot the screen
-     entirely at 200% UI scale (see `--pvh`). */
-  height: calc(55 * var(--pvh));
-  display: flex;
-  flex-direction: column;
-  background: color-mix(in oklab, var(--color-base-100) 92%, transparent);
-  color: var(--color-base-content);
-  border-bottom: 1px solid var(--color-base-300);
-  box-shadow: 0 20px 40px -10px oklch(0% 0 0 / 0.5);
-  transform: translateY(-100%);
-  transition: transform 240ms ease-in;
-  overflow: hidden;
-}
-
-.console-overlay[data-state="open"] .console-panel {
-  transform: translateY(0);
-  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Source tabs — App / Systemd / Reconnect */
-.console-source-tabs {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid var(--color-base-300);
-}
-
-.console-source-tab {
-  appearance: none;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 0.375rem;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--color-base-content);
-  opacity: 0.55;
-  cursor: pointer;
-  transition: background-color 150ms ease-out, opacity 150ms ease-out;
-}
-
-.console-source-tab:hover {
-  opacity: 0.85;
-}
-
-.console-source-tab.is-active {
-  opacity: 1;
-  background: var(--color-base-300);
-}
-
-.console-source-reconnect {
-  margin-left: auto;
-}
 
 /* Header row — chips + level + search */
 .console-header {
@@ -2896,7 +2806,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   text-align: right;
 }
 
-/* Full-page variant (used by ConsolePageLive in Task 8) */
+/* Page shell — fills the viewport, header/list/footer column. */
 .console-fullpage {
   position: fixed;
   inset: 0;

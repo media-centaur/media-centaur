@@ -773,7 +773,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       )
 
     ~H"""
-    <Layouts.console_mount socket={@socket} />
     <Layouts.app
       show_discovery={@show_discovery}
       show_apps={@show_apps}

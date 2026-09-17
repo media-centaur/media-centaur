@@ -90,7 +90,6 @@ defmodule MediaCentaurWeb.Layouts do
       class="flex min-h-viewport"
       phx-hook="InputSystem"
       data-input-bindings={Jason.encode!(input_bindings())}
-      data-global-bindings={Jason.encode!(global_bindings())}
     >
       <%!-- The one tooltip (hooks/tooltip.js): fixed, outside every clipping
             surface, moved beside whichever [data-tip] anchor is hovered or
@@ -274,20 +273,6 @@ defmodule MediaCentaurWeb.Layouts do
   end
 
   @doc """
-  Renders the persistent console LiveView as a sticky child of the current page.
-  Each page LiveView calls this once at the top of its render to mount the
-  Guake-style dropdown console that survives navigation within the `:default`
-  live_session.
-  """
-  attr :socket, :any, required: true
-
-  def console_mount(assigns) do
-    ~H"""
-    {live_render(@socket, MediaCentaurWeb.ConsoleLive, id: "console-sticky", sticky: true)}
-    """
-  end
-
-  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples
@@ -402,7 +387,6 @@ defmodule MediaCentaurWeb.Layouts do
       class={@class}
       phx-hook="InputSystem"
       data-input-bindings={Jason.encode!(input_bindings())}
-      data-global-bindings={Jason.encode!(global_bindings())}
     >
       {render_slot(@inner_block)}
     </div>
@@ -411,38 +395,24 @@ defmodule MediaCentaurWeb.Layouts do
 
   defp input_bindings do
     resolved = MediaCentaur.Settings.Controls.get()
-    catalog = MediaCentaur.Settings.Controls.Catalog.all()
-    input_scope_ids = for b <- catalog, b.scope == :input_system, do: b.id
+    ids = for b <- MediaCentaur.Settings.Controls.Catalog.all(), do: b.id
 
     %{
       keyboard:
-        Enum.reduce(input_scope_ids, %{}, fn id, acc ->
+        Enum.reduce(ids, %{}, fn id, acc ->
           case resolved[id].key do
             nil -> acc
             key -> Map.put(acc, key, Atom.to_string(id))
           end
         end),
       gamepad:
-        Enum.reduce(input_scope_ids, %{}, fn id, acc ->
+        Enum.reduce(ids, %{}, fn id, acc ->
           case resolved[id].button do
             nil -> acc
             btn -> Map.put(acc, Integer.to_string(btn), Atom.to_string(id))
           end
         end)
     }
-  end
-
-  defp global_bindings do
-    resolved = MediaCentaur.Settings.Controls.get()
-    catalog = MediaCentaur.Settings.Controls.Catalog.all()
-    global_scope_ids = for b <- catalog, b.scope == :global, do: b.id
-
-    Enum.reduce(global_scope_ids, %{}, fn id, acc ->
-      case resolved[id].key do
-        nil -> acc
-        key -> Map.put(acc, Atom.to_string(id), key)
-      end
-    end)
   end
 
   # `paths` may be a list when one nav entry fronts several routes — the

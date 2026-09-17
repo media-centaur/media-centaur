@@ -1,11 +1,7 @@
-defmodule MediaCentaurWeb.ConsoleLive.Logic do
+defmodule MediaCentaurWeb.ConsolePageLive.Logic do
   @moduledoc """
-  Pure helper functions for the console LiveViews — filter mutations, entry
-  visibility, payload formatting, and DOM id generation.
-
-  Shared by `MediaCentaurWeb.ConsoleLive` (sticky drawer) and
-  `MediaCentaurWeb.ConsolePageLive` (full-page `/console` route) so both
-  views agree on every filter/entry decision without copy-pasted logic.
+  Pure helper functions for `MediaCentaurWeb.ConsolePageLive` — filter
+  mutations, entry visibility, payload formatting, and DOM id generation.
 
   No `Phoenix.LiveView`, no `Phoenix.Component`, no database access — follows
   the LiveView logic extraction rule in ADR-030 and enables `async: true`

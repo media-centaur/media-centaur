@@ -9,8 +9,8 @@ defmodule MediaCentaur.Settings.ControlsTest do
       assert resolved[:navigate_up].key == "ArrowUp"
       assert resolved[:navigate_up].button == 12
       assert resolved[:select].key == "Enter"
-      assert resolved[:toggle_console].key == "`"
-      assert resolved[:toggle_console].button == nil
+      assert resolved[:play].key == "p"
+      assert resolved[:play].button == 9
     end
 
     test "explicit nil override is preserved (user cleared the slot)" do
