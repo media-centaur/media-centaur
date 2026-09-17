@@ -432,6 +432,132 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     end
   end
 
+  describe "subsystem log panel" do
+    alias MediaCentaur.Console
+    alias MediaCentaur.Console.Entry
+    alias MediaCentaur.Topics
+
+    setup do
+      :ok = Console.clear()
+      :ok
+    end
+
+    test "a drill-in with recent lines opens onto them", %{conn: conn} do
+      seed([entry(:watcher, "log panel seed line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+
+      assert has_element?(view, "#subsystem-logs summary", "Technical logs")
+      assert panel(view) =~ "log panel seed line"
+    end
+
+    test "a subsystem with no lines renders no disclosure at all", %{conn: conn} do
+      # `:self_update` logs under `:system` by design, so its panel can never
+      # have lines — the deterministic empty case.
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=self_update")
+
+      assert has_element?(view, "#health-drill-in")
+      refute has_element?(view, "#subsystem-logs")
+    end
+
+    test "a matching broadcast lands newest-first above the lines already shown", %{conn: conn} do
+      seed([entry(:watcher, "log panel seed line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+
+      # The broadcast batch is oldest-first; the panel reads newest-first.
+      broadcast([entry(:watcher, "log panel alpha"), entry(:watcher, "log panel omega")])
+
+      html = panel(view)
+
+      assert position(html, "log panel omega") < position(html, "log panel alpha")
+      assert position(html, "log panel alpha") < position(html, "log panel seed line")
+    end
+
+    test "a broadcast from another subsystem's component is ignored", %{conn: conn} do
+      seed([entry(:watcher, "log panel seed line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+
+      broadcast([entry(:pipeline, "log panel foreign line")])
+
+      html = panel(view)
+
+      assert html =~ "log panel seed line"
+      refute html =~ "log panel foreign line"
+    end
+
+    test "closing the drill-in takes the panel with it", %{conn: conn} do
+      seed([entry(:watcher, "log panel seed line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      assert has_element?(view, "#subsystem-logs")
+
+      view |> element("#health-drill-in [phx-click='close_subsystem']") |> render_click()
+
+      refute has_element?(view, "#health-drill-in")
+      refute has_element?(view, "#subsystem-logs")
+    end
+
+    test "switching subsystems never carries the previous panel over", %{conn: conn} do
+      seed([entry(:watcher, "log panel seed line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+      assert panel(view) =~ "log panel seed line"
+
+      view |> element("#subsystem-tile-self_update") |> render_click()
+
+      refute has_element?(view, "#subsystem-logs")
+    end
+
+    test "a single-component subsystem leaves the per-line badge off", %{conn: conn} do
+      seed([entry(:watcher, "log panel seed line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+
+      refute has_element?(view, "#subsystem-logs .console-component-badge")
+    end
+
+    test "a folded subsystem labels each line with the component it came from", %{conn: conn} do
+      seed([entry(:nostr, "log panel relay line")])
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=social")
+
+      assert panel(view) =~ "log panel relay line"
+      assert has_element?(view, "#subsystem-logs .console-component-badge")
+    end
+
+    # Scoped to the drill-in's own disclosure: the sticky console drawer is
+    # mounted on every page and echoes the same entries, so a whole-document
+    # `=~` would pass on the drawer's copy.
+    defp panel(view), do: view |> element("#subsystem-logs") |> render()
+
+    defp entry(component, message) do
+      %Entry{
+        id: System.unique_integer([:monotonic, :positive]),
+        timestamp: ~U[2026-09-17 10:00:00Z],
+        level: :info,
+        component: component,
+        message: message
+      }
+    end
+
+    # Seeds the store the way the console handler does, without going through
+    # Logger: a `Log.warning` would also mint an ErrorReports incident whose
+    # `{:buckets_changed, _}` broadcast lands in whichever test is running when
+    # the Buckets server gets to it.
+    defp seed(entries) do
+      Enum.each(entries, &Console.Buffer.append/1)
+      :ok = Console.flush()
+    end
+
+    defp broadcast(entries) do
+      :ok = Topics.publish(Topics.console_logs(), {:log_entries, entries})
+    end
+
+    defp position(html, needle), do: html |> :binary.match(needle) |> elem(0)
+  end
+
   defp put_config(key, value) do
     config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))

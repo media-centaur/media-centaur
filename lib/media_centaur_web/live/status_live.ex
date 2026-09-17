@@ -12,6 +12,8 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
 
+  alias MediaCentaur.Console
+  alias MediaCentaur.Console.Filter
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Activities
@@ -36,6 +38,11 @@ defmodule MediaCentaurWeb.StatusLive do
 
   @vitals_refresh_ms 5 * 60 * 1_000
 
+  # The log panel's render cap, deliberately separate from the ring cap the
+  # console slider sets: raising the slider deepens the rings, but a disclosure
+  # holding 1,000 monospace rows is DOM cost with no reader.
+  @log_panel_lines 200
+
   @impl true
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "Status")
@@ -53,7 +60,8 @@ defmodule MediaCentaurWeb.StatusLive do
           {Capabilities, :subscribe_changes},
           Status.Views,
           {Social, :subscribe_connections},
-          MediaCentaur.Pipeline.Stats
+          MediaCentaur.Pipeline.Stats,
+          Console
         ],
         socket,
         &Subscriptions.subscribe(&2, &1)
@@ -212,12 +220,26 @@ defmodule MediaCentaurWeb.StatusLive do
   @impl true
   def handle_params(params, _uri, socket) do
     socket = ensure_loaded(socket)
+    subsystem = parse_subsystem(params)
 
     {:noreply,
-     assign(socket,
-       selected_subsystem: parse_subsystem(params),
+     socket
+     |> assign_log_panel(subsystem)
+     |> assign(
+       selected_subsystem: subsystem,
        selected_incident: parse_incident(params, socket.assigns.error_buckets)
      )}
+  end
+
+  # The open drill-in is the log panel's whole lifecycle. The console
+  # subscription is held for the page's lifetime through the one door (a
+  # LiveView never subscribes per-view-state — MC0011), so closing a drill-in
+  # empties the panel and `handle_info/2` drops the batches until the next one
+  # opens.
+  defp assign_log_panel(socket, nil), do: assign(socket, log_lines: [])
+
+  defp assign_log_panel(socket, subsystem) do
+    assign(socket, log_lines: Console.read(HealthBoard.log_filter(subsystem), @log_panel_lines))
   end
 
   defp parse_subsystem(%{"subsystem" => raw}) do
@@ -564,6 +586,26 @@ defmodule MediaCentaurWeb.StatusLive do
     end
   end
 
+  # --- Subsystem log panel ---
+
+  def handle_info({:log_entries, _entries}, %{assigns: %{selected_subsystem: nil}} = socket) do
+    {:noreply, socket}
+  end
+
+  def handle_info({:log_entries, entries}, socket) do
+    filter = HealthBoard.log_filter(socket.assigns.selected_subsystem)
+    matching = Enum.filter(entries, &Filter.matches?(&1, filter))
+
+    if matching == [] do
+      {:noreply, socket}
+    else
+      # The batch arrives oldest-first and the panel reads newest-first, so the
+      # batch goes on the front reversed (`Enum.reverse/2` is reverse ++ tail).
+      lines = Enum.take(Enum.reverse(matching, socket.assigns.log_lines), @log_panel_lines)
+      {:noreply, assign(socket, :log_lines, lines)}
+    end
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -649,6 +691,8 @@ defmodule MediaCentaurWeb.StatusLive do
               view={drill_in_view(@board, @selected_subsystem)}
               buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
               retention={Map.get(@retention_by_subsystem, @selected_subsystem, [])}
+              log_lines={@log_lines}
+              show_log_components={HealthBoard.multi_component?(@selected_subsystem)}
               on_select="select_incident"
             >
               <:activity :if={ActivityWidgets.widget_for(@selected_subsystem)}>

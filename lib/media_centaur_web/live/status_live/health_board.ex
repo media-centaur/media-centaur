@@ -93,6 +93,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     social: "Add a relay under Settings → Social."
   }
 
+  alias MediaCentaur.Console.Filter
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.Log.Component
   alias MediaCentaurWeb.StatusLive.SubsystemView
@@ -218,6 +219,26 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   def components_for(subsystem) do
     Enum.filter(Component.app(), &(normalize(&1) == subsystem))
   end
+
+  @doc """
+  The `%Filter{}` selecting a subsystem's log lines: its components only,
+  everything else hidden, `:info` and above.
+
+  The store is lossless by level so `/console` can show `:debug`; the floor is
+  applied here, at read time, because a status panel showing SQL debug is noise.
+  """
+  @spec log_filter(atom()) :: Filter.t()
+  def log_filter(subsystem) do
+    Filter.new(
+      components: Map.new(components_for(subsystem), &{&1, :show}),
+      default_component: :hide,
+      level: :info
+    )
+  end
+
+  @doc "True when a subsystem folds more than one component, so lines need a badge to disambiguate."
+  @spec multi_component?(atom()) :: boolean()
+  def multi_component?(subsystem), do: length(components_for(subsystem)) > 1
 
   # Dormancy is a statement about capability, not about failure, so it only
   # stands in for `:ok`. Anything that actually went wrong outranks it.
