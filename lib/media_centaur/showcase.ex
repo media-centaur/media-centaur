@@ -76,6 +76,8 @@ defmodule MediaCentaur.Showcase do
   persistent-term stub used by tests — so `mix test` never hits the real API.
   """
 
+  alias MediaCentaur.Acquisition.CancelReasons
+
   alias MediaCentaur.Settings.Config
 
   alias MediaCentaur.Library.ImageCache
@@ -842,7 +844,7 @@ defmodule MediaCentaur.Showcase do
         title: "Plan 9 from Outer Space (1959)",
         status: "cancelled",
         origin: "auto",
-        cancelled_reason: "user_cancelled"
+        cancelled_reason: CancelReasons.pursuit_cancelled()
       }
     )
   end

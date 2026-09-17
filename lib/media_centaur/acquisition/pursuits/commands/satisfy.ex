@@ -20,6 +20,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Satisfy do
   `pursuit_satisfied` event records the terminal transition.
   """
 
+  alias MediaCentaur.Acquisition.CancelReasons
+
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Refold, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.PursuitSatisfied
@@ -72,7 +74,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Satisfy do
 
   defp maybe_close_and_record(%Pursuit{} = pursuit, target_id, title) do
     if State.terminal?(pursuit.state) do
-      :ok = Targets.close_in_flight_for(pursuit.id, target_id, "pursuit_satisfied")
+      :ok = Targets.close_in_flight_for(pursuit.id, target_id, CancelReasons.pursuit_satisfied())
 
       case Events.record(%PursuitSatisfied{
              pursuit_id: pursuit.id,

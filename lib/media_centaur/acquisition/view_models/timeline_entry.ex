@@ -10,6 +10,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   module — no DB, no I/O.
   """
 
+  alias MediaCentaur.Acquisition.CancelReasons
   alias MediaCentaur.Acquisition.Pursuits.Event
 
   @enforce_keys [:kind, :occurred_at, :summary, :severity]
@@ -98,10 +99,17 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   defp summary_for("pursuit_re_searched", _), do: "Re-searched Prowlarr"
   defp summary_for(kind, _), do: kind
 
-  # Policy's cancel_reason atoms → user copy. Unknown reasons fall back
-  # to underscore-stripping so a future reason never renders raw.
-  defp cancel_reason_phrase("download_failed"), do: "download failed"
-  defp cancel_reason_phrase("zero_seeders"), do: "no seeders"
+  # The two `Pursuits.Policy` auto-cancel reasons → user copy. Bound through
+  # `CancelReasons` rather than repeated as literals: this module reads the
+  # same column those commands write, and the two drifting apart is what let
+  # the vocabulary rot unnoticed. A head match needs a compile-time value,
+  # hence the attributes. Unknown reasons fall back to underscore-stripping
+  # so a future reason — and the historical ones — never render raw.
+  @download_failed CancelReasons.download_failed()
+  @zero_seeders CancelReasons.zero_seeders()
+
+  defp cancel_reason_phrase(@download_failed), do: "download failed"
+  defp cancel_reason_phrase(@zero_seeders), do: "no seeders"
   defp cancel_reason_phrase(reason), do: String.replace(reason, "_", " ")
 
   defp transition_phrase(same, same), do: nil

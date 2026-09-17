@@ -31,6 +31,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   partial enqueue if the inner transaction rolls back.
   """
 
+  alias MediaCentaur.Acquisition.CancelReasons
+
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Helpers, Runner}
   alias MediaCentaur.Acquisition.Targets
@@ -67,7 +69,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
         # A terminal unit doesn't pivot — a fresh seeking target on a
         # satisfied unit would re-grab something already landed.
         with true <- unit.state in UnitState.in_flight() || {:error, :not_eligible},
-             {:ok, _previous} <- Helpers.fail_current_target(unit, "replaced_by_user_pivot"),
+             {:ok, _previous} <-
+               Helpers.fail_current_target(unit, CancelReasons.replaced_by_user_pivot()),
              {:ok, new_target} <- Helpers.insert_seeking_target(pursuit),
              {:ok, _coverage} <-
                Repo.insert(TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: unit.id})),

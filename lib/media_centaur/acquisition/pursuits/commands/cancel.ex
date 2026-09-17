@@ -15,6 +15,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Cancel do
   Other-downloads zone remains the safety net.
   """
 
+  alias MediaCentaur.Acquisition.CancelReasons
+
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Refold, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
@@ -36,7 +38,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Cancel do
         with true <- pursuit.state in State.in_flight() || {:error, :not_eligible},
              {:ok, _units} <- cancel_active_units(pursuit),
              {:ok, refolded, _transition} <- Refold.refold!(pursuit),
-             :ok <- Targets.close_in_flight_for(refolded.id, nil, "pursuit_cancelled"),
+             :ok <- Targets.close_in_flight_for(refolded.id, nil, CancelReasons.pursuit_cancelled()),
              {:ok, _event} <-
                Events.record(%PursuitCancelled{
                  pursuit_id: refolded.id,

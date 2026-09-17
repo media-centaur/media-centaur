@@ -218,7 +218,7 @@ defmodule MediaCentaur.Acquisition.Target do
   end
 
   @doc "Terminal-failure transition for an exhausted target."
-  def failed_changeset(target, reason \\ "abandoned") do
+  def failed_changeset(target, reason) when is_binary(reason) do
     change(target,
       status: "failed",
       cancelled_at: DateTime.utc_now(:second),
