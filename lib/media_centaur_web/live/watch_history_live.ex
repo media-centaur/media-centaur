@@ -476,19 +476,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
 
   # --- Private helpers ---
 
-  @doc """
-  Refresh `current` rewatch-count map for only the given `types`. Other
-  entries are left untouched. `fetch_fn` is the per-type fetcher (defaults
-  to `WatchHistory.rewatch_count_map/1`); accepting it lets unit tests
-  inject a spy.
-  """
-  @spec update_rewatch_counts(map(), Enumerable.t(), (atom() -> map())) :: map()
-  def update_rewatch_counts(current, types, fetch_fn \\ &WatchHistory.rewatch_count_map/1) do
-    Enum.reduce(types, current, fn type, acc ->
-      Map.put(acc, type, fetch_fn.(type))
-    end)
-  end
-
   defp rewatch_count_for_event(event, rewatch_counts) do
     case event.entity_type do
       :movie -> Map.get(rewatch_counts.movie, event.movie_id, 0)

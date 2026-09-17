@@ -347,8 +347,8 @@ defmodule MediaCentaur.Showcase do
 
   defp seed_video_object!(%{title: title} = entry) do
     # Year-only catalog entries become Jan 1 of that year. Detail templates
-    # use Format.year/1, not Format.iso_date/1, so the synthetic month/day
-    # never surfaces.
+    # render the year alone (`Format.year/1`), so the synthetic month and
+    # day never surface.
     video_object =
       Library.Containers.create!(:video_object, %{
         name: title,

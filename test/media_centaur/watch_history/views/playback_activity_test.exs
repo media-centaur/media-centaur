@@ -4,19 +4,13 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivityTest do
   alias MediaCentaur.WatchHistory
   alias MediaCentaur.WatchHistory.Views.PlaybackActivity
 
-  describe "empty/0" do
-    test "returns a zeroed snapshot for the disconnected mount" do
-      assert PlaybackActivity.empty() == %{
+  describe "snapshot/0" do
+    test "with no history returns the zeroed shape" do
+      assert PlaybackActivity.snapshot() == %{
                recent: [],
                last_write_at: nil,
                lifetime: %{hours: 0, titles: 0, streak: 0}
              }
-    end
-  end
-
-  describe "snapshot/0" do
-    test "with no history mirrors empty/0" do
-      assert PlaybackActivity.snapshot() == PlaybackActivity.empty()
     end
 
     test "shapes recent events, last_write_at, and lifetime totals" do

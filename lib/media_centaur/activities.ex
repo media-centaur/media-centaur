@@ -381,21 +381,6 @@ defmodule MediaCentaur.Activities do
     end
   end
 
-  @doc """
-  The activities for `ids`, as `%{id => activity}` — one query, for a
-  caller decorating a list of rows that name their provenance. Ids with
-  no row are simply absent from the map.
-  """
-  @spec get_many([Ecto.UUID.t()]) :: %{optional(Ecto.UUID.t()) => Activity.t()}
-  def get_many([]), do: %{}
-
-  def get_many(ids) when is_list(ids) do
-    Activity
-    |> where([a], a.id in ^ids)
-    |> Repo.all()
-    |> Map.new(&{&1.id, &1})
-  end
-
   # --- internals ---
 
   # The wire time of a new own event. A relay keeps one record per

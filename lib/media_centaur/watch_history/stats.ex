@@ -1,8 +1,11 @@
 defmodule MediaCentaur.WatchHistory.Stats do
   @moduledoc """
-  Pure functions for computing watch history statistics from a list of
-  `WatchHistory.Event` structs. No database access — all queries happen
-  in the `WatchHistory` facade before calling these functions.
+  Pure shaping for the watch-history aggregates. No database access: the
+  `WatchHistory` facade aggregates in SQL — so result-set size does not
+  grow with history — and hands the rows here to be shaped.
+
+  `streak_from_dates/1` takes the distinct completion dates; `heatmap_cells/1`
+  takes the date-to-count map and lays out the grid.
   """
 
   @cell_size 11
@@ -11,48 +14,9 @@ defmodule MediaCentaur.WatchHistory.Stats do
   @days 364
 
   @doc """
-  Compute aggregate stats from a list of events.
-  Returns %{total_count, total_seconds, streak, heatmap}.
-  """
-  def compute(events) do
-    %{
-      total_count: length(events),
-      total_seconds: total_seconds(events),
-      streak: streak(events),
-      heatmap: heatmap(events)
-    }
-  end
-
-  @doc "Sum duration_seconds across all events."
-  def total_seconds([]), do: 0.0
-  def total_seconds(events), do: Enum.reduce(events, 0.0, &(&2 + &1.duration_seconds))
-
-  @doc """
-  Count consecutive days with at least one completion, ending today or yesterday.
-  Multiple completions on the same day count as a single streak day.
-  """
-  def streak([]), do: 0
-
-  def streak(events) do
-    today = Date.utc_today()
-    yesterday = Date.add(today, -1)
-
-    dates =
-      events
-      |> Enum.map(fn event -> DateTime.to_date(event.completed_at) end)
-      |> Enum.uniq()
-      |> Enum.sort({:desc, Date})
-
-    start = if today in dates, do: today, else: yesterday
-    count_consecutive(dates, start, 0)
-  end
-
-  @doc """
-  Compute streak from a list of dates already sorted descending and unique
-  (e.g. distinct `date(completed_at)` values straight from the database).
-
-  Same semantics as `streak/1` but skips the per-event date extraction —
-  the database has already done that work.
+  Count consecutive days with at least one completion, ending today or
+  yesterday. The dates arrive unique and descending — distinct
+  `date(completed_at)` values straight from the database.
   """
   def streak_from_dates([]), do: 0
 
@@ -61,21 +25,6 @@ defmodule MediaCentaur.WatchHistory.Stats do
     yesterday = Date.add(today, -1)
     start = if today in dates, do: today, else: yesterday
     count_consecutive(dates, start, 0)
-  end
-
-  @doc """
-  Group completion counts by date for the last 364 days.
-  Returns %{Date => count}.
-  """
-  def heatmap(events) do
-    cutoff = Date.add(Date.utc_today(), -(@days - 1))
-
-    events
-    |> Enum.filter(fn event ->
-      Date.compare(DateTime.to_date(event.completed_at), cutoff) != :lt
-    end)
-    |> Enum.group_by(fn event -> DateTime.to_date(event.completed_at) end)
-    |> Map.new(fn {date, day_events} -> {date, length(day_events)} end)
   end
 
   @doc """

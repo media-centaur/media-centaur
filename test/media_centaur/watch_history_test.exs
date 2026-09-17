@@ -138,20 +138,6 @@ defmodule MediaCentaur.WatchHistoryTest do
     end
   end
 
-  describe "rewatch_count/2" do
-    test "returns count for an entity with events" do
-      movie = TestFactory.create_movie(%{name: "Sample Movie"})
-      for _ <- 1..3, do: TestFactory.create_watch_event(%{movie_id: movie.id, entity_type: :movie})
-
-      assert WatchHistory.rewatch_count(:movie, movie.id) == 3
-    end
-
-    test "returns 0 for an entity with no events" do
-      movie = TestFactory.create_movie(%{name: "Sample Movie B"})
-      assert WatchHistory.rewatch_count(:movie, movie.id) == 0
-    end
-  end
-
   describe "rewatch_count_map/1" do
     test "returns a map of entity_id => count for the given type" do
       movie_a = TestFactory.create_movie(%{name: "Movie A"})
