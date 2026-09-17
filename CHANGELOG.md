@@ -13,6 +13,7 @@ see the git history for the full engineering trail.
 
 ### Fixed
 
+- **The pipeline's slot counts on Status were wrong for half its stages.** **Status → Media import** showed every stage against the same number of slots, but fetching metadata and ingesting run narrower than parsing and searching. Those two read as `3/10` when their real ceiling is 5, and could never show as saturated even when full.
 - **Cancelling a single download now closes the release attempt it belonged to.** The download was removed from your client, but the pursuit went on waiting for that attempt until its retries ran out. It is closed immediately now. Cancelling one download still doesn't end the pursuit — the pursuit's own **Cancel** does that.
 
 ## v1.32.0 — 2026-09-17
