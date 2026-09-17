@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## Unreleased
+
+### New
+
+- **Drop a single episode from a download plan.** Click an episode cell on the plan board and the planner stops trying to cover it; click it again to put it back. A dropped episode is struck through and no longer counts toward what the plan wants, so the rest can re-solve without it.
+- **Reconnect on the systemd journal.** **Status → System** reads the journal only while the section is open, and the reader can stop when the service restarts underneath it. **Reconnect** starts it again without closing the page.
+
+### Fixed
+
+- **Cancelling a single download now closes the release attempt it belonged to.** The download was removed from your client, but the pursuit went on waiting for that attempt until its retries ran out. It is closed immediately now. Cancelling one download still doesn't end the pursuit — the pursuit's own **Cancel** does that.
+
 ## v1.32.0 — 2026-09-17
 
 ### New
