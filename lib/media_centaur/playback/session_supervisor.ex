@@ -17,8 +17,4 @@ defmodule MediaCentaur.Playback.SessionSupervisor do
   def start_session(params) do
     DynamicSupervisor.start_child(__MODULE__, {MediaCentaur.Playback.MpvSession, params})
   end
-
-  def terminate_session(pid) do
-    DynamicSupervisor.terminate_child(__MODULE__, pid)
-  end
 end

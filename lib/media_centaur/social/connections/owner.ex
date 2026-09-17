@@ -6,10 +6,11 @@ defmodule MediaCentaur.Social.Connections.Owner do
   `{:nostr, url, message}`, keeps the status map, and re-broadcasts on
   `social:connections` through `Social.Events`.
 
-  Two subscription maps are kept and re-applied whenever a connection
-  starts: `subs` (every relay, from `subscribe_all/2`) and `relay_subs`
-  (one relay, from `subscribe/3` — the activities sync publishes
-  only what a given relay lacks, so fan-out is wrong there).
+  `relay_subs` is kept and re-applied whenever a connection starts: one
+  relay, from `subscribe/3`. There used to be a second, fan-out map fed by a
+  `subscribe_all/2` — nothing ever called it, so it was always empty and its
+  replay loop a no-op. The activities sync publishes only what a given relay
+  lacks, so fan-out was the wrong shape here anyway.
   """
 
   use GenServer
@@ -31,7 +32,7 @@ defmodule MediaCentaur.Social.Connections.Owner do
   @unregister_wait_ms 1
   @unregister_tries 200
 
-  defstruct status: %{}, subs: %{}, relay_subs: %{}, backoff_ms: 1_000
+  defstruct status: %{}, relay_subs: %{}, backoff_ms: 1_000
 
   def start_link(opts \\ []), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
 
@@ -49,9 +50,6 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
   @spec publish(String.t(), Event.t()) :: :ok
   def publish(url, %Event{} = event), do: GenServer.cast(__MODULE__, {:publish, url, event})
-
-  @spec subscribe_all(String.t(), [MediaCentaur.Nostr.Filter.t()]) :: :ok
-  def subscribe_all(sub_id, filters), do: GenServer.cast(__MODULE__, {:subscribe_all, sub_id, filters})
 
   @spec subscribe(String.t(), String.t(), [MediaCentaur.Nostr.Filter.t()]) :: :ok
   def subscribe(url, sub_id, filters), do: GenServer.cast(__MODULE__, {:subscribe, url, sub_id, filters})
@@ -92,13 +90,6 @@ defmodule MediaCentaur.Social.Connections.Owner do
     end
 
     {:noreply, state}
-  end
-
-  def handle_cast({:subscribe_all, sub_id, filters}, state) do
-    for url <- Map.keys(state.status),
-        do: with_connection(url, &Connection.subscribe(&1, sub_id, filters))
-
-    {:noreply, %{state | subs: Map.put(state.subs, sub_id, filters)}}
   end
 
   def handle_cast({:subscribe, url, sub_id, filters}, state) do
@@ -166,8 +157,6 @@ defmodule MediaCentaur.Social.Connections.Owner do
 
     case DynamicSupervisor.start_child(Connections.DynamicSupervisor, spec) do
       {:ok, pid} ->
-        for {sub_id, filters} <- state.subs, do: Connection.subscribe(pid, sub_id, filters)
-
         for {sub_id, filters} <- Map.get(state.relay_subs, url, %{}),
             do: Connection.subscribe(pid, sub_id, filters)
 

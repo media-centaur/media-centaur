@@ -597,27 +597,6 @@ defmodule MediaCentaur.Acquisition do
     end
   end
 
-  @doc "Tests connectivity and credentials against Prowlarr."
-  @spec test_prowlarr() :: :ok | {:error, term()}
-  def test_prowlarr do
-    if available?() do
-      Prowlarr.ping()
-    else
-      {:error, :not_configured}
-    end
-  end
-
-  @doc """
-  Tests connectivity and credentials against the download client in the
-  given protocol slot (torrent slot by default).
-  """
-  @spec test_download_client(:torrent | :usenet) :: :ok | {:error, term()}
-  def test_download_client(protocol \\ :torrent) do
-    with {:ok, {config, driver}} <- Dispatcher.driver_for(protocol) do
-      driver.test_connection(config)
-    end
-  end
-
   @doc """
   Asks Prowlarr for the list of download clients it has configured.
   Used by the Settings UI to pre-fill the download-client form.

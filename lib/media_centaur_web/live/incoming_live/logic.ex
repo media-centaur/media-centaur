@@ -408,10 +408,6 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
     end
   end
 
-  @doc "Module attribute accessor — head size used by `partition_collapsible_group/3`."
-  @spec collapsible_head_size() :: pos_integer()
-  def collapsible_head_size, do: @collapsible_head_size
-
   # States whose groups are collapsible when they exceed the head size.
   # Other groups render every item inline regardless of count.
   @collapsible_states [:error, :queued]

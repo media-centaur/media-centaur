@@ -104,15 +104,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Units do
     |> Repo.all()
   end
 
-  @doc "Ids of every target covering the given unit."
-  @spec covering_target_ids(Ecto.UUID.t()) :: [Ecto.UUID.t()]
-  def covering_target_ids(unit_id) do
-    TargetUnit
-    |> where([tu], tu.unit_id == ^unit_id)
-    |> select([tu], tu.target_id)
-    |> Repo.all()
-  end
-
   @doc "The unit's current target (the row pointed at by `current_target_id`), if any."
   @spec current_target(Unit.t()) :: Target.t() | nil
   def current_target(%Unit{current_target_id: nil}), do: nil

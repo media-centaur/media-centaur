@@ -38,20 +38,6 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
   def status_icon(:theatrical_info), do: "hero-ticket-mini"
   def status_icon(status) when status in [:upcoming, :unscheduled], do: "hero-clock-mini"
 
-  @doc "Tailwind text-colour class for a status tone (status is the only saturated colour on the page)."
-  @spec tone_text_class(tone()) :: String.t()
-  def tone_text_class(:success), do: "text-success"
-  def tone_text_class(:info), do: "text-info"
-  def tone_text_class(:muted), do: "text-warning/70"
-  def tone_text_class(:neutral), do: "text-base-content/55"
-
-  @doc "Tailwind background class for a status tone (the shelf release dot)."
-  @spec tone_dot_class(tone()) :: String.t()
-  def tone_dot_class(:success), do: "bg-success"
-  def tone_dot_class(:info), do: "bg-info"
-  def tone_dot_class(:muted), do: "bg-warning/70"
-  def tone_dot_class(:neutral), do: "bg-base-content/40"
-
   @doc "What this event delivers — an episode code, a season drop, or a movie release type."
   @spec what_drops(Event.t()) :: String.t()
   def what_drops(%Event{kind: :season_drop, season_number: season, episode_count: count}) do
