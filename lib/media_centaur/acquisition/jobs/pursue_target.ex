@@ -49,6 +49,8 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Acquisition.CancelReasons
+
   alias MediaCentaur.Acquisition
 
   alias MediaCentaur.Acquisition.{
@@ -88,7 +90,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
       {%Target{} = target, nil} ->
         Log.warning(:acquisition, "pursue_target: target #{target.id} has no pursuit; failing")
-        {:ok, _failed} = Repo.update(Target.failed_changeset(target, "orphan_target"))
+        {:ok, _failed} = Repo.update(Target.failed_changeset(target, CancelReasons.orphan_target()))
         {:ok, :no_pursuit}
 
       {%Target{} = target, %Pursuit{} = pursuit} ->
@@ -380,7 +382,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       |> Repo.update()
 
     if updated.attempt_count >= @max_attempts do
-      {:ok, failed} = Repo.update(Target.failed_changeset(updated, "exhausted"))
+      {:ok, failed} = Repo.update(Target.failed_changeset(updated, CancelReasons.exhausted()))
       broadcast(%TargetEvents.Failed{target: failed})
       Log.info(:acquisition, "acquisition exhausted — #{target.title} (#{@max_attempts} attempts)")
       :ok

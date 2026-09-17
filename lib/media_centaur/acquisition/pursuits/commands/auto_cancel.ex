@@ -44,6 +44,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
 
   import Ecto.Query
 
+  alias MediaCentaur.Acquisition.CancelReasons
+
   alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Helpers, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{AutoCancelled, TargetChanged}
@@ -132,7 +134,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
       set: [
         status: "cancelled",
         cancelled_at: now,
-        cancelled_reason: Atom.to_string(reason),
+        cancelled_reason: CancelReasons.from_policy(reason),
         next_attempt_at: nil,
         updated_at: now
       ]

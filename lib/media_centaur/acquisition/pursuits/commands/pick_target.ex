@@ -28,6 +28,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   6. Record `user_decision_recorded` + `fallback_initiated` events.
   """
 
+  alias MediaCentaur.Acquisition.CancelReasons
+
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Helpers, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{FallbackInitiated, UserDecisionRecorded}
@@ -61,7 +63,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
       previous_guid = List.last(unit.tried_release_guids || [])
       now = DateTime.utc_now(:second)
 
-      with {:ok, _previous_target} <- Helpers.fail_current_target(unit, "replaced_by_pick"),
+      with {:ok, _previous_target} <-
+             Helpers.fail_current_target(unit, CancelReasons.replaced_by_pick()),
            {:ok, new_target} <- insert_acquired_target(pursuit, result, origin, torrent_hash),
            {:ok, _coverage} <-
              Repo.insert(TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: unit.id})),
