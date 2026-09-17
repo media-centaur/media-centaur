@@ -1,95 +1,71 @@
 defmodule MediaCentaur.Acquisition.Pursuits.IncidentContextTest do
   use MediaCentaur.DataCase, async: false
 
-  import MediaCentaur.TestFactory
-
   alias MediaCentaur.Acquisition.Pursuits.IncidentContext
+  alias MediaCentaur.IntegrationAvailability
+  alias MediaCentaur.IntegrationAvailability.Status
 
-  @window 30 * 60
+  @t0 ~U[2026-09-17 20:00:00Z]
+  @grace 180
 
-  defp now, do: ~U[2026-09-17 15:40:00Z]
-  defp seconds_ago(seconds), do: DateTime.add(now(), -seconds, :second)
+  defp down(slot, since) do
+    %Status{
+      integration: {:handoff, slot},
+      state: {:down, since, :client_unavailable},
+      observed_at: since
+    }
+  end
 
-  describe "decide/4 — the last thing known about the Prowlarr → client hop" do
-    test "nothing has failed → :ok" do
-      assert IncidentContext.decide(nil, nil, now(), @window) == :ok
+  defp up(slot), do: %Status{integration: {:handoff, slot}, state: :up, observed_at: @t0}
+
+  describe "decide/3" do
+    test "both hand-offs up is ok" do
+      assert IncidentContext.decide([up(:usenet), up(:torrent)], @t0, @grace) == :ok
     end
 
-    test "a recent failure and no grab since → warning" do
-      assert {:fault, :download_client_handoff_failed, :warning, %{headline: headline}} =
-               IncidentContext.decide(seconds_ago(60), nil, now(), @window)
+    test "a hand-off down inside the grace window is not yet a fault" do
+      now = DateTime.add(@t0, 60, :second)
 
-      assert headline == "Prowlarr could not hand releases to the download client"
+      assert IncidentContext.decide([down(:usenet, @t0), up(:torrent)], now, @grace) == :ok
     end
 
-    test "a recent failure with an older success still faults — the failure is the latest word" do
-      assert {:fault, :download_client_handoff_failed, :warning, _ids} =
-               IncidentContext.decide(seconds_ago(60), seconds_ago(600), now(), @window)
-    end
+    test "a hand-off down past the grace window is a warning" do
+      now = DateTime.add(@t0, @grace + 1, :second)
 
-    test "a grab that succeeded after the failure clears it" do
-      assert IncidentContext.decide(seconds_ago(600), seconds_ago(60), now(), @window) == :ok
-    end
-
-    test "a failure older than the window has aged out" do
-      assert IncidentContext.decide(seconds_ago(@window + 1), nil, now(), @window) == :ok
+      assert {:fault, :download_client_handoff_failed, :warning,
+              %{headline: "Prowlarr could not hand releases to the download client"}} =
+               IncidentContext.decide([up(:usenet), down(:torrent, @t0)], now, @grace)
     end
   end
 
-  describe "assess/0 — reads the targets the retry loop stamps" do
-    test "a seeking target snoozed on download_client_unavailable faults" do
-      create_pursuit_with_target(%{
-        state: "seeking",
-        status: "seeking",
-        last_attempt_outcome: "download_client_unavailable",
-        last_attempt_at: DateTime.utc_now(:second)
-      })
+  describe "assess/0 — reads the live hand-off availability" do
+    test "nothing observed yet is ok" do
+      assert IncidentContext.assess() == :ok
+    end
+
+    test "a hand-off down past the grace window faults" do
+      report_handoff_down(:usenet, @grace + 60)
 
       assert {:fault, :download_client_handoff_failed, :warning, _ids} = IncidentContext.assess()
     end
 
-    test "a later successful grab on any pursuit clears it" do
-      create_pursuit_with_target(%{
-        state: "seeking",
-        status: "seeking",
-        last_attempt_outcome: "download_client_unavailable",
-        last_attempt_at: DateTime.add(DateTime.utc_now(:second), -120, :second)
-      })
+    test "a hand-off that has only just gone down does not fault yet" do
+      report_handoff_down(:usenet, 10)
 
-      create_pursuit_with_target(%{
-        state: "seeking",
-        status: "acquired",
-        acquired_at: DateTime.utc_now(:second)
-      })
-
-      assert IncidentContext.assess() == :ok
-    end
-
-    test "a cancelled target's old failure does not count" do
-      create_pursuit_with_target(%{
-        state: "cancelled",
-        status: "cancelled",
-        last_attempt_outcome: "download_client_unavailable",
-        last_attempt_at: DateTime.utc_now(:second)
-      })
-
-      assert IncidentContext.assess() == :ok
-    end
-
-    test "nothing stamped → :ok" do
       assert IncidentContext.assess() == :ok
     end
 
     test "the acquisition composite surfaces it as the component's condition" do
-      create_pursuit_with_target(%{
-        state: "seeking",
-        status: "seeking",
-        last_attempt_outcome: "download_client_unavailable",
-        last_attempt_at: DateTime.utc_now(:second)
-      })
+      report_handoff_down(:torrent, @grace + 60)
 
       assert {:fault, :download_client_handoff_failed, :warning, _ids} =
                MediaCentaur.Acquisition.IncidentContext.assess()
     end
+  end
+
+  defp report_handoff_down(slot, seconds_ago) do
+    IntegrationAvailability.report({:handoff, slot}, {:down, :client_unavailable},
+      now: DateTime.add(DateTime.utc_now(), -seconds_ago, :second)
+    )
   end
 end
