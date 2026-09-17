@@ -43,9 +43,19 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   `MediaCentaur.IntegrationAvailability` whether the integration it
   needs is up: `:prowlarr` before the search, `{:handoff, protocol}`
   before the grab. A known-down integration holds the work — no
-  request, no attempt, no outcome stamp — and snoozes at
+  request, no attempt — and snoozes at
   `MediaCentaur.Search.ProbeJob.cadence_seconds/0`, so the pursuit
-  resumes within a minute of recovery. An *unconfigured* Prowlarr is
+  resumes within a minute of recovery.
+
+  A hand-off hold is *recorded* on the target
+  (`last_attempt_outcome: "download_client_unavailable"`, next attempt
+  at the cadence, attempt count untouched) because it is per-pursuit:
+  only a release on the broken protocol is held, and a pursuit on the
+  healthy one carries on. The target row is what the Waiting copy
+  reads. The stamp is written once per outage — a standing stamp whose
+  next attempt is still ahead is left alone. A Prowlarr hold is not
+  recorded: it is global, and the status surfaces read availability
+  directly. An *unconfigured* Prowlarr is
   not an outage: nothing can change until Settings do, so that is a
   long snooze instead. The worker reads the two halves separately —
   rather than `IntegrationAvailability.available?/1`, which folds them
@@ -187,18 +197,43 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     end
   end
 
-  # Held: no request, no attempt, no stamp. Ask again at the probe
-  # cadence; a snooze is a database write, free.
+  # Held: no request, no attempt. Ask again at the probe cadence; a
+  # snooze is a database write, free.
   defp hold(%Target{} = target, integration) do
     Log.info(:acquisition, "acquisition held — #{target.title} (#{held_reason(integration)})")
-    {:snooze, ProbeJob.cadence_seconds()}
+    hold_snooze(target, integration)
   end
+
+  # A hand-off hold is recorded on the target: it is per-pursuit, and the
+  # target row is the one representation the status surfaces read. Once
+  # per outage, not once per tick — a standing stamp with its next
+  # attempt still ahead is left alone.
+  defp hold_snooze(%Target{} = target, {:handoff, _slot}) do
+    cadence = ProbeJob.cadence_seconds()
+
+    if handoff_hold_recorded?(target) do
+      {:snooze, cadence}
+    else
+      handle_infrastructure_failure(target, "download_client_unavailable", cadence)
+    end
+  end
+
+  # A Prowlarr hold is global — nothing about this target says it — so
+  # there is nothing to record.
+  defp hold_snooze(%Target{}, :prowlarr), do: {:snooze, ProbeJob.cadence_seconds()}
+
+  defp handoff_hold_recorded?(%Target{
+         last_attempt_outcome: "download_client_unavailable",
+         next_attempt_at: %DateTime{} = next_at
+       }), do: DateTime.after?(next_at, DateTime.utc_now())
+
+  defp handoff_hold_recorded?(%Target{}), do: false
 
   # This line lands in the Status drill-in, so it reads as a sentence
   # rather than a term.
   defp held_reason(:prowlarr), do: "Prowlarr is unreachable"
 
-  defp held_reason({:handoff, slot}), do: "Prowlarr cannot reach the #{slot} download client"
+  defp held_reason({:handoff, slot}), do: "Prowlarr cannot reach your #{slot} download client"
 
   defp search_and_act(%Target{} = target, %Pursuit{} = pursuit, %Unit{} = unit) do
     Log.info(

@@ -435,25 +435,13 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     }
   end
 
-  # What a seeking target is waiting on, for the Waiting copy. A held
-  # pursuit leaves no trace on its target — no request, no attempt, no
-  # stamp — so the view-model has to be told. Prowlarr down outranks a
-  # hand-off (nothing gets as far as a grab), and either slot's hand-off
-  # counts: a seeking target has not chosen a protocol yet.
+  # A Prowlarr hold is global and leaves no trace on any target — no
+  # request, no attempt, no stamp — so the view-model has to be told.
+  # A hand-off hold is per-pursuit and `Jobs.PursueTarget` records it on
+  # the target it holds; the view-model reads that stamp like any other
+  # outcome.
   defp held_integration do
-    cond do
-      not IntegrationAvailability.up?(:prowlarr) ->
-        :prowlarr
-
-      Enum.any?(
-        IntegrationAvailability.handoff_slots(),
-        &(not IntegrationAvailability.up?({:handoff, &1}))
-      ) ->
-        :handoff
-
-      true ->
-        nil
-    end
+    if !IntegrationAvailability.up?(:prowlarr), do: :prowlarr
   end
 
   # The thread the detail modal renders — Units.lead_of/1 is the single

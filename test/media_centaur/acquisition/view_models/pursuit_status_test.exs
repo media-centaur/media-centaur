@@ -135,23 +135,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       assert :cancel in actions
     end
 
-    test "the hand-off down reads as waiting on the download client" do
-      {action, _next_step, _actions} =
-        PursuitStatus.derive(
-          pursuit(:active),
-          unit(),
-          target(:seeking),
-          nil,
-          :none,
-          held: :handoff
-        )
-
-      assert action.verb == "Waiting"
-
-      assert action.description ==
-               "Prowlarr could not reach your download client. Resumes when it can."
-    end
-
     test "nothing held keeps today's copy" do
       {action, _next_step, _actions} =
         PursuitStatus.derive(pursuit(:active), unit(), target(:seeking), nil, :none, held: nil)

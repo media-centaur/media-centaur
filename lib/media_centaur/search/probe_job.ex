@@ -7,8 +7,11 @@ defmodule MediaCentaur.Search.ProbeJob do
   probes — the indexer roster read for `"prowlarr"`,
   `downloadclient/testall` for `"handoff"` — which reports through the
   same observers real requests use, then snoozes at the cadence while
-  still down and completes on up. While up nothing probes: real requests
-  are the evidence. For a blind Prowlarr the snooze waits for Prowlarr's
+  still down and completes on up. A hand-off run also completes when
+  Prowlarr is no longer configured: the probe cannot answer without it,
+  and a job that only ever snoozes would outlive the integration.
+
+  While up nothing probes: real requests are the evidence. For a blind Prowlarr the snooze waits for Prowlarr's
   own `retry_at` when that is later, capped at an hour so a stale time
   never silences probing.
 
@@ -28,6 +31,7 @@ defmodule MediaCentaur.Search.ProbeJob do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.Search.ProwlarrAvailability
@@ -56,14 +60,21 @@ defmodule MediaCentaur.Search.ProbeJob do
 
   def perform(%Oban.Job{args: %{"integration" => "handoff"}}) do
     probe("handoff", fn ->
-      _outcome = ProwlarrAvailability.probe_handoff()
+      # Re-read on every run: a hand-off probe can only ever be
+      # inconclusive once the user removes Prowlarr, so without this the
+      # job would snooze forever with nothing left to answer it.
+      if Capabilities.prowlarr_ready?() do
+        _outcome = ProwlarrAvailability.probe_handoff()
 
-      if Enum.all?(
-           IntegrationAvailability.handoff_slots(),
-           &IntegrationAvailability.up?({:handoff, &1})
-         ),
-         do: :ok,
-         else: {:snooze, @cadence_seconds}
+        if Enum.all?(
+             IntegrationAvailability.handoff_slots(),
+             &IntegrationAvailability.up?({:handoff, &1})
+           ),
+           do: :ok,
+           else: {:snooze, @cadence_seconds}
+      else
+        :ok
+      end
     end)
   end
 

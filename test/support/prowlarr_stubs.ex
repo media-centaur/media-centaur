@@ -38,4 +38,20 @@ defmodule MediaCentaur.ProwlarrStubs do
 
     :ok
   end
+
+  @doc "Removes Prowlarr's URL and API key — what the user does in Settings."
+  @spec mark_unconfigured!() :: :ok
+  def mark_unconfigured! do
+    config = :persistent_term.get({Config, :config})
+
+    :persistent_term.put(
+      {Config, :config},
+      config |> Map.put(:prowlarr_url, nil) |> Map.put(:prowlarr_api_key, nil)
+    )
+
+    Capabilities.refresh_cache()
+    false = Capabilities.prowlarr_ready?()
+
+    :ok
+  end
 end

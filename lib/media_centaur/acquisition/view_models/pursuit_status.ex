@@ -271,12 +271,13 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   in the queue: `:in_review` (the file is sitting in the review queue)
   vs `:none` (no matching file in review or library yet).
 
-  `opts[:held]` is the integration the worker is waiting on — `:prowlarr`
-  or `:handoff`, read from `MediaCentaur.IntegrationAvailability` by the
-  caller. A held pursuit makes no request and charges no attempt, so it
-  leaves no trace on the target: the caller has to say so. For every
-  other case the location and the hold are irrelevant and this delegates
-  to `derive/4`.
+  `opts[:held]` is `:prowlarr` when the worker is holding every pursuit
+  on a down Prowlarr, read from `MediaCentaur.IntegrationAvailability`
+  by the caller: that hold is global and leaves no trace on any target,
+  so the caller has to say so. A hand-off hold is per-pursuit and
+  arrives the ordinary way, as the target's
+  `download_client_unavailable` outcome. For every other case the
+  location and the hold are irrelevant and this delegates to `derive/4`.
   """
   @spec derive(
           Pursuit.t(),
@@ -364,14 +365,11 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   defp outage_description(%Target{next_attempt_at: %DateTime{} = at}),
     do: "Prowlarr could not reach your download client. Next attempt #{Format.relative_in(at)}."
 
-  # Held on a known-down integration: no attempt number and no
-  # countdown, because nothing was spent and the work resumes on
-  # recovery rather than on a timer. Same verb and severity as the
-  # outage copy — to the user it is the same wait.
+  # Held on a down Prowlarr: no attempt number and no countdown, because
+  # nothing was spent and the work resumes on recovery rather than on a
+  # timer. Same verb and severity as the outage copy — to the user it is
+  # the same wait.
   defp held_description(:prowlarr), do: "Prowlarr is unreachable. Resumes when it answers again."
-
-  defp held_description(:handoff),
-    do: "Prowlarr could not reach your download client. Resumes when it can."
 
   defp derive_acquired_in_queue(%QueueItem{state: :downloading} = qi) do
     {
