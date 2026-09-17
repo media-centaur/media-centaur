@@ -230,6 +230,23 @@ defmodule MediaCentaur.Acquisition do
   defdelegate queue_state, to: MediaCentaur.Downloads.QueueMonitor, as: :state
 
   @doc """
+  The download-client condition as the Incoming Heads-up glyph reads it:
+  the worse of the app's own link to the client
+  (`Downloads.IncidentContext`) and Prowlarr's, seen through failed grabs
+  (`Pursuits.IncidentContext`). `:ok` while both are healthy. The same
+  probes the Status page's acquisition incident is built from (ADR-054),
+  read live — the glyph shows a condition while it holds, never a
+  history.
+  """
+  @spec client_health() :: MediaCentaur.Acquisition.IncidentContext.assessment()
+  def client_health do
+    MediaCentaur.Acquisition.IncidentContext.worst([
+      MediaCentaur.Downloads.IncidentContext.assess(),
+      MediaCentaur.Acquisition.Pursuits.IncidentContext.assess()
+    ])
+  end
+
+  @doc """
   Asks the QueueMonitor to poll the download client immediately. Use
   when external state (e.g. a freshly configured download client) means
   the cached snapshot is likely stale and waiting up to 30 s for the

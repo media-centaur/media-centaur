@@ -51,13 +51,14 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
         id: :healthy_renders_nothing,
         description:
           "Healthy system → no glyph at all, not a gray one (silence is the healthy state). This preview is intentionally blank.",
-        attributes: %{drives: [], search_health: health(:ok, enabled_count: 2)}
+        attributes: %{client_health: :ok, drives: [], search_health: health(:ok, enabled_count: 2)}
       },
       %Variation{
         id: :glyph_resting,
         description:
           "A condition exists but the panel isn't open — just the tinted triangle. Hover or focus it to peek; storybook renders the resting state.",
         attributes: %{
+          client_health: :ok,
           drives: [
             drive("/mnt/media", 500, 420, 84)
           ],
@@ -68,6 +69,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
         id: :prowlarr_unreachable,
         description: "Prowlarr API can't be reached — error tone, names the one fix",
         attributes: %{
+          client_health: :ok,
           drives: [],
           search_health: health(:unreachable, reason: :econnrefused),
           open: true
@@ -78,6 +80,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
         description:
           "The only enabled indexer is backing off after failures — searches return empty without asking anyone",
         attributes: %{
+          client_health: :ok,
           drives: [],
           search_health:
             health(:blind,
@@ -92,6 +95,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
         id: :search_blind_many_indexers,
         description: "Every enabled indexer backed off — hour-scale retry",
         attributes: %{
+          client_health: :ok,
           drives: [],
           search_health:
             health(:blind,
@@ -110,6 +114,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
         id: :search_degraded,
         description: "Some indexers backing off, others live — warning tone, searches still run",
         attributes: %{
+          client_health: :ok,
           drives: [],
           search_health:
             health(:degraded,
@@ -124,6 +129,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
         id: :storage_low,
         description: "Two physical disks — one ample, one under 100 GiB free (amber warning)",
         attributes: %{
+          client_health: :ok,
           drives: [
             drive("/mnt/media", 4000, 1200, 30),
             drive("/mnt/media2", 500, 420, 84)
@@ -136,12 +142,59 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
         id: :search_and_storage,
         description: "Both card kinds sharing the grid — search fault leads",
         attributes: %{
+          client_health: :ok,
           drives: [drive("/mnt/media2", 500, 476, 95)],
           search_health:
             health(:blind,
               enabled_count: 1,
               retry_at: @retry_soon,
               backed_off: [%{name: "Indexer A", retry_at: @retry_soon}]
+            ),
+          open: true
+        }
+      },
+      %Variation{
+        id: :client_unreachable,
+        description: "The app can't reach the download client — warning tone, one fix",
+        attributes: %{
+          client_health: {:fault, :download_client_unreachable, :warning, %{}},
+          drives: [],
+          search_health: health(:ok, enabled_count: 2),
+          open: true
+        }
+      },
+      %Variation{
+        id: :client_auth_failed,
+        description: "The download client rejected the credentials — error tone",
+        attributes: %{
+          client_health: {:fault, :download_client_auth_failed, :error, %{}},
+          drives: [],
+          search_health: health(:ok, enabled_count: 2),
+          open: true
+        }
+      },
+      %Variation{
+        id: :handoff_failed,
+        description:
+          "Prowlarr can't hand releases to the download client (its own client entry is wrong) — the app's link is fine, grabs fail",
+        attributes: %{
+          client_health: {:fault, :download_client_handoff_failed, :warning, %{}},
+          drives: [],
+          search_health: health(:ok, enabled_count: 2),
+          open: true
+        }
+      },
+      %Variation{
+        id: :client_and_search,
+        description: "Client card leads the search card — the client is the more directly actionable",
+        attributes: %{
+          client_health: {:fault, :download_client_handoff_failed, :warning, %{}},
+          drives: [],
+          search_health:
+            health(:degraded,
+              enabled_count: 2,
+              retry_at: @retry_later,
+              backed_off: [%{name: "Indexer B", retry_at: @retry_later}]
             ),
           open: true
         }
