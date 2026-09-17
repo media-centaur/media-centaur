@@ -264,6 +264,25 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
       assert reloaded.last_attempt_outcome == "download_client_unavailable"
     end
 
+    test "a 5xx that is not the hand-off exception charges an attempt and snoozes on the ladder" do
+      stub_grab_reply(fn conn ->
+        conn
+        |> Plug.Conn.put_status(500)
+        |> Req.Test.json(%{
+          "description" => "NzbDrone.Core.Exceptions.ReleaseUnavailableException: gone"
+        })
+      end)
+
+      target = seeking_movie_target()
+
+      assert {:snooze, seconds} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      assert seconds == 4 * 60 * 60
+
+      reloaded = MediaCentaur.Repo.reload!(target)
+      assert reloaded.attempt_count == target.attempt_count + 1
+      assert reloaded.last_attempt_outcome == "grab_failed"
+    end
+
     test "a 4xx from grab still charges the release" do
       stub_grab_reply(fn conn ->
         conn |> Plug.Conn.put_status(400) |> Req.Test.json(%{"message" => "guid not found"})
