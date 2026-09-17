@@ -19,7 +19,11 @@ plans; the pursuit retry asks about a pack before giving up. Design:
 
 Design decided 2026-09-17 (six decisions, all recorded in the spec).
 Prerequisite fix shipped in v1.32.1 (`1764bea9`, pursuits read scope
-from their units). No rollout code yet.
+from their units). Step 1 (grab-failure classification) implemented
+2026-09-17, unpushed: a 5xx or transport error from `Prowlarr.grab/1`
+lands `download_client_unavailable`, no attempt charged, 15-minute
+snooze, and the pursuit reads "Waiting — Prowlarr could not reach your
+download client". Steps 2–6 not started.
 
 ## Decisions made
 
@@ -43,9 +47,9 @@ from their units). No rollout code yet.
 
 ## Next steps
 
-1. Grab-failure classification in `Jobs.PursueTarget` + the pursuit
-   status copy. Test-first: a 500 from grab leaves the attempt count
-   unchanged. Independent of the rest; ships first.
+1. ~~Grab-failure classification in `Jobs.PursueTarget` + the pursuit
+   status copy.~~ Done 2026-09-17 (three worker tests, one status test,
+   wiki Troubleshooting entry).
 2. `Plans.SearchOrder` (pure) + `RunPlan` on it; `LadderTerms` →
    `SearchTerms`; `PlanEvents.DescentStatus` → `SearchProgress` with the
    primary/fallback kind; board headline and `GapVerdict` copy;

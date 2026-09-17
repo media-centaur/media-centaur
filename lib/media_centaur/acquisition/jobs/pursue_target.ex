@@ -32,6 +32,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
               ─► (no acceptable result)           ─► snoozed via Oban (exp. backoff)
               ─► (max attempts exceeded)          ─► failed
               ─► (Prowlarr down)                  ─► snoozed 1h, NO bump
+              ─► (download client unreachable)    ─► snoozed 15m, NO bump
 
   Exponential backoff: `min(4 * 2^(attempt - 1), 24)` hours, capped at 24h.
   Default `@max_attempts` is 12 — about a week at the cap.
@@ -80,6 +81,10 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   @max_attempts 12
   @snooze_cap_hours 24
   @prowlarr_error_snooze_seconds 60 * 60
+  # A download client that Prowlarr cannot reach is usually a restart
+  # away; the queue monitor polls it every 10s, so a short snooze costs
+  # nothing and a long one leaves a found release idle for hours.
+  @download_client_snooze_seconds 15 * 60
   @needs_decision_prompt "Pick a release."
 
   @impl Oban.Worker
@@ -348,10 +353,29 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
       {:error, reason} ->
         Log.warning(:acquisition, "acquisition grab failed — #{inspect(reason)}")
-        pursuit = Repo.get(Pursuit, target.pursuit_id)
-        handle_no_results(target, pursuit, "grab_failed")
+
+        if infrastructure_error?(reason) do
+          handle_infrastructure_failure(
+            target,
+            "download_client_unavailable",
+            @download_client_snooze_seconds
+          )
+        else
+          pursuit = Repo.get(Pursuit, target.pursuit_id)
+          handle_no_results(target, pursuit, "grab_failed")
+        end
     end
   end
+
+  # Prowlarr answers a grab it could not forward with a 5xx (its
+  # `DownloadClientUnavailableException` when SABnzbd or qBittorrent is
+  # down); a transport error means Prowlarr itself was unreachable.
+  # Neither says anything about the release. A 4xx (bad guid, indexer
+  # gone) and a result with no indexer id do.
+  defp infrastructure_error?({:http_error, status, _body}) when status >= 500, do: true
+  defp infrastructure_error?({:http_error, _status, _body}), do: false
+  defp infrastructure_error?(:missing_indexer_id), do: false
+  defp infrastructure_error?(_transport_error), do: true
 
   defp handle_needs_decision(target, pursuit, unit) do
     {:ok, _updated} = Repo.update(Target.attempt_changeset(target, "needs_decision"))
@@ -402,15 +426,22 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   defp handle_prowlarr_error(target, reason) do
     Log.warning(:acquisition, "acquisition prowlarr error — #{inspect(reason)}")
+    handle_infrastructure_failure(target, "prowlarr_error", @prowlarr_error_snooze_seconds)
+  end
 
+  # The search or the grab could not reach the infrastructure — Prowlarr
+  # itself, or the download client behind it. Recorded on the target for
+  # the status line and snoozed without charging an attempt: the release
+  # is fine, and the next attempt re-picks it from the corpus.
+  defp handle_infrastructure_failure(target, outcome, snooze_seconds) do
     {:ok, updated} =
       target
-      |> Target.infrastructure_failure_changeset("prowlarr_error")
+      |> Target.infrastructure_failure_changeset(outcome)
       |> Repo.update()
 
-    {:ok, scheduled} = persist_next_attempt(updated, @prowlarr_error_snooze_seconds)
+    {:ok, scheduled} = persist_next_attempt(updated, snooze_seconds)
     broadcast(%TargetEvents.Snoozed{target: scheduled})
-    {:snooze, @prowlarr_error_snooze_seconds}
+    {:snooze, snooze_seconds}
   end
 
   # Denormalises Oban's `scheduled_at` onto the target row so the read

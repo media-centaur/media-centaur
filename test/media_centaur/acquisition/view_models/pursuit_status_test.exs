@@ -88,6 +88,32 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
       assert action.description == "Next attempt in 2h 15m (attempt 4)."
     end
+
+    test "names the outage when the last grab could not reach the download client" do
+      future = DateTime.add(DateTime.utc_now(), 15 * 60, :second)
+
+      {action, next, actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          unit(),
+          target(:seeking, %{
+            attempt_count: 0,
+            next_attempt_at: future,
+            last_attempt_outcome: "download_client_unavailable"
+          }),
+          nil
+        )
+
+      assert action.verb == "Waiting"
+      assert action.severity == :warning
+      assert action.description == "Prowlarr could not reach your download client. Next attempt in 15m."
+
+      assert next.description ==
+               "Check that the download client is running. The same release will be retried."
+
+      assert :cancel in actions
+      assert :request_decision in actions
+    end
   end
 
   describe "derive/3 — active + acquired + queue states" do
