@@ -225,6 +225,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          forecast_reload_timer: nil,
          storage_drives: [],
          search_health: IndexerHealth.cached(),
+         client_health: Acquisition.client_health(),
          search_session: %SearchSession{},
          active_queue: [],
          queue_connectivity: :initializing,
@@ -937,9 +938,10 @@ defmodule MediaCentaurWeb.IncomingLive do
                   the zone-tabs nav zone so left/right reaches it from
                   the couch. --%>
             <NeedsAttention.needs_attention
-              :if={NeedsAttention.visible?(@storage_mode, @search_health)}
+              :if={NeedsAttention.visible?(@storage_mode, @search_health, @client_health)}
               drives={if(@storage_mode == :card, do: @storage_drives, else: [])}
               search_health={@search_health}
+              client_health={@client_health}
             />
           </div>
 
@@ -2003,9 +2005,14 @@ defmodule MediaCentaurWeb.IncomingLive do
     # download progress updates from the same snapshot the queue zone
     # is rendering — and without the DB reads a full `Pursuits.status_from/2`
     # rebuild would cost on every tick.
+    # The client condition rides the same tick: the app's link is graded
+    # in this very snapshot, and Prowlarr's link changes only as the
+    # retry loop stamps targets, which a 10s cadence follows closely
+    # enough.
     socket =
       socket
       |> assign_queue_from_state(state)
+      |> assign(client_health: Acquisition.client_health())
       |> refresh_pursuit_status_if_open(state.items)
 
     {:noreply, socket}

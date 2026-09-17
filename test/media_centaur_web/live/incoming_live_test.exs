@@ -83,6 +83,21 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "mount" do
+    test "the Heads-up glyph names a failing Prowlarr hand-off", %{conn: conn} do
+      # The stamp the retry loop leaves when Prowlarr answers a grab with
+      # "cannot reach the download client" (spec 2026-09-17 decision 5).
+      create_pursuit_with_target(%{
+        state: "seeking",
+        status: "seeking",
+        last_attempt_outcome: "download_client_unavailable",
+        last_attempt_at: DateTime.utc_now(:second)
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      assert has_element?(view, "#needs-attention-client", "Prowlarr can't hand releases")
+    end
+
     # UIDR-015: capability gating moved from route-level (redirect) to
     # render-level. The page must MOUNT without Prowlarr and degrade to the
     # honest forecast — hero omnibox reframed to tracking, no acquisition

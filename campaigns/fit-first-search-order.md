@@ -35,7 +35,14 @@ tracking item → drop plans get fit gating) implemented 2026-09-17,
 unpushed, with an additive migration. Step 4 (the pursuit side searches
 like the plan side: one term builder, coverage-filtered decision card
 with pack alternatives, pre-exhaust pack decision) implemented
-2026-09-17, unpushed. Steps 5–6 not started.
+2026-09-17, unpushed. Step 5 (a Status warning and an Incoming glyph
+card while Prowlarr cannot hand releases to the client, plus the app's
+own client faults on the glyph) implemented 2026-09-17, unpushed. Wiki
+pages committed locally alongside each step, unpushed until the app
+ships. Nothing left but review and ship; one known history wrinkle:
+`51dc5303` swept up two staged deletions from the parallel step 4 work
+and does not compile alone (`1afcb814` restores the callers) — nothing
+is pushed, so it can be left or reordered before the push.
 
 ## Decisions made
 
@@ -56,6 +63,20 @@ with pack alternatives, pre-exhaust pack decision) implemented
 * `2026-09-17` — Plain names: scope, search order, primary, fallback.
   "Rung", "ladder", "descent" leave the code as their modules are
   touched. (spec decision 6)
+* `2026-09-17` — Correction to decision 3: the tracking calendar holds
+  only post-library episodes, so season sizes are recorded on the
+  tracking item by the refresher from the TMDB responses it already
+  fetches; no fetch in the plan-creating path. (spec decision 3, as
+  corrected; commit `d252a5a7`)
+* `2026-09-17` — A tracking draft that found nothing but offers a pack
+  stays `ready` on the board for a person, whatever the planning mode;
+  one with nothing to offer is still deleted. Owner chose this over
+  "tracking stays singles-only". (spec decision 7; commit `51dc5303`)
+* `2026-09-17` — The Incoming Heads-up glyph shows download-client
+  faults (unreachable, credentials rejected, Prowlarr can't hand over)
+  next to search health and storage; a Status warning opens while grabs
+  keep failing the hand-off. Owner did not object when told. (commits
+  `34ec6dfa` and the glyph commit)
 
 ## Next steps
 
@@ -103,8 +124,17 @@ with pack alternatives, pre-exhaust pack decision) implemented
    episode. Picking it downloads the whole pack." instead of failing;
    the card repeats the worker's prompt). Movies and typed queries on
    the card are unchanged.
-5. Check what Status shows while a download client is unreachable; add
-   a Needs-attention item if nothing does.
+5. ~~Check what Status shows while a download client is unreachable; add
+   a Needs-attention item if nothing does.~~ Done 2026-09-17. Status
+   already owned the app's own link (`Downloads.IncidentContext`, three
+   minutes' grace, plus an error on rejected credentials). Added
+   `Pursuits.IncidentContext` for the link the app cannot see — Prowlarr
+   to the client — read off the `download_client_unavailable` stamps
+   from step 1 (warning while the latest word is a failure; clears on
+   the next successful grab or 30 minutes after the last failed retry),
+   composed into the acquisition assessor, and the Incoming Heads-up
+   glyph now carries all three client faults with the search and
+   storage cards.
 6. Wiki: Searching-and-Downloading (search order), Troubleshooting
    (download client unreachable), Settings-Reference if "Season packs"
    copy changes.

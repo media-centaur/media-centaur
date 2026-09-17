@@ -13,6 +13,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
 
   Panel content, worst-first:
 
+    * **Download client** (`Acquisition.client_health/0`) — the app
+      can't reach it or it rejected the credentials
+      (`Downloads.IncidentContext`), or Prowlarr can't hand releases to
+      it (`Pursuits.IncidentContext`, seen through failed grabs).
     * **Search health** (`Search.IndexerHealth`) — Prowlarr unreachable
       or every enabled indexer backed off (error tone), some indexers
       backed off (warning tone).
@@ -34,11 +38,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
 
   @doc """
   Whether the glyph renders at all — storage escalated past its calm
-  foot line, or search health warrants attention. Silence is the
-  healthy state: absent, not a gray glyph.
+  foot line, search health warrants attention, or a download client is
+  in trouble. Silence is the healthy state: absent, not a gray glyph.
   """
-  def visible?(storage_mode, search_health) do
-    storage_mode == :card or IndexerHealth.problem?(search_health)
+  def visible?(storage_mode, search_health, client_health) do
+    storage_mode == :card or IndexerHealth.problem?(search_health) or client_health != :ok
   end
 
   attr :drives, :list,
@@ -51,24 +55,31 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
     doc:
       "`MediaCentaur.Search.IndexerHealth.t()` or `nil` — the latest search-capability observation. Renders a row only for `:unreachable`, `:blind`, and `:degraded`."
 
+  attr :client_health, :any,
+    required: true,
+    doc:
+      "`Acquisition.client_health/0` — `:ok`, or `{:fault, kind, severity, ids}` for a download client the app can't reach, one that rejected the credentials, or one Prowlarr can't hand releases to. Renders a row for any fault."
+
   attr :open, :boolean,
     default: false,
     doc:
       "Initial pinned state — hover/focus reveal the panel transiently either way; click toggles the pin. True mainly for the storybook state matrix."
 
   def needs_attention(assigns) do
+    client_card = client_card(assigns.client_health)
     search_card = search_card(assigns.search_health, DateTime.utc_now(:second))
     rows = DownloadStorage.rows(assigns.drives)
 
     assigns =
       assigns
+      |> assign(:client_card, client_card)
       |> assign(:search_card, search_card)
       |> assign(:rows, rows)
-      |> assign(:worst_class, worst_class(search_card, rows))
+      |> assign(:worst_class, worst_class([client_card, search_card], rows))
 
     ~H"""
     <div
-      :if={@search_card || @rows != []}
+      :if={@client_card || @search_card || @rows != []}
       id="heads-up"
       class="group relative"
       data-component="heads-up-glyph"
@@ -91,6 +102,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
             hide this from the couch), and while pinned. --%>
       <div class="pointer-events-none absolute left-1/2 top-full z-40 mt-2 w-96 max-w-[85vw] -translate-x-1/2 opacity-0 transition-opacity duration-150 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 group-data-[pinned]:pointer-events-auto group-data-[pinned]:opacity-100">
         <div class="glass-surface space-y-3 rounded-xl p-4 text-left">
+          <div :if={@client_card} id="needs-attention-client" class="space-y-1">
+            <div class="flex items-center gap-1.5 text-sm">
+              <.icon
+                name="hero-exclamation-triangle-mini"
+                class={"size-4 shrink-0 #{@client_card.text_class}"}
+              />
+              <span class={@client_card.text_class}>{@client_card.title}</span>
+            </div>
+            <p class="text-xs text-base-content/60">{@client_card.detail}</p>
+          </div>
           <div :if={@search_card} id="needs-attention-search" class="space-y-1">
             <div class="flex items-center gap-1.5 text-sm">
               <.icon
@@ -127,13 +148,50 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
   # The glyph wears the worst condition's tone: any error outranks
   # warnings; the glyph never renders for all-healthy, so warning is
   # the floor.
-  defp worst_class(search_card, rows) do
+  defp worst_class(cards, rows) do
     error? =
-      (search_card != nil and search_card.severity == :error) or
+      Enum.any?(cards, &(&1 != nil and &1.severity == :error)) or
         Enum.any?(rows, &(&1.severity == :error))
 
     if error?, do: "text-error", else: "text-warning"
   end
+
+  @doc """
+  Panel copy for a download-client fault, or `nil` when the client needs
+  no card. The kinds are the ones `Acquisition.client_health/0` can
+  report. Pure.
+  """
+  def client_card({:fault, :download_client_auth_failed, _severity, _ids}) do
+    %{
+      title: "Download client rejected the credentials",
+      detail:
+        "Nothing can be queued until it accepts them. Check the credentials under Settings → Acquisition.",
+      text_class: "text-error",
+      severity: :error
+    }
+  end
+
+  def client_card({:fault, :download_client_unreachable, _severity, _ids}) do
+    %{
+      title: "Can't reach the download client",
+      detail:
+        "Downloads don't start and progress isn't read until it's reachable. Check that it's running.",
+      text_class: "text-warning",
+      severity: :warning
+    }
+  end
+
+  def client_card({:fault, :download_client_handoff_failed, _severity, _ids}) do
+    %{
+      title: "Prowlarr can't hand releases to the download client",
+      detail:
+        "Grabs fail; each release is kept and retried every 15 minutes. Check Prowlarr's own client entry under Settings → Download Clients → Test.",
+      text_class: "text-warning",
+      severity: :warning
+    }
+  end
+
+  def client_card(_healthy), do: nil
 
   @doc """
   Panel copy for a search-capability fault, or `nil` when search health
