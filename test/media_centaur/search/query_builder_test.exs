@@ -248,4 +248,34 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
              ]
     end
   end
+
+  describe "fallback/1 — the wider queries that can only offer a pack" do
+    test "a TV episode widens to its season's terms, then the series, narrowest first" do
+      criteria = %Criteria{
+        type: :tmdb,
+        tmdb_type: :tv,
+        title: "Sample Show",
+        season_number: 3,
+        episode_number: 4
+      }
+
+      assert QueryBuilder.fallback(criteria) == [
+               {"Sample Show Season 3", [categories: :tv]},
+               {"Sample Show S03", [categories: :tv]},
+               {"Sample Show", [categories: :tv]}
+             ]
+    end
+
+    test "a season, a series, a movie and a user-typed query have nothing wider to offer" do
+      season = %Criteria{type: :tmdb, tmdb_type: :tv, title: "Sample Show", season_number: 3}
+      series = %Criteria{type: :tmdb, tmdb_type: :tv, title: "Sample Show"}
+      movie = %Criteria{type: :tmdb, tmdb_type: :movie, title: "Sample Movie", year: 2010}
+      typed = %Criteria{type: :prowlarr_query, title: "typed", manual_query: "Sample Show S03E04"}
+
+      assert QueryBuilder.fallback(season) == []
+      assert QueryBuilder.fallback(series) == []
+      assert QueryBuilder.fallback(movie) == []
+      assert QueryBuilder.fallback(typed) == []
+    end
+  end
 end

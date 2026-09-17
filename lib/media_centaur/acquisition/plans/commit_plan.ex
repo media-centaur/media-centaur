@@ -33,7 +33,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
   alias MediaCentaur.Acquisition.PlanEvents
-  alias MediaCentaur.Acquisition.Plans.{Claims, SearchTerms, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{Claims, Plan, PlanUnit, SearchOrder}
   alias MediaCentaur.Acquisition.Pursuits.Commands.Start
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.ReleasePicked
@@ -161,7 +161,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   # size and protocol. The denormalized assignment fields are the fallback
   # when the candidate aged out of retention between ready and approve.
   defp rehydrate(%Plan{} = plan, %PlanUnit{} = unit) do
-    opts = SearchTerms.search_opts(plan)
+    opts = SearchOrder.search_opts(plan)
 
     corpus_hit =
       case unit.assigned_term do
