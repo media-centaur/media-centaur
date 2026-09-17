@@ -21,13 +21,12 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`fit-first-search-order.md`](fit-first-search-order.md) —
-  **in progress 2026-09-17; design decided, no rollout code yet.** A TV
-  plan searches the scope that fits its want first (one episode starts
-  at the episode term) and widens only to offer packs; a grab that fails
-  because the download client is unreachable stops counting as a bad
-  release; tracking-born plans get fit gating; the pursuit retry asks
-  about a pack before giving up. Six decisions recorded in the spec.
+* [`recurring-traffic-audit.md`](recurring-traffic-audit.md) —
+  **planning 2026-09-17.** Every poll, retry, refresh and scheduled tick
+  the app makes on its own, measured healthy and in outage, and given
+  logic that fits: back-off to a cap, a circuit per dependency, recovery
+  wakes, coalescing. First case: a pursuit retrying a doomed grab every
+  15 minutes while Prowlarr cannot reach the download client.
 
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
