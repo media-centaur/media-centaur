@@ -37,15 +37,7 @@ defmodule MediaCentaur.Pipeline.ImageQueue do
     Repo.all(from(e in ImageQueueEntry, where: e.status in ["pending", "failed"]))
   end
 
-  @doc "Updates entry status to the given value."
-  def update_status(entry, status) when is_atom(status) do
-    Repo.update(ImageQueueEntry.status_changeset(entry, to_string(status)))
-  end
-
-  @doc """
-  Batch-updates multiple entries to the given status in a single query.
-  Use instead of `update_status/2` when operating on a Broadway batch.
-  """
+  @doc "Updates every given entry to `status` in a single query."
   def update_statuses([], _status), do: {0, nil}
 
   def update_statuses(entries, status) when is_atom(status) do
@@ -57,14 +49,9 @@ defmodule MediaCentaur.Pipeline.ImageQueue do
     )
   end
 
-  @doc "Marks entry as failed and increments retry_count."
-  def mark_failed(entry) do
-    Repo.update(ImageQueueEntry.fail_changeset(entry))
-  end
-
   @doc """
-  Batch-marks multiple entries as failed (status="failed", retry_count+1)
-  in a single query. Use instead of `mark_failed/1` on a Broadway batch.
+  Marks every given entry failed (status="failed", retry_count+1) in a
+  single query.
   """
   def mark_failed_batch([]), do: {0, nil}
 
@@ -78,15 +65,9 @@ defmodule MediaCentaur.Pipeline.ImageQueue do
     )
   end
 
-  @doc "Resets entry status to pending (for retry)."
-  def reset_to_pending(entry) do
-    Repo.update(ImageQueueEntry.reset_changeset(entry))
-  end
-
   @doc """
-  `reset_to_pending/1` for a batch, in one statement. Stamps `updated_at`
-  the way the per-row update does — the retry scheduler measures backoff
-  from it.
+  Returns every given entry to `pending` in one statement, stamping
+  `updated_at` — the retry scheduler measures backoff from it.
   """
   @spec reset_to_pending_all([ImageQueueEntry.t()]) :: {non_neg_integer(), nil}
   def reset_to_pending_all([]), do: {0, nil}

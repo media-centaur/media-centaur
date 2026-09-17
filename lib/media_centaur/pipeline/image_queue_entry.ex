@@ -38,16 +38,4 @@ defmodule MediaCentaur.Pipeline.ImageQueueEntry do
     |> validate_inclusion(:status, ~w(pending failed complete permanent))
     |> unique_constraint([:owner_id, :role])
   end
-
-  def status_changeset(entry, status) do
-    change(entry, status: status)
-  end
-
-  def fail_changeset(entry) do
-    change(entry, status: "failed", retry_count: entry.retry_count + 1)
-  end
-
-  def reset_changeset(entry) do
-    change(entry, status: "pending")
-  end
 end

@@ -3,6 +3,8 @@ defmodule MediaCentaur.Pipeline.Image.RetrySchedulerTest do
 
   alias MediaCentaur.Pipeline.Image.RetryScheduler
   alias MediaCentaur.Pipeline.ImageQueue
+  alias MediaCentaur.Pipeline.ImageQueueEntry
+  alias MediaCentaur.Repo
 
   @media_directory "/tmp/retry_test"
 
@@ -22,8 +24,8 @@ defmodule MediaCentaur.Pipeline.Image.RetrySchedulerTest do
 
       # Simulate 5 failures by marking as failed with incremented retry_count
       Enum.reduce(1..5, entry, fn _i, current ->
-        {:ok, updated} = ImageQueue.mark_failed(current)
-        updated
+        {1, _} = ImageQueue.mark_failed_batch([current])
+        Repo.get!(ImageQueueEntry, current.id)
       end)
 
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_destroy)
@@ -52,7 +54,8 @@ defmodule MediaCentaur.Pipeline.Image.RetrySchedulerTest do
         })
 
       # Mark as failed once (retry_count = 1)
-      {:ok, failed_entry} = ImageQueue.mark_failed(entry)
+      {1, _} = ImageQueue.mark_failed_batch([entry])
+      failed_entry = Repo.get!(ImageQueueEntry, entry.id)
       assert failed_entry.status == "failed"
       assert failed_entry.retry_count == 1
 

@@ -69,7 +69,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
           media_dir: @media_directory
         })
 
-      ImageQueue.update_status(entry, :complete)
+      ImageQueue.update_statuses([entry], :complete)
 
       work_items = Image.Producer.build_work_items(entity_id)
 
