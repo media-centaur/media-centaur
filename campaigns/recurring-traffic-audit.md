@@ -42,15 +42,25 @@ what it does during an outage, and gives each one logic that fits.
   of the next scheduled poll.
 - **Watched cadence** — the queue monitor's faster poll (10 s) while at
   least one LiveView subscribes to it; **idle cadence** is 30 s.
+- **Metered dependency** — one that counts requests against a limit, or
+  escalates a back-off when hit repeatedly: TMDB and its image CDN,
+  Prowlarr's live searches and grabs (the indexers behind them), GitHub,
+  Nostr relays.
+- **Free dependency** — one that does neither: the download clients on
+  the LAN, answered in under a millisecond. Its only cost is log noise.
+- **Probe** — a free request whose only purpose is to learn whether a
+  dependency can do the job, so that no metered request is spent to
+  learn it.
 
 ## Status
 
-Measured, 2026-09-17 evening. The inventory below is verified against
-the code (constants cited) and against one day of observation: the dev
-node's log ring, the day's systemd journal (seven boots, one real
-download-client outage 16:47–16:56 CEST, and the hand-off outage that
-is still open), and the Connections tile. The shape of the fix is not
-chosen yet — see *Decisions to make*. No code written.
+Measured and shape decided, 2026-09-17 evening. The inventory below is
+verified against the code (constants cited) and against one day of
+observation: the dev node's log ring, the day's systemd journal (seven
+boots, one real download-client outage 16:47–16:56 CEST, and the
+hand-off outage, fixed in the stack at 20:18 CEST), and the Connections
+tile. Owner walk-through of the remaining items in progress — see
+*Open items*. No code written.
 
 Opened at the close of `fit-first-search-order` (its spec:
 `docs/superpowers/specs/2026-09-17-planning-descent-design.md`).
@@ -132,6 +142,22 @@ What each source did in an outage, observed:
   backed-off indexer make the back-off worse (memory:
   `reference-prowlarr-search-api-facts`).
 
+## Cost classes
+
+The principle (owner, 2026-09-17): treat each source by what a request
+**costs**, not by how often it runs. A poll against a free dependency is
+fine at any cadence, in outage too. A request against a metered one is
+never spent to learn what a probe could tell.
+
+| Dependency | Class | Consequence for the audit |
+|---|---|---|
+| Download clients on the LAN | free | Polling stays as it is, outage included. Only the noise is fixed: two warnings per poll, and SABnzbd's 403 graded "unreachable" instead of "check your key". |
+| Prowlarr live searches | metered, × indexer count | Every live search in an outage burns indexer quota and deepens Prowlarr's persistent back-off. The corpus already makes repeats free for 30 min. |
+| Prowlarr grabs | metered (to verify) | Prowlarr fetches the NZB from the indexer before it talks to the client; if so, every doomed grab today also spent an indexer download. |
+| TMDB and image CDN | metered | The 6 h reload of every tracked title is the deferred caching campaign's question. Here it only needs to hold during a TMDB outage. |
+| GitHub | metered, small | 60/h unauthenticated; a failed check retrying every 15 min is within budget. |
+| Nostr relays | metered | Already backed off exponentially. Nothing to do. |
+
 ## Inventory
 
 Verified against the code 2026-09-17. "Local only" rows were checked
@@ -167,10 +193,15 @@ up to 18 simultaneous outbound requests when three jobs search at once
 1. **Back-off on failure, capped.** A retry loop whose last answer was
    an outage waits longer each time, to a cap, and never charges the
    patience budget for it.
-2. **A circuit per dependency.** While a dependency is known down —
-   the queue monitor already grades the client links; the hand-off
-   probe (`Pursuits.IncidentContext`) now knows Prowlarr's — work that
-   needs it is held, not attempted. One switch, not N snoozes.
+2. **A circuit per metered dependency, fed by free probes.** While a
+   dependency is known down, work that needs it is held, not attempted.
+   The probes are free requests: the queue monitor's poll for a client
+   link, Prowlarr's own download-client test call for the hand-off
+   (it reaches the client from inside Prowlarr's network without
+   touching an indexer — the app's own client poll cannot answer this,
+   since on 2026-09-17 the app reached SABnzbd while Prowlarr could
+   not), the indexer roster read for Prowlarr itself. One switch, not
+   N snoozes.
 3. **Recovery wakes the work.** The first successful poll or grab
    re-schedules whatever the circuit held, so recovery is not paid for
    with a 15-minute wait.
@@ -187,6 +218,49 @@ up to 18 simultaneous outbound requests when three jobs search at once
   (evaluator and its assessors, pursuits watcher, cache workers, Status
   vitals, HTTP cache sweep, retention sweeps) are out of scope; verified
   local-only and kept in the table so they are not re-audited.
+* `2026-09-17` (evening, owner) — **Cost, not cadence, decides the
+  treatment.** Sources are classed metered or free (glossary, *Cost
+  classes*). Free dependencies keep polling at today's cadence and get
+  quieter logs; metered ones get the circuit.
+* `2026-09-17` (evening, owner) — **Shape: a circuit per metered
+  dependency, opened and closed by free probes, with held work resumed
+  on the first good probe.** Per-source back-off is rejected as the
+  primary mechanism (N pursuits would still probe N times, the
+  plan-then-pursuit double grab would survive, recovery would wait for
+  each countdown). The circuit is a value the graders publish, not a
+  process.
+* `2026-09-17` (evening, owner) — Both scope calls confirmed: local-only
+  sources are out (kept in the table so they are not re-audited); the
+  TMDB refresh policy stays with its own campaign. And: while designing
+  and building the circuit, **flesh out the outbound-traffic slice in
+  whatever way it needs to mature properly** — the outbound HTTP seam,
+  the graders, the Connections tile — not the minimum patch.
+* `2026-09-17` (evening, owner) — Of the four defects: **1 (SABnzbd 403
+  → `:auth_failed`) and 3 (the doubled alternatives fetch) land now**,
+  test-first, independent of the circuit. **2 (the plan-then-pursuit
+  double grab) and 4 (Prowlarr re-probed every 30 s) fold into the
+  circuit work** — 2 because the circuit removes it structurally and a
+  standalone patch would be a symptom cover; 4 because those reads go
+  to Prowlarr itself, not to an indexer, so they are free, and they
+  become the circuit's probe.
+* `2026-09-17` (evening, owner) — **Rollout order, by metered waste:**
+  (1) pursuit retries during a hand-off outage — the hand-off circuit,
+  probed by Prowlarr's download-client test call; (2) release-tracking
+  re-planning through a dead Prowlarr — the Prowlarr circuit, probed by
+  the indexer roster read, absorbing defect 4; (3) TMDB — refresher and
+  artwork warm hold during an outage; (4) GitHub and relays — confirm
+  only; (5) download-client log noise — one line at onset and one at
+  recovery, last because it costs nothing.
+* `2026-09-17` (evening, owner) — **No further outage simulations
+  before the design.** TMDB is measured after the hold lands, as
+  verification; the relay case is dropped (already mature). The two
+  Prowlarr facts under *Open items* are verified before the spec.
+* `2026-09-17` (evening, owner) — **Wiki rides each rollout step**, in
+  the same commit series: Troubleshooting gets one entry per dependency
+  saying what the app does while it is down and when it resumes; the
+  Using Media Centaur page changes only if the circuit surfaces in the
+  UI (the pursuit's Waiting state, the Downloads tile). Language terse
+  and informative — nothing is being sold.
 * `2026-09-17` (evening) — The tracking refresher's `reload: true`
   policy (re-read every item every 6 h whether or not anything could
   have changed) is the deferred TMDB-caching campaign's question
@@ -194,28 +268,21 @@ up to 18 simultaneous outbound requests when three jobs search at once
   This audit gives that cycle outage behaviour only — hold while TMDB
   is down, resume on recovery — not a new refresh policy.
 
-## Decisions to make
+## Open items (owner walk-through, 2026-09-17)
 
-**Shape.** Two candidates; the measurements favour the second.
+1. ~~Shape~~ — decided, above.
+2. ~~Scope calls~~ — confirmed, above.
+3. ~~The four concrete defects~~ — decided, above: 1 and 3 now, 2 and 4
+   with the circuit.
+4. ~~Rollout order~~ — decided, above.
+5. ~~Remaining measurements~~ — decided, above: none before the design.
+6. ~~Wiki~~ — decided, above: rides each step.
 
-1. *Per-source back-off.* Each loop grows its own snooze
-   (15 → 30 → 60 min, cap) on consecutive outage answers. Cheap, local,
-   but N pursuits still probe N times per step, the plan-then-pursuit
-   double grab stays, and recovery costs the current step's wait.
-2. *A dependency circuit fed by the graders that exist.* One switch per
-   dependency — `Downloads.Connectivity` for each client link,
-   `Pursuits.IncidentContext` for the hand-off, `IndexerHealth` for
-   Prowlarr — that outbound callers consult before sending. Held work is
-   re-enqueued by the first success on that dependency (the queue
-   monitor's next good poll, the first good grab). The queue monitor
-   itself becomes the probe for client links, backing off to a cap while
-   open and returning to cadence on the first success. Fixes every
-   Prowlarr-side row with one mechanism and makes the double grab
-   impossible (the second call finds the circuit open).
-
-Open with the owner: whether the circuit is a value the graders publish
-(a read on `persistent_term`, no process) or a process — the Iron Law
-says a value, since the graders already own the state.
+Facts to verify before the design spec: (a) whether a grab that fails
+on the hand-off has already spent an indexer download (Prowlarr's
+history will show it); (b) that Prowlarr's download-client test call is
+reachable through the app's Prowlarr client and answers the hand-off
+question without an indexer request.
 
 ## Concrete defects found (fix regardless of shape)
 
@@ -233,19 +300,18 @@ says a value, since the graders already own the state.
 
 ## Next steps
 
-1. ~~Measure~~ — done 2026-09-17; the numbers above. What is still
-   unmeasured: a TMDB outage (block the API and CDN, watch the
-   refresher and artwork warm) and a Nostr relay outage (expected fine).
-2. Decide the shape with the owner (*Decisions to make*). Then write the
-   design as a spec under `docs/superpowers/specs/`, with the glossary
-   here promoted to it.
-3. Apply to the pursuit retry first (the live case), then the queue
-   monitor against a dead client, then the drop planner and Incoming's
-   probe loop, then the rest by measured rate.
-4. Fix the four concrete defects; 1 and 3 are independent of the shape
-   and can land first.
-5. Wiki: Troubleshooting's outage entries say what the app does while a
-   dependency is down and when it resumes.
+1. ~~Measure~~ — done 2026-09-17; the numbers above. A TMDB outage is
+   measured after the TMDB hold lands, as its verification.
+2. ~~Decide the shape~~ — decided 2026-09-17. Verify the two facts
+   under *Open items*, then write the design as a spec under
+   `docs/superpowers/specs/`, with the glossary here promoted to it.
+3. Apply in the decided order: hand-off circuit (pursuit retries),
+   Prowlarr circuit (release-tracking re-planning, corpus probe,
+   Incoming loop), TMDB hold, GitHub and relays confirmed, client log
+   noise last.
+4. Fix defects 1 and 3 now, test-first; 2 and 4 ride the circuit.
+5. Wiki, per step: Troubleshooting's outage entry for that dependency
+   says what the app does while it is down and when it resumes. Terse.
 
 ## Completion criteria
 
