@@ -22,17 +22,20 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`dead-code-detection.md`](dead-code-detection.md) —
-  **in progress 2026-09-17.** Nothing in the toolchain saw a `def` with no
-  callers — `--warnings-as-errors` catches private functions, `boundaries`
-  catches illegal edges, but a public function whose last caller was deleted
-  was invisible in both Elixir and JS. **JS is gated**: a dependency-cruiser
-  reachability rule from `app.js` (`no-orphans` was measured and does nothing —
-  every module is imported by its own test). **Elixir has the tool but is not
-  gated yet**: `mix_unused` behind `MC_UNUSED=1`, 363 raw hints and 25
-  candidates left, down from 1317 unconfigured. Four groups worked, 19
-  functions deleted, and two candidates turned out to be features missing
-  their control and were wired instead. Of ~51 examined, 19 were deletable —
-  read the campaign's **START HERE** section before dispositioning anything.
+  **in progress 2026-09-17; one decision open.** Nothing in the toolchain saw a
+  `def` with no callers — `--warnings-as-errors` catches private functions,
+  `boundaries` catches illegal edges, but a public function whose last caller
+  was deleted was invisible in both Elixir and JS. **JS is gated**: a
+  dependency-cruiser reachability rule from `app.js` (`no-orphans` was measured
+  and does nothing — every module is imported by its own test). **Elixir has the
+  tool but cannot gate yet**, and the blocker is no longer the candidate list:
+  `mix_unused` cannot see through a default argument, so 40 of its 338 hints
+  sit on live code. Three ways out are written down with their costs; the
+  choice is a completion criterion. The named candidate list is worked through
+  — 36 functions deleted, three features wired rather than deleted (the last
+  being a Status readout showing Discovery's slot count for the two stages
+  Import owns), three behaviours declared. Read the campaign's **START HERE**
+  section before dispositioning anything.
 
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
