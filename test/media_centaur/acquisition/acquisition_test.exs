@@ -158,6 +158,36 @@ defmodule MediaCentaur.AcquisitionTest do
       refute Map.has_key?(result, {"999", "movie", nil, nil})
     end
 
+    test "keys a plan-born pursuit by its unit's episode, and an active pursuit outranks a cancelled one" do
+      identity =
+        MediaCentaur.TMDB.TitleIdentity.new(%{tmdb_type: :tv, tmdb_id: "300", title: "Sample Show"})
+
+      start = fn ->
+        {:ok, pursuit} =
+          MediaCentaur.Acquisition.Pursuits.Commands.Start.execute(%{
+            recipe_type: "tmdb",
+            identity: identity,
+            origin: "manual",
+            units: [%{season_number: 2, episode_number: 5, label: "S02E05"}]
+          })
+
+        pursuit
+      end
+
+      # The active pursuit is inserted first so a "last row wins" merge
+      # would wrongly surface the cancelled one.
+      active = start.()
+      active_unit = Units.single!(active.id)
+      target = create_covering_target(active, [active_unit])
+      _cancelled = force_state(start.(), "cancelled")
+
+      result = Acquisition.statuses_for_releases([{"300", "tv", 2, 5}])
+
+      assert {%Pursuit{id: pursuit_id}, %Target{id: target_id}} = result[{"300", "tv", 2, 5}]
+      assert pursuit_id == active.id
+      assert target_id == target.id
+    end
+
     test "returns an empty map for an empty input list (no DB query)" do
       assert Acquisition.statuses_for_releases([]) == %{}
     end

@@ -99,89 +99,97 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> Enum.reduce(%{}, fn {pid, title}, acc -> Map.put_new(acc, pid, title) end)
   end
 
-  @typedoc "TMDB release identity: `{tmdb_id, tmdb_type, season_number, episode_number}`."
+  @typedoc """
+  TMDB release identity: `{tmdb_id, tmdb_type, season_number,
+  episode_number}`. The title half names the pursuit; the scope half
+  names one of its units (ADR-055 — a pursuit row carries no scope of
+  its own).
+  """
   @type release_key :: {String.t(), String.t(), integer() | nil, integer() | nil}
 
   @doc """
   Batch lookup: given a list of `(tmdb_id, tmdb_type, season_number,
   episode_number)` keys, returns a map keyed by the same tuple →
-  `{pursuit, current_target | nil}`.
+  `{pursuit, that unit's current target | nil}`.
 
-  Used by the upcoming-zone renderer to decorate each release card with
-  its acquisition status without N+1ing the DB.
+  A key can match several pursuits — an active one and the cancelled
+  attempts before it. An active pursuit wins; among the rest, the most
+  recently updated. Used by the upcoming-zone renderer to decorate each
+  release card with its acquisition status without N+1ing the DB.
   """
   @spec statuses_for_releases([release_key()]) :: %{release_key() => {Pursuit.t(), Target.t() | nil}}
   def statuses_for_releases([]), do: %{}
 
   def statuses_for_releases(keys) when is_list(keys) do
-    # SQL-side tuple filter: build an OR-chain of exact-tuple matches so
-    # the DB returns only requested rows. Prior implementation widened
-    # the WHERE to `tmdb_id in ^ids and tmdb_type in ^types`, then
-    # dropped non-requested tuples in BEAM — a wasted round-trip when a
-    # series has many pursuits but only a few requested episodes.
+    # SQL-side tuple filter: an OR-chain of exact-tuple matches over the
+    # pursuit ⨝ unit join, so the DB returns only the requested units
+    # rather than every unit of every pursuit of the series.
     predicate =
       Enum.reduce(keys, dynamic(false), fn key, acc ->
-        dynamic([p], ^acc or ^key_predicate(key))
+        dynamic([p, u], ^acc or ^key_predicate(key))
       end)
 
-    pursuits =
+    rows =
       Pursuit
-      |> where([p], p.recipe_type == "tmdb")
+      |> join(:inner, [p], u in Unit, on: u.pursuit_id == p.id)
+      |> where([p, u], p.recipe_type == "tmdb")
       |> where(^predicate)
+      |> select([p, u], {p, u})
       |> Repo.all()
 
-    # Current targets live on the units (ADR-055); auto-grab pursuits
-    # are single-unit, so the first unit's pointer is the pursuit's.
-    units_by_pursuit = Units.for_pursuits(Enum.map(pursuits, & &1.id))
+    targets_by_id =
+      rows
+      |> Enum.map(fn {_pursuit, unit} -> unit.current_target_id end)
+      |> Enum.reject(&is_nil/1)
+      |> fetch_targets_by_id()
 
-    current_target_id = fn pursuit ->
-      case Map.get(units_by_pursuit, pursuit.id, []) do
-        [unit | _] -> unit.current_target_id
-        [] -> nil
-      end
-    end
+    Enum.reduce(rows, %{}, fn {pursuit, unit}, acc ->
+      key = {pursuit.tmdb_id, pursuit.tmdb_type, unit.season_number, unit.episode_number}
+      value = {pursuit, Map.get(targets_by_id, unit.current_target_id)}
 
-    target_ids = pursuits |> Enum.map(current_target_id) |> Enum.reject(&is_nil/1)
-    targets_by_id = fetch_targets_by_id(target_ids)
-
-    Map.new(pursuits, fn pursuit ->
-      key = {pursuit.tmdb_id, pursuit.tmdb_type, pursuit.season_number, pursuit.episode_number}
-      target = Map.get(targets_by_id, current_target_id.(pursuit))
-      {key, {pursuit, target}}
+      Map.update(acc, key, value, fn {current, _target} = existing ->
+        if outranks?(pursuit, current), do: value, else: existing
+      end)
     end)
   end
+
+  defp outranks?(%Pursuit{state: "active"}, %Pursuit{state: state}) when state != "active", do: true
+  defp outranks?(%Pursuit{state: state}, %Pursuit{state: "active"}) when state != "active", do: false
+
+  defp outranks?(%Pursuit{} = candidate, %Pursuit{} = current),
+    do: DateTime.after?(candidate.updated_at, current.updated_at)
 
   # One dynamic per nil/non-nil shape so Ecto sees only top-level
   # `^interpolation`s in the outer `dynamic`.
   defp key_predicate({id, type, nil, nil}) do
     dynamic(
-      [p],
+      [p, u],
       p.tmdb_id == ^id and p.tmdb_type == ^type and
-        is_nil(p.season_number) and is_nil(p.episode_number)
+        is_nil(u.season_number) and is_nil(u.episode_number)
     )
   end
 
   defp key_predicate({id, type, season, nil}) do
     dynamic(
-      [p],
+      [p, u],
       p.tmdb_id == ^id and p.tmdb_type == ^type and
-        p.season_number == ^season and is_nil(p.episode_number)
+        u.season_number == ^season and is_nil(u.episode_number)
     )
   end
 
   defp key_predicate({id, type, nil, episode}) do
     dynamic(
-      [p],
+      [p, u],
       p.tmdb_id == ^id and p.tmdb_type == ^type and
-        is_nil(p.season_number) and p.episode_number == ^episode
+        is_nil(u.season_number) and u.episode_number == ^episode
     )
   end
 
   defp key_predicate({id, type, season, episode}) do
     dynamic(
-      [p],
+      [p, u],
       p.tmdb_id == ^id and p.tmdb_type == ^type and
-        p.season_number == ^season and p.episode_number == ^episode
+        u.season_number == ^season and u.episode_number == ^episode
     )
   end
 
@@ -391,14 +399,15 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       PursuitStatus.compose_downloads(current_action, all_downloads(pursuit, target, queue_items))
 
     last_activity_at = latest_event_at(pursuit.id)
+    recipe = PursuitRecipe.for_unit(pursuit, unit)
 
     %PursuitStatus{
       pursuit_id: pursuit.id,
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
       origin: String.to_existing_atom(pursuit.origin),
-      recipe: PursuitRecipe.from(pursuit),
-      search_queries: search_queries_for(pursuit),
+      recipe: recipe,
+      search_queries: search_queries_for(recipe),
       criteria_summary: summarize_criteria(pursuit.criteria),
       current_action: current_action,
       next_step: next_step,
@@ -524,12 +533,14 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   @doc """
-  Returns active pursuits whose TMDB recipe matches the given map.
+  Returns active pursuits with a unit covering the given landing.
 
   Accepts `%{tmdb_id, tmdb_type}` and optional `:season_number` /
-  `:episode_number`. TV pursuits without a season pin (e.g.,
-  season-pack pursuits) match any episode for that series; movie
-  pursuits match by `tmdb_id` alone.
+  `:episode_number`. A TV pursuit matches when one of its units names
+  that episode, or has no scope of its own (a series-level unit stands
+  for every episode; a season-level unit for every episode of its
+  season). A nil part on the landing is a wildcard. Movie pursuits match
+  by `tmdb_id` alone.
 
   Only matches pursuits with `recipe_type = "tmdb"` — query-recipe
   pursuits have no TMDB metadata to match against. Used by
@@ -549,26 +560,31 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     episode = Map.get(target, :episode_number)
 
     Pursuit
-    |> where([p], p.state == "active" and p.recipe_type == "tmdb")
-    |> where([p], p.tmdb_id == ^tmdb_id and p.tmdb_type == "tv")
-    |> match_season(season)
-    |> match_episode(episode)
+    |> join(:inner, [p], u in Unit, on: u.pursuit_id == p.id)
+    |> where([p, u], p.state == "active" and p.recipe_type == "tmdb")
+    |> where([p, u], p.tmdb_id == ^tmdb_id and p.tmdb_type == "tv")
+    |> where([p, u], ^unit_covers(season, episode))
+    |> distinct(true)
     |> Repo.all()
   end
 
   def find_active_for_target(_), do: []
 
-  defp match_season(query, nil), do: query
-
-  defp match_season(query, season) do
-    where(query, [p], is_nil(p.season_number) or p.season_number == ^season)
+  # A nil part on either side is a wildcard: a unit without a season
+  # stands for the series, one without an episode for its season.
+  defp unit_covers(season, episode) do
+    dynamic(
+      [p, u],
+      is_nil(u.season_number) or
+        (^season_part(season) and (is_nil(u.episode_number) or ^episode_part(episode)))
+    )
   end
 
-  defp match_episode(query, nil), do: query
+  defp season_part(nil), do: dynamic(true)
+  defp season_part(season), do: dynamic([p, u], u.season_number == ^season)
 
-  defp match_episode(query, episode) do
-    where(query, [p], is_nil(p.episode_number) or p.episode_number == ^episode)
-  end
+  defp episode_part(nil), do: dynamic(true)
+  defp episode_part(episode), do: dynamic([p, u], u.episode_number == ^episode)
 
   @doc """
   Returns the target the pursuit's lead unit is currently chasing, if
@@ -641,6 +657,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     # is independent of QueueMonitor cadence. `location` resolves the
     # post-download stage when the torrent has left the client.
     {status, _next_step, _actions} = PursuitStatus.derive(pursuit, lead_unit, target, nil, location)
+    {season_number, episode_number} = row_scope(units, lead_unit)
 
     %PursuitRow{
       id: pursuit.id,
@@ -648,8 +665,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       state: state_to_atom(pursuit.state),
       updated_at: pursuit.updated_at,
       awaiting_decision?: Enum.any?(units, &UnitState.awaiting_decision?/1),
-      season_number: pursuit.season_number,
-      episode_number: pursuit.episode_number,
+      season_number: season_number,
+      episode_number: episode_number,
       release_title: release_title,
       target_status: target_status,
       status: status,
@@ -662,6 +679,12 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       unit_states: Enum.map(units, & &1.state)
     }
   end
+
+  # A single-unit pursuit is labelled with its unit's episode; a
+  # composite shows unit counts instead, so the label stays unscoped.
+  defp row_scope([_single], %Unit{season_number: season, episode_number: episode}), do: {season, episode}
+
+  defp row_scope(_units, _lead_unit), do: {nil, nil}
 
   # One pairing identity per distinct current target across the units,
   # lead target first — a composite pursuit has several grabs in the
@@ -693,16 +716,19 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   defp status_to_atom("failed"), do: :failed
   defp status_to_atom("cancelled"), do: :cancelled
 
+  # The recipe is the lead unit's (ADR-055): the pursuit row names the
+  # title, the unit names the episode, and the modal acts on the lead.
   defp build_header(%Pursuit{} = pursuit) do
     artwork = header_artwork(pursuit)
+    recipe = PursuitRecipe.for_unit(pursuit, lead_unit(pursuit))
 
     %PursuitHeader{
       id: pursuit.id,
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
       awaiting_decision?: awaiting_decision?(pursuit),
-      recipe: PursuitRecipe.from(pursuit),
-      search_queries: search_queries_for(pursuit),
+      recipe: recipe,
+      search_queries: search_queries_for(recipe),
       criteria_summary: summarize_criteria(pursuit.criteria),
       backdrop_url: artwork.backdrop_url,
       logo_url: artwork.logo_url
@@ -725,10 +751,11 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   # `QueryBuilder.build/1` returns `[{query, opts}]` ordered best-to-worst.
   # The UI only needs the query strings, so we strip the opts here. Kept
-  # pure (no DB, no Prowlarr) — the same list the worker iterates over.
-  defp search_queries_for(%Pursuit{} = pursuit) do
-    pursuit
-    |> PursuitRecipe.from()
+  # pure (no DB, no Prowlarr) — the same list the worker iterates over
+  # for that unit (`Jobs.PursueTarget` builds its criteria from the same
+  # `Recipe.for_unit/2`).
+  defp search_queries_for(%PursuitRecipe{} = recipe) do
+    recipe
     |> PursuitRecipe.to_criteria()
     |> QueryBuilder.build()
     |> Enum.map(fn {query, _opts} -> query end)

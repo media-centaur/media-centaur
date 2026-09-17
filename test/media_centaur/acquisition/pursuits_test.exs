@@ -667,4 +667,85 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       assert row.label == pursuit.title
     end
   end
+
+  describe "plan-born pursuits — scope lives on the unit (ADR-055)" do
+    alias MediaCentaur.Acquisition.Pursuits.Commands.Start
+    alias MediaCentaur.Acquisition.ViewModels.{PursuitHeader, PursuitRow, PursuitStatus}
+    alias MediaCentaur.TMDB.TitleIdentity
+
+    # The shape every plan commit produces: a TMDB identity, one unit per
+    # wanted episode, and nothing in the pursuit row's own scope columns.
+    defp start_plan_born_pursuit(units) do
+      identity = TitleIdentity.new(%{tmdb_type: :tv, tmdb_id: "777", title: "Sample Show"})
+
+      {:ok, pursuit} =
+        Start.execute(%{recipe_type: "tmdb", identity: identity, origin: "manual", units: units})
+
+      pursuit
+    end
+
+    defp episode_unit(season, episode) do
+      %{season_number: season, episode_number: episode, label: "S0#{season}E0#{episode}"}
+    end
+
+    test "the pursuit row itself carries no scope" do
+      pursuit = start_plan_born_pursuit([episode_unit(1, 3)])
+
+      assert is_nil(pursuit.season_number)
+      assert is_nil(pursuit.episode_number)
+    end
+
+    test "header_for/1 searches the unit's episode, not the whole series" do
+      pursuit = start_plan_born_pursuit([episode_unit(1, 3)])
+
+      assert {:ok, %PursuitHeader{} = header} = Pursuits.header_for(pursuit.id)
+      assert header.search_queries == ["Sample Show S01E03"]
+      assert header.recipe.season_number == 1
+      assert header.recipe.episode_number == 3
+    end
+
+    test "status_from/2 searches the unit's episode, not the whole series" do
+      pursuit = start_plan_born_pursuit([episode_unit(1, 3)])
+
+      assert %PursuitStatus{} = status = Pursuits.status_from(pursuit, [])
+      assert status.search_queries == ["Sample Show S01E03"]
+      assert status.recipe.season_number == 1
+      assert status.recipe.episode_number == 3
+    end
+
+    test "list_rows/1 labels a single-unit pursuit with its unit's episode" do
+      start_plan_born_pursuit([episode_unit(1, 3)])
+
+      assert [%PursuitRow{season_number: 1, episode_number: 3}] = Pursuits.list_rows(:active)
+    end
+
+    test "list_rows/1 leaves a multi-unit pursuit unlabelled — the row shows unit counts instead" do
+      start_plan_born_pursuit([episode_unit(1, 3), episode_unit(1, 4)])
+
+      assert [%PursuitRow{season_number: nil, episode_number: nil, units_wanted: 2}] =
+               Pursuits.list_rows(:active)
+    end
+
+    test "find_active_for_target/1 matches the unit's episode and no other" do
+      pursuit = start_plan_born_pursuit([episode_unit(1, 3)])
+
+      assert [found] =
+               Pursuits.find_active_for_target(%{
+                 tmdb_id: "777",
+                 tmdb_type: "tv",
+                 season_number: 1,
+                 episode_number: 3
+               })
+
+      assert found.id == pursuit.id
+
+      assert [] =
+               Pursuits.find_active_for_target(%{
+                 tmdb_id: "777",
+                 tmdb_type: "tv",
+                 season_number: 1,
+                 episode_number: 1
+               })
+    end
+  end
 end
