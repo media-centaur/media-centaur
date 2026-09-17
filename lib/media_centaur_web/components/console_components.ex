@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.ConsoleComponents do
 
   use MediaCentaurWeb, :html
 
-  alias MediaCentaur.Console.{Filter, View}
+  alias MediaCentaur.Console.{Entry, Filter, View}
 
   @doc """
   Header row with component chips, level filter, and search input.
@@ -106,6 +106,47 @@ defmodule MediaCentaurWeb.ConsoleComponents do
   end
 
   @doc """
+  One log row: timestamp, optional component badge, message.
+
+  Carries no container of its own, so the same row serves both the console's
+  stream (`log_list/1`) and the Status subsystem panel's plain list.
+  """
+  # No story file: this module is `@storybook_status :skip`, and the row's
+  # rendered states — levels, and with/without the component badge — are
+  # exercised through `storybook/health/health_drill_in.story.exs`.
+  attr :entry, Entry, required: true
+
+  attr :id, :string,
+    default: nil,
+    doc:
+      "DOM id. `log_list/1` sets it to the stream's dom_id — stream identity is the stream's business; surfaces without a stream leave it nil."
+
+  attr :show_component, :boolean,
+    default: true,
+    doc: "render the component badge; false on single-component surfaces where it is noise"
+
+  def log_line(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class={["console-entry", View.level_color(@entry.level)]}
+      data-level={@entry.level}
+      data-component={@entry.component}
+      data-message={View.entry_search_text(@entry)}
+    >
+      <span class="console-timestamp">{View.format_timestamp(@entry.timestamp)}</span>
+      <span
+        :if={@show_component}
+        class={["console-component-badge", View.component_badge_class(@entry.component)]}
+      >
+        {View.component_label(@entry.component)}
+      </span>
+      <span class="console-message">{@entry.message}</span>
+    </div>
+    """
+  end
+
+  @doc """
   Log entry list — iterates the entries stream and renders each entry.
 
   ## Attributes
@@ -120,23 +161,11 @@ defmodule MediaCentaurWeb.ConsoleComponents do
   def log_list(assigns) do
     ~H"""
     <main class="console-log" id="console-entries" phx-update="stream" phx-hook="LogTail">
-      <div
-        :for={{dom_id, entry} <- @streams.entries}
-        id={dom_id}
-        class={["console-entry", View.level_color(entry.level)]}
-        data-level={entry.level}
-        data-component={entry.component}
-        data-message={View.entry_search_text(entry)}
-      >
-        <span class="console-timestamp">{View.format_timestamp(entry.timestamp)}</span>
-        <span class={[
-          "console-component-badge",
-          View.component_badge_class(entry.component)
-        ]}>
-          {View.component_label(entry.component)}
-        </span>
-        <span class="console-message">{entry.message}</span>
-      </div>
+      <%!-- The row stays a direct child of `.console-log`: the container is a
+            flex column with a gap, and the drawer's client-side search hides
+            matched-out rows with `display: none`. A wrapper element would keep
+            its gap slot and leave a ladder of holes through a filtered list. --%>
+      <.log_line :for={{dom_id, entry} <- @streams.entries} id={dom_id} entry={entry} />
     </main>
     """
   end
