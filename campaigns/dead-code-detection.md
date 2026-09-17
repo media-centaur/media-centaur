@@ -456,6 +456,55 @@ Three of the five have no caller at all (`list_auto_targets/1`,
 `rearm_target/1`, `cancel_target/2`); two do. That is the same question the
 `Containers` pass asks, so it is deferred to it rather than decided piecemeal.
 
+## Sweep state — 2026-09-17, end of the autonomous run
+
+**366 raw hints; 26 with no caller anywhere.** Thirteen functions deleted in
+the final batch (see `a19d6ea9`), each verified individually against callers,
+dispatch seams, HEEx templates, storybook and tests.
+
+### Already known to be alive — cascade artifacts, do not delete (7)
+
+Verified callers; they appear only because something above them is unreached.
+
+| function | real caller |
+|---|---|
+| `HttpClient.Cache.Coordinator.entry_count/1` | `Cache.stats/1` |
+| `Library.FilePresence.list_relink_candidates/1` | `Relink` |
+| `ReleaseTracking.Wants.dismiss_for_release/1` | `ReleaseTracking` |
+| `TMDB.Client.search_multi/2` | `TMDB.TitleSearch` |
+| `MediaCentaurWeb.ArtworkWarmup.poster_urls/0` | `root.html.heex` — a **HEEx template**, a caller class the tracer cannot see at all |
+| `ReleaseTracking.find_last_library_episode/1` | its own `defdelegate` + `LibraryLinks` |
+| `Watcher.Walk.real_fs/0` | a default argument in `walk/3` |
+
+`poster_urls/0` is the important one: a `.heex` file is not compiled through
+the tracer, so **anything called only from a template reads as dead**. That is
+a third blind spot alongside module bodies and dynamic dispatch, and it was
+not on the list before this sweep.
+
+### Still to disposition (~19)
+
+* **Features never wired.** `Acquisition.plan_tracked_item_now/1` — a
+  `defdelegate` to `DropPlanner.plan_item_now/2`, documented as *"the bulk
+  gesture since ADR-056"*, with no UI control and no caller but its own test.
+  Same shape as `exclude_unit` was. **No campaign obviously owns it**; it
+  needs a home before this file is deleted.
+* **Event predicates.** `event?/1` on `PlanEvents`, `TargetEvents`,
+  `Pursuits.Events` — identical shape in three places, no caller in any.
+* **Pursuit view-model doors.** `Pursuits.status_for/1`, `targets_for/1` —
+  `incoming_live.ex:2005` carries a comment about "the previous
+  `Pursuits.status_for/1` path", so these look superseded rather than
+  unfinished.
+* **The rest**: `CourSegmentation.default_gap_days/0`,
+  `TitleDownloadParams.{for_ref/2,get_many/1}`, `Activities.get_many/1`,
+  `Format.iso_date/1`, `Library.PlayableItems.leaf_types/0` (rehomed —
+  see `playable-item-versions.md`), `Pipeline.Import.processor_concurrency/0`,
+  `Playback.Sessions.playing?/1`, `SelfUpdate.Changelog.recent/1`,
+  `WatchHistory.Stats.total_seconds/1`, `GuideMarkdown.prose/1`,
+  `Detail.Section.section/1`, `Detail.TitleLayer.title_layer/1`.
+
+The last two are function components; check the HEEx blind spot above before
+treating either as dead.
+
 ## Next steps
 
 1. **Disposition the 68** against the three outcomes above. Cheapest order:
