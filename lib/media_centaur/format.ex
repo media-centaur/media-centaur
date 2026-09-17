@@ -49,21 +49,6 @@ defmodule MediaCentaur.Format do
   def year(%Date{year: y}), do: Integer.to_string(y)
 
   @doc """
-  Renders a `Date` as ISO 8601 (`"YYYY-MM-DD"`). `nil` returns `nil`. Used
-  by templates that surface the full date in a meta block — `Date` structs
-  don't implement `String.Chars`, so interpolation needs an explicit
-  formatter.
-
-      iex> MediaCentaur.Format.iso_date(~D[2020-01-15])
-      "2020-01-15"
-      iex> MediaCentaur.Format.iso_date(nil)
-      nil
-  """
-  @spec iso_date(Date.t() | nil) :: String.t() | nil
-  def iso_date(nil), do: nil
-  def iso_date(%Date{} = date), do: Date.to_iso8601(date)
-
-  @doc """
   A date as its abbreviated month and unpadded day — the calendar
   spelling user copy uses for a date within the year (Coming up's
   shelf badges, the plan board's calendar verdict). Callers add the

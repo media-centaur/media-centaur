@@ -17,8 +17,6 @@ defmodule MediaCentaur.Acquisition.TitleDownloadParams do
   use Ecto.Schema
 
   import Ecto.Changeset
-  import Ecto.Query, only: [from: 2]
-
   alias MediaCentaur.Acquisition.DownloadParams
   alias MediaCentaur.Repo
 
@@ -53,31 +51,6 @@ defmodule MediaCentaur.Acquisition.TitleDownloadParams do
       _absent -> DownloadParams.defaults()
     end
   end
-
-  @doc """
-  The params for many titles at once, as `{tmdb_id, media_type} =>
-  params`. Absent titles are absent from the map — read them through
-  `for_ref/2`, which supplies the defaults.
-  """
-  @spec get_many([{integer(), media_type()}]) :: %{
-          {integer(), media_type()} => DownloadParams.t()
-        }
-  def get_many([]), do: %{}
-
-  def get_many(refs) do
-    tmdb_ids = refs |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
-    wanted = MapSet.new(refs)
-
-    from(p in __MODULE__, where: p.tmdb_id in ^tmdb_ids)
-    |> Repo.all()
-    |> Enum.filter(&MapSet.member?(wanted, {&1.tmdb_id, &1.media_type}))
-    |> Map.new(&{{&1.tmdb_id, &1.media_type}, &1.params})
-  end
-
-  @doc "Reads one ref out of a `get_many/1` map, falling back to the defaults."
-  @spec for_ref(%{{integer(), media_type()} => DownloadParams.t()}, {integer(), media_type()}) ::
-          DownloadParams.t()
-  def for_ref(by_ref, ref), do: Map.get(by_ref, ref, DownloadParams.defaults())
 
   @doc """
   Merges `attrs` into the title's params. An explicit `nil` clears that

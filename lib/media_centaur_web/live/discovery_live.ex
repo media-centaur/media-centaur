@@ -35,8 +35,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   because Discovery stays free of tracking (ADR-066); a row is armed
   from its modal. A row added from a friend's action carries a bare
   `activity_id`, and this page turns it into `from <nickname>`
-  (`Activities.get_many/1` → `Social.list_friends/0`) — the join neither
-  context may make.
+  (`Activities.friend_activity_for/1`, which joins `Social.list_friends/0`)
+  — the join neither context may make.
 
   A listing or an ignore made from an entry carries that entry's
   activity as provenance (`TitleIntent.friend_provenance/2`), the way

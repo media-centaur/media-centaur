@@ -31,7 +31,14 @@ defmodule MediaCentaurWeb.GuideMarkdown do
 
   attr :markdown, :string, required: true
 
-  @doc "Preview/story wrapper: render a markdown string as styled guide prose."
+  @doc """
+  Render a markdown string as styled guide prose.
+
+  The app renders chapters through `to_heex/1`; this is the component form
+  the storybook mounts (`storybook/guide/markdown.story.exs`), which is
+  outside the compiled tree — hence the export declaration.
+  """
+  @doc export: true
   def prose(assigns) do
     ~H"{to_heex(@markdown)}"
   end

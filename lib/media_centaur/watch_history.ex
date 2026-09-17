@@ -147,18 +147,6 @@ defmodule MediaCentaur.WatchHistory do
   end
 
   @doc """
-  Count of completion events for a single entity. Returns 0 if never watched.
-
-  Pure delegation to `Rewatch`.
-  """
-  @spec rewatch_count(Rewatch.entity_type(), Ecto.UUID.t()) :: non_neg_integer()
-  def rewatch_count(type, entity_id) do
-    type
-    |> Rewatch.count_per_entity()
-    |> Map.get(entity_id, 0)
-  end
-
-  @doc """
   Map of `entity_id => count` for all entities of the given type with at
   least one completion event. Useful when looking up many entities at once
   (e.g. annotating a list of event rows in HistoryLive).

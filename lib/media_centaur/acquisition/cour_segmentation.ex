@@ -41,10 +41,6 @@ defmodule MediaCentaur.Acquisition.CourSegmentation do
           date_span: {Date.t(), Date.t()} | nil
         }
 
-  @doc "The default broadcast-gap threshold, in days (8 weeks)."
-  @spec default_gap_days() :: pos_integer()
-  def default_gap_days, do: @default_gap_days
-
   @doc """
   Segments `episodes` into ordered broadcast runs. `episodes` is a list
   of `%{season:, episode:, air_date:}` maps (`air_date` may be `nil` or

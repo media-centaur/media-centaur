@@ -2,8 +2,8 @@ defmodule MediaCentaur.SelfUpdate.Changelog do
   @moduledoc """
   Per-version release notes embedded from the project `CHANGELOG.md` at compile
   time, for the Updates status tile. `split/1` is the pure splitter (changelog
-  markdown → per-version chunks); `all/0` / `for_version/1` / `recent/1` operate
-  over the embedded file. Newer-than-build updates are NOT here — those use the
+  markdown → per-version chunks); `all/0` and `for_version/1` operate over
+  the embedded file. Newer-than-build updates are NOT here — those use the
   GitHub release body (`latest_release.body`). Each entry's `body` is raw
   markdown rendered by `MediaCentaurWeb.Live.SettingsLive.ReleaseNotes`.
   """
@@ -18,10 +18,6 @@ defmodule MediaCentaur.SelfUpdate.Changelog do
   @doc "All embedded changelog entries, newest-first."
   @spec all() :: [entry()]
   def all, do: split(@raw)
-
-  @doc "The N most recent embedded entries."
-  @spec recent(non_neg_integer()) :: [entry()]
-  def recent(n) when is_integer(n) and n >= 0, do: Enum.take(all(), n)
 
   @doc "The raw markdown body for `version`, or nil when absent."
   @spec for_version(String.t()) :: String.t() | nil

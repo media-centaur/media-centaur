@@ -59,7 +59,4 @@ defmodule MediaCentaur.Playback.Sessions do
 
   @doc "Returns the state snapshot for one entity_id, or nil."
   def get(entity_id), do: MpvSession.get_state(entity_id)
-
-  @doc "Returns true if the given entity_id has an active session."
-  def playing?(entity_id), do: SessionRegistry.active?(entity_id)
 end

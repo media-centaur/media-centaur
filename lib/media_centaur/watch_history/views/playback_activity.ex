@@ -32,9 +32,6 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivity do
   # display working for entities that were deleted after being watched.
   @episode_title ~r/^(.+) (S\d+E\d+(?: — .+)?)$/
 
-  @spec empty() :: map()
-  def empty, do: %{recent: [], last_write_at: nil, lifetime: %{hours: 0, titles: 0, streak: 0}}
-
   @spec snapshot() :: map()
   def snapshot do
     events = WatchHistory.recent_events(@recent_limit)
