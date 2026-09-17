@@ -54,7 +54,12 @@ what it does during an outage, and gives each one logic that fits.
 
 ## Status
 
-Measured and shape decided, 2026-09-17 evening. The inventory below is
+Measured, shape decided, defects 1 and 3 landed, design drafted —
+2026-09-17 evening. The design spec is
+`docs/superpowers/specs/2026-09-17-availability-design.md`; two owner
+decisions are marked in it (the name `Availability` vs
+`CircuitBreaker`; replacing the search incident's staleness rule with
+the probe). The inventory below is
 verified against the code (constants cited) and against one day of
 observation: the dev node's log ring, the day's systemd journal (seven
 boots, one real download-client outage 16:47–16:56 CEST, and the
@@ -153,7 +158,7 @@ never spent to learn what a probe could tell.
 |---|---|---|
 | Download clients on the LAN | free | Polling stays as it is, outage included. Only the noise is fixed: two warnings per poll, and SABnzbd's 403 graded "unreachable" instead of "check your key". |
 | Prowlarr live searches | metered, × indexer count | Every live search in an outage burns indexer quota and deepens Prowlarr's persistent back-off. The corpus already makes repeats free for 30 min. |
-| Prowlarr grabs | metered (to verify) | Prowlarr fetches the NZB from the indexer before it talks to the client; if so, every doomed grab today also spent an indexer download. |
+| Prowlarr grabs | free on a failed hand-off, metered on success | Verified 2026-09-17 in Prowlarr's history: the stack's indexer runs in **Redirect** mode (`grabMethod=Redirect`), so Prowlarr hands SABnzbd a link and the indexer download happens only when SABnzbd fetches it. A grab that fails at the hand-off never reaches the indexer. Under Prowlarr's default Proxy mode the NZB is fetched first and a doomed grab is metered — the circuit covers both. |
 | TMDB and image CDN | metered | The 6 h reload of every tracked title is the deferred caching campaign's question. Here it only needs to hold during a TMDB outage. |
 | GitHub | metered, small | 60/h unauthenticated; a failed check retrying every 15 min is within budget. |
 | Nostr relays | metered | Already backed off exponentially. Nothing to do. |
@@ -278,11 +283,18 @@ up to 18 simultaneous outbound requests when three jobs search at once
 5. ~~Remaining measurements~~ — decided, above: none before the design.
 6. ~~Wiki~~ — decided, above: rides each step.
 
-Facts to verify before the design spec: (a) whether a grab that fails
-on the hand-off has already spent an indexer download (Prowlarr's
-history will show it); (b) that Prowlarr's download-client test call is
-reachable through the app's Prowlarr client and answers the hand-off
-question without an indexer request.
+Facts verified 2026-09-17 21:00 CEST, against the redeployed stack:
+(a) a grab that fails at the hand-off spends **no** indexer download
+under the stack's Redirect mode (history: `grabMethod=Redirect`; the
+NZBgeek stats count queries and successful grabs only). So the metered
+cost of a pursuit retry during a hand-off outage is its live search,
+one per term per 30 minutes; the grab itself is free until the client
+fetches. (b) `POST /api/v1/downloadclient/testall` through the app's
+Prowlarr client answers in 12 ms with `[{id, isValid,
+validationFailures}]` per client, reaches SABnzbd from inside Prowlarr's
+network, and touches no indexer — it is the hand-off probe. The stack
+fix itself is confirmed: the 30 Rock pursuit's 20:23 CEST retry grabbed
+successfully.
 
 ## Concrete defects found (fix regardless of shape)
 
@@ -302,14 +314,16 @@ question without an indexer request.
 
 1. ~~Measure~~ — done 2026-09-17; the numbers above. A TMDB outage is
    measured after the TMDB hold lands, as its verification.
-2. ~~Decide the shape~~ — decided 2026-09-17. Verify the two facts
-   under *Open items*, then write the design as a spec under
-   `docs/superpowers/specs/`, with the glossary here promoted to it.
+2. ~~Decide the shape~~ — decided; facts verified; spec drafted
+   2026-09-17 (`2026-09-17-availability-design.md`). Next: the two owner
+   decisions in the spec, then a plan from it.
 3. Apply in the decided order: hand-off circuit (pursuit retries),
    Prowlarr circuit (release-tracking re-planning, corpus probe,
    Incoming loop), TMDB hold, GitHub and relays confirmed, client log
    noise last.
-4. Fix defects 1 and 3 now, test-first; 2 and 4 ride the circuit.
+4. ~~Fix defects 1 and 3~~ — landed 2026-09-17 (SABnzbd 403 →
+   `:auth_failed`; one alternatives fetch per pursuit). 2 and 4 ride the
+   circuit.
 5. Wiki, per step: Troubleshooting's outage entry for that dependency
    says what the app does while it is down and when it resumes. Terse.
 
