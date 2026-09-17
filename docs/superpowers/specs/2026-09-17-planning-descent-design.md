@@ -140,6 +140,22 @@ shipped in v1.32.1. It also fed the decision card's query list.
 (`LadderTerms.for_unit/2` → series, season, episode terms for one unit).
 Falls out of F1 once term ordering is fit-aware.
 
+**F10 — The pursuit modal's "Pick a release" list is not the episode's.**
+Found 2026-09-17 while scoping step 4. `Acquisition.list_alternatives_for/2`
+searches a TMDB pursuit through `do_search_for_recipe/2`, which calls
+`search_expanded(recipe.title, type:, year:)`: the bare show title, with
+two options Prowlarr silently drops. No `QueryBuilder`, no
+`TitleMatcher`, no scope check; the first eight non-tried results are
+shown whatever they are. For an episode unit that is eight arbitrary
+releases of the show. `find_alternative/2`, which resolves a picked guid,
+runs the same search with no unit at all. The evidence run shows it:
+"prowlarr search — 30 Rock" twice at 15:06:48, the moment the modal
+opened its decision card. `acquisition_test.exs` "excludes guids in
+tried_release_guids and caps the list at 8" pins the shape with titles
+like `Sample.Show.Release.7`. This is F8's twin on the pursuit side, and
+the reason the earlier display fix (F7) changed the modal's *listed*
+queries but not what it searched.
+
 **F9 — The season scope costs two terms** (`Title Season 7` → 3 results,
 `Title S07` → 100). The long form catches `Season 7 Complete` pack names.
 Keep; droppable later if measured useless.
@@ -214,10 +230,19 @@ All 2026-09-17, with the owner.
    the plan. Zero extra TMDB requests; no TMDB call in the plan-creating
    path. Until an item's first refresh after the upgrade its sizes are
    empty and its drop plans keep today's behavior.
-4. **The retry loop runs the fallback search once before exhausting** and,
-   if a pack contains the unit, raises a decision ("only a season pack has
-   it — grab it?") instead of exhausting silently (F5). Owner had no
-   preference; my call. Last in the rollout order.
+4. **The pursuit side searches like the plan side** (F5, F10). Owner had
+   no preference; my call, widened 2026-09-17 after F10. Two halves:
+   - The decision card's alternatives for a TMDB unit come from the
+     unit's terms in search order (episode term, then the season and
+     series terms as fallback), identity-verified through
+     `TitleMatcher.coverage/2`, and only releases whose scope covers the
+     unit are listed. A pack is shown as one, with its scope and episode
+     count, and picking it is the same act as "grab the pack" on the plan
+     board. Resolving a picked guid searches the same way.
+   - Before exhausting, the retry loop runs the fallback terms once; if a
+     pack covers the unit it raises the decision "Only a season pack has
+     this episode — grab it?" instead of exhausting silently.
+   Last in the rollout order.
 5. **Grab-failure classification** (F6). `Prowlarr.grab/1` transport
    errors and HTTP 5xx become an infrastructure outcome
    (`download_client_unavailable`): no attempt bump, short snooze, status
