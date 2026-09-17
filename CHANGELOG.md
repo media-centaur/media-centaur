@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.32.1 — 2026-09-17
+
+### New
+
+- **Drop a single episode from a download plan.** Click an episode cell on the plan board and the planner stops trying to cover it; click it again to put it back. A dropped episode is struck through and no longer counts toward what the plan wants, so the rest can re-solve without it.
+- **Reconnect on the systemd journal.** **Status → System** reads the journal only while the section is open, and the reader can stop when the service restarts underneath it. **Reconnect** starts it again without closing the page.
+
+### Fixed
+
+- **A download started from a missing episode now searches for that episode, not the whole series.** The modal's **Search query** line showed the series title, and picking an alternative searched the series too. Release cards also show the download status of an episode you are already chasing, where before the card sat blank while its download ran.
+- **Cancelling a single download now closes the release attempt it belonged to.** The download was removed from your client, but the pursuit went on waiting for that attempt until its retries ran out. It is closed immediately now. Cancelling one download still doesn't end the pursuit — the pursuit's own **Cancel** does that.
+- **The pipeline's slot counts on Status were wrong for half its stages.** **Status → Media import** showed every stage against the same number of slots, but fetching metadata and ingesting run narrower than parsing and searching. Those two read as `3/10` when their real ceiling is 5, and could never show as saturated even when full.
+
 ## v1.32.0 — 2026-09-17
 
 ### New
