@@ -21,6 +21,14 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`fit-first-search-order.md`](fit-first-search-order.md) —
+  **in progress 2026-09-17; design decided, no rollout code yet.** A TV
+  plan searches the scope that fits its want first (one episode starts
+  at the episode term) and widens only to offer packs; a grab that fails
+  because the download client is unreachable stops counting as a bad
+  release; tracking-born plans get fit gating; the pursuit retry asks
+  about a pack before giving up. Six decisions recorded in the spec.
+
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration

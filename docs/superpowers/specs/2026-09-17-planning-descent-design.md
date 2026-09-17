@@ -1,7 +1,7 @@
-# Planning descent — search the scope that fits
+# Planning search order — search the scope that fits
 
-**Status: draft for discussion, 2026-09-17.** Nothing here is decided until
-the "Decisions" section says so.
+**Status: decided 2026-09-17; rollout tracked in
+[`campaigns/fit-first-search-order.md`](../../../campaigns/fit-first-search-order.md).**
 
 Triggered by a real run: one missing episode of an owned seven-season
 series was planned by searching the whole series, then the season, then
@@ -10,46 +10,44 @@ most complete, and it ran last.
 
 ## Glossary
 
-Existing project terms, as the code uses them today:
+Project terms as the code uses them today:
 
 - **Want** — the set of `{season, episode}` units a plan must land.
 - **Unit** — one wanted episode. A plan unit before commit, a pursuit unit after.
 - **Term** — one literal indexer query string (`Title S07`).
-- **Rung** — one breadth of term: *series* (`Title`), *season* (`Title Season 7`,
-  `Title S07`), *episode* (`Title S07E13`).
-- **Scope** — what a release contains, parsed from its name: series, seasons,
-  season, episode range, episode.
+- **Scope** — how much of a series something covers: series, a season, an
+  episode range, one episode. A release has a scope (parsed from its
+  name); a term has a scope (what it is shaped to find). Today's code
+  calls a term's scope a "rung" and the three of them a "ladder"; this
+  design retires both words.
 - **Pack** — a release whose scope is wider than one episode.
 - **Span sizes** — per-season aired-episode counts, persisted on the plan.
   Only media-search plans carry them (`Plans.create_series_plan/3`).
 - **Fit** — wanted-in-span ÷ aired-in-span for a pack's scope. A pack is
-  assignable only when fit ≥ `pack_min_fit` (setting, default 75%). Unknown
-  span size → not judged (monotonic opt-in).
+  assignable only when fit ≥ `pack_min_fit` (Settings → Acquisition →
+  "Season packs", default 75%). Unknown span size → not judged.
 - **Residual** — wanted units no assignment covers yet.
-- **Descent** — walking the rungs against the residual, re-solving after
-  each rung, halting when the residual is empty.
+- **Search order** — the sequence of scopes a plan searches, each against
+  the residual, re-solving after each, halting when the residual is
+  empty. Today's code calls this the "descent".
 - **Assignment** — the release the solver chose for a unit; grabbed on commit.
 - **Offer** — a fit-gated pack attached to an unfound unit; the user opts in.
 - **Coverage guard** — a release published before an episode aired cannot
   contain it (`CoverageGuard`).
 - **Corpus** — cached results per term, fresh for 30 minutes.
-- **Seek loop** — the pursuit-side retry (`Jobs.PursueTarget`) after a plan
-  commits or a grab fails. Searches the episode term only, snoozes with
-  backoff, exhausts after 12 attempts.
+- **Retry loop** — the pursuit-side retry (`Jobs.PursueTarget`) after a
+  plan commits or a grab fails. Searches the episode term only, snoozes
+  with backoff, exhausts after 12 attempts.
 
-Terms this design introduces (naming is open):
+Terms this design adds. Plain words; nothing coined.
 
-- **Fitting rung** — a rung at which a pack could clear the fit gate for
-  some span of the want. The episode rung always fits.
-- **Assign pass** — the fitting rungs, searched broadest first, halting when
-  the residual empties. The only pass that can assign.
-- **Offer pass** — the non-fitting rungs, searched narrowest first and only
-  for units the assign pass left unfound. Its packs become offers, never
-  assignments.
-
-"Pass" follows `Planner`'s own vocabulary (consolidation pass, singles
-pass). "Stage" is avoided: it already names pipeline stages and the
-descent panel's rung states.
+- **A scope fits** — a pack at that scope could clear the fit gate for
+  some span of the want. The episode scope always fits.
+- **Primary search** — the scopes that fit, searched widest first,
+  halting when the residual empties. The only search that assigns.
+- **Fallback search** — the scopes that did not fit, searched narrowest
+  first, only for units the primary search left unfound. Its packs
+  become offers, never assignments.
 
 ## Use cases
 
@@ -60,7 +58,7 @@ descent panel's rung states.
 | U3 | most of a season (≥ fit) | Download control, season scope | 1 + 2 (+ residual episodes) | season×2 first; residual episodes; series as offer |
 | U4 | whole season | Download control | as U3 | as U3 |
 | U5 | several seasons or the whole series | Download control, unowned show | series first, usually done | unchanged |
-| U6 | weekly drop, 1 unit of an in-progress season | tracking | 1 + 2 + 1, and fit gating is **off** (no span sizes) | episode; packs gated (needs span sizes, see F4) |
+| U6 | weekly drop, 1 unit of an in-progress season | tracking | 1 + 2 + 1, and fit gating is **off** (no span sizes) | episode; packs gated once tracking plans carry span sizes (F4) |
 | U7 | catch-up drop, several due units | tracking | as U6 | episodes; partial packs via the coverage guard |
 | U8 | later cour of an anime season | any | cour-shaped terms | unchanged |
 | U9 | sparse across seasons | gap rows | 1 + 2×seasons + k | episodes; per-season offers; series offer |
@@ -75,7 +73,7 @@ but the *page* is still the 100-capped page (F2).
 Evidence is the acquisition log ring for 2026-09-17 14:52–15:40 UTC and
 the code cited.
 
-**F1 — Rung order ignores the want.** `RunPlan.rungs/1` is a fixed
+**F1 — Search order ignores the want.** `RunPlan.rungs/1` is a fixed
 series → seasons → episodes list. For U1 the series and season packs are
 gated by fit (1/22, 1/138) and can only ever become offers, yet they run
 first. The precise term runs last or not at all.
@@ -89,9 +87,9 @@ episode.
 **F3 — Halting on an empty residual makes narrow picks luck-dependent.**
 Because `Title S07` matches `S07E13` singles, a lone episode is assigned
 from whatever singles the capped season page happened to contain, and the
-descent halts before the precise term. Whether a better release existed is
+search halts before the precise term. Whether a better release existed is
 unknown. Fit-first ordering removes this: a narrow want starts at its
-complete candidate set. For wide wants, halting at the pack rung is the
+complete candidate set. For wide wants, halting at the pack scope is the
 deliberate "packs win" policy (campaign plan-solver-consolidation,
 2026-06-10) and stays.
 
@@ -112,7 +110,7 @@ nil`) and the **single** under media-search prefs (`%{"7" => 22}`,
 0.75). `RunPlan.prefs/1` documents the gap in its own comment: "Movies
 and tracking drops have none → nil → the planner stays broad-first."
 
-**F5 — The seek loop cannot see packs.** `QueryBuilder.build_tv/1` for an
+**F5 — The retry loop cannot see packs.** `QueryBuilder.build_tv/1` for an
 episode criteria emits the episode term only. An episode that exists only
 inside a season pack (older shows, once singles are pruned) is invisible
 to the pursuit; it retries for about a week and exhausts with no offer.
@@ -127,116 +125,118 @@ Prowlarr HTTP 500 `DownloadClientUnavailableException` (SABnzbd unreachable):
 the right release was found in two seconds and the pursuit slept four
 hours. The modal then asked "Pick an alternative release", which cannot
 help, and the owner cancelled twice. The release guid is *not* added to
-`tried_release_guids` on this path, so nothing is blacklisted. The same
-misclassification exists in `CommitPlan.grab_assignments/3`, which degrades
-to seeking and discards the assignment.
+`tried_release_guids` on this path, so nothing is blacklisted.
+`CommitPlan.grab_assignments/3` degrades a failed grab to seeking, which
+immediately runs the retry loop — so classifying the error there covers
+the plan path too.
 
 **F7 — The pursuit modal's queries came from the pursuit row.** Plan-born
 pursuits carry scope on their units; four readers in `Pursuits` read the
-row and fell to the whole-series query. Being fixed separately
-(`fix(acquisition): read a pursuit's scope from its units, not the row`).
-It also fed the decision card's query list.
+row and fell to the whole-series query. Fixed in `1764bea9`
+(`fix(acquisition): read a pursuit's scope from its units, not the row`),
+shipped in v1.32.1. It also fed the decision card's query list.
 
-**F8 — The plan board's alternatives picker walks the same fixed ladder**
+**F8 — The plan board's alternatives picker walks the same fixed order**
 (`LadderTerms.for_unit/2` → series, season, episode terms for one unit).
 Falls out of F1 once term ordering is fit-aware.
 
-**F9 — The season rung costs two terms** (`Title Season 7` → 3 results,
+**F9 — The season scope costs two terms** (`Title Season 7` → 3 results,
 `Title S07` → 100). The long form catches `Season 7 Complete` pack names.
 Keep; droppable later if measured useless.
 
 ## The rule
 
-> Search the rungs whose pack could be assigned, broadest first. Then,
-> only for units still unfound, search the remaining rungs narrowest
+> Search the scopes whose pack could be assigned, widest first. Then,
+> only for units still unfound, search the remaining scopes narrowest
 > first, and let their packs be offers.
 
 For want `W`, span sizes `S`, threshold `t`:
 
-- series rung fits ⇔ `|W| / Σ S ≥ t`
+- series scope fits ⇔ `|W| / Σ S ≥ t`
 - season `n` fits ⇔ `|W ∩ season n| / S[n] ≥ t`
-- episode rung always fits
+- episode scope always fits
 
-**Assign pass**: `[series if fits] → [fitting seasons of the residual] →
-[episodes of the residual]`. Re-solve after each rung; halt when the
-residual is empty. Identical to today's descent restricted to fitting
-rungs, so the solver, the coverage guard, and the "packs win" policy are
-untouched.
+**Primary search**: `[series if it fits] → [fitting seasons of the
+residual] → [episodes of the residual]`. Re-solve after each scope; halt
+when the residual is empty. Identical to today's search restricted to
+fitting scopes, so the solver, the coverage guard, and the "packs win"
+policy are untouched.
 
-**Offer pass** (only if the residual is non-empty after the assign pass):
-`[non-fitting seasons of the residual] → [series if it did not fit]`.
-Gather, solve once, gated packs become offers as today. Nothing is
-assigned from this pass by construction: every pack here failed fit.
+**Fallback search** (only if the residual is non-empty after the primary
+search): `[non-fitting seasons of the residual] → [series if it did not
+fit]`. Gather, solve once, gated packs become offers as today. Nothing is
+assigned from this search by construction: every pack here failed fit.
 
 Checked against the table: U1 runs one term when the episode exists; U3
 and U4 start at the season pack; U5 is unchanged; U9 spends its requests
 on episodes and offers per season.
 
 Fit is judged against the plan's whole want (`prefs.all_wanted`), as the
-solver already does, so a rung's fitness does not drift as units get
+solver already does, so a scope's fitness does not drift as units get
 covered.
 
 ### Where it lives
 
-A pure module — working name `Acquisition.Plans.Descent` — takes want,
-span sizes and threshold and returns the ordered passes, each rung as
-`{pass, rung_id, terms_for_residual}`. `RunPlan` iterates it;
-`Alternatives.for_unit` and the seek loop reuse it. `LadderTerms` keeps
-building terms; `Descent` decides order. `PlanEvents.DescentStatus` gains
-the pass on each rung so the board's expectation panel can say "looking
-for a pack to offer" rather than "searching". `GapVerdict.active_headline/2`
-follows.
+A pure module, `Acquisition.Plans.SearchOrder`, takes want, span sizes
+and threshold and returns the ordered scopes, each as
+`{scope, :primary | :fallback, terms_for_residual}`. `RunPlan` iterates
+it; `Alternatives.for_unit` and the retry loop reuse it. `LadderTerms`
+keeps building terms and is renamed `SearchTerms`; `SearchOrder` decides
+order. `PlanEvents.DescentStatus` becomes `PlanEvents.SearchProgress` and
+carries `:primary | :fallback` on each scope so the board's expectation
+panel can say "looking for a pack to offer" rather than "searching".
+`GapVerdict.active_headline/2` and the board headline ("broadest releases
+first, drilling down only for what's still missing") follow.
 
 ## Decisions
 
-Open unless dated.
+All 2026-09-17, with the owner.
 
-1. **Adopt the rule** (F1, F2, F3, F8). Recommendation: yes.
-2. **Offer pass: automatic or on demand?** Automatic costs at most
-   `seasons-in-residual + 1` extra terms, once, and only when something
-   was not found. On demand ("look for packs" on the unfound row) costs
-   nothing until asked. Recommendation: automatic. An unfound old episode
-   whose only copy is a season pack should show the offer without a
-   second click.
-3. **Span sizes for tracking plans** (F4). Options: (a) derive them from
-   the tracking item's own calendar (aired releases per season; no TMDB
-   fetch); (b) treat unknown span sizes as "pack does not fit" (packs
-   become offers only), reversing the planner's monotonic opt-in;
-   (c) leave. Recommendation: (a). The data is already local and it keeps
-   the planner's contract.
-4. **Seek loop and packs** (F5). Options: (a) the seek loop keeps the
-   episode term for its attempts, and *before exhausting* runs the offer
-   pass once; if a pack contains the unit it raises a decision ("only a
-   season pack has it — grab it?") instead of exhausting silently; (b)
-   every attempt runs both passes; (c) leave. Recommendation: (a).
+1. **Adopt the rule** (F1, F2, F3, F8). Owner: yes.
+2. **Fallback search runs automatically.** Owner had no preference; my
+   call. It costs at most `seasons-in-residual + 1` terms, once, only when
+   something was not found, and an unfound old episode whose only copy
+   is a season pack should show the offer without a second click.
+3. **Tracking plans derive span sizes from the tracking calendar** (F4),
+   not from a TMDB fetch; the planner's "unknown → not judged" contract
+   stays. Owner: yes.
+4. **The retry loop runs the fallback search once before exhausting** and,
+   if a pack contains the unit, raises a decision ("only a season pack has
+   it — grab it?") instead of exhausting silently (F5). Owner had no
+   preference; my call. Last in the rollout order.
 5. **Grab-failure classification** (F6). `Prowlarr.grab/1` transport
    errors and HTTP 5xx become an infrastructure outcome
-   (`download_client_unavailable`): no attempt bump, keep the pick, short
-   snooze (the queue monitor already knows when the client is back — it
-   could wake the target), status copy that names the client, and a
-   Needs-attention item while it persists. 4xx stays release-blamed.
-   `CommitPlan` keeps the assignment as the unit's first target instead
-   of degrading to a fresh search. Recommendation: do it; it is what bit
-   today and it is independent of the rule.
-6. **Naming**: fitting rung, assign pass, offer pass. Open.
+   (`download_client_unavailable`): no attempt bump, short snooze, status
+   copy that names the client. 4xx stays release-blamed. The next attempt
+   re-picks from the corpus, so the pick is kept without storing it.
+   Owner: yes.
+6. **Naming.** Plain programmer words only. "Rung", "ladder" and
+   "descent" leave the acquisition code as the modules that carry them
+   are touched; "scope", "search order", "primary" and "fallback" replace
+   them. Owner's principle: no terms coined to be unique across bounded
+   contexts. (`TitleIntent.rung/0`, the tracking level, is a different
+   word in a different context and is not in scope.)
 
 ## Out of scope
 
-- Specials (U11). The ladder has no season-0 shape.
+- Specials (U11). The search has no season-0 shape.
 - Query term shapes (year, alternate titles for TV). Unchanged.
-- Movie planning (U10). Not a ladder.
+- Movie planning (U10). Not ordered by scope.
 - Dropping the pursuit row's `season_number` / `episode_number` columns,
-  which no reader will use after F7. A separate change with a migration.
+  which no reader uses after F7. A separate change with a migration.
+- A Status "Needs attention" item while a download client is unreachable.
+  Worth having; tracked in the campaign as a follow-up once what exists
+  today is checked.
 
 ## Verification
 
-- `Descent` unit tests: one per use-case row, asserting the pass/rung/term
-  sequence for that want.
+- `SearchOrder` unit tests: one per use-case row, asserting the
+  scope/kind/term sequence for that want.
 - `RunPlan` integration: U1 with a stubbed corpus makes exactly one
   indexer request when the episode exists; U4 starts at the season term.
 - `Planner` regression for F4: a lone wanted unit with no span sizes and a
   pack option is *not* assigned the pack (fails today).
 - `PursueTarget`: a 500 from grab leaves attempt count unchanged and the
   target snoozed under the infrastructure outcome (fails today).
-- Board: DescentStatus renders the offer pass distinctly (story + LiveView
-  test).
+- Board: the progress panel renders the fallback search distinctly (story
+  + LiveView test).
