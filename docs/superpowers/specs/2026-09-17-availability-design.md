@@ -131,7 +131,7 @@ is one; no new process (Iron Law).
 | Site | Today | With availability |
 |---|---|---|
 | `Jobs.PursueTarget`, search step | searches, then snoozes 1 h on a Prowlarr error without charging | if `not available?(:prowlarr)`: `{:snooze, 60}`, no request, no attempt charged, no stamp |
-| `Jobs.PursueTarget`, grab step | grabs, then snoozes 15 min on a hand-off failure without charging | if `not available?({:handoff, protocol})`: `{:snooze, 60}`, no request. The first pursuit to hit the outage still grabs once — that grab is the evidence that opens the hand-off |
+| `Jobs.PursueTarget`, grab step | grabs, then snoozes 15 min on a hand-off failure without charging | if the hand-off for the picked release's protocol is down: `{:snooze, 60}`, no request, no attempt; the target is stamped `download_client_unavailable` once per outage (the hold is per pursuit, so the row records it — final review, 2026-09-17). The first pursuit to hit the outage still grabs once — that grab is the evidence that opens the hand-off |
 | `Plans.CommitPlan` grab, then the pursuit's grab | two grabs of the same release in one second | the plan's failed grab opens the hand-off; the pursuit's grab step finds it down and holds. Defect 2 closes by construction |
 | `Jobs.RunPlan` | searches; an error marks the plan and leaves it `ready` | `{:snooze, 60}` at entry while `:prowlarr` is unavailable; the plan stays in its searching state and the board's gap verdict reads the availability reason (the `:blind` verdict already exists) |
 | `DropPlanner` tick | gated on `Capabilities.prowlarr_ready?/0` (configuration only) | gated on `available?(:prowlarr)`; a held tick creates no plans; wants stay open |
@@ -160,12 +160,15 @@ run within 60 s.
 
 ### What the user sees
 
-- **A held pursuit** reads *Waiting — Prowlarr is unreachable* or
-  *Waiting — Prowlarr could not reach your download client*, with no
-  "next attempt" time (it resumes on recovery, not on a clock). The
-  copy source moves from the target's last-outcome stamp to the
-  availability value, passed into the pure view-model
-  (`ViewModels.PursuitStatus`). The stamp stays as history.
+- **A held pursuit** reads *Waiting — Prowlarr is unreachable* (from
+  the availability value, passed into the pure view-model
+  `ViewModels.PursuitStatus` — a Prowlarr hold is global, so every
+  seeking pursuit shows it) or *Waiting — Prowlarr could not reach your
+  download client* (from the target's `download_client_unavailable`
+  stamp, which the worker writes both on the discovering grab and on a
+  hold — a hand-off hold is per pursuit, since only releases of the
+  broken protocol wait). After recovery the stamped copy lingers until
+  the pursuit's next run, at most one probe cadence.
 - **A held plan** shows the existing blind verdict with the
   availability reason.
 - **Status, Downloads tile**: the existing warning *Prowlarr could not
