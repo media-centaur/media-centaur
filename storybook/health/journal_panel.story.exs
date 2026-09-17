@@ -5,6 +5,9 @@ defmodule MediaCentaurWeb.Storybook.Health.JournalPanel do
   the only one that has not subscribed), expanded onto lines, and expanded
   before the tail has written anything. Rendered at rail width, because that
   is the only place it appears.
+
+  Reconnect rides the expanded states — it force-respawns `journalctl` when
+  the tail dies under an open panel — so it has no variation of its own.
   """
   use PhoenixStorybook.Story, :component
 
@@ -39,7 +42,7 @@ defmodule MediaCentaurWeb.Storybook.Health.JournalPanel do
       },
       %Variation{
         id: :expanded,
-        description: "Expanded onto the tail, newest first",
+        description: "Expanded onto the tail, newest first, with Reconnect",
         template: rail("<.psb-variation/>"),
         attributes: %{
           open: true,
@@ -52,7 +55,7 @@ defmodule MediaCentaurWeb.Storybook.Health.JournalPanel do
       },
       %Variation{
         id: :expanded_empty,
-        description: "Expanded before the tail has written anything",
+        description: "Expanded before the tail has written anything; Reconnect is still offered",
         template: rail("<.psb-variation/>"),
         attributes: %{open: true, lines: []}
       }

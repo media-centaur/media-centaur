@@ -66,22 +66,6 @@ defmodule MediaCentaurWeb.ConsolePageLive.Logic do
   end
 
   @doc """
-  Sets the given component to `:show` and all other known components to `:hide`.
-  """
-  @spec solo_component(Filter.t(), String.t()) :: Filter.t()
-  def solo_component(%Filter{} = filter, component_string) when is_binary(component_string) do
-    Filter.solo_component(filter, safe_to_existing_atom(component_string))
-  end
-
-  @doc """
-  Sets the given component to `:hide` and all other known components to `:show`.
-  """
-  @spec mute_component(Filter.t(), String.t()) :: Filter.t()
-  def mute_component(%Filter{} = filter, component_string) when is_binary(component_string) do
-    Filter.mute_component(filter, safe_to_existing_atom(component_string))
-  end
-
-  @doc """
   Sets the filter's level to the atom matching `level_string`. Unknown
   strings become `:system` via `safe_to_existing_atom/1` — this preserves
   the pre-refactor behavior where a stray form value is absorbed rather

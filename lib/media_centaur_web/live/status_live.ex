@@ -406,6 +406,16 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply, apply_journal(socket, was, not was)}
   end
 
+  # Force-respawns `journalctl`. The tail can die under a live panel — the
+  # unit restarts, the pipe breaks — and nothing else brings it back while the
+  # panel stays open. The call can fail (no unit, no subscribers) and the
+  # answer is the same either way: the reader sees the lines resume, or they
+  # do not. `{:journal_reset}` repaints the rail when the respawn lands.
+  def handle_event("journal_reconnect", _params, socket) do
+    _ = Console.journal_reconnect()
+    {:noreply, socket}
+  end
+
   def handle_event("close_subsystem", _params, socket) do
     {:noreply, push_patch(socket, to: status_path(nil, nil))}
   end

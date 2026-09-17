@@ -170,16 +170,6 @@ defmodule MediaCentaurWeb.ConsolePageLive do
     {:noreply, socket}
   end
 
-  def handle_event("solo_component", %{"component" => component_string}, socket) do
-    :ok = Console.update_filter(Logic.solo_component(socket.assigns.filter, component_string))
-    {:noreply, socket}
-  end
-
-  def handle_event("mute_component", %{"component" => component_string}, socket) do
-    :ok = Console.update_filter(Logic.mute_component(socket.assigns.filter, component_string))
-    {:noreply, socket}
-  end
-
   def handle_event("set_level", %{"level" => level_string}, socket) do
     :ok = Console.update_filter(Logic.set_level(socket.assigns.filter, level_string))
     {:noreply, socket}

@@ -119,46 +119,6 @@ defmodule MediaCentaur.Console.Filter do
   end
 
   @doc """
-  Returns a filter where only the given component is `:show`.
-  All other known components are set to `:hide`. The target component is
-  always written explicitly, so callers passing an atom outside the known
-  list still get the expected result.
-  """
-  @spec solo_component(t(), atom()) :: t()
-  def solo_component(%__MODULE__{} = filter, component) do
-    known = MediaCentaur.Console.View.known_components()
-
-    updated_components =
-      known
-      |> Enum.reduce(filter.components, fn known_component, acc ->
-        Map.put(acc, known_component, :hide)
-      end)
-      |> Map.put(component, :show)
-
-    %{filter | components: updated_components}
-  end
-
-  @doc """
-  Returns a filter where the given component is `:hide`.
-  All other known components are set to `:show`. The target component is
-  always written explicitly, so callers passing an atom outside the known
-  list still get the expected result.
-  """
-  @spec mute_component(t(), atom()) :: t()
-  def mute_component(%__MODULE__{} = filter, component) do
-    known = MediaCentaur.Console.View.known_components()
-
-    updated_components =
-      known
-      |> Enum.reduce(filter.components, fn known_component, acc ->
-        Map.put(acc, known_component, :show)
-      end)
-      |> Map.put(component, :hide)
-
-    %{filter | components: updated_components}
-  end
-
-  @doc """
   Converts the filter to a JSON-safe map with all atom values as strings.
   """
   @spec to_persistable(t()) :: map()
