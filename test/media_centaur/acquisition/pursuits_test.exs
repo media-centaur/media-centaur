@@ -616,6 +616,39 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     end
   end
 
+  describe "status_from/2 — held on a down integration" do
+    test "a seeking pursuit waits on Prowlarr while Prowlarr is down" do
+      {pursuit, _target} = create_pursuit_with_target(%{status: "seeking"})
+
+      MediaCentaur.IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
+
+      status = Pursuits.status_from(pursuit, [])
+
+      assert status.current_action.verb == "Waiting"
+      assert status.current_action.description =~ "Prowlarr is unreachable"
+      assert status.next_step == nil
+    end
+
+    test "a seeking pursuit waits on the download client while the hand-off is down" do
+      {pursuit, _target} = create_pursuit_with_target(%{status: "seeking"})
+
+      MediaCentaur.IntegrationAvailability.report({:handoff, :torrent}, {:down, :client_unavailable})
+
+      status = Pursuits.status_from(pursuit, [])
+
+      assert status.current_action.verb == "Waiting"
+      assert status.current_action.description =~ "could not reach your download client"
+    end
+
+    test "everything up keeps the searching copy" do
+      {pursuit, _target} = create_pursuit_with_target(%{status: "seeking"})
+
+      status = Pursuits.status_from(pursuit, [])
+
+      assert status.current_action.verb == "Searching"
+    end
+  end
+
   describe "unit_board_for/1 (ADR-055 drill-down)" do
     test "one row per unit, in position order, with release and counts" do
       {pursuit, _target} =

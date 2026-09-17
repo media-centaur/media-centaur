@@ -266,15 +266,70 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   end
 
   @doc """
-  Location-aware variant. `location` distinguishes the post-download
-  lifecycle stage of an `acquired` target that's no longer in the queue:
-  `:in_review` (the file is sitting in the review queue) vs `:none`
-  (no matching file in review or library yet). For every other case the
-  location is irrelevant and this delegates to `derive/4`.
+  Location- and hold-aware variant. `location` distinguishes the
+  post-download lifecycle stage of an `acquired` target that's no longer
+  in the queue: `:in_review` (the file is sitting in the review queue)
+  vs `:none` (no matching file in review or library yet).
+
+  `opts[:held]` is the integration the worker is waiting on — `:prowlarr`
+  or `:handoff`, read from `MediaCentaur.IntegrationAvailability` by the
+  caller. A held pursuit makes no request and charges no attempt, so it
+  leaves no trace on the target: the caller has to say so. For every
+  other case the location and the hold are irrelevant and this delegates
+  to `derive/4`.
   """
-  @spec derive(Pursuit.t(), Unit.t() | nil, Target.t() | nil, QueueItem.t() | nil, location()) ::
-          {CurrentAction.t(), NextStep.t() | nil, [action()]}
-  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "acquired"}, nil, :in_review) do
+  @spec derive(
+          Pursuit.t(),
+          Unit.t() | nil,
+          Target.t() | nil,
+          QueueItem.t() | nil,
+          location(),
+          keyword()
+        ) :: {CurrentAction.t(), NextStep.t() | nil, [action()]}
+  def derive(pursuit, unit, target, queue_item, location, opts \\ []) do
+    case Keyword.get(opts, :held) do
+      nil -> derive_located(pursuit, unit, target, queue_item, location)
+      integration -> derive_held(pursuit, unit, target, queue_item, location, integration)
+    end
+  end
+
+  # A pending decision outranks the hold: the pick is the user's to make
+  # and the integration being down doesn't change that.
+  defp derive_held(
+         %Pursuit{state: "active"} = pursuit,
+         %Unit{awaiting_decision_at: %DateTime{}} = unit,
+         target,
+         queue_item,
+         location,
+         _integration
+       ), do: derive_located(pursuit, unit, target, queue_item, location)
+
+  # Held before the search or the grab: no clock, because it resumes on
+  # recovery rather than on a timer, and no decision to request — that
+  # would need the same integration.
+  defp derive_held(
+         %Pursuit{state: "active"},
+         _unit,
+         %Target{status: "seeking"},
+         _queue_item,
+         _location,
+         integration
+       ) do
+    {
+      %CurrentAction{
+        verb: "Waiting",
+        description: held_description(integration),
+        severity: :warning
+      },
+      nil,
+      [:cancel]
+    }
+  end
+
+  defp derive_held(pursuit, unit, target, queue_item, location, _integration),
+    do: derive_located(pursuit, unit, target, queue_item, location)
+
+  defp derive_located(%Pursuit{state: "active"}, _unit, %Target{status: "acquired"}, nil, :in_review) do
     {
       %CurrentAction{
         verb: "In review",
@@ -286,7 +341,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(pursuit, unit, target, queue_item, _location), do: derive(pursuit, unit, target, queue_item)
+  defp derive_located(pursuit, unit, target, queue_item, _location),
+    do: derive(pursuit, unit, target, queue_item)
 
   # The seeking-state description tells the user what to expect next.
   # When the worker has scheduled a snooze (`next_attempt_at` is set),
@@ -307,6 +363,15 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
 
   defp outage_description(%Target{next_attempt_at: %DateTime{} = at}),
     do: "Prowlarr could not reach your download client. Next attempt #{Format.relative_in(at)}."
+
+  # Held on a known-down integration: no attempt number and no
+  # countdown, because nothing was spent and the work resumes on
+  # recovery rather than on a timer. Same verb and severity as the
+  # outage copy — to the user it is the same wait.
+  defp held_description(:prowlarr), do: "Prowlarr is unreachable. Resumes when it answers again."
+
+  defp held_description(:handoff),
+    do: "Prowlarr could not reach your download client. Resumes when it can."
 
   defp derive_acquired_in_queue(%QueueItem{state: :downloading} = qi) do
     {
