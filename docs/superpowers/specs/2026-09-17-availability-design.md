@@ -92,6 +92,11 @@ Only four integrations gate metered work: `:prowlarr`,
   availability is the runtime half. One function answers "can I use
   it now", so gate sites never combine the two themselves.
 
+A grab answered with a 5xx that is not the hand-off exception is about
+the release, not an outage (review, 2026-09-17): Prowlarr answered, so
+`:prowlarr` stays up and the pursuit charges an attempt, paced by the
+attempt ladder rather than the probe cadence.
+
 Reasons: `:unreachable` (transport error, 5xx, timeout), `:rejected`
 (401/403 — misconfigured is as useless as dead for held work),
 `:blind` (Prowlarr answers but every enabled indexer is backed off;
@@ -102,7 +107,7 @@ carries Prowlarr's `retry_at`), `:client_unavailable` (hand-off).
 | Integration | Opens on | Probe while down | Cadence | Closes on |
 |---|---|---|---|---|
 | `:prowlarr` | any Prowlarr request failing at transport, 5xx, 401/403; an `IndexerHealth` observation of `:unreachable` or `:blind` | the indexer roster read (`IndexerHealth.check/0`), free | 60 s; for `:blind`, at Prowlarr's own `retry_at` when it is later | any successful Prowlarr request; a roster read that is `:ok` or `:degraded` |
-| `{:handoff, slot}` | a grab answered with `DownloadClientUnavailableException` for a release of that protocol | `POST /api/v1/downloadclient/testall`, free (12 ms, verified) — the slot is down when Prowlarr's enabled client of that protocol is invalid | 60 s | a valid probe result for the slot; any successful grab of that protocol |
+| `{:handoff, slot}` | a grab answered with `DownloadClientUnavailableException` for a release of that protocol | `GET /api/v1/downloadclient` + `POST /api/v1/downloadclient/testall`, free (12 ms, verified) — the slot is down when Prowlarr's enabled client of that protocol is invalid; a slot Prowlarr has **no** enabled client for reads up (no link to be broken; a grab then fails with Prowlarr's real answer). The probe never decides `:prowlarr` — a test-all timeout is about the client. | 60 s | a valid probe result for the slot; any successful grab of that protocol |
 | `:tmdb` | transport error, 5xx, 429 | the cheapest TMDB call (`GET /configuration`), metered but one request | 5 min | any successful TMDB request, including a user-initiated one |
 
 The probe is an Oban job per owning context — `Search.ProbeJob` for

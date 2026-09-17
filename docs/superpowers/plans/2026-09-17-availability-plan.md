@@ -1131,6 +1131,91 @@ git commit -m "feat(acquisition): a pursuit is held while Prowlarr or the hand-o
 
 ---
 
+### Task 5b: A grab 5xx that is not the hand-off is charged, not held
+
+Found in review of Task 3 (2026-09-17): with the discovering snooze shortened to the probe cadence, a grab that Prowlarr answers with a 5xx *other than* `DownloadClientUnavailableException` would be retried every 60 s forever — `grab_outage?/1` says any 5xx is an outage, nothing marks an integration down (Prowlarr answered), so nothing holds it. Under the old code that was a 15-minute loop; now it would be a 60-second one. Such a 5xx is Prowlarr refusing this release (or a Prowlarr fault about it), not an outage: charge an attempt and let the existing ladder (4 h, 8 h, … 24 h, cap 12) pace it.
+
+**Files:**
+- Modify: `lib/media_centaur/search/prowlarr.ex` — `grab_outage?/1` (~:223)
+- Modify: `lib/media_centaur/acquisition/jobs/pursue_target.ex` — no code change expected; verify `handle_found/5` routes a non-outage 5xx to `handle_no_results(..., "grab_failed")`
+- Test: `test/media_centaur/search/prowlarr_test.exs` (append), `test/media_centaur/acquisition/jobs/pursue_target_test.exs` (append)
+
+- [ ] **Step 1: Write the failing tests**
+
+```elixir
+# prowlarr_test.exs
+describe "grab_outage?/1" do
+  test "a transport error is an outage" do
+    assert Prowlarr.grab_outage?(%Req.TransportError{reason: :econnrefused})
+  end
+
+  test "the hand-off exception is an outage" do
+    assert Prowlarr.grab_outage?({:http_error, 500, %{"description" => "NzbDrone.Core.Download.Clients.DownloadClientUnavailableException: Unable to connect to SABnzbd"}})
+  end
+
+  test "any other 5xx is about the release, not the infrastructure" do
+    refute Prowlarr.grab_outage?({:http_error, 500, %{"description" => "NzbDrone.Core.Exceptions.ReleaseUnavailableException: Release is gone"}})
+    refute Prowlarr.grab_outage?({:http_error, 502, ""})
+  end
+
+  test "a 4xx and a missing indexer id are about the release" do
+    refute Prowlarr.grab_outage?({:http_error, 400, %{}})
+    refute Prowlarr.grab_outage?(:missing_indexer_id)
+  end
+end
+```
+
+```elixir
+# pursue_target_test.exs — beside the download_client_unavailable describe; reuse stub_grab_reply/1 and seeking_movie_target/0
+test "a 5xx that is not the hand-off exception charges an attempt and snoozes on the ladder" do
+  stub_grab_reply(fn conn ->
+    conn |> Plug.Conn.put_status(500) |> Req.Test.json(%{"description" => "NzbDrone.Core.Exceptions.ReleaseUnavailableException: gone"})
+  end)
+
+  target = seeking_movie_target()
+
+  assert {:snooze, seconds} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+  assert seconds == 4 * 60 * 60
+
+  reloaded = Repo.get!(MediaCentaur.Acquisition.Target, target.id)
+  assert reloaded.attempt_count == target.attempt_count + 1
+  assert reloaded.last_attempt_outcome == "grab_failed"
+end
+```
+
+- [ ] **Step 2: Run red** — `~/scripts/agents/agent-mix test test/media_centaur/search/prowlarr_test.exs test/media_centaur/acquisition/jobs/pursue_target_test.exs`; expected: the "any other 5xx" test and the pursue test fail (`grab_outage?` returns true; snooze is 60 and no attempt charged).
+
+- [ ] **Step 3: Implement** — in `prowlarr.ex` replace the four `grab_outage?/1` heads with:
+
+```elixir
+  @doc """
+  Whether a `grab/1` error is about the infrastructure rather than the
+  release: Prowlarr itself could not be reached, or Prowlarr answered
+  that it cannot hand the release to the download client. Any other
+  answer from Prowlarr — a 4xx, a 5xx about the release, a result with
+  no indexer id — is about the release: the retry loop charges an
+  attempt for it, so a release Prowlarr keeps refusing is paced by the
+  attempt ladder instead of retried at the probe cadence.
+  """
+  @spec grab_outage?(term()) :: boolean()
+  def grab_outage?({:http_error, _status, _body} = reason), do: download_client_unavailable?(reason)
+  def grab_outage?(:missing_indexer_id), do: false
+  def grab_outage?(_transport_error), do: true
+```
+
+Confirm `handle_found/5` in `pursue_target.ex` already sends a non-outage grab error to `handle_no_results(target, pursuit, unit, criteria, "grab_failed")` — it did before this step; no change expected.
+
+- [ ] **Step 4: Run green**; then `format`, `credo --strict`, `compile --warnings-as-errors`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add lib/media_centaur/search/prowlarr.ex test/media_centaur/search/prowlarr_test.exs test/media_centaur/acquisition/jobs/pursue_target_test.exs
+git commit -m "fix(acquisition): a grab 5xx that is not the hand-off charges an attempt" -m "Claude-Session: https://claude.ai/code/session_01DartCM8viJppYVfPnQFUhF"
+```
+
+---
+
 ### Task 6: The Waiting copy reads availability
 
 **Files:**
