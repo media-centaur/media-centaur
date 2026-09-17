@@ -10,8 +10,8 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     Quality-bounded. Best acceptable hit transitions the target
     `seeking → acquired` and submits to the download client. No
     acceptable result snoozes the worker (exponential backoff) until
-    `@max_attempts` is hit, at which point the target moves to
-    `failed` and the pursuit to `exhausted`.
+    the configured attempt cap is hit, at which point the target moves
+    to `failed` and the pursuit to `exhausted`.
   - **Prowlarr-query recipe** — TitleMatcher is skipped (the user
     typed the query they trust). Any non-empty Prowlarr result set
     sets the pursuit's `awaiting_decision_at` flag so the user picks
@@ -36,7 +36,9 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
               ─► (download client unreachable)    ─► snoozed 15m, NO bump
 
   Exponential backoff: `min(4 * 2^(attempt - 1), 24)` hours, capped at 24h.
-  Default `@max_attempts` is 12 — about a week at the cap.
+  The attempt cap is `AutoGrabSettings.max_attempts` (Settings →
+  Acquisition; default 12 — about a week at the cap), read on every
+  attempt.
 
   ## Cancellation
 
@@ -79,7 +81,6 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   alias MediaCentaur.Acquisition.Pursuits.{Commands, Pursuit, Recipe, State, Unit, UnitState, Units}
   alias MediaCentaur.Repo
 
-  @max_attempts 12
   @snooze_cap_hours 24
   @prowlarr_error_snooze_seconds 60 * 60
   # A download client that Prowlarr cannot reach is usually a restart
@@ -393,8 +394,12 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       |> Target.attempt_changeset(outcome)
       |> Repo.update()
 
+    # The cap is the person's setting (Settings → Acquisition), read per
+    # attempt so a change applies to pursuits already in flight.
+    max_attempts = AutoGrabSettings.load().max_attempts
+
     cond do
-      updated.attempt_count < @max_attempts ->
+      updated.attempt_count < max_attempts ->
         snooze(updated)
 
       pack_covers_unit?(unit, criteria) ->
@@ -403,7 +408,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       true ->
         {:ok, failed} = Repo.update(Target.failed_changeset(updated, CancelReasons.exhausted()))
         broadcast(%TargetEvents.Failed{target: failed})
-        Log.info(:acquisition, "acquisition exhausted — #{target.title} (#{@max_attempts} attempts)")
+        Log.info(:acquisition, "acquisition exhausted — #{target.title} (#{max_attempts} attempts)")
         :ok
     end
   end

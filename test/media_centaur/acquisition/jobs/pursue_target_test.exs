@@ -120,6 +120,37 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
     end
   end
 
+  describe "the attempt cap is the Settings value, not a constant" do
+    # Settings → Acquisition has carried a "max attempts" stepper
+    # (`AutoGrabSettings.max_attempts`, 1–50) that the worker never read:
+    # it exhausted at a hard-coded twelve whatever the person set.
+
+    test "a target exhausts at the configured number of attempts" do
+      :ok = MediaCentaur.Acquisition.AutoGrabSettings.put(:max_attempts, 1)
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} -> Req.Test.json(conn, [])
+          _other -> Req.Test.json(conn, [])
+        end
+      end)
+
+      {_pursuit, target} =
+        create_pursuit_with_target(%{
+          state: "seeking",
+          status: "seeking",
+          title: "Sample Movie",
+          year: 2005
+        })
+
+      assert :ok = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+
+      reloaded = MediaCentaur.Repo.reload!(target)
+      assert reloaded.status == "failed"
+      assert reloaded.attempt_count == 1
+    end
+  end
+
   describe "grab failure — an unreachable download client is an outage, not a bad release" do
     # Evidence run 2026-09-17: Prowlarr found the right release in two
     # seconds, then answered the grab with HTTP 500
