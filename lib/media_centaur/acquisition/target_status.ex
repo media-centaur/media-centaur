@@ -87,7 +87,7 @@ defmodule MediaCentaur.Acquisition.TargetStatus do
   @spec terminal() :: [String.t()]
   def terminal, do: @terminal_strings
 
-  @doc "Statuses that `Acquisition.rearm_target/1` will revive into `seeking`."
+  @doc "Statuses that `Targets.rearm_target/1` will revive into `seeking`."
   @spec rearmable() :: [String.t()]
   def rearmable, do: @rearmable_strings
 
@@ -113,7 +113,7 @@ defmodule MediaCentaur.Acquisition.TargetStatus do
   def terminal_failure?(status), do: normalize(status) in @terminal_failure_strings
 
   @doc """
-  True for rows that `Acquisition.rearm_target/1` will revive — every
+  True for rows that `Targets.rearm_target/1` will revive — every
   terminal status except `succeeded` (the file is here; nothing to
   rearm).
   """

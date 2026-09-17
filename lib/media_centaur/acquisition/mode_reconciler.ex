@@ -23,8 +23,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
     (the user can cancel it on Downloads). Mixed pursuits with any
     landed/landing unit are conservatively left whole.
 
-  What it never touches: `origin: "manual"` plan-now drafts and their
-  pursuits (explicit user actions outrank the automation dial), wants
+  What it never touches: wants
   (mode off ≠ stop wanting — media search remains the expected path,
   Q3, so system cancels leave the ledger open), and items that no
   longer exist (the `item_removed` Reactor path owns deletion).
