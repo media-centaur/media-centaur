@@ -307,7 +307,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     assigns = assign(assigns, :offline_summary, offline_summary)
 
     ~H"""
-    <Layouts.console_mount socket={@socket} />
     <Layouts.app
       show_discovery={@show_discovery}
       show_apps={@show_apps}

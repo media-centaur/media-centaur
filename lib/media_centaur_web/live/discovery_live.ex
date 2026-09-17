@@ -464,7 +464,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.console_mount socket={@socket} />
     <Layouts.app
       show_discovery={@show_discovery}
       show_apps={@show_apps}

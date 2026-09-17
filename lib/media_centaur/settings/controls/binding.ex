@@ -7,8 +7,7 @@ defmodule MediaCentaur.Settings.Controls.Binding do
   Unbound defaults are represented as `nil`.
   """
 
-  @type category :: :navigation | :zones | :playback | :system
-  @type scope :: :input_system | :global
+  @type category :: :navigation | :zones | :playback
 
   @type t :: %__MODULE__{
           id: atom(),
@@ -16,8 +15,7 @@ defmodule MediaCentaur.Settings.Controls.Binding do
           name: String.t(),
           description: String.t(),
           default_key: String.t() | nil,
-          default_button: non_neg_integer() | nil,
-          scope: scope()
+          default_button: non_neg_integer() | nil
         }
 
   defstruct [
@@ -26,7 +24,6 @@ defmodule MediaCentaur.Settings.Controls.Binding do
     :name,
     :description,
     :default_key,
-    :default_button,
-    :scope
+    :default_button
   ]
 end

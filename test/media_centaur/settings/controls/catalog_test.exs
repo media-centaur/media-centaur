@@ -3,8 +3,8 @@ defmodule MediaCentaur.Settings.Controls.CatalogTest do
 
   alias MediaCentaur.Settings.Controls.Catalog
 
-  test "all/0 returns 11 bindings" do
-    assert length(Catalog.all()) == 11
+  test "all/0 returns 10 bindings" do
+    assert length(Catalog.all()) == 10
   end
 
   test "all binding ids are unique" do
@@ -13,7 +13,7 @@ defmodule MediaCentaur.Settings.Controls.CatalogTest do
   end
 
   test "every binding has a category in the valid set" do
-    valid = [:navigation, :zones, :playback, :system]
+    valid = [:navigation, :zones, :playback]
     assert Enum.all?(Catalog.all(), &(&1.category in valid))
   end
 
@@ -41,10 +41,7 @@ defmodule MediaCentaur.Settings.Controls.CatalogTest do
     assert length(nav) == 7
   end
 
-  test "toggle_console is in :system category with scope :global" do
-    binding = Catalog.get(:toggle_console)
-    assert binding.category == :system
-    assert binding.scope == :global
-    assert binding.default_key == "`"
+  test "categories/0 covers every binding's category" do
+    assert Enum.all?(Catalog.all(), &(&1.category in Catalog.categories()))
   end
 end

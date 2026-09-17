@@ -8,7 +8,7 @@ defmodule MediaCentaur.Console.JournalSource do
 
   Emits one `{:journal_line, %Entry{}}` message per line on
   `Topics.service_journal()`. Entries reuse the shared `Console.Entry`
-  struct with `component: :systemd` so the Console drawer's stream can
+  struct with `component: :systemd` so the Status System drill-in can
   render them with the same row component used for BEAM logs.
 
   ## Injectable spawner
@@ -106,8 +106,8 @@ defmodule MediaCentaur.Console.JournalSource do
     # Unit detection is cheap (env + /proc/self/cgroup) and immutable
     # over the BEAM's lifetime — read it once at init and keep it in
     # state. This keeps `available?/0` a constant-time return from a
-    # stored boolean, which matters because every LiveView mount in
-    # the app calls it via `console_mount`.
+    # stored boolean, which matters because the Status board consults it
+    # on every mount that paints the System drill-in.
     unit_fetcher = Keyword.get(opts, :unit_fetcher, &default_unit_fetcher/0)
 
     state = %State{

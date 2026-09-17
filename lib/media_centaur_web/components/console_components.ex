@@ -1,14 +1,15 @@
 defmodule MediaCentaurWeb.ConsoleComponents do
   @moduledoc """
-  Shared HEEx function components used by both `ConsoleLive` (sticky drawer)
-  and `ConsolePageLive` (full-page `/console` route). Pure render functions
-  driven entirely by assigns — no state, no PubSub.
+  HEEx function components for the `/console` page (`ConsolePageLive`).
+  `log_line/1` is also imported by `HealthComponents` for the Status
+  subsystem log panel. Pure render functions driven entirely by assigns —
+  no state, no PubSub.
   """
 
   Module.register_attribute(__MODULE__, :storybook_status, persist: true)
   Module.register_attribute(__MODULE__, :storybook_reason, persist: true)
   @storybook_status :skip
-  @storybook_reason "Log stream is sticky LiveView state — covered by page smoke tests"
+  @storybook_reason "Log stream is LiveView stream state — covered by page smoke tests"
 
   use MediaCentaurWeb, :html
 
@@ -169,114 +170,25 @@ defmodule MediaCentaurWeb.ConsoleComponents do
     ~H"""
     <main class="console-log" id="console-entries" phx-update="stream" phx-hook="LogTail">
       <%!-- The row stays a direct child of `.console-log`: the container is a
-            flex column with a gap, and the drawer's client-side search hides
-            matched-out rows with `display: none`. A wrapper element would keep
-            its gap slot and leave a ladder of holes through a filtered list. --%>
+            flex column with a gap, and the ConsolePage hook's client-side
+            search hides matched-out rows with `display: none`. A wrapper
+            element would keep its gap slot and leave a ladder of holes
+            through a filtered list. --%>
       <.log_line :for={{dom_id, entry} <- @streams.entries} id={dom_id} entry={entry} />
     </main>
     """
   end
 
   @doc """
-  Renders the systemd journal stream. Same visual shell as `log_list` but
-  driven by `@streams.journal`. Every entry is `component: :systemd`, so
-  we skip the component badge and only render the message line — the
-  journalctl timestamp is already baked into `entry.message`.
-  """
-  attr :streams, :any,
-    required: true,
-    doc:
-      "Phoenix LiveView Streams map; reads `@streams.journal`. Same `phx-update=\"stream\"` pattern as `log_list/1` — see that attr's note for the type rationale."
-
-  def journal_list(assigns) do
-    ~H"""
-    <main
-      class="console-log"
-      id="console-journal"
-      phx-update="stream"
-      phx-hook="LogTail"
-      data-pin-to="bottom"
-    >
-      <div
-        :for={{dom_id, entry} <- @streams.journal}
-        id={dom_id}
-        class="console-entry"
-        data-level={entry.level}
-        data-component={entry.component}
-        data-message={entry.message}
-      >
-        <span class="console-message">{entry.message}</span>
-      </div>
-    </main>
-    """
-  end
-
-  @doc """
-  Tab strip for choosing the active log source — "App" is always present;
-  "Systemd" appears only when a systemd unit has been detected.
-
-  ## Attributes
-
-  - `:active_source` — `:app` or `:systemd`
-  - `:journal_available` — when false, the Systemd tab is hidden entirely
-  """
-  attr :active_source, :atom, required: true
-  attr :journal_available, :boolean, required: true
-
-  def source_tabs(assigns) do
-    ~H"""
-    <nav class="console-source-tabs" role="tablist" aria-label="Log source">
-      <button
-        type="button"
-        role="tab"
-        phx-click="set_log_source"
-        phx-value-source="app"
-        aria-selected={@active_source == :app}
-        class={["console-source-tab", @active_source == :app && "is-active"]}
-      >
-        App
-      </button>
-      <button
-        :if={@journal_available}
-        type="button"
-        role="tab"
-        phx-click="set_log_source"
-        phx-value-source="systemd"
-        aria-selected={@active_source == :systemd}
-        class={["console-source-tab", @active_source == :systemd && "is-active"]}
-      >
-        Systemd
-      </button>
-      <.button
-        :if={@active_source == :systemd and @journal_available}
-        variant="dismiss"
-        size="xs"
-        class="console-source-reconnect"
-        phx-click="reconnect_journal"
-        title="Force-respawn journalctl"
-      >
-        Reconnect
-      </.button>
-    </nav>
-    """
-  end
-
-  @doc """
   Footer with buffer management actions and size slider.
-
-  When `show_fullpage_link` is true (the default), renders a navigation link
-  to the full-page `/console` route. Pass `false` from `ConsolePageLive` since
-  it IS the full page.
 
   ## Attributes
 
   - `:paused` — whether log streaming is paused
   - `:buffer_size` — current per-component buffer capacity
-  - `:show_fullpage_link` — whether to render the "full page" link (default: `true`)
   """
   attr :paused, :boolean, required: true
   attr :buffer_size, :integer, required: true
-  attr :show_fullpage_link, :boolean, default: true
 
   def action_footer(assigns) do
     ~H"""
@@ -294,9 +206,6 @@ defmodule MediaCentaurWeb.ConsoleComponents do
       </.button>
       <.button variant="neutral" size="xs" phx-click="copy_visible">copy</.button>
       <.button variant="neutral" size="xs" phx-click="download_buffer">download</.button>
-      <.button :if={@show_fullpage_link} variant="neutral" size="xs" navigate={~p"/console"}>
-        full page
-      </.button>
       <.button
         variant="primary"
         size="xs"

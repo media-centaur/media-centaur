@@ -31,6 +31,39 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
     assert rendered =~ "console page integration test"
   end
 
+  test "initial mount streams only entries the persisted filter admits", %{conn: conn} do
+    # The default filter hides framework components (:phoenix/:ecto/:live_view).
+    # Seed the buffer with one admitted (app) and one excluded (framework) entry
+    # BEFORE mounting, so both sit in the snapshot the connected mount reads. The
+    # buggy mount streamed the raw window unfiltered, so the excluded entry
+    # briefly painted before live entries scrolled it away — the "flash of
+    # unfiltered text". Mount must apply the filter, like every other
+    # entry-producing path (new-entry insert, filter change, buffer resize).
+    :ok = Console.subscribe()
+
+    require MediaCentaur.Log, as: Log
+    # :warning so both clear the test logger floor — :info is dropped in test config.
+    Log.warning(:pipeline, "admitted app entry")
+    Log.warning(:phoenix, "excluded framework entry")
+
+    # Once the broadcasts land, the entries are in the buffer: the append cast is
+    # processed before the later Console.read call (same GenServer, serialized).
+    await_log_broadcast(["admitted app entry", "excluded framework entry"])
+
+    {:ok, _view, html} = live(conn, ~p"/console")
+
+    assert html =~ "admitted app entry"
+    refute html =~ "excluded framework entry"
+  end
+
+  test "toggle_pause flips the pause state", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/console")
+
+    render_click(view, "toggle_pause")
+
+    assert render(view) =~ "resume"
+  end
+
   test "clear_buffer event empties the buffer", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/console")
 

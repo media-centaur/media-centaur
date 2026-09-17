@@ -28,10 +28,10 @@ export const LogTail = {
     this._observer = new MutationObserver(() => this._maintain())
     this._observer.observe(this.el, { childList: true, subtree: false })
 
-    // External re-pin trigger. The Console drawer dispatches this when it
-    // opens, because the systemd journal_list may have been laid out off
-    // the live edge while the panel was hidden by transform — opening the
-    // drawer is the user's signal that they want to see the tail.
+    // External re-pin trigger, for a surface that reveals a log container
+    // whose layout drifted while it was hidden. Nothing dispatches it since
+    // the console drawer was retired; kept as the documented way to ask a
+    // tail to re-pin without reaching into the hook.
     this._onRepin = () => {
       this._followTail = true
       this._pin()

@@ -14,9 +14,8 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       assert rendered =~ "Navigation"
       assert rendered =~ "Zones"
       assert rendered =~ "Playback"
-      assert rendered =~ "System"
       assert rendered =~ "Move up"
-      assert rendered =~ "Toggle console"
+      assert rendered =~ "Play"
     end
   end
 

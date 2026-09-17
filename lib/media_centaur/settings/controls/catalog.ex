@@ -24,8 +24,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Move up",
       description: "Focus the item above the current one",
       default_key: "ArrowUp",
-      default_button: 12,
-      scope: :input_system
+      default_button: 12
     },
     %Binding{
       id: :navigate_down,
@@ -33,8 +32,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Move down",
       description: "Focus the item below the current one",
       default_key: "ArrowDown",
-      default_button: 13,
-      scope: :input_system
+      default_button: 13
     },
     %Binding{
       id: :navigate_left,
@@ -42,8 +40,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Move left",
       description: "Focus the item to the left",
       default_key: "ArrowLeft",
-      default_button: 14,
-      scope: :input_system
+      default_button: 14
     },
     %Binding{
       id: :navigate_right,
@@ -51,8 +48,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Move right",
       description: "Focus the item to the right",
       default_key: "ArrowRight",
-      default_button: 15,
-      scope: :input_system
+      default_button: 15
     },
     %Binding{
       id: :select,
@@ -60,8 +56,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Select",
       description: "Confirm or activate the focused item",
       default_key: "Enter",
-      default_button: 0,
-      scope: :input_system
+      default_button: 0
     },
     %Binding{
       id: :back,
@@ -69,8 +64,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Back",
       description: "Close the open dialog, or jump to the main menu",
       default_key: "Escape",
-      default_button: 1,
-      scope: :input_system
+      default_button: 1
     },
     %Binding{
       id: :clear,
@@ -78,8 +72,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Clear",
       description: "Clear the current search or filter",
       default_key: "Backspace",
-      default_button: 3,
-      scope: :input_system
+      default_button: 3
     },
     %Binding{
       id: :zone_next,
@@ -87,8 +80,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Next zone",
       description: "Cycle focus to the next navigation zone",
       default_key: "]",
-      default_button: 5,
-      scope: :input_system
+      default_button: 5
     },
     %Binding{
       id: :zone_prev,
@@ -96,8 +88,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Previous zone",
       description: "Cycle focus to the previous navigation zone",
       default_key: "[",
-      default_button: 4,
-      scope: :input_system
+      default_button: 4
     },
     %Binding{
       id: :play,
@@ -105,17 +96,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       name: "Play",
       description: "Start playback of the focused item",
       default_key: "p",
-      default_button: 9,
-      scope: :input_system
-    },
-    %Binding{
-      id: :toggle_console,
-      category: :system,
-      name: "Toggle console",
-      description: "Open or close the diagnostics console drawer",
-      default_key: "`",
-      default_button: nil,
-      scope: :global
+      default_button: 9
     }
   ]
 
@@ -145,5 +126,5 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
 
   @doc "Ordered list of category atoms — governs UI order."
   @spec categories() :: [atom()]
-  def categories, do: [:navigation, :zones, :playback, :system]
+  def categories, do: [:navigation, :zones, :playback]
 end

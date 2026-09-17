@@ -1,8 +1,8 @@
-defmodule MediaCentaurWeb.ConsoleLive.LogicTest do
+defmodule MediaCentaurWeb.ConsolePageLive.LogicTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Console.{Entry, Filter}
-  alias MediaCentaurWeb.ConsoleLive.Logic
+  alias MediaCentaurWeb.ConsolePageLive.Logic
 
   # --- Helpers ---
 

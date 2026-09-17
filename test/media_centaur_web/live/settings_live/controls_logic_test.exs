@@ -15,17 +15,15 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogicTest do
         clear: %{key: "Backspace", button: 3},
         zone_next: %{key: "]", button: 5},
         zone_prev: %{key: "[", button: 4},
-        play: %{key: "p", button: 9},
-        toggle_console: %{key: "`", button: nil}
+        play: %{key: "p", button: 9}
       }
 
-      [{:navigation, nav}, {:zones, zones}, {:playback, play}, {:system, sys}] =
+      [{:navigation, nav}, {:zones, zones}, {:playback, play}] =
         ControlsLogic.group_for_view(resolved)
 
       assert length(nav) == 7
       assert length(zones) == 2
       assert length(play) == 1
-      assert length(sys) == 1
 
       [first | _] = nav
       assert first.id == :navigate_up
