@@ -107,6 +107,16 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
       assert IntegrationAvailability.up?(:prowlarr)
     end
 
+    test "a 5xx that is not the hand-off exception still says Prowlarr answered" do
+      stub_prowlarr(fn conn, {"POST", "/api/v1/search"} ->
+        conn |> Plug.Conn.put_status(500) |> Req.Test.json(%{"description" => "Unexpected fault"})
+      end)
+
+      assert {:error, _reason} = Prowlarr.grab(usenet_release())
+      assert IntegrationAvailability.up?(:prowlarr)
+      assert IntegrationAvailability.up?({:handoff, :usenet})
+    end
+
     test "a successful grab marks the hand-off up" do
       {:changed, _state} =
         IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
@@ -244,7 +254,7 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
       assert IntegrationAvailability.up?({:handoff, :torrent})
     end
 
-    test "a slot with no enabled client on Prowlarr's side is left alone" do
+    test "a slot with no enabled client on Prowlarr's side is reported up" do
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
           {"GET", "/api/v1/downloadclient"} ->
@@ -259,8 +269,27 @@ defmodule MediaCentaur.Search.ProwlarrAvailabilityTest do
         IntegrationAvailability.report({:handoff, :torrent}, {:down, :client_unavailable})
 
       assert :ok = ProwlarrAvailability.probe_handoff()
-      refute IntegrationAvailability.up?({:handoff, :torrent})
+      assert IntegrationAvailability.up?({:handoff, :torrent})
       assert IntegrationAvailability.up?({:handoff, :usenet})
+    end
+
+    test "a test-all that never answers is inconclusive: neither Prowlarr nor the hand-off moves" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/downloadclient"} ->
+            Req.Test.json(conn, download_clients())
+
+          {"POST", "/api/v1/downloadclient/testall"} ->
+            Req.Test.transport_error(conn, :timeout)
+        end
+      end)
+
+      {:changed, _state} =
+        IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
+
+      assert {:error, _reason} = ProwlarrAvailability.probe_handoff()
+      assert IntegrationAvailability.up?(:prowlarr)
+      refute IntegrationAvailability.up?({:handoff, :usenet})
     end
   end
 end

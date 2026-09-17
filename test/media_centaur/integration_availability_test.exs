@@ -19,6 +19,12 @@ defmodule MediaCentaur.IntegrationAvailabilityTest do
     end
   end
 
+  describe "handoff_slots/0" do
+    test "names the two download-client protocols the hand-off is tracked per" do
+      assert IntegrationAvailability.handoff_slots() == [:usenet, :torrent]
+    end
+  end
+
   describe "report/3" do
     test "the first down observation is a change, broadcast on the availability topic" do
       Topics.subscribe(Topics.integration_availability_updates())
