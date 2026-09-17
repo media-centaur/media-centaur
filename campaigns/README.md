@@ -21,22 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`dead-code-detection.md`](dead-code-detection.md) —
-  **in progress 2026-09-17; one decision open.** Nothing in the toolchain saw a
-  `def` with no callers — `--warnings-as-errors` catches private functions,
-  `boundaries` catches illegal edges, but a public function whose last caller
-  was deleted was invisible in both Elixir and JS. **JS is gated**: a
-  dependency-cruiser reachability rule from `app.js` (`no-orphans` was measured
-  and does nothing — every module is imported by its own test). **Elixir has the
-  tool but cannot gate yet**, and the blocker is no longer the candidate list:
-  `mix_unused` cannot see through a default argument, so 40 of its 338 hints
-  sit on live code. Three ways out are written down with their costs; the
-  choice is a completion criterion. The named candidate list is worked through
-  — 36 functions deleted, three features wired rather than deleted (the last
-  being a Status readout showing Discovery's slot count for the two stages
-  Import owns), three behaviours declared. Read the campaign's **START HERE**
-  section before dispositioning anything.
-
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
@@ -172,6 +156,24 @@ Use [`template.md`](template.md) as a starter.
 
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
+
+* **Dead-code detection** — **closed 2026-09-17; file retired.** Nothing in
+  the toolchain could see a `def` with no callers. **JS is gated and stays**:
+  `no-unreachable-from-app` walks reachability from `app.js` in
+  `.dependency-cruiser.cjs`, running inside `mix boundaries` in `precommit`
+  (`no-orphans` was measured and does nothing — every module is imported by
+  its own test). **Elixir was tried and declined**
+  ([ADR-069](../decisions/architecture/2026-09-17-069-no-elixir-dead-code-gate.md)):
+  `mix_unused` ran for one campaign and was removed. It found four defects —
+  three with no symptom and no other route to discovery — and ~40 dead
+  functions whose removal returned close to nothing while consuming most of
+  the time. It could not gate anyway: it cannot see through a default
+  argument, so 40 of its 338 hints sat on live code, and its analyzer is not
+  swappable. The defects are fixed, the declared behaviours (`Library.Writable`,
+  `Library.OwnerTyped`, `Broadway.Acknowledger`) stay, and the campaign's
+  inherited follow-ups were rehomed to the moduledocs that own them.
+  Leftover: `Targets.list_auto_targets/1` and `rearm_target/1` are a
+  capability with no door — recorded in that module's moduledoc.
 
 * **Watchlist and release tracking** — **shipped v1.16.0 2026-09-07; file
   retired 2026-09-11.** Four representations of one idea collapsed into one
