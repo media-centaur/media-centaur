@@ -4,6 +4,7 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Console
+  alias MediaCentaur.Console.Entry
   alias MediaCentaur.Console.Filter
 
   setup do
@@ -39,16 +40,7 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
     # briefly painted before live entries scrolled it away — the "flash of
     # unfiltered text". Mount must apply the filter, like every other
     # entry-producing path (new-entry insert, filter change, buffer resize).
-    :ok = Console.subscribe()
-
-    require MediaCentaur.Log, as: Log
-    # :warning so both clear the test logger floor — :info is dropped in test config.
-    Log.warning(:pipeline, "admitted app entry")
-    Log.warning(:phoenix, "excluded framework entry")
-
-    # Once the broadcasts land, the entries are in the buffer: the append cast is
-    # processed before the later Console.read call (same GenServer, serialized).
-    await_log_broadcast(["admitted app entry", "excluded framework entry"])
+    seed([entry(:pipeline, "admitted app entry"), entry(:phoenix, "excluded framework entry")])
 
     {:ok, _view, html} = live(conn, ~p"/console")
 
@@ -67,12 +59,9 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
   test "clear_buffer event empties the buffer", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/console")
 
+    # `:buffer_cleared` arrives on the Console topic, not from the view.
     :ok = Console.subscribe()
-
-    require MediaCentaur.Log, as: Log
-    Log.warning(:pipeline, "will be cleared on page")
-
-    await_log_broadcast(["will be cleared on page"])
+    seed([entry(:pipeline, "will be cleared on page")])
 
     render_click(view, "clear_buffer")
     assert_receive :buffer_cleared, 500
@@ -81,13 +70,8 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
   end
 
   test "showing a hidden component redraws the stream from its ring", %{conn: conn} do
-    :ok = Console.subscribe()
-
-    require MediaCentaur.Log, as: Log
     # :phoenix is hidden by the default filter, so its ring is not read at mount.
-    Log.warning(:phoenix, "framework entry")
-
-    await_log_broadcast(["framework entry"])
+    seed([entry(:phoenix, "framework entry")])
 
     {:ok, view, html} = live(conn, ~p"/console")
     refute html =~ "framework entry"
@@ -103,12 +87,7 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
   test "a buffer resize redraws the stream from the store", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/console")
 
-    :ok = Console.subscribe()
-
-    require MediaCentaur.Log, as: Log
-    Log.warning(:pipeline, "survives a resize")
-
-    await_log_broadcast(["survives a resize"])
+    seed([entry(:pipeline, "survives a resize")])
 
     # Resize to the cap the store already has: the redraw path runs in full
     # without leaving a changed cap behind for the next test.
@@ -121,12 +100,7 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
   test "download_buffer pushes the visible log as a named file", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/console")
 
-    :ok = Console.subscribe()
-
-    require MediaCentaur.Log, as: Log
-    Log.warning(:pipeline, "downloadable entry")
-
-    await_log_broadcast(["downloadable entry"])
+    seed([entry(:pipeline, "downloadable entry")])
 
     render_click(view, "download_buffer")
 
@@ -138,17 +112,32 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
   test "copy_visible pushes the visible log as clipboard text", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/console")
 
-    :ok = Console.subscribe()
-
-    require MediaCentaur.Log, as: Log
-    Log.warning(:pipeline, "copyable entry")
-
-    await_log_broadcast(["copyable entry"])
+    seed([entry(:pipeline, "copyable entry")])
 
     render_click(view, "copy_visible")
 
     assert_push_event(view, "console:copy", %{content: content})
     assert content =~ "copyable entry"
+  end
+
+  defp entry(component, message) do
+    %Entry{
+      id: System.unique_integer([:monotonic, :positive]),
+      timestamp: ~U[2026-09-17 10:00:00Z],
+      level: :info,
+      component: component,
+      message: message
+    }
+  end
+
+  # Seeds the store the way the console handler does, without going through
+  # Logger: a `Log.warning` would also mint an ErrorReports incident whose
+  # `{:buckets_changed, _}` broadcast lands in whichever test is running when
+  # the Buckets server gets to it. The one test that must exercise the real
+  # Logger path keeps `Log.warning` and awaits the broadcast.
+  defp seed(entries) do
+    Enum.each(entries, &Console.Buffer.append/1)
+    :ok = Console.flush()
   end
 
   # Everything the store holds, unfiltered. `Filter.all()` is the read

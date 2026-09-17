@@ -15,6 +15,12 @@ defmodule MediaCentaur.Retention.Policy do
     * `:forever` — retained permanently by design (e.g. watch history).
       Declared so the decision is visible, not implicit.
 
+  **Scheduled convergence:** this is a domain field constrained by a web
+  module, enforced by prose alone — `ErrorReports` folds the same way via
+  `HealthBoard.normalize/1` at display time. The next time a *third* context
+  needs the subsystem vocabulary, promote it to a domain module and make this
+  constraint a code reference instead of a sentence.
+
   `subsystem` must be one of the Status-page health-board subsystem keys
   (`:watcher`, `:pipeline`, `:tmdb`, `:playback`, `:library`,
   `:acquisition`, `:self_update`, `:system`) — it routes the policy onto

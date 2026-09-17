@@ -226,6 +226,10 @@ defmodule MediaCentaurWeb.StatusLive do
   # resource), so it composes as a second query param rather than a path
   # segment — `/status?subsystem=acquisition&incident=<fingerprint>`.
   @impl true
+  # While a drill-in is open this re-reads 200 log lines from the Console
+  # Buffer on every patch, opening or closing an incident included — a
+  # GenServer call per navigation. Accepted on an operator page; noted so it
+  # is a known cost rather than a surprise.
   def handle_params(params, _uri, socket) do
     socket = ensure_loaded(socket)
     subsystem = parse_subsystem(params)

@@ -3,6 +3,13 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Tmdb do
   TMDB subsystem Activity widget: integration config + metadata-activity feed.
   The rate-limit budget lives on the Connections widget's TMDB row.
 
+  **Scheduled convergence:** the pending-review count is rendered twice on the
+  board — here as a low-confidence match count linking to `~p"/review"`, and on
+  the Library widget as part of "pending review + in-flight acquisitions". One
+  idea, two representations, in adjacent tiles. Consolidate them *before*
+  anyone asks whether Review deserves its own Status tile: it looks
+  unnecessary precisely because its health is already on the board twice.
+
   Rendered into the health-board drill-in's :activity slot via
   MediaCentaurWeb.StatusLive.ActivityWidgets, invoked with a plain data
   bundle (no change-tracking) from StatusLive.activity_bundle/1 — derive

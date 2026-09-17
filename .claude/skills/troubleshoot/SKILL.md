@@ -37,9 +37,10 @@ All diagnostic logic lives in `MediaCentaur.Diagnostics` (`lib/media_centaur/dia
 | `log_recent/1` | Print the N most recent console buffer entries (default: 20) |
 | `services/0` | Watcher/pipeline state, media dirs |
 
-Log visibility is controlled in the browser console (press backtick, or
-navigate to `/console`) — there is no runtime enable/disable at the logger
-level. The buffer captures every log; filtering is a display concern.
+Log visibility is a display concern — there is no runtime enable/disable at
+the logger level; the buffer captures every log. Filter them on the Console
+page, which is URL-only: navigate to `/console`. Nothing links to it, and the
+old backtick drawer was retired in v1.32.0.
 
 ## The Troubleshoot Script
 
@@ -157,9 +158,9 @@ scripts/troubleshoot log recent 100    # last 100 buffer entries
 
 The buffer captures every log component and framework event
 (`watcher`, `pipeline`, `tmdb`, `playback`, `library`, `system`, `phoenix`,
-`ecto`, `live_view`). Visibility filtering happens in the browser console —
-press backtick on any page, or navigate to
-`http://127.0.0.1:$port/console` for a full-page view.
+`ecto`, `live_view`). Filter them at
+`http://127.0.0.1:$port/console` — the unfiltered firehose, reachable by URL
+only. Each Status subsystem drill-in also shows that subsystem's recent lines.
 
 ### Remote Shell
 
@@ -263,8 +264,8 @@ Call functions directly on the running dev node:
    - Which resolution strategy matched (parent/episode/child movie/extra)
    - Why it failed (not found, no content_url, no playable content)
    - Or what action was resolved (resume, play_next, restart) with the file
-3. If the noise is too much, open the browser console (backtick), solo the
-   `:playback` chip, and reproduce again for a focused view.
+3. If the noise is too much, open `/console`, filter to the `:playback`
+   component, and reproduce again for a focused view.
 
 ### "Files aren't being detected"
 

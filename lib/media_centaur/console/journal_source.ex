@@ -17,6 +17,21 @@ defmodule MediaCentaur.Console.JournalSource do
   production the default uses `Port.open/2`. Tests pass a helper pid that
   mimics Port message shape (`{port_or_pid, {:data, {:eol, line}}}` and
   `{port_or_pid, {:exit_status, code}}`) so nothing really shells out.
+
+  ## Known coverage gap
+
+  Nothing in CI exercises the join — expand → subscribe → lines render →
+  reconnect → close → unsubscribe. The decision is pinned by
+  `StatusLive.JournalPanel` (pure) and the lifecycle by
+  `journal_source_test.exs` against a named instance, but the seam between
+  them was proven only by a manual browser probe (a `pgrep journalctl`
+  poller showing the process appear on expand and die 5s after the drill-in
+  closed). Closing it properly needs a named-instance seam on this module
+  reached through config — a **production** change, deliberately not made for
+  testability alone. The **Reconnect** button (added v1.32.0) is in the same
+  position: its handler has a regression test for the failing call, but the
+  happy path it belongs to is the uncovered one, and it only renders under
+  systemd.
   """
 
   use GenServer
