@@ -198,12 +198,26 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
             reply.(conn)
 
           # A hand-off that goes down enqueues the hand-off probe, which
-          # Oban runs inline — these are the requests it makes.
+          # Oban runs inline — these are the requests it makes. The
+          # client Prowlarr could not hand the release to is still
+          # configured and still failing its test.
           {"GET", "/api/v1/downloadclient"} ->
-            Req.Test.json(conn, [])
+            Req.Test.json(conn, [
+              %{
+                "id" => 1,
+                "name" => "Sample Usenet Client",
+                "implementation" => "Sabnzbd",
+                "protocol" => "usenet",
+                "enable" => true,
+                "fields" => [
+                  %{"name" => "host", "value" => "usenet.test"},
+                  %{"name" => "port", "value" => 8080}
+                ]
+              }
+            ])
 
           {"POST", "/api/v1/downloadclient/testall"} ->
-            Req.Test.json(conn, [])
+            Req.Test.json(conn, [%{"id" => 1, "isValid" => false}])
         end
       end)
     end
