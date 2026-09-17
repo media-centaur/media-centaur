@@ -212,6 +212,34 @@ defmodule MediaCentaur.Search.Prowlarr do
   end
 
   @doc """
+  Whether a `grab/1` error is about the infrastructure rather than the
+  release: Prowlarr answered 5xx (its `DownloadClientUnavailableException`
+  when SABnzbd or qBittorrent is down, or its own fault), or Prowlarr
+  itself could not be reached. A 4xx (bad guid, indexer gone) and a
+  result with no indexer id are about the release. The retry loop
+  snoozes without charging an attempt on an outage; the manual pick
+  says so instead of blaming the release.
+  """
+  @spec grab_outage?(term()) :: boolean()
+  def grab_outage?({:http_error, status, _body}) when status >= 500, do: true
+  def grab_outage?({:http_error, _status, _body}), do: false
+  def grab_outage?(:missing_indexer_id), do: false
+  def grab_outage?(_transport_error), do: true
+
+  @doc """
+  Whether a `grab/1` error is specifically Prowlarr failing to hand the
+  release to the download client — the one outage where the fix is on
+  the client side, not Prowlarr's. Read off the exception name Prowlarr
+  puts in its error body.
+  """
+  @spec download_client_unavailable?(term()) :: boolean()
+  def download_client_unavailable?({:http_error, status, %{"description" => description}})
+      when status >= 500 and is_binary(description),
+      do: String.contains?(description, "DownloadClientUnavailableException")
+
+  def download_client_unavailable?(_reason), do: false
+
+  @doc """
   Snapshots the indexer roster and per-indexer back-off state — the raw
   material for `MediaCentaur.Search.IndexerHealth.classify/3`.
 

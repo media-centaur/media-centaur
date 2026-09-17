@@ -952,4 +952,57 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
       assert Logic.watching_summary_label({5, 3}) == "Watching for 5 releases across 3 titles"
     end
   end
+
+  describe "failure_flash/2 — a failed act says why" do
+    # 2026-09-17: "Try this one" answered "Could not pick that alternative."
+    # while the log held the real reason — Prowlarr could not reach
+    # SABnzbd. Every acquisition act on Incoming had the same shape: log
+    # the reason, show a generic line. The reason the app knows is the
+    # reason the user gets.
+
+    test "Prowlarr failing the hand-off names the client link and the one fix" do
+      body = %{
+        "description" =>
+          "NzbDrone.Core.Download.Clients.DownloadClientUnavailableException: Unable to connect to SABnzbd"
+      }
+
+      assert Logic.failure_flash("pick that release", {:http_error, 500, body}) ==
+               "Could not pick that release — Prowlarr could not hand it to your download client. Check that it's running, then try again."
+    end
+
+    test "any other Prowlarr answer is quoted with its status" do
+      assert Logic.failure_flash(
+               "pick that release",
+               {:http_error, 400, %{"message" => "guid not found"}}
+             ) ==
+               "Could not pick that release — Prowlarr answered HTTP 400: guid not found."
+
+      assert Logic.failure_flash("re-run the search", {:http_error, 502, %{}}) ==
+               "Could not re-run the search — Prowlarr answered HTTP 502."
+    end
+
+    test "Prowlarr being unreachable names it and the one fix" do
+      assert Logic.failure_flash("re-run the search", %Req.TransportError{reason: :econnrefused}) ==
+               "Could not re-run the search — Prowlarr could not be reached. Check that it's running and its URL is right."
+    end
+
+    test "known reasons get plain words" do
+      assert Logic.failure_flash("pick that release", :alternative_unavailable) ==
+               "Could not pick that release — it is no longer in the search results."
+
+      assert Logic.failure_flash("pick that release", :missing_indexer_id) ==
+               "Could not pick that release — the result carries no indexer id."
+
+      assert Logic.failure_flash("commit the plan", {:overlap, [{7, 13}]}) ==
+               "Could not commit the plan — another pursuit already covers S07E13."
+
+      assert Logic.failure_flash("commit the plan", :not_ready) ==
+               "Could not commit the plan — not ready."
+    end
+
+    test "an unknown reason is still shown, never swallowed" do
+      assert Logic.failure_flash("discard the plan", {:weird, 42}) ==
+               "Could not discard the plan — {:weird, 42}."
+    end
+  end
 end

@@ -344,7 +344,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       {:error, reason} ->
         Log.warning(:acquisition, "acquisition grab failed — #{inspect(reason)}")
 
-        if infrastructure_error?(reason) do
+        if Prowlarr.grab_outage?(reason) do
           handle_infrastructure_failure(
             target,
             "download_client_unavailable",
@@ -355,16 +355,6 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
         end
     end
   end
-
-  # Prowlarr answers a grab it could not forward with a 5xx (its
-  # `DownloadClientUnavailableException` when SABnzbd or qBittorrent is
-  # down); a transport error means Prowlarr itself was unreachable.
-  # Neither says anything about the release. A 4xx (bad guid, indexer
-  # gone) and a result with no indexer id do.
-  defp infrastructure_error?({:http_error, status, _body}) when status >= 500, do: true
-  defp infrastructure_error?({:http_error, _status, _body}), do: false
-  defp infrastructure_error?(:missing_indexer_id), do: false
-  defp infrastructure_error?(_transport_error), do: true
 
   defp handle_needs_decision(target, pursuit, unit) do
     {:ok, _updated} = Repo.update(Target.attempt_changeset(target, "needs_decision"))

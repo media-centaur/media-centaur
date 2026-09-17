@@ -1219,7 +1219,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
         {:error, reason} ->
           Log.warning(:acquisition, "cancel failed — #{title} — #{inspect(reason)}")
-          put_flash(socket, :error, "Could not cancel “#{title}”.")
+          put_flash(socket, :error, Logic.failure_flash("cancel “#{title}”", reason))
       end
 
     {:noreply, assign(socket, cancel_confirm: nil)}
@@ -1307,7 +1307,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan create failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not create the plan.")}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("create the plan", reason))}
     end
   end
 
@@ -1364,7 +1364,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan rejected-pick failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not pick that release.")}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("pick that release", reason))}
     end
   end
 
@@ -1375,7 +1375,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan choose failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not pick that release.")}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("pick that release", reason))}
     end
   end
 
@@ -1386,7 +1386,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan swap failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not swap that release.")}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("swap that release", reason))}
     end
   end
 
@@ -1400,7 +1400,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan unit toggle failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not change that episode.")}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("change that episode", reason))}
     end
   end
 
@@ -1410,7 +1410,11 @@ defmodule MediaCentaurWeb.IncomingLive do
          {:ok, _plan} <- Plans.replan(plan, force_search: true) do
       {:noreply, socket}
     else
-      _ -> {:noreply, put_flash(socket, :error, "Could not re-run the search.")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("re-run the search", reason))}
+
+      _no_board ->
+        {:noreply, put_flash(socket, :error, "Could not re-run the search — no plan is open.")}
     end
   end
 
@@ -1449,7 +1453,11 @@ defmodule MediaCentaurWeb.IncomingLive do
        |> put_flash(:info, "Plan discarded.")
        |> push_patch(to: incoming_path(socket))}
     else
-      _ -> {:noreply, put_flash(socket, :error, "Could not discard the plan.")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("discard the plan", reason))}
+
+      _no_board ->
+        {:noreply, put_flash(socket, :error, "Could not discard the plan — no plan is open.")}
     end
   end
 
@@ -1462,7 +1470,13 @@ defmodule MediaCentaurWeb.IncomingLive do
          {:ok, _planning} <- Plans.accept_lower_quality(plan) do
       {:noreply, socket}
     else
-      _ -> {:noreply, put_flash(socket, :error, "Could not accept lower quality for this title.")}
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, Logic.failure_flash("accept lower quality for this title", reason))}
+
+      _no_board ->
+        {:noreply,
+         put_flash(socket, :error, "Could not accept lower quality for this title — no plan is open.")}
     end
   end
 
@@ -1472,7 +1486,13 @@ defmodule MediaCentaurWeb.IncomingLive do
          {:ok, _planning} <- Plans.undo_lower_quality(plan) do
       {:noreply, socket}
     else
-      _ -> {:noreply, put_flash(socket, :error, "Could not undo the lower-quality acceptance.")}
+      {:error, reason} ->
+        {:noreply,
+         put_flash(socket, :error, Logic.failure_flash("undo the lower-quality acceptance", reason))}
+
+      _no_board ->
+        {:noreply,
+         put_flash(socket, :error, "Could not undo the lower-quality acceptance — no plan is open.")}
     end
   end
 
@@ -1491,7 +1511,11 @@ defmodule MediaCentaurWeb.IncomingLive do
        |> put_flash(:info, "Stopped searching.")
        |> push_patch(to: incoming_path(socket))}
     else
-      _ -> {:noreply, put_flash(socket, :error, "Could not stop this search.")}
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("stop this search", reason))}
+
+      _no_board ->
+        {:noreply, put_flash(socket, :error, "Could not stop this search — no plan is open.")}
     end
   end
 
@@ -1754,7 +1778,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "pursuit cancel failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not cancel pursuit.")}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("cancel the pursuit", reason))}
     end
   end
 
@@ -1800,7 +1824,9 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "pursuit change-target failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not change target for this pursuit.")}
+
+        {:noreply,
+         put_flash(socket, :error, Logic.failure_flash("change target for this pursuit", reason))}
     end
   end
 
@@ -1823,7 +1849,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "request decision failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not switch to decision mode.")}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("switch to decision mode", reason))}
     end
   end
 
@@ -2097,12 +2123,9 @@ defmodule MediaCentaurWeb.IncomingLive do
         {:ok, _pursuit} ->
           {:noreply, load_pursuit_detail(socket)}
 
-        {:error, :alternative_unavailable} ->
-          {:noreply, put_flash(socket, :error, "That release is no longer available.")}
-
         {:error, reason} ->
           Log.warning(:acquisition, "pick alternative failed — #{inspect(reason)}")
-          {:noreply, put_flash(socket, :error, "Could not pick that alternative.")}
+          {:noreply, put_flash(socket, :error, Logic.failure_flash("pick that release", reason))}
       end
     else
       {:noreply, socket}
@@ -2217,7 +2240,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan approve failed — #{inspect(reason)}")
-        {:noreply, put_flash(socket, :error, "Could not commit the plan.")}
+        {:noreply, put_flash(socket, :error, Logic.failure_flash("commit the plan", reason))}
     end
   end
 

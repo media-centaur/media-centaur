@@ -14,7 +14,8 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   Per ADR-030 (LiveView logic extraction).
   """
 
-  alias MediaCentaur.Search.SearchResult
+  alias MediaCentaur.Format
+  alias MediaCentaur.Search.{Prowlarr, SearchResult}
   alias MediaCentaur.Downloads.{Health, QueueItem}
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.IncomingLive.SearchSession
@@ -172,6 +173,42 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   end
 
   def format_grab_reason(reason), do: inspect(reason)
+
+  @doc """
+  The flash for an acquisition act that failed: "Could not <act> —
+  <why>." The reason the context returned is the reason the user reads;
+  nothing is reduced to a bare "Could not …" (2026-09-17: "Try this one"
+  said "Could not pick that alternative." while the log held Prowlarr's
+  "Unable to connect to SABnzbd").
+  """
+  @spec failure_flash(String.t(), term()) :: String.t()
+  def failure_flash(act, reason), do: "Could not #{act} — #{describe_failure(reason)}."
+
+  @doc "One plain clause for why an acquisition act failed, from the reason the context returned."
+  @spec describe_failure(term()) :: String.t()
+  def describe_failure({:http_error, _status, _body} = reason) do
+    if Prowlarr.download_client_unavailable?(reason),
+      do: "Prowlarr could not hand it to your download client. Check that it's running, then try again",
+      else: "Prowlarr answered #{format_grab_reason(reason)}"
+  end
+
+  def describe_failure(%Req.TransportError{}),
+    do: "Prowlarr could not be reached. Check that it's running and its URL is right"
+
+  def describe_failure(:alternative_unavailable), do: "it is no longer in the search results"
+  def describe_failure(:missing_indexer_id), do: "the result carries no indexer id"
+
+  def describe_failure({:overlap, units}) when is_list(units) do
+    labels =
+      Enum.map_join(units, ", ", fn {season, episode} -> Format.episode_label(season, episode) end)
+
+    "another pursuit already covers #{labels}"
+  end
+
+  def describe_failure(reason) when is_atom(reason),
+    do: reason |> Atom.to_string() |> String.replace("_", " ")
+
+  def describe_failure(reason), do: inspect(reason)
 
   defp body_message(%{"errorMessage" => message}) when is_binary(message), do: message
   defp body_message(%{"message" => message}) when is_binary(message), do: message
