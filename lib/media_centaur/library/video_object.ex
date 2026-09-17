@@ -17,6 +17,7 @@ defmodule MediaCentaur.Library.VideoObject do
   `Library.Files.link/1` against the VideoObject's `PlayableItem`.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.Writable
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}

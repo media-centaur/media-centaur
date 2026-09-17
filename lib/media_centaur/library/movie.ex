@@ -27,6 +27,7 @@ defmodule MediaCentaur.Library.Movie do
   through this schema.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.Writable
   import Ecto.Changeset
 
   alias MediaCentaur.Library.Person

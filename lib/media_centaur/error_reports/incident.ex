@@ -70,18 +70,6 @@ defmodule MediaCentaur.ErrorReports.Incident do
     timestamps()
   end
 
-  @doc "Valid incident origins."
-  @spec origins() :: [atom()]
-  def origins, do: @origins
-
-  @doc "Valid lifecycle statuses."
-  @spec statuses() :: [atom()]
-  def statuses, do: @statuses
-
-  @doc "Valid severities."
-  @spec severities() :: [atom()]
-  def severities, do: @severities
-
   @doc """
   Insert changeset for a freshly-opened `:log` incident.
 

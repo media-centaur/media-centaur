@@ -10,6 +10,7 @@ defmodule MediaCentaur.Library.TVSeries do
   `MediaCentaur.Library.ExternalIds.put/3`.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.Writable
   import Ecto.Changeset
 
   alias MediaCentaur.Library.Person

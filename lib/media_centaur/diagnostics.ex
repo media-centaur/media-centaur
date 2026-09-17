@@ -18,6 +18,7 @@ defmodule MediaCentaur.Diagnostics do
   alias MediaCentaur.Playback.{SessionRegistry, Sessions}
 
   @doc "Supervision tree health and child counts."
+  @doc export: true
   def status do
     children = Supervisor.which_children(MediaCentaur.Supervisor)
     running = Enum.count(children, fn {_, pid, _, _} -> is_pid(pid) end)
@@ -26,6 +27,7 @@ defmodule MediaCentaur.Diagnostics do
   end
 
   @doc "Prints the N most recent console buffer entries (default 20), oldest first."
+  @doc export: true
   @spec log_recent(pos_integer()) :: :ok
   def log_recent(count \\ 20) when is_integer(count) and count > 0 do
     Filter.all()
@@ -39,6 +41,7 @@ defmodule MediaCentaur.Diagnostics do
   end
 
   @doc "Active playback sessions and their state."
+  @doc export: true
   def playback do
     sessions = Sessions.list()
 
@@ -68,6 +71,7 @@ defmodule MediaCentaur.Diagnostics do
   end
 
   @doc "Watcher and pipeline state, media dirs, config."
+  @doc export: true
   def services do
     watcher_children = length(Supervisor.which_children(MediaCentaur.Watcher.Supervisor))
     pipeline_children = length(Supervisor.which_children(MediaCentaur.Pipeline.Supervisor))
@@ -87,6 +91,7 @@ defmodule MediaCentaur.Diagnostics do
 
   The short id printed for each row is the handle `incident/1` accepts.
   """
+  @doc export: true
   def incidents(limit \\ 20) do
     ErrorReports.list_incidents(limit: limit)
     |> format_incident_list()
@@ -100,6 +105,7 @@ defmodule MediaCentaur.Diagnostics do
   store listing). Each row's fingerprint is the handle `incident/1` and
   `dismiss/1` accept.
   """
+  @doc export: true
   def issues do
     ErrorReports.list_buckets()
     |> format_issues()
@@ -114,6 +120,7 @@ defmodule MediaCentaur.Diagnostics do
   `ref` is `:latest` (the default), a full incident id, a short id prefix (as
   printed by `incidents/0`), or a fingerprint.
   """
+  @doc export: true
   def incident(ref \\ :latest) do
     ref = if ref in [:latest, "latest"], do: :latest, else: to_string(ref)
 
@@ -136,6 +143,7 @@ defmodule MediaCentaur.Diagnostics do
     - `:latest`, a full id, a short id prefix, or a fingerprint — a single one.
   """
   @spec dismiss(:all | :latest | String.t()) :: :ok
+  @doc export: true
   def dismiss(:all) do
     case ErrorReports.list_buckets() do
       [] ->

@@ -17,6 +17,7 @@ defmodule MediaCentaur.Library.WatchedFile do
   `Library.AbsenceSweeper.purge_expired/1`.
   """
   use Ecto.Schema
+  @behaviour MediaCentaur.Library.Writable
   import Ecto.Changeset
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
