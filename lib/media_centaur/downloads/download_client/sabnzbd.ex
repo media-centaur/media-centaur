@@ -22,12 +22,26 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
 
   ## Auth
 
-  API-key auth, key in every request. A rejected key comes back as
-  **HTTP 200** with `{"status": false, "error": "API Key ..."}` — the
-  error body is inspected so bad keys surface as `:auth_failed` (the
-  same grade qBittorrent's cookie failures map to). The connection test
-  deliberately uses the keyed `mode=queue` rather than the unkeyed
-  `mode=version`, so "Test connection" actually validates the key.
+  API-key auth, key in every request. SABnzbd rejects a key in two
+  different shapes, and both must grade as `:auth_failed` (the same
+  grade qBittorrent's cookie failures map to):
+
+  - **HTTP 200** with `{"status": false, "error": "API Key ..."}` — the
+    ordinary rejection.
+  - **HTTP 403** with the message as the body — what an instance running
+    under hostname verification returns (`inet_exposure = 4`), for a bad
+    key *and* for a host it doesn't whitelist. The body is a plain
+    string (`"API Key Incorrect"`); a JSON body carrying `error` or
+    `message` is read the same way.
+
+  Both shapes go through `rejected_key?/1`. Graded as a transport error
+  instead, the 403 form read as "unreachable" on Status and kept the
+  queue monitor on its fast cadence rather than the auth back-off
+  (observed 2026-09-17). Any other non-200 stays a transport error.
+
+  The connection test deliberately uses the keyed `mode=queue` rather
+  than the unkeyed `mode=version`, so "Test connection" actually
+  validates the key.
 
   ## Sync (no delta API)
 
@@ -145,13 +159,17 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
         classify_api_body(body)
 
       {:ok, %{status: status, body: body}} ->
-        Log.warning(
-          :acquisition,
-          "sabnzbd request failed — mode=#{params[:mode]} status=#{status} body=#{inspect(body)}",
-          mc_incident: :skip
-        )
+        if rejected_key?(body) do
+          auth_failed(error_message(body))
+        else
+          Log.warning(
+            :acquisition,
+            "sabnzbd request failed — mode=#{params[:mode]} status=#{status} body=#{inspect(body)}",
+            mc_incident: :skip
+          )
 
-        {:error, {:http_error, status, body}}
+          {:error, {:http_error, status, body}}
+        end
 
       {:error, reason} ->
         Log.warning(:acquisition, "sabnzbd request error — #{inspect(reason)}", mc_incident: :skip)
@@ -161,15 +179,34 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
 
   # SABnzbd reports API errors as HTTP 200 + {"status": false, "error": msg}.
   defp classify_api_body(%{"status" => false, "error" => message}) do
-    if is_binary(message) and String.contains?(message, "API Key") do
-      Log.warning(:acquisition, "sabnzbd — auth failed (#{message})", mc_incident: :skip)
-      {:error, :auth_failed}
+    if rejected_key?(message) do
+      auth_failed(message)
     else
       {:error, {:api_error, message}}
     end
   end
 
   defp classify_api_body(body), do: {:ok, body}
+
+  # The one place that decides "this response means the key was
+  # rejected" — shared by the HTTP 200 `status: false` body and the
+  # HTTP 403 body, which arrive in different shapes but carry the same
+  # wording (see the "Auth" section of the moduledoc).
+  defp rejected_key?(body) do
+    message = error_message(body)
+
+    is_binary(message) and String.contains?(message, "API Key")
+  end
+
+  defp error_message(message) when is_binary(message), do: message
+  defp error_message(%{"error" => message}) when is_binary(message), do: message
+  defp error_message(%{"message" => message}) when is_binary(message), do: message
+  defp error_message(_body), do: nil
+
+  defp auth_failed(message) do
+    Log.warning(:acquisition, "sabnzbd — auth failed (#{message})", mc_incident: :skip)
+    {:error, :auth_failed}
+  end
 
   defp wrap_sync_error({:ok, value}, _bookmark), do: {:ok, value}
   defp wrap_sync_error({:error, reason}, bookmark), do: {:error, reason, bookmark}
