@@ -10,7 +10,19 @@ defmodule MediaCentaur.Search.ProwlarrGrabOutageTest do
     test "Prowlarr's 5xx for a download client it cannot reach is an outage" do
       body = %{"description" => "DownloadClientUnavailableException: Unable to connect to SABnzbd"}
       assert Prowlarr.grab_outage?({:http_error, 500, body})
-      assert Prowlarr.grab_outage?({:http_error, 503, %{}})
+    end
+
+    test "any other 5xx is about the release, not the infrastructure" do
+      # Prowlarr answered, so it is reachable and nothing marks it down —
+      # a retry loop that did not charge an attempt for this would ask
+      # again every probe cadence forever. The attempt ladder paces it.
+      refute Prowlarr.grab_outage?(
+               {:http_error, 500,
+                %{"description" => "NzbDrone.Core.Exceptions.ReleaseUnavailableException: gone"}}
+             )
+
+      refute Prowlarr.grab_outage?({:http_error, 502, ""})
+      refute Prowlarr.grab_outage?({:http_error, 503, %{}})
     end
 
     test "a transport error is an outage" do
