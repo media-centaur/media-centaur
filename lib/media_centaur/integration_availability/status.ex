@@ -1,12 +1,16 @@
-defmodule MediaCentaur.Availability.Status do
+defmodule MediaCentaur.IntegrationAvailability.Status do
   @moduledoc """
-  One dependency's availability: `:up`, or `{:down, since, reason}`.
+  One integration's availability: `:up`, or `{:down, since, reason}`.
 
   A pure value. `fold/4` folds one observation into it and says whether
-  the state changed, so the store (`MediaCentaur.Availability`) can
-  write and broadcast only on transitions. The onset `since` survives
+  the state changed, so the store (`MediaCentaur.IntegrationAvailability`)
+  can write and broadcast only on transitions. The onset `since` survives
   consecutive down observations — one outage stays one outage even when
   its reason moves (unreachable, then blind, as a dead VPN presents).
+
+  `observed_at` is `nil` until something actually observes the
+  integration: `initial/1` is the optimistic starting point, not an
+  observation, and must not claim one.
 
   Reasons: `:unreachable` (transport error, 5xx, timeout), `:rejected`
   (401/403 — misconfigured is as useless as dead for held work),
@@ -15,24 +19,23 @@ defmodule MediaCentaur.Availability.Status do
   (Prowlarr cannot hand a release to the download client).
   """
 
-  @enforce_keys [:dependency, :state, :observed_at]
-  defstruct [:dependency, :state, :observed_at, :retry_at]
+  @enforce_keys [:integration, :state]
+  defstruct [:integration, :state, :observed_at, :retry_at]
 
-  @type dependency :: :prowlarr | {:handoff, :usenet | :torrent} | :tmdb
+  @type integration :: :prowlarr | {:handoff, :usenet | :torrent} | :tmdb
   @type reason :: :unreachable | :rejected | :blind | :client_unavailable
   @type observation :: :up | {:down, reason()}
   @type state :: :up | {:down, DateTime.t(), reason()}
   @type t :: %__MODULE__{
-          dependency: dependency(),
+          integration: integration(),
           state: state(),
-          observed_at: DateTime.t(),
+          observed_at: DateTime.t() | nil,
           retry_at: DateTime.t() | nil
         }
 
-  @doc "The status before any observation: up."
-  @spec initial(dependency(), DateTime.t()) :: t()
-  def initial(dependency, %DateTime{} = now),
-    do: %__MODULE__{dependency: dependency, state: :up, observed_at: now}
+  @doc "The status before any observation: up, and observed never."
+  @spec initial(integration()) :: t()
+  def initial(integration), do: %__MODULE__{integration: integration, state: :up, observed_at: nil}
 
   @spec up?(t()) :: boolean()
   def up?(%__MODULE__{state: :up}), do: true
