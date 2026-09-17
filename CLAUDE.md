@@ -143,7 +143,7 @@ When you add a new house rule that fits a static check, prefer adding a custom C
 
 Every system must be designed so Claude Code can get diagnostic feedback at runtime. Tests passing while the app is broken means the observability gap is the first problem to solve.
 
-- **Elixir/OTP:** use `MediaCentaur.Log` (component-tagged macros). Captured into the in-memory ring buffer (`MediaCentaur.Console.Buffer`) and viewable via the Guake-style Console drawer (`` ` ``) or `/console`. See `MediaCentaur.Log` and `MediaCentaur.Console` moduledocs. Production access via the `troubleshoot` skill.
+- **Elixir/OTP:** use `MediaCentaur.Log` (component-tagged macros). Captured into `MediaCentaur.Console.Buffer`, which holds one capped ring **per component** — so a chatty component can't evict a quiet one's history. Three ways to read it: each Status subsystem drill-in shows that subsystem's recent lines (`:info` and above); **`/console`** is the unfiltered firehose with level/component/search filtering — it is **URL-only, nothing links to it**; and `~/scripts/agents/mc-eval` reads the ring directly off the dev node. The tilde drawer was retired in v1.32.0. The systemd journal lives on Status → System. See `MediaCentaur.Log` and `MediaCentaur.Console` moduledocs; production access via the `troubleshoot` skill.
 - **JavaScript:** the input system has `debug()` from `assets/js/input/core/debug.js` — toggle `window.__inputDebug = true`, read via Chrome DevTools MCP. Pattern: toggle-gated function, never bare `console.log`. See the `input-system` skill.
 - **New systems:** if it's not obvious how to surface runtime diagnostics back to Claude Code, stop and consult the user before fixing. The feedback loop is a prerequisite — don't guess.
 
