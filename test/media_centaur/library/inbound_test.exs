@@ -568,7 +568,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert entity.id == winner.id
 
       # No duplicate was created — only the winner remains.
-      movies = Library.Containers.list(:movie)
+      movies = MediaCentaur.Repo.all(MediaCentaur.Library.Movie)
       assert length(movies) == 1
       assert hd(movies).id == winner.id
     end

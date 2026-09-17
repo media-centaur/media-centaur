@@ -38,20 +38,4 @@ defmodule MediaCentaur.Library.ContainersTest do
       assert Containers.existing_ids(:tv_series, []) == MapSet.new()
     end
   end
-
-  describe "list_tv_series/2" do
-    test "returns the series among the ids whose status is in the given set" do
-      returning = create_tv_series(%{name: "Returning", status: :returning})
-      ended = create_tv_series(%{name: "Ended", status: :ended})
-      planned = create_tv_series(%{name: "Planned", status: :planned})
-      create_tv_series(%{name: "Unlisted", status: :returning})
-
-      ids = [returning.id, ended.id, planned.id]
-
-      assert ids
-             |> Containers.list_tv_series(status: [:returning, :planned])
-             |> Enum.map(& &1.id)
-             |> Enum.sort() == Enum.sort([returning.id, planned.id])
-    end
-  end
 end

@@ -619,13 +619,10 @@ defmodule MediaCentaur.TestFactory do
       extension: "jpg"
     })
 
-    # Reload with associations
-    case type do
-      :movie -> Library.Containers.get_with_associations!(:movie, record.id)
-      :tv_series -> Library.Containers.get_with_associations!(:tv_series, record.id)
-      :movie_series -> Library.Containers.get_with_associations!(:movie_series, record.id)
-      :video_object -> Library.Containers.get_with_associations!(:video_object, record.id)
-    end
+    # Reload with associations. The call is already type-dispatched, so the
+    # four-way case only restated its argument.
+    {:ok, reloaded} = Library.Containers.fetch_with_associations(type, record.id)
+    reloaded
   end
 
   defp type_fk(:movie), do: :movie_id

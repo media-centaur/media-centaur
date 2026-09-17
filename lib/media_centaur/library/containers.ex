@@ -9,9 +9,18 @@ defmodule MediaCentaur.Library.Containers do
   carry a virtual `:content_url`; `TVSeries` and `MovieSeries` hold
   their playable leaves beneath them (`seasons → episodes`, `movies`).
 
-  This module owns the answer to *what a container is* — `types/0` is
-  the canonical list, and `ExternalId` and `TypeResolver` defer to it
-  rather than each keeping their own copy.
+  This module owns the answer to *what a container is*: `types/0` is the
+  canonical list, and `containers_test` asserts every schema behind it
+  declares `MediaCentaur.Library.Writable`.
+
+  It used to claim `ExternalId` and `TypeResolver` defer to that list. Neither
+  does, and neither can. `Containers` joins `ExternalId` itself, so a
+  compile-time reference back would be circular; `ExternalId`'s own
+  `@owner_types` is a *different* set anyway — the owners an external id may
+  hang off, which for other polymorphic records includes `:episode` and
+  `:season` (see `MediaCentaur.Library.OwnerTyped`). `TypeResolver` holds an
+  ordered `cond`, not a set: it tries each type in turn and the order is the
+  resolution strategy.
 
   Operations are dispatched on an explicit type atom
   (`fetch(:tv_series, id)`) rather than baked into per-type function
@@ -115,10 +124,6 @@ defmodule MediaCentaur.Library.Containers do
   @spec full_preloads_by_type() :: keyword()
   def full_preloads_by_type, do: Enum.map(@types, &{&1, full_preloads(&1)})
 
-  @doc "Every record of `type`."
-  @spec list(t()) :: [Ecto.Schema.t()]
-  def list(type) when type in @types, do: Repo.all(schema(type))
-
   @doc """
   The subset of `ids` that still name a container of `type`. One IN
   query, for callers holding foreign references (release-tracking items)
@@ -133,23 +138,6 @@ defmodule MediaCentaur.Library.Containers do
     from(s in schema, where: s.id in ^ids, select: s.id)
     |> Repo.all()
     |> MapSet.new()
-  end
-
-  @doc """
-  The `TVSeries` rows among `ids`, optionally narrowed by
-  `status: [statuses]`.
-  """
-  @spec list_tv_series([Ecto.UUID.t()], status: [atom()]) :: [TVSeries.t()]
-  def list_tv_series(ids, opts \\ []) when is_list(ids) do
-    query = from(tv in TVSeries, where: tv.id in ^ids)
-
-    query =
-      case Keyword.fetch(opts, :status) do
-        {:ok, statuses} -> where(query, [tv], tv.status in ^statuses)
-        :error -> query
-      end
-
-    Repo.all(query)
   end
 
   @doc """
@@ -174,12 +162,6 @@ defmodule MediaCentaur.Library.Containers do
     end
   end
 
-  @doc "As `fetch_with_associations/2`, raising when the id is absent."
-  @spec get_with_associations!(t(), Ecto.UUID.t()) :: Ecto.Schema.t()
-  def get_with_associations!(type, id) when type in @types do
-    preload_full(type, Repo.get!(schema(type), id))
-  end
-
   @doc "Inserts a container of `type` from `attrs`."
   @spec create(t(), map()) :: {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def create(type, attrs) when type in @types do
@@ -196,6 +178,13 @@ defmodule MediaCentaur.Library.Containers do
   `Movie` has no `update_changeset` — a Movie's mutable metadata is
   written through the ingestion pipeline, not edited in place — so it
   has no clause here.
+
+  Nothing in production calls this today — containers are written by the
+  ingestion pipeline and never edited in place — which raises a live question
+  this module cannot answer: a series' `status` is set once at import and no
+  path refreshes it, so a show that ends stays `:returning` forever. Kept
+  until that is decided, because deleting it would also strand the three
+  `update_changeset/2` implementations it is the only caller of.
   """
   @spec update(Ecto.Schema.t(), map()) :: {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def update(%TVSeries{} = record, attrs), do: Repo.update(TVSeries.update_changeset(record, attrs))
@@ -205,10 +194,6 @@ defmodule MediaCentaur.Library.Containers do
 
   def update(%VideoObject{} = record, attrs),
     do: Repo.update(VideoObject.update_changeset(record, attrs))
-
-  @doc "Deletes a container record."
-  @spec destroy(Ecto.Schema.t()) :: {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
-  def destroy(record), do: Repo.delete(record)
 
   @doc "As `destroy/1`, raising on failure and returning `:ok`."
   @spec destroy!(Ecto.Schema.t()) :: :ok
@@ -263,6 +248,10 @@ defmodule MediaCentaur.Library.Containers do
   The child movie under `movie_series_id` linked to `file_path` via its
   `PlayableItem → WatchedFile` chain, or `nil`. The collection-child
   counterpart of `Library.Episodes.find_by_path/2`.
+
+  Reached only from `MediaCentaur.TestFactory` today: it is how the factory
+  finds an existing child movie before creating one. Kept rather than inlined
+  into test support, which would copy this join into a second place.
   """
   @spec find_child_movie_by_path(Ecto.UUID.t(), String.t()) :: Movie.t() | nil
   def find_child_movie_by_path(movie_series_id, file_path)

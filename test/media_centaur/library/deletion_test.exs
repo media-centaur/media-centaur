@@ -25,7 +25,7 @@ defmodule MediaCentaur.Library.DeletionTest do
 
       assert entity_ids == [movie.id]
       assert Library.Files.list_all() == []
-      assert Library.Containers.list(:movie) == []
+      assert MediaCentaur.Repo.all(MediaCentaur.Library.Movie) == []
     end
 
     test "also deletes the FilePresence row for the removed file" do
@@ -371,7 +371,7 @@ defmodule MediaCentaur.Library.DeletionTest do
 
       # Movie 1 is gone, series and other movies remain
       assert {:error, _} = Library.Containers.fetch(:movie, movie1.id)
-      assert length(Library.Containers.list(:movie)) == 2
+      assert length(MediaCentaur.Repo.all(MediaCentaur.Library.Movie)) == 2
       assert {:ok, _} = Library.Containers.fetch(:movie_series, movie_series.id)
     end
 
@@ -555,7 +555,7 @@ defmodule MediaCentaur.Library.DeletionTest do
       refute File.exists?(path_a)
       refute File.exists?(path_b)
       assert Library.Files.list_all() == []
-      assert Library.Containers.list(:movie) == []
+      assert MediaCentaur.Repo.all(MediaCentaur.Library.Movie) == []
 
       # The whole batch lands as a single entities_changed broadcast.
       assert_receive {:entities_changed, %{entity_ids: broadcast_ids}}
@@ -590,7 +590,7 @@ defmodule MediaCentaur.Library.DeletionTest do
       assert File.dir?(stubborn_path)
       # The deletable file's records were cleaned despite the batch failure.
       assert Library.Files.list_all() == []
-      assert Library.Containers.list(:movie) == []
+      assert MediaCentaur.Repo.all(MediaCentaur.Library.Movie) == []
     end
   end
 end

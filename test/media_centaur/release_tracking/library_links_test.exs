@@ -96,7 +96,7 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinksTest do
           rung: :grab
         })
 
-      MediaCentaur.Library.Containers.destroy(tv_series)
+      MediaCentaur.Library.Containers.destroy!(tv_series)
 
       # Simulate PubSub event — call the function directly since GenServer isn't running in test
       LibraryLinks.refresh_for([tv_series.id])
@@ -119,7 +119,7 @@ defmodule MediaCentaur.ReleaseTracking.LibraryLinksTest do
           rung: nil
         })
 
-      MediaCentaur.Library.Containers.destroy(tv_series)
+      MediaCentaur.Library.Containers.destroy!(tv_series)
       LibraryLinks.refresh_for([tv_series.id])
 
       assert ReleaseTracking.get_item(item.id) == nil
