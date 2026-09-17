@@ -1101,20 +1101,30 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :cell, PlanBoard.Cell, required: true
   attr :in_capsule, :boolean, default: false
 
+  # The cell is the per-unit control: clicking drops that episode from the
+  # plan, clicking again puts it back. The strikethrough treatment already
+  # carried the excluded state long before anything could set it; this is the
+  # affordance that produces it. Tailwind v4 Preflight sets no cursor on a
+  # button, so it is spelled out.
   defp board_cell(assigns) do
     ~H"""
-    <span
+    <button
+      type="button"
       id={"plan-cell-#{@cell.plan_unit_id}"}
       data-nav-item
       tabindex="0"
       data-caption={cell_title(@cell)}
+      aria-pressed={to_string(@cell.state == :excluded)}
+      phx-click="plan_toggle_unit_excluded"
+      phx-value-unit-id={@cell.plan_unit_id}
       class={[
-        "w-9 h-9 rounded-md flex items-center justify-center text-[13px] tabular-nums select-none",
+        "w-9 h-9 rounded-md flex items-center justify-center text-[13px] tabular-nums",
+        "select-none cursor-pointer",
         @cell.state |> CellVocabulary.from_plan_state(@in_capsule) |> CellVocabulary.cell_treatment()
       ]}
     >
       {@cell.episode_number}
-    </span>
+    </button>
     """
   end
 
@@ -1124,6 +1134,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     do: "#{cell.label} — #{title}"
 
   defp cell_title(%PlanBoard.Cell{state: :searching} = cell), do: "#{cell.label} — searching"
+
+  defp cell_title(%PlanBoard.Cell{state: :excluded} = cell),
+    do: "#{cell.label} — you excluded this earlier"
 
   defp cell_title(%PlanBoard.Cell{state: :below_preference} = cell),
     do: "#{cell.label} — available only in lower quality"

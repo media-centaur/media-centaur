@@ -138,6 +138,7 @@ defmodule MediaCentaur.Acquisition do
 
   alias MediaCentaur.Acquisition.{
     AutoGrabService,
+    CancelReasons,
     Corpus,
     DropPlanner,
     Target,
@@ -573,8 +574,9 @@ defmodule MediaCentaur.Acquisition do
   """
   @spec cancel_download(String.t()) :: :ok | {:error, term()}
   def cancel_download(id) do
-    with {:ok, {config, driver}} <- Dispatcher.driver_for(protocol_for_download(id)) do
-      driver.cancel_download(config, id)
+    with {:ok, {config, driver}} <- Dispatcher.driver_for(protocol_for_download(id)),
+         :ok <- driver.cancel_download(config, id) do
+      Targets.cancel_for_download(id, CancelReasons.user_request())
     end
   end
 

@@ -454,6 +454,34 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   @doc """
+  Flips one unit in or out of the plan.
+
+  The board's control is a single affordance, and which direction it runs is
+  a fact about the stored unit — never about what the page last rendered, so
+  a stale board cannot exclude a unit twice.
+  """
+  @spec toggle_unit_excluded(Ecto.UUID.t()) :: {:ok, Plan.t()} | {:error, term()}
+  def toggle_unit_excluded(plan_unit_id) do
+    with {:ok, unit} <- fetch_unit(plan_unit_id) do
+      if unit.status == "excluded" do
+        include_unit(plan_unit_id)
+      else
+        exclude_unit(plan_unit_id)
+      end
+    end
+  end
+
+  @doc "Undoes `exclude_unit/1` — the plan wants the unit again."
+  @spec include_unit(Ecto.UUID.t()) :: {:ok, Plan.t()} | {:error, term()}
+  def include_unit(plan_unit_id) do
+    with {:ok, unit} <- fetch_unit(plan_unit_id),
+         {:ok, plan} <- fetch(unit.plan_id),
+         {:ok, _unit} <- Repo.update(PlanUnit.include_unit_changeset(unit)) do
+      replan(plan)
+    end
+  end
+
+  @doc """
   Forces a fresh planning pass. `force_search: true` bypasses the
   corpus freshness gate (the user-initiated "search again").
   """

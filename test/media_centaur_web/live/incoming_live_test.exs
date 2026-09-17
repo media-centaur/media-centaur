@@ -1187,6 +1187,26 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "#plan-grid[phx-hook='PlanGridCaption'] [data-plan-caption]")
     end
 
+    test "a board cell drops its unit from the plan and puts it back", %{conn: conn} do
+      stub_plan_tmdb()
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
+
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      [unit | _] = Plans.units_for(plan.id)
+
+      view |> element("#plan-cell-#{unit.id}") |> render_click()
+
+      assert plan.id |> Plans.units_for() |> Enum.find(&(&1.id == unit.id)) |> Map.fetch!(:status) ==
+               "excluded"
+
+      view |> element("#plan-cell-#{unit.id}") |> render_click()
+
+      refute plan.id |> Plans.units_for() |> Enum.find(&(&1.id == unit.id)) |> Map.fetch!(:status) ==
+               "excluded"
+    end
+
     test "taking lower quality stores it, follows nothing, re-solves, and can be undone", %{
       conn: conn
     } do
