@@ -7,9 +7,9 @@ defmodule MediaCentaur.Pipeline.Stats do
   via `GenServer.call`. Each telemetry handler runs in the caller's process
   (a Broadway processor) and sends a cast to avoid blocking.
 
-  Tracks stages across both pipelines (Discovery owns `:parse` and `:search`,
-  Import owns `:fetch_metadata` and `:ingest`). Queue depths are tracked
-  per-pipeline.
+  Tracks stages across both pipelines — `@stage_owners` is the map, and
+  `stage_concurrency/0` reads each owner's processor width. Queue depths are
+  tracked per-pipeline.
 
   ## Per-stage state
 
@@ -36,7 +36,7 @@ defmodule MediaCentaur.Pipeline.Stats do
   ## Status derivation (computed at snapshot time)
 
   - `:erroring` — active and recent errors in window
-  - `:saturated` — active_count >= saturated threshold
+  - `:saturated` — active_count >= the stage's own processor concurrency
   - `:active` — active_count > 0
   - `:idle` — active_count == 0
   """
@@ -45,10 +45,16 @@ defmodule MediaCentaur.Pipeline.Stats do
   alias MediaCentaur.Pipeline.StatsHelpers
   alias MediaCentaur.Topics
 
-  @stages [:parse, :search, :fetch_metadata, :ingest]
+  @stage_owners %{
+    parse: MediaCentaur.Pipeline.Discovery,
+    search: MediaCentaur.Pipeline.Discovery,
+    fetch_metadata: MediaCentaur.Pipeline.Import,
+    ingest: MediaCentaur.Pipeline.Import
+  }
+
+  @stages Map.keys(@stage_owners)
   @window_ms 5_000
   @broadcast_interval_ms 500
-  @saturated_threshold 10
   @max_recent_errors 50
 
   # Pruning the per-stage `window_completions` list only on `:get_snapshot`
@@ -65,6 +71,16 @@ defmodule MediaCentaur.Pipeline.Stats do
     name = Keyword.get(opts, :name, __MODULE__)
     GenServer.start_link(__MODULE__, opts, name: name)
   end
+
+  @doc """
+  Processor slots per stage — how many files each stage can be working on
+  at once, read from the pipeline that owns it. This is both the Status
+  page's slot count and the point at which a stage reads as saturated, so
+  a stage can never be shown against a width it does not run at.
+  """
+  @spec stage_concurrency() :: %{atom() => pos_integer()}
+  def stage_concurrency,
+    do: Map.new(@stage_owners, fn {stage, pipeline} -> {stage, pipeline.processor_concurrency()} end)
 
   @doc "Subscribes the caller to `Topics.pipeline_stats/0` — the `{:pipeline_stats_updated, kind}` broadcasts."
   @spec subscribe() :: :ok | {:error, term()}
@@ -179,6 +195,8 @@ defmodule MediaCentaur.Pipeline.Stats do
          }}
       end)
 
+    concurrency = stage_concurrency()
+
     stages =
       Map.new(pruned_stages, fn {stage, data} ->
         throughput = StatsHelpers.calculate_throughput(data.window_completions, @window_ms)
@@ -190,7 +208,7 @@ defmodule MediaCentaur.Pipeline.Stats do
             data.last_error,
             now,
             @window_ms,
-            @saturated_threshold
+            concurrency[stage]
           )
 
         {stage,

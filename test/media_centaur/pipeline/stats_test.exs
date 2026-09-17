@@ -1,6 +1,8 @@
 defmodule MediaCentaur.Pipeline.StatsTest do
   use MediaCentaur.Case, async: true
 
+  alias MediaCentaur.Pipeline.Discovery
+  alias MediaCentaur.Pipeline.Import
   alias MediaCentaur.Pipeline.Stats
 
   @stages [:parse, :search, :fetch_metadata, :ingest]
@@ -247,6 +249,22 @@ defmodule MediaCentaur.Pipeline.StatsTest do
     end
   end
 
+  describe "stage_concurrency/0" do
+    test "each stage carries the processor concurrency of the pipeline that owns it" do
+      assert Stats.stage_concurrency() == %{
+               parse: Discovery.processor_concurrency(),
+               search: Discovery.processor_concurrency(),
+               fetch_metadata: Import.processor_concurrency(),
+               ingest: Import.processor_concurrency()
+             }
+    end
+
+    test "Discovery and Import do not run at the same width" do
+      concurrency = Stats.stage_concurrency()
+      refute concurrency.parse == concurrency.ingest
+    end
+  end
+
   describe "status derivation" do
     test "idle when active_count is 0", %{stats: stats} do
       snapshot = Stats.get_snapshot(stats)
@@ -267,6 +285,18 @@ defmodule MediaCentaur.Pipeline.StatsTest do
 
       snapshot = Stats.get_snapshot(stats)
       assert snapshot.stages.fetch_metadata.status == :saturated
+    end
+
+    # An Import stage runs at most `Pipeline.Import.processor_concurrency/0`
+    # processors, so a fixed threshold of 10 meant `:fetch_metadata` and
+    # `:ingest` could never report saturation at all.
+    test "an Import stage saturates at its own processor concurrency", %{stats: stats} do
+      for i <- 1..Import.processor_concurrency() do
+        Stats.stage_start(stats, :ingest, "test#{i}.mkv")
+      end
+
+      snapshot = Stats.get_snapshot(stats)
+      assert snapshot.stages.ingest.status == :saturated
     end
 
     test "erroring when active and recent errors", %{stats: stats} do

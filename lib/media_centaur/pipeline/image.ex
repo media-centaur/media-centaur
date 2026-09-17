@@ -22,6 +22,11 @@ defmodule MediaCentaur.Pipeline.Image do
   alias MediaCentaur.Pipeline.{ImageQueue, ImageProcessor}
   alias MediaCentaur.Topics
 
+  @processor_concurrency 8
+
+  @doc "Processor slots this pipeline runs — the Status page's slot count."
+  def processor_concurrency, do: @processor_concurrency
+
   def start_link(_opts) do
     Broadway.start_link(__MODULE__,
       name: __MODULE__,
@@ -29,7 +34,7 @@ defmodule MediaCentaur.Pipeline.Image do
         module: {MediaCentaur.Pipeline.Image.Producer, []},
         concurrency: 1
       ],
-      processors: [default: [concurrency: 8]],
+      processors: [default: [concurrency: @processor_concurrency]],
       batchers: [default: [concurrency: 1, batch_size: 20, batch_timeout: 5_000]]
     )
   end

@@ -16,6 +16,9 @@ defmodule MediaCentaur.Pipeline do
     exports: [
       Discovery,
       ExtraRederive,
+      # Exported beside Discovery for the same reason: the Status page reads
+      # each pipeline's declared processor width to show its slot count.
+      Image,
       Image.Stats,
       Image.Supervisor,
       ImageQueue,
