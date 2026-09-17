@@ -7,6 +7,7 @@ defmodule MediaCentaur.AcquisitionTest do
   alias MediaCentaur.Acquisition.CancelReasons
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Corpus
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.Acquisition.Targets
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Search.SearchResult
@@ -37,6 +38,10 @@ defmodule MediaCentaur.AcquisitionTest do
       |> Map.put(:prowlarr_url, "http://prowlarr.test")
       |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
     )
+
+    # The worker holds an unconfigured Prowlarr instead of searching it,
+    # so readiness needs the passing connection test too, not just a URL.
+    Capabilities.save_test_result(:prowlarr, :ok)
 
     :ok
   end
