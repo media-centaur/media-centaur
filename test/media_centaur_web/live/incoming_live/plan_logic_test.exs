@@ -4,7 +4,6 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
-  alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.PlanLogic
 
@@ -391,17 +390,16 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
                "Searched: Sample Movie 2005 — 62 found"
     end
 
-    test "a zero-count live outcome while blind reports the outage, not knowledge" do
-      health = %IndexerHealth{state: :blind, checked_at: ~U[2026-08-01 00:00:00Z]}
+    test "a zero-count live outcome during an outage reports it, not knowledge" do
+      assert PlanLogic.search_activity_line(activity(:live, 0), "no indexers are answering") ==
+               "Searched: Sample Movie 2005 — couldn't reach any indexer"
 
-      assert PlanLogic.search_activity_line(activity(:live, 0), health) ==
+      assert PlanLogic.search_activity_line(activity(:live, 0), "Prowlarr is unreachable") ==
                "Searched: Sample Movie 2005 — couldn't reach any indexer"
     end
 
-    test "a zero-count live outcome with healthy indexers is genuine knowledge" do
-      health = %IndexerHealth{state: :ok, checked_at: ~U[2026-08-01 00:00:00Z]}
-
-      assert PlanLogic.search_activity_line(activity(:live, 0), health) ==
+    test "a zero-count live outcome with no outage is genuine knowledge" do
+      assert PlanLogic.search_activity_line(activity(:live, 0), nil) ==
                "Searched: Sample Movie 2005 — 0 found"
     end
 
