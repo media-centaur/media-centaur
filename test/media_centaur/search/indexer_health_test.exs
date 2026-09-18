@@ -4,6 +4,7 @@ defmodule MediaCentaur.Search.IndexerHealthTest do
   # before enqueueing a probe.
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.Search.Prowlarr
 
@@ -201,6 +202,45 @@ defmodule MediaCentaur.Search.IndexerHealthTest do
 
       assert health.state == :unreachable
       assert IndexerHealth.cached().state == :unreachable
+    end
+  end
+
+  describe "current/1" do
+    setup do
+      client =
+        Req.new(plug: {Req.Test, :prowlarr_health}, retry: false, base_url: "http://prowlarr.test")
+
+      {:ok, client: client}
+    end
+
+    test "reads the roster while Prowlarr is up", %{client: client} do
+      Req.Test.stub(:prowlarr_health, fn conn ->
+        case conn.request_path do
+          "/api/v1/indexer" ->
+            Req.Test.json(conn, [%{"id" => 1, "name" => "Indexer A", "enable" => true}])
+
+          "/api/v1/indexerstatus" ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      health = IndexerHealth.current(client)
+
+      assert health.state == :ok
+      assert IndexerHealth.cached() == health
+    end
+
+    test "returns the probe's last observation while Prowlarr is down, asking nobody", %{
+      client: client
+    } do
+      IndexerHealth.cache_put(%IndexerHealth{state: :blind, checked_at: @now})
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :blind})
+
+      Req.Test.stub(:prowlarr_health, fn _conn ->
+        flunk("current/1 must not read the roster while Prowlarr is down")
+      end)
+
+      assert %IndexerHealth{state: :blind} = IndexerHealth.current(client)
     end
   end
 
