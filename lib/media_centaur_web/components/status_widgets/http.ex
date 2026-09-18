@@ -25,6 +25,11 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
     doc:
       "TMDB.RateLimiter.status/0 result (%{used, total}) shown on the TMDB row, or nil when not started"
 
+  attr :down_since, :map,
+    default: %{},
+    doc:
+      "%{upstream_id => DateTime.t() | nil} — when a metered integration went down (`IntegrationAvailability.down_since/1`). A row with an entry says so instead of its last success."
+
   def http_widget(assigns) do
     ~H"""
     <div class="card glass-inset" data-testid="http-widget">
@@ -47,7 +52,10 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
               </tr>
             </thead>
             <tbody>
-              <tr :for={row <- panel_rows(@http_stats.upstreams)} id={"http-upstream-#{row.id}"}>
+              <tr
+                :for={row <- panel_rows(@http_stats.upstreams, @down_since)}
+                id={"http-upstream-#{row.id}"}
+              >
                 <td>
                   <span class="text-base-content/80">{row.label}</span>
                   <span
@@ -68,7 +76,9 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
                 </td>
                 <td class="text-right tabular-nums">{latency_label(row.window.median_latency_ms)}</td>
                 <td class="text-right tabular-nums">{hit_ratio_label(row.window.cache)}</td>
-                <td class="text-right text-base-content/60">{last_label(row.last_success_at)}</td>
+                <td class={["text-right", down_class(row.down_since)]}>
+                  {last_column(row)}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -100,7 +110,18 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
     """
   end
 
-  defp panel_rows(rows), do: Enum.filter(rows, &(&1.id in Upstream.panel_ids()))
+  @doc """
+  The rows the panel shows, each carrying `:down_since` — when its
+  integration went down, or `nil`. An upstream with no availability
+  value of its own (the image CDN, GitHub, the download clients) is
+  never down here: nothing observes it that way.
+  """
+  @spec panel_rows([map()], map()) :: [map()]
+  def panel_rows(rows, down_since \\ %{}) do
+    rows
+    |> Enum.filter(&(&1.id in Upstream.panel_ids()))
+    |> Enum.map(&Map.put(&1, :down_since, Map.get(down_since, &1.id)))
+  end
 
   defp latency_label(nil), do: "—"
   defp latency_label(ms), do: "#{ms} ms"
@@ -111,6 +132,14 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
       ratio -> "#{cache.hit} · #{round(ratio * 100)}%"
     end
   end
+
+  defp last_column(%{down_since: %DateTime{} = since}),
+    do: "Down since #{Calendar.strftime(since, "%H:%M")}"
+
+  defp last_column(%{last_success_at: at}), do: last_label(at)
+
+  defp down_class(%DateTime{}), do: "text-warning"
+  defp down_class(nil), do: "text-base-content/60"
 
   defp last_label(nil), do: "—"
   defp last_label(%DateTime{} = at), do: time_ago(at)
