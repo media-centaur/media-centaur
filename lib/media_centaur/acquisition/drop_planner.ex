@@ -10,8 +10,9 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   Batch is **state, not delta** — every tick re-derives from current
   open-want state, so the pipeline is self-healing: a missed tick, a
   discarded plan, a failed pursuit or a Prowlarr outage all correct
-  themselves on the next pass, and the mid-season backlog case is the
-  weekly case with more wants.
+  themselves on the next pass (an outage holds the tick entirely, so
+  nothing is spent while it lasts), and the mid-season backlog case is
+  the weekly case with more wants.
 
   Time policy lives here, not in the planner: `WantSchedule` gates
   which wants are searched at all. Every unit is planned at the
@@ -30,7 +31,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
 
   alias MediaCentaur.Acquisition.{AutoGrabSettings, Plans, TitleDownloadParams, WantSchedule}
   alias MediaCentaur.Acquisition.Plans.Claims
-  alias MediaCentaur.Capabilities
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Discovery
   alias MediaCentaur.Format
   alias MediaCentaur.ReleaseTracking
@@ -38,13 +39,15 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   alias MediaCentaur.Settings.Preferences.PlanningMode
 
   @doc """
-  One pass over every watching item's open wants. Inert without a
-  ready Prowlarr (wants accumulate; the next healthy tick plans the
-  backlog — nothing is lost).
+  One pass over every watching item's open wants. Inert unless Prowlarr
+  is configured **and** answering (`MediaCentaur.IntegrationAvailability`)
+  — wants accumulate and nothing is lost: the next tick plans the
+  backlog, and Prowlarr's recovery runs one immediately rather than
+  waiting for the next sweep (`Reactor.Handlers.prowlarr_available/0`).
   """
   @spec run_tick(DateTime.t()) :: :ok
   def run_tick(now \\ DateTime.utc_now(:second)) do
-    if Capabilities.prowlarr_ready?() do
+    if IntegrationAvailability.available?(:prowlarr) do
       settings = AutoGrabSettings.load()
 
       ReleaseTracking.list_open_wants()

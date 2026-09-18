@@ -6,6 +6,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
   alias MediaCentaur.Acquisition.Reactor.Handlers
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.ProwlarrStubs
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
@@ -388,6 +389,29 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert Repo.all(Plans.Plan) == []
       assert [want] = ReleaseTracking.open_wants_for_item(item.id)
       assert want.last_searched_at
+    end
+  end
+
+  describe "run_tick/0 — held work" do
+    test "a known-down Prowlarr plans nothing and leaves the wants unstamped" do
+      stub_results(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ]
+      })
+
+      item = create_tracked_show()
+      create_intent_for(item, :grab)
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
+
+      assert :ok = DropPlanner.run_tick()
+
+      assert Repo.all(Plans.Plan) == []
+      assert [want] = ReleaseTracking.open_wants_for_item(item.id)
+      refute want.last_searched_at
     end
   end
 
