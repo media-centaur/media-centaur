@@ -200,7 +200,7 @@ defmodule MediaCentaur.Console.Buffer do
   # connected page holds the (hidden) console drawer, so a navigation's
   # own burst of debug/SQL lines was costing one WS frame + one DOM
   # insert per line on every open page while that navigation was in
-  # flight (campaigns/instant-navigation.md Phase 5). The buffer itself
+  # flight. The buffer itself
   # is updated immediately — only the broadcast batches.
   #
   # Each component gets its own capped ring, so a chatty component (`:ecto`

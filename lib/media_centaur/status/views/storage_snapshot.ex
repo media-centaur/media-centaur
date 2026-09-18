@@ -11,7 +11,8 @@ defmodule MediaCentaur.Status.Views.StorageSnapshot do
   present?", `dir_health` answers "does the filesystem say the paths
   exist right now?" — the Status page shows the latter precisely so an
   operator can spot disagreement. Unifying the two representations is
-  recorded in `campaigns/instant-navigation.md` as a deferred item.
+  deferred and unowned: it was recorded in the instant-navigation
+  campaign, whose file was removed at completion.
   """
 
   alias MediaCentaur.Storage

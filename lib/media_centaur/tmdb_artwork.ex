@@ -2,7 +2,7 @@ defmodule MediaCentaur.TmdbArtwork do
   @moduledoc """
   The temporary artwork cache for TMDB identities that are not (or not
   yet) in the library — the "referenced" tier of the artwork promotion
-  ladder (see `campaigns/cinematic-modal-unification.md`):
+  ladder (UIDR-021; see **Ladder** in `docs/GLOSSARY.md`):
 
     * **browsing** surfaces hotlink the TMDB CDN and download nothing;
     * **referenced** identities (a tracked item or a non-terminal

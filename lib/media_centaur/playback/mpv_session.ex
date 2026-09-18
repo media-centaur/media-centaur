@@ -36,7 +36,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   original ADR-023 premise — that a restart "orphans the still-running mpv
   process, the user's playback continues" — was an unmeasured inference and was
   false for six months (dev ran `KillMode=mixed`); see the ADR's 2026-09-12
-  amendment and `campaigns/external-process-lifetime.md`.
+  amendment, which carries the measurement.
 
   ## Episode auto-advance (ADR-062)
 

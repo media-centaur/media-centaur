@@ -142,8 +142,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         <%!-- Heatmap — only the ACTIVE type variant renders. Pre-rendering all
               four variants put ~1,460 <rect>s in every /history navigation
               payload (~276KB, the heaviest page in the app) to save a server
-              swap the type filter performs anyway for the events list
-              (campaigns/instant-navigation.md Phase 2). --%>
+              swap the type filter performs anyway for the events list. --%>
         <div
           :if={empty_reason(assigns) != :no_history}
           class="glass-inset rounded-xl p-4 overflow-x-auto w-fit"

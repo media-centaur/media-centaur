@@ -20,8 +20,8 @@
     </script>
     <%!-- First-screen artwork warmup: lowest-priority browser prefetch at
           launch so the first visit to a poster-heavy page decodes from
-          cache instead of blocking paint on fetch (UIDR-012 sync decode;
-          campaigns/instant-navigation.md Phase 4). Rendered once — the
+          cache instead of blocking paint on fetch (UIDR-012 sync decode).
+          Rendered once — the
           root layout survives live navigation. --%>
     <link
       :for={url <- MediaCentaurWeb.ArtworkWarmup.poster_urls()}
