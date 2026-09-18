@@ -2253,8 +2253,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute html =~ ~s(phx-value-episode="2")
     end
 
-    test "the modal offers the link to the picker", %{conn: conn} do
-      series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810"})
+    test "the modal offers the link to the picker for a season the library lacks", %{conn: conn} do
+      series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810", number_of_seasons: 2})
 
       season =
         create_season(%{
@@ -2275,6 +2275,28 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert html =~ "Download more of this show"
       assert html =~ "tmdb_id=246810"
+    end
+
+    test "the link is gone once the library holds the whole series", %{conn: conn} do
+      series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810", number_of_seasons: 1})
+
+      season =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 1,
+          episode_list: [%{episode_number: 1, name: "Pilot", air_date: "2020-01-01"}]
+        })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        name: "Pilot",
+        content_url: "/tv/sample-show/s01e01.mkv"
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{series.id}")
+
+      refute render(view) =~ "Download more of this show"
     end
   end
 end

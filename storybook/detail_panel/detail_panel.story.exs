@@ -20,7 +20,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       movie: never watched; two friends' pennants on the mast; mid-watch
       with Resume, the hairline and the time left.
     * `:tv_series_all_collapsed`, `:tv_series_with_seasons`,
-      `:tv_series_gap_in_flight`, `:tv_series_acquisition_off`,
+      `:tv_series_gap_in_flight`, `:tv_series_complete`,
+      `:tv_series_acquisition_off`,
       `:tv_series_episode_details_open`, `:tv_series_all_episode_details_open`,
       `:tv_series_spoiler_free`, `:tv_series_with_upcoming_inline`,
       `:tv_series_aired_not_in_library`, `:tv_series_only_future`,
@@ -184,6 +185,14 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "Same shape with the gap claimed: an InFlight row reading \"Downloading\", " <>
             "not clickable, not focusable — an active pursuit already has the episode.",
         attributes: %{detail: series_detail(seasons: gap_in_flight_seasons()), state: series_state()}
+      },
+      %Variation{
+        id: :tv_series_complete,
+        description:
+          "Every season the series has, every episode aired — so " <>
+            "\"Download more of this show\" is absent. The link is an offer to " <>
+            "fill an absence, and there is none to fill.",
+        attributes: %{detail: series_detail(seasons: complete_seasons()), state: series_state()}
       },
       %Variation{
         id: :tv_series_acquisition_off,
@@ -846,6 +855,19 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
     detail = Map.merge(%{tracking: tracking(%{}), rung: :grab}, Keyword.get(opts, :detail, %{}))
     owned(entry, Keyword.merge([detail: detail], Keyword.take(opts, [:available, :files])))
+  end
+
+  # Both seasons the entity claims (`number_of_seasons: 2`), with the S1
+  # gap at episode 4 dropped — the library holds every episode there is.
+  defp complete_seasons do
+    entity = sample_tv_entity()
+
+    entity
+    |> build_library_only_seasons_view(sample_tv_progress_records(entity), {1, 2})
+    |> Enum.map(fn season ->
+      items = Enum.reject(season.items, &match?(%EpisodeRow.Missing{}, &1))
+      %{season | items: items, total_count: length(items)}
+    end)
   end
 
   # S1 has releases for the missing slot (episode 4, replaces the

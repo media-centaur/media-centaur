@@ -66,6 +66,12 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     default: false,
     doc: "an indexer and a download client are ready; without them nothing here can download."
 
+  attr :number_of_seasons, :integer,
+    default: nil,
+    doc:
+      "TMDB's season count for the series — with the season list, it decides whether the picker " <>
+        "still has anything to offer. nil is unknown, and the offer stands."
+
   def season_list(assigns) do
     ~H"""
     <div :if={@seasons != []} class="pt-3 space-y-3">
@@ -106,8 +112,15 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
       />
       <%!-- The season list is a picture of what is on disk; seasons you
             don't own live in the plan picker on the other side of this
-            link (2026-09-13 series-gap-download design, decision 12). --%>
-      <div :if={@series_tmdb_id && @acquisition?} class="pt-1">
+            link (2026-09-13 series-gap-download design, decision 12). It
+            offers to fill an absence, so it goes away when there is none
+            left to fill. --%>
+      <div
+        :if={
+          @series_tmdb_id && @acquisition? && Logic.more_to_download?(@seasons, @number_of_seasons)
+        }
+        class="pt-1"
+      >
         <.link
           navigate={~p"/incoming?plan=new&tmdb_id=#{@series_tmdb_id}&tmdb_type=tv"}
           class="inline-flex items-center gap-1.5 text-xs text-base-content/55 hover:text-base-content transition-colors"
