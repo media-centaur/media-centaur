@@ -56,16 +56,16 @@ what it does during an outage, and gives each one logic that fits.
 
 ## Status
 
-**Implementing. Rollout steps 1 and 2 of 5 landed (2026-09-17,
-2026-09-18); step 3 (TMDB) is next and needs its own plan.** Resume by
-reading, in this order: this file; the approved design
+**Implementing. Rollout steps 1–3 of 5 landed (2026-09-17, 2026-09-18);
+step 4 (GitHub and relays — confirm only, no code expected) is next.**
+Resume by reading, in this order: this file; the approved design
 `docs/superpowers/specs/2026-09-17-availability-design.md` (glossary,
 cost classes, the value, evidence and probes, held work, recovery, what
-the user sees, diff against the code); the two executed plans
-`docs/superpowers/plans/2026-09-17-availability-plan.md` and
-`docs/superpowers/plans/2026-09-18-availability-step-2-plan.md` (either
-is the template for the step-3 plan); then `git log --oneline 71314bb9..`
-for what landed.
+the user sees, diff against the code); the three executed plans
+`docs/superpowers/plans/2026-09-17-availability-plan.md`,
+`.../2026-09-18-availability-step-2-plan.md` and
+`.../2026-09-18-availability-step-3-plan.md`; then
+`git log --oneline 71314bb9..` for what landed.
 
 What exists in code after step 1 (HEAD `49fc475f` at the time of
 writing): `MediaCentaur.IntegrationAvailability` (value, store,
@@ -109,6 +109,24 @@ and key without recording a passing connection test now call
 `prowlarr_ready?/0`, so a half-configured fixture snoozed instead of
 planning. Full suite 7,465 green.
 
+What step 3 added (2026-09-18): `MediaCentaur.TMDB.Availability` — the
+one writer for `:tmdb`, folding the outcome of every request through the
+single `TMDB.Client.get/3` funnel (a cache hit reports nothing; a 4xx
+that is not 401/403 neither opens nor closes the value); `TMDB.ProbeJob`
+— one `GET /configuration` every 5 minutes while down, completing on up
+or on an unconfigured TMDB; `:rate_limited` joins the reason vocabulary
+for 429; `ReleaseTracking.Refresher` holds at the tick and again per item
+(so a TMDB that dies mid-cycle costs one failed request, not one per
+tracked title), re-arms at the probe cadence instead of the 6-hour
+interval, and runs the deferred cycle on the recovery broadcast;
+`TmdbArtwork.ensure/2` serves what is on disk while TMDB is down.
+`TmdbStubs` gained `mark_ready!/0` and `mark_unconfigured!/0`. Three test
+files moved from async to sync — they drive TMDB failures through the
+client, which now writes global state an async test may not (MC0036):
+`tmdb/identifiers_test`, `reconciliation/spine_test`,
+`pipeline/stages/fetch_metadata_test`. Full suite 7,480 green at three
+seeds.
+
 Process notes for the next step: implement with one editing agent at a
 time in this checkout — the dev daily driver reloads `lib/` live, and on
 2026-09-17 two concurrent editors crashed it and raced on git (see the
@@ -119,6 +137,16 @@ Droppable follow-ups the step-1 reviews left: pin the two re-stamp
 branches of the hand-off hold with tests; a recovered hand-off's
 stamped copy lingers on the target until its next run (at most one
 cadence); `ProwlarrStubs` moduledoc should mention `mark_unconfigured!/0`.
+
+Simulated TMDB outage, measured on the dev node 2026-09-18 (the
+verification step 3 owed): with `:tmdb` reported down, one full refresh
+tick across 5 tracked items plus an artwork warm for an identity with
+nothing on disk cost **0 requests** to `tmdb` and 0 to `tmdb_images`. The
+same actions against the pre-change code, minutes earlier, cost **+7**
+API requests and **+3** CDN downloads. Reporting `:tmdb` up again ran the
+deferred cycle at once: +5 requests, one per tracked item. The campaign's
+criterion — requests/hour during an outage below the healthy rate, not
+above it — holds for TMDB.
 
 Measurement basis (2026-09-17): the inventory below is verified against
 the code and one day of observation — the dev node's log ring, the
@@ -238,12 +266,12 @@ them. Policies are assigned once the shape is decided.
 | Drop planner tick — `DropPlanner` via `Reactor` on `{:tracking_sweep_completed}` and on `:prowlarr` recovery | Prowlarr (through plans) | every sweep, 15 min; per want `WantSchedule` 30 min / 4 h / 24 h / 7 d by age | stateless re-derive | **step 2:** `available?(:prowlarr)`; `Discovery.grabs?`; claims |
 | Queue monitor poll — `Downloads.QueueMonitor` | download clients | 10 s watched, 30 s idle (`@poll_watched_ms`, `@poll_idle_ms`) | 30 s flat on `:auth_failed` only; offline keeps watched cadence | `Capabilities.client_ready?/1` (config) |
 | Indexer health probe — `Search.IndexerHealth` | Prowlarr (2 reads) | **step 2:** 30 s while Incoming is open **and Prowlarr is up** (`current/1`); on every zero-result live search | while down the probe job's 60 s read is the only one | `prowlarr_ready?` (config) |
-| Tracking refresh — `ReleaseTracking.Refresher` | TMDB | 6 h (Settings), `reload: true` per item, 1–2 seasons per TV item, concurrency 4 | per-item error skipped, cadence fixed | none — no TMDB-down circuit |
-| Tracking image backfill — `Refresher.bulk_download_images/1` | TMDB image CDN | rides the 6 h cycle | failure logged; re-tried every cycle forever (gate is file-on-disk) | none |
+| Tracking refresh — `ReleaseTracking.Refresher` | TMDB | 6 h (Settings), `reload: true` per item, 1–2 seasons per TV item, concurrency 4 | **step 3:** held at the tick and per item; re-armed at the probe cadence; the held cycle runs on recovery | **step 3:** `available?(:tmdb)` |
+| Tracking image backfill — `Refresher.bulk_download_images/1` | TMDB image CDN | rides the 6 h cycle | failure logged; re-tried every cycle forever (gate is file-on-disk) | **step 3:** rides the refresh gate — it only ever sees successfully fetched items |
 | Update check — `SelfUpdate.CheckerJob` | GitHub | cron every 15 min, contacts GitHub per the user's interval (default 6 h); boot check at +30 s | failed check leaves next tick due → 15-min retry, no back-off | `SelfUpdate.enabled?`, unique 120 s |
 | Nostr relay — `Nostr.Connection` | relays | ping 30 s; reconnect 1 s → 60 s cap | exponential back-off | back-off is the gate — **mature** |
 | Image retry — `Pipeline.Image.RetryScheduler` | TMDB image CDN (via pending rows) | tick 2 min; per entry 30 s → 5 min cap, 5 tries | `:permanent` after 5 | budget is the circuit — **mature** |
-| Artwork warm on mount — `TmdbArtwork.ensure/2` | TMDB + image CDN | per fresh mount per identity | logged, no negative cache → re-fetched on every mount for identities TMDB has no art for | files-on-disk check; Discovery de-dupes per session |
+| Artwork warm on mount — `TmdbArtwork.ensure/2` | TMDB + image CDN | per fresh mount per identity | logged, no negative cache → re-fetched on every mount for identities TMDB has no art for | **step 3:** `up?(:tmdb)` — while down it answers from disk; files-on-disk check; Discovery de-dupes per session |
 | Pursuits watcher — `Pursuits.Watcher` (cron 15 min) | local only | — | — | — |
 | Subsystem evaluator — `ErrorReports.EvaluatorJob` (cron 5 min) and every `assess/0` | local only | — | — | — |
 | Cache workers, Status vitals, HTTP cache sweep, retention sweeps | local only | — | — | — |
@@ -335,6 +363,25 @@ up to 18 simultaneous outbound requests when three jobs search at once
   incident persists while the probe says down, replacing the 900 s
   staleness rule — this closes the indexer-blindness gap the owner had
   reserved to design together.
+* `2026-09-18` — Step 3 took two calls the spec left implicit. **A
+  rejected TMDB key opens `:tmdb`** (`:rejected`), on the spec's own
+  reasoning that misconfigured is as useless as dead for held work —
+  without it a rejected key is re-hammered by every refresh cycle and
+  every artwork warm. **The image CDN does not write `:tmdb`**:
+  `image.tmdb.org` and `api.themoviedb.org` are different hosts, a CDN
+  failure is no evidence about the API, and holding metadata refreshes on
+  it would be the wrong blame (the hand-off probe's "inconclusive moves
+  nothing" rule). Artwork is held anyway, because the detail fetch it
+  follows is. Also: 429 gets its own reason, `:rate_limited` — the server
+  is answering and refusing to do more work, which "unreachable" would
+  misreport to the person reading it.
+* `2026-09-18` — **Open, for step 5 or its own decision:** TMDB has no
+  `:subsystem` incident. `TMDB.IncidentContext` implements `vitals/0`
+  only, so a sustained TMDB outage raises no condition on the Status
+  board the way a Prowlarr one now does — the spec puts TMDB's
+  user-visible surface on the Connections tile in step 5. Worth asking
+  whether it should also have a condition, now that a probe keeps a
+  continuous signal.
 * `2026-09-18` — Step 2 implemented spec decision 2: the search
   incident's 900 s staleness rule is gone, so the condition lasts exactly
   as long as the probe says Prowlarr is down. And a Prowlarr that answers
@@ -403,12 +450,10 @@ successfully.
    `Reactor`'s recovery tick; `Search.IncidentContext` on the value with
    the 900 s staleness rule retired and `:search_provider_rejected`
    added; wiki and campaign.
-2. **Step 3: `:tmdb`** — write its plan first, in the shape of the two
-   executed ones: `:tmdb` writer in `TMDB.Client`, `TMDB.ProbeJob`
-   (5 min, cheapest call), `Refresher` and `TmdbArtwork.ensure/2` gates,
-   recovery runs a deferred refresh cycle. Measure a simulated TMDB
-   outage here, as verification.
-3. Step 4: confirm GitHub and relays within budget; no code expected.
+2. ~~Step 3: `:tmdb`~~ — landed 2026-09-18
+   (`docs/superpowers/plans/2026-09-18-availability-step-3-plan.md`),
+   outage measured; see Status above.
+3. **Step 4:** confirm GitHub and relays within budget; no code expected.
 4. Step 5: queue-monitor logging at grade transitions only; Connections
    tile shows *down since* for Prowlarr and TMDB.
 5. Close: bucket every remaining item (ship / verify / defer-to-X),

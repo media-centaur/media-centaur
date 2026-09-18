@@ -954,3 +954,33 @@ Claude-Session: https://claude.ai/code/session_01DartCM8viJppYVfPnQFUhF"
 - **Recovery, `ReleaseTracking.Refresher`** — Task 5's subscriber.
 - **Scope and cost, step 3** — "`:tmdb` writer, `TMDB.ProbeJob`, `Refresher` and `TmdbArtwork` gates. Wiki: TMDB down entry. Measure a simulated TMDB outage here." All covered; the measurement is Task 7 Step 2.
 - **Not in this step:** GitHub and relays (step 4), queue-monitor log transitions and the Connections tile's *down since* (step 5), and TMDB's refresh *policy* — how often it re-reads a healthy TMDB — which belongs to `project-tmdb-caching-refresh-policy`, not here.
+
+---
+
+## Execution record (2026-09-18)
+
+Executed inline, `94cc6004..`, every task test-first. What differed from
+the plan as written:
+
+- **Tasks 2–4 are one seam and landed in one commit.** The probe cannot
+  close the value until `TMDB.Client.get/3` reports, so the probe test
+  only goes green once the client change is in.
+- **`TmdbStubs` gained the readiness seam.** There was no TMDB equivalent
+  of `ProwlarrStubs.mark_ready!/0`; `mark_ready!/0` and
+  `mark_unconfigured!/0` now live beside the other TMDB test helpers.
+- **The async-write fallout was three files, not one.** Every TMDB
+  failure now writes `:persistent_term`, which an async test may not do
+  (MC0036), and the `GlobalStateSandbox` caught each one as a leak in the
+  *next* sync test rather than in the offender. `tmdb/identifiers_test`,
+  `reconciliation/spine_test` and `pipeline/stages/fetch_metadata_test`
+  are now sync, each with a comment saying why. `MediaCentaur.StateProbeFormatter`
+  (`STATE_PROBE_OUT=… mix test --seed 0 --formatter …`) is what named
+  them; bisecting by hand found only the first.
+- **The live measurement needed the dev reloader.** `mc-eval` does not
+  recompile — the first measurement ran the *old* modules and showed the
+  outage costing +7 API and +3 CDN requests, which is the useful control:
+  one HTTP request to the dev server later, the same actions against the
+  new code cost zero. The running `Refresher` also had to be stopped so
+  the supervisor restarted it on the new state shape.
+
+Full suite 7,480 green at three seeds; precommit green.
