@@ -1,5 +1,8 @@
 defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
-  use MediaCentaur.Case, async: true
+  # Sync because this drives TMDB failures through `TMDB.Client`, whose
+  # every outcome is folded into `MediaCentaur.IntegrationAvailability` —
+  # global state an async test may not write (MC0036).
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Pipeline.Stages.FetchMetadata
