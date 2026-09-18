@@ -3,6 +3,7 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
 
   import ExUnit.CaptureLog
   import MediaCentaur.TmdbStubs
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Refresher
   alias MediaCentaur.ReleaseTracking.Release
@@ -165,6 +166,55 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
 
       reloaded = ReleaseTracking.get_item(item.id)
       assert reloaded.name == "Solo Movie"
+    end
+  end
+
+  describe "held work — a known-down TMDB is not asked" do
+    setup do
+      test_pid = self()
+
+      Req.Test.stub(:tmdb, fn conn ->
+        send(test_pid, {:tmdb_called, conn.request_path})
+        Req.Test.json(conn, %{"id" => 2468, "name" => "Sample Show"})
+      end)
+
+      create_tracking_item(%{tmdb_id: 2468, media_type: :tv_series, name: "Sample Show"})
+      pid = start_supervised!(Refresher)
+
+      {:ok, pid: pid}
+    end
+
+    test "a refresh tick makes no TMDB request while TMDB is down", %{pid: pid} do
+      {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
+
+      send(pid, :refresh)
+      # A call behind the cast: the tick above is handled first.
+      assert :ok = Refresher.__tick_for_test__(fn -> :ok end)
+
+      refute_received {:tmdb_called, _path}
+    end
+
+    test "TMDB answering again runs the cycle the outage held", %{pid: pid} do
+      {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
+
+      send(pid, :refresh)
+      assert :ok = Refresher.__tick_for_test__(fn -> :ok end)
+      refute_received {:tmdb_called, _path}
+
+      {:changed, :up} = IntegrationAvailability.report(:tmdb, :up)
+      assert :ok = Refresher.__tick_for_test__(fn -> :ok end)
+
+      assert_received {:tmdb_called, "/3/tv/2468"}
+    end
+
+    test "TMDB answering with nothing deferred runs nothing", %{pid: pid} do
+      {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
+      {:changed, :up} = IntegrationAvailability.report(:tmdb, :up)
+
+      assert :ok = Refresher.__tick_for_test__(fn -> :ok end)
+      assert Process.alive?(pid)
+
+      refute_received {:tmdb_called, _path}
     end
   end
 

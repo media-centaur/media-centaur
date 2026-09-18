@@ -11,15 +11,25 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   a transient (a module mid-reload, a database mid-migration) costs one
   tick, not the process — and not the application, once the supervisor's
   restart budget would have gone.
+
+  The refresh cycle is **held** while TMDB is unavailable
+  (`MediaCentaur.IntegrationAvailability`): the tick spends no request,
+  re-arms at the probe cadence rather than the full interval, and each
+  item checks again before its own fetch, so a TMDB that goes down
+  mid-cycle costs one failed request rather than one per tracked title.
+  The held cycle runs on the recovery broadcast, within one probe of
+  TMDB answering again.
   """
   use GenServer
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.{Helpers, RefreshSchedule}
   alias MediaCentaur.Settings
   alias MediaCentaur.TMDB.Client
+  alias MediaCentaur.TMDB.ProbeJob
   alias MediaCentaur.TMDB.TitleIdentity
 
   @last_swept_at_key "release_tracking:last_swept_at"
@@ -71,15 +81,36 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       )
     )
 
-    {:ok, %{}}
+    IntegrationAvailability.subscribe()
+
+    {:ok, %{deferred_refresh?: false}}
   end
 
   @impl true
   def handle_info(:refresh, state) do
-    tick("refresh cycle", &do_refresh_all/0)
-    schedule_refresh(refresh_interval_ms())
-    {:noreply, state}
+    if IntegrationAvailability.available?(:tmdb) do
+      held? = tick("refresh cycle", &do_refresh_all/0) == :held
+      schedule_refresh(if held?, do: hold_interval_ms(), else: refresh_interval_ms())
+      {:noreply, %{state | deferred_refresh?: held?}}
+    else
+      Log.info(:acquisition, "release tracking: refresh cycle held — TMDB is unavailable")
+      schedule_refresh(hold_interval_ms())
+      {:noreply, %{state | deferred_refresh?: true}}
+    end
   end
+
+  # TMDB answered again: run the cycle the outage held rather than
+  # waiting out the rest of the interval.
+  def handle_info({:integration_availability_changed, :tmdb, :up}, %{deferred_refresh?: true} = state) do
+    tick("deferred refresh cycle", &do_refresh_all/0)
+    schedule_refresh(refresh_interval_ms())
+    {:noreply, %{state | deferred_refresh?: false}}
+  end
+
+  # Nothing deferred, another integration, or a down transition: the
+  # probe job and the held work's own snooze cover those.
+  def handle_info({:integration_availability_changed, _integration, _change}, state),
+    do: {:noreply, state}
 
   @impl true
   def handle_info(:sweep, state) do
@@ -103,9 +134,10 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   # at the floor, and ten crashes inside the root supervisor's window
   # took the whole application down (2026-09-05). Contain it: log what
   # failed, answer :error, let the next tick retry.
+  # Returns what `fun` returned, so a caller can tell a complete cycle
+  # from a held one; `:error` when the tick failed.
   defp tick(name, fun) do
     fun.()
-    :ok
   rescue
     error ->
       Log.error(
@@ -143,11 +175,16 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     # Phase 2: serialized commits. SQLite is a single-writer database; a
     # single commit loop avoids lock contention and the rollback that
     # comes with four concurrent write transactions.
+    held = Enum.count(fetched, &match?({:ok, {:held, _item}}, &1))
+
     successful =
       Enum.flat_map(fetched, fn
         {:ok, {:ok, item, response, calendar}} ->
           commit_refresh(item, response, calendar)
           [{item, response}]
+
+        {:ok, {:held, _item}} ->
+          []
 
         {:ok, {:error, item, reason}} ->
           Log.info(:acquisition, "refresh failed for #{item.name}: #{inspect(reason)}")
@@ -174,7 +211,23 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       )
     end
 
-    Log.info(:acquisition, "release tracking: refresh complete (#{length(items)} items)")
+    report_cycle(held, length(items))
+  end
+
+  # One line for the whole cycle, not one per title: TMDB went down
+  # mid-cycle and every remaining item would have said the same.
+  defp report_cycle(0, count) do
+    Log.info(:acquisition, "release tracking: refresh complete (#{count} items)")
+    :ok
+  end
+
+  defp report_cycle(held, count) do
+    Log.info(
+      :acquisition,
+      "release tracking: refresh cycle incomplete — TMDB went unavailable (#{held} of #{count} items held)"
+    )
+
+    :held
   end
 
   defp bulk_download_images([]), do: :ok
@@ -196,7 +249,11 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   # exists to notice what changed since last time.
   # Every fetch yields a calendar — `releases` to replace the item's
   # rows with, and `season_sizes` (TV only; `%{}` for movies).
-  defp fetch_for_item(%{media_type: :tv_series} = item) do
+  defp fetch_for_item(item) do
+    if IntegrationAvailability.up?(:tmdb), do: fetch_item_detail(item), else: {:held, item}
+  end
+
+  defp fetch_item_detail(%{media_type: :tv_series} = item) do
     case Client.get_tv(item.tmdb_id, reload: true) do
       {:ok, response} ->
         {releases, season_sizes} =
@@ -218,7 +275,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   # says which: an item linked to a `MovieSeries` tracks a collection
   # (its `tmdb_id` is a collection id, written by the Scanner); any other
   # movie item tracks one film (a manual track from search).
-  defp fetch_for_item(%{media_type: :movie, library_container_type: :movie_series} = item) do
+  defp fetch_item_detail(%{media_type: :movie, library_container_type: :movie_series} = item) do
     case Client.get_collection(item.tmdb_id, reload: true) do
       {:ok, response} ->
         {:ok, item, response, movie_calendar(Helpers.fetch_collection_releases(response))}
@@ -228,7 +285,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     end
   end
 
-  defp fetch_for_item(%{media_type: :movie} = item) do
+  defp fetch_item_detail(%{media_type: :movie} = item) do
     case Client.get_movie(item.tmdb_id, reload: true) do
       {:ok, response} -> {:ok, item, response, movie_calendar(Helpers.fetch_movie_releases(response))}
       {:error, reason} -> {:error, item, reason}
@@ -273,6 +330,10 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
   defp presence([]), do: nil
   defp presence(list), do: list
+
+  # A held cycle asks again at the probe's cadence, not the full
+  # interval: recovery is bounded by one probe, not by six hours.
+  defp hold_interval_ms, do: ProbeJob.cadence_seconds() * 1_000
 
   defp schedule_refresh(interval) do
     Process.send_after(self(), :refresh, interval)
