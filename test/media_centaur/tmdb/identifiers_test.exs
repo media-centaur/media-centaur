@@ -1,5 +1,8 @@
 defmodule MediaCentaur.TMDB.IdentifiersTest do
-  use MediaCentaur.Case, async: true
+  # Sync because `fetch/3` reaches the TMDB client, and every request's
+  # outcome is folded into `MediaCentaur.IntegrationAvailability` — global
+  # state an async test may not write (MC0036).
+  use MediaCentaur.Case, async: false
 
   alias MediaCentaur.TMDB.Identifiers
 

@@ -31,6 +31,14 @@ defmodule MediaCentaur.TMDB.Client do
   `configuration/1` always reloads; it exists to prove the key against
   the network.
 
+  ## Availability
+
+  Every request's outcome is folded into `MediaCentaur.TMDB.Availability`
+  — the `:tmdb` half of `MediaCentaur.IntegrationAvailability` — so the
+  release-tracking refresh cycle and the artwork warm can ask whether
+  TMDB can answer before spending a request on finding out. An answer
+  served from the response cache reports nothing: it asked nobody.
+
   ## The console line
 
   Every answered call logs one line, after the fact, naming where the
@@ -46,6 +54,7 @@ defmodule MediaCentaur.TMDB.Client do
 
   alias MediaCentaur.HttpClient
   alias MediaCentaur.HttpClient.Cache
+  alias MediaCentaur.TMDB.Availability
   alias MediaCentaur.TMDB.RateLimiter
 
   @base_url "https://api.themoviedb.org/3"
@@ -214,13 +223,17 @@ defmodule MediaCentaur.TMDB.Client do
 
     case Req.get(client, request ++ opts) do
       {:ok, %{status: 200, body: body} = response} ->
-        Log.info(:tmdb, log_line(subject, Cache.outcome(response)))
+        outcome = Cache.outcome(response)
+        Availability.observe_request({:ok, outcome})
+        Log.info(:tmdb, log_line(subject, outcome))
         {:ok, body}
 
       {:ok, %{status: status, body: body}} ->
+        Availability.observe_request({:error, {:http_error, status, body}})
         {:error, {:http_error, status, body}}
 
       {:error, reason} ->
+        Availability.observe_request({:error, reason})
         {:error, reason}
     end
   end
