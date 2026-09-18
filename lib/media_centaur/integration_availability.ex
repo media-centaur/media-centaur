@@ -62,6 +62,19 @@ defmodule MediaCentaur.IntegrationAvailability do
   def up?(integration), do: integration |> status() |> Status.up?()
 
   @doc """
+  When this integration went down, or `nil` while it is up — the one
+  thing a renderer needs from a down status, so the state tuple stays
+  this context's business.
+  """
+  @spec down_since(Status.integration()) :: DateTime.t() | nil
+  def down_since(integration) do
+    case status(integration).state do
+      {:down, since, _reason} -> since
+      :up -> nil
+    end
+  end
+
+  @doc """
   Configured and up — the gate a caller uses before offering to spend a
   metered request. Read by the drop planner, which will not plan an
   acquisition it cannot carry out, and by the pursuit refresher.

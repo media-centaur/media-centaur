@@ -17,6 +17,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Activities
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status}
   alias MediaCentaur.SelfUpdate.Changelog
@@ -368,6 +369,10 @@ defmodule MediaCentaurWeb.StatusLive do
       # http (connections)
       http_stats: assigns.http_stats,
       rate_limiter: assigns.rate_limiter,
+      down_since: %{
+        prowlarr: IntegrationAvailability.down_since(:prowlarr),
+        tmdb: IntegrationAvailability.down_since(:tmdb)
+      },
       # playback
       playback: assigns.playback,
       playback_activity: assigns.playback_activity,

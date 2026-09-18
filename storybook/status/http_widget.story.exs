@@ -163,6 +163,16 @@ defmodule MediaCentaurWeb.Storybook.Status.HttpWidget do
         id: :failing,
         description: "TMDB timing out: errors in red on the row and in the feed.",
         attributes: %{http_stats: failing_snapshot(), rate_limiter: %{used: 30, total: 30}}
+      },
+      %Variation{
+        id: :down,
+        description:
+          "TMDB held: the row says when it went down instead of how long ago it last answered. Prowlarr, still answering, keeps its last success.",
+        attributes: %{
+          http_stats: failing_snapshot(),
+          rate_limiter: %{used: 0, total: 30},
+          down_since: %{tmdb: seconds_ago(900), prowlarr: nil}
+        }
       }
     ]
   end
