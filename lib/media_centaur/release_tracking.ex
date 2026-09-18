@@ -3,6 +3,7 @@ defmodule MediaCentaur.ReleaseTracking do
     deps: [
       MediaCentaur.TMDB,
       MediaCentaur.Discovery,
+      MediaCentaur.IntegrationAvailability,
       MediaCentaur.Library,
       MediaCentaur.Retention,
       MediaCentaur.Search,
