@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.34.0 — 2026-09-18
+
+### Fixed
+
+- **"Download more of this show" is gone once you have the whole show.** The link at the end of a series' season list used to be there for every series, including ones you hold every episode of. It now shows only while something is still missing: an episode that has aired but has no file, or a season the library holds none of. An episode that hasn't aired yet doesn't count as missing, and a series with no TMDB match still shows the link, because there's no season count to check against.
+
 ## v1.33.0 — 2026-09-18
 
 ### New
