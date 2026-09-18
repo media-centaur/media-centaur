@@ -4,6 +4,30 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.33.0 — 2026-09-18
+
+### New
+
+- **Media Centaur stops asking a service that can't answer — and starts again the moment it can.** When Prowlarr is unreachable, when Prowlarr can't hand a release to your download client, or when TMDB is down, searches, downloads, release tracking, metadata refreshes and artwork now wait instead of retrying into the dark. Nothing counts against a pursuit's attempts while it waits, and everything held resumes within a minute of Prowlarr answering again, or five minutes for TMDB. Your download clients are on your own network and cost nothing to ask, so those keep being polled as before.
+- **The Status page says which service is down, and since when.** The **Connections** tile's last column reads *Down since 14:32* for a service being held, and the tile carries a warning naming the problem — unreachable, rejected API key, or rate-limiting us. The warning stays up for as long as the outage does.
+- **The Heads-up glyph on Incoming names download-client problems.** Three cases, each with what to do about it: the client rejected your credentials, the app can't reach it, or Prowlarr can't hand releases to it.
+
+### Improved
+
+- **Downloads search the scope that fits.** A plan for one missing episode now searches for that episode, not for the whole season or series; it widens only to *offer* you a pack, never to grab one on its own. An episode that exists as its own release now costs one search instead of several.
+- **Tracked shows get the same check.** A weekly episode could previously pull down a whole season pack on its own. Media Centaur now records how many episodes each season has and judges whether a pack fits before grabbing it. Tracked shows fill this in on their next metadata refresh; until then they plan exactly as they did before.
+- **A pursuit that can only find a pack asks before giving up.** The alternatives on a pursuit's card are built the same way the plan board builds them now, so a pack containing your episode is offered rather than the pursuit quietly running out of attempts. A tracking plan with nothing but a pack to offer also stays on the board for you to decide on, instead of being discarded.
+- **Quieter logs while a download client is down.** One line when it stops answering and one when it comes back, rather than two every ten seconds for as long as it lasts.
+
+### Fixed
+
+- **A rejected SABnzbd key reads as a rejected key.** SABnzbd answers a bad key — or a request from a host it doesn't whitelist — in a form Media Centaur graded as "unreachable", which sent you looking for the wrong problem.
+- **The Search attempts setting is honoured.** **Settings → Acquisition** let you change how many times a pursuit retries, but every pursuit used the built-in 12 regardless. Your setting now applies, including to pursuits already running.
+- **A grab that fails because your download client is down no longer blames the release.** It is treated as the outage it is: the release is kept, no attempt is spent on it, and the pursuit says what it is waiting for.
+- **When picking a release fails, the message says why.** "Could not pick that alternative." now names the reason — that Prowlarr could not hand it to your download client, that Prowlarr could not be reached, or that the release is no longer in the search results.
+- **A search-provider problem stays on the Status page while it lasts.** The warning used to clear itself after fifteen minutes with nobody searching, so an outage lasting days could read as nothing wrong.
+- **Opening a release decision no longer runs its searches twice.** Every search in the alternatives list fired a second time within a second of the modal opening.
+
 ## v1.32.1 — 2026-09-17
 
 ### New
