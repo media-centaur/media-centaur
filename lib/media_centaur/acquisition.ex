@@ -84,6 +84,7 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.PursuitRow,
       ViewModels.PursuitStatus,
       ViewModels.PursuitWithDownload,
+      ViewModels.SearchOutage,
       ViewModels.Timeline,
       ViewModels.TimelineEntry,
       ViewModels.UnitBoard,
