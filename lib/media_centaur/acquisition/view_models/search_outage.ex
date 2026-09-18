@@ -37,4 +37,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.SearchOutage do
   # The hand-off has its own copy, on the pursuit that waits for it — a
   # search is unaffected by a download client Prowlarr cannot reach.
   defp line(:client_unavailable), do: nil
+
+  # Prowlarr does not rate-limit us — its indexers' back-off is `:blind`,
+  # and `:rate_limited` is TMDB's.
+  defp line(:rate_limited), do: nil
 end
