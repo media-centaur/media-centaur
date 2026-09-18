@@ -12,6 +12,8 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   ## Public surface
 
   - `tracking_sweep_completed/0` — run the drop planner tick (ADR-056).
+  - `prowlarr_available/0` — run the drop planner tick on Prowlarr's
+    recovery.
   - `plan_changed/1` — the approval gate for every plan.
 
   Pure dispatch + Acquisition-context side effects. No GenServer state.
@@ -35,6 +37,15 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
     ModeReconciler.run_pass()
     DropPlanner.run_tick()
   end
+
+  @doc """
+  Prowlarr answered again — plan the wants that came due while it was
+  held, instead of waiting up to a sweep (15 minutes) for the next tick.
+  Modes cannot have changed while Prowlarr was down, so this is the
+  planner tick alone, not the full sweep pipeline.
+  """
+  @spec prowlarr_available() :: :ok
+  def prowlarr_available, do: DropPlanner.run_tick()
 
   @doc """
   The approval gate (spec 2026-09-05; ADR-056 Q3 for the tracking
