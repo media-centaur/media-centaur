@@ -21,17 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`recurring-traffic-audit.md`](recurring-traffic-audit.md) —
-  **implementing; step 1 of 5 landed 2026-09-17.** Every poll, retry,
-  refresh and scheduled tick the app makes on its own, treated by cost:
-  free integrations (the download clients) keep polling; metered ones
-  (Prowlarr, its hand-off to the client, TMDB) get one availability
-  value each, kept current by free probes, consulted before every
-  metered request, with held work resuming within a minute of recovery.
-  Step 1 (`IntegrationAvailability`, Prowlarr + hand-off writers, the
-  probe job, pursuit holds) is in; step 2 (release-tracking re-planning,
-  the Incoming page's reads, the search incident) needs its plan.
-
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
@@ -167,6 +156,44 @@ Use [`template.md`](template.md) as a starter.
 
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
+
+* **Recurring outbound traffic audit** — **closed 2026-09-18; file
+  retired.** Every poll, retry, refresh and scheduled tick the app makes
+  on its own, treated by what a request **costs** rather than by how
+  often it runs. Free integrations (the download clients on the LAN)
+  keep polling through an outage; metered ones get one published
+  availability value each — `MediaCentaur.IntegrationAvailability`,
+  `:prowlarr`, `{:handoff, :usenet | :torrent}`, `:tmdb` — written by one
+  module apiece from real request outcomes, kept current while down by
+  free probes (`Search.ProbeJob` 60 s, `TMDB.ProbeJob` 5 min), consulted
+  before every metered request, with held work resuming within one probe
+  of recovery. Five steps, all landed: the value + Prowlarr/hand-off
+  writers + pursuit holds; plan solving, the drop planner, the Incoming
+  page's roster read, the search incident (its 900 s staleness rule
+  retired — the three-day outage that read as "nothing wrong");
+  TMDB's writer, probe, refresh-cycle and artwork holds; GitHub and the
+  relays confirmed within budget with no code; queue-monitor logging at
+  grade transitions only and *down since* on the Connections tile.
+  Design:
+  [`docs/superpowers/specs/2026-09-17-availability-design.md`](../docs/superpowers/specs/2026-09-17-availability-design.md);
+  three executed plans beside it under `docs/superpowers/plans/`.
+  Measured on the dev node: a simulated Prowlarr outage costs a
+  drop-planner tick with 10 open wants **0** requests, and a simulated
+  TMDB outage costs a full refresh cycle plus an artwork warm **0** —
+  against +7 API and +3 CDN for the same actions without the gates.
+  Vocabulary elevated to
+  [`docs/GLOSSARY.md`](../docs/GLOSSARY.md) ("Outbound integrations").
+  Leftovers: **(1)** whether TMDB should also raise a `:subsystem`
+  condition now that a probe keeps a continuous signal — an owner
+  question, recorded in `TMDB.IncidentContext`'s moduledoc where it will
+  be met; **(2)** how often the tracking refresher re-reads a *healthy*
+  TMDB stays with `project-tmdb-caching-refresh-policy`; **(3)** four
+  test files moved from async to sync because a failing request now
+  writes availability (MC0036) — noted for `serial-test-audit`; **(4)**
+  an owner check of the visible surfaces: the pursuit's Waiting copy,
+  the gap banner's rejected-key sentence, the two new Status conditions,
+  *down since* on the Connections tile, and the quieter download-client
+  logs.
 
 * **Dead-code detection** — **closed 2026-09-17; file retired.** Nothing in
   the toolchain could see a `def` with no callers. **JS is gated and stays**:
