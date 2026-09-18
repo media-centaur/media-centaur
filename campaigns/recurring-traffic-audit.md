@@ -1,7 +1,7 @@
 ---
-status: planning
+status: in-progress
 started: 2026-09-17
-last_updated: 2026-09-17
+last_updated: 2026-09-18
 ---
 # Recurring outbound traffic audit
 
@@ -56,31 +56,50 @@ what it does during an outage, and gives each one logic that fits.
 
 ## Status
 
-Measured, shape decided, defects 1 and 3 landed, design drafted —
-2026-09-17 evening. The design spec is
-`docs/superpowers/specs/2026-09-17-availability-design.md`; two owner
-decisions in it are taken (`IntegrationAvailability`; the search incident persists
-while down). **Rollout step 1 landed 2026-09-17** from the plan
-(`docs/superpowers/plans/2026-09-17-availability-plan.md`):
-`IntegrationAvailability` (value, store, gate, broadcast), the Prowlarr
-and hand-off writers (`Search.ProwlarrAvailability`), `Search.ProbeJob`,
-`PursueTarget` holds before search and grab (an unconfigured Prowlarr
-snoozes an hour, a down one the probe cadence), a non-hand-off grab 5xx
-charges an attempt, the Waiting copy and the Downloads index read the
-value, the hand-off incident reads it instead of grab stamps, wiki
-Troubleshooting updated. Reviewed task by task (spec, then quality), a
-whole-step review last; final precommit 7,451 Elixir + 811 JS tests
-green (HEAD `49fc475f`). Droppable follow-ups the reviews left: pin the
-two re-stamp branches of the hand-off hold with tests; a recovered
-hand-off's stamped copy lingers on the target until its next run (at
-most one cadence); `ProwlarrStubs` moduledoc should mention
-`mark_unconfigured!/0`. Steps 2–5 next. The inventory below is
-verified against the code (constants cited) and against one day of
-observation: the dev node's log ring, the day's systemd journal (seven
-boots, one real download-client outage 16:47–16:56 CEST, and the
-hand-off outage, fixed in the stack at 20:18 CEST), and the Connections
-tile. Owner walk-through of the remaining items in progress — see
-*Open items*. No code written.
+**Implementing. Rollout step 1 of 5 landed 2026-09-17; step 2 is next
+and needs its own plan.** Resume by reading, in this order: this file;
+the approved design `docs/superpowers/specs/2026-09-17-availability-design.md`
+(glossary, cost classes, the value, evidence and probes, held work,
+recovery, what the user sees, diff against the code); the step-1 plan
+`docs/superpowers/plans/2026-09-17-availability-plan.md` (its shape is
+the template for the step-2 plan); then `git log --oneline 71314bb9..`
+for what landed.
+
+What exists in code after step 1 (HEAD `49fc475f` at the time of
+writing): `MediaCentaur.IntegrationAvailability` (value, store,
+`available?/1` gate, change broadcast on
+`Topics.integration_availability_updates/0`);
+`Search.ProwlarrAvailability` (the one writer for `:prowlarr` and both
+hand-offs, hooked into `Prowlarr.search/3`, `Prowlarr.grab/2`,
+`IndexerHealth.check/1`); `Search.ProbeJob` (probes while down, 60 s
+cadence, honours Prowlarr's `retry_at`, completes on up);
+`Jobs.PursueTarget` holds before search and grab (unconfigured Prowlarr
+snoozes an hour, a down one the cadence; a hand-off hold stamps the
+target once per outage, a Prowlarr hold writes nothing);
+`Prowlarr.grab_outage?/1` narrowed so a non-hand-off grab 5xx charges an
+attempt; the Waiting copy in the modal and on the Downloads index;
+`Pursuits.IncidentContext` reading the value; `test/support/prowlarr_stubs.ex`;
+the `Library.Availability` → `MediaFileAvailability` rename; wiki
+Troubleshooting's pursuit Waiting entry. Every task had a spec review
+and a quality review, then one whole-step review; final precommit
+7,451 Elixir + 811 JS tests green.
+
+Process notes for the next step: implement with one editing agent at a
+time in this checkout — the dev daily driver reloads `lib/` live, and on
+2026-09-17 two concurrent editors crashed it and raced on git (see the
+`f71bb8de` / `2845498e` history); reviews are read-only and may run in
+parallel; `agent-mix` only, never bare `mix`.
+
+Droppable follow-ups the step-1 reviews left: pin the two re-stamp
+branches of the hand-off hold with tests; a recovered hand-off's
+stamped copy lingers on the target until its next run (at most one
+cadence); `ProwlarrStubs` moduledoc should mention `mark_unconfigured!/0`.
+
+Measurement basis (2026-09-17): the inventory below is verified against
+the code and one day of observation — the dev node's log ring, the
+day's systemd journal (seven boots, one real download-client outage
+16:47–16:56 CEST, and the hand-off outage, fixed in the stack at 20:18
+CEST), and the Connections tile.
 
 Opened at the close of `fit-first-search-order` (its spec:
 `docs/superpowers/specs/2026-09-17-planning-descent-design.md`).
@@ -323,37 +342,42 @@ successfully.
 
 ## Concrete defects found (fix regardless of shape)
 
-1. SABnzbd's HTTP-403 bad-key answer is graded `:unreachable`, so the
-   `:auth_failed` cadence never fires for it. Map `{:http_error, 403, _}`
-   with an "API Key" body to `:auth_failed` in `DownloadClient.Sabnzbd`.
-2. `CommitPlan` grabs, fails on the hand-off outage, and the pursuit it
-   starts grabs the same release again in the same second.
-3. The decision modal starts two alternatives fetches for one open when
-   a lifecycle event lands during the first (`load_pursuit_detail/1`
-   from `handle_params` and from `maybe_reload_modal_for_event/2`).
+1. ~~SABnzbd's HTTP-403 bad-key answer is graded `:unreachable`~~ —
+   landed `4b201b63` 2026-09-17: one predicate decides "rejected key"
+   for both response shapes.
+2. ~~`CommitPlan` grabs, fails on the hand-off outage, and the pursuit
+   it starts grabs the same release again~~ — closed by construction in
+   step 1: the pursuit's grab step is gated on the hand-off the plan's
+   failed grab just opened.
+3. ~~The decision modal starts two alternatives fetches for one open~~ —
+   landed `f9630784` 2026-09-17: one in-flight fetch per pursuit.
 4. `Corpus.blind?/0` and Incoming's 30-second loop both probe Prowlarr
-   with no memory of the last answer; a known-unreachable Prowlarr is
-   re-probed every 30 s per open page.
+   with no memory of the last answer — **step 2**: while `:prowlarr` is
+   down the page reads the value; the probe job owns probing.
 
 ## Next steps
 
-1. ~~Measure~~ — done 2026-09-17; the numbers above. A TMDB outage is
-   measured after the TMDB hold lands, as its verification.
-2. ~~Decide the shape~~ — decided; facts verified; spec drafted
-   2026-09-17 (`2026-09-17-availability-design.md`). Next: the two owner
-   decisions in the spec, then a plan from it.
-3. Apply in the decided order: ~~hand-off availability (pursuit
-   retries)~~ landed 2026-09-17; next the Prowlarr gate for
-   release-tracking re-planning (`RunPlan`, `DropPlanner`), the corpus
-   and Incoming-loop reads, the `GapVerdict` reason, the `Reactor`
-   recovery tick, and `Search.IncidentContext` without staleness (plan
-   step 2); then TMDB hold (step 3), GitHub and relays confirmed (4),
-   client log noise and the Connections tile (5).
-4. ~~Fix defects 1 and 3~~ — landed 2026-09-17 (SABnzbd 403 →
-   `:auth_failed`; one alternatives fetch per pursuit). 2 and 4 ride the
-   circuit.
-5. Wiki, per step: Troubleshooting's outage entry for that integration
-   says what the app does while it is down and when it resumes. Terse.
+1. **Write the step-2 plan** from the spec, in the shape of the step-1
+   plan: `RunPlan` snoozes at the cadence while `:prowlarr` is
+   unavailable; `DropPlanner` gates on `available?(:prowlarr)`;
+   `Corpus.blind?/0` keeps its roster read (it already reports) and
+   `IncomingLive`'s 30 s loop reads `status/1` instead of probing while
+   down; `GapVerdict`'s blind reason comes from the value;
+   `Acquisition.Reactor` runs a planner tick on `{:integration_availability_changed, :prowlarr, :up}`;
+   `Search.IncidentContext` reads the value and drops its 900 s
+   staleness rule. Wiki: Troubleshooting's "Prowlarr unreachable" and
+   "no indexers answering" entries say the app holds and resumes.
+2. Execute it task by task (implementer, spec review, quality review;
+   whole-step review last; precommit).
+3. Step 3: `:tmdb` writer in `TMDB.Client`, `TMDB.ProbeJob` (5 min,
+   cheapest call), `Refresher` and `TmdbArtwork.ensure/2` gates,
+   recovery runs a deferred refresh cycle. Measure a simulated TMDB
+   outage here, as verification.
+4. Step 4: confirm GitHub and relays within budget; no code expected.
+5. Step 5: queue-monitor logging at grade transitions only; Connections
+   tile shows *down since* for Prowlarr and TMDB.
+6. Close: bucket every remaining item (ship / verify / defer-to-X),
+   glossary to `docs/GLOSSARY.md`, retire this file.
 
 ## Completion criteria
 

@@ -22,15 +22,15 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`recurring-traffic-audit.md`](recurring-traffic-audit.md) —
-  **measured 2026-09-17; shape to decide.** Every poll, retry, refresh
-  and scheduled tick the app makes on its own, measured healthy and in
-  outage, and given logic that fits: back-off to a cap, a circuit per
-  dependency, recovery wakes, coalescing. The inventory is verified
-  against the code and a day of observation; four concrete defects are
-  listed (a SABnzbd 403 that dodges the auth back-off, a plan-then-pursuit
-  double grab, a doubled alternatives fetch, and Prowlarr probes with no
-  memory). Open with the owner: per-source back-off or a dependency
-  circuit fed by the existing graders.
+  **implementing; step 1 of 5 landed 2026-09-17.** Every poll, retry,
+  refresh and scheduled tick the app makes on its own, treated by cost:
+  free integrations (the download clients) keep polling; metered ones
+  (Prowlarr, its hand-off to the client, TMDB) get one availability
+  value each, kept current by free probes, consulted before every
+  metered request, with held work resuming within a minute of recovery.
+  Step 1 (`IntegrationAvailability`, Prowlarr + hand-off writers, the
+  probe job, pursuit holds) is in; step 2 (release-tracking re-planning,
+  the Incoming page's reads, the search incident) needs its plan.
 
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
