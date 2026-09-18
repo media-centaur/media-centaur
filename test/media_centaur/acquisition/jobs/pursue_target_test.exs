@@ -476,5 +476,45 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTargetTest do
       assert second.last_attempt_at == first.last_attempt_at
       assert second.attempt_count == target.attempt_count
     end
+
+    test "a stamp whose next attempt has passed is renewed, still without charging one" do
+      {:changed, _state} =
+        IntegrationAvailability.report({:handoff, :usenet}, {:down, :client_unavailable})
+
+      target = seeking_movie_target()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            Req.Test.json(conn, [
+              movie_release("Sample.Movie.2005.1080p.WEB-DL.H.264-GRP", "only-copy", %{
+                grabs: 40,
+                protocol: "usenet"
+              })
+            ])
+
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      first = MediaCentaur.Repo.reload!(target)
+
+      # The outage outlived the stamp's own window — the status surfaces
+      # read the target row, so the copy must not go stale on it.
+      expired = DateTime.add(DateTime.utc_now(:second), -60, :second)
+      backdate(first, :next_attempt_at, expired)
+
+      assert {:snooze, 60} = PursueTarget.perform(%Oban.Job{args: %{"target_id" => target.id}})
+      renewed = MediaCentaur.Repo.reload!(target)
+
+      assert DateTime.after?(renewed.next_attempt_at, expired)
+      assert renewed.last_attempt_outcome == "download_client_unavailable"
+      assert renewed.attempt_count == target.attempt_count
+    end
   end
 end

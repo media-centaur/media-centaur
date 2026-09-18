@@ -74,6 +74,21 @@ project meanings the row says so and names both.
 | **Planning mode** | What the Download button on a title the library does not own does when pressed: *auto-select best release* (`:auto_select_best_release`, approval policy `automatic`: a clean plan commits with nobody looking, anything else parks on Incoming) or *manually select release* (`:manually_select_release`, approval policy `review`: the plan is created and its board opens on Incoming). The person's default is `Settings.Preferences.PlanningMode` (key `default_planning_mode`, default manual); the button's menu offers the other. The mapping to a policy is `PlanningMode.approval_policy/1`, which also stamps every tracking plan (UIDR-042). |
 | **Acquisition state** | The per-title fact a surface listing unowned titles shows (`Acquisition.TitleStates.for_refs/1`): `:downloading` (a pursuit in flight), `:needs_review` (a draft plan `ready`), `:planning` (a draft solving); absent when nothing is in flight. A pursuit outranks a draft. |
 
+## Outbound integrations
+
+The vocabulary of `campaigns/recurring-traffic-audit.md` (closed
+2026-09-18), which gave every recurring outbound request a rule about
+what it does while the server it talks to cannot answer.
+
+| Term | Meaning |
+|---|---|
+| **Integration** | A server the app talks to on its own: Prowlarr (and the indexers behind it), a download client, TMDB and its image CDN, GitHub, a Nostr relay. The codebase's existing word — `Capabilities.save_integration/2`, `IntegrationHealth`. |
+| **Availability** | The published runtime answer per integration: `:up`, or `{:down, since, reason}` — `MediaCentaur.IntegrationAvailability`, one `Status` per integration in `:persistent_term`, written by exactly one module each (`Search.ProwlarrAvailability` for `:prowlarr` and both hand-offs, `TMDB.Availability` for `:tmdb`). `available?/1` is the gate callers use: configured (`Capabilities`, the durable half) **and** up (the runtime half). Reasons: `:unreachable`, `:rejected` (401/403), `:rate_limited` (429), `:blind` (Prowlarr answers, every enabled indexer backed off), `:client_unavailable` (the hand-off). Not `Library.MediaFileAvailability`, which is whether one entity's file is reachable on disk. |
+| **Hand-off** | Prowlarr's own link to a download client, which the app cannot see directly; it fails as HTTP 500 `DownloadClientUnavailableException` on a grab. One availability value per protocol slot: `{:handoff, :usenet}`, `{:handoff, :torrent}`. Distinct from `Downloads.Connectivity`, which grades the app's *own* link to a client. |
+| **Probe** | A free request whose only purpose is to learn whether a down integration can do the job again, so no metered request is spent finding out: the indexer roster read for `:prowlarr`, `downloadclient/testall` for a hand-off, `GET /configuration` for `:tmdb`. Runs on a schedule (`Search.ProbeJob` 60 s, `TMDB.ProbeJob` 5 min) **only while that integration is down**; while up, real requests are the evidence. |
+| **Held work** | A job or tick that consulted availability, found its integration down, and waits without spending a request — `Jobs.PursueTarget`, `Jobs.RunPlan`, `DropPlanner`, `ReleaseTracking.Refresher`, `TmdbArtwork.ensure/2`. An Oban job holds by snoozing at the probe cadence, which bounds recovery to one cadence; a GenServer tick re-arms at it. Recovery is also pushed: `{:integration_availability_changed, integration, :up}` on `Topics.integration_availability_updates/0`. |
+| **Metered integration** | One that counts requests against a limit or escalates a back-off when hit repeatedly — TMDB and its CDN, Prowlarr's live searches and grabs, GitHub, Nostr relays. A **free integration** does neither (the download clients on the LAN) and keeps polling at its normal cadence during an outage; only its log noise is capped, to one line per grade transition. Cost, not cadence, decides which sources get a gate. |
+
 ## Observability
 
 | Term | Meaning |

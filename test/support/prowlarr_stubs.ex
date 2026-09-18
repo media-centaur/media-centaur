@@ -9,7 +9,9 @@ defmodule MediaCentaur.ProwlarrStubs do
   client needs both: a URL and API key in the `Settings.Config`
   `:persistent_term` snapshot, and a recorded passing connection test.
   Configuring only the URL leaves `prowlarr_ready?/0` false, which the
-  acquisition worker reads as "not configured" and refuses to search.
+  acquisition workers read as "not configured" — they hold for an hour
+  rather than searching. `mark_unconfigured!/0` is that state on purpose:
+  what the user does in Settings when they remove the URL and key.
 
   Requires a sync test (`MediaCentaur.DataCase`, or `MediaCentaur.Case,
   async: false`): the sandbox restores the config `:persistent_term` at
