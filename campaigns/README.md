@@ -183,10 +183,13 @@ where any leftover went.
   against +7 API and +3 CDN for the same actions without the gates.
   Vocabulary elevated to
   [`docs/GLOSSARY.md`](../docs/GLOSSARY.md) ("Outbound integrations").
-  Leftovers: **(1)** whether TMDB should also raise a `:subsystem`
-  condition now that a probe keeps a continuous signal — an owner
-  question, recorded in `TMDB.IncidentContext`'s moduledoc where it will
-  be met; **(2)** how often the tracking refresher re-reads a *healthy*
+  Leftovers: **(1)** *closed 2026-09-18, after the file was retired* —
+  the `:http` assessor graded TMDB by request share, so holding TMDB's
+  work removed the very traffic that raised its condition (three probe
+  requests per fifteen-minute window against a floor of ten). It now
+  reads availability for `:tmdb` (`:upstream_unavailable`, grace 360 s so
+  a probe has confirmed the outage) and keeps request share for the image
+  CDN, which writes no value of its own; **(2)** how often the tracking refresher re-reads a *healthy*
   TMDB stays with `project-tmdb-caching-refresh-policy`; **(3)** four
   test files moved from async to sync because a failing request now
   writes availability (MC0036) — noted for `serial-test-audit`; **(4)**
