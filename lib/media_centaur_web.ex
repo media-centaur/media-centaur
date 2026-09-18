@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.TMDB,
       MediaCentaur.TmdbArtwork,
       MediaCentaur.Settings.Controls,
+      MediaCentaur.IntegrationAvailability,
       MediaCentaur.IntegrationHealth,
       MediaCentaur.Retention,
       MediaCentaur.Runtime,

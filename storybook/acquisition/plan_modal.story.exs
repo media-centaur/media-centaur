@@ -955,7 +955,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(tv_evidence(),
       gaps: [],
       movie?: false,
-      search_health: nil,
+      blind_reason: nil,
       now: @story_now,
       below: %{units: 7, releases: 31},
       wanted: 8,
@@ -967,7 +967,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(tv_evidence(),
       gaps: ["S02E02 · Finale"],
       movie?: false,
-      search_health: nil,
+      blind_reason: nil,
       now: @story_now
     )
   end
@@ -976,7 +976,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(tv_evidence(),
       gaps: ["S01E03 · The Signal"],
       movie?: false,
-      search_health: nil,
+      blind_reason: nil,
       now: @story_now
     )
   end
@@ -985,7 +985,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(nil,
       gaps: ["Sample Movie"],
       movie?: true,
-      search_health: %IndexerHealth{state: :blind, checked_at: @story_now},
+      blind_reason: "no indexers are answering",
       now: @story_now
     )
   end
@@ -994,7 +994,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(movie_evidence(-45, 3, rejected_evidence()),
       gaps: ["Sample Movie"],
       movie?: true,
-      search_health: nil,
+      blind_reason: nil,
       now: @story_now
     )
   end
@@ -1003,7 +1003,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(movie_evidence(-6 * 3600, 0, []),
       gaps: ["Sample Movie"],
       movie?: true,
-      search_health: nil,
+      blind_reason: nil,
       now: @story_now
     )
   end
@@ -1012,7 +1012,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(nil,
       gaps: ["Sample Movie"],
       movie?: true,
-      search_health: nil,
+      blind_reason: nil,
       now: @story_now
     )
   end
@@ -1021,7 +1021,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(movie_evidence(-45, 0, []),
       gaps: ["Sample Movie"],
       movie?: true,
-      search_health: nil,
+      blind_reason: nil,
       now: @story_now,
       release_window: %ReleaseWindow{
         stage: :theatrical,
@@ -1035,7 +1035,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     GapVerdict.build(nil,
       gaps: ["Sample Movie"],
       movie?: true,
-      search_health: nil,
+      blind_reason: nil,
       now: @story_now,
       release_window: %ReleaseWindow{
         stage: :unreleased,

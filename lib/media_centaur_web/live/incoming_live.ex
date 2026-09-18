@@ -107,7 +107,8 @@ defmodule MediaCentaurWeb.IncomingLive do
     Alternative,
     SearchProgressPanel,
     GapVerdict,
-    PursuitWithDownload
+    PursuitWithDownload,
+    SearchOutage
   }
 
   alias MediaCentaur.Capabilities
@@ -142,6 +143,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   alias MediaCentaur.Storage
 
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.IndexerHealth
 
   alias MediaCentaurWeb.Components.Acquisition.{
@@ -204,7 +206,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     # The rows' rungs (the omnibox results, the plan board's bookmark)
     # come from the ladder; `discovery:updates` keeps them live.
     socket =
-      [MediaCentaur.Library, Activities, Discovery]
+      [MediaCentaur.Library, Activities, Discovery, IntegrationAvailability]
       |> Enum.reduce(socket, &Subscriptions.subscribe(&2, &1))
       |> then(&if(prowlarr?, do: subscribe_acquisition(&1), else: &1))
 
@@ -225,6 +227,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          forecast_reload_timer: nil,
          storage_drives: [],
          search_health: IndexerHealth.cached(),
+         search_outage: SearchOutage.reason(),
          client_health: Acquisition.client_health(),
          search_session: %SearchSession{},
          active_queue: [],
@@ -352,11 +355,15 @@ defmodule MediaCentaurWeb.IncomingLive do
       # answer "do I have room for this grab?" (see DownloadStorage.media_dir_drives/1).
       DownloadStorage.media_dir_drives(Storage.measure_all())
     end)
-    |> start_async(:indexer_health, fn ->
-      # Two cheap Prowlarr reads (roster + back-offs) — the Needs attention
-      # section's search card and the plan banner's honesty (UIDR-016).
-      IndexerHealth.check()
-    end)
+    |> start_async_indexer_health()
+  end
+
+  # Two cheap Prowlarr reads (roster + back-offs) — the Needs attention
+  # section's search card and the plan banner's honesty (UIDR-016) —
+  # while Prowlarr is up. While it is down `current/0` returns the
+  # probe's last observation and asks nobody.
+  defp start_async_indexer_health(socket) do
+    start_async(socket, :indexer_health, fn -> IndexerHealth.current() end)
   end
 
   # Acquisition reads only exist when an indexer is configured — without one
@@ -2056,6 +2063,17 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, start_async_storage(socket)}
   end
 
+  # Prowlarr's availability moved: re-read the roster (free again once it
+  # is up) and the sentence the board speaks.
+  def handle_info({:integration_availability_changed, :prowlarr, _state}, socket) do
+    {:noreply, socket |> assign(search_outage: SearchOutage.reason()) |> start_async_indexer_health()}
+  end
+
+  # A hand-off's availability is the Downloads tile's business — the
+  # pursuit rows carry their own Waiting copy.
+  def handle_info({:integration_availability_changed, _integration, _state}, socket),
+    do: {:noreply, socket}
+
   # All `acquisition:updates` broadcasts are typed structs — either
   # `Pursuits.Events.*` (persisted timeline events) or `TargetEvents.*`
   # (transient lifecycle signals). TargetEvents trigger a History
@@ -2369,7 +2387,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_async(:indexer_health, {:ok, health}, socket) do
-    {:noreply, assign(socket, search_health: health)}
+    {:noreply, assign(socket, search_health: health, search_outage: SearchOutage.reason())}
   end
 
   def handle_async(name, {:exit, reason}, socket) do
@@ -2704,7 +2722,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # below-preference units leads with the world the counts prove;
   # recomputed on every board re-read so a forced re-search refreshes
   # the evidence's freshness and a late-arriving release window is read.
-  defp plan_gap_verdict(plan, board, search_health, release_window) do
+  defp plan_gap_verdict(plan, board, outage, release_window) do
     if board.status == :ready and (board.gaps != [] or board.below_preference != nil) do
       below =
         case board.below_preference do
@@ -2716,7 +2734,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         Plans.Alternatives.gap_evidence(plan),
         gaps: board.gaps,
         movie?: board.movie?,
-        search_health: search_health,
+        blind_reason: outage,
         now: DateTime.utc_now(),
         below: below,
         wanted: board.wanted,
@@ -2821,7 +2839,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         GapVerdict.searching_initial(board.wanted)
 
       true ->
-        plan_gap_verdict(plan, board, socket.assigns.search_health, socket.assigns.plan_release_window)
+        plan_gap_verdict(plan, board, socket.assigns.search_outage, socket.assigns.plan_release_window)
     end
   end
 
@@ -2843,7 +2861,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp maybe_reload_plan_board(socket, %PlanEvents.Changed{plan_id: plan_id}) do
     if socket.assigns.plan_param == plan_id do
       socket
-      |> assign(:search_health, IndexerHealth.cached())
+      |> assign(search_health: IndexerHealth.cached(), search_outage: SearchOutage.reason())
       |> load_plan_board(plan_id)
     else
       socket
@@ -2853,14 +2871,15 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp maybe_note_plan_activity(socket, %PlanEvents.SearchActivity{} = activity) do
     if socket.assigns.plan_param == activity.plan_id do
       # A zero-result live search just refreshed the IndexerHealth cache
-      # (Corpus disambiguates empty-vs-blind at search time, UIDR-016) —
-      # re-read it so the ticker and the gap banner speak from the same
-      # moment-of-truth observation.
-      search_health = IndexerHealth.cached()
+      # and the availability value (Corpus disambiguates empty-vs-blind at
+      # search time, UIDR-016) — re-read both, so the ticker and the gap
+      # banner speak from the same moment.
+      outage = SearchOutage.reason()
 
       assign(socket,
-        plan_last_activity: PlanLogic.search_activity_line(activity, search_health),
-        search_health: search_health
+        plan_last_activity: PlanLogic.search_activity_line(activity, outage),
+        search_health: IndexerHealth.cached(),
+        search_outage: outage
       )
     else
       socket
