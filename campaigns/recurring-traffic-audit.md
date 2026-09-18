@@ -56,14 +56,16 @@ what it does during an outage, and gives each one logic that fits.
 
 ## Status
 
-**Implementing. Rollout step 1 of 5 landed 2026-09-17; step 2 is next
-and needs its own plan.** Resume by reading, in this order: this file;
-the approved design `docs/superpowers/specs/2026-09-17-availability-design.md`
-(glossary, cost classes, the value, evidence and probes, held work,
-recovery, what the user sees, diff against the code); the step-1 plan
-`docs/superpowers/plans/2026-09-17-availability-plan.md` (its shape is
-the template for the step-2 plan); then `git log --oneline 71314bb9..`
-for what landed.
+**Implementing. Rollout step 1 of 5 landed 2026-09-17; step 2's plan is
+written (`docs/superpowers/plans/2026-09-18-availability-step-2-plan.md`,
+2026-09-18) and execution has not started.** Resume by reading, in this
+order: this file; the approved design
+`docs/superpowers/specs/2026-09-17-availability-design.md` (glossary,
+cost classes, the value, evidence and probes, held work, recovery, what
+the user sees, diff against the code); the step-2 plan; the step-1 plan
+`docs/superpowers/plans/2026-09-17-availability-plan.md` for what the
+executed shape looked like; then `git log --oneline 71314bb9..` for what
+landed.
 
 What exists in code after step 1 (HEAD `49fc475f` at the time of
 writing): `MediaCentaur.IntegrationAvailability` (value, store,
@@ -357,16 +359,17 @@ successfully.
 
 ## Next steps
 
-1. **Write the step-2 plan** from the spec, in the shape of the step-1
-   plan: `RunPlan` snoozes at the cadence while `:prowlarr` is
-   unavailable; `DropPlanner` gates on `available?(:prowlarr)`;
-   `Corpus.blind?/0` keeps its roster read (it already reports) and
-   `IncomingLive`'s 30 s loop reads `status/1` instead of probing while
-   down; `GapVerdict`'s blind reason comes from the value;
-   `Acquisition.Reactor` runs a planner tick on `{:integration_availability_changed, :prowlarr, :up}`;
-   `Search.IncidentContext` reads the value and drops its 900 s
-   staleness rule. Wiki: Troubleshooting's "Prowlarr unreachable" and
-   "no indexers answering" entries say the app holds and resumes.
+1. ~~Write the step-2 plan~~ — written 2026-09-18:
+   `docs/superpowers/plans/2026-09-18-availability-step-2-plan.md`. Ten
+   tasks: `IndexerHealth.current/1` (the page stops probing what the
+   probe job owns, closing defect 4); one `ViewModels.SearchOutage`
+   sentence read from the value, replacing the duplicate `blind_reason/1`
+   in `GapVerdict` and `PlanLogic` and naming a rejected key for the
+   first time; the Incoming page's health read, outage assign and
+   availability subscription; `RunPlan` and `DropPlanner` holds;
+   `Reactor`'s recovery tick; `Search.IncidentContext` on the value with
+   the 900 s staleness rule retired and `:search_provider_rejected`
+   added; wiki and campaign.
 2. Execute it task by task (implementer, spec review, quality review;
    whole-step review last; precommit).
 3. Step 3: `:tmdb` writer in `TMDB.Client`, `TMDB.ProbeJob` (5 min,
