@@ -1,7 +1,7 @@
 defmodule MediaCentaur.HttpClient do
   use Boundary,
     top_level?: true,
-    deps: [MediaCentaur.ErrorReports],
+    deps: [MediaCentaur.ErrorReports, MediaCentaur.IntegrationAvailability],
     exports: [Cache, Cache.Coordinator, IncidentContext, Instrument, Stats, Supervisor, Upstream]
 
   @moduledoc """
