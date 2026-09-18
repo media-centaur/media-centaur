@@ -14,6 +14,12 @@ defmodule MediaCentaur.Acquisition.Reactor do
     gate (auto-approve / leave for ask / drop empty drafts).
   - `{:item_removed, tmdb_id, tmdb_type}` — a tracked item was removed.
     Active (`seeking`) targets for that key are cancelled.
+  - `{:integration_availability_changed, :prowlarr, :up}` — Prowlarr
+    recovered. Runs the drop planner tick at once
+    (`Handlers.prowlarr_available/0`) so wants held through the outage
+    are planned in seconds, not at the next sweep. Every other
+    integration, and every down transition, falls through to the
+    catch-all.
 
   Lives on the supervision tree as a pubsub_listener (see `Application`).
   Subscribe-and-dispatch only — all logic lives in `Handlers`.
@@ -35,6 +41,7 @@ defmodule MediaCentaur.Acquisition.Reactor do
   def init(_opts) do
     Topics.subscribe(Topics.release_tracking_updates())
     Topics.subscribe(Topics.acquisition_updates())
+    Topics.subscribe(Topics.integration_availability_updates())
     {:ok, %{}}
   end
 
@@ -46,6 +53,11 @@ defmodule MediaCentaur.Acquisition.Reactor do
 
   def handle_info(%PlanEvents.Changed{} = event, state) do
     Handlers.plan_changed(event)
+    {:noreply, state}
+  end
+
+  def handle_info({:integration_availability_changed, :prowlarr, :up}, state) do
+    Handlers.prowlarr_available()
     {:noreply, state}
   end
 
