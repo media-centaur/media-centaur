@@ -56,16 +56,16 @@ what it does during an outage, and gives each one logic that fits.
 
 ## Status
 
-**Implementing. Rollout step 1 of 5 landed 2026-09-17; step 2's plan is
-written (`docs/superpowers/plans/2026-09-18-availability-step-2-plan.md`,
-2026-09-18) and execution has not started.** Resume by reading, in this
-order: this file; the approved design
+**Implementing. Rollout steps 1 and 2 of 5 landed (2026-09-17,
+2026-09-18); step 3 (TMDB) is next and needs its own plan.** Resume by
+reading, in this order: this file; the approved design
 `docs/superpowers/specs/2026-09-17-availability-design.md` (glossary,
 cost classes, the value, evidence and probes, held work, recovery, what
-the user sees, diff against the code); the step-2 plan; the step-1 plan
-`docs/superpowers/plans/2026-09-17-availability-plan.md` for what the
-executed shape looked like; then `git log --oneline 71314bb9..` for what
-landed.
+the user sees, diff against the code); the two executed plans
+`docs/superpowers/plans/2026-09-17-availability-plan.md` and
+`docs/superpowers/plans/2026-09-18-availability-step-2-plan.md` (either
+is the template for the step-3 plan); then `git log --oneline 71314bb9..`
+for what landed.
 
 What exists in code after step 1 (HEAD `49fc475f` at the time of
 writing): `MediaCentaur.IntegrationAvailability` (value, store,
@@ -85,6 +85,29 @@ the `Library.Availability` → `MediaFileAvailability` rename; wiki
 Troubleshooting's pursuit Waiting entry. Every task had a spec review
 and a quality review, then one whole-step review; final precommit
 7,451 Elixir + 811 JS tests green.
+
+What step 2 added (2026-09-18): `IndexerHealth.current/1` — a fresh
+roster read while Prowlarr is up, the probe's last observation while it
+is down, so no renderer probes a server the probe job already owns;
+`ViewModels.SearchOutage` — one sentence read from the availability
+value, replacing the duplicate `blind_reason/1` that `GapVerdict` and
+`IncomingLive.PlanLogic` each carried over `IndexerHealth`, and naming a
+rejected API key for the first time (a 401 used to read "unreachable");
+the Incoming page's health read, its `search_outage` assign and its
+subscription to `Topics.integration_availability_updates/0` (the web
+boundary now deps `IntegrationAvailability`, which also gained
+`subscribe/0`); `Jobs.RunPlan` holds before a plan's searches
+(unconfigured an hour, down the probe cadence, mirroring `PursueTarget`)
+and `DropPlanner.run_tick/1` gates on `available?(:prowlarr)` instead of
+configuration alone; `Acquisition.Reactor` runs a planner tick on
+`{:integration_availability_changed, :prowlarr, :up}`
+(`Handlers.prowlarr_available/0`); `Search.IncidentContext` decides from
+the value, its 900 s staleness rule retired and `:search_provider_rejected`
+added as its own condition. Six test files that configured Prowlarr's URL
+and key without recording a passing connection test now call
+`ProwlarrStubs.mark_ready!/0` — the new `RunPlan` gate reads
+`prowlarr_ready?/0`, so a half-configured fixture snoozed instead of
+planning. Full suite 7,465 green.
 
 Process notes for the next step: implement with one editing agent at a
 time in this checkout — the dev daily driver reloads `lib/` live, and on
@@ -210,11 +233,11 @@ them. Policies are assigned once the shape is decided.
 | Pursuit retry, hand-off outage — `Jobs.PursueTarget` | Prowlarr → client | 15 min, no attempt charged (`@download_client_snooze_seconds`) | fixed, never exhausts | none — each target snoozes alone |
 | Pursuit retry, Prowlarr error — `Jobs.PursueTarget` | Prowlarr | 1 h, no attempt charged (`@prowlarr_error_snooze_seconds`) | fixed, never exhausts | none |
 | Pursuit retry, nothing acceptable — `Jobs.PursueTarget` | Prowlarr / indexers | 4 h × 2^n, cap 24 h, 12 attempts (Settings) | back-off by attempt | attempt budget |
-| Plan solve — `Jobs.RunPlan` | Prowlarr | one corpus search per search-order step, per plan; enqueued by every drop-planner tick | error marks the plan, no retry of its own | corpus freshness (30 min) |
+| Plan solve — `Jobs.RunPlan` | Prowlarr | one corpus search per search-order step, per plan; enqueued by every drop-planner tick | error marks the plan, no retry of its own | **step 2:** held while `:prowlarr` is down (snooze at the probe cadence, an hour when unconfigured); corpus freshness (30 min) |
 | Corpus re-search — `Acquisition.Corpus` | Prowlarr / indexers | any term older than 30 min on any consult (`@freshness_window_minutes`) | errors never recorded → next consult re-hits | freshness window; **+2 reads on every `[]` via `blind?/0`** |
-| Drop planner tick — `DropPlanner` via `Reactor` on `{:tracking_sweep_completed}` | Prowlarr (through plans) | every sweep, 15 min; per want `WantSchedule` 30 min / 4 h / 24 h / 7 d by age | stateless re-derive | `Capabilities.prowlarr_ready?` (config, not health); `Discovery.grabs?`; claims |
+| Drop planner tick — `DropPlanner` via `Reactor` on `{:tracking_sweep_completed}` and on `:prowlarr` recovery | Prowlarr (through plans) | every sweep, 15 min; per want `WantSchedule` 30 min / 4 h / 24 h / 7 d by age | stateless re-derive | **step 2:** `available?(:prowlarr)`; `Discovery.grabs?`; claims |
 | Queue monitor poll — `Downloads.QueueMonitor` | download clients | 10 s watched, 30 s idle (`@poll_watched_ms`, `@poll_idle_ms`) | 30 s flat on `:auth_failed` only; offline keeps watched cadence | `Capabilities.client_ready?/1` (config) |
-| Indexer health probe — `Search.IndexerHealth` | Prowlarr (2 reads) | 30 s while Incoming is open; on every zero-result live search | cached `unreachable`, no back-off | `prowlarr_ready?` (config) |
+| Indexer health probe — `Search.IndexerHealth` | Prowlarr (2 reads) | **step 2:** 30 s while Incoming is open **and Prowlarr is up** (`current/1`); on every zero-result live search | while down the probe job's 60 s read is the only one | `prowlarr_ready?` (config) |
 | Tracking refresh — `ReleaseTracking.Refresher` | TMDB | 6 h (Settings), `reload: true` per item, 1–2 seasons per TV item, concurrency 4 | per-item error skipped, cadence fixed | none — no TMDB-down circuit |
 | Tracking image backfill — `Refresher.bulk_download_images/1` | TMDB image CDN | rides the 6 h cycle | failure logged; re-tried every cycle forever (gate is file-on-disk) | none |
 | Update check — `SelfUpdate.CheckerJob` | GitHub | cron every 15 min, contacts GitHub per the user's interval (default 6 h); boot check at +30 s | failed check leaves next tick due → 15-min retry, no back-off | `SelfUpdate.enabled?`, unique 120 s |
@@ -312,6 +335,12 @@ up to 18 simultaneous outbound requests when three jobs search at once
   incident persists while the probe says down, replacing the 900 s
   staleness rule — this closes the indexer-blindness gap the owner had
   reserved to design together.
+* `2026-09-18` — Step 2 implemented spec decision 2: the search
+  incident's 900 s staleness rule is gone, so the condition lasts exactly
+  as long as the probe says Prowlarr is down. And a Prowlarr that answers
+  401/403 is its own condition (`:search_provider_rejected`, headline
+  *Search provider rejected the API key*) rather than being reported as
+  unreachable — the same outage for held work, a different thing to fix.
 * `2026-09-17` (evening) — The tracking refresher's `reload: true`
   policy (re-read every item every 6 h whether or not anything could
   have changed) is the deferred TMDB-caching campaign's question
@@ -353,13 +382,17 @@ successfully.
    failed grab just opened.
 3. ~~The decision modal starts two alternatives fetches for one open~~ —
    landed `f9630784` 2026-09-17: one in-flight fetch per pursuit.
-4. `Corpus.blind?/0` and Incoming's 30-second loop both probe Prowlarr
-   with no memory of the last answer — **step 2**: while `:prowlarr` is
-   down the page reads the value; the probe job owns probing.
+4. ~~`Corpus.blind?/0` and Incoming's 30-second loop both probe Prowlarr
+   with no memory of the last answer~~ — closed in step 2 by
+   `IndexerHealth.current/1`: while `:prowlarr` is down the page reads
+   the probe's last observation, and only the probe job probes.
+   `Corpus.blind?/0` keeps its per-empty-result roster read by design —
+   it is free, it is what keeps an empty result honest, and it writes the
+   availability value.
 
 ## Next steps
 
-1. ~~Write the step-2 plan~~ — written 2026-09-18:
+1. ~~Write and execute the step-2 plan~~ — landed 2026-09-18:
    `docs/superpowers/plans/2026-09-18-availability-step-2-plan.md`. Ten
    tasks: `IndexerHealth.current/1` (the page stops probing what the
    probe job owns, closing defect 4); one `ViewModels.SearchOutage`
@@ -370,16 +403,15 @@ successfully.
    `Reactor`'s recovery tick; `Search.IncidentContext` on the value with
    the 900 s staleness rule retired and `:search_provider_rejected`
    added; wiki and campaign.
-2. Execute it task by task (implementer, spec review, quality review;
-   whole-step review last; precommit).
-3. Step 3: `:tmdb` writer in `TMDB.Client`, `TMDB.ProbeJob` (5 min,
-   cheapest call), `Refresher` and `TmdbArtwork.ensure/2` gates,
+2. **Step 3: `:tmdb`** — write its plan first, in the shape of the two
+   executed ones: `:tmdb` writer in `TMDB.Client`, `TMDB.ProbeJob`
+   (5 min, cheapest call), `Refresher` and `TmdbArtwork.ensure/2` gates,
    recovery runs a deferred refresh cycle. Measure a simulated TMDB
    outage here, as verification.
-4. Step 4: confirm GitHub and relays within budget; no code expected.
-5. Step 5: queue-monitor logging at grade transitions only; Connections
+3. Step 4: confirm GitHub and relays within budget; no code expected.
+4. Step 5: queue-monitor logging at grade transitions only; Connections
    tile shows *down since* for Prowlarr and TMDB.
-6. Close: bucket every remaining item (ship / verify / defer-to-X),
+5. Close: bucket every remaining item (ship / verify / defer-to-X),
    glossary to `docs/GLOSSARY.md`, retire this file.
 
 ## Completion criteria

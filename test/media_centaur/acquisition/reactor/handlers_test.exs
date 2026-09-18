@@ -91,8 +91,10 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
       tracked_episode_want()
 
       # PubSub listeners are not started in the test environment — this
-      # test is about the Reactor's own dispatch, so it runs one.
-      start_supervised!(MediaCentaur.Acquisition.Reactor)
+      # test is about the Reactor's own dispatch, so it runs one. Not
+      # supervised: a supervisor's shutdown kills it where it stands, and
+      # `GenServer.stop/1` below instead waits for the tick it is running.
+      {:ok, reactor} = MediaCentaur.Acquisition.Reactor.start_link([])
 
       {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
       Topics.subscribe(Topics.acquisition_updates())
@@ -107,6 +109,11 @@ defmodule MediaCentaur.Acquisition.Reactor.HandlersTest do
       {:changed, :up} = IntegrationAvailability.report(:prowlarr, :up)
 
       assert_receive %PlanEvents.Changed{}, 2_000
+
+      # The plan event fires mid-tick. A clean stop drains the mailbox and
+      # waits for the running callback, so the Reactor's database work
+      # never outlives this test's connection (ADR-049).
+      :ok = GenServer.stop(reactor)
     end
   end
 

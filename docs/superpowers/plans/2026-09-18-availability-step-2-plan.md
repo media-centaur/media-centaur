@@ -1269,3 +1269,34 @@ The step is done when all of this is true:
 - **What the user sees, held plan** — Tasks 2–5: the blind verdict's reason now comes from the value.
 - **Status, Needs attention** — Task 9, including spec decision 2 (persist while down).
 - **Not in this step, by the spec's own rollout:** `:tmdb` (step 3), GitHub and relays (step 4), queue-monitor log transitions and the Connections tile's *down since* (step 5). `Plans.CommitPlan` keeps its one grab — that grab is the evidence that opens the hand-off, per the step-1 design.
+
+---
+
+## Execution record (2026-09-18)
+
+Executed inline, one task per commit, `4b0b78c8..` — every task test-first,
+red for the right reason before the implementation. What differed from the
+plan as written:
+
+- **Test seams.** `Oban.Testing.perform_job/3` is not imported by `DataCase`;
+  `RunPlanTest` calls it through a local `run_plan_job/1`. The Reactor is not
+  started in the test environment (`Application.pubsub_listeners(:test)` is
+  `[]`), so the dispatch test runs one with `start_supervised!/1`.
+- **Negative assertions.** A `flunk` inside a `Req.Test` stub is swallowed when
+  the request happens inside a `start_async` task, so the Incoming-page tests
+  record each Prowlarr call with a message to the test process and assert on
+  the mailbox after the async is drained.
+- **Fixture fallout the plan predicted for one file, found in seven.**
+  `RunPlan`'s new unconfigured branch reads `Capabilities.prowlarr_ready?/0`,
+  which is false for a fixture that writes Prowlarr's URL and key into the
+  config `:persistent_term` without recording a passing connection test. Seven
+  test files did exactly that and began snoozing instead of planning; each now
+  calls `ProwlarrStubs.mark_ready!/0`: `run_plan_test`, `reactor/handlers_test`,
+  `plans_test`, `plans/alternatives_gap_evidence_test`, `plans/commit_plan_test`,
+  `title_states_test`, `incoming_badge_test`, `shell_badges_test`.
+- **Storybook.** `plan_modal.story.exs` builds nine `GapVerdict`s and passed
+  `search_health:` to each — they now pass `blind_reason:`. The component's own
+  `search_health` attr is unchanged (it is the roster card's), so no story
+  variation matrix moved.
+
+Full suite 7,465 green; `reactor/handlers_test` clean over 16 consecutive runs.

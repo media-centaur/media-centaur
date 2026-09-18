@@ -57,14 +57,9 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
     test "counts/0 returns a Counts struct carrying plans_awaiting_review" do
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
-      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-
-      :persistent_term.put(
-        {MediaCentaur.Settings.Config, :config},
-        config
-        |> Map.put(:prowlarr_url, "http://prowlarr.test")
-        |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
-      )
+      # Configured *and* tested green: a plan run holds while Prowlarr is
+      # unconfigured, so a half-configured fixture would snooze instead.
+      :ok = MediaCentaur.ProwlarrStubs.mark_ready!()
 
       {:ok, _plan} =
         MediaCentaur.Acquisition.Plans.create_movie_plan(%{
