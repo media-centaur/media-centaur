@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Activities.Translation
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Social
@@ -86,7 +87,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "the Heads-up glyph names a failing Prowlarr hand-off", %{conn: conn} do
       # What the grab that met "cannot reach the download client" reports,
       # kept fresh by the probe while down — past the incident's grace.
-      MediaCentaur.IntegrationAvailability.report(
+      IntegrationAvailability.report(
         {:handoff, :usenet},
         {:down, :client_unavailable},
         now: DateTime.add(DateTime.utc_now(), -600, :second)
@@ -217,6 +218,64 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       refute html =~ "Connect a download client",
              "download-client capability must be loaded on the disconnected first paint"
+    end
+  end
+
+  describe "a down Prowlarr" do
+    setup %{conn: conn} do
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        send(test_pid, {:prowlarr_called, conn.request_path})
+
+        case conn.request_path do
+          "/api/v1/indexer" ->
+            Req.Test.json(conn, [%{"id" => 1, "name" => "Indexer A", "enable" => true}])
+
+          _other ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      flush_prowlarr_calls()
+
+      {:ok, view: view}
+    end
+
+    defp flush_prowlarr_calls do
+      receive do
+        {:prowlarr_called, _path} -> flush_prowlarr_calls()
+      after
+        0 -> :ok
+      end
+    end
+
+    test "the periodic health read asks nobody while Prowlarr is down", %{view: view} do
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
+      render_async(view, 2_000)
+      flush_prowlarr_calls()
+
+      send(view.pid, :refresh_storage)
+      render_async(view, 2_000)
+
+      refute_received {:prowlarr_called, _path}
+    end
+
+    test "Prowlarr coming back re-reads the roster; a hand-off change is not this page's", %{
+      view: view
+    } do
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
+      render_async(view, 2_000)
+      flush_prowlarr_calls()
+
+      send(view.pid, {:integration_availability_changed, {:handoff, :usenet}, :up})
+      assert render(view)
+      refute_received {:prowlarr_called, _path}
+
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, :up)
+
+      assert_receive {:prowlarr_called, "/api/v1/indexer"}, 2_000
     end
   end
 

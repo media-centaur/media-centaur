@@ -46,6 +46,10 @@ defmodule MediaCentaur.IntegrationAvailability do
   @spec handoff_slots() :: [:usenet | :torrent]
   def handoff_slots, do: [:usenet, :torrent]
 
+  @doc "Subscribes the calling process to `{:integration_availability_changed, integration, state}`."
+  @spec subscribe() :: :ok
+  def subscribe, do: Topics.subscribe(Topics.integration_availability_updates())
+
   @spec status(Status.integration()) :: Status.t()
   def status(integration) when integration in @integrations do
     case :persistent_term.get(key(integration), :unobserved) do
