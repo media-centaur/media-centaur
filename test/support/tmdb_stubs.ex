@@ -18,6 +18,49 @@ defmodule MediaCentaur.TmdbStubs do
   end
 
   @doc """
+  Configures TMDB's API key and records a passing connection test, so
+  `MediaCentaur.Capabilities.tmdb_ready?/0` is true. Readiness has two
+  halves and anything gated on it needs both: a key in the
+  `Settings.Config` `:persistent_term` snapshot, and a recorded passing
+  test. Mirrors `MediaCentaur.ProwlarrStubs.mark_ready!/0`.
+
+  Requires a sync test (`MediaCentaur.DataCase`, or `MediaCentaur.Case,
+  async: false`): the sandbox restores the config `:persistent_term` at
+  check-in and the SQL sandbox rolls back the stored test result, so
+  callers clean up nothing.
+  """
+  @spec mark_ready!() :: :ok
+  def mark_ready! do
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+    :persistent_term.put(
+      {MediaCentaur.Settings.Config, :config},
+      Map.put(config, :tmdb_api_key, MediaCentaur.Secret.wrap("test-key"))
+    )
+
+    %{status: :ok} = MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
+    true = MediaCentaur.Capabilities.tmdb_ready?()
+
+    :ok
+  end
+
+  @doc "Removes TMDB's API key — what the user does in Settings."
+  @spec mark_unconfigured!() :: :ok
+  def mark_unconfigured! do
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+    :persistent_term.put(
+      {MediaCentaur.Settings.Config, :config},
+      Map.put(config, :tmdb_api_key, nil)
+    )
+
+    MediaCentaur.Capabilities.refresh_cache()
+    false = MediaCentaur.Capabilities.tmdb_ready?()
+
+    :ok
+  end
+
+  @doc """
   Points the TMDB artwork cache (`TmdbArtwork`, under `{data_dir}/images/tmdb/`)
   at a per-test tmp dir and stubs the image CDN (`:images`) with a body large
   enough for `ImageFiles.download_raw/3` to accept. A flow that downloads

@@ -3,6 +3,7 @@ defmodule MediaCentaur.TMDB.ClientTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.HttpClient.Cache.Coordinator
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.RateLimiter
 
@@ -58,6 +59,28 @@ defmodule MediaCentaur.TMDB.ClientTest do
   # without a global Logger level: `log_line/2` is the whole vocabulary,
   # and `get/3` is the only caller — in the 200 branch, so a failed
   # request never claims a fetch.
+  describe "availability" do
+    test "a failed fetch opens :tmdb and a later answered one closes it" do
+      Req.Test.stub(:tmdb, fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
+
+      assert {:error, _reason} = Client.get_movie(550)
+      refute IntegrationAvailability.up?(:tmdb)
+
+      Req.Test.stub(:tmdb, fn conn -> Req.Test.json(conn, %{"id" => 550}) end)
+
+      assert {:ok, _body} = Client.get_movie(550)
+      assert IntegrationAvailability.up?(:tmdb)
+    end
+
+    test "an answer served from the cache is no evidence either way" do
+      assert {:ok, _first} = Client.get_movie(1)
+      {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
+
+      assert {:ok, _cached} = Client.get_movie(1)
+      refute IntegrationAvailability.up?(:tmdb)
+    end
+  end
+
   describe "log_line/2 — the console line says where the answer came from" do
     test "a detail fetch names its source" do
       assert Client.log_line("movie tmdb:1", :miss) == "fetched movie tmdb:1 — from TMDB"

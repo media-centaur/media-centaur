@@ -1,12 +1,19 @@
 defmodule MediaCentaur.TMDB do
   use Boundary,
-    deps: [MediaCentaur.ErrorReports, MediaCentaur.HttpClient],
+    deps: [
+      MediaCentaur.Capabilities,
+      MediaCentaur.ErrorReports,
+      MediaCentaur.HttpClient,
+      MediaCentaur.IntegrationAvailability
+    ],
     exports: [
+      Availability,
       Client,
       Confidence,
       Identifiers,
       Mapper,
       MetadataStats,
+      ProbeJob,
       RateLimiter,
       ReleaseWindow,
       Title,
