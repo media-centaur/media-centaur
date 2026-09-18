@@ -7,7 +7,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   Worlds, in precedence order:
 
   * `:blind` — the search couldn't ask anyone (UIDR-016; outranks
-    everything, keeps that record's copy verbatim).
+    everything, keeps that record's copy verbatim). The sentence comes
+    from `ViewModels.SearchOutage`, so it says what the availability
+    value says and lasts exactly as long as the outage.
   * `:below_preference` — every remaining unit has releases, all below
     the quality preference (UIDR-029). Applies only when there are no
     bare gaps: a bare gap's diagnosis (below) outranks it. Never says
@@ -43,7 +45,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   alias MediaCentaur.Acquisition.PlanEvents.SearchProgress
   alias MediaCentaur.Acquisition.ViewModels.GapEvidence
   alias MediaCentaur.Format
-  alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.TMDB.ReleaseWindow
 
   import MediaCentaur.Acquisition.ViewModels.Formatting, only: [count: 2]
@@ -72,7 +73,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
 
   @doc """
   Builds the verdict. Options: `gaps` (unit labels), `movie?`,
-  `search_health` (`IndexerHealth.t()` or nil), `now` — plus, for the
+  `blind_reason` (`ViewModels.SearchOutage.reason/0`'s sentence, or nil
+  when a search can answer), `now` — plus, for the
   below-preference world (UIDR-029), `below` (`%{units: n, releases: n}`
   or nil), `wanted` and `covered`; and, for the calendar worlds,
   `release_window` (`ReleaseWindow.t()` or nil, read at `now`'s date).
@@ -86,7 +88,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
     window = Keyword.get(opts, :release_window)
 
     cond do
-      reason = blind_reason(Keyword.fetch!(opts, :search_health)) ->
+      reason = Keyword.fetch!(opts, :blind_reason) ->
         blind(reason, gaps)
 
       gaps == [] and match?(%{units: units} when units > 0, below) ->
@@ -343,12 +345,4 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdict do
   defp age(seconds) when seconds < 3600, do: count(div(seconds, 60), "minute")
   defp age(seconds) when seconds < 86_400, do: count(div(seconds, 3600), "hour")
   defp age(seconds), do: count(div(seconds, 86_400), "day")
-
-  defp blind_reason(%IndexerHealth{state: :unreachable}), do: "Prowlarr is unreachable"
-
-  defp blind_reason(%IndexerHealth{} = health) do
-    if IndexerHealth.blind?(health), do: "no indexers are answering"
-  end
-
-  defp blind_reason(nil), do: nil
 end

@@ -2,7 +2,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
   use MediaCentaur.Case, async: true
 
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict}
-  alias MediaCentaur.Search.IndexerHealth
 
   @now ~U[2026-08-11 12:00:00Z]
 
@@ -157,7 +156,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
   defp build(evidence, overrides \\ []) do
     GapVerdict.build(
       evidence,
-      Keyword.merge([gaps: ["Sample Movie"], movie?: true, search_health: nil, now: @now], overrides)
+      Keyword.merge([gaps: ["Sample Movie"], movie?: true, blind_reason: nil, now: @now], overrides)
     )
   end
 
@@ -269,14 +268,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
   end
 
   describe "blind precedence (UIDR-016)" do
-    defp blind_health(state) do
-      %IndexerHealth{state: state, checked_at: @now}
-    end
-
     test "an unreachable Prowlarr outranks every other world" do
       evidence = evidence(%{raw_total: 3, rejected: [rejected("a", :identity)]})
 
-      verdict = build(evidence, search_health: blind_health(:unreachable))
+      verdict = build(evidence, blind_reason: "Prowlarr is unreachable")
 
       assert verdict.world == :blind
       assert verdict.headline == "Couldn't check availability — Prowlarr is unreachable — Sample Movie"
@@ -285,14 +280,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
     end
 
     test "every indexer backed off never claims unavailability" do
-      verdict = build(evidence(%{}), search_health: blind_health(:blind))
+      verdict = build(evidence(%{}), blind_reason: "no indexers are answering")
 
       assert verdict.world == :blind
       assert verdict.headline == "Couldn't check availability — no indexers are answering — Sample Movie"
     end
 
-    test "a degraded search still ran, so the verdict stands" do
-      assert build(evidence(%{}), search_health: blind_health(:degraded)).world == :nothing_live
+    test "no outage sentence means the counts speak for themselves" do
+      assert build(evidence(%{}), blind_reason: nil).world == :nothing_live
     end
   end
 
@@ -491,7 +486,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.GapVerdictTest do
     test "blind outranks the calendar" do
       verdict =
         build(evidence(%{raw_total: 0}),
-          search_health: %IndexerHealth{state: :unreachable, checked_at: @now},
+          blind_reason: "Prowlarr is unreachable",
           release_window: window(:unreleased, theatrical: ~D[2026-10-03])
         )
 
