@@ -70,23 +70,6 @@ Use [`template.md`](template.md) as a starter.
   per-indexer Newznab route honours it), which means owning the fan-out
   Prowlarr exists to provide — measure the coverage gain first (51 vs 49 on
   one film), and it may be declined.
-* [`external-process-lifetime.md`](external-process-lifetime.md) —
-  **complete (Minimal scope) 2026-09-12; awaiting owner batch-retire.** mpv died
-  on every restart of this contributor's dev box, so every update cost the
-  viewer their playback, and ADR-023's reattach machinery had **never run once**
-  (0 `recovery: found live session` lines in 30 days). The campaign originally
-  blamed two causes; a faithful 2×2 measurement (real `systemctl stop` path)
-  showed the first — "the BEAM port SIGKILLs mpv on halt" — was an **unmeasured
-  inference and false**: a direct port child and a `setsid` grandchild die and
-  survive identically, and the *sole* lethal mechanism is the cgroup SIGKILL
-  from the dev unit's `KillMode=mixed`. Prod already shipped `KillMode=process`,
-  so mpv already survived for end users — **no user-facing change**. Fix
-  (Minimal scope, owner's call): flip the dev unit to `KillMode=process`,
-  correct the false MpvSession + `Apps.Launcher` moduledocs, and amend ADR-023
-  to the measured truth. The `Platform.DetachedProcess` seam / port removal /
-  Credo check were **declined** — measured to buy no survival benefit. Verified
-  live: recovery fired end to end for the first time. Durable record lives in
-  ADR-023's 2026-09-12 amendment and the two moduledocs.
 * [`serial-test-audit.md`](serial-test-audit.md) —
   **planning.** Cut suite wall time by moving tests out of the serial phase
   where nothing forces them there. The serial phase is 45% of the tests and
@@ -156,6 +139,26 @@ Use [`template.md`](template.md) as a starter.
 
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
+
+* **External processes must outlive the app that launched them** —
+  **closed (Minimal scope) 2026-09-12; file retired 2026-09-18.** mpv died on
+  every restart of this contributor's dev box, so every update cost the viewer
+  their playback, and ADR-023's reattach machinery had **never run once** (0
+  `recovery: found live session` lines in 30 days). The campaign originally
+  blamed two causes; a faithful 2×2 measurement over the real `systemctl stop`
+  path showed the first — "the BEAM port SIGKILLs mpv on halt" — was an
+  **unmeasured inference and false**: a direct port child and a `setsid`
+  grandchild die and survive identically, and the *sole* lethal mechanism is
+  the cgroup SIGKILL from the dev unit's `KillMode=mixed`. Prod already shipped
+  `KillMode=process`, so mpv already survived for end users — **no user-facing
+  change, no CHANGELOG entry**. Fix (Minimal scope, owner's call): flip the dev
+  unit, correct the false `MpvSession` and `Apps.Launcher` moduledocs, amend
+  ADR-023 to the measured truth. The `Platform.DetachedProcess` seam, the port
+  removal and a Credo check were **declined** — measured to buy no survival
+  benefit. Verified live: recovery fired end to end for the first time. No
+  leftovers; the durable record is
+  [ADR-023](../decisions/architecture/2026-03-06-023-durable-process-design.md)'s
+  2026-09-12 amendment and the two corrected moduledocs.
 
 * **Recurring outbound traffic audit** — **closed 2026-09-18; file
   retired.** Every poll, retry, refresh and scheduled tick the app makes

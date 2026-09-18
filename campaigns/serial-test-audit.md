@@ -1,7 +1,7 @@
 ---
 status: planning
 started: 2026-09-06
-last_updated: 2026-09-06
+last_updated: 2026-09-18
 ---
 # Audit the tests that are serial by choice
 
@@ -27,6 +27,23 @@ re-measure before acting on it, because the numbers drift with machine load.
 
 ## Decisions made
 
+* `2026-09-18` — **Four files moved the wrong way, and the reason is
+  structural.** The availability work (recurring-traffic audit, closed
+  2026-09-18) made a failed Prowlarr or TMDB request write
+  `MediaCentaur.IntegrationAvailability`, which is `:persistent_term` —
+  global state MC0036 forbids an `async: true` test from writing. Any test
+  that drives an outage through a real client now has to be sync:
+  `tmdb/identifiers_test`, `reconciliation/spine_test`,
+  `pipeline/stages/fetch_metadata_test`, and the pure-but-value-writing
+  `acquisition/view_models/search_outage_test`. Each carries a comment
+  saying why. **The population this campaign measured has grown, and it will
+  keep growing** every time a context publishes runtime state a test can
+  trip: the 38 `ExUnit.Case, async: false` files are a moving target, so
+  re-count before acting. Worth asking whether some of these want a
+  narrower seam — a pure `decide/3` tested async, with one sync test for
+  the write — rather than the whole file going serial. `GlobalStateSandbox`
+  reports the leak in the *next* sync test, not the offender;
+  `MediaCentaur.StateProbeFormatter` is what names it.
 * `2026-09-06` — Opened after the Nostr connection tests were split
   (commit `7d73c41`). Serialising that file would have removed its flakiness
   and cost ~0.9s of serial phase; raising its positive `assert_receive`

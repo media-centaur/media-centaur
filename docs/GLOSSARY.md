@@ -76,9 +76,10 @@ project meanings the row says so and names both.
 
 ## Outbound integrations
 
-The vocabulary of `campaigns/recurring-traffic-audit.md` (closed
-2026-09-18), which gave every recurring outbound request a rule about
-what it does while the server it talks to cannot answer.
+The vocabulary of the recurring-traffic audit (closed 2026-09-18; the
+campaign file was removed at completion — see git history), which gave
+every recurring outbound request a rule about what it does while the
+server it talks to cannot answer.
 
 | Term | Meaning |
 |---|---|

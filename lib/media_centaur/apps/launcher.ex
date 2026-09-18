@@ -14,8 +14,8 @@ defmodule MediaCentaur.Apps.Launcher do
   takes the app with it; `KillMode=process` signals only the BEAM and the app
   survives. Both the prod and dev units run `KillMode=process`. setsid detaches
   the app so it is not a port child to track — it does not, on its own, protect
-  the app from the cgroup kill (measured; see
-  `campaigns/external-process-lifetime.md` and `MediaCentaur.Playback.MpvSession`).
+  the app from the cgroup kill (measured; see ADR-023's 2026-09-12 amendment
+  and `MediaCentaur.Playback.MpvSession`).
   """
 
   require MediaCentaur.Log, as: Log

@@ -53,7 +53,7 @@ control and creating a plan leaves the rung at nil; the gaps banner has no
 The Phase 3 docs that named the removed controls are done in the same
 change: wiki `Watchlist.md`, `Release-Tracking.md`,
 `Searching-and-Downloading.md`, `Social.md`, `Keyboard-and-Gamepad.md`
-(committed in the wiki repo, unpushed), and the in-app guide pages
+(pushed with v1.33.0), and the in-app guide pages
 `watchlist-and-tracking.md` and `release-tracking-and-upcoming.md`, which
 were rewritten outright — they still described the pre-v1.17 world (a
 *Watch* rung, owned series tracked on their own, Off remembered). What
