@@ -13,21 +13,19 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Acquisition.PlanEvents
+  alias MediaCentaur.Acquisition.Jobs.RunPlan
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Targeting
+  alias MediaCentaur.IntegrationAvailability
+  alias MediaCentaur.ProwlarrStubs
   alias MediaCentaur.TmdbStubs
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
-    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-
-    :persistent_term.put(
-      {MediaCentaur.Settings.Config, :config},
-      config
-      |> Map.put(:prowlarr_url, "http://prowlarr.test")
-      |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
-    )
+    # Configured *and* tested green: the worker holds a plan when Prowlarr
+    # is unconfigured, so a half-configured fixture would snooze every test.
+    :ok = ProwlarrStubs.mark_ready!()
 
     :ok
   end
@@ -134,6 +132,35 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
           Req.Test.json(conn, %{})
       end
     end)
+  end
+
+  defp run_plan_job(plan_id) do
+    Oban.Testing.perform_job(RunPlan, %{"plan_id" => plan_id},
+      repo: MediaCentaur.Repo,
+      engine: Oban.Engines.Lite
+    )
+  end
+
+  describe "held work — a known-down Prowlarr is not searched" do
+    test "the plan stays planning, nothing is searched, and the job snoozes at the probe cadence" do
+      stub_recording_searches(%{})
+      {:changed, _state} = IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+
+      refute_received {:searched, _query}
+      assert {:ok, %{status: "planning"}} = Plans.fetch(plan.id)
+      assert {:snooze, 60} = run_plan_job(plan.id)
+    end
+
+    test "an unconfigured Prowlarr waits an hour rather than at the probe cadence" do
+      stub_recording_searches(%{})
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+
+      :ok = ProwlarrStubs.mark_unconfigured!()
+
+      assert {:snooze, 3600} = run_plan_job(plan.id)
+    end
   end
 
   describe "residual-driven search" do
