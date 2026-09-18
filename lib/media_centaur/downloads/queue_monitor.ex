@@ -194,6 +194,23 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   def sync_log_level(false, ms_since, heartbeat) when ms_since >= heartbeat, do: :info
   def sync_log_level(false, _ms_since, _heartbeat), do: :skip
 
+  @doc """
+  Log level for a poll outcome, from the grade it moved between: a
+  transition is news — `:warning` when the client stops answering,
+  `:info` when it answers again — and a repeat of the same grade is not
+  (`:debug`). The first poll after boot is not a recovery.
+
+  Measured 2026-09-17: a client rejecting the app's key for six minutes
+  with the Downloads page open wrote 56 warning lines, two per poll, all
+  saying the same thing. The client is on the LAN and free to poll; only
+  the noise needed fixing.
+  """
+  @spec poll_log_level(Connectivity.t(), Connectivity.t()) :: :warning | :info | :debug
+  def poll_log_level(grade, grade), do: :debug
+  def poll_log_level(:initializing, :live), do: :debug
+  def poll_log_level(_previous, :live), do: :info
+  def poll_log_level(_previous, _next), do: :warning
+
   @impl GenServer
   def init(_opts) do
     state = %{
@@ -323,11 +340,14 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   defp sync_client(client, protocol, now) do
     case client.module.sync(client.config, client.driver_state) do
       {:ok, %SyncResult{} = result} ->
+        next = Connectivity.poll_succeeded(client.connectivity)
+        log_poll(client.connectivity, next, protocol, nil)
+
         {%{
            client
            | driver_state: result.driver_state,
              items: result.items,
-             connectivity: Connectivity.poll_succeeded(client.connectivity)
+             connectivity: next
          }, {result.movement?, result.summary}}
 
       {:error, reason, next_driver_state} ->
@@ -336,19 +356,38 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         # duplicate :log incident (ADR-054). The driver hands back the
         # bookmark to carry forward (it resets its own conversation so the
         # next successful poll is a full update).
-        Log.warning(
-          :acquisition,
-          "queue monitor poll failed (#{protocol}): #{inspect(reason)}",
-          mc_incident: :skip
-        )
+        next = Connectivity.poll_failed(client.connectivity, classify_error(reason), now)
+        log_poll(client.connectivity, next, protocol, reason)
 
-        {%{
-           client
-           | driver_state: next_driver_state,
-             connectivity: Connectivity.poll_failed(client.connectivity, classify_error(reason), now)
-         }, nil}
+        {%{client | driver_state: next_driver_state, connectivity: next}, nil}
     end
   end
+
+  # One line per grade transition, not one per poll (`poll_log_level/2`).
+  defp log_poll(previous, next, protocol, reason) do
+    case poll_log_level(previous, next) do
+      :warning ->
+        Log.warning(:acquisition, poll_line(next, protocol, reason), mc_incident: :skip)
+
+      :info ->
+        Log.info(:acquisition, poll_line(next, protocol, reason))
+
+      :debug ->
+        Log.debug(:acquisition, poll_line(next, protocol, reason))
+    end
+  end
+
+  defp poll_line(grade, protocol, nil), do: "queue monitor (#{protocol}): #{grade_phrase(grade)}"
+
+  defp poll_line(grade, protocol, reason),
+    do: "queue monitor (#{protocol}): #{grade_phrase(grade)} — #{inspect(reason)}"
+
+  defp grade_phrase(:live), do: "answering again"
+  defp grade_phrase(:initializing), do: "starting up"
+  defp grade_phrase(:not_configured), do: "not configured"
+  defp grade_phrase(:auth_failed), do: "rejected our credentials"
+  defp grade_phrase({:transient_failure, _since}), do: "did not answer"
+  defp grade_phrase({:offline, _since}), do: "offline"
 
   # A driver swap (user reconfigured the slot's client type) invalidates
   # the old driver's opaque bookmark — start its conversation fresh.
