@@ -76,7 +76,9 @@ defmodule MediaCentaur.Acquisition.Corpus do
   # snapshot; a blind answer is an outage, and per this module's contract
   # an outage must never masquerade as fresh negative knowledge. The
   # check also lands the moment-of-truth observation in the
-  # `IndexerHealth` cache, which the plan UI reads for the same honesty.
+  # `IndexerHealth` cache, which the plan UI reads for the same honesty,
+  # and writes `IntegrationAvailability` — so the search that proves
+  # Prowlarr is blind is the one that holds everything else.
   defp blind?, do: IndexerHealth.blind?(IndexerHealth.check())
 
   @doc """
