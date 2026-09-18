@@ -36,8 +36,12 @@ defmodule MediaCentaur.Search.IndexerHealth do
   observations (a dead VPN can present as `:unreachable` then `:blind`
   — one outage) and resets on recovery, giving the incident track its
   grace-window anchor.
+
+  While Prowlarr is down the cache is refreshed by `Search.ProbeJob`
+  rather than by whoever wants to render it — `current/1` is that read.
   """
 
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Search.ProwlarrAvailability
 
@@ -80,6 +84,24 @@ defmodule MediaCentaur.Search.IndexerHealth do
     health = cache_put(health)
     ProwlarrAvailability.observe_roster(health)
     health
+  end
+
+  @doc """
+  The observation a renderer should show: a fresh roster read while
+  Prowlarr is up, the last recorded one while it is down.
+
+  While Prowlarr is down `Search.ProbeJob` already reads the roster once
+  a minute and writes this cache — a page that read it again would ask a
+  dead server on its own schedule, learn nothing new, and mint a
+  diagnostic event per failure. `cached/0` can still be `nil` for up to
+  one probe cadence after an outage no roster read discovered (a failed
+  search reports `:prowlarr` down on its own); the Needs attention
+  *incident* does not depend on this cache — `Search.IncidentContext`
+  reads the availability value directly.
+  """
+  @spec current(Req.Request.t()) :: t() | nil
+  def current(client \\ Prowlarr.default_client()) do
+    if IntegrationAvailability.up?(:prowlarr), do: check(client), else: cached()
   end
 
   @doc """
