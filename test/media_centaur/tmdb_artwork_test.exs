@@ -1,6 +1,7 @@
 defmodule MediaCentaur.TmdbArtworkTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.TmdbArtwork
 
   # The cache lives under `{data_dir}/images/tmdb/` — point data_dir at a
@@ -156,6 +157,26 @@ defmodule MediaCentaur.TmdbArtworkTest do
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, nil))
 
       assert TmdbArtwork.sweep() == 0
+    end
+  end
+
+  describe "held work — a known-down TMDB is not asked" do
+    test "ensure/2 answers from disk and fetches nothing", %{data_dir: data_dir} do
+      test_pid = self()
+
+      Req.Test.stub(:tmdb, fn conn ->
+        send(test_pid, {:tmdb_called, conn.request_path})
+        Req.Test.json(conn, %{"poster_path" => "/p.jpg"})
+      end)
+
+      # One role on disk, two missing — enough that a warm would fetch.
+      seed_entry(data_dir, "movie", 246_813, [:poster])
+      {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
+
+      urls = TmdbArtwork.ensure(:movie, 246_813)
+
+      assert urls.poster_url
+      refute_received {:tmdb_called, _path}
     end
   end
 end

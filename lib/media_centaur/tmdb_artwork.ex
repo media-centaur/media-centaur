@@ -20,6 +20,9 @@ defmodule MediaCentaur.TmdbArtwork do
 
   ## Lifecycle
 
+  While TMDB is unavailable (`MediaCentaur.IntegrationAvailability`)
+  `ensure/2` answers from what is already on disk and fetches nothing.
+
   An entry is deleted by the daily retention sweep only when **both**
   hold: nothing references the identity (no hold — see
   `TmdbArtwork.HoldProvider`), and the entry has not been used for
@@ -35,13 +38,19 @@ defmodule MediaCentaur.TmdbArtwork do
   """
 
   use Boundary,
-    deps: [MediaCentaur.Library, MediaCentaur.Retention, MediaCentaur.TMDB],
+    deps: [
+      MediaCentaur.IntegrationAvailability,
+      MediaCentaur.Library,
+      MediaCentaur.Retention,
+      MediaCentaur.TMDB
+    ],
     exports: [HoldProvider, RetentionPolicies]
 
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.ImageFiles
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.TMDB.Mapper
 
@@ -162,8 +171,14 @@ defmodule MediaCentaur.TmdbArtwork do
          type = normalize_type(type),
          %{poster_url: p, backdrop_url: b, logo_url: l}
          when is_nil(p) or is_nil(b) or is_nil(l) <- urls(type, id) do
-      fetch_missing(type, id)
-      touch(type, id)
+      # Held: whatever is already on disk is the answer. This runs on the
+      # render path of every fresh mount, and a warm that cannot reach
+      # TMDB has nothing to add.
+      if IntegrationAvailability.up?(:tmdb) do
+        fetch_missing(type, id)
+        touch(type, id)
+      end
+
       urls(type, id)
     else
       nil -> %{poster_url: nil, backdrop_url: nil, logo_url: nil}
