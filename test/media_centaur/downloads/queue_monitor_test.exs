@@ -283,6 +283,35 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
     end
   end
 
+  describe "poll_log_level/2" do
+    # Measured 2026-09-17: SABnzbd rejecting the app's key for six
+    # minutes with the Downloads page open wrote 56 warning lines — two
+    # per poll, every 10 s, all saying the same thing. A grade is news
+    # when it changes; a repeat of it is not.
+    @now ~U[2026-09-17 16:49:00Z]
+
+    test "a grade that leaves live is a warning — once" do
+      assert QueueMonitor.poll_log_level(:live, {:transient_failure, @now}) == :warning
+      assert QueueMonitor.poll_log_level({:transient_failure, @now}, {:offline, @now}) == :warning
+      assert QueueMonitor.poll_log_level(:live, :auth_failed) == :warning
+    end
+
+    test "the same grade again is not news" do
+      assert QueueMonitor.poll_log_level({:offline, @now}, {:offline, @now}) == :debug
+      assert QueueMonitor.poll_log_level(:auth_failed, :auth_failed) == :debug
+      assert QueueMonitor.poll_log_level(:live, :live) == :debug
+    end
+
+    test "answering again is worth one line" do
+      assert QueueMonitor.poll_log_level({:offline, @now}, :live) == :info
+      assert QueueMonitor.poll_log_level(:auth_failed, :live) == :info
+    end
+
+    test "the first poll after boot is not a recovery" do
+      assert QueueMonitor.poll_log_level(:initializing, :live) == :debug
+    end
+  end
+
   describe "cadence_ms/3" do
     # The cadence table is the contract: how often QueueMonitor hits
     # the download client. Picking the right cell matters because the
