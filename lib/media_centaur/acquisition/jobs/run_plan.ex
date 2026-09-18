@@ -39,6 +39,13 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   available" verdict the board turns into an offer instead of a bare
   gap (campaign `below-floor-releases`).
 
+  The run is **held** while Prowlarr is unavailable
+  (`MediaCentaur.IntegrationAvailability`): no search is spent, the plan
+  stays `planning` — the board keeps its searching verdict — and the job
+  snoozes at the probe cadence, so it resumes within a minute of Prowlarr
+  answering again. A Prowlarr nobody configured is a setup state rather
+  than an outage, and nothing probes it, so that one waits an hour.
+
   Broadcasts `PlanEvents.SearchActivity` per term (the live activity
   feed), `PlanEvents.SearchProgress` per step (the board's expectation
   panel), and `PlanEvents.Changed` when the rows move. Failures mark
@@ -47,6 +54,11 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   """
 
   use Oban.Worker, queue: :acquisition, unique: [period: 60, keys: [:plan_id]]
+
+  # Matches `Jobs.PursueTarget`: an unconfigured Prowlarr fails every
+  # request instantly and no probe watches it, so asking again soon is
+  # noise.
+  @unconfigured_snooze_seconds 60 * 60
 
   require MediaCentaur.Log, as: Log
 
@@ -61,15 +73,31 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   }
 
   alias MediaCentaur.Acquisition.Plans.{MatchCriteria, Plan, PlanUnit, SearchOrder}
+  alias MediaCentaur.Capabilities
+  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{CourCoverage, CourQueries, Quality, ReleaseCoverage}
+  alias MediaCentaur.Search.ProbeJob
   alias MediaCentaur.Search.{ReleasePreference, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Topics
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"plan_id" => plan_id} = args}) do
-    force? = Map.get(args, "force", false)
+    cond do
+      not Capabilities.prowlarr_ready?() ->
+        {:snooze, @unconfigured_snooze_seconds}
 
+      not IntegrationAvailability.up?(:prowlarr) ->
+        # Held: no search, no error on the plan. A snooze is a database
+        # write, free, and it bounds resumption to one probe cadence.
+        {:snooze, ProbeJob.cadence_seconds()}
+
+      true ->
+        run_fetched(plan_id, Map.get(args, "force", false))
+    end
+  end
+
+  defp run_fetched(plan_id, force?) do
     case Plans.fetch(plan_id) do
       {:ok, %Plan{status: "planning"} = plan} ->
         run(plan, force?)
