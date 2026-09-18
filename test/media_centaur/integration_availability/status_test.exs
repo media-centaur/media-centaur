@@ -47,6 +47,13 @@ defmodule MediaCentaur.IntegrationAvailability.StatusTest do
       refute Status.up?(folded)
     end
 
+    test "a rate-limited integration is down for a reason of its own" do
+      status = Status.initial(:tmdb)
+
+      assert {:changed, %Status{state: {:down, @t1, :rate_limited}}} =
+               Status.fold(status, {:down, :rate_limited}, @t1, [])
+    end
+
     test "down to up is a change that clears retry_at" do
       {:changed, down} =
         Status.fold(Status.initial(:prowlarr), {:down, :blind}, @t0, retry_at: @t2)

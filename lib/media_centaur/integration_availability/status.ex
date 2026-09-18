@@ -14,16 +14,18 @@ defmodule MediaCentaur.IntegrationAvailability.Status do
 
   Reasons: `:unreachable` (transport error, 5xx, timeout), `:rejected`
   (401/403 — misconfigured is as useless as dead for held work),
-  `:blind` (Prowlarr answers but every enabled indexer is backed off;
-  `retry_at` carries Prowlarr's own retry time), `:client_unavailable`
-  (Prowlarr cannot hand a release to the download client).
+  `:rate_limited` (429 — the integration is answering and refusing to do
+  more work for now), `:blind` (Prowlarr answers but every enabled
+  indexer is backed off; `retry_at` carries Prowlarr's own retry time),
+  `:client_unavailable` (Prowlarr cannot hand a release to the download
+  client).
   """
 
   @enforce_keys [:integration, :state]
   defstruct [:integration, :state, :observed_at, :retry_at]
 
   @type integration :: :prowlarr | {:handoff, :usenet | :torrent} | :tmdb
-  @type reason :: :unreachable | :rejected | :blind | :client_unavailable
+  @type reason :: :unreachable | :rejected | :rate_limited | :blind | :client_unavailable
   @type observation :: :up | {:down, reason()}
   @type state :: :up | {:down, DateTime.t(), reason()}
   @type t :: %__MODULE__{
