@@ -16,7 +16,6 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaurWeb.Components.Detail.TitlePreview
 
   @type unit :: {pos_integer(), pos_integer()}
@@ -332,32 +331,24 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
 
   @doc """
   The board ticker's line for a `PlanEvents.SearchActivity` — same
-  honesty rule as the gap banner: a zero-result live search while blind
-  reports the outage, never "0 found".
+  honesty rule as the gap banner: a zero-result live search during an
+  outage reports the outage, never "0 found". `outage` is
+  `ViewModels.SearchOutage.reason/0`'s sentence, or nil.
   """
-  @spec search_activity_line(PlanEvents.SearchActivity.t(), IndexerHealth.t() | nil) ::
-          String.t()
-  def search_activity_line(%PlanEvents.SearchActivity{} = activity, search_health) do
-    case {activity.outcome, activity.result_count, blind_reason(search_health)} do
-      {:error, _count, _reason} ->
+  @spec search_activity_line(PlanEvents.SearchActivity.t(), String.t() | nil) :: String.t()
+  def search_activity_line(%PlanEvents.SearchActivity{} = activity, outage) do
+    case {activity.outcome, activity.result_count, outage} do
+      {:error, _count, _outage} ->
         "Search failed: #{activity.term}"
 
-      {:corpus, count, _reason} ->
+      {:corpus, count, _outage} ->
         "#{activity.term} — #{count} known (corpus)"
 
-      {:live, 0, reason} when not is_nil(reason) ->
+      {:live, 0, outage} when not is_nil(outage) ->
         "Searched: #{activity.term} — couldn't reach any indexer"
 
-      {:live, count, _reason} ->
+      {:live, count, _outage} ->
         "Searched: #{activity.term} — #{count} found"
     end
   end
-
-  defp blind_reason(%IndexerHealth{state: :unreachable}), do: "Prowlarr is unreachable"
-
-  defp blind_reason(%IndexerHealth{} = health) do
-    if IndexerHealth.blind?(health), do: "no indexers are answering"
-  end
-
-  defp blind_reason(nil), do: nil
 end
