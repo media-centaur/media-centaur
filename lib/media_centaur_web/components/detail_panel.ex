@@ -691,6 +691,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       spoiler_free={@spoiler_free}
       available={@available}
       series_tmdb_id={@entity.tmdb_id}
+      number_of_seasons={@entity.number_of_seasons}
       acquisition?={@acquisition?}
     />
     """

@@ -5,6 +5,8 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
   alias MediaCentaurWeb.Components.Detail.Facet
   alias MediaCentaurWeb.Components.Detail.Logic
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
+  alias MediaCentaurWeb.ViewModel.SeasonView
 
   describe "facets_for/2 with :movie" do
     test "returns Director / Rating / Original language / Studio / Genres in order" do
@@ -655,6 +657,93 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
     test "nil when there is no TMDB id" do
       assert Logic.letterboxd_url(nil) == nil
+    end
+  end
+
+  defp library_row(season_number, episode_number) do
+    %EpisodeRow.Library{
+      episode: %{id: "ep-#{season_number}-#{episode_number}", episode_number: episode_number},
+      season_number: season_number,
+      state: :unwatched,
+      is_resume_target: false
+    }
+  end
+
+  defp owned_season(season_number, items) do
+    %SeasonView{
+      season_number: season_number,
+      kind: :library,
+      items: items,
+      watched_count: 0,
+      total_count: length(items)
+    }
+  end
+
+  describe "more_to_download?/2 — is there anything left for the picker to offer?" do
+    test "no: every season the series has, every episode in them" do
+      seasons = [
+        owned_season(1, [library_row(1, 1), library_row(1, 2)]),
+        owned_season(2, [library_row(2, 1)])
+      ]
+
+      refute Logic.more_to_download?(seasons, 2)
+    end
+
+    test "yes: an aired episode with no file" do
+      seasons = [
+        owned_season(1, [library_row(1, 1), %EpisodeRow.Missing{season_number: 1, episode_number: 2}])
+      ]
+
+      assert Logic.more_to_download?(seasons, 1)
+    end
+
+    test "yes: a season the library holds nothing of" do
+      assert Logic.more_to_download?([owned_season(2, [library_row(2, 1)])], 2)
+    end
+
+    test "an episode already being downloaded is still an episode you do not have" do
+      seasons = [
+        owned_season(1, [
+          library_row(1, 1),
+          %EpisodeRow.InFlight{season_number: 1, episode_number: 2}
+        ])
+      ]
+
+      assert Logic.more_to_download?(seasons, 1)
+    end
+
+    test "an unaired episode is not an absence you can act on" do
+      seasons = [
+        owned_season(1, [
+          library_row(1, 1),
+          %EpisodeRow.Upcoming{season_number: 1, episode_number: 2, air_date: ~D[2030-01-01]}
+        ])
+      ]
+
+      refute Logic.more_to_download?(seasons, 1)
+    end
+
+    test "a future season carries no ownership — the seasons you have are the library ones" do
+      seasons = [
+        owned_season(1, [library_row(1, 1)]),
+        %SeasonView{
+          season_number: 2,
+          kind: :future,
+          items: [%EpisodeRow.Upcoming{season_number: 2, episode_number: 1, air_date: ~D[2030-01-01]}],
+          watched_count: nil,
+          total_count: 1
+        }
+      ]
+
+      assert Logic.more_to_download?(seasons, 2)
+    end
+
+    test "an unknown season count cannot prove completeness, so the offer stands" do
+      assert Logic.more_to_download?([owned_season(1, [library_row(1, 1)])], nil)
+    end
+
+    test "a series with no seasons at all" do
+      assert Logic.more_to_download?([], 3)
     end
   end
 end

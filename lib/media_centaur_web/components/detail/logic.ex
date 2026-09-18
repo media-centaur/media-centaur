@@ -11,7 +11,9 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   import MediaCentaurWeb.LibraryFormatters, only: [format_human_duration: 1]
 
   alias MediaCentaurWeb.Components.Detail.Facet
+  alias MediaCentaurWeb.ViewModel.EpisodeRow
   alias MediaCentaurWeb.ViewModel.MovieRow
+  alias MediaCentaurWeb.ViewModel.SeasonView
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
@@ -593,5 +595,43 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
       remaining_seconds = progress.episode_duration_seconds - progress.episode_position_seconds
       "#{format_human_duration(trunc(remaining_seconds))} left"
     end
+  end
+
+  # --- The season list ---
+
+  @doc """
+  Whether the plan picker still has something to offer for this series —
+  the gate on the season list's "Download more of this show" link.
+
+  Two shapes of absence, the two the season list cannot close on its own
+  (2026-09-13 series-gap-download design): an aired episode with no file,
+  and a season the library holds nothing of. `seasons` answers the first
+  (a `Missing` or `InFlight` row in any season) and `number_of_seasons` —
+  TMDB's count for the series — answers the second, against the season
+  numbers the library actually has.
+
+  An unaired episode is not an absence anyone can act on, so a series
+  whose only gaps are `Upcoming` rows reads as complete. An episode
+  already being downloaded still counts: no file is here yet.
+
+  A series with no `number_of_seasons` cannot be shown to be complete, so
+  the link stays.
+  """
+  @spec more_to_download?([SeasonView.t()], non_neg_integer() | nil) :: boolean()
+  def more_to_download?(seasons, number_of_seasons) do
+    Enum.any?(seasons, fn %SeasonView{items: items} -> Enum.any?(items, &aired_gap?/1) end) or
+      unowned_season?(seasons, number_of_seasons)
+  end
+
+  defp aired_gap?(%EpisodeRow.Missing{}), do: true
+  defp aired_gap?(%EpisodeRow.InFlight{}), do: true
+  defp aired_gap?(_row), do: false
+
+  defp unowned_season?(_seasons, nil), do: true
+
+  defp unowned_season?(seasons, number_of_seasons) do
+    owned = MapSet.new(for %SeasonView{kind: :library} = season <- seasons, do: season.season_number)
+
+    Enum.any?(1..number_of_seasons//1, &(not MapSet.member?(owned, &1)))
   end
 end

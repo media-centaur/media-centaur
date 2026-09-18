@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
   use MediaCentaurWeb.ConnCase, async: true
 
+  import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
   alias MediaCentaurWeb.Components.Detail.SeasonList
@@ -23,6 +24,22 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
       extras: [],
       watched_count: 0,
       total_count: 2
+    }
+  end
+
+  # The same season with its gap filled — every episode the season has.
+  defp complete_season_view do
+    %{
+      season_view()
+      | items: [
+          %EpisodeRow.Library{
+            episode: build_episode(%{episode_number: 1, name: "First Sample"}),
+            season_number: 1,
+            state: :unwatched,
+            is_resume_target: false
+          }
+        ],
+        total_count: 1
     }
   end
 
@@ -64,6 +81,26 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonListTest do
       html = render_component(&SeasonList.season_list/1, assigns(%{acquisition?: false}))
 
       refute html =~ "Download more of this show"
+    end
+
+    test "absent when the library holds every season and every aired episode" do
+      html =
+        render_component(
+          &SeasonList.season_list/1,
+          assigns(%{seasons: [complete_season_view()], number_of_seasons: 1})
+        )
+
+      refute html =~ "Download more of this show"
+    end
+
+    test "present when the series has a season the library holds nothing of" do
+      html =
+        render_component(
+          &SeasonList.season_list/1,
+          assigns(%{seasons: [complete_season_view()], number_of_seasons: 2})
+        )
+
+      assert html =~ "Download more of this show"
     end
   end
 
