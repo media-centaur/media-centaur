@@ -12,7 +12,6 @@ defmodule MediaCentaur.HttpClient do
       Cache.Coordinator,
       IncidentContext,
       Instrument,
-      Stats,
       Supervisor,
       Traffic,
       Upstream

@@ -85,6 +85,12 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
               {format_bytes_iec(@system_vitals.db.wal_bytes)}
             </span>
           </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-base-content/55">Request history</span>
+            <span class="tabular-nums text-base-content/80">
+              {format_bytes_iec(@system_vitals.db.time_series_bytes)}
+            </span>
+          </div>
         </div>
 
         <%!-- Host / build footer (quiet) --%>

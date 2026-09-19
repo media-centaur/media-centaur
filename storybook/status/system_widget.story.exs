@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.Storybook.Status.SystemWidget do
       version: "0.86.1"
     }
 
-    db = %{size_bytes: 148_897_792, wal_bytes: 4_194_304}
+    db = %{size_bytes: 148_897_792, wal_bytes: 4_194_304, time_series_bytes: 221_184}
 
     healthy = %{
       uptime_seconds: 273_600,

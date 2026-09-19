@@ -146,6 +146,7 @@ config :media_centaur, :health_activity_widgets, %{
 config :media_centaur, :retention_policy_providers, [
   MediaCentaur.Retention.ObanPolicy,
   MediaCentaur.ErrorReports.RetentionPolicies,
+  MediaCentaur.HttpClient.RetentionPolicies,
   MediaCentaur.Acquisition.RetentionPolicies,
   MediaCentaur.Pipeline.RetentionPolicies,
   MediaCentaur.SelfUpdate.RetentionPolicies,

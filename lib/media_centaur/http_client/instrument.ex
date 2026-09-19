@@ -28,7 +28,8 @@ defmodule MediaCentaur.HttpClient.Instrument do
       slot, `0` when the client has no limiter
 
   The event is the whole observability contract of the HTTP layer:
-  `MediaCentaur.HttpClient.Stats` folds it into the Status panel.
+  `MediaCentaur.HttpClient.Traffic` counts it into the request time series
+  behind the Connections strip charts.
   """
 
   alias MediaCentaur.HttpClient.Upstream

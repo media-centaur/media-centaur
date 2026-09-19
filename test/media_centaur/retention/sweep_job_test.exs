@@ -49,6 +49,7 @@ defmodule MediaCentaur.Retention.SweepJobTest do
       :watcher,
       :pipeline,
       :tmdb,
+      :http,
       :playback,
       :library,
       :acquisition,

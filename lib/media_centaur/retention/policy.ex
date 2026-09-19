@@ -22,9 +22,9 @@ defmodule MediaCentaur.Retention.Policy do
   constraint a code reference instead of a sentence.
 
   `subsystem` must be one of the Status-page health-board subsystem keys
-  (`:watcher`, `:pipeline`, `:tmdb`, `:playback`, `:library`,
+  (`:watcher`, `:pipeline`, `:tmdb`, `:http`, `:playback`, `:library`,
   `:acquisition`, `:self_update`, `:system`) — it routes the policy onto
-  that subsystem's drill-in.
+  that subsystem's drill-in (`:http` is the Connections drill-in).
   """
 
   @enforce_keys [:key, :subsystem, :label, :description, :mode]

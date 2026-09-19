@@ -134,7 +134,7 @@ graph TD
     App --> ConsoleBuffer[Console.Buffer]
     App --> JournalSource[Console.JournalSource]
     App --> TaskSup[TaskSupervisor]
-    App --> HttpSup[HttpClient.Supervisor<br/>Cache.Coordinator + Stats]
+    App --> HttpSup[HttpClient.Supervisor<br/>Cache.Coordinator + TimeSeries.Store + Traffic]
     App --> RateLimiter[TMDB.RateLimiter]
     App --> MetadataStats[TMDB.MetadataStats]
     App --> WatcherSup[Watcher.Supervisor]
