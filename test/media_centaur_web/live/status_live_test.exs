@@ -30,15 +30,65 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       {:ok, _view, html} = live_async!(conn, "/status?subsystem=tmdb")
       assert html =~ "metadata-activity"
     end
+  end
 
-    test "http drill-in renders one row per panel upstream and none for the rest", %{conn: conn} do
+  describe "connections drill-in" do
+    test "pushes a frame for the configured strips and the window from the URL", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=http&window=5h")
+
+      assert has_element?(view, "#traffic[phx-hook='StripChart']")
+      assert_push_event(view, "strip_chart:frame", %{id: "traffic", window: "5h", strips: strips})
+      ids = Enum.map(strips, & &1.id)
+      assert "tmdb" in ids and "tmdb_images" in ids and "github" in ids
+      refute "steam" in ids
+    end
+
+    test "an unknown window falls back to 1h", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=http&window=2h")
+      assert_push_event(view, "strip_chart:frame", %{window: "1h"})
+    end
+
+    test "the pill patches the URL and a fresh frame follows", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=http")
-      alias MediaCentaur.HttpClient.Upstream
+      assert_push_event(view, "strip_chart:frame", %{window: "1h"})
 
-      for id <- Upstream.panel_ids(), do: assert(has_element?(view, "#http-upstream-#{id}"))
+      view |> element("[phx-value-window='1w']") |> render_click()
+      assert_patch(view, "/status?subsystem=http&window=1w")
+      assert_push_event(view, "strip_chart:frame", %{window: "1w"})
+    end
 
-      for id <- Upstream.ids() -- Upstream.panel_ids(),
-          do: refute(has_element?(view, "#http-upstream-#{id}"))
+    test "frames keep coming on the tick and stop while hidden", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=http")
+      assert_push_event(view, "strip_chart:frame", _first)
+      assert_push_event(view, "strip_chart:frame", _second, 500)
+
+      view
+      |> element("#traffic")
+      |> render_hook("strip_chart:visibility", %{"id" => "traffic", "visible" => false})
+
+      drain_frames()
+      refute_push_event(view, "strip_chart:frame", _, 300)
+
+      view
+      |> element("#traffic")
+      |> render_hook("strip_chart:visibility", %{"id" => "traffic", "visible" => true})
+
+      assert_push_event(view, "strip_chart:frame", _resumed, 500)
+    end
+
+    test "no frames while another drill-in is open", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=tmdb")
+      refute_push_event(view, "strip_chart:frame", _, 300)
+    end
+  end
+
+  # Frames that arrived before a hide are already in the mailbox; drop
+  # them so the refute below speaks only about frames after it.
+  defp drain_frames do
+    receive do
+      {_ref, {:push_event, "strip_chart:frame", _payload}} -> drain_frames()
+    after
+      0 -> :ok
     end
   end
 
