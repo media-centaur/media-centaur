@@ -27,20 +27,23 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
   **The image CDN is graded by request share**, because it writes no
   availability value of its own: `image.tmdb.org` is a different host
   from `api.themoviedb.org`, a failed download is no evidence about the
-  API, and nothing probes the CDN. Failing traffic is all there is.
+  API, and nothing probes the CDN. Failing traffic is all there is. The
+  share is read from `MediaCentaur.HttpClient.Traffic.totals/2` over the
+  last fifteen minutes.
 
-  `vitals/0` attaches the per-upstream figures and the cache size to
-  every incident report, whichever subsystem raised it.
+  `vitals/0` attaches the per-upstream fifteen-minute figures and the
+  cache size to every incident report, whichever subsystem raised it.
   """
   @behaviour MediaCentaur.ErrorReports.IncidentContext
 
-  alias MediaCentaur.HttpClient.{Cache, Stats, Upstream}
+  alias MediaCentaur.HttpClient.{Cache, Traffic, Upstream}
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.IntegrationAvailability.Status
 
   @assessed_by_share [:tmdb_images]
   @min_requests 10
   @failing_share 0.5
+  @window_seconds 900
 
   # Longer than `TMDB.ProbeJob`'s five-minute cadence, so a fault means a
   # probe has confirmed the outage at least once — not that one request
@@ -51,17 +54,23 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
 
   @impl true
   def assess do
-    assess(Stats.snapshot(), IntegrationAvailability.status(:tmdb), DateTime.utc_now())
+    assess(share_totals(), IntegrationAvailability.status(:tmdb), DateTime.utc_now())
   end
 
   @doc """
   Pure assessment: a TMDB outage past the grace window, else the worst
   share-failing upstream, else `:ok`. A down TMDB outranks a failing CDN
-  — it is the one with a remedy the person can act on.
+  — it is the one with a remedy the person can act on. `totals_by_upstream`
+  maps an upstream id to its `Traffic.totals/0` over the window.
   """
-  @spec assess(map(), Status.t(), DateTime.t()) :: :ok | fault()
-  def assess(%{upstreams: rows}, %Status{} = tmdb_status, %DateTime{} = now) do
-    unavailable(tmdb_status, now) || failing_share(rows)
+  @spec assess(%{atom() => Traffic.totals()}, Status.t(), DateTime.t()) :: :ok | fault()
+  def assess(totals_by_upstream, %Status{} = tmdb_status, %DateTime{} = now)
+      when is_map(totals_by_upstream) do
+    unavailable(tmdb_status, now) || failing_share(totals_by_upstream)
+  end
+
+  defp share_totals do
+    Map.new(@assessed_by_share, &{&1, Traffic.totals(&1, seconds: @window_seconds)})
   end
 
   defp unavailable(%Status{state: {:down, since, reason}}, now) do
@@ -77,36 +86,37 @@ defmodule MediaCentaur.HttpClient.IncidentContext do
   defp unavailable_headline(:rate_limited), do: "#{Upstream.label(:tmdb)} is rate-limiting requests"
   defp unavailable_headline(_unreachable), do: "#{Upstream.label(:tmdb)} is unreachable"
 
-  defp failing_share(rows) do
-    rows
-    |> Enum.filter(&(&1.id in @assessed_by_share and &1.window.requests >= @min_requests))
-    |> Enum.map(&{&1, &1.window.errors / &1.window.requests})
-    |> Enum.filter(fn {_row, share} -> share >= @failing_share end)
-    |> Enum.max_by(fn {_row, share} -> share end, fn -> nil end)
+  defp failing_share(totals_by_upstream) do
+    @assessed_by_share
+    |> Enum.map(&{&1, Map.get(totals_by_upstream, &1, %{requests: 0, failed: 0})})
+    |> Enum.filter(fn {_id, totals} -> totals.requests >= @min_requests end)
+    |> Enum.map(fn {id, totals} -> {id, totals.failed / totals.requests} end)
+    |> Enum.filter(fn {_id, share} -> share >= @failing_share end)
+    |> Enum.max_by(fn {_id, share} -> share end, fn -> nil end)
     |> case do
       nil ->
         :ok
 
-      {row, _share} ->
+      {id, _share} ->
         {:fault, :upstream_failing, :warning,
-         %{upstream: row.id, headline: "Most requests to #{row.label} are failing"}}
+         %{upstream: id, headline: "Most requests to #{Upstream.label(id)} are failing"}}
     end
   end
 
   @impl true
   def vitals do
-    snapshot = Stats.snapshot()
-
     %{
       "upstreams" =>
-        Map.new(snapshot.upstreams, fn row ->
-          {to_string(row.id),
+        Map.new(Upstream.ids(), fn id ->
+          totals = Traffic.totals(id, seconds: @window_seconds)
+
+          {to_string(id),
            %{
-             "window_requests" => row.window.requests,
-             "window_errors" => row.window.errors,
-             "median_latency_ms" => row.window.median_latency_ms,
-             "session_requests" => row.session.requests,
-             "session_errors" => row.session.errors
+             "window_requests" => totals.requests,
+             "window_failed" => totals.failed,
+             "window_cached" => totals.cached,
+             "mean_latency_ms" => totals.mean_ms,
+             "worst_latency_ms" => totals.worst_ms
            }}
         end),
       "cache_entries" => Cache.stats().entries
