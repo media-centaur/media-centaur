@@ -24,6 +24,10 @@
 // Sidebar links only tip while <html data-sidebar="collapsed"> — expanded
 // mode renders the label text on the link itself.
 
+import { parseUiScale } from "../ui_scale"
+
+export { parseUiScale }
+
 export const COLD_DELAY_MS = 300
 export const WARM_WINDOW_MS = 250
 
@@ -97,16 +101,6 @@ export function tooltipPosition(rect, scale, placement = "bottom") {
  */
 export function clickHides(event) {
   return event.detail > 0
-}
-
-/**
- * Parse the raw `--ui-scale` custom-property string from computed style.
- * @param {string|undefined} raw
- * @returns {number} the scale, or 1 for anything absent or malformed
- */
-export function parseUiScale(raw) {
-  const scale = Number.parseFloat(raw)
-  return Number.isFinite(scale) && scale > 0 ? scale : 1
 }
 
 /**

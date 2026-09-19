@@ -34,6 +34,7 @@ import {Tooltip} from "./hooks/tooltip"
 import {pinReserve, sheetMaxRise} from "./hooks/detail_scroll_geometry"
 import {DetailBodyScroll} from "./hooks/detail_body_scroll"
 import {PlanGridCaption} from "./hooks/plan_grid_caption"
+import {StripChart} from "./hooks/strip_chart"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import {installNavReselect} from "./nav_reselect"
 import topbar from "../vendor/topbar"
@@ -52,6 +53,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     HeroBackdrop,
     Tooltip,
     PlanGridCaption,
+    StripChart,
     // Publishes the detail scroller's measured geometry as CSS vars for
     // the pinned orientation block's backing replicas — layout facts CSS
     // cannot read about itself:
