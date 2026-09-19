@@ -3522,3 +3522,29 @@ cd ~/src/media-centaur/media-centaur.wiki && git add -A && git commit -m "wiki: 
 **Spec coverage.** §1 drill-in → Tasks 11, 13, 14. §2 component → 8, 9, 12. §3 feed → 10. §4 store → 1–4. §5 Traffic and readers → 5, 6, 7. §6 boundaries → 5, 7. Retention entry, datastore figure → 7. ADR, glossary, wiki → 15, 16. Tests at three levels → every task plus 14. Deferred items stay deferred.
 
 **Type consistency.** `Store.add(table, schema, key, unix, values)` everywhere; `Store.rows(table, resolution, key, from, to)` everywhere; `Traffic.series/3` returns `went_out/failed/cached/mean_ms/worst_ms/totals`; `TrafficFrame.build/2` consumes exactly that; the frame keys `t/failed/went_out/cached/mean_ms/worst_ms/figures/dot/label/id` match `stackColumns`, `hoverFigures` and `rebuild`; `Feed.window(assigns, id)` is what the widget bundle reads.
+
+## Verification (Task 14, 2026-09-19)
+
+Dev server, headless Chromium (`--ui-scale` 0.7, device pixel ratio 1.5),
+`/status?subsystem=http`, all six upstreams configured on this machine:
+
+| Check | Result |
+|---|---|
+| Strips / canvases | 6 / 6 |
+| Plot area heights (px, `.u-over`) | 50 on every strip, last strip included |
+| Canvas backing store per plot px | 1.5 (device pixel ratio; the plot cell cancels the root zoom, see hook header) |
+| Figures after 21 s with LAN clients polling | qBittorrent 61 → 62 requests, SABnzbd 120 → 124: frames arrive on the tick |
+| Hover at 50 % of the TMDB strip | all six `.strip-chart-time` read the same bucket ("11:50"); cleared on `mouseleave` |
+| Recent requests rows / unique ids | 20 / 20 |
+| Console | no errors |
+| Screenshot vs approved mockup (layout 2) | matches: left column, hairlines, aligned plots, grid on every strip, time labels only under the last strip, legend + Recent requests in the footer |
+
+Hidden-tab pause and window-pill patching are covered by
+`test/media_centaur_web/live/status_live_test.exs` ("connections drill-in").
+
+Deviations from the plan, all in the hook and recorded in its header comment:
+uPlot 1.6.32 has no `pxRatio` option, so the plot cell runs at
+`zoom: calc(1 / var(--ui-scale))` and every length handed to uPlot is
+scaled by the UI scale; explicit `padding` equalises the plot areas
+because a hidden x-axis keeps uPlot's auto padding; zero bars are `null`
+so no baseline dash is drawn; isolated line points use `points.filter`.
