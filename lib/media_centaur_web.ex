@@ -26,6 +26,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.IntegrationAvailability,
       MediaCentaur.IntegrationHealth,
       MediaCentaur.Retention,
+      MediaCentaur.TimeSeries,
       MediaCentaur.Runtime,
       MediaCentaur.Setup,
       MediaCentaur.Status,
