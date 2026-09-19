@@ -73,9 +73,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
   defp cache_label(:uncached), do: ""
   defp cache_label(outcome), do: to_string(outcome)
 
-  # Stable iterator id (UIDR-012). Requests are milliseconds apart at most,
-  # so the second stamp plus path hash is collision-proof in practice.
-  defp recent_row_id(%{at: %DateTime{} = at, path: path}) do
-    "http-recent-#{DateTime.to_unix(at, :microsecond)}-#{:erlang.phash2(path)}"
-  end
+  # Stable iterator id (UIDR-012): the ring sequence number is unique per
+  # request, where a timestamp would collide within one second.
+  defp recent_row_id(%{seq: seq}), do: "http-recent-#{seq}"
 end

@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.Storybook.Status.HttpWidget do
   defp recent do
     [
       %{
+        seq: 3,
         at: seconds_ago(3),
         upstream: :tmdb,
         method: :get,
@@ -26,6 +27,7 @@ defmodule MediaCentaurWeb.Storybook.Status.HttpWidget do
         cache: :miss
       },
       %{
+        seq: 2,
         at: seconds_ago(9),
         upstream: :tmdb_images,
         method: :get,
@@ -36,6 +38,7 @@ defmodule MediaCentaurWeb.Storybook.Status.HttpWidget do
         cache: :uncached
       },
       %{
+        seq: 1,
         at: seconds_ago(40),
         upstream: :prowlarr,
         method: :get,

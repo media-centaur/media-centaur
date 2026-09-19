@@ -121,7 +121,10 @@ defmodule MediaCentaur.HttpClient.Traffic do
     |> totals_from()
   end
 
-  @doc "The twenty most recent requests, newest first. Option: `recent_table:`."
+  @doc """
+  The twenty most recent requests, newest first, each carrying its ring
+  `seq` (a stable, unique id for the row). Option: `recent_table:`.
+  """
   @spec recent(keyword()) :: [map()]
   def recent(opts \\ []) do
     table = Keyword.get(opts, :recent_table, @recent_table)
@@ -134,7 +137,7 @@ defmodule MediaCentaur.HttpClient.Traffic do
         table
         |> :ets.select([{{{:slot, :_}, :"$1", :"$2"}, [], [{{:"$1", :"$2"}}]}])
         |> Enum.sort_by(&elem(&1, 0), :desc)
-        |> Enum.map(&elem(&1, 1))
+        |> Enum.map(fn {seq, entry} -> Map.put(entry, :seq, seq) end)
     end
   end
 

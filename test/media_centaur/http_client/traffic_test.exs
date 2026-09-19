@@ -103,6 +103,7 @@ defmodule MediaCentaur.HttpClient.TrafficTest do
     recent = Traffic.recent(tables)
     assert length(recent) == 20
     assert hd(recent).path == "/3/movie/25"
+    assert recent |> Enum.map(& &1.seq) |> Enum.uniq() |> length() == 20
     assert List.last(recent).path == "/3/movie/6"
   end
 
