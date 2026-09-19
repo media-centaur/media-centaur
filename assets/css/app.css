@@ -183,6 +183,27 @@ body.media-centaur {
   initial-value: 1;
 }
 
+/* Strip chart palette — registered as <color> so getComputedStyle hands the
+   StripChart hook resolved colors a canvas accepts. Defined from theme
+   tokens below; never read --color-* from JS directly. */
+@property --strip-chart-bar-error { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --strip-chart-bar-solid { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --strip-chart-bar-muted { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --strip-chart-line { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --strip-chart-grid { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --strip-chart-axis-text { syntax: "<color>"; inherits: true; initial-value: transparent; }
+@property --strip-chart-cursor { syntax: "<color>"; inherits: true; initial-value: transparent; }
+
+:root {
+  --strip-chart-bar-error: oklch(from var(--color-error) l c h / 0.95);
+  --strip-chart-bar-solid: oklch(from var(--color-base-content) l c h / 0.42);
+  --strip-chart-bar-muted: oklch(from var(--color-base-content) l c h / 0.14);
+  --strip-chart-line: oklch(from var(--color-primary) l c h / 0.9);
+  --strip-chart-grid: oklch(from var(--color-base-content) l c h / 0.07);
+  --strip-chart-axis-text: oklch(from var(--color-base-content) l c h / 0.4);
+  --strip-chart-cursor: oklch(from var(--color-base-content) l c h / 0.35);
+}
+
 html {
   /* The max() floor is last-resort insurance: no combination of factors may
      shrink the shell into unusability, whatever bug produces it. 0.45 sits
@@ -1394,6 +1415,72 @@ body:has(.modal-backdrop[data-state="open"]) {
   background: oklch(from var(--color-neutral) l c h / 0.8) !important;
   --tab-bg: oklch(from var(--color-neutral) l c h / 0.8);
   box-shadow: 0 1px 2px oklch(0% 0 0 / 0.18);
+}
+
+/* Strip chart (UIDR pending) — six strips, one window, one cursor.
+   Rows and canvases are owned by the StripChart hook (phx-update="ignore"). */
+@layer components {
+  .strip-chart-strips { display: flex; flex-direction: column; }
+  .strip-chart-strip {
+    display: grid;
+    grid-template-columns: 11.5rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: center;
+    padding: 0.625rem 0 0.5rem;
+    border-top: 1px solid var(--strip-chart-grid);
+  }
+  .strip-chart-strip:first-child { border-top: 0; padding-top: 0.25rem; }
+  .strip-chart-name {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.8125rem; color: oklch(from var(--color-base-content) l c h / 0.8);
+  }
+  .strip-chart-dot { width: 6px; height: 6px; border-radius: 9999px; background: oklch(from var(--color-base-content) l c h / 0.3); }
+  .strip-chart-dot[data-dot="ok"] { background: var(--color-success); }
+  .strip-chart-dot[data-dot="failed"] { background: var(--color-error); }
+  .strip-chart-time { margin-left: auto; font-size: 0.6875rem; color: oklch(from var(--color-base-content) l c h / 0.4); }
+  .strip-chart-figures {
+    margin-top: 0.1875rem; font-size: 0.75rem; line-height: 1.5;
+    color: oklch(from var(--color-base-content) l c h / 0.55);
+    font-variant-numeric: tabular-nums;
+  }
+  .strip-chart-figures [data-tone="error"] { color: var(--color-error); }
+  .strip-chart-figures [data-tone="warning"] { color: var(--color-warning); }
+  .strip-chart-figures .strip-chart-sep { opacity: 0.45; }
+  /* The plots cancel the root zoom. uPlot 1.6.32 maps the pointer with
+     getBoundingClientRect (visual px) against its CSS width (layout px) and
+     sizes its canvas by devicePixelRatio alone, so under zoom its cursor
+     drifts and its pixels blur; at effective zoom 1 both are exact. The
+     StripChart hook multiplies every length it hands uPlot by --ui-scale
+     instead (lengthsFor). */
+  .strip-chart-plot { min-width: 0; zoom: calc(1 / var(--ui-scale, 1)); }
+  .strip-chart-footer {
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    margin-top: 0.75rem; padding-top: 0.625rem; border-top: 1px solid var(--strip-chart-grid);
+  }
+  .strip-chart-legend { display: flex; gap: 0.875rem; font-size: 0.6875rem; color: oklch(from var(--color-base-content) l c h / 0.55); }
+  .strip-chart-legend li { display: inline-flex; align-items: center; gap: 0.3125rem; }
+  .strip-chart-swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; }
+  .strip-chart-swatch-error { background: var(--strip-chart-bar-error); }
+  .strip-chart-swatch-solid { background: var(--strip-chart-bar-solid); }
+  .strip-chart-swatch-muted { background: var(--strip-chart-bar-muted); }
+  .strip-chart-swatch-line { width: 12px; height: 0; border-top: 2px solid var(--strip-chart-line); border-radius: 0; }
+
+  /* uPlot base (from uPlot.min.css, 1.6.32), scoped and recolored. Legend and
+     title styles are omitted: the hook renders neither. */
+  .strip-chart .uplot, .strip-chart .uplot *, .strip-chart .uplot *::before, .strip-chart .uplot *::after { box-sizing: border-box; }
+  .strip-chart .uplot { font-family: inherit; line-height: 1.5; width: min-content; }
+  .strip-chart .u-wrap { position: relative; user-select: none; }
+  .strip-chart .u-over, .strip-chart .u-under { position: absolute; }
+  .strip-chart .u-under { overflow: hidden; }
+  .strip-chart .uplot canvas { display: block; position: relative; width: 100%; height: 100%; }
+  .strip-chart .u-axis { position: absolute; }
+  .strip-chart .u-cursor-x, .strip-chart .u-cursor-y { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform; z-index: 100; }
+  .strip-chart .u-hz .u-cursor-x { height: 100%; border-right: 1px dashed var(--strip-chart-cursor); }
+  .strip-chart .u-hz .u-cursor-y { width: 100%; border-bottom: 1px dashed var(--strip-chart-cursor); }
+  .strip-chart .u-cursor-pt { position: absolute; top: 0; left: 0; border-radius: 50%; border: 0 solid; pointer-events: none; will-change: transform; z-index: 100; background-clip: padding-box !important; }
+  .strip-chart .u-axis.u-off, .strip-chart .u-select.u-off, .strip-chart .u-cursor-x.u-off, .strip-chart .u-cursor-y.u-off, .strip-chart .u-cursor-pt.u-off { display: none; }
+  .strip-chart .u-select { background: oklch(0% 0 0 / 0.07); position: absolute; pointer-events: none; }
+  .strip-chart .u-legend { display: none; }
 }
 
 /* Glass menu — the house dropdown idiom: a quiet trigger with a chevron
