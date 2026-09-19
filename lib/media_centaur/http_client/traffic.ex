@@ -198,7 +198,7 @@ defmodule MediaCentaur.HttpClient.Traffic do
     :ok
   rescue
     error ->
-      MediaCentaur.Log.warning(:system, "http traffic not recorded", reason: Exception.message(error))
+      MediaCentaur.Log.warning(:http, "http traffic not recorded", reason: Exception.message(error))
 
       :ok
   end

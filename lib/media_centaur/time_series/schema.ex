@@ -23,8 +23,14 @@ defmodule MediaCentaur.TimeSeries.Schema do
   @enforce_keys [:fields, :names, :positions, :sums, :maxes]
   defstruct [:fields, :names, :positions, :sums, :maxes]
 
+  @max_fields 8
+
+  @doc "The most counter fields a schema may declare (the store's match specs are sized for it)."
+  @spec max_fields() :: pos_integer()
+  def max_fields, do: @max_fields
+
   @spec new([{atom(), kind()}]) :: t()
-  def new(fields) when is_list(fields) and fields != [] do
+  def new(fields) when is_list(fields) and fields != [] and length(fields) <= @max_fields do
     names = Keyword.keys(fields)
 
     %__MODULE__{

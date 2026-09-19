@@ -37,6 +37,10 @@ defmodule MediaCentaur.TimeSeries.Store do
   @writes_key :__writes__
   @schema_key :__schema__
 
+  # Match-spec variables for up to `Schema.max_fields/0` counter fields,
+  # written out so no atom is built at runtime.
+  @match_variables [:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7", :"$8"]
+
   # --- Public API ---
 
   def start_link(opts) do
@@ -179,9 +183,9 @@ defmodule MediaCentaur.TimeSeries.Store do
   # when the max field is smaller than `value`. Tuples in the body are
   # wrapped once, as match specs require.
   defp max_spec(%Schema{names: names}, row_key, position, value) do
-    variables = Enum.map(1..length(names), &:"$#{&1}")
+    variables = Enum.take(@match_variables, length(names))
     head = List.to_tuple([row_key | variables])
-    field_variable = :"$#{position - 1}"
+    field_variable = Enum.at(variables, position - 2)
 
     body_values =
       Enum.map(variables, fn variable ->

@@ -35,6 +35,11 @@ defmodule MediaCentaur.TimeSeries.Snapshot do
     end
   end
 
+  # The file is one the app itself wrote beside its database, never user
+  # input: `:safe` refuses new atoms and funs, and only a tuple with our
+  # tag, version and field list is accepted. Anyone able to replace it can
+  # already replace the database next to it.
+  # sobelow_skip ["Misc.BinToTerm"]
   defp decode(binary, fields) do
     case :erlang.binary_to_term(binary, [:safe]) do
       {@tag, @version, ^fields, rows} when is_list(rows) -> {:ok, rows}
