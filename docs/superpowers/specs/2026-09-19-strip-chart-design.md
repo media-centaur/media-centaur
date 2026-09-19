@@ -2,8 +2,8 @@
 
 **Date:** 2026-09-19
 **Status:** Design approved section by section with the owner on
-2026-09-19 (decisions listed under *Decisions*). Implementation plan: to be
-written after the owner has reviewed this document.
+2026-09-19 (decisions listed under *Decisions*). Implemented the same day:
+`docs/superpowers/plans/2026-09-19-strip-chart-plan.md` (verification table at its end).
 
 ## Problem
 
