@@ -11,7 +11,11 @@ defmodule MediaCentaur.Runtime.Vitals do
         process_count: pos_integer(), process_limit: pos_integer(),
         run_queue: non_neg_integer(), schedulers: pos_integer(),
         host: %{otp: String.t(), elixir: String.t(), os: String.t(), version: String.t()},
-        db: %{size_bytes: non_neg_integer(), wal_bytes: non_neg_integer()}}
+        db: %{size_bytes: non_neg_integer(), wal_bytes: non_neg_integer(),
+              time_series_bytes: non_neg_integer()}}
+
+  `time_series_bytes` is the size of every `*.snapshot` file beside the
+  database — the request time series (ADR-070).
   """
   alias MediaCentaur.ErrorReports.EnvMetadata
 
@@ -48,11 +52,28 @@ defmodule MediaCentaur.Runtime.Vitals do
 
   defp db_sizes do
     path = MediaCentaur.Settings.Config.get(:database_path)
-    %{size_bytes: file_size(path), wal_bytes: file_size(wal_path(path))}
+
+    %{
+      size_bytes: file_size(path),
+      wal_bytes: file_size(wal_path(path)),
+      time_series_bytes: time_series_bytes(path)
+    }
   end
 
   defp wal_path(nil), do: nil
   defp wal_path(path), do: path <> "-wal"
+
+  # Every time-series snapshot beside the database (ADR-070).
+  defp time_series_bytes(nil), do: 0
+
+  defp time_series_bytes(path) do
+    path
+    |> Path.dirname()
+    |> Path.join("*.snapshot")
+    |> Path.wildcard()
+    |> Enum.map(&file_size/1)
+    |> Enum.sum()
+  end
 
   defp file_size(nil), do: 0
 

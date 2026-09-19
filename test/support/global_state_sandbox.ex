@@ -125,7 +125,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
     MediaCentaur.Library.AbsenceSweeper =>
       {:unobservable, "a sweep schedule; its reads go to the DB and :persistent_term"},
     MediaCentaur.HttpClient.Supervisor =>
-      {:unobservable, "response cache and HTTP stats are not started under :test"},
+      {:unobservable, "response cache and request traffic are not started under :test"},
     MediaCentaur.SelfUpdate.AutoApply =>
       {:unobservable, "a check schedule; its public functions are pure"},
     :init_services => {:unobservable, "one-shot temporary task; gone before the first test"}

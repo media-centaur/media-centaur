@@ -19,8 +19,9 @@ defmodule MediaCentaur.Runtime.VitalsTest do
     assert %{otp: otp, elixir: elixir, os: os, version: version} = snap.host
     assert is_binary(otp) and is_binary(elixir) and is_binary(os) and is_binary(version)
 
-    assert %{size_bytes: db_size, wal_bytes: wal} = snap.db
+    assert %{size_bytes: db_size, wal_bytes: wal, time_series_bytes: series} = snap.db
     assert is_integer(db_size) and db_size >= 0
     assert is_integer(wal) and wal >= 0
+    assert is_integer(series) and series >= 0
   end
 end

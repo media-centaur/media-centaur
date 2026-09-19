@@ -209,7 +209,17 @@ defmodule MediaCentaur.Application do
   # stubs would otherwise share entries across tests. Cache tests start
   # their own coordinator under a unique name.
   defp http_client_children(:test), do: []
-  defp http_client_children(_env), do: [MediaCentaur.HttpClient.Supervisor]
+
+  defp http_client_children(_env) do
+    # The request time series snapshots beside the database (ADR-070).
+    snapshot_dir =
+      case MediaCentaur.Settings.Config.get(:database_path) do
+        nil -> nil
+        path -> Path.dirname(path)
+      end
+
+    [{MediaCentaur.HttpClient.Supervisor, snapshot_dir: snapshot_dir}]
+  end
 
   defp cache_children(:test), do: []
 
