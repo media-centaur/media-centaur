@@ -330,9 +330,12 @@ export const StripChart = {
 
     const axes = [
       {
-        show: isLast, scale: "x", size: lengths.xAxis, gap: lengths.axisGap, stroke: theme.axisText,
-        font: lengths.font, ticks: { show: false }, grid: { stroke: theme.grid, width: 1 }, space: lengths.xSpace,
-        values: (u, splits) => splits.map(labeler),
+        // Every strip draws the vertical grid so the plots read as one
+        // picture; only the last strip spends height on time labels.
+        scale: "x", size: isLast ? lengths.xAxis : 0, gap: isLast ? lengths.axisGap : 0,
+        stroke: theme.axisText, font: lengths.font, ticks: { show: false },
+        grid: { stroke: theme.grid, width: 1 }, space: lengths.xSpace,
+        values: (u, splits) => (isLast ? splits.map(labeler) : splits.map(() => "")),
       },
       {
         scale: "y", size: lengths.yAxis, gap: lengths.axisGap, stroke: theme.axisText, font: lengths.font,
@@ -350,7 +353,7 @@ export const StripChart = {
         values: (u, splits) => {
           const line = u.data[u.data.length - 1]
           if (!line || line.every((v) => v == null)) return splits.map(() => "")
-          return splits.map((v) => (v === 0 ? "" : formatDuration(v)))
+          return splits.map((v) => (v > 0 && Number.isInteger(v) ? formatDuration(v) : ""))
         },
       })
       scales.ms = { range: (u, min, max) => [0, niceMax(max)] }
