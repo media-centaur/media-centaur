@@ -444,6 +444,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `modal/1` | `modal.ex` | House modal frame with the UIDR-013 dismissal seam |
 | `play_overlay/1` | `play_overlay.ex` | Play-in-place overlay (UIDR-027) |
 | `progress_hairline/1` | `progress_hairline.ex` | Subject progress hairline (UIDR-024) |
+| `strip_chart/1` | `strip_chart.ex` | N time-series strips over one window with a synced cursor; strips drawn by the `StripChart` hook from frames (`StripChart.Feed`). First tenant: the Connections drill-in | ✅ shell |
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
 | `coming_up_marquee/1` | `coming_up_marquee.ex` | Incoming's Coming Up shelf (UIDR-015) |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
