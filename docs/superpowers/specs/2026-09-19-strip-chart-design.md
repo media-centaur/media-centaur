@@ -435,6 +435,15 @@ bar runs midnight to noon where the machine is. Half-hour offset zones
 align to the nearest UTC hour; a bar across a DST change is an hour longer
 or shorter. Both are stated in the moduledoc.
 
+> **Amendment 2026-09-19 (implementation):** the app has no time-zone
+> database, so the Console conversion named above falls back to UTC and
+> could not be reused. Wide bars align to local midnight using the OS
+> offset from `:calendar.local_time/0` against `:calendar.universal_time/0`,
+> read at fold time (`TimeSeries.LocalDay`). That is the offset in force
+> now: bars before a daylight-saving change sit an hour off their local
+> midnight until the window rolls past it. Console's own local-time
+> fallback remains a separate, pre-existing defect.
+
 **Process.** `Store` is a GenServer that creates the table in `init`,
 schedules the sweep and snapshot, and otherwise handles no traffic. Tests
 start their own instances with a unique `name` and `table`, no snapshot
