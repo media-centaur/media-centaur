@@ -21,6 +21,18 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`tmdb-fetch-policy.md`](tmdb-fetch-policy.md) —
+  **planning 2026-09-19; audit complete, definitions open.** Every TMDB
+  request should be justified by a question the app cannot answer from
+  what it already stores. Thirty fetch sites inventoried: the refresher
+  reloads every tracked title every six hours with no notion of a
+  settled title and replaces its calendar wholesale; seven surfaces read
+  release facts live on every open because nothing stores them; library
+  metadata is frozen at import with no fetch time. Volume is not the
+  driver (15 requests a day on the owner's instance) — coherence,
+  latency and the empty cache after a restart are. Successor to the
+  traffic audit's deferred "how often the refresher re-reads a healthy
+  TMDB".
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
