@@ -17,7 +17,6 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Activities
-  alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status}
   alias MediaCentaur.SelfUpdate.Changelog
@@ -25,6 +24,9 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
   alias MediaCentaurWeb.StatusLive.JournalPanel
+  alias MediaCentaurWeb.StatusLive.TrafficFrame
+  alias MediaCentaurWeb.Components.StripChart
+  alias MediaCentaur.HttpClient.Traffic
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaur.Watcher
@@ -67,6 +69,15 @@ defmodule MediaCentaurWeb.StatusLive do
         ],
         socket,
         &Subscriptions.subscribe(&2, &1)
+      )
+
+    # The Connections drill-in's request strip charts: frames every ten
+    # seconds only while that drill-in is selected and the tab visible.
+    socket =
+      StripChart.Feed.attach(socket,
+        id: "traffic",
+        frame: &TrafficFrame.build/1,
+        active?: &(&1["subsystem"] == "http")
       )
 
     if connected?(socket) do
@@ -170,8 +181,6 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
     |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
     |> assign(config: load_config())
-    |> assign(rate_limiter: fetch_rate_limiter())
-    |> assign(http_stats: MediaCentaur.HttpClient.Stats.snapshot())
     |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
     |> assign(retry_status: fetch_retry_status())
     |> assign(playback: build_playback_state())
@@ -366,13 +375,9 @@ defmodule MediaCentaurWeb.StatusLive do
       config: assigns.config,
       metadata_stats: assigns.metadata_stats,
       low_confidence_count: assigns.overview && assigns.overview.pending_review_count,
-      # http (connections)
-      http_stats: assigns.http_stats,
-      rate_limiter: assigns.rate_limiter,
-      down_since: %{
-        prowlarr: IntegrationAvailability.down_since(:prowlarr),
-        tmdb: IntegrationAvailability.down_since(:tmdb)
-      },
+      # http (connections) — the strips arrive as frames from the feed
+      traffic_window: StripChart.Feed.window(assigns, "traffic"),
+      traffic_recent: Traffic.recent(),
       # playback
       playback: assigns.playback,
       playback_activity: assigns.playback_activity,
@@ -502,7 +507,7 @@ defmodule MediaCentaurWeb.StatusLive do
   # idle); the page re-reads the snapshot then, never on a timer.
   @impl true
   def handle_info({:pipeline_stats_updated, :content}, socket) do
-    {:noreply, assign(socket, pipeline_stats: Stats.get_snapshot(), rate_limiter: fetch_rate_limiter())}
+    {:noreply, assign(socket, pipeline_stats: Stats.get_snapshot())}
   end
 
   def handle_info({:pipeline_stats_updated, :image}, socket) do
@@ -513,17 +518,10 @@ defmodule MediaCentaurWeb.StatusLive do
      )}
   end
 
-  # HTTP figures ride the same tick: they are runtime measurements, not
-  # a projection with a change event.
+  # Runtime measurements, not a projection with a change event.
   def handle_info(:refresh_vitals, socket) do
     Process.send_after(self(), :refresh_vitals, @vitals_refresh_ms)
-
-    {:noreply,
-     assign(socket,
-       system_vitals: Vitals.snapshot(),
-       http_stats: MediaCentaur.HttpClient.Stats.snapshot(),
-       rate_limiter: fetch_rate_limiter()
-     )}
+    {:noreply, assign(socket, system_vitals: Vitals.snapshot())}
   end
 
   # Status.Views projection refreshed (library overview: entity/review
@@ -836,14 +834,6 @@ defmodule MediaCentaurWeb.StatusLive do
 
   # Derives the status page's single-card playback view from the sessions map.
   # Shows the most recently active session (playing > paused).
-
-  defp fetch_rate_limiter do
-    MediaCentaur.TMDB.RateLimiter.status()
-  rescue
-    _ -> nil
-  catch
-    :exit, _ -> nil
-  end
 
   defp fetch_retry_status do
     %{retrying_count: MediaCentaur.Pipeline.ImageQueue.retrying_count()}

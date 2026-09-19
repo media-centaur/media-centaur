@@ -1,150 +1,67 @@
 defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
   @moduledoc """
-  Connections (`:http`) Activity widget: one row per upstream with the
-  last fifteen minutes of requests, errors, latency, and cache hits,
-  plus a collapsed feed of the most recent requests.
+  Connections (`:http`) Activity widget: the request strip charts — one
+  strip per upstream over the selected window — with the collapsed feed
+  of the most recent requests in the chart's footer.
 
   Rendered into the health-board drill-in's :activity slot via
   MediaCentaurWeb.StatusLive.ActivityWidgets, invoked with a plain data
-  bundle (no change-tracking) from StatusLive.activity_bundle/1 — derive
-  with Map.put/3, never assign/3.
+  bundle (no change-tracking) from StatusLive.activity_bundle/1. The
+  strips themselves come from frames (`StatusLive.TrafficFrame`) pushed
+  by `StripChart.Feed`; this widget renders the shell and the feed list.
   """
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1]
+  import MediaCentaurWeb.Components.StripChart, only: [strip_chart: 1]
 
-  alias MediaCentaur.HttpClient.{Stats, Upstream}
+  alias MediaCentaur.HttpClient.Upstream
+  alias MediaCentaur.TimeSeries.Window
+  alias MediaCentaurWeb.StatusLive.TrafficFrame
 
-  @doc "Connections Activity widget: per-upstream request figures + recent-request feed."
-  attr :http_stats, :map,
-    required: true,
-    doc: "HttpClient.Stats.snapshot/0 — %{window_minutes, upstreams, recent}"
-
-  attr :rate_limiter, :map,
-    default: nil,
-    doc:
-      "TMDB.RateLimiter.status/0 result (%{used, total}) shown on the TMDB row, or nil when not started"
-
-  attr :down_since, :map,
-    default: %{},
-    doc:
-      "%{upstream_id => DateTime.t() | nil} — when a metered integration went down (`IntegrationAvailability.down_since/1`). A row with an entry says so instead of its last success."
+  @doc "Connections Activity widget: request strip charts + recent-request feed."
+  attr :traffic_window, :atom, required: true, values: Window.all()
+  attr :traffic_recent, :list, default: [], doc: "Traffic.recent/0 — newest first"
 
   def http_widget(assigns) do
+    # The bundle is a plain map (no change tracking) — derive with Map.put/3.
+    assigns = Map.put(assigns, :legend, TrafficFrame.legend())
+
     ~H"""
-    <div class="card glass-inset" data-testid="http-widget">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Outbound requests</h2>
-        <p class="text-xs text-base-content/55">
-          Last {@http_stats.window_minutes} minutes, with session totals in grey. Requests are what went out; Cache is what was answered here instead.
-        </p>
-
-        <div class="overflow-x-auto" data-component="http-upstreams">
-          <table class="table table-sm">
-            <thead>
-              <tr class="text-base-content/55">
-                <th>Upstream</th>
-                <th class="text-right">Requests</th>
-                <th class="text-right">Errors</th>
-                <th class="text-right">Latency</th>
-                <th class="text-right">Cache</th>
-                <th class="text-right">Last success</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                :for={row <- panel_rows(@http_stats.upstreams, @down_since)}
-                id={"http-upstream-#{row.id}"}
+    <div data-testid="http-widget">
+      <.strip_chart
+        id="traffic"
+        title="Requests"
+        lede="Requests are what went out; cache is what was answered here instead. Hover a bar to read that bucket."
+        window={@traffic_window}
+        legend={@legend}
+      >
+        <:footer>
+          <details :if={@traffic_recent != []} class="strip-chart-recent" data-component="http-recent">
+            <summary class="cursor-pointer text-xs text-base-content/55">Recent requests</summary>
+            <ul class="mt-2 space-y-0.5 font-mono text-xs">
+              <li
+                :for={entry <- @traffic_recent}
+                id={recent_row_id(entry)}
+                class="flex items-baseline gap-2"
               >
-                <td>
-                  <span class="text-base-content/80">{row.label}</span>
-                  <span
-                    :if={row.id == :tmdb and @rate_limiter}
-                    class="ml-2 font-mono text-xs text-base-content/55"
-                    data-component="tmdb-rate-budget"
-                  >
-                    {@rate_limiter.used}/{@rate_limiter.total} slots
-                  </span>
-                </td>
-                <td class="text-right tabular-nums">
-                  {row.window.requests}
-                  <span class="text-base-content/40">· {row.session.requests}</span>
-                </td>
-                <td class={["text-right tabular-nums", row.window.errors > 0 && "text-error"]}>
-                  {row.window.errors}
-                  <span class="text-base-content/40">· {row.session.errors}</span>
-                </td>
-                <td class="text-right tabular-nums">{latency_label(row.window.median_latency_ms)}</td>
-                <td class="text-right tabular-nums">{hit_ratio_label(row.window.cache)}</td>
-                <td class={["text-right", down_class(row.down_since)]}>
-                  {last_column(row)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <details :if={@http_stats.recent != []} class="mt-3" data-component="http-recent">
-          <summary class="cursor-pointer text-xs uppercase tracking-wide text-base-content/55">
-            Recent requests
-          </summary>
-          <ul class="mt-2 space-y-0.5 font-mono text-xs">
-            <li
-              :for={entry <- @http_stats.recent}
-              id={recent_row_id(entry)}
-              class="flex items-baseline gap-2"
-            >
-              <span class="text-base-content/55 shrink-0">{Calendar.strftime(entry.at, "%H:%M:%S")}</span>
-              <span class="text-base-content/60 shrink-0">{upstream_label(entry.upstream)}</span>
-              <span class="truncate text-base-content/80">
-                {entry.method |> to_string() |> String.upcase()} {entry.path}
-              </span>
-              <span class={["ml-auto shrink-0", outcome_class(entry)]}>{outcome_label(entry)}</span>
-              <span class="text-base-content/55 shrink-0 tabular-nums">{entry.duration_ms}ms</span>
-              <span class="text-base-content/55 shrink-0">{cache_label(entry.cache)}</span>
-            </li>
-          </ul>
-        </details>
-      </div>
+                <span class="text-base-content/55 shrink-0">
+                  {Calendar.strftime(entry.at, "%H:%M:%S")}
+                </span>
+                <span class="text-base-content/60 shrink-0">{Upstream.label(entry.upstream)}</span>
+                <span class="truncate text-base-content/80">
+                  {entry.method |> to_string() |> String.upcase()} {entry.path}
+                </span>
+                <span class={["ml-auto shrink-0", outcome_class(entry)]}>{outcome_label(entry)}</span>
+                <span class="text-base-content/55 shrink-0 tabular-nums">{entry.duration_ms}ms</span>
+                <span class="text-base-content/55 shrink-0">{cache_label(entry.cache)}</span>
+              </li>
+            </ul>
+          </details>
+        </:footer>
+      </.strip_chart>
     </div>
     """
   end
-
-  @doc """
-  The rows the panel shows, each carrying `:down_since` — when its
-  integration went down, or `nil`. An upstream with no availability
-  value of its own (the image CDN, GitHub, the download clients) is
-  never down here: nothing observes it that way.
-  """
-  @spec panel_rows([map()], map()) :: [map()]
-  def panel_rows(rows, down_since \\ %{}) do
-    rows
-    |> Enum.filter(&(&1.id in Upstream.panel_ids()))
-    |> Enum.map(&Map.put(&1, :down_since, Map.get(down_since, &1.id)))
-  end
-
-  defp latency_label(nil), do: "—"
-  defp latency_label(ms), do: "#{ms} ms"
-
-  defp hit_ratio_label(cache) do
-    case Stats.hit_ratio(cache) do
-      nil -> "—"
-      ratio -> "#{cache.hit} · #{round(ratio * 100)}%"
-    end
-  end
-
-  defp last_column(%{down_since: %DateTime{} = since}),
-    do: "Down since #{Calendar.strftime(since, "%H:%M")}"
-
-  defp last_column(%{last_success_at: at}), do: last_label(at)
-
-  defp down_class(%DateTime{}), do: "text-warning"
-  defp down_class(nil), do: "text-base-content/60"
-
-  defp last_label(nil), do: "—"
-  defp last_label(%DateTime{} = at), do: time_ago(at)
-
-  defp upstream_label(id), do: Upstream.label(id)
 
   defp outcome_label(%{error: error}) when is_binary(error), do: error
   defp outcome_label(%{status: status}), do: to_string(status)
@@ -157,7 +74,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Http do
   defp cache_label(outcome), do: to_string(outcome)
 
   # Stable iterator id (UIDR-012). Requests are milliseconds apart at most,
-  # so the microsecond stamp plus path is collision-proof in practice.
+  # so the second stamp plus path hash is collision-proof in practice.
   defp recent_row_id(%{at: %DateTime{} = at, path: path}) do
     "http-recent-#{DateTime.to_unix(at, :microsecond)}-#{:erlang.phash2(path)}"
   end
