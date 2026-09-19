@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
 
     strips =
       for upstream <- strip_ids(configured) do
-        s = series.(upstream, window)
+        upstream_series = series.(upstream, window)
 
         %{
           id: Atom.to_string(upstream),
@@ -58,18 +58,18 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
           figures:
             figures(
               upstream,
-              s.totals,
+              upstream_series.totals,
               last_success_at.(upstream),
               down_since_for(upstream, down_since),
               rate_limiter,
               now
             ),
-          t: s.starts,
-          failed: s.failed,
-          went_out: s.went_out,
-          cached: s.cached,
-          mean_ms: s.mean_ms,
-          worst_ms: s.worst_ms
+          t: upstream_series.starts,
+          failed: upstream_series.failed,
+          went_out: upstream_series.went_out,
+          cached: upstream_series.cached,
+          mean_ms: upstream_series.mean_ms,
+          worst_ms: upstream_series.worst_ms
         }
       end
 
