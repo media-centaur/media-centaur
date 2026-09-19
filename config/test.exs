@@ -82,6 +82,9 @@ config :media_centaur, :start_playback_recovery, false
 config :media_centaur, :start_relay_connections, false
 config :media_centaur, :start_watchers, false
 
+# Strip chart frames every 50 ms so LiveView tests can watch the tick.
+config :media_centaur, :strip_chart_tick_ms, 50
+
 # The retention sweep's staging policy walks this root with File.rm_rf —
 # point it away from the real ~/.cache so tests can never touch live
 # upgrade-staging dirs (ADR-016 filesystem isolation).
