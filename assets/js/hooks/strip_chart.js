@@ -287,6 +287,13 @@ export const StripChart = {
     if (idx == null || idx >= strip.t.length) {
       entry.time.textContent = ""
       renderFigures(entry.figures, strip.figures)
+      // Reserve the rest-state height: the hover readout has fewer lines,
+      // and letting the column shrink would reflow every strip under the
+      // pointer. Re-measured on each frame so a new line (the TMDB slots
+      // budget appearing) still grows the row at a frame boundary.
+      entry.figures.style.minHeight = ""
+      const restHeight = entry.figures.offsetHeight
+      if (restHeight > 0) entry.figures.style.minHeight = `${restHeight}px`
       return
     }
     const labeler = axisValuesFor(this.frame.window) === "day" ? dayLabel : clockLabel

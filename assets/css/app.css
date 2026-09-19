@@ -1431,13 +1431,13 @@ body:has(.modal-backdrop[data-state="open"]) {
   }
   .strip-chart-strip:first-child { border-top: 0; padding-top: 0.25rem; }
   .strip-chart-name {
-    display: flex; align-items: center; gap: 0.5rem;
+    display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; overflow: hidden;
     font-size: 0.8125rem; color: oklch(from var(--color-base-content) l c h / 0.8);
   }
   .strip-chart-dot { width: 6px; height: 6px; border-radius: 9999px; background: oklch(from var(--color-base-content) l c h / 0.3); }
   .strip-chart-dot[data-dot="ok"] { background: var(--color-success); }
   .strip-chart-dot[data-dot="failed"] { background: var(--color-error); }
-  .strip-chart-time { margin-left: auto; font-size: 0.6875rem; color: oklch(from var(--color-base-content) l c h / 0.4); }
+  .strip-chart-time { margin-left: auto; flex: none; font-size: 0.6875rem; color: oklch(from var(--color-base-content) l c h / 0.4); }
   .strip-chart-figures {
     margin-top: 0.1875rem; font-size: 0.75rem; line-height: 1.5;
     color: oklch(from var(--color-base-content) l c h / 0.55);
