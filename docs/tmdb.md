@@ -71,7 +71,13 @@ HTTP client using `Req` with base URL `https://api.themoviedb.org/3`. Endpoints:
 | `get_season/3` | `GET /tv/{id}/season/{n}` | Season details with episode list + appended `credits` (per-episode cast membership) |
 | `get_collection/2` | `GET /collection/{id}` | Movie collection details with images |
 
-Every public function takes a trailing keyword list: `client:` substitutes a `Req` client, `reload: true` fetches past a fresh cache entry. The client comes from `MediaCentaur.HttpClient.new/2` ([ADR-064](../decisions/architecture/2026-09-04-064-outbound-http-seam.md)), which attaches the response cache (`api_key` excluded from the key) and the instrumentation; `RateLimiter.attach/1` adds the rate-limit step after the cache step, so a hit never spends a slot. TMDB states freshness on every response (`Cache-Control: max-age`, about one hour for search and eight for details) and the cache honours it, revalidating stale entries with `If-None-Match`. The release-tracking refresher and the `/configuration` credential probe pass `reload: true`.
+Every public function takes a trailing keyword list: `client:` substitutes a `Req` client, `reload: true` fetches past a fresh cache entry. The client comes from `MediaCentaur.HttpClient.new/2` ([ADR-064](../decisions/architecture/2026-09-04-064-outbound-http-seam.md)), which attaches the response cache (`api_key` excluded from the key) and the instrumentation; `RateLimiter.attach/1` adds the rate-limit step after the cache step, so a hit never spends a slot. TMDB states freshness on every response (`Cache-Control: max-age`, about one hour for search and eight for details) and the cache honours it, revalidating stale entries with `If-None-Match`. The release-tracking refresher and the `/configuration` credential probe pass `reload: true`. `detail/2` is the third path: with `if_none_match:` the request carries the store's own ETag, the response cache stands aside (`:conditional`), and a 304 comes back as `{:ok, :unchanged}`.
+
+### The store
+
+`MediaCentaur.TMDB.Store` holds one record per TMDB title the app knows — the detail payload as TMDB returned it (the `images` block reduced to the selected logo), its ETag, when it was fetched and last changed, and the schedule `MediaCentaur.TMDB.Schedule` derives on every write: the next known event, the next check due, and when the title settled ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md)). Seasons are stored alongside. `Store.ensure/2` is first contact (a request only when the title has never been held), `Store.check/2` revalidates a stored title and its open seasons with their ETags and publishes `{:tmdb_title_changed, ref}` on `Topics.tmdb_titles/0` when a payload changed.
+
+Phase 1 of the `tmdb-fetch-policy` campaign: the store fills through a transitional write-through — every detail payload `get_movie/2`, `get_tv/2` and `get_season/3` fetch is recorded — while every caller still fetches for itself, and nothing schedules a check yet. Later phases move the refresher and the render-time readers onto the store.
 
 ### Confidence Scoring
 
@@ -122,7 +128,11 @@ Sliding window using Erlang `:queue`:
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.TMDB.Client` | HTTP client, endpoint methods | `lib/media_centaur/tmdb/client.ex` |
+| `MediaCentaur.TMDB.Client` | HTTP client, endpoint methods; `detail/2` is the store's conditional request path | `lib/media_centaur/tmdb/client.ex` |
+| `MediaCentaur.TMDB.Store` | One record per TMDB title the app knows — payload, ETag, fetch time, due time — and its seasons; the only detail writer (ADR-071) | `lib/media_centaur/tmdb/store.ex` |
+| `MediaCentaur.TMDB.Store.TitleRecord` | Schema for `tmdb_titles` | `lib/media_centaur/tmdb/store/title_record.ex` |
+| `MediaCentaur.TMDB.Store.SeasonRecord` | Schema for `tmdb_seasons` | `lib/media_centaur/tmdb/store/season_record.ex` |
+| `MediaCentaur.TMDB.Schedule` | Pure due-time rule: settled titles, next known event, open seasons | `lib/media_centaur/tmdb/schedule.ex` |
 | `MediaCentaur.TMDB.Confidence` | Jaro distance scoring | `lib/media_centaur/tmdb/confidence.ex` |
 | `MediaCentaur.TMDB.Mapper` | JSON → domain attribute mapping | `lib/media_centaur/tmdb/mapper.ex` |
 | `MediaCentaur.TMDB.RateLimiter` | Sliding window rate limiter + its `Req` request step | `lib/media_centaur/tmdb/rate_limiter.ex` |

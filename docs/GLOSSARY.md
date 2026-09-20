@@ -90,6 +90,23 @@ server it talks to cannot answer.
 | **Held work** | A job or tick that consulted availability, found its integration down, and waits without spending a request — `Jobs.PursueTarget`, `Jobs.RunPlan`, `DropPlanner`, `ReleaseTracking.Refresher`, `TmdbArtwork.ensure/2`. An Oban job holds by snoozing at the probe cadence, which bounds recovery to one cadence; a GenServer tick re-arms at it. Recovery is also pushed: `{:integration_availability_changed, integration, :up}` on `Topics.integration_availability_updates/0`. |
 | **Metered integration** | One that counts requests against a limit or escalates a back-off when hit repeatedly — TMDB and its CDN, Prowlarr's live searches and grabs, GitHub, Nostr relays. A **free integration** does neither (the download clients on the LAN) and keeps polling at its normal cadence during an outage; only its log noise is capped, to one line per grade transition. Cost, not cadence, decides which sources get a gate. |
 
+## TMDB store
+
+The vocabulary of `tmdb-fetch-policy` (ADR-071): the app asks TMDB only
+when it is seeking new information, and holds one record per title.
+
+| Term | Meaning |
+|---|---|
+| **TMDB store** | `MediaCentaur.TMDB.Store`: one `TitleRecord` per `(media_type, tmdb_id)` — TMDB's last detail answer, its ETag, when it was fetched and last changed, and the derived schedule — with one `SeasonRecord` per stored season. The only module that calls a `TMDB.Client` detail endpoint. Not the **response cache** (`HttpClient.Cache`, ADR-064), which is per URL, in memory and policy-free. |
+| **Fetch / request** | A fetch is a call into `TMDB.Client`; a request is a fetch that reached TMDB. A response-cache hit is not a request. |
+| **First contact** | The fetch that creates a stored title the app has never held — `Store.ensure/2`. The only fetch that is not a check. |
+| **Check** | A conditional revalidation of a stored title with its own ETag — `Store.check/2`; a 304 means unchanged. Open seasons are checked with their series. |
+| **Release facts** | The fields that change over a title's life: typed release dates, air dates, episode lists, season count, status, next episode to air. Everything else is fixed once known. |
+| **Settled title** | One whose release facts cannot change again: a movie at release stage `:home`, or 180 days past its primary date with no typed home date, or canceled; a series ended or canceled with no air date ahead. Never due. |
+| **Next known event / due** | The earliest release fact ahead of today. A check is due the day after it (noon UTC) or seven days after the last fetch, whichever is first — `TMDB.Schedule.plan/5`. |
+| **Open season** | A stored season still checked with its series: the latest numbered season, or one holding an episode with no air date or one ahead of today — `TMDB.Schedule.open_season?/3`. |
+| **Projection** | Anything derived from a stored title — calendar rows, render snapshot, release window, targeting universe, library entity fields, artwork paths — rebuilt on `{:tmdb_title_changed, ref}`, never fetched on its own. |
+
 ## Time series
 
 The vocabulary of the strip charts (design
