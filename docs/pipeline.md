@@ -34,6 +34,7 @@ inotify + scan               high confidence → matched       → publish entit
 | `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, media_dir, tmdb_id, tmdb_type, pending_file_id}}` |
 | `pipeline:publish` | Import (Ingest stage), Pipeline.Image | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
 | `pipeline:images` | Library.Inbound (and ImageRefresh / ImageRepair) | Pipeline.Image.Producer | `{:enqueue_images, %{entity_id, media_dir, images}}` — the producer creates the queue rows, then sends itself `{:images_pending, %{entity_id, media_dir}}` |
+| `tmdb:titles` | TMDB.Store | Pipeline.TmdbProjection (and ReleaseTracking.TmdbListener) | `{:tmdb_title_changed, {tmdb_id, media_type}}` — an owned title's TMDB fields, season episode lists and episode details are re-applied from the store (ADR-071) |
 | `review:intake` | Discovery, Import | Review.Intake | `{:needs_review, attrs}`, `{:review_completed, id}`, `{:files_for_review, files}` |
 | `review:updates` | Review.Intake | LiveViews | `{:file_added, id}`, `{:file_reviewed, id}` |
 | `library:updates` | Library.Inbound, Watcher | LiveViews, Channels | `{:entities_changed, entity_ids}` |
@@ -96,7 +97,7 @@ Fetches full metadata for a matched file and publishes the entity event for Libr
 **Processing flow:**
 1. **Parse** — re-parse the file path directly via `Parser.parse/2` (Import may receive files from Discovery or Review, so it always re-parses)
 2. **Disk space check** — aborts with `{:error, :insufficient_disk_space}` if the image directory's filesystem has less than 100 MB free
-3. **FetchMetadata** — fetch full TMDB details (movie, TV series, collection, season)
+3. **FetchMetadata** — read the title's TMDB details from `TMDB.Store`: first contact for a title the app has never held, the whole answer with credits (`Store.fetch_full/2`) for one the library is about to create, the stored copy for one it owns; the collection detail is still fetched directly
 4. **Ingest** — broadcast `{:entity_published, event}` to `"pipeline:publish"`
 
 After ingest, `Library.Inbound` subscribes and handles: entity creation/linking, child records (seasons, episodes, movies, extras), external ID creation, WatchedFile linking, and image queue population.
@@ -136,7 +137,7 @@ All stages are pure-function modules in `lib/media_centaur/pipeline/stages/`. Ea
 |-------|--------|---------|---------|
 | Parse | `Stages.Parse` | Discovery, Import | Extracts title, year, type from file path via `Parser` |
 | Search | `Stages.Search` | Discovery | Searches TMDB, scores confidence, decides approve/review |
-| FetchMetadata | `Stages.FetchMetadata` | Import | Fetches full TMDB details, maps to domain metadata |
+| FetchMetadata | `Stages.FetchMetadata` | Import | Reads TMDB details from the store (first contact for a new title), maps to domain metadata |
 | Ingest | `Stages.Ingest` | Import | Broadcasts entity event to `"pipeline:publish"` |
 
 ---

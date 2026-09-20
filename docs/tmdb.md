@@ -15,7 +15,8 @@ The TMDB subsystem provides rate-limited access to [The Movie Database API v3](h
 ```mermaid
 graph LR
     Search[Search Stage] --> Client
-    Fetch[FetchMetadata Stage] --> Client
+    Fetch[FetchMetadata Stage] --> Store
+    Store[TMDB.Store] --> Client
     Client[TMDB.Client] --> Seam[HttpClient.new]
     Seam --> Cache[HttpClient.Cache]
     Cache -->|"stale or missing"| RL[RateLimiter step]
@@ -54,7 +55,7 @@ Saving any field in the TMDB section clears the stored test result, so the UI co
 
 When adding a new TMDB-dependent feature, render its affordance behind `Capabilities.tmdb_ready?/0` rather than directly checking key presence — that's the only way to pick up the "configured but untested" state correctly.
 
-TMDB is consumed by four paths: the Pipeline (Discovery + Import + Image downloads), `TMDB.CheckJob` (the scheduled checks of stored titles), `TMDB.Store.ensure/2` (first contact — the one request a surface makes, for a title the app has never held), and `Review.Rematch`. Capability readiness applies to all of them.
+TMDB is consumed by three paths: the pipeline's search (`Stages.Search`, plus the collection detail the import and the artwork paths still fetch directly), `TMDB.Store` (every detail request — first contact, the scheduled checks, and the import's full fetch), and the credential probe. `Review.Rematch` makes no request of its own; it returns files to the pipeline. Capability readiness applies to all of them.
 
 ## How It Works
 
@@ -66,18 +67,16 @@ HTTP client using `Req` with base URL `https://api.themoviedb.org/3`. Endpoints:
 |----------|----------|---------|
 | `search_movie/3` | `GET /search/movie` | Search movies by title + optional year |
 | `search_tv/3` | `GET /search/tv` | Search TV series by title + optional year |
-| `get_movie/2` | `GET /movie/{id}` | Movie details with credits, release dates, images |
-| `get_tv/2` | `GET /tv/{id}` | TV series details with images |
-| `get_season/3` | `GET /tv/{id}/season/{n}` | Season details with episode list + appended `credits` (per-episode cast membership) |
-| `get_collection/2` | `GET /collection/{id}` | Movie collection details with images |
+| `detail/2` | `GET /movie/{id}`, `GET /tv/{id}`, `GET /tv/{id}/season/{n}` | The one detail read, made by `TMDB.Store` only: a movie with credits, release dates and images; a series with aggregate credits, external ids and images; a season with its episode list and appended `credits` |
+| `get_collection/2` | `GET /collection/{id}` | Movie collection details with images — the one detail still fetched outside the store (a collection is not a store identity; `collection-identity`) |
 
 Every public function takes a trailing keyword list: `client:` substitutes a `Req` client, `reload: true` fetches past a fresh cache entry. The client comes from `MediaCentaur.HttpClient.new/2` ([ADR-064](../decisions/architecture/2026-09-04-064-outbound-http-seam.md)), which attaches the response cache (`api_key` excluded from the key) and the instrumentation; `RateLimiter.attach/1` adds the rate-limit step after the cache step, so a hit never spends a slot. TMDB states freshness on every response (`Cache-Control: max-age`, about one hour for search and eight for details) and the cache honours it, revalidating stale entries with `If-None-Match`. Only the `/configuration` credential probe passes `reload: true`. `detail/2` is the third path: with `if_none_match:` the request carries the store's own ETag, the response cache stands aside (`:conditional`), and a 304 comes back as `{:ok, :unchanged}`.
 
 ### The store
 
-`MediaCentaur.TMDB.Store` holds one record per TMDB title the app knows — the detail payload as TMDB returned it (the `images` block reduced to the selected logo), its ETag, when it was fetched and last changed, and the schedule `MediaCentaur.TMDB.Schedule` derives on every write: the next known event, the next check due, and when the title settled ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md)). Seasons are stored alongside. `Store.ensure/2` is first contact (a request only when the title has never been held), `Store.check/2` revalidates a stored title and its open seasons with their ETags and publishes `{:tmdb_title_changed, ref}` on `Topics.tmdb_titles/0` when a payload changed.
+`MediaCentaur.TMDB.Store` holds one record per TMDB title the app knows — the detail payload as TMDB returned it (the `images` block reduced to the selected logo), its ETag, when it was fetched and last changed, and the schedule `MediaCentaur.TMDB.Schedule` derives on every write: the next known event, the next check due, and when the title settled ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md)). Seasons are stored alongside. `Store.ensure/2` is first contact (a request only when the title has never been held), `Store.check/2` revalidates a stored title and its open seasons with their ETags and publishes `{:tmdb_title_changed, ref}` on `Topics.tmdb_titles/0` when a payload changed, and `Store.fetch_full/2` / `fetch_full_season/3` — the full fetch — return TMDB's whole answer, credits included, for the one reader that keeps the credits (the import, when it creates a library entity), replacing the stored record as a changed check would.
 
-Who is asked and when: `MediaCentaur.TMDB.References` collects every context's references to a title (tracked, listed, pursued, in a friend's activity) and which of those schedule checks — tracked, listed and planned titles as of Phase 3 of `tmdb-fetch-policy`; a friend's activity never does. `MediaCentaur.TMDB.CheckJob` (Oban cron, `@reboot` and every quarter hour) first-contacts referenced titles the store lacks and checks the due ones; it holds while TMDB is unavailable. Release tracking rebuilds a tracked title's calendar from the store when `{:tmdb_title_changed, ref}` arrives (`ReleaseTracking.TmdbListener` → `title_changed/1`), and neither a tracked item nor a title intent carries a TMDB fact of its own — the item's name and season sizes (`ReleaseTracking.Titles`) and the intent's render snapshot (`Discovery.Titles`) are attached from the store on load, and a listed title the store has not yet first-contacted renders as a bare identity until the record lands. *Refresh from TMDB* on a title's Manage view or tracking card runs one check on demand (UIDR-044). Every LiveView, job and context outside the pipeline reads the store as of Phase 3 — the unowned preview (`Store.snapshot/1` for the modal's opening header, `Store.ensure/2` for the payload), the plan board's release window and the plan door, targeting, cours and the reconciliation spine (`Store.ensure_season/3` per season), and the artwork warm. The store still fills through a transitional write-through from `get_movie/2`, `get_tv/2` and `get_season/3` for the callers Phase 4 moves onto it: import and rematch. A payload that is not the title's own answer (no matching `id`) is refused rather than stored.
+Who is asked and when: `MediaCentaur.TMDB.References` collects every context's references to a title (tracked, listed, pursued, in a friend's activity) and which of those schedule checks — tracked, listed, planned and owned titles; a friend's activity never does. `MediaCentaur.TMDB.CheckJob` (Oban cron, `@reboot` and every quarter hour) first-contacts referenced titles the store lacks and checks the due ones; it holds while TMDB is unavailable. Release tracking rebuilds a tracked title's calendar from the store when `{:tmdb_title_changed, ref}` arrives (`ReleaseTracking.TmdbListener` → `title_changed/1`), and neither a tracked item nor a title intent carries a TMDB fact of its own — the item's name and season sizes (`ReleaseTracking.Titles`) and the intent's render snapshot (`Discovery.Titles`) are attached from the store on load, and a listed title the store has not yet first-contacted renders as a bare identity until the record lands. *Refresh from TMDB* on a title's Manage view or tracking card runs one check on demand (UIDR-044). Every reader is on the store as of Phase 4 — the unowned preview (`Store.snapshot/1` for the modal's opening header, `Store.ensure/2` for the payload), the plan board's release window and the plan door, targeting, cours and the reconciliation spine (`Store.ensure_season/3` per season), the artwork warm, artwork refresh and repair, the showcase seeder, and the import: `Pipeline.Stages.FetchMetadata` asks the library whether it owns the title, reads the stored copy for one it does, and takes the full fetch for one it does not (the credits are the library's; the answer becomes the record); a new episode's season is fetched whole for its guest stars. The library itself is a projection (ADR-071 §2.6): `Pipeline.TmdbProjection` re-applies the mapper's output to an owned movie or series when its record changes — every field but the credits and the collection facts, plus each season's episode list and each episode's name, overview, runtime and air date — and `Pipeline.TmdbReferences` makes every owned title a scheduled reference. A payload that is not the title's own answer (no matching `id`) is refused rather than stored.
 
 ### Confidence Scoring
 
@@ -128,8 +127,10 @@ Sliding window using Erlang `:queue`:
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentaur.TMDB.Client` | HTTP client, endpoint methods; `detail/2` is the store's conditional request path | `lib/media_centaur/tmdb/client.ex` |
-| `MediaCentaur.TMDB.Store` | One record per TMDB title the app knows — payload, ETag, fetch time, due time — and its seasons; the only detail writer (ADR-071) | `lib/media_centaur/tmdb/store.ex` |
+| `MediaCentaur.TMDB.Client` | HTTP client: search, the credential probe, the collection detail, and `detail/2` — the store's one detail read | `lib/media_centaur/tmdb/client.ex` |
+| `MediaCentaur.TMDB.Store` | One record per TMDB title the app knows — payload, ETag, fetch time, due time — and its seasons; the only detail caller (ADR-071): first contact, checks, the full fetch | `lib/media_centaur/tmdb/store.ex` |
+| `MediaCentaur.Pipeline.TmdbProjection` | Re-applies an owned title's TMDB fields, season lists and episode details from the store on `{:tmdb_title_changed, ref}` | `lib/media_centaur/pipeline/tmdb_projection.ex` |
+| `MediaCentaur.Pipeline.TmdbReferences` | The library's references: every owned movie and series, scheduled | `lib/media_centaur/pipeline/tmdb_references.ex` |
 | `MediaCentaur.TMDB.Store.TitleRecord` | Schema for `tmdb_titles` | `lib/media_centaur/tmdb/store/title_record.ex` |
 | `MediaCentaur.TMDB.Store.SeasonRecord` | Schema for `tmdb_seasons` | `lib/media_centaur/tmdb/store/season_record.ex` |
 | `MediaCentaur.TMDB.Schedule` | Pure due-time rule: settled titles, next known event, open seasons | `lib/media_centaur/tmdb/schedule.ex` |
