@@ -50,8 +50,8 @@ render-time fetches and the empty cache after every restart on top.
 
 Planning. Audit complete 2026-09-19 (three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-Definition and settled-title rule agreed 2026-09-20 (Decisions);
-due-time rule and storage open; no design, no code.
+Definition, settled-title rule and due-time rule agreed 2026-09-20
+(Decisions); storage open; no design, no code.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -198,30 +198,33 @@ Append-only.
   date appears will be far enough out that learning it days later costs
   nothing. Check cadence follows the distance to the next known event,
   not a clock. Owner.
+* `2026-09-20` — **The due-time rule.** Each unsettled title stores its
+  next known event (next air date; next typed movie date, else the
+  primary date). A check is due the day after that event or 7 days
+  after the last check, whichever comes first. A settled title is never
+  due; the Manage view's manual refresh is the only way to check one.
+  The *Refresh interval (hours)* setting is removed, not repurposed.
+  Owner.
 
 ## Open questions for the owner
 
 In order; each answer shapes the next.
 
-1. **The due-time rule.** A check is due after the next known event
-   passes, and otherwise on a slow heartbeat; the numbers, and whether
-   the heartbeat replaces the *Refresh interval (hours)* setting or is
-   hard-coded.
-2. **Which surfaces move to stored reads, and what gets stored where.**
+1. **Which surfaces move to stored reads, and what gets stored where.**
    The release window and season air dates have no home; the title
    snapshot has no fetch time; a title-level record would touch
    `collection-identity`'s territory.
-3. **Checks revalidate rather than reload**, and skip the write when
+2. **Checks revalidate rather than reload**, and skip the write when
    the answer is 304.
-4. **Response cache changes**: normalise the search key; stale-if-error;
+3. **Response cache changes**: normalise the search key; stale-if-error;
    persistence. Each weighed on its own merits.
-5. **The manual refresh control**: on the Manage view of owned titles
+4. **The manual refresh control**: on the Manage view of owned titles
    (decided); whether tracked-but-unowned titles get the same control,
    and where.
 
 ## Next steps
 
-1. Settle the due-time rule and the storage question with the owner. Restate the
+1. Settle the storage question with the owner. Restate the
    working terms as the app's own controls before asking.
 2. Write the design at
    `docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-design.md`;
