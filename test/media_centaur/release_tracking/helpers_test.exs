@@ -1,6 +1,7 @@
 defmodule MediaCentaur.ReleaseTracking.HelpersTest do
   use MediaCentaur.Case, async: true
 
+  alias MediaCentaur.ReleaseTracking.Calendar
   alias MediaCentaur.ReleaseTracking.Helpers
 
   describe "parse_tmdb_id/1" do
@@ -39,7 +40,7 @@ defmodule MediaCentaur.ReleaseTracking.HelpersTest do
         }
       }
 
-      releases = MediaCentaur.ReleaseTracking.Calendar.movie_releases(response)
+      releases = Calendar.movie_releases(response)
 
       theatrical = Enum.find(releases, &(Map.get(&1, :release_type) == "theatrical"))
       digital = Enum.find(releases, &(Map.get(&1, :release_type) == "digital"))
@@ -52,7 +53,7 @@ defmodule MediaCentaur.ReleaseTracking.HelpersTest do
     test "falls back to a single theatrical release when no typed dates exist" do
       response = %{"title" => "Sample Film", "release_date" => "2026-06-23"}
 
-      assert [release] = MediaCentaur.ReleaseTracking.Calendar.movie_releases(response)
+      assert [release] = Calendar.movie_releases(response)
       assert release.release_type == "theatrical"
       assert release.air_date == ~D[2026-06-23]
     end
@@ -60,7 +61,7 @@ defmodule MediaCentaur.ReleaseTracking.HelpersTest do
     test "stamps every row with the movie's own tmdb id (want-ledger unit identity)" do
       response = %{"id" => 603, "title" => "Sample Film", "release_date" => "2026-06-23"}
 
-      assert [release] = MediaCentaur.ReleaseTracking.Calendar.movie_releases(response)
+      assert [release] = Calendar.movie_releases(response)
       assert release.part_tmdb_id == 603
     end
   end

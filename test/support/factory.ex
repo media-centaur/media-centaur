@@ -33,6 +33,8 @@ defmodule MediaCentaur.TestFactory do
   }
 
   alias MediaCentaur.Review
+  alias MediaCentaur.TMDB
+  alias MediaCentaur.TmdbStubs
 
   # ---------------------------------------------------------------------------
   # build_* — plain structs, no database
@@ -895,7 +897,7 @@ defmodule MediaCentaur.TestFactory do
       payload = payload || default_tracked_payload(media_type, tmdb_id, name)
 
       {:ok, _record} =
-        MediaCentaur.TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
+        TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
     end
 
     attrs =
@@ -909,7 +911,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   defp default_tracked_payload(:movie, tmdb_id, name) do
-    MediaCentaur.TmdbStubs.movie_detail(%{
+    TmdbStubs.movie_detail(%{
       "id" => tmdb_id,
       "title" => name,
       "release_date" => Date.utc_today() |> Date.add(30) |> Date.to_iso8601()
@@ -917,7 +919,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   defp default_tracked_payload(:tv_series, tmdb_id, name) do
-    MediaCentaur.TmdbStubs.tv_detail(%{
+    TmdbStubs.tv_detail(%{
       "id" => tmdb_id,
       "name" => name,
       "status" => "Returning Series",
@@ -956,7 +958,7 @@ defmodule MediaCentaur.TestFactory do
       settled_at: nil
     }
 
-    struct(MediaCentaur.TMDB.Store.TitleRecord, Map.merge(defaults, overrides))
+    struct(TMDB.Store.TitleRecord, Map.merge(defaults, overrides))
   end
 
   @doc """
@@ -971,7 +973,7 @@ defmodule MediaCentaur.TestFactory do
     payload = Map.get_lazy(attrs, :payload, fn -> default_title_payload(media_type, tmdb_id) end)
     etag = Map.get(attrs, :etag, ~s(W/"v1"))
 
-    {:ok, record} = MediaCentaur.TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
+    {:ok, record} = TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
     record
   end
 
@@ -982,11 +984,11 @@ defmodule MediaCentaur.TestFactory do
 
     payload =
       Map.get_lazy(attrs, :payload, fn ->
-        MediaCentaur.TmdbStubs.season_detail(%{"season_number" => season_number})
+        TmdbStubs.season_detail(%{"season_number" => season_number})
       end)
 
     {:ok, record} =
-      MediaCentaur.TMDB.Store.record_season_fetched(
+      TMDB.Store.record_season_fetched(
         tmdb_id,
         season_number,
         payload,
@@ -998,11 +1000,11 @@ defmodule MediaCentaur.TestFactory do
 
   defp default_title_payload(:movie, tmdb_id) do
     recent = Date.utc_today() |> Date.add(-30) |> Date.to_iso8601()
-    MediaCentaur.TmdbStubs.movie_detail(%{"id" => tmdb_id, "release_date" => recent})
+    TmdbStubs.movie_detail(%{"id" => tmdb_id, "release_date" => recent})
   end
 
   defp default_title_payload(:tv_series, tmdb_id) do
-    MediaCentaur.TmdbStubs.tv_detail(%{
+    TmdbStubs.tv_detail(%{
       "id" => tmdb_id,
       "status" => "Returning Series",
       "seasons" => []
