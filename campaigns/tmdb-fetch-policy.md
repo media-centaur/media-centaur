@@ -283,6 +283,18 @@ Append-only.
   (design row V). The transitional write-through stays for Phase 4's
   callers, import and rematch. Plan:
   [`2026-09-20-tmdb-fetch-policy-phase-3-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-3-plan.md).
+* `2026-09-20` — **Phase 3 verified on the dev node** after a service
+  restart: the migration ran at boot (`title_intents.title` gone); the
+  `@reboot` tick completed in 5 ms with nothing to first-contact — all
+  eight referenced titles (eight listed, five of them tracked) were
+  already held, the three listed-only ones since a quarter-hour tick
+  during Phase 2 (a reference is first-contacted whether or not it
+  schedules checks); opening an unheld title's detail from the
+  watchlist URL made exactly one request (`/3/movie/{id}`, response
+  cache miss, record stored and settled), and opening it again made
+  none. The traffic ring showed no other TMDB request in the two hours
+  around the restart. The probe record was deleted afterwards; Phase 5's
+  retention sweep is what removes such unreferenced records in general.
 * `2026-09-20` — **Phase 2 verified on the dev node** after a service
   restart: the migration ran at boot; the `@reboot` tick first-contacted
   the three tracked titles the store lacked (0.5 s, three requests) and

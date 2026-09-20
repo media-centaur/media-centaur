@@ -48,9 +48,9 @@
 
 ### Task 4: Records
 
-- [ ] `docs/tmdb.md` store paragraph (Phase 3 state), design doc rows G/I–O/V marked landed with a dated note, `campaigns/tmdb-fetch-policy.md` (Status, Decisions, Next steps → Phase 4), `campaigns/README.md`; glossary *Reference* row (listed and planned now schedule). Wiki: nothing user-visible changed in this phase beyond speed; no edit.
-- [ ] Commit.
+- [x] `docs/tmdb.md` store paragraph (Phase 3 state), design doc rows G/I–O/V marked landed with a dated note, `campaigns/tmdb-fetch-policy.md` (Status, Decisions, Next steps → Phase 4), `campaigns/README.md`; glossary *Reference* row (listed and planned now schedule). Wiki: nothing user-visible changed in this phase beyond speed; no edit.
+- [x] Commit.
 
 ### Task 5: Gate and the dev node
 
-- [ ] `agent-mix precommit` (foreground). Restart `media-centaur-dev`; confirm the migration ran; open an unowned title and confirm no request on the second open; confirm the boot tick now first-contacts the 8 listed titles; record in the campaign.
+- [x] `agent-mix precommit` (foreground). Restart `media-centaur-dev`; confirm the migration ran; open an unowned title and confirm no request on the second open; confirm the boot tick now first-contacts the 8 listed titles; record in the campaign.
