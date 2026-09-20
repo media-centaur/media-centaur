@@ -388,6 +388,26 @@ defmodule MediaCentaur.TMDB.StoreTest do
     end
   end
 
+  describe "get_many/1 and seasons_for/1" do
+    test "get_many/1 returns the stored records by ref, missing refs absent" do
+      a = create_title_record(%{tmdb_id: 610, media_type: :movie})
+      b = create_title_record(%{tmdb_id: 611, media_type: :tv_series})
+
+      found = Store.get_many([{610, :movie}, {611, :tv_series}, {612, :movie}])
+      assert %{{610, :movie} => ^a, {611, :tv_series} => ^b} = found
+      assert map_size(found) == 2
+    end
+
+    test "seasons_for/1 groups the stored seasons of several series" do
+      create_season_record(%{tmdb_id: 620, season_number: 2})
+      create_season_record(%{tmdb_id: 620, season_number: 1})
+      create_season_record(%{tmdb_id: 621, season_number: 1})
+
+      assert %{620 => [%SeasonRecord{season_number: 1}, %SeasonRecord{season_number: 2}], 621 => [_one]} =
+               Store.seasons_for([620, 621, 622])
+    end
+  end
+
   describe "due/1" do
     test "returns unsettled titles whose check time has passed, oldest first" do
       now = DateTime.utc_now(:second)

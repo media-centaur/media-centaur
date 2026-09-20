@@ -60,6 +60,26 @@ defmodule MediaCentaur.TMDB.Store do
     end
   end
 
+  @doc "The stored titles for `refs`, keyed by ref; a ref the store lacks is absent."
+  @spec get_many(Enumerable.t()) :: %{ref() => TitleRecord.t()}
+  def get_many(refs) do
+    refs = Enum.to_list(refs)
+    ids = refs |> Enum.map(fn {id, _type} -> id end) |> Enum.uniq()
+
+    from(t in TitleRecord, where: t.tmdb_id in ^ids)
+    |> Repo.all()
+    |> Map.new(&{{&1.tmdb_id, &1.media_type}, &1})
+    |> Map.take(refs)
+  end
+
+  @doc "The stored seasons of several series, keyed by series id, each list by season number."
+  @spec seasons_for([pos_integer()]) :: %{pos_integer() => [SeasonRecord.t()]}
+  def seasons_for(tmdb_ids) do
+    from(s in SeasonRecord, where: s.tmdb_id in ^tmdb_ids, order_by: [s.tmdb_id, s.season_number])
+    |> Repo.all()
+    |> Enum.group_by(& &1.tmdb_id)
+  end
+
   @doc "Every stored season of a series, by season number."
   @spec seasons(pos_integer() | String.t()) :: [SeasonRecord.t()]
   def seasons(tmdb_id) do
