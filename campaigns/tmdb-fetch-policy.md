@@ -260,6 +260,19 @@ Append-only.
   is unscheduled rather than a crash in the upcoming feed. Plan:
   [`2026-09-20-tmdb-fetch-policy-phase-2-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-2-plan.md);
   [UIDR-044](../decisions/user-interface/2026-09-20-044-refresh-from-tmdb.md).
+* `2026-09-20` — **Phase 2 verified on the dev node** after a service
+  restart: the migration ran at boot; the `@reboot` tick first-contacted
+  the three tracked titles the store lacked (0.5 s, three requests) and
+  the store holds all five; two titles forced due were checked and their
+  calendars rebuilt through the listener (the series' ten releases and
+  its season sizes re-derived from the store); a first-contact payload
+  now weighs 2–15 KB for a movie and 7 KB for a series with the credits
+  dropped. Cost per tracked title: **before** 4 reloads a day (28 a
+  week, forever); **after** one revalidation a week while unsettled, one
+  more the day after its next date, zero once settled. The `@reboot`
+  tick fires on the first minute boundary after boot and can race the
+  capability cache on an unlucky second — it then holds, and the
+  quarter-hour tick catches up; accepted.
 
 ## Open questions for the owner
 
@@ -267,16 +280,12 @@ None. The payload-size question was decided 2026-09-20 (Decisions).
 
 ## Next steps
 
-1. Verify Phase 2 on the dev node after a service restart (the cron rows
-   need a boot): the `@reboot` tick first-contacts the tracked titles,
-   a forced due check answers 304 through `:conditional`, and a settled
-   title is never asked. Record the requests per cycle before and after.
-2. Phase 3 plan: surfaces read the store — the unowned preview, the plan
+1. Phase 3 plan: surfaces read the store — the unowned preview, the plan
    board's release window, the plan preview, targeting, cours, the
    spine, plan identity, `TmdbArtwork.ensure/2`; the intent embed
    dropped; Discovery and Acquisition providers start scheduling checks;
    the mix task read or retired.
-3. At the next release, the CHANGELOG's *Migration safety* lines:
+2. At the next release, the CHANGELOG's *Migration safety* lines:
    `20260920100000_create_tmdb_store` (two additive tables) and
    `20260920130000_release_tracking_items_read_the_store` (eight
    columns dropped, three settings rows deleted; the store refills from
