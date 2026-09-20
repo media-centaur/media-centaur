@@ -16,8 +16,6 @@ defmodule MediaCentaur.TMDB.Identifiers do
   exact identity check possible.
   """
 
-  alias MediaCentaur.TMDB.Client
-
   @type t :: %{imdb_id: String.t() | nil, tvdb_id: String.t() | nil}
 
   @doc """
@@ -37,23 +35,6 @@ defmodule MediaCentaur.TMDB.Identifiers do
 
     %{imdb_id: presence(external["imdb_id"]), tvdb_id: presence(external["tvdb_id"])}
   end
-
-  @doc """
-  Fetches a title's external ids from TMDB. Best-effort: an unreachable
-  or unhelpful TMDB yields empty ids rather than an error, because every
-  consumer treats identity as optional evidence and falls back to
-  matching on the release name.
-  """
-  @spec fetch(:movie | :tv, String.t() | integer(), keyword()) :: t()
-  def fetch(type, tmdb_id, opts \\ []) do
-    case fetch_payload(type, tmdb_id, opts) do
-      {:ok, payload} -> from_payload(type, payload)
-      {:error, _reason} -> %{imdb_id: nil, tvdb_id: nil}
-    end
-  end
-
-  defp fetch_payload(:movie, tmdb_id, opts), do: Client.get_movie(tmdb_id, opts)
-  defp fetch_payload(:tv, tmdb_id, opts), do: Client.get_tv(tmdb_id, opts)
 
   defp presence(id) when is_integer(id) and id > 0, do: Integer.to_string(id)
   defp presence(id) when is_binary(id), do: if(String.trim(id) != "", do: id)
