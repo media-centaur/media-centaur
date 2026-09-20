@@ -232,30 +232,30 @@ Append-only.
   ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md);
   plan
   [`2026-09-20-tmdb-fetch-policy-phase-1-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-1-plan.md))
+* `2026-09-20` — **The stored payload drops the credits blocks** (a
+  title's `credits`/`aggregate_credits`, a season's `credits`, an
+  episode's `guest_stars`/`crew`); Phase 4's import requests credits
+  once, separately. Owner, on the Phase 1 measurement (26 KB / 245 KB /
+  485 KB). Design §2.1 amended.
+* `2026-09-20` — **Scheduled-ness is a query, not a column.** Whether a
+  stored title is checked is decided by a reference predicate at the
+  moment the checker runs (tracked in Phase 2; listed, owned and planned
+  as later phases move those readers onto the store). A stored flag
+  would be a second representation of "who references this identity".
+  Design §2.1/§2.4 amended.
 
 ## Open questions for the owner
 
-1. **Payload size** (design §7, decision 6). Measured on the owner's
-   node at first contact: a movie 26 KB, a series 245 KB, one
-   38-episode season 485 KB. The credits blocks (`aggregate_credits`,
-   season `credits`, per-episode `guest_stars`/`crew`) are the bulk and
-   are read only at import, to project cast onto library entities.
-   Options before Phase 2 widens the population: (a) keep the payload
-   whole and accept about 0.5 MB per stored season; (b) drop the credits
-   blocks from the stored payload and have the Phase 4 import request
-   them once, separately, when it materialises a library entity;
-   (c) keep a bounded top of the cast list. Recommendation: (b) — the
-   store holds what the app re-reads; credits are read once.
+None. The payload-size question was decided 2026-09-20 (Decisions).
 
 ## Next steps
 
-1. Owner decides the payload-size question above.
-2. Phase 2 plan: checks replace the refresher — `TMDB.CheckJob`,
+1. Phase 2 plan: checks replace the refresher — `TMDB.CheckJob`,
    release rows rebuilt on change, `Item` shrinks, the interval setting
    goes, *Refresh from TMDB* on the Manage view and tracking controls,
    the one-time backfill, the wiki pages (including the 6-hour versus
    24-hour contradiction).
-3. At the next release, the CHANGELOG's *Migration safety* line for
+2. At the next release, the CHANGELOG's *Migration safety* line for
    `20260920100000_create_tmdb_store`: two additive tables, no backfill,
    no user-visible change.
 

@@ -53,14 +53,14 @@ changed.
 | Column | Meaning |
 |---|---|
 | `media_type`, `tmdb_id` | The identity. Unique together. |
-| `payload` (map) | TMDB's detail answer as received (`movie/{id}` with `credits,release_dates,images`; `tv/{id}` with `aggregate_credits,external_ids,images`), except the `images` block, which is reduced to the three paths the app selects (poster, backdrop, logo). Stored as received so every existing `from_payload` constructor keeps working. |
+| `payload` (map) | TMDB's detail answer as received (`movie/{id}` with `credits,release_dates,images`; `tv/{id}` with `aggregate_credits,external_ids,images`), except the `images` block, which is reduced to the three paths the app selects (poster, backdrop, logo). Stored as received so every existing `from_payload` constructor keeps working. *Amended 2026-09-20 after Phase 1 measured 26 KB / 245 KB / 485 KB for a movie, a series and one 38-episode season:* the credits blocks (`credits`, `aggregate_credits`, season `credits`, per-episode `guest_stars` and `crew`) are dropped too — they are read only at import, which in Phase 4 requests them once, separately, when it materialises a library entity. |
 | `etag` | TMDB's validator for the payload. Owned here, not by the response cache. |
 | `fetched_at` | When TMDB last answered — 200 or 304. |
 | `changed_at` | When the payload last differed from what was stored. |
 | `next_event_on` (date) | Derived from the payload; `nil` when nothing is known. |
 | `next_check_at` (datetime) | Derived; `nil` when settled or unscheduled. |
 | `settled_at` (datetime) | Set the first time the settled rule holds; cleared if a later check unsettles it (a revival). |
-| `scheduled` (boolean) | Whether checks are scheduled for this title. Derived from references (§2.4). |
+| ~~`scheduled` (boolean)~~ | *Amended 2026-09-20:* not a column. Whether a title is scheduled is a query over its references (§2.4), so it cannot drift from them — a stored flag would be a second representation of "who references this identity". `Store.due/1` selects due records that a reference predicate admits; the predicate widens phase by phase (tracked in Phase 2, listed in Phase 3, owned and planned in Phase 4). |
 
 **`tmdb_seasons`** — one row per `(tmdb_id, season_number)` of a stored
 series: `payload` (the `season/{n}` answer with `credits`), `etag`,
@@ -113,10 +113,11 @@ that means the user cares how it unfolds: a library entity, a title
 intent at List or above, a tracked item, an open plan or pursuit. A
 title held only through a friend's activity or a one-off open is
 stored on first contact but never scheduled — otherwise the social
-feed would drive unbounded checking. `scheduled` is recomputed when
-references change (rung set, entity created or deleted, plan closed).
-An unscheduled title's record ages until a person refreshes it or a
-reference schedules it; it is never fetched on open.
+feed would drive unbounded checking. Scheduled-ness is a query over the
+referencing tables at the moment the checker runs, never a stored flag
+(amended 2026-09-20, see §2.1). An unscheduled title's record ages
+until a person refreshes it or a reference schedules it; it is never
+fetched on open.
 
 A stored title with **no reference at all** is swept after 7 days,
 together with its seasons and its artwork — the same lifetime

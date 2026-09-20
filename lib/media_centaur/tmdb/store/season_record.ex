@@ -1,8 +1,8 @@
 defmodule MediaCentaur.TMDB.Store.SeasonRecord do
   @moduledoc """
-  One season of a stored series: TMDB's `season/{n}` answer with its
-  appended credits, the `etag` to revalidate it with, and when it was
-  fetched and last changed. A season has no schedule of its own — it is
+  One season of a stored series: TMDB's `season/{n}` answer less its
+  credits (`MediaCentaur.TMDB.Store.trim_payload/1`), the `etag` to
+  revalidate it with, and when it was fetched and last changed. A season has no schedule of its own — it is
   checked with its series while
   `MediaCentaur.TMDB.Schedule.open_season?/3` says it is open. Written
   only by `MediaCentaur.TMDB.Store`.

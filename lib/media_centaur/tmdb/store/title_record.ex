@@ -1,9 +1,10 @@
 defmodule MediaCentaur.TMDB.Store.TitleRecord do
   @moduledoc """
   One TMDB title as the app knows it: TMDB's last detail answer
-  (`payload`, as received except the `images` block, which
-  `MediaCentaur.TMDB.Store.trim_payload/1` reduces to the selected
-  logo), the `etag` to revalidate it with, when TMDB last answered
+  (`payload`, as received except what
+  `MediaCentaur.TMDB.Store.trim_payload/1` removes — the `images` block
+  beyond the selected logo, and the credits), the `etag` to revalidate
+  it with, when TMDB last answered
   (`fetched_at`, moved by a 200 or a 304), when the payload last
   differed (`changed_at`), and the schedule `MediaCentaur.TMDB.Schedule`
   derives: `next_event_on`, `next_check_at` (nil when settled), and
