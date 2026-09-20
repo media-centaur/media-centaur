@@ -12,6 +12,8 @@ defmodule MediaCentaurWeb.Storybook.Title do
 
   def entry("sentiment_glyph"), do: [icon: {:fa, "thumbs-up", :thin}, name: "Sentiment glyph"]
 
+  def entry("refresh_from_tmdb"), do: [icon: {:fa, "cloud-arrow-down", :thin}, name: "Refresh from TMDB"]
+
   def entry("tracking_controls"), do: [icon: {:fa, "sliders", :thin}, name: "Tracking controls"]
 
   def entry("title_row"), do: [icon: {:fa, "bookmark", :thin}, name: "Title row"]

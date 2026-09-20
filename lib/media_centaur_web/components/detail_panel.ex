@@ -98,6 +98,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
   alias MediaCentaurWeb.Components.Title.LowerQualityNote
   alias MediaCentaurWeb.Components.Title.ModalState
+  alias MediaCentaurWeb.Components.Title.RefreshFromTmdb
   alias MediaCentaurWeb.Components.Title.Pennant
   alias MediaCentaurWeb.Components.Title.TrackingControls
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
@@ -348,6 +349,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               delete_confirm={@state.delete_confirm}
               deleting={@state.deleting}
               tmdb_ready={@tmdb_ready}
+              tmdb_checking?={@state.tmdb_checking}
               expanded_groups={@state.expanded_file_groups}
               title_ref={@ref}
               lower_quality_accepted?={@detail.lower_quality_accepted?}
@@ -371,6 +373,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           detail={@detail}
           ref={@ref}
           today={@today}
+          tmdb_ready={@tmdb_ready}
+          checking?={@state.tmdb_checking}
         />
       </:body>
     </CinematicShell.cinematic_shell>
@@ -601,6 +605,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # the left once the title is listed, what the calendar or TMDB knows of
   # its dates on the right. The card sits under the list so choosing a
   # rung adds content below it and never moves it.
+  attr :tmdb_ready, :boolean, default: true
+  attr :checking?, :boolean, default: false, doc: "a Refresh from TMDB check in flight (UIDR-044)."
+
   defp tracking_card(assigns) do
     assigns =
       assigns
@@ -635,6 +642,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             id="detail-lower-quality"
             ref={@ref}
             accepted?={@lower_quality_note?}
+          />
+          <%!-- The same rule for asking TMDB again (UIDR-044): an owned
+                title has it on the Manage toolbar; a tracked one here. --%>
+          <RefreshFromTmdb.refresh_from_tmdb
+            :if={@tmdb_ready and is_nil(@detail.library) and @detail.rung in [:follow, :grab]}
+            id="detail-refresh-from-tmdb"
+            ref={@ref}
+            surface={:tracking}
+            checking?={@checking?}
           />
         </div>
         <ReleaseDates.release_dates
