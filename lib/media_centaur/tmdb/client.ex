@@ -190,7 +190,9 @@ defmodule MediaCentaur.TMDB.Client do
 
       {:ok, %{status: 304} = response} ->
         Availability.observe_request({:ok, Cache.outcome(response)})
-        Log.info(:tmdb, "checked #{subject} — unchanged")
+        # The store logs the check and its schedule at :info; this is the
+        # transport fact beneath it.
+        Log.debug(:tmdb, "checked #{subject} — unchanged")
         {:ok, :unchanged}
 
       {:ok, %{status: status, body: body}} ->
