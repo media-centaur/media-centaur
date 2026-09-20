@@ -130,6 +130,27 @@ defmodule MediaCentaur.TMDB.Mapper do
     }
   end
 
+  @doc """
+  Every episode a season payload names, as `Library.Season.episode_list`
+  entries — number, name and air date — whether or not a file for it
+  was imported. TMDB dates an undated episode as `""` rather than
+  omitting the key, and Ecto's `:date` cast rejects the empty string,
+  so it becomes nil. The one builder of that list: the import stage,
+  the library's re-projection and the showcase seeder all read it.
+  """
+  @spec episode_list(map()) :: [
+          %{episode_number: integer() | nil, name: String.t() | nil, air_date: String.t() | nil}
+        ]
+  def episode_list(season_data) do
+    Enum.map(season_data["episodes"] || [], fn episode ->
+      %{
+        episode_number: episode["episode_number"],
+        name: episode["name"],
+        air_date: presence(episode["air_date"])
+      }
+    end)
+  end
+
   # TMDB models episode cast as "the season's billed regulars, plus this
   # episode's guest stars" — that is exactly what its own episode pages
   # show. Membership is stored as TMDB person ids referencing the series'

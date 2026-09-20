@@ -330,6 +330,132 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
   end
 
   # ---------------------------------------------------------------------------
+  # The store (ADR-071)
+  # ---------------------------------------------------------------------------
+
+  describe "reading the store" do
+    alias MediaCentaur.TMDB.Store
+
+    defp full_credits do
+      cast =
+        for n <- 1..12, do: %{"id" => n, "name" => "Person #{n}", "character" => "C#{n}", "order" => n}
+
+      crew = [
+        %{"id" => 90, "name" => "A. Director", "department" => "Directing", "job" => "Director"},
+        %{"id" => 91, "name" => "A. Writer", "department" => "Writing", "job" => "Writer"}
+      ]
+
+      %{"cast" => cast, "crew" => crew}
+    end
+
+    defp owned_series do
+      series = create_tv_series(%{name: "Sample Show"})
+      create_external_id(%{tv_series_id: series.id, source: "tmdb", external_id: "1396"})
+
+      create_title_record(%{
+        tmdb_id: 1396,
+        media_type: :tv_series,
+        payload: tv_detail(%{"id" => 1396, "seasons" => [%{"season_number" => 1}]})
+      })
+
+      series
+    end
+
+    defp episode_payload do
+      payload_for(%{
+        tmdb_id: 1396,
+        tmdb_type: :tv,
+        type: :tv,
+        season: 1,
+        episode: 1,
+        file_path: "/media/TV/Sample.Show.S01E01.mkv"
+      })
+    end
+
+    test "a series the library owns is not fetched for a new episode: the stored copy serves" do
+      owned_series()
+      # TMDB now answers the series with an error; only the season is asked for.
+      stub_routes([{"/tv/1396/season/1", season_detail()}, {"/tv/1396", {:error, 500}}])
+
+      assert {:ok, result} = FetchMetadata.run(episode_payload())
+      assert result.metadata.entity_attrs.name == "Sample Show"
+      assert result.metadata.season.episode.attrs.name == "Pilot"
+    end
+
+    test "a movie the library owns is read from the store" do
+      movie = create_movie(%{name: "Sample Movie"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "550"})
+      create_title_record(%{tmdb_id: 550, media_type: :movie})
+      stub_tmdb_error("/movie/550", 500)
+
+      assert {:ok, result} = FetchMetadata.run(payload_for())
+      assert result.metadata.entity_attrs.name == "Sample Movie"
+    end
+
+    test "a new movie is fetched whole: the entity carries every credit, the record keeps ten" do
+      stub_routes([{"/movie/550", movie_detail(%{"credits" => full_credits()})}])
+
+      assert {:ok, result} = FetchMetadata.run(payload_for())
+      attrs = result.metadata.entity_attrs
+
+      assert length(attrs.cast) == 12
+      assert Enum.any?(attrs.crew, &(&1["job"] == "Writer"))
+      assert length(Store.get({550, :movie}).payload["credits"]["cast"]) == 10
+    end
+
+    test "an episode the library holds reads the stored season" do
+      series = owned_series()
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        content_url: "/media/TV/Sample.Show.S01E01.mkv"
+      })
+
+      create_season_record(%{
+        tmdb_id: 1396,
+        season_number: 1,
+        payload:
+          season_detail(%{
+            "episodes" => [
+              %{"episode_number" => 1, "name" => "Stored Pilot", "air_date" => "2020-01-01"}
+            ]
+          })
+      })
+
+      stub_tmdb_error("/tv/1396", 500)
+
+      assert {:ok, result} = FetchMetadata.run(episode_payload())
+      assert result.metadata.season.episode.attrs.name == "Stored Pilot"
+    end
+
+    test "a new episode fetches its season whole even when the store holds it: the guest stars are its credits" do
+      owned_series()
+      create_season_record(%{tmdb_id: 1396, season_number: 1})
+
+      stub_routes([
+        {"/tv/1396/season/1",
+         season_detail(%{
+           "credits" => %{"cast" => [%{"id" => 7, "name" => "Regular", "order" => 0}]},
+           "episodes" => [
+             %{
+               "episode_number" => 1,
+               "name" => "Pilot",
+               "guest_stars" => [%{"id" => 8, "name" => "Guest"}]
+             }
+           ]
+         })},
+        {"/tv/1396", {:error, 500}}
+      ])
+
+      assert {:ok, result} = FetchMetadata.run(episode_payload())
+      assert result.metadata.season.episode.attrs.cast_person_ids == [7, 8]
+      refute Map.has_key?(Store.get_season(1396, 1).payload, "credits")
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Errors
   # ---------------------------------------------------------------------------
 
