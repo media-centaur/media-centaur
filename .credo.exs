@@ -338,7 +338,13 @@
           # of release tracking's four plan paths and missed the fourth
           # because nothing enumerated them — five days of re-downloading the
           # wrong film. See `Acquisition.Plans.Doors`.
-          {MediaCentaur.Credo.Checks.PlanDoorRegistered, []}
+          {MediaCentaur.Credo.Checks.PlanDoorRegistered, []},
+          # MC0038 keeps every TMDB detail request behind `TMDB.Store` —
+          # first contact, check, full fetch — so nothing asks TMDB about a
+          # title without the policy deciding whether it was due (ADR-071,
+          # campaign tmdb-fetch-policy). `get_collection/2` is the one
+          # exception, held to its three callers until `collection-identity`.
+          {MediaCentaur.Credo.Checks.TmdbDetailSeam, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the
