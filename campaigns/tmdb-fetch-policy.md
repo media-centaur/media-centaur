@@ -50,8 +50,8 @@ render-time fetches and the empty cache after every restart on top.
 
 Planning. Audit complete 2026-09-19 (three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-Definition agreed 2026-09-20 (Decisions); settled-title rule and
-check schedule open; no design, no code.
+Definition and settled-title rule agreed 2026-09-20 (Decisions);
+due-time rule and storage open; no design, no code.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -188,34 +188,40 @@ Append-only.
   policy. Owner.
 * `2026-09-20` — **A one-day traffic sample is not a basis for the
   design.** The model must not be wasteful at any library size. Owner.
+* `2026-09-20` — **A settled title.** A movie is settled at release
+  stage `:home`, or when its primary release date is more than 180 days
+  past with no typed home date, or when canceled. A series is settled
+  when ended or canceled with no future air date known. Owner; the
+  180-day figure is provisional.
+* `2026-09-20` — **A distant date does not need to be learned quickly.**
+  When no next release is known, checking often is pointless: whatever
+  date appears will be far enough out that learning it days later costs
+  nothing. Check cadence follows the distance to the next known event,
+  not a clock. Owner.
 
 ## Open questions for the owner
 
 In order; each answer shapes the next.
 
-1. **What a settled title is**, in the code's own terms: a movie's
-   `ReleaseWindow` stage (`:unreleased | :theatrical | :home | :unknown`)
-   and `status`; a series' `status` (`:returning | :ended | :canceled |
-   :in_production | :planned`) and `next_episode_to_air`. Where the rule
-   lives.
-2. **Where the check schedule lives.** One global interval (today), or
-   a due time per title derived from its stored release facts — next
-   episode to air, announced release date, none announced.
-3. **Which surfaces move to stored reads, and what gets stored where.**
+1. **The due-time rule.** A check is due after the next known event
+   passes, and otherwise on a slow heartbeat; the numbers, and whether
+   the heartbeat replaces the *Refresh interval (hours)* setting or is
+   hard-coded.
+2. **Which surfaces move to stored reads, and what gets stored where.**
    The release window and season air dates have no home; the title
    snapshot has no fetch time; a title-level record would touch
    `collection-identity`'s territory.
-4. **Checks revalidate rather than reload**, and skip the write when
+3. **Checks revalidate rather than reload**, and skip the write when
    the answer is 304.
-5. **Response cache changes**: normalise the search key; stale-if-error;
+4. **Response cache changes**: normalise the search key; stale-if-error;
    persistence. Each weighed on its own merits.
-6. **The manual refresh control**: on the Manage view of owned titles
+5. **The manual refresh control**: on the Manage view of owned titles
    (decided); whether tracked-but-unowned titles get the same control,
    and where.
 
 ## Next steps
 
-1. Settle questions 1–2 with the owner in this session. Restate the
+1. Settle the due-time rule and the storage question with the owner. Restate the
    working terms as the app's own controls before asking.
 2. Write the design at
    `docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-design.md`;
