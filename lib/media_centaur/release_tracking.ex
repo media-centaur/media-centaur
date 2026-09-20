@@ -15,6 +15,7 @@ defmodule MediaCentaur.ReleaseTracking do
       Item,
       LibraryListener,
       Release,
+      TmdbListener,
       Want,
       Views,
       Views.ComingUp,
@@ -47,6 +48,7 @@ defmodule MediaCentaur.ReleaseTracking do
   alias MediaCentaur.Discovery.TitleIntent
 
   alias MediaCentaur.ReleaseTracking.{
+    Calendar,
     Helpers,
     Item,
     Onboarding,
@@ -54,8 +56,11 @@ defmodule MediaCentaur.ReleaseTracking do
     Wants
   }
 
+  alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
+
+  require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Topics
 
@@ -130,6 +135,87 @@ defmodule MediaCentaur.ReleaseTracking do
   def get_item_by_tmdb(tmdb_id, media_type) do
     Repo.get_by(Item, tmdb_id: tmdb_id, media_type: media_type)
   end
+
+  @doc """
+  A stored title changed (`{:tmdb_title_changed, ref}` on
+  `Topics.tmdb_titles/0`): when it is tracked, its calendar is rebuilt
+  from the store. Nothing when the title is not tracked.
+  """
+  @spec title_changed(Store.ref()) :: :ok
+  def title_changed({tmdb_id, media_type}) do
+    case get_item_by_tmdb(tmdb_id, media_type) do
+      nil ->
+        :ok
+
+      %Item{} = item ->
+        case rebuild_calendar(item) do
+          :ok ->
+            :ok
+
+          {:error, reason} ->
+            Log.warning(:acquisition, "calendar rebuild failed for tmdb:#{tmdb_id} — #{inspect(reason)}")
+        end
+
+        :ok
+    end
+  end
+
+  @doc """
+  Rebuilds a tracked item's releases from its stored title and seasons
+  (ADR-071 §2): the wanted seasons the store lacks are first-contacted,
+  the release rows replaced through `replace_releases!/3`, in-library
+  marks and the want ledger synced, artwork completed, and
+  `{:releases_updated, [item.id]}` published. The one way the calendar
+  changes after onboarding.
+  """
+  @spec rebuild_calendar(Item.t()) :: :ok | {:error, term()}
+  def rebuild_calendar(%Item{} = item) do
+    with {:ok, record} <- Store.ensure({item.tmdb_id, item.media_type}) do
+      seasons = ensure_wanted_seasons(item, record)
+      releases = calendar_releases(item, record.payload, Enum.map(seasons, & &1.payload))
+      replace_releases!(item, releases, persister_for(item))
+      mark_in_library_releases(item)
+      sync_wants(item)
+      Helpers.download_images_async(item, item.tmdb_id, record.payload)
+      broadcast_releases_updated([item.id])
+      :ok
+    end
+  end
+
+  defp calendar_releases(%Item{media_type: :tv_series} = item, payload, season_payloads) do
+    Calendar.tv_releases(payload, season_payloads, item.last_library_season, item.last_library_episode)
+  end
+
+  defp calendar_releases(%Item{media_type: :movie}, payload, _season_payloads) do
+    Calendar.movie_releases(payload)
+  end
+
+  defp persister_for(%Item{media_type: :tv_series}), do: &persist_release!/2
+  defp persister_for(%Item{media_type: :movie}), do: &persist_movie_release!/2
+
+  # A wanted season the store lacks is first contact for a title the app
+  # holds a reference to — allowed by the policy; a failure is logged and
+  # the season left out of this rebuild.
+  defp ensure_wanted_seasons(%Item{media_type: :tv_series} = item, record) do
+    record.payload
+    |> Calendar.seasons_wanted(item.last_library_season)
+    |> Enum.each(fn season_number ->
+      case Store.ensure_season(item.tmdb_id, season_number) do
+        {:ok, _season} ->
+          :ok
+
+        {:error, reason} ->
+          Log.info(
+            :acquisition,
+            "season tmdb:#{item.tmdb_id} S#{season_number} not stored — #{inspect(reason)}"
+          )
+      end
+    end)
+
+    Store.seasons(item.tmdb_id)
+  end
+
+  defp ensure_wanted_seasons(%Item{media_type: :movie}, _record), do: []
 
   @doc """
   Re-derives one title's machinery from the rung it sits at, dropping the
