@@ -7,7 +7,7 @@ defmodule MediaCentaur.TMDB.Store do
   the app shows or schedules about a title is a projection of this
   record; nothing else fetches (campaign `tmdb-fetch-policy`; ADR-071).
 
-  This module is the only writer. Three ways a record changes:
+  This module is the only writer. Four ways a record changes:
 
     * **First contact** — `ensure/2` and `ensure_season/3` fetch a title
       the app has never held. Never a request when the title is stored.
@@ -17,6 +17,11 @@ defmodule MediaCentaur.TMDB.Store do
       replaces the payload. Open seasons are checked with the title. A
       change is published as `{:tmdb_title_changed, {tmdb_id, media_type}}`
       on `MediaCentaur.Topics.tmdb_titles/0`.
+    * **The full fetch** — `fetch_full/2` and `fetch_full_season/3` ask
+      for TMDB's whole answer, credits included, for the one reader that
+      keeps the credits: the import, when it materialises a library
+      entity. The answer replaces the record as a changed check would
+      and is returned untrimmed.
     * **Write-through** — `record_fetched/3` and `record_season_fetched/4`
       are also called by `TMDB.Client` for every detail payload a caller
       fetches, so the store fills while callers still fetch for
@@ -139,11 +144,16 @@ defmodule MediaCentaur.TMDB.Store do
   """
   @spec record_fetched(ref(), map(), String.t() | nil) ::
           {:ok, TitleRecord.t()} | {:error, Ecto.Changeset.t() | :invalid_id}
-  def record_fetched({tmdb_id, media_type}, payload, etag) when is_map(payload) do
+  def record_fetched(ref, payload, etag) when is_map(payload) do
+    with {:ok, record, _changed?} <- write_fetched(ref, payload, etag), do: {:ok, record}
+  end
+
+  # {:ok, record, changed?} — the write behind `record_fetched/3` and
+  # `fetch_full/2`, which needs to know whether to announce the change.
+  defp write_fetched({tmdb_id, media_type}, payload, etag) do
     with {:ok, id} <- parse_id(tmdb_id),
-         :ok <- payload_for?(payload, "id", id),
-         {:ok, record, _changed?} <- store_title({id, media_type}, payload, etag) do
-      {:ok, record}
+         :ok <- payload_for?(payload, "id", id) do
+      store_title({id, media_type}, payload, etag)
     else
       :error -> {:error, :invalid_id}
       {:error, _reason} = error -> error
@@ -157,10 +167,14 @@ defmodule MediaCentaur.TMDB.Store do
   @spec record_season_fetched(pos_integer() | String.t(), pos_integer(), map(), String.t() | nil) ::
           {:ok, SeasonRecord.t()} | {:error, Ecto.Changeset.t() | :invalid_id}
   def record_season_fetched(tmdb_id, season_number, payload, etag) when is_map(payload) do
+    with {:ok, season, _changed?} <- write_season_fetched(tmdb_id, season_number, payload, etag),
+         do: {:ok, season}
+  end
+
+  defp write_season_fetched(tmdb_id, season_number, payload, etag) do
     with {:ok, id} <- parse_id(tmdb_id),
-         :ok <- payload_for?(payload, "season_number", season_number),
-         {:ok, season, _changed?} <- store_season(id, season_number, payload, etag) do
-      {:ok, season}
+         :ok <- payload_for?(payload, "season_number", season_number) do
+      store_season(id, season_number, payload, etag)
     else
       :error -> {:error, :invalid_id}
       {:error, _reason} = error -> error
@@ -261,6 +275,37 @@ defmodule MediaCentaur.TMDB.Store do
     case get_season(tmdb_id, season_number) do
       nil -> first_contact_season(tmdb_id, season_number, opts)
       %SeasonRecord{} = record -> {:ok, record}
+    end
+  end
+
+  @doc """
+  The title as TMDB returns it today — credits included — for the one
+  reader that keeps them: the import, when it materialises a library
+  entity (design §2.1, amended 2026-09-20). Unconditional: the answer
+  replaces the stored record the way a changed check would (trimmed,
+  schedule re-derived, `{:tmdb_title_changed, ref}` published when the
+  payload changed) and is returned whole. Not a check — nothing asks
+  whether the title is due. The response cache absorbs a batch.
+  """
+  @spec fetch_full(ref(), keyword()) :: {:ok, map()} | {:error, any()}
+  def fetch_full({tmdb_id, media_type} = ref, opts \\ []) do
+    with {:ok, %{body: body, etag: etag}} <- Client.detail(ref, opts),
+         {:ok, record, changed?} <- write_fetched(ref, body, etag) do
+      Log.info(:tmdb, "fetched #{subject(media_type, tmdb_id)} whole#{schedule_words(record)}")
+      if changed?, do: publish_changed(record)
+      {:ok, body}
+    end
+  end
+
+  @doc "As `fetch_full/2` for a season; a changed season announces its series."
+  @spec fetch_full_season(pos_integer() | String.t(), pos_integer(), keyword()) ::
+          {:ok, map()} | {:error, any()}
+  def fetch_full_season(tmdb_id, season_number, opts \\ []) do
+    with {:ok, %{body: body, etag: etag}} <-
+           Client.detail({:season, tmdb_id, season_number}, opts),
+         {:ok, season, changed?} <- write_season_fetched(tmdb_id, season_number, body, etag) do
+      if changed?, do: publish_changed({season.tmdb_id, :tv_series})
+      {:ok, body}
     end
   end
 
@@ -390,9 +435,11 @@ defmodule MediaCentaur.TMDB.Store do
     record |> TitleRecord.changeset(attrs) |> Repo.update()
   end
 
-  defp publish_changed(%TitleRecord{tmdb_id: tmdb_id, media_type: media_type}) do
-    Topics.publish(Topics.tmdb_titles(), {:tmdb_title_changed, {tmdb_id, media_type}})
-  end
+  defp publish_changed(%TitleRecord{tmdb_id: tmdb_id, media_type: media_type}),
+    do: publish_changed({tmdb_id, media_type})
+
+  defp publish_changed({tmdb_id, media_type}) when is_integer(tmdb_id),
+    do: Topics.publish(Topics.tmdb_titles(), {:tmdb_title_changed, {tmdb_id, media_type}})
 
   defp subject(:movie, tmdb_id), do: "movie tmdb:#{tmdb_id}"
   defp subject(:tv_series, tmdb_id), do: "TV tmdb:#{tmdb_id}"

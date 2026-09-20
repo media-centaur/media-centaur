@@ -416,6 +416,101 @@ defmodule MediaCentaur.TMDB.StoreTest do
     end
   end
 
+  describe "fetch_full/2 and fetch_full_season/3" do
+    setup do
+      MediaCentaur.Topics.subscribe(MediaCentaur.Topics.tmdb_titles())
+      :ok
+    end
+
+    defp full_credits do
+      cast =
+        for n <- 1..12, do: %{"id" => n, "name" => "Person #{n}", "character" => "C#{n}", "order" => n}
+
+      crew = [
+        %{"id" => 90, "name" => "A. Director", "department" => "Directing", "job" => "Director"},
+        %{"id" => 91, "name" => "A. Writer", "department" => "Writing", "job" => "Writer"}
+      ]
+
+      %{"cast" => cast, "crew" => crew}
+    end
+
+    test "an unheld title is fetched, stored trimmed and returned whole" do
+      body = TmdbStubs.movie_detail(%{"id" => 570, "credits" => full_credits()})
+      stub_check(self(), ~s(W/"none"), fn _path -> body end)
+
+      assert {:ok, payload} = Store.fetch_full({570, :movie})
+      assert_receive {:tmdb_hit, "/3/movie/570", []}
+      assert length(payload["credits"]["cast"]) == 12
+      assert Enum.any?(payload["credits"]["crew"], &(&1["job"] == "Writer"))
+
+      stored = Store.get({570, :movie})
+      assert length(stored.payload["credits"]["cast"]) == 10
+      assert Enum.map(stored.payload["credits"]["crew"], & &1["job"]) == ["Director"]
+      assert stored.etag == ~s(W/"next")
+      assert_receive {:tmdb_title_changed, {570, :movie}}
+    end
+
+    test "a held title is fetched again without a validator; a changed answer replaces the record and announces it" do
+      record = create_title_record(%{tmdb_id: 571, media_type: :movie, etag: ~s(W/"held")})
+      revised = Map.put(record.payload, "overview", "Revised.")
+      stub_check(self(), ~s(W/"held"), fn _path -> revised end)
+
+      assert {:ok, %{"overview" => "Revised."}} = Store.fetch_full({571, :movie})
+      assert_receive {:tmdb_hit, "/3/movie/571", []}
+      assert Store.get({571, :movie}).payload["overview"] == "Revised."
+      assert_receive {:tmdb_title_changed, {571, :movie}}
+    end
+
+    test "an identical answer moves the fetch time and announces nothing" do
+      record = create_title_record(%{tmdb_id: 572, media_type: :movie})
+      backdate(record, :fetched_at, ~U[2026-01-01 00:00:00Z])
+      stub_check(self(), ~s(W/"none"), fn _path -> record.payload end)
+
+      assert {:ok, _payload} = Store.fetch_full({572, :movie})
+      assert DateTime.after?(Store.get({572, :movie}).fetched_at, ~U[2026-01-01 00:00:00Z])
+      refute_receive {:tmdb_title_changed, _ref}
+    end
+
+    test "a season is returned with its credits and guest stars, which the record does not keep; a change announces the series" do
+      create_title_record(%{tmdb_id: 573, media_type: :tv_series})
+
+      season =
+        TmdbStubs.season_detail(%{
+          "season_number" => 2,
+          "credits" => %{"cast" => [%{"id" => 7, "name" => "Regular", "order" => 0}]},
+          "episodes" => [
+            %{
+              "episode_number" => 1,
+              "name" => "One",
+              "air_date" => "2020-01-01",
+              "guest_stars" => [%{"id" => 8, "name" => "Guest"}]
+            }
+          ]
+        })
+
+      stub_check(self(), ~s(W/"none"), fn _path -> season end)
+
+      assert {:ok, payload} = Store.fetch_full_season("573", 2)
+      assert_receive {:tmdb_hit, "/3/tv/573/season/2", []}
+      assert [%{"id" => 7}] = get_in(payload, ["credits", "cast"])
+      assert [%{"id" => 8}] = hd(payload["episodes"])["guest_stars"]
+
+      stored = Store.get_season(573, 2)
+      refute Map.has_key?(stored.payload, "credits")
+      refute Map.has_key?(hd(stored.payload["episodes"]), "guest_stars")
+      assert_receive {:tmdb_title_changed, {573, :tv_series}}
+    end
+
+    test "a TMDB failure is returned and the record left as it was" do
+      record = create_title_record(%{tmdb_id: 574, media_type: :movie})
+      TmdbStubs.stub_tmdb_error("/movie/574", 500)
+
+      assert {:error, _reason} = Store.fetch_full({574, :movie})
+      assert Store.get({574, :movie}).payload == record.payload
+      refute_receive {:tmdb_title_changed, _ref}
+    end
+  end
+
   describe "snapshot/1 and snapshots/1" do
     test "a stored title renders as the app's title snapshot" do
       create_title_record(%{tmdb_id: 630, media_type: :movie, name: "Sample Movie"})
