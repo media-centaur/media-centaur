@@ -307,31 +307,9 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
           />
         </div>
       </.settings_card>
-
-      <.settings_card title="Release tracking">
-        <.settings_stepper
-          id="release-tracking-interval"
-          label="Check TMDB for new release dates"
-          description="How often, in hours. A change applies after the current cycle finishes."
-          value_label={"#{refresh_hours(@config)}h"}
-          down_value={Ladder.down(refresh_ladder(), refresh_hours(@config))}
-          up_value={Ladder.up(refresh_ladder(), refresh_hours(@config))}
-          reset_value={6}
-          at_min={refresh_hours(@config) <= 1}
-          at_max={refresh_hours(@config) >= 24}
-          at_default={refresh_hours(@config) == 6}
-          event="set_release_tracking_interval"
-        />
-      </.settings_card>
     </div>
     """
   end
-
-  # The stepper's rungs for the TMDB refresh interval, in hours. A
-  # function, not an attribute: inside ~H `@name` is an assign.
-  defp refresh_ladder, do: [1, 2, 3, 4, 6, 8, 12, 24]
-
-  defp refresh_hours(config), do: config[:release_tracking_refresh_interval_hours] || 6
 
   defp secret_placeholder(true, noun), do: "Leave blank to keep the current #{noun}"
   defp secret_placeholder(_stored, "key"), do: "Enter the API key"

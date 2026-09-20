@@ -12,7 +12,10 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   It carries no authored field at all. What a person wants done about the
   title is the rung on their `Discovery.TitleIntent`, and this row exists
   exactly while that rung is `:follow` or above — so there is nothing
-  here to set, and nothing to keep in agreement with anything else.
+  here to set, and nothing to keep in agreement with anything else. It
+  carries no TMDB fact either: everything TMDB says about the title lives
+  in `MediaCentaur.TMDB.Store`, and `name` and `season_sizes` are
+  attached from it when items are loaded (ADR-071).
 
   `media_type` is the kind of content (`:movie` or `:tv_series`) and
   drives release shape and grab orchestration; `library_container_type`
@@ -36,37 +39,21 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   schema "release_tracking_items" do
     field :tmdb_id, :integer
     field :media_type, Ecto.Enum, values: [:movie, :tv_series]
-    field :name, :string
     field :library_container_type, Ecto.Enum, values: @container_types
     field :library_container_id, Ecto.UUID
-    field :last_refreshed_at, :utc_datetime
-    # TMDB origin_country ISO codes (TV only) — self-heals on refresh
-    # for rows created before the column existed.
-    field :origin_country, {:array, :string}
-    # How TMDB spells this title elsewhere (`TMDB.Identifiers`), handed
-    # to the drop planner's plans so an unattended grab can be verified
-    # against the ids indexers declare. Self-heals on refresh.
-    field :imdb_id, :string
-    field :tvdb_id, :string
-    # The title in its original language, when TMDB's canonical title is
-    # a localised one. Self-heals on refresh.
-    field :original_title, :string
-    # The film's release year (movies). TV titles leave it nil — a series
-    # spans years and the matcher's year gate is movie-only. Self-heals
-    # from TMDB on the next refresher pass.
-    field :year, :integer
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
-    # How many episodes each season of a tracked show has, keyed by
-    # season-number string (`%{"1" => 22, "2" => 10}`, specials
-    # excluded) — the same shape as `Acquisition.Plans.Plan.span_sizes`.
-    # Written by onboarding and by every refresh from the TMDB responses
-    # they already fetch (`Helpers.fetch_tv_releases/5`); read by the
-    # drop planner, which hands it to each drop plan as the fit
-    # denominator. Empty for movies and for a TV item not refreshed
-    # since the column arrived.
-    field :season_sizes, :map, default: %{}
     field :dismiss_released_before, :date
+
+    # Read from the TMDB store on load (`ReleaseTracking.Titles.attach/1`),
+    # never stored: the title's name, and how many episodes each season of
+    # a tracked show has, keyed by season-number string (`%{"1" => 22}`,
+    # specials excluded) — the same shape as
+    # `Acquisition.Plans.Plan.span_sizes`, the drop planner's fit
+    # denominator. Everything else TMDB says about the title is read
+    # from the store by whoever needs it (ADR-071).
+    field :name, :string, virtual: true
+    field :season_sizes, :map, virtual: true, default: %{}
 
     has_many :releases, MediaCentaur.ReleaseTracking.Release
 
@@ -78,20 +65,12 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     |> cast(attrs, [
       :tmdb_id,
       :media_type,
-      :name,
       :library_container_type,
       :library_container_id,
-      :last_refreshed_at,
-      :origin_country,
-      :imdb_id,
-      :tvdb_id,
-      :original_title,
-      :year,
       :last_library_season,
-      :last_library_episode,
-      :season_sizes
+      :last_library_episode
     ])
-    |> validate_required([:tmdb_id, :media_type, :name])
+    |> validate_required([:tmdb_id, :media_type])
     |> validate_container_pair()
     |> unique_constraint([:tmdb_id, :media_type],
       name: "release_tracking_items_tmdb_id_media_type_index"
@@ -101,18 +80,10 @@ defmodule MediaCentaur.ReleaseTracking.Item do
   def update_changeset(item, attrs) do
     item
     |> cast(attrs, [
-      :name,
       :library_container_type,
       :library_container_id,
-      :last_refreshed_at,
-      :origin_country,
-      :imdb_id,
-      :tvdb_id,
-      :original_title,
-      :year,
       :last_library_season,
       :last_library_episode,
-      :season_sizes,
       :dismiss_released_before
     ])
     |> validate_container_pair()

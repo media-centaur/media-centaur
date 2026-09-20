@@ -142,8 +142,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     %{id: "danger", label: "Danger Zone", group: :infra, description: "Actions that cannot be undone."}
   ]
 
-  @refresh_hours_ladder [1, 2, 3, 4, 6, 8, 12, 24]
-
   @impl true
   def mount(_params, _session, socket) do
     socket = assign(socket, page_title: "Settings")
@@ -1173,17 +1171,6 @@ defmodule MediaCentaurWeb.SettingsLive do
     planning_mode = PlanningMode.parse(%{"mode" => mode})
     PlanningMode.set(planning_mode)
     {:noreply, assign(socket, planning_mode: planning_mode)}
-  end
-
-  def handle_event("set_release_tracking_interval", %{"choice" => raw}, socket) do
-    case parse_int(raw) do
-      hours when hours in @refresh_hours_ladder ->
-        Config.update(:release_tracking_refresh_interval_hours, hours)
-        {:noreply, assign(socket, config: load_config())}
-
-      _off_ladder ->
-        {:noreply, socket}
-    end
   end
 
   # --- Controls events ---
@@ -2774,7 +2761,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       mpv_socket_timeout_ms: config.get(:mpv_socket_timeout_ms),
       file_absence_ttl_days: config.get(:file_absence_ttl_days),
       recent_changes_days: config.get(:recent_changes_days),
-      release_tracking_refresh_interval_hours: config.get(:release_tracking_refresh_interval_hours),
       extras_dirs: config.get(:extras_dirs) || [],
       skip_dirs: config.get(:skip_dirs) || [],
       database_path: config.get(:database_path),

@@ -3,7 +3,7 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
 
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.Refresher
+  alias MediaCentaur.ReleaseTracking.SweepJob
   alias MediaCentaur.ReleaseTracking.Want
 
   @yesterday Date.add(Date.utc_today(), -1)
@@ -349,7 +349,7 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
         released: false
       })
 
-      Refresher.sweep_now()
+      Oban.Testing.perform_job(SweepJob, %{}, repo: MediaCentaur.Repo, engine: Oban.Engines.Lite)
 
       assert [want] = ReleaseTracking.open_wants_for_item(item.id)
       assert want.season_number == 4

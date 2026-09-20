@@ -15,6 +15,7 @@ defmodule MediaCentaur.ReleaseTracking do
       Item,
       LibraryListener,
       Release,
+      SweepJob,
       TmdbListener,
       Want,
       Views,
@@ -53,6 +54,7 @@ defmodule MediaCentaur.ReleaseTracking do
     Item,
     Onboarding,
     Release,
+    Titles,
     Wants
   }
 
@@ -89,7 +91,7 @@ defmodule MediaCentaur.ReleaseTracking do
     Repo.update(Item.update_changeset(item, attrs))
   end
 
-  def get_item(id), do: Repo.get(Item, id)
+  def get_item(id), do: Item |> Repo.get(id) |> Titles.attach_one()
 
   @doc """
   Drops the library reason from every item pointing at one of
@@ -133,7 +135,7 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   def get_item_by_tmdb(tmdb_id, media_type) do
-    Repo.get_by(Item, tmdb_id: tmdb_id, media_type: media_type)
+    Item |> Repo.get_by(tmdb_id: tmdb_id, media_type: media_type) |> Titles.attach_one()
   end
 
   @doc """
@@ -364,7 +366,10 @@ defmodule MediaCentaur.ReleaseTracking do
   """
   @spec list_all_items() :: [Item.t()]
   def list_all_items do
-    Repo.all(from(i in Item, order_by: [asc: i.name], preload: [:releases]))
+    from(i in Item, preload: [:releases])
+    |> Repo.all()
+    |> Titles.attach()
+    |> Enum.sort_by(&(&1.name || ""))
   end
 
   @doc """
@@ -551,15 +556,16 @@ defmodule MediaCentaur.ReleaseTracking do
     cutoff = recently_completed_cutoff()
 
     all =
-      Repo.all(
-        from(r in Release,
-          join: i in assoc(r, :item),
-          where:
-            r.in_library == false or
-              (r.in_library == true and not is_nil(r.in_library_at) and
-                 r.in_library_at >= ^cutoff),
-          order_by: [asc: r.air_date],
-          preload: [:item]
+      attach_release_items(
+        Repo.all(
+          from(r in Release,
+            join: i in assoc(r, :item),
+            where:
+              r.in_library == false or
+                (r.in_library == true and not is_nil(r.in_library_at) and r.in_library_at >= ^cutoff),
+            order_by: [asc: r.air_date],
+            preload: [:item]
+          )
         )
       )
 
@@ -567,6 +573,20 @@ defmodule MediaCentaur.ReleaseTracking do
     {released, upcoming} = Enum.split_with(all, &Release.released?(&1, today))
 
     %{upcoming: upcoming, released: released}
+  end
+
+  # Releases carry their item; the item carries its stored title's name
+  # and season sizes only once attached (`Titles.attach/1`), in one batch
+  # for the whole list.
+  defp attach_release_items(releases) do
+    by_id =
+      releases
+      |> Enum.map(& &1.item)
+      |> Enum.uniq_by(& &1.id)
+      |> Titles.attach()
+      |> Map.new(&{&1.id, &1})
+
+    Enum.map(releases, &%{&1 | item: Map.fetch!(by_id, &1.item_id)})
   end
 
   defp recently_completed_cutoff do
@@ -787,16 +807,17 @@ defmodule MediaCentaur.ReleaseTracking do
     limit = Keyword.get(opts, :limit, 8)
 
     releases =
-      Repo.all(
-        from(release in Release,
-          join: item in assoc(release, :item),
-          where:
-            not is_nil(release.air_date) and
-              release.air_date >= ^from_date and
-              release.air_date <= ^to_date,
-          order_by: [asc: release.air_date, asc: release.season_number, asc: release.episode_number],
-          limit: ^limit,
-          preload: [item: item]
+      attach_release_items(
+        Repo.all(
+          from(release in Release,
+            join: item in assoc(release, :item),
+            where:
+              not is_nil(release.air_date) and release.air_date >= ^from_date and
+                release.air_date <= ^to_date,
+            order_by: [asc: release.air_date, asc: release.season_number, asc: release.episode_number],
+            limit: ^limit,
+            preload: [item: item]
+          )
         )
       )
 

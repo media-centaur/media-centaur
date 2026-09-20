@@ -323,18 +323,6 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
     end
   end
 
-  test "the release-tracking interval steps along its ladder", %{conn: conn} do
-    {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
-
-    view
-    |> element(
-      "#release-tracking-interval button[aria-label='Increase Check TMDB for new release dates']"
-    )
-    |> render_click()
-
-    assert Config.get(:release_tracking_refresh_interval_hours) == 8
-  end
-
   describe "tmdb row" do
     test "Save and test persists the key BEFORE verifying", %{conn: conn} do
       {:ok, view, _} = live_async!(conn, ~p"/settings?section=tmdb")

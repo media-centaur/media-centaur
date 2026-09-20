@@ -22,25 +22,26 @@ defmodule MediaCentaur.ReleaseTracking.Identity do
   other. One place now.
   """
 
-  alias MediaCentaur.ReleaseTracking.{Item, Want}
+  alias MediaCentaur.ReleaseTracking.{Item, Titles, Want}
   alias MediaCentaur.TMDB.TitleIdentity
 
   @doc """
   The identity of the tracked title itself — what a TV plan searches for,
-  and the starting point for a movie want.
+  and the starting point for a movie want. Read from the stored payload
+  (`TMDB.TitleIdentity.from_payload/2`), first contact when the store
+  lacks it; when TMDB cannot answer, the identity is what the item knows
+  — its ids and attached name — and the matcher treats the missing ids as
+  the optional evidence they are.
   """
   @spec for_item(Item.t()) :: TitleIdentity.t()
   def for_item(%Item{} = item) do
-    TitleIdentity.new(%{
-      tmdb_type: item.media_type,
-      tmdb_id: item.tmdb_id,
-      title: item.name,
-      imdb_id: item.imdb_id,
-      tvdb_id: item.tvdb_id,
-      original_title: item.original_title,
-      year: item.year,
-      origin_country: item.origin_country || []
-    })
+    case Titles.payload(item) do
+      {:ok, payload} ->
+        TitleIdentity.from_payload(item.media_type, payload)
+
+      {:error, _reason} ->
+        TitleIdentity.new(%{tmdb_type: item.media_type, tmdb_id: item.tmdb_id, title: item.name})
+    end
   end
 
   @doc """
@@ -53,8 +54,8 @@ defmodule MediaCentaur.ReleaseTracking.Identity do
   ## Where a movie's year comes from
 
   For the tracked film, the year is the title's own — TMDB's answer,
-  carried on the item. While that is still nil (an item refreshed before
-  the column existed), the want's acquirable date is the best available
+  read from the store. When the store cannot say (TMDB unreachable at
+  first contact), the want's acquirable date is the best available
   stand-in.
 
   For a collection part it is the *only* source: we hold no TMDB detail
@@ -66,7 +67,7 @@ defmodule MediaCentaur.ReleaseTracking.Identity do
   def for_want(%Item{} = item, %Want{part_tmdb_id: part_tmdb_id} = want) do
     if solo_movie?(item, want) do
       identity = for_item(item)
-      %{identity | title: want.title || item.name, year: identity.year || want_year(want)}
+      %{identity | title: want.title || identity.title, year: identity.year || want_year(want)}
     else
       TitleIdentity.new(%{
         tmdb_type: :movie,

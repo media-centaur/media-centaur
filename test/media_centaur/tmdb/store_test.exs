@@ -133,6 +133,24 @@ defmodule MediaCentaur.TMDB.StoreTest do
                Store.record_fetched({"556", :movie}, payload, @etag)
     end
 
+    test "refuses a payload that is not the title's own answer" do
+      assert {:error, :payload_mismatch} =
+               Store.record_fetched({559, :movie}, %{"results" => []}, @etag)
+
+      assert {:error, :payload_mismatch} =
+               Store.record_fetched({559, :movie}, TmdbStubs.movie_detail(%{"id" => 560}), @etag)
+
+      assert {:error, :payload_mismatch} =
+               Store.record_season_fetched(
+                 559,
+                 2,
+                 TmdbStubs.season_detail(%{"season_number" => 1}),
+                 @etag
+               )
+
+      assert Store.get({559, :movie}) == nil
+    end
+
     test "refuses an id that is not a TMDB id" do
       payload = TmdbStubs.movie_detail(%{"id" => 557})
 

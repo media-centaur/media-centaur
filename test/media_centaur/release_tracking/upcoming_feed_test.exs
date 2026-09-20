@@ -200,6 +200,24 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert event.title == "no-date"
       assert event.status == :unscheduled
     end
+
+    test "a theatrical release TMDB has not dated yet is :unscheduled, not bucketed" do
+      item = movie_item()
+
+      undated_theatrical =
+        release(item, %{
+          title: "Movie A",
+          air_date: nil,
+          release_type: "theatrical",
+          season_number: nil,
+          episode_number: nil
+        })
+
+      feed = UpcomingFeed.build([undated_theatrical], armed_context())
+
+      assert [%{status: :unscheduled}] = feed.unscheduled
+      assert all_events(feed) == []
+    end
   end
 
   describe "movie fallback dates (one grab per film)" do

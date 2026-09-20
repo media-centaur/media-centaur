@@ -688,6 +688,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert Discovery.rung(777, :movie) == nil
       assert has_element?(view, entry(rec) <> "[data-list-slot='list']")
 
+      # Grab onboards the title, which first-contacts its TMDB detail.
+      TmdbStubs.stub_get_movie(
+        777,
+        TmdbStubs.movie_detail(%{"id" => 777, "title" => "Sample Movie", "release_date" => "2005-01-01"})
+      )
+
       {:ok, _intent} = ReleaseTracking.set_rung(released_movie(), :grab)
 
       render_until(view, fn _html -> has_element?(view, entry(rec) <> "[data-list-slot='following']") end)

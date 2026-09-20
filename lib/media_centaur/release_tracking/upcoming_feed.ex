@@ -236,11 +236,14 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   defp kind_for(%Release{item: %{media_type: :movie}}), do: :movie
   defp kind_for(%Release{}), do: :episode
 
+  # A dateless release is unscheduled whatever its type: a theatrical date
+  # TMDB has not set yet cannot be bucketed by distance, so it takes the
+  # timeline's unscheduled list, not `:theatrical_info`.
   defp derive_status(%Release{} = release, context) do
     cond do
       release.in_library -> :in_library
-      release.release_type == "theatrical" -> :theatrical_info
       is_nil(release.air_date) -> :unscheduled
+      release.release_type == "theatrical" -> :theatrical_info
       Map.has_key?(context.grab_status_by_key, release_key(release)) -> :under_pursuit
       will_auto_grab?(release.item, context) -> armed_status(release, context)
       true -> :upcoming

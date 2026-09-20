@@ -105,38 +105,6 @@ defmodule MediaCentaur.ReleaseTracking.ExtractorTest do
     end
   end
 
-  describe "extract_collection_releases/1" do
-    test "extracts unreleased movies from collection parts" do
-      collection = %{
-        "parts" => [
-          %{"id" => 1, "title" => "Movie 1", "release_date" => "2020-01-01"},
-          %{"id" => 2, "title" => "Movie 2", "release_date" => "2027-12-25"},
-          %{"id" => 3, "title" => "Movie 3", "release_date" => ""}
-        ]
-      }
-
-      releases = Extractor.extract_collection_releases(collection)
-      assert length(releases) == 2
-
-      movie2 = Enum.find(releases, &(&1.title == "Movie 2"))
-      assert movie2.air_date == ~D[2027-12-25]
-      assert movie2.tmdb_id == 2
-
-      movie3 = Enum.find(releases, &(&1.title == "Movie 3"))
-      assert movie3.air_date == nil
-    end
-
-    test "returns empty for all-released collection" do
-      collection = %{
-        "parts" => [
-          %{"id" => 1, "title" => "Movie 1", "release_date" => "2020-01-01"}
-        ]
-      }
-
-      assert [] = Extractor.extract_collection_releases(collection)
-    end
-  end
-
   describe "extract_movie_release_dates/1" do
     test "extracts US theatrical and digital dates" do
       response = %{
