@@ -124,6 +124,192 @@ defmodule MediaCentaur.TMDB.StoreTest do
     end
   end
 
+  describe "ensure/2 and ensure_season/3" do
+    setup do
+      test_pid = self()
+
+      Req.Test.stub(:tmdb, fn conn ->
+        send(test_pid, {:tmdb_hit, conn.request_path})
+
+        body =
+          cond do
+            String.contains?(conn.request_path, "/season/") ->
+              TmdbStubs.season_detail(%{"season_number" => 1})
+
+            String.contains?(conn.request_path, "/tv/") ->
+              TmdbStubs.tv_detail(%{"id" => 1396})
+
+            true ->
+              TmdbStubs.movie_detail(%{"id" => 550})
+          end
+
+        conn
+        |> Plug.Conn.put_resp_header("etag", ~s(W/"first"))
+        |> Req.Test.json(body)
+      end)
+
+      :ok
+    end
+
+    test "a stored title is returned without a request" do
+      record = create_title_record(%{tmdb_id: 550, media_type: :movie})
+      assert {:ok, ^record} = Store.ensure({550, :movie})
+      refute_receive {:tmdb_hit, _path}
+    end
+
+    test "an unknown title is fetched once and stored with TMDB's etag" do
+      assert {:ok, %TitleRecord{tmdb_id: 550, etag: ~s(W/"first")}} = Store.ensure({550, :movie})
+      assert_receive {:tmdb_hit, "/3/movie/550"}
+      assert {:ok, %TitleRecord{}} = Store.ensure({550, :movie})
+      refute_receive {:tmdb_hit, _path}
+    end
+
+    test "an unknown season is fetched once" do
+      assert {:ok, %SeasonRecord{tmdb_id: 1396, season_number: 1}} = Store.ensure_season(1396, 1)
+      assert_receive {:tmdb_hit, "/3/tv/1396/season/1"}
+      assert {:ok, %SeasonRecord{}} = Store.ensure_season(1396, 1)
+      refute_receive {:tmdb_hit, _path}
+    end
+
+    test "a TMDB failure is returned, and nothing is stored" do
+      Req.Test.stub(:tmdb, fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
+      assert {:error, _reason} = Store.ensure({999, :movie})
+      assert Store.get({999, :movie}) == nil
+    end
+  end
+
+  describe "check/2" do
+    setup do
+      MediaCentaur.Topics.subscribe(MediaCentaur.Topics.tmdb_titles())
+      :ok
+    end
+
+    defp stub_check(test_pid, held_etag, fresh_body) do
+      Req.Test.stub(:tmdb, fn conn ->
+        validator = Plug.Conn.get_req_header(conn, "if-none-match")
+        send(test_pid, {:tmdb_hit, conn.request_path, validator})
+
+        if validator == [held_etag] do
+          Plug.Conn.send_resp(conn, 304, "")
+        else
+          conn
+          |> Plug.Conn.put_resp_header("etag", ~s(W/"next"))
+          |> Req.Test.json(fresh_body.(conn.request_path))
+        end
+      end)
+    end
+
+    test "an unchanged title moves its fetch time, keeps its rows, publishes nothing" do
+      record = create_title_record(%{tmdb_id: 560, media_type: :movie, etag: ~s(W/"held")})
+      backdate(record, :fetched_at, ~U[2026-01-01 00:00:00Z])
+      stub_check(self(), ~s(W/"held"), fn _path -> %{} end)
+
+      assert {:ok, :unchanged, %TitleRecord{} = after_check} = Store.check({560, :movie})
+      assert_receive {:tmdb_hit, "/3/movie/560", [~s(W/"held")]}
+      assert DateTime.after?(after_check.fetched_at, ~U[2026-01-01 00:00:00Z])
+      assert after_check.changed_at == record.changed_at
+      assert after_check.payload == record.payload
+      refute_receive {:tmdb_title_changed, _ref}
+    end
+
+    test "a changed title replaces the payload and etag and publishes the change" do
+      record = create_title_record(%{tmdb_id: 561, media_type: :movie, etag: ~s(W/"old")})
+      revised = Map.put(record.payload, "overview", "Revised.")
+      stub_check(self(), ~s(W/"held"), fn _path -> revised end)
+
+      assert {:ok, :changed, %TitleRecord{etag: ~s(W/"next")} = after_check} =
+               Store.check({561, :movie})
+
+      assert after_check.payload["overview"] == "Revised."
+      assert_receive {:tmdb_title_changed, {561, :movie}}
+    end
+
+    test "a series check revalidates its open seasons and leaves closed ones alone" do
+      series =
+        TmdbStubs.tv_detail(%{
+          "id" => 562,
+          "status" => "Returning Series",
+          "seasons" => [
+            %{"season_number" => 1, "air_date" => "2020-01-01"},
+            %{"season_number" => 2, "air_date" => "2026-01-01"}
+          ]
+        })
+
+      create_title_record(%{
+        tmdb_id: 562,
+        media_type: :tv_series,
+        payload: series,
+        etag: ~s(W/"held")
+      })
+
+      closed =
+        TmdbStubs.season_detail(%{
+          "season_number" => 1,
+          "episodes" => [%{"episode_number" => 1, "air_date" => "2020-01-01"}]
+        })
+
+      latest =
+        TmdbStubs.season_detail(%{
+          "season_number" => 2,
+          "episodes" => [%{"episode_number" => 1, "air_date" => "2026-01-01"}]
+        })
+
+      create_season_record(%{tmdb_id: 562, season_number: 1, payload: closed, etag: ~s(W/"held")})
+      create_season_record(%{tmdb_id: 562, season_number: 2, payload: latest, etag: ~s(W/"held")})
+      stub_check(self(), ~s(W/"held"), fn _path -> %{} end)
+
+      assert {:ok, :unchanged, _record} = Store.check({562, :tv_series})
+      assert_receive {:tmdb_hit, "/3/tv/562", [~s(W/"held")]}
+      assert_receive {:tmdb_hit, "/3/tv/562/season/2", [~s(W/"held")]}
+      refute_receive {:tmdb_hit, "/3/tv/562/season/1", _validator}
+    end
+
+    test "a season that changed publishes the series as changed even when the series did not" do
+      series =
+        TmdbStubs.tv_detail(%{
+          "id" => 563,
+          "status" => "Returning Series",
+          "seasons" => [%{"season_number" => 1, "air_date" => "2026-01-01"}]
+        })
+
+      create_title_record(%{
+        tmdb_id: 563,
+        media_type: :tv_series,
+        payload: series,
+        etag: ~s(W/"held")
+      })
+
+      create_season_record(%{tmdb_id: 563, season_number: 1, etag: ~s(W/"old")})
+
+      new_season =
+        TmdbStubs.season_detail(%{
+          "season_number" => 1,
+          "episodes" => [%{"episode_number" => 3, "air_date" => "2026-12-01"}]
+        })
+
+      stub_check(self(), ~s(W/"held"), fn _path -> new_season end)
+
+      assert {:ok, :changed, %TitleRecord{next_event_on: ~D[2026-12-01]}} =
+               Store.check({563, :tv_series})
+
+      assert_receive {:tmdb_title_changed, {563, :tv_series}}
+    end
+
+    test "checking a title the store does not hold is first contact" do
+      stub_check(self(), ~s(W/"none"), fn _path -> TmdbStubs.movie_detail(%{"id" => 564}) end)
+      assert {:ok, :changed, %TitleRecord{tmdb_id: 564}} = Store.check({564, :movie})
+      assert_receive {:tmdb_title_changed, {564, :movie}}
+    end
+
+    test "a TMDB failure leaves the record as it was" do
+      record = create_title_record(%{tmdb_id: 565, media_type: :movie})
+      Req.Test.stub(:tmdb, fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
+
+      assert {:error, _reason} = Store.check({565, :movie})
+      assert Store.get({565, :movie}) == record
+    end
+  end
+
   describe "due/1" do
     test "returns unsettled titles whose check time has passed, oldest first" do
       now = DateTime.utc_now(:second)
