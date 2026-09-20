@@ -145,7 +145,7 @@ defmodule MediaCentaur.DiscoveryTest do
       assert Discovery.list_watchlist() == []
       assert Discovery.rungs() == %{{777, :movie} => :ignored}
       # No artwork is promoted or held for a title the person has dismissed.
-      assert MediaCentaur.Discovery.TmdbArtworkHolds.holds() == MapSet.new()
+      assert MediaCentaur.Discovery.TmdbReferences.references() == MapSet.new()
 
       # Wanting it again supersedes having dismissed it — one record, moved.
       {:ok, %{rung: :list}} = Discovery.put_rung(@title, :list)
@@ -156,7 +156,7 @@ defmodule MediaCentaur.DiscoveryTest do
 
     test "TmdbArtworkHolds holds every listed ref" do
       {:ok, _} = Discovery.put_rung(@title, :list)
-      assert MediaCentaur.Discovery.TmdbArtworkHolds.holds() == MapSet.new([{:movie, 777}])
+      assert MediaCentaur.Discovery.TmdbReferences.references() == MapSet.new([{777, :movie}])
       await_supervised_tasks()
     end
 

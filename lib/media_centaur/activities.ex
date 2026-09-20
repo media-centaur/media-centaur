@@ -17,7 +17,7 @@ defmodule MediaCentaur.Activities do
       Events.Deleted,
       Events.Received,
       Events.Sent,
-      TmdbArtworkHolds,
+      TmdbReferences,
       Translation
     ]
 
