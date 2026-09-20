@@ -50,7 +50,7 @@ render-time fetches and the empty cache after every restart on top.
 
 Planning. Audit complete 2026-09-19 (three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-**Phases 1, 2 and 3 landed on main 2026-09-20** (unpushed). Phase 1: the
+**Phases 1–4 landed on main 2026-09-20** (unpushed). Phase 1: the
 store, filled by write-through. Phase 2: `TMDB.CheckJob` checks what is
 due (`@reboot` and every quarter hour), `TMDB.References` says who
 holds a title and whose hold schedules a check, release tracking
@@ -63,7 +63,15 @@ reads the store — the unowned preview, the plan board and plan door,
 targeting, cours, the reconciliation spine, the artwork warm — the
 title intent's embedded snapshot is dropped (the watchlist and the
 detail host paint from the store), listed and planned titles schedule
-checks, and the undersized-art mix task is retired. Phase 4 next.
+checks, and the undersized-art mix task is retired. Phase 4: the
+import reads the store (first contact for a new title, the full fetch
+for the credits of an entity the library is about to create, the stored
+copy for an owned one), the library is re-projected from the store when
+a title changes (`Pipeline.TmdbProjection`), owned titles schedule
+checks (`Pipeline.TmdbReferences`), artwork refresh and repair and the
+showcase read the store, the three Maintenance backfill buttons are
+gone, and the transitional write-through and `Client.get_movie/get_tv/
+get_season` are deleted. Phase 5 next.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -283,6 +291,27 @@ Append-only.
   (design row V). The transitional write-through stays for Phase 4's
   callers, import and rematch. Plan:
   [`2026-09-20-tmdb-fetch-policy-phase-3-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-3-plan.md).
+* `2026-09-20` — **The three Maintenance backfill buttons are removed.**
+  Owner, on the Phase 4 measurement: 30 movies, 14 series, 676
+  episodes, 47 seasons on the owner's instance, none lacking credits or
+  an episode list. Episode lists and detail fields follow the store;
+  credits are fetched once at import. Libraries imported by
+  pre-credits versions lose their one-off backfill.
+* `2026-09-20` — **Phase 4 landed.** Decisions made inside it: the
+  projection and the owned-titles provider live in the `Pipeline`
+  boundary (`Library` depends on nothing TMDB-shaped, ADR-029), not
+  under `Library` as the design provisionally named them; TMDB may
+  overwrite every field the mapper derives on an owned entity except
+  the credits and the collection facts — no library field is
+  person-edited; the import's credits come through the store
+  (`Store.fetch_full/2`, the same request as first contact, the record
+  refreshed, the answer returned whole) rather than a separate credits
+  endpoint, so a new title costs one request and a batch of one season
+  costs one; the projection first-contacts a season the store lacks
+  only when it is open; `ImageRefresh`/`ImageRepair`'s detail reads
+  (row R) and the showcase (row W) were pulled into this phase so the
+  write-through could go with the last caller. Plan:
+  [`2026-09-20-tmdb-fetch-policy-phase-4-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-4-plan.md).
 * `2026-09-20` — **Phase 3 verified on the dev node** after a service
   restart: the migration ran at boot (`title_intents.title` gone); the
   `@reboot` tick completed in 5 ms with nothing to first-contact — all
@@ -316,15 +345,14 @@ None. The payload-size question was decided 2026-09-20 (Decisions).
 
 ## Next steps
 
-1. Phase 4 plan: import and the library are projections —
-   `Pipeline.Stages.FetchMetadata` through `Store.ensure/2` and the
-   stored season (a check when a file names an episode the stored
-   season lacks), credits requested once at materialisation (design
-   §2.1 amendment), `Library.TmdbProjection` re-applying `Mapper` output
-   on `{:tmdb_title_changed, ref}`, the three Maintenance refresh
-   buttons consolidated or removed after measuring what they still fix,
-   `Review.Rematch` and the showcase seeder through the store, the
-   transitional write-through removed with the last detail caller.
+1. Phase 5 plan: retention and the gate — a store sweep that ages out
+   records nothing references (`TMDB.References.all/0`, the artwork
+   sweep's twin) with the collection question left to
+   `collection-identity`; the Credo check that no module but
+   `TMDB.Store` calls `TMDB.Client.detail/2` (and only the import stage
+   and the artwork paths call `get_collection/2`); the Status tile
+   aggregate if kept; the glossary rows elevated; the campaign closed by
+   destination.
 2. At the next release, the CHANGELOG's *Migration safety* lines:
    `20260920100000_create_tmdb_store` (two additive tables),
    `20260920130000_release_tracking_items_read_the_store` (eight
@@ -332,13 +360,16 @@ None. The payload-size question was decided 2026-09-20 (Decisions).
    TMDB at boot) and `20260920150000_title_intents_read_the_store` (one
    column dropped; the watchlist paints from the store once the boot
    tick has first-contacted listed titles), plus the user-visible
-   change: the refresh-interval setting is gone and *Refresh from TMDB*
-   is new.
+   changes: the refresh-interval setting is gone, *Refresh from TMDB*
+   is new, and the three Maintenance backfill buttons (movie credits,
+   series credits, episode lists) are gone — a title's TMDB facts follow
+   the store.
 
 ## Completion criteria
 
-* Every fetch site is one of: first contact; a check; identity
-  resolution for a query; a probe. No module but `TMDB.Store` calls a
+* Every fetch site is one of: first contact; a check; a full fetch at
+  materialisation (the import's credits); identity resolution for a
+  query; a probe. No module but `TMDB.Store` calls a
   `TMDB.Client` detail function, enforced by a Credo check.
 * No render path requests TMDB for a fact the app stores; every
   projection in the design's §2.6 is rebuilt from the store, never

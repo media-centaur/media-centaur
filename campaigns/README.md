@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`tmdb-fetch-policy.md`](tmdb-fetch-policy.md) —
-  **Phases 1, 2 and 3 of 5 landed on main 2026-09-20 (unpushed).** Every TMDB request should be justified by a question
+  **Phases 1–4 of 5 landed on main 2026-09-20 (unpushed).** Every TMDB request should be justified by a question
   the app cannot answer from what it already stores. The design
   ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md)):
   one record per title — TMDB's last answer, its ETag, when it was

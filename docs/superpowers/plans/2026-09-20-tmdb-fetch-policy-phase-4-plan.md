@@ -183,8 +183,8 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
 
 ### Task 7: Records
 
-- [ ] `docs/tmdb.md`: the architecture diagram (FetchMetadata → Store → Client), the "consumed by" paragraph, the store paragraph (Phase 4 state: import through the store, the projection, owned titles scheduled, write-through gone), the module table (`Pipeline.TmdbProjection`, `Pipeline.TmdbReferences`). `docs/pipeline.md` FetchMetadata rows. Design rows P, Q, W landed with dated notes; row R's detail-read half noted as landed here. Glossary: *Reference* row (owned titles schedule), new rows *Full fetch* and *Projection*. `campaigns/tmdb-fetch-policy.md`: Status, Decisions (Phase 4 landed: placement, the field rule, the buttons, the full fetch), Next steps → Phase 5, Completion criteria (a full fetch at materialisation is the fifth kind of fetch), and correct the Phase 3 verification note (the tick first-contacts *scheduled* references only; the three listed-only titles were stored by the write-through). `campaigns/README.md`.
-- [ ] Commit.
+- [x] `docs/tmdb.md`: the architecture diagram (FetchMetadata → Store → Client), the "consumed by" paragraph, the store paragraph (Phase 4 state: import through the store, the projection, owned titles scheduled, write-through gone), the module table (`Pipeline.TmdbProjection`, `Pipeline.TmdbReferences`). `docs/pipeline.md` FetchMetadata rows. Design rows P, Q, W landed with dated notes; row R's detail-read half noted as landed here. Glossary: *Reference* row (owned titles schedule), new rows *Full fetch* and *Projection*. `campaigns/tmdb-fetch-policy.md`: Status, Decisions (Phase 4 landed: placement, the field rule, the buttons, the full fetch), Next steps → Phase 5, Completion criteria (a full fetch at materialisation is the fifth kind of fetch), and correct the Phase 3 verification note (the tick first-contacts *scheduled* references only; the three listed-only titles were stored by the write-through). `campaigns/README.md`.
+- [x] Commit.
 
 ### Task 8: Gate and the dev node
 
