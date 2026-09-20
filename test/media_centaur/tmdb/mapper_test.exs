@@ -676,6 +676,28 @@ defmodule MediaCentaur.TMDB.MapperTest do
     end
   end
 
+  describe "episode_list/1" do
+    test "every episode the season names, number, name and air date; an undated one is nil" do
+      season_data = %{
+        "episodes" => [
+          %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01", "overview" => "x"},
+          %{"episode_number" => 2, "name" => "Second", "air_date" => ""},
+          %{"episode_number" => 3, "name" => "Third"}
+        ]
+      }
+
+      assert Mapper.episode_list(season_data) == [
+               %{episode_number: 1, name: "Pilot", air_date: "2020-01-01"},
+               %{episode_number: 2, name: "Second", air_date: nil},
+               %{episode_number: 3, name: "Third", air_date: nil}
+             ]
+    end
+
+    test "a season without episodes is an empty list" do
+      assert Mapper.episode_list(%{}) == []
+    end
+  end
+
   describe "movie_series_attrs/2" do
     test "maps collection data" do
       data = %{

@@ -1,7 +1,19 @@
 defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   @moduledoc """
-  Pipeline stage 3: fetches full TMDB details for the matched entity and
-  assembles a structured metadata map using `TMDB.Mapper`.
+  Pipeline stage 3: reads the matched title's TMDB details and assembles
+  a structured metadata map using `TMDB.Mapper`.
+
+  Import is first contact when the library does not hold the title and
+  a read of `TMDB.Store` otherwise (ADR-071). A title the library owns
+  needs no credits — the entity exists and this file only links to it —
+  so the stored copy serves without a request; a new one is fetched
+  whole through `Store.fetch_full/2`, credits included, and that answer
+  becomes (or refreshes) the stored record. A season is fetched whole
+  (`Store.fetch_full_season/3`) for an episode the library does not
+  hold, because its guest stars are the episode's credits; a held
+  episode, or an extra with no episode, reads the stored season. The
+  collection detail is the one request the stage still makes itself
+  (a collection is not a store identity; see `collection-identity`).
 
   The metadata map contains everything Library.Inbound needs to create
   entities, images, identifiers, and TV hierarchy — but does not itself
@@ -27,9 +39,10 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   """
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Parser
   alias MediaCentaur.Pipeline.Payload
-  alias MediaCentaur.TMDB.{Client, Mapper}
+  alias MediaCentaur.TMDB.{Client, Mapper, Store}
 
   @behaviour MediaCentaur.Pipeline.Stage
 
@@ -77,7 +90,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   # ---------------------------------------------------------------------------
 
   defp fetch_metadata(%Payload{tmdb_id: tmdb_id, parsed: parsed} = _payload, :movie) do
-    with {:ok, data} <- Client.get_movie(tmdb_id) do
+    with {:ok, data} <- title_payload({tmdb_id, :movie}) do
       case data["belongs_to_collection"] do
         %{"id" => collection_id} ->
           fetch_movie_in_collection(tmdb_id, data, parsed, collection_id)
@@ -93,9 +106,36 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   # ---------------------------------------------------------------------------
 
   defp fetch_metadata(%Payload{tmdb_id: tmdb_id, parsed: parsed} = _payload, :tv) do
-    with {:ok, data} <- Client.get_tv(tmdb_id) do
+    with {:ok, data} <- title_payload({tmdb_id, :tv_series}) do
       build_tv(tmdb_id, data, parsed)
     end
+  end
+
+  # The store's copy for a title the library owns; TMDB's whole answer,
+  # credits included, for one it does not. The store logs which.
+  defp title_payload({tmdb_id, media_type} = ref) do
+    if is_nil(ExternalIds.find_by_external_id(media_type, to_string(tmdb_id))) do
+      Store.fetch_full(ref)
+    else
+      with {:ok, %{payload: payload}} <- Store.ensure(ref), do: {:ok, payload}
+    end
+  end
+
+  # The stored season for an extra (no episode) or an episode the library
+  # already holds; the whole season, guest stars included, for a new one.
+  defp season_payload(tmdb_id, %{season: season_number, episode: nil}),
+    do: stored_season(tmdb_id, season_number)
+
+  defp season_payload(tmdb_id, %{season: season_number, episode: episode_number}) do
+    case ExternalIds.find_present_episode(to_string(tmdb_id), season_number, episode_number) do
+      {:ok, _file_path} -> stored_season(tmdb_id, season_number)
+      :not_found -> Store.fetch_full_season(tmdb_id, season_number)
+    end
+  end
+
+  defp stored_season(tmdb_id, season_number) do
+    with {:ok, %{payload: payload}} <- Store.ensure_season(tmdb_id, season_number),
+         do: {:ok, payload}
   end
 
   defp build_standalone_movie(tmdb_id, data, parsed) do
@@ -112,7 +152,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       extra: build_extra(parsed)
     }
 
-    Log.info(:pipeline, "fetched movie metadata — tmdb:#{tmdb_id} \"#{data["title"]}\"")
+    Log.info(:pipeline, "mapped movie metadata — tmdb:#{tmdb_id} \"#{data["title"]}\"")
     {:ok, metadata}
   end
 
@@ -174,7 +214,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
 
     Log.info(
       :pipeline,
-      "fetched collection metadata for tmdb:#{tmdb_id} in collection #{collection_id}"
+      "mapped collection metadata for tmdb:#{tmdb_id} in collection #{collection_id}"
     )
 
     {:ok, metadata}
@@ -212,12 +252,9 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   defp build_ingest_metadata(tmdb_id, data, parsed, entity_attrs, images) do
     season =
       if parsed.season do
-        case Client.get_season(tmdb_id, parsed.season) do
-          {:ok, season_data} ->
-            build_season(season_data, parsed)
-
-          {:error, _reason} ->
-            build_minimal_season(parsed)
+        case season_payload(tmdb_id, parsed) do
+          {:ok, season_data} -> build_season(season_data, parsed)
+          {:error, _reason} -> build_minimal_season(parsed)
         end
       end
 
@@ -232,7 +269,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       divert: nil
     }
 
-    Log.info(:pipeline, "fetched TV metadata — tmdb:#{tmdb_id} \"#{data["name"]}\"")
+    Log.info(:pipeline, "mapped TV metadata — tmdb:#{tmdb_id} \"#{data["name"]}\"")
     {:ok, metadata}
   end
 
@@ -285,25 +322,10 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     %{
       season_number: season_data["season_number"],
       name: season_data["name"],
-      episode_list: Enum.map(episodes, &episode_list_entry/1),
+      episode_list: Mapper.episode_list(season_data),
       episode: episode
     }
   end
-
-  # Every episode the season has, whether or not a file for it was
-  # imported — the fact `Library.Season.episode_list` stores. TMDB dates
-  # an undated episode as "" rather than omitting the key, and Ecto's
-  # :date cast rejects the empty string, so it becomes nil here.
-  defp episode_list_entry(episode) do
-    %{
-      episode_number: episode["episode_number"],
-      name: episode["name"],
-      air_date: presence(episode["air_date"])
-    }
-  end
-
-  defp presence(""), do: nil
-  defp presence(value), do: value
 
   defp build_minimal_season(parsed) do
     episode =
