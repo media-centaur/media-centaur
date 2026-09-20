@@ -882,18 +882,46 @@ defmodule MediaCentaur.TestFactory do
   the reconcile and migration tests are about.
   """
   def create_tracking_item(attrs \\ %{}) do
-    defaults = %{
-      tmdb_id: :rand.uniform(999_999),
-      media_type: :tv_series,
-      name: "Test Tracked Series"
-    }
-
     {rung, attrs} = Map.pop(attrs, :rung, :grab)
-    attrs = Map.merge(defaults, attrs)
+    {stored?, attrs} = Map.pop(attrs, :stored, true)
+    {payload, attrs} = Map.pop(attrs, :payload)
+    {etag, attrs} = Map.pop(attrs, :etag, ~s(W/"v1"))
+    tmdb_id = Map.get(attrs, :tmdb_id, :rand.uniform(999_999))
+    media_type = Map.get(attrs, :media_type, :tv_series)
+    name = Map.get(attrs, :name, "Test Tracked Series")
 
+    # An item cannot exist without its stored title (ADR-071): the
+    # tracked title's name, identity and season sizes are read from the
+    # store. `stored: false` is the state the checker's first contact
+    # repairs.
+    if stored? do
+      payload = payload || default_tracked_payload(media_type, tmdb_id, name)
+
+      {:ok, _record} =
+        MediaCentaur.TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
+    end
+
+    attrs = Map.merge(%{tmdb_id: tmdb_id, media_type: media_type, name: name}, attrs)
     {:ok, item} = ReleaseTracking.track_item(attrs)
     if rung, do: create_intent_for(item, rung)
     item
+  end
+
+  defp default_tracked_payload(:movie, tmdb_id, name) do
+    MediaCentaur.TmdbStubs.movie_detail(%{
+      "id" => tmdb_id,
+      "title" => name,
+      "release_date" => Date.utc_today() |> Date.add(30) |> Date.to_iso8601()
+    })
+  end
+
+  defp default_tracked_payload(:tv_series, tmdb_id, name) do
+    MediaCentaur.TmdbStubs.tv_detail(%{
+      "id" => tmdb_id,
+      "name" => name,
+      "status" => "Returning Series",
+      "seasons" => []
+    })
   end
 
   def create_tracking_release(attrs) do

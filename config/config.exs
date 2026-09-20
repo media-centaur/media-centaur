@@ -96,6 +96,13 @@ config :media_centaur, Oban,
        # Drives `Pursuits.Policy` for every active pursuit every 15 minutes.
        # Idempotent re-reads on every wake; terminal pursuits are skipped.
        {"*/15 * * * *", MediaCentaur.Acquisition.Pursuits.Watcher},
+       # Asks TMDB only what is due (ADR-071): first-contacts referenced
+       # titles the store lacks, checks stored titles whose next_check_at
+       # has passed. @reboot fills the store on the first boot after a
+       # release; the quarter-hour tick then keeps it current. Offset off
+       # the pursuit watcher's minute.
+       {"@reboot", MediaCentaur.TMDB.CheckJob},
+       {"7-59/15 * * * *", MediaCentaur.TMDB.CheckJob},
        # Daily run of every :sweep-mode retention policy (diagnostic events,
        # pursuit/tracking event logs, resolved incidents, image queue, stale
        # staging dirs — see each context's RetentionPolicies module). Offset

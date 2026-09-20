@@ -8,6 +8,7 @@ defmodule MediaCentaur.TMDB do
     ],
     exports: [
       Availability,
+      CheckJob,
       Client,
       Confidence,
       Identifiers,
