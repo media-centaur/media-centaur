@@ -50,7 +50,7 @@ render-time fetches and the empty cache after every restart on top.
 
 Planning. Audit complete 2026-09-19 (three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-**Phases 1 and 2 landed on main 2026-09-20** (unpushed). Phase 1: the
+**Phases 1, 2 and 3 landed on main 2026-09-20** (unpushed). Phase 1: the
 store, filled by write-through. Phase 2: `TMDB.CheckJob` checks what is
 due (`@reboot` and every quarter hour), `TMDB.References` says who
 holds a title and whose hold schedules a check, release tracking
@@ -58,7 +58,12 @@ rebuilds its calendar from the store on change, the tracked item
 carries no TMDB fact of its own, the refresher and both interval
 settings are gone, *Refresh from TMDB* is on the Manage toolbar and the
 tracking card (UIDR-044), the wiki is rewritten (committed locally, not
-pushed, with the code). Phase 3 next.
+pushed, with the code). Phase 3: every surface outside the pipeline
+reads the store — the unowned preview, the plan board and plan door,
+targeting, cours, the reconciliation spine, the artwork warm — the
+title intent's embedded snapshot is dropped (the watchlist and the
+detail host paint from the store), listed and planned titles schedule
+checks, and the undersized-art mix task is retired. Phase 4 next.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -260,6 +265,24 @@ Append-only.
   is unscheduled rather than a crash in the upcoming feed. Plan:
   [`2026-09-20-tmdb-fetch-policy-phase-2-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-2-plan.md);
   [UIDR-044](../decisions/user-interface/2026-09-20-044-refresh-from-tmdb.md).
+* `2026-09-20` — **The stored payload keeps a top-10 cast** (by TMDB
+  `order`) and the Directing crew of a title; the rest of the credits
+  decision stands. Owner, on the Phase 3 question of what the unowned
+  preview shows: the preview's cast row is a render of stored data, not
+  a reason to fetch.
+* `2026-09-20` — **Phase 3 landed.** Decisions made inside it: a title
+  intent's snapshot is the store's, attached on read
+  (`Discovery.Titles`), and a listed title the store has not
+  first-contacted carries a *bare identity* (a `TMDB.Title` with only
+  its identity set) rather than nil, so rows render without guards
+  until the record lands; `Discovery.put_rung/3` announces the title
+  the person acted on (always named, so a listing from Ignored can
+  still be shared) and `forget/2` the store's snapshot; the detail host
+  opens from `Store.snapshot/1`; Discovery and Acquisition providers
+  schedule checks; `mix media_centaur.refresh_tracking_images` retired
+  (design row V). The transitional write-through stays for Phase 4's
+  callers, import and rematch. Plan:
+  [`2026-09-20-tmdb-fetch-policy-phase-3-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-3-plan.md).
 * `2026-09-20` — **Phase 2 verified on the dev node** after a service
   restart: the migration ran at boot; the `@reboot` tick first-contacted
   the three tracked titles the store lacked (0.5 s, three requests) and
@@ -280,17 +303,24 @@ None. The payload-size question was decided 2026-09-20 (Decisions).
 
 ## Next steps
 
-1. Phase 3 plan: surfaces read the store — the unowned preview, the plan
-   board's release window, the plan preview, targeting, cours, the
-   spine, plan identity, `TmdbArtwork.ensure/2`; the intent embed
-   dropped; Discovery and Acquisition providers start scheduling checks;
-   the mix task read or retired.
+1. Phase 4 plan: import and the library are projections —
+   `Pipeline.Stages.FetchMetadata` through `Store.ensure/2` and the
+   stored season (a check when a file names an episode the stored
+   season lacks), credits requested once at materialisation (design
+   §2.1 amendment), `Library.TmdbProjection` re-applying `Mapper` output
+   on `{:tmdb_title_changed, ref}`, the three Maintenance refresh
+   buttons consolidated or removed after measuring what they still fix,
+   `Review.Rematch` and the showcase seeder through the store, the
+   transitional write-through removed with the last detail caller.
 2. At the next release, the CHANGELOG's *Migration safety* lines:
-   `20260920100000_create_tmdb_store` (two additive tables) and
+   `20260920100000_create_tmdb_store` (two additive tables),
    `20260920130000_release_tracking_items_read_the_store` (eight
    columns dropped, three settings rows deleted; the store refills from
-   TMDB at boot), plus the user-visible change: the refresh-interval
-   setting is gone and *Refresh from TMDB* is new.
+   TMDB at boot) and `20260920150000_title_intents_read_the_store` (one
+   column dropped; the watchlist paints from the store once the boot
+   tick has first-contacted listed titles), plus the user-visible
+   change: the refresh-interval setting is gone and *Refresh from TMDB*
+   is new.
 
 ## Completion criteria
 
