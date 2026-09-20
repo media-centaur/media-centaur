@@ -331,6 +331,15 @@ Append-only.
   MC0038 matches the client by alias shape (`Client`, `TMDB.Client`,
   `MediaCentaur.TMDB.Client`) and exempts tests. Plan:
   [`2026-09-20-tmdb-fetch-policy-phase-5-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-5-plan.md).
+* `2026-09-20` — **Phase 5 verified on the dev node** after a service
+  restart: `Retention.policies/0` lists `:tmdb_store` and
+  `:tmdb_artwork` on the Metadata subsystem (the artwork policy moved
+  there from Acquisition to stand beside the store's); a hand-run
+  `Store.sweep/0` removed nothing — 54 stored titles, 63 references,
+  none unreferenced; the Status › Metadata drill-in names both policies
+  and their rules; the gate passed (7616 tests, Credo clean, MC0038
+  active). One `Exqlite.Connection … client exited` error line during
+  the run failed no test; logged as flake instance #12.
 * `2026-09-20` — **Phase 4 verified on the dev node** after a service
   restart: the `@reboot` tick first-contacted the 44 owned titles the
   store lacked in one tick (46 owned references; 56 TMDB requests in

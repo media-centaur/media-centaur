@@ -40,4 +40,4 @@
 
 ### Task 4: Gate and the dev node
 
-- [ ] `agent-mix precommit` (foreground). Restart `media-centaur-dev`; confirm `Retention.policies/0` lists `:tmdb_store`; run `Store.sweep/0` by hand and confirm it removes nothing (every record referenced or fresh); confirm the Metadata drill-in's retention panel names the policy; record in the campaign.
+- [x] `agent-mix precommit` (foreground). Restart `media-centaur-dev`; confirm `Retention.policies/0` lists `:tmdb_store`; run `Store.sweep/0` by hand and confirm it removes nothing (every record referenced or fresh); confirm the Metadata drill-in's retention panel names the policy; record in the campaign.
