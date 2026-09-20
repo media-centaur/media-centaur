@@ -34,6 +34,15 @@ defmodule MediaCentaur.Library.Seasons do
   @spec create!(map()) :: Season.t()
   def create!(attrs), do: Repo.bang!(create(attrs))
 
+  @doc """
+  Replaces the season's episode list — the TMDB store's projection,
+  written by `MediaCentaur.Pipeline.TmdbProjection` when the series
+  changes (ADR-071). `entries` are `TMDB.Mapper.episode_list/1` maps.
+  """
+  @spec update_episode_list(Season.t(), [map()]) :: {:ok, Season.t()} | {:error, Ecto.Changeset.t()}
+  def update_episode_list(%Season{} = season, entries),
+    do: Repo.update(Season.episode_list_changeset(season, entries))
+
   @doc "Deletes a `Season`."
   @spec destroy(Season.t()) :: {:ok, Season.t()} | {:error, Ecto.Changeset.t()}
   def destroy(season), do: Repo.delete(season)
