@@ -49,7 +49,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   Downloading / Needs review) stamped from one `TitleStates` read per
   load; the page subscribes to `acquisition:updates` so a one-click
   download's progress lands without a reload, the way `library:updates`
-  flips a title to In library when the file lands.
+  flips a title to In library when the file lands, and to `tmdb:titles`
+  so a listed title's name and poster land when the store first-contacts
+  it (ADR-071).
 
   Declares its topics through `Live.Subscriptions`, the door the title
   detail host declares its own through, so a topic both need is
@@ -78,6 +80,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.TmdbArtwork
+  alias MediaCentaur.TMDB.Store
   alias MediaCentaurWeb.Components.ActionToast
   alias MediaCentaurWeb.Components.Discovery.FeedEntryCard
   alias MediaCentaurWeb.Components.Discovery.PersonCard
@@ -101,7 +104,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def mount(_params, _session, socket) do
     socket =
       Enum.reduce(
-        [Discovery, Library, Social, Activities, Acquisition],
+        [Discovery, Library, Social, Activities, Acquisition, Store],
         socket,
         &Subscriptions.subscribe(&2, &1)
       )
@@ -277,6 +280,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # A mode moved, an arm landed, a calendar refreshed: the rows' mode and
   # next date come from the tracked titles.
   def handle_info({:releases_updated, _item_ids}, socket), do: {:noreply, load_items(socket)}
+
+  # A listed title's record landed or changed: the rows paint from the store.
+  def handle_info({:tmdb_title_changed, _ref}, socket), do: {:noreply, load_items(socket)}
 
   def handle_info(%PlanEvents.Changed{}, socket), do: {:noreply, stamp_acquisition_states(socket)}
 

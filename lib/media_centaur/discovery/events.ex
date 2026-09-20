@@ -9,7 +9,7 @@ defmodule MediaCentaur.Discovery.Events do
   which is the removal.
 
   The message describes the **transition** — `previous_rung` and `rung`,
-  either of them `nil` for Off — plus the title snapshot, so every
+  either of them `nil` for Off — plus a title snapshot, so every
   subscriber decides its own threshold from the two ends (the publisher
   asks whether List was crossed; nothing pre-reads a rung in order to
   fire a second event later).
@@ -22,9 +22,10 @@ defmodule MediaCentaur.Discovery.Events do
   defmodule RungChanged do
     @moduledoc """
     A title's rung moved from `previous_rung` to `rung`; `nil` on either
-    side is Off (no record). `title` is the snapshot the record holds —
-    on a move to Off, the one it held. Subscribers refresh whatever they
-    derived from it.
+    side is Off (no record). `title` is the snapshot the move was made
+    with: the title the person acted on, or — on a move to Off — the
+    store's snapshot of the title, a bare identity when the store never
+    held it (ADR-071). Subscribers refresh whatever they derived from it.
     """
     @enforce_keys [:tmdb_id, :media_type, :title, :previous_rung, :rung]
     defstruct [:tmdb_id, :media_type, :title, :previous_rung, :rung]

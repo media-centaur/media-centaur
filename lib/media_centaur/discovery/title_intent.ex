@@ -1,8 +1,8 @@
 defmodule MediaCentaur.Discovery.TitleIntent do
   @moduledoc """
-  One person's standing intent about one title: an embedded
-  `MediaCentaur.TMDB.Title`, its provenance, and the **rung** that says
-  what the app should do about the title's releases.
+  One person's standing intent about one title: its TMDB identity, its
+  provenance, and the **rung** that says what the app should do about
+  the title's releases.
 
   The rung is the whole ladder, and it is the only authored thing in
   release tracking. Everything downstream — the tracked title, its
@@ -36,11 +36,14 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   used to carry a policy were folded into Grab and Follow by the
   `TrackingIsTwoSwitches` data migration.
 
-  Identity is `(tmdb_id, media_type)`, kept as indexed columns and
-  derived from the embedded title on write so there is one write path
-  (`create_changeset/3`) and one read path (`intent.title`). The library
-  is never referenced from here — presence is derived at read time via
-  `Library.ExternalIds` (one source of truth, cannot go stale).
+  Identity is `(tmdb_id, media_type)`: indexed columns taken from the
+  `MediaCentaur.TMDB.Title` the person acted on (`create_changeset/3`).
+  The record copies nothing else from it. The title's render snapshot is
+  the TMDB store's (ADR-071), attached to the virtual `title` by
+  `Discovery.Titles.attach/1` on every read, so a listed title is
+  painted from the same record every other surface reads. The library
+  is never referenced from here either — presence is derived at read
+  time via `Library.ExternalIds` (one source of truth, cannot go stale).
 
   `source` is the provenance seam every future candidate source extends
   (`:import`, …); directed reviews later add nullable
@@ -67,7 +70,9 @@ defmodule MediaCentaur.Discovery.TitleIntent do
           id: Ecto.UUID.t(),
           tmdb_id: integer(),
           media_type: Title.media_type(),
-          title: Title.t(),
+          # The store's snapshot, attached on read; nil on a record
+          # straight from a changeset.
+          title: Title.t() | nil,
           rung: rung(),
           source: :manual | :friend,
           note: String.t() | nil,
@@ -80,7 +85,7 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   schema "title_intents" do
     field :tmdb_id, :integer
     field :media_type, Ecto.Enum, values: [:movie, :tv_series]
-    embeds_one :title, Title, on_replace: :delete
+    field :title, :any, virtual: true
     field :rung, Ecto.Enum, values: @rungs, default: :list
     field :source, Ecto.Enum, values: [:manual, :friend], default: :manual
     field :note, :string
@@ -89,13 +94,15 @@ defmodule MediaCentaur.Discovery.TitleIntent do
     timestamps()
   end
 
-  @doc "A new record for `title` at `rung`; `attrs` may carry `:source`, `:note` and `:activity_id`."
+  @doc """
+  A new record for `title` at `rung` — the title lends its identity and
+  nothing else; `attrs` may carry `:source`, `:note` and `:activity_id`.
+  """
   @spec create_changeset(Title.t(), rung(), map()) :: Ecto.Changeset.t()
   def create_changeset(%Title{} = title, rung, attrs \\ %{}) do
     %__MODULE__{}
     |> cast(attrs, [:source, :note, :activity_id])
     |> put_change(:rung, rung)
-    |> put_embed(:title, title)
     |> put_change(:tmdb_id, title.tmdb_id)
     |> put_change(:media_type, title.media_type)
     |> validate_required([:tmdb_id, :media_type, :rung])
@@ -103,18 +110,14 @@ defmodule MediaCentaur.Discovery.TitleIntent do
     |> unique_constraint([:tmdb_id, :media_type])
   end
 
-  @doc "Moves an existing record to `rung`, refreshing the title snapshot."
-  @spec rung_changeset(t(), rung(), Title.t() | nil) :: Ecto.Changeset.t()
-  def rung_changeset(%__MODULE__{} = intent, rung, title \\ nil) do
+  @doc "Moves an existing record to `rung`."
+  @spec rung_changeset(t(), rung()) :: Ecto.Changeset.t()
+  def rung_changeset(%__MODULE__{} = intent, rung) do
     intent
     |> change()
     |> put_change(:rung, rung)
-    |> maybe_refresh_title(title)
     |> validate_required([:rung])
   end
-
-  defp maybe_refresh_title(changeset, nil), do: changeset
-  defp maybe_refresh_title(changeset, %Title{} = title), do: put_embed(changeset, :title, title)
 
   @doc """
   The attrs a record takes when a person acts on a friend's activity —

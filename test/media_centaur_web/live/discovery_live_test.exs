@@ -28,6 +28,22 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     TmdbStubs.setup_tmdb_client()
   end
 
+  # Lists `title` the way the app does — through `Discovery.put_rung/3`,
+  # so the page hears the rung change — with the TMDB store holding the
+  # title first (ADR-071): a listed row paints from the store, and in the
+  # app a title is listed from its detail, which the store already holds.
+  # `payload` is the detail the store is seeded with; the default is the
+  # title's own name and date.
+  defp list(title, rung, attrs \\ %{}, payload \\ nil) do
+    create_title_record(%{
+      tmdb_id: title.tmdb_id,
+      media_type: title.media_type,
+      payload: payload || TmdbStubs.detail_for(title)
+    })
+
+    Discovery.put_rung(title, rung, attrs)
+  end
+
   # The ids of every element matching `selector`, in document order.
   defp ids(view, selector) do
     view
@@ -53,7 +69,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   test "rows show state; the modal offers the honest action per state", %{conn: conn} do
     {:ok, _} =
-      Discovery.put_rung(
+      list(
         Title.new!(%{
           tmdb_id: 777,
           media_type: :movie,
@@ -64,7 +80,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       )
 
     {:ok, _} =
-      Discovery.put_rung(
+      list(
         Title.new!(%{
           tmdb_id: 42,
           media_type: :tv_series,
@@ -105,7 +121,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
     {:ok, _} =
-      Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
+      list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
     assert render(view) =~ "Sample Movie"
     await_supervised_tasks()
@@ -113,7 +129,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   test "library changes flip a row to In library without a reload", %{conn: conn} do
     {:ok, _} =
-      Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
+      list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
     {:ok, view, html} = live(conn, "/discovery/watchlist")
     refute html =~ "In library"
@@ -129,7 +145,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   test "renders the Discovery heading and the Watchlist tab with its count", %{conn: conn} do
     {:ok, _} =
-      Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
+      list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
     {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
@@ -141,7 +157,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
   test "the watchlist tab does not tell you a row is on the watchlist", %{conn: conn} do
     {:ok, _} =
-      Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
+      list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
     {:ok, view, html} = live(conn, ~p"/discovery/watchlist")
 
@@ -783,7 +799,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     } do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Activities.ingest(friend_event(777, nil))
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
 
       {:ok, view, _html} = live(conn, "/discovery")
       view |> element(entry(rec) <> "-ignore") |> render_click()
@@ -855,7 +871,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "an ignored title says so and offers Add to watchlist, which replaces Ignore", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Activities.ingest(friend_event(777, nil))
-      {:ok, _} = Discovery.put_rung(released_movie(), :ignored)
+      {:ok, _} = list(released_movie(), :ignored)
 
       {:ok, view, _html} = live(conn, "/discovery?title=movie-777")
       refute has_element?(view, entry(rec))
@@ -876,7 +892,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "a watchlist row has no Ignore — Ignore is the Feed card's verb", %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _rec} = Activities.ingest(friend_event(777, nil))
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       assert has_element?(view, "#watchlist-item-movie-777")
@@ -967,7 +983,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "neither the entry nor the modal offers Review", %{conn: conn} do
       {:ok, _item} =
-        Discovery.put_rung(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
+        list(Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}), :list)
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
       refute render(view) =~ "Share a review"
@@ -1027,7 +1043,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "the bookmark on a title only you listed leaves the modal open — the toggle is its own undo",
          %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       assert has_element?(
@@ -1054,7 +1070,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "an import that lands while an unowned title is open turns Download into Play", %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
       assert has_element?(view, "#detail-download")
       refute has_element?(view, "#detail-modal button[phx-click='play']")
@@ -1148,26 +1164,29 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
 
-      TmdbStubs.stub_get_movie(
-        777,
-        TmdbStubs.movie_detail(%{
-          "id" => 777,
-          "title" => "Sample Movie",
-          "tagline" => "Every confirmation counts.",
-          "backdrop_path" => "/sample-backdrop.jpg",
-          "images" => %{"logos" => [%{"iso_639_1" => "en", "file_path" => "/sample-logo.png"}]}
-        })
-      )
+      {:ok, _} =
+        list(
+          released_movie(),
+          :list,
+          %{},
+          TmdbStubs.movie_detail(%{
+            "id" => 777,
+            "title" => "Sample Movie",
+            "tagline" => "Every confirmation counts.",
+            "backdrop_path" => "/sample-backdrop.jpg",
+            "images" => %{"logos" => [%{"iso_639_1" => "en", "file_path" => "/sample-logo.png"}]}
+          })
+        )
 
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
       {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
 
-      # Snapshot first: the modal is open before TMDB answers.
+      # Snapshot first: the modal is open before the preview is built
+      # from the stored detail (ADR-071).
       assert has_element?(view, "#detail-modal #detail-download")
       refute html =~ "Every confirmation counts."
 
-      # The stubbed detail fetch plus the preview build outrun the 100ms
-      # default under a loaded suite; the budget matches the other views'.
+      # The preview build outruns the 100ms default under a loaded suite;
+      # the budget matches the other views'.
       html = render_async(view, 1_000)
       assert html =~ "Every confirmation counts."
       # The preview's metadata row takes the hero's type line; no facet
@@ -1180,7 +1199,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a watchlist card click opens the modal via the URL; close returns", %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
       view |> element("#watchlist-item-movie-777") |> render_click()
@@ -1195,7 +1214,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "the Review control follows the friend-network preference", %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, ~p"/discovery/watchlist")
 
       # Open whatever row this test module's setup put on the watchlist.
@@ -1217,7 +1236,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "Download under the default mode plans for manual selection and opens its board on Incoming",
          %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       assert has_element?(view, "#detail-download", "Download")
@@ -1239,7 +1258,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "Download under the auto-select mode creates an automatic plan, closes the modal and flashes",
          %{conn: conn} do
       PlanningMode.set(:auto_select_best_release)
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       view |> element("#detail-download") |> render_click()
@@ -1255,7 +1274,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "the menu names the other mode and performs it", %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       refute has_element?(view, "#detail-download-menu")
@@ -1276,7 +1295,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "with auto-select as the default the menu offers manual selection", %{conn: conn} do
       PlanningMode.set(:auto_select_best_release)
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       view |> element("#detail-download-toggle") |> render_click()
@@ -1290,7 +1309,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "a series Download plans season 1 by default; the scope select widens it to all seasons",
          %{conn: conn} do
       TmdbStubs.stub_series_universe_for_targeting()
-      {:ok, _} = Discovery.put_rung(released_show(), :list)
+      {:ok, _} = list(released_show(), :list, %{}, TmdbStubs.series_universe_tv())
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
 
       assert has_element?(view, "#detail-download", "Download")
@@ -1322,7 +1341,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "a TMDB failure while planning manually flashes on the modal and leaves no plan",
          %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_show(), :list)
+      {:ok, _} = list(released_show(), :list, %{}, TmdbStubs.series_universe_tv())
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
       Req.Test.stub(:tmdb, fn conn -> Plug.Conn.send_resp(conn, 500, "") end)
 
@@ -1336,7 +1355,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "closing the modal while planning manually abandons the plan: no flash, no board",
          %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_show(), :list)
+      {:ok, _} = list(released_show(), :list, %{}, TmdbStubs.series_universe_tv())
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
 
       # The targeting fetch behind a series Download runs inline in the
@@ -1382,7 +1401,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
           release_date: ~D[2999-01-01]
         })
 
-      {:ok, _} = Discovery.put_rung(upcoming, :list)
+      {:ok, _} = list(upcoming, :list, %{}, TmdbStubs.series_universe_tv())
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
 
       # Listed but not followed: both rows off, and nothing
@@ -1444,7 +1463,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#watchlist-item-movie-777", "Tracking")
       refute has_element?(view, "#watchlist-item-movie-777 [data-component='intent-control']")
 
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
 
       render_until(view, fn _html ->
         not has_element?(view, "#watchlist-item-movie-777", "Tracking:")
@@ -1454,7 +1473,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "a watchlist row states its next release date", %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       create_tracking_release(%{
@@ -1471,7 +1490,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "the modal shows the timeline and activity for a tracked title", %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :follow)
+      {:ok, _} = list(released_movie(), :follow)
       item = create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       create_tracking_release(%{
@@ -1492,7 +1511,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     test "Off forgets the title and drops both its row and the modal on this page", %{
       conn: conn
     } do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist?title=movie-777")
 
       view |> element("#detail-watchlist-toggle") |> render_click()
@@ -1506,7 +1525,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "acquisition events refresh the row state without a reload", %{conn: conn} do
-      {:ok, _} = Discovery.put_rung(released_movie(), :list)
+      {:ok, _} = list(released_movie(), :list)
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
       refute has_element?(view, "#watchlist-item-movie-777", "Needs review")
 
@@ -1528,7 +1547,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
 
       {:ok, _} =
-        Discovery.put_rung(rec.title, :list, %{
+        list(rec.title, :list, %{
           source: :friend,
           activity_id: rec.id,
           note: rec.text
@@ -1550,7 +1569,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, _other} = Social.add_friend(@other_pubkey, "Other Friend")
       {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
-      {:ok, _} = Discovery.put_rung(rec.title, :list)
+      {:ok, _} = list(rec.title, :list)
 
       {:ok, view, _html} = live(conn, "/discovery/watchlist")
 
@@ -1581,7 +1600,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     } do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
-      {:ok, _} = Discovery.put_rung(title, :list)
+      {:ok, _} = list(title, :list)
 
       watched =
         Event.sign(
@@ -1609,7 +1628,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     test "your own listing broadcast is not narrated back on the watchlist", %{conn: conn} do
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
-      {:ok, _} = Discovery.put_rung(title, :follow)
+      {:ok, _} = list(title, :follow)
       {:ok, _} = Activities.listing(title)
 
       {:ok, view, html} = live(conn, "/discovery/watchlist?title=movie-777")
@@ -1625,7 +1644,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, rec} = Activities.ingest(friend_event(777, "Watch it."))
 
       {:ok, _} =
-        Discovery.put_rung(rec.title, :list, %{
+        list(rec.title, :list, %{
           source: :friend,
           activity_id: rec.id,
           note: rec.text
