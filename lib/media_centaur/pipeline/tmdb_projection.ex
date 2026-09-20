@@ -92,7 +92,7 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
       movie = apply_update(movie, Map.take(attrs, @movie_fields))
       _ = ExternalIds.put(:imdb, movie, attrs.imdb_id)
       Library.broadcast_entities_changed([movie.id])
-      Log.info(:library, "re-projected movie #{movie.id} from the TMDB store")
+      Log.info(:pipeline, "re-projected movie #{movie.id} from the TMDB store")
       :ok
     else
       nil -> :ok
@@ -112,7 +112,7 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
       |> Enum.each(&reapply_season(&1, tmdb_id, payload, today))
 
       Library.broadcast_entities_changed([series.id])
-      Log.info(:library, "re-projected series #{series.id} from the TMDB store")
+      Log.info(:pipeline, "re-projected series #{series.id} from the TMDB store")
       :ok
     else
       nil -> :ok
@@ -153,7 +153,7 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
 
       {:error, reason} ->
         Log.warning(
-          :library,
+          :pipeline,
           "could not first-contact season S#{season_number} of tv tmdb:#{tmdb_id}: #{inspect(reason)}"
         )
 
@@ -176,7 +176,7 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
 
         {:error, changeset} ->
           Log.warning(
-            :library,
+            :pipeline,
             "episode #{episode.id} refused its TMDB details: #{inspect(changeset.errors)}"
           )
       end
@@ -209,7 +209,7 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
         updated
 
       {:error, changeset} ->
-        Log.warning(:library, "#{record.id} refused its TMDB fields: #{inspect(changeset.errors)}")
+        Log.warning(:pipeline, "#{record.id} refused its TMDB fields: #{inspect(changeset.errors)}")
         record
     end
   end
@@ -221,7 +221,7 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
 
       {:error, changeset} ->
         Log.warning(
-          :library,
+          :pipeline,
           "season #{season.id} refused its episode list: #{inspect(changeset.errors)}"
         )
 
