@@ -150,6 +150,14 @@ defmodule MediaCentaur.Library.Episodes do
   end
 
   @doc """
+  Re-applies an episode's TMDB details — name, overview, runtime, air
+  date — from the stored season (`MediaCentaur.Pipeline.TmdbProjection`,
+  ADR-071). Cast membership is untouched.
+  """
+  @spec update(Episode.t(), map()) :: {:ok, Episode.t()} | {:error, Ecto.Changeset.t()}
+  def update(%Episode{} = episode, attrs), do: Repo.update(Episode.update_changeset(episode, attrs))
+
+  @doc """
   Replaces an episode's cast membership (`cast_person_ids`) — the
   *Refresh series credits* backfill path.
   """

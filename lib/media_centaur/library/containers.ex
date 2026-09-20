@@ -173,20 +173,16 @@ defmodule MediaCentaur.Library.Containers do
   def create!(type, attrs) when type in @types, do: Repo.bang!(create(type, attrs))
 
   @doc """
-  Updates a container from its struct.
-
-  `Movie` has no `update_changeset` — a Movie's mutable metadata is
-  written through the ingestion pipeline, not edited in place — so it
-  has no clause here.
-
-  Nothing in production calls this today — containers are written by the
-  ingestion pipeline and never edited in place — which raises a live question
-  this module cannot answer: a series' `status` is set once at import and no
-  path refreshes it, so a show that ends stays `:returning` forever. Kept
-  until that is decided, because deleting it would also strand the three
-  `update_changeset/2` implementations it is the only caller of.
+  Updates a container from its struct — the write
+  `MediaCentaur.Pipeline.TmdbProjection` makes when a title's stored TMDB
+  record changes (ADR-071): a movie's or series' TMDB fields are a
+  projection of the store, so a series that ends does end here. Each
+  schema's `update_changeset/2` says which fields those are; the credits
+  and the collection facts are not among them.
   """
   @spec update(Ecto.Schema.t(), map()) :: {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
+  def update(%Movie{} = record, attrs), do: Repo.update(Movie.update_changeset(record, attrs))
+
   def update(%TVSeries{} = record, attrs), do: Repo.update(TVSeries.update_changeset(record, attrs))
 
   def update(%MovieSeries{} = record, attrs),

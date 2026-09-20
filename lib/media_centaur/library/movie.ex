@@ -135,6 +135,32 @@ defmodule MediaCentaur.Library.Movie do
     |> validate_required([:name])
   end
 
+  @projected_fields [
+    :name,
+    :description,
+    :date_published,
+    :duration_seconds,
+    :director,
+    :content_rating,
+    :url,
+    :aggregate_rating_value,
+    :vote_count,
+    :tagline,
+    :original_language,
+    :studio,
+    :country_code,
+    :genres,
+    :status
+  ]
+
+  @doc """
+  Re-applies the TMDB fields a movie is a projection of (ADR-071) —
+  every scalar `TMDB.Mapper.movie_attrs/3` derives. The credits are
+  fetched once at import and the collection facts belong to the
+  collection, so neither is touched here.
+  """
+  def update_changeset(movie, attrs), do: cast(movie, attrs, @projected_fields)
+
   @doc """
   Replaces the credits embeds in place — used by
   `MediaCentaur.Maintenance.refresh_movie_credits/0` to backfill cast

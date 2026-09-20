@@ -25,7 +25,8 @@ defmodule MediaCentaur.Pipeline do
       ImageRefresh,
       ImageRepair,
       Stats,
-      Supervisor
+      Supervisor,
+      TmdbProjection
     ]
 
   @moduledoc """

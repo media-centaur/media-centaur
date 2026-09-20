@@ -97,6 +97,14 @@ defmodule MediaCentaur.Library.Episode do
   end
 
   @doc """
+  Re-applies the TMDB details an episode is a projection of (ADR-071):
+  name, overview, runtime and air date. Cast membership is fetched once
+  at import and is not touched here.
+  """
+  def update_changeset(%__MODULE__{} = episode, attrs),
+    do: cast(episode, attrs, [:name, :description, :duration_seconds, :date_published])
+
+  @doc """
   Changeset for refreshing an existing episode's cast membership alone —
   the *Refresh series credits* backfill path. Deliberately narrow so a
   membership refresh can never disturb episode metadata.

@@ -48,8 +48,9 @@ defmodule MediaCentaur.Library.Season do
 
   @doc """
   Replaces the season's episode list wholesale — the write
-  `MediaCentaur.Maintenance.refresh_episode_lists/0` makes. `entries` is a
-  list of plain maps with `:episode_number`, `:name` and `:air_date`.
+  `Library.Seasons.update_episode_list/2` makes when the TMDB store's
+  season changes. `entries` is a list of plain maps with
+  `:episode_number`, `:name` and `:air_date`.
   """
   def episode_list_changeset(%__MODULE__{} = season, entries) do
     season
