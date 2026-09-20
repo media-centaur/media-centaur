@@ -56,9 +56,10 @@ defmodule MediaCentaur.TMDB.Schedule do
     window = ReleaseWindow.from_payload(payload, today)
 
     future =
-      [window.theatrical, window.digital, window.physical, window.primary]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.filter(&Date.after?(&1, today))
+      Enum.filter(
+        [window.theatrical, window.digital, window.physical, window.primary],
+        &ahead?(&1, today)
+      )
 
     build(future, movie_settled?(payload, window, today, future), fetched_at)
   end
@@ -68,8 +69,7 @@ defmodule MediaCentaur.TMDB.Schedule do
       payload
       |> tv_dates(season_payloads)
       |> Enum.map(&parse_date/1)
-      |> Enum.reject(&is_nil/1)
-      |> Enum.filter(&Date.after?(&1, today))
+      |> Enum.filter(&ahead?(&1, today))
 
     settled? = payload["status"] in ["Ended", "Canceled"] and future == []
     build(future, settled?, fetched_at)
@@ -117,6 +117,9 @@ defmodule MediaCentaur.TMDB.Schedule do
   end
 
   defp heartbeat(fetched_at), do: DateTime.add(fetched_at, @heartbeat_days, :day)
+
+  defp ahead?(nil, _today), do: false
+  defp ahead?(%Date{} = date, today), do: Date.after?(date, today)
 
   defp movie_settled?(payload, window, today, future) do
     cond do

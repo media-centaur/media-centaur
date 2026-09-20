@@ -88,6 +88,29 @@ defmodule MediaCentaur.TMDB.StoreTest do
       assert {:ok, %TitleRecord{tmdb_id: 556}} =
                Store.record_fetched({"556", :movie}, payload, @etag)
     end
+
+    test "refuses an id that is not a TMDB id" do
+      payload = TmdbStubs.movie_detail(%{"id" => 557})
+
+      assert {:error, :invalid_id} = Store.record_fetched({"tt-tried", :movie}, payload, @etag)
+      assert {:error, :invalid_id} = Store.record_season_fetched("", 1, payload, @etag)
+      assert Store.get({"tt-tried", :movie}) == nil
+      assert Store.seasons("") == []
+    end
+
+    test "two processes recording the same new title both succeed, and one row results" do
+      payload = TmdbStubs.movie_detail(%{"id" => 558})
+
+      results =
+        1..2
+        |> Task.async_stream(fn _n -> Store.record_fetched({558, :movie}, payload, @etag) end,
+          ordered: false
+        )
+        |> Enum.map(fn {:ok, result} -> result end)
+
+      assert [{:ok, %TitleRecord{}}, {:ok, %TitleRecord{}}] = results
+      assert Repo.aggregate(TitleRecord, :count) == 1
+    end
   end
 
   describe "record_season_fetched/4" do

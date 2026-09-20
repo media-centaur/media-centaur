@@ -163,6 +163,15 @@ defmodule MediaCentaur.TMDB.ClientTest do
       assert %Store.SeasonRecord{tmdb_id: 702, season_number: 3} = Store.get_season(702, 3)
     end
 
+    test "a write the store refuses does not fail the fetch" do
+      Req.Test.stub(:tmdb, fn conn ->
+        Req.Test.json(conn, MediaCentaur.TmdbStubs.season_detail(%{"season_number" => 1}))
+      end)
+
+      assert {:ok, %{"season_number" => 1}} = Client.get_season("tt-tried", 1)
+      assert MediaCentaur.Repo.aggregate(Store.SeasonRecord, :count) == 0
+    end
+
     test "a collection detail is not stored" do
       Req.Test.stub(:tmdb, fn conn ->
         Req.Test.json(conn, MediaCentaur.TmdbStubs.collection_detail())

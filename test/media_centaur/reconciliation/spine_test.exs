@@ -1,8 +1,9 @@
 defmodule MediaCentaur.Reconciliation.SpineTest do
   # Sync because this drives TMDB failures through `TMDB.Client`, whose
   # every outcome is folded into `MediaCentaur.IntegrationAvailability` —
-  # global state an async test may not write (MC0036).
-  use MediaCentaur.Case, async: false
+  # global state an async test may not write (MC0036). `DataCase` because
+  # every detail fetch now writes through to `TMDB.Store`.
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Reconciliation.{Spine, SpineNode}
 
