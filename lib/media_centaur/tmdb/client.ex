@@ -276,17 +276,29 @@ defmodule MediaCentaur.TMDB.Client do
   defp write_through(nil, _outcome, _body, _response), do: :ok
   defp write_through(_ref, :hit, _body, _response), do: :ok
 
-  defp write_through({:season, tmdb_id, season_number}, _outcome, body, response) when is_map(body) do
-    {:ok, _record} = Store.record_season_fetched(tmdb_id, season_number, body, etag(response))
-    :ok
+  defp write_through({:season, tmdb_id, season_number} = ref, _outcome, body, response)
+       when is_map(body) do
+    tmdb_id
+    |> Store.record_season_fetched(season_number, body, etag(response))
+    |> note_write(ref)
   end
 
   defp write_through({_tmdb_id, _media_type} = ref, _outcome, body, response) when is_map(body) do
-    {:ok, _record} = Store.record_fetched(ref, body, etag(response))
-    :ok
+    ref
+    |> Store.record_fetched(body, etag(response))
+    |> note_write(ref)
   end
 
   defp write_through(_ref, _outcome, _body, _response), do: :ok
+
+  # A store write never fails the fetch that triggered it: the caller
+  # asked for a payload and has it.
+  defp note_write({:ok, _record}, _ref), do: :ok
+
+  defp note_write({:error, reason}, ref) do
+    Log.debug(:tmdb, "store did not record #{detail_subject(ref)}: #{inspect(reason)}")
+    :ok
+  end
 
   defp etag(response), do: List.first(Req.Response.get_header(response, "etag"))
 

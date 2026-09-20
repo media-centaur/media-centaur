@@ -42,23 +42,34 @@ defmodule MediaCentaur.TMDB.Store do
 
   # --- Reads ---
 
-  @doc "The stored title, or nil."
+  @doc "The stored title, or nil (also for an id that is not a TMDB id)."
   @spec get(ref()) :: TitleRecord.t() | nil
   def get({tmdb_id, media_type}) do
-    Repo.get_by(TitleRecord, tmdb_id: normalize_id(tmdb_id), media_type: media_type)
+    case parse_id(tmdb_id) do
+      {:ok, id} -> Repo.get_by(TitleRecord, tmdb_id: id, media_type: media_type)
+      :error -> nil
+    end
   end
 
   @doc "The stored season, or nil."
   @spec get_season(pos_integer() | String.t(), pos_integer()) :: SeasonRecord.t() | nil
   def get_season(tmdb_id, season_number) do
-    Repo.get_by(SeasonRecord, tmdb_id: normalize_id(tmdb_id), season_number: season_number)
+    case parse_id(tmdb_id) do
+      {:ok, id} -> Repo.get_by(SeasonRecord, tmdb_id: id, season_number: season_number)
+      :error -> nil
+    end
   end
 
   @doc "Every stored season of a series, by season number."
   @spec seasons(pos_integer() | String.t()) :: [SeasonRecord.t()]
   def seasons(tmdb_id) do
-    tmdb_id = normalize_id(tmdb_id)
-    Repo.all(from s in SeasonRecord, where: s.tmdb_id == ^tmdb_id, order_by: s.season_number)
+    case parse_id(tmdb_id) do
+      {:ok, id} ->
+        Repo.all(from s in SeasonRecord, where: s.tmdb_id == ^id, order_by: s.season_number)
+
+      :error ->
+        []
+    end
   end
 
   @doc "Unsettled titles whose check time has passed, oldest due first."
@@ -80,21 +91,12 @@ defmodule MediaCentaur.TMDB.Store do
   response cache carries none). The schedule is re-derived either way.
   """
   @spec record_fetched(ref(), map(), String.t() | nil) ::
-          {:ok, TitleRecord.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, TitleRecord.t()} | {:error, Ecto.Changeset.t() | :invalid_id}
   def record_fetched({tmdb_id, media_type}, payload, etag) when is_map(payload) do
-    tmdb_id = normalize_id(tmdb_id)
-    now = now()
-    payload = trim_payload(payload)
-    existing = get({tmdb_id, media_type})
-
-    attrs =
-      existing
-      |> fetched_attrs(payload, etag, now)
-      |> Map.merge(schedule_attrs(existing, media_type, payload, seasons(tmdb_id), now))
-
-    (existing || %TitleRecord{tmdb_id: tmdb_id, media_type: media_type})
-    |> TitleRecord.changeset(attrs)
-    |> Repo.insert_or_update()
+    case parse_id(tmdb_id) do
+      {:ok, id} -> write_title({id, media_type}, trim_payload(payload), etag, :first_try)
+      :error -> {:error, :invalid_id}
+    end
   end
 
   @doc """
@@ -102,20 +104,15 @@ defmodule MediaCentaur.TMDB.Store do
   series' schedule, since the season's episode dates are part of it.
   """
   @spec record_season_fetched(pos_integer() | String.t(), pos_integer(), map(), String.t() | nil) ::
-          {:ok, SeasonRecord.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, SeasonRecord.t()} | {:error, Ecto.Changeset.t() | :invalid_id}
   def record_season_fetched(tmdb_id, season_number, payload, etag) when is_map(payload) do
-    tmdb_id = normalize_id(tmdb_id)
-    now = now()
-    existing = get_season(tmdb_id, season_number)
-
-    result =
-      (existing || %SeasonRecord{tmdb_id: tmdb_id, season_number: season_number})
-      |> SeasonRecord.changeset(fetched_attrs(existing, payload, etag, now))
-      |> Repo.insert_or_update()
-
-    with {:ok, _season} <- result do
-      reschedule_series(tmdb_id)
-      result
+    with {:ok, id} <- parse_id(tmdb_id),
+         {:ok, season} <- write_season(id, season_number, payload, etag, :first_try) do
+      reschedule_series(id)
+      {:ok, season}
+    else
+      :error -> {:error, :invalid_id}
+      {:error, _changeset} = error -> error
     end
   end
 
@@ -296,6 +293,58 @@ defmodule MediaCentaur.TMDB.Store do
 
   # --- Internals ---
 
+  # Read-then-write, so two processes fetching the same new title can
+  # both read "no row" and both insert. The loser's unique violation is
+  # retried once as the update it should have been; the payload is the
+  # same fetch either way.
+  defp write_title({tmdb_id, media_type} = ref, payload, etag, attempt) do
+    now = now()
+    existing = get(ref)
+
+    attrs =
+      existing
+      |> fetched_attrs(payload, etag, now)
+      |> Map.merge(schedule_attrs(existing, media_type, payload, seasons(tmdb_id), now))
+
+    result =
+      (existing || %TitleRecord{tmdb_id: tmdb_id, media_type: media_type})
+      |> TitleRecord.changeset(attrs)
+      |> Repo.insert_or_update()
+
+    case result do
+      {:error, %Ecto.Changeset{} = changeset} when attempt == :first_try ->
+        if unique_violation?(changeset),
+          do: write_title(ref, payload, etag, :retry),
+          else: result
+
+      _settled ->
+        result
+    end
+  end
+
+  defp write_season(tmdb_id, season_number, payload, etag, attempt) do
+    existing = get_season(tmdb_id, season_number)
+
+    result =
+      (existing || %SeasonRecord{tmdb_id: tmdb_id, season_number: season_number})
+      |> SeasonRecord.changeset(fetched_attrs(existing, payload, etag, now()))
+      |> Repo.insert_or_update()
+
+    case result do
+      {:error, %Ecto.Changeset{} = changeset} when attempt == :first_try ->
+        if unique_violation?(changeset),
+          do: write_season(tmdb_id, season_number, payload, etag, :retry),
+          else: result
+
+      _settled ->
+        result
+    end
+  end
+
+  defp unique_violation?(%Ecto.Changeset{errors: errors}) do
+    Enum.any?(errors, fn {_field, {_message, opts}} -> opts[:constraint] == :unique end)
+  end
+
   defp fetched_attrs(nil, payload, etag, now) do
     %{payload: payload, etag: etag, fetched_at: now, changed_at: now}
   end
@@ -339,6 +388,16 @@ defmodule MediaCentaur.TMDB.Store do
 
   defp now, do: DateTime.utc_now(:second)
 
-  defp normalize_id(id) when is_integer(id), do: id
-  defp normalize_id(id) when is_binary(id), do: String.to_integer(id)
+  # A TMDB id is a positive integer; callers pass it as an integer or as
+  # its decimal spelling. Anything else is refused rather than stored.
+  defp parse_id(id) when is_integer(id) and id > 0, do: {:ok, id}
+
+  defp parse_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {int, ""} when int > 0 -> {:ok, int}
+      _other -> :error
+    end
+  end
+
+  defp parse_id(_id), do: :error
 end
