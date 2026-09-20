@@ -4,9 +4,11 @@ defmodule MediaCentaur.Library.EpisodeListEntry do
   TMDB says the season contains, whether or not a file for it was ever
   imported.
 
-  Written from the `get_season` payload at ingest
-  (`MediaCentaur.Pipeline.Stages.FetchMetadata`) and refreshed by
-  `MediaCentaur.Maintenance.refresh_episode_lists/0`.
+  Written from the season payload at ingest
+  (`MediaCentaur.Pipeline.Stages.FetchMetadata`) and rebuilt from the
+  TMDB store whenever the series changes
+  (`MediaCentaur.Pipeline.TmdbProjection`, ADR-071); the entries are
+  `MediaCentaur.TMDB.Mapper.episode_list/1`'s.
 
   This is not a `MediaCentaur.Library.Episode`: an Episode row means a file
   exists, and invariants elsewhere depend on that — release tracking
