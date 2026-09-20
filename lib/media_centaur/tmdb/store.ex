@@ -119,20 +119,37 @@ defmodule MediaCentaur.TMDB.Store do
   end
 
   @doc """
-  The payload as the store keeps it: as received, except the `images`
-  block, which is reduced to the one logo `Mapper.pick_logo_path/1`
-  selects. Posters and backdrops are already named at the top level;
-  the rest of the block is the bulk of a detail response and nothing
-  reads it.
+  The payload as the store keeps it — what the app re-reads, not
+  everything TMDB sends. Two blocks go: `images` is reduced to the one
+  logo `Mapper.pick_logo_path/1` selects (posters and backdrops are
+  named at the top level), and the credits — a title's `credits` or
+  `aggregate_credits`, a season's `credits`, an episode's `guest_stars`
+  and `crew` — are dropped outright. Credits are read once, at import,
+  to project cast onto a library entity; the import requests them then.
+  Measured before the decision: they were nine tenths of a 245 KB series
+  and a 485 KB season.
   """
   @spec trim_payload(map()) :: map()
-  def trim_payload(%{"images" => _images} = payload) do
+  def trim_payload(payload) when is_map(payload) do
+    payload
+    |> trim_images()
+    |> Map.drop(["credits", "aggregate_credits"])
+    |> trim_episodes()
+  end
+
+  defp trim_images(%{"images" => _images} = payload) do
     logo_path = Mapper.pick_logo_path(payload)
     logos = get_in(payload, ["images", "logos"]) || []
     Map.put(payload, "images", %{"logos" => Enum.filter(logos, &(&1["file_path"] == logo_path))})
   end
 
-  def trim_payload(payload), do: payload
+  defp trim_images(payload), do: payload
+
+  defp trim_episodes(%{"episodes" => episodes} = payload) when is_list(episodes) do
+    Map.put(payload, "episodes", Enum.map(episodes, &Map.drop(&1, ["guest_stars", "crew"])))
+  end
+
+  defp trim_episodes(payload), do: payload
 
   # --- First contact and checks ---
 
@@ -310,7 +327,7 @@ defmodule MediaCentaur.TMDB.Store do
 
   defp store_season(tmdb_id, season_number, payload, etag) do
     with {:ok, season, changed?} <-
-           write_season(tmdb_id, season_number, payload, etag, :first_try) do
+           write_season(tmdb_id, season_number, trim_payload(payload), etag, :first_try) do
       reschedule_series(tmdb_id)
       {:ok, season, changed?}
     end

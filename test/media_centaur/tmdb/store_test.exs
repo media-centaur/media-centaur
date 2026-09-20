@@ -74,6 +74,50 @@ defmodule MediaCentaur.TMDB.StoreTest do
       assert MediaCentaur.TMDB.Mapper.pick_logo_path(record.payload) == "/en.png"
     end
 
+    test "the credits blocks are dropped: the store holds what the app re-reads" do
+      movie =
+        TmdbStubs.movie_detail(%{
+          "id" => 570,
+          "credits" => %{"cast" => [%{"name" => "A. Actor"}], "crew" => [%{"name" => "A. Director"}]}
+        })
+
+      series =
+        TmdbStubs.tv_detail(%{
+          "id" => 571,
+          "aggregate_credits" => %{"cast" => [%{"name" => "A. Actor"}], "crew" => []}
+        })
+
+      season =
+        TmdbStubs.season_detail(%{
+          "season_number" => 1,
+          "credits" => %{"cast" => [%{"name" => "A. Actor"}]},
+          "episodes" => [
+            %{
+              "episode_number" => 1,
+              "air_date" => "2026-01-01",
+              "name" => "Pilot",
+              "guest_stars" => [%{"name" => "A. Guest"}],
+              "crew" => [%{"name" => "A. Writer"}]
+            }
+          ]
+        })
+
+      {:ok, stored_movie} = Store.record_fetched({570, :movie}, movie, @etag)
+      {:ok, stored_series} = Store.record_fetched({571, :tv_series}, series, @etag)
+      {:ok, stored_season} = Store.record_season_fetched(571, 1, season, @etag)
+
+      refute Map.has_key?(stored_movie.payload, "credits")
+      refute Map.has_key?(stored_series.payload, "aggregate_credits")
+      refute Map.has_key?(stored_season.payload, "credits")
+
+      assert [%{"episode_number" => 1, "air_date" => "2026-01-01", "name" => "Pilot"} = episode] =
+               stored_season.payload["episodes"]
+
+      refute Map.has_key?(episode, "guest_stars")
+      refute Map.has_key?(episode, "crew")
+      assert stored_movie.payload["release_date"] == movie["release_date"]
+    end
+
     test "a settled title records when it settled and has no due time" do
       payload = TmdbStubs.movie_detail(%{"id" => 555, "release_date" => "2020-01-01"})
 
