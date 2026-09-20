@@ -222,9 +222,6 @@ defmodule MediaCentaurWeb.SettingsLive do
        repairing_images: false,
        rederiving_extra_names: false,
        refetching_backdrops: false,
-       refreshing_credits: false,
-       refreshing_series_credits: false,
-       refreshing_episode_lists: false,
        refreshing_movie_subtitles: false,
        repair_last_result: nil,
        download_client_detect_status: nil,
@@ -730,21 +727,6 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("refresh_image_cache", _params, socket) do
     Maintenance.refresh_image_cache_async(self())
     {:noreply, assign(socket, refreshing_images: true, confirming_image_refresh: false)}
-  end
-
-  def handle_event("refresh_movie_credits", _params, socket) do
-    Maintenance.refresh_movie_credits_async(self())
-    {:noreply, assign(socket, refreshing_credits: true)}
-  end
-
-  def handle_event("refresh_series_credits", _params, socket) do
-    Maintenance.refresh_series_credits_async(self())
-    {:noreply, assign(socket, refreshing_series_credits: true)}
-  end
-
-  def handle_event("refresh_episode_lists", _params, socket) do
-    Maintenance.refresh_episode_lists_async(self())
-    {:noreply, assign(socket, refreshing_episode_lists: true)}
   end
 
   def handle_event("refresh_movie_subtitles", _params, socket) do
@@ -1263,77 +1245,6 @@ defmodule MediaCentaurWeb.SettingsLive do
        :info,
        "Image cache cleared — #{count} #{if count == 1, do: "entry", else: "entries"} queued for re-download. New artwork will appear as downloads catch up."
      )}
-  end
-
-  def handle_info(
-        {:movie_credits_refreshed, %{updated: updated, skipped: skipped, failed: failed}},
-        socket
-      ) do
-    msg =
-      cond do
-        updated == 0 and failed == 0 ->
-          "Movie credits already up to date — nothing to refresh."
-
-        failed > 0 ->
-          "Refreshed credits for #{updated} movie#{if updated == 1, do: "", else: "s"} " <>
-            "(#{skipped} skipped, #{failed} failed)."
-
-        true ->
-          "Refreshed credits for #{updated} movie#{if updated == 1, do: "", else: "s"}" <>
-            if(skipped > 0, do: " (#{skipped} already had credits).", else: ".")
-      end
-
-    {:noreply,
-     socket
-     |> assign(refreshing_credits: false)
-     |> put_flash(:info, msg)}
-  end
-
-  def handle_info(
-        {:series_credits_refreshed, %{updated: updated, skipped: skipped, failed: failed}},
-        socket
-      ) do
-    msg =
-      cond do
-        updated == 0 and failed == 0 ->
-          "Series credits already up to date — nothing to refresh."
-
-        failed > 0 ->
-          "Refreshed credits for #{updated} series " <>
-            "(#{skipped} skipped, #{failed} failed)."
-
-        true ->
-          "Refreshed credits for #{updated} series" <>
-            if(skipped > 0, do: " (#{skipped} already had credits).", else: ".")
-      end
-
-    {:noreply,
-     socket
-     |> assign(refreshing_series_credits: false)
-     |> put_flash(:info, msg)}
-  end
-
-  def handle_info(
-        {:episode_lists_refreshed, %{updated: updated, skipped: skipped, failed: failed}},
-        socket
-      ) do
-    msg =
-      cond do
-        updated == 0 and failed == 0 ->
-          "Episode lists already up to date — nothing to refresh."
-
-        failed > 0 ->
-          "Refreshed the episode list for #{updated} seasons (#{skipped} skipped, #{failed} failed)."
-
-        true ->
-          "Refreshed the episode list for #{updated} seasons" <>
-            if(skipped > 0, do: " (#{skipped} already complete).", else: ".")
-      end
-
-    {:noreply,
-     socket
-     |> assign(refreshing_episode_lists: false)
-     |> put_flash(:info, msg)}
   end
 
   def handle_info({:movie_subtitles_refreshed, %{updated: updated, skipped: skipped}}, socket) do
@@ -1865,9 +1776,6 @@ defmodule MediaCentaurWeb.SettingsLive do
                 rederiving_extra_names={@rederiving_extra_names}
                 blank_extra_names_count={@blank_extra_names_count}
                 refetching_backdrops={@refetching_backdrops}
-                refreshing_credits={@refreshing_credits}
-                refreshing_series_credits={@refreshing_series_credits}
-                refreshing_episode_lists={@refreshing_episode_lists}
                 refreshing_movie_subtitles={@refreshing_movie_subtitles}
                 missing_images_summary={@missing_images_summary}
                 spoiler_free={@spoiler_free}
@@ -2126,11 +2034,8 @@ defmodule MediaCentaurWeb.SettingsLive do
       confirming_image_refresh={@confirming_image_refresh}
       rederiving_extra_names={@rederiving_extra_names}
       refetching_backdrops={@refetching_backdrops}
-      refreshing_credits={@refreshing_credits}
       refreshing_images={@refreshing_images}
       refreshing_movie_subtitles={@refreshing_movie_subtitles}
-      refreshing_series_credits={@refreshing_series_credits}
-      refreshing_episode_lists={@refreshing_episode_lists}
       repairing_images={@repairing_images}
     />
     """

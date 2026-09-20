@@ -12,7 +12,6 @@ defmodule MediaCentaur.Library.Writable do
   | `Writes.find_or_insert_by/3` | `schema.create_changeset/1` |
   | `Writes.upsert_by/3` | `schema.create_changeset/1`, `schema.update_changeset/2` |
   | `Files.upsert_by_path/2` | `schema.create_changeset/1`, `schema.update_changeset/2` |
-  | `Maintenance` credits refresh | `schema.update_credits_changeset/2` |
 
   Declaring the contract does three things prose could not: the compiler
   checks that an implementor actually defines `create_changeset/1`, a reader
@@ -28,8 +27,8 @@ defmodule MediaCentaur.Library.Writable do
   `WatchProgress` and `ExtraProgress` implement that instead of this.
 
   Only `create_changeset/1` is required — it is the one every seam calls.
-  A record that is never updated in place, or that carries no credits, simply
-  does not define the optional callbacks.
+  A record that is never updated in place simply does not define the
+  optional callback.
   """
 
   @doc "Builds the insert changeset from a plain attribute map."
@@ -38,9 +37,5 @@ defmodule MediaCentaur.Library.Writable do
   @doc "Builds the in-place update changeset for an existing record."
   @callback update_changeset(record :: Ecto.Schema.t(), attrs :: map()) :: Ecto.Changeset.t()
 
-  @doc "Builds the changeset that replaces a record's cast and crew."
-  @callback update_credits_changeset(record :: Ecto.Schema.t(), attrs :: map()) ::
-              Ecto.Changeset.t()
-
-  @optional_callbacks update_changeset: 2, update_credits_changeset: 2
+  @optional_callbacks update_changeset: 2
 end

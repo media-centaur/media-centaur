@@ -1,9 +1,10 @@
 defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
   @moduledoc """
   The Maintenance section of the Settings page — recoverable repair actions
-  for the library's metadata and cached artwork (image repair, credits and
-  subtitle refresh, extra-name rederive, backdrop re-fetch, full image-cache
-  refresh). Split out of the Danger Zone so the irreversible Clear database
+  for the library's metadata and cached artwork (image repair, subtitle
+  refresh, extra-name rederive, backdrop re-fetch, full image-cache
+  refresh). A title's TMDB facts are not repaired here — the library
+  follows the TMDB store (ADR-071). Split out of the Danger Zone so the irreversible Clear database
   keeps a section to itself. `SettingsLive` delegates to `render/1` and
   hosts the action handlers.
   """
@@ -24,11 +25,8 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
 
   attr :rederiving_extra_names, :boolean, required: true
   attr :refetching_backdrops, :boolean, required: true
-  attr :refreshing_credits, :boolean, required: true
   attr :refreshing_images, :boolean, required: true
   attr :refreshing_movie_subtitles, :boolean, required: true
-  attr :refreshing_series_credits, :boolean, required: true
-  attr :refreshing_episode_lists, :boolean, required: true
   attr :repairing_images, :boolean, required: true
 
   def render(assigns) do
@@ -118,66 +116,6 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
             tabindex="0"
           >
             {if @refetching_backdrops, do: "Re-fetching…", else: "Re-fetch"}
-          </.button>
-        </div>
-
-        <div class="flex items-start justify-between gap-4 py-3">
-          <div class="min-w-0">
-            <p class="text-sm font-medium">Refresh movie credits</p>
-            <p class="text-xs text-base-content/55 mt-0.5">
-              Backfills cast, crew (director, writers, composer), and IMDb ids for movies imported before those fields existed. Skips movies that already have credits — safe to re-run.
-            </p>
-          </div>
-          <.button
-            variant="neutral"
-            size="sm"
-            class="shrink-0"
-            phx-click="refresh_movie_credits"
-            disabled={@refreshing_credits}
-            data-nav-item
-            tabindex="0"
-          >
-            {if @refreshing_credits, do: "Refreshing…", else: "Refresh"}
-          </.button>
-        </div>
-
-        <div class="flex items-start justify-between gap-4 py-3">
-          <div class="min-w-0">
-            <p class="text-sm font-medium">Refresh series credits</p>
-            <p class="text-xs text-base-content/55 mt-0.5">
-              Backfills creators, aggregate cast, and IMDb ids for TV series imported before those fields existed. Skips series that already have credits — safe to re-run.
-            </p>
-          </div>
-          <.button
-            variant="neutral"
-            size="sm"
-            class="shrink-0"
-            phx-click="refresh_series_credits"
-            disabled={@refreshing_series_credits}
-            data-nav-item
-            tabindex="0"
-          >
-            {if @refreshing_series_credits, do: "Refreshing…", else: "Refresh"}
-          </.button>
-        </div>
-
-        <div class="flex items-start justify-between gap-4 py-3">
-          <div class="min-w-0">
-            <p class="text-sm font-medium">Refresh episode lists</p>
-            <p class="text-xs text-base-content/55 mt-0.5">
-              Asks TMDB which episodes each season has, so a show's episode list can tell an episode you're missing from one that hasn't aired yet. Only checks seasons you don't already have in full — safe to re-run.
-            </p>
-          </div>
-          <.button
-            variant="neutral"
-            size="sm"
-            class="shrink-0"
-            phx-click="refresh_episode_lists"
-            disabled={@refreshing_episode_lists}
-            data-nav-item
-            tabindex="0"
-          >
-            {if @refreshing_episode_lists, do: "Refreshing…", else: "Refresh"}
           </.button>
         </div>
 

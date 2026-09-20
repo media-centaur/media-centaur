@@ -5,17 +5,18 @@ defmodule MediaCentaur.Maintenance do
       MediaCentaur.Pipeline,
       MediaCentaur.Review,
       MediaCentaur.Subtitles,
-      MediaCentaur.TMDB,
       MediaCentaur.Watcher
     ]
 
   @moduledoc """
   Operator-run library maintenance — the actions behind Settings →
   Maintenance and Settings → Danger Zone: clear the database, rebuild or
-  repair artwork, backfill credits, subtitles and extra names.
+  repair artwork, refresh subtitles and extra names. A title's TMDB
+  facts are not repaired here: the library is a projection of the TMDB
+  store (`MediaCentaur.Pipeline.TmdbProjection`, ADR-071).
 
   Each action orchestrates across contexts (Library rows, Review rows,
-  TMDB fetches, image files on disk), which is why it is owned here
+  image files on disk, the image queue), which is why it is owned here
   rather than in `Settings` — shared key/value infrastructure with no
   domain logic, see
   [ADR-029](../decisions/architecture/2026-03-26-029-data-decoupling.md).
@@ -34,9 +35,6 @@ defmodule MediaCentaur.Maintenance do
   alias MediaCentaur.Library.Image
 
   alias MediaCentaur.Library.{
-    ExternalId,
-    Season,
-    ExternalIds,
     Movie,
     MovieSeries,
     TVSeries,
@@ -44,11 +42,9 @@ defmodule MediaCentaur.Maintenance do
     WatchedFile
   }
 
-  alias MediaCentaur.TMDB.{Client, Mapper}
-
   # --- Async variants (ADR-049) ---
   #
-  # Each runs its (long, library-wide, often TMDB-fetching) counterpart on
+  # Each runs its (long, library-wide) counterpart on
   # a supervised context-layer task. These must outlive the triggering
   # LiveView — a navigated-away admin shouldn't abort a bulk refresh — so
   # they live here, not in a web-layer `start_child`. On completion each
@@ -68,22 +64,6 @@ defmodule MediaCentaur.Maintenance do
     run_async(fn ->
       {:ok, count} = refresh_image_cache()
       send(reply_to, {:image_cache_refreshed, count})
-    end)
-  end
-
-  @doc "Async `refresh_movie_credits/0`; sends `{:movie_credits_refreshed, result}`."
-  def refresh_movie_credits_async(reply_to) do
-    run_async(fn ->
-      {:ok, result} = refresh_movie_credits()
-      send(reply_to, {:movie_credits_refreshed, result})
-    end)
-  end
-
-  @doc "Async `refresh_series_credits/0`; sends `{:series_credits_refreshed, result}`."
-  def refresh_series_credits_async(reply_to) do
-    run_async(fn ->
-      {:ok, result} = refresh_series_credits()
-      send(reply_to, {:series_credits_refreshed, result})
     end)
   end
 
@@ -116,14 +96,6 @@ defmodule MediaCentaur.Maintenance do
     run_async(fn ->
       {:ok, result} = rederive_extra_names()
       send(reply_to, {:extra_names_rederived, result})
-    end)
-  end
-
-  @doc "Async `refresh_episode_lists/0`; sends `{:episode_lists_refreshed, result}`."
-  def refresh_episode_lists_async(reply_to) do
-    run_async(fn ->
-      {:ok, result} = refresh_episode_lists()
-      send(reply_to, {:episode_lists_refreshed, result})
     end)
   end
 
@@ -193,341 +165,6 @@ defmodule MediaCentaur.Maintenance do
     {:ok, length(entities)}
   end
 
-  @doc """
-  Backfills `cast`, `crew`, `imdb_id`, and the scalar metadata columns
-  (genres, status, tagline, vote count, language, studio, country) on
-  movies whose import path didn't write them — movies imported before
-  the credit fields existed, and collection children created while
-  `fetch_movie_in_collection` hand-built a subset of the movie attrs.
-  Iterates movies with a non-nil `tmdb_id`, re-fetches TMDB metadata
-  for any with empty `cast` *or* empty `crew`, and updates those
-  columns in place — no images, watch progress, or files are touched.
-
-  Idempotent: subsequent runs skip movies that already have non-empty
-  cast and non-empty crew. Rate-limited automatically by
-  the TMDB client's `RateLimiter` step.
-
-  Broadcasts `entities_changed` for the updated movies so the ETS
-  Detail projection (and any open modal) picks up the new cast/crew
-  instead of serving a stale, cast-less projection.
-
-  Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
-  """
-  @spec refresh_movie_credits() ::
-          {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
-  def refresh_movie_credits do
-    refresh_credits(%{
-      label: "movie",
-      schema: Movie,
-      fetcher: &Client.get_movie/1,
-      attrs_builder: &build_movie_credits_attrs/1
-    })
-  end
-
-  @doc """
-  Backfills the `cast`, `crew` (creators), and `imdb_id` fields on TV
-  series imported before those fields existed. Iterates series with a
-  non-nil `tmdb_id`, re-fetches TMDB metadata for any with empty `cast`
-  *or* empty `crew`, and updates all three credit-related columns in
-  place — no images, watch progress, or files are touched.
-
-  Idempotent: subsequent runs skip series that already have non-empty
-  cast and non-empty crew. Rate-limited automatically by
-  the TMDB client's `RateLimiter` step.
-
-  Broadcasts `entities_changed` for the updated series so dependent
-  caches refresh in place.
-
-  Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
-  """
-  @spec refresh_series_credits() ::
-          {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
-  def refresh_series_credits do
-    refresh_credits(%{
-      label: "series",
-      schema: TVSeries,
-      fetcher: &Client.get_tv/1,
-      attrs_builder: &build_series_credits_attrs/1,
-      refreshed?: &series_credits_refreshed?/1,
-      post_update: &backfill_episode_cast_membership/2
-    })
-  end
-
-  # Cast embeds written before `total_episode_count` existed carry nil
-  # counts across the board — present, but stale for the Cast view's
-  # appearance ordering, so they earn a refetch.
-  defp series_credits_refreshed?(%TVSeries{cast: cast, crew: crew}) do
-    cast != [] and crew != [] and Enum.any?(cast, & &1.total_episode_count)
-  end
-
-  # One season fetch per season (rate-limited inside the client), then a
-  # narrow membership update per episode. A failed season fetch skips
-  # that season's episodes and leaves the rest of the series intact —
-  # membership stays [] there and the Cast view degrades to the single
-  # aggregate list for affected play targets.
-  defp backfill_episode_cast_membership(%TVSeries{} = series, tmdb_id) do
-    for season <- Library.Seasons.list_for_tv_series(series.id) do
-      case Client.get_season(tmdb_id, season.season_number) do
-        {:ok, season_data} ->
-          for episode <- Library.Episodes.list_for_season(season.id) do
-            membership = Mapper.episode_attrs(season_data, episode.episode_number)
-            _ = Library.Episodes.update_cast_membership(episode, membership.cast_person_ids)
-          end
-
-        {:error, reason} ->
-          Log.warning(
-            :library,
-            "episode cast backfill failed for series #{series.id} S#{season.season_number}: #{inspect(reason)}"
-          )
-      end
-    end
-
-    :ok
-  end
-
-  @doc """
-  Refreshes the TMDB episode list of every season that is not complete — an
-  empty `episode_list`, or fewer library episode rows than the list holds —
-  for series carrying a TMDB id. One `get_season` per such season,
-  rate-limited inside the TMDB client.
-
-  Complete seasons are skipped, so re-running is cheap. It refreshes rather
-  than backfills: a season ingested mid-run captured whatever TMDB knew that
-  day, and a revised episode count would otherwise never reach the library.
-
-  Broadcasts `entities_changed` for the touched series so the ETS Detail
-  projection — and any open modal — picks the new lists up. A failed season
-  is logged and skipped, leaving the rest intact.
-
-  Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
-  """
-  @spec refresh_episode_lists() ::
-          {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}
-  def refresh_episode_lists do
-    Log.info(:library, "refreshing season episode lists")
-
-    initial = %{updated: 0, skipped: 0, failed: 0, updated_ids: []}
-
-    result =
-      Enum.reduce(records_with_tmdb_id(TVSeries), initial, fn {series, tmdb_id}, acc ->
-        series.id
-        |> Library.Seasons.list_for_tv_series()
-        |> Enum.reduce(acc, &refresh_one_episode_list(series, &1, tmdb_id, &2))
-      end)
-
-    %{updated_ids: updated_ids} = result
-    Library.broadcast_entities_changed(Enum.uniq(updated_ids))
-
-    counts = Map.delete(result, :updated_ids)
-
-    Log.info(
-      :library,
-      "episode list refresh — #{counts.updated} updated, #{counts.skipped} skipped, #{counts.failed} failed"
-    )
-
-    {:ok, counts}
-  end
-
-  defp refresh_one_episode_list(series, season, tmdb_id, acc) do
-    if season_complete?(season) do
-      %{acc | skipped: acc.skipped + 1}
-    else
-      fetch_and_store_episode_list(series, season, tmdb_id, acc)
-    end
-  end
-
-  defp fetch_and_store_episode_list(series, season, tmdb_id, acc) do
-    case Client.get_season(tmdb_id, season.season_number) do
-      {:ok, season_data} ->
-        entries = Enum.map(season_data["episodes"] || [], &episode_list_entry/1)
-
-        case Repo.update(Season.episode_list_changeset(season, entries)) do
-          {:ok, _season} ->
-            %{acc | updated: acc.updated + 1, updated_ids: [series.id | acc.updated_ids]}
-
-          {:error, _changeset} ->
-            %{acc | failed: acc.failed + 1}
-        end
-
-      {:error, reason} ->
-        Log.warning(
-          :library,
-          "episode list refresh failed for #{series.id} season #{season.season_number}: #{inspect(reason)}"
-        )
-
-        %{acc | failed: acc.failed + 1}
-    end
-  end
-
-  # Complete means the library holds a row for every episode the list names.
-  # An empty list is never complete — it is a season that has never been
-  # refreshed.
-  defp season_complete?(season) do
-    listed = length(season.episode_list || [])
-    listed > 0 and length(Library.Episodes.list_for_season(season.id)) >= listed
-  end
-
-  # TMDB dates an undated episode as "" rather than omitting the key.
-  defp episode_list_entry(episode) do
-    %{
-      episode_number: episode["episode_number"],
-      name: episode["name"],
-      air_date: if(episode["air_date"] not in [nil, ""], do: episode["air_date"])
-    }
-  end
-
-  # Shared driver for credit-refresh maintenance actions. Each caller
-  # supplies the schema to iterate, the TMDB fetcher keyed by the
-  # container's TMDB ExternalId row, and a builder that turns the
-  # fetched body into update attrs. The schema's own
-  # `update_credits_changeset/2` performs the write. The TMDB id and
-  # any returned IMDB id ride on `library_external_ids` rather than
-  # on the container column (Library Schema v2 Phase 1 Task 6).
-  defp refresh_credits(%{label: label, schema: schema} = config) do
-    Log.info(:library, "refreshing #{label} credits")
-
-    records = records_with_tmdb_id(schema)
-    initial = %{updated: 0, skipped: 0, failed: 0, updated_ids: []}
-
-    result =
-      Enum.reduce(records, initial, fn {record, tmdb_id}, acc ->
-        process_credits_refresh(record, tmdb_id, acc, config)
-      end)
-
-    %{updated_ids: updated_ids} = result
-
-    # The ETS-backed Detail projection (read by the modal via
-    # `load_modal_entry/1`) rebuilds only on `{:entities_changed, _}`.
-    # Without this broadcast the DB carries the fresh cast/crew but the
-    # cached projection — and therefore the open modal — stays stale.
-    Library.broadcast_entities_changed(updated_ids)
-
-    counts = Map.delete(result, :updated_ids)
-
-    Log.info(
-      :library,
-      "#{label} credits refresh — #{counts.updated} updated, #{counts.skipped} skipped, #{counts.failed} failed"
-    )
-
-    {:ok, counts}
-  end
-
-  # Returns `[{record, tmdb_id}, ...]` for every record of the schema
-  # that has a TMDB ExternalId row attached. Source key depends on the
-  # owner type: `tmdb_collection` for MovieSeries, `tmdb` for everything
-  # else.
-  defp records_with_tmdb_id(MovieSeries),
-    do: records_with_tmdb_id(MovieSeries, "tmdb_collection", :movie_series)
-
-  defp records_with_tmdb_id(Movie), do: records_with_tmdb_id(Movie, "tmdb", :movie)
-  defp records_with_tmdb_id(TVSeries), do: records_with_tmdb_id(TVSeries, "tmdb", :tv_series)
-
-  defp records_with_tmdb_id(schema, source, owner_type) do
-    Repo.all(
-      from(r in schema,
-        join: e in ExternalId,
-        on: e.owner_id == r.id and e.owner_type == ^owner_type,
-        where: e.source == ^source,
-        select: {r, e.external_id}
-      )
-    )
-  end
-
-  defp process_credits_refresh(record, tmdb_id, acc, config) do
-    if credits_refreshed?(record, config) do
-      Map.update!(acc, :skipped, &(&1 + 1))
-    else
-      fetch_and_update_credits(record, tmdb_id, acc, config)
-    end
-  end
-
-  # A record is skipped when the config's `refreshed?` predicate says its
-  # credits are already current. The default — non-empty cast AND crew —
-  # is the original contract; series override it because pre-count cast
-  # embeds (nil `total_episode_count` throughout) are present but stale.
-  defp credits_refreshed?(record, %{refreshed?: refreshed?}), do: refreshed?.(record)
-
-  defp credits_refreshed?(%{cast: cast, crew: crew}, _config), do: cast != [] and crew != []
-
-  defp fetch_and_update_credits(
-         record,
-         tmdb_id,
-         acc,
-         %{label: label, schema: schema, fetcher: fetcher, attrs_builder: attrs_builder} = config
-       ) do
-    case fetcher.(tmdb_id) do
-      {:ok, body} ->
-        {credits_attrs, imdb_id} = attrs_builder.(body)
-
-        record
-        |> schema.update_credits_changeset(credits_attrs)
-        |> Repo.update()
-        |> case do
-          {:ok, updated_record} ->
-            _ = ExternalIds.put(:imdb, updated_record, imdb_id)
-            run_post_update(config, updated_record, tmdb_id)
-
-            acc
-            |> Map.update!(:updated, &(&1 + 1))
-            |> Map.update!(:updated_ids, &[updated_record.id | &1])
-
-          {:error, _} ->
-            Map.update!(acc, :failed, &(&1 + 1))
-        end
-
-      {:error, reason} ->
-        Log.warning(
-          :library,
-          "credits refresh failed for #{label} #{record.id}: #{inspect(reason)}"
-        )
-
-        Map.update!(acc, :failed, &(&1 + 1))
-    end
-  end
-
-  defp run_post_update(%{post_update: post_update}, record, tmdb_id), do: post_update.(record, tmdb_id)
-
-  defp run_post_update(_config, _record, _tmdb_id), do: :ok
-
-  # Beyond cast/crew, restores the scalar columns the pre-fix
-  # collection-child import path never wrote (its hand-built attrs map
-  # dropped everything `Mapper.movie_attrs/3` derives beyond the basics).
-  # Rows damaged that way are exactly the ones with empty credits, so the
-  # driver's skip clause targets them and leaves healthy rows untouched.
-  defp build_movie_credits_attrs(body) do
-    attrs =
-      body["id"]
-      |> Mapper.movie_attrs(body, nil)
-      |> Map.take([
-        :cast,
-        :crew,
-        :genres,
-        :vote_count,
-        :tagline,
-        :original_language,
-        :studio,
-        :country_code,
-        :status
-      ])
-
-    {attrs, body["imdb_id"]}
-  end
-
-  defp build_series_credits_attrs(body) do
-    {
-      %{
-        cast: Mapper.extract_cast(body["aggregate_credits"]),
-        crew: Mapper.extract_creators(body["created_by"])
-      },
-      get_in(body, ["external_ids", "imdb_id"])
-    }
-  end
-
-  # TMDB collection responses do not include `credits` at the collection
-  # level — cast/crew only exist on the constituent `parts`. We honour
-  # the contract anyway (empty lists are valid) so the maintenance entry
-  # point stays uniform with movies/series. Aggregating from `parts`
-  # would require N extra movie fetches and is out of scope here.
   @doc """
   Backfills subtitle tracks for movie files that have none yet —
   picks up libraries imported before subtitle detection shipped, or

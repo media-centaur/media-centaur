@@ -97,21 +97,4 @@ defmodule MediaCentaur.Library.TVSeries do
     |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
     |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
   end
-
-  @doc """
-  Replaces the credits embeds in place — used by
-  `MediaCentaur.Maintenance.refresh_series_credits/0` to backfill
-  cast and crew (creators) from a fresh TMDB fetch. `cast_embed` is
-  required here because `Ecto.Changeset.change/2` cannot coerce maps
-  into `embeds_many` entries.
-
-  The IMDB id no longer lives on this schema; the credits-refresh
-  call site writes it separately via `Library.ExternalIds.put(:imdb,
-  tv_series, id)` after this changeset has been applied.
-  """
-  def update_credits_changeset(tv_series, attrs) do
-    tv_series
-    |> change()
-    |> Person.put_credits(attrs)
-  end
 end

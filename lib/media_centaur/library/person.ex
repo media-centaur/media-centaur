@@ -13,9 +13,7 @@ defmodule MediaCentaur.Library.Person do
 
   `total_episode_count` is TMDB's per-person appearance count from
   `aggregate_credits` — series cast entries only (nil for movies and
-  crew). It orders the Cast view by who actually carried the show, and
-  its absence marks pre-count embeds for the *Refresh series credits*
-  backfill.
+  crew). It orders the Cast view by who actually carried the show.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -56,20 +54,5 @@ defmodule MediaCentaur.Library.Person do
     person
     |> cast(attrs, @crew_fields)
     |> validate_required([:name])
-  end
-
-  @doc """
-  Casts the `cast` and `crew` embeds on a parent changeset.
-
-  IMDB ids previously rode along on this helper as a parent-schema
-  cast — they now live in `Library.ExternalId` rows and are written
-  separately by maintenance refresh paths (see
-  `MediaCentaur.Library.ExternalIds`).
-  """
-  def put_credits(changeset, attrs) do
-    changeset
-    |> cast(attrs, [])
-    |> cast_embed(:cast, with: &cast_member_changeset/2)
-    |> cast_embed(:crew, with: &crew_member_changeset/2)
   end
 end

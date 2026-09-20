@@ -2,7 +2,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
-  import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Playback.LanguagePolicy
@@ -747,21 +746,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       html = render(view)
       assert html =~ "Couldn&#39;t reach Prowlarr" or html =~ "couldn&#39;t reach Prowlarr"
-    end
-  end
-
-  describe "Refresh episode lists" do
-    # The pass itself is covered in MaintenanceTest; this pins the button to
-    # it. Asserting the in-flight "Refreshing…" label would be a race — with
-    # no series carrying a TMDB id the pass finishes before the next render.
-    test "the button runs the pass and reports what it did", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=maintenance")
-
-      assert view |> element("button[phx-click='refresh_episode_lists']") |> render_click()
-
-      await_supervised_tasks()
-
-      assert render(view) =~ "Episode lists already up to date"
     end
   end
 end
