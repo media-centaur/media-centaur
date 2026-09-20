@@ -19,11 +19,14 @@ defmodule MediaCentaur.Discovery do
   Accepts `MediaCentaur.TMDB.Title` at the boundary — the app-wide title
   value every candidate source produces (converged 2026-09-02; see
   docs/superpowers/specs/2026-09-02-friends-recommendations-design.md).
+  A record keeps only that title's identity: the snapshot a listed title
+  is painted from is the TMDB store's, attached on every read by
+  `Discovery.Titles` (ADR-071).
   """
 
   import Ecto.Query
 
-  alias MediaCentaur.Discovery.{Events, TitleIntent}
+  alias MediaCentaur.Discovery.{Events, TitleIntent, Titles}
   alias MediaCentaur.Library.ExternalIds
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
@@ -50,20 +53,20 @@ defmodule MediaCentaur.Discovery do
   @spec put_rung(Title.t(), TitleIntent.rung(), map()) ::
           {:ok, TitleIntent.t()} | {:error, Ecto.Changeset.t()}
   def put_rung(%Title{} = title, rung, attrs \\ %{}) do
-    case get_intent(title.tmdb_id, title.media_type) do
+    case fetch_intent(title.tmdb_id, title.media_type) do
       %TitleIntent{} = existing ->
         existing
-        |> TitleIntent.rung_changeset(rung, title)
+        |> TitleIntent.rung_changeset(rung)
         |> Repo.update()
         |> case do
           # Leaving Ignored for the list is the one move that is also a
           # first listing: the artwork was not promoted when it was dismissed.
           {:ok, intent} when existing.rung == :ignored ->
             ensure_artwork_async(intent)
-            announce({:ok, intent}, existing.rung)
+            announce({:ok, intent}, existing.rung, title)
 
           result ->
-            announce(result, existing.rung)
+            announce(result, existing.rung, title)
         end
 
       nil ->
@@ -73,7 +76,7 @@ defmodule MediaCentaur.Discovery do
         |> case do
           {:ok, intent} ->
             ensure_artwork_async(intent)
-            announce({:ok, intent}, nil)
+            announce({:ok, intent}, nil, title)
 
           {:error, %Ecto.Changeset{errors: errors} = changeset} ->
             # A concurrent write won the race exactly when a unique
@@ -87,7 +90,11 @@ defmodule MediaCentaur.Discovery do
     end
   end
 
-  @doc "Forgets a title entirely — the Off rung. Absent refs are a no-op."
+  @doc """
+  Forgets a title entirely — the Off rung. Absent refs are a no-op. The
+  event carries the store's snapshot of the title, a bare identity when
+  the store never held it.
+  """
   @spec forget(integer(), media_type()) :: :ok
   def forget(tmdb_id, media_type) do
     case get_intent(tmdb_id, media_type) do
@@ -109,9 +116,11 @@ defmodule MediaCentaur.Discovery do
     end
   end
 
-  @doc "The title's record, or nil when it is Off."
+  @doc "The title's record with its stored snapshot attached, or nil when it is Off."
   @spec get_intent(integer(), media_type()) :: TitleIntent.t() | nil
-  def get_intent(tmdb_id, media_type) do
+  def get_intent(tmdb_id, media_type), do: tmdb_id |> fetch_intent(media_type) |> Titles.attach_one()
+
+  defp fetch_intent(tmdb_id, media_type) do
     Repo.one(from(i in TitleIntent, where: i.tmdb_id == ^tmdb_id and i.media_type == ^media_type))
   end
 
@@ -135,15 +144,18 @@ defmodule MediaCentaur.Discovery do
   def listed?(tmdb_id, media_type), do: TitleIntent.rung_at_least?(rung(tmdb_id, media_type), :list)
 
   @doc """
-  The watchlist: every title intent at List or above, newest first, each
-  with the owning library container's id (nil when the library doesn't
-  know the title) — derived live via `Library.ExternalIds.tmdb_owners/1`,
-  never stored. Ignored titles are records too, but not on the list.
+  The watchlist: every title intent at List or above, newest first, its
+  stored snapshot attached, each with the owning library container's id
+  (nil when the library doesn't know the title) — derived live via
+  `Library.ExternalIds.tmdb_owners/1`, never stored. Ignored titles are
+  records too, but not on the list.
   """
   @spec list_watchlist() :: [%{intent: TitleIntent.t(), library_owner_id: Ecto.UUID.t() | nil}]
   def list_watchlist do
     intents =
-      Repo.all(from(i in TitleIntent, where: i.rung != :ignored, order_by: [desc: i.inserted_at]))
+      from(i in TitleIntent, where: i.rung != :ignored, order_by: [desc: i.inserted_at])
+      |> Repo.all()
+      |> Titles.attach()
 
     owners = ExternalIds.tmdb_owners(Enum.map(intents, &{&1.tmdb_id, &1.media_type}))
 
@@ -163,19 +175,22 @@ defmodule MediaCentaur.Discovery do
     Map.new(Repo.all(from(i in TitleIntent, select: {{i.tmdb_id, i.media_type}, i.rung})))
   end
 
-  defp announce({:ok, %TitleIntent{} = intent} = result, previous_rung) do
+  # The event carries the title the person acted on — always named, so a
+  # listing can be shared from it — and the record is returned as every
+  # read returns it, with the store's snapshot attached.
+  defp announce({:ok, %TitleIntent{} = intent}, previous_rung, %Title{} = title) do
     Events.broadcast(%Events.RungChanged{
       tmdb_id: intent.tmdb_id,
       media_type: intent.media_type,
-      title: intent.title,
+      title: title,
       previous_rung: previous_rung,
       rung: intent.rung
     })
 
-    result
+    {:ok, Titles.attach_one(intent)}
   end
 
-  defp announce(result, _previous_rung), do: result
+  defp announce(result, _previous_rung, _title), do: result
 
   defp unique_violation?(errors) do
     Enum.any?(errors, fn {_field, {_msg, meta}} -> meta[:constraint] == :unique end)

@@ -248,10 +248,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   end
 
   # The snapshot a ref opens from, by identity: the open detail's own,
-  # then the title intent's (any title on the ladder — listed, ignored,
-  # tracked), then the owner's entity, then the activity's embedded
-  # title, then the page's in-memory copy. Nil leaves TMDB as the one
-  # source.
+  # then the TMDB store's (any title the app holds a reference to), then
+  # the owner's entity, then the activity's embedded title, then the
+  # page's in-memory copy. Nil leaves TMDB as the one source.
   defp snapshot(
          %{assigns: %{title_detail: %TitleDetail{ref: ref, title: title}}},
          ref,
@@ -261,14 +260,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
        ), do: title
 
   defp snapshot(_socket, ref, library, activity, page_snapshot) do
-    intent_snapshot(ref) || entity_snapshot(library) || activity_snapshot(activity) || page_snapshot
-  end
-
-  defp intent_snapshot({tmdb_id, media_type}) do
-    case Discovery.get_intent(tmdb_id, media_type) do
-      %TitleIntent{title: %Title{} = title} -> title
-      _none -> nil
-    end
+    Store.snapshot(ref) || entity_snapshot(library) || activity_snapshot(activity) || page_snapshot
   end
 
   defp entity_snapshot(%{subject: subject}), do: Logic.snapshot_from_entity(subject)
@@ -749,8 +741,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   defp react(
          {:tmdb_title_changed, ref},
          %{assigns: %{title_detail: %TitleDetail{ref: ref, title: %Title{} = title}}} = socket
-       ),
-       do: socket |> refresh_title_detail() |> fetch_preview(title)
+       ), do: socket |> refresh_title_detail() |> fetch_preview(title)
 
   defp react({:tmdb_title_changed, _other_ref}, socket), do: socket
 

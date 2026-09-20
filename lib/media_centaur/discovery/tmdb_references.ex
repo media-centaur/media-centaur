@@ -2,12 +2,10 @@ defmodule MediaCentaur.Discovery.TmdbReferences do
   @moduledoc """
   Every title intent at List or above references its title — such a
   record is a standing interest, so the title's record and artwork never
-  age out while the record exists. An Ignored record is the opposite of
-  an interest and references nothing.
-
-  Listed titles do not yet schedule checks: the watchlist still paints
-  from the intent's own snapshot until Phase 3 of `tmdb-fetch-policy`
-  moves it onto the store.
+  age out while the record exists, and its checks are scheduled: the
+  watchlist paints from the store (ADR-071), so what it shows is what
+  the checker keeps current. An Ignored record is the opposite of an
+  interest and references nothing.
   """
   @behaviour MediaCentaur.TMDB.References.Provider
 
@@ -24,5 +22,5 @@ defmodule MediaCentaur.Discovery.TmdbReferences do
   end
 
   @impl true
-  def schedules_checks?, do: false
+  def schedules_checks?, do: true
 end

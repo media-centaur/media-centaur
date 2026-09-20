@@ -16,7 +16,11 @@ defmodule MediaCentaur.TMDB.Title do
 
   An embedded schema so rows can carry it verbatim (`embeds_one :title`)
   with one serialization; in-memory it is a plain struct built by
-  `new!/1` or `changeset/2`.
+  `new!/1` or `changeset/2`, both of which require a name. The one
+  nameless title is a **bare identity** — only `tmdb_id` and
+  `media_type` set — which a surface carries for a title the TMDB store
+  has not yet first-contacted (`Discovery.Titles`), until the record
+  lands.
   """
 
   use Ecto.Schema
@@ -30,7 +34,7 @@ defmodule MediaCentaur.TMDB.Title do
   @type t :: %__MODULE__{
           tmdb_id: integer(),
           media_type: media_type(),
-          name: String.t(),
+          name: String.t() | nil,
           year: String.t() | nil,
           release_date: Date.t() | nil,
           poster_path: String.t() | nil,

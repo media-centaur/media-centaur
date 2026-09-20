@@ -174,8 +174,11 @@ defmodule MediaCentaur.TmdbStubs do
           {number, data} = season
           json_resp(conn, 200, Map.put_new(data, "season_number", number))
 
-        String.contains?(conn.request_path, "/tv/#{tmdb_id}") -> json_resp(conn, 200, tv_data)
-        true -> json_resp(conn, 404, %{"status_message" => "Not Found"})
+        String.contains?(conn.request_path, "/tv/#{tmdb_id}") ->
+          json_resp(conn, 200, tv_data)
+
+        true ->
+          json_resp(conn, 404, %{"status_message" => "Not Found"})
       end
     end)
   end
@@ -386,6 +389,29 @@ defmodule MediaCentaur.TmdbStubs do
       overrides
     )
   end
+
+  @doc """
+  The detail payload a title's snapshot would have been built from — for
+  a test that seeds the TMDB store with a `TMDB.Title` it lists
+  (`create_title_record(%{payload: detail_for(title)})`), so the store
+  paints the name and date the test asserts (ADR-071). A nil date keeps
+  the fixture's.
+  """
+  @spec detail_for(MediaCentaur.TMDB.Title.t()) :: map()
+  def detail_for(%MediaCentaur.TMDB.Title{media_type: :movie} = title) do
+    %{"id" => title.tmdb_id, "title" => title.name}
+    |> put_date("release_date", title.release_date)
+    |> movie_detail()
+  end
+
+  def detail_for(%MediaCentaur.TMDB.Title{media_type: :tv_series} = title) do
+    %{"id" => title.tmdb_id, "name" => title.name}
+    |> put_date("first_air_date", title.release_date)
+    |> tv_detail()
+  end
+
+  defp put_date(payload, _key, nil), do: payload
+  defp put_date(payload, key, %Date{} = date), do: Map.put(payload, key, Date.to_iso8601(date))
 
   def tv_detail(overrides \\ %{}) do
     Map.merge(

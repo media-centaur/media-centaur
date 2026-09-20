@@ -67,7 +67,7 @@ defmodule MediaCentaur.Activities.Publisher do
 
     cond do
       not listed_before? and listed_now? and ShareWatchlist.enabled?() ->
-        run(fn -> share(:listing, Activities.listing(change.title)) end)
+        run(fn -> share_listing(change.title) end)
 
       listed_before? and not listed_now? ->
         run(fn -> withdraw_listing(change) end)
@@ -100,6 +100,13 @@ defmodule MediaCentaur.Activities.Publisher do
       :skip -> :ok
     end
   end
+
+  # A listing is a statement about a named title; a bare identity — a
+  # title the store has not first-contacted — has nothing to say yet.
+  defp share_listing(%Title{name: name} = title) when is_binary(name),
+    do: share(:listing, Activities.listing(title))
+
+  defp share_listing(%Title{}), do: :ok
 
   defp share(kind, {:ok, activity}), do: Log.info(:social, "shared #{kind}: #{activity.title.name}")
 

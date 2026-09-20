@@ -893,12 +893,14 @@ defmodule MediaCentaur.TestFactory do
     # tracked title's name, identity and season sizes are read from the
     # store. `stored: false` is the state the checker's first contact
     # repairs.
-    if stored? do
-      payload = payload || default_tracked_payload(media_type, tmdb_id, name)
-
-      {:ok, _record} =
-        TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
-    end
+    if stored?,
+      do:
+        store_title(
+          tmdb_id,
+          media_type,
+          payload || default_stored_payload(media_type, tmdb_id, name),
+          etag
+        )
 
     attrs =
       %{tmdb_id: tmdb_id, media_type: media_type}
@@ -906,11 +908,31 @@ defmodule MediaCentaur.TestFactory do
       |> Map.delete(:name)
 
     {:ok, item} = ReleaseTracking.track_item(attrs)
-    if rung, do: create_intent_for(item, rung, name)
+
+    if rung,
+      do:
+        create_title_intent(%{
+          tmdb_id: tmdb_id,
+          media_type: media_type,
+          name: name,
+          rung: rung,
+          stored: stored?
+        })
+
     ReleaseTracking.get_item(item.id)
   end
 
-  defp default_tracked_payload(:movie, tmdb_id, name) do
+  # Seeds the store once: a record a test already stored — the tracked
+  # item's, before its intent — is the one it meant.
+  defp store_title(tmdb_id, media_type, payload, etag) do
+    if is_nil(TMDB.Store.get({tmdb_id, media_type})) do
+      {:ok, _record} = TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
+    end
+
+    :ok
+  end
+
+  defp default_stored_payload(:movie, tmdb_id, name) do
     TmdbStubs.movie_detail(%{
       "id" => tmdb_id,
       "title" => name,
@@ -918,7 +940,7 @@ defmodule MediaCentaur.TestFactory do
     })
   end
 
-  defp default_tracked_payload(:tv_series, tmdb_id, name) do
+  defp default_stored_payload(:tv_series, tmdb_id, name) do
     TmdbStubs.tv_detail(%{
       "id" => tmdb_id,
       "name" => name,
@@ -1022,12 +1044,29 @@ defmodule MediaCentaur.TestFactory do
   Writes the record only — `:rung` defaults to `:list`. A test that wants
   the *machinery* a rung derives goes through
   `ReleaseTracking.set_rung/3`, which is the app's one write path.
+
+  A listed title's snapshot is the TMDB store's (ADR-071), so the store
+  is seeded with a title record carrying `:name` — or the `:payload`
+  given — unless it already holds one; `stored: false` leaves the store
+  empty, the state the checker's first contact repairs.
   """
   def create_title_intent(attrs \\ %{}) do
+    {stored?, attrs} = Map.pop(attrs, :stored, true)
+    {payload, attrs} = Map.pop(attrs, :payload)
+    {etag, attrs} = Map.pop(attrs, :etag, ~s(W/"v1"))
     tmdb_id = Map.get(attrs, :tmdb_id, :rand.uniform(999_999))
     media_type = Map.get(attrs, :media_type, :tv_series)
     name = Map.get(attrs, :name, "Sample Show")
     rung = Map.get(attrs, :rung, :list)
+
+    if stored?,
+      do:
+        store_title(
+          tmdb_id,
+          media_type,
+          payload || default_stored_payload(media_type, tmdb_id, name),
+          etag
+        )
 
     title = Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name})
     intent_attrs = Map.drop(attrs, [:tmdb_id, :media_type, :name, :rung])
@@ -1039,7 +1078,7 @@ defmodule MediaCentaur.TestFactory do
     # record only" has to mean the record only.
     case Repo.get_by(TitleIntent, tmdb_id: tmdb_id, media_type: media_type) do
       nil -> title |> TitleIntent.create_changeset(rung, intent_attrs) |> Repo.insert!()
-      existing -> existing |> TitleIntent.rung_changeset(rung, title) |> Repo.update!()
+      existing -> existing |> TitleIntent.rung_changeset(rung) |> Repo.update!()
     end
   end
 

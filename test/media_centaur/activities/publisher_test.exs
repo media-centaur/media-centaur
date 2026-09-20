@@ -106,7 +106,7 @@ defmodule MediaCentaur.Activities.PublisherTest do
       assert Activities.list_sent() == []
     end
 
-    test "a title reaching List becomes a listing with the intent's snapshot" do
+    test "a title reaching List becomes a listing with the snapshot the person acted on" do
       ShareWatchlist.set(true)
       {:ok, _intent} = ReleaseTracking.set_rung(show(), :list)
       settle()

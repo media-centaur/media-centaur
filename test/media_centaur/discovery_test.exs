@@ -2,6 +2,7 @@ defmodule MediaCentaur.DiscoveryTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
+  import MediaCentaur.TestFactory
 
   alias MediaCentaur.Discovery
   alias MediaCentaur.Discovery.TitleIntent
@@ -9,7 +10,7 @@ defmodule MediaCentaur.DiscoveryTest do
   alias MediaCentaur.TMDB.Title
 
   describe "TitleIntent.create_changeset/3" do
-    test "embeds the title and derives the identity columns from it" do
+    test "takes the identity columns from the title and copies nothing else (ADR-071)" do
       title = Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie", year: "2010"})
       changeset = TitleIntent.create_changeset(title, :list, %{note: "why"})
 
@@ -17,7 +18,7 @@ defmodule MediaCentaur.DiscoveryTest do
       assert Ecto.Changeset.get_change(changeset, :tmdb_id) == 777
       assert Ecto.Changeset.get_change(changeset, :media_type) == :movie
       assert Ecto.Changeset.get_change(changeset, :note) == "why"
-      assert %Title{name: "Sample Movie"} = Ecto.Changeset.get_embed(changeset, :title, :struct)
+      assert Ecto.Changeset.get_change(changeset, :title) == nil
     end
 
     test "a friend-sourced record carries its review id; the pairing is enforced" do
@@ -172,13 +173,55 @@ defmodule MediaCentaur.DiscoveryTest do
       await_supervised_tasks()
     end
 
-    test "the stored row reads back its title snapshot" do
-      {:ok, item} = Discovery.put_rung(@title, :list, %{note: "why"})
+    test "a listed title reads its snapshot from the store (ADR-071)" do
+      create_title_record(%{
+        tmdb_id: 777,
+        media_type: :movie,
+        payload:
+          TmdbStubs.movie_detail(%{
+            "id" => 777,
+            "title" => "Stored Movie",
+            "release_date" => "2011-05-01",
+            "poster_path" => "/stored.jpg"
+          })
+      })
 
+      {:ok, %TitleIntent{title: %Title{name: "Stored Movie"}}} =
+        Discovery.put_rung(@title, :list, %{note: "why"})
+
+      # The record copies nothing from the title it was listed with.
       assert %TitleIntent{
-               title: %Title{tmdb_id: 777, name: "Sample Movie", year: "2010", poster_path: "/p.jpg"},
+               title: %Title{
+                 tmdb_id: 777,
+                 name: "Stored Movie",
+                 year: "2011",
+                 poster_path: "/stored.jpg"
+               },
                note: "why"
-             } = Repo.get!(TitleIntent, item.id)
+             } = Discovery.get_intent(777, :movie)
+
+      assert [%{intent: %TitleIntent{title: %Title{name: "Stored Movie"}}}] = Discovery.list_watchlist()
+      await_supervised_tasks()
+    end
+
+    test "a listed title the store lacks carries a bare identity until first contact lands" do
+      {:ok, _intent} = Discovery.put_rung(@title, :list)
+
+      assert %TitleIntent{title: %Title{tmdb_id: 777, media_type: :movie, name: nil, poster_path: nil}} =
+               Discovery.get_intent(777, :movie)
+
+      await_supervised_tasks()
+    end
+
+    test "forgetting a title the store never held still broadcasts the move to Off" do
+      Discovery.subscribe()
+      {:ok, _intent} = Discovery.put_rung(@title, :list)
+      assert_receive {:title_intent_changed, %{rung: :list}}
+
+      :ok = Discovery.forget(777, :movie)
+
+      assert_receive {:title_intent_changed,
+                      %{previous_rung: :list, rung: nil, title: %Title{tmdb_id: 777, name: nil}}}
 
       await_supervised_tasks()
     end
