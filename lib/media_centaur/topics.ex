@@ -174,6 +174,10 @@ defmodule MediaCentaur.Topics do
   def settings_updates, do: "settings:updates"
   def config_updates, do: "config:updates"
   def release_tracking_updates, do: "release_tracking:updates"
+
+  @doc "`{:tmdb_title_changed, {tmdb_id, media_type}}` when a stored TMDB title's payload changed (`MediaCentaur.TMDB.Store`)."
+  def tmdb_titles, do: "tmdb:titles"
+
   def watch_history_events, do: "watch_history:events"
   def console_logs, do: "console:logs"
   def service_journal, do: "service:journal"

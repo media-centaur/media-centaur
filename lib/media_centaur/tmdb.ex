@@ -16,6 +16,10 @@ defmodule MediaCentaur.TMDB do
       ProbeJob,
       RateLimiter,
       ReleaseWindow,
+      Schedule,
+      Store,
+      Store.SeasonRecord,
+      Store.TitleRecord,
       Title,
       TitleIdentity,
       TitleSearch

@@ -901,6 +901,86 @@ defmodule MediaCentaur.TestFactory do
   end
 
   # ---------------------------------------------------------------------------
+  # TMDB store
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  A stored TMDB title as a pure struct: a released sample movie with the
+  heartbeat due in seven days. Override `:media_type` to `:tv_series`
+  for a sample show.
+  """
+  def build_title_record(overrides \\ %{}) do
+    now = DateTime.utc_now(:second)
+    tmdb_id = Map.get(overrides, :tmdb_id, :rand.uniform(999_999))
+    media_type = Map.get(overrides, :media_type, :movie)
+
+    defaults = %{
+      id: Ecto.UUID.generate(),
+      tmdb_id: tmdb_id,
+      media_type: media_type,
+      payload: default_title_payload(media_type, tmdb_id),
+      etag: ~s(W/"v1"),
+      fetched_at: now,
+      changed_at: now,
+      next_event_on: nil,
+      next_check_at: DateTime.add(now, 7, :day),
+      settled_at: nil
+    }
+
+    struct(MediaCentaur.TMDB.Store.TitleRecord, Map.merge(defaults, overrides))
+  end
+
+  @doc """
+  Records a title through the store, exactly as a fetch would. The
+  payload defaults to a sample movie released within the last month
+  (unsettled, heartbeat due) or, for `:tv_series`, a returning sample
+  show.
+  """
+  def create_title_record(attrs \\ %{}) do
+    tmdb_id = Map.get(attrs, :tmdb_id, :rand.uniform(999_999))
+    media_type = Map.get(attrs, :media_type, :movie)
+    payload = Map.get_lazy(attrs, :payload, fn -> default_title_payload(media_type, tmdb_id) end)
+    etag = Map.get(attrs, :etag, ~s(W/"v1"))
+
+    {:ok, record} = MediaCentaur.TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
+    record
+  end
+
+  @doc "Records a season through the store, exactly as a fetch would."
+  def create_season_record(attrs) do
+    tmdb_id = Map.fetch!(attrs, :tmdb_id)
+    season_number = Map.get(attrs, :season_number, 1)
+
+    payload =
+      Map.get_lazy(attrs, :payload, fn ->
+        MediaCentaur.TmdbStubs.season_detail(%{"season_number" => season_number})
+      end)
+
+    {:ok, record} =
+      MediaCentaur.TMDB.Store.record_season_fetched(
+        tmdb_id,
+        season_number,
+        payload,
+        Map.get(attrs, :etag, ~s(W/"v1"))
+      )
+
+    record
+  end
+
+  defp default_title_payload(:movie, tmdb_id) do
+    recent = Date.utc_today() |> Date.add(-30) |> Date.to_iso8601()
+    MediaCentaur.TmdbStubs.movie_detail(%{"id" => tmdb_id, "release_date" => recent})
+  end
+
+  defp default_title_payload(:tv_series, tmdb_id) do
+    MediaCentaur.TmdbStubs.tv_detail(%{
+      "id" => tmdb_id,
+      "status" => "Returning Series",
+      "seasons" => []
+    })
+  end
+
+  # ---------------------------------------------------------------------------
   # Discovery (title intents)
   # ---------------------------------------------------------------------------
 
