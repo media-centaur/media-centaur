@@ -82,6 +82,14 @@ defmodule MediaCentaur.HttpClient.CacheTest do
       assert Cache.stats(client) == %{entries: 1}
     end
 
+    test "a served entry carries the validator the origin gave it", %{stub: stub, client: client} do
+      stub_json(stub, %{"id" => 1}, [{"cache-control", "public, max-age=60"}, {"etag", ~s(W/"a")}])
+
+      assert {:ok, %{status: 200}} = Req.get(client, url: "/movie/1")
+      assert {:ok, %{status: 200} = hit} = Req.get(client, url: "/movie/1")
+      assert Req.Response.get_header(hit, "etag") == [~s(W/"a")]
+    end
+
     test "the key ignores excluded params and param order", %{stub: stub, client: client} do
       stub_json(stub, %{"results" => []}, [{"cache-control", "max-age=60"}])
 

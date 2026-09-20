@@ -235,6 +235,17 @@ defmodule MediaCentaur.TMDB.StoreTest do
       refute_receive {:tmdb_title_changed, _ref}
     end
 
+    test "a 200 carrying an identical payload is unchanged, even within the second it was stored" do
+      record = create_title_record(%{tmdb_id: 566, media_type: :movie, etag: ~s(W/"old")})
+      stub_check(self(), ~s(W/"other"), fn _path -> record.payload end)
+
+      assert {:ok, :unchanged, %TitleRecord{etag: ~s(W/"next")} = after_check} =
+               Store.check({566, :movie})
+
+      assert after_check.changed_at == record.changed_at
+      refute_receive {:tmdb_title_changed, _ref}
+    end
+
     test "a changed title replaces the payload and etag and publishes the change" do
       record = create_title_record(%{tmdb_id: 561, media_type: :movie, etag: ~s(W/"old")})
       revised = Map.put(record.payload, "overview", "Revised.")
