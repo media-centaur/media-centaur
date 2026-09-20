@@ -22,17 +22,19 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`tmdb-fetch-policy.md`](tmdb-fetch-policy.md) —
-  **planning 2026-09-19; audit complete, definitions open.** Every TMDB
-  request should be justified by a question the app cannot answer from
-  what it already stores. Thirty fetch sites inventoried: the refresher
-  reloads every tracked title every six hours with no notion of a
-  settled title and replaces its calendar wholesale; seven surfaces read
-  release facts live on every open because nothing stores them; library
-  metadata is frozen at import with no fetch time. Waste scales with the
-  library and the tracked set and no fetch costs less as a title settles;
-  coherence, latency and the empty cache after a restart compound it.
-  Successor to the traffic audit's deferred "how often the refresher
-  re-reads a healthy TMDB".
+  **Phase 1 of 5 landed on main 2026-09-20 (unpushed); payload-size
+  decision open.** Every TMDB request should be justified by a question
+  the app cannot answer from what it already stores. The design
+  ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md)):
+  one record per title — TMDB's last answer, its ETag, when it was
+  learned, when the app is next due to ask — with everything else a
+  projection of it; a check is a conditional revalidation made the day
+  after the next known event or a week after the last, and a settled
+  title is never due. Phase 1 is the store, filled by write-through from
+  every existing detail fetch, with the check path built and verified
+  live but not yet scheduled. Phases 2–5: checks replace the refresher;
+  surfaces read the store; import and the library become projections;
+  retention and the Credo gate.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
