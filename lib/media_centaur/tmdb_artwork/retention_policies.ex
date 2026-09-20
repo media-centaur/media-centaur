@@ -17,7 +17,7 @@ defmodule MediaCentaur.TmdbArtwork.RetentionPolicies do
     [
       %Policy{
         key: :tmdb_artwork,
-        subsystem: :acquisition,
+        subsystem: :tmdb,
         label: "TMDB artwork cache",
         description: "Removed 7 days after last use, once nothing references the title.",
         mode: :sweep,
