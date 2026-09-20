@@ -46,6 +46,17 @@ defmodule MediaCentaur.TMDB.ClientTest do
     assert_receive {:tmdb_hit, "/3/configuration"}
   end
 
+  test "a search that differs only in case and spacing is one request" do
+    assert {:ok, _results} = Client.search_movie("Sample Movie")
+    assert {:ok, _results} = Client.search_movie("  sample   MOVIE ")
+    assert {:ok, _results} = Client.search_multi("Sample Movie")
+    assert {:ok, _results} = Client.search_multi("sample movie")
+
+    assert_receive {:tmdb_hit, "/3/search/movie"}
+    assert_receive {:tmdb_hit, "/3/search/multi"}
+    refute_receive {:tmdb_hit, _path}
+  end
+
   test "a caller-supplied client is used as given" do
     stub = :tmdb_client_test_custom
     Req.Test.stub(stub, fn conn -> Req.Test.json(conn, %{"results" => [%{"id" => 9}]}) end)

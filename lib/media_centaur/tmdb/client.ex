@@ -115,7 +115,7 @@ defmodule MediaCentaur.TMDB.Client do
 
   @spec search_movie(String.t(), integer() | nil, opts()) :: {:ok, list(map())} | {:error, any()}
   def search_movie(title, year \\ nil, opts \\ []) do
-    params = [query: title] ++ if(year, do: [year: year], else: [])
+    params = [query: normalize_query(title)] ++ if(year, do: [year: year], else: [])
 
     with {:ok, body} <-
            get(opts, [url: "/search/movie", params: params], "movies for #{query_words(title, year)}") do
@@ -127,7 +127,7 @@ defmodule MediaCentaur.TMDB.Client do
 
   @spec search_tv(String.t(), integer() | nil, opts()) :: {:ok, list(map())} | {:error, any()}
   def search_tv(title, year \\ nil, opts \\ []) do
-    params = [query: title] ++ if(year, do: [first_air_date_year: year], else: [])
+    params = [query: normalize_query(title)] ++ if(year, do: [first_air_date_year: year], else: [])
 
     with {:ok, body} <-
            get(opts, [url: "/search/tv", params: params], "TV for #{query_words(title, year)}") do
@@ -146,7 +146,11 @@ defmodule MediaCentaur.TMDB.Client do
   @spec search_multi(String.t(), opts()) :: {:ok, list(map())} | {:error, any()}
   def search_multi(title, opts \\ []) do
     with {:ok, body} <-
-           get(opts, [url: "/search/multi", params: [query: title]], "media for #{title}") do
+           get(
+             opts,
+             [url: "/search/multi", params: [query: normalize_query(title)]],
+             "media for #{title}"
+           ) do
       results = body["results"] || []
       Log.info(:tmdb, "found #{length(results)} media results")
       {:ok, results}
@@ -307,6 +311,13 @@ defmodule MediaCentaur.TMDB.Client do
 
   defp query_words(title, nil), do: title
   defp query_words(title, year), do: "#{title} (#{year})"
+
+  # TMDB's search is case-insensitive and whitespace-tolerant; the
+  # response cache's key is not. One spelling per question. The console
+  # line keeps the caller's spelling.
+  defp normalize_query(title) do
+    title |> String.trim() |> String.split() |> Enum.join(" ") |> String.downcase()
+  end
 
   # Logged after the fact and only for an answered request: the outcome
   # is not known until the response is in hand, and a failure is the
