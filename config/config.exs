@@ -165,14 +165,15 @@ config :media_centaur, :retention_policy_providers, [
   MediaCentaur.TmdbArtwork.RetentionPolicies
 ]
 
-# Contexts that hold TMDB artwork cache entries alive — see
-# MediaCentaur.TmdbArtwork.HoldProvider. Runtime dispatch keeps the
-# referencing contexts upstream of TmdbArtwork in the Boundary graph.
+# The places that hold a TMDB title — see MediaCentaur.TMDB.References
+# and its Provider behaviour. Runtime dispatch keeps the referencing
+# contexts upstream of TMDB in the Boundary graph.
 config :media_centaur, :tmdb_reference_providers, [
   MediaCentaur.ReleaseTracking.TmdbReferences,
   MediaCentaur.Acquisition.TmdbReferences,
   MediaCentaur.Discovery.TmdbReferences,
-  MediaCentaur.Activities.TmdbReferences
+  MediaCentaur.Activities.TmdbReferences,
+  MediaCentaur.Pipeline.TmdbReferences
 ]
 
 config :media_centaur,

@@ -24,12 +24,13 @@ defmodule MediaCentaur.TMDB.ReferencesTest do
     assert References.scheduled([Tracked, Friends]) == MapSet.new([{1, :movie}, {2, :tv_series}])
   end
 
-  test "the configured providers are the four contexts that hold titles" do
+  test "the configured providers are the five places that hold titles" do
     assert References.providers() == [
              MediaCentaur.ReleaseTracking.TmdbReferences,
              MediaCentaur.Acquisition.TmdbReferences,
              MediaCentaur.Discovery.TmdbReferences,
-             MediaCentaur.Activities.TmdbReferences
+             MediaCentaur.Activities.TmdbReferences,
+             MediaCentaur.Pipeline.TmdbReferences
            ]
   end
 end

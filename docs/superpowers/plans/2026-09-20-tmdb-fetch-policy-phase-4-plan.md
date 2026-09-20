@@ -161,9 +161,9 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
 
 **Files:** create `lib/media_centaur/pipeline/tmdb_references.ex`, `test/media_centaur/pipeline/tmdb_references_test.exs`; modify `lib/media_centaur/library/external_ids.ex` (`list_tmdb_refs/0`), `config/config.exs`, `lib/media_centaur/pipeline.ex` (export), `test/media_centaur/tmdb/references_test.exs` (the configured list), `test/media_centaur/library/external_ids_test.exs`.
 
-- [ ] Tests: `list_tmdb_refs/0` returns `{id, :movie}` / `{id, :tv_series}` for every `tmdb` external id on a movie or series, ignores collections and unparsable ids; the provider's `references/0` is that set and `schedules_checks?/0` is true; `References.providers/0` lists five.
-- [ ] Implement. `ExternalIds.list_tmdb_refs/0`: `from(e in ExternalId, where: e.source == "tmdb" and e.owner_type in [:movie, :tv_series], select: {e.owner_type, e.external_id})`, ids parsed with `Integer.parse/1`, the rest dropped. `Pipeline.TmdbReferences` moduledoc: an owned title is a standing reference — its record and artwork never age out, and its release facts are checked while unsettled, so the library's projection has something to follow. Append to `:tmdb_reference_providers`.
-- [ ] Commit `feat(pipeline): owned titles are TMDB references that schedule checks`.
+- [x] Tests: `list_tmdb_refs/0` returns `{id, :movie}` / `{id, :tv_series}` for every `tmdb` external id on a movie or series, ignores collections and unparsable ids; the provider's `references/0` is that set and `schedules_checks?/0` is true; `References.providers/0` lists five.
+- [x] Implement. `ExternalIds.list_tmdb_refs/0`: `from(e in ExternalId, where: e.source == "tmdb" and e.owner_type in [:movie, :tv_series], select: {e.owner_type, e.external_id})`, ids parsed with `Integer.parse/1`, the rest dropped. `Pipeline.TmdbReferences` moduledoc: an owned title is a standing reference — its record and artwork never age out, and its release facts are checked while unsettled, so the library's projection has something to follow. Append to `:tmdb_reference_providers`.
+- [x] Commit `feat(pipeline): owned titles are TMDB references that schedule checks`.
 
 ### Task 5: The last detail callers move; the write-through goes
 

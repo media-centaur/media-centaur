@@ -114,6 +114,24 @@ defmodule MediaCentaur.Library.ExternalIdsTest do
     end
   end
 
+  describe "list_tmdb_refs/0" do
+    test "the tmdb id of every movie and series as a ref; collections and unparsable ids are dropped" do
+      create_movie(%{name: "Sample Movie", tmdb_id: "550"})
+      create_tv_series(%{name: "Sample Show", tmdb_id: "1396"})
+      odd = create_movie(%{name: "Odd Movie"})
+      create_external_id(%{movie_id: odd.id, source: "tmdb", external_id: "tt-not-a-tmdb-id"})
+      collection = create_movie_series(%{name: "Sample Collection"})
+
+      create_external_id(%{
+        movie_series_id: collection.id,
+        source: "tmdb_collection",
+        external_id: "263"
+      })
+
+      assert Enum.sort(ExternalIds.list_tmdb_refs()) == [{550, :movie}, {1396, :tv_series}]
+    end
+  end
+
   describe "tmdb_owners/1" do
     test "maps refs to owning presentable container ids; unknown refs are absent" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
