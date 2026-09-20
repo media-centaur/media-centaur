@@ -213,8 +213,10 @@ defmodule MediaCentaur.TMDB.TitleSearchTest do
         params = URI.decode_query(conn.query_string)
 
         # Only the stripped title may reach the multi fallback — the
-        # full "Test Movie 1997" string would match no TMDB title.
-        if String.contains?(conn.request_path, "search/multi") and params["query"] == "Test Movie" do
+        # full "Test Movie 1997" string would match no TMDB title. TMDB's
+        # search is case-insensitive, and the client sends one spelling.
+        if String.contains?(conn.request_path, "search/multi") and
+             String.downcase(params["query"] || "") == "test movie" do
           Req.Test.json(conn, %{
             "results" => [
               %{
