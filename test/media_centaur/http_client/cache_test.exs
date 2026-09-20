@@ -285,6 +285,44 @@ defmodule MediaCentaur.HttpClient.CacheTest do
     end
   end
 
+  describe "caller-conditional requests" do
+    test "pass through untouched: the caller's validator goes out, nothing is served or stored",
+         %{stub: stub, client: client} do
+      test_pid = self()
+
+      Req.Test.stub(stub, fn conn ->
+        send(test_pid, {:stub_hit, conn.method, conn.request_path, conn.req_headers})
+
+        case Plug.Conn.get_req_header(conn, "if-none-match") do
+          [~s(W/"mine")] ->
+            Plug.Conn.send_resp(conn, 304, "")
+
+          [] ->
+            conn
+            |> put_headers([{"cache-control", "max-age=60"}, {"etag", ~s(W/"v1")}])
+            |> Req.Test.json(%{"version" => 1})
+        end
+      end)
+
+      # A fresh entry exists.
+      assert {:ok, %{status: 200}} = Req.get(client, url: "/movie/1")
+      assert_receive {:stub_hit, "GET", "/movie/1", _plain_headers}, @wait_ms
+      assert_receive {:http_stop, %{cache: :miss}}, @wait_ms
+      assert %{entries: 1} = Cache.stats(client)
+
+      # The caller's own validator wins over the fresh entry.
+      assert {:ok, %{status: 304}} =
+               Req.get(client, url: "/movie/1", headers: [{"if-none-match", ~s(W/"mine")}])
+
+      assert_receive {:stub_hit, "GET", "/movie/1", headers}, @wait_ms
+      assert {"if-none-match", ~s(W/"mine")} in headers
+      assert_receive {:http_stop, %{cache: :conditional, status: 304}}, @wait_ms
+
+      # Nothing stored, nothing renewed: the entry is still the one miss.
+      assert %{entries: 1} = Cache.stats(client)
+    end
+  end
+
   describe "single-flight" do
     test "concurrent misses on one key share one request", %{stub: stub, client: client} do
       test_pid = self()

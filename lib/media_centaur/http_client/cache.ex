@@ -18,6 +18,11 @@ defmodule MediaCentaur.HttpClient.Cache do
       overwrite. Reported as `:reload`.
     * **Followers** — callers that claim a key already in flight wait
       for the leader's outcome and share it. Reported as `:hit`.
+    * **Caller-conditional** — a request carrying its own
+      `If-None-Match` passes through: no lookup, no store; the caller
+      holds the entry and reads the 304 itself. Reported as
+      `:conditional`. `MediaCentaur.TMDB.Store` checks stored titles
+      this way (ADR-071).
 
   Only GETs take part. Non-GET requests, and every request when the
   coordinator is not running (the test environment), pass through
@@ -37,7 +42,7 @@ defmodule MediaCentaur.HttpClient.Cache do
 
   alias MediaCentaur.HttpClient.Cache.{Coordinator, Entry, Key}
 
-  @type outcome :: :uncached | :hit | :miss | :revalidate | :reload
+  @type outcome :: :uncached | :hit | :miss | :revalidate | :reload | :conditional
 
   @doc "Attaches the cache steps to `request`."
   @spec attach(Req.Request.t(), keyword()) :: Req.Request.t()
@@ -84,25 +89,36 @@ defmodule MediaCentaur.HttpClient.Cache do
   defp lookup(%Req.Request{method: :get} = request) do
     config = Req.Request.get_private(request, :http_cache_config)
 
-    if Coordinator.running?(config.name) do
-      key = Key.build(request.url, config.exclude_params)
-      request = Req.Request.put_private(request, :http_cache_key, key)
-      entry = Coordinator.lookup(config.name, key)
-      now = System.monotonic_time(:millisecond)
+    cond do
+      conditional?(request) ->
+        Req.Request.put_private(request, :http_cache, :conditional)
 
-      cond do
-        request.options[:reload] == true -> lead_or_follow(request, config, :reload, nil)
-        entry == nil -> lead_or_follow(request, config, :miss, nil)
-        Entry.fresh?(entry, now) -> hit(request, entry)
-        entry.etag == nil -> lead_or_follow(request, config, :miss, nil)
-        true -> lead_or_follow(request, config, :revalidate, entry)
-      end
-    else
-      request
+      Coordinator.running?(config.name) ->
+        key = Key.build(request.url, config.exclude_params)
+        request = Req.Request.put_private(request, :http_cache_key, key)
+        entry = Coordinator.lookup(config.name, key)
+        now = System.monotonic_time(:millisecond)
+
+        cond do
+          request.options[:reload] == true -> lead_or_follow(request, config, :reload, nil)
+          entry == nil -> lead_or_follow(request, config, :miss, nil)
+          Entry.fresh?(entry, now) -> hit(request, entry)
+          entry.etag == nil -> lead_or_follow(request, config, :miss, nil)
+          true -> lead_or_follow(request, config, :revalidate, entry)
+        end
+
+      true ->
+        request
     end
   end
 
   defp lookup(request), do: request
+
+  # A request the caller made conditional carries its own validator:
+  # the caller holds the answer and is asking whether it changed. The
+  # cache stands aside — no lookup, no store — so the caller sees the
+  # 304 or the 200 as the origin sent it.
+  defp conditional?(request), do: Req.Request.get_header(request, "if-none-match") != []
 
   defp hit(request, entry) do
     {Req.Request.put_private(request, :http_cache, :hit), Entry.to_response(entry)}

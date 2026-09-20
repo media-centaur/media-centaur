@@ -27,6 +27,10 @@ defmodule MediaCentaur.TMDB.Client do
     * `:reload` — `true` to fetch past a fresh cache entry and overwrite
       it. The release-tracking refresher uses this: TMDB marks details
       fresh for about eight hours, longer than its refresh interval.
+    * `:if_none_match` — `detail/2` only: the ETag the caller holds. The
+      request carries it, the response cache stands aside, and a 304 is
+      `{:ok, :unchanged}`. How `MediaCentaur.TMDB.Store` checks a stored
+      title.
 
   `configuration/1` always reloads; it exists to prove the key against
   the network.
@@ -45,7 +49,8 @@ defmodule MediaCentaur.TMDB.Client do
   answer came from (`log_line/2`): `fetched movie tmdb:1317149 — from
   cache` for a table read, `— from TMDB` for a network call, and
   `— revalidated with TMDB` / `— refetched from TMDB` for the two other
-  ways a request reaches the API. It used to log "fetched" before the
+  ways a request reaches the API, and `checked … — unchanged` when a
+  `detail/2` check is answered 304. It used to log "fetched" before the
   request, so a hit and a miss read identically and a failure still
   claimed a fetch.
   """
@@ -139,34 +144,62 @@ defmodule MediaCentaur.TMDB.Client do
     end
   end
 
+  @typedoc """
+  What `detail/2` fetches: a title by the app's `{tmdb_id, media_type}`
+  ref (`MediaCentaur.TMDB.Title.ref/1`), or one season.
+  """
+  @type detail_ref ::
+          {pos_integer() | String.t(), :movie | :tv_series}
+          | {:season, pos_integer() | String.t(), pos_integer()}
+
+  @doc """
+  One detail payload, with the ETag to revalidate it by — the request
+  path `MediaCentaur.TMDB.Store` reads through. With `if_none_match:`
+  the request carries the caller's validator, the response cache stands
+  aside (`MediaCentaur.HttpClient.Cache`, `:conditional`), and a 304
+  comes back as `{:ok, :unchanged}`. Without it, the request takes the
+  cache's ordinary path. The `get_*` functions remain for callers that
+  still fetch for themselves; they go as the store takes over.
+  """
+  @spec detail(detail_ref(), keyword()) ::
+          {:ok, %{body: map(), etag: String.t() | nil}} | {:ok, :unchanged} | {:error, any()}
+  def detail(ref, opts \\ []) do
+    {etag, opts} = Keyword.pop(opts, :if_none_match)
+    {client, opts} = Keyword.pop_lazy(opts, :client, &default_client/0)
+    subject = detail_subject(ref)
+
+    case Req.get(client, detail_request(ref) ++ conditional(etag) ++ opts) do
+      {:ok, %{status: 200, body: body} = response} ->
+        outcome = Cache.outcome(response)
+        Availability.observe_request({:ok, outcome})
+        Log.info(:tmdb, log_line(subject, outcome))
+        {:ok, %{body: body, etag: etag(response)}}
+
+      {:ok, %{status: 304} = response} ->
+        Availability.observe_request({:ok, Cache.outcome(response)})
+        Log.info(:tmdb, "checked #{subject} — unchanged")
+        {:ok, :unchanged}
+
+      {:ok, %{status: status, body: body}} ->
+        Availability.observe_request({:error, {:http_error, status, body}})
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        Availability.observe_request({:error, reason})
+        {:error, reason}
+    end
+  end
+
   @spec get_movie(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_movie(tmdb_id, opts \\ []) do
-    get(
-      opts,
-      [
-        url: "/movie/#{tmdb_id}",
-        params: [
-          append_to_response: "credits,release_dates,images",
-          include_image_language: "en,null"
-        ]
-      ],
-      "movie tmdb:#{tmdb_id}"
-    )
+    ref = {tmdb_id, :movie}
+    get(opts, detail_request(ref), detail_subject(ref))
   end
 
   @spec get_tv(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_tv(tmdb_id, opts \\ []) do
-    get(
-      opts,
-      [
-        url: "/tv/#{tmdb_id}",
-        params: [
-          append_to_response: "aggregate_credits,external_ids,images",
-          include_image_language: "en,null"
-        ]
-      ],
-      "TV tmdb:#{tmdb_id}"
-    )
+    ref = {tmdb_id, :tv_series}
+    get(opts, detail_request(ref), detail_subject(ref))
   end
 
   @spec get_collection(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
@@ -183,15 +216,46 @@ defmodule MediaCentaur.TMDB.Client do
 
   @spec get_season(String.t() | integer(), integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_season(tmdb_id, season_number, opts \\ []) do
-    # `credits` rides along for per-episode cast membership: season
-    # regulars come from the appended credits, guest stars ride on each
-    # episode object (`Mapper.episode_attrs/2`).
-    get(
-      opts,
-      [url: "/tv/#{tmdb_id}/season/#{season_number}", params: [append_to_response: "credits"]],
-      "season tmdb:#{tmdb_id} S#{season_number}"
-    )
+    ref = {:season, tmdb_id, season_number}
+    get(opts, detail_request(ref), detail_subject(ref))
   end
+
+  defp detail_request({tmdb_id, :movie}) do
+    [
+      url: "/movie/#{tmdb_id}",
+      params: [
+        append_to_response: "credits,release_dates,images",
+        include_image_language: "en,null"
+      ]
+    ]
+  end
+
+  defp detail_request({tmdb_id, :tv_series}) do
+    [
+      url: "/tv/#{tmdb_id}",
+      params: [
+        append_to_response: "aggregate_credits,external_ids,images",
+        include_image_language: "en,null"
+      ]
+    ]
+  end
+
+  # `credits` rides along for per-episode cast membership: season
+  # regulars come from the appended credits, guest stars ride on each
+  # episode object (`Mapper.episode_attrs/2`).
+  defp detail_request({:season, tmdb_id, season_number}) do
+    [url: "/tv/#{tmdb_id}/season/#{season_number}", params: [append_to_response: "credits"]]
+  end
+
+  defp detail_subject({tmdb_id, :movie}), do: "movie tmdb:#{tmdb_id}"
+  defp detail_subject({tmdb_id, :tv_series}), do: "TV tmdb:#{tmdb_id}"
+
+  defp detail_subject({:season, tmdb_id, season_number}), do: "season tmdb:#{tmdb_id} S#{season_number}"
+
+  defp conditional(nil), do: []
+  defp conditional(etag), do: [headers: [{"if-none-match", etag}]]
+
+  defp etag(response), do: List.first(Req.Response.get_header(response, "etag"))
 
   @doc """
   The console line for a call that was answered: what was asked for, and
@@ -209,6 +273,7 @@ defmodule MediaCentaur.TMDB.Client do
   defp source(:hit), do: "from cache"
   defp source(:revalidate), do: "revalidated with TMDB"
   defp source(:reload), do: "refetched from TMDB"
+  # A 200 to the caller's own validator is a full fetch.
   defp source(_fetched), do: "from TMDB"
 
   defp query_words(title, nil), do: title
