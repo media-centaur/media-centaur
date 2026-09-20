@@ -111,6 +111,57 @@ defmodule MediaCentaur.TMDB.ClientTest do
     end
   end
 
+  describe "write-through to the store" do
+    alias MediaCentaur.TMDB.Store
+
+    test "a movie detail fetched by a caller is stored with its etag" do
+      Req.Test.stub(:tmdb, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("cache-control", "public, max-age=60")
+        |> Plug.Conn.put_resp_header("etag", ~s(W/"wt"))
+        |> Req.Test.json(MediaCentaur.TmdbStubs.movie_detail(%{"id" => 700}))
+      end)
+
+      assert {:ok, %{"id" => 700}} = Client.get_movie(700)
+
+      assert %Store.TitleRecord{tmdb_id: 700, media_type: :movie, etag: ~s(W/"wt")} =
+               Store.get({700, :movie})
+    end
+
+    test "a cache hit writes nothing" do
+      Req.Test.stub(:tmdb, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("cache-control", "public, max-age=60")
+        |> Req.Test.json(MediaCentaur.TmdbStubs.tv_detail(%{"id" => 701}))
+      end)
+
+      assert {:ok, _body} = Client.get_tv(701)
+      first = Store.get({701, :tv_series})
+      backdated = backdate(first, :fetched_at, ~U[2026-01-01 00:00:00Z])
+
+      assert {:ok, _body} = Client.get_tv(701)
+      assert Store.get({701, :tv_series}).fetched_at == backdated.fetched_at
+    end
+
+    test "a season detail is stored under its series" do
+      Req.Test.stub(:tmdb, fn conn ->
+        Req.Test.json(conn, MediaCentaur.TmdbStubs.season_detail(%{"season_number" => 3}))
+      end)
+
+      assert {:ok, _body} = Client.get_season("702", 3)
+      assert %Store.SeasonRecord{tmdb_id: 702, season_number: 3} = Store.get_season(702, 3)
+    end
+
+    test "a collection detail is not stored" do
+      Req.Test.stub(:tmdb, fn conn ->
+        Req.Test.json(conn, MediaCentaur.TmdbStubs.collection_detail())
+      end)
+
+      assert {:ok, _body} = Client.get_collection(263)
+      assert MediaCentaur.Repo.aggregate(Store.TitleRecord, :count) == 0
+    end
+  end
+
   # The console line is copy, and copy is pinned where it can be read
   # without a global Logger level: `log_line/2` is the whole vocabulary,
   # and `get/3` is the only caller — in the 200 branch, so a failed

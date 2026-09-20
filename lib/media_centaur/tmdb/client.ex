@@ -43,6 +43,14 @@ defmodule MediaCentaur.TMDB.Client do
   TMDB can answer before spending a request on finding out. An answer
   served from the response cache reports nothing: it asked nobody.
 
+  ## Write-through
+
+  Transitional (campaign `tmdb-fetch-policy`, Phase 1): every detail
+  payload `get_movie/2`, `get_tv/2` or `get_season/3` fetches is written
+  to `MediaCentaur.TMDB.Store`, so the store fills while callers still
+  fetch for themselves. A cache hit writes nothing. Removed when the last
+  detail caller reads through the store.
+
   ## The console line
 
   Every answered call logs one line, after the fact, naming where the
@@ -61,6 +69,7 @@ defmodule MediaCentaur.TMDB.Client do
   alias MediaCentaur.HttpClient.Cache
   alias MediaCentaur.TMDB.Availability
   alias MediaCentaur.TMDB.RateLimiter
+  alias MediaCentaur.TMDB.Store
 
   @base_url "https://api.themoviedb.org/3"
 
@@ -193,13 +202,13 @@ defmodule MediaCentaur.TMDB.Client do
   @spec get_movie(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_movie(tmdb_id, opts \\ []) do
     ref = {tmdb_id, :movie}
-    get(opts, detail_request(ref), detail_subject(ref))
+    get(opts, detail_request(ref), detail_subject(ref), ref)
   end
 
   @spec get_tv(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_tv(tmdb_id, opts \\ []) do
     ref = {tmdb_id, :tv_series}
-    get(opts, detail_request(ref), detail_subject(ref))
+    get(opts, detail_request(ref), detail_subject(ref), ref)
   end
 
   @spec get_collection(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
@@ -217,7 +226,7 @@ defmodule MediaCentaur.TMDB.Client do
   @spec get_season(String.t() | integer(), integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_season(tmdb_id, season_number, opts \\ []) do
     ref = {:season, tmdb_id, season_number}
-    get(opts, detail_request(ref), detail_subject(ref))
+    get(opts, detail_request(ref), detail_subject(ref), ref)
   end
 
   defp detail_request({tmdb_id, :movie}) do
@@ -255,6 +264,26 @@ defmodule MediaCentaur.TMDB.Client do
   defp conditional(nil), do: []
   defp conditional(etag), do: [headers: [{"if-none-match", etag}]]
 
+  # Transitional (campaign tmdb-fetch-policy, Phase 1): every detail
+  # payload a caller fetches is written to `TMDB.Store`, so the store
+  # fills while callers still fetch for themselves. A cache hit writes
+  # nothing — it asked nobody. Removed when the last detail caller reads
+  # through the store.
+  defp write_through(nil, _outcome, _body, _response), do: :ok
+  defp write_through(_ref, :hit, _body, _response), do: :ok
+
+  defp write_through({:season, tmdb_id, season_number}, _outcome, body, response) when is_map(body) do
+    {:ok, _record} = Store.record_season_fetched(tmdb_id, season_number, body, etag(response))
+    :ok
+  end
+
+  defp write_through({_tmdb_id, _media_type} = ref, _outcome, body, response) when is_map(body) do
+    {:ok, _record} = Store.record_fetched(ref, body, etag(response))
+    :ok
+  end
+
+  defp write_through(_ref, _outcome, _body, _response), do: :ok
+
   defp etag(response), do: List.first(Req.Response.get_header(response, "etag"))
 
   @doc """
@@ -283,7 +312,7 @@ defmodule MediaCentaur.TMDB.Client do
   # is not known until the response is in hand, and a failure is the
   # caller's to report (`auth_failure?/1`) rather than something to
   # announce as a fetch.
-  defp get(opts, request, subject) do
+  defp get(opts, request, subject, store_ref \\ nil) do
     {client, opts} = Keyword.pop_lazy(opts, :client, &default_client/0)
 
     case Req.get(client, request ++ opts) do
@@ -291,6 +320,7 @@ defmodule MediaCentaur.TMDB.Client do
         outcome = Cache.outcome(response)
         Availability.observe_request({:ok, outcome})
         Log.info(:tmdb, log_line(subject, outcome))
+        write_through(store_ref, outcome, body, response)
         {:ok, body}
 
       {:ok, %{status: status, body: body}} ->
