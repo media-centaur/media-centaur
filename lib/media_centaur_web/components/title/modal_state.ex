@@ -4,8 +4,8 @@ defmodule MediaCentaurWeb.Components.Title.ModalState do
   owns and the renderer reads, and what means nothing once the subject
   changes: which view is showing, which seasons and disclosures are
   open, what the cast filter says, which destructive act is armed or
-  running, which glass menu is open, which download scope is chosen,
-  and the one plan in flight.
+  running, whether a TMDB check is in flight, which glass menu is open,
+  which download scope is chosen, and the one plan in flight.
 
   One struct on the socket, replaced by `new/1` whenever the subject
   changes and on close, so nothing armed against one title survives
@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.Components.Title.ModalState do
             delete_confirm: nil,
             deleting: nil,
             rematch_confirm: false,
+            tmdb_checking: false,
             open_menu: nil,
             download_scope: :first_season,
             pending: nil
@@ -42,6 +43,7 @@ defmodule MediaCentaurWeb.Components.Title.ModalState do
           delete_confirm: delete_target(),
           deleting: delete_target(),
           rematch_confirm: boolean(),
+          tmdb_checking: boolean(),
           open_menu: nil | :mode | :scope,
           download_scope: :first_season | :everything,
           pending: nil | {:download, String.t()} | {:missing_episode, {pos_integer(), pos_integer()}}

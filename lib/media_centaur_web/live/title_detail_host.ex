@@ -16,8 +16,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   | Hook | Does |
   |---|---|
   | `:handle_params` | opens, refreshes or closes the modal from `?title=<ref>` (`TitleRef`) with `view` and `activity`, or from `?entity=<uuid>` — canonicalised to the title address when the entity has a TMDB identity, else the residue |
-  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `reset_lower_quality`, `review_open`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, and the library sections' (`LibraryEvents.events/0`) |
-  | `:handle_async` | the fetched open, the live preview, the manual plan, the missing-episode plan, the file-info load and the delete — each landing by subject and dropped when the person moved on |
+  | `:handle_event` | every modal control, halting: `open_title`, `select_entity`, `close_title`, `select_detail_view`, `set_rung`, `reset_lower_quality`, `review_open`, `download`, `download_mode_toggle`, `download_scope_toggle`, `download_menu_close`, `download_scope`, `activity_delete`, `refresh_from_tmdb`, and the library sections' (`LibraryEvents.events/0`) |
+  | `:handle_async` | the fetched open, the live preview, the manual plan, the missing-episode plan, the file-info load, the delete and the TMDB check — each landing by subject and dropped when the person moved on |
   | `:handle_info` | refreshes the open detail by identity on the topics below, then continues so the host's own clauses run |
   | `use ReviewFlow` | injects the Review modal's own controls; `review_open` opens it on the detail's title |
 
@@ -90,6 +90,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Client, as: TMDBClient
   alias MediaCentaur.TMDB.ReleaseWindow
+  alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
@@ -104,6 +105,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost.Acquisition
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryEvents
+  alias MediaCentaurWeb.Live.TitleDetailHost.TmdbEvents
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.Orientation
@@ -122,7 +124,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @callback open_plan_board(socket :: Phoenix.LiveView.Socket.t(), plan_id :: Ecto.UUID.t()) ::
               Phoenix.LiveView.Socket.t()
 
-  @modal_events ~w(download_mode_toggle download_scope_toggle download_menu_close download_scope download activity_delete review_open select_detail_view)
+  @modal_events ~w(download_mode_toggle download_scope_toggle download_menu_close download_scope download activity_delete review_open select_detail_view refresh_from_tmdb)
   @library_events LibraryEvents.events()
   @rungs ~w(off list follow grab)
 
@@ -632,6 +634,26 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
+  def handle_title_async({:refresh_from_tmdb, _ref}, {:ok, result}, socket) do
+    {level, message} = TmdbEvents.check_flash(result)
+
+    {:halt,
+     socket
+     |> update(:modal_state, &%{&1 | tmdb_checking: false})
+     |> put_flash(level, message)
+     |> refresh_title_detail()}
+  end
+
+  def handle_title_async({:refresh_from_tmdb, ref}, {:exit, reason}, socket) do
+    Log.warning(:tmdb, "refresh from TMDB crashed for #{TitleRef.param(ref)} — #{inspect(reason)}")
+    {level, message} = TmdbEvents.check_flash({:error, reason})
+
+    {:halt,
+     socket
+     |> update(:modal_state, &%{&1 | tmdb_checking: false})
+     |> put_flash(level, message)}
+  end
+
   def handle_title_async({:title_preview, _ref}, {:ok, {:error, reason}}, socket) do
     Log.debug(:tmdb, "title preview unavailable — #{inspect(reason)}")
     {:halt, socket}
@@ -896,6 +918,22 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       {tmdb_id, media_type} = ref
       {:ok, _params} = TitleDownloadParams.put(tmdb_id, media_type, %{min_quality: nil})
       {:halt, refresh_title_detail(socket)}
+    else
+      _stale_or_unknown -> {:halt, socket}
+    end
+  end
+
+  # Refresh from TMDB (UIDR-044): one check of the open title, off the
+  # view, for either surface; the result lands in `handle_title_async/3`.
+  def handle_title_event("refresh_from_tmdb", %{"ref" => param}, socket) do
+    with {:ok, ref} <- TitleRef.parse(param),
+         %TitleDetail{ref: ^ref} <- socket.assigns.title_detail do
+      socket =
+        socket
+        |> update(:modal_state, &%{&1 | tmdb_checking: true})
+        |> start_async({:refresh_from_tmdb, ref}, fn -> Store.check(ref) end)
+
+      {:halt, socket}
     else
       _stale_or_unknown -> {:halt, socket}
     end

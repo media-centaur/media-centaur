@@ -65,6 +65,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
 
   alias MediaCentaurWeb.Components.Detail.SubtitlesRow
   alias MediaCentaurWeb.Components.Title.LowerQualityNote
+  alias MediaCentaurWeb.Components.Title.RefreshFromTmdb
   alias MediaCentaurWeb.Components.Detail.TrackOverrideBadge
 
   # Above this many files the ledger rests collapsed; at or below it,
@@ -108,6 +109,10 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
     default: nil,
     doc:
       "`MapSet.t()` of expanded folder dirs, or `nil` for the automatic default (all expanded when the inventory is ≤ #{@auto_expand_threshold} files, else all collapsed). Owned by the host's `expanded_file_groups` assign; toggled via `toggle_file_group`."
+
+  attr :tmdb_checking?, :boolean,
+    default: false,
+    doc: "whether a Refresh from TMDB check is in flight (UIDR-044)."
 
   def manage_panel(assigns) do
     total_size = Enum.reduce(assigns.files, 0, fn %{size: size}, acc -> acc + (size || 0) end)
@@ -199,6 +204,13 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
             <.icon name="hero-arrow-path-mini" class="size-4" />
             {if @rematch_confirm, do: "Confirm?", else: "Rematch"}
           </.button>
+          <RefreshFromTmdb.refresh_from_tmdb
+            :if={@tmdb_ready and @title_ref}
+            id="manage-refresh-from-tmdb"
+            ref={@title_ref}
+            surface={:toolbar}
+            checking?={@tmdb_checking?}
+          />
           <.button
             :if={@tmdb_ready}
             variant="neutral"

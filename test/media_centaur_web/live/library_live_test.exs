@@ -1085,7 +1085,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         acquisition: false
       })
 
-      tv_series = create_tv_series(%{name: "Ledger Show"})
+      tv_series = create_tv_series(%{name: "Ledger Show", tmdb_id: "4556"})
 
       for season <- 1..2, episode <- 1..4 do
         _ =
@@ -1200,8 +1200,35 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert has_element?(
                view,
+               "[data-role='manage-toolbar'] button[phx-click='refresh_from_tmdb']"
+             )
+
+      assert has_element?(
+               view,
                "[data-role='manage-toolbar'] button[phx-click='refresh_artwork']"
              )
+    end
+
+    test "Refresh from TMDB checks the stored title and says what it found (UIDR-044)", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      create_title_record(%{tmdb_id: 4556, media_type: :tv_series, etag: ~s(W/"held")})
+
+      Req.Test.stub(:tmdb, fn conn ->
+        case Plug.Conn.get_req_header(conn, "if-none-match") do
+          [~s(W/"held")] -> Plug.Conn.send_resp(conn, 304, "")
+          _other -> Req.Test.json(conn, %{"id" => 4556, "name" => "Ledger Show"})
+        end
+      end)
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{tv_series.id}&view=info")
+
+      view
+      |> element("[data-role='manage-toolbar'] button[phx-click='refresh_from_tmdb']")
+      |> render_click()
+
+      assert render_async(view) =~ "Checked TMDB — nothing has changed."
     end
 
     test "the toolbar card is its own nav zone, beside the list — not rows of it", %{
