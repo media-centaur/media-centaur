@@ -188,4 +188,4 @@ defmodule MediaCentaur.Pipeline.TmdbProjection do
 
 ### Task 8: Gate and the dev node
 
-- [ ] `agent-mix precommit` (foreground). Restart `media-centaur-dev`; confirm the `@reboot` tick first-contacts the owned titles the store lacks (about 36 on the owner's instance; 50 per tick); confirm `Pipeline.TmdbReferences.references/0` matches the owned count; force one owned series through `Store.check/1` and confirm its library season lists and status agree with the store; confirm the Settings › Maintenance section renders without the three buttons; record in the campaign.
+- [x] `agent-mix precommit` (foreground). Restart `media-centaur-dev`; confirm the `@reboot` tick first-contacts the owned titles the store lacks (about 36 on the owner's instance; 50 per tick); confirm `Pipeline.TmdbReferences.references/0` matches the owned count; force one owned series through `Store.check/1` and confirm its library season lists and status agree with the store; confirm the Settings › Maintenance section renders without the three buttons; record in the campaign.

@@ -312,6 +312,18 @@ Append-only.
   (row R) and the showcase (row W) were pulled into this phase so the
   write-through could go with the last caller. Plan:
   [`2026-09-20-tmdb-fetch-policy-phase-4-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-4-plan.md).
+* `2026-09-20` — **Phase 4 verified on the dev node** after a service
+  restart: the `@reboot` tick first-contacted the 44 owned titles the
+  store lacked in one tick (46 owned references; 56 TMDB requests in
+  the quarter hour, mean 201 ms, none failed, the rest the projection's
+  first contact of open seasons); every first contact announced its
+  title and `Pipeline.TmdbProjection` re-applied it — all 14 owned
+  series then agreed with the store on name, status (4 returning, 8
+  ended, 2 canceled) and every season's episode-list length; the store
+  holds 54 titles and 13 seasons, all 54 scheduled; a forced
+  `Store.check/1` on an owned settled movie answered 304; Settings ›
+  Maintenance renders the five remaining actions and none of the three
+  removed buttons. No migration in this phase.
 * `2026-09-20` — **Phase 3 verified on the dev node** after a service
   restart: the migration ran at boot (`title_intents.title` gone); the
   `@reboot` tick completed in 5 ms with nothing to first-contact — all
