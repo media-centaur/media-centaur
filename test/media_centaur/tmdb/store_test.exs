@@ -74,17 +74,25 @@ defmodule MediaCentaur.TMDB.StoreTest do
       assert MediaCentaur.TMDB.Mapper.pick_logo_path(record.payload) == "/en.png"
     end
 
-    test "the credits blocks are dropped: the store holds what the app re-reads" do
+    test "the credits are cut to what the preview re-reads: ten top-billed cast and the directing crew" do
+      cast = for order <- 0..14, do: %{"name" => "Actor #{order}", "order" => order}
+
       movie =
         TmdbStubs.movie_detail(%{
           "id" => 570,
-          "credits" => %{"cast" => [%{"name" => "A. Actor"}], "crew" => [%{"name" => "A. Director"}]}
+          "credits" => %{
+            "cast" => Enum.reverse(cast),
+            "crew" => [
+              %{"name" => "A. Director", "department" => "Directing", "job" => "Director"},
+              %{"name" => "A. Writer", "department" => "Writing", "job" => "Writer"}
+            ]
+          }
         })
 
       series =
         TmdbStubs.tv_detail(%{
           "id" => 571,
-          "aggregate_credits" => %{"cast" => [%{"name" => "A. Actor"}], "crew" => []}
+          "aggregate_credits" => %{"cast" => cast, "crew" => [%{"name" => "A. Producer"}]}
         })
 
       season =
@@ -106,8 +114,10 @@ defmodule MediaCentaur.TMDB.StoreTest do
       {:ok, stored_series} = Store.record_fetched({571, :tv_series}, series, @etag)
       {:ok, stored_season} = Store.record_season_fetched(571, 1, season, @etag)
 
-      refute Map.has_key?(stored_movie.payload, "credits")
-      refute Map.has_key?(stored_series.payload, "aggregate_credits")
+      assert Enum.map(stored_movie.payload["credits"]["cast"], & &1["order"]) == Enum.to_list(0..9)
+      assert [%{"job" => "Director"}] = stored_movie.payload["credits"]["crew"]
+      assert length(stored_series.payload["aggregate_credits"]["cast"]) == 10
+      refute Map.has_key?(stored_series.payload["aggregate_credits"], "crew")
       refute Map.has_key?(stored_season.payload, "credits")
 
       assert [%{"episode_number" => 1, "air_date" => "2026-01-01", "name" => "Pilot"} = episode] =
@@ -403,6 +413,37 @@ defmodule MediaCentaur.TMDB.StoreTest do
 
       assert {:error, _reason} = Store.check({565, :movie})
       assert Store.get({565, :movie}) == record
+    end
+  end
+
+  describe "snapshot/1 and snapshots/1" do
+    test "a stored title renders as the app's title snapshot" do
+      create_title_record(%{tmdb_id: 630, media_type: :movie, name: "Sample Movie"})
+      create_title_record(%{tmdb_id: 631, media_type: :tv_series, name: "Sample Show"})
+
+      assert %MediaCentaur.TMDB.Title{tmdb_id: 630, media_type: :movie, name: "Sample Movie"} =
+               Store.snapshot({630, :movie})
+
+      assert %{{630, :movie} => %{name: "Sample Movie"}, {631, :tv_series} => %{name: "Sample Show"}} =
+               Store.snapshots([{630, :movie}, {631, :tv_series}, {632, :movie}])
+
+      assert Store.snapshot({632, :movie}) == nil
+    end
+  end
+
+  describe "first contact announces the title" do
+    test "ensure/2 publishes {:tmdb_title_changed, ref} when it creates the record, not when it finds it" do
+      Store.subscribe()
+
+      Req.Test.stub(:tmdb, fn conn ->
+        Req.Test.json(conn, TmdbStubs.movie_detail(%{"id" => 640}))
+      end)
+
+      assert {:ok, _record} = Store.ensure({640, :movie})
+      assert_receive {:tmdb_title_changed, {640, :movie}}
+
+      assert {:ok, _record} = Store.ensure({640, :movie})
+      refute_receive {:tmdb_title_changed, _ref}
     end
   end
 

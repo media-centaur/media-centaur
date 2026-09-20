@@ -33,7 +33,7 @@ defmodule MediaCentaur.TMDB.Store do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Repo
-  alias MediaCentaur.TMDB.{Client, Mapper, Schedule}
+  alias MediaCentaur.TMDB.{Client, Mapper, Schedule, Title}
   alias MediaCentaur.TMDB.Store.{SeasonRecord, TitleRecord}
   alias MediaCentaur.Topics
 
@@ -91,6 +91,33 @@ defmodule MediaCentaur.TMDB.Store do
         []
     end
   end
+
+  @doc "The app's render snapshot of a stored title (`TMDB.Title`), or nil."
+  @spec snapshot(ref()) :: Title.t() | nil
+  def snapshot(ref) do
+    case get(ref) do
+      nil -> nil
+      %TitleRecord{} = record -> to_snapshot(record)
+    end
+  end
+
+  @doc "Render snapshots for `refs`, keyed by ref; a ref the store lacks is absent."
+  @spec snapshots(Enumerable.t()) :: %{ref() => Title.t()}
+  def snapshots(refs) do
+    refs
+    |> get_many()
+    |> Enum.flat_map(fn {ref, record} ->
+      case to_snapshot(record) do
+        nil -> []
+        title -> [{ref, title}]
+      end
+    end)
+    |> Map.new()
+  end
+
+  @doc "Subscribes the caller to `Topics.tmdb_titles/0`."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe, do: Topics.subscribe(Topics.tmdb_titles())
 
   @doc "Unsettled titles whose check time has passed, oldest due first."
   @spec due(DateTime.t()) :: [TitleRecord.t()]
@@ -150,21 +177,56 @@ defmodule MediaCentaur.TMDB.Store do
 
   @doc """
   The payload as the store keeps it — what the app re-reads, not
-  everything TMDB sends. Two blocks go: `images` is reduced to the one
-  logo `Mapper.pick_logo_path/1` selects (posters and backdrops are
-  named at the top level), and the credits — a title's `credits` or
-  `aggregate_credits`, a season's `credits`, an episode's `guest_stars`
-  and `crew` — are dropped outright. Credits are read once, at import,
-  to project cast onto a library entity; the import requests them then.
-  Measured before the decision: they were nine tenths of a 245 KB series
-  and a 485 KB season.
+  everything TMDB sends. `images` is reduced to the one logo
+  `Mapper.pick_logo_path/1` selects (posters and backdrops are named at
+  the top level). The credits are cut to what the unowned preview
+  re-reads: a title's ten top-billed cast and its directing crew; a
+  season's `credits` and an episode's `guest_stars` and `crew` go. The
+  full cast and crew are read once, at import, to project onto a library
+  entity; the import requests them then. Measured before the decision:
+  the credits were nine tenths of a 245 KB series and a 485 KB season.
   """
   @spec trim_payload(map()) :: map()
   def trim_payload(payload) when is_map(payload) do
     payload
     |> trim_images()
-    |> Map.drop(["credits", "aggregate_credits"])
+    |> trim_credits()
     |> trim_episodes()
+  end
+
+  @top_cast 10
+
+  # What the unowned preview re-reads (UIDR-043's preview strip and its
+  # facet row): the ten top-billed cast and the directing crew. The
+  # library's full cast and crew are the import's, fetched at import.
+  defp trim_credits(%{"episodes" => _episodes} = season_payload) do
+    # A season's credits serve only the import's per-episode cast.
+    Map.delete(season_payload, "credits")
+  end
+
+  defp trim_credits(payload) do
+    payload
+    |> trim_credit_block("credits", fn block ->
+      %{
+        "cast" => top_cast(block["cast"]),
+        "crew" => Enum.filter(List.wrap(block["crew"]), &(&1["department"] == "Directing"))
+      }
+    end)
+    |> trim_credit_block("aggregate_credits", fn block -> %{"cast" => top_cast(block["cast"])} end)
+  end
+
+  defp trim_credit_block(payload, key, keep) do
+    case payload do
+      %{^key => %{} = block} -> Map.put(payload, key, keep.(block))
+      _without -> Map.delete(payload, key)
+    end
+  end
+
+  defp top_cast(cast) do
+    cast
+    |> List.wrap()
+    |> Enum.sort_by(&(&1["order"] || 0))
+    |> Enum.take(@top_cast)
   end
 
   defp trim_images(%{"images" => _images} = payload) do
@@ -235,6 +297,8 @@ defmodule MediaCentaur.TMDB.Store do
     end
   end
 
+  # A record appearing is a change to whoever renders the title, so first
+  # contact is announced like a changed check.
   defp first_contact({tmdb_id, media_type} = ref, opts) do
     with {:ok, %{body: body, etag: etag}} <- Client.detail(ref, opts),
          {:ok, record} <- record_fetched(ref, body, etag) do
@@ -243,6 +307,7 @@ defmodule MediaCentaur.TMDB.Store do
         "stored #{subject(media_type, tmdb_id)} — first contact#{schedule_words(record)}"
       )
 
+      publish_changed(record)
       {:ok, record}
     end
   end
@@ -457,6 +522,13 @@ defmodule MediaCentaur.TMDB.Store do
 
         {:ok, _record} = record |> TitleRecord.changeset(attrs) |> Repo.update()
         :ok
+    end
+  end
+
+  defp to_snapshot(%TitleRecord{payload: payload, media_type: media_type}) do
+    case Title.from_tmdb(payload, media_type) do
+      {:ok, %Title{} = title} -> title
+      {:error, _changeset} -> nil
     end
   end
 
