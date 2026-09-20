@@ -89,7 +89,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.TimeSeries` | Round-robin time-series store (ETS), fold into window columns, snapshot file beside the database | Mechanism only; tenants own the series (`HttpClient.Traffic` for requests per upstream). Durable outside the database by ADR-070. |
 | `MediaCentaur.Retention` | `retention_runs` table, policy registry, daily `SweepJob` | Data-hygiene orchestrator. Contexts declare policies in `RetentionPolicies` provider modules registered under `:retention_policy_providers` (runtime-resolved IoC, same shape as `:diagnostics_contributors`), so contexts may depend on `Retention` to record runs without cycles. Policies + observed pruning surface per subsystem on `/status`. |
 | `MediaCentaur.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |
-| `MediaCentaur.TmdbArtwork` | `{data_dir}/images/tmdb/` cache — temporary artwork for TMDB identities not (yet) in the library | Referenced tier of the artwork promotion ladder: entries are held alive by registered `HoldProvider`s (`:tmdb_artwork_hold_providers` — tracked items, non-terminal pursuits) and swept 7 days after last use once unheld. |
+| `MediaCentaur.TmdbArtwork` | `{data_dir}/images/tmdb/` cache — temporary artwork for TMDB identities not (yet) in the library | Referenced tier of the artwork promotion ladder: entries are held alive by the references `MediaCentaur.TMDB.References` collects (`:tmdb_reference_providers` — tracked items, non-terminal pursuits) and swept 7 days after last use once unheld. |
 | `MediaCentaur.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing connection test. Reads `Settings`, owns no state; the persisted test is written by `IntegrationHealth`. |
 | `MediaCentaur.Settings.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |
 | `MediaCentaur.Downloads` | Download-client drivers (`qBittorrent`, `SABnzbd`) behind one `@behaviour`, queue monitor, client health | Two-slot model — see [docs/download-clients.md](download-clients.md). |
@@ -169,7 +169,7 @@ graph TD
     SessionSup --> MpvSession[MpvSession per file]
 ```
 
-PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking.LibraryListener`, `WatchHistory.Recorder`, `Acquisition.Reactor`, `Downloads.QueueMonitor`, `Pursuits.InboundListener`) and the `ReleaseTracking.Refresher` timers are skipped in `:test` env — tests call the public functions directly. Watchers and the pipelines start in disabled state in tests; production toggles them via `services:<env>:start_watchers` / `start_pipeline` keys in `Settings`.
+PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking.LibraryListener`, `ReleaseTracking.TmdbListener`, `WatchHistory.Recorder`, `Acquisition.Reactor`, `Downloads.QueueMonitor`, `Pursuits.InboundListener`) are skipped in `:test` env, and the Oban cron jobs (`TMDB.CheckJob`, `ReleaseTracking.SweepJob`, the pursuit watcher, the sweeps) run only when a test performs them — tests call the public functions directly. Watchers and the pipelines start in disabled state in tests; production toggles them via `services:<env>:start_watchers` / `start_pipeline` keys in `Settings`.
 
 ## PubSub Topics
 

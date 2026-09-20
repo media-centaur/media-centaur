@@ -38,8 +38,9 @@ path, not of any one integration.
    carrying its own `If-None-Match` — passes the cache untouched, neither
    looked up nor stored, and reports `:conditional`. TMDB detail freshness
    is now a policy above this seam (`MediaCentaur.TMDB.Store`);
-   `reload: true` remains for the credential probe and, until Phase 2 of
-   `tmdb-fetch-policy`, the release-tracking refresher.
+   `reload: true` remains for the credential probe alone; the
+   release-tracking refresher that also used it was retired in Phase 2 of
+   `tmdb-fetch-policy`.
 4. **Not started under test.** The coordinator and stats are absent in
    `:test`; cache tests start their own coordinator under a unique name.
 

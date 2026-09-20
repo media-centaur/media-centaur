@@ -110,8 +110,12 @@ Append-only.
 
 ## Next steps
 
-1. **Settle the contradiction.** Read `Refresher.fetch_for_item/1`'s
-   collection branch against the Scanner and against
+1. **Settle the contradiction.** *2026-09-20: the refresher and its
+   collection branch were deleted by `tmdb-fetch-policy` Phase 2 — no
+   `:movie_series` item existed on the owner's instance, and a tracked
+   item now reads the TMDB store, which holds movies and series only. A
+   collection cannot be refreshed by any path now; what remains of this
+   step is the rail tiles.* Read the Scanner against
    `LibraryLinks.link_unlinked_items/1`: can any current path create a
    `library_container_type: :movie_series` item? Write the answer here
    before touching code.

@@ -50,12 +50,15 @@ render-time fetches and the empty cache after every restart on top.
 
 Planning. Audit complete 2026-09-19 (three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-**Phase 1 landed on main 2026-09-20** (commits `e575bebc`…`89dfc4b0`,
-unpushed): the TMDB store fills by write-through from every detail
-fetch; `Store.check/2` revalidates with the store's own ETag through the
-cache pass-through; nothing schedules a check yet. Verified on the dev
-node: migration applied, a movie, a series and a season recorded, a
-check answered 304 straight from TMDB (`:conditional`). Phase 2 next.
+**Phases 1 and 2 landed on main 2026-09-20** (unpushed). Phase 1: the
+store, filled by write-through. Phase 2: `TMDB.CheckJob` checks what is
+due (`@reboot` and every quarter hour), `TMDB.References` says who
+holds a title and whose hold schedules a check, release tracking
+rebuilds its calendar from the store on change, the tracked item
+carries no TMDB fact of its own, the refresher and both interval
+settings are gone, *Refresh from TMDB* is on the Manage toolbar and the
+tracking card (UIDR-044), the wiki is rewritten (committed locally, not
+pushed, with the code). Phase 3 next.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -243,6 +246,20 @@ Append-only.
   as later phases move those readers onto the store). A stored flag
   would be a second representation of "who references this identity".
   Design §2.1/§2.4 amended.
+* `2026-09-20` — **Phase 2 landed.** Decisions made inside it:
+  `TMDB.References` (the design's Phase 5 unification of the artwork
+  hold providers) pulled forward, because scheduling needs "who
+  references this identity"; scheduling scope in Phase 2 is tracked
+  titles only — Discovery and Acquisition providers answer
+  `schedules_checks?/0` false until Phase 3 gives them readers,
+  Activities never; the refresher's collection branch deleted with it
+  (no such item exists; noted in `collection-identity`); the sweep
+  interval setting removed with the refresher; no record sweep yet
+  (Phase 5). Two defects found by the suite: the store refuses a payload
+  that is not the title's own answer, and a dateless theatrical release
+  is unscheduled rather than a crash in the upcoming feed. Plan:
+  [`2026-09-20-tmdb-fetch-policy-phase-2-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-2-plan.md);
+  [UIDR-044](../decisions/user-interface/2026-09-20-044-refresh-from-tmdb.md).
 
 ## Open questions for the owner
 
@@ -250,14 +267,21 @@ None. The payload-size question was decided 2026-09-20 (Decisions).
 
 ## Next steps
 
-1. Phase 2 plan: checks replace the refresher — `TMDB.CheckJob`,
-   release rows rebuilt on change, `Item` shrinks, the interval setting
-   goes, *Refresh from TMDB* on the Manage view and tracking controls,
-   the one-time backfill, the wiki pages (including the 6-hour versus
-   24-hour contradiction).
-2. At the next release, the CHANGELOG's *Migration safety* line for
-   `20260920100000_create_tmdb_store`: two additive tables, no backfill,
-   no user-visible change.
+1. Verify Phase 2 on the dev node after a service restart (the cron rows
+   need a boot): the `@reboot` tick first-contacts the tracked titles,
+   a forced due check answers 304 through `:conditional`, and a settled
+   title is never asked. Record the requests per cycle before and after.
+2. Phase 3 plan: surfaces read the store — the unowned preview, the plan
+   board's release window, the plan preview, targeting, cours, the
+   spine, plan identity, `TmdbArtwork.ensure/2`; the intent embed
+   dropped; Discovery and Acquisition providers start scheduling checks;
+   the mix task read or retired.
+3. At the next release, the CHANGELOG's *Migration safety* lines:
+   `20260920100000_create_tmdb_store` (two additive tables) and
+   `20260920130000_release_tracking_items_read_the_store` (eight
+   columns dropped, three settings rows deleted; the store refills from
+   TMDB at boot), plus the user-visible change: the refresh-interval
+   setting is gone and *Refresh from TMDB* is new.
 
 ## Completion criteria
 
