@@ -50,8 +50,12 @@ render-time fetches and the empty cache after every restart on top.
 
 Planning. Audit complete 2026-09-19 (three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-All definitional decisions made 2026-09-20 (Decisions). Design written
-2026-09-20, awaiting owner review. No code.
+**Phase 1 landed on main 2026-09-20** (commits `e575bebc`…`89dfc4b0`,
+unpushed): the TMDB store fills by write-through from every detail
+fetch; `Store.check/2` revalidates with the store's own ETag through the
+cache pass-through; nothing schedules a check yet. Verified on the dev
+node: migration applied, a movie, a series and a season recorded, a
+check answered 304 straight from TMDB (`:conditional`). Phase 2 next.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -214,24 +218,46 @@ Append-only.
   the whole application to be reconciled with the record, using the
   unify-design method. Design:
   [`2026-09-20-tmdb-fetch-policy-design.md`](../docs/superpowers/specs/2026-09-20-tmdb-fetch-policy-design.md).
+* `2026-09-20` — **Design approved as written; the six §7 decisions
+  stand.** The Phase 4 question — which library fields TMDB may
+  overwrite on an owned entity — follows from the core idea: every
+  field `TMDB.Mapper` produces is a projection. Owner (`/approve-and-execute`).
+* `2026-09-20` — **Phase 1 implementation decisions.** A served
+  response-cache entry carries the origin's ETag, so the store learns a
+  validator without a request. A check decides *changed* by comparing
+  payloads, never timestamps. A first-contact race (two processes, one
+  new title) is retried once as an update. An id that is not a TMDB id
+  is refused; a store write never fails the fetch that fed it. The
+  `scheduled` column waits for Phase 2, which defines references.
+  ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md);
+  plan
+  [`2026-09-20-tmdb-fetch-policy-phase-1-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-1-plan.md))
 
 ## Open questions for the owner
 
-The design document carries six decisions made on the owner's behalf
-and open to veto (its §7): the name *TMDB store*; which titles are
-scheduled for checks; the refresher becoming an Oban cron job; the
-intent embed being dropped; library fields re-projected on change; the
-payload stored as received minus the `images` block.
+1. **Payload size** (design §7, decision 6). Measured on the owner's
+   node at first contact: a movie 26 KB, a series 245 KB, one
+   38-episode season 485 KB. The credits blocks (`aggregate_credits`,
+   season `credits`, per-episode `guest_stars`/`crew`) are the bulk and
+   are read only at import, to project cast onto library entities.
+   Options before Phase 2 widens the population: (a) keep the payload
+   whole and accept about 0.5 MB per stored season; (b) drop the credits
+   blocks from the stored payload and have the Phase 4 import request
+   them once, separately, when it materialises a library entity;
+   (c) keep a bounded top of the cast list. Recommendation: (b) — the
+   store holds what the app re-reads; credits are read once.
 
 ## Next steps
 
-1. Settle the storage question with the owner. Restate the
-   working terms as the app's own controls before asking.
-2. Write the design at
-   `docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-design.md`;
-   elevate the agreed glossary to `docs/GLOSSARY.md` at completion.
-3. Fix the wiki cadence contradiction with whatever cadence the design
-   lands on.
+1. Owner decides the payload-size question above.
+2. Phase 2 plan: checks replace the refresher — `TMDB.CheckJob`,
+   release rows rebuilt on change, `Item` shrinks, the interval setting
+   goes, *Refresh from TMDB* on the Manage view and tracking controls,
+   the one-time backfill, the wiki pages (including the 6-hour versus
+   24-hour contradiction).
+3. At the next release, the CHANGELOG's *Migration safety* line for
+   `20260920100000_create_tmdb_store`: two additive tables, no backfill,
+   no user-visible change.
 
 ## Completion criteria
 
