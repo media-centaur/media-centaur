@@ -50,8 +50,8 @@ render-time fetches and the empty cache after every restart on top.
 
 Planning. Audit complete 2026-09-19 (three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-Definition, settled-title rule and due-time rule agreed 2026-09-20
-(Decisions); storage open; no design, no code.
+All definitional decisions made 2026-09-20 (Decisions). Design written
+2026-09-20, awaiting owner review. No code.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -205,22 +205,23 @@ Append-only.
   due; the Manage view's manual refresh is the only way to check one.
   The *Refresh interval (hours)* setting is removed, not repurposed.
   Owner.
+* `2026-09-20` — **One TMDB title record per identity, payload-backed,
+  movies and series only.** Every surface reads it; only checks write
+  it. Extending the existing tables was declined; normalised columns
+  were declined in favour of the stored payload so every `from_payload`
+  constructor keeps working. Owner.
+* `2026-09-20` — **Full coherence, not a bolt-on.** The owner asked for
+  the whole application to be reconciled with the record, using the
+  unify-design method. Design:
+  [`2026-09-20-tmdb-fetch-policy-design.md`](../docs/superpowers/specs/2026-09-20-tmdb-fetch-policy-design.md).
 
 ## Open questions for the owner
 
-In order; each answer shapes the next.
-
-1. **Which surfaces move to stored reads, and what gets stored where.**
-   The release window and season air dates have no home; the title
-   snapshot has no fetch time; a title-level record would touch
-   `collection-identity`'s territory.
-2. **Checks revalidate rather than reload**, and skip the write when
-   the answer is 304.
-3. **Response cache changes**: normalise the search key; stale-if-error;
-   persistence. Each weighed on its own merits.
-4. **The manual refresh control**: on the Manage view of owned titles
-   (decided); whether tracked-but-unowned titles get the same control,
-   and where.
+The design document carries six decisions made on the owner's behalf
+and open to veto (its §7): the name *TMDB store*; which titles are
+scheduled for checks; the refresher becoming an Oban cron job; the
+intent embed being dropped; library fields re-projected on change; the
+payload stored as received minus the `images` block.
 
 ## Next steps
 
@@ -234,11 +235,15 @@ In order; each answer shapes the next.
 
 ## Completion criteria
 
-* Every fetch site is one of: creates a stored copy that did not exist;
-  a check on an unsettled title; identity resolution for a query; a
-  probe. A Credo check or a client-level contract enforces the
-  classification.
-* No render path requests TMDB for a fact the app stores.
+* Every fetch site is one of: first contact; a check; identity
+  resolution for a query; a probe. No module but `TMDB.Store` calls a
+  `TMDB.Client` detail function, enforced by a Credo check.
+* No render path requests TMDB for a fact the app stores; every
+  projection in the design's §2.6 is rebuilt from the store, never
+  fetched.
+* `ReleaseTracking.Refresher`, the interval setting, the intent embed
+  and the `Item` copy columns are gone; collections are recorded as the
+  `collection-identity` campaign's convergence point.
 * A settled title costs zero requests per cycle; an unsettled one costs
   one revalidation per due check, measured on the dev node through
   `HttpClient.Traffic`.
