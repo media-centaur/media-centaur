@@ -90,6 +90,15 @@ defmodule MediaCentaur.Reconciliation.SpineTest do
       assert Spine.assemble(999, MapSet.new()) == []
     end
 
+    test "a show the store holds is assembled without a request (ADR-071)" do
+      stub_show(43, [1], %{1 => [%{"episode_number" => 1, "name" => "Alpha"}]})
+      assert [%SpineNode{title: "Alpha"}] = Spine.assemble(43, MapSet.new())
+
+      # TMDB now answers with an error: the stored show and season still serve.
+      TmdbStubs.stub_tmdb_error("/tv/43", 500)
+      assert [%SpineNode{title: "Alpha"}] = Spine.assemble(43, MapSet.new())
+    end
+
     test "skips a season whose fetch fails rather than crashing" do
       # Only the bare /tv route is stubbed; the season fetch 404s.
       TmdbStubs.stub_routes([

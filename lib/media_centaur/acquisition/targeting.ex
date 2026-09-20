@@ -108,16 +108,15 @@ defmodule MediaCentaur.Acquisition.Targeting do
   @doc """
   Enumerates the series' targeting universe: per-season aired/unaired
   episodes with library presence, plus the series-level tracked flag.
-  One `get_tv` plus one `get_season` per real season.
+  Read from the TMDB store — the series and every real season — with a
+  request only for what the store has never held (ADR-071).
   """
-  @spec series_selection(String.t() | integer(), Req.Request.t() | nil) ::
-          {:ok, Selection.t()} | {:error, term()}
-  def series_selection(tmdb_id, client \\ nil) do
+  @spec series_selection(String.t() | integer()) :: {:ok, Selection.t()} | {:error, term()}
+  def series_selection(tmdb_id) do
     tmdb_id = to_string(tmdb_id)
-    client = client || TMDB.Client.default_client()
 
-    with {:ok, tv} <- TMDB.Client.get_tv(tmdb_id, client: client),
-         {:ok, seasons} <- load_seasons(tmdb_id, tv, client) do
+    with {:ok, %{payload: tv}} <- TMDB.Store.ensure({tmdb_id, :tv_series}),
+         {:ok, seasons} <- load_seasons(tmdb_id, tv) do
       identifiers = Identifiers.from_payload(:tv, tv)
 
       {:ok,
@@ -167,7 +166,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
     end
   end
 
-  defp load_seasons(tmdb_id, tv, client) do
+  defp load_seasons(tmdb_id, tv) do
     today = Date.utc_today()
     tracked_units = tracked_want_units(tmdb_id)
 
@@ -177,8 +176,8 @@ defmodule MediaCentaur.Acquisition.Targeting do
     |> Enum.filter(&(is_integer(&1) and &1 > 0))
     |> Enum.sort()
     |> Enum.reduce_while({:ok, []}, fn season_number, {:ok, seasons} ->
-      case TMDB.Client.get_season(tmdb_id, season_number, client: client) do
-        {:ok, season_data} ->
+      case TMDB.Store.ensure_season(tmdb_id, season_number) do
+        {:ok, %{payload: season_data}} ->
           {:cont,
            {:ok, [build_season(tmdb_id, season_number, season_data, today, tracked_units) | seasons]}}
 

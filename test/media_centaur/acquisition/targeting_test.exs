@@ -14,6 +14,16 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
   defp stub_sample_show, do: TmdbStubs.stub_series_universe_for_targeting()
 
   describe "series_selection/1" do
+    test "a series the store holds is enumerated without a request (ADR-071)" do
+      stub_sample_show()
+      assert {:ok, first} = Targeting.series_selection("246810")
+
+      # TMDB now answers with an error: the stored series and seasons still serve.
+      TmdbStubs.stub_tmdb_error("/tv/246810", 500)
+      assert {:ok, again} = Targeting.series_selection("246810")
+      assert Enum.map(again.seasons, & &1.season_number) == Enum.map(first.seasons, & &1.season_number)
+    end
+
     test "enumerates aired units per season, skipping specials" do
       stub_sample_show()
 
@@ -158,8 +168,15 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
 
   describe "per-unit tracked subtraction (ADR-056)" do
     defp track_with_want(mode) do
+      # The tracked show's stored copy must name the seasons the stub
+      # routes serve, or the selection reads an empty series (ADR-071).
       item =
-        create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"})
+        create_tracking_item(%{
+          tmdb_id: 246_810,
+          media_type: :tv_series,
+          name: "Sample Show",
+          payload: TmdbStubs.series_universe_tv()
+        })
 
       create_intent_for(item, mode)
 

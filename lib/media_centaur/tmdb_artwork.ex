@@ -46,7 +46,7 @@ defmodule MediaCentaur.TmdbArtwork do
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.ImageFiles
   alias MediaCentaur.IntegrationAvailability
-  alias MediaCentaur.TMDB.Client
+  alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Mapper
 
   @type media_type :: :movie | :tv_series
@@ -324,9 +324,12 @@ defmodule MediaCentaur.TmdbArtwork do
 
   # --- Internals ---------------------------------------------------------
 
+  # The image paths come from the stored title — first contact when the
+  # store has never held it (ADR-071), which is how a freshly listed or
+  # ingested title gets its record.
   defp fetch_missing(type, id) do
-    case detail(type, id) do
-      {:ok, data} ->
+    case Store.ensure({id, type}) do
+      {:ok, %{payload: data}} ->
         if path = data["poster_path"], do: download_poster(type, id, path)
         if path = data["backdrop_path"], do: download_backdrop(type, id, path)
         if path = Mapper.pick_logo_path(data), do: download_logo(type, id, path)
@@ -337,9 +340,6 @@ defmodule MediaCentaur.TmdbArtwork do
         :error
     end
   end
-
-  defp detail(:movie, id), do: Client.get_movie(id)
-  defp detail(:tv_series, id), do: Client.get_tv(id)
 
   defp download_role(role, type, tmdb_id, tmdb_path) do
     type = normalize_type(type)

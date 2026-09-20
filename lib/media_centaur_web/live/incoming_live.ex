@@ -2702,8 +2702,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   defp load_targeting(tmdb_id, "movie") do
-    case MediaCentaur.TMDB.Client.get_movie(tmdb_id) do
-      {:ok, movie} ->
+    case MediaCentaur.TMDB.Store.ensure({tmdb_id, :movie}) do
+      {:ok, %{payload: movie}} ->
         in_library? =
           case MediaCentaur.Library.ExternalIds.find_present_movie(to_string(tmdb_id)) do
             {:ok, _path} -> true
@@ -2800,10 +2800,11 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # A movie's release window — the calendar the verdict speaks (spec
-  # 2026-09-14) — fetched once per board open, off-process, served from
-  # the response cache the plan's own creation just filled. Never stored
-  # on the plan: a draft can sit for days, and a digital date announced
-  # since must read as TMDB says it today. Series boards read nothing.
+  # 2026-09-14) — read once per board open, off-process, from the TMDB
+  # store (ADR-071). Never stored on the plan: a draft can sit for days,
+  # and a digital date announced since must read as the store says it
+  # today — the store is checked while the film is unsettled, so it
+  # does. Series boards read nothing.
   defp maybe_load_plan_release_window(socket, plan_id, plan) do
     cond do
       socket.assigns.plan_param == plan_id ->
@@ -2813,7 +2814,8 @@ defmodule MediaCentaurWeb.IncomingLive do
         socket
         |> assign(:plan_release_window, nil)
         |> start_async({:plan_release_window, plan_id}, fn ->
-          MediaCentaur.TMDB.Client.get_movie(plan.tmdb_id)
+          with {:ok, %{payload: movie}} <- MediaCentaur.TMDB.Store.ensure({plan.tmdb_id, :movie}),
+               do: {:ok, movie}
         end)
 
       true ->
