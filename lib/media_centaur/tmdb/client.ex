@@ -2,8 +2,10 @@ defmodule MediaCentaur.TMDB.Client do
   @moduledoc """
   HTTP client for the TMDB (The Movie Database) API v3.
 
-  Provides search and detail-fetch endpoints for movies, TV series,
-  seasons, and collections. The `Req` client is built from the
+  Provides the search endpoints, the credential probe, the collection
+  detail, and `detail/2` — the one detail read for a movie, series or
+  season, made by `MediaCentaur.TMDB.Store` and nothing else (ADR-071).
+  The `Req` client is built from the
   configured key on every call through `MediaCentaur.HttpClient.new/2`,
   which attaches the response cache and the instrumentation, and
   `MediaCentaur.TMDB.RateLimiter` adds its request step after them so a
@@ -25,8 +27,8 @@ defmodule MediaCentaur.TMDB.Client do
     * `:client` — a `Req.Request` to use instead of `default_client/0`
       (tests and one-shot seeders).
     * `:reload` — `true` to fetch past a fresh cache entry and overwrite
-      it. The release-tracking refresher uses this: TMDB marks details
-      fresh for about eight hours, longer than its refresh interval.
+      it. `configuration/1` is its one caller; the store never reloads,
+      it checks.
     * `:if_none_match` — `detail/2` only: the ETag the caller holds. The
       request carries it, the response cache stands aside, and a 304 is
       `{:ok, :unchanged}`. How `MediaCentaur.TMDB.Store` checks a stored
@@ -42,14 +44,6 @@ defmodule MediaCentaur.TMDB.Client do
   release-tracking refresh cycle and the artwork warm can ask whether
   TMDB can answer before spending a request on finding out. An answer
   served from the response cache reports nothing: it asked nobody.
-
-  ## Write-through
-
-  Transitional (campaign `tmdb-fetch-policy`, Phase 1): every detail
-  payload `get_movie/2`, `get_tv/2` or `get_season/3` fetches is written
-  to `MediaCentaur.TMDB.Store`, so the store fills while callers still
-  fetch for themselves. A cache hit writes nothing. Removed when the last
-  detail caller reads through the store.
 
   ## The console line
 
@@ -69,7 +63,6 @@ defmodule MediaCentaur.TMDB.Client do
   alias MediaCentaur.HttpClient.Cache
   alias MediaCentaur.TMDB.Availability
   alias MediaCentaur.TMDB.RateLimiter
-  alias MediaCentaur.TMDB.Store
 
   @base_url "https://api.themoviedb.org/3"
 
@@ -171,8 +164,7 @@ defmodule MediaCentaur.TMDB.Client do
   the request carries the caller's validator, the response cache stands
   aside (`MediaCentaur.HttpClient.Cache`, `:conditional`), and a 304
   comes back as `{:ok, :unchanged}`. Without it, the request takes the
-  cache's ordinary path. The `get_*` functions remain for callers that
-  still fetch for themselves; they go as the store takes over.
+  cache's ordinary path.
   """
   @spec detail(detail_ref(), keyword()) ::
           {:ok, %{body: map(), etag: String.t() | nil}} | {:ok, :unchanged} | {:error, any()}
@@ -205,18 +197,6 @@ defmodule MediaCentaur.TMDB.Client do
     end
   end
 
-  @spec get_movie(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
-  def get_movie(tmdb_id, opts \\ []) do
-    ref = {tmdb_id, :movie}
-    get(opts, detail_request(ref), detail_subject(ref), ref)
-  end
-
-  @spec get_tv(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
-  def get_tv(tmdb_id, opts \\ []) do
-    ref = {tmdb_id, :tv_series}
-    get(opts, detail_request(ref), detail_subject(ref), ref)
-  end
-
   @spec get_collection(String.t() | integer(), opts()) :: {:ok, map()} | {:error, any()}
   def get_collection(collection_id, opts \\ []) do
     get(
@@ -227,12 +207,6 @@ defmodule MediaCentaur.TMDB.Client do
       ],
       "collection tmdb:#{collection_id}"
     )
-  end
-
-  @spec get_season(String.t() | integer(), integer(), opts()) :: {:ok, map()} | {:error, any()}
-  def get_season(tmdb_id, season_number, opts \\ []) do
-    ref = {:season, tmdb_id, season_number}
-    get(opts, detail_request(ref), detail_subject(ref), ref)
   end
 
   defp detail_request({tmdb_id, :movie}) do
@@ -270,38 +244,6 @@ defmodule MediaCentaur.TMDB.Client do
   defp conditional(nil), do: []
   defp conditional(etag), do: [headers: [{"if-none-match", etag}]]
 
-  # Transitional (campaign tmdb-fetch-policy, Phase 1): every detail
-  # payload a caller fetches is written to `TMDB.Store`, so the store
-  # fills while callers still fetch for themselves. A cache hit writes
-  # nothing — it asked nobody. Removed when the last detail caller reads
-  # through the store.
-  defp write_through(nil, _outcome, _body, _response), do: :ok
-  defp write_through(_ref, :hit, _body, _response), do: :ok
-
-  defp write_through({:season, tmdb_id, season_number} = ref, _outcome, body, response)
-       when is_map(body) do
-    tmdb_id
-    |> Store.record_season_fetched(season_number, body, etag(response))
-    |> note_write(ref)
-  end
-
-  defp write_through({_tmdb_id, _media_type} = ref, _outcome, body, response) when is_map(body) do
-    ref
-    |> Store.record_fetched(body, etag(response))
-    |> note_write(ref)
-  end
-
-  defp write_through(_ref, _outcome, _body, _response), do: :ok
-
-  # A store write never fails the fetch that triggered it: the caller
-  # asked for a payload and has it.
-  defp note_write({:ok, _record}, _ref), do: :ok
-
-  defp note_write({:error, reason}, ref) do
-    Log.debug(:tmdb, "store did not record #{detail_subject(ref)}: #{inspect(reason)}")
-    :ok
-  end
-
   defp etag(response), do: List.first(Req.Response.get_header(response, "etag"))
 
   @doc """
@@ -337,7 +279,7 @@ defmodule MediaCentaur.TMDB.Client do
   # is not known until the response is in hand, and a failure is the
   # caller's to report (`auth_failure?/1`) rather than something to
   # announce as a fetch.
-  defp get(opts, request, subject, store_ref \\ nil) do
+  defp get(opts, request, subject) do
     {client, opts} = Keyword.pop_lazy(opts, :client, &default_client/0)
 
     case Req.get(client, request ++ opts) do
@@ -345,7 +287,6 @@ defmodule MediaCentaur.TMDB.Client do
         outcome = Cache.outcome(response)
         Availability.observe_request({:ok, outcome})
         Log.info(:tmdb, log_line(subject, outcome))
-        write_through(store_ref, outcome, body, response)
         {:ok, body}
 
       {:ok, %{status: status, body: body}} ->

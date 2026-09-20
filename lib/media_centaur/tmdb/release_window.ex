@@ -49,7 +49,7 @@ defmodule MediaCentaur.TMDB.ReleaseWindow do
         }
 
   @doc """
-  Reads a `TMDB.Client.get_movie/2` payload at `today`. Each typed date
+  Reads a stored movie payload (`TMDB.Store`) at `today`. Each typed date
   is the earliest US entry of its type (TMDB lists re-releases too).
   `primary` is TMDB's top-level `release_date`; it is read only when no
   typed date exists, and then only ahead — TMDB does not say which kind

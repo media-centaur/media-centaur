@@ -1,11 +1,12 @@
 defmodule MediaCentaur.Pipeline.ImageRefresh do
   @moduledoc """
-  Force re-fetch + re-enqueue *all* artwork for one entity from TMDB.
+  Re-enqueue *all* artwork for one entity from its stored TMDB paths.
 
   Unlike `ImageRepair` (which rebuilds queue rows only for `Image`
   records whose files are missing), this reuses the **import** enqueue
-  path: it derives the full artwork list straight from fresh TMDB
-  metadata and broadcasts `{:enqueue_images, …}`. The image Producer
+  path: it derives the full artwork list from the TMDB store's copy of
+  the title — first contact when the store lacks it (ADR-071) — and
+  broadcasts `{:enqueue_images, …}`. The image Producer
   creates/upserts queue rows and downloads; `Library.Images.upsert/2`
   then replaces `content_url` on completion — so a refresh both fills a
   gap (no artwork at all) and replaces existing art.
@@ -48,7 +49,7 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
   end
 
   @doc """
-  Re-fetches TMDB metadata for one entity and broadcasts
+  Reads one entity's artwork paths from the TMDB store and broadcasts
   `{:enqueue_images, …}`. Returns `{:ok, count}` (artwork roles
   enqueued) or `{:error, reason}`.
   """
@@ -90,8 +91,14 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
     {:ok, length(pending)}
   end
 
-  defp fetch_metadata(:movie, tmdb_id), do: TMDB.Client.get_movie(tmdb_id)
-  defp fetch_metadata(:video_object, tmdb_id), do: TMDB.Client.get_movie(tmdb_id)
-  defp fetch_metadata(:tv_series, tmdb_id), do: TMDB.Client.get_tv(tmdb_id)
+  # A collection is not a store identity (see `collection-identity`), so
+  # it is the one detail still fetched here.
+  defp fetch_metadata(:movie, tmdb_id), do: stored({tmdb_id, :movie})
+  defp fetch_metadata(:video_object, tmdb_id), do: stored({tmdb_id, :movie})
+  defp fetch_metadata(:tv_series, tmdb_id), do: stored({tmdb_id, :tv_series})
   defp fetch_metadata(:movie_series, tmdb_id), do: TMDB.Client.get_collection(tmdb_id)
+
+  defp stored(ref) do
+    with {:ok, %{payload: payload}} <- TMDB.Store.ensure(ref), do: {:ok, payload}
+  end
 end

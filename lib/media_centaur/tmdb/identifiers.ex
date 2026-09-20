@@ -4,7 +4,7 @@ defmodule MediaCentaur.TMDB.Identifiers do
 
   TMDB puts them in two different places: a movie detail carries
   `imdb_id` at the top level, a series detail carries both under the
-  appended `external_ids` block (`TMDB.Client.get_tv/2` requests it).
+  appended `external_ids` block (`TMDB.Client.detail/2` requests it).
   This module is the single place that knows that, so `TMDB.Mapper`
   (library ingestion) and acquisition (indexer identity) read the same
   answer from the same code.

@@ -23,16 +23,16 @@ defmodule MediaCentaur.TMDB.ClientTest do
   end
 
   test "a detail fetch is served from the cache the second time" do
-    assert {:ok, %{"id" => 1}} = Client.get_movie(1)
-    assert {:ok, %{"id" => 1}} = Client.get_movie(1)
+    assert {:ok, %{body: %{"id" => 1}}} = Client.detail({1, :movie})
+    assert {:ok, %{body: %{"id" => 1}}} = Client.detail({1, :movie})
 
     assert_receive {:tmdb_hit, "/3/movie/1"}
     refute_receive {:tmdb_hit, _path}
   end
 
   test "reload: true fetches past a fresh entry" do
-    assert {:ok, _} = Client.get_tv(2)
-    assert {:ok, _} = Client.get_tv(2, reload: true)
+    assert {:ok, _} = Client.detail({2, :tv_series})
+    assert {:ok, _} = Client.detail({2, :tv_series}, reload: true)
 
     assert_receive {:tmdb_hit, "/3/tv/2"}
     assert_receive {:tmdb_hit, "/3/tv/2"}
@@ -130,66 +130,6 @@ defmodule MediaCentaur.TMDB.ClientTest do
     end
   end
 
-  describe "write-through to the store" do
-    alias MediaCentaur.TMDB.Store
-
-    test "a movie detail fetched by a caller is stored with its etag" do
-      Req.Test.stub(:tmdb, fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("cache-control", "public, max-age=60")
-        |> Plug.Conn.put_resp_header("etag", ~s(W/"wt"))
-        |> Req.Test.json(MediaCentaur.TmdbStubs.movie_detail(%{"id" => 700}))
-      end)
-
-      assert {:ok, %{"id" => 700}} = Client.get_movie(700)
-
-      assert %Store.TitleRecord{tmdb_id: 700, media_type: :movie, etag: ~s(W/"wt")} =
-               Store.get({700, :movie})
-    end
-
-    test "a cache hit writes nothing" do
-      Req.Test.stub(:tmdb, fn conn ->
-        conn
-        |> Plug.Conn.put_resp_header("cache-control", "public, max-age=60")
-        |> Req.Test.json(MediaCentaur.TmdbStubs.tv_detail(%{"id" => 701}))
-      end)
-
-      assert {:ok, _body} = Client.get_tv(701)
-      first = Store.get({701, :tv_series})
-      backdated = backdate(first, :fetched_at, ~U[2026-01-01 00:00:00Z])
-
-      assert {:ok, _body} = Client.get_tv(701)
-      assert Store.get({701, :tv_series}).fetched_at == backdated.fetched_at
-    end
-
-    test "a season detail is stored under its series" do
-      Req.Test.stub(:tmdb, fn conn ->
-        Req.Test.json(conn, MediaCentaur.TmdbStubs.season_detail(%{"season_number" => 3}))
-      end)
-
-      assert {:ok, _body} = Client.get_season("702", 3)
-      assert %Store.SeasonRecord{tmdb_id: 702, season_number: 3} = Store.get_season(702, 3)
-    end
-
-    test "a write the store refuses does not fail the fetch" do
-      Req.Test.stub(:tmdb, fn conn ->
-        Req.Test.json(conn, MediaCentaur.TmdbStubs.season_detail(%{"season_number" => 1}))
-      end)
-
-      assert {:ok, %{"season_number" => 1}} = Client.get_season("tt-tried", 1)
-      assert MediaCentaur.Repo.aggregate(Store.SeasonRecord, :count) == 0
-    end
-
-    test "a collection detail is not stored" do
-      Req.Test.stub(:tmdb, fn conn ->
-        Req.Test.json(conn, MediaCentaur.TmdbStubs.collection_detail())
-      end)
-
-      assert {:ok, _body} = Client.get_collection(263)
-      assert MediaCentaur.Repo.aggregate(Store.TitleRecord, :count) == 0
-    end
-  end
-
   # The console line is copy, and copy is pinned where it can be read
   # without a global Logger level: `log_line/2` is the whole vocabulary,
   # and `get/3` is the only caller — in the 200 branch, so a failed
@@ -198,20 +138,20 @@ defmodule MediaCentaur.TMDB.ClientTest do
     test "a failed fetch opens :tmdb and a later answered one closes it" do
       Req.Test.stub(:tmdb, fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
 
-      assert {:error, _reason} = Client.get_movie(550)
+      assert {:error, _reason} = Client.detail({550, :movie})
       refute IntegrationAvailability.up?(:tmdb)
 
       Req.Test.stub(:tmdb, fn conn -> Req.Test.json(conn, %{"id" => 550}) end)
 
-      assert {:ok, _body} = Client.get_movie(550)
+      assert {:ok, _body} = Client.detail({550, :movie})
       assert IntegrationAvailability.up?(:tmdb)
     end
 
     test "an answer served from the cache is no evidence either way" do
-      assert {:ok, _first} = Client.get_movie(1)
+      assert {:ok, _first} = Client.detail({1, :movie})
       {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
 
-      assert {:ok, _cached} = Client.get_movie(1)
+      assert {:ok, _cached} = Client.detail({1, :movie})
       refute IntegrationAvailability.up?(:tmdb)
     end
   end
@@ -244,11 +184,11 @@ defmodule MediaCentaur.TMDB.ClientTest do
   test "a cache hit does not spend a rate-limit slot" do
     :ok = RateLimiter.reset()
 
-    assert {:ok, _} = Client.get_movie(778_200)
+    assert {:ok, _} = Client.detail({778_200, :movie})
     assert %{used: spent_by_fetch} = RateLimiter.status()
     assert spent_by_fetch >= 1
 
-    assert {:ok, _} = Client.get_movie(778_200)
+    assert {:ok, _} = Client.detail({778_200, :movie})
     assert %{used: ^spent_by_fetch} = RateLimiter.status()
   end
 
@@ -265,7 +205,7 @@ defmodule MediaCentaur.TMDB.ClientTest do
 
     on_exit(fn -> :telemetry.detach(handler) end)
 
-    assert {:ok, _} = Client.get_season(3, 1)
+    assert {:ok, _} = Client.detail({:season, 3, 1})
 
     assert_receive {:http_stop, %{upstream: :tmdb, path: "/3/tv/3/season/1", rate_limit_wait: wait}}
     assert is_integer(wait) and wait >= 0

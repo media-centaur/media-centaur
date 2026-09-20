@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
   def badge_text(%__MODULE__{media_type: :movie}), do: "Movie"
   def badge_text(%__MODULE__{media_type: :tv_series}), do: "TV series"
 
-  @doc "Builds a movie preview from a `TMDB.Client.get_movie/2` payload."
+  @doc "Builds a movie preview from a stored movie payload (`TMDB.Store`)."
   @spec movie(map(), boolean()) :: t()
   def movie(tmdb_movie, in_library?) do
     tmdb_id = tmdb_movie["id"]
@@ -113,7 +113,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitlePreview do
     }
   end
 
-  @doc "Builds a series preview from a `TMDB.Client.get_tv/2` payload."
+  @doc "Builds a series preview from a stored series payload (`TMDB.Store`)."
   @spec tv(map(), boolean()) :: t()
   def tv(tmdb_show, in_library?) do
     tmdb_id = tmdb_show["id"]

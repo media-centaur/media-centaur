@@ -163,6 +163,33 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       assert entry.media_dir == tmp
     end
 
+    test "rebuilds from the stored title without a request when the store holds it (ADR-071)", %{
+      tmp: tmp
+    } do
+      movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
+
+      Library.Images.create!(%{
+        owner_type: :movie,
+        owner_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      MediaCentaur.TestFactory.create_title_record(%{
+        tmdb_id: 550,
+        media_type: :movie,
+        payload: movie_detail(%{"id" => 550, "poster_path" => "/stored.jpg"})
+      })
+
+      stub_tmdb_error("/movie/550", 500)
+
+      assert {:ok, result} = ImageRepair.repair_all()
+      assert result.queue_rebuilt == 1
+      assert [entry] = Repo.all(ImageQueueEntry)
+      assert entry.source_url == "https://image.tmdb.org/t/p/original/stored.jpg"
+    end
+
     test "creates a new queue row for a tv_series via tmdb_id", %{tmp: tmp} do
       tv = create_tv_series_with_watched_file(tmp, %{tmdb_id: "1396"})
 
