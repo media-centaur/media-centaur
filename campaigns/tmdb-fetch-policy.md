@@ -1,7 +1,7 @@
 ---
 status: planning
 started: 2026-09-19
-last_updated: 2026-09-19
+last_updated: 2026-09-20
 ---
 # Ask TMDB only to learn something new
 
@@ -37,17 +37,21 @@ TMDB was last asked. The owner's rule (2026-09-14): TMDB is consulted
 when the app is *seeking new information*, such as whether a release
 date has been announced, never on open for its own sake.
 
-Volume is not the driver. On the owner's instance the last day cost 15
-API requests, 12 of them the refresher re-reading five tracked titles
-twice. The driver is coherence — seven stored copies of a title's name,
-dates that diverge between the calendar and the detail view — plus the
-latency of render-time fetches and the empty cache after every restart.
+Waste scales with the library, the watchlist and the tracked set, and
+no current fetch site costs less as a title settles. The one day
+measured on the owner's instance (15 API requests, 12 of them the
+refresher re-reading five tracked titles twice) is a quiet-day sample,
+not a ceiling: the model must not be wasteful at any size. Coherence is
+the second driver — seven stored copies of a title's name, dates that
+diverge between the calendar and the detail view — with the latency of
+render-time fetches and the empty cache after every restart on top.
 
 ## Status
 
 Planning. Audit complete 2026-09-19 (three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-Definitions not yet agreed with the owner; no design, no code.
+Definition agreed 2026-09-20 (Decisions); settled-title rule and
+check schedule open; no design, no code.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -164,7 +168,7 @@ Sound; out of scope.
    whitespace make distinct requests.
 8. **The response cache has no stale-if-error path** — a stale copy is
    not served when TMDB fails — and is not persisted, so every restart
-   starts cold. Given the volume, both may be declined.
+   starts cold. Each is weighed on its own merits.
 9. **The wiki disagrees with itself**: Release-Tracking.md says the
    refresh interval defaults to 6 hours, Troubleshooting.md says 24.
 
@@ -175,33 +179,43 @@ Append-only.
 * `2026-09-14` — **TMDB is consulted only when seeking new
   information.** Owner, closing the title-detail-unification review;
   recorded in memory, campaign opened 2026-09-19.
+* `2026-09-20` — **Seeking new information means a check on the
+  release facts of an unsettled title.** Everything else — description,
+  cast, artwork, and any fact of a settled title — renders from stored
+  metadata with no fetch, including on open. Owner.
+* `2026-09-20` — **The title's Manage view carries a manual refresh
+  control**, so a check can be forced for any title regardless of the
+  policy. Owner.
+* `2026-09-20` — **A one-day traffic sample is not a basis for the
+  design.** The model must not be wasteful at any library size. Owner.
 
 ## Open questions for the owner
 
 In order; each answer shapes the next.
 
-1. **Definition.** Does *seeking new information* mean a check on the
-   release facts of an unsettled title — and does everything else
-   (description, cast, artwork, and any fact of a settled title) render
-   from stored metadata with no fetch, including on open?
-2. **What a settled title is**, in TMDB's terms: movie `status`
-   Released plus which typed dates past; series `status` Ended or
-   Cancelled plus last episode aired. Where the rule lives.
-3. **Where the check schedule lives.** One global interval (today), or
+1. **What a settled title is**, in the code's own terms: a movie's
+   `ReleaseWindow` stage (`:unreleased | :theatrical | :home | :unknown`)
+   and `status`; a series' `status` (`:returning | :ended | :canceled |
+   :in_production | :planned`) and `next_episode_to_air`. Where the rule
+   lives.
+2. **Where the check schedule lives.** One global interval (today), or
    a due time per title derived from its stored release facts — next
    episode to air, announced release date, none announced.
-4. **Which surfaces move to stored reads, and what gets stored where.**
+3. **Which surfaces move to stored reads, and what gets stored where.**
    The release window and season air dates have no home; the title
    snapshot has no fetch time; a title-level record would touch
    `collection-identity`'s territory.
-5. **Checks revalidate rather than reload**, and skip the write when
+4. **Checks revalidate rather than reload**, and skip the write when
    the answer is 304.
-6. **Response cache changes**: normalise the search key; stale-if-error;
-   persistence. Each measured against the volume before it is kept.
+5. **Response cache changes**: normalise the search key; stale-if-error;
+   persistence. Each weighed on its own merits.
+6. **The manual refresh control**: on the Manage view of owned titles
+   (decided); whether tracked-but-unowned titles get the same control,
+   and where.
 
 ## Next steps
 
-1. Settle questions 1–3 with the owner in this session. Restate the
+1. Settle questions 1–2 with the owner in this session. Restate the
    working terms as the app's own controls before asking.
 2. Write the design at
    `docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-design.md`;

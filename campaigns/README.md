@@ -28,11 +28,11 @@ Use [`template.md`](template.md) as a starter.
   reloads every tracked title every six hours with no notion of a
   settled title and replaces its calendar wholesale; seven surfaces read
   release facts live on every open because nothing stores them; library
-  metadata is frozen at import with no fetch time. Volume is not the
-  driver (15 requests a day on the owner's instance) — coherence,
-  latency and the empty cache after a restart are. Successor to the
-  traffic audit's deferred "how often the refresher re-reads a healthy
-  TMDB".
+  metadata is frozen at import with no fetch time. Waste scales with the
+  library and the tracked set and no fetch costs less as a title settles;
+  coherence, latency and the empty cache after a restart compound it.
+  Successor to the traffic audit's deferred "how often the refresher
+  re-reads a healthy TMDB".
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
