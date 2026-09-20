@@ -30,9 +30,12 @@ defmodule MediaCentaur.TMDB.Store do
 
   import Ecto.Query
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.Repo
-  alias MediaCentaur.TMDB.{Mapper, Schedule}
+  alias MediaCentaur.TMDB.{Client, Mapper, Schedule}
   alias MediaCentaur.TMDB.Store.{SeasonRecord, TitleRecord}
+  alias MediaCentaur.Topics
 
   @type media_type :: :movie | :tv_series
   @type ref :: {pos_integer() | String.t(), media_type()}
@@ -131,6 +134,165 @@ defmodule MediaCentaur.TMDB.Store do
   end
 
   def trim_payload(payload), do: payload
+
+  # --- First contact and checks ---
+
+  @doc "The stored title, fetched on first contact when the app has never held it."
+  @spec ensure(ref(), keyword()) :: {:ok, TitleRecord.t()} | {:error, any()}
+  def ensure(ref, opts \\ []) do
+    case get(ref) do
+      nil -> first_contact(ref, opts)
+      %TitleRecord{} = record -> {:ok, record}
+    end
+  end
+
+  @doc "The stored season, fetched on first contact when the app has never held it."
+  @spec ensure_season(pos_integer() | String.t(), pos_integer(), keyword()) ::
+          {:ok, SeasonRecord.t()} | {:error, any()}
+  def ensure_season(tmdb_id, season_number, opts \\ []) do
+    case get_season(tmdb_id, season_number) do
+      nil -> first_contact_season(tmdb_id, season_number, opts)
+      %SeasonRecord{} = record -> {:ok, record}
+    end
+  end
+
+  @doc """
+  Revalidates a stored title with its ETag, and its open seasons with
+  theirs. `{:ok, :unchanged, record}` when TMDB answered 304 for all of
+  them; `{:ok, :changed, record}` when any payload was replaced, after
+  publishing `{:tmdb_title_changed, ref}`. A title the store does not
+  hold is first contact, reported as changed. Any TMDB failure is
+  returned and leaves the records as they were.
+  """
+  @spec check(ref(), keyword()) ::
+          {:ok, :unchanged | :changed, TitleRecord.t()} | {:error, any()}
+  def check(ref, opts \\ []) do
+    case get(ref) do
+      nil ->
+        with {:ok, record} <- first_contact(ref, opts) do
+          publish_changed(record)
+          {:ok, :changed, record}
+        end
+
+      %TitleRecord{} = record ->
+        with {:ok, title_changed?} <- revalidate_title(record, opts),
+             {:ok, seasons_changed?} <- revalidate_open_seasons(record, opts) do
+          record = get(ref)
+
+          if title_changed? or seasons_changed? do
+            publish_changed(record)
+            {:ok, :changed, record}
+          else
+            {:ok, :unchanged, record}
+          end
+        end
+    end
+  end
+
+  defp first_contact({tmdb_id, media_type} = ref, opts) do
+    with {:ok, %{body: body, etag: etag}} <- Client.detail(ref, opts),
+         {:ok, record} <- record_fetched(ref, body, etag) do
+      Log.info(
+        :tmdb,
+        "stored #{subject(media_type, tmdb_id)} — first contact#{schedule_words(record)}"
+      )
+
+      {:ok, record}
+    end
+  end
+
+  defp first_contact_season(tmdb_id, season_number, opts) do
+    with {:ok, %{body: body, etag: etag}} <-
+           Client.detail({:season, tmdb_id, season_number}, opts) do
+      record_season_fetched(tmdb_id, season_number, body, etag)
+    end
+  end
+
+  # {:ok, changed?} | {:error, reason}
+  defp revalidate_title(%TitleRecord{} = record, opts) do
+    ref = {record.tmdb_id, record.media_type}
+    subject = subject(record.media_type, record.tmdb_id)
+
+    case Client.detail(ref, Keyword.put(opts, :if_none_match, record.etag)) do
+      {:ok, :unchanged} ->
+        {:ok, touched} = touch_title(record)
+        Log.info(:tmdb, "checked #{subject} — unchanged#{schedule_words(touched)}")
+        {:ok, false}
+
+      {:ok, %{body: body, etag: etag}} ->
+        {:ok, replaced} = record_fetched(ref, body, etag)
+        changed? = replaced.changed_at == replaced.fetched_at
+        outcome = if changed?, do: "changed", else: "unchanged"
+        Log.info(:tmdb, "checked #{subject} — #{outcome}#{schedule_words(replaced)}")
+        {:ok, changed?}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp revalidate_open_seasons(%TitleRecord{media_type: :movie}, _opts), do: {:ok, false}
+
+  defp revalidate_open_seasons(%TitleRecord{media_type: :tv_series} = record, opts) do
+    title = get({record.tmdb_id, :tv_series})
+    today = Date.utc_today()
+
+    record.tmdb_id
+    |> seasons()
+    |> Enum.filter(&Schedule.open_season?(&1.payload, title.payload, today))
+    |> Enum.reduce_while({:ok, false}, fn season, {:ok, any_changed?} ->
+      case revalidate_season(season, opts) do
+        {:ok, changed?} -> {:cont, {:ok, any_changed? or changed?}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp revalidate_season(%SeasonRecord{} = season, opts) do
+    ref = {:season, season.tmdb_id, season.season_number}
+
+    case Client.detail(ref, Keyword.put(opts, :if_none_match, season.etag)) do
+      {:ok, :unchanged} ->
+        {:ok, _touched} = season |> SeasonRecord.changeset(%{fetched_at: now()}) |> Repo.update()
+        {:ok, false}
+
+      {:ok, %{body: body, etag: etag}} ->
+        {:ok, replaced} =
+          record_season_fetched(season.tmdb_id, season.season_number, body, etag)
+
+        {:ok, replaced.changed_at == replaced.fetched_at}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # A 304: TMDB answered, nothing changed. The fetch time moves and the
+  # schedule is re-derived, because today moved.
+  defp touch_title(%TitleRecord{} = record) do
+    now = now()
+
+    attrs =
+      record
+      |> schedule_attrs(record.media_type, record.payload, seasons(record.tmdb_id), now)
+      |> Map.put(:fetched_at, now)
+
+    record |> TitleRecord.changeset(attrs) |> Repo.update()
+  end
+
+  defp publish_changed(%TitleRecord{tmdb_id: tmdb_id, media_type: media_type}) do
+    Topics.publish(Topics.tmdb_titles(), {:tmdb_title_changed, {tmdb_id, media_type}})
+  end
+
+  defp subject(:movie, tmdb_id), do: "movie tmdb:#{tmdb_id}"
+  defp subject(:tv_series, tmdb_id), do: "TV tmdb:#{tmdb_id}"
+
+  defp schedule_words(%TitleRecord{settled_at: %DateTime{}}), do: ", settled"
+
+  defp schedule_words(%TitleRecord{next_check_at: %DateTime{} = at}),
+    do: ", next check #{DateTime.to_date(at)}"
+
+  defp schedule_words(_record), do: ""
 
   # --- Internals ---
 
