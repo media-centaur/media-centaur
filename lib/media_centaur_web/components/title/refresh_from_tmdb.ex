@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.Components.Title.RefreshFromTmdb do
     doc: "the Manage toolbar (neutral, small, with an icon) or the tracking card (quiet, extra small)."
 
   attr :checking?, :boolean, default: false
-  attr :class, :any, default: nil
+  attr :class, :string, default: nil
 
   def refresh_from_tmdb(assigns) do
     ~H"""

@@ -421,8 +421,11 @@ defmodule MediaCentaur.TMDB.StoreTest do
       create_season_record(%{tmdb_id: 620, season_number: 1})
       create_season_record(%{tmdb_id: 621, season_number: 1})
 
-      assert %{620 => [%SeasonRecord{season_number: 1}, %SeasonRecord{season_number: 2}], 621 => [_one]} =
-               Store.seasons_for([620, 621, 622])
+      seasons = Store.seasons_for([620, 621, 622])
+
+      assert %{620 => [%SeasonRecord{season_number: 1}, %SeasonRecord{season_number: 2}]} = seasons
+      assert %{621 => [_one]} = seasons
+      assert map_size(seasons) == 2
     end
   end
 
