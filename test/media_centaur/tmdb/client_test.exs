@@ -55,6 +55,62 @@ defmodule MediaCentaur.TMDB.ClientTest do
     refute_receive {:tmdb_hit, _path}
   end
 
+  describe "detail/2" do
+    setup do
+      test_pid = self()
+
+      Req.Test.stub(:tmdb, fn conn ->
+        validator = Plug.Conn.get_req_header(conn, "if-none-match")
+        send(test_pid, {:tmdb_hit, conn.request_path, validator})
+
+        case validator do
+          [~s(W/"held")] ->
+            Plug.Conn.send_resp(conn, 304, "")
+
+          _other ->
+            conn
+            |> Plug.Conn.put_resp_header("cache-control", "public, max-age=60")
+            |> Plug.Conn.put_resp_header("etag", ~s(W/"fresh"))
+            |> Req.Test.json(%{"id" => 7, "title" => "Sample Movie"})
+        end
+      end)
+
+      :ok
+    end
+
+    test "a movie detail returns the body and TMDB's etag" do
+      assert {:ok, %{body: %{"id" => 7}, etag: ~s(W/"fresh")}} = Client.detail({7, :movie})
+      assert_receive {:tmdb_hit, "/3/movie/7", []}
+    end
+
+    test "a conditional request TMDB answers 304 is unchanged, and never served from the cache" do
+      assert {:ok, _fresh} = Client.detail({7, :movie})
+      assert {:ok, :unchanged} = Client.detail({7, :movie}, if_none_match: ~s(W/"held"))
+      assert_receive {:tmdb_hit, "/3/movie/7", []}
+      assert_receive {:tmdb_hit, "/3/movie/7", [~s(W/"held")]}
+    end
+
+    test "a conditional request TMDB answers 200 returns the new body and etag" do
+      assert {:ok, %{body: %{"title" => "Sample Movie"}, etag: ~s(W/"fresh")}} =
+               Client.detail({7, :movie}, if_none_match: ~s(W/"stale"))
+
+      assert_receive {:tmdb_hit, "/3/movie/7", [~s(W/"stale")]}
+    end
+
+    test "series and season refs address their endpoints" do
+      assert {:ok, %{body: _body}} = Client.detail({9, :tv_series})
+      assert {:ok, %{body: _body}} = Client.detail({:season, 9, 2})
+      assert_receive {:tmdb_hit, "/3/tv/9", []}
+      assert_receive {:tmdb_hit, "/3/tv/9/season/2", []}
+    end
+
+    test "a 304 counts as TMDB answering" do
+      {:changed, _state} = IntegrationAvailability.report(:tmdb, {:down, :unreachable})
+      assert {:ok, :unchanged} = Client.detail({7, :movie}, if_none_match: ~s(W/"held"))
+      assert IntegrationAvailability.up?(:tmdb)
+    end
+  end
+
   # The console line is copy, and copy is pinned where it can be read
   # without a global Logger level: `log_line/2` is the whole vocabulary,
   # and `get/3` is the only caller — in the 200 branch, so a failed
