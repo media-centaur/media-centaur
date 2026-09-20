@@ -94,6 +94,14 @@ defmodule MediaCentaur.TMDB.ClientTest do
       assert_receive {:tmdb_hit, "/3/movie/7", []}
     end
 
+    test "a detail answered by the response cache still carries the etag TMDB gave it" do
+      assert {:ok, %{etag: ~s(W/"fresh")}} = Client.detail({7, :movie})
+      assert_receive {:tmdb_hit, "/3/movie/7", []}
+
+      assert {:ok, %{body: %{"id" => 7}, etag: ~s(W/"fresh")}} = Client.detail({7, :movie})
+      refute_receive {:tmdb_hit, _path, _validator}
+    end
+
     test "a conditional request TMDB answers 304 is unchanged, and never served from the cache" do
       assert {:ok, _fresh} = Client.detail({7, :movie})
       assert {:ok, :unchanged} = Client.detail({7, :movie}, if_none_match: ~s(W/"held"))

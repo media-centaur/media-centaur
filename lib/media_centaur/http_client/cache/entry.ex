@@ -74,14 +74,17 @@ defmodule MediaCentaur.HttpClient.Cache.Entry do
     %{entry | fresh_until: now + max_age_ms, max_age_ms: max_age_ms, stored_at: now}
   end
 
-  @doc "A 200 response carrying the stored body, ready for the reader's response steps."
+  @doc """
+  A 200 response carrying the stored body — and the origin's validator,
+  so a reader that keeps its own copy (`MediaCentaur.TMDB.Store`) can
+  revalidate it later — ready for the reader's response steps.
+  """
   @spec to_response(t()) :: Req.Response.t()
   def to_response(%__MODULE__{} = entry) do
-    Req.Response.new(
-      status: 200,
-      headers: %{"content-type" => [entry.content_type]},
-      body: entry.body
-    )
+    headers = %{"content-type" => [entry.content_type]}
+    headers = if entry.etag, do: Map.put(headers, "etag", [entry.etag]), else: headers
+
+    Req.Response.new(status: 200, headers: headers, body: entry.body)
   end
 
   @doc "Whether the entry may be served without revalidation at `now`."

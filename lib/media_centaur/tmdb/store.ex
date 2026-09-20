@@ -93,9 +93,12 @@ defmodule MediaCentaur.TMDB.Store do
   @spec record_fetched(ref(), map(), String.t() | nil) ::
           {:ok, TitleRecord.t()} | {:error, Ecto.Changeset.t() | :invalid_id}
   def record_fetched({tmdb_id, media_type}, payload, etag) when is_map(payload) do
-    case parse_id(tmdb_id) do
-      {:ok, id} -> write_title({id, media_type}, trim_payload(payload), etag, :first_try)
+    with {:ok, id} <- parse_id(tmdb_id),
+         {:ok, record, _changed?} <- store_title({id, media_type}, payload, etag) do
+      {:ok, record}
+    else
       :error -> {:error, :invalid_id}
+      {:error, _changeset} = error -> error
     end
   end
 
@@ -107,8 +110,7 @@ defmodule MediaCentaur.TMDB.Store do
           {:ok, SeasonRecord.t()} | {:error, Ecto.Changeset.t() | :invalid_id}
   def record_season_fetched(tmdb_id, season_number, payload, etag) when is_map(payload) do
     with {:ok, id} <- parse_id(tmdb_id),
-         {:ok, season} <- write_season(id, season_number, payload, etag, :first_try) do
-      reschedule_series(id)
+         {:ok, season, _changed?} <- store_season(id, season_number, payload, etag) do
       {:ok, season}
     else
       :error -> {:error, :invalid_id}
@@ -217,8 +219,7 @@ defmodule MediaCentaur.TMDB.Store do
         {:ok, false}
 
       {:ok, %{body: body, etag: etag}} ->
-        {:ok, replaced} = record_fetched(ref, body, etag)
-        changed? = replaced.changed_at == replaced.fetched_at
+        {:ok, replaced, changed?} = store_title(ref, body, etag)
         outcome = if changed?, do: "changed", else: "unchanged"
         Log.info(:tmdb, "checked #{subject} — #{outcome}#{schedule_words(replaced)}")
         {:ok, changed?}
@@ -254,10 +255,10 @@ defmodule MediaCentaur.TMDB.Store do
         {:ok, false}
 
       {:ok, %{body: body, etag: etag}} ->
-        {:ok, replaced} =
-          record_season_fetched(season.tmdb_id, season.season_number, body, etag)
+        {:ok, _replaced, changed?} =
+          store_season(season.tmdb_id, season.season_number, body, etag)
 
-        {:ok, replaced.changed_at == replaced.fetched_at}
+        {:ok, changed?}
 
       {:error, reason} ->
         {:error, reason}
@@ -293,13 +294,32 @@ defmodule MediaCentaur.TMDB.Store do
 
   # --- Internals ---
 
+  # The write paths behind the public record_* functions and the checks.
+  # Both return {:ok, record, changed?} — whether the payload differs
+  # from what was stored, decided by comparing payloads, never by
+  # comparing timestamps (two writes in one second read as one instant).
+  # Ids are already parsed.
+  #
   # Read-then-write, so two processes fetching the same new title can
   # both read "no row" and both insert. The loser's unique violation is
   # retried once as the update it should have been; the payload is the
   # same fetch either way.
+  defp store_title(ref, payload, etag) do
+    write_title(ref, trim_payload(payload), etag, :first_try)
+  end
+
+  defp store_season(tmdb_id, season_number, payload, etag) do
+    with {:ok, season, changed?} <-
+           write_season(tmdb_id, season_number, payload, etag, :first_try) do
+      reschedule_series(tmdb_id)
+      {:ok, season, changed?}
+    end
+  end
+
   defp write_title({tmdb_id, media_type} = ref, payload, etag, attempt) do
     now = now()
     existing = get(ref)
+    changed? = existing == nil or payload != existing.payload
 
     attrs =
       existing
@@ -312,18 +332,22 @@ defmodule MediaCentaur.TMDB.Store do
       |> Repo.insert_or_update()
 
     case result do
+      {:ok, record} ->
+        {:ok, record, changed?}
+
       {:error, %Ecto.Changeset{} = changeset} when attempt == :first_try ->
         if unique_violation?(changeset),
           do: write_title(ref, payload, etag, :retry),
-          else: result
+          else: {:error, changeset}
 
-      _settled ->
-        result
+      {:error, _changeset} = error ->
+        error
     end
   end
 
   defp write_season(tmdb_id, season_number, payload, etag, attempt) do
     existing = get_season(tmdb_id, season_number)
+    changed? = existing == nil or payload != existing.payload
 
     result =
       (existing || %SeasonRecord{tmdb_id: tmdb_id, season_number: season_number})
@@ -331,13 +355,16 @@ defmodule MediaCentaur.TMDB.Store do
       |> Repo.insert_or_update()
 
     case result do
+      {:ok, season} ->
+        {:ok, season, changed?}
+
       {:error, %Ecto.Changeset{} = changeset} when attempt == :first_try ->
         if unique_violation?(changeset),
           do: write_season(tmdb_id, season_number, payload, etag, :retry),
-          else: result
+          else: {:error, changeset}
 
-      _settled ->
-        result
+      {:error, _changeset} = error ->
+        error
     end
   end
 
