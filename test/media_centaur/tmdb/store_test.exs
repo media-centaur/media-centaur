@@ -511,6 +511,41 @@ defmodule MediaCentaur.TMDB.StoreTest do
     end
   end
 
+  describe "sweep/0" do
+    test "a referenced title survives however old; an unreferenced one goes with its seasons after seven days; a fresh one stays" do
+      create_tracking_item(%{tmdb_id: 580, media_type: :tv_series})
+      backdate(Store.get({580, :tv_series}), :fetched_at, ~U[2026-01-01 00:00:00Z])
+
+      old = create_title_record(%{tmdb_id: 581, media_type: :tv_series})
+      backdate(old, :fetched_at, ~U[2026-01-01 00:00:00Z])
+      create_season_record(%{tmdb_id: 581, season_number: 1})
+
+      create_title_record(%{tmdb_id: 582, media_type: :movie})
+
+      assert Store.sweep() == 1
+      assert %TitleRecord{} = Store.get({580, :tv_series})
+      assert Store.get({581, :tv_series}) == nil
+      assert Store.seasons(581) == []
+      assert %TitleRecord{} = Store.get({582, :movie})
+    end
+
+    test "a movie and a series sharing an id are swept apart: the held series keeps its seasons" do
+      create_tracking_item(%{tmdb_id: 583, media_type: :tv_series})
+      create_season_record(%{tmdb_id: 583, season_number: 1})
+      movie = create_title_record(%{tmdb_id: 583, media_type: :movie})
+      backdate(movie, :fetched_at, ~U[2026-01-01 00:00:00Z])
+
+      assert Store.sweep() == 1
+      assert Store.get({583, :movie}) == nil
+      assert %TitleRecord{} = Store.get({583, :tv_series})
+      assert [%{season_number: 1}] = Store.seasons(583)
+    end
+
+    test "nothing to remove is zero" do
+      assert Store.sweep() == 0
+    end
+  end
+
   describe "snapshot/1 and snapshots/1" do
     test "a stored title renders as the app's title snapshot" do
       create_title_record(%{tmdb_id: 630, media_type: :movie, name: "Sample Movie"})

@@ -162,7 +162,8 @@ config :media_centaur, :retention_policy_providers, [
   MediaCentaur.SelfUpdate.RetentionPolicies,
   MediaCentaur.Library.RetentionPolicies,
   MediaCentaur.WatchHistory.RetentionPolicies,
-  MediaCentaur.TmdbArtwork.RetentionPolicies
+  MediaCentaur.TmdbArtwork.RetentionPolicies,
+  MediaCentaur.TMDB.RetentionPolicies
 ]
 
 # The places that hold a TMDB title — see MediaCentaur.TMDB.References
