@@ -88,7 +88,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
-  alias MediaCentaur.TMDB.Client, as: TMDBClient
   alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
@@ -136,7 +135,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     ReleaseTracking,
     Activities,
     MediaCentaur.Acquisition,
-    Discovery
+    Discovery,
+    Store
   ]
 
   defmacro __using__(_opts) do
@@ -566,8 +566,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   defp tmdb_ready, do: if(Capabilities.tmdb_ready?(), do: :ok, else: {:error, :tmdb_not_ready})
 
-  defp fetch_payload({tmdb_id, :movie}), do: TMDBClient.get_movie(tmdb_id)
-  defp fetch_payload({tmdb_id, :tv_series}), do: TMDBClient.get_tv(tmdb_id)
+  # The stored title (ADR-071): a request only for a title the store has
+  # never held. TMDB's 404 surfaces from that first contact as before.
+  defp fetch_payload(ref) do
+    with {:ok, %{payload: payload}} <- Store.ensure(ref), do: {:ok, payload}
+  end
 
   # The movie payload also says where the film stands in its release
   # sequence — the fact that decides whether there is a release to track.
@@ -740,6 +743,16 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   defp react({:library_view_updated, :detail, _id}, socket), do: refresh_if_owned(socket)
   defp react({:availability_changed, _payload}, socket), do: refresh_if_owned(socket)
+
+  # The open title's stored record changed — a first contact landed, or a
+  # check found something new: re-read the facts and the preview.
+  defp react(
+         {:tmdb_title_changed, ref},
+         %{assigns: %{title_detail: %TitleDetail{ref: ref, title: %Title{} = title}}} = socket
+       ),
+       do: socket |> refresh_title_detail() |> fetch_preview(title)
+
+  defp react({:tmdb_title_changed, _other_ref}, socket), do: socket
 
   defp react({tag, _payload}, socket)
        when tag in [

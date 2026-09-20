@@ -5,9 +5,9 @@ defmodule MediaCentaur.Acquisition.TmdbReferences do
   Terminal pursuits (satisfied / partial / exhausted / cancelled) release
   the reference; retention takes it from there.
 
-  Planned titles do not yet schedule checks: the plan board still reads
-  TMDB for itself until Phase 3 of `tmdb-fetch-policy` moves it onto the
-  store, and a check nothing reads is a request spent for nothing.
+  A planned title schedules checks: the plan board and the plan preview
+  read the store, so a date that moves while a plan is open is read as
+  the store says it today (ADR-071 §4).
   """
   @behaviour MediaCentaur.TMDB.References.Provider
 
@@ -34,5 +34,5 @@ defmodule MediaCentaur.Acquisition.TmdbReferences do
   end
 
   @impl true
-  def schedules_checks?, do: false
+  def schedules_checks?, do: true
 end

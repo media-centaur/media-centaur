@@ -37,6 +37,15 @@ defmodule MediaCentaur.Acquisition.CoursTest do
 
       assert Cours.runs_for_season("246810", 1) == []
     end
+
+    test "a season the store holds is read without a request (ADR-071)" do
+      TmdbStubs.stub_get_season("246810", 1, season_data())
+      assert [_run1, _run2] = Cours.runs_for_season("246810", 1)
+
+      # TMDB now answers with an error: the stored season still serves.
+      TmdbStubs.stub_tmdb_error("/tv/246810/season/1")
+      assert [_run1, _run2] = Cours.runs_for_season("246810", 1)
+    end
   end
 
   describe "later_run/2" do

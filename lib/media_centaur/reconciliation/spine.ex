@@ -1,15 +1,17 @@
 defmodule MediaCentaur.Reconciliation.Spine do
   @moduledoc """
-  Assembles a show's **canonical episode spine** from TMDB (reconciliation
-  campaign) — the one impure step the pure engine depends on. The spine is
-  always TMDB's ordered episodes (never the library's possibly-incomplete
-  season rows), so it is the same source the correct detail view reads.
+  Assembles a show's **canonical episode spine** from the TMDB store
+  (reconciliation campaign) — the one impure step the pure engine depends
+  on. The spine is always TMDB's ordered episodes (never the library's
+  possibly-incomplete season rows), so it is the same source the correct
+  detail view reads; the store holds them, and asks TMDB only for a
+  season it has never held (ADR-071).
 
-  `assemble/2` fetches the show's season list, then each season's episodes,
+  `assemble/2` reads the show's season list, then each season's episodes,
   and marks each node `present?` from a caller-supplied present-set (the
   `{season, episode}` pairs the library already has linked — see
   `Library.ExternalIds.present_episode_keys/1`). It **degrades to an empty spine** on a
-  show-fetch error and **skips** any individual season that fails to fetch,
+  show read error and **skips** any individual season that fails,
   mirroring `Acquisition.Cours.runs_for_season/2` — a missing spine yields
   no proposals rather than a crash.
   """
@@ -20,8 +22,8 @@ defmodule MediaCentaur.Reconciliation.Spine do
 
   @spec assemble(integer() | String.t(), MapSet.t({integer(), integer()})) :: [SpineNode.t()]
   def assemble(tmdb_id, present_keys) do
-    case TMDB.Client.get_tv(to_string(tmdb_id)) do
-      {:ok, data} ->
+    case TMDB.Store.ensure({tmdb_id, :tv_series}) do
+      {:ok, %{payload: data}} ->
         data
         |> Map.get("seasons", [])
         |> Enum.map(& &1["season_number"])
@@ -36,8 +38,8 @@ defmodule MediaCentaur.Reconciliation.Spine do
   end
 
   defp season_nodes(tmdb_id, season_number, present_keys) do
-    case TMDB.Client.get_season(to_string(tmdb_id), season_number) do
-      {:ok, season_data} ->
+    case TMDB.Store.ensure_season(tmdb_id, season_number) do
+      {:ok, %{payload: season_data}} ->
         season_data
         |> Map.get("episodes", [])
         |> Enum.map(&node(season_number, &1, present_keys))

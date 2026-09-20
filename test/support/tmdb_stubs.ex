@@ -132,17 +132,26 @@ defmodule MediaCentaur.TmdbStubs do
   # Detail stubs
   # ---------------------------------------------------------------------------
 
+  # A detail payload carries its own identity, as TMDB's does — the
+  # store refuses one that does not (`TMDB.Store.record_fetched/3`), so
+  # the stubs fill in the `id` or `season_number` a fixture leaves out.
   def stub_get_movie(tmdb_id, data) do
-    stub_endpoint("/movie/#{tmdb_id}", data)
+    stub_endpoint("/movie/#{tmdb_id}", with_id(data, tmdb_id))
   end
 
   def stub_get_tv(tmdb_id, data) do
-    stub_endpoint("/tv/#{tmdb_id}", data)
+    stub_endpoint("/tv/#{tmdb_id}", with_id(data, tmdb_id))
   end
 
   def stub_get_season(tmdb_id, season_number, data) do
-    stub_endpoint("/tv/#{tmdb_id}/season/#{season_number}", data)
+    stub_endpoint(
+      "/tv/#{tmdb_id}/season/#{season_number}",
+      Map.put_new(data, "season_number", season_number)
+    )
   end
+
+  defp with_id(data, tmdb_id) when is_integer(tmdb_id), do: Map.put_new(data, "id", tmdb_id)
+  defp with_id(data, tmdb_id) when is_binary(tmdb_id), do: with_id(data, String.to_integer(tmdb_id))
 
   @doc """
   Stubs `/tv/{id}` and its `/tv/{id}/season/{n}` endpoints together.
@@ -152,6 +161,8 @@ defmodule MediaCentaur.TmdbStubs do
   season number → season payload; unknown paths 404.
   """
   def stub_get_tv_with_seasons(tmdb_id, tv_data, seasons) when is_map(seasons) do
+    tv_data = with_id(tv_data, tmdb_id)
+
     Req.Test.stub(:tmdb, fn conn ->
       season =
         Enum.find(seasons, fn {number, _data} ->
@@ -159,7 +170,10 @@ defmodule MediaCentaur.TmdbStubs do
         end)
 
       cond do
-        season != nil -> json_resp(conn, 200, elem(season, 1))
+        season != nil ->
+          {number, data} = season
+          json_resp(conn, 200, Map.put_new(data, "season_number", number))
+
         String.contains?(conn.request_path, "/tv/#{tmdb_id}") -> json_resp(conn, 200, tv_data)
         true -> json_resp(conn, 404, %{"status_message" => "Not Found"})
       end
@@ -194,19 +208,28 @@ defmodule MediaCentaur.TmdbStubs do
            %{"episode_number" => 2, "name" => "Finale", "air_date" => "2199-01-01"}
          ]
        })},
-      {"/tv/246810",
-       tv_detail(%{
-         "id" => 246_810,
-         "name" => "Sample Show",
-         "original_name" => "Beispielserie",
-         "origin_country" => ["US"],
-         "seasons" => [
-           %{"season_number" => 0, "episode_count" => 1},
-           %{"season_number" => 1, "episode_count" => 2},
-           %{"season_number" => 2, "episode_count" => 2}
-         ]
-       })}
+      {"/tv/246810", series_universe_tv()}
     ])
+  end
+
+  @doc """
+  The series payload of `stub_series_universe_for_targeting/0` — for a
+  test that seeds the TMDB store with the tracked show directly
+  (`create_tracking_item(%{payload: series_universe_tv()})`), so the
+  store's copy names the same seasons the routes serve.
+  """
+  def series_universe_tv do
+    tv_detail(%{
+      "id" => 246_810,
+      "name" => "Sample Show",
+      "original_name" => "Beispielserie",
+      "origin_country" => ["US"],
+      "seasons" => [
+        %{"season_number" => 0, "episode_count" => 1},
+        %{"season_number" => 1, "episode_count" => 2},
+        %{"season_number" => 2, "episode_count" => 2}
+      ]
+    })
   end
 
   @doc """

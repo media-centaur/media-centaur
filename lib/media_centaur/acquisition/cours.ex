@@ -1,18 +1,18 @@
 defmodule MediaCentaur.Acquisition.Cours do
   @moduledoc """
-  Bridges the air-date run model into acquisition: fetches a TMDB tv
-  season and segments it into broadcast runs (cours), and answers "which
-  *later* run does this unit belong to?".
+  Bridges the air-date run model into acquisition: reads a tv season
+  from the TMDB store and segments it into broadcast runs (cours), and
+  answers "which *later* run does this unit belong to?".
 
   Run derivation needs the **whole** season's air dates — the gap that
   marks a later run is invisible from the wanted (late) units alone — so
-  the season fetch lives here, in Acquisition (Search stays I/O-free and
-  Acquisition-independent). Degrades to no cour-awareness (empty runs) on
-  a TMDB error rather than failing the plan.
+  the season read lives here, in Acquisition (Search stays I/O-free and
+  Acquisition-independent). The store answers without a request once
+  the season has been held (ADR-071); degrades to no cour-awareness
+  (empty runs) on a first-contact error rather than failing the plan.
 
   The pure run math is `CourSegmentation`; the query/coverage shaping of
-  a run is `Search.CourQueries` / `Search.CourCoverage`. Recomputed on
-  demand — nothing persisted.
+  a run is `Search.CourQueries` / `Search.CourCoverage`.
   """
 
   alias MediaCentaur.Acquisition.CourSegmentation
@@ -21,13 +21,13 @@ defmodule MediaCentaur.Acquisition.Cours do
 
   @doc """
   The broadcast runs of a TMDB tv season, segmented from episode air
-  dates. `[]` on a TMDB fetch error (degrade — no cour-awareness rather
-  than a crashed plan).
+  dates. `[]` when the store cannot answer (degrade — no cour-awareness
+  rather than a crashed plan).
   """
   @spec runs_for_season(String.t() | integer(), integer()) :: [CourSegmentation.run()]
   def runs_for_season(tmdb_id, season_number) do
-    case TMDB.Client.get_season(to_string(tmdb_id), season_number) do
-      {:ok, season_data} ->
+    case TMDB.Store.ensure_season(tmdb_id, season_number) do
+      {:ok, %{payload: season_data}} ->
         season_data
         |> Map.get("episodes", [])
         |> Enum.map(fn episode ->

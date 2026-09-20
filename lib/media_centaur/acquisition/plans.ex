@@ -27,7 +27,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.TitleDownloadParams
   alias MediaCentaur.Format
   alias MediaCentaur.Repo
-  alias MediaCentaur.TMDB.{Client, Title, TitleIdentity}
+  alias MediaCentaur.TMDB.{Store, Title, TitleIdentity}
   alias MediaCentaur.Topics
 
   @type unit_choice :: {pos_integer(), pos_integer()}
@@ -212,9 +212,9 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp title_policy(opts), do: Keyword.get(opts, :approval_policy, "review")
 
   # A search-result snapshot carries neither the film's external ids nor
-  # its original title, so this door is the one that has to ask — the
-  # only one that holds no TMDB payload already. Best-effort: an
-  # unreachable TMDB leaves them out rather than failing the plan.
+  # its original title; the stored title does (first contact when the
+  # store has never held it, ADR-071). Best-effort: an unreachable TMDB
+  # leaves them out rather than failing the plan.
   defp movie_plan_attrs(%Title{} = title) do
     known =
       TitleIdentity.new(%{
@@ -224,11 +224,14 @@ defmodule MediaCentaur.Acquisition.Plans do
         year: title_year(title)
       })
 
-    case Client.get_movie(title.tmdb_id) do
+    case Store.ensure({title.tmdb_id, :movie}) do
       # The payload knows the ids and the original title the search
       # snapshot never carried; the snapshot knows the id we asked for.
-      {:ok, payload} -> TitleIdentity.merge(known, TitleIdentity.from_payload(:movie, payload))
-      {:error, _reason} -> known
+      {:ok, %{payload: payload}} ->
+        TitleIdentity.merge(known, TitleIdentity.from_payload(:movie, payload))
+
+      {:error, _reason} ->
+        known
     end
   end
 
