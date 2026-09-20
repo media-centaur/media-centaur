@@ -74,7 +74,7 @@ defmodule MediaCentaur.Credo.Checks.LogComponentMatchesContextTest do
 
     test "release-tracking code tagging :library is reported" do
       ~S'''
-      defmodule MediaCentaur.ReleaseTracking.Refresher do
+      defmodule MediaCentaur.ReleaseTracking.SweepJob do
         def run, do: Log.error(:library, "refresh failed")
       end
       '''

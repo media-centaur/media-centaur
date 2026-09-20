@@ -126,7 +126,9 @@ defmodule MediaCentaur.Activities.PublisherTest do
       settle()
       assert [%Activity{kind: :listing} = first] = listings()
 
-      # Raising within the list publishes nothing new.
+      # Raising within the list publishes nothing new. Grab onboards the
+      # title, which first-contacts its TMDB detail.
+      TmdbStubs.stub_get_tv(1399, TmdbStubs.tv_detail(%{"id" => 1399, "name" => "Sample Show"}))
       {:ok, _intent} = ReleaseTracking.set_rung(show(), :grab)
       settle()
       assert [%Activity{id: id}] = listings()

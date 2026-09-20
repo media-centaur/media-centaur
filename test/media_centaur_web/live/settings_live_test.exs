@@ -576,19 +576,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
                "[data-nav-zone='sections'] a[href='/settings?section=release_tracking']"
              )
     end
-
-    test "stepping the refresh interval from Acquisition persists it", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
-
-      increase =
-        "#release-tracking-interval button[aria-label='Increase Check TMDB for new release dates']"
-
-      # The ladder runs 1 · 2 · 3 · 4 · 6 · 8 · 12 · 24; from the default 6, two steps up.
-      view |> element(increase) |> render_click()
-      view |> element(increase) |> render_click()
-
-      assert Config.get(:release_tracking_refresh_interval_hours) == 12
-    end
   end
 
   describe "save_tmdb retry hook" do

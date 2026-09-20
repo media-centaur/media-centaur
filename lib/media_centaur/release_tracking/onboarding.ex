@@ -1,13 +1,19 @@
 defmodule MediaCentaur.ReleaseTracking.Onboarding do
   @moduledoc """
-  Builds the machinery a followed title needs: fetches the title from
-  TMDB, creates the tracked-title row, seeds its calendar and wants, and
-  queues its artwork.
+  Builds the machinery a followed title needs: ensures the title (and the
+  seasons its calendar wants) is in the TMDB store, creates the
+  tracked-title row, seeds its calendar and wants from the stored
+  payloads, and queues its artwork.
 
   Called from exactly one place — `ReleaseTracking.set_rung/3`, when a
   rung of `:follow` or above finds no tracked title. It is a derivation
   step, not an act: a person raising a rung is the act, and the context
   announces that. Nothing here decides *whether* a title is followed.
+
+  The only request it can cause is first contact for a title or season
+  the store does not hold (`TMDB.Store.ensure/2`, ADR-071); a title the
+  store holds costs nothing. Later changes reach the calendar through
+  `ReleaseTracking.rebuild_calendar/1`, not here.
 
   It was `ReleaseTracking.Acquisition`, which collided with the
   `MediaCentaur.Acquisition` context — two unrelated meanings for one
@@ -15,19 +21,21 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
 
   Persistence routes back through the context (`track_item`,
   `persist_release!`, `create_release!`, `mark_in_library_releases`,
-  `update_item`, `broadcast_releases_updated`), which owns those concerns.
+  `broadcast_releases_updated`), which owns those concerns.
   """
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Release, Wants}
-  alias MediaCentaur.TMDB.Client
+  alias MediaCentaur.ReleaseTracking.{Calendar, Helpers, Release, Wants}
+  alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
 
   @doc """
   Creates the tracked title for `title` and everything under it.
 
   `opts` may carry `:start_season` / `:start_episode` to scope the first
-  TV calendar fetch — `{0, 0}` (the default) means "only what is still to
+  TV calendar — `{0, 0}` (the default) means "only what is still to
   come", and an explicit start includes what has already aired.
   """
   @spec onboard(Title.t(), map()) :: {:ok, ReleaseTracking.Item.t()} | {:error, term()}
@@ -46,66 +54,67 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
   end
 
   defp do_onboard(%Title{media_type: :tv_series} = title, start_season, start_episode) do
-    case Client.get_tv(title.tmdb_id) do
-      {:ok, response} ->
-        {all_releases, season_sizes} =
-          Helpers.fetch_tv_releases(title.tmdb_id, start_season, start_episode, response)
+    with {:ok, record} <- Store.ensure({title.tmdb_id, :tv_series}),
+         {:ok, item} <-
+           track(%{
+             tmdb_id: title.tmdb_id,
+             media_type: :tv_series,
+             last_library_season: start_season,
+             last_library_episode: start_episode
+           }) do
+      season_payloads = ensure_seasons(item, record)
 
-        # "All upcoming" (0,0) = only future episodes. Custom scope = include released too.
-        releases =
-          if start_season == 0 && start_episode == 0 do
-            Enum.reject(all_releases, &Release.released?/1)
-          else
-            all_releases
-          end
+      all_releases =
+        Calendar.tv_releases(record.payload, season_payloads, start_season, start_episode)
 
-        case ReleaseTracking.track_item(%{
-               tmdb_id: title.tmdb_id,
-               media_type: :tv_series,
-               name: response["name"] || title.name,
-               last_refreshed_at: DateTime.utc_now(),
-               last_library_season: start_season,
-               last_library_episode: start_episode,
-               season_sizes: season_sizes
-             }) do
-          {:ok, item} ->
-            persist_releases(item, releases)
-            schedule_image_downloads(item, title.tmdb_id, response)
+      # "All upcoming" (0,0) = only future episodes. Custom scope = include released too.
+      releases =
+        if start_season == 0 and start_episode == 0,
+          do: Enum.reject(all_releases, &Release.released?/1),
+          else: all_releases
 
-            {:ok, item}
-
-          {:error, changeset} ->
-            {:error, track_item_error(changeset)}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
+      persist_releases(item, releases)
+      Helpers.download_images_async(item, title.tmdb_id, record.payload)
+      {:ok, item}
     end
   end
 
   defp do_onboard(%Title{media_type: :movie} = title, _start_season, _start_episode) do
-    case Client.get_movie(title.tmdb_id) do
-      {:ok, response} ->
-        case ReleaseTracking.track_item(%{
-               tmdb_id: title.tmdb_id,
-               media_type: :movie,
-               name: response["title"] || title.name,
-               last_refreshed_at: DateTime.utc_now()
-             }) do
-          {:ok, item} ->
-            releases = Extractor.extract_movie_release_dates(response)
-            persist_movie_releases(item, releases)
-            schedule_image_downloads(item, title.tmdb_id, response)
-
-            {:ok, item}
-
-          {:error, changeset} ->
-            {:error, track_item_error(changeset)}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
+    with {:ok, record} <- Store.ensure({title.tmdb_id, :movie}),
+         {:ok, item} <- track(%{tmdb_id: title.tmdb_id, media_type: :movie}) do
+      persist_movie_releases(item, Calendar.movie_releases(record.payload))
+      Helpers.download_images_async(item, title.tmdb_id, record.payload)
+      {:ok, item}
     end
+  end
+
+  defp track(attrs) do
+    case ReleaseTracking.track_item(attrs) do
+      {:ok, item} -> {:ok, item}
+      {:error, changeset} -> {:error, track_item_error(changeset)}
+    end
+  end
+
+  # The seasons the calendar wants, first-contacted when the store lacks
+  # them; one that TMDB cannot answer is left out of this seeding and
+  # picked up by the next rebuild.
+  defp ensure_seasons(item, record) do
+    record.payload
+    |> Calendar.seasons_wanted(item.last_library_season)
+    |> Enum.each(fn season_number ->
+      case Store.ensure_season(item.tmdb_id, season_number) do
+        {:ok, _season} ->
+          :ok
+
+        {:error, reason} ->
+          Log.info(
+            :acquisition,
+            "season tmdb:#{item.tmdb_id} S#{season_number} not stored — #{inspect(reason)}"
+          )
+      end
+    end)
+
+    item.tmdb_id |> Store.seasons() |> Enum.map(& &1.payload)
   end
 
   # A duplicate track attempt (double click, stale search results, two
@@ -134,7 +143,4 @@ defmodule MediaCentaur.ReleaseTracking.Onboarding do
 
     Wants.sync_item(item)
   end
-
-  defp schedule_image_downloads(item, tmdb_id, response),
-    do: Helpers.download_images_async(item, tmdb_id, response)
 end

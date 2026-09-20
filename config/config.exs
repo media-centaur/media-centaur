@@ -103,6 +103,9 @@ config :media_centaur, Oban,
        # the pursuit watcher's minute.
        {"@reboot", MediaCentaur.TMDB.CheckJob},
        {"7-59/15 * * * *", MediaCentaur.TMDB.CheckJob},
+       # The want-ledger sweep: an aired release becomes wanted, and the
+       # drop planner's clock ticks. No TMDB request (ADR-071).
+       {"*/15 * * * *", MediaCentaur.ReleaseTracking.SweepJob},
        # Daily run of every :sweep-mode retention policy (diagnostic events,
        # pursuit/tracking event logs, resolved incidents, image queue, stale
        # staging dirs — see each context's RetentionPolicies module). Offset

@@ -114,11 +114,12 @@ defmodule MediaCentaur.TMDB.Store do
           {:ok, TitleRecord.t()} | {:error, Ecto.Changeset.t() | :invalid_id}
   def record_fetched({tmdb_id, media_type}, payload, etag) when is_map(payload) do
     with {:ok, id} <- parse_id(tmdb_id),
+         :ok <- payload_for?(payload, "id", id),
          {:ok, record, _changed?} <- store_title({id, media_type}, payload, etag) do
       {:ok, record}
     else
       :error -> {:error, :invalid_id}
-      {:error, _changeset} = error -> error
+      {:error, _reason} = error -> error
     end
   end
 
@@ -130,12 +131,21 @@ defmodule MediaCentaur.TMDB.Store do
           {:ok, SeasonRecord.t()} | {:error, Ecto.Changeset.t() | :invalid_id}
   def record_season_fetched(tmdb_id, season_number, payload, etag) when is_map(payload) do
     with {:ok, id} <- parse_id(tmdb_id),
+         :ok <- payload_for?(payload, "season_number", season_number),
          {:ok, season, _changed?} <- store_season(id, season_number, payload, etag) do
       {:ok, season}
     else
       :error -> {:error, :invalid_id}
-      {:error, _changeset} = error -> error
+      {:error, _reason} = error -> error
     end
+  end
+
+  # The payload must be the answer for the identity it is filed under —
+  # TMDB's detail carries the title's `id`, a season its `season_number`.
+  # A body without it (a search page, a proxy's error page with a 200)
+  # is refused rather than stored as the title.
+  defp payload_for?(payload, key, expected) do
+    if payload[key] == expected, do: :ok, else: {:error, :payload_mismatch}
   end
 
   @doc """

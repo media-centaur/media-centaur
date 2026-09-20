@@ -30,9 +30,33 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     :ok
   end
 
+  # Season sizes and identity come from the stored title, not from
+  # columns (ADR-071): `season_sizes`, `imdb_id`, `tvdb_id` and
+  # `original_title` here become that payload.
   defp create_tracked_show(attrs \\ %{}) do
+    {season_sizes, attrs} = Map.pop(attrs, :season_sizes)
+    {imdb_id, attrs} = Map.pop(attrs, :imdb_id, "tt0903747")
+    {tvdb_id, attrs} = Map.pop(attrs, :tvdb_id, 81_189)
+    {original_title, attrs} = Map.pop(attrs, :original_title, "Sample Show")
+
+    payload =
+      MediaCentaur.TmdbStubs.tv_detail(%{
+        "id" => 246_810,
+        "name" => "Sample Show",
+        "original_name" => original_title,
+        "status" => "Returning Series",
+        "external_ids" => %{"imdb_id" => imdb_id, "tvdb_id" => tvdb_id},
+        "seasons" =>
+          Enum.map(season_sizes || %{}, fn {number, count} ->
+            %{"season_number" => String.to_integer(number), "episode_count" => count}
+          end)
+      })
+
     create_tracking_item(
-      Map.merge(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"}, attrs)
+      Map.merge(
+        %{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show", payload: payload},
+        attrs
+      )
     )
   end
 
@@ -201,8 +225,16 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
           tmdb_id: 3003,
           media_type: :movie,
           name: "Sample Solo Film",
-          imdb_id: "tt5550001",
-          original_title: "Beispielfilm"
+          payload:
+            MediaCentaur.TmdbStubs.movie_detail(%{
+              "id" => 3003,
+              "title" => "Sample Solo Film",
+              "imdb_id" => "tt5550001",
+              "original_title" => "Beispielfilm",
+              # The stored year is the matcher's year gate; the stubbed
+              # release above is a 2026 film.
+              "release_date" => "2026-01-15"
+            })
         })
 
       ReleaseTracking.create_release!(%{

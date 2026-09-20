@@ -842,15 +842,12 @@ defmodule MediaCentaur.TestFactory do
       tmdb_id: :rand.uniform(999_999),
       media_type: :tv_series,
       name: "Test Tracked Series",
-      tracking_mode: :global,
       library_container_type: nil,
       library_container_id: nil,
-      last_refreshed_at: nil,
-      poster_path: nil,
       last_library_season: 0,
       last_library_episode: 0,
-      releases: [],
-      events: []
+      season_sizes: %{},
+      releases: []
     }
 
     struct(ReleaseTracking.Item, Map.merge(defaults, overrides))
@@ -901,10 +898,14 @@ defmodule MediaCentaur.TestFactory do
         MediaCentaur.TMDB.Store.record_fetched({tmdb_id, media_type}, payload, etag)
     end
 
-    attrs = Map.merge(%{tmdb_id: tmdb_id, media_type: media_type, name: name}, attrs)
+    attrs =
+      %{tmdb_id: tmdb_id, media_type: media_type}
+      |> Map.merge(attrs)
+      |> Map.delete(:name)
+
     {:ok, item} = ReleaseTracking.track_item(attrs)
-    if rung, do: create_intent_for(item, rung)
-    item
+    if rung, do: create_intent_for(item, rung, name)
+    ReleaseTracking.get_item(item.id)
   end
 
   defp default_tracked_payload(:movie, tmdb_id, name) do
@@ -1045,11 +1046,11 @@ defmodule MediaCentaur.TestFactory do
   `rung` — the record side of a title whose machinery a test built
   directly with `create_tracking_item/1`.
   """
-  def create_intent_for(%{tmdb_id: tmdb_id, media_type: media_type} = item, rung) do
+  def create_intent_for(%{tmdb_id: tmdb_id, media_type: media_type} = item, rung, name \\ nil) do
     create_title_intent(%{
       tmdb_id: tmdb_id,
       media_type: media_type,
-      name: Map.get(item, :name) || "Sample Show",
+      name: name || Map.get(item, :name) || "Sample Show",
       rung: rung
     })
   end

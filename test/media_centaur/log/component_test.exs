@@ -42,7 +42,7 @@ defmodule MediaCentaur.Log.ComponentTest do
   describe "for_module/1" do
     test "a context module resolves through its context" do
       assert Component.for_module(MediaCentaur.Watcher.Supervisor) == :watcher
-      assert Component.for_module(MediaCentaur.ReleaseTracking.Refresher) == :acquisition
+      assert Component.for_module(MediaCentaur.ReleaseTracking.SweepJob) == :acquisition
     end
 
     test "a crash and a deliberate log from one context agree" do
