@@ -304,6 +304,28 @@ defmodule MediaCentaur.Library.ExternalIds do
   end
 
   @doc """
+  Every TMDB title the library owns, as `{tmdb_id, media_type}` refs —
+  the `tmdb` external id of each movie and series (collections carry a
+  `tmdb_collection` id and are not TMDB titles). The library's
+  references to the TMDB store (`MediaCentaur.Pipeline.TmdbReferences`);
+  an id that does not parse is dropped.
+  """
+  @spec list_tmdb_refs() :: [{pos_integer(), :movie | :tv_series}]
+  def list_tmdb_refs do
+    from(ext in ExternalId,
+      where: ext.source == "tmdb" and ext.owner_type in [:movie, :tv_series],
+      select: {ext.owner_type, ext.external_id}
+    )
+    |> Repo.all()
+    |> Enum.flat_map(fn {owner_type, external_id} ->
+      case Integer.parse(external_id) do
+        {tmdb_id, ""} when tmdb_id > 0 -> [{tmdb_id, owner_type}]
+        _other -> []
+      end
+    end)
+  end
+
+  @doc """
   Bulk "does the library have this TMDB title" — maps each
   `{tmdb_id, media_type}` ref to the owning container's id; refs the
   library has no *presentable* container for are absent from the result.
