@@ -33,6 +33,13 @@ path, not of any one integration.
    must see fresh data passes `reload: true`. Only GETs, only on clients that
    attach the plugin (TMDB, Steam). TMDB rate limiting runs after the cache
    step so a hit never spends a slot.
+
+   *Amendment 2026-09-20 (ADR-071):* a request the caller made conditional —
+   carrying its own `If-None-Match` — passes the cache untouched, neither
+   looked up nor stored, and reports `:conditional`. TMDB detail freshness
+   is now a policy above this seam (`MediaCentaur.TMDB.Store`);
+   `reload: true` remains for the credential probe and, until Phase 2 of
+   `tmdb-fetch-policy`, the release-tracking refresher.
 4. **Not started under test.** The coordinator and stats are absent in
    `:test`; cache tests start their own coordinator under a unique name.
 

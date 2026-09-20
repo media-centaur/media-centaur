@@ -59,6 +59,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 068 | 2026-09-12 | [A review replaces the recommendation as the shared opinion about a title](architecture/2026-09-12-068-review-replaces-recommendation-on-the-wire.md) | accepted |
 | 069 | 2026-09-17 | [No Elixir dead-code gate; JS keeps one](architecture/2026-09-17-069-no-elixir-dead-code-gate.md) | accepted |
 | 070 | 2026-09-19 | [Durable observational time series live outside the main database](architecture/2026-09-19-070-time-series-outside-the-database.md) | accepted |
+| 071 | 2026-09-20 | [TMDB knowledge is one record per title, asked only when due](architecture/2026-09-20-071-tmdb-store-one-record-per-title.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
