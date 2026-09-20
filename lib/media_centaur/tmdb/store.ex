@@ -31,6 +31,11 @@ defmodule MediaCentaur.TMDB.Store do
   The schedule columns are derived on every write by
   `MediaCentaur.TMDB.Schedule`, so `due/1` is a plain query. Ids arrive
   as integers or numeric strings — the client's callers pass both.
+
+  Retention: a title nothing references (`MediaCentaur.TMDB.References`)
+  is removed by `sweep/0` seven days after it was last fetched, with a
+  series' seasons — the daily `MediaCentaur.Retention` policy declared
+  in `MediaCentaur.TMDB.RetentionPolicies`.
   """
 
   import Ecto.Query
@@ -38,7 +43,7 @@ defmodule MediaCentaur.TMDB.Store do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Repo
-  alias MediaCentaur.TMDB.{Client, Mapper, Schedule, Title}
+  alias MediaCentaur.TMDB.{Client, Mapper, References, Schedule, Title}
   alias MediaCentaur.TMDB.Store.{SeasonRecord, TitleRecord}
   alias MediaCentaur.Topics
 
@@ -132,6 +137,67 @@ defmodule MediaCentaur.TMDB.Store do
         where: not is_nil(t.next_check_at) and t.next_check_at <= ^now,
         order_by: t.next_check_at
     )
+  end
+
+  # --- Retention ---
+
+  @retention_days 7
+
+  @doc """
+  The daily retention sweep (`MediaCentaur.TMDB.RetentionPolicies`):
+  removes every stored title that nothing references
+  (`MediaCentaur.TMDB.References.all/0`) and that was last fetched more
+  than #{@retention_days} days ago, with a series' seasons. A read never
+  writes, so "last fetched" is what the store knows of a title's use;
+  an unreferenced title opened again is first contact once more.
+  Returns the number of titles removed.
+  """
+  @spec sweep() :: non_neg_integer()
+  def sweep do
+    held = References.all()
+    cutoff = DateTime.add(now(), -@retention_days, :day)
+
+    victims =
+      from(t in TitleRecord,
+        where: t.fetched_at < ^cutoff,
+        select: {t.id, t.tmdb_id, t.media_type}
+      )
+      |> Repo.all()
+      |> Enum.reject(fn {_id, tmdb_id, media_type} -> MapSet.member?(held, {tmdb_id, media_type}) end)
+
+    count = remove_titles(victims)
+
+    if count > 0 do
+      Log.info(:tmdb, "retention sweep removed #{count} unreferenced stored title(s)")
+    end
+
+    count
+  end
+
+  defp remove_titles([]), do: 0
+
+  defp remove_titles(victims) do
+    series_ids = for {_id, tmdb_id, :tv_series} <- victims, do: tmdb_id
+    ids = Enum.map(victims, &elem(&1, 0))
+
+    {:ok, count} =
+      Repo.transaction(fn ->
+        series_ids
+        |> Enum.chunk_every(500)
+        |> Enum.each(fn chunk ->
+          Repo.delete_all(from(s in SeasonRecord, where: s.tmdb_id in ^chunk))
+        end)
+
+        ids
+        |> Enum.chunk_every(500)
+        |> Enum.map(fn chunk ->
+          {removed, _} = Repo.delete_all(from(t in TitleRecord, where: t.id in ^chunk))
+          removed
+        end)
+        |> Enum.sum()
+      end)
+
+    count
   end
 
   # --- Writes ---

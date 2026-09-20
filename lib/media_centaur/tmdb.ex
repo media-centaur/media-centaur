@@ -4,7 +4,8 @@ defmodule MediaCentaur.TMDB do
       MediaCentaur.Capabilities,
       MediaCentaur.ErrorReports,
       MediaCentaur.HttpClient,
-      MediaCentaur.IntegrationAvailability
+      MediaCentaur.IntegrationAvailability,
+      MediaCentaur.Retention
     ],
     exports: [
       Availability,
