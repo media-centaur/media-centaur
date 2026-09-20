@@ -28,9 +28,9 @@
 
 **Files:** create `credo_checks/tmdb_detail_seam.ex`, `test/media_centaur/credo/checks/tmdb_detail_seam_test.exs`; modify `.credo.exs`.
 
-- [ ] Tests: `Client.detail/2` in a `lib/` module that is not the store is flagged (`Client.detail`, `TMDB.Client.detail`, `MediaCentaur.TMDB.Client.detail`); the store is exempt; `get_collection/2` is flagged in `lib/media_centaur/discovery.ex` and exempt in the import stage and the artwork paths; a test file is exempt.
-- [ ] Implement the check (`category: :design`, `base_priority: :high`; exempt path lists checked at compile time like MC0029's seam path). Register in `.credo.exs` with a comment naming the campaign and ADR-071.
-- [ ] Commit `feat(credo): MC0038 — only TMDB.Store calls a detail endpoint`.
+- [x] Tests: `Client.detail/2` in a `lib/` module that is not the store is flagged (`Client.detail`, `TMDB.Client.detail`, `MediaCentaur.TMDB.Client.detail`); the store is exempt; `get_collection/2` is flagged in `lib/media_centaur/discovery.ex` and exempt in the import stage and the artwork paths; a test file is exempt.
+- [x] Implement the check (`category: :design`, `base_priority: :high`; exempt path lists checked at compile time like MC0029's seam path). Register in `.credo.exs` with a comment naming the campaign and ADR-071.
+- [x] Commit `feat(credo): MC0038 — only TMDB.Store calls a detail endpoint`.
 
 ### Task 3: Records and closure
 
