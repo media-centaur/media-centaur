@@ -287,9 +287,10 @@ Append-only.
   restart: the migration ran at boot (`title_intents.title` gone); the
   `@reboot` tick completed in 5 ms with nothing to first-contact — all
   eight referenced titles (eight listed, five of them tracked) were
-  already held, the three listed-only ones since a quarter-hour tick
-  during Phase 2 (a reference is first-contacted whether or not it
-  schedules checks); opening an unheld title's detail from the
+  already held, the three listed-only ones by the transitional
+  write-through before Phase 3 (the tick first-contacts *scheduled*
+  references only; corrected 2026-09-20 while planning Phase 4);
+  opening an unheld title's detail from the
   watchlist URL made exactly one request (`/3/movie/{id}`, response
   cache miss, record stored and settled), and opening it again made
   none. The traffic ring showed no other TMDB request in the two hours
