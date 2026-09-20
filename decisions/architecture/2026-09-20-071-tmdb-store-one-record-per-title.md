@@ -65,3 +65,21 @@ the store fills through a transitional write-through from
   title, measured in Phase 1 before Phase 2 widens the population.
 * Collections are not identities here and stay on the old path until
   `collection-identity` decides what a collection is.
+
+### Amendment 2026-09-20 — implemented
+
+All five phases of `tmdb-fetch-policy` landed on main 2026-09-20. What
+differs from the text above: the transitional write-through is gone —
+`TMDB.Client` keeps `detail/2` for the store and `get_collection/2` for
+the three collection callers, and Credo MC0038 (`TmdbDetailSeam`)
+enforces both; the library's projection and the owned-titles reference
+provider live in the `Pipeline` boundary (`Pipeline.TmdbProjection`,
+`Pipeline.TmdbReferences`), because `Library` depends on nothing
+TMDB-shaped (ADR-029); the import's credits come through
+`Store.fetch_full/2` — the same request as first contact, the record
+refreshed, the answer returned whole — rather than a separate request;
+a stored title nothing references is swept seven days after its last
+fetch (`TMDB.RetentionPolicies`, the artwork cache's twin); the three
+Maintenance backfill buttons were removed; and the payload is stored
+without its credits (the ten top-billed cast and the directing crew
+kept for the preview) rather than "as received minus `images`".

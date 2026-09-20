@@ -48,9 +48,12 @@ render-time fetches and the empty cache after every restart on top.
 
 ## Status
 
-Planning. Audit complete 2026-09-19 (three inventories under
+**Complete on main 2026-09-20 — unreleased.** Audit complete 2026-09-19
+(three inventories under
 [`docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/`](../docs/superpowers/specs/2026-09-19-tmdb-fetch-policy-research/)).
-**Phases 1–4 landed on main 2026-09-20** (unpushed). Phase 1: the
+All five phases landed on main 2026-09-20 (unpushed; the wiki's
+matching commits are local too). This file stays until the release
+carries the CHANGELOG lines under *Next steps*, then retires. Phase 1: the
 store, filled by write-through. Phase 2: `TMDB.CheckJob` checks what is
 due (`@reboot` and every quarter hour), `TMDB.References` says who
 holds a title and whose hold schedules a check, release tracking
@@ -71,7 +74,11 @@ a title changes (`Pipeline.TmdbProjection`), owned titles schedule
 checks (`Pipeline.TmdbReferences`), artwork refresh and repair and the
 showcase read the store, the three Maintenance backfill buttons are
 gone, and the transitional write-through and `Client.get_movie/get_tv/
-get_season` are deleted. Phase 5 next.
+get_season` are deleted. Phase 5: a stored title nothing references is
+swept seven days after its last fetch (`TMDB.RetentionPolicies`, the
+artwork policy's twin on the same reference set), Credo MC0038 keeps
+every detail request inside the store, and the records agree with the
+code.
 
 ## Audit — every TMDB fetch, by what it asks
 
@@ -312,6 +319,18 @@ Append-only.
   (row R) and the showcase (row W) were pulled into this phase so the
   write-through could go with the last caller. Plan:
   [`2026-09-20-tmdb-fetch-policy-phase-4-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-4-plan.md).
+* `2026-09-20` — **No Status aggregate for the store.** Owner, on the
+  Phase 5 question; the design had marked it droppable. Tiles carry no
+  fact lines, the Metadata drill-in's retention panel shows the store's
+  policy and sweeps, and the console narrates every check.
+* `2026-09-20` — **Phase 5 landed.** Decisions made inside it: the
+  store's retention measures age by last fetch (a read never writes,
+  so "last use" is unknowable for a record; an unreferenced title
+  opened weekly costs one first contact a week), while the artwork
+  sweep keeps its last-use basis — two policies, one reference set;
+  MC0038 matches the client by alias shape (`Client`, `TMDB.Client`,
+  `MediaCentaur.TMDB.Client`) and exempts tests. Plan:
+  [`2026-09-20-tmdb-fetch-policy-phase-5-plan.md`](../docs/superpowers/plans/2026-09-20-tmdb-fetch-policy-phase-5-plan.md).
 * `2026-09-20` — **Phase 4 verified on the dev node** after a service
   restart: the `@reboot` tick first-contacted the 44 owned titles the
   store lacked in one tick (46 owned references; 56 TMDB requests in
@@ -357,15 +376,11 @@ None. The payload-size question was decided 2026-09-20 (Decisions).
 
 ## Next steps
 
-1. Phase 5 plan: retention and the gate — a store sweep that ages out
-   records nothing references (`TMDB.References.all/0`, the artwork
-   sweep's twin) with the collection question left to
-   `collection-identity`; the Credo check that no module but
-   `TMDB.Store` calls `TMDB.Client.detail/2` (and only the import stage
-   and the artwork paths call `get_collection/2`); the Status tile
-   aggregate if kept; the glossary rows elevated; the campaign closed by
-   destination.
-2. At the next release, the CHANGELOG's *Migration safety* lines:
+Closed by destination — every remaining item has one:
+
+**Ship** (the next release, app and wiki pushed together):
+
+1. The CHANGELOG's *Migration safety* lines:
    `20260920100000_create_tmdb_store` (two additive tables),
    `20260920130000_release_tracking_items_read_the_store` (eight
    columns dropped, three settings rows deleted; the store refills from
@@ -375,7 +390,24 @@ None. The payload-size question was decided 2026-09-20 (Decisions).
    changes: the refresh-interval setting is gone, *Refresh from TMDB*
    is new, and the three Maintenance backfill buttons (movie credits,
    series credits, episode lists) are gone — a title's TMDB facts follow
-   the store.
+   the store. Then retire this file (`campaigns/README.md` keeps the
+   closure summary) and merge its memory into the shipped ledger.
+
+**Verify after the release** (on the production instance):
+
+2. The `@reboot` tick first-contacts the library's titles within a few
+   ticks (50 per tick), and the next day's retention sweep reports on
+   Status › Metadata; a settled title costs zero requests per cycle
+   (`HttpClient.Traffic`).
+
+**Deferred, to a named home:**
+
+3. Collections — not a store identity; `collection-identity` decides
+   whether they get a record or the path is deleted (design row X).
+4. Response-cache persistence and stale-if-error — declined (design
+   row Z); with the store above it, detail reads never depend on it.
+5. The artwork sweep's last-use basis versus the store's last-fetch —
+   accepted as two policies on one reference set (Phase 5 decision).
 
 ## Completion criteria
 

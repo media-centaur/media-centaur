@@ -21,20 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`tmdb-fetch-policy.md`](tmdb-fetch-policy.md) —
-  **Phases 1–4 of 5 landed on main 2026-09-20 (unpushed).** Every TMDB request should be justified by a question
-  the app cannot answer from what it already stores. The design
-  ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md)):
-  one record per title — TMDB's last answer, its ETag, when it was
-  learned, when the app is next due to ask — with everything else a
-  projection of it; a check is a conditional revalidation made the day
-  after the next known event or a week after the last, and a settled
-  title is never due. Phase 1 is the store, filled by write-through from
-  every existing detail fetch. Phase 2 retired the refresher: a cron job
-  checks what is due, release tracking rebuilds from the store on change,
-  the tracked item keeps no copied TMDB fact, and *Refresh from TMDB* is
-  on every title (UIDR-044). Phases 3–5: surfaces read the store; import
-  and the library become projections; retention and the Credo gate.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
@@ -154,6 +140,23 @@ Use [`template.md`](template.md) as a starter.
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
 
+* **TMDB fetch policy** ([`tmdb-fetch-policy.md`](tmdb-fetch-policy.md)) —
+  **complete on main 2026-09-20; unreleased, file retired at the release.**
+  Every TMDB request is now justified by a question the app cannot answer
+  from what it already stores ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md)):
+  one record per title in `TMDB.Store` — TMDB's last answer, its ETag, when
+  it was learned, when the app is next due to ask — and everything else a
+  projection of it. Five phases in one day: the store; checks replace the
+  refresher (`TMDB.CheckJob`, `TMDB.References`, *Refresh from TMDB*,
+  UIDR-044); every surface reads the store and the intent embed goes;
+  import and the library become projections (`Pipeline.TmdbProjection`,
+  owned titles scheduled, the three Maintenance backfill buttons removed —
+  owner decision, measured to repair nothing); retention and the gate
+  (`TMDB.RetentionPolicies`, Credo MC0038). Cost per tracked title went from
+  four reloads a day to one revalidation a week while unsettled and zero
+  once settled. Deferred: collections to `collection-identity`;
+  response-cache persistence declined. Ship: the next release's CHANGELOG
+  lines are in the campaign file.
 * **External processes must outlive the app that launched them** —
   **closed (Minimal scope) 2026-09-12; file retired 2026-09-18.** mpv died on
   every restart of this contributor's dev box, so every update cost the viewer
