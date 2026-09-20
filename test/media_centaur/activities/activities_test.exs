@@ -310,7 +310,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
   test "artwork holds cover every stored title" do
     {:ok, _rec} = Activities.review(title(9), :like, nil)
-    assert MapSet.member?(Activities.TmdbArtworkHolds.holds(), {:movie, 9})
+    assert MapSet.member?(Activities.TmdbReferences.references(), {9, :movie})
     await_supervised_tasks()
   end
 

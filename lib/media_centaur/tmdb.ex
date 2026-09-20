@@ -15,6 +15,8 @@ defmodule MediaCentaur.TMDB do
       MetadataStats,
       ProbeJob,
       RateLimiter,
+      References,
+      References.Provider,
       ReleaseWindow,
       Schedule,
       Store,

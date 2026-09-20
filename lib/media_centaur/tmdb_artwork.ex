@@ -24,17 +24,12 @@ defmodule MediaCentaur.TmdbArtwork do
   `ensure/2` answers from what is already on disk and fetches nothing.
 
   An entry is deleted by the daily retention sweep only when **both**
-  hold: nothing references the identity (no hold — see
-  `TmdbArtwork.HoldProvider`), and the entry has not been used for
-  `#{7}` days (directory mtime, bumped by downloads and `ensure/2`).
-  Nothing deletes an entry synchronously — untracking a title leaves
-  its artwork to age out, so re-tracking within the window finds it
-  warm.
-
-  Hold providers are registered under the
-  `:tmdb_artwork_hold_providers` config key (runtime dispatch, so the
-  referencing contexts — ReleaseTracking, Acquisition — stay upstream
-  of this one in the Boundary graph).
+  hold: nothing references the identity (`MediaCentaur.TMDB.References.all/0`
+  — tracked, listed, pursued or in a friend's activity), and the entry
+  has not been used for `#{7}` days (directory mtime, bumped by
+  downloads and `ensure/2`). Nothing deletes an entry synchronously —
+  untracking a title leaves its artwork to age out, so re-tracking
+  within the window finds it warm.
   """
 
   use Boundary,
@@ -44,7 +39,7 @@ defmodule MediaCentaur.TmdbArtwork do
       MediaCentaur.Retention,
       MediaCentaur.TMDB
     ],
-    exports: [HoldProvider, RetentionPolicies]
+    exports: [RetentionPolicies]
 
   require MediaCentaur.Log, as: Log
 
@@ -321,12 +316,10 @@ defmodule MediaCentaur.TmdbArtwork do
     match?({:ok, _}, File.rm_rf(dir))
   end
 
+  # The artwork cache keys entries `{media_type, tmdb_id}`; references
+  # come in the app's `{tmdb_id, media_type}` ref order.
   defp collect_holds do
-    :media_centaur
-    |> Application.get_env(:tmdb_artwork_hold_providers, [])
-    |> Enum.reduce(MapSet.new(), fn provider, acc ->
-      MapSet.union(acc, provider.holds())
-    end)
+    MapSet.new(MediaCentaur.TMDB.References.all(), fn {tmdb_id, media_type} -> {media_type, tmdb_id} end)
   end
 
   # --- Internals ---------------------------------------------------------
