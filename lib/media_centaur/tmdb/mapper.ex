@@ -50,7 +50,7 @@ defmodule MediaCentaur.TMDB.Mapper do
 
   Expects `show` to optionally include `aggregate_credits` (cast across
   all seasons), `external_ids` (for `imdb_id`), and `created_by` (the
-  show's creators). These are populated by `TMDB.Client.get_tv/2` via
+  show's creators). These are populated by `TMDB.Client.detail/2` via
   `append_to_response`.
   """
   def tv_attrs(tmdb_id, show) do
@@ -156,8 +156,9 @@ defmodule MediaCentaur.TMDB.Mapper do
   # show. Membership is stored as TMDB person ids referencing the series'
   # aggregate cast embeds (one representation of a person, per series);
   # a guest star already billed as a regular is not duplicated. Requires
-  # `Client.get_season/2`'s `append_to_response=credits`; season payloads
-  # fetched without it yield only guest stars.
+  # the season detail's `append_to_response=credits`, which only the
+  # import's `TMDB.Store.fetch_full_season/3` keeps: a stored season
+  # yields no membership at all.
   defp episode_cast_person_ids(season_data, tmdb_episode) do
     regular_ids =
       get_in(season_data, ["credits", "cast"])

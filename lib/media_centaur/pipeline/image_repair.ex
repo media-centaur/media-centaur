@@ -12,9 +12,11 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
     * **Rebuild** — no queue row exists (legacy DBs, showcase pre-queue
       seeds). Walk the entity up to TMDB via the entity's `tmdb_id`
       column (movies, TV series, movie series, video objects). Episodes
-      derive their TMDB id from the parent TV series. Fetch metadata,
-      pull the `poster_path` / `backdrop_path` / `still_path` for the
-      role, and insert a fresh queue row.
+      derive their TMDB id from the parent TV series. Read the stored
+      title or season from the TMDB store — first contact when it lacks
+      it (ADR-071); a collection is still fetched — pull the
+      `poster_path` / `backdrop_path` / `still_path` for the role, and
+      insert a fresh queue row.
 
   Broadcasts `{:images_pending, %{entity_id, media_dir}}` on
   `Topics.pipeline_images/0`, deduped per `(entity_id, media_dir)` so one
@@ -204,11 +206,11 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
   # -- source-url derivation -----------------------------------------------
 
   defp derive_source_url(image, entity_id, :movie, tmdb_id) do
-    resolve_via(TMDB.Client.get_movie(tmdb_id), image.role, entity_id, entity_id, image.role)
+    resolve_via(stored({tmdb_id, :movie}), image.role, entity_id, entity_id, image.role)
   end
 
   defp derive_source_url(image, entity_id, :tv_series, tmdb_id) do
-    resolve_via(TMDB.Client.get_tv(tmdb_id), image.role, entity_id, entity_id, image.role)
+    resolve_via(stored({tmdb_id, :tv_series}), image.role, entity_id, entity_id, image.role)
   end
 
   defp derive_source_url(image, entity_id, :movie_series, tmdb_id) do
@@ -216,7 +218,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
   end
 
   defp derive_source_url(image, entity_id, :video_object, tmdb_id) do
-    resolve_via(TMDB.Client.get_movie(tmdb_id), image.role, entity_id, entity_id, image.role)
+    resolve_via(stored({tmdb_id, :movie}), image.role, entity_id, entity_id, image.role)
   end
 
   defp derive_source_url(
@@ -225,8 +227,8 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
          :episode,
          {tmdb_id, season_number, episode_number, tv_series_id}
        ) do
-    case TMDB.Client.get_season(tmdb_id, season_number) do
-      {:ok, data} ->
+    case TMDB.Store.ensure_season(tmdb_id, season_number) do
+      {:ok, %{payload: data}} ->
         case find_episode_still(data, episode_number) do
           nil -> {:skip, {:tmdb_no_still, episode_number}}
           path -> {:ok, @tmdb_cdn <> path, entity_id, tv_series_id}
@@ -235,6 +237,10 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
       {:error, reason} ->
         {:skip, {:tmdb_error, reason}}
     end
+  end
+
+  defp stored(ref) do
+    with {:ok, %{payload: payload}} <- TMDB.Store.ensure(ref), do: {:ok, payload}
   end
 
   defp resolve_via({:ok, data}, role, owner_id, entity_id, _role_log) do

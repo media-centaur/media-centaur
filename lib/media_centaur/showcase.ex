@@ -165,7 +165,7 @@ defmodule MediaCentaur.Showcase do
 
   defp seed_movie!(%{title: title, year: year} = entry, client) do
     with {:ok, tmdb_id} <- search_movie(title, year, client),
-         {:ok, movie_data} <- TMDB.Client.get_movie(tmdb_id, client: client) do
+         {:ok, movie_data} <- TMDB.Store.fetch_full({tmdb_id, :movie}, client: client) do
       movie =
         Library.Containers.create!(:movie, %{
           name: movie_data["title"] || title,
@@ -219,7 +219,7 @@ defmodule MediaCentaur.Showcase do
 
   defp seed_tv_series!(%{title: title, year: year, seasons: season_numbers} = _entry, client) do
     with {:ok, tmdb_id} <- search_tv(title, year, client),
-         {:ok, tv_data} <- TMDB.Client.get_tv(tmdb_id, client: client) do
+         {:ok, tv_data} <- TMDB.Store.fetch_full({tmdb_id, :tv_series}, client: client) do
       series =
         Library.Containers.create!(:tv_series, %{
           name: tv_data["name"] || title,
@@ -275,14 +275,14 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp seed_season!(series, tmdb_id, season_number, client) do
-    case TMDB.Client.get_season(tmdb_id, season_number, client: client) do
+    case TMDB.Store.fetch_full_season(tmdb_id, season_number, client: client) do
       {:ok, season_data} ->
         season =
           Library.Seasons.create!(%{
             tv_series_id: series.id,
             season_number: season_number,
             name: season_data["name"] || "Season #{season_number}",
-            episode_list: Enum.map(season_data["episodes"] || [], &episode_list_entry/1)
+            episode_list: TMDB.Mapper.episode_list(season_data)
           })
 
         episodes =
@@ -296,16 +296,6 @@ defmodule MediaCentaur.Showcase do
         Log.warning(:library, "showcase: failed to seed season #{season_number}: #{inspect(reason)}")
         %{id: nil, episodes: []}
     end
-  end
-
-  # The season's episode list — the same shape the ingest stage builds,
-  # from the same TMDB payload.
-  defp episode_list_entry(episode_data) do
-    %{
-      episode_number: episode_data["episode_number"],
-      name: episode_data["name"],
-      air_date: if(episode_data["air_date"] not in [nil, ""], do: episode_data["air_date"])
-    }
   end
 
   defp seed_episode!(season, episode_data, _series_name) do

@@ -21,6 +21,23 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
   end
 
   describe "refresh_entity/2" do
+    test "a title the store holds is read without a request (ADR-071)" do
+      movie = identified_movie()
+
+      TestFactory.create_title_record(%{
+        tmdb_id: 550,
+        media_type: :movie,
+        payload: movie_detail(%{"id" => 550, "poster_path" => "/stored.jpg"})
+      })
+
+      stub_tmdb_error("/movie/550", 500)
+
+      assert {:ok, count} = ImageRefresh.refresh_entity(movie.id, :movie)
+      assert count >= 1
+      assert_receive {:enqueue_images, %{images: images}}
+      assert Enum.any?(images, &String.ends_with?(&1.source_url, "/stored.jpg"))
+    end
+
     test "broadcasts enqueue_images with the TMDB artwork for a movie" do
       movie = identified_movie()
       stub_get_movie("550", movie_detail(%{"poster_path" => "/p.jpg", "backdrop_path" => "/b.jpg"}))
