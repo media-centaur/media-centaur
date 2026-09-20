@@ -23,8 +23,8 @@
 
 **Files:** `lib/media_centaur/tmdb/store.ex`, `test/media_centaur/tmdb/store_test.exs`.
 
-- [ ] Tests (new `describe "fetch_full/2 and fetch_full_season/3"`): an unheld movie is fetched, stored trimmed (`Store.get` payload has ≤ 10 cast, Directing crew only) and returned whole (12 cast, a Writer in the crew); a held movie is fetched again without `If-None-Match` (stub sends `{:tmdb_hit, path, validator}`; validator `[]`), a changed payload replaces the record and publishes `{:tmdb_title_changed, ref}`, an identical one publishes nothing; a season is returned with `credits` and per-episode `guest_stars` while the record has neither, and a changed season publishes the **series'** ref; `client:` is passed through; a TMDB error is returned and the record left as it was.
-- [ ] Implement:
+- [x] Tests (new `describe "fetch_full/2 and fetch_full_season/3"`): an unheld movie is fetched, stored trimmed (`Store.get` payload has ≤ 10 cast, Directing crew only) and returned whole (12 cast, a Writer in the crew); a held movie is fetched again without `If-None-Match` (stub sends `{:tmdb_hit, path, validator}`; validator `[]`), a changed payload replaces the record and publishes `{:tmdb_title_changed, ref}`, an identical one publishes nothing; a season is returned with `credits` and per-episode `guest_stars` while the record has neither, and a changed season publishes the **series'** ref; `client:` is passed through; a TMDB error is returned and the record left as it was.
+- [x] Implement:
 
 ```elixir
   @doc """
@@ -57,7 +57,7 @@
 ```
 
   `record_fetched/3` and `record_season_fetched/4` keep their signatures and call the new private `write_fetched/3` / `write_season_fetched/4`, which return `{:ok, record, changed?}` (the parse + `payload_for?` + store steps they hold today). `publish_changed/1` accepts a ref as well as a record (`{tmdb_id, media_type}` with a parsed id). Moduledoc: the store's three fetches are first contact, a check, and the full fetch.
-- [ ] Commit `feat(tmdb): the store's full fetch — TMDB's whole answer for the import, stored trimmed`.
+- [x] Commit `feat(tmdb): the store's full fetch — TMDB's whole answer for the import, stored trimmed`.
 
 ### Task 2: Import reads the store
 
