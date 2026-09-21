@@ -80,9 +80,6 @@ npm-debug.log
 # Local env varibales
 /.envrc
 
-# Serena IDE plugin
-/.serena/
-
 # Playwright E2E tests
 /test/e2e/node_modules/
 /test/e2e/test-results/
