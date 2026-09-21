@@ -25,6 +25,10 @@ defmodule MediaCentaur.Showcase.Catalog do
           required(:title) => String.t(),
           required(:year) => integer() | nil,
           required(:content_url) => String.t() | nil,
+          # Pins the TMDB record when its year disagrees with the real
+          # release, so the strict match in `Showcase.CatalogMatch` does
+          # not have to be loosened for one entry.
+          optional(:tmdb_id) => integer(),
           # Optional per-entity audio/subtitle override, seeded so the
           # detail modal's "remembered tracks" badge has something to show.
           optional(:track_override) => %{optional(atom()) => term()}
@@ -60,12 +64,22 @@ defmodule MediaCentaur.Showcase.Catalog do
       # Newer Blender Studio shorts (CC-BY 4.0, first-party license) — modern
       # polish to contrast the silents. Sprite Fright has the strongest
       # artwork; Coffee Run brings vibrant colour.
+      # TMDB's only record for this short is dated 2024-04-06, four years
+      # after Blender released it; pinned so the year here stays true.
       %{
         title: "Sprite Fright",
         year: 2021,
+        tmdb_id: 891_761,
         content_url: "/showcase/movies/Sprite Fright (2021).mkv"
       },
-      %{title: "Coffee Run", year: 2020, content_url: "/showcase/movies/Coffee Run (2020).mkv"},
+      # TMDB carries two identical records for this short (717986, 908389);
+      # pinned so the seed does not pick between them by result order.
+      %{
+        title: "Coffee Run",
+        year: 2020,
+        tmdb_id: 717_986,
+        content_url: "/showcase/movies/Coffee Run (2020).mkv"
+      },
 
       # Classic silent-era public domain.
       %{title: "Metropolis", year: 1927, content_url: "/showcase/movies/Metropolis (1927).mkv"},
@@ -92,9 +106,12 @@ defmodule MediaCentaur.Showcase.Catalog do
         year: 1968,
         content_url: "/showcase/movies/Night of the Living Dead (1968).mkv"
       },
+      # TMDB dates this from its 1957 premiere; 1959 is the general
+      # release the film is normally cited by. Pinned to keep both true.
       %{
         title: "Plan 9 from Outer Space",
         year: 1959,
+        tmdb_id: 10_513,
         content_url: "/showcase/movies/Plan 9 from Outer Space (1959).mkv"
       },
       %{

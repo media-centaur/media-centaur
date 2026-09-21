@@ -77,6 +77,7 @@ defmodule MediaCentaur.Showcase do
   """
 
   alias MediaCentaur.Acquisition.CancelReasons
+  alias MediaCentaur.Showcase.CatalogMatch
 
   alias MediaCentaur.Settings.Config
 
@@ -164,7 +165,7 @@ defmodule MediaCentaur.Showcase do
   # ---------------------------------------------------------------------------
 
   defp seed_movie!(%{title: title, year: year} = entry, client) do
-    with {:ok, tmdb_id} <- search_movie(title, year, client),
+    with {:ok, tmdb_id} <- resolve_movie_id(entry, client),
          {:ok, movie_data} <- TMDB.Store.fetch_full({tmdb_id, :movie}, client: client) do
       movie =
         Library.Containers.create!(:movie, %{
@@ -1009,21 +1010,25 @@ defmodule MediaCentaur.Showcase do
     MediaCentaur.ErrorReports.Store.upsert_log_incident(Map.put(base, :occurred_at, occurred_at))
   end
 
+  defp resolve_movie_id(%{tmdb_id: tmdb_id}, _client) when is_integer(tmdb_id), do: {:ok, tmdb_id}
+  defp resolve_movie_id(%{title: title, year: year}, client), do: search_movie(title, year, client)
+
+  # The catalog names the title; TMDB only confirms which id it is. Never
+  # the top hit — search ranks by popularity, so "Spring" (the Blender
+  # short) returns "Spring Breakers" first. See `Showcase.CatalogMatch`.
   defp search_movie(title, year, client) do
     case TMDB.Client.search_movie(title, year, client: client) do
-      {:ok, [%{"id" => id} | _]} -> {:ok, id}
-      {:ok, []} -> {:error, :not_found}
-      {:ok, _} -> {:error, :unexpected_shape}
+      {:ok, results} when is_list(results) -> CatalogMatch.pick(results, title, year, "title")
       {:error, _} = err -> err
+      {:ok, _} -> {:error, :unexpected_shape}
     end
   end
 
   defp search_tv(title, year, client) do
     case TMDB.Client.search_tv(title, year, client: client) do
-      {:ok, [%{"id" => id} | _]} -> {:ok, id}
-      {:ok, []} -> {:error, :not_found}
-      {:ok, _} -> {:error, :unexpected_shape}
+      {:ok, results} when is_list(results) -> CatalogMatch.pick(results, title, year, "name")
       {:error, _} = err -> err
+      {:ok, _} -> {:error, :unexpected_shape}
     end
   end
 
