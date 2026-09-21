@@ -100,6 +100,18 @@ defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
       assert duration >= 0
     end
 
+    test "nothing the generator emits now is a failure" do
+      # A fabricated 503 reaches IntegrationAvailability and puts a real
+      # "Down since" on an instance whose upstreams are all answering.
+      # Failures belong to the backfilled past, not the present.
+      :ok = SyntheticTraffic.emit_tick(SyntheticTraffic.live_upstreams(), @now + 31)
+
+      for {_measurements, metadata} <- drain() do
+        assert metadata.status == 200
+        assert metadata.error == nil
+      end
+    end
+
     test "a cache hit reports no time spent on the wire" do
       :ok = SyntheticTraffic.emit_tick([:tmdb, :tmdb_images, :prowlarr, :qbittorrent], @now + 7)
 

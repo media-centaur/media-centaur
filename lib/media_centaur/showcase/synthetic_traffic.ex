@@ -207,20 +207,22 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
 
   defp emit_requests(_upstream, %{requests: 0}), do: :ok
 
+  # Every emitted request succeeds, even when the bucket's sample carries
+  # failures. The fabricated *past* keeps them — a month of history with
+  # no failure at all reads as fake — but a fabricated failure in the
+  # present is a lie about the instance's health, and not only a visual
+  # one: the stop event feeds `IntegrationAvailability`, so a synthetic
+  # 503 turns the strip's dot red and puts a real "Down since 17:31" on a
+  # demo whose upstreams are all answering. Nothing is failing here.
   defp emit_requests(upstream, sample) do
-    # The bucket's failures land on its first requests; latency is the
-    # bucket's slowest for one of them and the remainder shared evenly,
-    # which is what the aggregate backfill writes for the same bucket.
+    # Latency is the bucket's slowest for one request and the remainder
+    # shared evenly, which is what the backfill wrote for the same bucket.
     typical = div(max(sample.latency_sum_ms - sample.latency_max_ms, 0), max(sample.requests, 1))
 
     for index <- 1..sample.requests//1 do
-      failed? = index <= sample.failed
       duration_ms = if index == 1, do: sample.latency_max_ms, else: typical
 
-      emit(upstream, duration_ms,
-        status: if(failed?, do: 503, else: 200),
-        cache: :miss
-      )
+      emit(upstream, duration_ms, status: 200, cache: :miss)
     end
 
     :ok
