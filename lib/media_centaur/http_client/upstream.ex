@@ -35,6 +35,9 @@ defmodule MediaCentaur.HttpClient.Upstream do
 
   @type id :: :tmdb | :tmdb_images | :prowlarr | :qbittorrent | :sabnzbd | :github | :steam
 
+  # Reachable without any setup, so always part of the instance.
+  @always_present [:tmdb, :tmdb_images, :github]
+
   @doc "Every upstream id, in panel display order."
   @spec ids() :: [id()]
   def ids, do: Keyword.keys(@upstreams)
@@ -42,6 +45,27 @@ defmodule MediaCentaur.HttpClient.Upstream do
   @doc "The upstream ids that get a row on the Connections panel."
   @spec panel_ids() :: [id()]
   def panel_ids, do: for({id, meta} <- @upstreams, meta[:panel?], do: id)
+
+  @doc """
+  The upstreams this instance actually has, given which integrations are
+  configured. TMDB, its image CDN and GitHub are always reachable; the
+  indexer and the download clients exist only once set up.
+
+  Pure — the caller supplies the flags (`MediaCentaur.Capabilities.upstream_flags/0`),
+  because this boundary does not depend on `Capabilities`. One rule, read
+  both by the Connections panel and by the showcase's traffic generator,
+  so the panel can never row an upstream the generator skips.
+  """
+  @spec active_ids(%{atom() => boolean()}) :: [id()]
+  def active_ids(configured) do
+    Enum.filter(panel_ids(), fn
+      upstream when upstream in @always_present -> true
+      :prowlarr -> configured[:prowlarr] == true
+      :qbittorrent -> configured[:download_client] == true
+      :sabnzbd -> configured[:usenet_download_client] == true
+      _other -> false
+    end)
+  end
 
   @doc "True for a known upstream id."
   @spec known?(term()) :: boolean()

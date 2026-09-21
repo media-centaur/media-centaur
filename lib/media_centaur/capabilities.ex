@@ -87,6 +87,20 @@ defmodule MediaCentaur.Capabilities do
   end
 
   @doc """
+  The configured-ness of every integration that decides whether an
+  upstream exists on this instance — the input to
+  `MediaCentaur.HttpClient.Upstream.active_ids/1`.
+  """
+  @spec upstream_flags() :: %{atom() => boolean()}
+  def upstream_flags do
+    %{
+      prowlarr: configured?(:prowlarr),
+      download_client: configured?(:download_client),
+      usenet_download_client: configured?(:usenet_download_client)
+    }
+  end
+
+  @doc """
   True when the integration's connection settings are complete — the
   first half of readiness, before any connection test. TMDB needs a key;
   Prowlarr a URL and a key; each download-client slot a type and a URL.

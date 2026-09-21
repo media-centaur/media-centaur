@@ -1,7 +1,8 @@
 defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
   use MediaCentaur.Case, async: false
 
-  alias MediaCentaur.HttpClient.{Instrument, Traffic}
+  alias MediaCentaur.HttpClient.{Instrument, Traffic, Upstream}
+  alias MediaCentaur.Showcase.Stubs
   alias MediaCentaur.Showcase.SyntheticTraffic
   alias MediaCentaur.TimeSeries.{Store, Window}
 
@@ -9,16 +10,15 @@ defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
 
   setup do
     table = :"synthetic_traffic_#{System.unique_integer([:positive])}"
-    server = :"#{table}_store"
 
-    start_supervised!({Store, name: server, table: table, schema: Traffic.schema()})
+    start_supervised!({Store, name: :"#{table}_store", table: table, schema: Traffic.schema()})
 
-    %{table: table, server: server}
+    %{table: table}
   end
 
-  describe "backfill/4" do
-    test "every window the Connections panel offers has bars to draw", %{table: table, server: server} do
-      :ok = SyntheticTraffic.backfill(server, table, [:qbittorrent], @now)
+  describe "backfill/3" do
+    test "every window the Connections panel offers has bars to draw", %{table: table} do
+      :ok = SyntheticTraffic.backfill(table, [:qbittorrent], @now)
 
       for window <- Window.all() do
         series = Traffic.series(:qbittorrent, window, store_table: table, now: @now)
@@ -28,9 +28,9 @@ defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
       end
     end
 
-    test "each upstream gets its own history", %{table: table, server: server} do
+    test "each upstream gets its own history", %{table: table} do
       upstreams = [:tmdb, :prowlarr, :qbittorrent]
-      :ok = SyntheticTraffic.backfill(server, table, upstreams, @now)
+      :ok = SyntheticTraffic.backfill(table, upstreams, @now)
 
       totals =
         Map.new(upstreams, fn upstream ->
@@ -44,25 +44,25 @@ defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
       assert totals[:qbittorrent].requests > totals[:prowlarr].requests
     end
 
-    test "backfilling again replaces the history rather than stacking on it", %{
-      table: table,
-      server: server
-    } do
-      # The store restores its snapshot at boot and the process backfills
-      # straight after, so without the clear a restarted demo instance
-      # would report twice the requests it did the day before.
-      :ok = SyntheticTraffic.backfill(server, table, [:tmdb], @now)
+    test "the demo's store is never asked to restore a history", %{table: table} do
+      # The showcase store is started without a snapshot path, so the
+      # table is empty at boot and this backfill is the only writer. If
+      # that ever changed, a restart would stack a second month on the
+      # first, so pin the assumption rather than leaving it implicit.
+      :ok = SyntheticTraffic.backfill(table, [:tmdb], @now)
       once = Traffic.totals(:tmdb, store_table: table, now: @now, seconds: 3_600)
 
-      :ok = SyntheticTraffic.backfill(server, table, [:tmdb], @now)
+      :ok = SyntheticTraffic.backfill(table, [:tmdb], @now)
       twice = Traffic.totals(:tmdb, store_table: table, now: @now, seconds: 3_600)
 
-      assert twice.requests == once.requests
       assert once.requests > 0
+
+      assert twice.requests == once.requests * 2,
+             "counters accumulate — the showcase relies on starting from an empty table"
     end
 
-    test "the cache answers some reads and never carries latency", %{table: table, server: server} do
-      :ok = SyntheticTraffic.backfill(server, table, [:tmdb], @now)
+    test "the cache answers some reads and never carries latency", %{table: table} do
+      :ok = SyntheticTraffic.backfill(table, [:tmdb], @now)
 
       series = Traffic.series(:tmdb, :"1w", store_table: table, now: @now)
 
@@ -118,6 +118,43 @@ defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
         {:http_request, measurements, metadata} -> drain([{measurements, metadata} | acc])
       after
         0 -> acc
+      end
+    end
+  end
+
+  describe "which upstreams are fabricated" do
+    test "the stubbed upstreams are backfilled but not generated live" do
+      # Showcase.Stubs answers Prowlarr and the download client from
+      # fixtures, but through the real HTTP client — the queue monitor's
+      # poll is a genuine recorded request. Fabricating alongside it would
+      # count one poll twice. The past is still fabricated: nothing was
+      # observed before this boot.
+      for upstream <- Stubs.upstreams() do
+        refute upstream in SyntheticTraffic.live_upstreams(),
+               "#{upstream} talks for real; generating its present double-counts"
+      end
+    end
+
+    test "live upstreams are the instance's upstreams minus the stubbed ones" do
+      assert SyntheticTraffic.live_upstreams() ==
+               Enum.reject(SyntheticTraffic.upstreams(), &(&1 in Stubs.upstreams()))
+    end
+
+    test "every strip the panel can row has a generator behind it" do
+      # The generator is a deliberate superset of the panel: whichever
+      # integrations turn out to be configured, no rendered strip can be
+      # left without history. Filtering by configured-ness here instead
+      # would read the Settings database before it has been overlaid.
+      every_possible_strip =
+        Upstream.active_ids(%{
+          prowlarr: true,
+          download_client: true,
+          usenet_download_client: true
+        })
+
+      for upstream <- every_possible_strip do
+        assert upstream in SyntheticTraffic.upstreams(),
+               "#{upstream} can be rowed by the panel but is never fabricated"
       end
     end
   end

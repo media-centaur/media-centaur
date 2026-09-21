@@ -85,7 +85,6 @@ defmodule MediaCentaur.Settings.Config do
     :extras_dirs,
     :skip_dirs,
     :exclude_dirs,
-    :showcase_mode,
     :data_dir,
     :setup_wizard_dismissed,
     :update_check_enabled,
@@ -504,16 +503,26 @@ defmodule MediaCentaur.Settings.Config do
     Application.put_env(:media_centaur, :__raw_toml_media_dirs, toml_media_dirs(toml) || [])
 
     # Only bootstrap state is read from TOML: values the app needs before
-    # the database is reachable (`database_path`, `port`) and the initial
-    # `media_dirs` seed. Every runtime preference lives in the Settings
-    # database and is overlaid by `load_runtime_overrides/0` — any runtime
-    # key present in the TOML is intentionally ignored, so the DB is the
-    # single source of truth and the TOML schema can't drift.
+    # the database is reachable (`database_path`, `port`), the initial
+    # `media_dirs` seed, and `showcase_mode`. Every runtime preference
+    # lives in the Settings database and is overlaid by
+    # `load_runtime_overrides/0` — any runtime key present in the TOML is
+    # intentionally ignored, so the DB is the single source of truth and
+    # the TOML schema can't drift.
+    #
+    # `showcase_mode` qualifies on that same criterion rather than
+    # widening it: it says *which instance this is*, it is decided by
+    # MEDIA_CENTAUR_CONFIG_OVERRIDE before the VM starts, and
+    # `Application.start/2` reads it to decide whether to supervise the
+    # demo's generators at all — long before Repo is up. It is
+    # deliberately absent from `runtime_settable_keys/0`: no Settings
+    # screen may turn a real install into a demo.
     Map.merge(defaults, %{
       port: get_in(toml, ["port"]) || defaults.port,
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
       media_dirs: media_dirs,
-      media_dir_images: media_dir_images
+      media_dir_images: media_dir_images,
+      showcase_mode: get_in(toml, ["showcase_mode"]) || defaults.showcase_mode
     })
   end
 

@@ -41,19 +41,15 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
 
   ## When it runs
 
-  Only when `:showcase_mode` is set, and never under `:test`. The flag
-  lives in the Settings database, which is read *after* the supervision
-  tree is up (`Application.post_supervisor_hooks/1`), so this process
-  starts idle and begins on the `{:config_updated, :showcase_mode, true}`
-  broadcast that the overlay publishes — the same channel the derived
-  caches use.
+  Started by `MediaCentaur.Showcase.Supervisor`, which exists only in a
+  showcase instance — so this process has no gate of its own and begins
+  work in `init/1`.
   """
 
   alias MediaCentaur.HttpClient.{Instrument, Traffic}
-  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Showcase.Stubs
   alias MediaCentaur.Showcase.SyntheticTraffic.Profile
   alias MediaCentaur.TimeSeries.Store
-  alias MediaCentaur.Topics
 
   require MediaCentaur.Log
 
@@ -76,18 +72,15 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
   end
 
   @doc """
-  Replaces `table`'s contents with a fresh history for `upstreams`, ending
-  at `now`. Clears first: the store restores its snapshot at boot, and
-  adding a second month on top of a restored one would stack the counts
-  on every restart. In showcase mode this process owns the table.
+  Writes a fresh history for `upstreams` into `table`, ending at `now`.
+  The showcase's store is started without a snapshot path, so the table
+  is empty at boot and this is the only thing that ever writes to it.
 
   Exposed so a test can drive it against its own store; the process calls
   it with `Traffic`'s.
   """
-  @spec backfill(GenServer.server(), atom(), [atom()], integer()) :: :ok
-  def backfill(server, table, upstreams, now) do
-    :ok = Store.clear(server)
-
+  @spec backfill(atom(), [atom()], integer()) :: :ok
+  def backfill(table, upstreams, now) do
     for {from, to, bar_seconds} <- @bands,
         bucket <- buckets(now, from, to, bar_seconds),
         upstream <- upstreams do
@@ -104,7 +97,8 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
   @doc """
   Emits one tick's worth of requests for `upstreams` as
   `MediaCentaur.HttpClient.Instrument` stop events, as though they had
-  just happened.
+  just happened. Callers pass `live_upstreams/0`, not every upstream —
+  see that function.
   """
   @spec emit_tick([atom()], integer()) :: :ok
   def emit_tick(upstreams, now) do
@@ -136,41 +130,63 @@ defmodule MediaCentaur.Showcase.SyntheticTraffic do
   end
 
   @impl true
-  def init(_opts) do
-    :ok = Topics.subscribe(Topics.config_updates())
-
-    if Config.get(:showcase_mode), do: {:ok, :idle, {:continue, :start}}, else: {:ok, :idle}
-  end
+  def init(_opts), do: {:ok, :starting, {:continue, :start}}
 
   @impl true
-  def handle_continue(:start, :idle), do: {:noreply, start_generating()}
-  def handle_continue(:start, state), do: {:noreply, state}
+  def handle_continue(:start, _state), do: {:noreply, start_generating()}
 
   @impl true
-  def handle_info({:config_updated, :showcase_mode, true}, :idle) do
-    {:noreply, start_generating()}
-  end
-
   def handle_info(:tick, :running) do
-    emit_tick(Profile.upstreams(), System.os_time(:second))
+    emit_tick(live_upstreams(), System.os_time(:second))
     schedule_tick()
     {:noreply, :running}
   end
 
   def handle_info(_message, state), do: {:noreply, state}
 
+  @doc """
+  Every upstream the generator can fabricate — a deliberate *superset* of
+  what the Connections panel rows, so a strip can never appear without
+  history behind it.
+
+  Not filtered by `Upstream.active_ids/1`: which integrations are
+  configured is read from the Settings database, which is overlaid after
+  the supervision tree is already up, so at this point the demo's own
+  Prowlarr and download client still read as unconfigured. Fabricating
+  for an upstream nothing currently rows costs a few thousand ETS rows
+  that are never read, and means the strip arrives complete if someone
+  configures that integration while the demo is running.
+  """
+  @spec upstreams() :: [atom()]
+  def upstreams, do: Profile.upstreams()
+
+  @doc """
+  The upstreams whose *present* is fabricated: the ones the showcase does
+  not actually talk to.
+
+  `Showcase.Stubs` answers Prowlarr and the download client from fixtures,
+  but those requests still go out through the real HTTP client — the
+  queue monitor's poll every few seconds is a genuine, recorded request.
+  Fabricating alongside it would count one poll twice and inflate the
+  strip with every hour of uptime. Their history is still backfilled: the
+  past, before this boot, was never observed.
+  """
+  @spec live_upstreams() :: [atom()]
+  def live_upstreams, do: Enum.reject(upstreams(), &(&1 in Stubs.upstreams()))
+
   defp start_generating do
     now = System.os_time(:second)
-    upstreams = Profile.upstreams()
+    all = upstreams()
+    live = live_upstreams()
 
-    backfill(Traffic.Store, Traffic.store_table(), upstreams, now)
-    prime(upstreams)
-    emit_tick(upstreams, now)
+    backfill(Traffic.store_table(), all, now)
+    prime(all)
+    emit_tick(live, now)
     schedule_tick()
 
     MediaCentaur.Log.info(
       :system,
-      "showcase synthetic traffic: #{length(upstreams)} upstreams, 31 days backfilled"
+      "showcase synthetic traffic: #{length(all)} upstreams backfilled, #{length(live)} generated live"
     )
 
     :running

@@ -31,8 +31,6 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
   @legend Enum.map(@schema.bars, &%{label: &1.label, tone: &1.tone}) ++
             [%{label: @schema.line.label, tone: "line"}]
 
-  @always [:tmdb, :tmdb_images, :github]
-
   @doc "The legend items the Connections widget renders."
   @spec legend() :: [map()]
   def legend, do: @legend
@@ -40,7 +38,7 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
   @spec build(Window.t(), keyword()) :: map()
   def build(window, opts \\ []) do
     now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
-    configured = Keyword.get_lazy(opts, :configured, &configured/0)
+    configured = Keyword.get_lazy(opts, :configured, &Capabilities.upstream_flags/0)
     series = Keyword.get(opts, :series, &Traffic.series/2)
     last = Keyword.get(opts, :last, &Traffic.last/1)
     last_success_at = Keyword.get(opts, :last_success_at, &Traffic.last_success_at/1)
@@ -48,7 +46,7 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
     rate_limiter = Keyword.get_lazy(opts, :rate_limiter, &fetch_rate_limiter/0)
 
     strips =
-      for upstream <- strip_ids(configured) do
+      for upstream <- Upstream.active_ids(configured) do
         upstream_series = series.(upstream, window)
 
         %{
@@ -79,28 +77,6 @@ defmodule MediaCentaurWeb.StatusLive.TrafficFrame do
       bucket_seconds: Window.bar_seconds(window),
       schema: @schema,
       strips: strips
-    }
-  end
-
-  @doc "Which upstreams have a strip, in panel order."
-  @spec strip_ids(%{atom() => boolean()}) :: [atom()]
-  def strip_ids(configured) do
-    Enum.filter(Upstream.panel_ids(), fn
-      upstream when upstream in @always -> true
-      :prowlarr -> configured[:prowlarr]
-      :qbittorrent -> configured[:download_client]
-      :sabnzbd -> configured[:usenet_download_client]
-      _other -> false
-    end)
-  end
-
-  @doc "Configuration flags the strip membership depends on."
-  @spec configured() :: %{atom() => boolean()}
-  def configured do
-    %{
-      prowlarr: Capabilities.configured?(:prowlarr),
-      download_client: Capabilities.configured?(:download_client),
-      usenet_download_client: Capabilities.configured?(:usenet_download_client)
     }
   end
 

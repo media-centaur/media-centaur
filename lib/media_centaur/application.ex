@@ -211,20 +211,27 @@ defmodule MediaCentaur.Application do
   # their own coordinator under a unique name.
   defp http_client_children(:test), do: []
 
+  # `:showcase_mode` is bootstrap state read from the override TOML, so it
+  # is already known here. It has two consequences, and a real install
+  # gets neither: the demo supervises the generators that rebuild its
+  # in-memory fabricated state, and its request store keeps no snapshot —
+  # that history is fabricated fresh every boot by
+  # `Showcase.SyntheticTraffic`, and restoring a snapshot would stack the
+  # last boot's month under this one's. Real installs snapshot beside the
+  # database (ADR-070).
   defp http_client_children(_env) do
-    # The request time series snapshots beside the database (ADR-070).
+    showcase? = MediaCentaur.Settings.Config.get(:showcase_mode)
+
     snapshot_dir =
-      case MediaCentaur.Settings.Config.get(:database_path) do
-        nil -> nil
-        path -> Path.dirname(path)
+      with false <- showcase?,
+           path when is_binary(path) <- MediaCentaur.Settings.Config.get(:database_path) do
+        Path.dirname(path)
+      else
+        _no_snapshot -> nil
       end
 
-    [
-      {MediaCentaur.HttpClient.Supervisor, snapshot_dir: snapshot_dir},
-      # Idle unless :showcase_mode is set; see its moduledoc for why the
-      # demo instance's request history cannot live in the database.
-      MediaCentaur.Showcase.SyntheticTraffic
-    ]
+    [{MediaCentaur.HttpClient.Supervisor, snapshot_dir: snapshot_dir}] ++
+      if showcase?, do: [MediaCentaur.Showcase.Supervisor], else: []
   end
 
   defp cache_children(:test), do: []

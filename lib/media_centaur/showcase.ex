@@ -920,11 +920,9 @@ defmodule MediaCentaur.Showcase do
     MediaCentaur.Capabilities.save_test_result(:download_client, :ok)
     MediaCentaur.Capabilities.save_test_result(:tmdb, :ok)
 
-    # Flip the showcase-mode flag; Prowlarr and qBittorrent build their
-    # HTTP clients per call and route through the fixture plugs in
-    # MediaCentaur.Showcase.Stubs from the next call on.
-    Config.update(:showcase_mode, true)
-
+    # `showcase_mode` is not set here: it is bootstrap state carried by
+    # defaults/media-centaur-showcase.toml, so it is already true for any
+    # instance running under that override — including this seed run.
     :ok
   end
 
