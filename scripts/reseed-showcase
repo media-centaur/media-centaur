@@ -19,7 +19,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-OVERRIDE="defaults/media-centaur-showcase.toml"
+# Showcase config override + isolated build root (see scripts/showcase-env).
+. "$REPO_ROOT/scripts/showcase-env"
 SHOWCASE_DB="priv/showcase/media-centaur.db"
 DEV_DB="$HOME/.local/share/media-centaur/media-centaur.db"
 SHOWCASE_PORT=4003
@@ -57,10 +58,10 @@ fi
 # 2. Wipe showcase DB + WAL sidecars.
 rm -f "$SHOWCASE_DB" "${SHOWCASE_DB}-shm" "${SHOWCASE_DB}-wal"
 
-# 3. Create + migrate. MEDIA_CENTAUR_CONFIG_OVERRIDE points at the shipped
-# showcase TOML, which carries an explicit priv/showcase/media-centaur.db
-# path so there's no risk of hitting the default dev DB.
-export MEDIA_CENTAUR_CONFIG_OVERRIDE="$OVERRIDE"
+# 3. Create + migrate. MEDIA_CENTAUR_CONFIG_OVERRIDE (from showcase-env)
+# points at the shipped showcase TOML, which carries an explicit
+# priv/showcase/media-centaur.db path so there's no risk of hitting the
+# default dev DB.
 mise exec -- mix ecto.create
 mise exec -- mix ecto.migrate
 

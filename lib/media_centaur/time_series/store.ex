@@ -97,6 +97,15 @@ defmodule MediaCentaur.TimeSeries.Store do
     end
   end
 
+  @doc """
+  Discards every row, synchronously. For a caller that *owns* the table's
+  contents and rebuilds them wholesale — `MediaCentaur.Showcase.SyntheticTraffic`
+  regenerating the demo instance's history at boot, on top of whatever the
+  snapshot restored. A tenant counting real events must never call this.
+  """
+  @spec clear(GenServer.server()) :: :ok
+  def clear(server), do: GenServer.call(server, :clear)
+
   @doc "Sweeps now, synchronously, as of `now`; returns the number of rows removed."
   @spec sweep_now(GenServer.server(), integer()) :: non_neg_integer()
   def sweep_now(server, now), do: GenServer.call(server, {:sweep, now})
@@ -144,6 +153,13 @@ defmodule MediaCentaur.TimeSeries.Store do
   @impl true
   def handle_call({:sweep, now}, _from, state), do: {:reply, sweep(state, now), state}
   def handle_call(:snapshot, _from, state), do: {:reply, :ok, write_snapshot(state)}
+
+  def handle_call(:clear, _from, state) do
+    # Data rows only — the table also holds the schema and the write
+    # counter, and a store that lost its schema cannot answer a read.
+    :ets.select_delete(state.table, [{head(state.schema, {:_, :_, :_}), [], [true]}])
+    {:reply, :ok, state}
+  end
 
   @impl true
   def handle_info(:sweep, state) do

@@ -219,7 +219,12 @@ defmodule MediaCentaur.Application do
         path -> Path.dirname(path)
       end
 
-    [{MediaCentaur.HttpClient.Supervisor, snapshot_dir: snapshot_dir}]
+    [
+      {MediaCentaur.HttpClient.Supervisor, snapshot_dir: snapshot_dir},
+      # Idle unless :showcase_mode is set; see its moduledoc for why the
+      # demo instance's request history cannot live in the database.
+      MediaCentaur.Showcase.SyntheticTraffic
+    ]
   end
 
   defp cache_children(:test), do: []

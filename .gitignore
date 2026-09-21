@@ -25,6 +25,8 @@
 /priv/showcase/image-derivatives/
 /priv/showcase/*.db
 /priv/showcase/*.db-*
+# Regenerated at every boot by MediaCentaur.Showcase.SyntheticTraffic.
+/priv/showcase/*.snapshot
 
 # Profile-run artifacts — DB, fake media dir, and per-run markdown / JSON
 # reports. Wiped on every scripts/profile invocation (unless --keep-db).
