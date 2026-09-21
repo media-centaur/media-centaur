@@ -1,6 +1,10 @@
-import { describe, expect, test, beforeEach } from "bun:test"
+import { describe, expect, test, beforeEach, afterEach } from "bun:test"
 import { LogTail } from "./log_tail"
-import { installMutationObserver, installSyncAnimationFrame } from "../test_support/dom_stubs"
+import {
+  installMutationObserver,
+  installSyncAnimationFrame,
+  restoreGlobals,
+} from "../test_support/dom_stubs"
 
 // Browser globals, installed fresh before every test — see
 // `test_support/dom_stubs.js` for why they must not be installed
@@ -39,6 +43,8 @@ beforeEach(() => {
   stubObservers = installMutationObserver()
   installSyncAnimationFrame()
 })
+
+afterEach(restoreGlobals)
 
 describe("LogTail — following the live edge", () => {
   test("pins scrollTop to 0 on mount", () => {

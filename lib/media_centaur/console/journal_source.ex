@@ -123,11 +123,21 @@ defmodule MediaCentaur.Console.JournalSource do
     # state. This keeps `available?/0` a constant-time return from a
     # stored boolean, which matters because the Status board consults it
     # on every mount that paints the System drill-in.
-    unit_fetcher = Keyword.get(opts, :unit_fetcher, &default_unit_fetcher/0)
+    #
+    # `:unit` pins the answer outright — `nil` for an environment that
+    # must not read the host's service manager (the test suite: GitHub's
+    # runners execute jobs inside the runner's own systemd service, so
+    # detection there finds a unit that is not ours). `:detect`, the
+    # default, asks `:unit_fetcher`.
+    unit =
+      case Keyword.get(opts, :unit, :detect) do
+        :detect -> Keyword.get(opts, :unit_fetcher, &default_unit_fetcher/0).()
+        unit -> unit
+      end
 
     state = %State{
       port_opener: Keyword.get(opts, :port_opener, &LogSource.open_port/1),
-      unit: unit_fetcher.()
+      unit: unit
     }
 
     {:ok, state}

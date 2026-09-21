@@ -5,6 +5,13 @@ import Config
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+# The suite must not read the host's service manager. Unit detection reads
+# `INVOCATION_ID` and `/proc/self/cgroup`, and GitHub's runners execute jobs
+# inside the runner's own systemd service — so on CI detection finds a unit
+# that is not ours and the Status page grows a journal panel the tests
+# refute (red on every push, 2026-09-17 to 09-21). No unit, on every host.
+config :media_centaur, MediaCentaur.Console.JournalSource, unit: nil
+
 config :media_centaur, MediaCentaur.Repo,
   database:
     Path.expand(

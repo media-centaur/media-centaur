@@ -3,20 +3,48 @@
 // Browser globals for hook unit tests. Bun ships no DOM, and the hooks reach
 // for `window`, `MutationObserver` and `requestAnimationFrame` directly.
 //
-// Every installer assigns **unconditionally** and is meant to be called from a
-// `beforeEach`. That is the whole point of this module. These are process-wide
-// globals shared by every file in a `bun test` run, so the guarded idiom these
-// stubs replace —
+// Bun runs every test file in **one process**, in whatever order the
+// filesystem hands it the files — and that order differs between this
+// machine, the GitHub runner and macOS. So a global is process-wide state
+// shared by every file in the run, and the rule is two-sided:
 //
-//     if (typeof window === "undefined") { globalThis.window = ... }
+//   * install unconditionally, from a `beforeEach`, so a test never inherits
+//     whatever a previously loaded file left behind (the Console hook's tests
+//     once spent three months passing on their own and failing whenever
+//     log_tail.test.js happened to load first: they were running against
+//     log_tail's `window`, which has no `dispatchEvent`);
+//   * restore unconditionally, from `afterEach(restoreGlobals)`, so a file
+//     loaded later finds the process as bun started it (a `URL` left as a
+//     plain object broke nav_reselect.test.js on the runner, and a leftover
+//     `window` made uPlot read `devicePixelRatio` at import and abort
+//     strip_chart.test.js — CI red on every push, 2026-09-17 to 09-21).
 //
-// — silently inherits whatever the previously loaded test file left behind.
-// That is how the Console hook's tests spent three months passing on their own
-// and failing whenever log_tail.test.js happened to load first: they were
-// running against log_tail's `window`, which has no `dispatchEvent`.
-//
-// Installing per test also means no test can observe a listener another test
-// registered.
+// Every installer goes through `installGlobal`, which remembers what it
+// replaced; `restoreGlobals` puts all of it back, in reverse.
+
+const installed = []
+
+// Replaces `globalThis[name]` with `value`, remembering the prior binding
+// (or its absence) for `restoreGlobals`.
+export function installGlobal(name, value) {
+  const hadOwn = Object.prototype.hasOwnProperty.call(globalThis, name)
+  installed.push({ name, hadOwn, previous: hadOwn ? globalThis[name] : undefined })
+  globalThis[name] = value
+  return value
+}
+
+// Undoes every `installGlobal` since the last restore, newest first, so a
+// global replaced twice goes back to the original. Idempotent.
+export function restoreGlobals() {
+  while (installed.length > 0) {
+    const { name, hadOwn, previous } = installed.pop()
+    if (hadOwn) {
+      globalThis[name] = previous
+    } else {
+      delete globalThis[name]
+    }
+  }
+}
 
 // A `window` whose `dispatchEvent` actually reaches handlers registered
 // through `addEventListener`, so a test can drive a hook the way the browser
@@ -48,8 +76,7 @@ export function installWindow() {
     },
   }
 
-  globalThis.window = stub
-  return stub
+  return installGlobal("window", stub)
 }
 
 // Returns the live list of observers constructed since the install, so a test
@@ -57,25 +84,28 @@ export function installWindow() {
 export function installMutationObserver() {
   const observers = []
 
-  globalThis.MutationObserver = class StubMutationObserver {
-    constructor(callback) {
-      this._callback = callback
-      this.observing = false
-      observers.push(this)
-    }
+  installGlobal(
+    "MutationObserver",
+    class StubMutationObserver {
+      constructor(callback) {
+        this._callback = callback
+        this.observing = false
+        observers.push(this)
+      }
 
-    observe(_target, _options) {
-      this.observing = true
-    }
+      observe(_target, _options) {
+        this.observing = true
+      }
 
-    disconnect() {
-      this.observing = false
-    }
+      disconnect() {
+        this.observing = false
+      }
 
-    fire() {
-      this._callback([])
+      fire() {
+        this._callback([])
+      }
     }
-  }
+  )
 
   return observers
 }
@@ -83,5 +113,5 @@ export function installMutationObserver() {
 // Synchronous, so work a hook defers to the next frame is observable in the
 // same tick as the call that scheduled it.
 export function installSyncAnimationFrame() {
-  globalThis.requestAnimationFrame = (callback) => callback(0)
+  installGlobal("requestAnimationFrame", (callback) => callback(0))
 }

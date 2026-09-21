@@ -609,11 +609,14 @@ defmodule MediaCentaurWeb.StatusLiveTest do
   end
 
   describe "systemd journal panel" do
-    # The BEAM runs under no systemd unit in the test environment, so
-    # `Console.journal_available?/0` is false and the control never renders.
-    # That is the default path on every install that isn't running the
-    # service — a laptop `mix phx.server`, a container — and the panel has to
-    # stay out of the rail there rather than offer a disclosure onto nothing.
+    # `config/test.exs` starts `Console.JournalSource` with `unit: nil`, so
+    # `Console.journal_available?/0` is false and the control never renders
+    # — on every host, including GitHub's runners, whose jobs run inside a
+    # systemd service of the runner's own that detection would otherwise
+    # report. That is also the default path on every install that isn't
+    # running the service — a laptop `mix phx.server`, a container — and the
+    # panel has to stay out of the rail there rather than offer a disclosure
+    # onto nothing.
     #
     # The subscribe/unsubscribe transitions are pure and live in
     # `StatusLive.JournalPanel` (journal_panel_test.exs); the refcount and

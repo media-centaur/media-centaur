@@ -1,6 +1,6 @@
-import { describe, expect, test, beforeEach } from "bun:test"
+import { describe, expect, test, beforeEach, afterEach } from "bun:test"
 import { DetailBodyScroll } from "./detail_body_scroll"
-import { installSyncAnimationFrame } from "../test_support/dom_stubs"
+import { installSyncAnimationFrame, restoreGlobals } from "../test_support/dom_stubs"
 
 // The detail body and the port it scrolls in. `scrollIntoView` on the resume
 // row stands in for the browser's centring by parking the port at a known
@@ -110,6 +110,8 @@ function scrollTo(port, offset) {
 beforeEach(() => {
   installSyncAnimationFrame()
 })
+
+afterEach(restoreGlobals)
 
 describe("DetailBodyScroll — entering a view for the first time", () => {
   test("centres the resume episode when the server marks one", () => {
