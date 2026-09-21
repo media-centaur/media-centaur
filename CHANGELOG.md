@@ -4,6 +4,32 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.35.0 — 2026-09-21
+
+### New
+
+- **Status → Connections shows what Media Centaur has been asking of other servers.** Open the Connections drill-in and there is one chart per server — TMDB, its image servers, Prowlarr, your download clients, relays — with what went out, what came from cache, what failed and how long each request took, over the last five minutes up to the last month. The charts refresh every ten seconds while you are looking. The history is written to a small file beside the database once a minute, so it survives a restart.
+- **Refresh from TMDB on any title.** A title's Manage view, and the tracking card on the watchlist, has a button that asks TMDB about the title's dates and details right now. Use it when you know something changed and don't want to wait for the next scheduled check.
+
+### Improved
+
+- **TMDB is asked only when something about a title can still change.** Media Centaur now keeps one copy of what TMDB last said about each title it cares about — everything in your library, on your list, tracked, or being downloaded — and checks back the day after the title's next release date, or once a week while its dates are still unsettled. A film that has reached its home release, or a show that has ended, is never asked about again. Before this, every tracked title was reloaded four times a day for as long as you tracked it.
+- **Title pages, download plans and season pickers open from the stored copy.** A title you have seen before no longer waits on TMDB to open, to plan a download or to list its seasons; only a title Media Centaur has never met costs one request.
+- **Your library follows TMDB on its own.** When TMDB's answer about a title changes, the library's copy is brought up to date: an episode imported while it was still "TBA" takes its real name and air date once announced, a show that ends is marked ended, a season's episode list gains the episodes that were added. Tracked shows' calendars are rebuilt from the same copy, so the two never disagree.
+- **Cast and crew are fetched once, when a title is imported.** They no longer need a separate refresh.
+- **Settings → Release tracking loses the *Refresh interval* setting.** Each title now has its own schedule; there is nothing to tune.
+- **Settings → Maintenance loses three buttons it no longer needs** — *Refresh movie credits*, *Refresh series credits* and *Refresh episode lists*. Credits arrive at import; episode lists and details follow TMDB automatically; *Refresh from TMDB* on a title asks now.
+- **Status → Metadata lists what is kept.** Its Data retention section names the stored TMDB details and the artwork cache: both are removed seven days after their last fetch or use, once nothing refers to the title — not your library, your list, a tracked title, a download in progress or a friend's activity.
+
+### Fixed
+
+- **A title searched twice with different capitalisation or spacing cost two requests to TMDB.** It is one now.
+
+### Migration safety
+
+- This release runs three migrations on first start. Two new tables hold the stored TMDB details. Eight columns that copied TMDB facts onto tracked titles are dropped, along with the two refresh-interval settings. The watchlist's embedded copy of each title is dropped. None of it touches your files, your watch history, your list or your tracked titles; the update runs it automatically, nothing to do by hand.
+- After the update, Media Centaur fetches each title's details from TMDB once — about fifty titles every quarter of an hour, starting a minute after the first start — so a large library takes a few hours to fill in. Everything already in your library keeps its details meanwhile; a watchlist entry may show without its name or poster for a moment until its copy lands, and opening the list fetches it at once.
+
 ## v1.34.0 — 2026-09-18
 
 ### Fixed
