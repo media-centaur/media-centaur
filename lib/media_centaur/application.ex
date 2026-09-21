@@ -75,7 +75,8 @@ defmodule MediaCentaur.Application do
         # init when Ecto query logs land in its mailbox.
         {Phoenix.PubSub, name: MediaCentaur.PubSub},
         MediaCentaur.Console.Buffer,
-        MediaCentaur.Console.JournalSource,
+        {MediaCentaur.Console.JournalSource,
+         Application.get_env(:media_centaur, MediaCentaur.Console.JournalSource, [])},
         # Before the cache workers: the ShellBadges cache prime reads
         # `ErrorReports.list_buckets/0` synchronously during its init.
         MediaCentaur.ErrorReports.Buckets

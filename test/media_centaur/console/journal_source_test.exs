@@ -58,6 +58,21 @@ defmodule MediaCentaur.Console.JournalSourceTest do
 
       assert JournalSource.available?(name)
     end
+
+    # `config/test.exs` starts the app's instance with `unit: nil`: the
+    # suite must not read the host's service manager, and GitHub's runners
+    # execute jobs inside the runner's own systemd service, where detection
+    # finds a unit that is not ours.
+    test "`unit: nil` pins no unit even where detection would find one" do
+      {_, name} =
+        start_source(
+          unit: nil,
+          unit_fetcher: static_unit("actions.runner.service"),
+          port_opener: controllable_opener(self())
+        )
+
+      refute JournalSource.available?(name)
+    end
   end
 
   describe "subscribe/1" do

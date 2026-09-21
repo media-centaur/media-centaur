@@ -1,6 +1,11 @@
-import { describe, expect, test, beforeEach, mock } from "bun:test"
+import { describe, expect, test, beforeEach, afterEach, mock } from "bun:test"
 import { ConsolePage } from "./console_page"
-import { installWindow, installMutationObserver } from "../test_support/dom_stubs"
+import {
+  installGlobal,
+  installWindow,
+  installMutationObserver,
+  restoreGlobals,
+} from "../test_support/dom_stubs"
 
 // ---------------------------------------------------------------------------
 // DOM mock constructors
@@ -71,6 +76,8 @@ beforeEach(() => {
   installWindow()
   installMutationObserver()
 })
+
+afterEach(restoreGlobals)
 
 describe("ConsolePage — client-side search", () => {
   test("hides entries that do not match the search query", () => {
@@ -158,14 +165,14 @@ describe("ConsolePage — client-side search", () => {
 describe("ConsolePage — server-pushed actions", () => {
   test("console:copy writes the payload to the clipboard", async () => {
     const written = []
-    globalThis.navigator = {
+    installGlobal("navigator", {
       clipboard: {
         writeText: (text) => {
           written.push(text)
           return Promise.resolve()
         },
       },
-    }
+    })
 
     const hook = instantiateHook(buildRoot(buildSearchInput(""), buildEntriesContainer()))
     hook._serverEvents["console:copy"]({ content: "a log line" })
@@ -177,22 +184,25 @@ describe("ConsolePage — server-pushed actions", () => {
     const anchor = { click: mock(() => {}) }
     const appended = []
 
-    globalThis.Blob = class StubBlob {
-      constructor(parts) {
-        this.parts = parts
+    installGlobal(
+      "Blob",
+      class StubBlob {
+        constructor(parts) {
+          this.parts = parts
+        }
       }
-    }
-    globalThis.URL = {
+    )
+    installGlobal("URL", {
       createObjectURL: () => "blob:stub",
       revokeObjectURL: mock(() => {}),
-    }
-    globalThis.document = {
+    })
+    installGlobal("document", {
       createElement: () => anchor,
       body: {
         appendChild: (node) => appended.push(node),
         removeChild: mock(() => {}),
       },
-    }
+    })
 
     const hook = instantiateHook(buildRoot(buildSearchInput(""), buildEntriesContainer()))
     hook._serverEvents["console:download"]({
