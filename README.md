@@ -7,7 +7,7 @@
 
 # Media Centaur
 
-**Library management and playback for your personal movie and TV collection — the \*ARR stack and a couch-ready player in one self-hosted Linux app.**
+**Library management and playback for your personal movie and TV collection, in one self-hosted Linux app.**
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: Linux](https://img.shields.io/badge/platform-Linux-informational)
 
