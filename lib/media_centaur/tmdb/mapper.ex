@@ -395,6 +395,14 @@ defmodule MediaCentaur.TMDB.Mapper do
   (type 5) release dates from a TMDB movie payload's appended
   `release_dates`, each as `%{release_type: label, date: Date.t()}`.
 
+  **At most one entry per type**, the earliest. TMDB lists a country's
+  releases as a flat array and repeats a type for re-releases, staggered
+  platform rollouts and edition-specific disc dates, so "the US digital
+  date" can arrive as several rows. The earliest is the answer to "when
+  could I get it in this format", and release tracking stores one row per
+  (item, type) — `release_tracking_releases_identity_index` — so a second
+  entry of one type is not something a caller can persist.
+
   Festival/premiere (type 1) and limited (type 2) entries are excluded:
   they precede general availability and are not the year indexers tag a
   release with. Entries whose date is missing or malformed are dropped.
@@ -403,21 +411,31 @@ defmodule MediaCentaur.TMDB.Mapper do
   @spec us_typed_release_dates(map()) :: [%{release_type: String.t(), date: Date.t()}]
   def us_typed_release_dates(%{"release_dates" => %{"results" => results}}) when is_list(results) do
     case Enum.find(results, &(&1["iso_3166_1"] == "US")) do
-      %{"release_dates" => dates} when is_list(dates) ->
-        for entry <- dates,
-            label = Map.get(@movie_release_type_labels, entry["type"]),
-            not is_nil(label),
-            date = parse_tmdb_date(entry["release_date"]),
-            not is_nil(date) do
-          %{release_type: label, date: date}
-        end
-
-      _ ->
-        []
+      %{"release_dates" => dates} when is_list(dates) -> earliest_per_type(dates)
+      _ -> []
     end
   end
 
   def us_typed_release_dates(_), do: []
+
+  # Collapses a country's flat release array to its earliest date per type,
+  # chronologically. Anything the labels map does not name (premiere, limited)
+  # and anything without a parseable date drops out here.
+  defp earliest_per_type(dates) do
+    earliest =
+      for entry <- dates,
+          label = Map.get(@movie_release_type_labels, entry["type"]),
+          not is_nil(label),
+          date = parse_tmdb_date(entry["release_date"]),
+          not is_nil(date),
+          reduce: %{} do
+        acc -> Map.update(acc, label, date, &Enum.min([&1, date], Date))
+      end
+
+    earliest
+    |> Enum.map(fn {label, date} -> %{release_type: label, date: date} end)
+    |> Enum.sort_by(& &1.date, Date)
+  end
 
   @doc """
   Derives a movie's canonical release date — the date the film first

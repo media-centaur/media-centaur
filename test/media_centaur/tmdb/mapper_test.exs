@@ -335,6 +335,40 @@ defmodule MediaCentaur.TMDB.MapperTest do
     end
   end
 
+  describe "us_typed_release_dates/1" do
+    test "collapses several US entries of one type to that type's earliest date" do
+      # TMDB lists a country's releases as a flat array, and the same type
+      # appears more than once whenever a film has a re-release, a staggered
+      # platform rollout, or an edition-specific disc date (Nosferatu, TMDB
+      # 426063, carries two type-4 digital entries). Release tracking stores
+      # one row per (item, type), so a caller handed two "digital" entries
+      # violates release_tracking_releases_identity_index. The earliest entry
+      # is the answer to "when could I get it in this format".
+      data = %{
+        "release_dates" => %{
+          "results" => [
+            %{
+              "iso_3166_1" => "US",
+              "release_dates" => [
+                %{"type" => 4, "release_date" => "2025-02-21T00:00:00.000Z"},
+                %{"type" => 4, "release_date" => "2025-01-21T00:00:00.000Z"},
+                %{"type" => 3, "release_date" => "2024-12-25T00:00:00.000Z"},
+                %{"type" => 5, "release_date" => "2025-03-18T00:00:00.000Z"},
+                %{"type" => 5, "release_date" => "2025-04-22T00:00:00.000Z"}
+              ]
+            }
+          ]
+        }
+      }
+
+      assert Enum.sort_by(Mapper.us_typed_release_dates(data), & &1.release_type) == [
+               %{release_type: "digital", date: ~D[2025-01-21]},
+               %{release_type: "physical", date: ~D[2025-03-18]},
+               %{release_type: "theatrical", date: ~D[2024-12-25]}
+             ]
+    end
+  end
+
   describe "tv_attrs/2" do
     test "maps full TMDB TV response" do
       data = %{

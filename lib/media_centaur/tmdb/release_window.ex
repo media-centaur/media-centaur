@@ -50,7 +50,8 @@ defmodule MediaCentaur.TMDB.ReleaseWindow do
 
   @doc """
   Reads a stored movie payload (`TMDB.Store`) at `today`. Each typed date
-  is the earliest US entry of its type (TMDB lists re-releases too).
+  is the earliest US entry of its type — `Mapper.us_typed_release_dates/1`
+  has already collapsed TMDB's repeats.
   `primary` is TMDB's top-level `release_date`; it is read only when no
   typed date exists, and then only ahead — TMDB does not say which kind
   of release it was, and it is often a festival premiere that precedes
@@ -58,15 +59,12 @@ defmodule MediaCentaur.TMDB.ReleaseWindow do
   """
   @spec from_payload(map(), Date.t()) :: t()
   def from_payload(payload, %Date{} = today) when is_map(payload) do
-    typed =
-      payload
-      |> Mapper.us_typed_release_dates()
-      |> Enum.group_by(& &1.release_type, & &1.date)
+    typed = Map.new(Mapper.us_typed_release_dates(payload), &{&1.release_type, &1.date})
 
     dates = %{
-      theatrical: earliest(typed["theatrical"]),
-      digital: earliest(typed["digital"]),
-      physical: earliest(typed["physical"]),
+      theatrical: typed["theatrical"],
+      digital: typed["digital"],
+      physical: typed["physical"],
       primary: primary_date(payload["release_date"])
     }
 
@@ -113,9 +111,6 @@ defmodule MediaCentaur.TMDB.ReleaseWindow do
       nil -> nil
     end
   end
-
-  defp earliest(nil), do: nil
-  defp earliest(dates), do: Enum.min(dates, Date)
 
   # The primary date is a bare ISO day; anything else TMDB might send
   # (blank, or a placeholder) is no date.
