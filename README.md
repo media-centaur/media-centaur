@@ -20,12 +20,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 </div>
 
 > [!NOTE]
-> **Actively developed.** In daily use since well before 1.0; releases are frequent and each one migrates your data safely, but expect the occasional rough edge.
-
-> [!IMPORTANT]
-> **macOS support — experimental (Apple Silicon).** The Mac build now ships: the one-line installer works on Apple Silicon, autostart runs via launchd, and in-app updates work the same as on Linux. **Linux remains the fully-supported, primary platform.**
->
-> Because we don't own Mac hardware, the macOS path is Linux-developer-tested only — so it's genuinely experimental and we need real-world reports. If you run it on macOS, please [open a `[macOS]` issue](https://github.com/media-centaur/media-centaur/issues/new?labels=macos) for anything that doesn't work. See the wiki's **[macOS](https://github.com/media-centaur/media-centaur/wiki/macOS)** page for install steps and the honest done/not-done list.
+> **Actively developed.** In daily use since well before 1.0; releases are frequent and each one migrates your data safely.
 
 ---
 
@@ -52,7 +47,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 - **Playback** — launches mpv on the local machine, tracks your progress, resumes where you left off, and auto-advances to the next episode.
 - **Release tracking** — monitors TMDB daily for upcoming movies and new TV seasons tied to the shows in your library.
 - **Acquisition** *(optional)* — search and queue downloads via Prowlarr. Entirely optional: Media Centaur is a full library manager without it.
-- **Discovery** — a watchlist for titles you don't have yet, and your friends' reviews and watchlists: each install has a Nostr identity, friends are followed keys, and a friend's review is one click from your acquisition path. No server we run.
+- **Discovery** — a watchlist for titles you don't have yet, and your friends' reviews and watchlists: each install has a Nostr identity, friends are followed keys, and a friend's review is one click from your acquisition path. You host your own private server ([social-relay](https://github.com/media-centaur/social-relay)); no data collection.
 - **Apps** — a launcher for Steam games and other local applications from the same couch UI.
 - **Couch-first UI** — keyboard *and* gamepad navigation, large artwork, dark-first. Built to drive a TV from across the room.
 - **Real-time** — every change (new file, metadata fetched, playback started) appears instantly via Phoenix LiveView. No polling, no refresh.
@@ -76,6 +71,10 @@ Downloads the latest release, verifies its checksum, installs atomically under `
 After install, everyday updates happen inside the app: **Settings → System → Update now**.
 
 Full installation guide and recovery playbook: **[Wiki → Installation](https://github.com/media-centaur/media-centaur/wiki/Installation)** · **[Wiki → Troubleshooting](https://github.com/media-centaur/media-centaur/wiki/Troubleshooting#reset-by-re-running-the-installer)**.
+
+### macOS (Apple Silicon, experimental)
+
+The same one-line installer works on Apple Silicon; autostart runs via launchd and in-app updates work as on Linux. Linux is the primary platform. Install steps and current status: **[Wiki → macOS](https://github.com/media-centaur/media-centaur/wiki/macOS)**. Report problems with a [`[macOS]` issue](https://github.com/media-centaur/media-centaur/issues/new?labels=macos).
 
 ## Requirements
 
