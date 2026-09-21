@@ -140,8 +140,8 @@ Use [`template.md`](template.md) as a starter.
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
 
-* **TMDB fetch policy** ([`tmdb-fetch-policy.md`](tmdb-fetch-policy.md)) —
-  **complete on main 2026-09-20; unreleased, file retired at the release.**
+* **TMDB fetch policy** —
+  **shipped v1.35.0 2026-09-21; file retired (git history holds it).**
   Every TMDB request is now justified by a question the app cannot answer
   from what it already stores ([ADR-071](../decisions/architecture/2026-09-20-071-tmdb-store-one-record-per-title.md)):
   one record per title in `TMDB.Store` — TMDB's last answer, its ETag, when
@@ -155,8 +155,8 @@ where any leftover went.
   (`TMDB.RetentionPolicies`, Credo MC0038). Cost per tracked title went from
   four reloads a day to one revalidation a week while unsettled and zero
   once settled. Deferred: collections to `collection-identity`;
-  response-cache persistence declined. Ship: the next release's CHANGELOG
-  lines are in the campaign file.
+  response-cache persistence declined. The v1.35.0 CHANGELOG entry carries
+  the migration notes.
 * **External processes must outlive the app that launched them** —
   **closed (Minimal scope) 2026-09-12; file retired 2026-09-18.** mpv died on
   every restart of this contributor's dev box, so every update cost the viewer
