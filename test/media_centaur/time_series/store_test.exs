@@ -66,4 +66,24 @@ defmodule MediaCentaur.TimeSeries.StoreTest do
     Store.add(table, @schema, :tmdb, @now, %{requests: 1, failed: 0, latency_max_ms: 1})
     assert Store.writes(table) == 1
   end
+
+  describe "clear/1" do
+    test "drops every row but leaves the store able to read and write", %{name: name, table: table} do
+      Store.add(table, @schema, :tmdb, @now, %{requests: 3, failed: 1, latency_max_ms: 500})
+
+      assert :ok = Store.clear(name)
+
+      for resolution <- Resolution.all() do
+        assert Store.rows(table, resolution, :tmdb, @now - 86_400, @now) == []
+      end
+
+      # The schema and the write counter survive: a cleared store still
+      # knows the shape of its rows.
+      Store.add(table, @schema, :tmdb, @now, %{requests: 1, failed: 0, latency_max_ms: 40})
+      start = Resolution.bucket_start(:"10s", @now)
+
+      assert [{^start, %{requests: 1, latency_max_ms: 40}}] =
+               Store.rows(table, :"10s", :tmdb, start, @now)
+    end
+  end
 end

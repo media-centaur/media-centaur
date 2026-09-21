@@ -59,11 +59,6 @@ const TOUR = [
   // ─── Library ─────────────────────────────────────────────────────────
   { name: "library-grid", url: "/library", settleMs: 400 },
   {
-    name: "library-recently-watched",
-    url: "/library?sort=watched",
-    settleMs: 400,
-  },
-  {
     name: "library-detail-movie",
     url: `/library?selected=${NOSFERATU_ID}`,
     waitFor: "#detail-modal[data-state='open']",
@@ -81,20 +76,6 @@ const TOUR = [
 
   // ─── Incoming (forecast side) ────────────────────────────────────────────────────────
   { name: "upcoming-calendar", url: "/incoming", settleMs: 600 },
-  {
-    name: "upcoming-track-suggestions",
-    url: "/incoming",
-    action: async (page) => {
-      // The Track modal is retired: focusing the omnibox opens the
-      // library-suggestions overlay (the shelf's "Track something"
-      // ghost card does the same client-side focus).
-      await page
-        .locator("#omnibox-media-input")
-        .focus({ timeout: 5_000 })
-        .catch(() => {})
-    },
-    settleMs: 800,
-  },
 
   // ─── Review ──────────────────────────────────────────────────────────
   { name: "review-queue", url: "/review" },
@@ -113,20 +94,20 @@ const TOUR = [
   // (The pre-redistribution `history.png` shot meant download-history;
   //  see `download-activity` below for that surface.)
   { name: "history-heatmap", url: "/history", settleMs: 500 },
-  {
-    name: "history-rewatch-badges",
-    url: "/history",
-    action: async (page) => {
-      // Scroll past the heatmap + stats so the paginated event list
-      // with `Nx` rewatch badges fills the viewport.
-      await page.evaluate(() => window.scrollTo(0, 700)).catch(() => {})
-    },
-    settleMs: 500,
-  },
 
-  // ─── Status / Acquisition / Console ─────────────────────────────────
-  { name: "status", url: "/status" },
-  { name: "download", url: "/incoming", settleMs: 800 },
+  // ─── Status ──────────────────────────────────────────────────────────
+  // The Connections drill-in, not the bare board: the board alone is
+  // eight tiles on an empty page, and the request charts are the thing
+  // worth showing. Its history comes from
+  // MediaCentaur.Showcase.SyntheticTraffic, which backfills relative to
+  // boot — so this shot is honest about layout and shape without
+  // depending on when the instance was seeded.
+  {
+    name: "status-connections",
+    url: "/status?subsystem=http",
+    waitFor: "[data-testid='strip-chart-traffic']",
+    settleMs: 2500,
+  },
   {
     name: "download-activity",
     url: "/incoming?filter=all",
@@ -169,7 +150,6 @@ const TOUR = [
     },
     settleMs: 1500,
   },
-  { name: "console", url: "/console" },
 
   // ─── Settings ────────────────────────────────────────────────────────
   { name: "settings-overview", url: "/settings" },

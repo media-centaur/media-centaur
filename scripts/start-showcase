@@ -14,7 +14,8 @@ cd "$REPO_ROOT"
 
 DEV_DB="$HOME/.local/share/media-centaur/media-centaur.db"
 
-export MEDIA_CENTAUR_CONFIG_OVERRIDE="defaults/media-centaur-showcase.toml"
+# Showcase config override + isolated build root (see scripts/showcase-env).
+. "$REPO_ROOT/scripts/showcase-env"
 
 # Honour an externally-set TMDB_API_KEY (lets you override the dev DB's
 # stored value for one shot). Otherwise pull the historical default.

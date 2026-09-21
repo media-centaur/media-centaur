@@ -120,6 +120,17 @@ defmodule MediaCentaur.Showcase.Stubs do
         filter = conn.query_string |> URI.decode_query() |> Map.get("filter", "all")
         Req.Test.json(conn, qbittorrent_torrents_fixtures(filter))
 
+      {"GET", "/api/v2/sync/maindata"} ->
+        # What `QueueMonitor` actually polls. Always a full update: the
+        # fixtures are static, so there is no delta to express, and
+        # `Sync.apply_maindata/2` treats `full_update` as "replace".
+        torrents =
+          "all"
+          |> qbittorrent_torrents_fixtures()
+          |> Map.new(&{&1["hash"], Map.delete(&1, "hash")})
+
+        Req.Test.json(conn, %{"rid" => 1, "full_update" => true, "torrents" => torrents})
+
       {"GET", "/api/v2/app/version"} ->
         conn
         |> Plug.Conn.put_resp_content_type("text/plain")

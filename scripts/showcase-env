@@ -1,0 +1,23 @@
+# Shared environment for every script that runs the showcase instance.
+# Sourced, not executed: `. "$(dirname "$0")/showcase-env"`.
+#
+# Two facts live here so the three showcase scripts can't drift apart.
+#
+# MEDIA_CENTAUR_CONFIG_OVERRIDE — the showcase TOML carries its own port,
+# database path and media dirs, so a mistyped command can't land on the
+# real DB. Every mix invocation below needs it, including ecto.*.
+#
+# MIX_BUILD_ROOT — the showcase is a *second* instance inside the same
+# checkout as the always-on media-centaur-dev service. Without its own
+# build root, `mix` here writes .beam files into _build/dev under the
+# running VM; the dev server's code reloader then reloads synchronously
+# on the next request, and a large enough reload leaves GenServers
+# without their modules long enough that the OTP application shuts down
+# (CLAUDE.md, "never run mix directly"). The root lives outside the
+# checkout because a Phoenix dev server watches its working directory
+# recursively with inotify, so a second _build inside the repo would
+# still generate events the service reacts to.
+
+export MEDIA_CENTAUR_CONFIG_OVERRIDE="defaults/media-centaur-showcase.toml"
+export MIX_BUILD_ROOT="${MIX_BUILD_ROOT:-$HOME/.cache/media-centaur-showcase-build}"
+mkdir -p "$MIX_BUILD_ROOT"
