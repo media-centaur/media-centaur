@@ -32,6 +32,22 @@ defmodule MediaCentaur.Acquisition.Target do
   try again" signal. The target stays in `seeking` while the job is
   scheduled.
 
+  ## Download observation
+
+  A target is one grab of one *release*, and a release is one download at the
+  download client (`Pursuits.TargetUnit` — a pack covers many units but is
+  still one target). So the target is where everything observed about that
+  download is recorded: `first_seen_in_queue_at`, `last_queue_state`,
+  `last_queue_health`, and the durable `torrent_hash` / `content_path` link.
+  `Pursuits.Observations` is the only writer. `Pursuits.Stage` reads them into
+  a lifecycle position for display; `Pursuits.Snapshots` reads the open
+  observation windows (`stall_first_seen_at`, `zero_seeders_first_seen_at`)
+  into the inputs `Pursuits.Policy` decides on.
+
+  `status: "acquired"` means the *hand-off* succeeded — Prowlarr accepted the
+  grab, or the user picked the release. It says nothing about the download
+  client having the item. `first_seen_in_queue_at` is the fact that does.
+
   ## Attempt accounting
 
   - `attempt_count` increments on every "no acceptable result" outcome.
@@ -88,6 +104,23 @@ defmodule MediaCentaur.Acquisition.Target do
     # client drops the completed torrent.
     field :torrent_hash, :string
     field :content_path, :string
+    # Download observation — what we have seen of this target's download at
+    # the download client. `first_seen_in_queue_at` is write-once and is the
+    # stage fact: absent after a grab means "not at the client yet", present
+    # with the download now gone means "left the client". Absence of a live
+    # queue item alone means neither. `last_queue_state`/`last_queue_health`
+    # are the last observed telemetry, kept only so the observation pass can
+    # detect transitions across ticks. All three are written solely by
+    # `Pursuits.Observations`.
+    field :first_seen_in_queue_at, :utc_datetime
+    field :last_queue_state, :string
+    field :last_queue_health, :string
+    # Open observation windows feeding `Pursuits.Policy`: set on the first
+    # tick the signal is present, preserved while it persists, cleared on
+    # recovery. Readings of one download, so they live with it rather than on
+    # each unit the release covers.
+    field :stall_first_seen_at, :utc_datetime
+    field :zero_seeders_first_seen_at, :utc_datetime
 
     timestamps()
   end
@@ -95,25 +128,96 @@ defmodule MediaCentaur.Acquisition.Target do
   @type t :: %__MODULE__{}
 
   @doc """
-  Records the download's stable identity (`torrent_hash`, `content_path`)
-  on first observation. Write-once: an already-captured value is never
-  overwritten, so a later snapshot (e.g. the torrent reappearing under a
-  changed content path mid-move) can't clobber the original landing path.
+  Records everything one sighting of this target's download at the client
+  establishes: its stable identity (`torrent_hash`, `content_path`), the
+  first-sighting stamp, and the telemetry observed this tick.
+
+  `torrent_hash`, `content_path` and `first_seen_in_queue_at` are
+  **write-once** — an already-captured value is never overwritten, so a later
+  snapshot (the torrent reappearing under a changed content path mid-move,
+  say) can't clobber the original. `last_queue_state`/`last_queue_health` are
+  the opposite: they carry the latest reading and are overwritten every time
+  it changes.
+
+  Returns an unchanged changeset when the sighting establishes nothing new,
+  so the caller can skip the write — the observation pass runs on every queue
+  snapshot and a steady download must not write a row per tick.
   """
-  @spec record_download_changeset(t(), %{
+  @spec observation_changeset(t(), %{
           optional(:torrent_hash) => String.t() | nil,
-          optional(:content_path) => String.t() | nil
-        }) ::
-          Ecto.Changeset.t()
-  def record_download_changeset(%__MODULE__{} = target, attrs) do
+          optional(:content_path) => String.t() | nil,
+          optional(:last_queue_state) => String.t() | nil,
+          optional(:last_queue_health) => String.t() | nil,
+          optional(:first_seen_in_queue_at) => DateTime.t()
+        }) :: Ecto.Changeset.t()
+  def observation_changeset(%__MODULE__{} = target, attrs) do
     target
-    |> cast(attrs, [:torrent_hash, :content_path])
+    |> cast(attrs, [
+      :torrent_hash,
+      :content_path,
+      :first_seen_in_queue_at,
+      :last_queue_state,
+      :last_queue_health
+    ])
     |> keep_existing(:torrent_hash, target.torrent_hash)
     |> keep_existing(:content_path, target.content_path)
+    |> keep_existing(:first_seen_in_queue_at, target.first_seen_in_queue_at)
+    |> discard_unchanged()
   end
 
-  defp keep_existing(changeset, _field, nil), do: changeset
+  @doc """
+  Opens, holds or clears the observation windows `Pursuits.Policy` decides on,
+  on top of an in-progress observation changeset.
+
+  A window opens on the first tick its signal is present, is preserved for as
+  long as it persists, and is cleared the moment the download recovers — so
+  the window always measures one unbroken run of the signal. A window that did
+  not move adds no change, leaving the caller free to skip the write.
+  """
+  @spec window_changeset(Ecto.Changeset.t(),
+          stalling: boolean(),
+          no_seeders: boolean(),
+          now: DateTime.t()
+        ) ::
+          Ecto.Changeset.t()
+  def window_changeset(%Ecto.Changeset{data: %__MODULE__{} = target} = changeset, opts) do
+    now = Keyword.fetch!(opts, :now)
+
+    changeset
+    |> put_change(
+      :stall_first_seen_at,
+      next_window(target.stall_first_seen_at, Keyword.fetch!(opts, :stalling), now)
+    )
+    |> put_change(
+      :zero_seeders_first_seen_at,
+      next_window(target.zero_seeders_first_seen_at, Keyword.fetch!(opts, :no_seeders), now)
+    )
+  end
+
+  defp next_window(existing, true, now), do: existing || now
+  defp next_window(_existing, false, _now), do: nil
+
+  defp keep_existing(changeset, field, nil), do: delete_change_if_nil(changeset, field)
   defp keep_existing(changeset, field, existing), do: force_change(changeset, field, existing)
+
+  # `cast/3` drops nil values only when the field is already nil, so a nil in
+  # `attrs` for an unset field is a no-op already; this keeps the intent
+  # explicit and symmetrical with the set case.
+  defp delete_change_if_nil(changeset, field) do
+    case fetch_change(changeset, field) do
+      {:ok, nil} -> delete_change(changeset, field)
+      _ -> changeset
+    end
+  end
+
+  # `force_change/3` above re-adds every write-once field as a "change" even
+  # when the value is identical. Strip the ones that match the loaded record so
+  # `changeset.changes` is empty when nothing actually moved.
+  defp discard_unchanged(changeset) do
+    Enum.reduce(changeset.changes, changeset, fn {field, value}, acc ->
+      if Map.get(changeset.data, field) == value, do: delete_change(acc, field), else: acc
+    end)
+  end
 
   @doc "Builds a new target in `seeking` status for a pursuit."
   def create_changeset(attrs) do

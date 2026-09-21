@@ -2047,7 +2047,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       socket
       |> assign_queue_from_state(state)
       |> assign(client_health: Acquisition.client_health())
-      |> refresh_pursuit_status_if_open(state.items)
+      |> refresh_pursuit_status_if_open(state)
 
     {:noreply, socket}
   end
@@ -2576,13 +2576,13 @@ defmodule MediaCentaurWeb.IncomingLive do
   # the queue snapshot we just received, with no DB round-trip. Lifecycle
   # events still trigger a full `load_pursuit_detail/1` via the
   # `pursuit-event` debounce handler. See audit C1.
-  defp refresh_pursuit_status_if_open(socket, queue_items) when is_list(queue_items) do
+  defp refresh_pursuit_status_if_open(socket, %MediaCentaur.Downloads.QueueState{} = queue_state) do
     case socket.assigns do
       %{selected_pursuit_id: nil} ->
         socket
 
       %{pursuit_detail: %{status: %_{} = status} = detail} ->
-        refreshed = Pursuits.refresh_status_download(status, queue_items)
+        refreshed = Pursuits.refresh_status_download(status, queue_state)
         assign(socket, pursuit_detail: %{detail | status: refreshed})
 
       _ ->

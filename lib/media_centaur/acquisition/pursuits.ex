@@ -11,7 +11,17 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   import Ecto.Query
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Identity, Pursuit, State, Unit, UnitState, Units}
+  alias MediaCentaur.Acquisition.Pursuits.{
+    Event,
+    Identity,
+    Pursuit,
+    State,
+    StatusContext,
+    Unit,
+    UnitState,
+    Units
+  }
+
   alias MediaCentaur.Acquisition.Pursuits.Recipe, as: PursuitRecipe
   alias MediaCentaur.Acquisition.{QueueMatcher, Target}
   alias MediaCentaur.Search.QueryBuilder
@@ -25,10 +35,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     UnitBoard
   }
 
-  alias MediaCentaur.Downloads.QueueMonitor
-  alias MediaCentaur.IntegrationAvailability
+  alias MediaCentaur.Downloads.QueueState
   alias MediaCentaur.Repo
-  alias MediaCentaur.Review
 
   @spec fetch(Ecto.UUID.t()) :: {:ok, Pursuit.t()} | {:error, :not_found}
   def fetch(id) do
@@ -76,28 +84,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     Enum.map(active_units, fn {pursuit, unit} ->
       {pursuit, unit, Map.get(targets, unit.current_target_id)}
     end)
-  end
-
-  @doc """
-  Returns a map of `pursuit_id => latest_release_title` for every pursuit
-  in `pursuit_ids` that has a target with a non-nil `release_title`.
-  Pursuits with no acquired releases are absent from the map.
-
-  Used by `Pursuits.Watcher` so the per-tick pass does one batched query
-  for release-title lookups rather than one query per pursuit.
-  """
-  @spec latest_release_titles_for([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => String.t()}
-  def latest_release_titles_for([]), do: %{}
-
-  def latest_release_titles_for(pursuit_ids) when is_list(pursuit_ids) do
-    Target
-    |> where([t], t.pursuit_id in ^pursuit_ids and not is_nil(t.release_title))
-    |> order_by([t], desc: t.inserted_at)
-    |> select([t], {t.pursuit_id, t.release_title})
-    |> Repo.all()
-    # Newest-first ordering + `put_new` keeps only the latest release
-    # title per pursuit_id without an O(n log n) group_by.
-    |> Enum.reduce(%{}, fn {pid, title}, acc -> Map.put_new(acc, pid, title) end)
   end
 
   @typedoc """
@@ -247,10 +233,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       |> Enum.reject(&is_nil/1)
       |> fetch_targets_by_id()
 
-    pending_paths = Review.pending_file_paths()
-    # Read once for the whole page: the hold is a property of the
-    # integrations, not of a row.
-    held = held_integration()
+    # Read once for the whole page: the clock, the hand-off window, the hold
+    # and the client's reachability are properties of the system, not of a row.
+    context = StatusContext.load()
 
     Enum.map(pursuits, fn pursuit ->
       units = Map.get(units_by_pursuit, pursuit.id, [])
@@ -259,15 +244,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       lead_unit = Units.lead_of(units)
       target = lead_unit && Map.get(current_targets, lead_unit.current_target_id)
 
-      build_row(
-        pursuit,
-        units,
-        lead_unit,
-        target,
-        download_location(target, pending_paths),
-        current_targets,
-        held
-      )
+      build_row(pursuit, units, lead_unit, target, current_targets, context)
     end)
   end
 
@@ -344,13 +321,28 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   activity) is unchanged — pursuit-lifecycle events still trigger a
   full reload via `status_from/2`.
   """
-  @spec refresh_status_download(PursuitStatus.t(), [MediaCentaur.Downloads.QueueItem.t()]) ::
-          PursuitStatus.t()
-  def refresh_status_download(%PursuitStatus{pursuit: nil} = status, _items), do: status
+  @spec refresh_status_download(PursuitStatus.t(), QueueState.t()) :: PursuitStatus.t()
+  def refresh_status_download(%PursuitStatus{pursuit: nil} = status, _queue_state), do: status
 
-  def refresh_status_download(%PursuitStatus{} = status, queue_items) when is_list(queue_items) do
+  # Same rule as the clause above: the memoisation handles are what this path
+  # re-derives against, and a status built by hand carries none.
+  def refresh_status_download(%PursuitStatus{context: nil} = status, _queue_state), do: status
+
+  def refresh_status_download(%PursuitStatus{} = status, %QueueState{} = queue_state) do
+    queue_items = queue_state.items
     queue_item = find_queue_match(status.target, queue_items)
     download = QueueMatcher.to_download(queue_item)
+
+    # Reuse the stashed context's expensive reads (Settings, the review queue)
+    # and refresh only what this tick actually changes: the queue, the client's
+    # grade — which this very snapshot carries — and the clock, so a modal left
+    # open still crosses the hand-off window.
+    context = %{
+      status.context
+      | now: DateTime.utc_now(:second),
+        client_reachable?: QueueState.answering?(queue_state),
+        queue_items: queue_items
+    }
 
     {current_action, next_step, actions} =
       PursuitStatus.derive(
@@ -358,8 +350,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
         status.unit,
         status.target,
         queue_item,
-        :none,
-        held: held_integration()
+        download_location(status.target, context.pending_file_paths),
+        context
       )
 
     {current_action, downloads, downloads_done} =
@@ -374,7 +366,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     else
       %{
         status
-        | current_action: current_action,
+        | context: context,
+          current_action: current_action,
           next_step: next_step,
           available_actions: actions,
           download: download,
@@ -396,16 +389,23 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   `refresh_status_download/2` can re-derive the dynamic fields without
   a second DB round-trip when a queue snapshot ticks in.
   """
-  @spec status_from(Pursuit.t(), [MediaCentaur.Downloads.QueueItem.t()] | :persistent_term) ::
-          PursuitStatus.t()
-  def status_from(%Pursuit{} = pursuit, queue_items \\ :persistent_term) do
+  @spec status_from(Pursuit.t()) :: PursuitStatus.t()
+  def status_from(%Pursuit{} = pursuit), do: status_from(pursuit, StatusContext.load())
+
+  @doc """
+  Variant taking a `StatusContext` the caller already holds — the queue tick,
+  or a test that wants a known queue and clock.
+  """
+  @spec status_from(Pursuit.t(), StatusContext.t()) :: PursuitStatus.t()
+  def status_from(%Pursuit{} = pursuit, %StatusContext{} = context) do
+    queue_items = context.queue_items
     unit = lead_unit(pursuit)
     target = (unit && Units.current_target(unit)) || nil
     queue_item = find_queue_match(target, queue_items)
-    location = download_location(target, Review.pending_file_paths())
+    location = download_location(target, context.pending_file_paths)
 
     {current_action, next_step, actions} =
-      PursuitStatus.derive(pursuit, unit, target, queue_item, location, held: held_integration())
+      PursuitStatus.derive(pursuit, unit, target, queue_item, location, context)
 
     {current_action, downloads, downloads_done} =
       PursuitStatus.compose_downloads(current_action, all_downloads(pursuit, target, queue_items))
@@ -431,17 +431,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       available_actions: actions,
       pursuit: pursuit,
       unit: unit,
-      target: target
+      target: target,
+      context: context
     }
-  end
-
-  # A Prowlarr hold is global and leaves no trace on any target — no
-  # request, no attempt, no stamp — so the view-model has to be told.
-  # A hand-off hold is per-pursuit and `Jobs.PursueTarget` records it on
-  # the target it holds; the view-model reads that stamp like any other
-  # outcome.
-  defp held_integration do
-    if !IntegrationAvailability.up?(:prowlarr), do: :prowlarr
   end
 
   # The thread the detail modal renders — Units.lead_of/1 is the single
@@ -677,7 +669,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> Map.new(fn target -> {target.id, target} end)
   end
 
-  defp build_row(%Pursuit{} = pursuit, units, lead_unit, target, location, current_targets, held) do
+  defp build_row(%Pursuit{} = pursuit, units, lead_unit, target, current_targets, context) do
     {release_title, target_status, torrent_hash} =
       case target do
         %Target{release_title: rt, status: status, torrent_hash: hash} ->
@@ -690,10 +682,16 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     # Status line for the index card. Queue-state-aware status takes
     # over at render time inside the row component when a download
     # footer is paired — derive here without a queue item so the row
-    # is independent of QueueMonitor cadence. `location` resolves the
-    # post-download stage when the torrent has left the client.
+    # is independent of QueueMonitor cadence.
     {status, _next_step, _actions} =
-      PursuitStatus.derive(pursuit, lead_unit, target, nil, location, held: held)
+      PursuitStatus.derive(
+        pursuit,
+        lead_unit,
+        target,
+        nil,
+        download_location(target, context.pending_file_paths),
+        context
+      )
 
     {season_number, episode_number} = row_scope(units, lead_unit)
 
@@ -801,14 +799,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   defp find_queue_match(nil, _items), do: nil
 
-  defp find_queue_match(%Target{} = target, items) do
-    items
-    |> resolve_queue_items()
-    |> QueueMatcher.find_item(target.torrent_hash, target.release_title)
-  end
-
-  defp resolve_queue_items(:persistent_term), do: QueueMonitor.snapshot()
-  defp resolve_queue_items(items) when is_list(items), do: items
+  defp find_queue_match(%Target{} = target, items) when is_list(items),
+    do: QueueMatcher.find_item(items, target.torrent_hash, target.release_title)
 
   defp latest_event_at(pursuit_id) do
     Event

@@ -39,6 +39,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units, UnitState}
   alias MediaCentaur.Search.{ReleaseCoverage, SearchResult}
   alias MediaCentaur.Acquisition.{InfoHash, Target}
+  alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.Repo
 
   @doc """
@@ -58,7 +59,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
       "pursuit target picked — #{pursuit.title} — #{label}"
     end
 
-    Runner.run(id, log_label, fn pursuit ->
+    id
+    |> Runner.run(log_label, fn pursuit ->
       # Awaiting-or-lead: a pick from the decision card lands on the
       # unit that asked for it (Units.lead_of/1 prefers the awaiting
       # unit); per-unit drill-down lands with Phase 1c.
@@ -86,7 +88,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
         {:ok, pursuit}
       end
     end)
+    |> tap(&hurry_the_queue_along/1)
   end
+
+  # Prowlarr has just pushed this release to the download client, so the cached
+  # queue snapshot is known-stale at exactly the moment the user is watching
+  # the pursuit for a sign of life. Ask for a fresh one instead of waiting out
+  # the 10-30 s cadence.
+  defp hurry_the_queue_along({:ok, %Pursuit{}}), do: QueueMonitor.poll_now()
+  defp hurry_the_queue_along(_error), do: :ok
 
   # The lead unit always; on a TV pursuit, every other live unit whose
   # episode the picked release's scope contains as well.

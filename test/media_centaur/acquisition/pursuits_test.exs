@@ -9,6 +9,15 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
 
   defp insert_pursuit(overrides \\ %{}), do: create_pursuit(overrides)
 
+  # The page-level reads `status_from/2` derives against, built around a known
+  # queue instead of whatever a live QueueMonitor happens to hold.
+  defp context_with(queue_items) do
+    MediaCentaur.Acquisition.Pursuits.StatusContext.from_queue_state(%MediaCentaur.Downloads.QueueState{
+      items: queue_items,
+      connectivity: :live
+    })
+  end
+
   defp set_state(pursuit, new_state) do
     force_state(pursuit, new_state)
   end
@@ -589,19 +598,25 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
           title: "www.UIndex.org - Sample Show S05E03 a totally different name"
         })
 
-      status = Pursuits.status_from(pursuit, [item])
+      status = Pursuits.status_from(pursuit, context_with([item]))
 
       assert status.current_action.verb == "Downloading"
       assert status.download != nil
     end
 
     test "an acquired target whose hash is absent from the queue is not paired to a same-titled stranger" do
+      # Seen at the client once and gone now — the premise of "the real torrent
+      # completed and left", which the first-sighting stamp is what records.
+      seen_at = DateTime.add(DateTime.utc_now(:second), -3600)
+
       {pursuit, _target} =
         create_pursuit_with_target(%{
           recipe_type: "prowlarr_query",
           status: "acquired",
           release_title: "Sample Movie 2010 1080p WEB-DL",
-          torrent_hash: "gonehash"
+          torrent_hash: "gonehash",
+          acquired_at: seen_at,
+          first_seen_in_queue_at: seen_at
         })
 
       # Same title, different torrent — the hash is authoritative, so this
@@ -609,7 +624,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       stranger =
         downloading_item(%{id: "stranger", title: "Sample Movie 2010 1080p WEB-DL"})
 
-      status = Pursuits.status_from(pursuit, [stranger])
+      status = Pursuits.status_from(pursuit, context_with([stranger]))
 
       assert status.current_action.verb == "Downloaded"
       assert status.download == nil
@@ -622,7 +637,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
 
       MediaCentaur.IntegrationAvailability.report(:prowlarr, {:down, :unreachable})
 
-      status = Pursuits.status_from(pursuit, [])
+      status = Pursuits.status_from(pursuit, context_with([]))
 
       assert status.current_action.verb == "Waiting"
       assert status.current_action.description =~ "Prowlarr is unreachable"
@@ -638,7 +653,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
         next_attempt_at: DateTime.add(DateTime.utc_now(:second), 60, :second)
       })
 
-      status = Pursuits.status_from(pursuit, [])
+      status = Pursuits.status_from(pursuit, context_with([]))
 
       assert status.current_action.verb == "Waiting"
       assert status.current_action.description =~ "could not reach your download client"
@@ -649,7 +664,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
 
       MediaCentaur.IntegrationAvailability.report({:handoff, :torrent}, {:down, :client_unavailable})
 
-      status = Pursuits.status_from(pursuit, [])
+      status = Pursuits.status_from(pursuit, context_with([]))
 
       assert status.current_action.verb == "Searching"
     end
@@ -680,7 +695,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     test "everything up keeps the searching copy" do
       {pursuit, _target} = create_pursuit_with_target(%{status: "seeking"})
 
-      status = Pursuits.status_from(pursuit, [])
+      status = Pursuits.status_from(pursuit, context_with([]))
 
       assert status.current_action.verb == "Searching"
     end
@@ -777,7 +792,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     test "status_from/2 searches the unit's episode, not the whole series" do
       pursuit = start_plan_born_pursuit([episode_unit(1, 3)])
 
-      assert %PursuitStatus{} = status = Pursuits.status_from(pursuit, [])
+      assert %PursuitStatus{} = status = Pursuits.status_from(pursuit, context_with([]))
       assert status.search_queries == ["Sample Show S01E03"]
       assert status.recipe.season_number == 1
       assert status.recipe.episode_number == 3

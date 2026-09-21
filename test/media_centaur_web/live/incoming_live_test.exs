@@ -3432,10 +3432,12 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       html = render(view)
       assert html =~ "Other downloads"
       assert html =~ ~s|id="orphan-hash-orphan"|
-      # The pursuit card surfaces `PursuitStatus.derive`'s `CurrentAction`
-      # as the status line when no torrent is matched — the acquired-but-
-      # not-yet-landed case now reads as the post-download lifecycle stage.
-      assert html =~ "Downloaded"
+      # The pursuit card surfaces `PursuitStatus.derive`'s `CurrentAction` as
+      # its status line when no torrent is matched. This pursuit was grabbed
+      # and the client has never shown it, so the card says so — it must not
+      # claim the download finished just because the queue doesn't hold it.
+      assert html =~ "Grabbed"
+      refute html =~ "Finished"
     end
 
     test "TV pursuits render an SxxExx suffix in the card title", %{conn: conn} do

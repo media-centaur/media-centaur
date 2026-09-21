@@ -65,8 +65,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Unit do
     field :tried_release_guids, {:array, :string}, default: []
     field :attempt_count, :integer, default: 0
     field :awaiting_decision_at, :utc_datetime
-    field :stall_first_seen_at, :utc_datetime
-    field :zero_seeders_first_seen_at, :utc_datetime
 
     timestamps()
   end

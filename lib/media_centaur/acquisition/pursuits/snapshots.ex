@@ -10,9 +10,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshots do
   watcher loop runs per unit). Reads the unit's current target, the
   current queue snapshot, and live thresholds side-by-side so Policy
   sees a coherent view. Derives `*_observed?` and `*_window_elapsed?`
-  flags from the unit's persisted observation timestamps — those
-  timestamps are kept current by `Pursuits.Observations.refresh!/4`,
-  which the Watcher calls before invoking this builder.
+  flags from the *target's* persisted observation windows, which
+  `Pursuits.Observations.observe!/4` keeps current on every queue snapshot
+  (`Pursuits.QueueListener`).
 
   Pass an explicit `queue_state` (a `[QueueItem.t()]` list or `:unknown`)
   to reuse the same snapshot the Watcher already loaded — the 2-arity
@@ -44,19 +44,28 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshots do
       queue_state: queue_state,
       now: now,
       thresholds: thresholds,
-      stall_observed?: not is_nil(unit.stall_first_seen_at),
+      stall_observed?: not is_nil(stall_first_seen_at(current_target)),
       stall_window_elapsed?:
-        window_elapsed?(unit.stall_first_seen_at, thresholds.stall_window_hours, now),
-      zero_seeders_observed?: not is_nil(unit.zero_seeders_first_seen_at),
+        window_elapsed?(stall_first_seen_at(current_target), thresholds.stall_window_hours, now),
+      zero_seeders_observed?: not is_nil(zero_seeders_first_seen_at(current_target)),
       zero_seeders_window_elapsed?:
         window_elapsed?(
-          unit.zero_seeders_first_seen_at,
+          zero_seeders_first_seen_at(current_target),
           thresholds.zero_seeders_window_hours,
           now
         ),
       download_failure_message: download_failure_message(queue_state, current_target)
     }
   end
+
+  # The observation windows live on the target — they are readings of one
+  # download, and a release may cover many units (`Pursuits.TargetUnit`), so a
+  # unit-level copy would be N identical rows that could disagree mid-pass.
+  defp stall_first_seen_at(%Target{stall_first_seen_at: at}), do: at
+  defp stall_first_seen_at(nil), do: nil
+
+  defp zero_seeders_first_seen_at(%Target{zero_seeders_first_seen_at: at}), do: at
+  defp zero_seeders_first_seen_at(nil), do: nil
 
   # The client itself declared the download terminally failed — only
   # drivers that report a failure detail set `failure_message` (SABnzbd's

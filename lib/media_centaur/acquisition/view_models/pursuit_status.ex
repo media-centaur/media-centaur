@@ -5,13 +5,17 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   Built by `MediaCentaur.Acquisition.Pursuits.status_from/2` — joins the
   pursuit row with its unit, the unit's current target, and any
   matching download-client queue item, then routes through the pure
-  `derive/4` function to produce `current_action`, `next_step`, and
+  `derive/6` function to produce `current_action`, `next_step`, and
   `available_actions`. The unit carries the attempt thread (ADR-055);
   the modal shows the sole unit's thread until the multi-unit
   drill-down lands.
+
+  `derive/6` owns *copy*, not lifecycle logic: `Pursuits.Stage` decides where
+  the download has got to and this module says it in words. Adding a status
+  line means adding a stage there, not another clause here.
   """
 
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Unit}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Stage, StatusContext, Unit}
   alias MediaCentaur.Acquisition.Pursuits.State
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Format
@@ -46,14 +50,15 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     :download,
     :staleness,
     :last_activity_at,
-    # Loaded pursuit + unit + target structs are stashed so the
-    # queue-tick refresh path (`Pursuits.refresh_status_download/2`) can
-    # re-derive the dynamic fields against a fresh queue snapshot
-    # without a DB round-trip. Not consumed by the template — purely a
-    # memoisation handle for the refresh path.
+    # Loaded pursuit + unit + target structs, and the page-level
+    # `StatusContext`, are stashed so the queue-tick refresh path
+    # (`Pursuits.refresh_status_download/2`) can re-derive the dynamic fields
+    # against a fresh queue snapshot without a DB round-trip. Not consumed by
+    # the template — purely a memoisation handle for the refresh path.
     :pursuit,
     :unit,
     :target,
+    :context,
     available_actions: [],
     downloads: [],
     downloads_done: 0,
@@ -62,7 +67,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
 
   @type action :: :cancel | :change_target | :request_decision
   @type staleness :: :fresh | :stale | :very_stale
-  @type location :: :in_review | :none
 
   @type t :: %__MODULE__{
           pursuit_id: Ecto.UUID.t(),
@@ -82,23 +86,44 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
           available_actions: [action()],
           pursuit: Pursuit.t() | nil,
           unit: Unit.t() | nil,
-          target: Target.t() | nil
+          target: Target.t() | nil,
+          context: StatusContext.t() | nil
         }
 
   @doc """
-  Pure mapping from (pursuit, unit, target, queue_item) to the dynamic
-  display fields. No DB, no PubSub. The unit carries the attempt thread
-  (decision flag, attempt count — ADR-055); the target carries the
-  per-release facts.
+  Pure mapping from a pursuit and its download position to the dynamic display
+  fields. No DB, no PubSub, no Settings — every system-level fact arrives on
+  the `StatusContext`.
 
-  The recipe lives on the pursuit and drives whether `ChangeTarget` is
-  going to auto-pick or surface results for the user — but from the
-  view-model's perspective, both recipes offer `:change_target` as the
-  recovery action; the worker handles the divergence.
+  Precedence, highest first:
+
+  1. The pursuit's own terminal outcome (satisfied / partial / exhausted /
+     cancelled) — nothing about the download matters once it is over.
+  2. A pending user decision. The unit is still active in lifecycle terms, but
+     the user-visible status is "we're blocked on your pick", and that outranks
+     an integration hold: the pick is the user's to make either way.
+  3. A global hold on a down Prowlarr, which only bites before the search.
+  4. A grab that reached Prowlarr but not the download client behind it — an
+     outage, not a bad release.
+  5. `Stage.of/4`, mapped to copy.
+
+  The unit carries the attempt thread (decision flag, attempt count — ADR-055);
+  the target carries the per-release facts. The recipe lives on the pursuit and
+  drives whether `ChangeTarget` auto-picks or surfaces results, but from here
+  both recipes offer `:change_target` as the recovery action; the worker handles
+  the divergence.
   """
-  @spec derive(Pursuit.t(), Unit.t() | nil, Target.t() | nil, QueueItem.t() | nil) ::
-          {CurrentAction.t(), NextStep.t() | nil, [action()]}
-  def derive(%Pursuit{state: "satisfied"}, _unit, _target, _qi) do
+  @spec derive(
+          Pursuit.t(),
+          Unit.t() | nil,
+          Target.t() | nil,
+          QueueItem.t() | nil,
+          Stage.location(),
+          StatusContext.t()
+        ) :: {CurrentAction.t(), NextStep.t() | nil, [action()]}
+  def derive(pursuit, unit, target, queue_item, location, context)
+
+  def derive(%Pursuit{state: "satisfied"}, _unit, _target, _qi, _location, _context) do
     {
       %CurrentAction{
         verb: "Done",
@@ -110,7 +135,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "partial"}, _unit, _target, _qi) do
+  def derive(%Pursuit{state: "partial"}, _unit, _target, _qi, _location, _context) do
     {
       %CurrentAction{
         verb: "Partially done",
@@ -122,7 +147,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "exhausted"}, unit, _target, _qi) do
+  def derive(%Pursuit{state: "exhausted"}, unit, _target, _qi, _location, _context) do
     attempt_count = (unit && unit.attempt_count) || 0
 
     {
@@ -136,7 +161,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "cancelled"}, _unit, _target, _qi) do
+  def derive(%Pursuit{state: "cancelled"}, _unit, _target, _qi, _location, _context) do
     {
       %CurrentAction{verb: "Cancelled", description: "Pursuit cancelled.", severity: :info},
       nil,
@@ -144,10 +169,37 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  # Awaiting-decision takes precedence over the regular state:"active"
-  # clauses. The unit is still active in lifecycle terms, but the
-  # user-visible status is "we're blocked on your pick".
-  def derive(%Pursuit{state: "active"}, %Unit{awaiting_decision_at: %DateTime{}}, _target, _qi) do
+  def derive(%Pursuit{state: "active"}, unit, target, queue_item, location, %StatusContext{} = context) do
+    stage = Stage.of(target, queue_item, location, context)
+
+    cond do
+      awaiting_decision?(unit) -> decision_action()
+      held_before_the_search?(stage, context) -> held_action(context.held_integration)
+      handoff_outage?(stage, target) -> outage_action(target)
+      stage == :at_client -> at_client_action(queue_item)
+      true -> stage_action(stage, target, unit)
+    end
+  end
+
+  defp awaiting_decision?(%Unit{awaiting_decision_at: %DateTime{}}), do: true
+  defp awaiting_decision?(_unit), do: false
+
+  # The hold is global and only bites before the work starts: once a release is
+  # grabbed, Prowlarr being down changes nothing about the download in flight.
+  defp held_before_the_search?(:seeking, %StatusContext{held_integration: integration}),
+    do: not is_nil(integration)
+
+  defp held_before_the_search?(_stage, _context), do: false
+
+  # The last grab reached Prowlarr but not the download client behind it — an
+  # outage, not a bad release. The worker snoozed briefly without charging an
+  # attempt; say so, or the user reaches for an alternative release that cannot
+  # help.
+  defp handoff_outage?(:seeking, %Target{last_attempt_outcome: "download_client_unavailable"}), do: true
+
+  defp handoff_outage?(_stage, _target), do: false
+
+  defp decision_action do
     {
       %CurrentAction{
         verb: "Decision needed",
@@ -159,163 +211,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, _unit, nil, _qi) do
-    {
-      %CurrentAction{
-        verb: "Unknown",
-        description: "Pursuit has no target — change target to begin.",
-        severity: :warning
-      },
-      nil,
-      [:cancel, :change_target]
-    }
-  end
-
-  # The last grab reached Prowlarr but not the download client behind it
-  # — an outage, not a bad release. The worker snoozed briefly without
-  # charging an attempt; say so, or the user reaches for an alternative
-  # release that cannot help.
-  def derive(
-        %Pursuit{state: "active"},
-        _unit,
-        %Target{status: "seeking", last_attempt_outcome: "download_client_unavailable"} = t,
-        _qi
-      ) do
-    {
-      %CurrentAction{
-        verb: "Waiting",
-        description: outage_description(t),
-        severity: :warning
-      },
-      %NextStep{
-        description: "Check that the download client is running. The same release will be retried."
-      },
-      [:cancel, :request_decision]
-    }
-  end
-
-  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "seeking"} = t, _qi) do
-    {
-      %CurrentAction{
-        verb: "Searching",
-        description: searching_description(t),
-        severity: :info
-      },
-      %NextStep{description: "Trying expanded queries — will pick the best match or snooze."},
-      [:cancel, :request_decision]
-    }
-  end
-
-  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "failed"} = t, _qi) do
-    {
-      %CurrentAction{
-        verb: "Stopped",
-        description: "Auto-search gave up after #{t.attempt_count} attempts.",
-        severity: :warning
-      },
-      %NextStep{description: "Change target or pick a release manually."},
-      [:cancel, :change_target, :request_decision]
-    }
-  end
-
-  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "cancelled"}, _qi) do
-    {
-      %CurrentAction{
-        verb: "Stopped",
-        description: "Target was cancelled.",
-        severity: :warning
-      },
-      %NextStep{description: "Change target to restart."},
-      [:cancel, :change_target]
-    }
-  end
-
-  def derive(
-        %Pursuit{state: "active"},
-        _unit,
-        %Target{status: "acquired"},
-        %QueueItem{state: qstate} = qi
-      )
-      when not is_nil(qstate), do: derive_acquired_in_queue(qi)
-
-  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "acquired"}, _qi) do
-    {
-      %CurrentAction{
-        verb: "Downloaded",
-        description: "Finished downloading — still importing, or already in your library.",
-        severity: :info
-      },
-      %NextStep{
-        description:
-          "It may still be importing or already be in your library; change target to grab a different release."
-      },
-      [:cancel, :change_target]
-    }
-  end
-
-  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "succeeded"}, _qi) do
-    {
-      %CurrentAction{
-        verb: "Done",
-        description: "File landed and identity verified.",
-        severity: :success
-      },
-      nil,
-      []
-    }
-  end
-
-  @doc """
-  Location- and hold-aware variant. `location` distinguishes the
-  post-download lifecycle stage of an `acquired` target that's no longer
-  in the queue: `:in_review` (the file is sitting in the review queue)
-  vs `:none` (no matching file in review or library yet).
-
-  `opts[:held]` is `:prowlarr` when the worker is holding every pursuit
-  on a down Prowlarr, read from `MediaCentaur.IntegrationAvailability`
-  by the caller: that hold is global and leaves no trace on any target,
-  so the caller has to say so. A hand-off hold is per-pursuit and
-  arrives the ordinary way, as the target's
-  `download_client_unavailable` outcome. For every other case the
-  location and the hold are irrelevant and this delegates to `derive/4`.
-  """
-  @spec derive(
-          Pursuit.t(),
-          Unit.t() | nil,
-          Target.t() | nil,
-          QueueItem.t() | nil,
-          location(),
-          keyword()
-        ) :: {CurrentAction.t(), NextStep.t() | nil, [action()]}
-  def derive(pursuit, unit, target, queue_item, location, opts \\ []) do
-    case Keyword.get(opts, :held) do
-      nil -> derive_located(pursuit, unit, target, queue_item, location)
-      integration -> derive_held(pursuit, unit, target, queue_item, location, integration)
-    end
-  end
-
-  # A pending decision outranks the hold: the pick is the user's to make
-  # and the integration being down doesn't change that.
-  defp derive_held(
-         %Pursuit{state: "active"} = pursuit,
-         %Unit{awaiting_decision_at: %DateTime{}} = unit,
-         target,
-         queue_item,
-         location,
-         _integration
-       ), do: derive_located(pursuit, unit, target, queue_item, location)
-
-  # Held before the search or the grab: no clock, because it resumes on
-  # recovery rather than on a timer, and no decision to request — that
-  # would need the same integration.
-  defp derive_held(
-         %Pursuit{state: "active"},
-         _unit,
-         %Target{status: "seeking"},
-         _queue_item,
-         _location,
-         integration
-       ) do
+  # Held before the search: no clock, because it resumes on recovery rather
+  # than on a timer, and no decision to request — that would need the same
+  # integration.
+  defp held_action(integration) do
     {
       %CurrentAction{
         verb: "Waiting",
@@ -327,10 +226,73 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_held(pursuit, unit, target, queue_item, location, _integration),
-    do: derive_located(pursuit, unit, target, queue_item, location)
+  defp outage_action(%Target{} = target) do
+    {
+      %CurrentAction{
+        verb: "Waiting",
+        description: outage_description(target),
+        severity: :warning
+      },
+      %NextStep{
+        description: "Check that the download client is running. The same release will be retried."
+      },
+      [:cancel, :request_decision]
+    }
+  end
 
-  defp derive_located(%Pursuit{state: "active"}, _unit, %Target{status: "acquired"}, nil, :in_review) do
+  defp stage_action(:no_target, _target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Unknown",
+        description: "Pursuit has no target — change target to begin.",
+        severity: :warning
+      },
+      nil,
+      [:cancel, :change_target]
+    }
+  end
+
+  defp stage_action(:seeking, %Target{} = target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Searching",
+        description: searching_description(target),
+        severity: :info
+      },
+      %NextStep{description: "Trying expanded queries — will pick the best match or snooze."},
+      [:cancel, :request_decision]
+    }
+  end
+
+  # Grabbed, and the download client has not shown it to us yet. Prowlarr
+  # accepting a grab is a hand-off, not a download: without this stage the row
+  # read "Downloaded — Finished downloading" for the seconds between the grab
+  # and the client registering the release.
+  defp stage_action(:handed_off, _target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Grabbed",
+        description: "Waiting for your download client to pick it up.",
+        severity: :info
+      },
+      %NextStep{description: "It'll say so here if your client never takes it."},
+      [:cancel]
+    }
+  end
+
+  defp stage_action(:missing, _target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Not at your client",
+        description: "Prowlarr accepted the grab but the download never started.",
+        severity: :warning
+      },
+      %NextStep{description: "Change target to try a different release."},
+      [:cancel, :change_target]
+    }
+  end
+
+  defp stage_action(:in_review, _target, _unit) do
     {
       %CurrentAction{
         verb: "In review",
@@ -342,8 +304,56 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_located(pursuit, unit, target, queue_item, _location),
-    do: derive(pursuit, unit, target, queue_item)
+  defp stage_action(:left_client, _target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Downloaded",
+        description: "Finished at your download client. Importing, or already in your library.",
+        severity: :info
+      },
+      %NextStep{
+        description:
+          "It may still be importing or already be in your library; change target to grab a different release."
+      },
+      [:cancel, :change_target]
+    }
+  end
+
+  defp stage_action(:done, _target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Done",
+        description: "File landed and identity verified.",
+        severity: :success
+      },
+      nil,
+      []
+    }
+  end
+
+  defp stage_action(:failed, %Target{} = target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Stopped",
+        description: "Auto-search gave up after #{target.attempt_count} attempts.",
+        severity: :warning
+      },
+      %NextStep{description: "Change target or pick a release manually."},
+      [:cancel, :change_target, :request_decision]
+    }
+  end
+
+  defp stage_action(:cancelled, _target, _unit) do
+    {
+      %CurrentAction{
+        verb: "Stopped",
+        description: "Target was cancelled.",
+        severity: :warning
+      },
+      %NextStep{description: "Change target to restart."},
+      [:cancel, :change_target]
+    }
+  end
 
   # The seeking-state description tells the user what to expect next.
   # When the worker has scheduled a snooze (`next_attempt_at` is set),
@@ -371,7 +381,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   # the same wait.
   defp held_description(:prowlarr), do: "Prowlarr is unreachable. Resumes when it answers again."
 
-  defp derive_acquired_in_queue(%QueueItem{state: :downloading} = qi) do
+  defp at_client_action(%QueueItem{state: :downloading} = qi) do
     {
       %CurrentAction{
         verb: "Downloading",
@@ -383,7 +393,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_acquired_in_queue(%QueueItem{state: :queued}) do
+  defp at_client_action(%QueueItem{state: :queued}) do
     {
       %CurrentAction{
         verb: "Queued",
@@ -395,7 +405,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_acquired_in_queue(%QueueItem{state: :stalled}) do
+  defp at_client_action(%QueueItem{state: :stalled}) do
     {
       %CurrentAction{
         verb: "Stalled",
@@ -407,7 +417,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_acquired_in_queue(%QueueItem{state: :paused}) do
+  defp at_client_action(%QueueItem{state: :paused}) do
     {
       %CurrentAction{
         verb: "Paused",
@@ -422,7 +432,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   # SABnzbd's post-download pipeline: verify → repair → unpack → move.
   # All healthy, all hands-off — offering change_target here invites
   # abandoning a download that is seconds-to-minutes from landing.
-  defp derive_acquired_in_queue(%QueueItem{state: state})
+  defp at_client_action(%QueueItem{state: state})
        when state in [:verifying, :repairing, :extracting, :moving] do
     {
       %CurrentAction{
@@ -435,7 +445,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_acquired_in_queue(%QueueItem{state: :completed}) do
+  defp at_client_action(%QueueItem{state: :completed}) do
     {
       %CurrentAction{
         verb: "Verifying",
@@ -453,7 +463,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   # expectation that the Watcher pivots to a different release on its
   # own. Without a detail (qBittorrent's ambiguous error states) the
   # recovery is manual.
-  defp derive_acquired_in_queue(%QueueItem{state: :error, failure_message: message} = qi)
+  defp at_client_action(%QueueItem{state: :error, failure_message: message} = qi)
        when is_binary(message) do
     {
       %CurrentAction{
@@ -469,7 +479,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_acquired_in_queue(%QueueItem{state: :error}) do
+  defp at_client_action(%QueueItem{state: :error}) do
     {
       %CurrentAction{
         verb: "Failed",
@@ -481,7 +491,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  defp derive_acquired_in_queue(%QueueItem{state: :other}) do
+  defp at_client_action(%QueueItem{}) do
     {
       %CurrentAction{
         verb: "Waiting",

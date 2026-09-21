@@ -314,7 +314,8 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Activities.Publisher,
       MediaCentaur.Acquisition.Reactor,
       MediaCentaur.Downloads.QueueMonitor,
-      MediaCentaur.Acquisition.Pursuits.InboundListener
+      MediaCentaur.Acquisition.Pursuits.InboundListener,
+      MediaCentaur.Acquisition.Pursuits.QueueListener
     ]
   end
 

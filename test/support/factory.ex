@@ -1176,8 +1176,6 @@ defmodule MediaCentaur.TestFactory do
     :tried_release_guids,
     :attempt_count,
     :current_target_id,
-    :stall_first_seen_at,
-    :zero_seeders_first_seen_at,
     :label,
     :query,
     :position
@@ -1316,7 +1314,12 @@ defmodule MediaCentaur.TestFactory do
       :cancelled_reason,
       :prowlarr_guid,
       :torrent_hash,
-      :content_path
+      :content_path,
+      :first_seen_in_queue_at,
+      :last_queue_state,
+      :last_queue_health,
+      :stall_first_seen_at,
+      :zero_seeders_first_seen_at
     ]
 
     defaults = %{

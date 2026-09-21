@@ -1,10 +1,12 @@
 defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
   use MediaCentaur.Case, async: true
 
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, StatusContext, Unit}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Acquisition.ViewModels.PursuitStatus
   alias MediaCentaur.Downloads.QueueItem
+
+  @now ~U[2026-09-21 12:00:00Z]
 
   defp pursuit(state, attrs \\ %{}) do
     base = %Pursuit{
@@ -30,6 +32,21 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     struct(base, attrs)
   end
 
+  # Acquired, seen at the download client, and gone from the queue since —
+  # the only shape for which "Downloaded" is a true statement.
+  defp left_the_client(attrs \\ %{}) do
+    target(
+      :acquired,
+      Map.merge(
+        %{
+          acquired_at: DateTime.add(@now, -7200, :second),
+          first_seen_in_queue_at: DateTime.add(@now, -7000, :second)
+        },
+        attrs
+      )
+    )
+  end
+
   defp target(status, attrs \\ %{}) do
     base = %Target{
       id: "t-1",
@@ -42,6 +59,23 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     struct(base, attrs)
   end
 
+  # Every call goes through the full `derive/6`; these defaults keep the
+  # unrelated inputs out of the way of whatever a test is actually about.
+  defp derive(pursuit, unit, target, queue_item, location \\ :none, context \\ context()),
+    do: PursuitStatus.derive(pursuit, unit, target, queue_item, location, context)
+
+  defp context(attrs \\ %{}) do
+    struct(
+      %StatusContext{
+        now: @now,
+        handoff_window_minutes: 30,
+        client_reachable?: true,
+        pending_file_paths: MapSet.new()
+      },
+      attrs
+    )
+  end
+
   defp queue_item(state, attrs \\ %{}) do
     base = %QueueItem{
       id: "qi-1",
@@ -52,9 +86,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     struct(base, attrs)
   end
 
-  describe "derive/3 — active + seeking" do
+  describe "derive/6 — active + seeking" do
     test "Searching with cancel + request_decision" do
-      {action, next, actions} = PursuitStatus.derive(pursuit(:active), unit(), target(:seeking), nil)
+      {action, next, actions} = derive(pursuit(:active), unit(), target(:seeking), nil)
 
       assert action.verb == "Searching"
       assert action.severity == :info
@@ -65,7 +99,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "description is timeless when next_attempt_at is nil (fresh target)" do
       {action, _next, _actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(),
           target(:seeking, %{attempt_count: 3, next_attempt_at: nil}),
@@ -79,7 +113,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       future = DateTime.add(DateTime.utc_now(), 2 * 3600 + 15 * 60, :second)
 
       {action, _next, _actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(),
           target(:seeking, %{attempt_count: 3, next_attempt_at: future}),
@@ -93,7 +127,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       future = DateTime.add(DateTime.utc_now(), 15 * 60, :second)
 
       {action, next, actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(),
           target(:seeking, %{
@@ -116,16 +150,16 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     end
   end
 
-  describe "derive/5 — held on a down integration" do
+  describe "derive/6 — held on a down integration" do
     test "Prowlarr down reads as waiting on Prowlarr, with no attempt clock" do
       {action, next_step, actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(),
           target(:seeking, %{attempt_count: 2, next_attempt_at: nil}),
           nil,
           :none,
-          held: :prowlarr
+          context(%{held_integration: :prowlarr})
         )
 
       assert action.verb == "Waiting"
@@ -137,20 +171,20 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "nothing held keeps today's copy" do
       {action, _next_step, _actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:seeking), nil, :none, held: nil)
+        derive(pursuit(:active), unit(), target(:seeking), nil, :none, context())
 
       assert action.description == "Looking for an acceptable release (attempt 1)."
     end
 
     test "a pending decision outranks the hold — the pick is still the user's" do
       {action, _next_step, _actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(%{awaiting_decision_at: DateTime.utc_now()}),
           target(:seeking),
           nil,
           :none,
-          held: :prowlarr
+          context(%{held_integration: :prowlarr})
         )
 
       assert action.verb == "Decision needed"
@@ -158,23 +192,23 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "a target that is not seeking ignores the hold" do
       {action, _next_step, _actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(),
-          target(:acquired),
+          left_the_client(),
           nil,
           :none,
-          held: :prowlarr
+          context(%{held_integration: :prowlarr})
         )
 
       assert action.verb == "Downloaded"
     end
   end
 
-  describe "derive/3 — active + acquired + queue states" do
+  describe "derive/6 — active + acquired + queue states" do
     test "downloading -> Downloading, cancel only" do
       {action, _next, actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(:downloading))
+        derive(pursuit(:active), unit(), target(:acquired), queue_item(:downloading))
 
       assert action.verb == "Downloading"
       assert action.severity == :info
@@ -185,7 +219,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     # download description must not multiply by 100 again (the "2330%" bug).
     test "download description shows progress as a percentage without re-scaling" do
       {action, _next, _actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(),
           target(:acquired),
@@ -198,7 +232,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "queued -> Queued, cancel only" do
       {action, _next, actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(:queued))
+        derive(pursuit(:active), unit(), target(:acquired), queue_item(:queued))
 
       assert action.verb == "Queued"
       assert actions == [:cancel]
@@ -206,7 +240,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "stalled -> Stalled (warning) with change_target + request_decision" do
       {action, _next, actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(:stalled))
+        derive(pursuit(:active), unit(), target(:acquired), queue_item(:stalled))
 
       assert action.verb == "Stalled"
       assert action.severity == :warning
@@ -227,7 +261,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
             {:moving, "Moving"}
           ] do
         {action, next, actions} =
-          PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(state))
+          derive(pursuit(:active), unit(), target(:acquired), queue_item(state))
 
         assert action.verb == verb
         assert action.severity == :info
@@ -239,7 +273,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "paused -> Paused" do
       {action, _next, actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(:paused))
+        derive(pursuit(:active), unit(), target(:acquired), queue_item(:paused))
 
       assert action.verb == "Paused"
       assert actions == [:cancel]
@@ -247,7 +281,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "completed -> Verifying" do
       {action, next, actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(:completed))
+        derive(pursuit(:active), unit(), target(:acquired), queue_item(:completed))
 
       assert action.verb == "Verifying"
       assert next.description =~ "InboundListener"
@@ -256,7 +290,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "error without a failure detail -> Failed with the generic description" do
       {action, next, actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(:error))
+        derive(pursuit(:active), unit(), target(:acquired), queue_item(:error))
 
       assert action.verb == "Failed"
       assert action.severity == :error
@@ -270,7 +304,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       # blocks", "Unpacking failed") name the exact condition — the user
       # must see that, not a generic "reported an error".
       {action, next, actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(),
           target(:acquired),
@@ -288,17 +322,17 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     end
 
     test "no queue match -> Downloaded with change_target hint" do
-      {action, _next, actions} = PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), nil)
+      {action, _next, actions} = derive(pursuit(:active), unit(), left_the_client(), nil)
 
       assert action.verb == "Downloaded"
       assert :change_target in actions
     end
   end
 
-  describe "derive/4 — location-aware post-download stage" do
+  describe "derive/6 — location-aware post-download stage" do
     test "acquired + no queue + :in_review -> In review (no change_target)" do
       {action, next, actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), nil, :in_review)
+        derive(pursuit(:active), unit(), target(:acquired), nil, :in_review)
 
       assert action.verb == "In review"
       assert action.severity == :info
@@ -306,9 +340,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       assert actions == [:cancel]
     end
 
-    test "acquired + no queue + :none -> Downloaded (delegates to derive/3)" do
+    test "acquired + no queue + :none -> Downloaded" do
       {action, _next, actions} =
-        PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), nil, :none)
+        derive(pursuit(:active), unit(), left_the_client(), nil, :none)
 
       assert action.verb == "Downloaded"
       assert :change_target in actions
@@ -316,7 +350,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "location is ignored once a queue item is present" do
       {action, _next, _actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(),
           target(:acquired),
@@ -328,9 +362,101 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     end
   end
 
-  describe "derive/3 — active + terminal-failure target states" do
+  describe "derive/6 — hand-off, before the download client has the release" do
+    test "a grab the client has not registered yet does not read as finished" do
+      now = ~U[2026-09-21 12:00:00Z]
+
+      {action, _next, actions} =
+        derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired, acquired_at: DateTime.add(now, -20, :second)),
+          nil,
+          :none,
+          context(%{now: now})
+        )
+
+      assert action.verb == "Grabbed"
+      assert action.severity == :info
+      refute action.description =~ "Finished"
+      assert actions == [:cancel]
+    end
+
+    test "a grab that never arrived says so instead of claiming it finished" do
+      now = ~U[2026-09-21 12:00:00Z]
+
+      {action, next, actions} =
+        derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired, acquired_at: DateTime.add(now, -3, :hour)),
+          nil,
+          :none,
+          context(%{now: now})
+        )
+
+      assert action.verb == "Not at your client"
+      assert action.severity == :warning
+      assert next.description =~ "different release"
+      assert :change_target in actions
+    end
+
+    test "an observed download that has left the client is the only 'Downloaded'" do
+      now = ~U[2026-09-21 12:00:00Z]
+
+      {action, _next, actions} =
+        derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired,
+            acquired_at: DateTime.add(now, -3, :hour),
+            first_seen_in_queue_at: DateTime.add(now, -2, :hour)
+          ),
+          nil,
+          :none,
+          context(%{now: now})
+        )
+
+      assert action.verb == "Downloaded"
+      assert :change_target in actions
+    end
+
+    test "a live queue item outranks a missing first-sighting stamp" do
+      now = ~U[2026-09-21 12:00:00Z]
+
+      {action, _next, _actions} =
+        derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired, acquired_at: DateTime.add(now, -3, :hour)),
+          queue_item(:downloading),
+          :none,
+          context(%{now: now})
+        )
+
+      assert action.verb == "Downloading"
+    end
+
+    test "a file already in review outranks a missing first-sighting stamp" do
+      now = ~U[2026-09-21 12:00:00Z]
+
+      {action, _next, _actions} =
+        derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired, acquired_at: DateTime.add(now, -3, :hour)),
+          nil,
+          :in_review,
+          context(%{now: now})
+        )
+
+      assert action.verb == "In review"
+    end
+  end
+
+  describe "derive/6 — active + terminal-failure target states" do
     test "failed -> Stopped with change_target + request_decision" do
-      {action, _next, actions} = PursuitStatus.derive(pursuit(:active), unit(), target(:failed), nil)
+      {action, _next, actions} = derive(pursuit(:active), unit(), target(:failed), nil)
 
       assert action.verb == "Stopped"
       assert :change_target in actions
@@ -338,16 +464,16 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     end
 
     test "cancelled target -> Stopped with change_target" do
-      {action, _next, actions} = PursuitStatus.derive(pursuit(:active), unit(), target(:cancelled), nil)
+      {action, _next, actions} = derive(pursuit(:active), unit(), target(:cancelled), nil)
 
       assert action.verb == "Stopped"
       assert :change_target in actions
     end
   end
 
-  describe "derive/3 — active + no target" do
+  describe "derive/6 — active + no target" do
     test "missing target -> Unknown with cancel + change_target" do
-      {action, _next, actions} = PursuitStatus.derive(pursuit(:active), unit(), nil, nil)
+      {action, _next, actions} = derive(pursuit(:active), unit(), nil, nil)
 
       assert action.verb == "Unknown"
       assert action.severity == :warning
@@ -356,10 +482,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
     end
   end
 
-  describe "derive/3 — terminal pursuit states" do
+  describe "derive/6 — terminal pursuit states" do
     test "active + awaiting_decision_at -> Decision needed" do
       {action, _next, actions} =
-        PursuitStatus.derive(
+        derive(
           pursuit(:active),
           unit(%{awaiting_decision_at: DateTime.utc_now(:second)}),
           target(:seeking),
@@ -372,7 +498,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "satisfied -> Done, no actions, no next_step" do
       {action, next, actions} =
-        PursuitStatus.derive(pursuit(:satisfied), unit(%{state: "satisfied"}), target(:acquired), nil)
+        derive(pursuit(:satisfied), unit(%{state: "satisfied"}), target(:acquired), nil)
 
       assert action.verb == "Done"
       assert action.severity == :success
@@ -382,7 +508,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "exhausted -> Gave up, no actions" do
       {action, _next, actions} =
-        PursuitStatus.derive(pursuit(:exhausted), unit(%{state: "exhausted"}), target(:failed), nil)
+        derive(pursuit(:exhausted), unit(%{state: "exhausted"}), target(:failed), nil)
 
       assert action.verb == "Gave up"
       assert action.severity == :error
@@ -391,7 +517,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
 
     test "cancelled -> Cancelled, no actions" do
       {action, next, actions} =
-        PursuitStatus.derive(pursuit(:cancelled), unit(%{state: "cancelled"}), nil, nil)
+        derive(pursuit(:cancelled), unit(%{state: "cancelled"}), nil, nil)
 
       assert action.verb == "Cancelled"
       assert next == nil

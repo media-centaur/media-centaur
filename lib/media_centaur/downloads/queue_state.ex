@@ -41,4 +41,19 @@ defmodule MediaCentaur.Downloads.QueueState do
             last_successful_poll_at: nil,
             connectivity: :initializing,
             client_connectivity: %{}
+
+  @doc """
+  Whether an *absence* from `items` can be read as evidence.
+
+  Presence is always evidence; absence only is when the client actually
+  answered. A `{:transient_failure, _}` grade is a single blip between healthy
+  polls — the same call the incident assessor makes — so it still counts as
+  answering. Every other grade means the list is stale, unconfigured or not
+  yet populated, and a consumer must not conclude anything from something not
+  being in it.
+  """
+  @spec answering?(t()) :: boolean()
+  def answering?(%__MODULE__{connectivity: :live}), do: true
+  def answering?(%__MODULE__{connectivity: {:transient_failure, _since}}), do: true
+  def answering?(%__MODULE__{}), do: false
 end
