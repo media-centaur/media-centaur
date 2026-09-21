@@ -219,14 +219,66 @@ test.beforeEach(async ({ context }) => {
   })
 })
 
+// Marketing shots should show what someone using a mouse sees.
+//
+// The app boots in keyboard mode — root.html.heex renders
+// `<html data-input="keyboard">` — and leaves it only when the
+// orchestrator detects real pointer movement. An automated browser never
+// touches the mouse, so every stop was captured with the cursor seeded on
+// the page's first nav item and a focus ring drawn round it: an amber
+// outline on the status board's first tile, a blue one on the first
+// library card. Nothing was wrong with the app; the shots were of a
+// keyboard session.
+//
+// Drive the real detection rather than forcing the attribute, so the
+// capture reflects a state the app can actually be in. Two moves are
+// needed: the first only records a baseline position (no prior reading
+// means no delta), the second carries the delta that flips the method.
+// The corner is chosen to hover nothing.
+async function useMouseInput(page) {
+  const viewport = page.viewportSize() ?? { width: 1400, height: 900 }
+  const corner = { x: viewport.width - 2, y: viewport.height - 2 }
+
+  // Keep nudging until the app reports mouse mode. A single pair of moves
+  // is a race: the orchestrator attaches its mousemove listener when the
+  // LiveView hook mounts, which is after the socket joins, and moves that
+  // land before then are simply not heard. Losing that race silently put
+  // the focus ring back in some runs and not others.
+  for (let attempt = 0; attempt < 30; attempt++) {
+    await page.mouse.move(attempt % 2 === 0 ? 2 : corner.x, attempt % 2 === 0 ? 2 : corner.y)
+
+    const mouseMode = await page
+      .evaluate(() => document.documentElement.dataset.input === "mouse")
+      .catch(() => false)
+
+    if (mouseMode) return
+
+    await page.waitForTimeout(100)
+  }
+
+  // Not fatal: a page with no nav items never leaves keyboard mode, and
+  // has no ring to suppress either.
+}
+
 async function waitForLiveView(page) {
-  // Phoenix LiveView adds phx-connected to the socket root once the
-  // channel join completes. This is a stable signal we're mounted.
-  await page.waitForFunction(
-    () => document.querySelector(".phx-connected, [data-phx-main]") !== null,
-    null,
-    { timeout: 15_000 },
-  )
+  // `phx-connected` lands on the socket root once the channel join
+  // completes — the only signal that hooks have mounted. `[data-phx-main]`
+  // is in the first paint's HTML, so accepting it means "connected" can be
+  // true before any JS has run; that is what let the mouse-mode nudge
+  // arrive before anything was listening for it. Fall back to the looser
+  // check so a page that never connects still gets captured rather than
+  // failing the run.
+  await page
+    .waitForFunction(() => document.querySelector(".phx-connected") !== null, null, {
+      timeout: 15_000,
+    })
+    .catch(() =>
+      page.waitForFunction(
+        () => document.querySelector("[data-phx-main]") !== null,
+        null,
+        { timeout: 5_000 },
+      ),
+    )
 }
 
 for (const stop of TOUR) {
@@ -241,6 +293,11 @@ for (const stop of TOUR) {
           /* missing is fine — capture whatever rendered. */
         })
     }
+
+    // Before the stop's own action, so `keyboard-focus` — the one shot
+    // whose subject IS the focus ring — can put the page back into
+    // keyboard mode and have it stick.
+    await useMouseInput(page)
 
     if (stop.action) {
       await stop.action(page)
