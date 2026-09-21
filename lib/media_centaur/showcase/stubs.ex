@@ -15,6 +15,16 @@ defmodule MediaCentaur.Showcase.Stubs do
   screenshots never depict piracy of copyrighted content.
   """
 
+  @doc """
+  The upstreams these stubs answer for. Their requests go out through the
+  real `MediaCentaur.HttpClient`, so they emit real telemetry and land in
+  the request time series like any other traffic — which is why
+  `MediaCentaur.Showcase.SyntheticTraffic` must not fabricate a present
+  for them on top.
+  """
+  @spec upstreams() :: [atom()]
+  def upstreams, do: [:prowlarr, :qbittorrent]
+
   # --- Prowlarr plug ---
 
   @doc """

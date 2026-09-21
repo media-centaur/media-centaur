@@ -85,6 +85,37 @@ defmodule MediaCentaur.Settings.ConfigTomlBootstrapTest do
     end
   end
 
+  describe "showcase_mode" do
+    # Showcase mode is not a preference — it is a property of *which
+    # instance this is*, decided by MEDIA_CENTAUR_CONFIG_OVERRIDE before
+    # the VM starts. The supervision tree reads it to decide whether to
+    # start the demo's generators at all, which happens long before the
+    # Settings database is reachable, so it is bootstrap state.
+    test "reads from the TOML", %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      showcase_mode = true
+      """)
+
+      :ok = Config.load!()
+
+      assert Config.get(:showcase_mode) == true
+    end
+
+    test "defaults to false when the TOML is silent", %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      port = 9999
+      """)
+
+      :ok = Config.load!()
+
+      assert Config.get(:showcase_mode) == false
+    end
+
+    test "is not runtime-settable — no Settings UI may turn an install into a demo" do
+      refute :showcase_mode in Config.runtime_settable_keys()
+    end
+  end
+
   describe "Config.load!/0 with the retired `watch_dirs` TOML key" do
     # The key was renamed to `media_dirs` in 2026-06. A file still using the
     # old spelling must fail loudly with the fix named, never boot with no

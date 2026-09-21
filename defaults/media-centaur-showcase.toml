@@ -25,6 +25,13 @@ media_dirs = [
   { dir = "priv/showcase/media", images_dir = "priv/showcase/images" }
 ]
 
+# Marks this instance as the demo. Bootstrap state, not a preference: the
+# supervision tree reads it at startup to decide whether to run the
+# fixture HTTP stubs and the generators that rebuild the demo's in-memory
+# state (request history, console lines) on every boot. No Settings
+# screen can set it — a real install is never one flag away from a demo.
+showcase_mode = true
+
 # ---------------------------------------------------------------------------
 # All other settings (TMDB, pipeline thresholds, playback paths, etc.) are
 # imported from seed.showcase on first boot and managed through the Settings
