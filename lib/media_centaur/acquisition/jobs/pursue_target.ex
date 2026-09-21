@@ -83,6 +83,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.IntegrationAvailability
 
   alias MediaCentaur.Acquisition.{
@@ -433,6 +434,12 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
           )
 
         broadcast(%TargetEvents.Acquired{target: updated})
+
+        # Prowlarr has just pushed the release to the download client, so the
+        # cached queue snapshot is known-stale. Ask for a fresh one rather than
+        # leaving the pursuit at "Grabbed" for a whole poll cadence.
+        QueueMonitor.poll_now()
+
         Log.info(:acquisition, "acquisition acquired #{quality_label} — #{target.title}")
         {:ok, quality_label}
 

@@ -6,12 +6,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
 
     1. Reads the current download-client queue snapshot once (consistent
        across the whole pass).
-    2. For each active pursuit, calls `Observations.observe_pursuit!/4`
-       once to record torrent lifecycle transitions on the timeline.
-    3. For each active unit, calls `Observations.refresh!/5` to update
-       the unit's persistent stall / zero-seeder timestamps.
-    4. Builds a `Snapshot` over the refreshed unit, runs `Policy`, and
+    2. For each active unit, builds a `Snapshot` and runs `Policy`, then
        dispatches the resulting `Action` to the corresponding command.
+    3. Reconciles pursuits whose file already landed, and prunes the corpus.
+
+  It *decides*; it does not *observe*. Observation runs on the download
+  client's clock in `Pursuits.QueueListener` — every 10–30 s rather than every
+  15 minutes, because a download can start and finish between two ticks of
+  this worker. `Policy`'s own windows are measured in hours, so this cadence
+  is right for deciding and wrong for seeing.
 
   The Watcher contains zero domain logic — every action is exercised by
   either a `Policy` test (deciding) or a `Commands.*Test` (executing);
@@ -25,13 +28,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.Pursuits
 
-  alias MediaCentaur.Acquisition.Pursuits.{
-    DownloadIdentity,
-    LibraryReconciler,
-    Observations,
-    Policy,
-    Snapshots
-  }
+  alias MediaCentaur.Acquisition.Pursuits.{LibraryReconciler, Policy, Snapshots}
 
   alias MediaCentaur.Acquisition.Pursuits.Commands.{
     AutoCancel,
@@ -44,7 +41,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
   @impl Oban.Worker
   def perform(_job) do
     queue = read_queue_state()
-    now = DateTime.utc_now(:second)
 
     # Batch-fetch the three things every active unit needs:
     # (1) the pursuit + unit + its current_target, (2) the latest
@@ -52,34 +48,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
     # constant handful of queries regardless of how many units are in
     # flight.
     triples = Pursuits.list_active_units_with_context()
-    pursuit_ids = triples |> Enum.map(fn {pursuit, _unit, _target} -> pursuit.id end) |> Enum.uniq()
-    release_titles = Pursuits.latest_release_titles_for(pursuit_ids)
-
-    # Lifecycle observation runs once per PURSUIT — the tracked torrent
-    # is shared by all of a composite pursuit's units, so observing it
-    # in the per-unit loop multiplied every timeline event by the unit
-    # count (38 identical "Download started" rows for a 38-episode
-    # season pack).
-    observed_pursuits =
-      triples
-      |> Enum.map(fn {pursuit, _unit, _target} -> pursuit end)
-      |> Enum.uniq_by(& &1.id)
-      |> Map.new(fn pursuit ->
-        release_title = Map.get(release_titles, pursuit.id)
-        {pursuit.id, Observations.observe_pursuit!(pursuit, queue, now, release_title)}
-      end)
 
     Enum.each(triples, fn {pursuit, unit, current_target} ->
-      pursuit = Map.fetch!(observed_pursuits, pursuit.id)
-      release_title = Map.get(release_titles, pursuit.id)
-      refreshed = Observations.refresh!(pursuit, unit, queue, now, release_title)
-
-      # First-observation capture of the download's durable file link onto
-      # the current target (write-once); later resolves the lifecycle stage.
-      DownloadIdentity.capture!(current_target, queue, release_title)
-
-      snapshot = Snapshots.build(pursuit, refreshed, queue, current_target)
-      dispatch(Policy.evaluate(snapshot), pursuit, refreshed, snapshot)
+      snapshot = Snapshots.build(pursuit, unit, queue, current_target)
+      dispatch(Policy.evaluate(snapshot), pursuit, unit, snapshot)
     end)
 
     # Safety-net for the PubSub-driven completion path — closes

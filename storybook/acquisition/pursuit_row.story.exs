@@ -339,18 +339,52 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
             }
           },
           %Variation{
-            id: :downloaded_not_landed,
+            id: :handed_off,
             description:
-              "Target acquired, torrent gone from the client, but no file has landed in the library or review queue yet.",
+              "Just grabbed. Prowlarr accepted the release and the download client has not shown it yet — the seconds-to-a-minute window that used to read as \"Finished downloading\".",
             attributes: %{
               vm:
                 row(:active, "Movie C",
                   release_title: "Movie.C.1080p",
                   target_status: :acquired,
                   status: %CurrentAction{
+                    verb: "Grabbed",
+                    description: "Waiting for your download client to pick it up.",
+                    severity: :info
+                  }
+                )
+            }
+          },
+          %Variation{
+            id: :never_arrived,
+            description:
+              "Grabbed long enough ago that the client would have shown it. The grab was accepted but nothing arrived — the only warning-severity row with no live torrent behind it.",
+            attributes: %{
+              vm:
+                row(:active, "Movie D",
+                  release_title: "Movie.D.1080p",
+                  target_status: :acquired,
+                  status: %CurrentAction{
+                    verb: "Not at your client",
+                    description: "Prowlarr accepted the grab but the download never started.",
+                    severity: :warning
+                  }
+                )
+            }
+          },
+          %Variation{
+            id: :downloaded_not_landed,
+            description:
+              "Seen at the download client and gone from it since, with no file in the library or review queue yet.",
+            attributes: %{
+              vm:
+                row(:active, "Movie E",
+                  release_title: "Movie.E.1080p",
+                  target_status: :acquired,
+                  status: %CurrentAction{
                     verb: "Downloaded",
                     description:
-                      "Finished downloading — no file has landed in your library or review queue yet.",
+                      "Finished at your download client. Importing, or already in your library.",
                     severity: :info
                   }
                 )

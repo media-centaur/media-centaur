@@ -3,12 +3,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
 
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, TargetUnit, Units, Watcher}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units, Watcher}
+  alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Downloads.QueueItem
 
-  # Thread overrides (attempt_count, inserted_at, observation
-  # timestamps) land on the unit — the thread carrier the Policy loop
-  # reads (ADR-055).
+  # Attempt overrides (attempt_count, inserted_at) land on the unit — the
+  # thread carrier the Policy loop reads (ADR-055). Observation windows land
+  # on the target, where `Pursuits.Observations` writes them.
   defp insert_pursuit(overrides) do
     pursuit_overrides =
       Map.merge(
@@ -22,12 +23,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
     {pursuit, _target} = create_pursuit_with_target(Map.delete(pursuit_overrides, :inserted_at))
 
     unit_overrides =
-      Map.take(pursuit_overrides, [
-        :attempt_count,
-        :inserted_at,
-        :stall_first_seen_at,
-        :zero_seeders_first_seen_at
-      ])
+      Map.take(pursuit_overrides, [:attempt_count, :inserted_at])
 
     pursuit.id
     |> Units.single!()
@@ -36,25 +32,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
     pursuit
   end
 
+  # Names the release on the pursuit's existing current target. Inserting a
+  # second target here would discard the observation windows the fixture just
+  # set on the first one — and a pursuit does not get a new attempt merely
+  # because we name the release it is chasing.
   defp set_current_target_release(pursuit, release_title) do
-    unit = Units.single!(pursuit.id)
-
-    %MediaCentaur.Acquisition.Target{}
-    |> Ecto.Changeset.change(
-      pursuit_id: pursuit.id,
-      title: pursuit.title,
-      origin: pursuit.origin,
-      status: "acquired",
-      release_title: release_title
-    )
-    |> Repo.insert!()
-    |> tap(fn target ->
-      %TargetUnit{}
-      |> Ecto.Changeset.change(target_id: target.id, unit_id: unit.id)
-      |> Repo.insert!()
-
-      force_attrs(unit, current_target_id: target.id)
-    end)
+    pursuit.id
+    |> Units.single!()
+    |> then(&Repo.get!(Target, &1.current_target_id))
+    |> force_attrs(status: "acquired", release_title: release_title)
   end
 
   defp seed_queue(items) do
@@ -252,21 +238,21 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
       assert Repo.get!(Pursuit, pursuit.id).state == "active"
     end
 
-    test "torrent recovered (healthy in queue) → observation timestamps cleared, no action" do
+    test "a closed observation window is no action — the Watcher decides, it does not observe" do
+      # Closing the window on recovery is `Observations`' job, on the queue
+      # snapshot's clock; by the time the Watcher runs there is simply nothing
+      # open to act on.
       release = "Sample.Movie.2024.1080p.WEB-DL"
-
-      pursuit =
-        insert_pursuit(%{
-          stall_first_seen_at: DateTime.add(DateTime.utc_now(:second), -25 * 3600)
-        })
+      pursuit = insert_pursuit(%{})
 
       set_current_target_release(pursuit, release)
       seed_queue([queue_item(release, state: :downloading, health: :healthy)])
 
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
 
-      assert Units.single!(pursuit.id).stall_first_seen_at == nil
       assert Repo.get!(Pursuit, pursuit.id).state == "active"
+      refute Units.single!(pursuit.id).awaiting_decision_at
+      assert Repo.aggregate(Ecto.Query.where(Event, pursuit_id: ^pursuit.id), :count) == 0
     end
   end
 end

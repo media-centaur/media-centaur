@@ -54,8 +54,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.SnapshotsTest do
     end
 
     test "stall_first_seen_at within window → observed but not yet elapsed" do
-      pursuit =
-        create_pursuit(%{stall_first_seen_at: DateTime.add(DateTime.utc_now(:second), -60)})
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          stall_first_seen_at: DateTime.add(DateTime.utc_now(:second), -60)
+        })
 
       snapshot = Snapshots.build(pursuit, Units.single!(pursuit.id))
       assert snapshot.stall_observed? == true
@@ -63,8 +65,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.SnapshotsTest do
     end
 
     test "stall_first_seen_at older than window → observed AND elapsed" do
-      pursuit =
-        create_pursuit(%{
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
           stall_first_seen_at: DateTime.add(DateTime.utc_now(:second), -25 * 3600)
         })
 
@@ -74,8 +76,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.SnapshotsTest do
     end
 
     test "zero_seeders_first_seen_at older than the 6h window → observed AND elapsed" do
-      pursuit =
-        create_pursuit(%{
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
           zero_seeders_first_seen_at: DateTime.add(DateTime.utc_now(:second), -7 * 3600)
         })
 

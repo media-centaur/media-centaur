@@ -30,6 +30,18 @@ satisfied. Units land in whatever order the files arrive — an out-of-order pac
 S03E07 before S02E01 satisfies each unit by its TMDB identity, not by guessing from the
 filename, so a composite pursuit is never wrongly cancelled by an early landing.
 
+## Grabbed is not downloaded
+
+A pursuit reads **Grabbed** between the moment Prowlarr accepts a release and the moment
+your download client shows it in its queue — usually seconds. Prowlarr pushes the release
+to the client and reports whether the push succeeded, not whether the download started, so
+this is the one stage where the app knows a release was handed over and nothing more.
+
+You don't have to watch it. If the client never takes the release, the pursuit says so
+itself: after half an hour it flips to **Not at your client**, and changing the target is
+the recovery. This is distinct from **Downloaded**, which the app only says about a release
+it watched at your client and then saw leave.
+
 ## How a download is paired and lands
 
 To connect your pursuit to the actual download (and then to the file on disk), the app
@@ -51,7 +63,9 @@ to pick from fresh alternatives. The app also acts on its own: a download with z
 is auto-cancelled, and a stalled one can be flagged for your decision.
 
 > [!TIP]
-> To diagnose a pursuit that grabbed but never landed: open it and read the **timeline** —
+> To diagnose a pursuit that grabbed but never landed: read its status line first — **Not
+> at your client** means the download never started and the timeline will be empty past the
+> grab. Otherwise open it and read the **timeline** —
 > it logs every grab, stall, and decision. For a composite, expand the **unit board** to see
 > which episode is stuck and on what release. If it's `active` but nothing is downloading,
 > it's **awaiting your decision** — pick an alternative from the decision card. And if the

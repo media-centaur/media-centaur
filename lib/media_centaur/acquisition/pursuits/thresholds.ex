@@ -1,6 +1,12 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Thresholds do
   @moduledoc """
-  Threshold values consumed by `Pursuits.Policy`.
+  Threshold values consumed by `Pursuits.Policy` and `Pursuits.Stage`.
+
+  `handoff_window_minutes` is how long a grabbed release may go unseen at the
+  download client before the pursuit says the client never took it. Prowlarr
+  pushes the release to the client at grab time and reports a failure when it
+  can't, so a grab that reported success and is still invisible half an hour
+  later was dropped somewhere.
 
   Loaded from `Settings` rows under the `pursuits.*` namespace; missing or
   non-positive values fall back to the built-in defaults below. The
@@ -13,14 +19,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.Thresholds do
     "pursuits.max_attempts",
     "pursuits.min_age_days",
     "pursuits.stall_window_hours",
-    "pursuits.zero_seeders_window_hours"
+    "pursuits.zero_seeders_window_hours",
+    "pursuits.handoff_window_minutes"
   ]
 
   @builtin_defaults %{
     max_attempts: 4,
     min_age_days: 6,
     stall_window_hours: 24,
-    zero_seeders_window_hours: 6
+    zero_seeders_window_hours: 6,
+    handoff_window_minutes: 30
   }
 
   defstruct Map.to_list(@builtin_defaults)
@@ -29,7 +37,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Thresholds do
           max_attempts: pos_integer(),
           min_age_days: pos_integer(),
           stall_window_hours: pos_integer(),
-          zero_seeders_window_hours: pos_integer()
+          zero_seeders_window_hours: pos_integer(),
+          handoff_window_minutes: pos_integer()
         }
 
   @doc "Loads thresholds from Settings, applying built-in fallbacks for missing or invalid keys."
@@ -47,6 +56,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Thresholds do
           entries,
           "pursuits.zero_seeders_window_hours",
           @builtin_defaults.zero_seeders_window_hours
+        ),
+      handoff_window_minutes:
+        read(
+          entries,
+          "pursuits.handoff_window_minutes",
+          @builtin_defaults.handoff_window_minutes
         )
     }
   end

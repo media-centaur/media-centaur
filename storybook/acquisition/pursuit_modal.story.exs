@@ -98,6 +98,35 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
         }
       },
       %Variation{
+        id: :open_handed_off,
+        description:
+          "Open — grabbed seconds ago. Prowlarr accepted the release and the download " <>
+            "client has not shown it yet, so there is no progress bar to draw and the " <>
+            "modal says where the release actually is rather than guessing it finished.",
+        attributes: %{
+          open: true,
+          pursuit_id: "story-handed-off",
+          header: active_movie_header(),
+          status: handed_off_status(),
+          timeline: short_timeline(),
+          on_close: close_event(:open_handed_off)
+        }
+      },
+      %Variation{
+        id: :open_never_arrived,
+        description:
+          "Open — grabbed long enough ago that the client would have shown it. The grab " <>
+            "was accepted and nothing arrived; changing target is the recovery.",
+        attributes: %{
+          open: true,
+          pursuit_id: "story-never-arrived",
+          header: active_movie_header(),
+          status: never_arrived_status(),
+          timeline: short_timeline(),
+          on_close: close_event(:open_never_arrived)
+        }
+      },
+      %Variation{
         id: :open_awaiting_decision,
         description: "Open — pursuit awaiting user decision, with three alternatives.",
         attributes: %{
@@ -221,6 +250,44 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       },
       available_actions: [:cancel],
       staleness: :fresh
+    }
+  end
+
+  defp handed_off_status do
+    %PursuitStatus{
+      pursuit_id: "story-handed-off",
+      title: "Public Domain Feature 1925",
+      state: :active,
+      origin: :auto,
+      recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie},
+      current_action: %CurrentAction{
+        verb: "Grabbed",
+        description: "Waiting for your download client to pick it up.",
+        severity: :info
+      },
+      next_step: %NextStep{
+        description: "It'll say so here if your client never takes it."
+      },
+      available_actions: [:cancel],
+      staleness: :fresh
+    }
+  end
+
+  defp never_arrived_status do
+    %PursuitStatus{
+      pursuit_id: "story-never-arrived",
+      title: "Public Domain Feature 1925",
+      state: :active,
+      origin: :auto,
+      recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie},
+      current_action: %CurrentAction{
+        verb: "Not at your client",
+        description: "Prowlarr accepted the grab but the download never started.",
+        severity: :warning
+      },
+      next_step: %NextStep{description: "Change target to try a different release."},
+      available_actions: [:cancel, :change_target],
+      staleness: :stale
     }
   end
 
