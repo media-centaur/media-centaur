@@ -120,6 +120,11 @@ defmodule MediaCentaur.Library do
   """
   defdelegate broadcast_entities_changed(entity_ids), to: Helpers
 
+  @doc "The image server reports a library artwork path it could not serve — see `Library.Images.report_missing_file/1`."
+  defdelegate report_missing_artwork_file(relative_path),
+    to: MediaCentaur.Library.Images,
+    as: :report_missing_file
+
   @doc "See `MediaCentaur.Library.HomeFeed.list_in_progress/1` (Continue Watching)."
   def list_in_progress(opts \\ []), do: HomeFeed.list_in_progress(opts)
 

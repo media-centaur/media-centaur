@@ -13,6 +13,16 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   import MediaCentaur.TestFactory
 
+  # Artwork is projected only when its file is on disk, so every test that
+  # expects a served URL writes the file into a media directory registered
+  # for the test (`register_media_dir/1`, `create_image_with_file/2`).
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp_dir} do
+    register_media_dir(tmp_dir)
+    :ok
+  end
+
   alias MediaCentaur.Library
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.Events.EntitiesChanged
@@ -1182,6 +1192,48 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
       assert_receive {:library_view_updated, :detail, :all}, 1_000
       assert %DetailItem{available?: false} = Views.detail(playable_item.id)
+    end
+  end
+
+  describe "artwork on disk" do
+    test "image rows carry present?: false while the file is missing, and the availability event re-checks" do
+      {movie, _file} = seed_present_movie("Cacheless Movie")
+      playable_item = playable_item_for_movie(movie)
+
+      image =
+        create_image(%{
+          movie_id: movie.id,
+          role: "poster",
+          content_url: "#{movie.id}/poster.jpg",
+          extension: "jpg"
+        })
+
+      :ok = Detail.refresh_cache()
+      assert %DetailItem{images: [%{present?: false}]} = Views.detail(playable_item.id)
+
+      write_image_file(image)
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
+      :ok = Detail.handle_message({:availability_changed, "/media/test", :available})
+
+      assert_receive {:library_view_updated, :detail, :all}, 1_000
+      assert %DetailItem{images: [%{present?: true}]} = Views.detail(playable_item.id)
+    end
+
+    test "episode thumbs carry present? into the entity view" do
+      {_series, _season, episode, _file} = seed_present_episode("Cacheless Show")
+      playable_item = playable_item_for_episode(episode)
+
+      create_image(%{
+        episode_id: episode.id,
+        role: "thumb",
+        content_url: "#{episode.id}/thumb.jpg",
+        extension: "jpg"
+      })
+
+      :ok = Detail.refresh_cache()
+
+      entity = playable_item.id |> Views.detail() |> DetailItem.to_entity_view()
+      assert %EntityView{seasons: [%{episodes: [%{images: [%{present?: false}]}]}]} = entity
     end
   end
 end

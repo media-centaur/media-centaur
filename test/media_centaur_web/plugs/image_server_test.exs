@@ -8,6 +8,8 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
   """
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TestFactory
+
   alias MediaCentaur.Settings.Config
   alias MediaCentaurWeb.Plugs.ImageServer
 
@@ -30,6 +32,63 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
 
       [cache_control] = Plug.Conn.get_resp_header(conn, "cache-control")
       assert cache_control =~ "no-store"
+    end
+  end
+
+  describe "a miss for library artwork is reported to the library" do
+    # Reporting is not deciding: the read models decide what artwork a
+    # page shows, and this is the fact they need to re-decide — a row
+    # whose file vanished after it landed. The owner's container is
+    # broadcast as changed, every projection re-checks the file, and the
+    # page swaps the broken image for its placeholder.
+    test "a missing poster broadcasts its movie as changed", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+
+      image =
+        create_image(%{
+          movie_id: movie.id,
+          role: "poster",
+          content_url: "#{movie.id}/poster.jpg",
+          extension: "jpg"
+        })
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+
+      conn = call_plug(conn, "/media-images/#{image.content_url}")
+
+      assert conn.status == 404
+      assert_receive {:entities_changed, %{entity_ids: [changed_id]}}, 1_000
+      assert changed_id == movie.id
+    end
+
+    test "a missing episode thumb broadcasts its series", %{conn: conn} do
+      series = create_tv_series(%{name: "Sample Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+      episode = create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot"})
+
+      image =
+        create_image(%{
+          episode_id: episode.id,
+          role: "thumb",
+          content_url: "#{episode.id}/thumb.jpg",
+          extension: "jpg"
+        })
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+
+      call_plug(conn, "/media-images/#{image.content_url}")
+
+      assert_receive {:entities_changed, %{entity_ids: [changed_id]}}, 1_000
+      assert changed_id == series.id
+    end
+
+    test "a path outside the library layout is not reported", %{conn: conn} do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+
+      conn = call_plug(conn, "/media-images/images/apps/ffffffff-0000-0000-0000-000000000000/banner.jpg")
+
+      assert conn.status == 404
+      refute_receive {:entities_changed, _}, 200
     end
   end
 

@@ -342,4 +342,17 @@ defmodule MediaCentaur.ImageFilesTest do
   defp stub_http_connection_error(reason) do
     Req.Test.stub(:images, fn conn -> Req.Test.transport_error(conn, reason) end)
   end
+
+  describe "relative_path/1" do
+    test "is the inverse of web_path/1, dropping any query" do
+      assert ImageFiles.relative_path("/media-images/abc/poster.jpg") == "abc/poster.jpg"
+      assert ImageFiles.relative_path("/media-images/abc/poster.jpg?w=240") == "abc/poster.jpg"
+      assert ImageFiles.relative_path(ImageFiles.web_path("x/y.png")) == "x/y.png"
+    end
+
+    test "is nil for any other URL" do
+      assert ImageFiles.relative_path("https://image.tmdb.org/t/p/w92/x.jpg") == nil
+      assert ImageFiles.relative_path("/images/centaur-logo.png") == nil
+    end
+  end
 end

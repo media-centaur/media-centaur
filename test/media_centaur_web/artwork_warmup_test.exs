@@ -3,6 +3,16 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
 
   import MediaCentaur.TestFactory
 
+  # Artwork is projected only when its file is on disk, so every test that
+  # expects a served URL writes the file into a media directory registered
+  # for the test (`register_media_dir/1`, `create_image_with_file/2`).
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp_dir} do
+    register_media_dir(tmp_dir)
+    :ok
+  end
+
   alias MediaCentaurWeb.ArtworkWarmup
   alias MediaCentaurWeb.LiveHelpers
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
@@ -11,7 +21,12 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
     test "returns the library grid's poster derivatives, byte-identical to what the grid requests" do
       movie = create_movie(%{name: "Warmup Sample Movie"})
       create_linked_file(%{movie_id: movie.id})
-      create_image(%{movie_id: movie.id, role: "poster", content_url: "#{movie.id}/poster.jpg"})
+
+      create_image_with_file(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg"
+      })
 
       urls = ArtworkWarmup.urls()
 
@@ -36,7 +51,12 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
       for n <- 1..35 do
         movie = create_movie(%{name: "Warmup Cap Movie #{n}"})
         create_linked_file(%{movie_id: movie.id})
-        create_image(%{movie_id: movie.id, role: "poster", content_url: "#{movie.id}/poster.jpg"})
+
+        create_image_with_file(%{
+          movie_id: movie.id,
+          role: "poster",
+          content_url: "#{movie.id}/poster.jpg"
+        })
       end
 
       poster_marker =
@@ -53,7 +73,7 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
       movie = create_movie(%{name: name, description: "A synopsis for #{name}"})
       create_linked_file(%{movie_id: movie.id})
 
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg"
@@ -104,7 +124,12 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
     test "the initial page load ships prefetch links for first-screen artwork", %{conn: conn} do
       movie = create_movie(%{name: "Warmup Prefetch Movie"})
       create_linked_file(%{movie_id: movie.id})
-      create_image(%{movie_id: movie.id, role: "poster", content_url: "#{movie.id}/poster.jpg"})
+
+      create_image_with_file(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg"
+      })
 
       html = conn |> get("/history") |> html_response(200)
 

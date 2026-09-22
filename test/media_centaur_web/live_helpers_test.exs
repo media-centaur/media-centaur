@@ -361,4 +361,11 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       assert image_url(entity, "poster") == "/media-images/abc/poster.jpg"
     end
   end
+
+  describe "image_url/2 and the file on disk" do
+    test "returns nil for an image whose file the projection found missing" do
+      entity = %{images: [%{role: "poster", content_url: "abc/poster.jpg", present?: false}]}
+      assert image_url(entity, "poster") == nil
+    end
+  end
 end

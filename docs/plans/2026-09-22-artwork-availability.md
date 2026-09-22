@@ -1,6 +1,6 @@
 # Artwork availability — unification design
 
-**Status:** implemented 2026-09-22 (decisions 8.1–8.3 taken as recommended; 4c and 4d remain scheduled)
+**Status:** implemented 2026-09-22 (decisions 8.1–8.3 taken as recommended; 4b revised the same day, §10; 4c and 4d remain scheduled)
 **Trigger:** boot on 2026-09-22 15:36. Home rendered every poster, thumb and
 logo as the image server's stand-in SVG because the browser fetched them 150 ms
 before the NTFS media volume mounted. The server recovered two seconds later;
@@ -224,4 +224,48 @@ with no navigation entry added.
 | Home with a detail open | modal: 0 artwork images | modal: 2 loaded artwork images | 2.7 s |
 
 Test suite: `mix precommit` green (7678 ExUnit, 830 bun).
+
+## 10. Revision: the read model checks the file (2026-09-22)
+
+The 404 of 4b left one visual the owner rejected: a file that vanished
+after it landed (a wiped or damaged image cache) reached the page as the
+browser's broken-image glyph — the browser deciding what a missing file
+looks like, which is a second decider by another name. Options weighed:
+a stand-in response for the defect case only (the shape 4b removed), hiding
+the glyph with empty `alt` (per-site, one browser's behaviour), a durable
+presence flag with a sweep job (the long-run shape, with 4d), or the read
+model checking the file. The last keeps the one rule.
+
+Renderable now means the directory is available **and** the file is on
+disk, evaluated where the read model takes artwork in:
+
+- `Views.ItemAvailability.resolve/2` also nils an artwork URL whose file
+  `ImageCache.resolve_path/1` — the lookup the image server serves from —
+  does not find; only for available directories, so an unmounted path is
+  never touched.
+- `Library.Image` gains a virtual `present?`, set by
+  `Library.Images.with_presence/1` on every row the detail projection takes
+  in (the entity's own, its episodes', its collection members'), and
+  re-checked in place on the availability event once per entity payload.
+  `LiveHelpers.image_url/2` withholds the URL of a row whose file is
+  missing.
+- Hero candidates need their backdrop on disk, not just a backdrop row.
+- The image server, on a miss for a library path, reports the fact
+  (`Library.report_missing_artwork_file/1`): the owner's container — the
+  series for an episode thumb — is broadcast as changed, every projection
+  re-checks, and the page swaps the broken image for its placeholder.
+  Reporting is not deciding.
+
+Cost: one file stat per artwork URL per rebuild, skipped for unavailable
+directories. Test fixtures changed to match: a test that expects a served
+URL now registers a media directory and writes the file
+(`TestFactory.register_media_dir/1`, `create_image_with_file/2`).
+
+Verified against the dev server: a poster file moved out of the cache
+while the drive was up, Library opened cold with the projection still
+carrying the URL. 388 ms after the page connected the card showed the quiet
+placeholder and no broken image remained on the page.
+
+A file restored by hand shows the placeholder until the next rebuild; the
+repair path bumps the row and rebuilds, so the artwork returns on its own.
 

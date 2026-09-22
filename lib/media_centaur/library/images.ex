@@ -24,6 +24,62 @@ defmodule MediaCentaur.Library.Images do
   @spec list_all() :: [Image.t()]
   def list_all, do: Repo.all(Image)
 
+  @doc """
+  The rows with `present?` set from whether each file is on disk right now
+  (`ImageCache.resolve_path/1`, the lookup the image server serves from).
+  The read models call this when they take image rows in, so what they
+  project is what can be served; a row whose file is missing keeps its
+  place and loses only its artwork.
+  """
+  @spec with_presence([Image.t()] | nil) :: [Image.t()]
+  def with_presence(nil), do: []
+
+  def with_presence(images) when is_list(images) do
+    Enum.map(images, fn %Image{content_url: content_url} = image ->
+      %{image | present?: is_binary(content_url) and ImageCache.resolve_path(content_url) != nil}
+    end)
+  end
+
+  @doc """
+  The image server reports a library artwork path it could not serve.
+
+  Reporting is not deciding: the read models decide what artwork a page
+  shows, and this is the fact they need to re-decide — a row whose file
+  vanished after it landed. The owner's container (a series for an
+  episode thumb) is broadcast as changed, every projection re-checks the
+  file, and the page swaps the broken image for its placeholder. Paths
+  outside the `<owner_id>/<role>.<ext>` layout, and rows the library does
+  not have, are ignored.
+  """
+  @spec report_missing_file(String.t()) :: :ok
+  def report_missing_file(relative_path) when is_binary(relative_path) do
+    with [owner_id, _file] <- String.split(relative_path, "/"),
+         {:ok, _uuid} <- Ecto.UUID.cast(owner_id),
+         %Image{owner_type: owner_type} <-
+           Repo.one(
+             from(i in Image,
+               where: i.owner_id == ^owner_id and i.content_url == ^relative_path,
+               limit: 1
+             )
+           ) do
+      MediaCentaur.Library.Helpers.broadcast_entities_changed([container_id(owner_type, owner_id)])
+    else
+      _ -> :ok
+    end
+  end
+
+  defp container_id(:episode, episode_id) do
+    Repo.one(
+      from(e in MediaCentaur.Library.Episode,
+        join: s in assoc(e, :season),
+        where: e.id == ^episode_id,
+        select: s.tv_series_id
+      )
+    ) || episode_id
+  end
+
+  defp container_id(_owner_type, owner_id), do: owner_id
+
   @doc "Inserts an `Image` for an `(owner_type, owner_id)` owner."
   @spec create(map()) :: {:ok, Image.t()} | {:error, Ecto.Changeset.t()}
   def create(attrs), do: Repo.insert(Image.create_changeset(attrs))

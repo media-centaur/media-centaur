@@ -12,6 +12,16 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
 
   import MediaCentaur.TestFactory
 
+  # Artwork is projected only when its file is on disk, so every test that
+  # expects a served URL writes the file into a media directory registered
+  # for the test (`register_media_dir/1`, `create_image_with_file/2`).
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp_dir} do
+    register_media_dir(tmp_dir)
+    :ok
+  end
+
   alias MediaCentaur.Library.Events.EntitiesChanged
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views
@@ -200,7 +210,7 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     test "poster_url is populated when entity has a poster image" do
       movie = seed_present_movie("Poster Movie")
 
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
@@ -411,7 +421,7 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     test "an entry on an unavailable media directory carries no poster URL" do
       movie = seed_present_movie("Offline Movie")
 
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
@@ -432,7 +442,7 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
     test "the database fallback read applies availability the same way" do
       movie = seed_present_movie("Cold Offline Movie")
 
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
@@ -443,6 +453,30 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
 
       assert :undefined = :ets.whereis(@table)
       assert [%BrowseItem{available?: false, poster_url: nil}] = Views.browse()
+    end
+  end
+
+  describe "artwork on disk" do
+    # A poster row whose file is gone (a wiped or damaged image cache) is
+    # a data defect: the projection withholds the URL, the card shows its
+    # placeholder, and the Status page counts the row as missing artwork.
+    test "an image whose file is missing projects no poster URL although the directory is available" do
+      movie = seed_present_movie("Cacheless Movie")
+
+      image =
+        create_image(%{
+          movie_id: movie.id,
+          role: "poster",
+          content_url: "#{movie.id}/poster.jpg",
+          extension: "jpg"
+        })
+
+      :ok = Browse.refresh_cache()
+      assert [%BrowseItem{available?: true, poster_url: nil}] = Views.browse()
+
+      write_image_file(image)
+      :ok = Browse.refresh_cache()
+      assert [%BrowseItem{poster_url: "/media-images/" <> _}] = Views.browse()
     end
   end
 end

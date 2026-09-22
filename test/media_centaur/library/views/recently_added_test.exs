@@ -3,6 +3,16 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
 
   import MediaCentaur.TestFactory
 
+  # Artwork is projected only when its file is on disk, so every test that
+  # expects a served URL writes the file into a media directory registered
+  # for the test (`register_media_dir/1`, `create_image_with_file/2`).
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp_dir} do
+    register_media_dir(tmp_dir)
+    :ok
+  end
+
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views
@@ -160,7 +170,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
     test "an entry on an unavailable media directory carries no poster URL" do
       movie = seed_recently_added("Offline Movie")
 
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
