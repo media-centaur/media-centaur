@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.37.0 — 2026-09-22
+
+### Improved
+
+- **Artwork follows your drives.** While the drive behind a media directory is offline — an unplugged USB drive, a network share that is down, or a drive that had not finished mounting when Media Centaur started — that directory's titles show a neutral block with the title's name in place of their posters and backdrops, on Home, in the Library and on a title's page, and their Play button is hidden. When the drive mounts, the artwork and Play come back on their own within a couple of seconds, on every open page, without a reload. The Home hero never picks a title whose drive is offline.
+
+### Fixed
+
+- **Home showed placeholders for every poster after starting up before a drive had mounted, and never recovered.** The page asked for its artwork moments before the drive finished mounting, and the empty answer stuck for as long as the page stayed open. Artwork is now only requested once the drive holding it is available, so a page cannot get stuck this way.
+- **A poster whose file had gone missing from the image cache showed as a broken image.** It now shows the same placeholder as a title without artwork, the Library tile on the Status page counts it as missing artwork, and **Settings → Maintenance → Refresh image cache** re-downloads it.
+- **A Dolby Vision file named with "DoVi" showed as HDR10 on the title's page, and its dynamic-range chip was not highlighted.** Both spellings are now read as Dolby Vision, and the chip is tinted like the other quality chips.
+
 ## v1.36.0 — 2026-09-22
 
 ### Improved
