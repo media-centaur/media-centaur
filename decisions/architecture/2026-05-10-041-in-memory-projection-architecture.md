@@ -20,6 +20,8 @@ The consumer contract is `Library.Views.subscribe/0` in `mount/3`, a read such a
 
 Consistency is eventual and brief (tens of milliseconds); a LiveView may apply an optimistic assign and let the refresh confirm it. In `:test` no worker starts and projection reads fall through to the database.
 
+**Amendment 2026-09-22.** Availability is projection data. The Browse projection's original comment left progress, availability and playback to per-row enrichment in each LiveView, and two pages then grew their own availability mechanisms (a cache-busting counter on Home, a per-page map plus a stream reset on Library) while the image server answered a missing file with a 200 stand-in — four representations of one idea, and the 2026-09-22 boot race fell between them. Every library projection already rebuilt on `:availability_changed`; now each item that carries artwork also carries `available?` and a nil artwork URL when false (`Library.Views.ItemAvailability`), the detail projection carries the flag into the entity view, and a drive mounting reaches every page as the ordinary `:library_view_updated`. The image server serves files and 404s the rest. Progress and playback stay per-page. Design: `docs/plans/2026-09-22-artwork-availability.md`.
+
 ### Consequences
 
 * A naive read used to be one `Repo` call; it is now a projection module, an ETS table and a supervised worker per view, and the supervision tree grows one worker per view.

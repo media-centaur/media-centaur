@@ -6,6 +6,9 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingItem do
   `continue_watching/1` function. Per ADR-041, the view-model struct
   decouples render shape from storage shape — UI consumers depend
   only on the field set declared here.
+
+  `available?` is whether the entry's media directory is reachable; when
+  false the artwork URLs are nil (`Views.ItemAvailability`).
   """
 
   @enforce_keys [:entity_id, :entity_name]
@@ -15,7 +18,8 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingItem do
     :progress_pct,
     :backdrop_url,
     :logo_url,
-    :last_watched_at
+    :last_watched_at,
+    available?: true
   ]
 
   @type t :: %__MODULE__{
@@ -24,6 +28,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingItem do
           progress_pct: 0..100 | nil,
           backdrop_url: String.t() | nil,
           logo_url: String.t() | nil,
-          last_watched_at: DateTime.t() | nil
+          last_watched_at: DateTime.t() | nil,
+          available?: boolean()
         }
 end

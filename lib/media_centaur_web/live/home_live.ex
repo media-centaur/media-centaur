@@ -15,7 +15,6 @@ defmodule MediaCentaurWeb.HomeLive do
   alias MediaCentaur.{
     Acquisition,
     Capabilities,
-    Library.MediaFileAvailability,
     Library.Views,
     ReleaseTracking,
     WatchHistory
@@ -45,11 +44,13 @@ defmodule MediaCentaurWeb.HomeLive do
     # modal's topics; this page the projections (ADR-041 — the source
     # topics are observed by the projections themselves; the page reacts
     # to `:library_view_updated` and `:release_tracking_view_updated`),
-    # watch history, availability, and the pipeline's stats (the
-    # "Importing your media" empty-state reason).
+    # watch history, and the pipeline's stats (the "Importing your
+    # media" empty-state reason). Availability reaches this page only as
+    # the `:library_view_updated` each projection broadcasts after
+    # re-resolving its rows (`Library.Views.ItemAvailability`).
     socket =
       Enum.reduce(
-        [WatchHistory, MediaFileAvailability, Views, ReleaseTrackingViews, MediaCentaur.Pipeline.Stats],
+        [WatchHistory, Views, ReleaseTrackingViews, MediaCentaur.Pipeline.Stats],
         socket,
         &Subscriptions.subscribe(&2, &1)
       )
@@ -62,15 +63,10 @@ defmodule MediaCentaurWeb.HomeLive do
       |> assign(:coming_up_timer, nil)
       |> assign(:recently_added_timer, nil)
       |> assign(:hero_timer, nil)
-      |> assign(:availability_map, %{})
       |> assign(:media_dirs, MediaCentaur.Settings.Config.get(:media_dirs) || [])
       |> assign(:media_dirs_configured?, media_dirs_configured?())
       |> assign(:pipeline_queue_depth, 0)
       |> assign(:scanning, false)
-      # Bumped on every `:availability_changed` so /media-images/* URLs get a
-      # fresh `?v=` and the browser refetches artwork that may have flipped
-      # between placeholder and real file. See `Logic.with_image_version/2`.
-      |> assign(:image_version, 0)
       |> assign_empty_sections()
 
     {:ok, socket}
@@ -340,14 +336,6 @@ defmodule MediaCentaurWeb.HomeLive do
      )}
   end
 
-  # Drive mounted/unmounted: bump `:image_version` so the next render of
-  # any section emits cache-busted /media-images/* URLs. Section reloads
-  # are driven separately via the `:library_view_updated` broadcasts each
-  # projection emits after refreshing on the same availability event.
-  def handle_info({:availability_changed, _dir, _state}, socket) do
-    {:noreply, update(socket, :image_version, &(&1 + 1))}
-  end
-
   # The empty state distinguishes "importing" from "nothing imported", so it
   # needs the queue depth the same way Library's does.
   def handle_info({:pipeline_stats_updated, :content}, socket) do
@@ -425,7 +413,7 @@ defmodule MediaCentaurWeb.HomeLive do
     assign(
       socket,
       :hero,
-      Logic.hero_card_item(Logic.select_hero(hero_candidates), socket.assigns.image_version)
+      Logic.hero_card_item(Logic.select_hero(hero_candidates))
     )
   end
 
@@ -433,11 +421,7 @@ defmodule MediaCentaurWeb.HomeLive do
     assign(
       socket,
       :continue_items,
-      Logic.continue_watching_items(
-        load_progress(),
-        socket.assigns.playback,
-        socket.assigns.image_version
-      )
+      Logic.continue_watching_items(load_progress(), socket.assigns.playback)
     )
   end
 
@@ -449,7 +433,7 @@ defmodule MediaCentaurWeb.HomeLive do
     assign(
       socket,
       :recently_added,
-      Logic.recently_added_items(load_recently_added(), socket.assigns.image_version)
+      Logic.recently_added_items(load_recently_added())
     )
   end
 

@@ -93,6 +93,32 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
         }
       },
       %Variation{
+        id: :offline_item,
+        description:
+          "`available?: false` — the entry's storage is offline: the projection " <>
+            "withheld the poster URL, so the card shows a neutral block, the " <>
+            "name and year, and no Play overlay.",
+        attributes: %{
+          items: [
+            %Item{
+              id: "offline",
+              entity_id: "entity-offline",
+              name: "Offline Sample",
+              year: "1923",
+              poster_url: nil,
+              available?: false
+            },
+            %Item{
+              id: "online",
+              entity_id: "entity-online",
+              name: "Online Sample",
+              year: "1924",
+              poster_url: poster_placeholder(2)
+            }
+          ]
+        }
+      },
+      %Variation{
         id: :single_item,
         description:
           "One item — verifies the row renders cleanly with a single card and " <>

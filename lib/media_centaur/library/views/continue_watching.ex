@@ -36,6 +36,8 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
       (cascade-delete) makes file presence equivalent to "currently
       on disk." When a drive disappears, in-progress rows for its
       titles must vanish from the row; when it returns, they reappear.
+      The same event re-resolves each row's `available?` and artwork
+      through `Views.ItemAvailability`.
 
   Other `playback:events` (`:playback_state_changed`,
   `:extra_progress_updated`) do not affect Continue Watching's
@@ -64,6 +66,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views.ContinueWatchingItem
+  alias MediaCentaur.Library.Views.ItemAvailability
   alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
 
@@ -89,12 +92,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    items =
-      [limit: @max_items]
-      |> Library.list_in_progress()
-      |> Enum.map(&to_view_model/1)
-
-    RankedProjection.replace_rows(@table, :continue_watching, items)
+    RankedProjection.replace_rows(@table, :continue_watching, build(@max_items))
   end
 
   @doc """
@@ -108,10 +106,13 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
     RankedProjection.read(@table, limit, fn -> read_from_db(limit) end)
   end
 
-  defp read_from_db(limit) do
+  defp read_from_db(limit), do: build(limit)
+
+  defp build(limit) do
     [limit: limit]
     |> Library.list_in_progress()
     |> Enum.map(&to_view_model/1)
+    |> ItemAvailability.resolve(id: :entity_id, artwork: [:backdrop_url, :logo_url])
   end
 
   defp to_view_model(row) do

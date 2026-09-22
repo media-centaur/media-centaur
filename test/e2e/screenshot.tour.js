@@ -314,19 +314,19 @@ for (const stop of TOUR) {
     const outPath = path.join(outDir, `${stop.name}.png`)
     await page.screenshot({ path: outPath, fullPage: false })
 
-    // Placeholder-ratio guard — if >50% of /media-images/* tags on this
-    // stop resolve to the SVG placeholder plug, the seed almost certainly
-    // didn't produce real images (bad TMDB_API_KEY, network, etc.) and
-    // the marketing screenshot is a wall of dark tiles. Fail the stop
-    // rather than silently ship a visually-broken capture.
+    // Missing-image guard — if >50% of /media-images/* tags on this stop
+    // are not served (the image server 404s a file that is not on disk),
+    // the seed almost certainly didn't produce real images (bad
+    // TMDB_API_KEY, network, etc.) and the marketing screenshot is a wall
+    // of broken tiles. Fail the stop rather than silently ship a
+    // visually-broken capture.
     const audit = await page.evaluate(async () => {
       const imgs = Array.from(document.querySelectorAll('img[src^="/media-images/"]'))
       const results = await Promise.all(
         imgs.map(async (img) => {
           try {
             const resp = await fetch(img.src, { method: "HEAD", cache: "no-store" })
-            const ct = resp.headers.get("content-type") || ""
-            return { src: img.src, placeholder: ct.includes("svg+xml") }
+            return { src: img.src, placeholder: !resp.ok }
           } catch {
             return { src: img.src, placeholder: true }
           }
@@ -346,7 +346,7 @@ for (const stop of TOUR) {
       expect(
         realRatio,
         `${stop.name}: only ${realCount}/${audit.total} images are real files — need >50% to pass. ` +
-          `TMDB_API_KEY set? First placeholder srcs:\n    ${firstOffenders}`,
+          `TMDB_API_KEY set? First missing srcs:\n    ${firstOffenders}`,
       ).toBeGreaterThan(0.5)
     }
   })

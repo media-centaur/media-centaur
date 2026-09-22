@@ -3,10 +3,15 @@ defmodule MediaCentaur.Library.MediaFileAvailability do
   Single source of truth for "is this entity's file reachable right now?".
 
   Cross-cutting capability consumed by every surface that cares whether a
-  library entity's backing file is online: image rendering (placeholders vs
-  artwork), the play button (active vs "offline" pill), and any future
-  delete / move actions. Pioneered as `ImageFiles.Availability`, promoted here
-  once the same signal was needed beyond image rendering.
+  library entity's backing file is online. Artwork consumes it through the
+  read models: `Views.ItemAvailability` sets `available?` on every
+  projection item that carries artwork and withholds the artwork of an
+  unavailable one, and `Views.Detail` carries the flag into the entity
+  view, so no page emits an artwork URL the image server cannot serve and
+  a drive returning reaches every page as an ordinary projection rebuild.
+  The Library page's offline banner and the Status tiles read
+  `dir_status/0` directly. Pioneered as `ImageFiles.Availability`, promoted
+  here once the same signal was needed beyond image rendering.
 
   Reads are backed by `:persistent_term` so they cost nothing at grid-render
   scale; writes happen in a serialised GenServer that subscribes to the
@@ -44,8 +49,9 @@ defmodule MediaCentaur.Library.MediaFileAvailability do
   to a known WatchedFile fall back to the same optimistic default as
   `available?/1` (true), so unknown ids never flash an offline pill.
 
-  Used by `MediaCentaurWeb.LibraryLive` to populate the `availability_map`
-  assign without forcing a Browser-style preload of every entity.
+  Used by `Library.Views.ItemAvailability` and the detail projection to
+  set `available?` on every projection item, one bulk read per rebuild,
+  without forcing a Browser-style preload of every entity.
   """
   @spec available_for_ids([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => boolean()}
   def available_for_ids([]), do: %{}

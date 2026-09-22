@@ -10,14 +10,46 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   assign (a map of `entity_id => ProgressSummary.t()`); helpers that
   depend on progress receive that map as an explicit argument.
 
-  Display formatting lives in `LibraryFormatters`, progress and resume
-  logic in `LibraryProgress`, and storage-availability state in
-  `MediaFileAvailability`.
+  Display formatting lives in `LibraryFormatters` and progress and resume
+  logic in `LibraryProgress`. Per-entry availability arrives on each
+  `BrowseItem` (`available?`); this module only phrases the page-level
+  offline banner from the per-directory status.
   """
 
   alias MediaCentaur.Library.Views.BrowseItem
 
   @movie_kinds [:movie, :movie_series, :video_object]
+
+  # --- Offline banner ---
+
+  @doc """
+  The one-line summary shown in `LibraryCards.storage_offline_banner/1`.
+
+  Takes the per-directory state map (`Library.MediaFileAvailability.dir_status/0`)
+  and the count of entries currently unavailable. `nil` when no directory
+  is offline.
+  """
+  @spec offline_summary(%{String.t() => atom()}, non_neg_integer()) :: String.t() | nil
+  def offline_summary(dir_status, unavailable_count) do
+    offline_dirs =
+      dir_status
+      |> Enum.filter(fn {_dir, state} -> state == :unavailable end)
+      |> Enum.map(fn {dir, _} -> dir end)
+
+    case offline_dirs do
+      [] ->
+        nil
+
+      [dir] ->
+        "#{dir} is offline — #{items_phrase(unavailable_count)} temporarily unavailable."
+
+      dirs ->
+        "#{length(dirs)} storage locations offline — #{items_phrase(unavailable_count)} temporarily unavailable."
+    end
+  end
+
+  defp items_phrase(1), do: "1 item"
+  defp items_phrase(n), do: "#{n} items"
 
   # --- Filtering ---
 

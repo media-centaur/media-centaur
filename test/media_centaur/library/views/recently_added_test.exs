@@ -4,6 +4,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.RecentlyAdded
   alias MediaCentaur.Library.Views.RecentlyAddedItem
@@ -152,6 +153,30 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
 
       assert item.year == nil
       assert item.poster_url == nil
+    end
+  end
+
+  describe "artwork availability" do
+    test "an entry on an unavailable media directory carries no poster URL" do
+      movie = seed_recently_added("Offline Movie")
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :unavailable})
+      :ok = RecentlyAdded.refresh_cache()
+
+      assert [%RecentlyAddedItem{available?: false, poster_url: nil}] = Views.recently_added()
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :available})
+      :ok = RecentlyAdded.refresh_cache()
+
+      assert [%RecentlyAddedItem{available?: true, poster_url: "/media-images/" <> _}] =
+               Views.recently_added()
     end
   end
 end

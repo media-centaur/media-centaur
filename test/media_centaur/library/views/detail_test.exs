@@ -14,7 +14,9 @@ defmodule MediaCentaur.Library.Views.DetailTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.Events.EntitiesChanged
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.{Detail, DetailItem}
   alias MediaCentaur.Topics
@@ -1142,6 +1144,44 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       {:query, ^ref} -> drain_queries(ref, count + 1)
     after
       0 -> count
+    end
+  end
+
+  describe "artwork availability" do
+    test "an entity on an unavailable media directory carries available?: false into the entity view" do
+      {movie, _file} = seed_present_movie("Offline Movie")
+      playable_item = playable_item_for_movie(movie)
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :unavailable})
+
+      :ok = Detail.refresh_cache()
+
+      assert %DetailItem{available?: false} = item = Views.detail(playable_item.id)
+      assert %EntityView{available?: false} = DetailItem.to_entity_view(item)
+    end
+
+    test "episode rows carry the series' availability" do
+      {_series, _season, episode, _file} = seed_present_episode("Offline Show")
+      playable_item = playable_item_for_episode(episode)
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :unavailable})
+
+      :ok = Detail.refresh_cache()
+
+      entity = playable_item.id |> Views.detail() |> DetailItem.to_entity_view()
+      assert %EntityView{available?: false, seasons: [%{episodes: [%{available?: false}]}]} = entity
+    end
+
+    test "the availability event patches available? in place and announces the change" do
+      {movie, _file} = seed_present_movie("Flapping Movie")
+      playable_item = playable_item_for_movie(movie)
+      :ok = Detail.refresh_cache()
+      assert %DetailItem{available?: true} = Views.detail(playable_item.id)
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :unavailable})
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
+      :ok = Detail.handle_message({:availability_changed, "/media/test", :unavailable})
+
+      assert_receive {:library_view_updated, :detail, :all}, 1_000
+      assert %DetailItem{available?: false} = Views.detail(playable_item.id)
     end
   end
 end

@@ -135,7 +135,8 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     :seasons,
     :movies,
     :watched_files,
-    :subtitle_tracks
+    :subtitle_tracks,
+    available?: true
   ]
 
   @type container_type :: :movie | :episode | :video_object
@@ -182,7 +183,8 @@ defmodule MediaCentaur.Library.Views.DetailItem do
           seasons: [__MODULE__.Season.t()] | nil,
           movies: [__MODULE__.MovieEntry.t()] | nil,
           watched_files: [__MODULE__.WatchedFile.t()] | nil,
-          subtitle_tracks: [__MODULE__.SubtitleTrack.t()] | nil
+          subtitle_tracks: [__MODULE__.SubtitleTrack.t()] | nil,
+          available?: boolean()
         }
 
   defmodule Season do
@@ -458,7 +460,8 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       imdb_id: item.imdb_id,
       tmdb_id: item.tmdb_id,
       images: item.images || [],
-      seasons: Enum.map(item.seasons || [], &season_to_map/1),
+      available?: item.available?,
+      seasons: Enum.map(item.seasons || [], &season_to_map(&1, item.available?)),
       movies: [],
       watched_files: item.watched_files || [],
       subtitle_tracks: [],
@@ -500,8 +503,9 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       imdb_id: item.imdb_id,
       tmdb_id: item.tmdb_id,
       images: item.images || [],
+      available?: item.available?,
       seasons: [],
-      movies: Enum.map(item.movies || [], &movie_entry_to_map/1),
+      movies: Enum.map(item.movies || [], &movie_entry_to_map(&1, item.available?)),
       watched_files: item.watched_files || [],
       subtitle_tracks: [],
       extra_progress: [],
@@ -542,6 +546,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       imdb_id: item.imdb_id,
       tmdb_id: item.tmdb_id,
       images: item.images || [],
+      available?: item.available?,
       seasons: [],
       movies: [],
       watched_files: item.watched_files || [],
@@ -584,6 +589,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       imdb_id: item.imdb_id,
       tmdb_id: item.tmdb_id,
       images: item.images || [],
+      available?: item.available?,
       seasons: [],
       movies: [],
       watched_files: item.watched_files || [],
@@ -609,19 +615,23 @@ defmodule MediaCentaur.Library.Views.DetailItem do
 
   defp collection_ref(_), do: nil
 
-  defp season_to_map(%__MODULE__.Season{} = season) do
+  # Child shapes carry the entity's `available?` so `LiveHelpers.image_url/2`
+  # withholds an episode thumb or a member poster on the same rule as the
+  # entity's own artwork.
+  defp season_to_map(%__MODULE__.Season{} = season, available?) do
     %{
       season_number: season.season_number,
       name: season.name,
       episode_list: season.episode_list || [],
       extras: season.extras || [],
-      episodes: Enum.map(season.episodes || [], &episode_to_map/1)
+      episodes: Enum.map(season.episodes || [], &episode_to_map(&1, available?))
     }
   end
 
-  defp episode_to_map(%__MODULE__.Episode{} = episode) do
+  defp episode_to_map(%__MODULE__.Episode{} = episode, available?) do
     %{
       id: episode.episode_id,
+      available?: available?,
       episode_number: episode.episode_number,
       name: episode.name,
       description: episode.description,
@@ -638,9 +648,10 @@ defmodule MediaCentaur.Library.Views.DetailItem do
 
   defp first_watched_file_path(_), do: nil
 
-  defp movie_entry_to_map(%__MODULE__.MovieEntry{} = entry) do
+  defp movie_entry_to_map(%__MODULE__.MovieEntry{} = entry, available?) do
     %{
       id: entry.movie_id,
+      available?: available?,
       name: entry.name,
       date_published: entry.date_published,
       collection_position: entry.collection_position,

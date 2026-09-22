@@ -80,6 +80,7 @@ defmodule MediaCentaur.Library.Views.Detail do
   alias MediaCentaur.Library.Season
   alias MediaCentaur.Library.TVSeries
   alias MediaCentaur.Library.Views.DetailItem
+  alias MediaCentaur.Library.Views.ItemAvailability
   alias MediaCentaur.Library.VideoObject
   alias MediaCentaur.Library.WatchedFile
   alias MediaCentaur.Repo
@@ -183,12 +184,12 @@ defmodule MediaCentaur.Library.Views.Detail do
   end
 
   def handle_message({:availability_changed, _dir, _state}) do
-    # A drive mounting or unmounting changes exactly one field — `:present?`.
-    # Rebuilding the whole projection to flip a boolean re-ran every
-    # container query and re-copied every row (measured at 276 ms on a
-    # 765-row library), which a flapping network mount could trigger
-    # repeatedly. Recompute presence from one query and patch the affected
-    # rows in place instead.
+    # A drive mounting or unmounting changes two fields — `:present?` and
+    # `:available?`. Rebuilding the whole projection to flip them re-ran
+    # every container query and re-copied every row (measured at 276 ms
+    # on a 765-row library), which a flapping network mount could trigger
+    # repeatedly. Recompute both from bounded queries and patch the
+    # affected rows in place instead.
     ensure_table()
     reconcile_presence()
   end
@@ -338,6 +339,12 @@ defmodule MediaCentaur.Library.Views.Detail do
     subtitle_tracks = build_subtitle_tracks_map(watched_files)
     media_infos = build_media_infos_map(watched_files)
 
+    availability =
+      rows
+      |> Enum.map(fn {_id, item} -> presentable_id(item) end)
+      |> Enum.uniq()
+      |> MediaFileAvailability.available_for_ids()
+
     changed? =
       Enum.reduce(rows, false, fn {id, %DetailItem{} = item}, acc ->
         files = Map.get(watched_files, id, [])
@@ -345,6 +352,7 @@ defmodule MediaCentaur.Library.Views.Detail do
         updated = %{
           item
           | present?: files != [],
+            available?: Map.get(availability, presentable_id(item), true),
             watched_files: build_watched_files(files, media_infos),
             subtitle_tracks: build_subtitle_tracks(Map.get(subtitle_tracks, id, []))
         }
@@ -507,7 +515,14 @@ defmodule MediaCentaur.Library.Views.Detail do
       |> Enum.map(&build_item(&1, shared, entity_key, context))
       |> Enum.reject(&is_nil/1)
     end)
+    |> ItemAvailability.resolve(id: &presentable_id/1)
   end
+
+  # The entity whose media directory decides a row's availability: the
+  # series for an episode, the collection for a collection movie, the
+  # container itself otherwise — the same id the page opens the row as.
+  defp presentable_id(%DetailItem{parent_container_id: id}) when is_binary(id), do: id
+  defp presentable_id(%DetailItem{container_id: id}), do: id
 
   defp build_item_for_playable_item_id(playable_item_id) do
     case Repo.get(PlayableItem, playable_item_id) do
@@ -524,7 +539,12 @@ defmodule MediaCentaur.Library.Views.Detail do
     context = build_context([item])
     grouping = grouping_key(item, context)
     shared = build_shared_entity_data(grouping)
-    build_item(item, shared, grouping, context)
+
+    item
+    |> build_item(shared, grouping, context)
+    |> List.wrap()
+    |> ItemAvailability.resolve(id: &presentable_id/1)
+    |> List.first()
   end
 
   defp build_item_for_container(:movie, container_id) do

@@ -130,7 +130,6 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @topics [
     Library,
     Library.Views,
-    Library.MediaFileAvailability,
     MediaCentaur.Playback,
     ReleaseTracking,
     Activities,
@@ -733,8 +732,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     end
   end
 
+  # A drive mounting or unmounting arrives here too: the detail projection
+  # patches `available?` in place on the availability event and announces
+  # the change on `library:views`.
   defp react({:library_view_updated, :detail, _id}, socket), do: refresh_if_owned(socket)
-  defp react({:availability_changed, _payload}, socket), do: refresh_if_owned(socket)
 
   # The open title's stored record changed — a first contact landed, or a
   # check found something new: re-read the facts and the preview.

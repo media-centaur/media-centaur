@@ -349,4 +349,16 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       assert hero_backdrop_src(nil) == nil
     end
   end
+
+  describe "image_url/2 and availability" do
+    test "returns nil for an entity whose storage is unavailable, so no unservable URL is emitted" do
+      entity = %{available?: false, images: [%{role: "poster", content_url: "abc/poster.jpg"}]}
+      assert image_url(entity, "poster") == nil
+    end
+
+    test "treats a shape without the key as available" do
+      entity = %{images: [%{role: "poster", content_url: "abc/poster.jpg"}]}
+      assert image_url(entity, "poster") == "/media-images/abc/poster.jpg"
+    end
+  end
 end

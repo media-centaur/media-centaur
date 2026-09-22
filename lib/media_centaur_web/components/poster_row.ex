@@ -22,16 +22,22 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   alias MediaCentaurWeb.Components.PlayOverlay
 
   defmodule Item do
-    @moduledoc "View-model for a single PosterRow card."
+    @moduledoc """
+    View-model for a single PosterRow card. `available?` is whether the
+    entry's media directory is reachable; an offline card renders a
+    neutral block, the name, and no Play (the same treatment as the
+    Library card).
+    """
     @enforce_keys [:id, :entity_id, :name, :year, :poster_url]
-    defstruct [:id, :entity_id, :name, :year, :poster_url]
+    defstruct [:id, :entity_id, :name, :year, :poster_url, available?: true]
 
     @type t :: %__MODULE__{
             id: term(),
             entity_id: String.t(),
             name: String.t(),
             year: String.t() | nil,
-            poster_url: String.t() | nil
+            poster_url: String.t() | nil,
+            available?: boolean()
           }
   end
 
@@ -69,21 +75,31 @@ defmodule MediaCentaurWeb.Components.PosterRow do
         tabindex="0"
       >
         <img
-          :if={item.poster_url}
+          :if={item.available? && item.poster_url}
           src={poster_src(item.poster_url)}
           alt={item.name}
           class="absolute inset-0 w-full h-full object-cover"
           loading="eager"
           decoding="sync"
         />
-        <%!-- Fallback only when artwork is missing — the poster image itself
-              already carries the title, so showing it again is redundant. --%>
-        <div :if={!item.poster_url} class="absolute inset-x-2 bottom-2">
+        <div
+          :if={!item.available?}
+          class="absolute inset-0 bg-base-content/5"
+          aria-label="Artwork unavailable — storage not mounted"
+        />
+        <%!-- Fallback only when artwork is missing or offline — the poster
+              image itself already carries the title, so showing it again is
+              redundant. --%>
+        <div :if={!item.available? || !item.poster_url} class="absolute inset-x-2 bottom-2">
           <div class="text-xs font-semibold text-white text-on-image truncate">{item.name}</div>
           <div :if={item.year} class="text-[10px] text-white/70 text-on-image">{item.year}</div>
         </div>
 
-        <PlayOverlay.play_overlay :if={@show_play_button} entity_id={item.entity_id} />
+        <%!-- Offline storage cannot play (UIDR-027). --%>
+        <PlayOverlay.play_overlay
+          :if={@show_play_button && item.available?}
+          entity_id={item.entity_id}
+        />
       </div>
 
       <.link

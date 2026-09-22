@@ -12,7 +12,8 @@ defmodule MediaCentaurWeb.Storybook.AppCards.BannerCard do
     [
       %Variation{
         id: :with_banner,
-        description: "Cached Steam header art (the miss serves a banner-shaped placeholder SVG)",
+        description:
+          "Cached Steam header art (the fixture 404s in storybook chrome; the layout still resolves)",
         attributes: %{
           id: "app-card-demo-1",
           app_id: "demo-1",

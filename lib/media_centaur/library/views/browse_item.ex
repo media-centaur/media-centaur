@@ -21,7 +21,11 @@ defmodule MediaCentaur.Library.Views.BrowseItem do
                           alongside `:date_published` because it is the only
                           piece the poster card displays today and reads cheaper
                           than calling `Date.year/1` per render.
-    * `:poster_url`     — local artwork URL (`/media-images/<content_url>`) or nil
+    * `:poster_url`     — local artwork URL (`/media-images/<content_url>`) or nil;
+                          nil whenever `:available?` is false
+    * `:available?`     — whether the entry's media directory is reachable right
+                          now (`Views.ItemAvailability`); the card renders an
+                          offline placeholder and no Play when false
     * `:rank`           — 0-indexed display rank, assigned by `refresh_cache/0`
                           after the source query runs. Reflects the projection's
                           recent-first (`inserted_at desc`) ordering — the
@@ -29,7 +33,7 @@ defmodule MediaCentaur.Library.Views.BrowseItem do
   """
 
   @enforce_keys [:id, :kind, :name]
-  defstruct [:id, :kind, :name, :date_published, :year, :poster_url, :rank]
+  defstruct [:id, :kind, :name, :date_published, :year, :poster_url, :rank, available?: true]
 
   @type kind :: :movie | :tv_series | :movie_series | :video_object
 
@@ -40,6 +44,7 @@ defmodule MediaCentaur.Library.Views.BrowseItem do
           date_published: Date.t() | nil,
           year: integer() | nil,
           poster_url: String.t() | nil,
-          rank: non_neg_integer() | nil
+          rank: non_neg_integer() | nil,
+          available?: boolean()
         }
 end

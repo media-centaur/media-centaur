@@ -623,13 +623,10 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
 
     test "availability_changed drives no direct section reloads" do
       # Every Library / ReleaseTracking projection that reads file-presence-
-      # gated data subscribes to library:availability directly and broadcasts
-      # a :library_view_updated event after refresh — including
-      # ContinueWatching as of the desktop-rearchitecture close-out. The
-      # LiveView reacts only to those derived broadcasts, never to the
-      # source :availability_changed event. HomeLive still listens for
-      # :availability_changed to bump :image_version for cache-busting, but
-      # no section reload is scheduled directly from it.
+      # gated data subscribes to library:availability directly, re-resolves
+      # each row's availability and artwork, and broadcasts a
+      # :library_view_updated event after refresh. The LiveView reacts only
+      # to those derived broadcasts and never hears the source event.
       assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :available}) == []
 
       assert Logic.section_reloaders({:availability_changed, "/mnt/movies", :unavailable}) == []
@@ -641,91 +638,43 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
     end
   end
 
-  describe "image cache-busting via image_version" do
-    # The placeholder served at /media-images/<path> when the file is offline
-    # has the same URL as the real artwork. To force the browser to refetch
-    # when a drive comes back online, we re-render with a cache-busting
-    # ?v=<n> query string that bumps on every availability change.
-
-    test "hero_card_item/2 with version 0 emits unchanged URLs" do
-      entity = %{
-        id: 1,
-        name: "Sample Movie",
-        year: 2024,
-        runtime_minutes: 100,
-        genres: nil,
-        overview: nil,
-        backdrop_url: "/media-images/ent-1/backdrop.jpg",
-        logo_url: "/media-images/ent-1/logo.png"
-      }
-
-      item = Logic.hero_card_item(entity, 0)
-
-      assert item.backdrop_url == "/media-images/ent-1/backdrop.jpg"
-      assert item.logo_url == "/media-images/ent-1/logo.png"
-    end
-
-    test "hero_card_item/2 with non-zero version appends ?v= to image URLs" do
-      entity = %{
-        id: 1,
-        name: "Sample Movie",
-        year: 2024,
-        runtime_minutes: 100,
-        genres: nil,
-        overview: nil,
-        backdrop_url: "/media-images/ent-1/backdrop.jpg",
-        logo_url: "/media-images/ent-1/logo.png"
-      }
-
-      item = Logic.hero_card_item(entity, 7)
-
-      assert item.backdrop_url == "/media-images/ent-1/backdrop.jpg?v=7"
-      assert item.logo_url == "/media-images/ent-1/logo.png?v=7"
-    end
-
-    test "hero_card_item/2 leaves nil URLs alone regardless of version" do
-      entity = %{
-        id: 1,
-        name: "Sample Movie",
-        year: 2024,
-        runtime_minutes: 100,
-        genres: nil,
-        overview: nil,
-        backdrop_url: nil,
-        logo_url: nil
-      }
-
-      item = Logic.hero_card_item(entity, 9)
-
-      assert item.backdrop_url == nil
-      assert item.logo_url == nil
-    end
-
-    test "continue_watching_items/3 cache-busts backdrop and logo URLs" do
-      progress = [
+  describe "availability on the shaped items" do
+    # `available?` and the artwork URLs arrive together from the projection;
+    # Logic carries the flag through so the cards render the offline
+    # treatment without re-deciding anything.
+    test "continue_watching_items/2 carries available? from the row" do
+      rows = [
         %{
           entity_id: 1,
-          entity_name: "Sample Show",
+          entity_name: "Offline Show",
           progress_pct: 47,
-          backdrop_url: "/media-images/show-1/backdrop.jpg",
-          logo_url: "/media-images/show-1/logo.png"
+          backdrop_url: nil,
+          logo_url: nil,
+          available?: false
+        },
+        %{
+          entity_id: 2,
+          entity_name: "Online Show",
+          progress_pct: 10,
+          backdrop_url: "/media-images/2/backdrop.jpg",
+          available?: true
         }
       ]
 
-      [item] = Logic.continue_watching_items(progress, %{}, 4)
-
-      assert item.backdrop_url == "/media-images/show-1/backdrop.jpg?v=4"
-      assert item.logo_url == "/media-images/show-1/logo.png?v=4"
+      assert [%{entity_id: 1, available?: false}, %{entity_id: 2, available?: true}] =
+               Logic.continue_watching_items(rows, %{})
     end
 
-    test "recently_added_items/2 cache-busts poster URLs" do
-      entities = [
-        %{id: 1, name: "Sample Movie", year: 2023, poster_url: "/media-images/ent-1/poster.jpg"}
-      ]
+    test "recently_added_items/1 carries available? from the row" do
+      rows = [%{id: 1, name: "Offline Movie", year: 2023, poster_url: nil, available?: false}]
 
-      [item] = Logic.recently_added_items(entities, 3)
+      assert [%{available?: false, poster_url: nil}] = Logic.recently_added_items(rows)
+    end
 
-      assert item.poster_url == "/media-images/ent-1/poster.jpg?v=3"
+    test "a row without the flag is available" do
+      rows = [%{entity_id: 1, entity_name: "Sample Show", progress_pct: 1, backdrop_url: nil}]
+
+      assert [%{available?: true}] = Logic.continue_watching_items(rows, %{})
     end
   end
 

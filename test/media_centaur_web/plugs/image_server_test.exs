@@ -1,79 +1,32 @@
 defmodule MediaCentaurWeb.Plugs.ImageServerTest do
   @moduledoc """
-  Guards the graceful-degradation contract for `/media-images/*`.
-
-  When an image file is missing from disk, the plug responds 200 with an
-  inline SVG placeholder whose aspect matches the requested role. This
-  keeps the UI out of the browser's native broken-image state anywhere
-  an `<img src="/media-images/…">` is rendered — posters, backdrops,
-  episode thumbnails, and logos alike. The specific artwork can change;
-  the contract being tested here is the response shape that callers
-  (the browser) depend on.
+  Guards the response contract for `/media-images/*`: a file on disk is
+  served with the cache headers UIDR-012 fixes, a file that is not on disk
+  is an uncached 404. The plug never stands in for a missing file; the
+  read models decide what artwork a page may show
+  (`docs/plans/2026-09-22-artwork-availability.md`).
   """
   use MediaCentaurWeb.ConnCase, async: false
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaurWeb.Plugs.ImageServer
 
-  describe "missing file → role-appropriate SVG placeholder" do
-    test "poster miss returns 2:3 SVG placeholder", %{conn: conn} do
+  describe "missing file → 404" do
+    # The plug never stands in for a missing file. Whether an entry's
+    # artwork can be shown is decided in the read models from the
+    # availability of its media directory, so a page never emits a URL
+    # this plug cannot serve while a drive is unmounted. A 404 here is a
+    # data defect (file missing while its volume is up), owned by
+    # `Library.ImageHealth`.
+    test "a poster that is not on disk is a 404", %{conn: conn} do
       conn = call_plug(conn, "/media-images/ffffffff-0000-0000-0000-000000000000/poster.jpg")
 
-      assert conn.status == 200
-      assert content_type(conn) == "image/svg+xml; charset=utf-8"
-      assert conn.resp_body =~ "<svg"
-      assert conn.resp_body =~ ~r/viewBox="0 0 200 300"/
+      assert conn.status == 404
+      assert conn.halted
     end
 
-    test "backdrop miss returns 16:9 SVG placeholder", %{conn: conn} do
+    test "the 404 is uncached, so the same URL serves the file the moment it lands", %{conn: conn} do
       conn = call_plug(conn, "/media-images/ffffffff-0000-0000-0000-000000000000/backdrop.jpg")
-
-      assert conn.status == 200
-      assert content_type(conn) == "image/svg+xml; charset=utf-8"
-      assert conn.resp_body =~ ~r/viewBox="0 0 320 180"/
-    end
-
-    test "thumb miss returns 16:9 SVG placeholder", %{conn: conn} do
-      conn = call_plug(conn, "/media-images/ffffffff-0000-0000-0000-000000000000/thumb.jpg")
-
-      assert conn.status == 200
-      assert content_type(conn) == "image/svg+xml; charset=utf-8"
-      assert conn.resp_body =~ ~r/viewBox="0 0 320 180"/
-    end
-
-    test "logo miss returns 4:1 SVG placeholder", %{conn: conn} do
-      conn = call_plug(conn, "/media-images/ffffffff-0000-0000-0000-000000000000/logo.png")
-
-      assert conn.status == 200
-      assert content_type(conn) == "image/svg+xml; charset=utf-8"
-      assert conn.resp_body =~ ~r/viewBox="0 0 400 100"/
-    end
-
-    test "banner miss returns landscape SVG placeholder (Apps launcher cards)", %{conn: conn} do
-      conn = call_plug(conn, "/media-images/images/apps/ffffffff-0000-0000-0000-000000000000/banner.jpg")
-
-      assert conn.status == 200
-      assert content_type(conn) == "image/svg+xml; charset=utf-8"
-      assert conn.resp_body =~ ~r/viewBox="0 0 320 150"/
-    end
-
-    test "unknown role miss returns generic square SVG placeholder", %{conn: conn} do
-      conn = call_plug(conn, "/media-images/ffffffff-0000-0000-0000-000000000000/mystery.jpg")
-
-      assert conn.status == 200
-      assert content_type(conn) == "image/svg+xml; charset=utf-8"
-      assert conn.resp_body =~ ~r/viewBox="0 0 200 200"/
-    end
-
-    test "placeholder response is uncached so a recovered drive serves real artwork on next fetch",
-         %{conn: conn} do
-      # Same URL maps to either the placeholder OR the real file depending on
-      # whether the media dir is mounted right now. Caching the placeholder
-      # response shadows the real file once the drive comes back — the browser
-      # keeps serving the cached placeholder for the same URL until expiry.
-      # `no-store` is the only correct cache directive for a response whose
-      # body can flip on the next request without the URL changing.
-      conn = call_plug(conn, "/media-images/ffffffff-0000-0000-0000-000000000000/poster.jpg")
 
       [cache_control] = Plug.Conn.get_resp_header(conn, "cache-control")
       assert cache_control =~ "no-store"
@@ -166,11 +119,10 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
       assert byte_size(conn.resp_body) == File.stat!(master_path).size
     end
 
-    test "a missing master with ?w= still degrades to the placeholder", %{conn: conn} do
+    test "a missing master with ?w= is a 404 too", %{conn: conn} do
       conn = call_plug(conn, "/media-images/nope/backdrop.jpg", "w=320")
 
-      assert conn.status == 200
-      assert content_type(conn) =~ "image/svg+xml"
+      assert conn.status == 404
     end
   end
 
@@ -190,21 +142,17 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
     end
   end
 
-  describe "bare /media-images (no filename) degrades, never crashes" do
+  describe "bare /media-images (no filename) answers, never crashes" do
     # Regression for the production 500: an `<img src>` built from an empty
     # content_url (`/media-images/#{""}`) — or a crawler hitting the bare
     # mount point — arrives as path_info `["media-images"]` with nothing
-    # after it. `Path.join([])` raises FunctionClauseError, so the plug must
-    # short-circuit. We treat it like any other missing file: 200 + the
-    # generic ("unknown" role) placeholder, consistent with the module's
-    # graceful-degradation contract.
-    test "bare path returns the generic placeholder instead of raising", %{conn: conn} do
+    # after it. `Path.join([])` raises, so the plug must short-circuit to
+    # the same 404 any other missing file gets.
+    test "bare path is a 404 instead of raising", %{conn: conn} do
       conn = call_plug(conn, "/media-images")
 
-      assert conn.status == 200
-      assert content_type(conn) =~ "image/svg+xml"
-      # 200x200 generic square — the "unknown" role viewBox.
-      assert conn.resp_body =~ ~s(viewBox="0 0 200 200")
+      assert conn.status == 404
+      assert conn.halted
     end
   end
 

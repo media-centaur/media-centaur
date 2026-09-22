@@ -3,15 +3,17 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   Serves local entity images from per-media-directory image caches.
 
   Intercepts requests at `/media-images/*` and searches all configured
-  media directories' image caches for the requested file. If the file
-  is not present on disk, responds 200 with an inline SVG placeholder
-  whose viewBox matches the requested role's aspect ratio, so every
-  `<img src="/media-images/…">` in the UI has a graceful fallback
-  without per-call-site JS or extra binary assets.
+  media directories' image caches, then the app data directory, for the
+  requested file. A file that is not on disk is a 404.
 
-  Role is inferred from the filename's stem — `poster.jpg` / `backdrop.jpg`
-  / `thumb.jpg` / `logo.png` each produce a differently-shaped placeholder;
-  anything else falls through to a generic square.
+  The plug never stands in for a missing file. Whether an entry's artwork
+  can be shown is decided in the read models (`Library.Views.ItemAvailability`)
+  from the availability of the entry's media directory, so a page never
+  emits a URL this plug cannot serve while a drive is unmounted, and the
+  URL appears — a DOM change the browser fetches — when the drive returns.
+  The only way a page reaches a 404 here is a file missing while its volume
+  is up, which is a data defect `Library.ImageHealth` reports and image
+  repair fixes.
   """
   @behaviour Plug
   import Plug.Conn
@@ -19,28 +21,16 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   alias MediaCentaur.Settings.Config
 
   alias MediaCentaur.Library.ImageCache
-  # {width, height} in SVG units — the viewBox shape is what makes the
-  # placeholder swap in seamlessly for the missing asset.
-  @placeholder_dims %{
-    "poster" => {200, 300},
-    "backdrop" => {320, 180},
-    "thumb" => {320, 180},
-    "logo" => {400, 100},
-    "banner" => {320, 150},
-    "unknown" => {200, 200}
-  }
 
   @impl true
   def init(opts), do: opts
 
   @impl true
   # Bare `/media-images` with nothing after it (path_info `["media-images"]`,
-  # so `rest == []`). Reached when an `<img src>` is built from an empty/nil
-  # image path (`/media-images/#{""}`) or a crawler pokes the mount point.
-  # `Path.join([])` raises, so short-circuit to the same graceful placeholder
-  # a missing file gets — there's no filename to look up, role is "unknown".
+  # so `rest == []`): an `<img src>` built from an empty path, or a crawler
+  # poking the mount point. `Path.join([])` raises, so answer 404 directly.
   def call(%{path_info: ["media-images"]} = conn, _opts) do
-    send_placeholder(conn, "")
+    send_not_found(conn)
   end
 
   def call(%{path_info: ["media-images" | rest]} = conn, _opts) do
@@ -50,7 +40,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
       relative = Path.join(rest)
 
       case locate_file(relative) do
-        nil -> send_placeholder(conn, relative)
+        nil -> send_not_found(conn)
         master_path -> serve_image(conn, master_path)
       end
     end
@@ -153,50 +143,11 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
     end
   end
 
-  defp send_placeholder(conn, relative) do
-    role = role_from_filename(relative)
-
-    # The same URL maps to either the placeholder OR the real artwork
-    # depending on whether the media dir is mounted. Caching the placeholder
-    # would shadow the real file once the drive comes back, so the browser
-    # would keep serving stale placeholders. `no-store` is the only correct
-    # directive for a response whose body can flip on the next request
-    # without the URL changing.
+  # Uncached: the same URL serves the file the moment it is on disk.
+  defp send_not_found(conn) do
     conn
-    |> put_resp_content_type("image/svg+xml")
     |> put_resp_header("cache-control", "no-store")
-    |> send_resp(200, placeholder_svg(role))
+    |> send_resp(404, "Not found")
     |> halt()
-  end
-
-  defp role_from_filename(relative) do
-    stem =
-      relative
-      |> Path.basename()
-      |> Path.rootname()
-      |> String.downcase()
-
-    case stem do
-      "poster" -> "poster"
-      "backdrop" -> "backdrop"
-      "thumb" -> "thumb"
-      "thumbnail" -> "thumb"
-      "logo" -> "logo"
-      "banner" -> "banner"
-      _ -> "unknown"
-    end
-  end
-
-  defp placeholder_svg(role) do
-    {w, h} = Map.fetch!(@placeholder_dims, role)
-    icon_size = trunc(min(w, h) * 0.24)
-    icon_x = div(w - icon_size, 2)
-    icon_y = div(h - icon_size, 2)
-
-    ~s(<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 #{w} #{h}" preserveAspectRatio="xMidYMid slice">) <>
-      ~s(<rect width="#{w}" height="#{h}" fill="#0c0d11"/>) <>
-      ~s(<svg x="#{icon_x}" y="#{icon_y}" width="#{icon_size}" height="#{icon_size}" viewBox="0 0 24 24" fill="none" stroke="#2a2d38" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">) <>
-      ~s(<path d="M7.5 6 9 4.5h6L16.5 6m-9 0h9M7.5 6v12M16.5 6v12m-9 0L6 19.5h12L16.5 18m-9 0h9m-9-6h9M7.5 9h9"/>) <>
-      ~s(</svg></svg>)
   end
 end

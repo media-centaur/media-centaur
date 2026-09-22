@@ -8,11 +8,11 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   The grid reads from the `Library.Views.Browse` ETS projection
   (ADR-041) — pre-shaped `BrowseItem` structs in recent-first
-  (`inserted_at desc`) order. Progress and availability live in
-  separate per-id maps populated via the bulk context functions
-  `Library.ProgressRecords.summaries/1` and
-  `Library.MediaFileAvailability.available_for_ids/1`. The mount issues a
-  bounded number of queries that does not scale with catalog size.
+  (`inserted_at desc`) order, each carrying `available?` and a poster
+  URL only when its storage is reachable (`Views.ItemAvailability`).
+  Progress lives in a per-id map populated via the bulk context function
+  `Library.ProgressRecords.summaries/1`. The mount issues a bounded
+  number of queries that does not scale with catalog size.
 
   ## Update path
 
@@ -20,13 +20,15 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     * `library:views` — projection refresh broadcasts. On
       `{:library_view_updated, :browse}` the LiveView re-reads
-      `Views.browse/0` (microsecond ETS lookup) and refreshes the
-      progress + availability maps.
+      `Views.browse/0` (microsecond ETS lookup), the progress map, and
+      the per-directory status behind the offline banner. A drive
+      mounting or unmounting arrives here too: the projection rebuilds
+      on the availability event, so the offline cards flip to artwork
+      as a DOM change the browser fetches.
     * `library:updates` — wired by the EntityModal hook for the
       selected modal state; the grid no longer reacts directly.
     * `playback:events` — pulse dot + flash on `playback_state_changed`
       / `playback_failed`.
-    * `library:availability` — drive-mount / unmount events.
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.TitleDetailHost
@@ -51,7 +53,6 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   import MediaCentaurWeb.LibraryHelpers
   import MediaCentaurWeb.LibraryFormatters
-  import MediaCentaurWeb.MediaFileAvailability
 
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Live.Subscriptions
@@ -63,10 +64,10 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     # Declared through the one door: the title detail host declares
     # `library:updates` and `playback:events` for the modal, this page
-    # the projections, availability, config and the pipeline's stats.
+    # the projections, config and the pipeline's stats.
     socket =
       Enum.reduce(
-        [Library.Views, MediaFileAvailability, Config, MediaCentaur.Pipeline.Stats],
+        [Library.Views, Config, MediaCentaur.Pipeline.Stats],
         socket,
         &Subscriptions.subscribe(&2, &1)
       )
@@ -78,7 +79,6 @@ defmodule MediaCentaurWeb.LibraryLive do
        loaded?: false,
        entries: [],
        progress_by_id: %{},
-       availability_map: %{},
        visible_ids: MapSet.new(),
        active_tab: :all,
        sort_order: :recent,
@@ -243,28 +243,6 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   def handle_info({:playback_failed, %{payload: payload}}, socket) do
     {:noreply, put_flash(socket, :error, playback_failed_flash(payload))}
-  end
-
-  def handle_info({:availability_changed, _dir, state}, socket) do
-    availability_map = availability_map(socket.assigns.entries)
-
-    socket =
-      assign(socket,
-        dir_status: MediaFileAvailability.dir_status(),
-        availability_map: availability_map,
-        unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end)
-      )
-
-    # When storage comes back online, reset the grid stream so the
-    # browser re-requests images instead of serving cached 404s.
-    socket =
-      if state == :watching do
-        stream(socket, :grid, socket.assigns.entries, reset: true)
-      else
-        socket
-      end
-
-    {:noreply, socket}
   end
 
   def handle_info({:config_updated, :media_dirs, _entries}, socket) do
@@ -440,7 +418,6 @@ defmodule MediaCentaurWeb.LibraryLive do
                   progress={Map.get(@progress_by_id, entry.id)}
                   selected={open_container_id(@title_detail) == entry.id}
                   playing={playing?(@title_playback, entry.id)}
-                  available={Map.get(@availability_map, entry.id, true)}
                   show_info={@show_card_info}
                   show_play_button={@show_play_button}
                 />
@@ -492,13 +469,12 @@ defmodule MediaCentaurWeb.LibraryLive do
     entries = Library.Views.browse()
     ids = Enum.map(entries, & &1.id)
     progress_by_id = Library.ProgressRecords.summaries(ids)
-    availability_map = MediaFileAvailability.available_for_ids(ids)
 
     assign(socket,
       entries: entries,
       progress_by_id: progress_by_id,
-      availability_map: availability_map,
-      unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end),
+      dir_status: MediaFileAvailability.dir_status(),
+      unavailable_count: Enum.count(entries, &(not &1.available?)),
       counts: tab_counts(entries),
       playback: load_playback_sessions()
     )

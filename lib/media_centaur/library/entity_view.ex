@@ -25,6 +25,11 @@ defmodule MediaCentaur.Library.EntityView do
   :video_object`, ADR-050); `:collection` is the `%{id, name}` of the
   collection a hoisted movie belongs to, else nil; `:track_override` is
   attached by `Library.MediaTrackOverrides.put_on_entity/1`.
+  `:available?` is whether the entity's media directory is reachable
+  right now — the projection adapter carries it from `DetailItem`, and
+  `MediaCentaurWeb.LiveHelpers.image_url/2` withholds every artwork URL
+  while it is false; the record adapter has no availability to report
+  and leaves the default, since nothing renders a record-built view.
   `title_ref/1` is the entity's TMDB title identity, when it has one.
   """
 
@@ -66,7 +71,8 @@ defmodule MediaCentaur.Library.EntityView do
     watched_files: [],
     subtitle_tracks: [],
     watch_progress: [],
-    extra_progress: []
+    extra_progress: [],
+    available?: true
   ]
 
   @type kind :: :movie | :movie_series | :tv_series | :video_object
@@ -75,7 +81,8 @@ defmodule MediaCentaur.Library.EntityView do
           id: Ecto.UUID.t(),
           type: kind(),
           name: String.t(),
-          collection: %{id: Ecto.UUID.t(), name: String.t()} | nil
+          collection: %{id: Ecto.UUID.t(), name: String.t()} | nil,
+          available?: boolean()
         }
 
   @doc """
