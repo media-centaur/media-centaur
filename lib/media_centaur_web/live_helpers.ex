@@ -144,6 +144,13 @@ defmodule MediaCentaurWeb.LiveHelpers do
 
   Returns a path like `/media-images/<content_url>` for local images, the remote
   URL for external images, or `nil` if no image exists for that role.
+
+  Also `nil` while the entity's storage is unavailable (`available?: false`,
+  carried from the detail projection): a page never emits an artwork URL
+  the image server cannot serve, so the placeholder it renders instead is
+  replaced by the real `<img>` — a DOM change the browser fetches — the
+  moment the drive returns and the projection rebuilds. A shape without
+  the key is treated as available.
   """
   def image_url(entity, role) do
     # `Map.get/2`, not `entity.images`: some projection leaf shapes
@@ -154,7 +161,7 @@ defmodule MediaCentaurWeb.LiveHelpers do
     # optional key.
     image = Enum.find(Map.get(entity, :images) || [], &(&1.role == role))
 
-    if image && image.content_url do
+    if image && image.content_url && Map.get(entity, :available?, true) do
       MediaCentaur.ImageFiles.web_path(image.content_url) <> cache_bust(image)
     end
   end

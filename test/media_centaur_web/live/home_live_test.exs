@@ -167,16 +167,15 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     end
   end
 
-  describe "drive-recovery image refresh" do
-    test "availability_changed bumps image cache-bust on continue-watching URLs",
-         %{conn: conn} do
-      # Bug: when the app starts before a media dir is mounted, hero and
-      # continue-watching populate (they don't filter by file presence) but
-      # their /media-images/* URLs return placeholder SVGs. Once the drive
-      # comes back, the same URLs would still be served from the browser
-      # cache. The fix bumps :image_version on every :availability_changed
-      # so the next render emits cache-busted URLs (?v=N) — morphdom diffs
-      # the `src` attribute and the browser refetches.
+  describe "artwork follows the media directory's availability" do
+    # The boot race of 2026-09-22: the browser fetched Home's artwork
+    # 150 ms before the media volume mounted, the image server answered
+    # with stand-ins, and nothing ever refetched. Now the projection
+    # withholds artwork URLs while the entry's media directory is
+    # unavailable, so the page renders placeholders instead of URLs the
+    # image server cannot serve, and the connected render after the
+    # mount carries the URLs as a DOM change the browser fetches.
+    setup do
       movie = create_standalone_movie(%{name: "Sample Movie"})
 
       create_image(%{
@@ -188,27 +187,50 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       _ = create_linked_file(%{movie_id: movie.id})
       create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
 
-      {:ok, view, html} = live_async!(conn, "/")
+      %{movie: movie, backdrop_url: "/media-images/#{movie.id}/backdrop.jpg"}
+    end
 
-      # Initial render: image_version is 0, URLs have no ?v= param.
-      assert html =~ "/media-images/#{movie.id}/backdrop.jpg"
-      refute html =~ "?v="
+    test "a page rendered before the drive mounts shows placeholders; the render after shows artwork",
+         %{conn: conn, backdrop_url: backdrop_url} do
+      :persistent_term.put({MediaCentaur.Library.MediaFileAvailability, :state}, %{
+        "/media/test" => :unavailable
+      })
 
-      # In production the Continue Watching projection observes
-      # `:availability_changed` (it subscribes to `library:availability`),
-      # refreshes, and broadcasts `{:library_view_updated, :continue_watching}`
-      # — HomeLive bumps :image_version on the source event and schedules
-      # the section reload on the derived broadcast. Cache.Worker isn't
-      # running under ConnCase, so we simulate by refreshing the projection
-      # directly (which emits the same derived broadcast HomeLive listens
-      # for) immediately after the source event.
-      send(view.pid, {:availability_changed, "/mnt/movies", :available})
+      # The disconnected render, before the mount.
+      html_before = conn |> get("/") |> html_response(200)
+      refute html_before =~ backdrop_url
+      assert html_before =~ "Sample Movie"
+
+      # The drive mounts; the availability model flips the directory and
+      # the projection rebuilds on the event (the Cache.Worker's job in
+      # production).
+      :persistent_term.put({MediaCentaur.Library.MediaFileAvailability, :state}, %{
+        "/media/test" => :available
+      })
+
       :ok = MediaCentaur.Library.Views.ContinueWatching.refresh_cache()
 
-      # The cache-busted URL (?v=1) appears only after the debounced section
-      # reload re-renders with the bumped :image_version — poll for it.
-      html_after = render_until(view, "/media-images/#{movie.id}/backdrop.jpg?v=1")
-      assert html_after =~ "/media-images/#{movie.id}/backdrop.jpg?v=1"
+      # The connected render, after the mount.
+      {:ok, _view, html_after} = live_async!(conn, "/")
+      assert html_after =~ backdrop_url
+    end
+
+    test "a connected page re-renders artwork when the projection rebuilds after the mount",
+         %{conn: conn, backdrop_url: backdrop_url} do
+      :persistent_term.put({MediaCentaur.Library.MediaFileAvailability, :state}, %{
+        "/media/test" => :unavailable
+      })
+
+      {:ok, view, html} = live_async!(conn, "/")
+      refute html =~ backdrop_url
+
+      :persistent_term.put({MediaCentaur.Library.MediaFileAvailability, :state}, %{
+        "/media/test" => :available
+      })
+
+      :ok = MediaCentaur.Library.Views.ContinueWatching.refresh_cache()
+
+      assert render_until(view, backdrop_url) =~ backdrop_url
     end
   end
 

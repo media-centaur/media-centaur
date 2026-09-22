@@ -13,6 +13,7 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library.Events.EntitiesChanged
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.{Browse, BrowseItem}
   alias MediaCentaur.Topics
@@ -403,6 +404,45 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
       assert item.date_published == nil
       assert item.poster_url == nil
       assert item.rank == nil
+    end
+  end
+
+  describe "artwork availability" do
+    test "an entry on an unavailable media directory carries no poster URL" do
+      movie = seed_present_movie("Offline Movie")
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :unavailable})
+      :ok = Browse.refresh_cache()
+
+      assert [%BrowseItem{available?: false, poster_url: nil}] = Views.browse()
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :available})
+      :ok = Browse.refresh_cache()
+
+      assert [%BrowseItem{available?: true, poster_url: "/media-images/" <> _}] = Views.browse()
+    end
+
+    test "the database fallback read applies availability the same way" do
+      movie = seed_present_movie("Cold Offline Movie")
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :unavailable})
+
+      assert :undefined = :ets.whereis(@table)
+      assert [%BrowseItem{available?: false, poster_url: nil}] = Views.browse()
     end
   end
 end

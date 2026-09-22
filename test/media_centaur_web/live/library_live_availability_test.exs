@@ -1,21 +1,28 @@
 defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
   @moduledoc """
-  End-to-end coverage for the "storage unmounted → placeholder tiles +
+  End-to-end coverage for the "storage unmounted → offline tiles +
   banner" chain. Drives the flow through the real PubSub channels used
-  in production (`Topics.dir_state/0` → `Library.MediaFileAvailability` GenServer
-  → `"library:availability"` topic → `LibraryLive.handle_info/2`).
+  in production: `Topics.dir_state/0` → `Library.MediaFileAvailability`
+  GenServer → `"library:availability"` topic → the Browse projection's
+  rebuild → `{:library_view_updated, :browse}` → `LibraryLive`. The
+  Cache.Worker that rebuilds the projection on the availability event
+  in production is not running under ConnCase, so each broadcast here is
+  followed by the rebuild it would have triggered.
   """
 
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Library.MediaFileAvailability
+  alias MediaCentaur.Library.Views.Browse
 
   # Replays the watcher's broadcast format so we exercise the real
   # GenServer path without needing a drive unmount. The public
   # `__sync_for_test__/0` call guarantees the message has been
-  # processed (and the re-broadcast sent) before we return.
+  # processed (and the re-broadcast sent) before we return; the
+  # projection rebuild then announces the change to the page.
   defp broadcast_dir_state(dir, state) do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
@@ -24,6 +31,7 @@ defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
     )
 
     :ok = MediaFileAvailability.__sync_for_test__()
+    :ok = Browse.refresh_cache()
   end
 
   # Forces a LiveView re-render and waits for any pending messages
@@ -77,6 +85,35 @@ defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
       html = render_after_broadcasts(view)
 
       refute html =~ "Storage offline"
+    end
+  end
+
+  describe "offline entries" do
+    test "an entry on an offline directory renders the offline block, no artwork, no Play; artwork returns with the drive",
+         %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Offline Sample"})
+      _file = create_linked_file(%{movie_id: movie.id, media_dir: "/mnt/videos"})
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      broadcast_dir_state("/mnt/videos", :unavailable)
+      {:ok, view, _html} = live(conn, ~p"/library")
+
+      assert has_element?(view, "[aria-label='Artwork unavailable — storage not mounted']")
+      refute has_element?(view, "img[src*='/media-images/#{movie.id}/poster.jpg']")
+      refute has_element?(view, "#entity-#{movie.id} .play-overlay")
+
+      broadcast_dir_state("/mnt/videos", :watching)
+      render_after_broadcasts(view)
+
+      refute has_element?(view, "[aria-label='Artwork unavailable — storage not mounted']")
+      assert has_element?(view, "img[src*='/media-images/#{movie.id}/poster.jpg']")
+      assert has_element?(view, "#entity-#{movie.id} .play-overlay")
     end
   end
 

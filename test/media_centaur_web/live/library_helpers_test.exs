@@ -4,7 +4,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library.Views.BrowseItem
-  alias MediaCentaurWeb.MediaFileAvailability
   alias MediaCentaurWeb.LibraryFormatters
   alias MediaCentaurWeb.LibraryHelpers
   alias MediaCentaurWeb.LibraryProgress
@@ -394,21 +393,21 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
 
   describe "offline_summary/2" do
     test "returns nil when every dir is :watching" do
-      assert MediaFileAvailability.offline_summary(%{"/mnt/a" => :watching}, 0) == nil
-      assert MediaFileAvailability.offline_summary(%{}, 0) == nil
+      assert LibraryHelpers.offline_summary(%{"/mnt/a" => :watching}, 0) == nil
+      assert LibraryHelpers.offline_summary(%{}, 0) == nil
     end
 
     test "returns nil when dirs are :initializing (not yet unavailable)" do
-      assert MediaFileAvailability.offline_summary(%{"/mnt/a" => :initializing}, 0) == nil
+      assert LibraryHelpers.offline_summary(%{"/mnt/a" => :initializing}, 0) == nil
     end
 
     test "single-dir offline, pluralises items correctly" do
       status = %{"/mnt/videos" => :unavailable}
 
-      assert MediaFileAvailability.offline_summary(status, 1) ==
+      assert LibraryHelpers.offline_summary(status, 1) ==
                "/mnt/videos is offline — 1 item temporarily unavailable."
 
-      assert MediaFileAvailability.offline_summary(status, 23) ==
+      assert LibraryHelpers.offline_summary(status, 23) ==
                "/mnt/videos is offline — 23 items temporarily unavailable."
     end
 
@@ -419,14 +418,14 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
         "/mnt/extra" => :watching
       }
 
-      assert MediaFileAvailability.offline_summary(status, 41) ==
+      assert LibraryHelpers.offline_summary(status, 41) ==
                "2 storage locations offline — 41 items temporarily unavailable."
     end
 
     test "zero items edge case (dir offline but nothing indexed from it yet)" do
       status = %{"/mnt/videos" => :unavailable}
 
-      assert MediaFileAvailability.offline_summary(status, 0) ==
+      assert LibraryHelpers.offline_summary(status, 0) ==
                "/mnt/videos is offline — 0 items temporarily unavailable."
     end
   end

@@ -27,7 +27,12 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   # 80% of the card.
 
   defmodule Item do
-    @moduledoc "View-model for a single Continue Watching card."
+    @moduledoc """
+    View-model for a single Continue Watching card. `available?` is whether
+    the entry's media directory is reachable; an offline card renders a
+    neutral block, the name, its progress, and no Play (the same treatment
+    as the Library card).
+    """
     @enforce_keys [:id, :entity_id, :name, :progress_pct, :backdrop_url]
     defstruct [
       :id,
@@ -35,7 +40,8 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
       :name,
       :progress_pct,
       :backdrop_url,
-      logo_url: nil
+      logo_url: nil,
+      available?: true
     ]
 
     @type t :: %__MODULE__{
@@ -44,7 +50,8 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
             name: String.t(),
             progress_pct: 0..100,
             backdrop_url: String.t() | nil,
-            logo_url: String.t() | nil
+            logo_url: String.t() | nil,
+            available?: boolean()
           }
   end
 
@@ -77,29 +84,39 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
         tabindex="0"
       >
         <img
-          :if={item.backdrop_url}
+          :if={item.available? && item.backdrop_url}
           src={sized_image_url(item.backdrop_url, 960)}
           class="absolute inset-0 w-full h-full object-cover object-top"
           loading="eager"
           decoding="sync"
         />
+        <div
+          :if={!item.available?}
+          class="absolute inset-0 bg-base-content/5"
+          aria-label="Artwork unavailable — storage not mounted"
+        />
         <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent">
         </div>
         <div class="absolute bottom-4 left-4 right-4">
           <img
-            :if={item.logo_url}
+            :if={item.available? && item.logo_url}
             src={sized_image_url(item.logo_url, 320)}
             alt={item.name}
             class="max-h-20 max-w-[80%] object-contain object-left text-on-image-lg"
           />
           <div
-            :if={!item.logo_url}
+            :if={!item.available? || !item.logo_url}
             class="text-2xl font-semibold text-white text-on-image-lg truncate"
           >
             {item.name}
           </div>
         </div>
-        <PlayOverlay.play_overlay :if={@show_play_button} entity_id={item.entity_id} size={:lg} />
+        <%!-- Offline storage cannot play (UIDR-027). --%>
+        <PlayOverlay.play_overlay
+          :if={@show_play_button && item.available?}
+          entity_id={item.entity_id}
+          size={:lg}
+        />
 
         <div class="absolute left-0 right-0 bottom-0 h-1.5 bg-black/50">
           <div class="h-full bg-primary" style={"width: #{item.progress_pct}%"}></div>

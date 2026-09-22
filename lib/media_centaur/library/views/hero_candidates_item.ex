@@ -5,6 +5,9 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesItem do
   Mirrors the field shape produced by `MediaCentaur.Library.list_hero_candidates/1`
   so downstream consumers (`MediaCentaurWeb.HomeLive.Logic.hero_card_item/2`)
   can read either source by the same dot-access keys during migration.
+
+  `available?` is always true here: an entry whose media directory is
+  unreachable is not a hero candidate (`Views.ItemAvailability`).
   """
 
   @enforce_keys [:id, :name]
@@ -16,7 +19,8 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesItem do
     :genres,
     :overview,
     :backdrop_url,
-    :logo_url
+    :logo_url,
+    available?: true
   ]
 
   @type t :: %__MODULE__{
@@ -27,6 +31,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesItem do
           genres: [String.t()] | String.t() | nil,
           overview: String.t() | nil,
           backdrop_url: String.t() | nil,
-          logo_url: String.t() | nil
+          logo_url: String.t() | nil,
+          available?: boolean()
         }
 end

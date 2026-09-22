@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
 
   @doc "Shape Library progress rows into ContinueWatchingRow items."
   @spec continue_watching_items([map()]) :: [ContinueWatchingRow.Item.t()]
-  def continue_watching_items(progress_rows), do: shape_continue_watching(progress_rows, 0)
+  def continue_watching_items(progress_rows), do: shape_continue_watching(progress_rows)
 
   @doc """
   Same as `continue_watching_items/1`, but pins entities the user is
@@ -60,32 +60,25 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   `entity_id`; the value's `:state` is what we read.
   """
   @spec continue_watching_items([map()], map()) :: [ContinueWatchingRow.Item.t()]
-  def continue_watching_items(progress_rows, playback) when is_map(playback),
-    do: continue_watching_items(progress_rows, playback, 0)
-
-  @doc """
-  Same as `continue_watching_items/2` plus an `image_version` integer that
-  cache-busts `/media-images/*` URLs. Bumped on each media-dir availability
-  change (see `section_reloaders/1`) so the browser refetches artwork that
-  may have flipped between placeholder and real file.
-  """
-  @spec continue_watching_items([map()], map(), non_neg_integer()) ::
-          [ContinueWatchingRow.Item.t()]
-  def continue_watching_items(progress_rows, playback, image_version) when is_map(playback) do
-    items = shape_continue_watching(progress_rows, image_version)
+  def continue_watching_items(progress_rows, playback) when is_map(playback) do
+    items = shape_continue_watching(progress_rows)
     {pinned, rest} = Enum.split_with(items, &active_session?(&1.entity_id, playback))
     pinned ++ rest
   end
 
-  defp shape_continue_watching(progress_rows, image_version) do
+  # `available?` and the artwork URLs arrive together from the projection
+  # (`Views.ItemAvailability`): an offline row carries nil URLs, and the
+  # card renders the offline treatment from the flag.
+  defp shape_continue_watching(progress_rows) do
     Enum.map(progress_rows, fn row ->
       %ContinueWatchingRow.Item{
         id: row.entity_id,
         entity_id: row.entity_id,
         name: row.entity_name,
         progress_pct: row.progress_pct,
-        backdrop_url: with_image_version(row.backdrop_url, image_version),
-        logo_url: with_image_version(Map.get(row, :logo_url), image_version)
+        backdrop_url: row.backdrop_url,
+        logo_url: Map.get(row, :logo_url),
+        available?: Map.get(row, :available?, true)
       }
     end)
   end
@@ -160,33 +153,31 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     end
   end
 
-  @doc """
-  Shape Library entity rows into PosterRow items. `image_version` cache-busts
-  `/media-images/*` URLs (see `section_reloaders/1`).
-  """
-  @spec recently_added_items([map()], non_neg_integer()) :: [PosterRow.Item.t()]
-  def recently_added_items(entities, image_version \\ 0) do
+  @doc "Shape Library entity rows into PosterRow items."
+  @spec recently_added_items([map()]) :: [PosterRow.Item.t()]
+  def recently_added_items(entities) do
     Enum.map(entities, fn entity ->
       %PosterRow.Item{
         id: entity.id,
         entity_id: entity.id,
         name: entity.name,
         year: format_year(entity.year),
-        poster_url: with_image_version(entity.poster_url, image_version)
+        poster_url: entity.poster_url,
+        available?: Map.get(entity, :available?, true)
       }
     end)
   end
 
   @doc """
   Shape a single Library entity into the HeroCard item. Returns nil for
-  nil input. `image_version` cache-busts `/media-images/*` URLs (see
-  `section_reloaders/1`).
+  nil input. A hero candidate is never offline (`Views.HeroCandidates`
+  drops entries whose media directory is unreachable), so the item
+  carries no availability.
   """
-  @spec hero_card_item(map() | nil, non_neg_integer()) :: HeroCard.Item.t() | nil
-  def hero_card_item(entity, image_version \\ 0)
-  def hero_card_item(nil, _image_version), do: nil
+  @spec hero_card_item(map() | nil) :: HeroCard.Item.t() | nil
+  def hero_card_item(nil), do: nil
 
-  def hero_card_item(entity, image_version) do
+  def hero_card_item(entity) do
     %HeroCard.Item{
       id: entity.id,
       entity_id: entity.id,
@@ -195,8 +186,8 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
       runtime: format_runtime(entity.runtime_minutes),
       genre_label: format_genres(entity.genres),
       overview: entity.overview,
-      backdrop_url: with_image_version(entity.backdrop_url, image_version),
-      logo_url: with_image_version(Map.get(entity, :logo_url), image_version)
+      backdrop_url: entity.backdrop_url,
+      logo_url: Map.get(entity, :logo_url)
     }
   end
 
@@ -313,23 +304,14 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   defp format_genres(genres) when is_list(genres), do: Enum.join(genres, " · ")
   defp format_genres(genres) when is_binary(genres), do: genres
 
-  # Appends ?v=<n> to a /media-images/* URL so a cache-busting bump on
-  # availability change forces the browser to refetch — the same URL can
-  # serve either the placeholder SVG or the real artwork depending on
-  # whether the media dir is mounted, and morphdom only re-fetches when
-  # the `src` attribute actually changes.
-  defp with_image_version(nil, _image_version), do: nil
-  defp with_image_version(url, 0), do: url
-  defp with_image_version(url, image_version), do: "#{url}?v=#{image_version}"
-
   @doc """
   Map an inbound PubSub message to the home page sections that need reloading.
   Returns `[]` for messages the home page does not care about.
 
   Sections: `:hero`, `:continue_watching`, `:coming_up`, `:recently_added`.
-  Hero is normally stable for the duration of a 7-hour rotation window,
-  but reloads on availability changes so a cache-busted re-render replaces
-  any placeholder thumbnails left over from a drive-down period.
+  Hero is normally stable for the duration of a 7-hour rotation window;
+  a drive mounting or unmounting reaches it, like every section, as the
+  `:library_view_updated` its projection broadcasts after rebuilding.
   """
   @spec section_reloaders(term()) :: [atom()]
   # Source events that previously drove section reloads
@@ -353,11 +335,9 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
 
   # `:availability_changed` deliberately does not appear here. Every
   # projection HomeLive reads from subscribes to `library:availability`
-  # directly and broadcasts `:library_view_updated` after refresh; the
-  # `:library_view_updated` clauses above drive the actual reloads.
-  # HomeLive still listens to `:availability_changed` separately to
-  # bump `:image_version` (cache-busts `/media-images/*` URLs) — that's
-  # a render-layer concern, not a section reload.
+  # directly, re-resolves each row's `available?` and artwork, and
+  # broadcasts `:library_view_updated` after refresh; the clauses above
+  # drive the reloads. Home itself never hears the source event.
 
   def section_reloaders(_), do: []
 

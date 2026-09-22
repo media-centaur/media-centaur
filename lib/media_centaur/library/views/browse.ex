@@ -18,6 +18,8 @@ defmodule MediaCentaur.Library.Views.Browse do
       The underlying query reads `library_watched_files` rows, whose
       Phase-3 FK to `library_file_presences` (cascade-delete) makes
       WatchedFile existence equivalent to "current presence on disk."
+      The same event re-resolves each row's `available?` and poster
+      through `Views.ItemAvailability`.
 
   ## Storage
 
@@ -40,6 +42,7 @@ defmodule MediaCentaur.Library.Views.Browse do
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Browser
   alias MediaCentaur.Library.Views.BrowseItem
+  alias MediaCentaur.Library.Views.ItemAvailability
   alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
 
@@ -60,12 +63,7 @@ defmodule MediaCentaur.Library.Views.Browse do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    items =
-      Browser.fetch_all_typed_entries()
-      |> Enum.take(@max_items)
-      |> Enum.map(&to_view_model/1)
-
-    RankedProjection.replace_rows(@table, :browse, items, rank_field: :rank)
+    RankedProjection.replace_rows(@table, :browse, build(), rank_field: :rank)
   end
 
   @doc """
@@ -84,10 +82,14 @@ defmodule MediaCentaur.Library.Views.Browse do
   end
 
   defp read_from_db do
+    Enum.with_index(build(), fn item, rank -> %{item | rank: rank} end)
+  end
+
+  defp build do
     Browser.fetch_all_typed_entries()
     |> Enum.take(@max_items)
     |> Enum.map(&to_view_model/1)
-    |> Enum.with_index(fn item, rank -> %{item | rank: rank} end)
+    |> ItemAvailability.resolve(id: :id, artwork: [:poster_url])
   end
 
   defp apply_filters(items, []), do: items
@@ -103,8 +105,9 @@ defmodule MediaCentaur.Library.Views.Browse do
   # produced by `Browser.fetch_all_typed_entries/0` — the entity is the
   # `EntityView` from `EntityShape.to_entity_view/2`. The projection
   # collapses this into the minimal BrowseItem shape; consumers that
-  # need progress / availability / playback enrich per-row via their
-  # own LiveView state (see ADR-041's decoupling principle).
+  # need progress / playback enrich per-row via their own LiveView
+  # state (ADR-041). Availability is projection data — `build/0` sets
+  # it after this mapping (ADR-041, amendment 2026-09-22).
   defp to_view_model(%{entity: entity}) do
     %BrowseItem{
       id: entity.id,

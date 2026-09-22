@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   attr :entry, MediaCentaur.Library.Views.BrowseItem,
     required: true,
     doc:
-      "A `Library.Views.BrowseItem` struct produced by the Browse projection (Library Schema v2 Phase 3.1). Carries the minimal display shape — `:id`, `:kind`, `:name`, `:date_published`, `:year`, `:poster_url`, `:rank`."
+      "A `Library.Views.BrowseItem` struct produced by the Browse projection (Library Schema v2 Phase 3.1). Carries the minimal display shape — `:id`, `:kind`, `:name`, `:date_published`, `:year`, `:poster_url`, `:rank` — and `:available?`, whether the entry's media directory is reachable; an offline entry renders a neutral block in place of its poster and no Play."
 
   attr :progress, :map,
     default: nil,
@@ -29,7 +29,6 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
 
   attr :selected, :boolean, default: false
   attr :playing, :boolean, default: false
-  attr :available, :boolean, default: true
 
   attr :show_info, :boolean,
     default: true,
@@ -58,18 +57,21 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       <%!-- Poster --%>
       <div class="aspect-[2/3] glass-inset relative play-overlay-host">
         <img
-          :if={@entry.poster_url && @available}
+          :if={@entry.available? && @entry.poster_url}
           src={poster_src(@entry.poster_url)}
           class="w-full h-full object-cover"
           loading="eager"
           decoding="sync"
         />
         <div
-          :if={@entry.poster_url && !@available}
+          :if={!@entry.available?}
           class="w-full h-full bg-base-content/5"
           aria-label="Artwork unavailable — storage not mounted"
         />
-        <div :if={!@entry.poster_url} class="w-full h-full flex items-center justify-center">
+        <div
+          :if={@entry.available? && !@entry.poster_url}
+          class="w-full h-full flex items-center justify-center"
+        >
           <.icon name="hero-film" class="size-8 text-base-content/20" />
         </div>
 
@@ -77,7 +79,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
               (UIDR-025) — the shelf card never plays; offline artwork
               means the file can't play either. --%>
         <PlayOverlay.play_overlay
-          :if={@show_play_button && @available && @entry.kind != :movie_series}
+          :if={@show_play_button && @entry.available? && @entry.kind != :movie_series}
           entity_id={@entry.id}
         />
 

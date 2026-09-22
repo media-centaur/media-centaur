@@ -18,6 +18,9 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
       The underlying query reads `library_watched_files` rows, whose
       Phase-3 FK to `library_file_presences` (cascade-delete) makes
       WatchedFile existence equivalent to "current presence on disk."
+      The same event drops the entries whose media directory is
+      unreachable: a hero with no backdrop is not a hero, and Home's
+      rotation picks by position in this list (`Views.ItemAvailability`).
 
   ## Storage
 
@@ -35,6 +38,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views.HeroCandidatesItem
+  alias MediaCentaur.Library.Views.ItemAvailability
   alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
 
@@ -66,12 +70,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    items =
-      [limit: @max_items]
-      |> Library.list_hero_candidates()
-      |> Enum.map(&to_view_model/1)
-
-    RankedProjection.replace_rows(@table, :hero_candidates, items)
+    RankedProjection.replace_rows(@table, :hero_candidates, build(@max_items))
   end
 
   @doc """
@@ -85,10 +84,14 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
     RankedProjection.read(@table, limit, fn -> read_from_db(limit) end)
   end
 
-  defp read_from_db(limit) do
+  defp read_from_db(limit), do: build(limit)
+
+  defp build(limit) do
     [limit: limit]
     |> Library.list_hero_candidates()
     |> Enum.map(&to_view_model/1)
+    |> ItemAvailability.resolve(id: :id, artwork: [:backdrop_url, :logo_url])
+    |> Enum.filter(& &1.available?)
   end
 
   defp to_view_model(row) do

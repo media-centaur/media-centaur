@@ -17,6 +17,8 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
       The underlying query reads `library_watched_files` rows, whose
       Phase-3 FK to `library_file_presences` (cascade-delete) makes
       WatchedFile existence equivalent to "current presence on disk."
+      The same event re-resolves each row's `available?` and poster
+      through `Views.ItemAvailability`.
 
   ## Storage
 
@@ -30,6 +32,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.MediaFileAvailability
+  alias MediaCentaur.Library.Views.ItemAvailability
   alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Library.Views.RecentlyAddedItem
   alias MediaCentaur.Topics
@@ -51,12 +54,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    items =
-      [limit: @max_items]
-      |> Library.list_recently_added()
-      |> Enum.map(&to_view_model/1)
-
-    RankedProjection.replace_rows(@table, :recently_added, items)
+    RankedProjection.replace_rows(@table, :recently_added, build(@max_items))
   end
 
   @doc """
@@ -70,10 +68,13 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
     RankedProjection.read(@table, limit, fn -> read_from_db(limit) end)
   end
 
-  defp read_from_db(limit) do
+  defp read_from_db(limit), do: build(limit)
+
+  defp build(limit) do
     [limit: limit]
     |> Library.list_recently_added()
     |> Enum.map(&to_view_model/1)
+    |> ItemAvailability.resolve(id: :id, artwork: [:poster_url])
   end
 
   defp to_view_model(row) do

@@ -161,8 +161,8 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
         id: :artwork_states,
         description:
           "Artwork resolution — has-poster vs no-poster (placeholder film " <>
-            "icon) vs `available: false` (storage offline; artwork hidden " <>
-            "behind a quiet neutral block).",
+            "icon) vs `available?: false` on the item (storage offline; a " <>
+            "quiet neutral block, no artwork URL, no Play).",
         variations: [
           %Variation{
             id: :no_artwork,
@@ -175,12 +175,11 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
           %Variation{
             id: :unavailable,
             description:
-              "`available: false` — artwork is suppressed behind a neutral " <>
-                "block (storage offline). The footer text remains.",
+              "`available?: false` — the projection withheld the poster URL; " <>
+                "a neutral block stands in (storage offline). The footer text remains.",
             attributes: %{
               id: "card-unavailable",
-              entry: item(name: "Offline Sample", year: 1922, poster: true),
-              available: false
+              entry: item(name: "Offline Sample", year: 1922, available: false)
             }
           }
         ]
@@ -287,6 +286,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
     name = Keyword.get(opts, :name, "Sample Show")
     year = Keyword.get(opts, :year, 1922)
     poster? = Keyword.get(opts, :poster, true)
+    available? = Keyword.get(opts, :available, true)
 
     %BrowseItem{
       id:
@@ -296,8 +296,9 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
       name: name,
       date_published: year && Date.new!(year, 1, 1),
       year: year,
-      poster_url: poster? && "/storybook/fixtures/poster.jpg",
-      rank: 0
+      poster_url: available? && poster? && "/storybook/fixtures/poster.jpg",
+      rank: 0,
+      available?: available?
     }
   end
 

@@ -4,6 +4,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.ContinueWatching
   alias MediaCentaur.Library.Views.ContinueWatchingItem
@@ -262,6 +263,46 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       assert item.backdrop_url == nil
       assert item.logo_url == nil
       assert item.last_watched_at == nil
+    end
+  end
+
+  describe "artwork availability" do
+    # The projection decides what artwork a page may show: an entry whose
+    # media directory is offline carries `available?: false` and no artwork
+    # URL, so no page emits a URL the image server cannot serve.
+    test "an entry on an unavailable media directory carries no artwork URLs" do
+      movie = seed_in_progress_movie("Offline Movie")
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "backdrop",
+        content_url: "#{movie.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "logo",
+        content_url: "#{movie.id}/logo.png",
+        extension: "png"
+      })
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :unavailable})
+      :ok = ContinueWatching.refresh_cache()
+
+      assert [%ContinueWatchingItem{available?: false, backdrop_url: nil, logo_url: nil}] =
+               Views.continue_watching()
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :available})
+      :ok = ContinueWatching.refresh_cache()
+
+      assert [
+               %ContinueWatchingItem{
+                 available?: true,
+                 backdrop_url: "/media-images/" <> _,
+                 logo_url: "/media-images/" <> _
+               }
+             ] = Views.continue_watching()
     end
   end
 end

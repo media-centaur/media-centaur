@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.StorageOfflineBanner do
 
       attr :summary, :string, required: true
 
-  Pre-formatted by `MediaCentaurWeb.MediaFileAvailability.offline_summary/2`,
+  Pre-formatted by `MediaCentaurWeb.LibraryHelpers.offline_summary/2`,
   so the banner is purely presentational. Fixtures below match the two
   shapes that helper produces (single-dir vs multi-dir) plus a long
   path edge case.

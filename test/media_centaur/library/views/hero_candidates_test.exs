@@ -4,6 +4,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
+  alias MediaCentaur.Library.MediaFileAvailability
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.HeroCandidates
   alias MediaCentaur.Library.Views.HeroCandidatesItem
@@ -192,6 +193,31 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
       assert item.overview == nil
       assert item.backdrop_url == nil
       assert item.logo_url == nil
+    end
+  end
+
+  describe "artwork availability" do
+    # A hero with no backdrop is not a hero: an entry whose media directory
+    # is offline leaves the pool and returns when the drive does.
+    test "an entry on an unavailable media directory is not a hero candidate" do
+      seed_hero_candidate("Offline Hero")
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :unavailable})
+      :ok = HeroCandidates.refresh_cache()
+
+      assert Views.hero_candidates() == []
+
+      :persistent_term.put({MediaFileAvailability, :state}, %{"/media/test" => :available})
+      :ok = HeroCandidates.refresh_cache()
+
+      assert [
+               %HeroCandidatesItem{
+                 name: "Offline Hero",
+                 available?: true,
+                 backdrop_url: "/media-images/" <> _
+               }
+             ] =
+               Views.hero_candidates()
     end
   end
 end
