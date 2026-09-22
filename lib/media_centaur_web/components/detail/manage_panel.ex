@@ -474,11 +474,12 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         :if={@badges != [] || @added_at}
         class="mt-1 ml-5 flex items-center gap-1.5 text-xs text-base-content/55"
       >
-        <%!-- Highlight HDR (a quality users actively care about) with the
-              info-blue tint; everything else stays a quiet ghost chip. --%>
+        <%!-- Highlight the dynamic-range badge (a quality users actively
+              care about) with the info-blue tint; everything else stays a
+              quiet ghost chip. --%>
         <.badge
           :for={badge <- @badges}
-          variant={if badge == "HDR", do: "info", else: "ghost"}
+          variant={if badge in ["HDR", "DV"], do: "info", else: "ghost"}
           size="xs"
         >
           {badge}
@@ -728,7 +729,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   defp hdr_badge(down) do
     cond do
       String.contains?(down, "dolby.vision") or String.contains?(down, "dolbyvision") or
-          String.contains?(down, ".dv.") ->
+        String.contains?(down, "dovi") or String.contains?(down, ".dv.") ->
         "DV"
 
       String.contains?(down, "hdr") ->
