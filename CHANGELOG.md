@@ -4,6 +4,26 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.36.0 — 2026-09-22
+
+### Improved
+
+- **A pursuit now tells you when a release has been handed to your download client but hasn't started yet.** It reads **Grabbed** for the short gap between Prowlarr accepting the release and your client showing it in its queue — usually seconds. Prowlarr reports whether it managed to hand a release over, not whether the download began, which is why the two are separate stages.
+- **A grab your download client never picked up says so.** If a release is still missing from the client's queue half an hour after a successful hand-off, the pursuit reads **Not at your client** instead of sitting there looking finished. Change target to try a different release. A client that isn't answering is never blamed for this — the pursuit waits instead.
+- **Downloads are noticed within seconds instead of up to fifteen minutes.** Media Centaur now watches your download client's queue on the client's own schedule, so a download that starts and finishes quickly is still seen, its timeline records when it started, and the file it produced is linked to the pursuit straight away.
+- **Media Centaur asks your download client for a fresh queue the moment it grabs something**, rather than waiting out its usual check.
+- **A pursuit that downloads several releases at once now records each of them.** Previously only one of a multi-episode pursuit's downloads appeared in its timeline; a season pack, which is one download covering many episodes, still records once.
+
+### Fixed
+
+- **A pursuit flashed "Downloaded — Finished downloading" the instant it grabbed a release, before anything had downloaded.** It no longer claims a download finished on the strength of the release not being in your client's queue — it says that only about a release it watched at your client and then saw leave.
+- **A grab that was accepted but never reached your download client claimed to have finished, permanently.** Those pursuits now read **Not at your client** and offer a way out.
+- **Tracking a film with more than one US release date of the same kind failed outright.** TMDB repeats a release type for re-releases, staggered platform rollouts and edition-specific disc dates; the earliest entry of each type is now used, which is the date that format became available.
+
+### Migration safety
+
+- This release runs one migration on first start. It moves what Media Centaur records about a download from the pursuit onto the specific release being downloaded, and adds the moment each download was first seen at your client. In-flight downloads carry over — nothing restarts and nothing is re-grabbed. It doesn't touch your files, your library, your watch history or your list; the update runs it automatically, nothing to do by hand.
+
 ## v1.35.0 — 2026-09-21
 
 ### New
