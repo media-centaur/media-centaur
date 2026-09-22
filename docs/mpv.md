@@ -46,9 +46,20 @@ cp -r ../contrib/mpv/scripts/ ~/.config/mpv/scripts/
 ### HDR
 
 - `target-colorspace-hint=yes` — when the compositor runs the display in HDR
-  mode, mpv passes HDR10/DV through untouched and the display does its own
-  tone mapping. The `hdr-display.lua` script (below) flips the display into
-  HDR mode automatically for HDR content.
+  mode, mpv emits PQ BT.2020 untouched and the display does its own tone
+  mapping. The `hdr-display.lua` script (below) flips the display into HDR
+  mode automatically for HDR content.
+- **Dolby Vision is not passed through, and there is nothing to switch into.**
+  No display mode on this stack carries a DV signal — DRM/KMS, Hyprland and
+  the NVIDIA driver expose no DV tunnelling, and mpv's `--target-colorspace-hint`
+  docs state it never sends DV or HDR10+ metadata. libplacebo instead reads the
+  DV RPU itself (`vo=gpu-next`, format's `dolbyvision=yes` by default) and
+  applies it, so the TV receives HDR10. Profiles 7, 8.1 and 4 carry an HDR10 or
+  HLG base layer, so `video-params/gamma` reads `pq`/`hlg` and `hdr-display.lua`
+  engages exactly as it does for HDR10. Profile 5 has no such base layer; mpv
+  maps it to PQ BT.2020 in the frame params, which should engage the script the
+  same way — not yet confirmed against a real file. A profile 7 enhancement
+  layer (FEL) is discarded; no Linux player applies it.
 - SDR fallback (display in SDR mode): `tone-mapping=bt.2446a` +
   `hdr-contrast-recovery=0.30` — the ITU HDR→SDR broadcast-conversion curve,
   noticeably brighter than mpv's default spline on dim-graded films.

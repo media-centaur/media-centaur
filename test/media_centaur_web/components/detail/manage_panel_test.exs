@@ -54,6 +54,29 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanelTest do
     end
   end
 
+  describe "parse_quality_badges/1" do
+    test "reads one badge per category in a fixed order" do
+      assert ManagePanel.parse_quality_badges("Sample.Movie.2010.2160p.BluRay.REMUX.HDR.x265-GROUP.mkv") ==
+               ["4K", "HDR", "REMUX", "H265"]
+    end
+
+    test "Dolby Vision outranks the HDR10 layer the same release also carries" do
+      for filename <- [
+            "Sample.Movie.2010.2160p.DoVi.HDR.WEB-DL.x265-GROUP.mkv",
+            "Sample.Movie.2010.2160p.Dolby.Vision.HDR.WEB-DL.x265-GROUP.mkv",
+            "Sample.Movie.2010.2160p.DolbyVision.HDR.WEB-DL.x265-GROUP.mkv",
+            "Sample.Movie.2010.2160p.DV.HDR.WEB-DL.x265-GROUP.mkv"
+          ] do
+        assert ManagePanel.parse_quality_badges(filename) == ["4K", "DV", "WEB", "H265"]
+      end
+    end
+
+    test "an unparseable filename hides the strip" do
+      assert ManagePanel.parse_quality_badges("Sample Movie.mkv") == []
+      assert ManagePanel.parse_quality_badges(nil) == []
+    end
+  end
+
   describe "format_file_size/1" do
     test "formats gigabytes" do
       assert ManagePanel.format_file_size(2_147_483_648) == "2.0 GB"
