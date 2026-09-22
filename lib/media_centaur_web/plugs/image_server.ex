@@ -11,9 +11,12 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   from the availability of the entry's media directory, so a page never
   emits a URL this plug cannot serve while a drive is unmounted, and the
   URL appears — a DOM change the browser fetches — when the drive returns.
-  The only way a page reaches a 404 here is a file missing while its volume
-  is up, which is a data defect `Library.ImageHealth` reports and image
-  repair fixes.
+  The only way a page reaches a 404 here is a file that vanished after it
+  landed. The plug reports that fact to the library
+  (`Library.report_missing_artwork_file/1`) — reporting, not deciding — so
+  the read models re-check the file and the page swaps the broken image for
+  its placeholder; `Library.ImageHealth` counts the row and image repair
+  fixes it.
   """
   @behaviour Plug
   import Plug.Conn
@@ -40,8 +43,12 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
       relative = Path.join(rest)
 
       case locate_file(relative) do
-        nil -> send_not_found(conn)
-        master_path -> serve_image(conn, master_path)
+        nil ->
+          :ok = MediaCentaur.Library.report_missing_artwork_file(relative)
+          send_not_found(conn)
+
+        master_path ->
+          serve_image(conn, master_path)
       end
     end
   end

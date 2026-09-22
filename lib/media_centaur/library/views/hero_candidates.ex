@@ -19,8 +19,9 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
       Phase-3 FK to `library_file_presences` (cascade-delete) makes
       WatchedFile existence equivalent to "current presence on disk."
       The same event drops the entries whose media directory is
-      unreachable: a hero with no backdrop is not a hero, and Home's
-      rotation picks by position in this list (`Views.ItemAvailability`).
+      unreachable or whose backdrop file is not on disk: a hero with no
+      backdrop is not a hero, and Home's rotation picks by position in
+      this list (`Views.ItemAvailability`).
 
   ## Storage
 
@@ -91,7 +92,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
     |> Library.list_hero_candidates()
     |> Enum.map(&to_view_model/1)
     |> ItemAvailability.resolve(id: :id, artwork: [:backdrop_url, :logo_url])
-    |> Enum.filter(& &1.available?)
+    |> Enum.filter(&(&1.available? and is_binary(&1.backdrop_url)))
   end
 
   defp to_view_model(row) do

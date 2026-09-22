@@ -2,6 +2,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
   import MediaCentaur.TestFactory
+
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Library
@@ -168,6 +169,17 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   end
 
   describe "artwork follows the media directory's availability" do
+    # Artwork is projected only when its file is on disk, so the seeds
+    # below write files into a media directory registered for the test.
+    # Scoped to this describe: a registered directory also changes Home's
+    # empty state, which other describes assert on.
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      register_media_dir(tmp_dir)
+      :ok
+    end
+
     # The boot race of 2026-09-22: the browser fetched Home's artwork
     # 150 ms before the media volume mounted, the image server answered
     # with stand-ins, and nothing ever refetched. Now the projection
@@ -178,7 +190,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     setup do
       movie = create_standalone_movie(%{name: "Sample Movie"})
 
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg"
@@ -292,6 +304,17 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   end
 
   describe "row card click opens detail modal in place" do
+    # Artwork is projected only when its file is on disk, so the seeds
+    # below write files into a media directory registered for the test.
+    # Scoped to this describe: a registered directory also changes Home's
+    # empty state, which other describes assert on.
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      register_media_dir(tmp_dir)
+      :ok
+    end
+
     test "clicking a Continue Watching card patches URL and loads the modal", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
@@ -368,7 +391,12 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     test "the Recently Added row requests the library grid's poster derivative", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})
-      create_image(%{movie_id: movie.id, role: "poster", content_url: "#{movie.id}/poster.jpg"})
+
+      create_image_with_file(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg"
+      })
 
       # Both surfaces paint a poster at the same size, so they must request
       # the same derivative — one file on disk, and the one URL
@@ -518,6 +546,17 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   end
 
   describe "play in place (UIDR-027)" do
+    # Artwork is projected only when its file is on disk, so the seeds
+    # below write files into a media directory registered for the test.
+    # Scoped to this describe: a registered directory also changes Home's
+    # empty state, which other describes assert on.
+    @describetag :tmp_dir
+
+    setup %{tmp_dir: tmp_dir} do
+      register_media_dir(tmp_dir)
+      :ok
+    end
+
     setup do
       # One in-progress movie with a backdrop and synopsis populates every
       # surface at once: hero (description + backdrop + present file),
@@ -528,7 +567,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
           description: "A sample synopsis for hero eligibility."
         })
 
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg"

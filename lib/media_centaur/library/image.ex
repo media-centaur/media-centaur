@@ -7,6 +7,13 @@ defmodule MediaCentaur.Library.Image do
   `:tv_series`, `:movie_series`, `:video_object`. The
   `(owner_type, owner_id, role)` tuple is unique — one image per role
   per owner.
+
+  `present?` is not stored: it is whether the file behind `content_url` is
+  on disk right now, set by `Library.Images.with_presence/1` when a read
+  model takes the row in (default `true` on a row read straight from the
+  database, which nothing renders). `MediaCentaurWeb.LiveHelpers.image_url/2`
+  withholds the URL of a row whose file is missing, so a page never emits a
+  URL the image server cannot serve.
   """
   use Ecto.Schema
   @behaviour MediaCentaur.Library.OwnerTyped
@@ -24,6 +31,7 @@ defmodule MediaCentaur.Library.Image do
     field :extension, :string
     field :owner_type, Ecto.Enum, values: @owner_types
     field :owner_id, Ecto.UUID
+    field :present?, :boolean, virtual: true, default: true
 
     timestamps()
   end

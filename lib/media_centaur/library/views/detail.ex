@@ -73,6 +73,7 @@ defmodule MediaCentaur.Library.Views.Detail do
   alias MediaCentaur.Library.CollectionArtwork
   alias MediaCentaur.Library.Episode
   alias MediaCentaur.Library.Image
+  alias MediaCentaur.Library.Images
   alias MediaCentaur.Library.Movie
   alias MediaCentaur.Library.MovieSeries
   alias MediaCentaur.Library.PlayableItem
@@ -184,12 +185,12 @@ defmodule MediaCentaur.Library.Views.Detail do
   end
 
   def handle_message({:availability_changed, _dir, _state}) do
-    # A drive mounting or unmounting changes two fields — `:present?` and
-    # `:available?`. Rebuilding the whole projection to flip them re-ran
-    # every container query and re-copied every row (measured at 276 ms
-    # on a 765-row library), which a flapping network mount could trigger
-    # repeatedly. Recompute both from bounded queries and patch the
-    # affected rows in place instead.
+    # A drive mounting or unmounting changes `:present?`, `:available?`
+    # and which image files are on disk. Rebuilding the whole projection
+    # to flip them re-ran every container query and re-copied every row
+    # (measured at 276 ms on a 765-row library), which a flapping network
+    # mount could trigger repeatedly. Recompute them from bounded queries
+    # and file checks and patch the affected rows and payloads in place.
     ensure_table()
     reconcile_presence()
   end
@@ -365,9 +366,50 @@ defmodule MediaCentaur.Library.Views.Detail do
         end
       end)
 
-    if changed?, do: broadcast_row(:all)
+    shared_changed? = restamp_shared_presence()
+
+    if changed? or shared_changed?, do: broadcast_row(:all)
 
     :ok
+  end
+
+  # Re-checks each entity payload's image files on disk — the entity's own
+  # rows, its episodes' thumbs, its collection members' posters — and
+  # rewrites the payloads that changed. Once per entity, not per row: the
+  # payload is stored once (see @shared_table).
+  defp restamp_shared_presence do
+    @shared_table
+    |> :ets.tab2list()
+    |> Enum.reduce(false, fn {key, shared}, acc ->
+      restamped = restamp_presence(shared)
+
+      if restamped == shared do
+        acc
+      else
+        :ets.insert(@shared_table, {key, restamped})
+        true
+      end
+    end)
+  end
+
+  defp restamp_presence(shared) do
+    shared
+    |> Map.update!(:images, &Images.with_presence/1)
+    |> Map.update!(:seasons, fn
+      nil -> nil
+      seasons -> Enum.map(seasons, &restamp_season/1)
+    end)
+    |> Map.update!(:movies, fn
+      nil -> nil
+      movies -> Enum.map(movies, &%{&1 | images: Images.with_presence(&1.images)})
+    end)
+  end
+
+  defp restamp_season(season) do
+    %{
+      season
+      | episodes: Enum.map(season.episodes || [], &%{&1 | images: Images.with_presence(&1.images)})
+    }
   end
 
   # --- Shared entity payload split (see @shared_table) ---
@@ -1103,11 +1145,11 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   # --- Phase 3.2: images / seasons / movies / watched_files / subtitles ---
 
+  # Image rows enter the projection with `present?` set — whether the file
+  # is on disk — so what the detail shows is what the image server serves.
   defp list_images(owner_type, owner_id) do
-    Repo.all(
-      from(i in Image,
-        where: i.owner_type == ^owner_type and i.owner_id == ^owner_id
-      )
+    Images.with_presence(
+      Repo.all(from(i in Image, where: i.owner_type == ^owner_type and i.owner_id == ^owner_id))
     )
   end
 
@@ -1116,12 +1158,14 @@ defmodule MediaCentaur.Library.Views.Detail do
   # `CollectionArtwork` so a collection with no TMDB art of its own still
   # renders a poster/backdrop in the detail hero.
   defp child_movie_images(movie_series_id) do
-    Repo.all(
-      from(i in Image,
-        join: m in Movie,
-        on: m.id == i.owner_id and i.owner_type == :movie,
-        where: m.movie_series_id == ^movie_series_id,
-        order_by: [asc: m.position]
+    Images.with_presence(
+      Repo.all(
+        from(i in Image,
+          join: m in Movie,
+          on: m.id == i.owner_id and i.owner_type == :movie,
+          where: m.movie_series_id == ^movie_series_id,
+          order_by: [asc: m.position]
+        )
       )
     )
   end
@@ -1203,6 +1247,7 @@ defmodule MediaCentaur.Library.Views.Detail do
       where: image.owner_type == :episode and image.owner_id in ^episode_ids
     )
     |> Repo.all()
+    |> Images.with_presence()
     |> Enum.group_by(& &1.owner_id)
   end
 
@@ -1348,6 +1393,7 @@ defmodule MediaCentaur.Library.Views.Detail do
       where: image.owner_type == :movie and image.owner_id in ^movie_ids
     )
     |> Repo.all()
+    |> Images.with_presence()
     |> Enum.group_by(& &1.owner_id)
   end
 

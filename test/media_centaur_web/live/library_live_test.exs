@@ -3,6 +3,17 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
+
+  # Artwork is projected only when its file is on disk, so every test that
+  # expects a served URL writes the file into a media directory registered
+  # for the test (`register_media_dir/1`, `create_image_with_file/2`).
+  @moduletag :tmp_dir
+
+  setup %{tmp_dir: tmp_dir} do
+    register_media_dir(tmp_dir)
+    :ok
+  end
+
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.Plans
@@ -76,7 +87,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie = create_standalone_movie(%{name: "Sample Movie", description: "A synopsis"})
       create_linked_file(%{movie_id: movie.id})
 
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg",
@@ -460,7 +471,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})
-      create_image(%{movie_id: movie.id, role: "poster", content_url: "#{movie.id}/poster.jpg"})
+
+      create_image_with_file(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg"
+      })
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
 
@@ -1891,7 +1907,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute html =~ "/media-images/#{movie.id}/poster.jpg"
 
       # Artwork finished downloading: the Image row now exists in the DB.
-      create_image(%{
+      create_image_with_file(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",

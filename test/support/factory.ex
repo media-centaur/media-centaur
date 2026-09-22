@@ -16,6 +16,8 @@ defmodule MediaCentaur.TestFactory do
   alias MediaCentaur.Library
   alias MediaCentaur.Repo
 
+  alias MediaCentaur.Library.ImageCache
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.TestFactory.OwnerRef
 
   alias MediaCentaur.Library.{
@@ -424,6 +426,45 @@ defmodule MediaCentaur.TestFactory do
 
   def create_image(attrs) do
     attrs |> Map.new() |> OwnerRef.normalise(:image) |> Library.Images.create!()
+  end
+
+  @doc """
+  Registers `dir` as a configured media directory for the current sync
+  test, so the read models and the image server look there for artwork
+  files. `GlobalStateSandbox` restores the config at exit; pair with
+  `@tag :tmp_dir` for the directory itself.
+  """
+  def register_media_dir(dir) do
+    config = :persistent_term.get({Config, :config}, %{})
+    :persistent_term.put({Config, :config}, Map.update(config, :media_dirs, [dir], &[dir | &1]))
+    dir
+  end
+
+  @doc """
+  Writes a placeholder artwork file for `image` into the image cache of
+  `media_dir` (default: the first registered media directory), where
+  `Library.ImageCache.resolve_path/1` finds it. Returns the path.
+  """
+  def write_image_file(%Image{content_url: content_url}, media_dir \\ nil) do
+    media_dir = media_dir || registered_media_dir!()
+    path = Path.join(ImageCache.dir_for(media_dir), content_url)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, "fake-jpeg-bytes")
+    path
+  end
+
+  @doc "`create_image/1` plus its file on disk (`write_image_file/2`) — artwork the read models will project."
+  def create_image_with_file(attrs, media_dir \\ nil) do
+    image = create_image(attrs)
+    write_image_file(image, media_dir)
+    image
+  end
+
+  defp registered_media_dir! do
+    case Config.get(:media_dirs) do
+      [dir | _] -> dir
+      _ -> raise "no media directory registered — call register_media_dir/1 (with @tag :tmp_dir) first"
+    end
   end
 
   def create_external_id(attrs) do

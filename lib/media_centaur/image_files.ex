@@ -35,6 +35,15 @@ defmodule MediaCentaur.ImageFiles do
   def web_path(relative_path) when is_binary(relative_path), do: @web_prefix <> relative_path
 
   @doc """
+  The relative path a `/media-images/` URL names, any query dropped — the
+  inverse of `web_path/1`. `nil` for any other URL, so a caller checking a
+  file on disk skips URLs this route does not serve.
+  """
+  @spec relative_path(String.t() | nil) :: String.t() | nil
+  def relative_path(@web_prefix <> rest), do: rest |> String.split("?", parts: 2) |> hd()
+  def relative_path(_url), do: nil
+
+  @doc """
   Downloads an image from `url`, optionally resizes it, and writes to `dest_path`.
 
   Options:
