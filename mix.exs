@@ -4,7 +4,7 @@ defmodule MediaCentaur.MixProject do
   def project do
     [
       app: :media_centaur,
-      version: "1.36.0",
+      version: "1.37.0",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       # `:permanent` makes the VM halt when the OTP application stops. Outside
