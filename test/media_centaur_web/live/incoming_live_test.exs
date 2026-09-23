@@ -3958,4 +3958,59 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       end
     end)
   end
+  describe "a missing episode of an owned series, from the title detail on Incoming" do
+    setup do
+      TmdbStubs.stub_series_universe_for_targeting()
+
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentaur.Settings.Config, :config},
+        config
+        |> Map.put(:download_client_type, "qbittorrent")
+        |> Map.put(:download_client_url, "http://qbit.test")
+      )
+
+      Capabilities.save_test_result(:download_client, :ok)
+      Capabilities.refresh_cache()
+      :ok
+    end
+
+    # The board is Incoming's own modal: landing on it from here is a
+    # patch that swaps the title detail for it, never a full navigate.
+    test "under manual selection the plan's board opens by a patch", %{conn: conn} do
+      series = create_tv_series(%{name: "Sample Show", tmdb_id: "246810"})
+
+      season =
+        create_season(%{
+          tv_series_id: series.id,
+          season_number: 1,
+          episode_list: [
+            %{episode_number: 1, name: "Pilot", air_date: "2020-01-01"},
+            %{episode_number: 2, name: "Second Sample", air_date: "2020-01-08"}
+          ]
+        })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        name: "Pilot",
+        content_url: "/tv/sample-show/s01e01.mkv"
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?title=tv_series-246810")
+
+      view
+      |> element("[data-role='missing-episode-row'][phx-value-episode='2']")
+      |> render_click()
+
+      render_async(view, 2_000)
+
+      assert [plan] = Plans.list_drafts()
+      assert plan.approval_policy == "review"
+      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert has_element?(view, "#plan-modal[data-state='open']")
+      refute has_element?(view, "#detail-modal[data-state='open']")
+    end
+  end
 end

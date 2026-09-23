@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.PlayableRow
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.ViewModel.EpisodeRow
 
   attr :seasons, :list,
@@ -122,7 +123,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         class="pt-1"
       >
         <.link
-          navigate={~p"/incoming?plan=new&tmdb_id=#{@series_tmdb_id}&tmdb_type=tv"}
+          navigate={PlanQuery.path(PlanQuery.picker(@series_tmdb_id, "tv"))}
           class="inline-flex items-center gap-1.5 text-xs text-base-content/55 hover:text-base-content transition-colors"
           data-role="download-more-link"
           data-nav-item

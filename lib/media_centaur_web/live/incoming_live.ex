@@ -119,6 +119,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     HistoryLogic,
     Logic,
     OrphanQueue,
+    PlanQuery,
     Search,
     SearchSession
   }
@@ -471,11 +472,10 @@ defmodule MediaCentaurWeb.IncomingLive do
   def title_detail_path(socket, query),
     do: incoming_path(socket, Map.new(query, fn {key, value} -> {to_string(key), value} end))
 
-  # The board is this page's own modal: a patch swaps the title detail
+  # The plan modal is this page's own: a patch swaps the title detail
   # for it (`apply_plan_modal_params/2`).
   @impl TitleDetailHost
-  def open_plan_board(socket, plan_id),
-    do: push_patch(socket, to: incoming_path(socket, %{"plan" => plan_id}))
+  def open_plan(socket, query), do: push_patch(socket, to: incoming_path(socket, query))
 
   # Fetches one row past the window so `history_has_older?` is a fact
   # about the archive, not a guess — search/filter narrow in SQL over
@@ -1234,9 +1234,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # ---------------------------------------------------------------------------
-  # Plan flow (UIDR-014) — URL-driven, refresh-safe by construction:
-  # `?plan=new&tmdb_id=…&tmdb_type=…` opens targeting; `?plan=<id>`
-  # opens the durable draft's board.
+  # Plan flow (UIDR-014) — URL-driven, refresh-safe by construction. The
+  # address is `PlanQuery`'s: `plan=new&tmdb_id=…&tmdb_type=…[&mode=…]`
+  # opens targeting; `plan=<id>` opens the durable draft's board.
   # ---------------------------------------------------------------------------
 
   def handle_event("plan_preset", %{"preset" => preset}, socket)
@@ -1311,7 +1311,7 @@ defmodule MediaCentaurWeb.IncomingLive do
            omnibox_scope: :all
          )
          |> build_view()
-         |> push_patch(to: incoming_path(socket, %{"plan" => plan.id}))}
+         |> open_plan(PlanQuery.board(plan.id))}
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan create failed — #{inspect(reason)}")
@@ -1540,7 +1540,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("resume_plan", %{"id" => plan_id}, socket) do
-    {:noreply, push_patch(socket, to: incoming_path(socket, %{"plan" => plan_id}))}
+    {:noreply, open_plan(socket, PlanQuery.board(plan_id))}
   end
 
   # ---------------------------------------------------------------------------
@@ -2615,8 +2615,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   defp apply_plan_modal_params(socket, params) do
-    case Map.get(params, "plan") do
-      nil ->
+    case PlanQuery.parse(params) do
+      :closed ->
         socket
         # Closing the plan modal hands the page back to searching: refocus
         # the omnibox (client-side, pointer users only — see the
@@ -2642,16 +2642,19 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_release_window: nil
         )
 
-      "new" ->
-        open_plan_targeting(socket, params)
+      {:picker, tmdb_id, tmdb_type, mode} ->
+        open_plan_targeting(socket, tmdb_id, tmdb_type, mode)
 
-      plan_id ->
+      {:board, plan_id} ->
         load_plan_board(socket, plan_id)
+
+      {:error, :malformed} ->
+        assign(socket, plan_param: nil, plan_stage: :error, plan_error: "Malformed plan link.")
     end
   end
 
-  defp open_plan_targeting(socket, %{"tmdb_id" => tmdb_id, "tmdb_type" => tmdb_type} = _params)
-       when tmdb_type in ~w(movie tv) do
+  # `mode` is carried, not yet read: the picker's Download gives it a job.
+  defp open_plan_targeting(socket, tmdb_id, tmdb_type, _mode) do
     param = {tmdb_id, tmdb_type}
 
     if socket.assigns.plan_param == param do
@@ -2674,10 +2677,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       )
       |> start_async(:plan_targeting, fn -> load_targeting(tmdb_id, tmdb_type) end)
     end
-  end
-
-  defp open_plan_targeting(socket, _params) do
-    assign(socket, plan_param: nil, plan_stage: :error, plan_error: "Malformed plan link.")
   end
 
   # The picked search result survives into the loading stage only when it

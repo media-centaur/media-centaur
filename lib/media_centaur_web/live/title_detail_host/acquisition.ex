@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   (`Plans.plan_title/2`, `automatic`), flashes, and closes the modal;
   manually selecting plans under `start_async` (`Plans.create_title_plan/2`,
   `review`) and opens the plan's board on Incoming once it exists,
-  through the host's `open_plan_board/2`. `download_missing_episode/2`
+  through the host's `open_plan/2`. `download_missing_episode/2`
   does the same for one aired episode of an owned series a gap row
   names, through `Plans.create_series_plan/3`. Either plan is the one
   thing the modal has in flight (`ModalState.pending`); a click while
@@ -26,7 +26,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   """
 
   import Phoenix.Component, only: [update: 3]
-  import Phoenix.LiveView, only: [put_flash: 3, push_navigate: 2, start_async: 3]
+  import Phoenix.LiveView, only: [put_flash: 3, start_async: 3]
 
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Plans.DownloadScope
@@ -170,12 +170,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
 
   @doc "Ends a missing-episode plan: auto-select flashes and stays put, manual select lands on the plan's board."
   @spec apply_missing_episode_result(socket(), term()) :: socket()
-  def apply_missing_episode_result(socket, {:planned, _plan, :auto_select_best_release, label}) do
-    socket |> pending(nil) |> put_flash(:info, PlanFlow.download_flash(label))
-  end
-
-  def apply_missing_episode_result(socket, {:planned, plan, _manual, _label}) do
-    socket |> pending(nil) |> push_navigate(to: "/incoming?plan=#{plan.id}")
+  def apply_missing_episode_result(socket, {:planned, plan, mode, label}) do
+    socket |> pending(nil) |> PlanFlow.land_plan(mode, plan, label, & &1)
   end
 
   def apply_missing_episode_result(socket, {:plan_failed, label, reason}) do

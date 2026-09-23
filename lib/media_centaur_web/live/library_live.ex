@@ -49,6 +49,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaur.Pipeline.Stats
 
   alias MediaCentaurWeb.Components.LibraryCards
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Live.ReviewModal
 
   import MediaCentaurWeb.LibraryHelpers
@@ -563,7 +564,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   def title_detail_path(socket, query), do: build_path(socket, %{}, query)
 
   @impl TitleDetailHost
-  def open_plan_board(socket, plan_id), do: push_navigate(socket, to: ~p"/incoming?plan=#{plan_id}")
+  def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
 
   # Build a URL path preserving current socket state with overrides.
   # Page-level params here; the modal's own query comes whole from the
