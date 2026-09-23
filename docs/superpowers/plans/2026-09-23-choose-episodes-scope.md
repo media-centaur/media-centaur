@@ -51,7 +51,7 @@ The two mode strings are mapped by hand in the host's Download event and again i
 - Modify: `lib/media_centaur_web/live/title_detail_host.ex` (the `"download"` event, around line 851)
 - Test: `test/media_centaur/settings/preferences/planning_mode_test.exs`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add this `describe` to `test/media_centaur/settings/preferences/planning_mode_test.exs`, after the `describe "approval_policy/1"` block:
 
@@ -70,12 +70,12 @@ Add this `describe` to `test/media_centaur/settings/preferences/planning_mode_te
   end
 ```
 
-- [ ] **Step 2: Run the test file and watch it fail**
+- [x] **Step 2: Run the test file and watch it fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur/settings/preferences/planning_mode_test.exs`
 Expected: 2 failures, `UndefinedFunctionError` for `PlanningMode.parse_mode/1`.
 
-- [ ] **Step 3: Implement `parse_mode/1` and make `parse/1` delegate**
+- [x] **Step 3: Implement `parse_mode/1` and make `parse/1` delegate**
 
 In `lib/media_centaur/settings/preferences/planning_mode.ex`, replace the `parse/1` clauses (the three lines under `@doc "Parses a stored value; …"`) with:
 
@@ -104,7 +104,7 @@ In `lib/media_centaur/settings/preferences/planning_mode.ex`, replace the `parse
   def parse(_value), do: @default
 ```
 
-- [ ] **Step 4: Make the host's Download event use it**
+- [x] **Step 4: Make the host's Download event use it**
 
 In `lib/media_centaur_web/live/title_detail_host.ex`, in `handle_title_event("download", params, …)`, replace
 
@@ -137,12 +137,12 @@ In `planning_mode.ex`'s moduledoc, after the paragraph ending "so a bad row can 
   their one parser.
 ```
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur/settings/preferences/planning_mode_test.exs test/media_centaur_web/live/discovery_live_test.exs`
 Expected: all pass (the Discovery tests cover the Download event's mode handling: "the menu names the other mode and performs it").
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/media_centaur/settings/preferences/planning_mode.ex lib/media_centaur_web/live/title_detail_host.ex test/media_centaur/settings/preferences/planning_mode_test.exs
@@ -157,7 +157,7 @@ git commit -m "refactor(settings): one parser for the planning mode's wire form"
 - Create: `lib/media_centaur_web/live/incoming_live/plan_query.ex`
 - Test: `test/media_centaur_web/live/incoming_live/plan_query_test.exs`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `test/media_centaur_web/live/incoming_live/plan_query_test.exs`:
 
@@ -261,12 +261,12 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQueryTest do
 end
 ```
 
-- [ ] **Step 2: Run the test file and watch it fail**
+- [x] **Step 2: Run the test file and watch it fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/incoming_live/plan_query_test.exs`
 Expected: every test fails with `UndefinedFunctionError` (module `PlanQuery` does not exist).
 
-- [ ] **Step 3: Create the module**
+- [x] **Step 3: Create the module**
 
 Create `lib/media_centaur_web/live/incoming_live/plan_query.ex`:
 
@@ -348,12 +348,12 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQuery do
 end
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/incoming_live/plan_query_test.exs`
 Expected: all pass. If `~p` complains that the query interpolation is not verified, the project's `MediaCentaurWeb.verified_routes/0` is in `lib/media_centaur_web.ex`; the `use` line above is the standard Phoenix one and `~p"/incoming?#{map}"` is a supported form.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/media_centaur_web/live/incoming_live/plan_query.ex test/media_centaur_web/live/incoming_live/plan_query_test.exs
@@ -374,7 +374,7 @@ No behaviour change except one: the missing-episode landing on Incoming becomes 
 - Modify: `lib/media_centaur_web/live/incoming_live.ex` (`resume_plan` ~1542, `plan_create` ~1314, `apply_plan_modal_params` ~2617, `open_plan_targeting` ~2653)
 - Test: `test/media_centaur_web/live/incoming_live_test.exs`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `test/media_centaur_web/live/incoming_live_test.exs`, add a new top-level `describe` at the end of the module (before the final `end`). The module's own `setup` already stubs and configures Prowlarr; this adds the download client so the season list's gap rows are actionable. `Capabilities` is already aliased at the top of the file. The factory functions (`create_tv_series/1`, `create_season/1`, `create_episode/1`) come in through `ConnCase`; if the compiler reports them undefined, add `import MediaCentaur.TestFactory` under the `use` line.
 
@@ -436,14 +436,14 @@ In `test/media_centaur_web/live/incoming_live_test.exs`, add a new top-level `de
   end
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/incoming_live_test.exs --only describe:"a missing episode of an owned series, from the title detail on Incoming"`
 Expected: FAIL at `assert_patch` — today the landing is a `push_navigate`, so the view redirects instead of patching (the error names a `live_redirect`).
 
 If the failure is instead that no `missing-episode-row` renders, the gap rows are gated on the indexer being ready; confirm the module-level `setup` sets `prowlarr_url` and `Capabilities.save_test_result(:prowlarr, :ok)` (it does at lines 53–65) before continuing.
 
-- [ ] **Step 3: Generalise the host contract**
+- [x] **Step 3: Generalise the host contract**
 
 In `lib/media_centaur_web/live/title_detail_host.ex`:
 
@@ -502,7 +502,7 @@ with
   end
 ```
 
-- [ ] **Step 4: The four hosts implement `open_plan/2`**
+- [x] **Step 4: The four hosts implement `open_plan/2`**
 
 `lib/media_centaur_web/live/home_live.ex`, `discovery_live.ex`, `library_live.ex` — replace each
 
@@ -541,7 +541,7 @@ with
 
 and add `PlanQuery` to the `alias MediaCentaurWeb.IncomingLive.{…}` group near the top of the module (line 118).
 
-- [ ] **Step 5: One ending for a created plan — `PlanFlow.land_plan/5`**
+- [x] **Step 5: One ending for a created plan — `PlanFlow.land_plan/5`**
 
 The missing-episode landing has two endings (manual: the board; auto: flash, stay). Task 4 gives the picker the same two. Put them in `PlanFlow`, whose moduledoc already claims to be that place, and route the missing-episode landing through it now.
 
@@ -606,7 +606,7 @@ with one:
 
 The `@doc` above it stays true ("auto-select flashes and stays put, manual select lands on the plan's board"). In the moduledoc, change "and opens the plan's board on Incoming once it exists, through the host's `open_plan_board/2`" to "and opens the plan's board on Incoming once it exists, through the host's `open_plan/2`".
 
-- [ ] **Step 6: The season list's link is built by `PlanQuery`**
+- [x] **Step 6: The season list's link is built by `PlanQuery`**
 
 In `lib/media_centaur_web/components/detail/season_list.ex`, add the alias (alphabetical, after `MediaCentaurWeb.Components.Detail.PlayableRow`):
 
@@ -626,7 +626,7 @@ with
           navigate={PlanQuery.path(PlanQuery.picker(@series_tmdb_id, "tv"))}
 ```
 
-- [ ] **Step 7: Incoming parses and builds through `PlanQuery`**
+- [x] **Step 7: Incoming parses and builds through `PlanQuery`**
 
 In `lib/media_centaur_web/live/incoming_live.ex`:
 
@@ -741,7 +741,7 @@ Update the plan-flow comment above `handle_event("plan_preset", …)`:
   # ---------------------------------------------------------------------------
 ```
 
-- [ ] **Step 8: Compile clean and run the affected suites**
+- [x] **Step 8: Compile clean and run the affected suites**
 
 Run: `~/scripts/agents/agent-mix compile --warnings-as-errors`
 Expected: no warnings. A leftover `~p` sigil import in `season_list.ex` is fine (other links use it); an unused `push_navigate` import in `acquisition.ex` would fail here.
@@ -749,7 +749,7 @@ Expected: no warnings. A leftover `~p` sigil import in `season_list.ex` is fine 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/incoming_live_test.exs test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/live/library_live_test.exs test/media_centaur_web/live/home_live_test.exs test/media_centaur_web/page_smoke_test.exs`
 Expected: all pass, including the new missing-episode patch test.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add lib/media_centaur_web/live/plan_flow.ex lib/media_centaur_web/live/title_detail_host.ex lib/media_centaur_web/live/title_detail_host/acquisition.ex lib/media_centaur_web/live/home_live.ex lib/media_centaur_web/live/discovery_live.ex lib/media_centaur_web/live/library_live.ex lib/media_centaur_web/live/incoming_live.ex lib/media_centaur_web/components/detail/season_list.ex test/media_centaur_web/live/incoming_live_test.exs
@@ -764,7 +764,7 @@ git commit -m "refactor(web): one board hand-off and one plan ending — open_pl
 - Modify: `lib/media_centaur_web/live/incoming_live.ex` (mount assigns ~262, `apply_plan_modal_params` closed branch, `open_plan_targeting`, `plan_create` ~1278)
 - Test: `test/media_centaur_web/live/incoming_live_test.exs` (inside `describe "plan flow — targeting → board → approve (UIDR-014)"`)
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add these tests inside the `describe "plan flow — targeting → board → approve (UIDR-014)"` block of `test/media_centaur_web/live/incoming_live_test.exs`, after the test "the TV picker downloads and says nothing about the future…". `PlanningMode` must be aliased at the top of the file (`alias MediaCentaur.Settings.Preferences.PlanningMode`) if it is not already. The module-level Prowlarr stub returns no results, so an automatic plan finds nothing, parks, and never contacts a download client.
 
@@ -855,12 +855,12 @@ Add these tests inside the `describe "plan flow — targeting → board → appr
     end
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/incoming_live_test.exs`
 Expected: the auto-select, default and movie tests fail (the plan is `review` and the view patches to the board); the manual test passes already; the malformed test passes already (Task 3 routed it to the error branch, whose `plan_param: nil` keeps the modal closed — today's behaviour, kept).
 
-- [ ] **Step 3: Hold the mode on the socket**
+- [x] **Step 3: Hold the mode on the socket**
 
 In `lib/media_centaur_web/live/incoming_live.ex`:
 
@@ -911,7 +911,7 @@ Replace `open_plan_targeting/4` with:
 
 `PlanningMode` is already aliased in the module (line 127).
 
-- [ ] **Step 4: `plan_create` stamps the policy and ends per mode**
+- [x] **Step 4: `plan_create` stamps the policy and ends per mode**
 
 Add the alias (alphabetical among the `MediaCentaurWeb.Live.*` aliases):
 
@@ -974,12 +974,12 @@ Replace the whole `handle_event("plan_create", _params, socket)` function with:
   end
 ```
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/incoming_live_test.exs`
 Expected: all pass. The existing "plan flow" tests that create a plan without a mode still land on the board because the test database has no planning-mode row, so the default is manual.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/media_centaur_web/live/incoming_live.ex test/media_centaur_web/live/incoming_live_test.exs
@@ -999,7 +999,7 @@ git commit -m "feat(incoming): the picker's Download performs the planning mode 
 - Modify: `storybook/detail_panel/detail_panel.story.exs` (after the `:series_all_seasons` variation)
 - Test: `test/media_centaur_web/components/title/modal_state_test.exs`, `test/media_centaur_web/components/title/logic_test.exs`, `test/media_centaur_web/live/discovery_live_test.exs`
 
-- [ ] **Step 1: Write the failing pure tests**
+- [x] **Step 1: Write the failing pure tests**
 
 `test/media_centaur_web/components/title/modal_state_test.exs` — add a `describe` after the `new/2` block:
 
@@ -1029,12 +1029,12 @@ git commit -m "feat(incoming): the picker's Download performs the planning mode 
     end
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/title/modal_state_test.exs test/media_centaur_web/components/title/logic_test.exs`
 Expected: `UndefinedFunctionError` for `ModalState.scope_choices/0` and `parse_scope_choice/1`; `FunctionClauseError` for `download_scope_label(:choose_episodes)`.
 
-- [ ] **Step 3: The type and its parser on `ModalState`**
+- [x] **Step 3: The type and its parser on `ModalState`**
 
 In `lib/media_centaur_web/components/title/modal_state.ex`, after the moduledoc and before `defstruct`, add:
 
@@ -1071,7 +1071,7 @@ After `new/2`, add:
 
 In the moduledoc, change "which download scope is chosen" to "which scope choice the select shows".
 
-- [ ] **Step 4: The label**
+- [x] **Step 4: The label**
 
 In `lib/media_centaur_web/components/title/logic.ex`, replace
 
@@ -1098,12 +1098,12 @@ Replace the alias `alias MediaCentaur.Acquisition.Plans.DownloadScope` (line 12;
   alias MediaCentaurWeb.Components.Title.ModalState
 ```
 
-- [ ] **Step 5: Run the pure tests**
+- [x] **Step 5: Run the pure tests**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/title/modal_state_test.exs test/media_centaur_web/components/title/logic_test.exs`
 Expected: all pass.
 
-- [ ] **Step 6: Write the failing LiveView tests**
+- [x] **Step 6: Write the failing LiveView tests**
 
 In `test/media_centaur_web/live/discovery_live_test.exs`, inside `describe "title detail modal"`, after the test "a series Download plans season 1 by default; the scope select widens it to all seasons", add. Add `alias MediaCentaurWeb.IncomingLive.PlanQuery` to the test module's aliases. No TMDB targeting stub is needed: choosing episodes fetches nothing here.
 
@@ -1153,12 +1153,12 @@ In `test/media_centaur_web/live/discovery_live_test.exs`, inside `describe "titl
     end
 ```
 
-- [ ] **Step 7: Run them and watch them fail**
+- [x] **Step 7: Run them and watch them fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs`
 Expected: the first two fail because `#detail-scope-choose_episodes` does not render; the third fails with a `FunctionClauseError` from the `"download_scope"` handler's `when choice in ~w(first_season everything)` guard falling through (no clause matches an unknown choice).
 
-- [ ] **Step 8: The select offers it and the host accepts it**
+- [x] **Step 8: The select offers it and the host accepts it**
 
 `lib/media_centaur_web/components/detail_panel.ex` — replace
 
@@ -1230,7 +1230,7 @@ with
       else: {:halt, socket}
 ```
 
-- [ ] **Step 9: `start_download/4` leaves for the picker**
+- [x] **Step 9: `start_download/4` leaves for the picker**
 
 In `lib/media_centaur_web/live/title_detail_host/acquisition.ex`:
 
@@ -1266,12 +1266,12 @@ and insert this clause directly after the pending-guard clause (`when not is_nil
 
 In the moduledoc, after the sentence ending "through the host's `open_plan/2`.", add: "With the scope select on *Choose episodes* the control performs neither: it opens the picker on Incoming with the click's mode, and the picker's Download makes the plan (spec 2026-09-23)."
 
-- [ ] **Step 10: Run the LiveView tests**
+- [x] **Step 10: Run the LiveView tests**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/live/incoming_live_test.exs`
 Expected: all pass.
 
-- [ ] **Step 11: The story variation**
+- [x] **Step 11: The story variation**
 
 In `storybook/detail_panel/detail_panel.story.exs`, after the `:series_all_seasons` variation, add:
 
@@ -1290,7 +1290,7 @@ In `storybook/detail_panel/detail_panel.story.exs`, after the `:series_all_seaso
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/storybook_compile_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: pass.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add lib/media_centaur_web/components/title/modal_state.ex lib/media_centaur_web/components/title/logic.ex lib/media_centaur_web/components/detail_panel.ex lib/media_centaur_web/live/title_detail_host.ex lib/media_centaur_web/live/title_detail_host/acquisition.ex storybook/detail_panel/detail_panel.story.exs test/media_centaur_web/components/title/modal_state_test.exs test/media_centaur_web/components/title/logic_test.exs test/media_centaur_web/live/discovery_live_test.exs
@@ -1308,7 +1308,7 @@ git commit -m "feat(title): Choose episodes — the scope select's third value s
 - Modify: `docs/superpowers/specs/2026-09-12-download-button-default-action-design.md`, `docs/superpowers/specs/2026-09-13-series-gap-download-design.md` (dated amendments)
 - Modify (sibling repo `../media-centaur.wiki/`): `Watchlist.md`, `Searching-and-Downloading.md`, `Browsing-Your-Library.md`
 
-- [ ] **Step 1: `PlanFlow` moduledoc**
+- [x] **Step 1: `PlanFlow` moduledoc**
 
 Replace the whole moduledoc of `lib/media_centaur_web/live/plan_flow.ex` with:
 
@@ -1336,7 +1336,7 @@ Replace the whole moduledoc of `lib/media_centaur_web/live/plan_flow.ex` with:
   """
 ```
 
-- [ ] **Step 2: `DownloadScope` moduledoc**
+- [x] **Step 2: `DownloadScope` moduledoc**
 
 In `lib/media_centaur/acquisition/plans/download_scope.ex`, after the `:everything` bullet and before "Pure; the caller…", add a paragraph:
 
@@ -1347,7 +1347,7 @@ In `lib/media_centaur/acquisition/plans/download_scope.ex`, after the `:everythi
   (spec 2026-09-23 §1).
 ```
 
-- [ ] **Step 3: Glossary rows**
+- [x] **Step 3: Glossary rows**
 
 In `docs/GLOSSARY.md`:
 
@@ -1361,7 +1361,7 @@ Download scope row — replace the whole row with:
 
 Planning mode row — replace "the button's menu offers the other." with "the button's menu offers the other. The picker on Incoming performs the mode its link carries (`IncomingLive.PlanQuery`), else the person's default."
 
-- [ ] **Step 4: Spec amendments**
+- [x] **Step 4: Spec amendments**
 
 Append to `docs/superpowers/specs/2026-09-12-download-button-default-action-design.md`:
 
@@ -1379,7 +1379,7 @@ Append to `docs/superpowers/specs/2026-09-13-series-gap-download-design.md`:
 `2026-09-23-choose-episodes-scope-design.md` amends decision 11: the "Download more of this show" link's address is built by `IncomingLive.PlanQuery` and carries no mode, so the picker it opens performs the person's default planning mode — under *auto-select best release* its Download closes the modal and flashes instead of opening the board. The link is no longer the picker's only entry: an unowned series' scope select offers *Choose episodes*.
 ```
 
-- [ ] **Step 5: Wiki**
+- [x] **Step 5: Wiki**
 
 In `../media-centaur.wiki/Watchlist.md`:
 
@@ -1418,7 +1418,7 @@ cd ~/src/media-centaur/media-centaur-app
 
 Do not push the wiki until the app release that carries the feature ships.
 
-- [ ] **Step 6: Commit the app-side docs**
+- [x] **Step 6: Commit the app-side docs**
 
 ```bash
 git add lib/media_centaur_web/live/plan_flow.ex lib/media_centaur/acquisition/plans/download_scope.ex docs/GLOSSARY.md docs/superpowers/specs/2026-09-12-download-button-default-action-design.md docs/superpowers/specs/2026-09-13-series-gap-download-design.md
@@ -1429,12 +1429,12 @@ git commit -m "docs: Choose episodes scope — glossary, spec amendments, surfac
 
 ### Task 7: Precommit and real-browser verification
 
-- [ ] **Step 1: Precommit**
+- [x] **Step 1: Precommit**
 
 Run (foreground, long timeout): `~/scripts/agents/agent-mix precommit`
 Expected: compile with no warnings, format clean, credo clean (MC0009 sees the new story variation, MC0024 sees no attribute literals under `=~`), boundaries clean, tests green. Fix anything it reports and amend the last commit.
 
-- [ ] **Step 2: Verify the control in the running app**
+- [x] **Step 2: Verify the control in the running app**
 
 The dev server is `media-centaur-dev` on `http://127.0.0.1:2160`. Its code reloader picks up the committed source; if a module fails to reload, `journalctl --user -u media-centaur-dev -n 50` says which.
 
@@ -1466,10 +1466,10 @@ Expected: `label` contains "Choose episodes"; `url` is `/incoming?…plan=new…
 
 In the picker, press "Download N episodes" and confirm the board opens (`location.href` ends in `plan=<uuid>`). Then, under Settings → Acquisition → Download button set *Auto-select best release*, repeat from the watchlist and confirm the picker's Download closes the modal with the "Finding a release for …" flash. Set the preference back afterwards. Discard any draft plans this created on Incoming.
 
-- [ ] **Step 3: Keyboard walk**
+- [x] **Step 3: Keyboard walk**
 
 Run `mc-nav-trace` on the title detail: RIGHT from Download reaches the chevron, then the scope trigger; SELECT opens the scope menu; DOWN walks Season 1, All seasons, Choose episodes; BACK closes it and lands on the trigger. Nothing here is new to the input system, so a difference from the pre-change trace is a regression.
 
-- [ ] **Step 4: Report**
+- [x] **Step 4: Report**
 
 State what precommit printed, what the browser showed for each mode, and any drafts left behind. The CHANGELOG entry is written at ship time by `/ship`.
