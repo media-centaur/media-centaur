@@ -64,6 +64,19 @@ defmodule MediaCentaur.Settings.Preferences.PlanningMode do
 
   def parse_mode(_other), do: :error
 
+  @doc """
+  The mode a click carries, else `default` — a split button's menu item
+  names a mode; its main segment sends none and performs the one the
+  control was built with (the title's, or the picker's).
+  """
+  @spec parse_mode(term(), mode()) :: mode()
+  def parse_mode(value, default) when default in @modes do
+    case parse_mode(value) do
+      {:ok, mode} -> mode
+      :error -> default
+    end
+  end
+
   @doc "Parses a stored value; anything but a known mode string is the default."
   @spec parse(term()) :: mode()
   def parse(%{"mode" => mode}) do

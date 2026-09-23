@@ -37,6 +37,30 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.MenuList do
         ]
       },
       %Variation{
+        id: :above_end,
+        description:
+          ~s(`placement="above"` and `align="end"`: the list opens upward from the anchor's end ) <>
+            "edge — a trigger at the bottom right of a scrolling body.",
+        attributes: %{
+          id: "list-above",
+          zone: "sample_menu",
+          on_close: "close_menu",
+          placement: "above",
+          align: "end",
+          class: "glass-menu-list--content"
+        },
+        slots: [
+          ~s|<:item id="list-above-a" event="pick">Auto-select best release</:item>|
+        ],
+        template: """
+        <div class="pt-40 pb-4 flex justify-end">
+          <span class="glass-menu inline-block">
+            <.psb-variation/>
+          </span>
+        </div>
+        """
+      },
+      %Variation{
         id: :content_width,
         description: "`--content` sizing: the list hugs its longest label instead of its anchor.",
         attributes: %{

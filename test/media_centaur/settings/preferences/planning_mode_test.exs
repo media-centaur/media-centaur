@@ -73,6 +73,20 @@ defmodule MediaCentaur.Settings.Preferences.PlanningModeTest do
     end
   end
 
+  describe "parse_mode/2 — a click's mode, else the given one" do
+    test "a mode string wins over the given one" do
+      assert PlanningMode.parse_mode("auto_select_best_release", :manually_select_release) ==
+               :auto_select_best_release
+    end
+
+    test "nothing or nonsense is the given one" do
+      assert PlanningMode.parse_mode(nil, :manually_select_release) == :manually_select_release
+
+      assert PlanningMode.parse_mode("grab_everything", :auto_select_best_release) ==
+               :auto_select_best_release
+    end
+  end
+
   describe "parse_mode/1 — the wire form" do
     test "reads both mode strings" do
       assert PlanningMode.parse_mode("auto_select_best_release") == {:ok, :auto_select_best_release}

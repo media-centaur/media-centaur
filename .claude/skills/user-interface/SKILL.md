@@ -129,7 +129,7 @@ The house dropdown idiom (`.glass-menu*` in `app.css`): a trigger with a chevron
 | Component | Use |
 |---|---|
 | `menu_list/1` | The anchored list on its own: `id`, `zone` (its `data-nav-zone`, a TREE in `config.js`), `on_close` (the event BACK pushes on the way out, rendered as `data-nav-dismiss-event`), `:item` slot (`event`, `values`, `active` — an active item is a `menuitemradio`) |
-| `split_button/1` | A main segment that performs an action (`phx-click` in `rest`) joined to a chevron that opens the list — the title detail modal's Download. Any button variant but `outline` |
+| `split_button/1` | A main segment that performs an action (`phx-click` in `rest`) joined to a chevron that opens the list — the title detail modal's Download, and the picker's on Incoming. Any button variant but `outline`. `placement="above"` and `align="end"` for a trigger at the bottom right of a scrolling body |
 | `menu_select/1` | A trigger showing the current value (`value_label`) with the options in the list, the current one `active` — the scope select beside a series' Download, the library sort. `label` is the hidden accessible name read before the value |
 
 `open`, `on_toggle`, `on_close` and `menu_zone` are the LiveView's: one open-menu assign, a toggle event, and a close event the click-away and BACK share. The list's zone needs a `back` edge to the trigger's zone in `config.js` so BACK closes it (see the `input-system` skill). Settings uses its own kit (choice pill, native select rows); the glass menu is for content surfaces.

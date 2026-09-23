@@ -72,15 +72,33 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             "cinematic shell as the movie confirm). Quick-action presets, tri-state season " <>
             "rows collapsed by default; season 1 expanded showing the episode drill-in: the " <>
             "in-library row greyed (shown, never hidden), the unaired row inert. The footer " <>
-            "is Cancel and Download, nothing about the future: following the series is " <>
-            "the ladder's act on the watchlist, never a download's.",
+            "is Cancel and the Download split (the main segment performs the mode the " <>
+            "picker was opened with, its menu the other), nothing about the future: " <>
+            "following the series is the ladder's act on the watchlist, never a download's.",
         attributes: %{
           open: true,
           stage: :targeting,
           backdrop_url: @sample_backdrop,
           selection: selection(),
           chosen: {:eval, ~s|MapSet.new([{1, 2}, {1, 3}, {2, 1}])|},
-          expanded_seasons: {:eval, ~s|MapSet.new([1])|}
+          expanded_seasons: {:eval, ~s|MapSet.new([1])|},
+          mode: :manually_select_release
+        }
+      },
+      %Variation{
+        id: :targeting_menu_open,
+        description:
+          "The Download split's menu open: the one other mode, opening upward from the " <>
+            "footer's end so a list at the bottom of the scrolling body stays in view.",
+        attributes: %{
+          open: true,
+          stage: :targeting,
+          backdrop_url: @sample_backdrop,
+          selection: selection(),
+          chosen: {:eval, ~s|MapSet.new([{1, 2}, {1, 3}, {2, 1}])|},
+          expanded_seasons: {:eval, ~s|MapSet.new()|},
+          mode: :auto_select_best_release,
+          menu_open: true
         }
       },
       %Variation{
@@ -93,7 +111,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           stage: :targeting,
           selection: selection(),
           chosen: {:eval, ~s|MapSet.new([{1, 2}])|},
-          expanded_seasons: {:eval, ~s|MapSet.new()|}
+          expanded_seasons: {:eval, ~s|MapSet.new()|},
+          mode: :manually_select_release
         }
       },
       %Variation{
@@ -108,6 +127,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         attributes: %{
           open: true,
           stage: :movie_confirm,
+          mode: :manually_select_release,
           movie: %TitlePreview{
             media_type: :movie,
             tmdb_id: "777",
@@ -147,6 +167,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           open: true,
           stage: :movie_confirm,
           backdrop_url: @sample_backdrop,
+          mode: :manually_select_release,
           movie: %TitlePreview{
             media_type: :movie,
             tmdb_id: "779",
@@ -168,11 +189,30 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         attributes: %{
           open: true,
           stage: :movie_confirm,
+          mode: :manually_select_release,
           movie: %TitlePreview{
             media_type: :movie,
             tmdb_id: "778",
             title: "Sample Movie",
             in_library?: true
+          }
+        }
+      },
+      %Variation{
+        id: :movie_confirm_menu_open,
+        description:
+          "The movie confirm's Download split with its menu open — the same control as the picker's.",
+        attributes: %{
+          open: true,
+          stage: :movie_confirm,
+          mode: :auto_select_best_release,
+          menu_open: true,
+          movie: %TitlePreview{
+            media_type: :movie,
+            tmdb_id: "780",
+            title: "Sample Movie",
+            metadata_items: ["2010", "2h 19m"],
+            in_library?: false
           }
         }
       },

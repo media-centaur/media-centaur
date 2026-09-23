@@ -6,7 +6,16 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
   puts it under a two-segment trigger whose main segment performs an
   action; `menu_select/1` under a trigger that shows the current value.
   The tenants are the title detail modal's Download control and scope
-  select, and the library sort control (spec 2026-09-12 §12–16).
+  select, the library sort control (spec 2026-09-12 §12–16), and the
+  picker's Download control on Incoming (spec 2026-09-23 follow-up).
+
+  ## Placement
+
+  The list drops below its trigger from the trigger's start edge. A
+  trigger at the bottom of a scrolling body would drop its list out of
+  view, so `placement="above"` opens it upward, and `align="end"` hangs
+  it from the trigger's end edge for a trigger at the right of its row
+  (the picker's footer).
 
   ## Nav
 
@@ -35,6 +44,13 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
   attr :id, :string, required: true
   attr :zone, :string, required: true, doc: "the list's `data-nav-zone` — a TREE declared in `config.js`"
   attr :on_close, :string, required: true, doc: "the event BACK pushes when it leaves the list"
+  attr :placement, :string, default: "below", values: ~w(below above), doc: "which side of the trigger"
+
+  attr :align, :string,
+    default: "start",
+    values: ~w(start end),
+    doc: "the trigger edge the list hangs from"
+
   attr :class, :any, default: nil, doc: "utilities on the `ul`"
 
   slot :item, required: true do
@@ -48,7 +64,12 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
     ~H"""
     <ul
       id={@id}
-      class={["glass-menu-list glass-surface", @class]}
+      class={[
+        "glass-menu-list glass-surface",
+        @placement == "above" && "glass-menu-list--above",
+        @align == "end" && "glass-menu-list--end",
+        @class
+      ]}
       role="menu"
       data-nav-zone={@zone}
       data-nav-dismiss-event={@on_close}
@@ -82,8 +103,19 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
   attr :size, :string, default: "sm", values: ~w(xs sm md lg)
   attr :menu_label, :string, default: "More options", doc: "the chevron's accessible name"
   attr :disabled, :boolean, default: false
+
+  attr :placement, :string,
+    default: "below",
+    values: ~w(below above),
+    doc: "the list's side of the trigger"
+
+  attr :align, :string,
+    default: "start",
+    values: ~w(start end),
+    doc: "the trigger edge the list hangs from"
+
   attr :class, :any, default: nil, doc: "utilities on the wrapper"
-  attr :rest, :global, doc: "the main segment's bindings: `phx-click`, `phx-value-*`"
+  attr :rest, :global, doc: "the main segment's bindings: `phx-click`, `phx-value-*`, `aria-disabled`"
 
   slot :inner_block, required: true, doc: "the main segment's label"
 
@@ -139,6 +171,8 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
         id={@id <> "-menu"}
         zone={@menu_zone}
         on_close={@on_close}
+        placement={@placement}
+        align={@align}
         class="glass-menu-list--content"
       >
         <:item

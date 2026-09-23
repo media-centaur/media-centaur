@@ -33,6 +33,8 @@ export const inputConfig = {
     plan_head: "[data-nav-zone='plan_head'] [data-nav-item]",
     plan_grid: "[data-nav-zone='plan_grid'] [data-nav-item]",
     plan_body: "[data-nav-zone='plan_body'] [data-nav-item]",
+    // The picker's Download split menu — a GlassMenu list nested in `plan_body`, present only while open.
+    plan_menu: "[data-nav-zone='plan_menu'] [data-nav-item]",
     // The Discovery title detail modal's action row (spec 2026-09-05).
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     // The library toolbar's sort menu — a GlassMenu.menu_select list nested in the toolbar zone.
@@ -126,6 +128,8 @@ export const inputConfig = {
     plan_head: Context.TREE,
     plan_grid: Context.SHELF,
     plan_body: Context.TREE,
+    // The picker's open Download menu: the other planning mode, a short list nested in the body.
+    plan_menu: Context.TREE,
     // The library sort menu, present only while open: a short list under the toolbar's Sort trigger.
     library_sort_menu: Context.TREE,
   },
@@ -191,17 +195,22 @@ export const inputConfig = {
       },
     },
     // The plan modal (UIDR-029). Regions stack vertically; a movie board has
-    // no grid and the candidate lists fall through head ↔ body. No `back`
-    // edges: BACK dismisses from anywhere, as it did when the modal was one
-    // flat list — the regions exist so the grid can be walked spatially, not
-    // to add depth. The modal opens on a loading stage with no controls;
-    // the orchestrator enters the first region that populates.
+    // no grid and the candidate lists fall through head ↔ body. The regions
+    // declare no `back` edges: BACK dismisses from anywhere, as it did when
+    // the modal was one flat list — they exist so the grid can be walked
+    // spatially, not to add depth. The one exception is `plan_menu`, the
+    // picker's open Download menu, a glass list nested in the body and
+    // present only while open: DOWN from the body enters it, BACK returns to
+    // the body and, through the list's `data-nav-dismiss-event`, closes it.
+    // The modal opens on a loading stage with no controls; the orchestrator
+    // enters the first region that populates.
     plan: {
       entry: ["plan_head", "plan_body", "plan_grid"],
       layout: {
         plan_head: { down: ["plan_grid", "plan_body"] },
         plan_grid: { up: ["plan_head"], down: ["plan_body"] },
-        plan_body: { up: ["plan_grid", "plan_head"] },
+        plan_body: { up: ["plan_grid", "plan_head"], down: ["plan_menu"] },
+        plan_menu: { up: ["plan_body"], back: ["plan_body"] },
       },
     },
   },
