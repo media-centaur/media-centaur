@@ -566,6 +566,9 @@ defmodule MediaCentaurWeb.LibraryLive do
   @impl TitleDetailHost
   def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
 
+  @impl TitleDetailHost
+  def download_started(socket), do: TitleDetailHost.close_title(socket)
+
   # Build a URL path preserving current socket state with overrides.
   # Page-level params here; the modal's own query comes whole from the
   # host (`TitleDetailHost.modal_query/1`) so it can't drift per host.

@@ -479,6 +479,15 @@ defmodule MediaCentaurWeb.IncomingLive do
   @impl TitleDetailHost
   def open_plan(socket, query), do: push_patch(socket, to: incoming_path(socket, query))
 
+  # A download that has started — approved here, or begun under
+  # auto-select from the picker or the title detail — is the end of the
+  # person's involvement: the pursuit runs on its own. Land on Activity,
+  # where its in-flight row is, rather than opening a second modal over
+  # someone who just finished a task; the one patch drops whichever modal
+  # was up.
+  @impl TitleDetailHost
+  def download_started(socket), do: push_patch(socket, to: Logic.zone_path(:activity))
+
   # Fetches one row past the window so `history_has_older?` is a fact
   # about the archive, not a guess — search/filter narrow in SQL over
   # the whole terminal table, the limit only bounds what renders. The
@@ -1332,10 +1341,9 @@ defmodule MediaCentaurWeb.IncomingLive do
           |> build_view()
 
         # The ending follows the mode (spec 2026-09-23 §7): manual selection
-        # opens the board; auto-select flashes and drops the modal, the plan
-        # committing on its own when clean and parking here otherwise.
-        {:noreply,
-         PlanFlow.land_plan(socket, mode, plan, plan.title, &push_patch(&1, to: incoming_path(&1)))}
+        # opens the board; auto-select lands on Activity (`download_started/1`),
+        # the plan committing on its own when clean and parking here otherwise.
+        {:noreply, PlanFlow.land_plan(socket, mode, plan, plan.title, :leave)}
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan create failed — #{inspect(reason)}")
@@ -1559,8 +1567,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # keeps a clean URL so data-nav-remember doesn't pin a stale param.
   def handle_event("switch_zone", %{"zone" => zone}, socket)
       when zone in ~w(coming_up activity history) do
-    to = if zone == "coming_up", do: "/incoming", else: "/incoming?zone=#{zone}"
-    {:noreply, push_patch(socket, to: to)}
+    {:noreply, push_patch(socket, to: Logic.zone_path(Logic.parse_zone(zone)))}
   end
 
   def handle_event("resume_plan", %{"id" => plan_id}, socket) do
@@ -2262,13 +2269,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          |> assign(plan_drafts: load_drafts())
          |> build_view()
          |> put_flash(:info, "Pursuit started.")
-         # Approving is the end of the user's involvement: the pursuit runs
-         # on its own from here. So close the modal rather than replacing
-         # the plan board with a pursuit board — landing on Activity puts
-         # the in-flight row in front of them, and clicking it is how you
-         # ask for detail. Opening a second modal over someone who just
-         # finished a task makes them dismiss something to get out.
-         |> push_patch(to: "/incoming?zone=activity")}
+         |> download_started()}
 
       {:error, {:overlap, units}} ->
         {:noreply,

@@ -917,6 +917,15 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
     end
   end
 
+  describe "zone_path/1" do
+    test "the default zone is the page's bare path; the others name themselves" do
+      assert Logic.path() == "/incoming"
+      assert Logic.zone_path(:coming_up) == "/incoming"
+      assert Logic.zone_path(:activity) == "/incoming?zone=activity"
+      assert Logic.zone_path(:history) == "/incoming?zone=history"
+    end
+  end
+
   describe "initial_zone/3" do
     test "an explicit param always wins" do
       assert Logic.initial_zone("history", true, true) == :history

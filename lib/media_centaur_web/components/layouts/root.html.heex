@@ -104,6 +104,16 @@
           document.documentElement.style.setProperty("--ui-scale-pref", e.detail.scale);
         });
 
+        // A LiveView can point another page's sidebar entry somewhere: a
+        // download starting anywhere points Incoming at Activity, where it
+        // shows up (PlanFlow.remember_activity/1). Same store the click
+        // handler above writes; the next nav-item click on that page
+        // overwrites it with the page's own URL, so a tab the person picks
+        // there sticks.
+        window.addEventListener("phx:nav-remember", (e) => {
+          sessionStorage.setItem("nav:" + e.detail.path, e.detail.url);
+        });
+
         // Sidebar flyout hover state, projected onto <html> (data-sidebar-hover)
         // instead of relying on .sidebar:hover — live navigation replaces the
         // rail element, and pseudo-state on the new node lags a frame (visible

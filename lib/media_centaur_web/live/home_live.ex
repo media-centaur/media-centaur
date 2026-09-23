@@ -306,6 +306,9 @@ defmodule MediaCentaurWeb.HomeLive do
   @impl TitleDetailHost
   def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
 
+  @impl TitleDetailHost
+  def download_started(socket), do: TitleDetailHost.close_title(socket)
+
   @impl true
   def handle_info(:reload_hero, socket) do
     {:noreply, assign_hero(socket)}

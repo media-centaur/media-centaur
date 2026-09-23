@@ -36,6 +36,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     `PlanQuery` query: the board of a plan, or the picker for a series
     (`push_navigate` from another page, `push_patch` on Incoming itself,
     which swaps this modal for it).
+  * `download_started/1` — where the page leaves the person once a
+    download has started under auto-select (`PlanFlow.land_started/3`):
+    Incoming patches to its Activity tab, where the download shows up,
+    dropping whichever modal was open; every other page closes this
+    modal (`close_title/1`) — the sidebar's Incoming entry has already
+    been pointed at Activity.
 
   and keeps `:today`, `:spoiler_free`, `:letterboxd_links`,
   `:tmdb_ready` and `:show_discovery` assigns (the settings traits and
@@ -124,6 +130,8 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   @callback open_plan(socket :: Phoenix.LiveView.Socket.t(), query :: PlanQuery.query()) ::
               Phoenix.LiveView.Socket.t()
+
+  @callback download_started(socket :: Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
 
   @modal_events ~w(download_mode_toggle download_scope_toggle download_menu_close download_scope download activity_delete review_open select_detail_view refresh_from_tmdb)
   @library_events LibraryEvents.events()
@@ -430,7 +438,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         %{assigns: %{title_detail: %TitleDetail{ref: nil, library: library}}} = socket
       ) do
     case LibraryHalf.reload(library) do
-      nil -> push_close(socket)
+      nil -> close_title(socket)
       reloaded -> assign(socket, :title_detail, build_residue(socket, reloaded))
     end
   end
@@ -682,7 +690,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     socket
     |> update(:modal_state, &%{&1 | open_menu: nil})
     |> Acquisition.pending(nil)
-    |> PlanFlow.land_plan(:manually_select_release, plan, name, & &1)
+    |> PlanFlow.land_plan(:manually_select_release, plan, name, :leave)
   end
 
   defp land_download(socket, name, {:ok, {:error, reason}}) do
@@ -868,11 +876,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     mode = PlanningMode.parse_mode(params["mode"], detail.planning_mode)
     scope = if detail.title.media_type == :tv_series, do: socket.assigns.modal_state.download_scope
 
-    # The act owns its ending: auto-select flashes and closes the modal
-    # through `push_close/1`; a manual plan is pending and the modal stays
-    # for its board; choosing episodes leaves for the picker.
+    # The act owns its ending: auto-select flashes and leaves through the
+    # host's `download_started/1`; a manual plan is pending and the modal
+    # stays for its board; choosing episodes leaves for the picker.
     socket = update(socket, :modal_state, &%{&1 | open_menu: nil})
-    {:halt, Acquisition.start_download(socket, detail.title, mode, scope, &push_close/1)}
+    {:halt, Acquisition.start_download(socket, detail.title, mode, scope, :leave)}
   end
 
   def handle_title_event(
@@ -889,7 +897,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         {:halt,
          socket
          |> put_flash(:info, String.capitalize(ActivityWords.noun(kind)) <> " withdrawn")
-         |> push_close()}
+         |> close_title()}
 
       {:error, _reason} ->
         {:halt, put_flash(socket, :error, "Only your own activity can be deleted")}
@@ -1025,17 +1033,19 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   defp path(socket, query), do: socket.view.title_detail_path(socket, query)
 
-  defp push_close(socket), do: push_patch(socket, to: path(socket, []))
+  @doc "Closes the title detail — the page's own path with no modal query."
+  @spec close_title(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def close_title(socket), do: push_patch(socket, to: path(socket, []))
 
-  defp abandon_open(socket, flash), do: socket |> put_flash(:error, flash) |> push_close()
+  defp abandon_open(socket, flash), do: socket |> put_flash(:error, flash) |> close_title()
 
   defp close_or_return(%{assigns: %{title_detail: %TitleDetail{} = detail, modal_state: state}} = socket) do
     if state.view == resolve_view(detail, nil),
-      do: push_close(socket),
+      do: close_title(socket),
       else: push_patch(socket, to: path(socket, address_query(detail)))
   end
 
-  defp close_or_return(socket), do: push_close(socket)
+  defp close_or_return(socket), do: close_title(socket)
 
   # The open detail's own query: the title address, or the residue's
   # entity address, and the activity it speaks for.

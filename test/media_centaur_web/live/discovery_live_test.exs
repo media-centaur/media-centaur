@@ -748,6 +748,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element(entry(rec) <> "-download") |> render_click()
 
       assert render(view) =~ "Finding a release for Sample Movie 777"
+      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
       await_supervised_tasks()
 
       [plan] = Plans.list_drafts()
@@ -1266,6 +1267,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert_patch(view, "/discovery/watchlist")
       assert render(view) =~ "Finding a release for Sample Movie"
+      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
       await_supervised_tasks()
 
       [plan] = Plans.list_drafts()
