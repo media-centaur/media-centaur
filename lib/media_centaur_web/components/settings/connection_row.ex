@@ -9,6 +9,10 @@ defmodule MediaCentaurWeb.Components.Settings.ConnectionRow do
   `SettingsLive.ConnectionState` decide.
 
   Rows are `<li>`s; the host renders the `<ul>`.
+
+  In a narrow card the name block keeps a 16rem measure and the state
+  word and actions drop together to a second line, right-aligned, so the
+  actions stay on the card's edge whether or not the row fits on one line.
   """
 
   use MediaCentaurWeb, :html
@@ -41,9 +45,9 @@ defmodule MediaCentaurWeb.Components.Settings.ConnectionRow do
 
     ~H"""
     <li id={@id} class="py-3 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0">
-      <div class="flex items-center gap-4">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
         <span class={["size-2 rounded-full shrink-0", dot_class(@state)]} aria-hidden="true"></span>
-        <div class="min-w-0 flex-1">
+        <div class="min-w-0 grow basis-64">
           <div class="flex items-baseline gap-2">
             <span class={["text-sm font-medium truncate", @monospace_name && "font-mono"]}>
               {@name}
@@ -72,16 +76,20 @@ defmodule MediaCentaurWeb.Components.Settings.ConnectionRow do
             <span :if={@detail} class="truncate" title={@detail}>{@detail}</span>
           </div>
         </div>
-        <div class={[
-          "text-sm shrink-0 text-right inline-flex items-center gap-2",
-          state_text_class(@state)
-        ]}>
-          <span :if={@state == :pending} class="loading loading-spinner loading-xs"></span>
-          {@state_label}
-          <span :if={@age} class="text-xs text-base-content/40">· tested {@age}</span>
-        </div>
-        <div :if={!@editing && @actions != []} class="flex gap-1 shrink-0">
-          {render_slot(@actions)}
+        <div class="ml-auto min-w-0 flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5">
+          <div class={[
+            "text-sm text-right inline-flex flex-wrap items-center justify-end gap-x-2",
+            state_text_class(@state)
+          ]}>
+            <span :if={@state == :pending} class="loading loading-spinner loading-xs"></span>
+            {@state_label}
+            <span :if={@age} class="text-xs text-base-content/55 whitespace-nowrap">
+              · tested {@age}
+            </span>
+          </div>
+          <div :if={!@editing && @actions != []} class="flex gap-1 shrink-0">
+            {render_slot(@actions)}
+          </div>
         </div>
       </div>
       <div :if={@editing} class="mt-3 ml-6 pl-4 border-l border-base-content/10">

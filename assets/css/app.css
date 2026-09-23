@@ -1357,14 +1357,19 @@ body:has(.modal-backdrop[data-state="open"]) {
    the title ladder (role=group, aria-pressed). */
 .segmented-control {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  /* Fixed rail height (border-box) so the tabs pill, sort pill, and filter
-     all render at exactly 2.25rem and share one centre line. */
-  height: 2.25rem;
+  /* Rail height (border-box): a single row of tabs measures exactly
+     2.25rem so the tabs pill, sort pill, and filter share one centre line.
+     A pill wider than its container wraps its tabs into a second row and
+     the rail grows with them (a settings choice row in a narrow card)
+     rather than spilling the tabs past the border. */
+  min-height: 2.25rem;
+  max-width: 100%;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   border-radius: 2rem;
-  padding: 0 0.2rem;
+  padding: 0.125rem 0.2rem;
   gap: 0.125rem;
 }
 

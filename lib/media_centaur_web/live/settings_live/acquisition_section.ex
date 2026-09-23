@@ -118,7 +118,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             description="qBittorrent. Also powers the download progress on Incoming."
           >
             <:form>
-              <div class="flex gap-3">
+              <div class="flex flex-wrap gap-x-3">
                 <.settings_field label="Client" layout={:stacked} class="w-44 shrink-0">
                   <select
                     name="download_client_type"
@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
                 <.settings_field
                   label="Address"
                   layout={:stacked}
-                  class="min-w-0 flex-1"
+                  class="min-w-0 grow basis-64"
                   description="Must be reachable from this machine. A detected address is often a hostname that only resolves inside Docker."
                 >
                   <.settings_input
@@ -184,7 +184,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             description="SABnzbd. Repairs and unpacks; the finished file imports like any other download."
           >
             <:form>
-              <div class="flex gap-3">
+              <div class="flex flex-wrap gap-x-3">
                 <.settings_field label="Client" layout={:stacked} class="w-44 shrink-0">
                   <select
                     name="usenet_download_client_type"
@@ -198,7 +198,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
                 <.settings_field
                   label="Address"
                   layout={:stacked}
-                  class="min-w-0 flex-1"
+                  class="min-w-0 grow basis-64"
                   description="Must be reachable from this machine. A detected address is often a hostname that only resolves inside Docker."
                 >
                   <.settings_input
@@ -423,7 +423,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
         <form id={"connection-#{@id}-form"} phx-submit="save_connection" class="space-y-4">
           <input type="hidden" name="connection" value={@id} />
           {render_slot(@form)}
-          <div class="flex items-center justify-between gap-3 pt-1">
+          <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-1">
             <div>
               <.button
                 :if={@removable}
@@ -439,7 +439,7 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
                 Remove client
               </.button>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
               <.button
                 id={"connection-#{@id}-cancel"}
                 variant="dismiss"
