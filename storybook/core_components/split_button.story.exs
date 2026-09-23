@@ -105,6 +105,8 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.SplitButton do
         on_close: "title_menu_close",
         menu_zone: "sample_menu",
         menu_label: "More download options",
+        placement: "below",
+        align: "start",
         "phx-click": "title_download"
       },
       Map.new(overrides)

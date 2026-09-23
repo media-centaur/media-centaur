@@ -30,7 +30,13 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.MenuList do
       %Variation{
         id: :two_items,
         description: "Two choices, the first active.",
-        attributes: %{id: "list-two", zone: "sample_menu", on_close: "close_menu"},
+        attributes: %{
+          id: "list-two",
+          zone: "sample_menu",
+          on_close: "close_menu",
+          placement: "below",
+          align: "start"
+        },
         slots: [
           ~s|<:item id="list-two-a" event="pick" values={%{"choice" => "a"}} active>Season 1</:item>|,
           ~s|<:item id="list-two-b" event="pick" values={%{"choice" => "b"}}>All seasons</:item>|
