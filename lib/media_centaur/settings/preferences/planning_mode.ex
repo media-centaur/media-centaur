@@ -13,6 +13,10 @@ defmodule MediaCentaur.Settings.Preferences.PlanningMode do
   value all read as it, so a bad row can never turn on unattended
   commits.
 
+  The mode also travels on the wire — a Download event's `mode` value, a
+  plan link's `mode` param — as the same two strings; `parse_mode/1` is
+  their one parser.
+
   Read where the title detail is built (`TitleDetailHost`), like the
   auto-grab default mode — not through `SettingAware`: the setting
   changes only on the Settings page, never underneath an open modal.
@@ -43,10 +47,27 @@ defmodule MediaCentaur.Settings.Preferences.PlanningMode do
     end
   end
 
+  @doc """
+  Parses the mode's wire form — the string a Download event's `mode`
+  value or a plan link's `mode` param carries. `:error` for anything
+  else; each caller decides what an absent or unknown value means (the
+  Download button: the title's default; a plan link: the person's
+  default, or a malformed link).
+  """
+  @spec parse_mode(term()) :: {:ok, mode()} | :error
+  def parse_mode("auto_select_best_release"), do: {:ok, :auto_select_best_release}
+  def parse_mode("manually_select_release"), do: {:ok, :manually_select_release}
+  def parse_mode(_other), do: :error
+
   @doc "Parses a stored value; anything but a known mode string is the default."
   @spec parse(term()) :: mode()
-  def parse(%{"mode" => "auto_select_best_release"}), do: :auto_select_best_release
-  def parse(%{"mode" => "manually_select_release"}), do: :manually_select_release
+  def parse(%{"mode" => mode}) do
+    case parse_mode(mode) do
+      {:ok, mode} -> mode
+      :error -> @default
+    end
+  end
+
   def parse(_value), do: @default
 
   @doc "The mode the button's menu offers beside the default."

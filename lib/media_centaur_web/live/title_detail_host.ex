@@ -856,10 +856,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
       ) do
     mode =
-      case params do
-        %{"mode" => "auto_select_best_release"} -> :auto_select_best_release
-        %{"mode" => "manually_select_release"} -> :manually_select_release
-        _default -> detail.planning_mode
+      case PlanningMode.parse_mode(params["mode"]) do
+        {:ok, mode} -> mode
+        :error -> detail.planning_mode
       end
 
     scope = if detail.title.media_type == :tv_series, do: socket.assigns.modal_state.download_scope
