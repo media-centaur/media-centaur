@@ -36,7 +36,7 @@
 | `lib/media_centaur_web/components/title/logic.ex` | Modify: `download_scope_label/1` names the third value. |
 | `lib/media_centaur_web/components/detail_panel.ex` | Modify: the scope select lists `ModalState.scope_choices/0`. |
 | `storybook/detail_panel/detail_panel.story.exs` | Modify: a variation with Choose episodes selected. |
-| `lib/media_centaur_web/live/plan_flow.ex` | Modify: moduledoc names the surfaces that exist. |
+| `lib/media_centaur_web/live/plan_flow.ex` | Modify: `land_plan/5`, the one ending for a plan a surface has just created; moduledoc names the surfaces that exist. |
 | `docs/GLOSSARY.md`, two specs, three wiki pages | Modify: documentation (Task 6). |
 | Tests: `discovery_live_test.exs`, `incoming_live_test.exs`, `modal_state_test.exs`, `logic_test.exs` | Modify: behaviour tests per task. |
 
@@ -541,7 +541,40 @@ with
 
 and add `PlanQuery` to the `alias MediaCentaurWeb.IncomingLive.{…}` group near the top of the module (line 118).
 
-- [ ] **Step 5: The missing-episode landing goes through the host**
+- [ ] **Step 5: One ending for a created plan — `PlanFlow.land_plan/5`**
+
+The missing-episode landing has two endings (manual: the board; auto: flash, stay). Task 4 gives the picker the same two. Put them in `PlanFlow`, whose moduledoc already claims to be that place, and route the missing-episode landing through it now.
+
+In `lib/media_centaur_web/live/plan_flow.ex`, add under the moduledoc:
+
+```elixir
+  import Phoenix.LiveView, only: [put_flash: 3]
+
+  alias MediaCentaur.Acquisition.Plans
+  alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
+
+  @type socket :: Phoenix.LiveView.Socket.t()
+```
+
+and, after `download_flash/1`:
+
+```elixir
+  @doc """
+  Ends a plan a surface has just created under `mode` (spec 2026-09-23
+  §7). Manual selection opens the plan's board through the host's
+  `open_plan/2`. Auto-select flashes `download_flash/1` for `label` and
+  leaves the surface as `close` says — the picker drops its modal, the
+  title detail's gap row stays put (`& &1`).
+  """
+  @spec land_plan(socket(), PlanningMode.mode(), Plans.Plan.t(), String.t(), (socket() -> socket())) ::
+          socket()
+  def land_plan(socket, :manually_select_release, plan, _label, _close),
+    do: socket.view.open_plan(socket, PlanQuery.board(plan.id))
+
+  def land_plan(socket, :auto_select_best_release, _plan, label, close),
+    do: socket |> put_flash(:info, download_flash(label)) |> close.()
+```
 
 In `lib/media_centaur_web/live/title_detail_host/acquisition.ex`:
 
@@ -551,30 +584,27 @@ Change the import so `push_navigate` is no longer imported (it becomes unused, w
   import Phoenix.LiveView, only: [put_flash: 3, start_async: 3]
 ```
 
-Add the alias (alphabetical among the `MediaCentaurWeb.*` aliases):
+Replace the two `apply_missing_episode_result` clauses for a planned result
 
 ```elixir
-  alias MediaCentaurWeb.IncomingLive.PlanQuery
-```
+  def apply_missing_episode_result(socket, {:planned, _plan, :auto_select_best_release, label}) do
+    socket |> pending(nil) |> put_flash(:info, PlanFlow.download_flash(label))
+  end
 
-Replace
-
-```elixir
   def apply_missing_episode_result(socket, {:planned, plan, _manual, _label}) do
     socket |> pending(nil) |> push_navigate(to: "/incoming?plan=#{plan.id}")
   end
 ```
 
-with
+with one:
 
 ```elixir
-  def apply_missing_episode_result(socket, {:planned, plan, _manual, _label}) do
-    socket = pending(socket, nil)
-    socket.view.open_plan(socket, PlanQuery.board(plan.id))
+  def apply_missing_episode_result(socket, {:planned, plan, mode, label}) do
+    socket |> pending(nil) |> PlanFlow.land_plan(mode, plan, label, & &1)
   end
 ```
 
-In the moduledoc, change "and opens the plan's board on Incoming once it exists, through the host's `open_plan_board/2`" to "and opens the plan's board on Incoming once it exists, through the host's `open_plan/2`".
+The `@doc` above it stays true ("auto-select flashes and stays put, manual select lands on the plan's board"). In the moduledoc, change "and opens the plan's board on Incoming once it exists, through the host's `open_plan_board/2`" to "and opens the plan's board on Incoming once it exists, through the host's `open_plan/2`".
 
 - [ ] **Step 6: The season list's link is built by `PlanQuery`**
 
@@ -722,8 +752,8 @@ Expected: all pass, including the new missing-episode patch test.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add lib/media_centaur_web/live/title_detail_host.ex lib/media_centaur_web/live/title_detail_host/acquisition.ex lib/media_centaur_web/live/home_live.ex lib/media_centaur_web/live/discovery_live.ex lib/media_centaur_web/live/library_live.ex lib/media_centaur_web/live/incoming_live.ex lib/media_centaur_web/components/detail/season_list.ex test/media_centaur_web/live/incoming_live_test.exs
-git commit -m "refactor(web): one board hand-off — open_plan/2 and every plan address through PlanQuery"
+git add lib/media_centaur_web/live/plan_flow.ex lib/media_centaur_web/live/title_detail_host.ex lib/media_centaur_web/live/title_detail_host/acquisition.ex lib/media_centaur_web/live/home_live.ex lib/media_centaur_web/live/discovery_live.ex lib/media_centaur_web/live/library_live.ex lib/media_centaur_web/live/incoming_live.ex lib/media_centaur_web/components/detail/season_list.ex test/media_centaur_web/live/incoming_live_test.exs
+git commit -m "refactor(web): one board hand-off and one plan ending — open_plan/2, PlanFlow.land_plan/5, PlanQuery"
 ```
 
 ---
@@ -931,24 +961,16 @@ Replace the whole `handle_event("plan_create", _params, socket)` function with:
           )
           |> build_view()
 
-        {:noreply, land_created_plan(socket, plan, mode)}
+        # The ending follows the mode (spec 2026-09-23 §7): manual selection
+        # opens the board; auto-select flashes and drops the modal, the plan
+        # committing on its own when clean and parking here otherwise.
+        {:noreply,
+         PlanFlow.land_plan(socket, mode, plan, plan.title, &push_patch(&1, to: incoming_path(&1)))}
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan create failed — #{inspect(reason)}")
         {:noreply, put_flash(socket, :error, Logic.failure_flash("create the plan", reason))}
     end
-  end
-
-  # The ending follows the mode (spec 2026-09-23 §7): manual selection
-  # opens the board; auto-select closes the modal and flashes, the plan
-  # committing on its own when clean and parking here otherwise.
-  defp land_created_plan(socket, plan, :manually_select_release),
-    do: open_plan(socket, PlanQuery.board(plan.id))
-
-  defp land_created_plan(socket, plan, :auto_select_best_release) do
-    socket
-    |> put_flash(:info, PlanFlow.download_flash(plan.title))
-    |> push_patch(to: incoming_path(socket))
   end
 ```
 
@@ -1302,9 +1324,11 @@ Replace the whole moduledoc of `lib/media_centaur_web/live/plan_flow.ex` with:
   Discovery and Incoming) downloads a whole title by scope, and one
   missing episode of an owned series from its gap row. The picker on
   Incoming (`MediaCentaurWeb.IncomingLive`, the plan modal's targeting
-  stage and movie confirm) downloads what the person chose there. What
-  each does with the result is identical, and it lives here rather than
-  three times.
+  stage and movie confirm) downloads what the person chose there. A plan
+  any of them has just created ends through `land_plan/5`. The scoped
+  title download's auto-select path is the one exception: it hands the
+  title to the supervised door (`Plans.plan_title/2`) and has no plan in
+  hand, so it flashes `download_flash/1` directly.
 
   Deliberately not a `use` macro: it holds no state and attaches no hooks.
   The title detail keeps what it has in flight in `Title.ModalState.pending`;

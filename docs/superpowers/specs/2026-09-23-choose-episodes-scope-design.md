@@ -38,7 +38,7 @@ Two smaller facts surfaced in research. The picker ignores the planning mode: it
 ### The picker performs the mode
 
 6. **`plan_create` stamps the approval policy from `plan_mode`** (`PlanningMode.approval_policy/1`) for both the targeting stage and the movie confirm. The hard-coded `review` goes.
-7. **Endings follow the mode.** Manual: the board, through `open_plan/2` (decision 4), as today. Auto-select: the patch that drops the plan params (the modal's close) and the flash `PlanFlow.download_flash(title)`. The omnibox resets on success as today. The person stays on Incoming, where the pursuit appears.
+7. **Endings follow the mode, in one function.** `PlanFlow.land_plan/5` (socket, mode, plan, label, close) ends any plan a surface has just created: manual selection opens the board through `open_plan/2` (decision 4); auto-select flashes `download_flash(label)` and leaves the surface as `close` says. The picker's close is the patch that drops the plan params; the missing-episode landing, which has the same two endings today, stays put. The omnibox resets on success as today. The person stays on Incoming, where the pursuit appears (coherence pass, 5).
 8. **The picker opens on the Everything aired preset**, as today. Opening empty for Choose episodes was considered and rejected: the common case is "all but a few", and None is one press away.
 
 ### Unchanged
@@ -70,7 +70,7 @@ None. The mode is a URL param, not a column.
 
 ## Documentation
 
-- Moduledocs: `Title.ModalState` (the `scope_choice` type), `Plans.DownloadScope` (the select's third value is not a scope), `TitleDetailHost` (the callback), `TitleDetailHost.Acquisition`, `IncomingLive.PlanQuery` (new: the plan modal's address, both shapes), `Preferences.PlanningMode` (the wire form), the plan-flow comment in `IncomingLive`, and `PlanFlow` (the title detail modal on all four pages; EntityModal and the `download_pending` assign are gone — the modal state's `pending` is what is in flight).
+- Moduledocs: `Title.ModalState` (the `scope_choice` type), `Plans.DownloadScope` (the select's third value is not a scope), `TitleDetailHost` (the callback), `TitleDetailHost.Acquisition`, `IncomingLive.PlanQuery` (new: the plan modal's address, both shapes), `Preferences.PlanningMode` (the wire form), the plan-flow comment in `IncomingLive`, and `PlanFlow` (`land_plan/5`; the title detail modal on all four pages; EntityModal and the `download_pending` assign are gone — the modal state's `pending` is what is in flight).
 - `docs/GLOSSARY.md`: the download scope row adds Choose episodes and drops "after which the title is tracked"; the approval policy row says the picker stamps from the planning mode, not always `review`; the planning mode row says the picker performs it.
 - Dated amendments: the 2026-09-12 spec (decision 21, the picker is no longer unchanged) and the 2026-09-13 spec (decision 12, the picker performs the default mode).
 - Wiki: Watchlist (the Download paragraph names the third value); Searching-and-Downloading (a title's Download opens the plan to steer, and the picker performs your planning mode); Browsing-Your-Library ("Download more of this show" performs your default planning mode).
@@ -86,6 +86,7 @@ None. The mode is a URL param, not a column.
 2. **The plan modal's address** is one contract, built and parsed in one place: `MediaCentaurWeb.IncomingLive.PlanQuery`. `board(plan_id)` and `picker(tmdb_id, tmdb_type, mode \\ nil)` return query maps; `path/1` renders one as `/incoming?…` for a navigate; `parse/1` reads Incoming's params into `:closed`, `{:board, id}`, `{:picker, tmdb_id, tmdb_type, mode}` or `{:error, :malformed}`, with `mode` nil when absent. Today the address is hand-built at eight sites — the season list's link, the three hosts' `push_navigate`, Incoming's `push_patch`, `plan_create`, `resume_plan`, and the missing-episode landing — and parsed by `apply_plan_modal_params/2` plus `open_plan_targeting/2`'s guards. Adding `mode` would have made a ninth builder and a second parser.
 3. **The mode's wire form** — the strings `auto_select_best_release` and `manually_select_release` — is parsed once, `PlanningMode.parse_mode/1` (`{:ok, mode} | :error`). The host's Download event hand-maps the same two strings today, and `PlanningMode.parse/1` (the stored map) maps them a second time; the URL param would have been a third. `parse/1` delegates; each caller decides what absent means (the event: the detail's default; the URL: `PlanningMode.value()`).
 4. **The board hand-off** is one host callback, `open_plan/2`, taking a query map from `PlanQuery`. Every landing on the board uses it — the manual download's, the missing-episode's, and the picker's on Incoming.
+5. **The ending of a created plan** is one function, `PlanFlow.land_plan/5`: manual selection opens the board through `open_plan/2`; auto-select flashes and closes as the surface says. The missing-episode landing has these two endings today; the picker would have been the second copy. The scoped title download's auto path cannot share it — it hands the title to the supervised door and has no plan in hand — and flashes directly; `PlanFlow`'s moduledoc says so instead of claiming one place for all three.
 
 **Diff against the code and dispositions.**
 
@@ -96,6 +97,7 @@ None. The mode is a URL param, not a column.
 | Mode strings mapped by hand on the host and in `PlanningMode.parse/1` | duplication | `parse_mode/1` (fix now). |
 | The missing-episode landing bypasses the host callback and navigates even on Incoming | incoherence in the slice | Route through `open_plan/2` (fix now). |
 | `plan_create` hard-codes `review` | incoherence — the feature | Stamp from `plan_mode` (fix now). |
+| The picker's ending would be a second copy of the missing-episode landing's | duplication (introduced by the first plan draft) | `PlanFlow.land_plan/5`, used by both (fix now). |
 | `plan_identity` carries a picked search result into the loading stage, for an omnibox path that no longer opens the picker | orphan outside the slice | Leave; note for the next Incoming touch. Removing it is a separate, unrelated cleanup. |
 | `PlanFlow` moduledoc names EntityModal and a `download_pending` assign | stale doc | Rewrite (fix now). |
 | Glossary: All seasons "then tracks the title"; approval policy says the picker always stamps `review` | stale doc | Rewrite (fix now). |
