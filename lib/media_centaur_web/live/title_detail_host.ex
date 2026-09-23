@@ -838,16 +838,21 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         %{assigns: %{title_detail: %TitleDetail{}}} = socket
       ), do: {:halt, update(socket, :modal_state, &%{&1 | open_menu: nil})}
 
-  # A closed set, mapped explicitly: `String.to_existing_atom/1` would
-  # depend on whether `DownloadScope` happens to be loaded yet.
+  # A closed set, mapped explicitly by `ModalState`: `String.to_existing_atom/1`
+  # would depend on whether the atoms happen to be loaded yet. An unknown
+  # choice changes nothing.
   def handle_title_event(
         "download_scope",
         %{"choice" => choice},
         %{assigns: %{title_detail: %TitleDetail{}}} = socket
-      )
-      when choice in ~w(first_season everything) do
-    scope = if choice == "everything", do: :everything, else: :first_season
-    {:halt, update(socket, :modal_state, &%{&1 | download_scope: scope, open_menu: nil})}
+      ) do
+    case ModalState.parse_scope_choice(choice) do
+      {:ok, scope} ->
+        {:halt, update(socket, :modal_state, &%{&1 | download_scope: scope, open_menu: nil})}
+
+      :error ->
+        {:halt, socket}
+    end
   end
 
   # The main segment sends no mode (the person's default); the menu item
@@ -870,9 +875,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
       |> update(:modal_state, &%{&1 | open_menu: nil})
       |> Acquisition.start_download(detail.title, mode, scope)
 
-    # Auto-select planned and flashed: the modal closes; a manual plan is
-    # pending and the modal stays for its board.
-    if mode == :auto_select_best_release, do: {:halt, push_close(socket)}, else: {:halt, socket}
+    # Auto-select planned and flashed: the modal closes. A manual plan is
+    # pending and the modal stays for its board. Choosing episodes has
+    # already left for the picker, whichever the mode.
+    if mode == :auto_select_best_release and scope != :choose_episodes,
+      do: {:halt, push_close(socket)},
+      else: {:halt, socket}
   end
 
   def handle_title_event(

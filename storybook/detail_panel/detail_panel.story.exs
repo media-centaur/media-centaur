@@ -441,6 +441,15 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
+        id: :series_choose_episodes,
+        description:
+          "Choose episodes chosen: the select shows it and Download will open the picker on Incoming.",
+        attributes: %{
+          detail: unowned(show(), %{}),
+          state: %{ModalState.new() | download_scope: :choose_episodes}
+        }
+      },
+      %Variation{
         id: :series_planning,
         description: "A manual plan is being created: the split is disabled and reads Planning…",
         attributes: %{

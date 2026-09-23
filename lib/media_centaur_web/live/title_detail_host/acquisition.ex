@@ -17,7 +17,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   (`Plans.plan_title/2`, `automatic`), flashes, and closes the modal;
   manually selecting plans under `start_async` (`Plans.create_title_plan/2`,
   `review`) and opens the plan's board on Incoming once it exists,
-  through the host's `open_plan/2`. `download_missing_episode/2`
+  through the host's `open_plan/2`. With the scope select on *Choose
+  episodes* the control performs neither: it opens the picker on Incoming
+  with the click's mode, and the picker's Download makes the plan (spec
+  2026-09-23). `download_missing_episode/2`
   does the same for one aired episode of an owned series a gap row
   names, through `Plans.create_series_plan/3`. Either plan is the one
   thing the modal has in flight (`ModalState.pending`); a click while
@@ -29,13 +32,14 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   import Phoenix.LiveView, only: [put_flash: 3, start_async: 3]
 
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+  alias MediaCentaurWeb.Components.Title.ModalState
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.TitleDetailHost.LibraryHalf
 
@@ -67,9 +71,15 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
 
   # --- Download ---
 
-  @spec start_download(socket(), Title.t(), PlanningMode.mode(), DownloadScope.scope() | nil) :: socket()
+  @spec start_download(socket(), Title.t(), PlanningMode.mode(), ModalState.scope_choice() | nil) ::
+          socket()
   def start_download(%{assigns: %{modal_state: %{pending: pending}}} = socket, _title, _mode, _scope)
       when not is_nil(pending), do: socket
+
+  # Choosing episodes is the picker's job: the control leaves for it with
+  # the click's mode and plans nothing here (spec 2026-09-23 §3).
+  def start_download(socket, %Title{} = title, mode, :choose_episodes),
+    do: socket.view.open_plan(socket, PlanQuery.picker(title.tmdb_id, "tv", mode))
 
   def start_download(socket, %Title{} = title, :auto_select_best_release, scope) do
     policy = PlanningMode.approval_policy(:auto_select_best_release)
