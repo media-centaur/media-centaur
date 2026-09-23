@@ -703,17 +703,18 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#plan-episode-1-1")
     end
 
-    test "the None preset clears the picker's selection", %{conn: conn} do
+    test "Clear selected empties the picker's selection", %{conn: conn} do
       stub_plan_tmdb()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
       html = render_async(view, 2_000)
 
-      # Opens with the everything-aired default — None empties it.
+      # Opens with the everything-aired default — Clear selected empties it.
       assert html =~ "2 selected"
+      assert has_element?(view, "[phx-click='plan_preset'][phx-value-preset='clear']", "Clear selected")
 
       view
-      |> element("[phx-click='plan_preset'][phx-value-preset='none']")
+      |> element("[phx-click='plan_preset'][phx-value-preset='clear']")
       |> render_click()
 
       assert render(view) =~ "0 selected"

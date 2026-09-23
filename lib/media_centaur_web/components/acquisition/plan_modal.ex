@@ -318,11 +318,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             variant="neutral"
             size="sm"
             phx-click="plan_preset"
-            phx-value-preset="none"
+            phx-value-preset="clear"
             data-nav-item
             tabindex="0"
           >
-            None
+            Clear selected
           </.button>
           <span class="ml-auto text-sm text-base-content/55 tabular-nums">
             {@chosen_count} selected
