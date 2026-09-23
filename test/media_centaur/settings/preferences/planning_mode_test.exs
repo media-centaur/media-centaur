@@ -73,6 +73,19 @@ defmodule MediaCentaur.Settings.Preferences.PlanningModeTest do
     end
   end
 
+  describe "parse_mode/1 — the wire form" do
+    test "reads both mode strings" do
+      assert PlanningMode.parse_mode("auto_select_best_release") == {:ok, :auto_select_best_release}
+      assert PlanningMode.parse_mode("manually_select_release") == {:ok, :manually_select_release}
+    end
+
+    test "anything else is :error, never the default" do
+      assert PlanningMode.parse_mode("grab_everything") == :error
+      assert PlanningMode.parse_mode(nil) == :error
+      assert PlanningMode.parse_mode(:auto_select_best_release) == :error
+    end
+  end
+
   defp store(value) do
     Settings.find_or_create_entry!(%{key: PlanningMode.setting_key(), value: value})
   end
