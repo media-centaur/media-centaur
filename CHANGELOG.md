@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.38.0 — 2026-09-23
+
+### New
+
+- **Choose episodes.** On a series you don't have yet, the select beside **Download** offers **Choose episodes** alongside **Season 1** and **All seasons**. It opens the episode picker on Incoming with the mode you pressed Download with — *Manually select release* or *Auto-select best release* — and the picker's own Download performs that mode: under manual selection it opens the plan's board to steer, under auto-select it starts the search straight away. **Download more of this show** on a series you own opens the same picker under your default mode.
+- **The picker's Download is a split button, like the title's.** Its main segment performs the mode you arrived with; the chevron beside it offers the other, so you can change your mind at the last step without going back.
+
+### Improved
+
+- **A started download takes you to Activity.** Starting a download switches Incoming to its **Activity** tab, where the download appears — right away if you are on the page, and the next time you open Incoming from the sidebar otherwise, until you pick another tab there. Approving a plan already landed there; every other way of starting a download now does too.
+- **Clear selected.** The picker's button that empties the selection says what it does, in place of *None*.
+
+### Fixed
+
+- **A plan link Incoming could not read left the page with an invisible, stuck modal, or crashed it.** A link with an unknown mode, a bad type, or a plan id that is not one now closes the modal and says **Malformed plan link** instead.
+
 ## v1.37.0 — 2026-09-22
 
 ### Improved
