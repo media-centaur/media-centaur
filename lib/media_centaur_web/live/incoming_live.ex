@@ -140,6 +140,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
+  alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewModal
 
   alias MediaCentaur.Storage
@@ -262,6 +263,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          friend_activity_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
+         plan_mode: nil,
          plan_selection: nil,
          plan_chosen: MapSet.new(),
          plan_expanded_seasons: MapSet.new(),
@@ -1277,6 +1279,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("plan_create", _params, socket) do
+    mode = socket.assigns.plan_mode
+    opts = [approval_policy: PlanningMode.approval_policy(mode)]
+
     result =
       case socket.assigns.plan_stage do
         :targeting ->
@@ -1285,11 +1290,11 @@ defmodule MediaCentaurWeb.IncomingLive do
 
           if units == [],
             do: :noop,
-            else: Plans.create_series_plan(selection, units)
+            else: Plans.create_series_plan(selection, units, opts)
 
         :movie_confirm ->
           movie = socket.assigns.plan_movie
-          if movie.in_library?, do: :noop, else: Plans.create_movie_plan(movie)
+          if movie.in_library?, do: :noop, else: Plans.create_movie_plan(movie, opts)
       end
 
     case result do
@@ -1300,18 +1305,23 @@ defmodule MediaCentaurWeb.IncomingLive do
         # The intent just materialized into a draft — the omnibox hunt is
         # over, so it resets to its resting question. (Canceling the flow
         # before this point keeps the query alive for another pick.)
+        socket =
+          socket
+          |> assign(
+            plan_drafts: load_drafts(),
+            omnibox_query: "",
+            omnibox_results: [],
+            omnibox_searching?: false,
+            omnibox_searched: nil,
+            omnibox_scope: :all
+          )
+          |> build_view()
+
+        # The ending follows the mode (spec 2026-09-23 §7): manual selection
+        # opens the board; auto-select flashes and drops the modal, the plan
+        # committing on its own when clean and parking here otherwise.
         {:noreply,
-         socket
-         |> assign(
-           plan_drafts: load_drafts(),
-           omnibox_query: "",
-           omnibox_results: [],
-           omnibox_searching?: false,
-           omnibox_searched: nil,
-           omnibox_scope: :all
-         )
-         |> build_view()
-         |> open_plan(PlanQuery.board(plan.id))}
+         PlanFlow.land_plan(socket, mode, plan, plan.title, &push_patch(&1, to: incoming_path(&1)))}
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan create failed — #{inspect(reason)}")
@@ -2627,6 +2637,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         end)
         |> assign(
           plan_param: nil,
+          plan_mode: nil,
           plan_selection: nil,
           plan_movie: nil,
           plan_board: nil,
@@ -2653,9 +2664,11 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # `mode` is carried, not yet read: the picker's Download gives it a job.
-  defp open_plan_targeting(socket, tmdb_id, tmdb_type, _mode) do
-    param = {tmdb_id, tmdb_type}
+  # The mode the picker's Download performs: the link's, else the
+  # person's default (spec 2026-09-23 §5). Part of the param identity so
+  # re-opening the same title under another mode is a new open.
+  defp open_plan_targeting(socket, tmdb_id, tmdb_type, mode) do
+    param = {tmdb_id, tmdb_type, mode}
 
     if socket.assigns.plan_param == param do
       socket
@@ -2664,6 +2677,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> assign(
         plan_param: param,
         plan_stage: :loading,
+        plan_mode: mode || PlanningMode.value(),
         plan_selection: nil,
         plan_movie: nil,
         plan_board: nil,

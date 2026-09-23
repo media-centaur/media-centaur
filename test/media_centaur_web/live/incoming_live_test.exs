@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.Activities.Translation
   alias MediaCentaur.Nostr.Event
@@ -570,6 +571,91 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert [_draft] = Plans.list_drafts()
       assert Discovery.rung(246_810, :tv_series) == nil
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
+    end
+
+    test "the picker's Download under auto-select creates an automatic plan, closes and flashes",
+         %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} =
+        live_async!(
+          conn,
+          ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
+        )
+
+      render_async(view, 2_000)
+      view |> element("button[phx-click='plan_create']") |> render_click()
+
+      assert_patch(view, "/incoming")
+      refute has_element?(view, "#plan-modal[data-state='open']")
+      assert render(view) =~ "Finding a release for Sample Show"
+      await_supervised_tasks()
+
+      assert [plan] = Plans.list_drafts()
+      assert plan.approval_policy == "automatic"
+    end
+
+    test "the picker's Download under manual selection creates a review plan and opens its board",
+         %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} =
+        live_async!(
+          conn,
+          ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=manually_select_release"
+        )
+
+      render_async(view, 2_000)
+      view |> element("button[phx-click='plan_create']") |> render_click()
+
+      assert [plan] = Plans.list_drafts()
+      assert plan.approval_policy == "review"
+      assert_patch(view, "/incoming?plan=#{plan.id}")
+    end
+
+    test "a link without a mode performs the person's default", %{conn: conn} do
+      PlanningMode.set(:auto_select_best_release)
+      stub_plan_tmdb()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+
+      render_async(view, 2_000)
+      view |> element("button[phx-click='plan_create']") |> render_click()
+
+      assert_patch(view, "/incoming")
+      await_supervised_tasks()
+      assert [%{approval_policy: "automatic"}] = Plans.list_drafts()
+    end
+
+    test "the movie confirm follows the mode too", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail(%{"release_date" => "2005-01-01"}))
+
+      {:ok, view, _html} =
+        live_async!(
+          conn,
+          ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie&mode=auto_select_best_release"
+        )
+
+      render_async(view, 2_000)
+      view |> element("button[phx-click='plan_create']") |> render_click()
+
+      assert_patch(view, "/incoming")
+      assert render(view) =~ "Finding a release for Sample Movie"
+      await_supervised_tasks()
+      assert [%{approval_policy: "automatic", tmdb_type: "movie"}] = Plans.list_drafts()
+    end
+
+    test "a mode the link cannot mean opens nothing and plans nothing", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} =
+        live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=grab_everything")
+
+      render_async(view, 2_000)
+      refute has_element?(view, "#plan-modal[data-state='open']")
+      refute has_element?(view, "button[phx-click='plan_create']")
+      assert Plans.list_drafts() == []
     end
 
     test "the movie confirm offers the download and nothing else, out or not", %{conn: conn} do
