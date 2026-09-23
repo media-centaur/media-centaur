@@ -33,15 +33,24 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     `TMDB.ReleaseWindow` through `gap_verdict`.
   * `:error` — targeting failed (TMDB unreachable etc.).
 
+  The targeting and movie-confirm footers carry the Download split
+  (`GlassMenu.split_button`, the title detail's control): the main
+  segment performs `mode` — the mode the picker was opened with — and
+  the menu names the other, sending it as the create event's `mode`
+  (spec 2026-09-23 follow-up). The host owns the menu's open state
+  (`menu_open`, events `plan_mode_toggle` / `plan_menu_close`).
+
   Keyboard/gamepad navigation: the modal is a `plan` overlay with three
   regions (`config.overlays.plan`). The board is a `plan_head` TREE
   (status line, verdict and their controls) over the `plan_grid` SHELF
   (episode cells, walked by geometry) over the `plan_body` TREE
   (release rows, decisions, footer). Every other stage puts all of its
-  controls in `plan_body`, so it navigates as the one list it is. Grid
-  cells are nav items carrying `data-caption`; the `PlanGridCaption`
-  hook writes the focused or hovered cell's caption under the grid
-  (UIDR-029) — there are no per-cell tooltips.
+  controls in `plan_body`, so it navigates as the one list it is; the
+  Download split's open menu is a `plan_menu` TREE nested in it, the
+  overlay's one `back` edge, so BACK closes the list before it dismisses
+  the modal. Grid cells are nav items carrying `data-caption`; the
+  `PlanGridCaption` hook writes the focused or hovered cell's caption
+  under the grid (UIDR-029) — there are no per-cell tooltips.
 
   Pure rendering; the host owns all state and events.
   """
@@ -54,12 +63,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaurWeb.Components.Detail.PreviewBody
   alias MediaCentaurWeb.Components.Detail.TitlePreview
+  alias MediaCentaurWeb.Components.GlassMenu
   alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Title.Logic, as: TitleLogic
   alias MediaCentaurWeb.Components.Title.WatchlistToggle
   alias MediaCentaurWeb.TitleRef
 
@@ -154,6 +166,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: nil,
     doc: "the subject's rung; nil is Off. At List and above the footer shows the marker."
 
+  attr :mode, :atom,
+    values: [nil | PlanningMode.modes()],
+    default: nil,
+    doc:
+      "the planning mode the Download split's main segment performs (targeting and movie-confirm " <>
+        "stages); its menu names the other. Nil on the other stages."
+
+  attr :menu_open, :boolean, default: false, doc: "host-owned: the Download split's menu is open."
+
   attr :on_close, :string, default: "close_plan"
 
   def plan_modal(assigns) do
@@ -218,10 +239,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           selection={@selection}
           chosen={@chosen || MapSet.new()}
           expanded_seasons={@expanded_seasons || MapSet.new()}
+          mode={@mode}
+          menu_open={@menu_open}
           on_close={@on_close}
         />
 
-        <.movie_stage :if={@stage == :movie_confirm && @movie} movie={@movie} on_close={@on_close} />
+        <.movie_stage
+          :if={@stage == :movie_confirm && @movie}
+          movie={@movie}
+          mode={@mode}
+          menu_open={@menu_open}
+          on_close={@on_close}
+        />
 
         <.board_stage
           :if={@stage == :board && @board}
@@ -265,6 +294,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :selection, Targeting.Selection, required: true
   attr :chosen, :any, required: true, doc: "MapSet — typed at the public attr."
   attr :expanded_seasons, :any, required: true, doc: "MapSet — typed at the public attr."
+  attr :mode, :atom, required: true
+  attr :menu_open, :boolean, required: true
   attr :on_close, :string, required: true
 
   defp targeting_stage(assigns) do
@@ -345,20 +376,50 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
             Cancel
           </.button>
-          <.button
-            variant="primary"
-            size="sm"
-            phx-click="plan_create"
-            aria-disabled={to_string(@chosen_count == 0)}
-            class={@chosen_count == 0 && "opacity-50"}
-            data-nav-item
-            tabindex="0"
-          >
+          <.download_split mode={@mode} menu_open={@menu_open} inert={@chosen_count == 0}>
             Download {@chosen_count} {if @chosen_count == 1, do: "episode", else: "episodes"}
-          </.button>
+          </.download_split>
         </div>
       </div>
     </div>
+    """
+  end
+
+  # The one Download control of both footers: the title detail's split,
+  # opening upward from the footer's end so the list stays inside the
+  # scrolling body. Inert (aria-disabled, dimmed) rather than disabled
+  # while there is nothing to download, so the nav graph never shifts.
+  attr :mode, :atom, required: true, doc: "what the main segment performs; the menu names the other"
+  attr :menu_open, :boolean, required: true
+  attr :inert, :boolean, required: true, doc: "nothing to download yet"
+  slot :inner_block, required: true, doc: "the main segment's label"
+
+  defp download_split(assigns) do
+    assigns = assign(assigns, :other_mode, PlanningMode.other(assigns.mode))
+
+    ~H"""
+    <GlassMenu.split_button
+      id="plan-download"
+      open={@menu_open}
+      on_toggle="plan_mode_toggle"
+      on_close="plan_menu_close"
+      menu_zone="plan_menu"
+      menu_label="More download options"
+      placement="above"
+      align="end"
+      class={@inert && "opacity-50"}
+      phx-click="plan_create"
+      aria-disabled={to_string(@inert)}
+    >
+      {render_slot(@inner_block)}
+      <:item
+        id="plan-download-other"
+        event="plan_create"
+        values={%{"mode" => Atom.to_string(@other_mode)}}
+      >
+        {TitleLogic.planning_mode_label(@other_mode)}
+      </:item>
+    </GlassMenu.split_button>
     """
   end
 
@@ -488,6 +549,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "detail-shaped preview built by `TitlePreview.movie/3` in the host's targeting task."
 
+  attr :mode, :atom, required: true
+  attr :menu_open, :boolean, required: true
   attr :on_close, :string, required: true
 
   defp movie_stage(assigns) do
@@ -505,17 +568,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
           Cancel
         </.button>
-        <.button
-          variant="primary"
-          size="sm"
-          phx-click="plan_create"
-          aria-disabled={to_string(@movie.in_library?)}
-          class={@movie.in_library? && "opacity-50"}
-          data-nav-item
-          tabindex="0"
-        >
+        <.download_split mode={@mode} menu_open={@menu_open} inert={@movie.in_library?}>
           Download
-        </.button>
+        </.download_split>
       </div>
     </div>
     """

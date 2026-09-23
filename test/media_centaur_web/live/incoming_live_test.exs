@@ -646,6 +646,105 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert [%{approval_policy: "automatic", tmdb_type: "movie"}] = Plans.list_drafts()
     end
 
+    test "the picker's Download is a split: the main segment performs the link's mode, the menu names the other",
+         %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} =
+        live_async!(
+          conn,
+          ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
+        )
+
+      render_async(view, 2_000)
+      assert has_element?(view, "#plan-download[phx-click='plan_create']", "Download 2 episodes")
+      refute has_element?(view, "#plan-download-menu")
+
+      view |> element("#plan-download-toggle") |> render_click()
+      assert has_element?(view, "#plan-download-menu[data-nav-zone='plan_menu']")
+
+      assert has_element?(
+               view,
+               "#plan-download-other[phx-value-mode='manually_select_release']",
+               "Manually select release"
+             )
+
+      # The menu item performs the other mode: a review plan, its board opening.
+      view |> element("#plan-download-other") |> render_click()
+
+      assert [plan] = Plans.list_drafts()
+      assert plan.approval_policy == "review"
+      assert_patch(view, "/incoming?plan=#{plan.id}")
+    end
+
+    test "the picker's menu closes on its close event and starts closed on a new open", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      render_async(view, 2_000)
+
+      view |> element("#plan-download-toggle") |> render_click()
+      assert has_element?(view, "#plan-download-menu")
+
+      render_click(view, "plan_menu_close", %{})
+      refute has_element?(view, "#plan-download-menu")
+
+      view |> element("#plan-download-toggle") |> render_click()
+      assert has_element?(view, "#plan-download-menu")
+
+      # The same title under another mode is a new open: the menu starts closed.
+      render_patch(
+        view,
+        ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=auto_select_best_release"
+      )
+
+      render_async(view, 2_000)
+      assert has_element?(view, "#plan-download")
+      refute has_element?(view, "#plan-download-menu")
+    end
+
+    test "with nothing selected the split is inert but stays a nav item", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      render_async(view, 2_000)
+
+      view |> element("[phx-click='plan_preset'][phx-value-preset='clear']") |> render_click()
+
+      assert has_element?(
+               view,
+               "#plan-download[aria-disabled='true'][data-nav-item]",
+               "Download 0 episodes"
+             )
+
+      view |> element("#plan-download") |> render_click()
+      assert Plans.list_drafts() == []
+    end
+
+    test "the movie confirm's Download is the same split, its menu the other mode", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail(%{"release_date" => "2005-01-01"}))
+
+      {:ok, view, _html} =
+        live_async!(
+          conn,
+          ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie&mode=manually_select_release"
+        )
+
+      render_async(view, 2_000)
+      assert has_element?(view, "#plan-download[phx-click='plan_create']", "Download")
+
+      view |> element("#plan-download-toggle") |> render_click()
+
+      view
+      |> element("#plan-download-other[phx-value-mode='auto_select_best_release']")
+      |> render_click()
+
+      assert_patch(view, "/incoming")
+      await_supervised_tasks()
+      assert [%{approval_policy: "automatic", tmdb_type: "movie"}] = Plans.list_drafts()
+    end
+
     test "a mode the link cannot mean opens nothing, plans nothing, and says so", %{conn: conn} do
       stub_plan_tmdb()
 

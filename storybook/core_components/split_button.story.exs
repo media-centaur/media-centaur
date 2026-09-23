@@ -47,6 +47,19 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.SplitButton do
         ]
       },
       %Variation{
+        id: :open_above_end,
+        description:
+          ~s(`placement="above"` and `align="end"`: the list opens upward from the trigger's end ) <>
+            "edge — for a trigger at the bottom right of a scrolling body (the picker's footer).",
+        attributes: base(open: true, placement: "above", align: "end"),
+        slots: download_slots(),
+        template: """
+        <div class="pt-24 flex justify-end">
+          <.psb-variation/>
+        </div>
+        """
+      },
+      %Variation{
         id: :pending,
         description: "Disabled while the host plans — the label says why.",
         attributes: base(open: false, disabled: true),

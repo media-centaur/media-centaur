@@ -320,11 +320,25 @@ describe("Plan overlay regions (real config)", () => {
     expect(graph.plan_body.up).toBe("plan_head")
   })
 
-  test("no region declares a back edge — BACK dismisses the modal from anywhere", () => {
-    const graph = openPlan({ plan_head: 2, plan_grid: 22, plan_body: 6, sidebar: 7 })
+  // The picker's Download is a split button (spec 2026-09-23 follow-up):
+  // its open menu is a tree region nested in the body, present only while
+  // open — DOWN from the body enters it, BACK returns to the body and, through
+  // the list's dismiss event, closes it. The one back edge in the overlay.
+  test("the picker's open Download menu is a tree region nested in the body: DOWN enters it, BACK climbs out", () => {
+    expect(inputConfig.instanceTypes.plan_menu).toBe(Context.TREE)
+    expect(inputConfig.contextSelectors.plan_menu).toBe("[data-nav-zone='plan_menu'] [data-nav-item]")
+    const graph = openPlan({ plan_head: 0, plan_grid: 0, plan_body: 6, plan_menu: 1, sidebar: 7 })
+    expect(graph.plan_body.down).toBe("plan_menu")
+    expect(graph.plan_menu.up).toBe("plan_body")
+    expect(graph.plan_menu.back).toBe("plan_body")
+  })
+
+  test("no other region declares a back edge — BACK dismisses the modal from anywhere else", () => {
+    const graph = openPlan({ plan_head: 2, plan_grid: 22, plan_body: 6, plan_menu: 0, sidebar: 7 })
     expect(graph.plan_head.back).toBeUndefined()
     expect(graph.plan_grid.back).toBeUndefined()
     expect(graph.plan_body.back).toBeUndefined()
+    expect(graph.plan_body.down).toBeUndefined()
   })
 })
 

@@ -865,12 +865,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         params,
         %{assigns: %{title_detail: %TitleDetail{} = detail}} = socket
       ) do
-    mode =
-      case PlanningMode.parse_mode(params["mode"]) do
-        {:ok, mode} -> mode
-        :error -> detail.planning_mode
-      end
-
+    mode = PlanningMode.parse_mode(params["mode"], detail.planning_mode)
     scope = if detail.title.media_type == :tv_series, do: socket.assigns.modal_state.download_scope
 
     # The act owns its ending: auto-select flashes and closes the modal

@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
+  alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
 
@@ -143,6 +144,16 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   end
 
   def apply_preset(%Targeting.Selection{}, :clear), do: MapSet.new()
+
+  @doc """
+  The mode the picker's Download split performs from its main segment —
+  the one resolved into the plan param identity when the picker opened
+  (the link's, else the person's default). Nil off the picker: the
+  board's param is a plan id and the modal is closed on nil.
+  """
+  @spec picker_mode(term()) :: PlanningMode.mode() | nil
+  def picker_mode({_tmdb_id, _tmdb_type, mode}), do: mode
+  def picker_mode(_param), do: nil
 
   defp max_unit(nil, unit), do: unit
   defp max_unit(acc, unit) when unit > acc, do: unit

@@ -132,6 +132,16 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     assert PlanLogic.toggle_expanded(expanded, 1) == MapSet.new([1, 2])
   end
 
+  describe "picker_mode/1 — the mode the picker's Download performs" do
+    test "is the mode in the picker's param identity, nil off the picker" do
+      assert PlanLogic.picker_mode({246_810, "tv", :auto_select_best_release}) ==
+               :auto_select_best_release
+
+      assert PlanLogic.picker_mode("9f4f5e0e-0d1a-4b5c-8e2f-3a1b2c3d4e5f") == nil
+      assert PlanLogic.picker_mode(nil) == nil
+    end
+  end
+
   describe "shell_backdrop_url/2 — the plan modal's cinematic shell" do
     alias MediaCentaur.TMDB.Title
 

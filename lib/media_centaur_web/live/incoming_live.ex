@@ -263,6 +263,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          friend_activity_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
+         plan_menu_open?: false,
          plan_selection: nil,
          plan_chosen: MapSet.new(),
          plan_expanded_seasons: MapSet.new(),
@@ -795,6 +796,8 @@ defmodule MediaCentaurWeb.IncomingLive do
         <PlanModal.plan_modal
           open={@plan_param != nil}
           stage={@plan_stage}
+          mode={PlanLogic.picker_mode(@plan_param)}
+          menu_open={@plan_menu_open?}
           backdrop_url={@plan_backdrop_url}
           identity={@plan_identity}
           selection={@plan_selection}
@@ -1277,9 +1280,21 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, assign(socket, plan_chosen: chosen)}
   end
 
-  def handle_event("plan_create", _params, socket) do
-    {_tmdb_id, _tmdb_type, mode} = socket.assigns.plan_param
+  # The Download split's menu is open state the host owns; the item's
+  # event landing (`plan_create` with a mode) closes it.
+  def handle_event("plan_mode_toggle", _params, socket),
+    do: {:noreply, update(socket, :plan_menu_open?, &(!&1))}
+
+  def handle_event("plan_menu_close", _params, socket),
+    do: {:noreply, assign(socket, plan_menu_open?: false)}
+
+  # The main segment sends no mode and performs the one the picker was
+  # opened with; the menu item names the other.
+  def handle_event("plan_create", params, socket) do
+    {_tmdb_id, _tmdb_type, main_mode} = socket.assigns.plan_param
+    mode = PlanningMode.parse_mode(params["mode"], main_mode)
     opts = [approval_policy: PlanningMode.approval_policy(mode)]
+    socket = assign(socket, plan_menu_open?: false)
 
     result =
       case socket.assigns.plan_stage do
@@ -2657,6 +2672,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     end)
     |> assign(
       plan_param: nil,
+      plan_menu_open?: false,
       plan_selection: nil,
       plan_movie: nil,
       plan_board: nil,
@@ -2687,6 +2703,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> assign(
         plan_param: param,
         plan_stage: :loading,
+        plan_menu_open?: false,
         plan_selection: nil,
         plan_movie: nil,
         plan_board: nil,
