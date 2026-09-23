@@ -1473,3 +1473,17 @@ Run `mc-nav-trace` on the title detail: RIGHT from Download reaches the chevron,
 - [x] **Step 4: Report**
 
 State what precommit printed, what the browser showed for each mode, and any drafts left behind. The CHANGELOG entry is written at ship time by `/ship`.
+
+---
+
+## Post-review fixes (2026-09-23)
+
+The `/code-review high` pass over the executed plan surfaced ten findings; eight were fixed in one follow-up commit, two deferred with a reason (spec, coherence pass item 6):
+
+- `Acquisition.start_download/5` takes the surface's close callback and owns every ending; the host's `"download"` handler is one line; the feed row passes `& &1`.
+- `land_download/3` clears `pending` and lands through `PlanFlow.land_plan/5`.
+- `PlanQuery.parse/1` rejects a non-UUID plan id as malformed; Incoming's malformed branch closes the modal (`close_plan_modal/1`, the extracted `:closed` reset) and flashes "Malformed plan link." instead of assigning an error stage the closed modal never rendered.
+- The picker's resolved mode lives in `plan_param` only; the `plan_mode` assign is gone.
+- `ModalState.parse_scope_choice/1` and `PlanningMode.parse_mode/1` derive from `@scope_choices` / `@modes`; `SettingsLive`'s `set_planning_mode` parses through `parse_mode/1`.
+- The picker query's `tmdb_type` comes from `ReleaseTracking.tmdb_type_for(title.media_type)`.
+- Deferred: the double `load_drafts`/`build_view`/board build on a picker Download (pre-existing; a performance pass), and the private `@tmdb_types` copy of TMDB's type strings.

@@ -219,7 +219,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         scope = if entry.title.media_type == :tv_series, do: :first_season
 
         {:noreply,
-         TitleDetailHost.Acquisition.start_download(socket, entry.title, PlanningMode.value(), scope)}
+         TitleDetailHost.Acquisition.start_download(
+           socket,
+           entry.title,
+           PlanningMode.value(),
+           scope,
+           & &1
+         )}
 
       _state_or_unknown ->
         {:noreply, socket}

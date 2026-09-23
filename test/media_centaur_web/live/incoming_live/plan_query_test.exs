@@ -7,6 +7,8 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQueryTest do
 
   alias MediaCentaurWeb.IncomingLive.PlanQuery
 
+  @plan_id "9f4f5e0e-0d1a-4b5c-8e2f-3a1b2c3d4e5f"
+
   describe "board/1 and picker/3 — the two shapes" do
     test "the board is the plan id alone" do
       assert PlanQuery.board("abc") == %{"plan" => "abc"}
@@ -58,7 +60,12 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQueryTest do
     end
 
     test "a plan id is its board" do
-      assert PlanQuery.parse(%{"plan" => "abc"}) == {:board, "abc"}
+      assert PlanQuery.parse(%{"plan" => @plan_id}) == {:board, @plan_id}
+    end
+
+    test "a plan id that is not a UUID is malformed, not a board to fetch" do
+      assert PlanQuery.parse(%{"plan" => "abc"}) == {:error, :malformed}
+      assert PlanQuery.parse(%{"plan" => ""}) == {:error, :malformed}
     end
 
     test "new with a title is the picker, mode nil when absent" do
@@ -76,7 +83,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQueryTest do
     end
 
     test "round-trips what it builds" do
-      assert PlanQuery.parse(PlanQuery.board("abc")) == {:board, "abc"}
+      assert PlanQuery.parse(PlanQuery.board(@plan_id)) == {:board, @plan_id}
       assert PlanQuery.parse(PlanQuery.picker("1", "tv")) == {:picker, "1", "tv", nil}
 
       assert PlanQuery.parse(PlanQuery.picker("1", "tv", :manually_select_release)) ==

@@ -677,9 +677,12 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   def handle_title_async(_name, _result, socket), do: {:cont, socket}
 
-  defp land_download(socket, _name, {:ok, {:ok, plan}}) do
-    socket = update(socket, :modal_state, &%{&1 | open_menu: nil})
-    socket.view.open_plan(socket, PlanQuery.board(plan.id))
+  # Only a manual plan is made under the async, so its ending is manual's.
+  defp land_download(socket, name, {:ok, {:ok, plan}}) do
+    socket
+    |> update(:modal_state, &%{&1 | open_menu: nil})
+    |> Acquisition.pending(nil)
+    |> PlanFlow.land_plan(:manually_select_release, plan, name, & &1)
   end
 
   defp land_download(socket, name, {:ok, {:error, reason}}) do
@@ -870,17 +873,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
     scope = if detail.title.media_type == :tv_series, do: socket.assigns.modal_state.download_scope
 
-    socket =
-      socket
-      |> update(:modal_state, &%{&1 | open_menu: nil})
-      |> Acquisition.start_download(detail.title, mode, scope)
-
-    # Auto-select planned and flashed: the modal closes. A manual plan is
-    # pending and the modal stays for its board. Choosing episodes has
-    # already left for the picker, whichever the mode.
-    if mode == :auto_select_best_release and scope != :choose_episodes,
-      do: {:halt, push_close(socket)},
-      else: {:halt, socket}
+    # The act owns its ending: auto-select flashes and closes the modal
+    # through `push_close/1`; a manual plan is pending and the modal stays
+    # for its board; choosing episodes leaves for the picker.
+    socket = update(socket, :modal_state, &%{&1 | open_menu: nil})
+    {:halt, Acquisition.start_download(socket, detail.title, mode, scope, &push_close/1)}
   end
 
   def handle_title_event(

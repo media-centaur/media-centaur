@@ -1148,11 +1148,15 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  def handle_event("set_planning_mode", %{"choice" => mode}, socket)
-      when mode in ~w(manually_select_release auto_select_best_release) do
-    planning_mode = PlanningMode.parse(%{"mode" => mode})
-    PlanningMode.set(planning_mode)
-    {:noreply, assign(socket, planning_mode: planning_mode)}
+  def handle_event("set_planning_mode", %{"choice" => mode}, socket) do
+    case PlanningMode.parse_mode(mode) do
+      {:ok, planning_mode} ->
+        PlanningMode.set(planning_mode)
+        {:noreply, assign(socket, planning_mode: planning_mode)}
+
+      :error ->
+        {:noreply, socket}
+    end
   end
 
   # --- Controls events ---
