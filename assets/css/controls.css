@@ -64,6 +64,43 @@
   display: contents;
 }
 
+/* Narrow card (a half-width window at 2× UI scale): the label takes the
+ * row on its own with the hover-revealed actions pinned to its right, and
+ * the KEY/PAD pairs share the line beneath it. The subgrid keeps the
+ * keycaps aligned across rows in both layouts; only the parent's tracks,
+ * the label's span and the actions' placement change. The tracks are
+ * content-sized here because a keycap never wraps (below, `white-space`),
+ * so a track that shrank would push the keycap into its neighbour. */
+[data-page="controls"] {
+  container-type: inline-size;
+}
+
+@container (max-width: 36rem) {
+  [data-page="controls"] .controls-list {
+    grid-template-columns:
+      auto                              /* 1: KEY text */
+      max-content                       /* 2: keycap */
+      auto                              /* 3: PAD text */
+      max-content;                      /* 4: pad glyph */
+  }
+
+  [data-page="controls"] .controls-row {
+    position: relative;
+  }
+
+  [data-page="controls"] .controls-row-label {
+    grid-column: 1 / -1;
+    padding-right: 4.5rem;              /* room for the actions */
+    margin-bottom: 0.5rem;
+  }
+
+  [data-page="controls"] .controls-row-actions {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.875rem;
+  }
+}
+
 [data-page="controls"] .controls-row-label {
   padding-right: 0.5rem;
 }
@@ -90,6 +127,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
   min-width: 2.75rem;
   height: 2.5rem;
   padding: 0 0.75rem;

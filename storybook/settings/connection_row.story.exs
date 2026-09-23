@@ -9,6 +9,10 @@ defmodule MediaCentaurWeb.Storybook.Settings.ConnectionRow do
 
   @tested ~U[2026-05-18 09:00:00Z]
 
+  # A card body about 19rem wide: what a half-width window leaves at 2×
+  # UI scale. Whatever does not fit beside the text block drops beneath it.
+  @narrow ~s|<div class="w-[21rem] glass-surface rounded-xl p-5"><ul><.psb-variation/></ul></div>|
+
   @test_and_edit ~s|<:actions><button class="btn btn-soft btn-xs">Test</button><button class="btn btn-ghost btn-xs">Edit</button></:actions>|
 
   def variations do
@@ -167,6 +171,23 @@ defmodule MediaCentaurWeb.Storybook.Settings.ConnectionRow do
           detail: "auth-required: this relay requires authentication"
         },
         slots: [~s|<:actions><button class="btn btn-ghost btn-xs">Remove</button></:actions>|]
+      },
+      %Variation{
+        id: :narrow,
+        description:
+          "A narrow card: the name and detail keep their lines; the state and actions drop beneath, right-aligned.",
+        template: @narrow,
+        attributes: %{
+          id: "connection-download_client-narrow",
+          name: "qBittorrent",
+          kind: "torrent",
+          state: :ok,
+          state_label: "Connected",
+          tested_at: @tested,
+          address: "http://localhost:8080",
+          detail: "admin · password set"
+        },
+        slots: [@test_and_edit]
       }
     ]
   end

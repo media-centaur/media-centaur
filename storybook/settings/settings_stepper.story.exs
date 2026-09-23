@@ -12,6 +12,10 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsStepper do
     reset_value: 75
   }
 
+  # A card body about 19rem wide: what a half-width window leaves at 2×
+  # UI scale. Whatever does not fit beside the text block drops beneath it.
+  @narrow ~s|<div class="w-[21rem] glass-surface rounded-xl p-5"><.psb-variation/></div>|
+
   def variations do
     [
       %Variation{
@@ -51,6 +55,20 @@ defmodule MediaCentaurWeb.Storybook.Settings.SettingsStepper do
             at_min: false,
             at_max: true,
             at_default: false
+          })
+      },
+      %Variation{
+        id: :narrow,
+        description: "A narrow card: the controls drop beneath the label, left-aligned.",
+        template: @narrow,
+        attributes:
+          Map.merge(@row, %{
+            value_label: "75%",
+            down_value: 70,
+            up_value: 80,
+            at_min: false,
+            at_max: false,
+            at_default: true
           })
       }
     ]

@@ -10,6 +10,16 @@ defmodule MediaCentaurWeb.Components.Settings do
   edit form; `settings_disclosure/1` hides rare content; `path_status/1`
   is the glyph beside a path label. The connection row lives in
   `MediaCentaurWeb.Components.Settings.ConnectionRow`.
+
+  ## Narrow cards
+
+  A row is a wrapping flex line: its text block asks for a 16rem measure
+  (`basis-64`) and grows into the rest; the control keeps its own width
+  and drops beneath the text, left-aligned, when the two no longer fit
+  side by side. A card's title-line action drops the same way but stays
+  right-aligned. The toggle row never drops — the toggle is narrower than
+  any measure worth keeping. Stories carry a `:narrow` variation per row
+  kind at the width a half-width window leaves at 2× UI scale.
   """
 
   use MediaCentaurWeb, :html
@@ -88,8 +98,11 @@ defmodule MediaCentaurWeb.Components.Settings do
   """
   def settings_stepper(assigns) do
     ~H"""
-    <div id={@id} class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
-      <div class="min-w-0">
+    <div
+      id={@id}
+      class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg"
+    >
+      <div class="min-w-0 grow basis-64">
         <span class="font-medium">{@label}</span>
         <p class="text-xs text-base-content/55 mt-0.5">{@description}</p>
       </div>
@@ -149,8 +162,9 @@ defmodule MediaCentaurWeb.Components.Settings do
   end
 
   # One field inside a card: sentence-case label, optional terse description,
-  # and a control. `:inline` keeps the control on the right; `:stacked` drops
-  # a wide control full-width below.
+  # and a control. `:inline` keeps the control on the right until the card is
+  # too narrow for both, then drops it beneath the label; `:stacked` always
+  # drops a wide control full-width below.
   attr :label, :string, required: true
   attr :description, :string, default: nil
   attr :layout, :atom, default: :inline, values: [:inline, :stacked]
@@ -161,16 +175,19 @@ defmodule MediaCentaurWeb.Components.Settings do
     ~H"""
     <div class={[
       "py-3.5 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0",
-      @layout == :inline && "flex items-start justify-between gap-6",
+      @layout == :inline && "flex flex-wrap items-start justify-between gap-x-6 gap-y-2",
       @class
     ]}>
-      <div class={["min-w-0", @layout == :inline && "max-w-[46ch]"]}>
+      <div class={["min-w-0", @layout == :inline && "grow basis-64 max-w-[46ch]"]}>
         <div class="text-sm font-medium">{@label}</div>
         <p :if={@description} class="mt-0.5 text-xs text-base-content/55 max-w-[60ch]">
           {@description}
         </p>
       </div>
-      <div class={[@layout == :stacked && "mt-2", @layout == :inline && "shrink-0 pt-0.5"]}>
+      <div class={[
+        @layout == :stacked && "mt-2",
+        @layout == :inline && "shrink-0 max-w-full pt-0.5"
+      ]}>
         {render_slot(@inner_block)}
       </div>
     </div>
@@ -218,9 +235,9 @@ defmodule MediaCentaurWeb.Components.Settings do
   def settings_card(assigns) do
     ~H"""
     <div class={["glass-surface rounded-xl p-5 space-y-3", @class]} {@rest}>
-      <div class="flex items-baseline justify-between gap-4">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/55">{@title}</h3>
-        <div :if={@action != []} class="shrink-0">{render_slot(@action)}</div>
+        <div :if={@action != []} class="shrink-0 ml-auto">{render_slot(@action)}</div>
       </div>
       <p :if={@description} class="text-xs text-base-content/55 max-w-[60ch]">{@description}</p>
       {render_slot(@inner_block)}
@@ -251,14 +268,14 @@ defmodule MediaCentaurWeb.Components.Settings do
   """
   def settings_choice(assigns) do
     ~H"""
-    <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
-      <div class="min-w-0">
+    <div class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg">
+      <div class="min-w-0 grow basis-64">
         <span class="font-medium">{@label}</span>
         <p :if={@description} class="text-xs text-base-content/55 mt-0.5">{@description}</p>
       </div>
       <div
         id={@id}
-        class="tabs tabs-boxed segmented-control w-fit shrink-0"
+        class="tabs tabs-boxed segmented-control w-fit max-w-full"
         role="group"
         aria-label={@label}
       >
@@ -368,15 +385,15 @@ defmodule MediaCentaurWeb.Components.Settings do
     <form
       id={@id}
       phx-change={@event}
-      class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg"
+      class="flex flex-wrap items-center justify-between py-2.5 px-3.5 gap-x-4 gap-y-2 rounded-lg"
     >
-      <div class="min-w-0">
+      <div class="min-w-0 grow basis-64">
         <span class="font-medium">{@label}</span>
         <p :if={@description} class="text-xs text-base-content/55 mt-0.5">{@description}</p>
       </div>
       <select
         name={@name}
-        class="select select-bordered select-sm shrink-0 text-sm"
+        class="select select-bordered select-sm shrink-0 max-w-full text-sm"
         data-nav-item
         tabindex="0"
       >
