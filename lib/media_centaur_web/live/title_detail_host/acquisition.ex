@@ -78,31 +78,31 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
           Title.t(),
           PlanningMode.mode(),
           ModalState.scope_choice() | nil,
-          (socket() -> socket())
+          PlanFlow.ending()
         ) :: socket()
   def start_download(
         %{assigns: %{modal_state: %{pending: pending}}} = socket,
         _title,
         _mode,
         _scope,
-        _close
+        _ending
       )
       when not is_nil(pending), do: socket
 
   # Choosing episodes is the picker's job: the control leaves for it with
   # the click's mode and plans nothing here (spec 2026-09-23 §3).
-  def start_download(socket, %Title{} = title, mode, :choose_episodes, _close) do
+  def start_download(socket, %Title{} = title, mode, :choose_episodes, _ending) do
     query = PlanQuery.picker(title.tmdb_id, ReleaseTracking.tmdb_type_for(title.media_type), mode)
     socket.view.open_plan(socket, query)
   end
 
-  def start_download(socket, %Title{} = title, :auto_select_best_release, scope, close) do
+  def start_download(socket, %Title{} = title, :auto_select_best_release, scope, ending) do
     policy = PlanningMode.approval_policy(:auto_select_best_release)
     :ok = Plans.plan_title(title, [approval_policy: policy] ++ scope_opts(scope))
-    socket |> put_flash(:info, PlanFlow.download_flash(title.name)) |> close.()
+    PlanFlow.land_started(socket, title.name, ending)
   end
 
-  def start_download(socket, %Title{} = title, :manually_select_release, scope, _close) do
+  def start_download(socket, %Title{} = title, :manually_select_release, scope, _ending) do
     opts = [approval_policy: PlanningMode.approval_policy(:manually_select_release)] ++ scope_opts(scope)
     name = {:title_download, Title.ref(title), title.name}
 
@@ -196,7 +196,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   @doc "Ends a missing-episode plan: auto-select flashes and stays put, manual select lands on the plan's board."
   @spec apply_missing_episode_result(socket(), term()) :: socket()
   def apply_missing_episode_result(socket, {:planned, plan, mode, label}) do
-    socket |> pending(nil) |> PlanFlow.land_plan(mode, plan, label, & &1)
+    socket |> pending(nil) |> PlanFlow.land_plan(mode, plan, label, :stay)
   end
 
   def apply_missing_episode_result(socket, {:plan_failed, label, reason}) do

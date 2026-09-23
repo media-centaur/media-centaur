@@ -2247,6 +2247,11 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert render_async(view) =~ "Finding a release for Sample Show S1E2"
 
+      # The gap row stays put — more gaps may follow — but the sidebar's
+      # Incoming entry is pointed at Activity for the next visit.
+      assert has_element?(view, "#detail-modal[data-state='open']")
+      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
+
       assert [plan] = Plans.list_drafts()
 
       assert plan.id

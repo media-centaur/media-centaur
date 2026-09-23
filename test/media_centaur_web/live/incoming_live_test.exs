@@ -586,7 +586,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       render_async(view, 2_000)
       view |> element("button[phx-click='plan_create']") |> render_click()
 
-      assert_patch(view, "/incoming")
+      # A started download lands on Activity, where it shows up, and points
+      # the sidebar's Incoming entry there for the next visit.
+      assert_patch(view, "/incoming?zone=activity")
+      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
       refute has_element?(view, "#plan-modal[data-state='open']")
       assert render(view) =~ "Finding a release for Sample Show"
       await_supervised_tasks()
@@ -622,7 +625,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       render_async(view, 2_000)
       view |> element("button[phx-click='plan_create']") |> render_click()
 
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/incoming?zone=activity")
       await_supervised_tasks()
       assert [%{approval_policy: "automatic"}] = Plans.list_drafts()
     end
@@ -640,7 +643,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       render_async(view, 2_000)
       view |> element("button[phx-click='plan_create']") |> render_click()
 
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/incoming?zone=activity")
       assert render(view) =~ "Finding a release for Sample Movie"
       await_supervised_tasks()
       assert [%{approval_policy: "automatic", tmdb_type: "movie"}] = Plans.list_drafts()
@@ -740,7 +743,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("#plan-download-other[phx-value-mode='auto_select_best_release']")
       |> render_click()
 
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/incoming?zone=activity")
       await_supervised_tasks()
       assert [%{approval_policy: "automatic", tmdb_type: "movie"}] = Plans.list_drafts()
     end
@@ -1847,6 +1850,42 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert_patch(view, "/incoming?plan=#{plan.id}")
       assert has_element?(view, "#plan-modal[data-state='open']")
       refute has_element?(view, "#detail-modal[data-state='open']")
+    end
+
+    test "Download in the title detail on Incoming under auto-select lands on Activity", %{conn: conn} do
+      PlanningMode.set(:auto_select_best_release)
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 246_810,
+          "media_type" => "tv",
+          "name" => "Sample Show",
+          "first_air_date" => "2010-06-16"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+      view |> element("#omnibox-result-tv_series-246810") |> render_click()
+      assert_patch(view, "/incoming?title=tv_series-246810")
+
+      TmdbStubs.stub_series_universe_for_targeting()
+      view |> element("#detail-download") |> render_click()
+
+      # One patch: the modal is gone and Activity is showing, where the
+      # download appears; the sidebar's Incoming entry points there too.
+      assert_patch(view, "/incoming?zone=activity")
+      assert_push_event(view, "nav-remember", %{path: "/incoming", url: "/incoming?zone=activity"})
+      refute has_element?(view, "#detail-modal[data-state='open']")
+      assert render(view) =~ "Finding a release for Sample Show"
+      await_supervised_tasks()
+      assert [%{approval_policy: "automatic"}] = Plans.list_drafts()
     end
 
     test "a search row carries the overlay-restore origin", %{conn: conn} do

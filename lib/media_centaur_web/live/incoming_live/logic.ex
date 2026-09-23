@@ -48,6 +48,21 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
 
   def search_owns_page?(:release, _media_query, session), do: session.query != "" or session.groups != []
 
+  @doc "The page's path."
+  @spec path() :: String.t()
+  def path, do: "/incoming"
+
+  @doc """
+  The page's path showing one zone (UIDR-015). The default zone keeps
+  the bare path — a clean URL, so `data-nav-remember` never pins a
+  stale param — and the others name themselves. Shared by the tab
+  switch, a started download's landing on Activity, and the sidebar
+  reminder that points the Incoming entry there.
+  """
+  @spec zone_path(:coming_up | :activity | :history) :: String.t()
+  def zone_path(:coming_up), do: path()
+  def zone_path(zone) when zone in [:activity, :history], do: path() <> "?zone=" <> Atom.to_string(zone)
+
   @doc """
   The Incoming page's zone from its URL param — Coming up is the
   fallback for anything unrecognized. All three zones are addressable
