@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.38.1 — 2026-09-23
+
+### Fixed
+
+- **Settings no longer piles up in a narrow window.** In a half-width window, or at a large interface scale, Settings rows broke their labels one word per line, a connection's name vanished behind its status, and the Download button's two choices spilled out of their pill. Each row now keeps its text readable and moves its control beneath the label when the two no longer fit side by side; a connection's status and its Test and Edit buttons drop to a second line together; a pill wider than the card wraps its choices inside the rail; and the key and pad bindings on **Controls** sit under their own label. Nothing changes at the widths that already worked.
+
 ## v1.38.0 — 2026-09-23
 
 ### New
