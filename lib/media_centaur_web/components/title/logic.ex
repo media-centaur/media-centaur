@@ -9,7 +9,6 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   `FeedEntries` and `People`.
   """
 
-  alias MediaCentaur.Acquisition.Plans.DownloadScope
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Format
   alias MediaCentaur.Library.EntityView
@@ -19,6 +18,7 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Acquisition.MediaResults
   alias MediaCentaurWeb.Components.Title.Detail, as: TitleDetail
+  alias MediaCentaurWeb.Components.Title.ModalState
   alias MediaCentaurWeb.Components.ReleaseTracking.Present
 
   @type acquisition_state :: :planning | :downloading | :needs_review | nil
@@ -127,10 +127,11 @@ defmodule MediaCentaurWeb.Components.Title.Logic do
   def planning_mode_label(:auto_select_best_release), do: "Auto-select best release"
   def planning_mode_label(:manually_select_release), do: "Manually select release"
 
-  @doc "The scope select's words for a download scope (spec 2026-09-12 §1, §11)."
-  @spec download_scope_label(DownloadScope.scope()) :: String.t()
+  @doc "The scope select's words for each of its values (spec 2026-09-12 §1, §11; 2026-09-23 §1)."
+  @spec download_scope_label(ModalState.scope_choice()) :: String.t()
   def download_scope_label(:first_season), do: "Season 1"
   def download_scope_label(:everything), do: "All seasons"
+  def download_scope_label(:choose_episodes), do: "Choose episodes"
 
   @doc """
   The quiet text markers a title row shows after its type and year, in

@@ -283,9 +283,10 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
       assert Logic.planning_mode_label(:manually_select_release) == "Manually select release"
     end
 
-    test "each scope has its label" do
+    test "each scope choice has its label" do
       assert Logic.download_scope_label(:first_season) == "Season 1"
       assert Logic.download_scope_label(:everything) == "All seasons"
+      assert Logic.download_scope_label(:choose_episodes) == "Choose episodes"
     end
   end
 

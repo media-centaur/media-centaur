@@ -32,4 +32,18 @@ defmodule MediaCentaurWeb.Components.Title.ModalStateTest do
       assert ModalState.new(:main, MapSet.new([3])).expanded_seasons == MapSet.new([3])
     end
   end
+
+  describe "the scope select's value" do
+    test "offers the two rules and the person's own choice, in menu order" do
+      assert ModalState.scope_choices() == [:first_season, :everything, :choose_episodes]
+    end
+
+    test "parses its wire form as a closed set" do
+      assert ModalState.parse_scope_choice("first_season") == {:ok, :first_season}
+      assert ModalState.parse_scope_choice("everything") == {:ok, :everything}
+      assert ModalState.parse_scope_choice("choose_episodes") == {:ok, :choose_episodes}
+      assert ModalState.parse_scope_choice("all_of_it") == :error
+      assert ModalState.parse_scope_choice(nil) == :error
+    end
+  end
 end

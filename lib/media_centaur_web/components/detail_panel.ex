@@ -539,7 +539,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       label="Download scope"
     >
       <:item
-        :for={scope <- [:first_season, :everything]}
+        :for={scope <- ModalState.scope_choices()}
         id={"detail-scope-" <> Atom.to_string(scope)}
         event="download_scope"
         values={%{"choice" => Atom.to_string(scope)}}

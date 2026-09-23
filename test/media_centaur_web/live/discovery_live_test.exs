@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Settings
   alias MediaCentaur.Settings.Preferences.DiscoveryVisibility
   alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.DiscoveryLive.People
@@ -1337,6 +1338,50 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # title stays where the person put it, at List.
       refute ReleaseTracking.get_item_by_tmdb(246_810, :tv_series)
       assert Discovery.rung(246_810, :tv_series) == :list
+    end
+
+    test "Choose episodes sends Download to the picker with the default mode and plans nothing here",
+         %{conn: conn} do
+      {:ok, _} = list(released_show(), :list, %{}, TmdbStubs.series_universe_tv())
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
+
+      view |> element("#detail-scope") |> render_click()
+      assert has_element?(view, "#detail-scope-menu #detail-scope-choose_episodes", "Choose episodes")
+
+      view |> element("#detail-scope-choose_episodes") |> render_click()
+      refute has_element?(view, "#detail-scope-menu")
+      assert has_element?(view, "#detail-scope", "Choose episodes")
+      # Still a download: the verb names the goal, not the step.
+      assert has_element?(view, "#detail-download", "Download")
+
+      view |> element("#detail-download") |> render_click()
+
+      {path, _flash} = assert_redirect(view)
+      assert path == PlanQuery.path(PlanQuery.picker(246_810, "tv", :manually_select_release))
+      assert Plans.list_drafts() == []
+    end
+
+    test "the chevron's other mode rides to the picker with Choose episodes", %{conn: conn} do
+      {:ok, _} = list(released_show(), :list, %{}, TmdbStubs.series_universe_tv())
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
+
+      view |> element("#detail-scope") |> render_click()
+      view |> element("#detail-scope-choose_episodes") |> render_click()
+
+      view |> element("#detail-download-toggle") |> render_click()
+      view |> element("#detail-download-other") |> render_click()
+
+      {path, _flash} = assert_redirect(view)
+      assert path == PlanQuery.path(PlanQuery.picker(246_810, "tv", :auto_select_best_release))
+      assert Plans.list_drafts() == []
+    end
+
+    test "a scope the select does not offer is ignored", %{conn: conn} do
+      {:ok, _} = list(released_show(), :list, %{}, TmdbStubs.series_universe_tv())
+      {:ok, view, _html} = live(conn, "/discovery/watchlist?title=tv_series-246810")
+
+      render_hook(view, "download_scope", %{"choice" => "all_of_it"})
+      assert has_element?(view, "#detail-scope", "Season 1")
     end
 
     test "a TMDB failure while planning manually flashes on the modal and leaves no plan",
