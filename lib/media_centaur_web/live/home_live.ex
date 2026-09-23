@@ -31,6 +31,7 @@ defmodule MediaCentaurWeb.HomeLive do
     PosterRow
   }
 
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Live.ReviewModal
   alias MediaCentaurWeb.Live.Subscriptions
   alias MediaCentaurWeb.Live.TitleDetailHost
@@ -303,7 +304,7 @@ defmodule MediaCentaurWeb.HomeLive do
   def title_detail_path(_socket, query), do: ~p"/?#{query}"
 
   @impl TitleDetailHost
-  def open_plan_board(socket, plan_id), do: push_navigate(socket, to: ~p"/incoming?plan=#{plan_id}")
+  def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
 
   @impl true
   def handle_info(:reload_hero, socket) do

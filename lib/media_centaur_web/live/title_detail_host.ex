@@ -32,9 +32,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
     the activity the modal speaks for included — is read by identity.
   * `title_detail_path/2` — the page's own path with the modal query
     applied (`[]` closes), so leaving the modal never changes tab.
-  * `open_plan_board/2` — navigates to Incoming with the plan's board
-    open (`push_navigate` from another page, `push_patch` on Incoming
-    itself).
+  * `open_plan/2` — opens the plan modal on Incoming with a
+    `PlanQuery` query: the board of a plan, or the picker for a series
+    (`push_navigate` from another page, `push_patch` on Incoming itself,
+    which swaps this modal for it).
 
   and keeps `:today`, `:spoiler_free`, `:letterboxd_links`,
   `:tmdb_ready` and `:show_discovery` assigns (the settings traits and
@@ -99,6 +100,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaurWeb.Components.Title.Logic
   alias MediaCentaurWeb.Components.Title.ModalState
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Live.PlanFlow
   alias MediaCentaurWeb.Live.ReviewFlow
   alias MediaCentaurWeb.Live.Subscriptions
@@ -120,7 +122,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   @callback title_detail_path(socket :: Phoenix.LiveView.Socket.t(), query :: keyword()) ::
               String.t()
 
-  @callback open_plan_board(socket :: Phoenix.LiveView.Socket.t(), plan_id :: Ecto.UUID.t()) ::
+  @callback open_plan(socket :: Phoenix.LiveView.Socket.t(), query :: PlanQuery.query()) ::
               Phoenix.LiveView.Socket.t()
 
   @modal_events ~w(download_mode_toggle download_scope_toggle download_menu_close download_scope download activity_delete review_open select_detail_view refresh_from_tmdb)
@@ -677,7 +679,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   defp land_download(socket, _name, {:ok, {:ok, plan}}) do
     socket = update(socket, :modal_state, &%{&1 | open_menu: nil})
-    socket.view.open_plan_board(socket, plan.id)
+    socket.view.open_plan(socket, PlanQuery.board(plan.id))
   end
 
   defp land_download(socket, name, {:ok, {:error, reason}}) do

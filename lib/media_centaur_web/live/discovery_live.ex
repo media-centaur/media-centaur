@@ -85,6 +85,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.Discovery.FeedEntryCard
   alias MediaCentaurWeb.Components.Discovery.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
@@ -150,7 +151,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def title_detail_path(socket, query), do: discovery_path(socket, query)
 
   @impl TitleDetailHost
-  def open_plan_board(socket, plan_id), do: push_navigate(socket, to: ~p"/incoming?plan=#{plan_id}")
+  def open_plan(socket, query), do: push_navigate(socket, to: PlanQuery.path(query))
 
   # The activity the modal speaks for: the one named, else the title's
   # newest friend review (it carries the text), else any friend's

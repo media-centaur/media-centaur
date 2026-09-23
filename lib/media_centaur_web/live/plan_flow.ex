@@ -18,12 +18,35 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
   `{season, episode}` unit on the other.
   """
 
+  import Phoenix.LiveView, only: [put_flash: 3]
+
+  alias MediaCentaur.Acquisition.Plans
+  alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaurWeb.IncomingLive.PlanQuery
+
+  @type socket :: Phoenix.LiveView.Socket.t()
+
   @typedoc "Why a plan was not created."
   @type failure :: :nothing_to_plan | :unaired | :already_here | :not_listed | :tracked | term()
 
   @doc "The flash a one-click download raises, for any label."
   @spec download_flash(String.t()) :: String.t()
   def download_flash(label), do: "Finding a release for #{label}"
+
+  @doc """
+  Ends a plan a surface has just created under `mode` (spec 2026-09-23
+  §7). Manual selection opens the plan's board through the host's
+  `open_plan/2`. Auto-select flashes `download_flash/1` for `label` and
+  leaves the surface as `close` says — the picker drops its modal, the
+  title detail's gap row stays put (`& &1`).
+  """
+  @spec land_plan(socket(), PlanningMode.mode(), Plans.Plan.t(), String.t(), (socket() -> socket())) ::
+          socket()
+  def land_plan(socket, :manually_select_release, plan, _label, _close),
+    do: socket.view.open_plan(socket, PlanQuery.board(plan.id))
+
+  def land_plan(socket, :auto_select_best_release, _plan, label, close),
+    do: socket |> put_flash(:info, download_flash(label)) |> close.()
 
   @doc """
   Plain words for each way planning can end without a plan. The first four
