@@ -5,17 +5,20 @@ defmodule MediaCentaurWeb.Live.PlanFlow do
   to a plan's approval policy is the setting's own
   (`Settings.Preferences.PlanningMode.approval_policy/1`).
 
-  Two surfaces start downloads and neither hosts the other. The title detail
-  modal (`MediaCentaurWeb.TitleDetailHost`, on Discovery and Incoming)
-  downloads a whole title; the library detail modal
-  (`MediaCentaurWeb.Live.EntityModal`, on Library and Home) downloads the one
-  episode a missing row names. What they do with the result is identical, and
-  it lives here rather than twice.
+  Three surfaces start downloads and none hosts another. The title detail
+  modal (`MediaCentaurWeb.Live.TitleDetailHost`, on Home, Library,
+  Discovery and Incoming) downloads a whole title by scope, and one
+  missing episode of an owned series from its gap row. The picker on
+  Incoming (`MediaCentaurWeb.IncomingLive`, the plan modal's targeting
+  stage and movie confirm) downloads what the person chose there. A plan
+  any of them has just created ends through `land_plan/5`. The scoped
+  title download's auto-select path is the one exception: it hands the
+  title to the supervised door (`Plans.plan_title/2`) and has no plan in
+  hand, so it flashes `download_flash/1` directly.
 
   Deliberately not a `use` macro: it holds no state and attaches no hooks.
-  Both callers keep their own `download_pending` assign and their own async
-  naming, because what is pending differs — a title on one side, a
-  `{season, episode}` unit on the other.
+  The title detail keeps what it has in flight in `Title.ModalState.pending`;
+  the picker creates its plan synchronously and has nothing pending.
   """
 
   import Phoenix.LiveView, only: [put_flash: 3]

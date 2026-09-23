@@ -123,3 +123,7 @@ None. An absent preference row means manually select release.
 ## Follow-up: acquisition toasts (separate spec)
 
 Owner request, out of this scope: a toast when a release is picked and the download begins, and one when a download finishes, for every outcome. The events exist in the pursuit log (`Pursuits.Event` kinds): `download_started` (release picked, sent to the client), `pursuit_satisfied` (landed in the library), the Review Queue hold (a downloaded file the importer could not match), "downloaded but not landed", `pursuit_exhausted`, `auto_cancelled` and `pursuit_cancelled`. That spec has to decide: a shell-level toast host subscribed to `acquisition:updates` so a toast appears on any page (flashes today are per-LiveView); batching so a pack landing ten episodes in seconds is one toast; behaviour during playback and on the TV shell; whether a toast carries an action (open the title, open Review).
+
+## Amendment (2026-09-23) — the picker is no longer unchanged
+
+`2026-09-23-choose-episodes-scope-design.md` amends decision 21: the picker and the movie confirm on Incoming now stamp the approval policy from the planning mode their link carries (`mode` param, else the person's default) and end per mode, instead of always `review`. The scope select of decision 1 gains a third value, *Choose episodes*, under which Download opens the picker with the click's mode. The Download control's own `download_scope` event now takes `choose_episodes` as well.

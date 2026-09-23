@@ -345,3 +345,7 @@ separately so the feature work can be reviewed apart from the churn.
     `writing-copy` skill.
 11. Wiki: `Settings-Reference.md` for the maintenance pass, and the TV detail
     page under *Using Media Centaur* for the two new controls.
+
+## Amendment (2026-09-23) — the picker performs the default planning mode
+
+`2026-09-23-choose-episodes-scope-design.md` amends decision 11: the "Download more of this show" link's address is built by `IncomingLive.PlanQuery` and carries no mode, so the picker it opens performs the person's default planning mode — under *auto-select best release* its Download closes the modal and flashes instead of opening the board. The link is no longer the picker's only entry: an unowned series' scope select offers *Choose episodes*.
