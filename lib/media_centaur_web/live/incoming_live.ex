@@ -263,7 +263,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          friend_activity_by_ref: %{},
          plan_param: nil,
          plan_stage: :loading,
-         plan_mode: nil,
          plan_selection: nil,
          plan_chosen: MapSet.new(),
          plan_expanded_seasons: MapSet.new(),
@@ -1279,7 +1278,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("plan_create", _params, socket) do
-    mode = socket.assigns.plan_mode
+    {_tmdb_id, _tmdb_type, mode} = socket.assigns.plan_param
     opts = [approval_policy: PlanningMode.approval_policy(mode)]
 
     result =
@@ -2627,31 +2626,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp apply_plan_modal_params(socket, params) do
     case PlanQuery.parse(params) do
       :closed ->
-        socket
-        # Closing the plan modal hands the page back to searching: refocus
-        # the omnibox (client-side, pointer users only — see the
-        # `omnibox:refocus` listener in app.js; keyboard/gamepad focus is
-        # the input system's, ADR-053).
-        |> then(fn socket ->
-          if socket.assigns.plan_param, do: push_event(socket, "omnibox:refocus", %{}), else: socket
-        end)
-        |> assign(
-          plan_param: nil,
-          plan_mode: nil,
-          plan_selection: nil,
-          plan_movie: nil,
-          plan_board: nil,
-          plan_gap_verdict: nil,
-          plan_rejected: nil,
-          plan_search_progress: nil,
-          plan_alternatives: nil,
-          plan_error: nil,
-          plan_discard_armed?: false,
-          plan_identity: nil,
-          plan_artwork: nil,
-          plan_title: nil,
-          plan_release_window: nil
-        )
+        close_plan_modal(socket)
 
       {:picker, tmdb_id, tmdb_type, mode} ->
         open_plan_targeting(socket, tmdb_id, tmdb_type, mode)
@@ -2659,16 +2634,51 @@ defmodule MediaCentaurWeb.IncomingLive do
       {:board, plan_id} ->
         load_plan_board(socket, plan_id)
 
+      # A link the app cannot mean: a bad mode or type, a plan id that is
+      # not one. Nothing to open, so the modal closes and the flash says why.
       {:error, :malformed} ->
-        assign(socket, plan_param: nil, plan_stage: :error, plan_error: "Malformed plan link.")
+        Log.warning(
+          :acquisition,
+          "malformed plan link — #{inspect(Map.take(params, ~w(plan tmdb_id tmdb_type mode)))}"
+        )
+
+        socket |> close_plan_modal() |> put_flash(:error, "Malformed plan link.")
     end
   end
 
-  # The mode the picker's Download performs: the link's, else the
-  # person's default (spec 2026-09-23 §5). Part of the param identity so
-  # re-opening the same title under another mode is a new open.
+  # Closing the plan modal hands the page back to searching: refocus
+  # the omnibox (client-side, pointer users only — see the
+  # `omnibox:refocus` listener in app.js; keyboard/gamepad focus is
+  # the input system's, ADR-053).
+  defp close_plan_modal(socket) do
+    socket
+    |> then(fn socket ->
+      if socket.assigns.plan_param, do: push_event(socket, "omnibox:refocus", %{}), else: socket
+    end)
+    |> assign(
+      plan_param: nil,
+      plan_selection: nil,
+      plan_movie: nil,
+      plan_board: nil,
+      plan_gap_verdict: nil,
+      plan_rejected: nil,
+      plan_search_progress: nil,
+      plan_alternatives: nil,
+      plan_error: nil,
+      plan_discard_armed?: false,
+      plan_identity: nil,
+      plan_artwork: nil,
+      plan_title: nil,
+      plan_release_window: nil
+    )
+  end
+
+  # The mode the picker's Download performs — the link's, else the
+  # person's default (spec 2026-09-23 §5) — resolved once and held in the
+  # param identity, so re-opening the same title under another mode is a
+  # new open and `plan_create` reads it back from there.
   defp open_plan_targeting(socket, tmdb_id, tmdb_type, mode) do
-    param = {tmdb_id, tmdb_type, mode}
+    param = {tmdb_id, tmdb_type, mode || PlanningMode.value()}
 
     if socket.assigns.plan_param == param do
       socket
@@ -2677,7 +2687,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> assign(
         plan_param: param,
         plan_stage: :loading,
-        plan_mode: mode || PlanningMode.value(),
         plan_selection: nil,
         plan_movie: nil,
         plan_board: nil,

@@ -12,9 +12,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
   local and lands before the reply. `attrs` is the provenance a
   feed-born listing carries onto the record it creates.
 
-  `start_download/4` performs a planning mode on a title (spec
-  2026-09-12 §5–7): auto-select hands the plan to the supervised door
-  (`Plans.plan_title/2`, `automatic`), flashes, and closes the modal;
+  `start_download/5` performs a planning mode on a title (spec
+  2026-09-12 §5–7) and owns the ending: auto-select hands the plan to the
+  supervised door (`Plans.plan_title/2`, `automatic`), flashes, and
+  closes the surface as `close` says (the modal's `push_close/1`; the
+  feed row, with no modal open, passes `& &1`);
   manually selecting plans under `start_async` (`Plans.create_title_plan/2`,
   `review`) and opens the plan's board on Incoming once it exists,
   through the host's `open_plan/2`. With the scope select on *Choose
@@ -71,23 +73,36 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost.Acquisition do
 
   # --- Download ---
 
-  @spec start_download(socket(), Title.t(), PlanningMode.mode(), ModalState.scope_choice() | nil) ::
-          socket()
-  def start_download(%{assigns: %{modal_state: %{pending: pending}}} = socket, _title, _mode, _scope)
+  @spec start_download(
+          socket(),
+          Title.t(),
+          PlanningMode.mode(),
+          ModalState.scope_choice() | nil,
+          (socket() -> socket())
+        ) :: socket()
+  def start_download(
+        %{assigns: %{modal_state: %{pending: pending}}} = socket,
+        _title,
+        _mode,
+        _scope,
+        _close
+      )
       when not is_nil(pending), do: socket
 
   # Choosing episodes is the picker's job: the control leaves for it with
   # the click's mode and plans nothing here (spec 2026-09-23 §3).
-  def start_download(socket, %Title{} = title, mode, :choose_episodes),
-    do: socket.view.open_plan(socket, PlanQuery.picker(title.tmdb_id, "tv", mode))
-
-  def start_download(socket, %Title{} = title, :auto_select_best_release, scope) do
-    policy = PlanningMode.approval_policy(:auto_select_best_release)
-    :ok = Plans.plan_title(title, [approval_policy: policy] ++ scope_opts(scope))
-    put_flash(socket, :info, PlanFlow.download_flash(title.name))
+  def start_download(socket, %Title{} = title, mode, :choose_episodes, _close) do
+    query = PlanQuery.picker(title.tmdb_id, ReleaseTracking.tmdb_type_for(title.media_type), mode)
+    socket.view.open_plan(socket, query)
   end
 
-  def start_download(socket, %Title{} = title, :manually_select_release, scope) do
+  def start_download(socket, %Title{} = title, :auto_select_best_release, scope, close) do
+    policy = PlanningMode.approval_policy(:auto_select_best_release)
+    :ok = Plans.plan_title(title, [approval_policy: policy] ++ scope_opts(scope))
+    socket |> put_flash(:info, PlanFlow.download_flash(title.name)) |> close.()
+  end
+
+  def start_download(socket, %Title{} = title, :manually_select_release, scope, _close) do
     opts = [approval_policy: PlanningMode.approval_policy(:manually_select_release)] ++ scope_opts(scope)
     name = {:title_download, Title.ref(title), title.name}
 

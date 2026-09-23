@@ -75,8 +75,12 @@ defmodule MediaCentaurWeb.Components.Title.ModalState do
 
   @doc "The select's value from its wire form — a closed set, mapped explicitly."
   @spec parse_scope_choice(term()) :: {:ok, scope_choice()} | :error
-  def parse_scope_choice("first_season"), do: {:ok, :first_season}
-  def parse_scope_choice("everything"), do: {:ok, :everything}
-  def parse_scope_choice("choose_episodes"), do: {:ok, :choose_episodes}
+  def parse_scope_choice(choice) when is_binary(choice) do
+    case Enum.find(@scope_choices, &(Atom.to_string(&1) == choice)) do
+      nil -> :error
+      scope -> {:ok, scope}
+    end
+  end
+
   def parse_scope_choice(_other), do: :error
 end

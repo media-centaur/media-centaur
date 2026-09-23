@@ -11,7 +11,8 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQuery do
   — a planning mode's wire form (`PlanningMode.parse_mode/1`) naming
   which mode the picker's Download performs. Absent means the person's
   default; Incoming resolves that, this module only carries it. A `mode`
-  or `tmdb_type` the app cannot mean parses as `{:error, :malformed}`.
+  or `tmdb_type` the app cannot mean, or a plan id that is not a UUID,
+  parses as `{:error, :malformed}` — Incoming closes the modal and says so.
 
   Builders return query maps: a host on Incoming patches with one
   (`incoming_path/2`), any other page navigates to `path/1`.
@@ -52,7 +53,14 @@ defmodule MediaCentaurWeb.IncomingLive.PlanQuery do
   @doc "What Incoming's params say the plan modal should show."
   @spec parse(map()) :: parsed()
   def parse(%{"plan" => "new"} = params), do: parse_picker(params)
-  def parse(%{"plan" => plan_id}) when is_binary(plan_id), do: {:board, plan_id}
+
+  def parse(%{"plan" => plan_id}) when is_binary(plan_id) do
+    case Ecto.UUID.cast(plan_id) do
+      {:ok, id} -> {:board, id}
+      :error -> {:error, :malformed}
+    end
+  end
+
   def parse(%{"plan" => _not_a_string}), do: {:error, :malformed}
   def parse(_params), do: :closed
 

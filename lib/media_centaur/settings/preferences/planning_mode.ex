@@ -55,8 +55,13 @@ defmodule MediaCentaur.Settings.Preferences.PlanningMode do
   default, or a malformed link).
   """
   @spec parse_mode(term()) :: {:ok, mode()} | :error
-  def parse_mode("auto_select_best_release"), do: {:ok, :auto_select_best_release}
-  def parse_mode("manually_select_release"), do: {:ok, :manually_select_release}
+  def parse_mode(mode) when is_binary(mode) do
+    case Enum.find(@modes, &(Atom.to_string(&1) == mode)) do
+      nil -> :error
+      known -> {:ok, known}
+    end
+  end
+
   def parse_mode(_other), do: :error
 
   @doc "Parses a stored value; anything but a known mode string is the default."

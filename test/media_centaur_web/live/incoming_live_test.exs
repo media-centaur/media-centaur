@@ -646,16 +646,24 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert [%{approval_policy: "automatic", tmdb_type: "movie"}] = Plans.list_drafts()
     end
 
-    test "a mode the link cannot mean opens nothing and plans nothing", %{conn: conn} do
+    test "a mode the link cannot mean opens nothing, plans nothing, and says so", %{conn: conn} do
       stub_plan_tmdb()
 
       {:ok, view, _html} =
         live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv&mode=grab_everything")
 
-      render_async(view, 2_000)
+      html = render_async(view, 2_000)
       refute has_element?(view, "#plan-modal[data-state='open']")
       refute has_element?(view, "button[phx-click='plan_create']")
+      assert html =~ "Malformed plan link."
       assert Plans.list_drafts() == []
+    end
+
+    test "a plan id that is not one closes the modal instead of crashing the page", %{conn: conn} do
+      {:ok, view, html} = live_async!(conn, ~p"/incoming?plan=abc")
+
+      refute has_element?(view, "#plan-modal[data-state='open']")
+      assert html =~ "Malformed plan link."
     end
 
     test "the movie confirm offers the download and nothing else, out or not", %{conn: conn} do
