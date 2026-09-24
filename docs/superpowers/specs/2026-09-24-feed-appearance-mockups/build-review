@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Assemble the review artifact's supporting files under .review/ (git-ignored):
+# every markdown document as a dark HTML page, and, when MEASURE_DIR is set,
+# the crop-measurement pages with their images. The artifact's root page is
+# written by the session that publishes it; this script only stages.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"; cd "$here"
+out=.review; rm -rf "$out"; mkdir -p "$out/docs" "$out/measure"
+python3 - "$out" <<'PY'
+import sys, os, re, markdown
+out=sys.argv[1]
+css="""
+:root{--bc:oklch(93% 0.01 264);--p:oklch(72% 0.14 264);--hair:oklch(93% 0.01 264/.1)}
+body{margin:0;background:oklch(17% 0.02 264);color:var(--bc);font:15px/1.55 system-ui,sans-serif;padding:28px 20px 60px}
+main{max-width:78ch;margin:0 auto}
+h1{font-size:24px;line-height:1.2;margin:0 0 18px}h2{font-size:18px;margin:32px 0 10px;padding-top:12px;border-top:1px solid var(--hair)}h3{font-size:15px;margin:22px 0 6px}
+p,li{color:oklch(93% 0.01 264/.85)}a{color:var(--p)}code{font:13px ui-monospace,monospace;background:oklch(93% 0.01 264/.08);padding:1px 4px;border-radius:4px}
+pre{background:oklch(93% 0.01 264/.06);padding:12px;border-radius:8px;overflow-x:auto;font-size:13px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:10px 0;display:block;overflow-x:auto}th,td{text-align:left;vertical-align:top;padding:6px 8px;border-bottom:1px solid var(--hair)}th{color:oklch(93% 0.01 264/.7);font-weight:500}
+blockquote{margin:0;padding-left:12px;border-left:2px solid var(--hair);color:oklch(93% 0.01 264/.7)}
+.nav{font-size:13px;margin:0 0 20px}.nav a{margin-right:14px}
+"""
+def page(src, dst, title):
+    md=open(src).read()
+    html=markdown.markdown(md, extensions=['tables','fenced_code'])
+    open(dst,'w').write(f'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title><style>{css}</style><main><p class="nav"><a href="../index.html">← Review</a></p>{html}</main>')
+docs=[('BRIEF.md','brief-4.html','Round 4 brief'),('CRITIQUE.md','critique-4.html','Round 4 critique'),('MEASUREMENT.md','measurement.html','Crop measurement'),('BRIEF-5.md','brief-5.html','Round 5 brief'),('DESIGNER.md','designer.html','The designer'),
+      ('../2026-09-24-feed-appearance-design.md','spec.html','Design spec'),('../../../../campaigns/feed-appearance.md','campaign.html','Campaign')]
+for d in sorted(os.listdir('.')):
+    if os.path.isdir(d) and os.path.exists(f'{d}/REASONING.md'):
+        docs.append((f'{d}/REASONING.md', f'reasoning-{d}.html', f'{d} — reasoning'))
+if os.path.exists('CRITIQUE-5.md'): docs.append(('CRITIQUE-5.md','critique-5.html','Round 5 critique'))
+for src,dst,title in docs:
+    if os.path.exists(src): page(src, f'{out}/docs/{dst}', title); print('doc', dst)
+PY
+if [ -n "${MEASURE_DIR:-}" ] && [ -d "$MEASURE_DIR" ]; then
+  mkdir -p "$out/measure/img"
+  cp "$MEASURE_DIR"/bands-p-*.html "$MEASURE_DIR"/leads-p-*.html "$MEASURE_DIR"/sweep-*.html "$out/measure/"
+  cp "$MEASURE_DIR"/img/*.jpg "$out/measure/img/"
+  echo "measure: $(ls "$out/measure" | wc -l) pages, $(ls "$out/measure/img" | wc -l) images"
+fi
