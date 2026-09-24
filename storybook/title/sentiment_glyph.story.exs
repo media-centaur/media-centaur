@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Storybook.Title.SentimentGlyph do
 
   def template do
     """
-    <span class="inline-flex items-center gap-1 text-sm">Sample Friend reviewed <.psb-variation/></span>
+    <span class="text-sm">Sample Friend reviewed <.psb-variation/> · 3d ago</span>
     """
   end
 
@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Storybook.Title.SentimentGlyph do
       },
       %Variation{
         id: :sized,
-        description: "The class sizes and aligns the glyph; the colour stays the glyph's own.",
+        description: "The class sizes the glyph; the colour stays the glyph's own.",
         attributes: %{sentiment: :love, class: "size-5"}
       }
     ]
