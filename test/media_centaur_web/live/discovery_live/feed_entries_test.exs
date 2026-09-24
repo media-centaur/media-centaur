@@ -13,22 +13,48 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
   end
 
   defp build(rows, opts \\ []) do
-    FeedEntries.build(rows, Keyword.merge([now: @now, window: FeedEntries.page_size()], opts))
+    FeedEntries.build(
+      rows,
+      Keyword.merge([now: @now, window: FeedEntries.page_size(), scope: :everyone], opts)
+    )
   end
 
   describe "build/2" do
-    test "keeps friends' reviews and listings; drops watched, own, former-friend, ignored" do
+    test "keeps every author's reviews and listings; drops watched, former-friend, ignored" do
       %{entries: entries, has_older?: false} =
         build([
           row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo-lists-1"}),
           row("Nick", %{tmdb_id: 2, kind: :review, id: "nick-recs-2"}),
           row("Nick", %{tmdb_id: 3, kind: :watched, id: "nick-watched-3"}),
           row(nil, %{tmdb_id: 4, kind: :review, id: "mine"}, %{own?: true}),
+          row(nil, %{tmdb_id: 41, kind: :watched, id: "mine-watched"}, %{own?: true}),
           row(nil, %{tmdb_id: 5, kind: :listing, id: "gone"}, %{own?: false}),
-          row("Sam", %{tmdb_id: 6, kind: :review, id: "ignored"}, %{rung: :ignored})
+          row("Sam", %{tmdb_id: 6, kind: :review, id: "ignored"}, %{rung: :ignored}),
+          row(nil, %{tmdb_id: 7, kind: :review, id: "mine-ignored"}, %{own?: true, rung: :ignored})
         ])
 
-      assert Enum.map(entries, & &1.activity_id) == ["cleo-lists-1", "nick-recs-2"]
+      assert Enum.map(entries, & &1.activity_id) == ["cleo-lists-1", "nick-recs-2", "mine"]
+    end
+
+    test "the scope filters by author after the entry rule" do
+      rows = [
+        row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo", acted_at: ~U[2026-09-01 13:00:00Z]}),
+        row(nil, %{tmdb_id: 2, kind: :review, id: "mine", acted_at: ~U[2026-09-01 12:00:00Z]}, %{
+          own?: true
+        }),
+        row("Nick", %{tmdb_id: 3, kind: :watched, id: "nick-watched"}),
+        row(
+          nil,
+          %{tmdb_id: 4, kind: :listing, id: "mine-listing", acted_at: ~U[2026-09-01 11:00:00Z]},
+          %{own?: true}
+        )
+      ]
+
+      ids = fn scope -> Enum.map(build(rows, scope: scope).entries, & &1.activity_id) end
+
+      assert ids.(:everyone) == ["cleo", "mine", "mine-listing"]
+      assert ids.(:friends) == ["cleo"]
+      assert ids.(:you) == ["mine", "mine-listing"]
     end
 
     test "one entry per action, newest first, never grouped" do
@@ -63,8 +89,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
       assert FeedEntries.page_size() == 50
     end
 
-    test "an entry carries what the card shows and the facts the toolbar resolves from" do
-      %{entries: [review, listing]} =
+    test "an entry carries what the row shows and the facts the toolbar resolves from" do
+      %{entries: [review, own, listing]} =
         build([
           row(
             "Nick",
@@ -83,6 +109,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
               acquisition_state: :downloading
             }
           ),
+          row(
+            nil,
+            %{tmdb_id: 11, kind: :listing, id: "mine-11", acted_at: ~U[2026-09-01 11:00:00Z]},
+            %{own?: true, rung: :list}
+          ),
           row("Cleo", %{
             tmdb_id: 10,
             kind: :listing,
@@ -92,10 +123,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
         ])
 
       assert %FeedEntry{
-               id: "feed-entry-nick-recs-9",
+               id: "feed-row-nick-recs-9",
                activity_id: "nick-recs-9",
                ref: {9, :movie},
-               nickname: "Nick",
+               author: "Nick",
+               own?: false,
                kind: :review,
                sentiment: :love,
                text: "Saw it twice.",
@@ -110,7 +142,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
 
       assert review.title.name == "Sample Movie 9"
 
+      assert %FeedEntry{author: "You", own?: true, kind: :listing, list_slot: :listed} = own
+
       assert %FeedEntry{
+               author: "Cleo",
+               own?: false,
                kind: :listing,
                sentiment: nil,
                text: nil,
@@ -119,6 +155,38 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
                list_slot: :list,
                download_slot: :download
              } = listing
+    end
+  end
+
+  describe "parse_scope/1" do
+    test "the URL's word, Everyone for anything else" do
+      assert FeedEntries.parse_scope("friends") == :friends
+      assert FeedEntries.parse_scope("you") == :you
+      assert FeedEntries.parse_scope("everyone") == :everyone
+      assert FeedEntries.parse_scope(nil) == :everyone
+      assert FeedEntries.parse_scope("nonsense") == :everyone
+    end
+
+    test "scope_query/1 is its inverse: Everyone is the bare address" do
+      assert FeedEntries.scope_query(:everyone) == []
+      assert FeedEntries.scope_query(:friends) == [scope: "friends"]
+      assert FeedEntries.scope_query(:you) == [scope: "you"]
+
+      for scope <- [:everyone, :friends, :you] do
+        assert scope |> FeedEntries.scope_query() |> Keyword.get(:scope) |> FeedEntries.parse_scope() ==
+                 scope
+      end
+    end
+  end
+
+  describe "empty_reason/2" do
+    test "You never needs a relay or a friend; the other scopes diagnose readiness first" do
+      assert FeedEntries.empty_reason(:you, false) == :nothing_shared
+      assert FeedEntries.empty_reason(:you, true) == :nothing_shared
+      assert FeedEntries.empty_reason(:everyone, false) == :not_ready
+      assert FeedEntries.empty_reason(:friends, false) == :not_ready
+      assert FeedEntries.empty_reason(:everyone, true) == :quiet
+      assert FeedEntries.empty_reason(:friends, true) == :quiet
     end
   end
 
