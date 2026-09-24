@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.39.0 — 2026-09-24
+
+### Improved
+
+- **Controller bindings carry between browsers.** Browsers do not all describe a controller the same way — Chromium maps a known pad onto the standard layout itself, while Firefox on Linux often hands over the raw device instead. Media Centaur now translates both, so a binding you set on **Settings → Controls** in one browser still does the same thing in the other.
+
+### Fixed
+
+- **A gamepad's D-pad and Start button did nothing in Firefox.** Only the left stick and the face buttons responded, and clicking the left stick in started playback instead of Start. All four directions and Start now work, and an Xbox pad is named as one in the on-screen hints rather than falling back to generic button labels. If Firefox sees no controller at all, check [Keyboard and Gamepad](https://github.com/media-centaur/media-centaur/wiki/Keyboard-and-Gamepad) — a Firefox installed as a snap or flatpak needs permission to read input devices.
+- **The panel behind a title's details sat in the wrong place in Firefox.** It is meant to rise into view as you scroll a title's page; instead it started fully raised and stayed there, over the artwork. It now rests where it belongs, and still rises on scroll in browsers that support it.
+
 ## v1.38.1 — 2026-09-23
 
 ### Fixed
