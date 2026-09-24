@@ -478,7 +478,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     ]
 
   # The Feed under a scope, Everyone being the bare address.
-  defp feed_path(scope), do: with_query("/discovery", FeedEntries.scope_query(scope))
+  defp feed_path(scope), do: ~p"/discovery?#{FeedEntries.scope_query(scope)}"
 
   # The empty state's words per diagnosis (UIDR-034): before a relay and a
   # friend exist nothing can arrive, so the copy names what is missing;
@@ -505,22 +505,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # Path back to the current tab; every modal open/close patch routes
   # through this so leaving the modal never dumps the user on another
   # tab, and the Feed's scope rides along so closing the modal lands on
-  # the same scope.
-  defp discovery_path(socket, params) do
-    socket.assigns.live_action
-    |> current_path()
-    |> with_query(Keyword.merge(params, scope_params(socket.assigns)))
-  end
+  # the same scope. The host hands a keyword list (`title_detail_path/2`'s
+  # contract) and the scope is appended, so the modal's own params keep
+  # their order.
+  defp discovery_path(%{assigns: %{live_action: :feed, feed_scope: scope}}, params),
+    do: ~p"/discovery?#{params ++ FeedEntries.scope_query(scope)}"
 
-  # The host hands a keyword list (`title_detail_path/2`'s contract) and
-  # merging appends, so the modal's own params keep their order. Every
-  # caller passes a keyword list; convert at the call site if one ever
-  # passes a map.
-  defp scope_params(%{live_action: :feed, feed_scope: scope}), do: FeedEntries.scope_query(scope)
-  defp scope_params(_assigns), do: []
+  defp discovery_path(%{assigns: %{live_action: :watchlist}}, params),
+    do: ~p"/discovery/watchlist?#{params}"
 
-  defp with_query(base, []), do: base
-  defp with_query(base, query), do: base <> "?" <> URI.encode_query(query)
+  defp discovery_path(%{assigns: %{live_action: :friends}}, params), do: ~p"/discovery/friends?#{params}"
 
   @impl true
   def render(assigns) do
