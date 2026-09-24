@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       {:ok, view, _html} = live_async!(conn, "/status?subsystem=http")
       assert_push_event(view, "strip_chart:frame", %{window: "1h"})
 
-      view |> element("[phx-value-window='1w']") |> render_click()
+      view |> element("[phx-value-choice='1w']") |> render_click()
       assert_patch(view, "/status?subsystem=http&window=1w")
       assert_push_event(view, "strip_chart:frame", %{window: "1w"})
     end

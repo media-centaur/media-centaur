@@ -178,19 +178,12 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
     >
       <%!-- Left cluster: type tabs + sort, bound tightly as "shape the list" controls --%>
       <div class="flex items-center gap-2">
-        <div role="tablist" class="tabs tabs-boxed segmented-control w-fit">
-          <button
-            :for={{tab, label} <- [{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
-            role="tab"
-            class={["tab", @active_tab == tab && "tab-active"]}
-            phx-click="switch_tab"
-            phx-value-tab={tab}
-            data-nav-item
-            tabindex="0"
-          >
-            {label}
-          </button>
-        </div>
+        <.segmented_control
+          label="Type"
+          options={[{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
+          selected={@active_tab}
+          event="switch_tab"
+        />
 
         <GlassMenu.menu_select
           id="library-sort"

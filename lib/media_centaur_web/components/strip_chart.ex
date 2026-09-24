@@ -11,8 +11,8 @@ defmodule MediaCentaurWeb.Components.StripChart do
   patches it. Frames come from `MediaCentaurWeb.Components.StripChart.Feed`,
   whose moduledoc carries the frame contract.
 
-  The pills push `strip_chart:window` with `phx-value-id` and
-  `phx-value-window`; the feed handles that event and patches the URL.
+  The pill pushes `strip_chart:window` with `phx-value-id` and the
+  window as `choice`; the feed handles that event and patches the URL.
 
   Story: `/storybook/composites/strip_chart`.
   """
@@ -42,23 +42,14 @@ defmodule MediaCentaurWeb.Components.StripChart do
             <h2 class="card-title text-lg">{@title}</h2>
             <p :if={@lede} class="text-xs text-base-content/55">{@lede}</p>
           </div>
-          <div
-            class="tabs tabs-boxed segmented-control w-fit shrink-0"
-            role="group"
-            aria-label="Window"
-          >
-            <button
-              :for={window <- @windows}
-              type="button"
-              class={["tab cursor-pointer", window == @window && "tab-active"]}
-              aria-pressed={to_string(window == @window)}
-              phx-click="strip_chart:window"
-              phx-value-id={@id}
-              phx-value-window={window}
-            >
-              {window}
-            </button>
-          </div>
+          <.segmented_control
+            label="Window"
+            options={Enum.map(@windows, &{&1, Atom.to_string(&1)})}
+            selected={@window}
+            event="strip_chart:window"
+            event_value={%{"id" => @id}}
+            class="shrink-0"
+          />
         </div>
 
         <div
