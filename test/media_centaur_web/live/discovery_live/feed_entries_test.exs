@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
       assert Enum.map(entries, & &1.activity_id) == ["cleo-lists-1", "nick-recs-2", "mine"]
     end
 
-    test "the scope filters by author after the entry rule" do
+    test "the entry rule holds under every scope; the scope drops the other authors" do
       rows = [
         row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo", acted_at: ~U[2026-09-01 13:00:00Z]}),
         row(nil, %{tmdb_id: 2, kind: :review, id: "mine", acted_at: ~U[2026-09-01 12:00:00Z]}, %{
@@ -55,6 +55,21 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
       assert ids.(:everyone) == ["cleo", "mine", "mine-listing"]
       assert ids.(:friends) == ["cleo"]
       assert ids.(:you) == ["mine", "mine-listing"]
+    end
+
+    test "the scope is applied before the window, so has_older? and the count are the scope's" do
+      rows = [
+        row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo-1", acted_at: ~U[2026-09-01 13:00:00Z]}),
+        row("Nick", %{tmdb_id: 2, kind: :listing, id: "nick-2", acted_at: ~U[2026-09-01 12:00:00Z]}),
+        row("Sam", %{tmdb_id: 3, kind: :listing, id: "sam-3", acted_at: ~U[2026-09-01 11:00:00Z]}),
+        row(nil, %{tmdb_id: 4, kind: :review, id: "mine", acted_at: ~U[2026-09-01 10:00:00Z]}, %{
+          own?: true
+        })
+      ]
+
+      assert build(rows, scope: :everyone, window: 3).has_older?
+      refute build(rows, scope: :friends, window: 3).has_older?
+      assert [%FeedEntry{activity_id: "mine"}] = build(rows, scope: :you, window: 3).entries
     end
 
     test "one entry per action, newest first, never grouped" do

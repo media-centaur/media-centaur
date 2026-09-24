@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
       pubkey: pubkey,
       short_npub: pubkey && short_npub(pubkey),
       added_on: added_at && DateTime.to_date(added_at),
-      presence: presence(List.first(sorted), now),
+      presence: presence(List.first(sorted), now, if(pubkey, do: :friend, else: :you)),
       watched: Map.get(shelves, :watched, []),
       listed: Map.get(shelves, :listing, []),
       reviewed: Map.get(shelves, :review, [])
@@ -76,11 +76,11 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
     }
   end
 
-  defp presence(nil, _now), do: nil
+  defp presence(nil, _now, _subject), do: nil
 
-  defp presence(%{activity: %Activity{} = activity}, now) do
+  defp presence(%{activity: %Activity{} = activity}, now, subject) do
     %{
-      text: ActivityWords.presence(activity.kind, activity.episode, activity.title.name),
+      text: ActivityWords.presence(activity.kind, activity.episode, activity.title.name, subject),
       ago: Format.relative_ago(activity.acted_at, now: now),
       at: activity.acted_at
     }

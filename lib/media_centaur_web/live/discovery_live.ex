@@ -15,14 +15,20 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   Activities cannot know — `Library.ExternalIds.tmdb_owners/1`,
   `Discovery.rungs/0` and `Acquisition.TitleStates.for_refs/1`.
 
-  Feed (`/discovery`, the page's default; UIDR-038) — friends'
-  reviews and listings, one entry per action, newest first,
-  flat (`FeedEntries`), the newest `feed_window` of them and a *Show
-  older* control past that (`feed_show_older`). An entry's toolbar
-  holds the three verbs that live outside the modal: `feed_list` (the
+  Feed (`/discovery`, the page's default; UIDR-038, UIDR-045) — every
+  author's reviews and listings, friends' and your own, one row per
+  action, newest first, flat (`FeedEntries`), in one list surface; the
+  newest `feed_window` of them and a *Show older* control past that
+  (`feed_show_older`). The scope — Everyone, Friends, You — is the
+  `?scope=` param, read in `handle_params`, patched by the pill
+  (`feed_scope`) and carried by the Feed tab's link and every modal
+  path, so it survives a refresh, the sidebar and the modal. A row's
+  toolbar holds the verbs that live outside the modal: `feed_list` (the
   bottom rung as a toggle — List, Listed, or Following as plain state),
-  `feed_download` (the one-click plan, the modal's plain Download) and
-  `ignore_title` (the Ignored rung, with the Undo toast). Friends
+  `feed_download` (the one-click plan, the modal's plain Download) and,
+  on a friend's row, `ignore_title` (the Ignored rung, with the Undo
+  toast). An own row has neither Ignore nor Delete: it opens the modal
+  speaking for its action, where Delete lives. Friends
   (`/discovery/friends`) — one `Person` card per friend and one for You
   (`People`), each with their shelves, and the add-friend form below;
   identity and relays live on the Settings page's Social section, which
@@ -120,6 +126,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        feed: [],
        feed_has_older?: false,
        feed_window: FeedEntries.page_size(),
+       feed_scope: :everyone,
+       feed_ready?: false,
        people: [],
        expanded_people: MapSet.new(),
        ignore_undo: nil,
@@ -131,8 +139,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      |> load_activities()}
   end
 
+  # The scope is navigation state (UIDR-045): read off the URL, so a
+  # refresh, the sidebar's URL memory and the Feed tab's link all return
+  # to it. Re-projecting is pure; the rows were loaded on mount.
   @impl true
-  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+  def handle_params(params, _uri, socket) do
+    {:noreply,
+     socket
+     |> assign(:feed_scope, FeedEntries.parse_scope(params["scope"]))
+     |> project()}
+  end
 
   # --- TitleDetailHost ---
 
@@ -159,8 +175,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # The activity the modal speaks for: the one named, else the title's
   # newest friend review (it carries the text), else any friend's
   # activity for the title. Never an own act unless named — the You card
-  # names it; a watchlist title is not a place to narrate your own
-  # broadcasts back to you.
+  # and an own feed row name it; a watchlist title is not a place to
+  # narrate your own broadcasts back to you.
   defp activity_row(socket, ref, nil) do
     friends = Enum.filter(socket.assigns.activities, &(activity_ref(&1) == ref and not &1.own?))
     Enum.find(friends, &(&1.activity.kind == :review)) || List.first(friends)
@@ -195,6 +211,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_event("feed_show_older", _params, socket) do
     {:noreply, socket |> update(:feed_window, &(&1 + FeedEntries.page_size())) |> project()}
   end
+
+  # The pill patches the address; handle_params does the rest.
+  def handle_event("feed_scope", %{"choice" => choice}, socket),
+    do: {:noreply, push_patch(socket, to: feed_path(FeedEntries.parse_scope(choice)))}
 
   # The bottom rung as a toggle. Following is plain state: the ladder is
   # in the modal for that.
@@ -433,12 +453,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       FeedEntries.build(socket.assigns.activities,
         now: now,
         window: socket.assigns.feed_window,
-        scope: :everyone
+        scope: socket.assigns.feed_scope
       )
 
     assign(socket,
       feed: entries,
       feed_has_older?: has_older?,
+      feed_empty_reason: FeedEntries.empty_reason(socket.assigns.feed_scope, socket.assigns.feed_ready?),
       people:
         People.build(socket.assigns.activities, socket.assigns.friends,
           me: Identity.pubkey() != nil,
@@ -449,37 +470,57 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   defp load_friends(socket), do: assign(socket, :friends, Social.list_friends())
 
-  defp tabs(feed, items, friends),
+  defp tabs(feed, items, friends, scope),
     do: [
-      %Tab{id: :feed, label: "Feed", navigate: "/discovery", count: length(feed)},
+      %Tab{id: :feed, label: "Feed", navigate: feed_path(scope), count: length(feed)},
       %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
       %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends", count: length(friends)}
     ]
 
-  # Before a relay and a friend exist nothing can arrive, so the empty state
-  # names what is missing rather than implying nobody wrote. The two cases
-  # differ in what the reader can do next, which is why they are separate copy
-  # and why only one of them carries actions.
-  defp feed_empty_state(true), do: "Each friend's action is one entry, newest first."
+  # The Feed under a scope, Everyone being the bare address.
+  defp feed_path(scope), do: with_query("/discovery", FeedEntries.scope_query(scope))
 
-  defp feed_empty_state(_not_ready),
+  # The empty state's words per diagnosis (UIDR-034): before a relay and a
+  # friend exist nothing can arrive, so the copy names what is missing;
+  # the You scope needs neither, so its copy is about sharing.
+  defp feed_empty_headline(:everyone, :quiet),
+    do: "What you and your friends review and want to watch lands here"
+
+  defp feed_empty_headline(_scope, :nothing_shared), do: "What you review and list lands here"
+  defp feed_empty_headline(_scope, _reason), do: "What your friends review and want to watch lands here"
+
+  defp feed_empty_body(:not_ready),
     do:
       "Media Centaur reaches your friends over a relay. Add one, then add a friend by the public key they give you."
+
+  defp feed_empty_body(:quiet), do: "Each action is one row, newest first."
+
+  defp feed_empty_body(:nothing_shared),
+    do: "A review is always shared. A title you list is shared while Share your watchlist is on."
 
   defp current_path(:friends), do: "/discovery/friends"
   defp current_path(:watchlist), do: "/discovery/watchlist"
   defp current_path(_action), do: "/discovery"
 
   # Path back to the current tab; every modal open/close patch routes
-  # through this so leaving the modal never dumps the user on another tab.
+  # through this so leaving the modal never dumps the user on another
+  # tab, and the Feed's scope rides along so closing the modal lands on
+  # the same scope.
   defp discovery_path(socket, params) do
-    base = current_path(socket.assigns.live_action)
-
-    case URI.encode_query(params) do
-      "" -> base
-      query -> base <> "?" <> query
-    end
+    socket.assigns.live_action
+    |> current_path()
+    |> with_query(Keyword.merge(params, scope_params(socket.assigns)))
   end
+
+  # The host hands a keyword list (`title_detail_path/2`'s contract) and
+  # merging appends, so the modal's own params keep their order. Every
+  # caller passes a keyword list; convert at the call site if one ever
+  # passes a map.
+  defp scope_params(%{live_action: :feed, feed_scope: scope}), do: FeedEntries.scope_query(scope)
+  defp scope_params(_assigns), do: []
+
+  defp with_query(base, []), do: base
+  defp with_query(base, query), do: base <> "?" <> URI.encode_query(query)
 
   @impl true
   def render(assigns) do
@@ -517,20 +558,30 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         data-nav-default-zone="discovery"
         data-nav-transient-params="title,entity,view,activity"
       >
-        <div class="mx-auto w-full max-w-3xl space-y-4 pt-10">
+        <div class="mx-auto w-full max-w-4xl space-y-4 pt-10">
           <.page_header title="Discovery" class="px-1" />
 
-          <.tab_strip tabs={tabs(@feed, @items, @friends)} active={@live_action} />
+          <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+            <.tab_strip tabs={tabs(@feed, @items, @friends, @feed_scope)} active={@live_action} />
+            <.segmented_control
+              :if={@live_action == :feed}
+              id="feed-scope"
+              label="Scope"
+              options={[{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}]}
+              selected={@feed_scope}
+              event="feed_scope"
+            />
+          </div>
 
           <div :if={@live_action == :feed} class="space-y-2">
             <.empty_state
               :if={@feed == []}
               id="feed-empty"
               icon="hero-users"
-              headline="What your friends review and want to watch lands here"
+              headline={feed_empty_headline(@feed_scope, @feed_empty_reason)}
             >
-              {feed_empty_state(@feed_ready?)}
-              <:action :if={not @feed_ready?}>
+              {feed_empty_body(@feed_empty_reason)}
+              <:action :if={@feed_empty_reason == :not_ready}>
                 <.button
                   variant="primary"
                   size="sm"
@@ -541,7 +592,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                   Add a relay
                 </.button>
               </:action>
-              <:action :if={not @feed_ready?}>
+              <:action :if={@feed_empty_reason == :not_ready}>
                 <.button
                   variant="dismiss"
                   size="sm"
@@ -552,9 +603,22 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                   Add a friend
                 </.button>
               </:action>
+              <:action :if={@feed_empty_reason == :nothing_shared}>
+                <.button
+                  variant="dismiss"
+                  size="sm"
+                  navigate={~p"/settings?section=social"}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Settings → Social
+                </.button>
+              </:action>
             </.empty_state>
 
-            <FeedEntryRow.feed_entry_row :for={entry <- @feed} entry={entry} />
+            <div :if={@feed != []} id="feed-list" class="glass-inset overflow-hidden rounded-xl">
+              <FeedEntryRow.feed_entry_row :for={entry <- @feed} entry={entry} />
+            </div>
 
             <div :if={@feed_has_older?} class="flex justify-center pt-3">
               <.button id="feed-show-older" variant="dismiss" size="sm" phx-click="feed_show_older">
