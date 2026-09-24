@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Round 4 — the Feed's appearance</title><link rel="stylesheet" href="base.css"><style>
+body{padding:32px 40px}
+h1{font-size:24px;margin:0 0 4px}
+.lead{max-width:80ch;color:oklch(93% 0.01 264/.7);margin:0 0 28px}
+.dir{margin:0 0 40px}
+.dir h2{font-size:16px;font-weight:600;margin:0 0 4px;display:flex;align-items:baseline;gap:12px}
+.dir h2 a{color:var(--p);font-size:13px;font-weight:500;text-decoration:none}
+.dir p{margin:0 0 10px;max-width:90ch;color:oklch(93% 0.01 264/.7);font-size:13px}
+.shot{width:1600px;height:900px;overflow:hidden;border-radius:12px;border:1px solid var(--glass-border);box-shadow:0 8px 24px var(--glass-shadow);background:var(--base-100)}
+.shot iframe{width:1920px;height:1080px;border:0;transform:scale(.8333);transform-origin:0 0;pointer-events:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(1600px,1fr));gap:24px}
+</style></head><body>
+<h1>Round 4 — the Feed's appearance</h1>
+<p class="lead">Five directions, each a different structure and a different author mark, all on the same sixteen rows. Each frame is the top of the direction's page at 1920×1080, scaled to 0.83; open the link for the full page with every state. Brief: <code>BRIEF.md</code>. Diagnosis: <code>../2026-09-24-feed-appearance-design.md</code>.</p>
+
+<div class="dir"><h2>1 · Cinematic rows <a href="1-cinematic-rows/index.html">open</a></h2>
+<p>The row carries its backdrop under the house scrim; the identity tile (monogram · photo · filled primary for You) at the row's left. Bends UIDR-033 (the artwork is the row's subject), UIDR-038's chrome anti-pattern, UIDR-045 rule 3.</p>
+<div class="shot"><iframe src="1-cinematic-rows/index.html" loading="eager"></iframe></div></div>
+
+<div class="dir"><h2>2 · Poster gallery <a href="2-poster-gallery/index.html">open</a></h2>
+<p>Full width, poster-led cards in columns; the name as a byline with a stable per-friend hue on the text alone, You in the primary. Bends the colour-is-signal rule and UIDR-045 rule 3.</p>
+<div class="shot"><iframe src="2-poster-gallery/index.html" loading="eager"></iframe></div></div>
+
+<div class="dir"><h2>3 · Author runs <a href="3-author-runs/index.html">open</a></h2>
+<p>Adjacent rows by one author collapse under a heading (tile, name, time) with the actions as a strip of poster cards; own runs on a primary tint. Bends UIDR-038 rule 2 (flat) and its grouped-rows anti-pattern, UIDR-045 rule 3.</p>
+<div class="shot"><iframe src="3-author-runs/index.html" loading="eager"></iframe></div></div>
+
+<div class="dir"><h2>4 · Front page <a href="4-front-page/index.html">open</a></h2>
+<p>A size ramp by recency: the newest action as a lead backdrop card, the next few as backdrop cards, the rest as the list; still flat, still one entry per action; the identity tile throughout. Bends UIDR-033, UIDR-045 rule 3, and asks whether a size ramp is "flat".</p>
+<div class="shot"><iframe src="4-front-page/index.html" loading="eager"></iframe></div></div>
+
+<div class="dir"><h2>5 · Tile column <a href="5-tile-column/index.html">open</a></h2>
+<p>The shipped list with a tile column that marks the first row of an author's run, a larger poster and a soft glow of the backdrop behind it. The least change; bends UIDR-045 rule 3 and UIDR-038's chrome anti-pattern only.</p>
+<div class="shot"><iframe src="5-tile-column/index.html" loading="eager"></iframe></div></div>
+</body></html>

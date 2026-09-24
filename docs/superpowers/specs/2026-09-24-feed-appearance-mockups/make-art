@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Regenerate the round-4 mockup artwork from the showcase's PD/CC library.
+# Output is git-ignored (art/); run from anywhere. Needs `vips`.
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+src="$here/../../../../priv/showcase/images"
+out="$here/art"
+mkdir -p "$out"
+# slug  image-dir-uuid
+while read -r slug uuid; do
+  [ -z "$slug" ] && continue
+  vips thumbnail "$src/$uuid/poster.jpg" "$out/$slug-poster.jpg[Q=84,strip]" 400 --height 600 >/dev/null
+  vips thumbnail "$src/$uuid/backdrop.jpg" "$out/$slug-backdrop.jpg[Q=80,strip]" 1600 >/dev/null
+  echo "$slug"
+done <<'LIST'
+sintel 94bababc-b8c3-4fef-ab6b-6558d18812c3
+charade a07ef8b6-65d5-4a41-a1e7-9f11abf9d6b0
+metropolis 2d032d3e-bbbe-42dc-a88a-87e620cea470
+big-buck-bunny 5664441e-187f-475e-8eed-9ad50b3a8d44
+night-of-the-living-dead 299a741f-9cf1-4c7a-af0c-6cde79faaedb
+pioneer-one ee518fe1-2c71-40dd-86d1-1c330c22982b
+tears-of-steel 7aeec4d2-f0d4-4f5a-9c28-d1d0690f99e1
+nosferatu 31614f13-9cf4-411f-8b47-0d40b7521eef
+spring 7da32415-bb84-44e1-8b0c-28c1b463685c
+the-general a69dfbf5-ceef-4412-a01b-79d97aef38bb
+cosmos-laundromat de2d2fd0-c5f9-4f32-92aa-5054d7e52040
+carnival-of-souls e1f68c32-bc18-449d-ac2a-0dbc9430ac85
+sprite-fright a69d96bc-82c0-43e3-906e-0aa88e81c513
+caligari 13378d04-4646-40ed-b39e-aed8cec1b5d9
+coffee-run 51b2cb98-c461-450e-9e0c-70e7d91ea0cc
+one-step-beyond 9d3c4bc9-86e8-432d-b73d-9557b6c336e9
+LIST
+du -sh "$out"

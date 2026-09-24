@@ -1,0 +1,374 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>5 · Tile column</title><style>
+:root{--pad:16px;--tile:40px;--tilecol:56px;--pw:80px;--ph:120px;--gap:16px;--tw:72px;--rowpad:12px}
+h1{margin-bottom:12px}
+
+/* ---- tab strip: the zone tabs and the scope pill share one line ---- */
+.tabs{align-items:center;margin:0 4px 14px;min-height:36px}
+.tab{padding:9px 0 7px}
+.tabs .seg{margin-left:auto}
+
+/* ---- the list surface: one inset, hairlines between rows, the radius clips the hover fill ---- */
+.feed{overflow:hidden}
+.row{position:relative;isolation:isolate;display:flex;align-items:flex-start;padding:var(--rowpad) var(--pad);border-bottom:1px solid var(--hair);cursor:pointer;overflow:hidden}
+.row:last-child{border-bottom:0}
+.row:first-child{border-radius:12px 12px 0 0}.row:last-child{border-radius:0 0 12px 12px}
+.row:hover,.row.hovered{background:oklch(93% 0.01 264/.055)}
+.row.cursor{outline:2px solid var(--p);outline-offset:-2px}
+
+/* ---- the tile column: 40px tile + 16px gap; drawn on the first row of an author's adjacent run, empty on the rest ---- */
+.cell{flex:none;width:var(--tilecol)}
+.mono.own{background:var(--p);color:oklch(99% 0 0)}
+.mono.own img{box-shadow:0 0 0 2px var(--p)}
+
+/* ---- the poster and its glow: the title's backdrop, blurred, masked to an ellipse, at low alpha, behind the poster only ---- */
+.art{position:relative;flex:none;width:var(--pw);height:var(--ph);margin-right:var(--gap)}
+.glow{position:absolute;z-index:-1;left:-60px;top:-28px;width:200px;height:176px;background:center/cover no-repeat;filter:blur(16px) saturate(1.2);opacity:.7;
+ -webkit-mask-image:radial-gradient(closest-side,#000 25%,transparent 100%);mask-image:radial-gradient(closest-side,#000 25%,transparent 100%)}
+.art img.poster{position:relative;width:100%;height:100%;box-shadow:0 2px 10px oklch(0% 0 0/.45)}
+.art .poster-empty{width:100%;height:100%}
+
+.body{flex:1;min-width:0;display:flex;flex-direction:column;min-height:var(--ph)}
+.when{flex:none;width:var(--tw);margin-left:var(--gap);text-align:right;font-size:13px;line-height:24px;color:oklch(93% 0.01 264/.55);font-variant-numeric:tabular-nums}
+
+/* line 1 · who did what, the sentiment glyph in the text run */
+.l1{font-size:16px;line-height:24px;color:oklch(93% 0.01 264/.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l1 .who{font-weight:500;color:oklch(93% 0.01 264/.92)}
+.l1 .who.you{color:var(--p)}
+.l1 .g{width:14px;height:14px;vertical-align:middle;margin-left:2px}
+.l1 .g.love{color:var(--love)}
+/* line 2 · title + year: the row's one confident line */
+.l2{display:flex;align-items:baseline;gap:8px;font-size:18px;line-height:26px;margin-top:1px}
+.l2 b{font-weight:600;color:var(--bc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.l2 .y{font-size:13px;color:oklch(93% 0.01 264/.55);flex:none}
+/* line 3 · the review text, measure-capped, clamped at four lines */
+.l3{margin:5px 0 5px;max-width:72ch;font-size:15px;line-height:22px;color:oklch(93% 0.01 264/.7);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+
+/* ---- toolbar · fixed 20px seat at the foot of the text block, spanning under the time column so Ignore sits on the time axis; empty at rest, fades in ---- */
+.bar{display:flex;align-items:center;gap:2px;height:20px;margin:auto calc(-1 * (var(--gap) + var(--tw)) - 6px) 0 -6px;opacity:0;transition:opacity .12s;font-size:13px;color:oklch(93% 0.01 264/.7)}
+.row:hover .bar,.row.hovered .bar,.row.cursor .bar{opacity:1}
+.v{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 6px;border-radius:6px;white-space:nowrap}
+.v svg{width:14px;height:14px;flex:none}
+.v:hover{color:oklch(93% 0.01 264/.92);background:oklch(93% 0.01 264/.07)}
+.v.on{color:oklch(93% 0.01 264/.92)}
+.v.end{margin-left:auto}
+.st{display:inline-flex;align-items:center;height:20px;padding:0 6px;white-space:nowrap;color:oklch(93% 0.01 264/.6)}
+.st .w{position:relative}
+.st .w.prog:after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:3px;border-radius:2px;background:linear-gradient(90deg,oklch(93% 0.01 264/.55) var(--pct,45%),oklch(93% 0.01 264/.12) var(--pct,45%))}
+
+/* after the list, on the reading edge */
+.older{padding:12px 0 0 calc(var(--pad) + var(--tilecol) + var(--pw) + var(--gap) - 10px)}
+
+/* the You-empty state, on the reading edge inside the list surface */
+.empty{padding:28px var(--pad) 32px calc(var(--pad) + var(--tilecol) + var(--pw) + var(--gap))}
+.empty .eh{font-size:16px;font-weight:600;line-height:23px}
+.empty .eb{margin:6px 0 14px;max-width:56ch;font-size:14px;line-height:1.5;color:oklch(93% 0.01 264/.7)}
+.empty .btn{margin-left:-10px}
+
+.legend{margin:34px 4px 0;max-width:80ch;color:oklch(93% 0.01 264/.7)}
+</style></head><body><div class="frame">
+<aside class="sidebar"><i></i><i></i><i class="on"></i><i></i><i></i><i class="gap"></i><i></i></aside>
+<main><div class="content">
+<h1>Discovery</h1>
+
+<!-- icon sprites: monochrome, currentColor. 14px in the toolbar, 13px (x-height-centred) in the sentence. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-bm" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-bm-on" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v13M5.5 11.5 12 18l6.5-6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8.5-5.4-8.5-11A4.6 4.6 0 0 1 12 7.4 4.6 4.6 0 0 1 20.5 10c0 5.6-8.5 11-8.5 11z" fill="currentColor"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/></g></symbol>
+</defs></svg>
+
+<!-- ============ 1 · Everyone ============ -->
+<div class="state first"><span class="sec">1 · Everyone</span><span class="keys">sixteen rows, newest first · the tile on the first row of a run, the cell empty after it (rows 3–4) · the count follows the scope</span></div>
+<div class="tabs"><span class="tab active">Feed<span class="n">16</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">30</span></span><span class="seg"><span class="opt on">Everyone</span><span class="opt">Friends</span><span class="opt">You</span></span></div>
+<div class="feed inset">
+
+<div class="row"><div class="cell"><span class="mono">C</span></div><div class="art"><span class="glow" style="background-image:url(../art/sintel-backdrop.jpg)"></span><img class="poster" src="../art/sintel-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Cleo</span> wants to watch</div>
+<div class="l2"><b>Sintel</b><span class="y">2010</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">12m ago</div></div>
+
+<div class="row own"><div class="cell"><span class="mono own">Y</span></div><div class="art"><span class="glow" style="background-image:url(../art/charade-backdrop.jpg)"></span><img class="poster" src="../art/charade-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>Charade</b><span class="y">1963</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span></div>
+</div><div class="when">1h ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">N</span></div><div class="art"><span class="glow" style="background-image:url(../art/charade-backdrop.jpg)"></span><img class="poster" src="../art/charade-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Nick</span> reviewed <svg class="g"><use href="#i-up"/></svg></div>
+<div class="l2"><b>Charade</b><span class="y">1963</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div>
+</div><div class="when">2h ago</div></div>
+
+<div class="row"><div class="cell"></div><div class="art"><span class="glow" style="background-image:url(../art/metropolis-backdrop.jpg)"></span><img class="poster" src="../art/metropolis-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Nick</span> wants to watch</div>
+<div class="l2"><b>Metropolis</b><span class="y">1927</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">2h ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">B</span></div><div class="art"><span class="glow" style="background-image:url(../art/pioneer-one-backdrop.jpg)"></span><img class="poster" src="../art/pioneer-one-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Bob</span> reviewed</div>
+<div class="l2"><b>Pioneer One</b><span class="y">2010</span></div>
+<p class="l3">Slow start, give it three episodes.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div>
+</div><div class="when">1d ago</div></div>
+
+<div class="row own"><div class="cell"><span class="mono own">Y</span></div><div class="art"><span class="glow" style="background-image:url(../art/big-buck-bunny-backdrop.jpg)"></span><img class="poster" src="../art/big-buck-bunny-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> want to watch</div>
+<div class="l2"><b>Big Buck Bunny</b><span class="y">2008</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div>
+</div><div class="when">3d ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">S</span></div><div class="art"><span class="glow" style="background-image:url(../art/big-buck-bunny-backdrop.jpg)"></span><img class="poster" src="../art/big-buck-bunny-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Sam</span> wants to watch</div>
+<div class="l2"><b>Big Buck Bunny</b><span class="y">2008</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">3d ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">A</span></div><div class="art"><span class="glow" style="background-image:url(../art/night-of-the-living-dead-backdrop.jpg)"></span><img class="poster" src="../art/night-of-the-living-dead-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Ada</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>Night of the Living Dead</b><span class="y">1968</span></div>
+<p class="l3">The farmhouse is the whole film. Every argument in it is still happening somewhere.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">4d ago</div></div>
+
+<div class="row own"><div class="cell"><span class="mono own">Y</span></div><div class="art"><span class="glow" style="background-image:url(../art/tears-of-steel-backdrop.jpg)"></span><img class="poster" src="../art/tears-of-steel-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> reviewed <svg class="g"><use href="#i-down"/></svg></div>
+<div class="l2"><b>Tears of Steel</b><span class="y">2012</span></div>
+<p class="l3">Not for me. The score does all the work the script should.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span></div>
+</div><div class="when">6d ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">F</span></div><div class="art"><span class="glow" style="background-image:url(../art/nosferatu-backdrop.jpg)"></span><img class="poster" src="../art/nosferatu-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Femi</span> wants to watch</div>
+<div class="l2"><b>Nosferatu</b><span class="y">1922</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">6d ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">C</span></div><div class="art"><span class="glow" style="background-image:url(../art/pioneer-one-backdrop.jpg)"></span><img class="poster" src="../art/pioneer-one-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Cleo</span> reviewed</div>
+<div class="l2"><b>Pioneer One</b><span class="y">2010</span></div>
+<p class="l3">Fine.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div>
+</div><div class="when">1w ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">B</span></div><div class="art"><span class="glow" style="background-image:url(../art/spring-backdrop.jpg)"></span><img class="poster" src="../art/spring-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Bob</span> wants to watch</div>
+<div class="l2"><b>Spring</b><span class="y">2019</span></div>
+<div class="bar"><span class="st"><span class="w">Tracking</span></span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">2w ago</div></div>
+
+<div class="row own"><div class="cell"><span class="mono own">Y</span></div><div class="art"><span class="glow" style="background-image:url(../art/the-general-backdrop.jpg)"></span><img class="poster" src="../art/the-general-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>The General</b><span class="y">1926</span></div>
+<p class="l3">Every gag is a stunt and every stunt is a gag. A century old and it still moves faster than most things made this year.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div>
+</div><div class="when">2w ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">N</span></div><div class="art"><span class="glow" style="background-image:url(../art/cosmos-laundromat-backdrop.jpg)"></span><img class="poster" src="../art/cosmos-laundromat-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Nick</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>Cosmos Laundromat</b><span class="y">2015</span></div>
+<p class="l3">Fifteen minutes, and I thought about it for a week.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">2w ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">S</span></div><div class="art"><span class="glow" style="background-image:url(../art/carnival-of-souls-backdrop.jpg)"></span><img class="poster" src="../art/carnival-of-souls-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Sam</span> reviewed <svg class="g"><use href="#i-up"/></svg></div>
+<div class="l2"><b>Carnival of Souls</b><span class="y">1962</span></div>
+<p class="l3">Cheap, strange, and it gets under the skin.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">3w ago</div></div>
+
+<div class="row own"><div class="cell"><span class="mono own">Y</span></div><div class="art"><span class="glow" style="background-image:url(../art/sprite-fright-backdrop.jpg)"></span><img class="poster" src="../art/sprite-fright-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> want to watch</div>
+<div class="l2"><b>Sprite Fright</b><span class="y">2024</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div>
+</div><div class="when">3w ago</div></div>
+
+</div>
+<div class="older"><button class="btn ghost">Show older</button></div>
+
+<!-- ============ 2 · Friends ============ -->
+<div class="state"><span class="sec">2 · Friends</span><span class="keys">own rows gone · Feed 11 · the first six shown · Nick's run keeps one tile</span></div>
+<div class="tabs"><span class="tab active">Feed<span class="n">11</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">30</span></span><span class="seg"><span class="opt">Everyone</span><span class="opt on">Friends</span><span class="opt">You</span></span></div>
+<div class="feed inset">
+
+<div class="row"><div class="cell"><span class="mono">C</span></div><div class="art"><span class="glow" style="background-image:url(../art/sintel-backdrop.jpg)"></span><img class="poster" src="../art/sintel-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Cleo</span> wants to watch</div>
+<div class="l2"><b>Sintel</b><span class="y">2010</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">12m ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">N</span></div><div class="art"><span class="glow" style="background-image:url(../art/charade-backdrop.jpg)"></span><img class="poster" src="../art/charade-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Nick</span> reviewed <svg class="g"><use href="#i-up"/></svg></div>
+<div class="l2"><b>Charade</b><span class="y">1963</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div>
+</div><div class="when">2h ago</div></div>
+
+<div class="row"><div class="cell"></div><div class="art"><span class="glow" style="background-image:url(../art/metropolis-backdrop.jpg)"></span><img class="poster" src="../art/metropolis-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Nick</span> wants to watch</div>
+<div class="l2"><b>Metropolis</b><span class="y">1927</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">2h ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">B</span></div><div class="art"><span class="glow" style="background-image:url(../art/pioneer-one-backdrop.jpg)"></span><img class="poster" src="../art/pioneer-one-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Bob</span> reviewed</div>
+<div class="l2"><b>Pioneer One</b><span class="y">2010</span></div>
+<p class="l3">Slow start, give it three episodes.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div>
+</div><div class="when">1d ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">S</span></div><div class="art"><span class="glow" style="background-image:url(../art/big-buck-bunny-backdrop.jpg)"></span><img class="poster" src="../art/big-buck-bunny-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Sam</span> wants to watch</div>
+<div class="l2"><b>Big Buck Bunny</b><span class="y">2008</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">3d ago</div></div>
+
+<div class="row"><div class="cell"><span class="mono">A</span></div><div class="art"><span class="glow" style="background-image:url(../art/night-of-the-living-dead-backdrop.jpg)"></span><img class="poster" src="../art/night-of-the-living-dead-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Ada</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>Night of the Living Dead</b><span class="y">1968</span></div>
+<p class="l3">The farmhouse is the whole film. Every argument in it is still happening somewhere.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">4d ago</div></div>
+
+</div>
+
+<!-- ============ 3 · You ============ -->
+<div class="state"><span class="sec">3 · You</span><span class="keys">the five own rows · Feed 5 · one author, so one run: the tile once, four empty cells</span></div>
+<div class="tabs"><span class="tab active">Feed<span class="n">5</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">30</span></span><span class="seg"><span class="opt">Everyone</span><span class="opt">Friends</span><span class="opt on">You</span></span></div>
+<div class="feed inset">
+
+<div class="row own"><div class="cell"><span class="mono own">Y</span></div><div class="art"><span class="glow" style="background-image:url(../art/charade-backdrop.jpg)"></span><img class="poster" src="../art/charade-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>Charade</b><span class="y">1963</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span></div>
+</div><div class="when">1h ago</div></div>
+
+<div class="row own"><div class="cell"></div><div class="art"><span class="glow" style="background-image:url(../art/big-buck-bunny-backdrop.jpg)"></span><img class="poster" src="../art/big-buck-bunny-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> want to watch</div>
+<div class="l2"><b>Big Buck Bunny</b><span class="y">2008</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div>
+</div><div class="when">3d ago</div></div>
+
+<div class="row own"><div class="cell"></div><div class="art"><span class="glow" style="background-image:url(../art/tears-of-steel-backdrop.jpg)"></span><img class="poster" src="../art/tears-of-steel-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> reviewed <svg class="g"><use href="#i-down"/></svg></div>
+<div class="l2"><b>Tears of Steel</b><span class="y">2012</span></div>
+<p class="l3">Not for me. The score does all the work the script should.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span></div>
+</div><div class="when">6d ago</div></div>
+
+<div class="row own"><div class="cell"></div><div class="art"><span class="glow" style="background-image:url(../art/the-general-backdrop.jpg)"></span><img class="poster" src="../art/the-general-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>The General</b><span class="y">1926</span></div>
+<p class="l3">Every gag is a stunt and every stunt is a gag. A century old and it still moves faster than most things made this year.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div>
+</div><div class="when">2w ago</div></div>
+
+<div class="row own"><div class="cell"></div><div class="art"><span class="glow" style="background-image:url(../art/sprite-fright-backdrop.jpg)"></span><img class="poster" src="../art/sprite-fright-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> want to watch</div>
+<div class="l2"><b>Sprite Fright</b><span class="y">2024</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div>
+</div><div class="when">3w ago</div></div>
+
+</div>
+
+<!-- ============ 4 · You, empty ============ -->
+<div class="state"><span class="sec">4 · You, empty</span><span class="keys">nothing shared yet · the count is omitted at zero</span></div>
+<div class="tabs"><span class="tab active">Feed</span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">30</span></span><span class="seg"><span class="opt">Everyone</span><span class="opt">Friends</span><span class="opt on">You</span></span></div>
+<div class="feed inset"><div class="empty">
+<div class="eh">What you review and list lands here</div>
+<p class="eb">A review is always shared. A title you list is shared while Share your watchlist is on.</p>
+<button class="btn ghost">Settings → Social</button>
+</div></div>
+
+<!-- ============ 5 · a friend's row hovered ============ -->
+<div class="state"><span class="sec">5 · A friend's row hovered</span><span class="keys">5.5% fill on the row · List · Download · Ignore in the 20px seat · the row's height does not change · the glow does not change</span></div>
+<div class="feed inset">
+<div class="row hovered"><div class="cell"><span class="mono">C</span></div><div class="art"><span class="glow" style="background-image:url(../art/sintel-backdrop.jpg)"></span><img class="poster" src="../art/sintel-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Cleo</span> wants to watch</div>
+<div class="l2"><b>Sintel</b><span class="y">2010</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">12m ago</div></div>
+</div>
+
+<div class="state"><span class="sec">5 · continued</span><span class="keys">the seat's plain states: Tracking above List · Downloading with the 3px hairline · In library</span></div>
+<div class="feed inset">
+<div class="row hovered"><div class="cell"><span class="mono">B</span></div><div class="art"><span class="glow" style="background-image:url(../art/spring-backdrop.jpg)"></span><img class="poster" src="../art/spring-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Bob</span> wants to watch</div>
+<div class="l2"><b>Spring</b><span class="y">2019</span></div>
+<div class="bar"><span class="st"><span class="w">Tracking</span></span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">2w ago</div></div>
+
+<div class="row hovered"><div class="cell"><span class="mono">F</span></div><div class="art"><span class="glow" style="background-image:url(../art/tears-of-steel-backdrop.jpg)"></span><img class="poster" src="../art/tears-of-steel-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Femi</span> wants to watch</div>
+<div class="l2"><b>Tears of Steel</b><span class="y">2012</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span><span class="v end">Ignore</span></div>
+</div><div class="when">5d ago</div></div>
+
+<div class="row hovered"><div class="cell"><span class="mono">C</span></div><div class="art"><span class="glow" style="background-image:url(../art/pioneer-one-backdrop.jpg)"></span><img class="poster" src="../art/pioneer-one-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Cleo</span> reviewed</div>
+<div class="l2"><b>Pioneer One</b><span class="y">2010</span></div>
+<p class="l3">Fine.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div>
+</div><div class="when">1w ago</div></div>
+</div>
+
+<!-- ============ 6 · an own row hovered ============ -->
+<div class="state"><span class="sec">6 · An own row hovered</span><span class="keys">Listed (filled) · In library · no Ignore, no Delete: withdrawing is the modal's</span></div>
+<div class="feed inset">
+<div class="row own hovered"><div class="cell"><span class="mono own">Y</span></div><div class="art"><span class="glow" style="background-image:url(../art/charade-backdrop.jpg)"></span><img class="poster" src="../art/charade-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>Charade</b><span class="y">1963</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span></div>
+</div><div class="when">1h ago</div></div>
+</div>
+
+<!-- ============ 7 · the keyboard cursor on a row ============ -->
+<div class="state"><span class="sec">7 · The keyboard cursor on a row</span><span class="keys">2px primary ring inside the row, following the surface's radius · toolbar shown · Enter opens the title</span></div>
+<div class="feed inset">
+<div class="row cursor"><div class="cell"><span class="mono">N</span></div><div class="art"><span class="glow" style="background-image:url(../art/charade-backdrop.jpg)"></span><img class="poster" src="../art/charade-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Nick</span> reviewed <svg class="g"><use href="#i-up"/></svg></div>
+<div class="l2"><b>Charade</b><span class="y">1963</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div>
+</div><div class="when">2h ago</div></div>
+</div>
+
+<!-- ============ 8 · a friend with a photo ============ -->
+<div class="state"><span class="sec">8 · A friend with a photo</span><span class="keys">the identity tile's photo state: a circular crop, object-fit cover · the monogram is the default when there is none</span></div>
+<div class="feed inset">
+<div class="row"><div class="cell"><span class="mono"><img src="../art/one-step-beyond-backdrop.jpg" alt="" style="object-position:52% 32%"></span></div><div class="art"><span class="glow" style="background-image:url(../art/night-of-the-living-dead-backdrop.jpg)"></span><img class="poster" src="../art/night-of-the-living-dead-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who">Ada</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>Night of the Living Dead</b><span class="y">1968</span></div>
+<p class="l3">The farmhouse is the whole film. Every argument in it is still happening somewhere.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">4d ago</div></div>
+</div>
+
+<div class="state"><span class="sec">8 · continued</span><span class="keys">an own row with a photo: the photo in a 2px primary ring · the word You stays</span></div>
+<div class="feed inset">
+<div class="row own"><div class="cell"><span class="mono own"><img src="../art/caligari-backdrop.jpg" alt="" style="object-position:19% 62%"></span></div><div class="art"><span class="glow" style="background-image:url(../art/the-general-backdrop.jpg)"></span><img class="poster" src="../art/the-general-poster.jpg" alt=""></div><div class="body">
+<div class="l1"><span class="who you">You</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="l2"><b>The General</b><span class="y">1926</span></div>
+<p class="l3">Every gag is a stunt and every stunt is a gag. A century old and it still moves faster than most things made this year.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div>
+</div><div class="when">2w ago</div></div>
+</div>
+
+<!-- ============ 9 · a row whose title has no artwork yet ============ -->
+<div class="state"><span class="sec">9 · No artwork yet</span><span class="keys">no poster, no glow · the quiet 10% fill at the poster's size · nothing else moves</span></div>
+<div class="feed inset">
+<div class="row"><div class="cell"><span class="mono">S</span></div><div class="art"><div class="poster-empty"></div></div><div class="body">
+<div class="l1"><span class="who">Sam</span> wants to watch</div>
+<div class="l2"><b>Coffee Run</b><span class="y">2020</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div>
+</div><div class="when">2h ago</div></div>
+</div>
+
+<p class="legend"><b>5 · Tile column.</b> The shipped list surface, unchanged in its bones: one inset, hairlines, poster left, three lines, the time down the right edge, the toolbar in its seat. Three changes. A 56px column on the left holds the identity tile — the Friends tab's monogram, filled primary for You — drawn on the first row of an author's adjacent run and left empty on the rows that follow, so a run reads as one person's block. The poster grows to 80×120. The title's backdrop is present only as a blurred, masked glow behind the poster, in the artwork's own colour at low alpha: the row's own subject, never a band.</p>
+</div></main></div></body></html>
