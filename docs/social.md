@@ -279,19 +279,24 @@ disagree with the owner about what a message meant.
 project one enriched list — every live activity with its actor
 (`Activities.list_activities/0`) — two ways (UIDR-038):
 
-- **Feed** — `DiscoveryLive.FeedEntries`: friends' reviews and
-  listings, one `Components.Discovery.FeedEntry` per action, newest
-  first, flat, windowed (50, then *Show older*). Watched, own, former
-  friends' and ignored-title rows make no entry. `FeedEntryCard` renders
-  one entry with its hover toolbar — `feed_list` (the bottom rung as a
-  toggle; Following as plain state), `feed_download` (the modal's plain
-  Download, same `Plans.plan_title/2` and flash) and `ignore_title`
-  (with the Undo toast). Friend provenance for a listing or an ignore is
+- **Feed** — `DiscoveryLive.FeedEntries`: every author's reviews and
+  listings, friends' and this identity's own, one
+  `Components.Discovery.FeedEntry` per action, newest first, flat,
+  windowed (50, then *Show older*), filtered by the `?scope=` param
+  (Everyone, Friends, You — `parse_scope/1`; UIDR-045). Watched, former
+  friends' and ignored-title rows make no row for any author.
+  `FeedEntryRow` renders one row for the page's one inset list surface,
+  with its hover toolbar — `feed_list` (the bottom rung as a toggle;
+  Following as plain state), `feed_download` (the modal's plain
+  Download, same `Plans.plan_title/2` and flash) and, on a friend's row,
+  `ignore_title` (with the Undo toast); an own row has no Ignore and no
+  Delete — it opens the modal for its action, where Delete lives.
+  Friend provenance for a listing or an ignore is
   `TitleIntent.friend_provenance/2`, the same spelling the modal uses.
 - **Friends** — `DiscoveryLive.People` folds the list into one
   `Components.Discovery.Person` per friend and one for You (when an
   identity exists), each with its watched / listed / reviewed
-  shelves and a presence line (`DiscoveryLive.ActivityWords.presence/3`);
+  shelves and a presence line (`DiscoveryLive.ActivityWords.presence/4`);
   `Components.Discovery.PersonCard` renders it. Every poster and name
   opens the title modal with `?title=<ref>&activity=<id>` so the modal
   speaks for that act; Delete on an own activity → `Activities.delete/1`
@@ -303,8 +308,8 @@ or listed — is one component everywhere but the Feed, the pennant
 (`Components.Title.Pennant`, UIDR-037, six flags per UIDR-040; the
 sentiment glyphs are `Components.Title.Sentiment`'s), fed by
 `Activities.friend_activity_for/1` on the watchlist rows, the Incoming
-search rows and both detail modals. A feed entry flies none: each
-friend's action is its own entry there. See
+search rows and both detail modals. A feed row flies none: each
+action is its own row there. See
 `docs/plans/2026-09-05-recommendation-pennant.md` for the original
 decisions (written for the two-valued recommendation sentiment; UIDR-040
 is the current rule).
