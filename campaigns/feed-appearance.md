@@ -35,9 +35,12 @@ This campaign adds:
 
 ## Status
 
-Rounds 4 and 5 complete in the night of 2026-09-24; round 6 (one
-assembled page, `F-cinematic-feed`) closes the night; awaiting the
-owner's decision in the morning. Steps 1–3
+Night of 2026-09-24/25 complete: rounds 4, 5 and 6 done; the
+proposed page is `F-cinematic-feed` (its REASONING's "What the user
+sees" table is the spec's draft); the review artifact carries every
+page with its reasoning and a morning brief. Awaiting the owner's
+decision: ship F as assembled; full width for all of Discovery; the
+Watchlist next; hover ease. Steps 1–3
 done: the diagnosis is in the spec's Problem section
 (`docs/superpowers/specs/2026-09-24-feed-appearance-design.md`); five
 directions are built under

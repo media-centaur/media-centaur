@@ -85,8 +85,20 @@ type and composition, not a marker added to the shipped row.
 
 ## What the user sees
 
-*To follow the mockup round: the chosen direction, with every size,
-tone and device named.*
+*Draft, pending the owner's decision:* the proposed page is
+`2026-09-24-feed-appearance-mockups/F-cinematic-feed/` and its
+`REASONING.md` opens with the complete table of sizes, alphas, gaps,
+the crop rule, the scrim recipes, the identity tile's four states and
+the toolbar seats. That table becomes this section, verbatim, once the
+owner chooses. In one paragraph: the Feed is a full-width column of
+**bands**, one per action, 6px apart on the page ground, each carrying
+its title's backdrop in a 900px box under the base-hue scrim with the
+identity tile, the poster, the sentence, the title and the review in a
+dark text zone to its left and the time at that zone's edge; the newest
+action is the **lead**, the same unit at 340px with the still boxed
+from the text zone's edge. Every backdrop is cropped by one rule
+(`object-position: 50% 30%`, measured on real backdrops), never by
+hand.
 
 ## The model
 
