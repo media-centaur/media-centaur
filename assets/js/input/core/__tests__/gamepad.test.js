@@ -842,3 +842,136 @@ describe("GamepadSource", () => {
     })
   })
 })
+
+/**
+ * Firefox on Linux does not always remap a pad to the standard layout: it
+ * reports the raw evdev shape, which for an Xbox pad is 11 buttons and 8 axes.
+ * The D-pad arrives on hat axes 6/7 rather than buttons 12–15, and Start sits
+ * at button 7 where the standard layout puts left-stick click at 9.
+ *
+ * Snapshot shape per Mozilla bug 1643358. See
+ * docs/plans/2026-09-24-firefox-parity-and-controller-layout.md.
+ */
+function makeLinuxEvdevGamepad(overrides = {}) {
+  return {
+    connected: true,
+    id: "045e-028e-Microsoft X-Box 360 pad",
+    mapping: "",
+    buttons: Array.from({ length: 11 }, () => ({ pressed: false })),
+    // [leftX, leftY, leftTrigger, rightX, rightY, rightTrigger, hatX, hatY]
+    axes: [0, 0, -1, 0, 0, -1, 0, 0],
+    ...overrides,
+  }
+}
+
+describe("non-standard controller layout (Firefox on Linux)", () => {
+  let env, actions, controllerChanges, source
+
+  function connect(gamepad) {
+    source.start()
+    env._setGamepad(0, gamepad)
+    env._dispatchEvent("gamepadconnected", { gamepad })
+    env._tickRAF()
+    actions.length = 0
+  }
+
+  beforeEach(() => {
+    env = createMockGamepadEnv()
+    actions = []
+    controllerChanges = []
+    source = new GamepadSource({
+      getGamepads: env.getGamepads,
+      requestAnimationFrame: env.requestAnimationFrame,
+      cancelAnimationFrame: env.cancelAnimationFrame,
+      addEventListener: env.addEventListener,
+      removeEventListener: env.removeEventListener,
+      onAction: (action) => actions.push(action),
+      onInputDetected: () => {},
+      onControllerChanged: (type) => controllerChanges.push(type),
+      deadzone: 0.3,
+    })
+  })
+
+  test("kernel device name is recognised as an Xbox pad", () => {
+    // Firefox reports the evdev name, which spells it "X-Box".
+    expect(detectControllerType("045e-028e-Microsoft X-Box 360 pad")).toBe("xbox")
+    expect(detectControllerType("045e-02ea-Microsoft X-Box One S pad")).toBe("xbox")
+  })
+
+  test("hat axes drive the D-pad", () => {
+    const gamepad = makeLinuxEvdevGamepad()
+    connect(gamepad)
+
+    gamepad.axes[7] = 1
+    env._tickRAF()
+    expect(actions).toEqual([Action.NAVIGATE_DOWN])
+
+    actions.length = 0
+    gamepad.axes[7] = -1
+    env._tickRAF()
+    expect(actions).toEqual([Action.NAVIGATE_UP])
+
+    actions.length = 0
+    gamepad.axes[7] = 0
+    gamepad.axes[6] = -1
+    env._tickRAF()
+    expect(actions).toEqual([Action.NAVIGATE_LEFT])
+
+    actions.length = 0
+    gamepad.axes[6] = 1
+    env._tickRAF()
+    expect(actions).toEqual([Action.NAVIGATE_RIGHT])
+  })
+
+  test("Start is button 7, not button 9", () => {
+    const gamepad = makeLinuxEvdevGamepad()
+    connect(gamepad)
+
+    gamepad.buttons[7] = { pressed: true }
+    env._tickRAF()
+    expect(actions).toEqual([Action.PLAY])
+  })
+
+  test("button 9 is left-stick click and produces nothing", () => {
+    const gamepad = makeLinuxEvdevGamepad()
+    connect(gamepad)
+
+    gamepad.buttons[9] = { pressed: true }
+    env._tickRAF()
+    expect(actions).toEqual([])
+  })
+
+  test("face buttons keep their standard meaning", () => {
+    const gamepad = makeLinuxEvdevGamepad()
+    connect(gamepad)
+
+    gamepad.buttons[0] = { pressed: true }
+    gamepad.buttons[1] = { pressed: true }
+    env._tickRAF()
+    expect(actions).toEqual([Action.SELECT, Action.BACK])
+  })
+
+  test("left stick still navigates", () => {
+    const gamepad = makeLinuxEvdevGamepad()
+    connect(gamepad)
+
+    gamepad.axes[1] = 0.8
+    env._tickRAF()
+    expect(actions).toEqual([Action.NAVIGATE_DOWN])
+  })
+
+  test("a standard pad is unaffected — D-pad on buttons, Start on 9", () => {
+    const gamepad = makeGamepad({ mapping: "standard" })
+    connect(gamepad)
+
+    gamepad.buttons[13] = { pressed: true }
+    env._tickRAF()
+    expect(actions).toEqual([Action.NAVIGATE_DOWN])
+
+    actions.length = 0
+    gamepad.buttons[13] = { pressed: false }
+    gamepad.buttons[9] = { pressed: true }
+    env._tickRAF()
+    expect(actions).toEqual([Action.PLAY])
+  })
+})

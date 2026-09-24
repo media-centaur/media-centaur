@@ -12,20 +12,34 @@
  *   3. Automation  — a headless debug browser (mc-debug-browser launches with
  *                    `--enable-automation`, so `navigator.webdriver === true`).
  *
- * The automation case is the load-bearing one: a headless instance reports
- * `hasFocus:true` and `visibilityState:"visible"`, so focus + visibility alone
- * do not catch it. The webdriver flag is a deterministic marker we set on every
- * agent-spawned browser, making this a trustworthy signal rather than fragile
- * UA fingerprinting.
+ * Focus and visibility are how a windowed surface proves it deserves the
+ * controller. An automation surface fakes both — a headless instance reports
+ * `hasFocus:true` and `visibilityState:"visible"` — so it cannot prove it that
+ * way. It **declares** instead, via `automationDrivesInput`. That declaration
+ * is the E2E suite's way of saying "this run is the intended driver"; without
+ * it an automation context is still denied, so mc-debug-browser and any other
+ * unattended launch behave exactly as before.
+ *
+ * A declaration only ever answers the automation question. It cannot stand in
+ * for focus or visibility, so it opens no hole in cases 1 and 2.
  *
  * Pure and fail-closed: any missing/falsey signal denies input.
  *
  * @param {Object} env
- * @param {boolean} env.hasFocus          - document.hasFocus()
- * @param {string}  env.visibilityState   - document.visibilityState
- * @param {boolean} env.webdriver         - navigator.webdriver
+ * @param {boolean} env.hasFocus                - document.hasFocus()
+ * @param {string}  env.visibilityState         - document.visibilityState
+ * @param {boolean} env.automation              - navigator.webdriver
+ * @param {boolean} [env.automationDrivesInput] - This automation context
+ *   declares itself the intended driver of gamepad input
  * @returns {boolean} true only when the surface may accept gamepad input
  */
-export function gamepadInputAllowed({ hasFocus, visibilityState, webdriver } = {}) {
-  return Boolean(hasFocus) && visibilityState === "visible" && !webdriver
+export function gamepadInputAllowed({
+  hasFocus,
+  visibilityState,
+  automation,
+  automationDrivesInput,
+} = {}) {
+  if (!hasFocus || visibilityState !== "visible") return false
+  if (!automation) return true
+  return Boolean(automationDrivesInput)
 }

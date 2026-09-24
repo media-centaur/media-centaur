@@ -12,7 +12,10 @@
  */
 
 import { buttonToAction, DEFAULT_BUTTON_MAP, Action } from "./actions"
+import { controllerLayout, normalizeButtons, STANDARD_BUTTON_COUNT } from "./controller_layout"
 import { debug } from "./debug"
+
+export { detectControllerType } from "./controller_layout"
 
 // Navigation actions that get repeat timing on D-pad buttons
 const NAVIGATION_ACTIONS = new Set([
@@ -21,18 +24,6 @@ const NAVIGATION_ACTIONS = new Set([
   Action.NAVIGATE_LEFT,
   Action.NAVIGATE_RIGHT,
 ])
-
-/**
- * Detect controller type from gamepad.id string.
- * @param {string} id - Gamepad.id
- * @returns {"xbox"|"playstation"|"generic"}
- */
-export function detectControllerType(id) {
-  const lower = id.toLowerCase()
-  if (lower.includes("xbox") || lower.includes("xinput")) return "xbox"
-  if (lower.includes("playstation") || lower.includes("dualshock") || lower.includes("dualsense") || lower.includes("sony")) return "playstation"
-  return "generic"
-}
 
 export class GamepadSource {
   /**
@@ -69,10 +60,15 @@ export class GamepadSource {
     this._onInputDetected = config.onInputDetected
     this._onControllerChanged = config.onControllerChanged
 
-    // Pre-allocated state (no per-frame allocations)
-    this._prevButtons = new Array(17).fill(false)
+    // Pre-allocated state (no per-frame allocations). Every index here is a
+    // standard-layout button index — see controller_layout.js.
+    this._prevButtons = new Array(STANDARD_BUTTON_COUNT).fill(false)
     // Repeat timing for navigation buttons (D-pad): { startTime, lastFireTime } or null
-    this._buttonRepeat = new Array(17).fill(null)
+    this._buttonRepeat = new Array(STANDARD_BUTTON_COUNT).fill(null)
+    // Scratch space for this frame's normalized button state
+    this._normalizedButtons = new Array(STANDARD_BUTTON_COUNT).fill(false)
+    // Layout of the currently adopted device, or null when none is connected
+    this._layout = null
     this._axisState = {
       x: { direction: null, startTime: 0, lastFireTime: 0 },
       y: { direction: null, startTime: 0, lastFireTime: 0 },
@@ -102,7 +98,7 @@ export class GamepadSource {
     const gamepads = this._getGamepads()
     for (const gp of gamepads) {
       if (gp?.connected) {
-        this._detectController(gp)
+        this._adoptGamepad(gp)
         // Signal gamepad presence so the orchestrator sets input method
         // and starts the mousemove cooldown. Without this, a layout-shift
         // mousemove after hook remount would immediately reset to mouse.
@@ -156,7 +152,7 @@ export class GamepadSource {
   }
 
   _onConnected(event) {
-    this._detectController(event.gamepad)
+    this._adoptGamepad(event.gamepad)
     if (!this._rafId) {
       this._startPolling()
     }
@@ -172,12 +168,27 @@ export class GamepadSource {
     }
   }
 
-  _detectController(gamepad) {
-    if (gamepad.id !== this._lastGamepadId) {
-      this._lastGamepadId = gamepad.id
-      const type = detectControllerType(gamepad.id)
-      this._onControllerChanged?.(type)
-    }
+  /**
+   * Adopt a gamepad: derive its layout and announce the label family.
+   *
+   * Guarded on the device id, so calling it per frame costs one comparison and
+   * the polling loop stays allocation-free. Every other method assumes
+   * `_layout` matches the device being polled, which is what the guard buys.
+   */
+  _adoptGamepad(gamepad) {
+    if (gamepad.id === this._lastGamepadId) return
+    this._lastGamepadId = gamepad.id
+    this._layout = controllerLayout(gamepad)
+    debug("gamepad adopted:", gamepad.id, "layout:", this._layout.name, "labels:", this._layout.labels)
+    this._onControllerChanged?.(this._layout.labels)
+  }
+
+  /**
+   * Project this frame's raw snapshot onto standard-layout button state.
+   * @returns {boolean[]} the source-owned scratch array
+   */
+  _normalizedButtonState(gamepad) {
+    return normalizeButtons(gamepad, this._layout, this._deadzone, this._normalizedButtons)
   }
 
   /**
@@ -186,9 +197,10 @@ export class GamepadSource {
    * at the time polling starts (e.g. hook remount during sidebar nav).
    */
   _primeButtons(gamepad) {
-    const buttons = gamepad.buttons
-    for (let i = 0; i < this._prevButtons.length && i < buttons.length; i++) {
-      this._prevButtons[i] = buttons[i].pressed
+    this._adoptGamepad(gamepad)
+    const pressed = this._normalizedButtonState(gamepad)
+    for (let i = 0; i < this._prevButtons.length; i++) {
+      this._prevButtons[i] = pressed[i]
     }
   }
 
@@ -210,6 +222,7 @@ export class GamepadSource {
     this._axisState.x.direction = null
     this._axisState.y.direction = null
     this._lastGamepadId = null
+    this._layout = null
   }
 
   _poll() {
@@ -230,6 +243,10 @@ export class GamepadSource {
       this._resetState()
       return
     }
+
+    // A device can appear or be swapped without an event reaching us, so the
+    // layout is re-derived from whatever we are actually polling. Id-guarded.
+    this._adoptGamepad(gamepad)
 
     // Input gate. The Gamepad API reports controller state globally — even when
     // this surface is not the one the user is looking at. Keyboard input is
@@ -269,10 +286,11 @@ export class GamepadSource {
   }
 
   _pollButtons(gamepad) {
-    const buttons = gamepad.buttons
+    // Standard-layout indices from here down, whatever the device reported.
+    const buttons = this._normalizedButtonState(gamepad)
     const now = this._now()
-    for (let i = 0; i < this._prevButtons.length && i < buttons.length; i++) {
-      const pressed = buttons[i].pressed
+    for (let i = 0; i < this._prevButtons.length; i++) {
+      const pressed = buttons[i]
       const wasPressed = this._prevButtons[i]
 
       if (pressed && !wasPressed) {
@@ -312,8 +330,12 @@ export class GamepadSource {
 
   _pollAxes(gamepad) {
     const now = this._now()
-    const axisX = gamepad.axes[0] ?? 0
-    const axisY = gamepad.axes[1] ?? 0
+    // The left stick only — a D-pad on hat axes is normalized into button
+    // state instead, so it travels the same binding and repeat path as a real
+    // D-pad rather than getting a second, parallel one here.
+    const { x: stickX, y: stickY } = this._layout.stickAxes
+    const axisX = gamepad.axes[stickX] ?? 0
+    const axisY = gamepad.axes[stickY] ?? 0
 
     this._processAxis("x", axisX, Action.NAVIGATE_LEFT, Action.NAVIGATE_RIGHT, now)
     this._processAxis("y", axisY, Action.NAVIGATE_UP, Action.NAVIGATE_DOWN, now)
