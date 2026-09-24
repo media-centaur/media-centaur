@@ -7,7 +7,7 @@
  *
  * @param {Object} config
  * @param {Object} config.contextSelectors - Maps context keys to CSS selectors
- * @param {string[]} config.activeClassNames - CSS classes indicating active state
+ * @param {string[]} config.activeMarkers - selectors marking a context's current selection
  */
 
 import { Context } from "./focus_context"
@@ -212,7 +212,7 @@ function scrollableAncestors(element) {
  */
 export function createDomReader(config = {}) {
   const selectors = config.contextSelectors ?? {}
-  const activeClasses = config.activeClassNames ?? []
+  const activeMarkers = config.activeMarkers ?? []
 
   return {
     /**
@@ -433,14 +433,14 @@ export function createDomReader(config = {}) {
     },
 
     /**
-     * Find the active zone tab index (by active class).
+     * Find the active zone tab index (by active marker).
      */
     getActiveZoneTabIndex() {
       const selector = selectors["zone_tabs"]
       if (!selector) return -1
       const tabs = document.querySelectorAll(selector)
       for (let i = 0; i < tabs.length; i++) {
-        if (activeClasses.some(cls => tabs[i].classList.contains(cls))) return i
+        if (activeMarkers.some(marker => tabs[i].matches(marker))) return i
       }
       return -1
     },
@@ -455,15 +455,14 @@ export function createDomReader(config = {}) {
     },
 
     /**
-     * Find the index of the item marked active in any context.
-     * Checks the configured active class names.
-     * Returns -1 if none is active.
+     * Find the index of the item marked as the context's current selection.
+     * Checks the configured active markers (selectors).
+     * Returns -1 if none is marked.
      */
     getActiveItemIndex(context) {
       const items = queryContextItems(selectors, context)
       for (let i = 0; i < items.length; i++) {
-        const cl = items[i].classList
-        if (activeClasses.some(cls => cl.contains(cls))) return i
+        if (activeMarkers.some(marker => items[i].matches(marker))) return i
       }
       return -1
     },

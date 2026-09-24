@@ -69,8 +69,8 @@ describe("App config", () => {
     expect(inputConfig.alwaysPopulated).toContain("sections")
   })
 
-  test("has activeClassNames", () => {
-    expect(inputConfig.activeClassNames.length).toBeGreaterThan(0)
+  test("has activeMarkers", () => {
+    expect(inputConfig.activeMarkers.length).toBeGreaterThan(0)
   })
 
   test("has createBehavior function", () => {

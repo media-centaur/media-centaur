@@ -192,6 +192,28 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "type tabs" do
+    test "the type tabs patch the URL and mark the chosen one pressed", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      view
+      |> element("[data-nav-zone='toolbar'] [phx-click='switch_tab'][phx-value-choice='movies']")
+      |> render_click()
+
+      assert_patch(view, "/library?tab=movies")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='toolbar'] [phx-value-choice='movies'][aria-pressed='true']"
+             )
+
+      refute has_element?(
+               view,
+               "[data-nav-zone='toolbar'] [phx-value-choice='all'][aria-pressed='true']"
+             )
+    end
+  end
+
   describe "search excludes all results" do
     setup do
       movie = create_standalone_movie(%{name: "Findable Movie"})

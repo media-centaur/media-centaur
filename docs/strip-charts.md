@@ -31,7 +31,7 @@ drill-in is selected and the tab is visible.
 | Tenant | `MediaCentaur.HttpClient.Traffic` | Telemetry handler → `Store.add`; 20-slot recent ring keyed by `seq`; last outcome / last success per upstream; `series/3`, `totals/2`, `recent/1` |
 | Frame | `MediaCentaurWeb.StatusLive.TrafficFrame` | Traffic series → the frame the hook draws; strip membership from `Capabilities`; figure strings; "Down since"; the TMDB slots line |
 | Feed | `MediaCentaurWeb.Components.StripChart.Feed` | `attach_hook`s for `handle_params` / `handle_event` / `handle_info`: window from the URL, tick, visibility pause; **the frame contract is in this moduledoc** |
-| Shell | `MediaCentaurWeb.Components.StripChart` | Card, window pills, legend, footer slot, the `phx-update="ignore"` hook element; story `storybook/composites/strip_chart` |
+| Shell | `MediaCentaurWeb.Components.StripChart` | Card, window control, legend, footer slot, the `phx-update="ignore"` hook element; story `storybook/composites/strip_chart` |
 | Hook | `assets/js/hooks/strip_chart.js` | Rows, figures and one uPlot instance per strip from frames; hover sync; sizing under the root zoom; pure helpers bun-tested in `strip_chart.test.js` |
 | Renderer | `assets/vendor/uplot.js` | uPlot 1.6.32, MIT, ESM, unmodified |
 
@@ -141,7 +141,7 @@ Frames on the tick (a polling download client makes figures move):
 
 Look at it: `~/scripts/agents/page-shot --url 'http://localhost:2160/status?subsystem=http' --viewport 1920x1080 --wait-ms 4500`.
 Headless has no visibility events; the hidden-tab pause and the window
-pills are covered by `test/media_centaur_web/live/status_live_test.exs`
+control are covered by `test/media_centaur_web/live/status_live_test.exs`
 ("connections drill-in"). Console errors from the hook are the first
 thing to check after any change: add `--with-console` to the probe.
 
@@ -172,5 +172,6 @@ Deferred with the number that would revisit each: delta frames (if a frame
 exceeds ~50 KB); counting only the 10 s resolution per request with a
 minute roll-up (if counting ever shows in a profile); a lazily loaded
 uPlot chunk (if the app bundle's size becomes a measured problem).
-Keyboard and gamepad wiring for the window pills waits for the surface's
-hardening pass.
+The window control's options are nav items (the shared
+`segmented_control/1`); in the Status drill-in, a vertical menu context,
+they are walked with Down.
