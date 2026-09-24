@@ -375,10 +375,12 @@ export const inputConfig = {
 
   // Markers of a context's current selection, for focus restoration on
   // entry: the current page, tab or section, and the chosen option of a
-  // segmented control (`aria-pressed`, the one state it emits).
+  // segmented control — the one element in the app whose `aria-pressed`
+  // means "current selection" rather than an independent toggle's state
+  // (the title modal's List, a plan-grid cell), hence the scope.
   activeMarkers: [
     ".sidebar-link-active", ".zone-tab-active", ".menu-item-active",
-    "[aria-pressed='true']",
+    ".segmented-control [aria-pressed='true']",
   ],
 
   // Primary menu instance (has special enter/exit behavior)

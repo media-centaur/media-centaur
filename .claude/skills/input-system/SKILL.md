@@ -28,7 +28,7 @@ All app-specific knowledge lives in `config.js`. The framework core is parameter
 - **`layouts`** — spatial zone layouts for the nav graph
 - **`cursorStartPriority`** — ordered fallback for initial focus per zone
 - **`alwaysPopulated`** — contexts that skip item count checks
-- **`activeClassNames`** — CSS classes indicating active state
+- **`activeMarkers`** — selectors marking a context's current selection (active page/tab/section classes, a segmented control's chosen option)
 - **`primaryMenu`** — the menu instance with enter/exit behavior (e.g., "sidebar")
 - **`createBehavior`** — factory function for page behaviors
 

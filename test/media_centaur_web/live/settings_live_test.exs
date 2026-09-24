@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
   describe "sections nav active marker" do
     # The input system enters the sections menu on the DOM-marked active item
-    # (`activeClassNames` in assets/js/input/config.js — `menu-item-active`).
+    # (`activeMarkers` in assets/js/input/config.js — `.menu-item-active`).
     # Without the marker, re-entering from the sidebar lands the cursor on the
     # first section instead of the one currently open.
     test "the active section link carries menu-item-active", %{conn: conn} do

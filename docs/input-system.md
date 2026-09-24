@@ -185,7 +185,7 @@ Keeping wall handling out of the state machine is what lets a row and a mosaic s
 
 ### dom_adapter.js
 
-Factory functions `createDomReader(config)` and `createDomWriter(config)` produce reader/writer instances parameterized by `config.contextSelectors` and `config.activeClassNames`. All DOM access is confined here. The orchestrator and behaviors never call `document.*` directly.
+Factory functions `createDomReader(config)` and `createDomWriter(config)` produce reader/writer instances parameterized by `config.contextSelectors` and `config.activeMarkers`. All DOM access is confined here. The orchestrator and behaviors never call `document.*` directly.
 
 ### keyboard.js
 
@@ -451,7 +451,7 @@ comes off page by page as each is reviewed.
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
 - **Modal sub-view transition:** When BACK fires in a modal carrying `data-detail-nested="true"`, the orchestrator pushes `close_detail` without dismissing focus context. The server owns that flag rather than the client comparing a view name to `"main"` — the detail modal's root view is entity-dependent (a movie with no extras has no body tab and opens on Cast, which *is* its root). Sets `_pendingModalRefocus = true`, and `_syncState` refocuses the overlay's entry region after LiveView patches the DOM. This prevents focus from falling to the grid when morphdom removes the sub-view's focused element.
 
-**Active item detection:** `reader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class from `config.activeClassNames`. When adding a new context with an active-item visual, add the class to the `activeClassNames` array in `config.js`.
+**Active item detection:** `reader.getActiveItemIndex(context)` finds the first item in a context matching any selector in `config.activeMarkers` — the current page, tab or section (`.sidebar-link-active`, `.zone-tab-active`, `.menu-item-active`) and a segmented control's chosen option (`.segmented-control [aria-pressed='true']`; the pill is the one element whose `aria-pressed` means "current selection" rather than an independent toggle's state, so the marker is scoped to it). When adding a new context with a current-selection visual, add its selector to `activeMarkers` in `config.js`.
 
 ### Post-patch focus reconciliation
 
