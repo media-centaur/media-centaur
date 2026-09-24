@@ -56,6 +56,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/console", "console"},
           {"/history", "watch history"},
           {"/discovery", "discovery feed"},
+          {"/discovery?scope=friends", "discovery feed, friends scope"},
+          {"/discovery?scope=you", "discovery feed, you scope"},
           {"/discovery/watchlist", "discovery watchlist"},
           {"/discovery/friends", "discovery friends"},
           {"/guide", "guide index"},

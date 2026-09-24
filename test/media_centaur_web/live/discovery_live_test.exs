@@ -14,6 +14,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Activity.Episode
+  alias MediaCentaur.Activities.Publisher
   alias MediaCentaur.Activities.Translation
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Secret
@@ -297,9 +298,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     test "the You card shows what you broadcast and deletes it by kind", %{conn: conn} do
-      title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
-      {:ok, mine} = Activities.listing(title)
-
       {:ok, rec} =
         Activities.review(
           Title.new!(%{tmdb_id: 99, media_type: :movie, name: "Sample Movie 99"}),
@@ -307,9 +305,14 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
           "mine"
         )
 
+      # Listed last, so the presence line — the latest act — is the listing.
+      title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
+      {:ok, mine} = Activities.listing(title)
+
       {:ok, view, _html} = live(conn, "/discovery/friends")
       assert has_element?(view, "#person-you[data-own]", "How friends see you")
-      assert has_element?(view, "#person-you [data-role='presence']", "reviewed Sample Movie 99")
+      assert has_element?(view, "#person-you [data-role='presence']", "want to watch Sample Movie 42")
+      refute has_element?(view, "#person-you [data-role='presence']", "wants to watch")
       refute has_element?(view, "#person-you footer")
 
       view |> element("#person-you-#{rec.id}") |> render_click()
@@ -323,6 +326,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element("#detail-activity-delete", "Delete listing") |> render_click()
       assert render(view) =~ "Listing withdrawn"
       refute has_element?(view, "#person-you-#{mine.id}")
+      # With the listing withdrawn the presence falls back to the review.
+      assert has_element?(view, "#person-you [data-role='presence']", "reviewed Sample Movie 99")
       assert Enum.map(Activities.list_sent(), & &1.kind) == [:review]
 
       await_supervised_tasks()
@@ -466,8 +471,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       )
     end
 
-    defp entry(%{id: id}), do: "#feed-entry-#{id}"
-    defp entries(view), do: ids(view, "[data-component='feed-entry']")
+    defp entry(%{id: id}), do: "#feed-row-#{id}"
+    defp entries(view), do: ids(view, "[data-component='feed-row']")
     defp feed_badge, do: "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge"
 
     test "empty state names the prerequisites, then the quiet empty state", %{conn: conn} do
@@ -485,7 +490,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
       {:ok, view, _html} = live(conn, "/discovery")
-      assert render(view) =~ "Each friend&#39;s action is one entry, newest first."
+      assert render(view) =~ "What you and your friends review and want to watch lands here"
+      assert render(view) =~ "Each action is one row, newest first."
       refute has_element?(view, "#feed-empty a[href='/settings?section=social']")
     end
 
@@ -505,7 +511,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
              )
 
       assert has_element?(view, entry(rec) <> " [data-role='who']", "reviewed")
-      assert has_element?(view, entry(rec) <> " [data-role='who']", "2h ago")
+      assert has_element?(view, entry(rec) <> " [data-role='time']", "2h ago")
+      refute has_element?(view, entry(rec) <> " [data-role='who']", "ago")
       assert has_element?(view, entry(rec) <> " [data-role='who'] [data-sentiment='love']")
       assert has_element?(view, entry(rec) <> " [data-role='title']", "Sample Movie 777")
       assert has_element?(view, entry(rec) <> " [data-role='title']", "2024")
@@ -593,16 +600,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, view, _html} = live(conn, "/discovery")
 
       assert entries(view) == [
-               "feed-entry-#{listed.id}",
-               "feed-entry-#{theirs.id}",
-               "feed-entry-#{mine.id}",
-               "feed-entry-#{quiet.id}"
+               "feed-row-#{listed.id}",
+               "feed-row-#{theirs.id}",
+               "feed-row-#{mine.id}",
+               "feed-row-#{quiet.id}"
              ]
 
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "4")
       assert has_element?(view, entry(theirs) <> " [data-role='text']", "Agreed.")
       assert has_element?(view, entry(mine) <> " [data-role='text']", "Watch it.")
-      refute has_element?(view, "[data-component='feed-entry'] .pennant")
+      refute has_element?(view, "[data-component='feed-row'] .pennant")
 
       # The modal speaks for the newest review — its note, attributed —
       # and flies both pennants.
@@ -614,7 +621,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
-    test "watched actions, own actions and a former friend's actions never make an entry", %{
+    test "watched and a former friend's actions never make a row; own reviews and listings do", %{
       conn: conn
     } do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
@@ -631,15 +638,21 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         )
 
       title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
-      {:ok, _mine} = Activities.review(title, :like, "mine")
-      {:ok, _own_listing} = Activities.listing(title)
+      {:ok, mine} = Activities.review(title, :like, "mine")
+      {:ok, own_listing} = Activities.listing(title)
+      {:ok, _own_watched} = Activities.watched(title, nil)
 
       {:ok, _former} = Activities.ingest(other_event(778, :love))
       :ok = Social.remove_friend(@other_pubkey)
 
       {:ok, view, _html} = live(conn, "/discovery")
+      # Both own acts land in the same second; their order is not this test's claim.
+      assert Enum.sort(entries(view)) == Enum.sort(["feed-row-#{own_listing.id}", "feed-row-#{mine.id}"])
+      assert has_element?(view, feed_badge(), "2")
+
+      {:ok, view, _html} = live(conn, "/discovery?scope=friends")
       assert entries(view) == []
-      refute has_element?(view, feed_badge())
+      refute has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery?scope=friends'] .badge")
       assert render(view) =~ "What your friends review and want to watch lands here"
 
       await_supervised_tasks()
@@ -997,6 +1010,109 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # gated, so absence is asserted on the open state.
       refute has_element?(view, "#review-modal[data-state='open']")
       await_supervised_tasks()
+    end
+
+    test "the scope filters by author, lives in the URL, and survives the modal", %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      # A minute older than your review, so the order between them is fixed.
+      {:ok, theirs} =
+        Activities.ingest(friend_event(777, "Watch it.", :like, System.os_time(:second) - 60))
+
+      title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
+      {:ok, mine} = Activities.review(title, :love, "Saw it twice.")
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert entries(view) == ["feed-row-#{mine.id}", "feed-row-#{theirs.id}"]
+      assert has_element?(view, "#feed-scope [phx-value-choice='everyone'][aria-pressed='true']")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery']", "Feed")
+
+      view |> element("#feed-scope [phx-value-choice='you']") |> render_click()
+      assert_patch(view, "/discovery?scope=you")
+      assert entries(view) == ["feed-row-#{mine.id}"]
+      assert has_element?(view, "#feed-scope [phx-value-choice='you'][aria-pressed='true']")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery?scope=you'] .badge", "1")
+
+      # Opening and closing the modal keeps the scope in the address.
+      view |> element(entry(mine)) |> render_click()
+      path = assert_patch(view)
+      assert path =~ "scope=you"
+      assert path =~ "title=movie-999"
+      assert has_element?(view, "#detail-activity-delete", "Delete review")
+      render_hook(view, "close_title", %{})
+      assert_patch(view, "/discovery?scope=you")
+
+      view |> element("#feed-scope [phx-value-choice='friends']") |> render_click()
+      assert_patch(view, "/discovery?scope=friends")
+      assert entries(view) == ["feed-row-#{theirs.id}"]
+
+      # A refresh keeps it; a word the URL does not offer falls back to Everyone.
+      {:ok, view, _html} = live(conn, "/discovery?scope=friends")
+      assert entries(view) == ["feed-row-#{theirs.id}"]
+      {:ok, view, _html} = live(conn, "/discovery?scope=nonsense")
+      assert has_element?(view, "#feed-scope [phx-value-choice='everyone'][aria-pressed='true']")
+
+      await_supervised_tasks()
+    end
+
+    test "an own row: You in the second person, no Ignore, no Delete; a friend's row keeps Ignore", %{
+      conn: conn
+    } do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, theirs} = Activities.ingest(friend_listing_event(777))
+      title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
+      {:ok, mine} = Activities.listing(title)
+      {:ok, review} = Activities.review(title, :dislike, nil)
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(view, entry(mine) <> "[data-own] [data-role='who']", "You want to watch")
+      assert has_element?(view, entry(review) <> "[data-own] [data-role='who']", "You reviewed")
+      assert has_element?(view, entry(review) <> " [data-role='who'] [data-sentiment='dislike']")
+
+      assert has_element?(
+               view,
+               entry(theirs) <> ":not([data-own]) [data-role='who']",
+               "Sample Friend wants to watch"
+             )
+
+      assert has_element?(view, entry(mine) <> "-list")
+      assert has_element?(view, entry(mine) <> "-download")
+      refute has_element?(view, entry(mine) <> "-ignore")
+      refute has_element?(view, entry(mine) <> " [data-role='toolbar']", "Delete")
+      assert has_element?(view, entry(theirs) <> "-ignore")
+
+      await_supervised_tasks()
+    end
+
+    test "Listed on your own listing drops the title off your list, which withdraws the listing", %{
+      conn: conn
+    } do
+      # The withdrawal is the Publisher's (ADR-067), which is not a pubsub
+      # listener under :test — started by hand, as its own test does.
+      start_supervised!(Publisher)
+      title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
+      {:ok, _} = list(title, :list)
+      {:ok, mine} = Activities.listing(title)
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert has_element?(view, entry(mine) <> "[data-list-slot='listed']")
+
+      view |> element(entry(mine) <> "-list") |> render_click()
+      refute Discovery.listed?(999, :movie)
+      render_until(view, fn _html -> not has_element?(view, entry(mine)) end)
+      assert Activities.list_sent() == []
+
+      await_supervised_tasks()
+    end
+
+    test "the You scope's empty state speaks of sharing and needs no relay or friend", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery?scope=you")
+
+      assert render(view) =~ "What you review and list lands here"
+      assert render(view) =~ "A title you list is shared while Share your watchlist is on."
+      assert has_element?(view, "#feed-empty a[href='/settings?section=social']", "Settings → Social")
+      refute has_element?(view, "#feed-empty a[href='/discovery/friends']")
+      refute render(view) =~ "Media Centaur reaches your friends over a relay"
     end
   end
 

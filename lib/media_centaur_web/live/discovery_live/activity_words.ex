@@ -39,11 +39,12 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWords do
 
   @doc """
   The presence sentence: the verb and the title — "reviewed Sample
-  Movie", "watched S02E05 of Sample Show", "wants to watch Sample Show".
+  Movie", "watched S02E05 of Sample Show", "wants to watch Sample Show"
+  ("want to watch Sample Show" for You).
   """
-  @spec presence(Activity.kind(), Episode.t() | nil, String.t()) :: String.t()
-  def presence(:watched, %Episode{} = episode, title_name),
-    do: verb(:watched, episode, :friend) <> " of " <> title_name
+  @spec presence(Activity.kind(), Episode.t() | nil, String.t(), subject()) :: String.t()
+  def presence(:watched, %Episode{} = episode, title_name, subject),
+    do: verb(:watched, episode, subject) <> " of " <> title_name
 
-  def presence(kind, episode, title_name), do: verb(kind, episode, :friend) <> " " <> title_name
+  def presence(kind, episode, title_name, subject), do: verb(kind, episode, subject) <> " " <> title_name
 end

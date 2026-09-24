@@ -38,12 +38,18 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsPresenceTest do
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
 
   test "the presence sentence names the title, with the episode before it for a series" do
-    assert ActivityWords.presence(:review, nil, "Sample Movie") == "reviewed Sample Movie"
-    assert ActivityWords.presence(:watched, nil, "Sample Movie") == "watched Sample Movie"
+    assert ActivityWords.presence(:review, nil, "Sample Movie", :friend) == "reviewed Sample Movie"
+    assert ActivityWords.presence(:watched, nil, "Sample Movie", :friend) == "watched Sample Movie"
 
-    assert ActivityWords.presence(:watched, %Episode{season_number: 2, episode_number: 5}, "Sample Show") ==
+    assert ActivityWords.presence(
+             :watched,
+             %Episode{season_number: 2, episode_number: 5},
+             "Sample Show",
+             :friend
+           ) ==
              "watched S02E05 of Sample Show"
 
-    assert ActivityWords.presence(:listing, nil, "Sample Show") == "wants to watch Sample Show"
+    assert ActivityWords.presence(:listing, nil, "Sample Show", :friend) == "wants to watch Sample Show"
+    assert ActivityWords.presence(:listing, nil, "Sample Show", :you) == "want to watch Sample Show"
   end
 end
