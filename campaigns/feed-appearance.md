@@ -35,7 +35,9 @@ This campaign adds:
 
 ## Status
 
-Round 4 complete, 2026-09-24; awaiting the owner's decision. Steps 1–3
+Rounds 4 and 5 complete in the night of 2026-09-24; round 6 (one
+assembled page, `F-cinematic-feed`) closes the night; awaiting the
+owner's decision in the morning. Steps 1–3
 done: the diagnosis is in the spec's Problem section
 (`docs/superpowers/specs/2026-09-24-feed-appearance-design.md`); five
 directions are built under
@@ -125,6 +127,17 @@ superseded by the design this campaign produces, and the record says so.
   image box, words-led bands — and a labelled motion exploration
   (`X-motion`: scroll parallax, ambient drift, hover ease, each
   switchable) so motion is judged rather than assumed away.
+* `2026-09-24` (night) — Round 5 verdict (`CRITIQUE-5.md`): the
+  cross holds in every setting. Settled by render: full width for
+  Discovery; the band's still in a 900px right-aligned box (C); the
+  time right-aligned at the body's edge (x≈576 on a band, top right
+  on the lead); the lead's image boxed like the band's (A2); two
+  review lines at 152px (D's words-led bands rejected, kept as the
+  fallback); "You" neutral beside a tile filled with the button
+  primary; adjacent repeats accepted with the 8% offset; motion
+  limited to hover/cursor ease at most (X); the Watchlist takes the
+  band next, the Friends card keeps its shape and gains the identity
+  tile, Incoming after that, Home and History unchanged (P).
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -147,14 +160,11 @@ superseded by the design this campaign produces, and the record says so.
    Then the comparison sheet and `CRITIQUE.md`, scoring each against the
    diagnosis, the house rules, and the "holy crap" bar; then the owner
    picks a direction, or asks for a round 5 that crosses two.
-3b. **Round 5, refinement** — the chosen direction (recommended: the
-   1 × 4 cross) rebuilt with what the critique found, every state, at
-   1280 / 1920 / 2560, at the owner's real UI scale; preceded by the
-   crop measurement on thirty real library backdrops (one fixed focal
-   position at the band's slice and the lead's 4.3:1; count the
-   failures). Round 5 settles by render: full width vs 1280; the time's
-   seat; adjacent duplicate stills; review lines per band; "You"
-   neutral beside a filled tile; one own-tile fill value.
+3b. **Round 5** — done (`BRIEF-5.md`, `CRITIQUE-5.md`): the cross in
+   four settings plus A2; every open question settled by render.
+3c. **Round 6** — one assembled page, `F-cinematic-feed`, from the
+   settled choices with all thirteen states; its REASONING's size
+   table is the draft of the spec's "What the user sees".
 4. **Decide the records.** Choose a direction; write the spec and a UIDR
    that amends UIDR-045 rule 3 and, if an avatar-like or hue device is
    chosen, UIDR-038's anti-patterns and the colour rule, stating the

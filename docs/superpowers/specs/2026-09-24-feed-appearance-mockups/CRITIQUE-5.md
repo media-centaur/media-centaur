@@ -77,6 +77,19 @@ air, the fix is not a threshold but C's setting with the words filling
 the ink gap. Rejected for now; kept as the fallback if the owner wants
 three lines of review on the band.
 
+### A2 · A with the lead's image box from 560, like the band's
+
+The one-variable refinement A's designer asked for, and it wins. At
+1920 the lead shows a 48% slice with the still's composition intact —
+Sintel and the dragon both in the clear, the Charade two-shot with
+the review on ink instead of over Grant's face — and the lead becomes
+literally the band at 340px: one image-box rule, one scrim recipe,
+one markup. What it gives up is A's front-page feel, the picture
+reaching the left edge with a colour cast under the words. At 1280 it
+is the weaker lead (a 620×349 picture on a dark card, where A's
+full-bleed was at its best); at the owner's 1920 the boxed lead is
+better on every still rendered. **The lead is A2's.**
+
 ## The explorations
 
 ### X · Motion
@@ -125,15 +138,16 @@ trying.
 | "You" beside the filled tile | **Neutral** | Unanimous across A–D |
 | The own tile's fill | **Button primary `oklch(62% 0.16 264)`, white initial at 700** | Unanimous; the 72% text primary cannot carry a white letter |
 | Adjacent rows of one title | **Accept the repeat**; keep the 8% offset | The offset stops an exact repeat and no more; a different picture would be a lie about behaviour |
-| The lead's image | **A2 decides** (boxed from 560 vs full-bleed) | A's full-bleed veils a centred subject; the boxed lead is one image-box rule for both sizes |
+| The lead's image | **Boxed like the band's** (A2) | At 1920 the still's whole composition sits in the clear; one image-box rule for both sizes; A's full-bleed veiled a centred subject |
 | Motion | **Hover/cursor ease at most; no parallax, no drift** | X |
 | The other tabs | **Watchlist takes the band; Friends keeps its card and gains the identity tile; Incoming next; Home and History unchanged** | P |
 
 ## What the owner decides in the morning
 
-1. **Ship the cinematic feed** as C's band (capped box, time at the text
-   zone's edge) with the lead A2 or A settles, or send it back with
-   one more setting to render. Everything below assumes yes.
+1. **Ship the cinematic feed** as the round-6 page `F-cinematic-feed`
+   assembles it — C's band (capped box, time at the text zone's edge)
+   with A2's boxed lead — or send it back with one more setting to
+   render. Everything below assumes yes.
 2. **Full width for Discovery**, all three tabs, as the page decision.
 3. **Whether the Watchlist follows** in the same campaign or the next.
 4. **Hover ease**: yes, no, or decide in the storybook.
