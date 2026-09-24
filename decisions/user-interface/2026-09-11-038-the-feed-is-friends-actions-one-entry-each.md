@@ -1,11 +1,13 @@
 ---
 status: accepted
 date: 2026-09-11
-amended: 2026-09-12
+amended: 2026-09-24
 ---
 # The Feed is friends' actions, one entry each
 
 Supersedes UIDR-031 (retired); its Friends card and You card rules are carried here. Amends UIDR-036 (Ignore and the bookmark move into the entry's toolbar) and UIDR-037 (the feed has no mast). UIDR-040 (2026-09-12) is folded in.
+
+Amended by UIDR-045 (2026-09-24): own actions join the Feed under an author scope; rules 1, 3, 4, 6 and 10 read as UIDR-045 states them, and the entry's glass card becomes a row in one list surface.
 
 ## Context and Problem Statement
 
