@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`feed-appearance.md`](feed-appearance.md) —
+  **planning 2026-09-24; successor to the feed timeline scope work
+  (UIDR-045).** Consider the whole look of the Feed: a reader should tell
+  their own rows from friends' at a glance and tell one friend from
+  another. Design conversation first — diagnosis, mockups in distinct
+  directions, then a decision on which standing rules (UIDR-045 rule 3,
+  UIDR-038's chrome and decoration anti-patterns, the colour-is-signal
+  rule) the chosen author mark amends. Carries the eleven follow-ups the
+  scope work left, each noting whether it survives this campaign. No code
+  yet.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
