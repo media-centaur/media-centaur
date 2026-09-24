@@ -22,8 +22,8 @@
 ## File structure
 
 **Create**
-- `storybook/core_components/segmented_control.story.exs` — the pill's story (three options, chosen one, a five-option row).
-- `test/media_centaur_web/components/segmented_control_test.exs` — the pill's contract: one `aria-pressed`, `phx-value-choice` per option, nav attributes on or off, `value` refused.
+- `storybook/core_components/segmented_control.story.exs` — the pill's story (three options, chosen one, a six-option row).
+- `test/media_centaur_web/components/segmented_control_test.exs` — the pill's contract: one `aria-pressed`, `phx-value-choice` per option, every option a nav item, `value` refused.
 - `storybook/discovery/feed_entry_row.story.exs` — renamed from `feed_entry_card.story.exs` (`git mv`), rewritten.
 - `lib/media_centaur_web/components/discovery/feed_entry_row.ex` — renamed from `feed_entry_card.ex` (`git mv`), rewritten as a row.
 
@@ -101,12 +101,9 @@ defmodule MediaCentaurWeb.Components.SegmentedControlTest do
     assert html |> buttons() |> LazyHTML.attribute("phx-value-id") == ["chart", "chart", "chart"]
   end
 
-  test "options are nav items by default and plain buttons on an iteration-phase surface" do
+  test "every option is a nav item; whether it is reachable is its zone's decision" do
     assert render([]) |> buttons() |> LazyHTML.attribute("data-nav-item") |> length() == 3
     assert render([]) |> buttons() |> LazyHTML.attribute("tabindex") == ["0", "0", "0"]
-
-    assert render(nav: false) |> buttons() |> LazyHTML.attribute("data-nav-item") == []
-    assert render(nav: false) |> buttons() |> LazyHTML.attribute("tabindex") == []
   end
 
   test "an event param named value is refused: a button's native value clobbers it on click" do
@@ -156,11 +153,6 @@ Append to `lib/media_centaur_web/components/core_components.ex`, after `badge/1`
 
   attr :event, :string, required: true
   attr :event_value, :map, default: %{}, doc: "extra `phx-value-*` params (string keys)"
-
-  attr :nav, :boolean,
-    default: true,
-    doc: "false on an iteration-phase surface: no nav items until its hardening pass"
-
   attr :class, :string, default: nil
 
   @doc """
@@ -168,9 +160,12 @@ Append to `lib/media_centaur_web/components/core_components.ex`, after `badge/1`
   chosen option lifted (`.segmented-control` in `app.css`). Clicking an
   option pushes `@event` with `choice` set to the option value (never
   `value`: a button's native `value` property would clobber it, MC0021).
-  The chosen option carries `aria-pressed`. The Settings kit's
-  `settings_choice/1` composes this inside its row; Library's type tabs,
-  the strip chart's window and the Feed's scope render it directly.
+  The chosen option carries `aria-pressed`. Every option is a nav item;
+  whether the cursor can reach it is the enclosing zone's decision (an
+  item outside every zone's selector is inert — `dom_adapter.js`), never
+  the component's. The Settings kit's `settings_choice/1` composes this
+  inside its row; Library's type tabs, the strip chart's window and the
+  Feed's scope render it directly.
   Story: `/storybook/core_components/segmented_control`.
   """
   def segmented_control(assigns) do
@@ -189,8 +184,8 @@ Append to `lib/media_centaur_web/components/core_components.ex`, after `badge/1`
         phx-value-choice={value}
         {phx_values(@event_value)}
         aria-pressed={to_string(value == @selected)}
-        data-nav-item={@nav}
-        tabindex={if @nav, do: "0"}
+        data-nav-item
+        tabindex="0"
       >
         {label}
       </button>
@@ -270,8 +265,7 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.SegmentedControl do
           label: "Window",
           options: [{"5m", "5m"}, {"1h", "1h"}, {"5h", "5h"}, {"1d", "1d"}, {"1w", "1w"}, {"1mo", "1mo"}],
           selected: "1h",
-          event: "pick",
-          nav: false
+          event: "pick"
         }
       }
     ]
@@ -338,12 +332,11 @@ In `lib/media_centaur_web/components/strip_chart.ex`, replace the block from `<d
             selected={@window}
             event="strip_chart:window"
             event_value={%{"id" => @id}}
-            nav={false}
             class="shrink-0"
           />
 ```
 
-(`nav={false}` keeps today's behaviour: the strip chart's pills were never nav items.) Update the moduledoc sentence "The pills push `strip_chart:window` with `phx-value-id` and `phx-value-window`" to "The pill pushes `strip_chart:window` with `phx-value-id` and the window as `choice`".
+The strip chart's options become nav items, which they were not before. On Status the chart sits inside the drill-in zone (`"drill-in"` in `config.js`), so the cursor can now reach the window pill there; step 6 verifies the graph. Update the moduledoc sentence "The pills push `strip_chart:window` with `phx-value-id` and `phx-value-window`" to "The pill pushes `strip_chart:window` with `phx-value-id` and the window as `choice`".
 
 In `lib/media_centaur_web/components/strip_chart/feed.ex` line 127, change the pattern:
 
@@ -380,7 +373,7 @@ In `lib/media_centaur_web/live/library_live.ex` line 133, change the handler hea
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/library_live_test.exs test/media_centaur_web/live/library_live_tracking_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures. No test clicks the type tabs by `phx-value-tab` (verified with `grep -rn "phx-value-tab\|switch_tab" test`, which returns only Apps-page hits), and the toolbar story's variations pass `active_tab`, which is unchanged.
 
-- [ ] **Step 6: Check the nav graph still finds the type tabs**
+- [ ] **Step 6: Trace both nav graphs**
 
 The Library toolbar's nav zone is `data-nav-zone="toolbar"` on the outer div and the tab buttons sat two levels below it; the component's root div replaces the `tablist` div, so the depth is unchanged. Confirm with:
 
@@ -388,7 +381,15 @@ The Library toolbar's nav zone is `data-nav-zone="toolbar"` on the outer div and
 ~/scripts/agents/mc-nav-trace --url http://127.0.0.1:2160/library 'Right Right'
 ```
 
-Expected: the cursor steps All → Movies → TV. If the trace tool reports no items in the toolbar zone, the zone's config in `assets/js/input/config.js` needs the same selector it had; nothing in this task changes that file.
+Expected: the cursor steps All → Movies → TV. If the trace reports no items in the toolbar zone, the zone's config in `assets/js/input/config.js` needs the same selector it had; nothing in this task changes that file.
+
+On Status the window pill is newly reachable inside the drill-in zone:
+
+```bash
+~/scripts/agents/mc-nav-trace --url 'http://127.0.0.1:2160/status?subsystem=http' 'Down Down Right Right'
+```
+
+Expected: from the tile board, Down enters the drill-in; the six window options are reachable in order along Right, and Down from the pill still reaches the incident rows below it. If Right from the pill jumps somewhere surprising, the drill-in zone's spatial reading is the thing to fix, in `config.js`, not the component; report it rather than reintroducing an opt-out on the component.
 
 - [ ] **Step 7: Commit**
 
@@ -629,7 +630,16 @@ Replace the whole `describe "build/2"` block in `test/media_centaur_web/live/dis
       assert FeedEntries.parse_scope("everyone") == :everyone
       assert FeedEntries.parse_scope(nil) == :everyone
       assert FeedEntries.parse_scope("nonsense") == :everyone
-      assert FeedEntries.scopes() == [:everyone, :friends, :you]
+    end
+
+    test "scope_query/1 is its inverse: Everyone is the bare address" do
+      assert FeedEntries.scope_query(:everyone) == []
+      assert FeedEntries.scope_query(:friends) == [scope: "friends"]
+      assert FeedEntries.scope_query(:you) == [scope: "you"]
+
+      for scope <- [:everyone, :friends, :you] do
+        assert scope |> FeedEntries.scope_query() |> Keyword.get(:scope) |> FeedEntries.parse_scope() == scope
+      end
     end
   end
 
@@ -648,7 +658,7 @@ Replace the whole `describe "build/2"` block in `test/media_centaur_web/live/dis
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live/feed_entries_test.exs`
-Expected: FAIL — `KeyError key :author not found` on the struct match, and undefined `parse_scope/1`, `scopes/0`, `empty_reason/2`.
+Expected: FAIL — `KeyError key :author not found` on the struct match, and undefined `parse_scope/1`, `scope_query/1`, `empty_reason/2`.
 
 - [ ] **Step 3: Update the view-model**
 
@@ -686,8 +696,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
 
   The scope filters by author after the entry rule: `:everyone`,
   `:friends` (no own rows) or `:you` (own rows only). It is navigation
-  state — the page reads it off `?scope=` with `parse_scope/1` — never a
-  preference. The window is the newest `window` rows; `has_older?`
+  state — the page reads it off `?scope=` with `parse_scope/1` and
+  writes it back with `scope_query/1`, the one pair that spells the
+  scope in a URL — never a preference. The window is the newest `window` rows; `has_older?`
   says whether *Show older* has anything to show. The tab's count is
   the window's size under the current scope.
 
@@ -708,7 +719,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
 
   @page_size 50
   @kinds [:review, :listing]
-  @scopes [:everyone, :friends, :you]
 
   @type scope :: :everyone | :friends | :you
   @type empty_reason :: :not_ready | :quiet | :nothing_shared
@@ -717,15 +727,16 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   @spec page_size() :: pos_integer()
   def page_size, do: @page_size
 
-  @doc "The scopes in the control's order; Everyone is the default."
-  @spec scopes() :: [scope()]
-  def scopes, do: @scopes
-
   @doc "The scope named by the URL's `scope` param; Everyone for anything else."
   @spec parse_scope(String.t() | nil) :: scope()
   def parse_scope("friends"), do: :friends
   def parse_scope("you"), do: :you
   def parse_scope(_other), do: :everyone
+
+  @doc "The query that names `scope` in a URL — `parse_scope/1`'s inverse. Everyone is the bare address."
+  @spec scope_query(scope()) :: keyword()
+  def scope_query(:everyone), do: []
+  def scope_query(scope), do: [scope: Atom.to_string(scope)]
 
   @doc "Why the feed is empty under `scope`, given whether a relay and a friend exist."
   @spec empty_reason(scope(), boolean()) :: empty_reason()
@@ -1447,8 +1458,9 @@ In `lib/media_centaur_web/live/discovery_live.ex`:
 ```elixir
        feed_scope: :everyone,
        feed_ready?: false,
-       feed_empty_reason: :not_ready,
 ```
+
+(`feed_ready?` must exist before the first `project/1`, which `load_items/1` reaches before `load_activities/1` sets the real value; `feed_empty_reason` needs no seed because every render follows a `project/1`.)
 
 (b) `handle_params/3` — replace the no-op with:
 
@@ -1511,8 +1523,7 @@ In `lib/media_centaur_web/live/discovery_live.ex`:
     ]
 
   # The Feed under a scope, Everyone being the bare address.
-  defp feed_path(:everyone), do: "/discovery"
-  defp feed_path(scope), do: "/discovery?scope=#{scope}"
+  defp feed_path(scope), do: with_query("/discovery", FeedEntries.scope_query(scope))
 
   # The empty state's words per diagnosis (UIDR-034): before a relay and a
   # friend exist nothing can arrive, so the copy names what is missing;
@@ -1541,22 +1552,20 @@ In `lib/media_centaur_web/live/discovery_live.ex`:
   # tab, and the Feed's scope rides along so closing the modal lands on
   # the same scope.
   defp discovery_path(socket, params) do
-    base = current_path(socket.assigns.live_action)
-
-    case params |> Keyword.merge(scope_params(socket.assigns)) |> URI.encode_query() do
-      "" -> base
-      query -> base <> "?" <> query
-    end
+    socket.assigns.live_action
+    |> current_path()
+    |> with_query(Keyword.merge(params, scope_params(socket.assigns)))
   end
 
   # The host hands a keyword list (`title_detail_path/2`'s contract) and
   # merging appends, so the modal's own params keep their order. Every
   # caller passes a keyword list; convert at the call site if one ever
   # passes a map.
-  defp scope_params(%{live_action: :feed, feed_scope: scope}) when scope != :everyone,
-    do: [scope: Atom.to_string(scope)]
-
+  defp scope_params(%{live_action: :feed, feed_scope: scope}), do: FeedEntries.scope_query(scope)
   defp scope_params(_assigns), do: []
+
+  defp with_query(base, []), do: base
+  defp with_query(base, query), do: base <> "?" <> URI.encode_query(query)
 ```
 
 (f) the template — replace from `<div class="mx-auto w-full max-w-3xl space-y-4 pt-10">` through the end of the `:if={@live_action == :feed}` block (up to and including the `Show older` div's closing `</div>`) with:
@@ -1574,7 +1583,6 @@ In `lib/media_centaur_web/live/discovery_live.ex`:
               options={[{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}]}
               selected={@feed_scope}
               event="feed_scope"
-              nav={false}
             />
           </div>
 
@@ -1731,7 +1739,7 @@ Replace the **Feed** (tab) row with:
 Add two rows after it:
 
 ```markdown
-| **Scope** (Feed) | The author filter on the Feed: **Everyone** (default), **Friends**, **You** — `FeedEntries.scopes/0`, read off `?scope=` by `parse_scope/1`, chosen on the segmented control at the right of the tab strip's line. Navigation state: a refresh, the sidebar's URL memory and the Feed tab's link all return to it. Not a tab and not a setting. |
+| **Scope** (Feed) | The author filter on the Feed: **Everyone** (default), **Friends**, **You** — `FeedEntries.scope/0` (the type), read off `?scope=` by `parse_scope/1` and written back by `scope_query/1`, chosen on the segmented control at the right of the tab strip's line. Navigation state: a refresh, the sidebar's URL memory and the Feed tab's link all return to it. Not a tab and not a setting. |
 | **Author** (Feed) | Who made an action, the word a feed row leads with: a friend's nickname, or **You** for this identity's own broadcasts. An own row takes the second-person verb ("You want to watch"); a friend's the third ("Cleo wants to watch"). |
 ```
 
