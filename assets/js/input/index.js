@@ -20,12 +20,15 @@ const BROWSER_GLOBALS = {
   get cancelAnimationFrame() { return cancelAnimationFrame.bind(window) },
   get getGamepads() { return navigator.getGamepads?.bind(navigator) ?? (() => []) },
   // Read live each call (polled per frame): a connected gamepad may only drive
-  // the UI when this surface is focused, visible, and not an automation context.
+  // the UI when this surface is focused, visible, and either not an automation
+  // context or one that has declared itself the intended driver. The E2E suite
+  // sets the flag via addInitScript; nothing in the app ever sets it.
   get acceptsGamepadInput() {
     return () => gamepadInputAllowed({
       hasFocus: document.hasFocus(),
       visibilityState: document.visibilityState,
-      webdriver: navigator.webdriver,
+      automation: navigator.webdriver,
+      automationDrivesInput: window.__inputAutomationDrivesGamepad === true,
     })
   },
 }
