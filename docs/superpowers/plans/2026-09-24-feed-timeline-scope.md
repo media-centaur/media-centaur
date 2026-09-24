@@ -1846,3 +1846,59 @@ Claude-Session: https://claude.ai/code/session_01JY93FNevijFHrkNdKdSw5L"
 ```
 
 Report to the owner: what shipped, the three visual checks made (feed, You scope, Watchlist/Friends at the wider column), and the one item deferred by the spec that needs an eye in the browser — the Friends card's Recently watched tiles at the wider column, and whether the 240px derivative still reads well at 2× scale.
+
+---
+
+## Additions during execution (2026-09-24)
+
+Steps added by the per-task reviews while the plan ran, recorded here so the plan matches what shipped. Each belongs to the task named and landed in that task's commit or its fix round.
+
+### Added to Task 5
+
+
+- [ ] **Step 3b (added after Task 3's review): the subject is always explicit**
+
+With the row passing the subject, nothing should rely on a default. In `lib/media_centaur_web/live/discovery_live/activity_words.ex`: remove the bodiless head `def verb(kind, episode, subject \\ :friend)`; make both `presence/3` clauses call `verb(kind, episode, :friend)` (the presence sentence is always third person, and now says so in code); reword the `@doc`'s "The episode rides on a watched series." to "The watched verb names the episode on a series."; reword the typedoc to `The grammatical subject: a friend (third person) or You (second person).` In `test/media_centaur_web/live/discovery_live/activity_words_test.exs`: every `verb/2` call becomes `verb/3` with `:friend`, the assertion `assert ActivityWords.verb(:listing, nil) == "wants to watch"` in the subject test is dropped, and one assertion is added: `assert ActivityWords.verb(:watched, %Episode{season_number: 2, episode_number: 5}, :you) == "watched S02E05"`. Run the file; include both in the Step 6 commit. `grep -rn "ActivityWords.verb(" lib` must then show only three-argument calls.
+
+### Added to Task 6
+
+
+- [ ] **Step 2b (added after Task 4's review): pin scope-before-window in the projection test**
+
+In `test/media_centaur_web/live/discovery_live/feed_entries_test.exs`, inside `describe "build/2"`, add:
+
+```elixir
+    test "the scope is applied before the window, so has_older? and the count are the scope's" do
+      rows = [
+        row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo-1", acted_at: ~U[2026-09-01 13:00:00Z]}),
+        row("Nick", %{tmdb_id: 2, kind: :listing, id: "nick-2", acted_at: ~U[2026-09-01 12:00:00Z]}),
+        row("Sam", %{tmdb_id: 3, kind: :listing, id: "sam-3", acted_at: ~U[2026-09-01 11:00:00Z]}),
+        row(nil, %{tmdb_id: 4, kind: :review, id: "mine", acted_at: ~U[2026-09-01 10:00:00Z]}, %{own?: true})
+      ]
+
+      assert build(rows, scope: :everyone, window: 3).has_older?
+      refute build(rows, scope: :friends, window: 3).has_older?
+      assert [%FeedEntry{activity_id: "mine"}] = build(rows, scope: :you, window: 3).entries
+    end
+```
+
+Also rename the existing test `"the scope filters by author after the entry rule"` to `"the entry rule holds under every scope; the scope drops the other authors"` (what it proves). Run the file; include it in the Step 8 commit.
+
+- [ ] **Step 2c (added after Task 5's review): the You card's presence line takes the subject too**
+
+`DiscoveryLive.People` builds the You card with `ActivityWords.presence(kind, episode, title_name)`, which is third person, so the card reads "You" beside "wants to watch Sample Show". The subject is always explicit now (Task 5), so: in `lib/media_centaur_web/live/discovery_live/activity_words.ex` make it `presence(kind, episode, title_name, subject)` with `@spec presence(Activity.kind(), Episode.t() | nil, String.t(), subject()) :: String.t()`, passing `subject` through to `verb/3` in both clauses, and update its `@doc` example to add `"want to watch Sample Show"` for You. In `lib/media_centaur_web/live/discovery_live/people.ex`, `presence/2` needs to know who: change `person/5`'s call to `presence(List.first(sorted), now, if(pubkey, do: :friend, else: :you))` and thread the third argument into `ActivityWords.presence/4`. In `test/media_centaur_web/live/discovery_live/activity_words_test.exs`, the presence test's calls gain `:friend`, plus one assertion: `assert ActivityWords.presence(:listing, nil, "Sample Show", :you) == "want to watch Sample Show"`. In `test/media_centaur_web/live/discovery_live_test.exs`, in the test "the You card shows what you broadcast and deletes it by kind", the existing assertion on `#person-you [data-role='presence']` says "reviewed Sample Movie 99", which is unchanged; add, right after it, a check that a listing presence is second person by creating the listing last: reorder so `Activities.listing(title)` (Sample Movie 42) is created after the review, then assert `has_element?(view, "#person-you [data-role='presence']", "want to watch Sample Movie 42")` and `refute has_element?(view, "#person-you [data-role='presence']", "wants to watch")`. Run both test files; include everything in the Step 8 commit.
+
+### Added to Task 7
+
+
+- [ ] **Step 4b (added after Task 2's review): correct one overclaim in the input-system marker comment**
+
+`assets/js/input/config.js` (the comment above `activeMarkers`, ~lines 378–380) and `docs/input-system.md` (~line 454) say the segmented control is "the one element in the app whose `aria-pressed` means 'current selection' rather than an independent toggle's state". That is false as written: the Incoming scope chips (`lib/media_centaur_web/components/acquisition/media_results.ex`, `omnibox_scope`) and the Review modal's sentiment row (`lib/media_centaur_web/live/review_modal.ex`) are pick-one groups that use `aria-pressed` the same way. Reword both places to: the segmented control is the only pick-one group the input system restores to its chosen option on entry; the marker is scoped to it because `aria-pressed` on other nav items also marks independent toggles (the modal's List, plan-grid cells), which must never be an entry target. Include both files in the Step 5 commit.
+
+- [ ] **Step 4c (added after Task 5): two wording fixes and one story width**
+
+1. `docs/superpowers/specs/2026-09-24-feed-timeline-scope-design.md`, § What the user sees, "The list" paragraph: replace the sentence `A listing's two lines sit centred against the poster.` with `A listing's two lines sit at the top of the row, level with the poster's top edge and the time; the toolbar seat holds the space beneath.` (That is how the old card, the chosen mockup and the row all behave; the centred claim was carried over from the round-2 spec and was never true.)
+2. `storybook/discovery/feed_entry_row.story.exs`: the `:listing` variation's description `"A friend wants to watch it: two lines, centred against the poster, the time on the right."` becomes `"A friend wants to watch it: two lines at the top of the row, the time on the right."`; and the template's wrapper `<div class="glass-inset rounded-xl overflow-hidden">` gains `w-full` so the catalog shows the row at list width rather than shrink-wrapped.
+Include both files in the Step 5 commit.
+3. `storybook/discovery/feed_entry_row.story.exs`, two more pins: the `:own_review` variation drops `library_owner_id: "owner"` and `download_slot: {:state, "In library"}` from its overrides so it renders List · Download with no Ignore, which is what its description says; and the `:listing` variation's `ago` becomes `"just now"`, the widest string `Format.relative_ago/2` produces, so the time column's width is pinned by the catalog.
+4. `docs/superpowers/specs/2026-09-24-feed-timeline-scope-design.md`: two places overstate the Feed tab link. In § What the user sees, "The Feed tab." paragraph, replace `The choice is in the URL, so a refresh, the sidebar and the Feed tab all return to it.` with `The choice is in the URL, so a refresh and the sidebar's section memory return to it. The Feed tab's link carries the scope while the Feed is the active tab; leaving for Watchlist or Friends and coming back through the tab strip starts again at Everyone, because the tabs navigate to fresh mounts and the scope belongs to the Feed's address alone.` In § Acceptance criteria, replace `\`?scope=you\` survives a refresh; the Feed tab's link and the sidebar both return to the last scope; a value the URL does not offer falls back to Everyone.` with `\`?scope=you\` survives a refresh and the sidebar's section memory; the Feed tab's link carries it while the Feed is active; a value the URL does not offer falls back to Everyone.` In `decisions/user-interface/2026-09-24-045-own-actions-join-the-feed-under-an-author-scope.md` rule 2, replace `kept by the section URL memory and carried by the Feed tab's link` with `kept by the section URL memory and carried by the Feed tab's link while the Feed is active`. Include all in the Step 5 commit (the UIDR edit is a same-day correction, no amendment note needed).

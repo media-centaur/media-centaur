@@ -15,7 +15,7 @@ UIDR-038 kept own actions off the Feed and on the You card, reasoning that a fee
 A feed is the timeline of every action the network holds; authorship is a filter on it.
 
 1. **Own reviews and listings are rows** in the Feed, interleaved with friends' by action time. Watched stays off the Feed for every author. Only what was broadcast exists.
-2. **One scope, three values**: Everyone (default), Friends, You, on the house segmented control at the right of the tab strip's line. The scope is an address (`?scope=`), kept by the section URL memory and carried by the Feed tab's link; never a preference. The tab count follows the scope.
+2. **One scope, three values**: Everyone (default), Friends, You, on the house segmented control at the right of the tab strip's line. The scope is an address (`?scope=`), kept by the section URL memory and carried by the Feed tab's link while the Feed is active; never a preference. The tab count follows the scope.
 3. **One anatomy for every author.** An own row differs by the word You, in the primary colour, and the second-person verb. No border, tint, marker or badge.
 4. **The toolbar on an own row is List and Download.** No Ignore. No Delete: withdrawing is the modal's Delete, which an own row opens by naming its action. UIDR-038 rule 10 becomes: the modal, opened from the You card or an own row, is the only place to withdraw.
 5. **One list surface.** Rows in one inset glass container separated by hairlines, the relative time in a right-hand column, the per-entry card gone. The Discovery column is 896px for every tab.

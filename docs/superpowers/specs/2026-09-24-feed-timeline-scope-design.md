@@ -44,16 +44,21 @@ at 1920px.
 **The Feed tab.** A segmented control at the right of the tab strip's
 line: Everyone · Friends · You. Everyone is the default. The tab count is
 the number of rows in the window under the current scope. The choice is
-in the URL, so a refresh, the sidebar and the Feed tab all return to it.
+in the URL, so a refresh and the sidebar's section memory return to it.
+The Feed tab's link carries the scope while the Feed is the active tab;
+leaving for Watchlist or Friends and coming back through the tab strip
+starts again at Everyone, because the tabs navigate to fresh mounts and
+the scope belongs to the Feed's address alone.
 
 **The list.** One inset glass surface. Rows separated by hairlines, a
 56×84 poster on the left, three text lines beside it, the relative time
 right-aligned in a fixed column. Line 1: the author in medium weight,
 "You" in the primary colour, the verb, the sentiment glyph when a review
 gives one. Line 2: the title and year. Line 3: the review text when
-there is any, four lines at most. A listing's two lines sit centred
-against the poster. Own rows use the second person: "You reviewed", "You
-want to watch".
+there is any, four lines at most. A listing's two lines sit at the top
+of the row, level with the poster's top edge and the time; the toolbar
+seat holds the space beneath. Own rows use the second person: "You
+reviewed", "You want to watch".
 
 **The toolbar.** Unchanged in placement and behaviour: a fixed seat,
 visible on hover or cursor, the row's height constant.
@@ -127,7 +132,7 @@ who authored an action is a filter, not a rule.
 - [ ] `/discovery` opens on Everyone; own reviews and listings interleave with friends' by action time.
 - [ ] The control offers Everyone, Friends, You; the tab count equals the rows in the window for the current scope.
 - [ ] Friends shows no own row; You shows own rows only.
-- [ ] `?scope=you` survives a refresh; the Feed tab's link and the sidebar both return to the last scope; a value the URL does not offer falls back to Everyone.
+- [ ] `?scope=you` survives a refresh and the sidebar's section memory; the Feed tab's link carries it while the Feed is active; a value the URL does not offer falls back to Everyone.
 - [ ] An own row reads "You reviewed" / "You want to watch", You in the primary colour, with no border, tint, marker or badge.
 - [ ] The relative time sits in the right column; line 1 carries no time.
 - [ ] A friend's row toolbar is List · Download · Ignore; an own row's is List · Download.

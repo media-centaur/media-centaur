@@ -315,7 +315,7 @@ Plain text links with animated underline. `.zone-tab-active` expands underline f
 
 ### Library Toolbar
 
-- **Type tabs:** `.tabs.tabs-boxed.segmented-control` — the house pick-one pill (glass container, the chosen `.tab` lifted on `bg-neutral/80`; also `aria-selected` / `aria-pressed`). A title's tracking controls are not a pill: they are two Settings-kit toggle rows (`Title.TrackingControls`, UIDR-042).
+- **Type tabs:** `segmented_control/1` — the house pick-one pill (glass container, the chosen option lifted, `aria-pressed`); the same component renders the Feed's scope and the strip chart's window. A title's tracking controls are not a pill: they are two Settings-kit toggle rows (`Title.TrackingControls`, UIDR-042).
 - **Sort:** `GlassMenu.menu_select` (see Glass menu under Component Recipes); its open list is the `library_sort_menu` nav zone
 - **Filter input:** `.library-filter` — pill with glass border, blue focus ring
 
@@ -412,6 +412,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 041 | Settings cards are readouts with actions, from one kit; save on the act; gated cards state their prerequisite |
 | 042 | Tracking is the bookmark and two switches (Track release dates, Auto-grab) over one record |
 | 043 | One title detail, composed by facts — one modal for one TMDB identity on every page; files are one more fact (supersedes 035 rules 1–2) |
+| 045 | Own actions join the Feed under an author scope; the segmented control is one component |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
@@ -446,6 +447,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `progress_hairline/1` | `progress_hairline.ex` | Subject progress hairline (UIDR-024) |
 | `strip_chart/1` | `strip_chart.ex` | N time-series strips over one window with a synced cursor; strips drawn by the `StripChart` hook from frames (`StripChart.Feed`). First tenant: the Connections drill-in | ✅ shell |
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
+| `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
 | `coming_up_marquee/1` | `coming_up_marquee.ex` | Incoming's Coming Up shelf (UIDR-015) |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
 | `log_list/1` | `console_components.ex` | Monospace log stream |

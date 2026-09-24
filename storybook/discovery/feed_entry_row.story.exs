@@ -21,7 +21,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
 
   def template do
     """
-    <div class="glass-inset rounded-xl overflow-hidden">
+    <div class="glass-inset w-full rounded-xl overflow-hidden">
       <.psb-variation/>
     </div>
     """
@@ -59,8 +59,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
       %Variation{
         id: :listing,
         description:
-          "A friend wants to watch it: two lines, centred against the poster, the time on the right.",
-        attributes: %{entry: entry("listing", %{})}
+          "A friend wants to watch it: two lines at the top of the row, the time on the right.",
+        attributes: %{entry: entry("listing", %{ago: "just now"})}
       },
       %Variation{
         id: :review_like_with_text,
@@ -148,8 +148,6 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
               kind: :review,
               sentiment: :love,
               text: "Saw it twice. The last twenty minutes are the whole film.",
-              library_owner_id: "owner",
-              download_slot: {:state, "In library"},
               ago: "1h ago"
             })
         }

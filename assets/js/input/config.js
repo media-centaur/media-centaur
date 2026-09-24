@@ -375,9 +375,11 @@ export const inputConfig = {
 
   // Markers of a context's current selection, for focus restoration on
   // entry: the current page, tab or section, and the chosen option of a
-  // segmented control — the one element in the app whose `aria-pressed`
-  // means "current selection" rather than an independent toggle's state
-  // (the title modal's List, a plan-grid cell), hence the scope.
+  // segmented control — the only pick-one group the input system restores
+  // to its chosen option on entry. The marker is scoped to it because
+  // `aria-pressed` on other nav items also marks independent toggles (the
+  // title modal's List, a plan-grid cell), which must never be an entry
+  // target.
   activeMarkers: [
     ".sidebar-link-active", ".zone-tab-active", ".menu-item-active",
     ".segmented-control [aria-pressed='true']",
