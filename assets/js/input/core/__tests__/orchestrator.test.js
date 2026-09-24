@@ -71,7 +71,7 @@ const TEST_CONFIG = {
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
   },
   alwaysPopulated: ["sidebar", "sections"],
-  activeMarkers: [".sidebar-link-active", ".zone-tab-active", ".menu-item-active", "[aria-pressed='true']"],
+  activeMarkers: [".sidebar-link-active", ".zone-tab-active", ".menu-item-active", ".segmented-control [aria-pressed='true']"],
 }
 
 /**

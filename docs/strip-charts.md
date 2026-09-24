@@ -174,4 +174,9 @@ minute roll-up (if counting ever shows in a profile); a lazily loaded
 uPlot chunk (if the app bundle's size becomes a measured problem).
 The window control's options are nav items (the shared
 `segmented_control/1`); in the Status drill-in, a vertical menu context,
-they are walked with Down.
+they are walked with Down, and entering the drill-in from the tile board
+lands on the chosen window rather than Close, because a segmented
+control's pressed option is an active marker for focus restoration
+(`docs/input-system.md`). Traced with `mc-nav-trace` on 2026-09-24; a
+Right-walk would need the drill-in's context type changed in
+`assets/js/input/config.js`, never an opt-out on the component.

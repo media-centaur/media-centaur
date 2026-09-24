@@ -60,7 +60,7 @@
 - Create: `storybook/core_components/segmented_control.story.exs`
 - Modify: `storybook/core_components/_core_components.index.exs`
 
-- [ ] **Step 1: Write the failing component test**
+- [x] **Step 1: Write the failing component test**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.SegmentedControlTest do
@@ -114,12 +114,12 @@ defmodule MediaCentaurWeb.Components.SegmentedControlTest do
 end
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/segmented_control_test.exs`
 Expected: FAIL — `CoreComponents.segmented_control/1 is undefined`.
 
-- [ ] **Step 3: Add `phx_values/1` and `segmented_control/1` to `CoreComponents`**
+- [x] **Step 3: Add `phx_values/1` and `segmented_control/1` to `CoreComponents`**
 
 Append to `lib/media_centaur_web/components/core_components.ex`, after `badge/1` (keep the module's existing ordering conventions; both functions are public):
 
@@ -194,12 +194,12 @@ Append to `lib/media_centaur_web/components/core_components.ex`, after `badge/1`
   end
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/segmented_control_test.exs`
 Expected: 4 tests, 0 failures.
 
-- [ ] **Step 5: Compose it from `settings_choice/1` and drop both private `phx_values/1`**
+- [x] **Step 5: Compose it from `settings_choice/1` and drop both private `phx_values/1`**
 
 In `lib/media_centaur_web/components/settings.ex`, replace the pill inside `settings_choice/1` (the `<div id={@id} class="tabs tabs-boxed segmented-control …">…</div>` block) with:
 
@@ -218,7 +218,7 @@ Delete the private `phx_values/1` (both clauses, lines 538–546) from `settings
 
 In `lib/media_centaur_web/components/glass_menu.ex`, delete the private `phx_values/1` (both clauses and the comment above them, lines 254–266). Its call sites also resolve to the public function.
 
-- [ ] **Step 6: Write the story and register it**
+- [x] **Step 6: Write the story and register it**
 
 Create `storybook/core_components/segmented_control.story.exs`:
 
@@ -279,12 +279,12 @@ Add to `storybook/core_components/_core_components.index.exs`, keeping alphabeti
   def entry("segmented_control"), do: [icon: {:fa, "grip-lines", :thin}, name: "Segmented control"]
 ```
 
-- [ ] **Step 7: Run the affected suites**
+- [x] **Step 7: Run the affected suites**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components test/media_centaur_web/live/settings_live_test.exs test/media_centaur_web/storybook_compile_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures. (The Settings choice rows render the same markup through the component; their tests assert `aria-pressed` and `phx-value-choice`, which are unchanged.)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add lib/media_centaur_web/components/core_components.ex lib/media_centaur_web/components/settings.ex lib/media_centaur_web/components/glass_menu.ex test/media_centaur_web/components/segmented_control_test.exs storybook/core_components/segmented_control.story.exs storybook/core_components/_core_components.index.exs
@@ -304,7 +304,7 @@ Claude-Session: https://claude.ai/code/session_01JY93FNevijFHrkNdKdSw5L"
 - Modify: `lib/media_centaur_web/components/strip_chart/feed.ex:127`
 - Modify: `test/media_centaur_web/live/status_live_test.exs:55`
 
-- [ ] **Step 1: Change the status test to the component's contract and watch it fail**
+- [x] **Step 1: Change the status test to the component's contract and watch it fail**
 
 In `test/media_centaur_web/live/status_live_test.exs` line 55, replace:
 
@@ -321,7 +321,7 @@ with:
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/status_live_test.exs`
 Expected: 1 failure — `expected selector "[phx-value-choice='1w']" to return a single element, but got none`.
 
-- [ ] **Step 2: Migrate the strip chart's pill**
+- [x] **Step 2: Migrate the strip chart's pill**
 
 In `lib/media_centaur_web/components/strip_chart.ex`, replace the block from `<div class="tabs tabs-boxed segmented-control w-fit shrink-0"` through its closing `</div>` (lines 45–61) with:
 
@@ -344,12 +344,12 @@ In `lib/media_centaur_web/components/strip_chart/feed.ex` line 127, change the p
   defp on_event("strip_chart:window", %{"id" => id, "choice" => label}, socket, id) do
 ```
 
-- [ ] **Step 3: Run the status test to verify it passes**
+- [x] **Step 3: Run the status test to verify it passes**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/status_live_test.exs`
 Expected: 0 failures.
 
-- [ ] **Step 4: Migrate Library's type tabs**
+- [x] **Step 4: Migrate Library's type tabs**
 
 In `lib/media_centaur_web/components/library_cards.ex`, replace the block from `<div role="tablist" class="tabs tabs-boxed segmented-control w-fit">` through its closing `</div>` (lines 181–194) with:
 
@@ -368,12 +368,12 @@ In `lib/media_centaur_web/live/library_live.ex` line 133, change the handler hea
   def handle_event("switch_tab", %{"choice" => tab}, socket) do
 ```
 
-- [ ] **Step 5: Run the Library and storybook suites**
+- [x] **Step 5: Run the Library and storybook suites**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/library_live_test.exs test/media_centaur_web/live/library_live_tracking_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures. No test clicks the type tabs by `phx-value-tab` (verified with `grep -rn "phx-value-tab\|switch_tab" test`, which returns only Apps-page hits), and the toolbar story's variations pass `active_tab`, which is unchanged.
 
-- [ ] **Step 6: Trace both nav graphs**
+- [x] **Step 6: Trace both nav graphs**
 
 The Library toolbar's nav zone is `data-nav-zone="toolbar"` on the outer div and the tab buttons sat two levels below it; the component's root div replaces the `tablist` div, so the depth is unchanged. Confirm with:
 
@@ -391,7 +391,7 @@ On Status the window pill is newly reachable inside the drill-in zone:
 
 Expected: from the tile board, Down enters the drill-in; the six window options are reachable in order along Right, and Down from the pill still reaches the incident rows below it. If Right from the pill jumps somewhere surprising, the drill-in zone's spatial reading is the thing to fix, in `config.js`, not the component; report it rather than reintroducing an opt-out on the component.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/media_centaur_web/components/library_cards.ex lib/media_centaur_web/live/library_live.ex lib/media_centaur_web/components/strip_chart.ex lib/media_centaur_web/components/strip_chart/feed.ex test/media_centaur_web/live/status_live_test.exs
@@ -408,7 +408,7 @@ Claude-Session: https://claude.ai/code/session_01JY93FNevijFHrkNdKdSw5L"
 - Modify: `lib/media_centaur_web/live/discovery_live/activity_words.ex`
 - Modify: `test/media_centaur_web/live/discovery_live/activity_words_test.exs`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to the first module in `test/media_centaur_web/live/discovery_live/activity_words_test.exs`, after the "each kind has a verb" test:
 
@@ -422,12 +422,12 @@ Add to the first module in `test/media_centaur_web/live/discovery_live/activity_
   end
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live/activity_words_test.exs`
 Expected: FAIL — `ActivityWords.verb/3 is undefined`.
 
-- [ ] **Step 3: Implement `verb/3`**
+- [x] **Step 3: Implement `verb/3`**
 
 Replace the `verb` doc, spec and clauses in `lib/media_centaur_web/live/discovery_live/activity_words.ex` with:
 
@@ -455,12 +455,12 @@ Replace the `verb` doc, spec and clauses in `lib/media_centaur_web/live/discover
 
 Update the moduledoc's first sentence to: `the verb ("reviewed", "watched S02E05", "wants to watch" — "want to watch" when You are the subject)`.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live/activity_words_test.exs`
 Expected: 0 failures (the presence sentence, third person, is untouched).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/media_centaur_web/live/discovery_live/activity_words.ex test/media_centaur_web/live/discovery_live/activity_words_test.exs
@@ -478,7 +478,7 @@ Claude-Session: https://claude.ai/code/session_01JY93FNevijFHrkNdKdSw5L"
 - Modify: `lib/media_centaur_web/live/discovery_live/feed_entries.ex`
 - Modify: `test/media_centaur_web/live/discovery_live/feed_entries_test.exs`
 
-- [ ] **Step 1: Rewrite the projection tests for the new contract**
+- [x] **Step 1: Rewrite the projection tests for the new contract**
 
 Replace the whole `describe "build/2"` block in `test/media_centaur_web/live/discovery_live/feed_entries_test.exs` with the following, and change the `build/2` helper so `scope: :everyone` is the default:
 
@@ -655,12 +655,12 @@ Replace the whole `describe "build/2"` block in `test/media_centaur_web/live/dis
   end
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live/feed_entries_test.exs`
 Expected: FAIL — `KeyError key :author not found` on the struct match, and undefined `parse_scope/1`, `scope_query/1`, `empty_reason/2`.
 
-- [ ] **Step 3: Update the view-model**
+- [x] **Step 3: Update the view-model**
 
 In `lib/media_centaur_web/components/discovery/feed_entry.ex`: in `defstruct`, replace `:nickname` with `:author` and add `:own?` after it; in `@type t`, replace `nickname: String.t()` with `author: String.t(), own?: boolean()`. Replace the moduledoc's first paragraph with:
 
@@ -679,7 +679,7 @@ In `lib/media_centaur_web/components/discovery/feed_entry.ex`: in `defstruct`, r
 
 Keep the second paragraph (the slots) as it is, changing "the card renders it" to "the row renders it". Change the final sentence to: `Where this could be confused with a library entry, say *feed row*.`
 
-- [ ] **Step 4: Update the projection**
+- [x] **Step 4: Update the projection**
 
 Rewrite `lib/media_centaur_web/live/discovery_live/feed_entries.ex`:
 
@@ -818,12 +818,12 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
 end
 ```
 
-- [ ] **Step 5: Run the projection tests**
+- [x] **Step 5: Run the projection tests**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live/feed_entries_test.exs`
 Expected: 0 failures. (`DiscoveryLive` and the story still reference `nickname`; they are rewritten in Tasks 5 and 6. Do not run the full suite yet.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/media_centaur_web/components/discovery/feed_entry.ex lib/media_centaur_web/live/discovery_live/feed_entries.ex test/media_centaur_web/live/discovery_live/feed_entries_test.exs
@@ -844,14 +844,14 @@ Storybook-first: the story is edited before the component (the `storybook` skill
 - Modify: `storybook/discovery/_discovery.index.exs`
 - Modify: `lib/media_centaur_web/components/title/row.ex:9-10`
 
-- [ ] **Step 1: Rename both files**
+- [x] **Step 1: Rename both files**
 
 ```bash
 git mv storybook/discovery/feed_entry_card.story.exs storybook/discovery/feed_entry_row.story.exs
 git mv lib/media_centaur_web/components/discovery/feed_entry_card.ex lib/media_centaur_web/components/discovery/feed_entry_row.ex
 ```
 
-- [ ] **Step 2: Rewrite the story with the new contract**
+- [x] **Step 2: Rewrite the story with the new contract**
 
 Write `storybook/discovery/feed_entry_row.story.exs`:
 
@@ -1047,7 +1047,7 @@ In `storybook/discovery/_discovery.index.exs` replace the `feed_entry_card` entr
   def entry("feed_entry_row"), do: [icon: {:fa, "stream", :thin}, name: "Feed row"]
 ```
 
-- [ ] **Step 3: Rewrite the component as a row**
+- [x] **Step 3: Rewrite the component as a row**
 
 Write `lib/media_centaur_web/components/discovery/feed_entry_row.ex`:
 
@@ -1229,18 +1229,18 @@ end
 
 In `lib/media_centaur_web/components/title/row.ex` lines 9–10, change `(The Feed's entries are \`Discovery.FeedEntryCard\`, which carries its own toolbar.)` to `(The Feed's rows are \`Discovery.FeedEntryRow\`, which carries its own toolbar.)`.
 
-- [ ] **Step 4: Point `DiscoveryLive` at the new module so the app compiles**
+- [x] **Step 4: Point `DiscoveryLive` at the new module so the app compiles**
 
 In `lib/media_centaur_web/live/discovery_live.ex`: change the alias `alias MediaCentaurWeb.Components.Discovery.FeedEntryCard` to `alias MediaCentaurWeb.Components.Discovery.FeedEntryRow`, and the render call `<FeedEntryCard.feed_entry_card :for={entry <- @feed} entry={entry} />` to `<FeedEntryRow.feed_entry_row :for={entry <- @feed} entry={entry} />`. Task 6 rewrites the surrounding template; this step only keeps the build green. The `project/1` call to `FeedEntries.build/2` still lacks `scope:`; add `scope: :everyone` there for now — Task 6 replaces it with the assign.
 
-- [ ] **Step 5: Build the CSS and render the story**
+- [x] **Step 5: Build the CSS and render the story**
 
 Run: `~/scripts/agents/agent-mix assets.build` (new utilities: `h-21`, `min-h-21`, `w-14`, `text-[15px]`, `w-16`).
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/storybook_compile_test.exs test/media_centaur_web/storybook_render_test.exs`
 Expected: 0 failures.
 Then Read a render of `http://127.0.0.1:2160/storybook/discovery/feed_entry_row` at 1920×1080 via `page-shot --wait-ms 3000` and confirm: the time sits on the right edge of every row, "You" is blue on the two own rows, the own rows show no Ignore, and a listing's two lines are centred against the poster.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A lib/media_centaur_web/components/discovery lib/media_centaur_web/components/title/row.ex lib/media_centaur_web/live/discovery_live.ex storybook/discovery
@@ -1258,7 +1258,7 @@ Claude-Session: https://claude.ai/code/session_01JY93FNevijFHrkNdKdSw5L"
 - Modify: `test/media_centaur_web/live/discovery_live_test.exs` (the `describe "feed tab"` block)
 - Modify: `test/media_centaur_web/page_smoke_test.exs:58`
 
-- [ ] **Step 1: Update the feed test helpers and the tests the anatomy change breaks**
+- [x] **Step 1: Update the feed test helpers and the tests the anatomy change breaks**
 
 In `test/media_centaur_web/live/discovery_live_test.exs`, inside `describe "feed tab"`:
 
@@ -1334,7 +1334,7 @@ Replace the test "watched actions, own actions and a former friend's actions nev
     end
 ```
 
-- [ ] **Step 2: Add the scope and own-row tests**
+- [x] **Step 2: Add the scope and own-row tests**
 
 Append inside `describe "feed tab"`:
 
@@ -1435,7 +1435,7 @@ Append inside `describe "feed tab"`:
 
 Note on the Listed test: `Activities.Publisher` withdraws a listing when the rung drops below List whether or not *Share your watchlist* is on (`docs/social.md` § Event shape, ADR-067), so the row leaves through the normal `activity_deleted` broadcast. If the row does not leave within the second `render_until` allows, read `lib/media_centaur/activities/publisher.ex` for the `RungChanged` handling before touching the test.
 
-- [ ] **Step 3: Add the scoped routes to the smoke test**
+- [x] **Step 3: Add the scoped routes to the smoke test**
 
 In `test/media_centaur_web/page_smoke_test.exs` line 58, after `{"/discovery", "discovery feed"},` add:
 
@@ -1444,12 +1444,12 @@ In `test/media_centaur_web/page_smoke_test.exs` line 58, after `{"/discovery", "
           {"/discovery?scope=you", "discovery feed, you scope"},
 ```
 
-- [ ] **Step 4: Run the feed tests to verify they fail**
+- [x] **Step 4: Run the feed tests to verify they fail**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/page_smoke_test.exs`
 Expected: failures on `#feed-scope` (no such element), the own rows, the empty copy and the `?scope=` routes. The Library/People tests in the file still pass.
 
-- [ ] **Step 5: Wire the page**
+- [x] **Step 5: Wire the page**
 
 In `lib/media_centaur_web/live/discovery_live.ex`:
 
@@ -1664,12 +1664,12 @@ and keep the rest of the paragraph from `(\`/discovery/friends\`) — one \`Pers
 
 (h) the comment above `activity_row/3` — change `Never an own act unless named — the You card names it;` to `Never an own act unless named — the You card and an own feed row name it;`.
 
-- [ ] **Step 6: Run the feed tests, then the smoke test**
+- [x] **Step 6: Run the feed tests, then the smoke test**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/page_smoke_test.exs`
 Expected: 0 failures.
 
-- [ ] **Step 7: Look at it**
+- [x] **Step 7: Look at it**
 
 Run `~/scripts/agents/agent-mix assets.build` if any utility in the template is new (`max-w-4xl`, `gap-x-6`, `gap-y-3` are likely already in the bundle; build anyway), then:
 
@@ -1680,7 +1680,7 @@ Run `~/scripts/agents/agent-mix assets.build` if any utility in the template is 
 
 Read both PNGs. Expected: the pill sits at the right of the tab line with the chosen option lifted; the rows sit in one inset surface with hairlines; the times line up on the right; the dev database's own review (if any) reads "You reviewed" in blue. Check the Watchlist and Friends tabs once each at the wider column for anything that broke its line.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add lib/media_centaur_web/live/discovery_live.ex test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/page_smoke_test.exs
@@ -1699,7 +1699,7 @@ Claude-Session: https://claude.ai/code/session_01JY93FNevijFHrkNdKdSw5L"
 - Modify: `.claude/skills/user-interface/SKILL.md` (the UIDR table, after row 044 if present, else after 043)
 - Modify: `../media-centaur.wiki/Social.md` (§ Feed, § Friends "Your card", the intro line)
 
-- [ ] **Step 1: `docs/social.md` — the Feed bullet in § Web layer**
+- [x] **Step 1: `docs/social.md` — the Feed bullet in § Web layer**
 
 Replace the `**Feed**` bullet with:
 
@@ -1722,7 +1722,7 @@ Replace the `**Feed**` bullet with:
 
 Also in that section, change "What friends did with a title … is one component everywhere but the Feed, the pennant" — leave as is; it is still true. In the sentence "A feed entry flies none: each friend's action is its own entry there." change to "A feed row flies none: each action is its own row there."
 
-- [ ] **Step 2: `docs/GLOSSARY.md`**
+- [x] **Step 2: `docs/GLOSSARY.md`**
 
 Change the **Entry** row's parenthetical `\`Discovery.FeedEntry\` — say *feed entry* where the Feed's unit could be mistaken for a library entry` to `\`Discovery.FeedEntry\` — say *feed row* where the Feed's unit could be mistaken for a library entry`.
 
@@ -1743,7 +1743,7 @@ Add two rows after it:
 | **Author** (Feed) | Who made an action, the word a feed row leads with: a friend's nickname, or **You** for this identity's own broadcasts. An own row takes the second-person verb ("You want to watch"); a friend's the third ("Cleo wants to watch"). |
 ```
 
-- [ ] **Step 3: `.claude/skills/user-interface/SKILL.md`**
+- [x] **Step 3: `.claude/skills/user-interface/SKILL.md`**
 
 In the UIDR table add, after the last row:
 
@@ -1759,7 +1759,7 @@ In the Component Inventory table, after the `tab_strip/1` row, add:
 
 In § Library Toolbar, change the Type tabs bullet to: `**Type tabs:** \`segmented_control/1\` — the house pick-one pill (glass container, the chosen option lifted, \`aria-pressed\`); the same component renders the Feed's scope and the strip chart's window. A title's tracking controls are not a pill: …` keeping the rest of the sentence.
 
-- [ ] **Step 4: The wiki's Social page**
+- [x] **Step 4: The wiki's Social page**
 
 In `../media-centaur.wiki/Social.md`:
 
@@ -1806,7 +1806,7 @@ Not on the Feed: what anyone watches (the Friends tab has it), and activity from
 
 In § Friends, the "Your card" paragraph: change `Opening one of your own titles adds **Delete review**` to `Opening one of your own titles here, or one of your own rows on the Feed, adds **Delete review**`.
 
-- [ ] **Step 5: Commit both repositories**
+- [x] **Step 5: Commit both repositories**
 
 ```bash
 git add docs/social.md docs/GLOSSARY.md .claude/skills/user-interface/SKILL.md
@@ -1822,19 +1822,19 @@ Do not push either repository; the owner pushes.
 
 ### Task 8: Precommit and the closing check
 
-- [ ] **Step 1: Run the whole gate in the foreground**
+- [x] **Step 1: Run the whole gate in the foreground**
 
 Run: `~/scripts/agents/agent-mix precommit` with a 600000 ms timeout (never in the background: a background shell is killed at the end of the turn).
 Expected: format clean, Credo clean (MC0009 finds `feed_entry_row.story.exs`; MC0024 sees no `phx-`/`data-` literals in `=~` assertions; MC0034 sees no text under /55), boundaries clean, 0 test failures, 0 warnings.
 
 If the formatter rewrites a file, stage and amend the last commit (nothing is pushed). If Credo reports the segmented control's `phx-value-choice` under MC0021, that is a false hit only for the literal `value` key; the component never emits it.
 
-- [ ] **Step 2: Run the feed tests three times for flakes**
+- [x] **Step 2: Run the feed tests three times for flakes**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs --repeat-until-failure 3`
 Expected: 3 clean runs. A failure in the Listed-withdraws test points at the Publisher's async path; fix the seam (a `render_until` on the right predicate), never a sleep.
 
-- [ ] **Step 3: Update the spec's status line and finish**
+- [x] **Step 3: Update the spec's status line and finish**
 
 In `docs/superpowers/specs/2026-09-24-feed-timeline-scope-design.md`, change `**Status:** designed; implementation plan to follow (UIDR-045)` to `**Status:** implemented 2026-09-24 (UIDR-045); plan in \`../plans/2026-09-24-feed-timeline-scope.md\``.
 
@@ -1856,14 +1856,14 @@ Steps added by the per-task reviews while the plan ran, recorded here so the pla
 ### Added to Task 5
 
 
-- [ ] **Step 3b (added after Task 3's review): the subject is always explicit**
+- [x] **Step 3b (added after Task 3's review): the subject is always explicit**
 
 With the row passing the subject, nothing should rely on a default. In `lib/media_centaur_web/live/discovery_live/activity_words.ex`: remove the bodiless head `def verb(kind, episode, subject \\ :friend)`; make both `presence/3` clauses call `verb(kind, episode, :friend)` (the presence sentence is always third person, and now says so in code); reword the `@doc`'s "The episode rides on a watched series." to "The watched verb names the episode on a series."; reword the typedoc to `The grammatical subject: a friend (third person) or You (second person).` In `test/media_centaur_web/live/discovery_live/activity_words_test.exs`: every `verb/2` call becomes `verb/3` with `:friend`, the assertion `assert ActivityWords.verb(:listing, nil) == "wants to watch"` in the subject test is dropped, and one assertion is added: `assert ActivityWords.verb(:watched, %Episode{season_number: 2, episode_number: 5}, :you) == "watched S02E05"`. Run the file; include both in the Step 6 commit. `grep -rn "ActivityWords.verb(" lib` must then show only three-argument calls.
 
 ### Added to Task 6
 
 
-- [ ] **Step 2b (added after Task 4's review): pin scope-before-window in the projection test**
+- [x] **Step 2b (added after Task 4's review): pin scope-before-window in the projection test**
 
 In `test/media_centaur_web/live/discovery_live/feed_entries_test.exs`, inside `describe "build/2"`, add:
 
@@ -1884,18 +1884,18 @@ In `test/media_centaur_web/live/discovery_live/feed_entries_test.exs`, inside `d
 
 Also rename the existing test `"the scope filters by author after the entry rule"` to `"the entry rule holds under every scope; the scope drops the other authors"` (what it proves). Run the file; include it in the Step 8 commit.
 
-- [ ] **Step 2c (added after Task 5's review): the You card's presence line takes the subject too**
+- [x] **Step 2c (added after Task 5's review): the You card's presence line takes the subject too**
 
 `DiscoveryLive.People` builds the You card with `ActivityWords.presence(kind, episode, title_name)`, which is third person, so the card reads "You" beside "wants to watch Sample Show". The subject is always explicit now (Task 5), so: in `lib/media_centaur_web/live/discovery_live/activity_words.ex` make it `presence(kind, episode, title_name, subject)` with `@spec presence(Activity.kind(), Episode.t() | nil, String.t(), subject()) :: String.t()`, passing `subject` through to `verb/3` in both clauses, and update its `@doc` example to add `"want to watch Sample Show"` for You. In `lib/media_centaur_web/live/discovery_live/people.ex`, `presence/2` needs to know who: change `person/5`'s call to `presence(List.first(sorted), now, if(pubkey, do: :friend, else: :you))` and thread the third argument into `ActivityWords.presence/4`. In `test/media_centaur_web/live/discovery_live/activity_words_test.exs`, the presence test's calls gain `:friend`, plus one assertion: `assert ActivityWords.presence(:listing, nil, "Sample Show", :you) == "want to watch Sample Show"`. In `test/media_centaur_web/live/discovery_live_test.exs`, in the test "the You card shows what you broadcast and deletes it by kind", the existing assertion on `#person-you [data-role='presence']` says "reviewed Sample Movie 99", which is unchanged; add, right after it, a check that a listing presence is second person by creating the listing last: reorder so `Activities.listing(title)` (Sample Movie 42) is created after the review, then assert `has_element?(view, "#person-you [data-role='presence']", "want to watch Sample Movie 42")` and `refute has_element?(view, "#person-you [data-role='presence']", "wants to watch")`. Run both test files; include everything in the Step 8 commit.
 
 ### Added to Task 7
 
 
-- [ ] **Step 4b (added after Task 2's review): correct one overclaim in the input-system marker comment**
+- [x] **Step 4b (added after Task 2's review): correct one overclaim in the input-system marker comment**
 
 `assets/js/input/config.js` (the comment above `activeMarkers`, ~lines 378–380) and `docs/input-system.md` (~line 454) say the segmented control is "the one element in the app whose `aria-pressed` means 'current selection' rather than an independent toggle's state". That is false as written: the Incoming scope chips (`lib/media_centaur_web/components/acquisition/media_results.ex`, `omnibox_scope`) and the Review modal's sentiment row (`lib/media_centaur_web/live/review_modal.ex`) are pick-one groups that use `aria-pressed` the same way. Reword both places to: the segmented control is the only pick-one group the input system restores to its chosen option on entry; the marker is scoped to it because `aria-pressed` on other nav items also marks independent toggles (the modal's List, plan-grid cells), which must never be an entry target. Include both files in the Step 5 commit.
 
-- [ ] **Step 4c (added after Task 5): two wording fixes and one story width**
+- [x] **Step 4c (added after Task 5): two wording fixes and one story width**
 
 1. `docs/superpowers/specs/2026-09-24-feed-timeline-scope-design.md`, § What the user sees, "The list" paragraph: replace the sentence `A listing's two lines sit centred against the poster.` with `A listing's two lines sit at the top of the row, level with the poster's top edge and the time; the toolbar seat holds the space beneath.` (That is how the old card, the chosen mockup and the row all behave; the centred claim was carried over from the round-2 spec and was never true.)
 2. `storybook/discovery/feed_entry_row.story.exs`: the `:listing` variation's description `"A friend wants to watch it: two lines, centred against the poster, the time on the right."` becomes `"A friend wants to watch it: two lines at the top of the row, the time on the right."`; and the template's wrapper `<div class="glass-inset rounded-xl overflow-hidden">` gains `w-full` so the catalog shows the row at list width rather than shrink-wrapped.
