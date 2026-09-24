@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   tab is a click target opening the title detail modal
   (`DetailPanel`, hosted through `TitleDetailHost` and driven by
   `?title=<media_type>-<id>` on the current tab, plus `&activity=<id>`
-  when an entry or a person card opened it — refresh keeps it open, back
+  when a row or a person card opened it — refresh keeps it open, back
   closes it), where the verbs live: Play for a title the library owns,
   Download (the one-click plan) for one it does not, the bookmark and
   the tracking switches, Delete (an own activity of any kind).
@@ -21,10 +21,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   newest `feed_window` of them and a *Show older* control past that
   (`feed_show_older`). The scope — Everyone, Friends, You — is the
   `?scope=` param, read in `handle_params`, patched by the pill
-  (`feed_scope`) and carried by the Feed tab's link and every modal
-  path, so it survives a refresh, the sidebar and the modal. A row's
-  toolbar holds the verbs that live outside the modal: `feed_list` (the
-  bottom rung as a toggle — List, Listed, or Following as plain state),
+  (`feed_scope`) and carried by every modal path and, while the Feed is
+  the active tab, by the Feed tab's link, so it survives a refresh, the
+  sidebar's section memory and the modal. A row's toolbar holds the
+  verbs that live outside the modal: `feed_list` (the bottom rung as a
+  toggle — List, Listed, or Following as plain state),
   `feed_download` (the one-click plan, the modal's plain Download) and,
   on a friend's row, `ignore_title` (the Ignored rung, with the Undo
   toast). An own row has neither Ignore nor Delete: it opens the modal
@@ -44,14 +45,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   (`Activities.friend_activity_for/1`, which joins `Social.list_friends/0`)
   — the join neither context may make.
 
-  A listing or an ignore made from an entry carries that entry's
-  activity as provenance (`TitleIntent.friend_provenance/2`), the way
-  the modal's ladder does. Because Ignore shows no state to reverse, it
+  A listing or an ignore made from a row carries that row's activity
+  as provenance (`TitleIntent.friend_provenance/2`), the way the
+  modal's ladder does. Because Ignore shows no state to reverse, it
   gets an undo toast (`ignore_undo` restores the rung the title had;
-  `ignore_undo_dismiss` clears the toast, by click or by expiry). The
-  ladder's own Ignore has no toast: the ladder is its own undo.
+  `ignore_undo_dismiss` clears the toast, by click or by expiry).
 
-  Every row and entry carries its acquisition state (Planning /
+  Every watchlist and feed row carries its acquisition state (Planning /
   Downloading / Needs review) stamped from one `TitleStates` read per
   load; the page subscribes to `acquisition:updates` so a one-click
   download's progress lands without a reload, the way `library:updates`
@@ -140,8 +140,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   # The scope is navigation state (UIDR-045): read off the URL, so a
-  # refresh, the sidebar's URL memory and the Feed tab's link all return
-  # to it. Re-projecting is pure; the rows were loaded on mount.
+  # refresh and the sidebar's URL memory return to it, and the Feed tab's
+  # link carries it while the Feed is active. Re-projecting is pure; the
+  # rows were loaded on mount.
   @impl true
   def handle_params(params, _uri, socket) do
     {:noreply,
