@@ -465,7 +465,7 @@ Sub-directories hold the page-specific families: `acquisition/`, `detail/`, `dis
 | **Library** | `/library` | Browse grid with type tabs, sort and filter; detail modal |
 | **Incoming** | `/incoming` | Acquisition activity, plans and Coming Up (UIDR-015) |
 | **History** | `/history` | Watch history |
-| **Discovery** | `/discovery`, `/discovery/watchlist`, `/discovery/friends` | Recommendations, watchlist, friends |
+| **Discovery** | `/discovery`, `/discovery/watchlist`, `/discovery/friends` | Feed, watchlist, friends |
 | **Apps** | `/apps` | App launcher |
 | **Review** | `/review` | Manual TMDB matching for pending files |
 | **Reconcile** | `/reconcile` | Episode-mapping review |

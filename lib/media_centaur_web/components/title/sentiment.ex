@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Components.Title.Sentiment do
   for dislike, a thumbs up for like, a filled heart for love — love in
   `--color-love`, the one warm hue outside the health palette, the other
   two in the surrounding text colour. Every surface that shows a
-  sentiment beside a name renders it through here — a feed entry's first
+  sentiment beside a name renders it through here — a feed row's first
   line, a Friends card's Reviewed shelf — so the glyphs never drift
   apart; the pennant, which paints its own fill, composes `glyph/1` into
   its own icon, and the Review modal's choices are pennants.

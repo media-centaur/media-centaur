@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Title.SentimentGlyph do
   @moduledoc """
   The one rendering of a review's sentiment as a glyph: a thumbs down,
   a thumbs up, a filled heart in `--color-love`. Every surface that
-  shows a sentiment beside a name — a feed entry's first line, a
+  shows a sentiment beside a name — a feed row's first line, a
   Friends card's Reviewed shelf — renders it through here.
   """
 
