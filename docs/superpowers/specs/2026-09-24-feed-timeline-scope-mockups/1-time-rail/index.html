@@ -1,0 +1,286 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>1 · Time rail</title><style>
+/* ---- page: 880px column (912 minus .page's 16px sides) ---- */
+.page{max-width:912px}
+h1{margin-bottom:14px}
+:root{--rx:22px;--railw:84px;--my:21px;--rail:oklch(93% 0.01 264/.14);--ring:oklch(93% 0.01 264/.55)}
+
+/* ---- strip: the scope pill is the head of the rail; the page tabs sit at the right end of the same line ---- */
+.strip{position:relative;display:flex;align-items:center;margin:0 0 16px}
+.strip .tabs{margin:0 4px 0 auto}
+.strip .tab{padding-top:6px}
+.strip:after{content:"";position:absolute;left:var(--rx);top:36px;bottom:-16px;width:1px;background:var(--rail)}
+.strip.bare:after{display:none}
+
+/* ---- feed: each item is [rail column | card]; the rail is drawn per item so it is exactly as long as the entries ---- */
+.feed{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:var(--railw) 1fr;padding-bottom:8px}
+.item:last-child{padding-bottom:0}
+.when{position:relative;padding:15px 0 0 calc(var(--rx) + 14px);font-size:12px;line-height:20px;color:oklch(93% 0.01 264/.55);white-space:nowrap;user-select:none}
+.when:before,.when:after{content:"";position:absolute;left:var(--rx);width:1px;background:var(--rail)}
+.when:before{top:0;height:calc(var(--my) - 3px)}
+.when:after{top:calc(var(--my) + 11px);bottom:0}
+.when i{position:absolute;left:calc(var(--rx) - 3.5px);top:var(--my);width:8px;height:8px;border-radius:99px;border:1.5px solid var(--ring)}
+.item.own .when i{background:var(--p);border-color:var(--p)}
+.feed:not(.more) .item:last-child .when:after{display:none}
+
+/* older: the rail runs on past the last entry and fades; the button hangs where the next entry would */
+.older{position:relative;display:grid;grid-template-columns:var(--railw) 1fr;padding-top:8px}
+.older:before{content:"";position:absolute;left:var(--rx);top:0;height:46px;width:1px;background:linear-gradient(var(--rail),transparent)}
+.older .btn{justify-self:start;margin:4px 0 0 12px}
+
+/* ---- one anatomy: poster left, three text lines right, toolbar seat at the bottom of the text block ---- */
+.entry{position:relative;display:flex;gap:16px;align-items:flex-start;padding:14px 18px 12px;cursor:pointer;text-align:left;overflow:hidden}
+.entry:hover,.entry.hovered{background:oklch(93% 0.01 264/.065)}
+.entry.cursor{outline:2px solid var(--p);outline-offset:-1px}
+.thumb{width:56px;height:84px}
+.body{flex:1;min-width:0;display:flex;flex-direction:column;align-self:stretch;min-height:84px}
+
+/* line 1 · name + action (+ glyph). the time lives on the rail. */
+.l1{font-size:14px;line-height:20px;color:oklch(93% 0.01 264/.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l1 .who{font-weight:500;color:oklch(93% 0.01 264/.92);margin-right:5px}
+.l1 .g{display:inline-block;width:13px;height:13px;vertical-align:middle;margin-left:6px;position:relative;top:-.06em;color:oklch(93% 0.01 264/.7)}
+.l1 .g.love{color:var(--love)}
+
+/* line 2 · title + year */
+.l2{display:flex;align-items:baseline;gap:8px;font-size:15px;line-height:1.4;margin-top:1px}
+.l2 b{font-weight:600;color:var(--bc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.l2 .y{font-size:12.5px;color:oklch(93% 0.01 264/.55);flex:none}
+
+/* line 3 · the review, when there is one */
+.l3{margin:5px 0 4px;font-size:13.5px;line-height:1.5;color:oklch(93% 0.01 264/.68);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+
+/* ---- toolbar · fixed 20px seat, always in flow, empty at rest ---- */
+.bar{display:flex;align-items:center;gap:2px;height:20px;margin:auto -6px 0;opacity:0;transition:opacity .12s;font-size:12px;color:oklch(93% 0.01 264/.7)}
+.entry:hover .bar,.entry.hovered .bar,.entry.cursor .bar,.entry:focus-within .bar{opacity:1}
+.v{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 6px;border-radius:6px;white-space:nowrap;color:inherit}
+.v svg{width:14px;height:14px;flex:none}
+.v:hover{color:oklch(93% 0.01 264/.92);background:oklch(93% 0.01 264/.07)}
+.v.on{color:oklch(93% 0.01 264/.92)}
+.v.last{margin-left:auto}
+.st{display:inline-flex;align-items:center;height:20px;padding:0 6px;white-space:nowrap;color:oklch(93% 0.01 264/.6)}
+.st .w{position:relative}
+.st .w.prog:after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:3px;border-radius:2px;background:linear-gradient(90deg,oklch(93% 0.01 264/.55) var(--pct,45%),oklch(93% 0.01 264/.12) var(--pct,45%))}
+
+/* ---- You, empty ---- */
+.empty{display:grid;grid-template-columns:var(--railw) 1fr}
+.empty .msg{padding:6px 0 0 18px;max-width:600px}
+.empty h2{font-size:15px;font-weight:600;margin:0 0 6px;color:var(--bc)}
+.empty p{margin:0 0 12px;font-size:13.5px;line-height:1.5;color:oklch(93% 0.01 264/.68)}
+.empty .btn{margin-left:-10px}
+
+/* ---- mockup scaffolding ---- */
+.state{margin:40px 0 12px 4px;display:flex;align-items:baseline;gap:12px}
+.state .sec{flex:none;white-space:nowrap}
+.state .keys{font-size:12px;color:oklch(93% 0.01 264/.55)}
+.legend{margin-top:34px}
+</style></head><body><div class="page">
+
+<!-- icon sprites: monochrome, currentColor -->
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="i-bm" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-bm-on" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v13M5.5 11.5 12 18l6.5-6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-love" viewBox="0 0 24 24"><path fill="currentColor" d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 .75-.75 2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282m0 0h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23H5.904m10.598-9.75H14.25M5.904 18.5c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 0 1-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 9.953 4.167 9.5 5 9.5h1.053c.472 0 .745.556.5.96a8.958 8.958 0 0 0-1.302 4.665c0 1.194.232 2.333.654 3.375Z"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M7.498 15.25H4.372c-1.026 0-1.945-.694-2.054-1.715a12.137 12.137 0 0 1-.068-1.285c0-2.848.992-5.464 2.649-7.521C5.287 4.247 5.886 4 6.504 4h4.016a4.5 4.5 0 0 1 1.423.23l3.114 1.04a4.5 4.5 0 0 0 1.423.23h1.294M7.498 15.25c.618 0 .991.724.725 1.282A7.471 7.471 0 0 0 7.5 19.75 2.25 2.25 0 0 0 9.75 22a.75.75 0 0 0 .75-.75v-.633c0-.573.11-1.14.322-1.672.304-.76.93-1.33 1.653-1.715a9.04 9.04 0 0 0 2.86-2.4c.498-.634 1.226-1.08 2.032-1.08h.384m-10.253 1.5H9.7m8.075-9.75c.01.05.027.1.05.148.593 1.2.925 2.55.925 3.977 0 1.487-.36 2.89-.999 4.125m.023-8.25c-.076-.365.183-.75.575-.75h.908c.889 0 1.713.518 1.972 1.368.339 1.11.521 2.287.521 3.507 0 1.553-.295 3.036-.831 4.398-.306.774-1.086 1.227-1.918 1.227h-1.053c-.472 0-.745-.556-.5-.96a8.95 8.95 0 0 0 .303-.54m.023-8.25H16.5"/></symbol>
+</defs></svg>
+
+<h1>Discovery</h1>
+
+<!-- ============ 1 · Everyone ============ -->
+<div class="state"><span class="sec">State 1 · Everyone</span><span class="keys">eleven entries, own interleaved by time · then Show older</span></div>
+
+<div class="strip"><div class="seg"><span class="opt on">Everyone</span><span class="opt">Friends</span><span class="opt">You</span></div><div class="tabs"><span class="tab active">Feed<span class="n">11</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">3</span></span></div></div>
+
+<div class="feed more">
+
+<!-- 1 · Cleo · listing -->
+<div class="item"><div class="when"><i></i>12m</div><div class="entry glass"><div class="thumb" style="--h:350"></div><div class="body">
+<div class="l1"><span class="who">Cleo</span>wants to watch</div>
+<div class="l2"><b>Sample Show</b><span class="y">2024</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v last">Ignore</span></div>
+</div></div></div>
+
+<!-- 2 · You · review ♥ -->
+<div class="item own"><div class="when"><i></i>1h</div><div class="entry glass"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">You</span>reviewed<svg class="g love"><use href="#i-love"/></svg></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v last">Delete</span></div>
+</div></div></div>
+
+<!-- 3 · Nick · review 👍, no text -->
+<div class="item"><div class="when"><i></i>2h</div><div class="entry glass"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">Nick</span>reviewed<svg class="g"><use href="#i-up"/></svg></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+
+<!-- 4 · Nick · listing -->
+<div class="item"><div class="when"><i></i>2h</div><div class="entry glass"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">Nick</span>wants to watch</div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+
+<!-- 5 · Bob · review, no sentiment · In library -->
+<div class="item"><div class="when"><i></i>1d</div><div class="entry glass"><div class="thumb" style="--h:264"></div><div class="body">
+<div class="l1"><span class="who">Bob</span>reviewed</div>
+<div class="l2"><b>Show B</b><span class="y">2021</span></div>
+<p class="l3">Slow start, give it three episodes.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+
+<!-- 6 · You · listing -->
+<div class="item own"><div class="when"><i></i>3d</div><div class="entry glass"><div class="thumb" style="--h:140"></div><div class="body">
+<div class="l1"><span class="who">You</span>want to watch</div>
+<div class="l2"><b>The Long Field</b><span class="y">2025</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v last">Delete</span></div>
+</div></div></div>
+
+<!-- 7 · Sam · listing · on your list -->
+<div class="item"><div class="when"><i></i>3d</div><div class="entry glass"><div class="thumb" style="--h:140"></div><div class="body">
+<div class="l1"><span class="who">Sam</span>wants to watch</div>
+<div class="l2"><b>The Long Field</b><span class="y">2025</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v last">Ignore</span></div>
+</div></div></div>
+
+<!-- 8 · You · review 👎 -->
+<div class="item own"><div class="when"><i></i>6d</div><div class="entry glass"><div class="thumb" style="--h:60"></div><div class="body">
+<div class="l1"><span class="who">You</span>reviewed<svg class="g"><use href="#i-down"/></svg></div>
+<div class="l2"><b>Harbor Lights</b><span class="y">2023</span></div>
+<p class="l3">Not for me. The score does all the work the script should.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span><span class="v last">Delete</span></div>
+</div></div></div>
+
+<!-- 9 · Cleo · review, no sentiment -->
+<div class="item"><div class="when"><i></i>1w</div><div class="entry glass"><div class="thumb" style="--h:264"></div><div class="body">
+<div class="l1"><span class="who">Cleo</span>reviewed</div>
+<div class="l2"><b>Show B</b><span class="y">2021</span></div>
+<p class="l3">Fine.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+
+<!-- 10 · Bob · listing · Downloading -->
+<div class="item"><div class="when"><i></i>2w</div><div class="entry glass"><div class="thumb" style="--h:60"></div><div class="body">
+<div class="l1"><span class="who">Bob</span>wants to watch</div>
+<div class="l2"><b>Harbor Lights</b><span class="y">2023</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+
+<!-- 11 · Sam · review ♥ -->
+<div class="item"><div class="when"><i></i>3w</div><div class="entry glass"><div class="thumb" style="--h:350"></div><div class="body">
+<div class="l1"><span class="who">Sam</span>reviewed<svg class="g love"><use href="#i-love"/></svg></div>
+<div class="l2"><b>Sample Show</b><span class="y">2024</span></div>
+<p class="l3">Every episode ends on the right beat.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v last">Ignore</span></div>
+</div></div></div>
+
+</div>
+<div class="older"><span></span><button class="btn ghost">Show older</button></div>
+
+<!-- ============ 2 · Friends ============ -->
+<div class="state"><span class="sec">State 2 · Friends</span><span class="keys">own entries gone · the first five of eight · every marker hollow</span></div>
+
+<div class="strip"><div class="seg"><span class="opt">Everyone</span><span class="opt on">Friends</span><span class="opt">You</span></div><div class="tabs"><span class="tab active">Feed<span class="n">8</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">3</span></span></div></div>
+
+<div class="feed more">
+<div class="item"><div class="when"><i></i>12m</div><div class="entry glass"><div class="thumb" style="--h:350"></div><div class="body">
+<div class="l1"><span class="who">Cleo</span>wants to watch</div>
+<div class="l2"><b>Sample Show</b><span class="y">2024</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v last">Ignore</span></div>
+</div></div></div>
+<div class="item"><div class="when"><i></i>2h</div><div class="entry glass"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">Nick</span>reviewed<svg class="g"><use href="#i-up"/></svg></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+<div class="item"><div class="when"><i></i>2h</div><div class="entry glass"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">Nick</span>wants to watch</div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+<div class="item"><div class="when"><i></i>1d</div><div class="entry glass"><div class="thumb" style="--h:264"></div><div class="body">
+<div class="l1"><span class="who">Bob</span>reviewed</div>
+<div class="l2"><b>Show B</b><span class="y">2021</span></div>
+<p class="l3">Slow start, give it three episodes.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+<div class="item"><div class="when"><i></i>3d</div><div class="entry glass"><div class="thumb" style="--h:140"></div><div class="body">
+<div class="l1"><span class="who">Sam</span>wants to watch</div>
+<div class="l2"><b>The Long Field</b><span class="y">2025</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v last">Ignore</span></div>
+</div></div></div>
+</div>
+<div class="older"><span></span><button class="btn ghost">Show older</button></div>
+
+<!-- ============ 3 · You ============ -->
+<div class="state"><span class="sec">State 3 · You</span><span class="keys">the own entries · every marker filled · the rail ends at the last one</span></div>
+
+<div class="strip"><div class="seg"><span class="opt">Everyone</span><span class="opt">Friends</span><span class="opt on">You</span></div><div class="tabs"><span class="tab active">Feed<span class="n">3</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">3</span></span></div></div>
+
+<div class="feed">
+<div class="item own"><div class="when"><i></i>1h</div><div class="entry glass"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">You</span>reviewed<svg class="g love"><use href="#i-love"/></svg></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v last">Delete</span></div>
+</div></div></div>
+<div class="item own"><div class="when"><i></i>3d</div><div class="entry glass"><div class="thumb" style="--h:140"></div><div class="body">
+<div class="l1"><span class="who">You</span>want to watch</div>
+<div class="l2"><b>The Long Field</b><span class="y">2025</span></div>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v last">Delete</span></div>
+</div></div></div>
+<div class="item own"><div class="when"><i></i>6d</div><div class="entry glass"><div class="thumb" style="--h:60"></div><div class="body">
+<div class="l1"><span class="who">You</span>reviewed<svg class="g"><use href="#i-down"/></svg></div>
+<div class="l2"><b>Harbor Lights</b><span class="y">2023</span></div>
+<p class="l3">Not for me. The score does all the work the script should.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span><span class="v last">Delete</span></div>
+</div></div></div>
+</div>
+
+<!-- ============ 4 · You, empty ============ -->
+<div class="state"><span class="sec">State 4 · You, empty</span><span class="keys">nothing shared yet · no rail, nothing hangs</span></div>
+
+<div class="strip bare"><div class="seg"><span class="opt">Everyone</span><span class="opt">Friends</span><span class="opt on">You</span></div><div class="tabs"><span class="tab active">Feed<span class="n">0</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">3</span></span></div></div>
+
+<div class="empty"><span></span><div class="msg">
+<h2>What you review and list lands here</h2>
+<p>A review is always shared. A title you list is shared while Share your watchlist is on.</p>
+<button class="btn ghost">Settings → Social</button>
+</div></div>
+
+<!-- ============ 5 · friend's entry hovered ============ -->
+<div class="state"><span class="sec">State 5 · a friend's entry, hovered</span><span class="keys">toolbar in its seat: List · Download · Ignore</span></div>
+<div class="feed">
+<div class="item"><div class="when"><i></i>12m</div><div class="entry glass hovered"><div class="thumb" style="--h:350"></div><div class="body">
+<div class="l1"><span class="who">Cleo</span>wants to watch</div>
+<div class="l2"><b>Sample Show</b><span class="y">2024</span></div>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v last">Ignore</span></div>
+</div></div></div>
+</div>
+
+<!-- ============ 6 · own entry hovered ============ -->
+<div class="state"><span class="sec">State 6 · an own entry, hovered</span><span class="keys">toolbar in its seat: Listed · In library · Delete</span></div>
+<div class="feed">
+<div class="item own"><div class="when"><i></i>1h</div><div class="entry glass hovered"><div class="thumb" style="--h:200"></div><div class="body">
+<div class="l1"><span class="who">You</span>reviewed<svg class="g love"><use href="#i-love"/></svg></div>
+<div class="l2"><b>Movie A</b><span class="y">2026</span></div>
+<p class="l3">Saw it twice. The last twenty minutes are the whole film.</p>
+<div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v last">Delete</span></div>
+</div></div></div>
+</div>
+
+<!-- ============ 7 · keyboard cursor ============ -->
+<div class="state"><span class="sec">State 7 · the cursor on an entry</span><span class="keys">2px primary ring · toolbar shown · Enter opens the title · → moves the cursor into the toolbar</span></div>
+<div class="feed">
+<div class="item"><div class="when"><i></i>1d</div><div class="entry glass cursor"><div class="thumb" style="--h:264"></div><div class="body">
+<div class="l1"><span class="who">Bob</span>reviewed</div>
+<div class="l2"><b>Show B</b><span class="y">2021</span></div>
+<p class="l3">Slow start, give it three episodes.</p>
+<div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v last">Ignore</span></div>
+</div></div></div>
+</div>
+
+<p class="legend"><b>1 · Time rail.</b> A hairline runs down the left of the feed and every entry hangs from a marker on it, the relative time beside the marker. The rail is the sort order made visible: a fixed time axis, drawn once, so the entries carry only who did what to which title. Own entries fill their marker in the primary colour; friends’ markers are hollow. The scope pill is the rail’s head. The rail ends at the last entry, or fades into Show older when there is more.</p>
+</div></body></html>
