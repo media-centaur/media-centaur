@@ -165,9 +165,14 @@ superseded by the design this campaign produces, and the record says so.
    picks a direction, or asks for a round 5 that crosses two.
 3b. **Round 5** — done (`BRIEF-5.md`, `CRITIQUE-5.md`): the cross in
    four settings plus A2; every open question settled by render.
-3c. **Round 6** — one assembled page, `F-cinematic-feed`, from the
-   settled choices with all thirteen states; its REASONING's size
-   table is the draft of the spec's "What the user sees".
+3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
+   page with fourteen states; its REASONING's size table is the draft
+   of the spec's "What the user sees".
+3d. **Draft implementation plan** —
+   `docs/plans/2026-09-25-cinematic-feed.md`, test-first, six phases,
+   written before the owner's decision so a yes goes straight to
+   work; its "Owner decisions this plan assumes" section lists the
+   forks.
 4. **Decide the records.** Choose a direction; write the spec and a UIDR
    that amends UIDR-045 rule 3 and, if an avatar-like or hue device is
    chosen, UIDR-038's anti-patterns and the colour rule, stating the
