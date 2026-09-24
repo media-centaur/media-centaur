@@ -1,0 +1,126 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>X · Motion</title><style>
+:root{--rh:152px;--pw:72px;--ph:108px;--tile:40px;--gap:6px;--rad:10px;--pad-y:22px;--img-x:560px;--s:1;
+ --ink:oklch(13% 0.02 264)} /* the scrim's ink: the theme's base-100, so the dark side is the page's own dark */
+.content{max-width:none}
+h1{margin-bottom:12px}
+
+/* ---- tab strip: zone tabs left, the house pill on the same line at the right, one hairline under both ---- */
+.tabs{margin:0 0 14px;padding:0 0 0 4px;border-bottom:1px solid var(--hair)}
+.tab{padding-bottom:9px}
+.tabs .seg{margin-left:auto;margin-bottom:6px}
+
+/* ---- the feed: a column of bands, a small gap between, no container ---- */
+.feed{display:flex;flex-direction:column;gap:var(--gap)}
+.row{position:relative;height:var(--rh);border-radius:var(--rad);overflow:hidden;background:var(--ink);cursor:pointer;isolation:isolate}
+/* the backdrop: a box from --img-x to the band's right edge (not the full band), so the still is scaled to a
+   shorter box and more of its height shows; its left edge dissolves over 320px under a mask, then the scrim */
+.row .bdbox{position:absolute;top:0;left:var(--img-x);width:calc(100% - var(--img-x));height:100%;
+ -webkit-mask-image:linear-gradient(to right,transparent,#000 320px);mask-image:linear-gradient(to right,transparent,#000 320px)}
+/* the still fills the box; one crop rule for every still (MEASUREMENT.md), the second of two adjacent rows of one
+   title offset to 38% so the frame is not repeated. The box carries the mask and (motion 1) the translate; the
+   image carries (motions 2 and 3) the scale — two elements so the two transforms never contend. */
+.row .bd{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 30%}
+.row .bd.adjacent{object-position:50% 38%}
+/* the scrim: .page-side-dim's left-weighted recipe at row scale, in the base hue, with pixel stops so the text
+   zone (0–560px) is the same at every row width; --s steps every alpha down together on hover */
+.row .scrim{position:absolute;inset:0;background:linear-gradient(to right,
+ oklch(13% 0.02 264/calc(.97*var(--s))) 0,
+ oklch(13% 0.02 264/calc(.93*var(--s))) 540px,
+ oklch(13% 0.02 264/calc(.55*var(--s))) 800px,
+ oklch(13% 0.02 264/calc(.16*var(--s))) 1060px,
+ oklch(13% 0.02 264/calc(.06*var(--s))) 1260px),
+ linear-gradient(to left,oklch(13% 0.02 264/.48),oklch(13% 0.02 264/0) 220px)}
+.row.noart{background:var(--glass-inset-bg)}
+.row.noart .scrim{background:linear-gradient(to right,oklch(13% 0.02 264/.35),oklch(13% 0.02 264/0) 800px)}
+/* hover: the band's ground lifts 13% → 16% and every scrim alpha steps to 80%, both instant; only the toolbar fades */
+.row:hover,.row.hovered{--s:.8;background:oklch(16% 0.02 264)}
+/* the keyboard cursor: a 2px primary ring drawn as the band's top layer (an outline on the band itself paints
+   under the positioned backdrop and scrim), following the band's radius */
+.row.cursor:after{content:"";position:absolute;inset:0;border:2px solid var(--p);border-radius:inherit;z-index:4;pointer-events:none}
+
+/* the identity tile: base .mono, seated at the far left, centred on the poster's height */
+.tile{position:absolute;left:18px;top:50%;translate:0 -50%;z-index:2;
+ background:oklch(72% 0.14 264/.18);box-shadow:0 0 0 1px oklch(72% 0.14 264/.22) inset,0 2px 8px oklch(0% 0 0/.35)}
+/* own: the theme's primary button fill (--color-primary 62%) with its primary-content initial, not the 72% text primary */
+.tile.you{background:oklch(62% 0.16 264);color:oklch(96% 0.008 264);font-weight:700;box-shadow:0 2px 8px oklch(0% 0 0/.4)}
+.tile.photo{overflow:hidden;box-shadow:0 0 0 1px oklch(93% 0.01 264/.18) inset,0 2px 8px oklch(0% 0 0/.4)}
+.tile.photo img{position:absolute;width:167px;height:94px;left:-63px;top:-15px;border-radius:0;object-fit:cover}
+
+.poster{position:absolute;left:74px;top:var(--pad-y);width:var(--pw);height:var(--ph);z-index:2;
+ box-shadow:0 3px 12px oklch(0% 0 0/.55)}
+.row .poster-empty{border:1px solid oklch(100% 0 0/.06)}
+
+/* the text block: three lines over the dark side, the toolbar seat fixed at the poster's foot */
+.body{position:absolute;left:164px;top:var(--pad-y);height:var(--ph);right:130px;z-index:2;text-shadow:0 1px 3px rgba(0,0,0,.85)}
+.l1{font-size:15px;line-height:22px;color:oklch(93% 0.01 264/.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l1 .who{font-weight:500;color:oklch(93% 0.01 264/.96)}
+.l1 .g{width:13px;height:13px;vertical-align:middle;margin-left:1px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.l1 .g.love{color:var(--love)}
+.l2{display:flex;align-items:baseline;gap:9px;font-size:18px;line-height:24px;margin-top:1px}
+.l2 b{font-weight:600;color:var(--bc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.l2 .y{font-size:13px;color:oklch(93% 0.01 264/.6);flex:none}
+.l3{margin:5px 0 0;max-width:58ch;font-size:14px;line-height:20px;color:oklch(93% 0.01 264/.78);
+ display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.when{position:absolute;right:20px;top:var(--pad-y);z-index:2;font-size:13px;line-height:22px;color:oklch(93% 0.01 264/.78);
+ font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+
+/* ---- toolbar · 20px seat on the poster's foot line, empty at rest, 120ms fade ---- */
+.bar{position:absolute;left:-6px;bottom:0;display:flex;align-items:center;gap:2px;height:20px;opacity:0;transition:opacity .12s;
+ font-size:13px;color:oklch(93% 0.01 264/.78)}
+.row:hover .bar,.row.hovered .bar,.row.cursor .bar{opacity:1}
+.v{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 6px;border-radius:6px;white-space:nowrap}
+.v svg{width:14px;height:14px;flex:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.v:hover{color:oklch(93% 0.01 264/.96);background:oklch(93% 0.01 264/.1)}
+.v.on{color:oklch(93% 0.01 264/.96)}
+.v.end{margin-left:10px}
+.st{display:inline-flex;align-items:center;height:20px;padding:0 6px;white-space:nowrap;color:oklch(93% 0.01 264/.66)}
+.st .w{position:relative}
+.st .w.prog:after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:3px;border-radius:2px;
+ background:linear-gradient(90deg,oklch(93% 0.01 264/.6) var(--pct,45%),oklch(93% 0.01 264/.14) var(--pct,45%))}
+
+/* after the last band, on the tile's edge */
+.older{padding:10px 0 0 8px}
+
+
+.legend{margin:34px 4px 0;max-width:96ch;color:oklch(93% 0.01 264/.7)}
+
+/* ---- mockup scaffolding: the three switches live in the state row, styled like its .keys text ---- */
+.state label{font-size:12px;color:oklch(93% 0.01 264/.7);cursor:pointer;white-space:nowrap}
+.state input{margin:0 6px 0 0;width:13px;height:13px;vertical-align:-2px;accent-color:var(--p)}
+
+/* ---- X · motion. Each switch is a checkbox read by :has(); nothing else changes the cascade. Everything sits
+   inside prefers-reduced-motion: no-preference, so with reduce set the page is the static base whatever is
+   checked. Only transform is animated. The band's height, type and scrim recipe are untouched. ---- */
+@media (prefers-reduced-motion: no-preference){
+  /* 1 · scroll parallax. The row names a view timeline — its own travel through the root scroller. The image
+     box grows 24px past the band's top and bottom and rides that timeline from -24px to +24px, so the still
+     climbs slower than the band and reads as a picture behind a window. Chromium 115+ (scroll-driven
+     animations; the shell's 152 has it). Elsewhere the @supports guard leaves the box at 152px and nothing
+     animates. No scroll handler. */
+  @supports (animation-timeline: view()){
+    .row{view-timeline-name:--band}
+    body:has(#mo-parallax:checked) .row .bdbox{top:-24px;height:calc(100% + 48px);
+      animation:band-parallax linear both;animation-timeline:--band;animation-range:cover 0% cover 100%}
+  }
+  /* 2 · ambient drift. The newest band's still alone: 1.0 → 1.04 over 40s, back and forth, for as long as the
+     page is open. Added to the underlying transform so the hover ease still composes under it. */
+  body:has(#mo-ambient:checked) .feed .row:first-child .bd{animation:band-ambient 40s ease-in-out infinite alternate;animation-composition:add}
+  /* 3 · hover ease. The still eases to 1.03 in 400ms under the pointer and back; the scrim's step is the base's
+     own, instant. The band is 152px throughout. */
+  body:has(#mo-hover:checked) .row .bd{transition:transform .4s ease}
+  body:has(#mo-hover:checked) .row:hover .bd{transform:scale(1.03)}
+}
+@keyframes band-parallax{from{transform:translateY(-24px)}to{transform:translateY(24px)}}
+@keyframes band-ambient{from{transform:scale(1)}to{transform:scale(1.04)}}
+</style></head><body><div class="frame"><aside class="sidebar"><i></i><i></i><i class="on"></i><i></i><i></i><i class="gap"></i><i></i></aside><main><div class="content"><h1>Discovery</h1><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-bm" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-bm-on" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v13M5.5 11.5 12 18l6.5-6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8.5-5.4-8.5-11A4.6 4.6 0 0 1 12 7.4 4.6 4.6 0 0 1 20.5 10c0 5.6-8.5 11-8.5 11z" fill="currentColor"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/></g></symbol>
+</defs></svg><div class="state first"><span class="sec">X · Motion</span><label><input type="checkbox" id="mo-parallax">Scroll parallax on the stills</label><label><input type="checkbox" id="mo-ambient">Ambient drift on the newest band</label><label><input type="checkbox" id="mo-hover">Hover ease on the still</label><span class="keys">· unchecked, the page is 1 · Cinematic rows, Everyone · scroll and hover to see them</span></div>
+<div class="tabs"><span class="tab active">Feed<span class="n">16</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab">Friends<span class="n">30</span></span><span class="seg"><span class="opt on">Everyone</span><span class="opt">Friends</span><span class="opt">You</span></span></div>
+<div class="feed" id="f1"><div class="row"><div class="bdbox"><img class="bd" src="../art/sintel-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">C</div><img class="poster" src="../art/sintel-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Cleo</span> wants to watch</div><div class="l2"><b>Sintel</b><span class="y">2010</span></div><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div></div><div class="when">12m ago</div></div><div class="row own"><div class="bdbox"><img class="bd" src="../art/charade-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile you">Y</div><img class="poster" src="../art/charade-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">You</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div><div class="l2"><b>Charade</b><span class="y">1963</span></div><p class="l3">Saw it twice. The last twenty minutes are the whole film.</p><div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span></div></div><div class="when">1h ago</div></div><div class="row"><div class="bdbox"><img class="bd adjacent" src="../art/charade-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">N</div><img class="poster" src="../art/charade-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Nick</span> reviewed <svg class="g"><use href="#i-up"/></svg></div><div class="l2"><b>Charade</b><span class="y">1963</span></div><div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div></div><div class="when">2h ago</div></div><div class="row"><div class="bdbox"><img class="bd" src="../art/metropolis-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">N</div><img class="poster" src="../art/metropolis-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Nick</span> wants to watch</div><div class="l2"><b>Metropolis</b><span class="y">1927</span></div><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div></div><div class="when">2h ago</div></div><div class="row"><div class="bdbox"><img class="bd" src="../art/pioneer-one-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">B</div><img class="poster" src="../art/pioneer-one-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Bob</span> reviewed</div><div class="l2"><b>Pioneer One</b><span class="y">2010</span></div><p class="l3">Slow start, give it three episodes.</p><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div></div><div class="when">1d ago</div></div><div class="row own"><div class="bdbox"><img class="bd" src="../art/big-buck-bunny-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile you">Y</div><img class="poster" src="../art/big-buck-bunny-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">You</span> want to watch</div><div class="l2"><b>Big Buck Bunny</b><span class="y">2008</span></div><div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div></div><div class="when">3d ago</div></div><div class="row"><div class="bdbox"><img class="bd adjacent" src="../art/big-buck-bunny-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">S</div><img class="poster" src="../art/big-buck-bunny-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Sam</span> wants to watch</div><div class="l2"><b>Big Buck Bunny</b><span class="y">2008</span></div><div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div></div><div class="when">3d ago</div></div><div class="row"><div class="bdbox"><img class="bd" src="../art/night-of-the-living-dead-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">A</div><img class="poster" src="../art/night-of-the-living-dead-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Ada</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div><div class="l2"><b>Night of the Living Dead</b><span class="y">1968</span></div><p class="l3">The farmhouse is the whole film. Every argument in it is still happening somewhere.</p><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div></div><div class="when">4d ago</div></div><div class="row own"><div class="bdbox"><img class="bd" src="../art/tears-of-steel-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile you">Y</div><img class="poster" src="../art/tears-of-steel-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">You</span> reviewed <svg class="g"><use href="#i-down"/></svg></div><div class="l2"><b>Tears of Steel</b><span class="y">2012</span></div><p class="l3">Not for me. The score does all the work the script should.</p><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span></div></div><div class="when">6d ago</div></div><div class="row"><div class="bdbox"><img class="bd" src="../art/nosferatu-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">F</div><img class="poster" src="../art/nosferatu-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Femi</span> wants to watch</div><div class="l2"><b>Nosferatu</b><span class="y">1922</span></div><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div></div><div class="when">6d ago</div></div><div class="row"><div class="bdbox"><img class="bd" src="../art/pioneer-one-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">C</div><img class="poster" src="../art/pioneer-one-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Cleo</span> reviewed</div><div class="l2"><b>Pioneer One</b><span class="y">2010</span></div><p class="l3">Fine.</p><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="st"><span class="w">In library</span></span><span class="v end">Ignore</span></div></div><div class="when">1w ago</div></div><div class="row"><div class="bdbox"><img class="bd" src="../art/spring-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">B</div><img class="poster" src="../art/spring-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Bob</span> wants to watch</div><div class="l2"><b>Spring</b><span class="y">2019</span></div><div class="bar"><span class="st"><span class="w">Tracking</span></span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div></div><div class="when">2w ago</div></div><div class="row own"><div class="bdbox"><img class="bd" src="../art/the-general-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile you">Y</div><img class="poster" src="../art/the-general-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">You</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div><div class="l2"><b>The General</b><span class="y">1926</span></div><p class="l3">Every gag is a stunt and every stunt is a gag. A century old and it still moves faster than most things made this year.</p><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div></div><div class="when">2w ago</div></div><div class="row"><div class="bdbox"><img class="bd" src="../art/cosmos-laundromat-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">N</div><img class="poster" src="../art/cosmos-laundromat-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Nick</span> reviewed <svg class="g love"><use href="#i-heart"/></svg></div><div class="l2"><b>Cosmos Laundromat</b><span class="y">2015</span></div><p class="l3">Fifteen minutes, and I thought about it for a week.</p><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div></div><div class="when">2w ago</div></div><div class="row"><div class="bdbox"><img class="bd" src="../art/carnival-of-souls-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile">S</div><img class="poster" src="../art/carnival-of-souls-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">Sam</span> reviewed <svg class="g"><use href="#i-up"/></svg></div><div class="l2"><b>Carnival of Souls</b><span class="y">1962</span></div><p class="l3">Cheap, strange, and it gets under the skin.</p><div class="bar"><span class="v"><svg><use href="#i-bm"/></svg>List</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span><span class="v end">Ignore</span></div></div><div class="when">3w ago</div></div><div class="row own"><div class="bdbox"><img class="bd" src="../art/sprite-fright-backdrop.jpg" alt=""></div><div class="scrim"></div><div class="mono tile you">Y</div><img class="poster" src="../art/sprite-fright-poster.jpg" alt=""><div class="body"><div class="l1"><span class="who">You</span> want to watch</div><div class="l2"><b>Sprite Fright</b><span class="y">2024</span></div><div class="bar"><span class="v on"><svg><use href="#i-bm-on"/></svg>Listed</span><span class="v"><svg><use href="#i-dl"/></svg>Download</span></div></div><div class="when">3w ago</div></div></div>
+<div class="older"><button class="btn ghost">Show older</button></div>
+<p class="legend"><b>X · Motion.</b> An exploration, not a direction: the Everyone state of 1 · Cinematic rows with three kinds of motion, each off until its box is checked. Parallax rides a CSS view timeline (no script, transform only); the ambient drift is a 40-second scale on the newest still; the hover ease is a 400ms scale under the pointer with the base’s instant scrim step. With <code>prefers-reduced-motion: reduce</code> all three are off and the page is the static base.</p></div></main></div></body></html>

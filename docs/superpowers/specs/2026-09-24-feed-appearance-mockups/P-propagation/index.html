@@ -1,0 +1,213 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>P · Propagation</title><style>
+/* ---- inherited from 1-cinematic-rows verbatim: the band's geometry, ink, image box, mask, scrim, hover, tile, poster, body, seat, time ---- */
+:root{--rh:152px;--pw:72px;--ph:108px;--tile:40px;--gap:6px;--rad:10px;--pad-y:22px;--img-x:560px;--s:1;
+ --ink:oklch(13% 0.02 264)}
+.content{max-width:none}
+h1{margin-bottom:12px}
+.c1280{max-width:1280px}
+
+.tabs{margin:0 0 14px;padding:0 0 0 4px;border-bottom:1px solid var(--hair)}
+.tab{padding-bottom:9px}
+.tabs .seg{margin-left:auto;margin-bottom:6px}
+
+.feed{display:flex;flex-direction:column;gap:var(--gap)}
+.row,.card{position:relative;border-radius:var(--rad);overflow:hidden;background:var(--ink);cursor:pointer;isolation:isolate}
+.row{height:var(--rh)}
+.bd{position:absolute;top:0;left:var(--img-x);width:calc(100% - var(--img-x));height:100%;object-fit:cover;object-position:50% 30%;display:block;
+ -webkit-mask-image:linear-gradient(to right,transparent,#000 320px);mask-image:linear-gradient(to right,transparent,#000 320px)}
+.scrim{position:absolute;inset:0;background:linear-gradient(to right,
+ oklch(13% 0.02 264/calc(.97*var(--s))) 0,
+ oklch(13% 0.02 264/calc(.93*var(--s))) 540px,
+ oklch(13% 0.02 264/calc(.55*var(--s))) 800px,
+ oklch(13% 0.02 264/calc(.16*var(--s))) 1060px,
+ oklch(13% 0.02 264/calc(.06*var(--s))) 1260px),
+ linear-gradient(to left,oklch(13% 0.02 264/.48),oklch(13% 0.02 264/0) 220px)}
+.noart{background:var(--glass-inset-bg)}
+.noart .scrim{background:linear-gradient(to right,oklch(13% 0.02 264/.35),oklch(13% 0.02 264/0) 800px)}
+.row:hover,.card:hover{--s:.8;background:oklch(16% 0.02 264)}
+
+.tile{position:absolute;left:18px;z-index:2;
+ background:oklch(72% 0.14 264/.18);box-shadow:0 0 0 1px oklch(72% 0.14 264/.22) inset,0 2px 8px oklch(0% 0 0/.35)}
+.tile.you{background:oklch(62% 0.16 264);color:oklch(96% 0.008 264);font-weight:700;box-shadow:0 2px 8px oklch(0% 0 0/.4)}
+.tile.photo{overflow:hidden;box-shadow:0 0 0 1px oklch(93% 0.01 264/.18) inset,0 2px 8px oklch(0% 0 0/.4)}
+.tile.photo img{position:absolute;width:167px;height:94px;left:-63px;top:-15px;border-radius:0;object-fit:cover}
+
+.poster{position:absolute;top:var(--pad-y);width:var(--pw);height:var(--ph);z-index:2;box-shadow:0 3px 12px oklch(0% 0 0/.55)}
+.row .poster-empty{border:1px solid oklch(100% 0 0/.06)}
+
+.body{position:absolute;top:var(--pad-y);height:var(--ph);right:130px;z-index:2;text-shadow:0 1px 3px rgba(0,0,0,.85)}
+.l2{display:flex;align-items:baseline;gap:9px;font-size:18px;line-height:24px}
+.l2 b{font-weight:600;color:var(--bc);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.l2 .y{font-size:13px;color:oklch(93% 0.01 264/.6);flex:none}
+.l3{margin:5px 0 0;max-width:58ch;font-size:14px;line-height:20px;color:oklch(93% 0.01 264/.78);
+ display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.l3 .note{display:block}
+.l3 .nm{font-weight:500;color:oklch(93% 0.01 264/.92);margin-right:4px}
+.when{position:absolute;right:20px;top:var(--pad-y);z-index:2;font-size:13px;line-height:22px;color:oklch(93% 0.01 264/.78);
+ font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+
+.bar{position:absolute;left:-6px;bottom:0;display:flex;align-items:center;gap:2px;height:20px;font-size:13px;color:oklch(93% 0.01 264/.78)}
+.st{display:inline-flex;align-items:center;height:20px;padding:0 6px;white-space:nowrap;color:oklch(93% 0.01 264/.66)}
+.st .w{position:relative}
+.st .w.prog:after{content:"";position:absolute;left:0;right:0;bottom:-3px;height:3px;border-radius:2px;
+ background:linear-gradient(90deg,oklch(93% 0.01 264/.6) var(--pct,45%),oklch(93% 0.01 264/.14) var(--pct,45%))}
+
+/* ---- Watchlist: the band without a person. No tile seat: the poster takes the band's left edge (x=18) and the text
+   block follows at x=108. The text zone stays 560px, so the image box and the slice are the Feed's. The seat at the
+   poster's foot holds the row markers (Logic.row_markers/2) as plain state, always visible — the Watchlist row has no
+   toolbar (every verb is the modal's). The mast flies from the band's right edge, centred, over the vignette. ---- */
+.wl .poster{left:18px}
+.wl .body{left:108px}
+.wl .bar{gap:8px}
+.mast{position:absolute;right:0;top:50%;translate:0 -50%;z-index:3;display:inline-flex;flex-direction:column;align-items:flex-end;gap:4px;pointer-events:none}
+/* .pennant / .pennant-on-image from app.css, the tokens resolved */
+.pn{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 12px 0 16px;clip-path:polygon(10px 0,100% 0,100% 100%,10px 100%,0 50%);
+ font-size:.72rem;font-weight:600;line-height:1;white-space:nowrap;color:oklch(93% 0.01 264/.85);background:oklch(14% 0.015 264/.72)}
+.pn svg{width:14px;height:14px;flex:none}
+.pn.love{color:oklch(98% 0.01 12);background:var(--love)}
+
+/* ---- Friends: a person card is the band of the person's latest act — tile, name, the presence sentence, the still —
+   with the shelves under it in the text zone. Height is the content's, set at render; min one band. ---- */
+.card{padding:var(--pad-y) 0 22px;min-height:var(--rh)}
+.card .tile{top:14px}
+.pbody{position:relative;z-index:2;margin-left:74px;width:530px;text-shadow:0 1px 3px rgba(0,0,0,.85)}
+.pn1{font-size:18px;line-height:24px;font-weight:600;color:var(--bc)}
+.pn2{font-size:15px;line-height:22px;margin-top:1px;color:oklch(93% 0.01 264/.8)}
+.pn2 b{font-weight:500;color:oklch(93% 0.01 264/.96)}
+.pn2.none{color:oklch(93% 0.01 264/.55)}
+.g{width:13px;height:13px;vertical-align:middle;margin-left:1px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.g.love{color:var(--love)}
+.shelves{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.shelf{display:flex;align-items:baseline;gap:12px;font-size:14px;line-height:20px}
+.shelf.top{align-items:flex-start}
+.shelf .lab{flex:none;width:126px}
+.shelf.top .lab{padding-top:3px}
+.strip{display:flex;gap:8px}
+.sp{width:56px;height:84px;object-fit:cover;border-radius:4px;display:block;border:1px solid oklch(100% 0 0/.08);box-shadow:0 2px 8px oklch(0% 0 0/.5)}
+.all{width:56px;height:84px;border-radius:4px;background:oklch(93% 0.01 264/.07);display:grid;place-items:center;font-size:12px;color:oklch(93% 0.01 264/.6)}
+.names{color:oklch(93% 0.01 264/.88);min-width:0}
+.names i{font-style:normal;color:oklch(93% 0.01 264/.4);margin:0 6px}
+.names .more{color:oklch(93% 0.01 264/.55);white-space:nowrap}
+.names .g{margin-left:3px}
+.foot{margin-top:14px;display:flex;align-items:center;justify-content:space-between;font-size:12px;line-height:18px;color:oklch(93% 0.01 264/.55)}
+.foot .key{font-family:ui-monospace,monospace;font-size:11px}
+.foot .rm{font-size:12px;color:oklch(93% 0.01 264/.6);padding:1px 8px;margin-right:-8px;border-radius:6px}
+.foot .rm:hover{background:oklch(93% 0.01 264/.08);color:oklch(93% 0.01 264/.9)}
+
+/* add a friend: a form, not a row — on the page ground at the tile's edge, like the Feed's empty state */
+.addf{margin:22px 0 0 18px;max-width:560px}
+.addf .ah{font-size:15px;font-weight:600;line-height:22px}
+.addf .ab{font-size:13px;color:oklch(93% 0.01 264/.7);margin:2px 0 10px}
+.addf .af{display:flex;gap:8px;align-items:center}
+.in{height:32px;border-radius:8px;border:1px solid var(--glass-border);background:oklch(93% 0.01 264/.045);padding:0 12px;display:flex;align-items:center;font-size:13px;color:oklch(93% 0.01 264/.55)}
+.in.w{flex:1}
+.in.n{width:150px}
+.foot-note{margin:14px 0 0 18px;font-size:12px;color:oklch(93% 0.01 264/.55)}
+.foot-note .lnk{color:var(--p)}
+
+/* state 5: three strips */
+.strips{display:flex;flex-direction:column;gap:22px}
+.strips .cap{font-size:12px;color:oklch(93% 0.01 264/.55);margin:0 0 6px 4px}
+.strips .tabs{margin-bottom:0}
+
+.legend{margin:34px 4px 0;max-width:96ch;color:oklch(93% 0.01 264/.7)}
+</style></head><body><div class="frame"><aside class="sidebar"><i></i><i></i><i class="on"></i><i></i><i></i><i class="gap"></i><i></i></aside><main><div class="content"><h1>Discovery</h1><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-bm" viewBox="0 0 24 24"><path d="M6 3.5h12v17l-6-4.2-6 4.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8.5-5.4-8.5-11A4.6 4.6 0 0 1 12 7.4 4.6 4.6 0 0 1 20.5 10c0 5.6-8.5 11-8.5 11z" fill="currentColor"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/></g></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.04 12.32a1 1 0 0 1 0-.64C3.42 7.51 7.36 4.5 12 4.5s8.58 3.01 9.96 7.18a1 1 0 0 1 0 .64C20.58 16.49 16.64 19.5 12 19.5S3.42 16.49 2.04 12.32z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="i-bubble" viewBox="0 0 24 24"><path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5h-5l-3 3-3-3H4A1.5 1.5 0 0 1 2.5 16V7A1.5 1.5 0 0 1 4 5.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.5 10h9M7.5 13h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="state first"><span class="sec">1 · Watchlist, full width</span><span class="keys">eight titles as bands · no tile seat, the poster at the band's edge · markers in the seat · the mast at the right edge · one title without artwork</span></div>
+<div class="tabs"><span class="tab">Feed<span class="n">16</span></span><span class="tab active">Watchlist<span class="n">8</span></span><span class="tab">Friends<span class="n">30</span></span></div>
+<div class="feed wl" id="w1">
+<div class="row"><img class="bd" src="../art/sintel-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/sintel-poster.jpg" alt=""><div class="body"><div class="l2"><b>Sintel</b><span class="y">Movie · 2010</span></div><p class="l3">A young woman crosses a wasteland searching for the dragon she raised, and finds it has grown.</p><div class="bar"><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-bm"/></svg>Cleo</span></span></div>
+<div class="row"><img class="bd" src="../art/charade-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/charade-poster.jpg" alt=""><div class="body"><div class="l2"><b>Charade</b><span class="y">Movie · 1963</span></div><p class="l3"><span class="note"><span class="nm">Nick</span>The last twenty minutes are the whole film.</span><span class="note"><span class="nm">Cleo</span>Fine, but the coats are the best thing in it.</span></p><div class="bar"><span class="st"><span class="w">In library</span></span></div></div><span class="mast"><span class="pn love"><svg><use href="#i-heart"/></svg>You</span><span class="pn"><svg><use href="#i-up"/></svg>Nick</span></span></div>
+<div class="row"><img class="bd" src="../art/pioneer-one-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/pioneer-one-poster.jpg" alt=""><div class="body"><div class="l2"><b>Pioneer One</b><span class="y">TV · 2010</span></div><p class="l3">A capsule from a Soviet-era program lands in Montana, and a small Homeland Security team tries to learn who sent it.</p><div class="bar"><span class="st"><span class="w">Auto-grab</span></span><span class="st"><span class="w">Next: Oct 13</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-bubble"/></svg>Bob, Cleo</span><span class="pn"><svg><use href="#i-eye"/></svg>Bob</span></span></div>
+<div class="row"><img class="bd" src="../art/night-of-the-living-dead-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/night-of-the-living-dead-poster.jpg" alt=""><div class="body"><div class="l2"><b>Night of the Living Dead</b><span class="y">Movie · 1968</span></div><p class="l3">Seven strangers barricade a farmhouse against the dead outside and each other inside.</p><div class="bar"></div></div><span class="mast"><span class="pn love"><svg><use href="#i-heart"/></svg>Ada</span></span></div>
+<div class="row"><img class="bd" src="../art/spring-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/spring-poster.jpg" alt=""><div class="body"><div class="l2"><b>Spring</b><span class="y">Movie · 2019</span></div><p class="l3"><span class="note">Bob's pick for the weekend.</span></p><div class="bar"><span class="st"><span class="w">Tracking</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-bm"/></svg>Bob</span></span></div>
+<div class="row"><img class="bd" src="../art/nosferatu-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/nosferatu-poster.jpg" alt=""><div class="body"><div class="l2"><b>Nosferatu</b><span class="y">Movie · 1922</span></div><p class="l3">An estate agent travels to Count Orlok's castle to close a sale, and the count follows him home.</p><div class="bar"><span class="st"><span class="w">Needs review</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-bm"/></svg>Femi</span></span></div>
+<div class="row noart"><div class="scrim"></div><div class="poster poster-empty"></div><div class="body"><div class="l2"><b>Coffee Run</b><span class="y">Movie · 2020</span></div><p class="l3">A walk back from the coffee shop becomes a conversation with the last few years.</p><div class="bar"><span class="st"><span class="w">Planning</span></span></div></div></div>
+<div class="row"><img class="bd" src="../art/tears-of-steel-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/tears-of-steel-poster.jpg" alt=""><div class="body"><div class="l2"><b>Tears of Steel</b><span class="y">Movie · 2012</span></div><p class="l3">Forty years after a breakup, a group of scientists stage a re-enactment to save the world from robots.</p><div class="bar"><span class="st"><span class="w">In library</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-down"/></svg>You</span></span></div>
+</div>
+
+<div class="state"><span class="sec">2 · Watchlist, 1280 container</span><span class="keys">the same eight, left-aligned in the house container · a 720px image box, a 37% slice</span></div>
+<div class="c1280">
+<div class="tabs"><span class="tab">Feed<span class="n">16</span></span><span class="tab active">Watchlist<span class="n">8</span></span><span class="tab">Friends<span class="n">30</span></span></div>
+<div class="feed wl" id="w2">
+<div class="row"><img class="bd" src="../art/sintel-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/sintel-poster.jpg" alt=""><div class="body"><div class="l2"><b>Sintel</b><span class="y">Movie · 2010</span></div><p class="l3">A young woman crosses a wasteland searching for the dragon she raised, and finds it has grown.</p><div class="bar"><span class="st"><span class="w prog" style="--pct:45%">Downloading</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-bm"/></svg>Cleo</span></span></div>
+<div class="row"><img class="bd" src="../art/charade-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/charade-poster.jpg" alt=""><div class="body"><div class="l2"><b>Charade</b><span class="y">Movie · 1963</span></div><p class="l3"><span class="note"><span class="nm">Nick</span>The last twenty minutes are the whole film.</span><span class="note"><span class="nm">Cleo</span>Fine, but the coats are the best thing in it.</span></p><div class="bar"><span class="st"><span class="w">In library</span></span></div></div><span class="mast"><span class="pn love"><svg><use href="#i-heart"/></svg>You</span><span class="pn"><svg><use href="#i-up"/></svg>Nick</span></span></div>
+<div class="row"><img class="bd" src="../art/pioneer-one-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/pioneer-one-poster.jpg" alt=""><div class="body"><div class="l2"><b>Pioneer One</b><span class="y">TV · 2010</span></div><p class="l3">A capsule from a Soviet-era program lands in Montana, and a small Homeland Security team tries to learn who sent it.</p><div class="bar"><span class="st"><span class="w">Auto-grab</span></span><span class="st"><span class="w">Next: Oct 13</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-bubble"/></svg>Bob, Cleo</span><span class="pn"><svg><use href="#i-eye"/></svg>Bob</span></span></div>
+<div class="row"><img class="bd" src="../art/night-of-the-living-dead-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/night-of-the-living-dead-poster.jpg" alt=""><div class="body"><div class="l2"><b>Night of the Living Dead</b><span class="y">Movie · 1968</span></div><p class="l3">Seven strangers barricade a farmhouse against the dead outside and each other inside.</p><div class="bar"></div></div><span class="mast"><span class="pn love"><svg><use href="#i-heart"/></svg>Ada</span></span></div>
+<div class="row"><img class="bd" src="../art/spring-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/spring-poster.jpg" alt=""><div class="body"><div class="l2"><b>Spring</b><span class="y">Movie · 2019</span></div><p class="l3"><span class="note">Bob's pick for the weekend.</span></p><div class="bar"><span class="st"><span class="w">Tracking</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-bm"/></svg>Bob</span></span></div>
+<div class="row"><img class="bd" src="../art/nosferatu-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/nosferatu-poster.jpg" alt=""><div class="body"><div class="l2"><b>Nosferatu</b><span class="y">Movie · 1922</span></div><p class="l3">An estate agent travels to Count Orlok's castle to close a sale, and the count follows him home.</p><div class="bar"><span class="st"><span class="w">Needs review</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-bm"/></svg>Femi</span></span></div>
+<div class="row noart"><div class="scrim"></div><div class="poster poster-empty"></div><div class="body"><div class="l2"><b>Coffee Run</b><span class="y">Movie · 2020</span></div><p class="l3">A walk back from the coffee shop becomes a conversation with the last few years.</p><div class="bar"><span class="st"><span class="w">Planning</span></span></div></div></div>
+<div class="row"><img class="bd" src="../art/tears-of-steel-backdrop.jpg" alt=""><div class="scrim"></div><img class="poster" src="../art/tears-of-steel-poster.jpg" alt=""><div class="body"><div class="l2"><b>Tears of Steel</b><span class="y">Movie · 2012</span></div><p class="l3">Forty years after a breakup, a group of scientists stage a re-enactment to save the world from robots.</p><div class="bar"><span class="st"><span class="w">In library</span></span></div></div><span class="mast"><span class="pn"><svg><use href="#i-down"/></svg>You</span></span></div>
+</div>
+</div>
+
+<div class="state"><span class="sec">3 · Friends, full width</span><span class="keys">the You card, then Cleo, Nick, Ada (a photo), Femi (nothing shared) · each card is the band of the person's latest act, the shelves under it</span></div>
+<div class="tabs"><span class="tab">Feed<span class="n">16</span></span><span class="tab">Watchlist<span class="n">8</span></span><span class="tab active">Friends<span class="n">30</span></span></div>
+<div class="feed" id="p1">
+<div class="card"><img class="bd" src="../art/charade-backdrop.jpg" alt=""><div class="scrim"></div><div class="mono tile you">Y</div><div class="pbody"><div class="pn1">You</div><div class="pn2">reviewed <b>Charade</b> <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="shelves"><div class="shelf top"><span class="lab sec">Recently watched</span><div class="strip"><img class="sp" src="../art/charade-poster.jpg" alt=""><img class="sp" src="../art/the-general-poster.jpg" alt=""><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""><img class="sp" src="../art/tears-of-steel-poster.jpg" alt=""><img class="sp" src="../art/sintel-poster.jpg" alt=""><span class="all">all 10</span></div></div>
+<div class="shelf"><span class="lab sec">Wants to watch</span><span class="names">Big Buck Bunny<i>·</i>Sprite Fright<span class="more"><i>·</i>1 more</span></span></div>
+<div class="shelf"><span class="lab sec">Reviewed</span><span class="names">Charade<svg class="g love"><use href="#i-heart"/></svg><i>·</i>Tears of Steel<svg class="g"><use href="#i-down"/></svg><i>·</i>The General<svg class="g love"><use href="#i-heart"/></svg><span class="more"><i>·</i>2 more</span></span></div></div>
+<div class="foot"><span>How friends see you</span></div></div><div class="when">1h ago</div></div>
+<div class="card"><img class="bd" src="../art/sintel-backdrop.jpg" alt=""><div class="scrim"></div><div class="mono tile">C</div><div class="pbody"><div class="pn1">Cleo</div><div class="pn2">wants to watch <b>Sintel</b></div>
+<div class="shelves"><div class="shelf top"><span class="lab sec">Recently watched</span><div class="strip"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><img class="sp" src="../art/metropolis-poster.jpg" alt=""><img class="sp" src="../art/caligari-poster.jpg" alt=""></div></div>
+<div class="shelf"><span class="lab sec">Wants to watch</span><span class="names">Sintel</span></div>
+<div class="shelf"><span class="lab sec">Reviewed</span><span class="names">Pioneer One</span></div></div>
+<div class="foot"><span><span class="key">npub1hynd…cy5f</span> · added Sep 7</span><span class="rm">Remove friend</span></div></div><div class="when">12m ago</div></div>
+<div class="card"><img class="bd" src="../art/metropolis-backdrop.jpg" alt=""><div class="scrim"></div><div class="mono tile">N</div><div class="pbody"><div class="pn1">Nick</div><div class="pn2">wants to watch <b>Metropolis</b></div>
+<div class="shelves"><div class="shelf top"><span class="lab sec">Recently watched</span><div class="strip"><img class="sp" src="../art/charade-poster.jpg" alt=""><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><img class="sp" src="../art/carnival-of-souls-poster.jpg" alt=""><img class="sp" src="../art/caligari-poster.jpg" alt=""><img class="sp" src="../art/spring-poster.jpg" alt=""><span class="all">all 7</span></div></div>
+<div class="shelf"><span class="lab sec">Wants to watch</span><span class="names">Metropolis</span></div>
+<div class="shelf"><span class="lab sec">Reviewed</span><span class="names">Charade<svg class="g"><use href="#i-up"/></svg><i>·</i>Cosmos Laundromat<svg class="g love"><use href="#i-heart"/></svg></span></div></div>
+<div class="foot"><span><span class="key">npub1ksgn…vnpc</span> · added Sep 3</span><span class="rm">Remove friend</span></div></div><div class="when">2h ago</div></div>
+<div class="card"><img class="bd" src="../art/night-of-the-living-dead-backdrop.jpg" alt=""><div class="scrim"></div><div class="mono tile photo"><img src="../art/one-step-beyond-backdrop.jpg" alt=""></div><div class="pbody"><div class="pn1">Ada</div><div class="pn2">reviewed <b>Night of the Living Dead</b> <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="shelves"><div class="shelf"><span class="lab sec">Reviewed</span><span class="names">Night of the Living Dead<svg class="g love"><use href="#i-heart"/></svg></span></div></div>
+<div class="foot"><span><span class="key">npub1qynx…0wx5</span> · added Aug 22</span><span class="rm">Remove friend</span></div></div><div class="when">4d ago</div></div>
+<div class="card noart"><div class="scrim"></div><div class="mono tile">F</div><div class="pbody"><div class="pn1">Femi</div><div class="pn2 none">Nothing shared yet</div>
+<div class="foot"><span><span class="key">npub1m4tp…8dq2</span> · added Sep 22</span><span class="rm">Remove friend</span></div></div></div>
+</div>
+<div class="addf"><div class="ah">Add a friend</div><div class="ab">Paste the key they give you; the name is only for you.</div><div class="af"><span class="in w">npub1…</span><span class="in n">Name</span><span class="btn soft">Add friend</span></div></div>
+<p class="foot-note">Your identity and relays are under <span class="lnk">Settings → Social</span>.</p>
+
+<div class="state"><span class="sec">4 · Friends, 1280 container</span><span class="keys">the same cards in the house container</span></div>
+<div class="c1280">
+<div class="tabs"><span class="tab">Feed<span class="n">16</span></span><span class="tab">Watchlist<span class="n">8</span></span><span class="tab active">Friends<span class="n">30</span></span></div>
+<div class="feed" id="p2">
+<div class="card"><img class="bd" src="../art/charade-backdrop.jpg" alt=""><div class="scrim"></div><div class="mono tile you">Y</div><div class="pbody"><div class="pn1">You</div><div class="pn2">reviewed <b>Charade</b> <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="shelves"><div class="shelf top"><span class="lab sec">Recently watched</span><div class="strip"><img class="sp" src="../art/charade-poster.jpg" alt=""><img class="sp" src="../art/the-general-poster.jpg" alt=""><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""><img class="sp" src="../art/tears-of-steel-poster.jpg" alt=""><img class="sp" src="../art/sintel-poster.jpg" alt=""><span class="all">all 10</span></div></div>
+<div class="shelf"><span class="lab sec">Wants to watch</span><span class="names">Big Buck Bunny<i>·</i>Sprite Fright<span class="more"><i>·</i>1 more</span></span></div>
+<div class="shelf"><span class="lab sec">Reviewed</span><span class="names">Charade<svg class="g love"><use href="#i-heart"/></svg><i>·</i>Tears of Steel<svg class="g"><use href="#i-down"/></svg><i>·</i>The General<svg class="g love"><use href="#i-heart"/></svg><span class="more"><i>·</i>2 more</span></span></div></div>
+<div class="foot"><span>How friends see you</span></div></div><div class="when">1h ago</div></div>
+<div class="card"><img class="bd" src="../art/sintel-backdrop.jpg" alt=""><div class="scrim"></div><div class="mono tile">C</div><div class="pbody"><div class="pn1">Cleo</div><div class="pn2">wants to watch <b>Sintel</b></div>
+<div class="shelves"><div class="shelf top"><span class="lab sec">Recently watched</span><div class="strip"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><img class="sp" src="../art/metropolis-poster.jpg" alt=""><img class="sp" src="../art/caligari-poster.jpg" alt=""></div></div>
+<div class="shelf"><span class="lab sec">Wants to watch</span><span class="names">Sintel</span></div>
+<div class="shelf"><span class="lab sec">Reviewed</span><span class="names">Pioneer One</span></div></div>
+<div class="foot"><span><span class="key">npub1hynd…cy5f</span> · added Sep 7</span><span class="rm">Remove friend</span></div></div><div class="when">12m ago</div></div>
+<div class="card"><img class="bd" src="../art/metropolis-backdrop.jpg" alt=""><div class="scrim"></div><div class="mono tile">N</div><div class="pbody"><div class="pn1">Nick</div><div class="pn2">wants to watch <b>Metropolis</b></div>
+<div class="shelves"><div class="shelf top"><span class="lab sec">Recently watched</span><div class="strip"><img class="sp" src="../art/charade-poster.jpg" alt=""><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><img class="sp" src="../art/carnival-of-souls-poster.jpg" alt=""><img class="sp" src="../art/caligari-poster.jpg" alt=""><img class="sp" src="../art/spring-poster.jpg" alt=""><span class="all">all 7</span></div></div>
+<div class="shelf"><span class="lab sec">Wants to watch</span><span class="names">Metropolis</span></div>
+<div class="shelf"><span class="lab sec">Reviewed</span><span class="names">Charade<svg class="g"><use href="#i-up"/></svg><i>·</i>Cosmos Laundromat<svg class="g love"><use href="#i-heart"/></svg></span></div></div>
+<div class="foot"><span><span class="key">npub1ksgn…vnpc</span> · added Sep 3</span><span class="rm">Remove friend</span></div></div><div class="when">2h ago</div></div>
+<div class="card"><img class="bd" src="../art/night-of-the-living-dead-backdrop.jpg" alt=""><div class="scrim"></div><div class="mono tile photo"><img src="../art/one-step-beyond-backdrop.jpg" alt=""></div><div class="pbody"><div class="pn1">Ada</div><div class="pn2">reviewed <b>Night of the Living Dead</b> <svg class="g love"><use href="#i-heart"/></svg></div>
+<div class="shelves"><div class="shelf"><span class="lab sec">Reviewed</span><span class="names">Night of the Living Dead<svg class="g love"><use href="#i-heart"/></svg></span></div></div>
+<div class="foot"><span><span class="key">npub1qynx…0wx5</span> · added Aug 22</span><span class="rm">Remove friend</span></div></div><div class="when">4d ago</div></div>
+<div class="card noart"><div class="scrim"></div><div class="mono tile">F</div><div class="pbody"><div class="pn1">Femi</div><div class="pn2 none">Nothing shared yet</div>
+<div class="foot"><span><span class="key">npub1m4tp…8dq2</span> · added Sep 22</span><span class="rm">Remove friend</span></div></div></div>
+</div>
+</div>
+
+<div class="state"><span class="sec">5 · The tab strip across the three tabs</span><span class="keys">one strip, three actives · the scope pill is the Feed's and leaves with it · the hairline, the left edge and the counts are the constant</span></div>
+<div class="strips">
+<div><div class="cap">Feed active</div><div class="tabs"><span class="tab active">Feed<span class="n">16</span></span><span class="tab">Watchlist<span class="n">8</span></span><span class="tab">Friends<span class="n">30</span></span><span class="seg"><span class="opt on">Everyone</span><span class="opt">Friends</span><span class="opt">You</span></span></div></div>
+<div><div class="cap">Watchlist active</div><div class="tabs"><span class="tab">Feed<span class="n">16</span></span><span class="tab active">Watchlist<span class="n">8</span></span><span class="tab">Friends<span class="n">30</span></span></div></div>
+<div><div class="cap">Friends active</div><div class="tabs"><span class="tab">Feed<span class="n">16</span></span><span class="tab">Watchlist<span class="n">8</span></span><span class="tab active">Friends<span class="n">30</span></span></div></div>
+</div>
+
+<p class="legend"><b>P · Propagation.</b> The Feed's band, carried to the other two tabs. A Watchlist row is the band without a person: the poster at the band's edge, the title first, the note or synopsis, the row's state in the seat, friends' flags on the mast at the right. A person's card is the band of their latest act — tile, name, the sentence, the still — with the shelves under it. Same ink, same scrim, same image box, same type.</p>
+</div></main></div></body></html>
