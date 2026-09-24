@@ -408,6 +408,75 @@ defmodule MediaCentaurWeb.CoreComponents do
   defp badge_size_classes("md"), do: nil
 
   @doc """
+  `phx-value-*` attributes from a map of extra event params, string
+  keys. A `value` key is refused: a button's native `value` property
+  clobbers `phx-value-value` on click (MC0021), and the Credo check
+  cannot see keys that arrive through a map.
+  """
+  @spec phx_values(map() | nil) :: map()
+  def phx_values(nil), do: %{}
+
+  def phx_values(map) do
+    Map.new(map, fn
+      {key, _value} when key in ["value", :value] ->
+        raise ArgumentError, "phx-value-value is clobbered on click; use a descriptive key"
+
+      {key, value} ->
+        {"phx-value-#{key}", value}
+    end)
+  end
+
+  attr :id, :string, default: nil
+  attr :label, :string, required: true, doc: "the group's accessible name"
+  attr :options, :list, required: true, doc: "`{value, label}` pairs in display order"
+
+  attr :selected, :any,
+    required: true,
+    doc: "the current option value — a string or atom, whatever the owner stores. Compared with `==`."
+
+  attr :event, :string, required: true
+  attr :event_value, :map, default: %{}, doc: "extra `phx-value-*` params (string keys)"
+  attr :class, :string, default: nil
+
+  @doc """
+  The house pick-one pill for content surfaces: a glass rail with the
+  chosen option lifted (`.segmented-control` in `app.css`). Clicking an
+  option pushes `@event` with `choice` set to the option value (never
+  `value`: a button's native `value` property would clobber it, MC0021).
+  The chosen option carries `aria-pressed`. Every option is a nav item;
+  whether the cursor can reach it is the enclosing zone's decision (an
+  item outside every zone's selector is inert — `dom_adapter.js`), never
+  the component's. The Settings kit's `settings_choice/1` composes this
+  inside its row; Library's type tabs, the strip chart's window and the
+  Feed's scope render it directly.
+  Story: `/storybook/core_components/segmented_control`.
+  """
+  def segmented_control(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      class={["tabs tabs-boxed segmented-control w-fit max-w-full", @class]}
+      role="group"
+      aria-label={@label}
+    >
+      <button
+        :for={{value, label} <- @options}
+        type="button"
+        class="tab text-sm"
+        phx-click={@event}
+        phx-value-choice={value}
+        {phx_values(@event_value)}
+        aria-pressed={to_string(value == @selected)}
+        data-nav-item
+        tabindex="0"
+      >
+        {label}
+      </button>
+    </div>
+    """
+  end
+
+  @doc """
   Renders an input with label and error messages.
 
   A `Phoenix.HTML.FormField` may be passed as argument,

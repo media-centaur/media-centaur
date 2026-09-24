@@ -273,26 +273,14 @@ defmodule MediaCentaurWeb.Components.Settings do
         <span class="font-medium">{@label}</span>
         <p :if={@description} class="text-xs text-base-content/55 mt-0.5">{@description}</p>
       </div>
-      <div
+      <.segmented_control
         id={@id}
-        class="tabs tabs-boxed segmented-control w-fit max-w-full"
-        role="group"
-        aria-label={@label}
-      >
-        <button
-          :for={{value, label} <- @options}
-          type="button"
-          class="tab text-sm"
-          phx-click={@event}
-          phx-value-choice={value}
-          {phx_values(@event_value)}
-          aria-pressed={to_string(value == @selected)}
-          data-nav-item
-          tabindex="0"
-        >
-          {label}
-        </button>
-      </div>
+        label={@label}
+        options={@options}
+        selected={@selected}
+        event={@event}
+        event_value={@event_value}
+      />
     </div>
     """
   end
@@ -533,12 +521,5 @@ defmodule MediaCentaurWeb.Components.Settings do
       </div>
     </details>
     """
-  end
-
-  defp phx_values(map) when map_size(map) == 0, do: %{}
-
-  defp phx_values(map) do
-    # String keys avoid creating atoms at runtime — Phoenix accepts both.
-    Map.new(map, fn {key, value} -> {"phx-value-#{key}", value} end)
   end
 end

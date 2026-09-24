@@ -251,19 +251,4 @@ defmodule MediaCentaurWeb.Components.GlassMenu do
   # only, since a soft button's other sides are transparent.
   defp divider_class("primary"), do: "border-l-primary-content/20"
   defp divider_class(_variant), do: "border-l-base-content/15"
-
-  # `phx-value-<key>` per entry. The key `value` collides with a button's
-  # native property and is clobbered on click (MC0021); the Credo check
-  # cannot see keys that arrive through a map, so it is refused here.
-  defp phx_values(nil), do: %{}
-
-  defp phx_values(map) do
-    Map.new(map, fn
-      {key, _value} when key in ["value", :value] ->
-        raise ArgumentError, "phx-value-value is clobbered on click; use a descriptive key"
-
-      {key, value} ->
-        {"phx-value-#{key}", value}
-    end)
-  end
 end
