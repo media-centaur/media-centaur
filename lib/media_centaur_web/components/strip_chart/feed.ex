@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Components.StripChart.Feed do
   ## Events from the hook
 
   `strip_chart:visibility` `%{"id", "visible"}` on `visibilitychange`;
-  `strip_chart:window` `%{"id", "window"}` from the pills. Both are
+  `strip_chart:window` `%{"id", "choice"}` from the pill. Both are
   handled here and halted.
 
   The tick interval is `:strip_chart_tick_ms` in the application env
@@ -124,7 +124,7 @@ defmodule MediaCentaurWeb.Components.StripChart.Feed do
     {:cont, socket |> put(state) |> resync(id)}
   end
 
-  defp on_event("strip_chart:window", %{"id" => id, "window" => label}, socket, id) do
+  defp on_event("strip_chart:window", %{"id" => id, "choice" => label}, socket, id) do
     state = fetch(socket, id)
 
     case Window.parse(label) do

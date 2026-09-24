@@ -130,7 +130,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   # --- Events ---
 
   @impl true
-  def handle_event("switch_tab", %{"tab" => tab}, socket) do
+  def handle_event("switch_tab", %{"choice" => tab}, socket) do
     {:noreply,
      push_patch(socket,
        to:
