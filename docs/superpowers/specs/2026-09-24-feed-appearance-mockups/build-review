@@ -25,7 +25,7 @@ def page(src, dst, title):
     html=markdown.markdown(md, extensions=['tables','fenced_code'])
     open(dst,'w').write(f'<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title><style>{css}</style><main><p class="nav"><a href="../index.html">← Review</a></p>{html}</main>')
 docs=[('BRIEF.md','brief-4.html','Round 4 brief'),('CRITIQUE.md','critique-4.html','Round 4 critique'),('MEASUREMENT.md','measurement.html','Crop measurement'),('BRIEF-5.md','brief-5.html','Round 5 brief'),('DESIGNER.md','designer.html','The designer'),
-      ('../2026-09-24-feed-appearance-design.md','spec.html','Design spec'),('../../plans/2026-09-25-cinematic-feed.md','plan.html','Implementation plan (draft)'),('../../../../campaigns/feed-appearance.md','campaign.html','Campaign')]
+      ('../2026-09-24-feed-appearance-design.md','spec.html','Design spec'),('../../../plans/2026-09-25-cinematic-feed.md','plan.html','Implementation plan (draft)'),('../../../../campaigns/feed-appearance.md','campaign.html','Campaign')]
 for d in sorted(os.listdir('.')):
     if os.path.isdir(d) and os.path.exists(f'{d}/REASONING.md'):
         docs.append((f'{d}/REASONING.md', f'reasoning-{d}.html', f'{d} — reasoning'))
