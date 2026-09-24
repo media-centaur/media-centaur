@@ -923,3 +923,57 @@ describe("getZoneDismissEvent — what BACK pushes when it leaves a zone", () =>
     expect(reader.getZoneDismissEvent("flat")).toBe(null)
   })
 })
+
+describe("getActiveItemIndex — the item marked as the context's current selection", () => {
+  // A zone container and the items inside it, on the same closest()/matches()
+  // contract the reader scopes a context with. An item also answers matches()
+  // for the active markers: `pressed` is its aria-pressed value, `classes`
+  // its class list.
+  function fakeZone(name) {
+    return {
+      zone: name,
+      matches(selector) { return selector.includes(`data-nav-zone='${name}'`) },
+    }
+  }
+
+  function fakeItem(zone, { pressed = null, classes = [] } = {}) {
+    return {
+      disabled: false,
+      hasAttribute(name) { return name === "data-nav-item" },
+      checkVisibility() { return true },
+      closest(selector) { return selector === "[data-nav-zone]" ? zone : null },
+      matches(selector) {
+        if (selector === "[aria-pressed='true']") return pressed === "true"
+        if (selector.startsWith(".")) return classes.includes(selector.slice(1))
+        return zone.matches(selector)
+      },
+    }
+  }
+
+  const selectors = { toolbar: "[data-nav-zone='toolbar'] [data-nav-item]" }
+  const activeMarkers = [".zone-tab-active", "[aria-pressed='true']"]
+
+  test("an item with aria-pressed=true is the active index; aria-pressed=false is not", () => {
+    const toolbar = fakeZone("toolbar")
+    const all = fakeItem(toolbar, { pressed: "false" })
+    const movies = fakeItem(toolbar, { pressed: "true" })
+    const tv = fakeItem(toolbar, { pressed: "false" })
+    stubDocument({ activeElement: null, querySelectorAll: () => [all, movies, tv] })
+    const reader = createDomReader({ contextSelectors: selectors, activeMarkers })
+
+    expect(reader.getActiveItemIndex("toolbar")).toBe(1)
+
+    stubDocument({ activeElement: null, querySelectorAll: () => [all, tv] })
+    expect(reader.getActiveItemIndex("toolbar")).toBe(-1)
+  })
+
+  test("a class marker still names the active item", () => {
+    const toolbar = fakeZone("toolbar")
+    const first = fakeItem(toolbar)
+    const second = fakeItem(toolbar, { classes: ["zone-tab", "zone-tab-active"] })
+    stubDocument({ activeElement: null, querySelectorAll: () => [first, second] })
+    const reader = createDomReader({ contextSelectors: selectors, activeMarkers })
+
+    expect(reader.getActiveItemIndex("toolbar")).toBe(1)
+  })
+})

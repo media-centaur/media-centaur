@@ -373,10 +373,12 @@ export const inputConfig = {
   // where it is.
   entryAnchors: { hero: 0 },
 
-  // Active item class names for focus restoration
-  activeClassNames: [
-    "sidebar-link-active", "tab-active",
-    "zone-tab-active", "menu-item-active",
+  // Markers of a context's current selection, for focus restoration on
+  // entry: the current page, tab or section, and the chosen option of a
+  // segmented control (`aria-pressed`, the one state it emits).
+  activeMarkers: [
+    ".sidebar-link-active", ".zone-tab-active", ".menu-item-active",
+    "[aria-pressed='true']",
   ],
 
   // Primary menu instance (has special enter/exit behavior)
