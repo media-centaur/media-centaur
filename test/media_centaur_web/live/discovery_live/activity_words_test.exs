@@ -5,13 +5,13 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsTest do
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
 
   test "each kind has a verb, the watched one naming the episode" do
-    assert ActivityWords.verb(:review, nil) == "reviewed"
-    assert ActivityWords.verb(:watched, nil) == "watched"
+    assert ActivityWords.verb(:review, nil, :friend) == "reviewed"
+    assert ActivityWords.verb(:watched, nil, :friend) == "watched"
 
-    assert ActivityWords.verb(:watched, %Episode{season_number: 2, episode_number: 5}) ==
+    assert ActivityWords.verb(:watched, %Episode{season_number: 2, episode_number: 5}, :friend) ==
              "watched S02E05"
 
-    assert ActivityWords.verb(:listing, nil) == "wants to watch"
+    assert ActivityWords.verb(:listing, nil, :friend) == "wants to watch"
   end
 
   test "the verb agrees with its subject: a friend wants to watch, you want to watch" do
@@ -19,7 +19,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsTest do
     assert ActivityWords.verb(:listing, nil, :you) == "want to watch"
     assert ActivityWords.verb(:review, nil, :you) == "reviewed"
     assert ActivityWords.verb(:watched, nil, :you) == "watched"
-    assert ActivityWords.verb(:listing, nil) == "wants to watch"
+
+    assert ActivityWords.verb(:watched, %Episode{season_number: 2, episode_number: 5}, :you) ==
+             "watched S02E05"
   end
 
   test "the delete verb's noun" do

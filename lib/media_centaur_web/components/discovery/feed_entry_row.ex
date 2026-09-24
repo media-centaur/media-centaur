@@ -1,23 +1,29 @@
-defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
+defmodule MediaCentaurWeb.Components.Discovery.FeedEntryRow do
   @moduledoc """
-  One entry on the Feed (UIDR-038): a glass card, the poster at 48×72 on
-  the left and to its right three lines at most — who did what and when
-  (`Nick reviewed ♥ · 2h ago`, the sentiment glyph after the verb when
-  the review gives one, nothing when it gives none), which title (name
-  and year), and the text when a review has some. A listing and a review
-  are one anatomy; the glyph and the text line are the only differences.
-  Nothing else is on the body: no pennant, no marker, no synopsis, no
-  avatar; the rose heart for Love is the only colour.
+  One row on the Feed (UIDR-038, UIDR-045), meant for one inset list
+  surface the host provides: a hairline below each row, the poster at
+  56×84 on the left, to its right three lines at most — who did what
+  (`Nick reviewed ♥`, `You want to watch`; the sentiment glyph after
+  the verb when the review gives one, nothing when it gives none),
+  which title (name and year), and the text when a review has some —
+  and the relative time right-aligned in its own column, so the time
+  axis reads down the edge. An own row says You in the primary colour
+  and takes the second-person verb; nothing else marks it. Nothing
+  else is on the body: no pennant, no marker, no synopsis, no avatar;
+  the rose heart for Love is the only other colour.
 
   The toolbar is a fixed 20px seat at the bottom of the text block,
-  empty at rest and shown while the card is hovered or holds focus, so
-  hover never changes the card's height. Left to right: the List slot
+  empty at rest and shown while the row is hovered or holds focus, so
+  hover never changes the row's height. Left to right: the List slot
   (the bookmark verb, "Listed" filled, or "Tracking" as plain state),
   the Download slot (the verb, or plain state text — "Downloading" with
-  a hairline, "In library"), and Ignore. State and verb are one control.
+  a hairline, "In library"), and Ignore on a friend's row only. State
+  and verb are one control. An own row has no Ignore and no Delete:
+  withdrawing is the modal's Delete, and the row opens the modal
+  speaking for its action.
 
-  Pure rendering of a `FeedEntry`; the card decides nothing. The whole
-  card bubbles `open_title` with the ref and the activity; the verbs
+  Pure rendering of a `FeedEntry`; the row decides nothing. The whole
+  row bubbles `open_title` with the ref and the activity; the verbs
   bubble `feed_list`, `feed_download` and `ignore_title` with the
   activity id. A `div[role=button]` because a button may not contain
   controls. Ships mouse-only: no nav items until the hardening pass.
@@ -38,16 +44,17 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
 
   attr :entry, FeedEntry, required: true
 
-  def feed_entry_card(assigns) do
+  def feed_entry_row(assigns) do
     assigns = assign(assigns, verb_class: @verb_class, state_class: @state_class)
 
     ~H"""
     <div
       id={@entry.id}
       role="button"
-      class="glass-surface group flex w-full cursor-pointer items-start gap-3.5 overflow-hidden rounded-xl px-4 pb-2.5 pt-3 text-left"
-      data-component="feed-entry"
+      class="group flex w-full cursor-pointer items-start gap-3.5 border-b border-base-content/5 px-4 py-3 text-left last:border-0 hover:bg-base-content/5 focus-within:bg-base-content/5"
+      data-component="feed-row"
       data-kind={@entry.kind}
+      data-own={@entry.own?}
       data-list-slot={@entry.list_slot}
       data-download-slot={slot_name(@entry.download_slot)}
       phx-click="open_title"
@@ -55,7 +62,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
       phx-value-activity={@entry.activity_id}
       data-entity-id={TitleRef.param(@entry.ref)}
     >
-      <div class="h-18 w-12 shrink-0 overflow-hidden rounded-md bg-base-content/10">
+      <div class="h-21 w-14 shrink-0 overflow-hidden rounded-md bg-base-content/10">
         <img
           :if={@entry.poster_url}
           src={sized_image_url(@entry.poster_url, 160)}
@@ -66,19 +73,22 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
         />
       </div>
 
-      <div class="flex min-h-18 min-w-0 flex-1 flex-col self-stretch">
-        <p class="truncate text-[13px] leading-snug text-base-content/70" data-role="who">
-          <span class="font-medium text-base-content/90">{@entry.nickname}</span>
-          {ActivityWords.verb(@entry.kind, nil)}
+      <div class="flex min-h-21 min-w-0 flex-1 flex-col self-stretch">
+        <p class="truncate text-[15px] leading-snug text-base-content/70" data-role="who">
+          <span class={[
+            "font-medium",
+            if(@entry.own?, do: "text-primary", else: "text-base-content/90")
+          ]}>
+            {@entry.author}
+          </span>
+          {ActivityWords.verb(@entry.kind, nil, subject(@entry))}
           <Sentiment.sentiment_glyph
             :if={@entry.sentiment}
             sentiment={@entry.sentiment}
-            class="size-3"
+            class="size-3.5"
           />
-          <span class="text-base-content/40">·</span>
-          <span class="text-base-content/55">{@entry.ago}</span>
         </p>
-        <p class="flex items-baseline gap-2 text-sm leading-snug" data-role="title">
+        <p class="flex items-baseline gap-2 text-base leading-snug" data-role="title">
           <span class="truncate font-semibold">{@entry.title.name}</span>
           <span :if={@entry.title.year} class="shrink-0 text-xs text-base-content/55">
             {@entry.title.year}
@@ -86,7 +96,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
         </p>
         <p
           :if={@entry.text}
-          class="mb-1 mt-1 line-clamp-4 text-[13px] leading-normal text-base-content/70"
+          class="mb-1 mt-1 line-clamp-4 text-sm leading-normal text-base-content/70"
           data-role="text"
         >
           {@entry.text}
@@ -139,6 +149,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
           </span>
 
           <button
+            :if={not @entry.own?}
             id={"#{@entry.id}-ignore"}
             type="button"
             class={[@verb_class, "ml-auto"]}
@@ -149,9 +160,19 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
           </button>
         </div>
       </div>
+
+      <span
+        class="w-16 shrink-0 pt-px text-right text-xs leading-snug text-base-content/55"
+        data-role="time"
+      >
+        {@entry.ago}
+      </span>
     </div>
     """
   end
+
+  defp subject(%FeedEntry{own?: true}), do: :you
+  defp subject(%FeedEntry{}), do: :friend
 
   defp slot_name(:download), do: "download"
   defp slot_name({:state, word}), do: word
