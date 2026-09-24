@@ -28,6 +28,10 @@
 # Regenerated at every boot by MediaCentaur.Showcase.SyntheticTraffic.
 /priv/showcase/*.snapshot
 
+# E2E instance data — same idea as the showcase above, but owned by the
+# Playwright suite, which mutates it. scripts/e2e-server recreates it.
+/priv/e2e/
+
 # Profile-run artifacts — DB, fake media dir, and per-run markdown / JSON
 # reports. Wiped on every scripts/profile invocation (unless --keep-db).
 # Per-run reports are machine-specific noise; commit a curated snapshot to

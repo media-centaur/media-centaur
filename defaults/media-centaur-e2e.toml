@@ -1,0 +1,27 @@
+# E2E override — self-contained config for the Playwright suite's own instance.
+#
+# Activate by setting MEDIA_CENTAUR_CONFIG_OVERRIDE to this file's path.
+# scripts/e2e-server does that for you; playwright.config.js boots it.
+#
+# This is the showcase configuration at a different port and database. The
+# suite needs the same thing the demo does — deterministic seeded PD/CC
+# content, fixture HTTP stubs, no real TMDB — but it *mutates* state as it
+# clicks around, so it must not share a database with the demo whose
+# screenshots are a curated artefact. See defaults/media-centaur-showcase.toml
+# for what showcase_mode actually switches on.
+
+# Distinct from dev (2160), prod (1080) and showcase (4003), in the high
+# ephemeral range so it cannot collide with a service someone runs locally.
+port = 49001
+
+# Git-ignored, like the showcase's: `rm -rf priv/e2e/` resets the suite's
+# world cleanly, and scripts/e2e-server reseeds on the next run.
+database_path = "priv/e2e/media-centaur.db"
+
+media_dirs = [
+  { dir = "priv/e2e/media", images_dir = "priv/e2e/images" }
+]
+
+# Fixture stubs and deterministic in-memory generators instead of live
+# upstreams. Bootstrap state, not a preference — see the showcase override.
+showcase_mode = true

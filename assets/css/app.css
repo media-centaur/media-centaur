@@ -1119,12 +1119,26 @@ body:has(.modal-backdrop[data-state="open"]) {
   right: 0;
   height: 3000px;
   background: var(--detail-sheet);
-  animation-name: orientation-sheet-rise;
-  animation-timing-function: linear;
-  animation-fill-mode: both;
-  animation-timeline: --detail-scroll;
-  animation-range: var(--detail-pin-scroll, 999999px)
-    calc(var(--detail-pin-scroll, 999999px) + var(--detail-sheet-max-rise, 0px));
+}
+
+/* The rise is scroll-driven, so it may only exist where scroll-driven
+   animations do — Firefox still ships them behind
+   layout.css.scroll-driven-animations.enabled. Unguarded, a browser without
+   them drops `animation-timeline` at parse time and the animation falls back
+   to the document timeline: no duration (so 0s) plus `animation-fill-mode:
+   both` snaps the sheet permanently to its fully-risen end state. That is a
+   visibly wrong backdrop on every detail modal, not a missing flourish — it
+   measured 117px of stuck rise. The `.row-scroll` edge fades are guarded the
+   same way. Pinned by test/e2e/cross-browser.spec.js. */
+@supports (animation-timeline: --detail-scroll) {
+  .orientation-backing-sheet {
+    animation-name: orientation-sheet-rise;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: --detail-scroll;
+    animation-range: var(--detail-pin-scroll, 999999px)
+      calc(var(--detail-pin-scroll, 999999px) + var(--detail-sheet-max-rise, 0px));
+  }
 }
 
 @keyframes orientation-sheet-rise {

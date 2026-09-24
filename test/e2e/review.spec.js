@@ -96,12 +96,13 @@ test.describe("review navigation", () => {
     expect(restored).toBe(listItem)
   })
 
-  test("escape in the review list is a no-op — left is the way to the sidebar", async ({ page, inputAction }) => {
+  test("back from the review list enters the sidebar", async ({ page, inputAction }) => {
+    // UIDR-028: BACK is the way to the main menu from any content context.
     await inputAction("BACK")
-    await expectContext(page, "review-list")
+    await expectContext(page, "sidebar")
   })
 
-  test("left from list → sidebar", async ({ page, inputAction }) => {
+  test("left from the review list never reaches the sidebar", async ({ page, inputAction }) => {
     const listCount = await getZoneItemCount(page, "review-list")
     if (listCount === 0) {
       test.skip()
@@ -110,6 +111,9 @@ test.describe("review navigation", () => {
 
     await expectContext(page, "review-list")
     await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
+    const context = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-nav-context")
+    )
+    expect(context).not.toBe("sidebar")
   })
 })

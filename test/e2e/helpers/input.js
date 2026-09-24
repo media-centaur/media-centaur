@@ -185,3 +185,58 @@ export async function establishFocus(page) {
   })
   if (focused) await page.waitForTimeout(30)
 }
+
+/**
+ * Enter the sidebar and select the link whose href matches.
+ *
+ * BACK enters the sidebar on the *current page's* entry (that is the point of
+ * it — the main menu opens where you already are), so stepping a fixed number
+ * of times from there lands somewhere different on every page. Walk to the
+ * link you actually want instead.
+ *
+ * @param {import("@playwright/test").Page} page
+ * @param {(action: string) => Promise<void>} inputAction
+ * @param {RegExp} hrefPattern - matched against the focused link's href
+ */
+export async function selectSidebarLink(page, inputAction, hrefPattern) {
+  await inputAction("BACK")
+
+  // BACK changes the context and *then* writes focus, and on a page that has
+  // just been patched by LiveView that write can land a beat later. Reading
+  // document.activeElement before it does returns the content item still
+  // holding focus, or nothing at all — so wait for focus to actually be inside
+  // the sidebar rather than assuming the press was synchronous.
+  await expectContext(page, "sidebar")
+  await page.waitForFunction(
+    () => !!document.activeElement?.closest("[data-nav-zone='sidebar']")
+  )
+
+  const focusedHref = () =>
+    page.evaluate(() => document.activeElement?.getAttribute("href") ?? "")
+
+  // BACK can land anywhere in the menu, and the sidebar does not wrap, so
+  // walk to the top before scanning downward — otherwise the links above the
+  // entry point are unreachable.
+  let previous = null
+  for (let step = 0; step < 20; step++) {
+    const href = await focusedHref()
+    if (href === previous) break
+    previous = href
+    await inputAction("NAVIGATE_UP")
+  }
+
+  const seen = new Set()
+  previous = null
+  for (let step = 0; step < 20; step++) {
+    const href = await focusedHref()
+    if (hrefPattern.test(href)) {
+      await inputAction("SELECT")
+      return href
+    }
+    if (href === previous) break
+    previous = href
+    seen.add(href)
+    await inputAction("NAVIGATE_DOWN")
+  }
+  throw new Error(`no sidebar link matching ${hrefPattern} (saw: ${[...seen].join(", ")})`)
+}

@@ -11,7 +11,7 @@
  *   })
  */
 import { test as base, expect } from "@playwright/test"
-import { pressButton, connectGamepad, Button } from "../helpers/gamepad.js"
+import { pressButton, connectGamepad, installGamepad, Button } from "../helpers/gamepad.js"
 import { waitForLiveView, waitForInputSystem } from "../helpers/liveview.js"
 import { establishFocus } from "../helpers/input.js"
 
@@ -44,23 +44,6 @@ const ACTION_TO_BUTTON = {
 }
 
 export { expect }
-
-/**
- * Init script source for gamepad mock injection.
- * Extracted so it can be added once per page context.
- */
-const GAMEPAD_INIT_SCRIPT = () => {
-  window.__mockGamepad = {
-    id: "Xbox Wireless Controller",
-    index: 0,
-    connected: true,
-    timestamp: 0,
-    buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })),
-    axes: [0, 0, 0, 0],
-    mapping: "standard",
-  }
-  navigator.getGamepads = () => [window.__mockGamepad, null, null, null]
-}
 
 export const test = base.extend({
   /** Whether this project uses gamepad input */
@@ -103,11 +86,26 @@ export const test = base.extend({
 
     const navigate = async (path) => {
       if (inputMethod === "gamepad" && !initScriptAdded) {
-        // Install gamepad mock as init script so it's available before hook mounts.
-        // addInitScript persists across full page loads but only needs adding once.
-        await page.addInitScript(GAMEPAD_INIT_SCRIPT)
+        // One definition of the mock device and the automation declaration the
+        // input gate requires, in helpers/gamepad.js. This fixture used to
+        // carry its own copy that predated the gate, so every gamepad action
+        // it dispatched was silently suppressed — and any test asserting that
+        // focus had *not* moved passed vacuously. addInitScript persists
+        // across full page loads but only needs adding once.
+        await installGamepad(page)
         initScriptAdded = true
       }
+
+      // Park the pointer away from the sidebar BEFORE loading. The sidebar is
+      // a 52px rail that expands to 200px on hover and overlays the content
+      // rather than reflowing it — and a browser's virtual pointer starts at
+      // (0, 0), inside that rail. Left there it swallows clicks aimed at the
+      // first column of whatever is behind it. Moving it before the navigation
+      // matters: afterwards would dispatch a mousemove into the loaded page
+      // and flip the input system into mouse mode, which several specs assert
+      // against.
+      const { width, height } = page.viewportSize()
+      await page.mouse.move(Math.round(width / 2), Math.round(height / 2))
 
       await page.goto(path)
       await waitForLiveView(page)

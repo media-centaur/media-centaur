@@ -8,9 +8,9 @@
  * Only runs in the "gamepad" project — skipped for keyboard.
  */
 import { test, expect } from "@playwright/test"
-import { injectGamepadMock, connectGamepad, pressButton, holdButton, releaseButton, moveAxis, centerAxis, disconnectGamepad, Button } from "./helpers/gamepad.js"
+import { installGamepad, connectGamepad, pressButton, holdButton, releaseButton, moveAxis, centerAxis, disconnectGamepad, Button } from "./helpers/gamepad.js"
 import { expectContext, expectInputMethod, expectControllerType, getFocusedNavItem, getFocusedIndex, establishFocus } from "./helpers/input.js"
-import { waitForLiveView, waitForInputSystem, waitForSettle, waitForSections } from "./helpers/liveview.js"
+import { waitForLiveView, waitForInputSystem, waitForSettle, waitForGridItems } from "./helpers/liveview.js"
 
 // Only run these tests in the gamepad project
 test.beforeEach(async ({ page }, testInfo) => {
@@ -19,31 +19,20 @@ test.beforeEach(async ({ page }, testInfo) => {
     return
   }
 
-  // Install gamepad mock before navigation
-  await page.addInitScript(() => {
-    window.__mockGamepad = {
-      id: "Xbox Wireless Controller",
-      index: 0,
-      connected: true,
-      timestamp: 0,
-      buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })),
-      axes: [0, 0, 0, 0],
-      mapping: "standard",
-    }
-    navigator.getGamepads = () => [window.__mockGamepad, null, null, null]
-  })
+  // Mock device plus the automation declaration the input gate requires.
+  await installGamepad(page)
 
   await page.goto("/status")
   await waitForLiveView(page)
   await waitForInputSystem(page)
   await connectGamepad(page)
-  await waitForSections(page)
+  await waitForGridItems(page)
   await establishFocus(page)
 })
 
 test.describe("analog stick navigation", () => {
   test("stick beyond deadzone triggers navigation", async ({ page }) => {
-    await expectContext(page, "sections")
+    await expectContext(page, "grid")
     const before = await getFocusedIndex(page)
 
     // Push left stick down (axis 1 positive = down)
@@ -57,7 +46,7 @@ test.describe("analog stick navigation", () => {
   })
 
   test("stick within deadzone → no action", async ({ page }) => {
-    await expectContext(page, "sections")
+    await expectContext(page, "grid")
     const before = await getFocusedIndex(page)
 
     // Push below deadzone (0.3)
@@ -70,7 +59,7 @@ test.describe("analog stick navigation", () => {
   })
 
   test("diagonal → both axes processed (system doesn't crash)", async ({ page }) => {
-    await expectContext(page, "sections")
+    await expectContext(page, "grid")
 
     // Push diagonally: both axes beyond deadzone
     await page.evaluate(() => {
@@ -98,7 +87,7 @@ test.describe("analog stick navigation", () => {
   })
 
   test("stick held → repeat timing", async ({ page }) => {
-    await expectContext(page, "sections")
+    await expectContext(page, "grid")
     const before = await getFocusedIndex(page)
 
     // Hold stick down
@@ -117,7 +106,7 @@ test.describe("analog stick navigation", () => {
 test.describe("button edge detection", () => {
   test("D-pad fires on press, not on continuous hold for non-nav buttons", async ({ page }) => {
     // Hold B button (BACK) — should fire once on press
-    // BACK from sections → sidebar transition
+    // BACK from the grid → sidebar transition
     await holdButton(page, Button.B)
     await page.waitForTimeout(100)
     await releaseButton(page, Button.B)
@@ -184,7 +173,7 @@ test.describe("button priming", () => {
     await page.goto("/status")
     await waitForLiveView(page)
     await waitForInputSystem(page)
-    await waitForSections(page)
+    await waitForGridItems(page)
     await establishFocus(page)
 
     const initial = await getFocusedIndex(page)

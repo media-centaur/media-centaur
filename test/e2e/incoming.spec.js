@@ -78,12 +78,12 @@ test.describe("incoming navigation", () => {
     await expectContext(page, "ledger")
   })
 
-  test("left reaches the sidebar; right returns", async ({ page, inputAction }) => {
+  test("back reaches the sidebar; right returns", async ({ page, inputAction }) => {
     const before = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
 
-    await inputAction("NAVIGATE_LEFT")
+    await inputAction("BACK")
     await expectContext(page, "sidebar")
 
     await inputAction("NAVIGATE_RIGHT")
@@ -93,20 +93,17 @@ test.describe("incoming navigation", () => {
     expect(after).toBe(before)
   })
 
-  test("escape in an incoming zone is a no-op — left is the way to the sidebar", async ({
+  test("left in an incoming zone never reaches the sidebar", async ({
     page,
     inputAction,
   }) => {
-    const before = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-
-    await inputAction("BACK")
+    // UIDR-028: LEFT is lateral movement within the page. It may move between
+    // this page's own zones, but it never escapes to the main menu.
+    await inputAction("NAVIGATE_LEFT")
 
     const after = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
-    expect(after).toBe(before)
     expect(after).not.toBe("sidebar")
   })
 })

@@ -5,7 +5,7 @@
  * URL state memory (data-nav-remember), theme toggle, and escape chains.
  */
 import { test, expect } from "./fixtures/input-method.js"
-import { expectContext, expectFocused, expectInputMethod, expectFocusInZone, getFocusedNavItem, establishFocus } from "./helpers/input.js"
+import { expectContext, expectFocused, expectInputMethod, expectFocusInZone, getFocusedNavItem, establishFocus, selectSidebarLink } from "./helpers/input.js"
 import { waitForLiveView, waitForInputSystem, waitForSettle } from "./helpers/liveview.js"
 
 test.describe("sidebar navigation", () => {
@@ -13,14 +13,25 @@ test.describe("sidebar navigation", () => {
     await navigateTo("/")
   })
 
-  test("navigate to sidebar with left arrow", async ({ page, inputAction }) => {
-    await inputAction("NAVIGATE_LEFT")
+  test("back from content enters the sidebar", async ({ page, inputAction }) => {
+    // UIDR-028: BACK is the way to the main menu from any content context.
+    await inputAction("BACK")
     await expectContext(page, "sidebar")
+  })
+
+  test("left in content never reaches the sidebar", async ({ page, inputAction }) => {
+    // LEFT is lateral movement within the page. No zone layout declares a left
+    // edge to the sidebar, so at the content's left edge it simply walls.
+    await inputAction("NAVIGATE_LEFT")
+    const context = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-nav-context")
+    )
+    expect(context).not.toBe("sidebar")
   })
 
   test("arrow down through sidebar links", async ({ page, inputAction }) => {
     // Enter sidebar first
-    await inputAction("NAVIGATE_LEFT")
+    await inputAction("BACK")
     await expectContext(page, "sidebar")
 
     const first = await getFocusedNavItem(page)
@@ -34,13 +45,7 @@ test.describe("sidebar navigation", () => {
   })
 
   test("select sidebar link navigates to page", async ({ page, inputAction }) => {
-    // Enter sidebar
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
-
-    // Navigate to Status link (second item) and select it
-    await inputAction("NAVIGATE_DOWN")
-    await inputAction("SELECT")
+    await selectSidebarLink(page, inputAction, /^\/status/)
 
     await waitForLiveView(page)
     await waitForInputSystem(page)
@@ -53,40 +58,28 @@ test.describe("page transitions", () => {
   test("library → status → library", async ({ page, navigateTo, inputAction }) => {
     await navigateTo("/")
 
-    // Go to sidebar
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
-
-    // Navigate to Status (second link)
-    await inputAction("NAVIGATE_DOWN")
-    await inputAction("SELECT")
+    await selectSidebarLink(page, inputAction, /^\/status/)
     await waitForLiveView(page)
     await waitForInputSystem(page)
     await expect(page).toHaveURL(/\/status/)
 
-    // Go back to sidebar
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
-
-    // Navigate up to Library (first link) and select
-    await inputAction("NAVIGATE_UP")
-    await inputAction("SELECT")
+    await selectSidebarLink(page, inputAction, /^\/$/)
     await waitForLiveView(page)
     await waitForInputSystem(page)
     await expect(page).toHaveURL(/\/$/)
   })
 
   test("focus lands on correct default context per page", async ({ page, navigateTo }) => {
-    // Library defaults to grid (cursor start: grid has items → stays)
+    // Home is shelves now, not a grid — cursor start resolves to one of them.
     await navigateTo("/")
-    const libraryContext = await page.evaluate(() =>
+    const homeContext = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
-    expect(["grid", "zone_tabs", "sidebar"]).toContain(libraryContext)
+    expect(["hero", "continue", "recently", "coming_up", "sidebar"]).toContain(homeContext)
 
-    // Status defaults to sections (grid empty → cursor start resolves to sections)
+    // Status is a tile grid; cursor start resolves to it.
     await navigateTo("/status")
-    await expectContext(page, "sections")
+    await expectContext(page, "grid")
 
     // Settings: grid has items so default stays "grid" (cursor start doesn't override)
     await navigateTo("/settings")
@@ -106,9 +99,7 @@ test.describe("input method persistence", () => {
     await expectInputMethod(page, inputMethod)
 
     // Navigate to status via sidebar
-    await inputAction("NAVIGATE_LEFT")
-    await inputAction("NAVIGATE_DOWN")
-    await inputAction("SELECT")
+    await selectSidebarLink(page, inputAction, /^\/status/)
     await waitForLiveView(page)
     await waitForInputSystem(page)
 
@@ -120,78 +111,41 @@ test.describe("input method persistence", () => {
 
 test.describe("data-nav-remember (URL persistence)", () => {
   test("library preserves query params across navigation", async ({ page, navigateTo, inputAction }) => {
-    // Navigate to library with zone=library (use navigateTo for proper setup)
-    await navigateTo("/?zone=library")
+    // The library is /library now; `/` is the home shelves. Its tab is the
+    // query param data-nav-remember is there to carry.
+    await navigateTo("/library?tab=tv")
 
     // Navigate away to status via sidebar
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
-    await inputAction("NAVIGATE_DOWN")
-    await inputAction("SELECT")
+    await selectSidebarLink(page, inputAction, /^\/status/)
     await waitForLiveView(page)
     await waitForInputSystem(page)
     await establishFocus(page)
     await expect(page).toHaveURL(/\/status/)
 
     // Navigate back to library via sidebar
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
-    await inputAction("NAVIGATE_UP")
-    await inputAction("SELECT")
+    await selectSidebarLink(page, inputAction, /^\/library/)
     await waitForLiveView(page)
     await waitForInputSystem(page)
 
-    // Should restore the zone=library param
-    await expect(page).toHaveURL(/zone=library/)
-  })
-})
-
-test.describe("theme toggle", () => {
-  test("theme toggle changes html data-theme", async ({ page, navigateTo, inputAction }) => {
-    await navigateTo("/")
-
-    // Navigate to sidebar
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sidebar")
-
-    // Navigate to bottom of sidebar where theme toggle lives
-    for (let i = 0; i < 10; i++) {
-      await inputAction("NAVIGATE_DOWN")
-    }
-
-    // Select the current focused item (should be a theme option)
-    await inputAction("SELECT")
-    await waitForSettle(page)
-
-    // We can at least verify the theme attribute exists
-    const theme = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-theme")
-    )
-    expect(theme).toBeTruthy()
+    // Should restore the tab the page was left on
+    await expect(page).toHaveURL(/tab=tv/)
   })
 })
 
 test.describe("escape chain", () => {
-  test("escape in content is a no-op — left is the way to the sidebar", async ({ page, navigateTo, inputAction }) => {
+  test("escape in content is the way to the sidebar", async ({ page, navigateTo, inputAction }) => {
     await navigateTo("/")
-    const before = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
 
     await inputAction("BACK")
 
-    const after = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    expect(after).toBe(before)
-    expect(after).not.toBe("sidebar")
+    await expectContext(page, "sidebar")
   })
 
   test("escape from sidebar → stays in sidebar (terminal)", async ({ page, navigateTo, inputAction }) => {
     await navigateTo("/")
 
     // Enter sidebar
-    await inputAction("NAVIGATE_LEFT")
+    await inputAction("BACK")
     await expectContext(page, "sidebar")
 
     // Escape from sidebar — should stay in sidebar
@@ -200,9 +154,10 @@ test.describe("escape chain", () => {
     // After BACK from sidebar, it exits sidebar (exit_sidebar directive).
     // The system returns to the pre-sidebar context (grid).
     // This is the expected behavior — BACK from sidebar is "exit sidebar".
+    // Home is shelves, so the pre-sidebar context it returns to is one of them.
     const context = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
-    expect(["sidebar", "grid", "zone_tabs"]).toContain(context)
+    expect(["sidebar", "hero", "continue", "recently", "coming_up"]).toContain(context)
   })
 })
