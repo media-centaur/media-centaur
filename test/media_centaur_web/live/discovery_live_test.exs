@@ -652,6 +652,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       {:ok, view, _html} = live(conn, "/discovery?scope=friends")
       assert entries(view) == []
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery?scope=friends']", "Feed")
       refute has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery?scope=friends'] .badge")
       assert render(view) =~ "What your friends review and want to watch lands here"
 
@@ -1113,6 +1114,24 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(view, "#feed-empty a[href='/settings?section=social']", "Settings → Social")
       refute has_element?(view, "#feed-empty a[href='/discovery/friends']")
       refute render(view) =~ "Media Centaur reaches your friends over a relay"
+    end
+
+    test "the Friends scope with a ready roster and nothing shared says so, with no actions", %{
+      conn: conn
+    } do
+      {:ok, _relay} = Social.add_relay("wss://relay.example")
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      title = Title.new!(%{tmdb_id: 999, media_type: :movie, name: "Sample Movie 999"})
+      {:ok, _mine} = Activities.review(title, :like, nil)
+
+      {:ok, view, _html} = live(conn, "/discovery?scope=friends")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery?scope=friends']", "Feed")
+      refute has_element?(view, "[data-nav-zone='zone-tabs'] a[href='/discovery?scope=friends'] .badge")
+      assert render(view) =~ "What your friends review and want to watch lands here"
+      assert render(view) =~ "Each action is one row, newest first."
+      refute has_element?(view, "#feed-empty a")
+
+      await_supervised_tasks()
     end
   end
 
