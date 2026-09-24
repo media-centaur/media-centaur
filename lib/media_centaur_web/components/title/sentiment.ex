@@ -17,11 +17,14 @@ defmodule MediaCentaurWeb.Components.Title.Sentiment do
   alias MediaCentaur.Activities.Activity
 
   attr :sentiment, :atom, required: true, values: [:dislike, :like, :love]
-  attr :class, :string, default: "size-3.5", doc: "sizing and alignment; the colour is the glyph's own"
+
+  attr :class, :string,
+    default: "size-3.5",
+    doc: "sizing; the glyph sits inline-block, vertical-align middle, in the text run"
 
   def sentiment_glyph(assigns) do
     ~H"""
-    <span data-sentiment={@sentiment} class={["inline-flex", @sentiment == :love && "text-love"]}>
+    <span data-sentiment={@sentiment} class={[@sentiment == :love && "text-love"]}>
       <.icon name={glyph(@sentiment)} class={@class} />
     </span>
     """

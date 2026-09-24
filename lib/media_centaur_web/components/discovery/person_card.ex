@@ -203,7 +203,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             {entry.title.name}<Sentiment.sentiment_glyph
               :if={entry.sentiment}
               sentiment={entry.sentiment}
-              class="ml-1 inline size-3.5 align-[-2px]"
+              class="ml-1 size-3.5"
             />
           </button>
         </span>

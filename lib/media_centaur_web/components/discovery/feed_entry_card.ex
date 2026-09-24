@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntryCard do
           <Sentiment.sentiment_glyph
             :if={@entry.sentiment}
             sentiment={@entry.sentiment}
-            class="inline size-3 align-[-1px]"
+            class="size-3"
           />
           <span class="text-base-content/40">·</span>
           <span class="text-base-content/55">{@entry.ago}</span>
