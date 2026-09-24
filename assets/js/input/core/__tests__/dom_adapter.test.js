@@ -1,5 +1,6 @@
 import { describe, test, expect, afterEach, beforeEach } from "bun:test"
 import { createDomReader } from "../dom_adapter.js"
+import { inputConfig } from "../../config.js"
 
 const reader = createDomReader()
 
@@ -927,8 +928,10 @@ describe("getZoneDismissEvent — what BACK pushes when it leaves a zone", () =>
 describe("getActiveItemIndex — the item marked as the context's current selection", () => {
   // A zone container and the items inside it, on the same closest()/matches()
   // contract the reader scopes a context with. An item also answers matches()
-  // for the active markers: `pressed` is its aria-pressed value, `classes`
-  // its class list.
+  // for the app's active markers: `pressed` is its aria-pressed value,
+  // `inPill` whether a `.segmented-control` contains it, `classes` its class
+  // list. The markers are the real `inputConfig.activeMarkers`, so these
+  // cases pin what the app's list selects, not just the reader's loop.
   function fakeZone(name) {
     return {
       zone: name,
@@ -936,13 +939,14 @@ describe("getActiveItemIndex — the item marked as the context's current select
     }
   }
 
-  function fakeItem(zone, { pressed = null, classes = [] } = {}) {
+  function fakeItem(zone, { pressed = null, inPill = false, classes = [] } = {}) {
     return {
       disabled: false,
       hasAttribute(name) { return name === "data-nav-item" },
       checkVisibility() { return true },
       closest(selector) { return selector === "[data-nav-zone]" ? zone : null },
       matches(selector) {
+        if (selector === ".segmented-control [aria-pressed='true']") return inPill && pressed === "true"
         if (selector === "[aria-pressed='true']") return pressed === "true"
         if (selector.startsWith(".")) return classes.includes(selector.slice(1))
         return zone.matches(selector)
@@ -951,19 +955,29 @@ describe("getActiveItemIndex — the item marked as the context's current select
   }
 
   const selectors = { toolbar: "[data-nav-zone='toolbar'] [data-nav-item]" }
-  const activeMarkers = [".zone-tab-active", "[aria-pressed='true']"]
+  const activeMarkers = inputConfig.activeMarkers
 
-  test("an item with aria-pressed=true is the active index; aria-pressed=false is not", () => {
+  test("a segmented control's option with aria-pressed=true is the active index; aria-pressed=false is not", () => {
     const toolbar = fakeZone("toolbar")
-    const all = fakeItem(toolbar, { pressed: "false" })
-    const movies = fakeItem(toolbar, { pressed: "true" })
-    const tv = fakeItem(toolbar, { pressed: "false" })
+    const all = fakeItem(toolbar, { pressed: "false", inPill: true })
+    const movies = fakeItem(toolbar, { pressed: "true", inPill: true })
+    const tv = fakeItem(toolbar, { pressed: "false", inPill: true })
     stubDocument({ activeElement: null, querySelectorAll: () => [all, movies, tv] })
     const reader = createDomReader({ contextSelectors: selectors, activeMarkers })
 
     expect(reader.getActiveItemIndex("toolbar")).toBe(1)
 
     stubDocument({ activeElement: null, querySelectorAll: () => [all, tv] })
+    expect(reader.getActiveItemIndex("toolbar")).toBe(-1)
+  })
+
+  test("a pressed toggle outside a segmented control is not the active index", () => {
+    const toolbar = fakeZone("toolbar")
+    const play = fakeItem(toolbar)
+    const listToggle = fakeItem(toolbar, { pressed: "true" })
+    stubDocument({ activeElement: null, querySelectorAll: () => [play, listToggle] })
+    const reader = createDomReader({ contextSelectors: selectors, activeMarkers })
+
     expect(reader.getActiveItemIndex("toolbar")).toBe(-1)
   })
 

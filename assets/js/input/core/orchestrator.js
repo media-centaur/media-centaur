@@ -861,7 +861,9 @@ export class Orchestrator {
       }
       this.writer.focusFirst(Context.GRID, opts)
     } else {
-      // Try DOM-marked active item first (tab-active, menu-item-active, etc.)
+      // Try the DOM-marked current selection first (config.activeMarkers:
+      // sidebar-link-active, zone-tab-active, menu-item-active, a segmented
+      // control's aria-pressed option)
       const activeIndex = this.reader.getActiveItemIndex(context)
       if (activeIndex >= 0) {
         this.writer.focusByIndex(context, activeIndex, opts)
