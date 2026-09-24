@@ -70,6 +70,8 @@ const GRID_CARD = '[data-nav-zone="grid"] [data-entity-id][phx-click="select_ent
 async function openPinnableTvDetail(page) {
   // /library, NOT "/" — the home page's hero action buttons also carry
   // [data-entity-id], and clicking those starts playback.
+  const { width, height } = page.viewportSize()
+  await page.mouse.move(Math.round(width / 2), Math.round(height / 2))
   await page.goto("/library?tab=tv")
   await waitForLiveView(page)
   // Grid items stream in after mount — wait for them rather than
@@ -81,7 +83,11 @@ async function openPinnableTvDetail(page) {
   }
   const cardCount = Math.min(await page.locator(GRID_CARD).count(), 5)
   for (let index = 0; index < cardCount; index++) {
-    await page.locator(GRID_CARD).nth(index).click()
+    // Element-level click, not a pointer one: a poster card's centre is its
+    // own play overlay, so a real click there starts playback instead of
+    // opening the detail modal — the hazard the comment above warns about.
+    // This spec asserts geometry; opening the modal is setup.
+    await page.locator(GRID_CARD).nth(index).evaluate((card) => card.click())
     await expect(page.locator('#detail-modal[data-state="open"]')).toBeVisible()
     const usable = await page
       .waitForFunction(() => {

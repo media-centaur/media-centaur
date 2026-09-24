@@ -111,15 +111,15 @@ defmodule MediaCentaur.Showcase do
   @doc """
   Seeds the currently-connected database with the showcase catalog.
 
-  Returns a summary map with per-entity counts. Raises if the configured
-  `:database_path` doesn't look like a showcase DB — see
-  `assert_showcase_db!/0`. The Mix task wrapper (`mix seed.showcase`)
+  Returns a summary map with per-entity counts. Raises unless the instance
+  declares `showcase_mode` — bootstrap state from the override TOML that a
+  real install can never carry. The Mix task wrapper (`mix seed.showcase`)
   adds a second env-var check; this function itself covers the
   direct-IEx-invocation path.
   """
   @spec seed!() :: summary()
   def seed! do
-    assert_showcase_db!()
+    assert_showcase_mode!()
     client = TMDB.Client.default_client()
 
     movies = Enum.map(Catalog.movies(), &seed_movie!(&1, client))
@@ -1269,18 +1269,26 @@ defmodule MediaCentaur.Showcase do
   # MEDIA_CENTAUR_CONFIG_OVERRIDE, but a direct IEx call to this function
   # would bypass that check. This rail fires for both invocation paths by
   # inspecting the live config.
-  defp assert_showcase_db! do
-    db_path = Config.get(:database_path) || ""
-
-    if !String.contains?(db_path, "showcase") do
+  #
+  # It asks the question the rest of the app already asks — is this instance in
+  # showcase mode? That is bootstrap state read from the override TOML and
+  # settable nowhere else, so a real install can never answer yes, and it is
+  # the same flag that switches on the fixture stubs the seeder needs.
+  #
+  # It replaces a check on the spelling of the database path, which was a proxy
+  # for the same idea and wrong in both directions: it passed any database a
+  # user happened to name "showcase", and blocked disposable instances that are
+  # not demos at all (the E2E instance, priv/e2e/).
+  defp assert_showcase_mode! do
+    if !Config.get(:showcase_mode) do
       raise """
-      Showcase seeder refusing to seed: database_path=#{inspect(db_path)}
-      doesn't look like a showcase DB.
+      Showcase seeder refusing to seed: this instance is not in showcase mode
+      (database_path=#{inspect(Config.get(:database_path))}).
 
-      The showcase seeder only runs against a DB whose configured path
-      contains "showcase". Set MEDIA_CENTAUR_CONFIG_OVERRIDE to
-      defaults/media-centaur-showcase.toml (or a custom TOML with a
-      showcase-prefixed database_path) and try again.
+      The seeder only runs against an instance whose override TOML declares
+      `showcase_mode = true`. Point MEDIA_CENTAUR_CONFIG_OVERRIDE at
+      defaults/media-centaur-showcase.toml (the demo) or
+      defaults/media-centaur-e2e.toml (the Playwright suite) and try again.
       """
     end
   end

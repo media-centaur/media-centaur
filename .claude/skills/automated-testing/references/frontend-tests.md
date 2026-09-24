@@ -13,7 +13,20 @@ scripts/input-test library                  # one page, both methods
 scripts/input-test --help                   # --debug, --trace, --ui, …
 ```
 
-E2E requires the dev server at `http://127.0.0.1:2160`.
+**The E2E suite boots and owns its own instance** — `scripts/e2e-server`, on
+:49001, with its own database under `priv/e2e/` seeded with the same
+public-domain content as the showcase. Playwright starts it via `webServer` and
+reuses one that is already up, so there is nothing to launch by hand.
+
+It used to point at the dev daily driver on :2160, backed by the owner's real
+library. That made it destructive to run, impossible to gate, and therefore free
+to rot — which it did, for months, silently.
+
+Seeding reaches live TMDB once per database (the catalog is built from real
+metadata) and needs `TMDB_API_KEY`; the script reads it from the dev database
+the way `scripts/start-showcase` does. The suite itself runs offline against
+what was seeded. `scripts/e2e-server --reset` throws the instance away and
+starts over.
 
 ---
 
@@ -62,11 +75,31 @@ Current specs: `ls test/e2e/*.spec.js`.
 import { test, expect } from "./fixtures/input-method.js"
 
 test("arrow down moves focus", async ({ page, inputAction, navigateTo }) => {
-  await navigateTo("/library")        // auto-sets up the gamepad mock if needed
+  await navigateTo("/library")        // gamepad mock + automation declaration
   await inputAction("NAVIGATE_DOWN")  // keyboard: ArrowDown, gamepad: D-pad down
-  await expectContext(page, "sections")
+  await expectContext(page, "grid")
 })
 ```
+
+Two things `navigateTo` handles that are easy to get wrong by hand:
+
+- **The automation declaration.** Playwright reports `navigator.webdriver === true`,
+  and the input gate denies gamepad input to an automation context unless it
+  declares itself the intended driver (`window.__inputAutomationDrivesGamepad`,
+  set by `installGamepad`). Without it the whole gamepad project is inert — and
+  any test asserting focus did *not* move passes vacuously.
+- **The pointer.** A browser's virtual pointer starts at (0, 0), inside the
+  sidebar rail, which hover-expands from 52px to 200px and overlays the content's
+  first column — swallowing clicks aimed at it. `navigateTo` parks the pointer
+  centre-screen *before* loading; afterwards would dispatch a mousemove into the
+  page and flip the input system into mouse mode.
+
+Two more traps when clicking in a spec: a poster card's centre is its own play
+overlay, so a pointer click there starts playback (it has launched mpv against
+the dev daily driver before now) — use an element-level `.evaluate(el => el.click())`
+when opening a detail modal is merely setup. And **BACK, not LEFT, is the way to
+the sidebar** (UIDR-028): LEFT is lateral movement inside a page and walls at the
+content's edge. Specs written before that record asserted the reverse.
 
 Fixtures from `fixtures/input-method.js`: `inputMethod` (`"keyboard"`/`"gamepad"`),
 `inputAction(action)`, `navigateTo(path)`.

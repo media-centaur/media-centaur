@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# e2e-server — boot the Playwright suite's own Media Centaur instance.
+#
+# WHY THIS EXISTS
+#
+# The E2E suite used to point at http://127.0.0.1:2160 — the dev daily
+# driver, with the owner's real library behind it. That made the suite
+# un-runnable in CI, un-gateable in precommit, and destructive to run at all
+# (the tests click around and mutate state). It rotted for exactly that
+# reason: nothing could run it, so nothing caught it drifting from the app.
+#
+# This boots an instance the suite owns: its own port, its own database, its
+# own media dir, seeded with the same public-domain content the showcase uses
+# and served by fixture stubs rather than live upstreams.
+#
+#   scripts/e2e-server           # set up if needed, then run in the foreground
+#   scripts/e2e-server --reset   # throw the database away first
+#
+# Playwright boots this itself via `webServer` in test/e2e/playwright.config.js,
+# so you rarely run it by hand.
+#
+# BUILD ROOT
+#
+# Compiles against a build root outside the checkout, for the same reason
+# ~/scripts/agents/agent-mix does: a second mix writing .beam files into the
+# running dev server's _build takes that server down. Its own root, not
+# agent-mix's, so an agent shell running tests cannot race this server either.
+# Override with MIX_BUILD_ROOT (CI sets nothing and gets an isolated default).
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+repo_root="$(pwd)"
+
+export MEDIA_CENTAUR_CONFIG_OVERRIDE="defaults/media-centaur-e2e.toml"
+export MIX_BUILD_ROOT="${MIX_BUILD_ROOT:-$HOME/.cache/media-centaur-e2e-build}"
+mkdir -p "$MIX_BUILD_ROOT"
+
+# Same toolchain the dev unit uses when mise is available; plain mix otherwise
+# (CI pins its own Elixir/OTP and has no mise).
+if command -v mise > /dev/null 2>&1; then
+  mix() { command mise exec -- mix "$@"; }
+fi
+
+if [ "${1:-}" = "--reset" ]; then
+  rm -rf "$repo_root/priv/e2e"
+  shift
+fi
+
+# Written only after the seeder returns successfully. The database file's
+# existence is NOT the same fact: ecto.create runs before the seeder, so a run
+# that dies during seeding leaves a database behind and the next run would
+# happily serve it empty.
+seeded_marker="$repo_root/priv/e2e/.seeded"
+
+setup_database() {
+  mix ecto.create --quiet && mix ecto.migrate --quiet
+}
+
+if ! setup_database; then
+  # This instance is disposable by definition, and a half-applied migration —
+  # what an interrupted boot leaves behind — cannot be repaired forward.
+  # Recreate it once rather than leaving Playwright waiting on a server that
+  # is never going to come up. Announced, never silent.
+  echo "e2e-server: database setup failed — recreating priv/e2e/ from scratch" >&2
+  rm -rf "$repo_root/priv/e2e"
+  setup_database
+fi
+
+if [ ! -f "$seeded_marker" ]; then
+  # Seeding — and only seeding — reaches the live TMDB API, because the
+  # showcase catalog is built from real metadata. It happens once per database
+  # (this marker), never per test run: the suite itself runs entirely offline
+  # against what was seeded. Same key lookup as scripts/start-showcase.
+  #
+  # This is the one thing standing between the suite and CI, where there is no
+  # dev database to read a key from. Converging on an offline fixture seeder is
+  # tracked in docs/plans/2026-09-24-firefox-parity-and-controller-layout.md.
+  dev_db="$HOME/.local/share/media-centaur/media-centaur.db"
+  if [ -z "${TMDB_API_KEY:-}" ] && [ -f "$dev_db" ]; then
+    TMDB_API_KEY=$(sqlite3 "$dev_db" \
+      "SELECT json_extract(value, '\$.value') FROM settings_entries WHERE key = 'config:tmdb_api_key' LIMIT 1;" \
+      2>/dev/null || true)
+    export TMDB_API_KEY
+  fi
+
+  if [ -z "${TMDB_API_KEY:-}" ]; then
+    echo "e2e-server: no TMDB_API_KEY and no dev database to read one from." >&2
+    echo "e2e-server: the showcase catalog needs live metadata to seed. Set TMDB_API_KEY and retry." >&2
+    exit 1
+  fi
+
+  echo "e2e-server: seeding priv/e2e/ (one-time, reaches TMDB)" >&2
+  mix seed.showcase
+  touch "$seeded_marker"
+fi
+
+exec mix phx.server

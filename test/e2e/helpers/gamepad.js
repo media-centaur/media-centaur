@@ -22,14 +22,32 @@ export const Button = {
 }
 
 /**
- * Inject mock gamepad into page BEFORE LiveView hook mounts.
- * Call this after page.goto() but it works best via page.addInitScript().
+ * Install the mock gamepad and the automation declaration, before any page
+ * script runs. Call before `page.goto()`.
+ *
+ * Two things have to be in place before the input hook mounts:
+ *
+ *   1. `navigator.getGamepads`, overridden — no real controller is attached to
+ *      a CI machine. Driving a real one through /dev/uinput is a separate
+ *      capability, still scheduled; see the plan doc.
+ *   2. `window.__inputAutomationDrivesGamepad` — Playwright reports
+ *      `navigator.webdriver === true`, and the input gate denies gamepad input
+ *      to an automation context unless it declares itself the intended driver.
+ *      Without this declaration every test in the gamepad project is inert:
+ *      the mock is read, and every action it produces is suppressed.
+ *
+ * The device is deliberately the one canonical standard-mapped pad. Layout
+ * variants — Firefox on Linux's raw evdev shape — are unit-tested against
+ * GamepadSource directly, which is both cheaper and higher-fidelity than
+ * asserting them through a browser that is not the one producing them.
+ *
  * @param {import("@playwright/test").Page} page
  * @param {object} [opts]
  * @param {string} [opts.id="Xbox Wireless Controller"] - Controller ID string
  */
-export async function injectGamepadMock(page, { id = "Xbox Wireless Controller" } = {}) {
-  await page.evaluate((controllerId) => {
+export async function installGamepad(page, { id = "Xbox Wireless Controller" } = {}) {
+  await page.addInitScript((controllerId) => {
+    window.__inputAutomationDrivesGamepad = true
     window.__mockGamepad = {
       id: controllerId,
       index: 0,

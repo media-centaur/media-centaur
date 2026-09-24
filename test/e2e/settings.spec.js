@@ -109,7 +109,7 @@ test.describe("settings navigation", () => {
     }
   })
 
-  test("escape in grid is a no-op; left returns to sections", async ({ page, inputAction }) => {
+  test("back from the grid enters the sidebar; left returns to sections", async ({ page, inputAction }) => {
     // Ensure we're on grid
     const context = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
@@ -121,31 +121,35 @@ test.describe("settings navigation", () => {
     }
     await expectContext(page, "grid")
 
-    // BACK does nothing in content
+    // UIDR-028: BACK is the way to the main menu from a content context.
     await inputAction("BACK")
-    await expectContext(page, "grid")
-
-    // Left at the grid's left edge returns to sections
-    await inputAction("NAVIGATE_LEFT")
-    await expectContext(page, "sections")
-  })
-
-  test("left from sections → sidebar", async ({ page, inputAction }) => {
-    // Navigate to sections
-    const context = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    if (context !== "sections") {
-      await inputAction("NAVIGATE_LEFT")
-    }
-    await expectContext(page, "sections")
-
-    await inputAction("NAVIGATE_LEFT")
     await expectContext(page, "sidebar")
+
+    // Return to the grid, then confirm LEFT is lateral: it lands on sections,
+    // the page's own menu, and never continues on to the sidebar.
+    await inputAction("NAVIGATE_RIGHT")
+    await expectContext(page, "grid")
+    await inputAction("NAVIGATE_LEFT")
+    await expectContext(page, "sections")
   })
 
-  test("escape in sections is a no-op — left is the way to the sidebar", async ({ page, inputAction }) => {
-    // Navigate to sections
+  test("left from sections is a wall, not a way out", async ({ page, inputAction }) => {
+    // sections is a non-primary MENU: LEFT walls there rather than continuing
+    // into the sidebar, which no zone layout declares a left edge to.
+    const context = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-nav-context")
+    )
+    if (context !== "sections") {
+      await inputAction("NAVIGATE_LEFT")
+    }
+    await expectContext(page, "sections")
+
+    await inputAction("NAVIGATE_LEFT")
+    await expectContext(page, "sections")
+  })
+
+  test("back from sections enters the sidebar", async ({ page, inputAction }) => {
+    // BACK enters the primary menu from a non-primary one too (UIDR-028).
     const context = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
     )
@@ -155,7 +159,7 @@ test.describe("settings navigation", () => {
     await expectContext(page, "sections")
 
     await inputAction("BACK")
-    await expectContext(page, "sections")
+    await expectContext(page, "sidebar")
   })
 })
 
@@ -184,13 +188,13 @@ test.describe("interface scale stepper", () => {
     // rest of the suite. At the default Reset carries aria-disabled, which
     // Playwright treats as unclickable — skip it when already home.
     if ((await prefFactor(page)) !== 1) {
-      await page.getByRole("button", { name: "Reset scale" }).click()
+      await page.getByRole("button", { name: "Reset Interface scale" }).click()
     }
     await expect.poll(() => prefFactor(page)).toBe(1)
   })
 
   test("stepping the scale actually rescales the shell", async ({ page }) => {
-    const increase = page.getByRole("button", { name: "Increase scale" })
+    const increase = page.getByRole("button", { name: "Increase Interface scale" })
     await increase.waitFor()
 
     await increase.click()
@@ -214,7 +218,7 @@ test.describe("interface scale stepper", () => {
     await expect(page.getByText("105%", { exact: true })).toBeVisible()
 
     // And stepping down crosses below 100% — the range floor is 70%.
-    const decrease = page.getByRole("button", { name: "Decrease scale" })
+    const decrease = page.getByRole("button", { name: "Decrease Interface scale" })
     await decrease.click()
     await decrease.click()
     await expect.poll(() => prefFactor(page)).toBe(0.95)
