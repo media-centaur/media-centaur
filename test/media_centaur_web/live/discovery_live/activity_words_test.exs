@@ -14,6 +14,14 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWordsTest do
     assert ActivityWords.verb(:listing, nil) == "wants to watch"
   end
 
+  test "the verb agrees with its subject: a friend wants to watch, you want to watch" do
+    assert ActivityWords.verb(:listing, nil, :friend) == "wants to watch"
+    assert ActivityWords.verb(:listing, nil, :you) == "want to watch"
+    assert ActivityWords.verb(:review, nil, :you) == "reviewed"
+    assert ActivityWords.verb(:watched, nil, :you) == "watched"
+    assert ActivityWords.verb(:listing, nil) == "wants to watch"
+  end
+
   test "the delete verb's noun" do
     assert ActivityWords.noun(:review) == "review"
     assert ActivityWords.noun(:watched) == "watched activity"
