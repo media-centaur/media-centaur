@@ -6,8 +6,8 @@ defmodule MediaCentaurWeb.Components.Title.Row do
   quiet markers the host computed (`Logic.row_markers/2`), and the
   notes in place of the overview: one unattributed note reads plain,
   several carry their names (UIDR-038). State is shown, never acted on
-  here: every verb lives in the modal. (The Feed's entries are
-  `Discovery.FeedEntryCard`, which carries its own toolbar.)
+  here: every verb lives in the modal. (The Feed's rows are
+  `Discovery.FeedEntryRow`, which carries its own toolbar.)
 
   Pure rendering; `open_title` bubbles to the host with the
   title's ref. The ref doubles as `data-entity-id`, the stable identity

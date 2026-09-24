@@ -12,17 +12,16 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWords do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Format
 
-  @typedoc "Who the sentence is about: a friend, third person, or You, second person."
+  @typedoc "The grammatical subject: a friend (third person) or You (second person)."
   @type subject :: :friend | :you
 
   @doc """
   The verb for a kind, agreeing with its subject: "wants to watch" for
   a friend, "want to watch" for You; "reviewed" and "watched" do not
-  change. The episode rides on a watched series. A listing is present
+  change. The watched verb names the episode on a series. A listing is present
   tense: the wish stands.
   """
   @spec verb(Activity.kind(), Episode.t() | nil, subject()) :: String.t()
-  def verb(kind, episode, subject \\ :friend)
   def verb(:review, _episode, _subject), do: "reviewed"
   def verb(:watched, nil, _subject), do: "watched"
 
@@ -44,7 +43,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWords do
   """
   @spec presence(Activity.kind(), Episode.t() | nil, String.t()) :: String.t()
   def presence(:watched, %Episode{} = episode, title_name),
-    do: verb(:watched, episode) <> " of " <> title_name
+    do: verb(:watched, episode, :friend) <> " of " <> title_name
 
-  def presence(kind, episode, title_name), do: verb(kind, episode) <> " " <> title_name
+  def presence(kind, episode, title_name), do: verb(kind, episode, :friend) <> " " <> title_name
 end

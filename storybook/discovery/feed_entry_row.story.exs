@@ -1,10 +1,13 @@
-defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryCard do
+defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
   @moduledoc """
-  One Feed entry (UIDR-038): poster left, then who did what and when —
+  One Feed row (UIDR-038, UIDR-045): poster left, then who did what —
   the sentiment glyph after the verb when the review gives one — the
-  title, and the review's text when it has some. The toolbar seat is
-  empty at rest and shows on hover; the variations cover every state its
-  two resolved slots can hold. A listing and a review are the same card.
+  title, the review's text when it has some, and the relative time in
+  the right column. The toolbar seat is empty at rest and shows on
+  hover; the variations cover every state its two resolved slots can
+  hold, and the own rows, which say You and carry no Ignore. A listing
+  and a review, a friend's and your own, are one row. Rows are meant to
+  sit in one inset list surface; the story's template supplies it.
   """
 
   use PhoenixStorybook.Story, :component
@@ -12,21 +15,30 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryCard do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
 
-  def function, do: &MediaCentaurWeb.Components.Discovery.FeedEntryCard.feed_entry_card/1
+  def function, do: &MediaCentaurWeb.Components.Discovery.FeedEntryRow.feed_entry_row/1
   def render_source, do: :function
   def layout, do: :one_column
+
+  def template do
+    """
+    <div class="glass-inset rounded-xl overflow-hidden">
+      <.psb-variation/>
+    </div>
+    """
+  end
 
   defp entry(id, overrides) do
     tmdb_id = Map.get(overrides, :tmdb_id, 777)
 
     struct!(
       %FeedEntry{
-        id: "feed-entry-#{id}",
+        id: "feed-row-#{id}",
         activity_id: id,
         ref: {tmdb_id, :movie},
         title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie", year: "2024"}),
         poster_url: "/images/sample-nosferatu-poster.jpg",
-        nickname: "Sample Friend",
+        author: "Sample Friend",
+        own?: false,
         kind: :listing,
         sentiment: nil,
         text: nil,
@@ -46,7 +58,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryCard do
     [
       %Variation{
         id: :listing,
-        description: "A friend wants to watch it: two lines, centred against the poster.",
+        description:
+          "A friend wants to watch it: two lines, centred against the poster, the time on the right.",
         attributes: %{entry: entry("listing", %{})}
       },
       %Variation{
@@ -64,7 +77,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryCard do
       },
       %Variation{
         id: :review_love,
-        description: "Love is the rose heart after the verb — the only colour on the card.",
+        description: "Love is the rose heart after the verb — the only colour on a friend's row.",
         attributes: %{
           entry:
             entry("love", %{
@@ -107,6 +120,38 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryCard do
         description: "A review with neither: the name, the verb and the title, nothing else.",
         attributes: %{
           entry: entry("bare-review", %{kind: :review, sentiment: nil, text: nil, ago: "6h ago"})
+        }
+      },
+      %Variation{
+        id: :own_listing,
+        description:
+          "Your own listing: You in the primary colour, the verb in the second person, Listed filled, no Ignore.",
+        attributes: %{
+          entry:
+            entry("own-listing", %{
+              author: "You",
+              own?: true,
+              rung: :list,
+              list_slot: :listed,
+              ago: "3d ago"
+            })
+        }
+      },
+      %Variation{
+        id: :own_review,
+        description: "Your own review: the same row; the toolbar holds List and Download only.",
+        attributes: %{
+          entry:
+            entry("own-review", %{
+              author: "You",
+              own?: true,
+              kind: :review,
+              sentiment: :love,
+              text: "Saw it twice. The last twenty minutes are the whole film.",
+              library_owner_id: "owner",
+              download_slot: {:state, "In library"},
+              ago: "1h ago"
+            })
         }
       },
       %Variation{

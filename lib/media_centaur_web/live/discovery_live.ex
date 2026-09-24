@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Store
   alias MediaCentaurWeb.Components.ActionToast
-  alias MediaCentaurWeb.Components.Discovery.FeedEntryCard
+  alias MediaCentaurWeb.Components.Discovery.FeedEntryRow
   alias MediaCentaurWeb.Components.Discovery.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.IncomingLive.PlanQuery
@@ -430,7 +430,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     now = DateTime.utc_now()
 
     %{entries: entries, has_older?: has_older?} =
-      FeedEntries.build(socket.assigns.activities, now: now, window: socket.assigns.feed_window)
+      FeedEntries.build(socket.assigns.activities,
+        now: now,
+        window: socket.assigns.feed_window,
+        scope: :everyone
+      )
 
     assign(socket,
       feed: entries,
@@ -550,7 +554,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               </:action>
             </.empty_state>
 
-            <FeedEntryCard.feed_entry_card :for={entry <- @feed} entry={entry} />
+            <FeedEntryRow.feed_entry_row :for={entry <- @feed} entry={entry} />
 
             <div :if={@feed_has_older?} class="flex justify-center pt-3">
               <.button id="feed-show-older" variant="dismiss" size="sm" phx-click="feed_show_older">
