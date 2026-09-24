@@ -1,7 +1,6 @@
 # Discovery › Feed: own actions in the timeline, an author scope
 
-**Date:** 2026-09-24 · **Status:** designed; implementation plan to follow
-(UIDR-045). Mockups in `2026-09-24-feed-timeline-scope-mockups/`
+**Date:** 2026-09-24 · **Status:** implemented 2026-09-24 (UIDR-045); plan in `../plans/2026-09-24-feed-timeline-scope.md`. Mockups in `2026-09-24-feed-timeline-scope-mockups/`
 (`1-time-rail`, `2-poster-forward`, `3-editorial-list` **chosen**, with the
 scope moved onto the segmented control and the rows into one list surface;
 brief `BRIEF.md`). The previous round is
