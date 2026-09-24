@@ -4,8 +4,9 @@
 `campaigns/feed-appearance.md`). Round 4 mockups in
 `2026-09-24-feed-appearance-mockups/` (brief `BRIEF.md`, comparison
 `index.html`, critique `CRITIQUE.md` — recommends crossing
-`1-cinematic-rows` and `4-front-page`, pending a crop measurement on
-real backdrops); the owner's decision is open. The shipped
+`1-cinematic-rows` and `4-front-page`); the crop measurement
+(`MEASUREMENT.md`) fixed the focal rule at 30%; round 5 (`BRIEF-5.md`)
+builds the cross in four settings; the owner's decision is open. The shipped
 design this starts from is `2026-09-24-feed-timeline-scope-design.md`
 (UIDR-045); its scope, entry rule and toolbar contract are kept.
 

@@ -105,6 +105,26 @@ superseded by the design this campaign produces, and the record says so.
   visual step, not as a one-page fix: what it establishes (artwork
   carrying rows, the identity tile, type hierarchy, full-width
   composition) is expected to propagate.
+* `2026-09-24` (night) — The owner went to sleep with the instruction
+  to continue autonomously, spend freely, ask nothing, and leave one
+  reviewable artifact holding every version with its reasoning. Also:
+  the production database and image cache may be used for
+  experiments; nothing may be downloaded and no indexer or TMDB
+  traffic may be generated. The review artifact is
+  https://claude.ai/code/artifact/7588de25-86db-4849-aab1-416ac323c8a4
+  (private; rebuilt by `build-review` plus a root page kept in the
+  session's scratch folder).
+* `2026-09-24` (night) — Crop measurement done (`MEASUREMENT.md`):
+  on 24 real backdrops a fixed `object-position: 50% 30%` lands on
+  the subject at both the band's 21% slice and the lead's 42% box;
+  libvips attention/entropy crops fail on different stills and are
+  rejected. The rule is fixed 30%, an 8% offset on the second of two
+  adjacent rows of one title, no per-title positions.
+* `2026-09-24` (night) — Round 5 (`BRIEF-5.md`) builds the 1×4 cross
+  in four settings — full width, the 1280 container, a capped 900px
+  image box, words-led bands — and a labelled motion exploration
+  (`X-motion`: scroll parallax, ambient drift, hover ease, each
+  switchable) so motion is judged rather than assumed away.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
