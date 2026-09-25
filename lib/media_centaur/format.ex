@@ -35,6 +35,20 @@ defmodule MediaCentaur.Format do
   def short_id(uuid) when is_binary(uuid), do: String.slice(uuid, 0, 8)
 
   @doc """
+  The monogram of a name: its first grapheme, uppercased — the one rule
+  behind every initial the UI draws (a person's identity tile, an app
+  card with no banner, an Incoming shelf card with no artwork). A missing
+  or empty name is `"?"`.
+  """
+  @spec monogram(String.t() | nil) :: String.t()
+  def monogram(name) do
+    case String.first(name || "") do
+      nil -> "?"
+      first -> String.upcase(first)
+    end
+  end
+
+  @doc """
   Returns the 4-digit year for a `Date` as a string. `nil` and non-Date
   inputs return `nil`. Used by templates that display only the year
   portion of `entity.date_published`.

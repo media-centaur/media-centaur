@@ -11,8 +11,8 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTileTest do
 
   defp letter(html), do: html |> tile() |> LazyHTML.text() |> String.trim()
 
-  test "a monogram carries the name's first letter, hidden from assistive tech" do
-    html = render(name: "Cleo", size: 56)
+  test "a monogram carries the name's first letter uppercased, hidden from assistive tech" do
+    html = render(name: "cleo", size: 56)
 
     assert letter(html) == "C"
     assert html |> tile() |> LazyHTML.attribute("aria-hidden") == ["true"]
