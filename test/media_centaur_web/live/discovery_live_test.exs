@@ -206,8 +206,11 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       |> render_submit()
 
       assert has_element?(view, friend_card() <> " h2", "Sample Friend")
+      refute has_element?(view, friend_card(), "Nothing shared yet")
+      refute has_element?(view, friend_card() <> " [data-role='acts']")
+      # The foot is behind the card's press.
+      view |> element(friend_card()) |> render_click()
       assert has_element?(view, friend_card() <> " footer", People.short_npub(@friend_pubkey))
-      assert has_element?(view, friend_card(), "Nothing shared yet")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "1")
       assert [%{nickname: "Sample Friend"}] = Social.list_friends()
 
@@ -248,7 +251,8 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       render_until(view, fn _html -> not has_element?(view, friend_card()) end)
     end
 
-    test "a friend's card carries their shelves and presence; a poster opens that act", %{conn: conn} do
+    test "a friend's card is their acts as posters under act slots; a poster opens the newest act; an opened row opens the act",
+         %{conn: conn} do
       Identity.ensure()
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       show = Title.new!(%{tmdb_id: 1399, media_type: :tv_series, name: "Sample Show"})
@@ -261,34 +265,55 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       {:ok, reviewed} =
         Activities.ingest(signed(:review, movie, text: "Watch it.", sentiment: :love))
 
-      # The watched act is the newest, so it is the presence line.
+      # The watched act is the newest, so the show's poster opens it.
       backdate(listed, :acted_at, ~U[2026-09-01 10:00:00Z])
       backdate(reviewed, :acted_at, ~U[2026-09-01 09:00:00Z])
 
       {:ok, view, _html} = live(conn, "/discovery/friends")
 
-      # You first, then the friend; the presence line is the newest act.
+      # You first, then the friend.
       assert ids(view, "[data-component='person-card']") == ["person-you", "person-f9308a01"]
+
+      # One poster for the show flies the watch and the listing in their
+      # slots; the review's poster flies love. No presence line anywhere.
+      show_act = friend_card() <> "-act-tv_series-1399"
+      assert has_element?(view, show_act <> "[data-flags='watched listing']")
+      assert has_element?(view, show_act <> " .act-glyph[data-slot='2'][data-flag='watched']")
+      assert has_element?(view, show_act <> " .act-glyph[data-slot='3'][data-flag='listing']")
 
       assert has_element?(
                view,
-               friend_card() <> " [data-role='presence']",
-               "watched S02E05 of Sample Show"
+               friend_card() <> "-act-movie-777 .act-glyph[data-slot='1'][data-flag='love']"
              )
 
-      assert has_element?(view, friend_card() <> "-watched-#{watched.id}")
-      assert has_element?(view, friend_card() <> "-#{listed.id}", "Sample Show")
-      assert has_element?(view, friend_card() <> "-#{reviewed.id}", "Sample Movie 777")
-      assert has_element?(view, friend_card() <> "-#{reviewed.id} .text-love")
+      refute has_element?(view, friend_card() <> " [data-role='presence']")
+      assert has_element?(view, friend_card() <> " [data-role='ago']")
 
-      view |> element(friend_card() <> "-watched-#{watched.id}") |> render_click()
+      view |> element(show_act) |> render_click()
       assert_patch(view, "/discovery/friends?title=tv_series-1399&activity=#{watched.id}")
       # Who did what is the pennant's to say, not a line under the hero.
       assert has_element?(view, "#detail-modal .pennant[data-flag='watched']", "Sample Friend")
       refute has_element?(view, "#detail-activity-delete")
       render_hook(view, "close_title", %{})
 
-      # The review opens with its note, attributed, and the named pennant.
+      # The opened card: one row per title; the review's row opens with its note.
+      view |> element(friend_card()) |> render_click()
+      assert has_element?(view, friend_card() <> "[data-opened]")
+
+      assert has_element?(
+               view,
+               friend_card() <> "-#{reviewed.id}[data-role='act-row']",
+               "Sample Movie 777"
+             )
+
+      assert has_element?(view, friend_card() <> "-#{reviewed.id} [data-flag='love']")
+
+      assert has_element?(
+               view,
+               friend_card() <> "-#{watched.id}[data-role='act-row']",
+               "watched S02E05 of"
+             )
+
       view |> element(friend_card() <> "-#{reviewed.id}") |> render_click()
       assert has_element?(view, "#detail-note", "Sample Friend")
       assert has_element?(view, "#detail-note", "Watch it.")
@@ -305,15 +330,31 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
           "mine"
         )
 
-      # Listed last, so the presence line — the latest act — is the listing.
       title = Title.new!(%{tmdb_id: 42, media_type: :movie, name: "Sample Movie 42"})
       {:ok, mine} = Activities.listing(title)
 
       {:ok, view, _html} = live(conn, "/discovery/friends")
-      assert has_element?(view, "#person-you[data-own]", "How friends see you")
-      assert has_element?(view, "#person-you [data-role='presence']", "want to watch Sample Movie 42")
-      refute has_element?(view, "#person-you [data-role='presence']", "wants to watch")
+      # The own tile is the card's one mark: no subtitle, no presence, no foot.
+      assert has_element?(view, "#person-you[data-own] [data-component='identity-tile'][data-own]")
+      refute render(view) =~ "How friends see you"
+      refute has_element?(view, "#person-you [data-role='presence']")
       refute has_element?(view, "#person-you footer")
+
+      assert has_element?(
+               view,
+               "#person-you-act-movie-42 .act-glyph[data-slot='3'][data-flag='listing']"
+             )
+
+      assert has_element?(
+               view,
+               "#person-you-act-movie-99 .act-glyph[data-slot='1'][data-flag='like']"
+             )
+
+      # The rows are behind the card's press, in the second person.
+      refute has_element?(view, "#person-you-#{rec.id}")
+      view |> element("#person-you") |> render_click()
+      assert has_element?(view, "#person-you-#{mine.id}[data-role='act-row']", "want to watch")
+      refute has_element?(view, "#person-you-#{mine.id}", "wants to watch")
 
       view |> element("#person-you-#{rec.id}") |> render_click()
       assert has_element?(view, "#detail-activity-delete", "Delete review")
@@ -326,8 +367,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> element("#detail-activity-delete", "Delete listing") |> render_click()
       assert render(view) =~ "Listing withdrawn"
       refute has_element?(view, "#person-you-#{mine.id}")
-      # With the listing withdrawn the presence falls back to the review.
-      assert has_element?(view, "#person-you [data-role='presence']", "reviewed Sample Movie 99")
+      refute has_element?(view, "#person-you-act-movie-42")
       assert Enum.map(Activities.list_sent(), & &1.kind) == [:review]
 
       await_supervised_tasks()
@@ -348,7 +388,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
         extension: "jpg"
       })
 
-      {:ok, watched} =
+      {:ok, _watched} =
         Activities.watched(
           Title.new!(%{tmdb_id: 424_242, media_type: :movie, name: "Sample Movie 424242"}),
           nil
@@ -358,20 +398,23 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#person-you-watched-#{watched.id} img[src^='/media-images/#{movie.id}/poster.jpg']"
+               "#person-you-act-movie-424242 img[src^='/media-images/#{movie.id}/poster.jpg']"
              )
 
       await_supervised_tasks()
     end
 
-    test "a You card with nothing shared says where sharing starts", %{conn: conn} do
+    test "a You card with nothing shared is a tile and a name", %{conn: conn} do
       Identity.ensure()
       {:ok, view, _html} = live(conn, "/discovery/friends")
-      assert has_element?(view, "#person-you", "once sharing is on under Settings → Social")
-      refute has_element?(view, "#person-you", "How friends see you")
+      refute render(view) =~ "sharing is on"
+      refute has_element?(view, "#person-you [data-role='acts']")
+      assert has_element?(view, "#person-you [data-component='identity-tile'][data-own]")
+      assert has_element?(view, "#person-you [data-role='name']", "You")
     end
 
-    test "all N grows the strip in place", %{conn: conn} do
+    test "a press opens the card: every act, one row each, the foot; the same press closes it",
+         %{conn: conn} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
 
       for tmdb_id <- 1..7 do
@@ -386,18 +429,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       end
 
       {:ok, view, _html} = live(conn, "/discovery/friends")
-      assert has_element?(view, friend_card() <> "-watched-all", "all 7")
+      assert length(ids(view, friend_card() <> " [data-role='acts'] > button")) == 5
+      refute has_element?(view, friend_card() <> " footer")
 
-      assert length(
-               ids(view, friend_card() <> " [data-role='watched-strip'] button[phx-value-activity]")
-             ) == 5
+      view |> element(friend_card()) |> render_click()
+      assert length(ids(view, friend_card() <> " [data-role='acts'] > button")) == 7
+      assert length(ids(view, friend_card() <> " [data-role='act-row']")) == 7
+      assert has_element?(view, friend_card() <> " footer button", "Remove friend")
 
-      view |> element(friend_card() <> "-watched-all") |> render_click()
-      refute has_element?(view, friend_card() <> "-watched-all")
-
-      assert length(
-               ids(view, friend_card() <> " [data-role='watched-strip'] button[phx-value-activity]")
-             ) == 7
+      view |> element(friend_card()) |> render_click()
+      assert length(ids(view, friend_card() <> " [data-role='acts'] > button")) == 5
+      refute has_element?(view, friend_card() <> " footer")
     end
   end
 

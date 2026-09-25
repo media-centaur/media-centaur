@@ -10,8 +10,9 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   fill), like (a thumbs up), dislike (a thumbs down), reviewed (a speech
   bubble — a review that gives no verdict), watched (an eye), listing (a
   bookmark) — all but love on a neutral tint, since only love is a
-  colour. A review flies its sentiment, or the reviewed flag when it has
-  none (`flag/1`). A pennant carries up to two nicknames and then a
+  colour. Which flag an activity flies, the glyph and the order are
+  `Title.Flag`'s, the vocabulary the person card's act slots share. A
+  pennant carries up to two nicknames and then a
   count ("Nick, Sam", "Nick +2"); an own review reads "You". Every
   pennant carries the full sentence as a tooltip.
 
@@ -27,12 +28,9 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   alias MediaCentaur.Activities.Activity
-  alias MediaCentaurWeb.Components.Title.Sentiment
+  alias MediaCentaurWeb.Components.Title.Flag
 
-  @flags [:love, :like, :dislike, :review, :watched, :listing]
-
-  @type flag :: :love | :like | :dislike | :review | :watched | :listing
-  @type pennant :: %{flag: flag(), names: [String.t()]}
+  @type pennant :: %{flag: Flag.flag(), names: [String.t()]}
 
   attr :activity, :list,
     required: true,
@@ -56,17 +54,12 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
         title={tooltip(pennant)}
         data-flag={pennant.flag}
       >
-        <.icon name={glyph(pennant.flag)} class="size-3.5" />
+        <.icon name={Flag.glyph(pennant.flag)} class="size-3.5" />
         <span>{@label || label(pennant)}</span>
       </span>
     </span>
     """
   end
-
-  defp glyph(sentiment) when sentiment in [:love, :like, :dislike], do: Sentiment.glyph(sentiment)
-  defp glyph(:review), do: "hero-chat-bubble-bottom-center-text"
-  defp glyph(:watched), do: "hero-eye"
-  defp glyph(:listing), do: "hero-bookmark"
 
   @doc """
   The mast for one title's activity rows: one pennant per flag in mast
@@ -75,20 +68,14 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   @spec pennants([%{activity: Activity.t(), nickname: String.t() | nil, own?: boolean()}]) ::
           [pennant()]
   def mast(rows) do
-    by_flag = Enum.group_by(rows, &flag(&1.activity))
+    by_flag = Enum.group_by(rows, &Flag.flag(&1.activity))
 
-    for flag <- @flags, group = Map.get(by_flag, flag, []), group != [] do
+    for flag <- Flag.mast_order(), group = Map.get(by_flag, flag, []), group != [] do
       {own, friends} = Enum.split_with(group, & &1.own?)
       names = Enum.map(friends, & &1.nickname) ++ Enum.map(own, fn _row -> "You" end)
       %{flag: flag, names: names}
     end
   end
-
-  @doc "The flag an activity flies: a review by its sentiment, or reviewed when it gives none; the other kinds as themselves."
-  @spec flag(Activity.t()) :: flag()
-  def flag(%Activity{kind: :review, sentiment: nil}), do: :review
-  def flag(%Activity{kind: :review, sentiment: sentiment}), do: sentiment
-  def flag(%Activity{kind: kind}), do: kind
 
   @max_named 2
 

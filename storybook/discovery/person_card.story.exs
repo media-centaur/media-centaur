@@ -1,10 +1,14 @@
 defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   @moduledoc """
-  One person on the Friends tab (UIDR-038): name as the title, the
-  presence line, the Recently watched strip with its "all N" tile, the
-  Wants to watch and Reviewed rows, and a friend's footer. The You card
-  differs in border, subtitle and the missing footer. Expansion is the
-  host's state, shown here as an attribute.
+  One person as their latest acts (UIDR-046): the identity tile, the
+  name, the ago, and a strip of posters — one per title acted on —
+  each under its act slots: three fixed positions holding the opinion,
+  the eye and the bookmark, an absent act drawing nothing, a flag at
+  the grade in gold. One component at two widths: the Feed's rail (560,
+  three acts, a press navigates to the person) and the Friends page
+  (900, five acts, a press opens the card in place to every act, one
+  row each, and the foot). A person with no acts is a tile and a name;
+  nothing says what a person withholds.
   """
 
   use PhoenixStorybook.Story, :component
@@ -12,126 +16,212 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Discovery.Person
+  alias MediaCentaurWeb.Components.Discovery.Person.Act
   alias MediaCentaurWeb.Components.Discovery.Person.Entry
 
   def function, do: &MediaCentaurWeb.Components.Discovery.PersonCard.person_card/1
   def render_source, do: :function
   def layout, do: :one_column
 
-  defp entry(tmdb_id, name, opts \\ []) do
-    media_type = Keyword.get(opts, :media_type, :movie)
+  @poster "/images/storybook/sample-poster.jpg"
+  @rail ~s(<div class="w-[560px]"><.psb-variation/></div>)
+  @page ~s(<div class="w-[900px]"><.psb-variation/></div>)
 
-    %Entry{
-      activity_id: "activity-#{tmdb_id}-#{Keyword.get(opts, :kind, :watched)}",
+  defp act(tmdb_id, name, flags, opts \\ []) do
+    media_type = Keyword.get(opts, :media_type, :movie)
+    episode = Keyword.get(opts, :episode)
+
+    %Act{
       ref: {tmdb_id, media_type},
       title: Title.new!(%{tmdb_id: tmdb_id, media_type: media_type, name: name}),
-      poster_url: Keyword.get(opts, :poster_url),
-      sentiment: Keyword.get(opts, :sentiment),
-      episode: Keyword.get(opts, :episode),
-      acted_at: ~U[2026-09-01 12:00:00Z]
+      poster_url: Keyword.get(opts, :poster_url, @poster),
+      activity_id: "activity-#{tmdb_id}-#{hd(flags)}",
+      acted_at: ~U[2026-09-01 12:00:00Z],
+      ago: Keyword.get(opts, :ago, "2h ago"),
+      episode: episode,
+      flags: flags,
+      gold: Keyword.get(opts, :gold, []),
+      entries:
+        for flag <- flags do
+          %Entry{
+            activity_id: "activity-#{tmdb_id}-#{flag}",
+            kind: kind(flag),
+            flag: flag,
+            episode: if(flag == :watched, do: episode),
+            acted_at: ~U[2026-09-01 12:00:00Z]
+          }
+        end
     }
   end
 
-  defp watched_shelf do
+  defp kind(:watched), do: :watched
+  defp kind(:listing), do: :listing
+  defp kind(_opinion), do: :review
+
+  defp friend(acts) do
+    %Person{
+      id: "person-f9308a01",
+      name: "Sample Friend",
+      own?: false,
+      pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+      short_npub: "npub1lyy9…8z4h",
+      added_on: ~D[2026-08-30],
+      acts: acts
+    }
+  end
+
+  defp you(acts) do
+    %Person{
+      id: "person-you",
+      name: "You",
+      own?: true,
+      pubkey: nil,
+      short_npub: nil,
+      added_on: nil,
+      acts: acts
+    }
+  end
+
+  defp three_acts do
     [
-      entry(1399, "Sample Show",
+      act(1399, "Sample Show", [:watched],
         media_type: :tv_series,
-        episode: %Episode{season_number: 2, episode_number: 5},
-        poster_url: "/images/storybook/sample-poster.jpg"
+        episode: %Episode{season_number: 2, episode_number: 5}
       ),
-      entry(11, "Movie A"),
-      entry(12, "Movie B"),
-      entry(13, "Movie C"),
-      entry(14, "Movie D"),
-      entry(15, "Movie E"),
-      entry(16, "Movie F")
+      act(11, "Movie A", [:love, :watched], ago: "1d ago"),
+      act(12, "Movie B", [:listing], ago: "3d ago")
     ]
   end
 
-  defp friend(overrides) do
-    struct!(
-      %Person{
-        id: "person-f9308a01",
-        name: "Sample Friend",
-        own?: false,
-        pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
-        short_npub: "npub1lyy9…8z4h",
-        added_on: ~D[2026-08-30],
-        presence: %{text: "watched S02E05 of Sample Show", ago: "2h ago", at: ~U[2026-09-01 12:00:00Z]},
-        watched: watched_shelf(),
-        listed: [
-          entry(21, "Movie G", kind: :listing),
-          entry(22, "Show H", kind: :listing, media_type: :tv_series),
-          entry(23, "Movie I", kind: :listing),
-          entry(24, "Movie J", kind: :listing)
-        ],
-        reviewed: [
-          entry(31, "Movie K", kind: :review, sentiment: :love),
-          entry(32, "Movie L", kind: :review, sentiment: :like),
-          entry(33, "Movie M", kind: :review, sentiment: :dislike),
-          entry(34, "Movie N", kind: :review, sentiment: nil)
-        ]
-      },
-      overrides
-    )
+  defp seven_acts do
+    three_acts() ++
+      [
+        act(13, "Movie C", [:like], ago: "4d ago"),
+        act(14, "Movie D", [:watched, :listing], ago: "5d ago"),
+        act(15, "Movie E", [:review], ago: "1w ago"),
+        act(16, "Movie F", [:dislike, :watched], ago: "2w ago")
+      ]
+  end
+
+  defp gold_acts do
+    [
+      act(21, "Movie G", [:love], gold: [:love]),
+      act(22, "Movie H", [:watched, :listing], gold: [:watched], ago: "1d ago"),
+      act(23, "Movie I", [:like], ago: "2d ago")
+    ]
+  end
+
+  defp one_flag_each(width) do
+    for flag <- [:love, :like, :dislike, :review, :watched, :listing] do
+      %Variation{
+        id: flag,
+        description: "#{flag}: the glyph alone in its slot, the other two slots bare",
+        attributes: %{person: friend([act(31, "Movie K", [flag])]), width: width}
+      }
+    end
   end
 
   def variations do
     [
       %Variation{
-        id: :friend,
+        id: :rail_friend,
         description:
-          "A friend with every shelf: five posters and \"all 7\", three tracked titles and " <>
-            "\"1 more\", reviews with their sentiment glyphs (none for a review without one), the key and Remove in the footer.",
-        attributes: %{person: friend(%{})}
+          "The rail's card: three acts; the second flies love and watched (slots 1 and 2), slot 3 bare",
+        attributes: %{person: friend(three_acts()), width: :rail},
+        template: @rail
       },
       %Variation{
-        id: :friend_expanded,
-        description: "The same friend after \"all N\": every shelf in full, no tiles or counts left.",
-        attributes: %{person: friend(%{}), expanded?: true}
-      },
-      %Variation{
-        id: :friend_quiet,
-        description: "A friend who has shared nothing: header and footer only.",
+        id: :rail_no_artwork,
+        description: "An act whose title has no poster: the slot names it",
         attributes: %{
-          person: friend(%{presence: nil, watched: [], listed: [], reviewed: []})
-        }
+          person: friend([act(41, "Movie L", [:watched], poster_url: nil) | tl(three_acts())]),
+          width: :rail
+        },
+        template: @rail
       },
       %Variation{
-        id: :you,
-        description: "The You card: primary-tinted border, \"How friends see you\", no footer.",
+        id: :rail_you,
+        description: "The reader on the rail: the filled own tile, own acts, no foot ever",
         attributes: %{
-          person:
-            friend(%{
-              id: "person-you",
-              name: "You",
-              own?: true,
-              pubkey: nil,
-              short_npub: nil,
-              added_on: nil,
-              listed: [entry(21, "Movie G", kind: :listing)],
-              reviewed: [entry(31, "Movie K", kind: :review, sentiment: :love)]
-            })
-        }
+          person: you([act(11, "Movie A", [:love]), act(12, "Movie B", [:listing], ago: "3d ago")]),
+          width: :rail
+        },
+        template: @rail
       },
       %Variation{
-        id: :you_quiet,
-        description: "You before anything is shared: the subtitle says where sharing starts.",
-        attributes: %{
-          person:
-            friend(%{
-              id: "person-you",
-              name: "You",
-              own?: true,
-              pubkey: nil,
-              short_npub: nil,
-              added_on: nil,
-              presence: nil,
-              watched: [],
-              listed: [],
-              reviewed: []
-            })
-        }
+        id: :rail_quiet,
+        description: "A friend with no acts: a tile and a name, no ago, nothing about sharing",
+        attributes: %{person: friend([]), width: :rail},
+        template: @rail
+      },
+      %VariationGroup{
+        id: :rail_flags,
+        description:
+          "Each flag alone at 28px in its slot on the rail: the four opinions in slot 1, the eye in 2, the bookmark in 3",
+        template: @rail,
+        variations: one_flag_each(:rail)
+      },
+      %Variation{
+        id: :rail_all_slots,
+        description: "One act flying love, watched and listing: every slot filled",
+        attributes: %{person: friend([act(51, "Movie M", [:love, :watched, :listing])]), width: :rail},
+        template: @rail
+      },
+      %Variation{
+        id: :rail_gold,
+        description:
+          "The grade: a gold heart alone; a gold eye beside a matte bookmark; a matte thumb up",
+        attributes: %{person: friend(gold_acts()), width: :rail},
+        template: @rail
+      },
+      %Variation{
+        id: :page_friend,
+        description: "The Friends page's card: five of seven acts, the strip at the card's left",
+        attributes: %{person: friend(seven_acts()), width: :page},
+        template: @page
+      },
+      %Variation{
+        id: :page_opened,
+        description:
+          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with the key, the date and Remove friend",
+        attributes: %{person: friend(seven_acts()), width: :page, opened?: true},
+        template: @page
+      },
+      %Variation{
+        id: :page_you,
+        description: "The reader's page card: own acts",
+        attributes: %{person: you(three_acts()), width: :page},
+        template: @page
+      },
+      %Variation{
+        id: :page_you_opened,
+        description: "The reader's card opened: the rows, no foot",
+        attributes: %{person: you(three_acts()), width: :page, opened?: true},
+        template: @page
+      },
+      %Variation{
+        id: :page_quiet,
+        description: "A friend with no acts at the page width",
+        attributes: %{person: friend([]), width: :page},
+        template: @page
+      },
+      %VariationGroup{
+        id: :page_flags,
+        description: "Each flag alone in its page slot (x 11 · 51 · 91)",
+        template: @page,
+        variations: one_flag_each(:page)
+      },
+      %Variation{
+        id: :page_all_slots,
+        description: "One act with every slot filled, at the page width",
+        attributes: %{person: friend([act(51, "Movie M", [:love, :watched, :listing])]), width: :page},
+        template: @page
+      },
+      %Variation{
+        id: :page_gold,
+        description: "The grade at the page width",
+        attributes: %{person: friend(gold_acts()), width: :page},
+        template: @page
       }
     ]
   end

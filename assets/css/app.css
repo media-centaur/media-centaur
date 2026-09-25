@@ -3034,9 +3034,9 @@ body:has(.modal-backdrop[data-state="open"]) {
   background:
     linear-gradient(
       90deg,
-      oklch(13% 0.02 264 / 0.92) 0%,
-      oklch(13% 0.02 264 / 0.72) 45%,
-      oklch(13% 0.02 264 / 0.3) 100%
+      oklch(from var(--ink) l c h / 0.92) 0%,
+      oklch(from var(--ink) l c h / 0.72) 45%,
+      oklch(from var(--ink) l c h / 0.3) 100%
     ),
     radial-gradient(
       ellipse 60% 120% at 85% 20%,
@@ -3061,7 +3061,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 /* Full-width footer strip inside a banner (download progress etc.) —
    its own scrim so live figures stay legible over imagery. */
 .identity-banner-strip {
-  background: oklch(13% 0.02 264 / 0.7);
+  background: oklch(from var(--ink) l c h / 0.7);
   backdrop-filter: blur(8px);
 }
 
@@ -3076,8 +3076,8 @@ body:has(.modal-backdrop[data-state="open"]) {
   background:
     linear-gradient(
       90deg,
-      oklch(13% 0.02 264 / 0.88) 0%,
-      oklch(13% 0.02 264 / 0.6) 100%
+      oklch(from var(--ink) l c h / 0.88) 0%,
+      oklch(from var(--ink) l c h / 0.6) 100%
     ),
     linear-gradient(110deg, oklch(26% 0.03 264) 0%, oklch(17% 0.025 304) 100%);
   box-shadow: 0 4px 16px oklch(0% 0 0 / 0.25);
@@ -3093,8 +3093,8 @@ body:has(.modal-backdrop[data-state="open"]) {
   background:
     linear-gradient(
       90deg,
-      oklch(13% 0.02 264 / 0.88) 0%,
-      oklch(13% 0.02 264 / 0.55) 100%
+      oklch(from var(--ink) l c h / 0.88) 0%,
+      oklch(from var(--ink) l c h / 0.55) 100%
     ),
     linear-gradient(
       110deg,
@@ -3102,6 +3102,144 @@ body:has(.modal-backdrop[data-state="open"]) {
       oklch(18% 0.035 calc(var(--banner-hue, 264) + 40)) 100%
     );
   box-shadow: 0 4px 16px oklch(0% 0 0 / 0.25);
+}
+
+/* ── Ink — the dark ground the identity-banner family, the Feed's bands
+   and the person card share (UIDR-046). The 13% literal those gradients
+   used, defined once; not base-100 (27%), which would wash the words. */
+:root {
+  --ink: oklch(13% 0.02 264);
+}
+
+/* ── Person card (UIDR-046) ── one component at two widths: the rail's
+   (560) and the Friends page's (900). Every size is a custom property of
+   the width class; the text is Tailwind on top. */
+.person-card {
+  --pad: 12px 14px;
+  --pw: 96px;
+  --ph: 144px;
+  --gap: 16px;
+  --slots: 36px;
+  --glyph: 28px;
+  --x1: 6px;
+  --x2: 34px;
+  --x3: 62px; /* 96 = 6 | 28 | 28 | 28 | 6 */
+  --pshadow: 0 3px 12px oklch(0% 0 0 / 0.5);
+  position: relative;
+  border-radius: 12px;
+  background: var(--ink);
+  padding: var(--pad);
+  cursor: pointer;
+}
+
+.person-card-page {
+  --pad: 30px;
+  --pw: 130px;
+  --ph: 195px;
+  --x1: 11px;
+  --x2: 51px;
+  --x3: 91px; /* 130 = 11 | 28 | 12 | 28 | 12 | 28 | 11 */
+  --pshadow: 0 4px 16px oklch(0% 0 0 / 0.55);
+}
+
+.person-card:hover,
+.person-card:focus-within,
+.person-card-opened {
+  background: oklch(16% 0.02 264);
+}
+
+.acts-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+}
+
+/* A cell is the act slots over the poster: 36 + 144 in the rail, 36 + 195
+   on the page. */
+.act {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: var(--pw);
+  flex: none;
+  cursor: pointer;
+}
+
+.act > img,
+.act-empty {
+  width: var(--pw);
+  height: var(--ph);
+  border-radius: 6px;
+  box-shadow: var(--pshadow);
+}
+
+.act > img {
+  display: block;
+  object-fit: cover;
+  outline: 1px solid oklch(100% 0 0 / 0.08);
+  outline-offset: -1px;
+}
+
+.act-empty {
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+  text-align: left;
+  background: oklch(from var(--color-base-content) l c h / 0.06);
+}
+
+.person-card-page .act-empty {
+  padding: 12px;
+}
+
+/* The act slots (UIDR-046): a 36px strip on the card's own ground above
+   the poster — no backing — with three fixed positions: the opinion at
+   --x1, the eye at --x2, the bookmark at --x3. An absent act has no
+   element, so an empty slot is bare ground and a glyph is found by
+   position; nothing stacks and no capsule exists. */
+.act-slots {
+  position: relative;
+  height: var(--slots);
+  width: 100%;
+  pointer-events: none;
+}
+
+.act-glyph {
+  position: absolute;
+  top: calc((var(--slots) - var(--glyph)) / 2);
+  width: var(--glyph);
+  height: var(--glyph);
+  color: oklch(100% 0 0 / 0.78); /* matte: flat white at 78% */
+}
+
+.act-glyph[data-slot="1"] {
+  left: var(--x1);
+}
+
+.act-glyph[data-slot="2"] {
+  left: var(--x2);
+}
+
+.act-glyph[data-slot="3"] {
+  left: var(--x3);
+}
+
+.act-icon {
+  display: block;
+  width: var(--glyph);
+  height: var(--glyph);
+}
+
+/* The grade: gold metal, three stops on one 135° sweep. The heroicon is
+   a CSS mask over `background-color: currentColor`, so the gradient is a
+   background image under the mask, not an SVG fill. */
+.act-glyph-gold > .act-icon {
+  background-image: linear-gradient(
+    135deg,
+    oklch(90% 0.13 88),
+    oklch(62% 0.13 78) 55%,
+    oklch(84% 0.14 85)
+  );
 }
 
 /* ── Guide book prose ──

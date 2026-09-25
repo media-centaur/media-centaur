@@ -101,6 +101,18 @@ with a batched read when that shelf is next touched. Plans and
 pursuits read the referenced tier by design — an acquisition subject
 is not owned — and are not ladders.
 
+**Phase 3 shipped 2026-09-25.** Under the unify pass: the flag
+vocabulary (`Title.Flag`) is one thing the pennant and the act slots
+compose, with a weight for the solid set; a person is their acts, each
+act carrying its own ago (no `latest_*` on the person); the opened
+card's row sentence is the old presence sentence renamed
+(`ActivityWords.sentence/4` over `verb_phrase/3`), one row per title
+with every flag after it; the grade is gold at two friends, counted
+once per friend per title and flag over the rows the fold already
+holds; the identity-banner family's ink literal became `--ink`. The
+Friends tab renders the page card in today's column; the rail, the
+grid and `?person=` are Phase 5.
+
 ## Handoff — start here in a fresh context
 
 1. Read this file (Status, Decisions made, Deferred), then the plan's

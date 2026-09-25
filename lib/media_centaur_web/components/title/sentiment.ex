@@ -30,9 +30,17 @@ defmodule MediaCentaurWeb.Components.Title.Sentiment do
     """
   end
 
-  @doc "The heroicon for a sentiment."
-  @spec glyph(Activity.sentiment()) :: String.t()
-  def glyph(:dislike), do: "hero-hand-thumb-down"
-  def glyph(:like), do: "hero-hand-thumb-up"
-  def glyph(:love), do: "hero-heart-solid"
+  @doc """
+  The heroicon for a sentiment, at the outline weight or from the solid
+  set (the act slots' weight). Love is a filled heart at every weight.
+  Literal names, one per clause: Tailwind's icon scanner emits CSS only
+  for the names it reads in source.
+  """
+  @spec glyph(Activity.sentiment(), :outline | :solid) :: String.t()
+  def glyph(sentiment, weight \\ :outline)
+  def glyph(:dislike, :outline), do: "hero-hand-thumb-down"
+  def glyph(:dislike, :solid), do: "hero-hand-thumb-down-solid"
+  def glyph(:like, :outline), do: "hero-hand-thumb-up"
+  def glyph(:like, :solid), do: "hero-hand-thumb-up-solid"
+  def glyph(:love, _weight), do: "hero-heart-solid"
 end

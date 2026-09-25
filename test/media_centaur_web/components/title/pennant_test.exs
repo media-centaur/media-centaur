@@ -11,17 +11,6 @@ defmodule MediaCentaurWeb.Components.Title.PennantTest do
   defp own(sentiment),
     do: %{activity: build_activity(%{sentiment: sentiment}), nickname: nil, own?: true}
 
-  describe "flag/1" do
-    test "a review flies its sentiment, or reviewed when it gives none; the other kinds fly themselves" do
-      assert Pennant.flag(build_activity(%{kind: :review, sentiment: :love})) == :love
-      assert Pennant.flag(build_activity(%{kind: :review, sentiment: :like})) == :like
-      assert Pennant.flag(build_activity(%{kind: :review, sentiment: :dislike})) == :dislike
-      assert Pennant.flag(build_activity(%{kind: :review, sentiment: nil})) == :review
-      assert Pennant.flag(build_activity(%{kind: :watched, sentiment: nil})) == :watched
-      assert Pennant.flag(build_activity(%{kind: :listing, sentiment: nil})) == :listing
-    end
-  end
-
   describe "mast/1" do
     test "nothing for no activity" do
       assert Pennant.mast([]) == []

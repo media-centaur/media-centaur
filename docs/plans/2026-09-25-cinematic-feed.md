@@ -434,7 +434,7 @@ Storybook-first for the card (it has a story): the story is rewritten before the
 - Create: `lib/media_centaur_web/components/title/flag.ex`, `test/media_centaur_web/components/title/flag_test.exs`, `test/media_centaur_web/components/discovery/person_card_test.exs`
 - Modify: `lib/media_centaur_web/components/title/pennant.ex`, `lib/media_centaur_web/components/discovery/person.ex`, `person_card.ex`, `lib/media_centaur_web/live/discovery_live/people.ex`, `test/media_centaur_web/live/discovery_live/people_test.exs`, `storybook/discovery/person_card.story.exs`, `assets/css/app.css`, `lib/media_centaur_web/live/discovery_live.ex` (the card's attrs and the two events), `test/media_centaur_web/live/discovery_live_test.exs` § friends tab
 
-- [ ] **Step 1: `Title.Flag` — failing test**
+- [x] **Step 1: `Title.Flag` — failing test**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Title.FlagTest do
@@ -470,7 +470,7 @@ end
 
 Run → FAIL. Then the module: `flag/1`, `glyph/1` (sentiments through `Sentiment.glyph/1`; `:review`, `:watched`, `:listing` the pennant's three), `mast_order/0`, `sort_by_mast/1`, `slot/1` (the person card's fixed position for a flag; the pennant does not read it); `@moduledoc` "The flag vocabulary shared by the pennant (UIDR-037) and a person card's acts strip (UIDR-046): which flag an activity flies, the glyph for a flag, and the mast order…"; `Module.register_attribute` + `@storybook_status :skip` / `@storybook_reason "Pure vocabulary, not a function component"`. `Pennant` drops its `@flags`, `glyph/1` and `flag/1` in favour of `Flag`'s (keep `Pennant.flag/1` delegating for one commit if a caller outside needs it — grep first; `mast/1` iterates `Flag.mast_order()`). `pennants_test` and the pennant story still pass.
 
-- [ ] **Step 2: `Person.Act` and the acts projection — failing tests**
+- [x] **Step 2: `Person.Act` and the acts projection — failing tests**
 
 `person.ex`: `Entry` gains `kind` and `flag`; new nested `Act`:
 
@@ -528,11 +528,11 @@ Run → FAIL. Then the module: `flag/1`, `glyph/1` (sentiments through `Sentimen
 
 Keep the order test ("You first, then friends by latest activity, the quiet ones last by name") — `sort_key/1` reads `latest_at` now. Run → FAIL.
 
-- [ ] **Step 3: `People`** — `person/5` groups the sorted rows by ref into `Act`s (`Enum.group_by` keeps first-seen order when built from the sorted list with `Enum.uniq_by` for the order and `group_by` for the members): `flags: rows |> Enum.map(&Flag.flag(&1.activity)) |> Flag.sort_by_mast()`, `activity_id`/`acted_at`/`episode` from the newest row, `entries` every row as an `Entry` with `kind` and `flag`; `latest_at` from the first sorted row. `rail/1`: `@rail_cap 8`, `Enum.split(people, @rail_cap)` → `%{people: shown, hidden: length(rest)}`. Moduledoc rewritten: the card's acts, the rail's roster. `gold` stays `[]` until step 3b. Green.
+- [x] **Step 3: `People`** — `person/5` groups the sorted rows by ref into `Act`s (`Enum.group_by` keeps first-seen order when built from the sorted list with `Enum.uniq_by` for the order and `group_by` for the members): `flags: rows |> Enum.map(&Flag.flag(&1.activity)) |> Flag.sort_by_mast()`, `activity_id`/`acted_at`/`episode` from the newest row, `entries` every row as an `Entry` with `kind` and `flag`; `latest_at` from the first sorted row. `rail/1`: `@rail_cap 8`, `Enum.split(people, @rail_cap)` → `%{people: shown, hidden: length(rest)}`. Moduledoc rewritten: the card's acts, the rail's roster. `gold` stays `[]` until step 3b. Green.
 
-- [ ] **Step 3b (optional — skip if the owner does not ship the grade): the grade's count.** In `people_test.exs` add "a flag is gold when two or more friends did that act on that title": four friends, three with a `:love` review on `tmdb_id: 7` and one with a `:watched` on it, one friend with a `:listing` on `tmdb_id: 11`; `People.build/3` → every person's act on 7 has `gold: [:love]` and `flags` still `[:love, :watched]` where both apply; the act on 11 has `gold: []`; an own act counts the roster, not the reader (`me: true` rows do not raise the count). Run → FAIL. Then in `People.build/3`, before the per-person grouping, count once over the rows it already holds — the same rows the pennant's `mast/1` groups per title from `Activities.friend_activity_for/1` — `Enum.frequencies_by(friend_rows, &{TitleRef.of(&1), Flag.flag(&1.activity)})` (friends only, one count per friend per (ref, flag)), `@grade 3`, and `gold: Enum.filter(flags, &(counts[{ref, &1}] >= @grade))` on each `Act`. Pure; no query is added. Green.
+- [x] **Step 3b (optional — skip if the owner does not ship the grade): the grade's count.** In `people_test.exs` add "a flag is gold when two or more friends did that act on that title": four friends, three with a `:love` review on `tmdb_id: 7` and one with a `:watched` on it, one friend with a `:listing` on `tmdb_id: 11`; `People.build/3` → every person's act on 7 has `gold: [:love]` and `flags` still `[:love, :watched]` where both apply; the act on 11 has `gold: []`; an own act counts the roster, not the reader (`me: true` rows do not raise the count). Run → FAIL. Then in `People.build/3`, before the per-person grouping, count once over the rows it already holds — the same rows the pennant's `mast/1` groups per title from `Activities.friend_activity_for/1` — `Enum.frequencies_by(friend_rows, &{TitleRef.of(&1), Flag.flag(&1.activity)})` (friends only, one count per friend per (ref, flag)), `@grade 3`, and `gold: Enum.filter(flags, &(counts[{ref, &1}] >= @grade))` on each `Act`. Pure; no query is added. Green.
 
-- [ ] **Step 4: The story, rewritten** — `storybook/discovery/person_card.story.exs`. Fixture `act/3` builds a `Person.Act` (`poster_url: "/images/storybook/sample-poster.jpg"` by default, a nil-poster variant, `gold: []` unless given), `person/1` a `Person`. `width` takes `:rail` and `:page` as literals (MC0009). Variations:
+- [x] **Step 4: The story, rewritten** — `storybook/discovery/person_card.story.exs`. Fixture `act/3` builds a `Person.Act` (`poster_url: "/images/storybook/sample-poster.jpg"` by default, a nil-poster variant, `gold: []` unless given), `person/1` a `Person`. `width` takes `:rail` and `:page` as literals (MC0009). Variations:
 
 | Variation | `width` | State |
 |---|---|---|
@@ -555,7 +555,7 @@ Keep the order test ("You first, then friends by latest activity, the quiet ones
 
 Template: `<div class="w-[560px]"><.psb-variation/></div>` for the rail (`def template` cannot vary per variation without `:template` on each; set `template:` on the rail variations and the page ones to a 900px wrapper). `layout :one_column`.
 
-- [ ] **Step 5: The card's contract test** — `test/media_centaur_web/components/discovery/person_card_test.exs` (`render_component`, LazyHTML):
+- [x] **Step 5: The card's contract test** — `test/media_centaur_web/components/discovery/person_card_test.exs` (`render_component`, LazyHTML):
 
 ```elixir
   test "the strip is one button per act, newest first, carrying its flags and opening the newest activity" do
@@ -612,7 +612,7 @@ Template: `<div class="w-[560px]"><.psb-variation/></div>` for the rail (`def te
 
 Run → FAIL (`width` unknown, `acts` unknown).
 
-- [ ] **Step 6: The CSS** — append to `assets/css/app.css` after the `.identity-row` block:
+- [x] **Step 6: The CSS** — append to `assets/css/app.css` after the `.identity-row` block:
 
 ```css
 /* ── Ink — the dark ground the Feed's bands and the person card share
@@ -665,7 +665,7 @@ Run → FAIL (`width` unknown, `acts` unknown).
 
 (`<.icon>` emits `<span class="hero-… …">` — a mask with `background-color: currentColor`, per `assets/vendor/heroicons.js` — so size and paint the `span`; the `.icon` alternative stays only if the class exists. Under a `background-image` the mask still clips to the glyph, which is what makes the gold read as metal.) Then `~/scripts/agents/agent-mix assets.build`.
 
-- [ ] **Step 7: The component** — `person_card.ex` rebuilt. Attrs: `attr :person, Person, required: true`; `attr :width, :atom, required: true, values: [:rail, :page]`; `attr :opened?, :boolean, default: false, doc: "the page card grown in place; the host keeps the set"`; `attr :landed?, :boolean, default: false, doc: "the card named by the address takes focus on mount"`. One public builder: `act_poster_src(url, :rail) → sized_image_url(url, 240)`, `(:page) → 320`. Structure:
+- [x] **Step 7: The component** — `person_card.ex` rebuilt. Attrs: `attr :person, Person, required: true`; `attr :width, :atom, required: true, values: [:rail, :page]`; `attr :opened?, :boolean, default: false, doc: "the page card grown in place; the host keeps the set"`; `attr :landed?, :boolean, default: false, doc: "the card named by the address takes focus on mount"`. One public builder: `act_poster_src(url, :rail) → sized_image_url(url, 240)`, `(:page) → 320`. Structure:
 
 ```heex
 <section
@@ -707,9 +707,9 @@ Run → FAIL (`width` unknown, `acts` unknown).
 
 `@shown` is `Enum.take(acts, cap(@width))` — 3 / 5 — or every act when opened; `@ago` is `person.latest_ago` (the card is pure and takes no clock; `People` anchors it with `now`, as the old `presence.ago` was). The name line's sizes by width (`text-[22px] leading-7` / `text-2xl leading-8`); the row's sentence through `ActivityWords.verb/3` and the title, the glyph after it (`Flag.glyph`), the ago right. The slots strip is the button's first child (`flex-direction: column` on `.act`), the poster under it, so the whole cell is the press. The strip's poster press is the whole `button`; the card's press is the root; LiveView dispatches the closest `phx-click`, so nesting is fine (the feed row already relies on it). Nav items: the posters, the rows and Remove friend keep `data-nav-item` (they exist today); the root gets none until Phase 7. Moduledoc rewritten from the spec's person-card paragraphs.
 
-- [ ] **Step 8: The host, minimally** — `discovery_live.ex`: `expanded_people` → `opened_people`; `handle_event("toggle_person", %{"id" => id})` toggles membership; `handle_event("open_person", %{"id" => id})` → `push_navigate(to: ~p"/discovery/friends?person=#{id}")` (the page reads it in Phase 5; until then it opens the tab); the Friends tab renders `<PersonCard.person_card :for={person <- @people} person={person} width={:page} opened?={MapSet.member?(@opened_people, person.id)} />`. The `data-nav-zone="people"` wrapper stays.
+- [x] **Step 8: The host, minimally** — `discovery_live.ex`: `expanded_people` → `opened_people`; `handle_event("toggle_person", %{"id" => id})` toggles membership; `handle_event("open_person", %{"id" => id})` → `push_navigate(to: ~p"/discovery/friends?person=#{id}")` (the page reads it in Phase 5; until then it opens the tab); the Friends tab renders `<PersonCard.person_card :for={person <- @people} person={person} width={:page} opened?={MapSet.member?(@opened_people, person.id)} />`. The `data-nav-zone="people"` wrapper stays.
 
-- [ ] **Step 9: The Friends-tab tests, rewritten** (`discovery_live_test.exs:251–402`):
+- [x] **Step 9: The Friends-tab tests, rewritten** (`discovery_live_test.exs:251–402`):
   - "a friend's card carries their shelves and presence; a poster opens that act" → "a friend's card is their acts as posters under their act slots; a poster opens the newest act; an opened row opens a specific act": assert `friend_card() <> "-act-tv_series-1399[data-flags='watched listing']"` and, inside it, `.act-glyph[data-slot='2'][data-flag='watched']` and `.act-glyph[data-slot='3'][data-flag='listing']` (a listing and a watch on one show are two glyphs in their slots above one poster); click it → `assert_patch` with the newest activity; open the card (`element(friend_card()) |> render_click()`), click `friend_card() <> "-#{listed.id}"` → the listing's modal; the review's row shows `.text-love` no longer — the glyph is `[data-flag='love']` in the row.
   - "the You card shows what you broadcast and deletes it by kind" → the rows are behind the press: open `#person-you`, then the existing assertions on `#person-you-#{rec.id}`; drop the presence and "How friends see you" assertions.
   - "an activity for a title in the library paints the entity's poster" → the selector becomes `#person-you-act-movie-424242 img[src^='/media-images/#{movie.id}/poster.jpg']`.
@@ -719,9 +719,11 @@ Run → FAIL (`width` unknown, `acts` unknown).
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/components test/media_centaur_web/live/discovery_live` → green.
 
-- [ ] **Step 10: Precommit and look.** `~/scripts/agents/agent-mix precommit`. `page-shot` `/storybook/discovery/person_card` and `/discovery/friends` on :2160 (the real roster); Read each and the half-size copy: the six glyphs at 28 — thumbs up from down, eye from bubble, the bookmark's notch — each found by its slot, an empty slot drawing nothing, two glyphs reading as two, and gold reading as gold beside matte (`:rail_gold`, `:page_gold`). If the 28px glyph merges the thumbs, note it for the owner rather than changing the size silently.
+- [x] **Step 10: Precommit and look.** `~/scripts/agents/agent-mix precommit`. `page-shot` `/storybook/discovery/person_card` and `/discovery/friends` on :2160 (the real roster); Read each and the half-size copy: the six glyphs at 28 — thumbs up from down, eye from bubble, the bookmark's notch — each found by its slot, an empty slot drawing nothing, two glyphs reading as two, and gold reading as gold beside matte (`:rail_gold`, `:page_gold`). If the 28px glyph merges the thumbs, note it for the owner rather than changing the size silently.
 
 **Acceptance:** `Title.Flag` is the one flag vocabulary and the pennant composes it; `Person.acts` is one per title newest first with flags in mast order (and `gold` per the grade when step 3b shipped); no `.act-disc*` exists; `People.rail/1` caps at eight; the card renders at both widths from one function with every state in its story; no card carries a presence line or a sharing note; the Friends tab renders the page card in today's column with its rewritten tests green; MC0009 finds `:rail` and `:page`.
+
+> **Realized 2026-09-25, under `/unify_design`:** the grade shipped at **two** friends (`People.@grade 2`, the spec's threshold; step 3b's "3" was stale). `Person` lost `latest_at`/`latest_ago` too — each `Act` carries its own `ago`, and the person's is its first act's, one source. `Person.Entry` is the activity's facts only (`activity_id`, `kind`, `flag`, `episode`, `acted_at`); the act owns the title. `Title.Flag.glyph/2` takes a weight (`:solid` for the slots, the pennant's outline by default). The opened card is **one row per title** with the newest act's sentence and every flag after the title — the spec's "one row per poster" — so `ActivityWords.presence/4` became `sentence/4` over a new `verb_phrase/3`, not an orphan. The identity-banner family's ink literal is `--ink` everywhere. `landed?` waits for Phase 5, which is where it is read.
 
 ```bash
 git add -A
