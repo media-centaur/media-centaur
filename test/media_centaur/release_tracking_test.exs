@@ -994,7 +994,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           library_container_id: container_id
         })
 
-      library_logos = %{container_id => "/media-images/library/some-other-logo.png"}
+      library_logos = %{{:tv_series, container_id} => "/media-images/library/some-other-logo.png"}
 
       assert ReleaseTracking.logo_url_for_item(item, library_logos) ==
                "/media-images/library/some-other-logo.png"

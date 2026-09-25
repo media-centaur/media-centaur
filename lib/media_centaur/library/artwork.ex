@@ -1,14 +1,18 @@
-defmodule MediaCentaur.Library.Posters do
+defmodule MediaCentaur.Library.Artwork do
   @moduledoc """
-  Batch poster-URL resolution by entity reference, for surfaces outside the
-  Library views that need artwork for a heterogeneous list of entities (e.g.
-  the Status page's recently-watched feed).
+  Batch artwork-URL resolution by entity reference and role — the poster,
+  the backdrop or the logo — for surfaces outside the Library views that
+  need artwork for a heterogeneous list of entities (the Feed's rows, the
+  Status page's recently-watched feed, the release rows on Incoming). The
+  **library tier** of `MediaCentaur.TitleArtwork`'s ladder.
 
-  Episodes resolve to their **series'** poster — episodes carry no poster of
-  their own; a caller that already holds the series id passes `:tv_series`
-  directly. The result map contains entries only for refs that resolved to a
-  cached poster; refs to deleted or posterless entities are simply absent, so
-  callers read with `Map.get(result, ref)` and treat `nil` as "no artwork".
+  Episodes resolve to their **series'** image in every role — episodes
+  carry no poster, backdrop or logo of their own; a caller that already
+  holds the series id passes `:tv_series` directly. The result map
+  contains entries only for refs that resolved to a cached image; refs to
+  deleted entities, or to entities without that role, are simply absent,
+  so callers read with `Map.get(result, ref)` and treat `nil` as "no
+  artwork".
   """
 
   import Ecto.Query
@@ -19,11 +23,12 @@ defmodule MediaCentaur.Library.Posters do
   alias MediaCentaur.Repo
 
   @type ref :: {:movie | :tv_series | :episode | :video_object, Ecto.UUID.t()}
+  @type role :: String.t()
 
-  @spec urls_by_refs([ref()]) :: %{ref() => String.t()}
-  def urls_by_refs([]), do: %{}
+  @roles ~w(poster backdrop logo)
 
-  def urls_by_refs(refs) do
+  @spec urls_by_refs([ref()], role()) :: %{ref() => String.t()}
+  def urls_by_refs(refs, role) when role in @roles do
     episode_ids = for {:episode, id} <- refs, do: id
     series_by_episode = series_ids_by_episode(episode_ids)
 
@@ -39,7 +44,7 @@ defmodule MediaCentaur.Library.Posters do
           [{kind, id}]
       end)
 
-    urls = poster_urls_by_owner(owners)
+    urls = urls_by_owner(owners, role)
 
     refs
     |> Enum.flat_map(fn
@@ -70,16 +75,16 @@ defmodule MediaCentaur.Library.Posters do
     |> Map.new()
   end
 
-  defp poster_urls_by_owner([]), do: %{}
+  defp urls_by_owner([], _role), do: %{}
 
-  defp poster_urls_by_owner(owners) do
+  defp urls_by_owner(owners, role) do
     owners
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
     |> Enum.flat_map(fn {owner_type, owner_ids} ->
       from(image in Image,
         where:
           image.owner_type == ^owner_type and image.owner_id in ^owner_ids and
-            image.role == "poster",
+            image.role == ^role,
         select: {image.owner_id, image.content_url}
       )
       |> Repo.all()

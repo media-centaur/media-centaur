@@ -42,7 +42,7 @@ defmodule MediaCentaur.Library do
       Person,
       PlayableItem,
       PlayableItems,
-      Posters,
+      Artwork,
       Progress,
       Progress.Events,
       Progress.Events.ProgressFlushed,
@@ -93,7 +93,7 @@ defmodule MediaCentaur.Library do
   | Relink-on-move | `Library.Relink`, `Library.MoveMatcher` |
   | Watch state (DB) | `Library.ProgressRecords` |
   | Watch state (in-memory projection) | `Library.Progress` |
-  | Artwork | `Library.Images`, `Library.Posters`, `Library.ImageHealth` |
+  | Artwork | `Library.Images`, `Library.Artwork`, `Library.ImageHealth` |
   | External identifiers | `Library.ExternalIds` |
   | Remembered audio/subtitle tracks | `Library.MediaTrackOverrides` |
   | Movie-vs-collection hoist rule | `Library.Presentable`, `Library.PresentableQueries` |
