@@ -229,24 +229,34 @@ mode switches, overlay rendering, and advance actions.
 
 Keeps the desktop in SDR (where it looks right) while giving HDR films a
 real HDR signal. When mpv loads a file whose transfer function is PQ or HLG,
-the script switches the Hyprland output to 10-bit HDR mode (`hyprctl keyword
-monitor … cm, hdr`); when playback moves to SDR content or mpv quits, it
-restores the SDR monitor line. Combined with `target-colorspace-hint=yes`,
-the display receives the film's untouched HDR10 grade and applies its own
-tone mapping.
+the script switches the Hyprland output to 10-bit HDR mode through the
+compositor's Lua config manager (`hyprctl eval 'hl.monitor({ … cm = "hdr" })'`);
+when playback moves to SDR content or mpv quits, it applies the SDR monitor
+line again. Combined with `target-colorspace-hint=yes`, the display receives
+the film's untouched HDR10 grade and applies its own tone mapping.
 
 ### Behavior
 
 - **No key binding needed** — activates via a `video-params/gamma` observer
-- Expect a few seconds of black when entering/leaving HDR playback: the
-  display re-locks the HDMI link on the mode change (same as a game console)
+- **Every switch holds playback.** The display shows black for about a
+  second while it re-locks the HDMI link on a mode change (same as a game
+  console). The script pauses before the switch and resumes `settle_seconds`
+  later (1.5 s), so the opening of the film isn't lost under the black. The
+  hold applies in both directions — entering HDR, and dropping back to SDR
+  when the next playlist entry is SDR — but not on quit. A player that was
+  already paused is left alone, and resuming by hand during the window ends
+  the hold.
+- The app's playback session sees the hold as an ordinary pause: expect a
+  paused/resumed pair in the playback log on every HDR launch.
 - HDR → HDR playlist transitions don't bounce the display (gamma is only
-  `nil` between files, and `nil` never triggers a revert)
-- The monitor lines in the script's config table must mirror
-  `~/.config/hypr/hyprland.conf` so the revert lands on the compositor's
-  steady state
+  `nil` between files, and `nil` never triggers a switch)
+- The monitor lines in the script's config table must mirror `hl.monitor` in
+  `~/.config/hypr/hyprland.lua` so the SDR line lands on the compositor's
+  steady state. `hl.monitor` merges, so the SDR line resets every key the
+  HDR line sets.
 - If mpv is killed hard (no shutdown event), the display stays in HDR mode —
-  recover with the SDR `hyprctl keyword monitor` line or a Hyprland reload
+  recover by running the script's SDR line through `hyprctl eval`, or reload
+  Hyprland
 
 ### Debugging
 
@@ -254,4 +264,5 @@ tone mapping.
 mpv --msg-level=hdr_display=debug /path/to/video.mkv
 ```
 
-This outputs gamma observations and the hyprctl mode-switch commands.
+This outputs gamma observations, the hold and release of playback around
+each switch, and the hyprctl calls.
