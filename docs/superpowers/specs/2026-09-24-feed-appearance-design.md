@@ -79,7 +79,16 @@ type and composition, not a marker added to the shipped row.
    constant at rest and hovered, the same slots (List · Download ·
    Ignore on a friend's row; List · Download on an own row; withdrawal
    stays in the modal).
-5. **Every rule kept or named.** What UIDR-038, UIDR-045, UIDR-037 and
+5. **Couch readability is primary** (owner, 2026-09-25). The app
+   composes at 1920 CSS px on the TV (auto scale = screen ÷ 1920), so
+   the 1920 composition is what the TV shows, and a 65" panel at three
+   metres subtends about half what a 27" monitor does at a desk. Every
+   read text at the 1920 composition is 22px or larger, secondary text
+   18px, band titles 28px, the lead title 44px; tiles 56/64px; posters
+   96×144 on a band; the cursor ring is the TV's hover and must read
+   at three metres; text over the scrim reaches 4.5:1. Rounds 4–6 were
+   composed for the desk and are re-scaled in round 7 (`BRIEF-7.md`).
+6. **Every rule kept or named.** What UIDR-038, UIDR-045, UIDR-037 and
    the colour rule say stands unless the chosen direction argues
    otherwise, naming the rule and the exception precisely.
 

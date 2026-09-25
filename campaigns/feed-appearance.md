@@ -141,6 +141,17 @@ superseded by the design this campaign produces, and the record says so.
   limited to hover/cursor ease at most (X); the Watchlist takes the
   band next, the Friends card keeps its shape and gains the identity
   tile, Incoming after that, Home and History unchanged (P).
+* `2026-09-25` (morning) — The owner is not sure of full width ("it
+  still seems to waste some space") and pitched a Friends rail: at
+  wide viewports the Friends section becomes a second column on the
+  right, keeping its "what they've been watching" focus, ordered by
+  latest activity; and named **couch readability on a TV as the
+  primary design consideration for all of this**. Rounds 4–6 were
+  desk-scale; round 7 (`BRIEF-7.md`) re-scales to couch floors (read
+  text ≥ 22px at the 1920 composition, which is what the TV shows) and
+  renders the rail (R1), full width at the same scale (R2) and a
+  spanning lead over feed-plus-rail (R3), with a half-size "10-foot"
+  check on every render.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
