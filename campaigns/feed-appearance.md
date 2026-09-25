@@ -236,6 +236,15 @@ superseded by the design this campaign produces, and the record says so.
   readable; the love disc is now the same ink disc as every other
   glyph and the heart alone is solid rose. Applied to G, J, the spec
   and the plan.
+* `2026-09-25` — The owner: "we don't have to retain the current
+  artifact history thing; we can just keep iterating on the latest
+  best version." The review artifact is trimmed to the two settled
+  pages (G, J), the spec, the plan and the campaign file; superseded
+  pages are removed from it and live only in the repo. From here the
+  pages are patched in place, not re-lettered. Open: the act glyph's
+  legibility up close (the disc translucent, the glyphs thin) — a
+  comparison of the current disc, an opaque disc with solid glyphs,
+  and the footer band with solid glyphs.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
