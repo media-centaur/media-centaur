@@ -176,6 +176,13 @@ superseded by the design this campaign produces, and the record says so.
   page where the roster is managed; the tab strip is constant; the
   rail is its summary. Round 8 (`BRIEF-8.md`) builds one Feed page
   and one Friends page from one person-card anatomy at two widths.
+* `2026-09-25` — Round 8 verdict (`CRITIQUE-8.md`): `G-couch-feed`
+  is the page — two columns, no lead, bands 224px (74% slice), the
+  rail as person cards (You first, seven by latest act, All N
+  friends), four sharing states drawn, a window of twenty to a cap of
+  sixty with "N new" queued at the head; `G-friends-page` is the
+  Friends tab, one component with the rail's card at two widths. The
+  couch floors are a house rule.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -203,9 +210,14 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
-3f. **Round 8** — running: `G-couch-feed` (two full-height columns,
-   no lead, the rail as person cards with four sharing states, paging
-   drawn) and `G-friends-page` (the Friends tab at couch scale).
+3f. **Round 8** — done (`BRIEF-8.md`, `CRITIQUE-8.md`):
+   `G-couch-feed` replaces F as the proposed page (two full-height
+   columns at couch scale, no lead, the rail as person cards with four
+   sharing states, paging drawn); `G-friends-page` is the Friends tab.
+   Two small fixes (the strip's caption; one slot for the note and the
+   You subtitle) and the Friends page's two-column grid at 1920 are
+   the next render. Then the spec's "What the user sees" and the plan
+   are re-derived from G, and UIDR-046 is written.
 3e. **Round 7** — done (`BRIEF-7.md`, `CRITIQUE-7.md`): couch scale
    and the Friends rail. Round 8, on the owner's word: one assembled
    couch page (R3's structure, R1's rail density, every state)
