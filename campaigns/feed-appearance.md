@@ -286,7 +286,15 @@ superseded by the design this campaign produces, and the record says so.
   reads honestly; the header band costs the poster's top quarter,
   where faces sit; the filled disc still reads larger than ink at the
   same diameter. Viable with glyph materials: two tiers (matte /
-  gold), not three.
+  gold), not three. The owner's next argument: the disc covers face
+  space too; a **header with three fixed slots** — the review glyph,
+  the eye, the bookmark, one position each, empty slots drawn as
+  nothing — would put every glyph in the same place on every poster
+  (a scan, not a read), and needs no capsule since a person has at
+  most one act of each kind per title. Under render as
+  `P2-slot-header`: the header on the poster's top, the header above
+  the poster on the card's ground, against the disc; with a count of
+  fixture posters whose face sits under the disc vs under the band.
 * `2026-09-25` — The owner: a hover / cursor "additional info" layer
   on the act discs (the verb, the episode, the title) is a **separate
   future scope**; the current iteration is readability only. Deferred,
