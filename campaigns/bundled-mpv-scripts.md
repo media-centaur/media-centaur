@@ -43,10 +43,9 @@ Approved 2026-09-25 with these assumptions fixed by the implementer:
   any module fails that same load.
 * Commits stay local (app, contrib, wiki) until the owner says ship.
 
-Implemented 2026-09-25 in one session: Lua package, `Playback.LaunchFlags`
+**Shipped in v1.40.0 (2026-09-25).** Implemented in one session: Lua package, `Playback.LaunchFlags`
 + `MpvUserConfig`, smoke test, CI, docs on all three surfaces, ADR-072,
-glossary. `mix precommit` green. Committed locally in app, contrib and wiki;
-nothing pushed. The old single-file copies were removed from the owner's
+glossary. `mix precommit` green. App, contrib and wiki pushed with the release. The old single-file copies were removed from the owner's
 `~/.config/mpv/scripts/`. Remaining: the owner's real launch on the TV
 (rendering cannot be checked headless: `--vo=null` reports an OSD size of
 0, so the ASS path never runs in the test), then `/ship`.
@@ -77,11 +76,7 @@ nothing pushed. The old single-file copies were removed from the owner's
 1. Owner: press Play on a title with an intro chapter and check the pills
    and the TAB menu render as before; check Status → Playback shows no
    stale-copy warning.
-2. `/ship`: the CHANGELOG entry carries the migration line (delete
-   `skip-intro.lua`, `next-episode.lua`, `track-menu.lua` from
-   `~/.config/mpv/scripts/`, or the buttons appear twice; Status →
-   Playback names them). Push contrib and the wiki with the release.
-3. Delete this file.
+2. Delete this file.
 
 ## Scheduled convergences (not in this campaign)
 
