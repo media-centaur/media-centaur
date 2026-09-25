@@ -5,5 +5,6 @@ defmodule MediaCentaurWeb.Storybook.Discovery do
   def folder_icon, do: {:fa, "compass", :light, "psb:mr-1"}
 
   def entry("feed_entry_row"), do: [icon: {:fa, "stream", :thin}, name: "Feed row"]
+  def entry("identity_tile"), do: [icon: {:fa, "circle-user", :thin}, name: "Identity tile"]
   def entry("person_card"), do: [icon: {:fa, "user", :thin}, name: "Person card"]
 end

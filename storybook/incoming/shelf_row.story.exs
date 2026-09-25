@@ -118,7 +118,7 @@ defmodule MediaCentaurWeb.Storybook.Incoming.ShelfRow do
             subtitle: "Feature · home release",
             date_label: "Aug 6",
             status: :tracked,
-            art_url: "/images/sample-nosferatu-poster.jpg",
+            art_url: "/images/storybook/sample-poster.jpg",
             kind: :movie
           }
         }

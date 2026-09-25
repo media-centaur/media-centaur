@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
         activity_id: id,
         ref: {tmdb_id, :movie},
         title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie", year: "2024"}),
-        poster_url: "/images/sample-nosferatu-poster.jpg",
+        poster_url: "/images/storybook/sample-poster.jpg",
         author: "Sample Friend",
         own?: false,
         kind: :listing,
