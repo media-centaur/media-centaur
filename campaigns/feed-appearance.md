@@ -264,7 +264,14 @@ superseded by the design this campaign produces, and the record says so.
   correctly; on a Feed band the graded disc reads as the person's act,
   not the roster's. Open for the owner: a two-tier grade (plain /
   filled gold, threshold to set) or no grade; if adopted, the heart is
-  white at tier 1 and the pennant takes the same rule.
+  white at tier 1 and the pennant takes the same rule. Five
+  approaches to the tier rendered (`N-tier-approaches`): fill (two
+  tiers, minimal footprint), numeral (direct, but reads as a
+  notification badge and eats the poster), stack (2 vs 3+ fails at
+  half size), size (unreadable without a neighbour; ruled out), heavy
+  ring (a 4px gold ring for 2, gold fill for 3+ — three tiers legible,
+  no added footprint). Viable: fill or heavy ring; the owner decides,
+  and whether a middle tier is worth having at today's roster size.
 * `2026-09-25` — The owner: a hover / cursor "additional info" layer
   on the act discs (the verb, the episode, the title) is a **separate
   future scope**; the current iteration is readability only. Deferred,
