@@ -119,3 +119,17 @@ surfaces' idiom (named flags flying inward from a hero's edge, with a
 tooltip); the person card takes the corner form with the same glyphs,
 order and tints, because its job is different (one glyph on a 96px
 poster, not a name on a wide surface).
+
+## Owner's call, 2026-09-25 — the corner disc
+
+The owner prefers the corner disc. Round 9b drew it at 36px with a
+24px glyph and it failed the half-size check on size, not form (a 12px
+thumb loses its direction); round 9c's finding was that every form
+passes once the glyph is a 28px outline at a 2px stroke. So the disc
+is adopted at that glyph size: a 44px disc on the rail's 96×144 posters
+(a 52px disc, 32px glyph on the page's 130×195), ink at .85 with a 1px
+white/18 ring, top-right inset 8px, the love disc on `--color-love`
+with a white heart, every other disc neutral; two acts as two discs
+stacked downward in mast order. J is patched to it and re-checked at
+half size; if thumbs up and down still merge, the glyph grows to 32/36.
+The clipped corner stays in K as the runner-up on the record.

@@ -221,6 +221,13 @@ superseded by the design this campaign produces, and the record says so.
   footer band the runner-up, the mast rejected for its two-act stack.
   UIDR-037's pennant is a form for the title surfaces, not a rule for
   the person card.
+* `2026-09-25` — The owner: "I think I'm liking corner disc." The act
+  glyph's form is the **corner disc** (the owner's call over the
+  critique's clipped corner): a 44px disc / 28px outline glyph on the
+  rail's posters, 52 / 32 on the page's, ink at .85 with a 1px ring,
+  top-right inset 8px, the love disc on `--color-love`; two acts as two
+  discs stacked downward. Round 9b's disc failed at a 24px glyph; 28px
+  at a 2px stroke is the size every form passed at in round 9c.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -248,7 +255,8 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
-3j. **Round 9e** — running: J patched to the clipped corner; the spec's
+3j. **Round 9e** — running: J patched to the corner disc (the
+   owner's call); the spec's
    "What the user sees" and the implementation plan re-derived from G
    and J.
 3i. **Round 9d** — done (the clipped corner picked). Was: `K-flag-forms`, five forms for the act
