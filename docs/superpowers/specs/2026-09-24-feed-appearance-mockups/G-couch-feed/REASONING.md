@@ -2,31 +2,34 @@
 
 Round 8: the Feed and Watchlist tabs as two full-height columns beside the Friends rail, at the couch floors, no masthead, no lead. Generated from data tables by a scratch script (not committed; the `.alt` crop derived from adjacency). No JavaScript. Three passes at 1920, each read at half size; once at 1280×800 and 2560×1440.
 
+**2026-09-25 — the rail card replaced.** The rail's cards are J's person card at the rail's width (`../J-friends-page/REASONING.md`, its *Rail card* column): the acts strip with corner discs, no presence line, no note of any kind; the data, order and "All 30 friends" follow J's state 4. The rail column of the size table, the card heights and the fold below carry J's values. Nothing else on the page moved. *The four sharing states, as drawn* and *The one thing I am least sure of* describe round 8's card and stand as the record; J answered the second.
+
 ## Sizes — the spec
 
-Content 1820 at 1920: the **feed column 1236**, a **24px gutter**, the **rail 560**. One strip across both — Feed · Watchlist · Friends at 22/500 with 18px counts, the scope pill (44 tall, 20px options) at the column's right edge — one hairline under all of it, 16px to the first unit. The rail has no heading: the Friends tab names it, and its first card says *How friends see you*.
+Content 1820 at 1920: the **feed column 1236**, a **24px gutter**, the **rail 560**. One strip across both — Feed · Watchlist · Friends at 22/500 with 18px counts, the scope pill (44 tall, 20px options) at the column's right edge — one hairline under all of it, 16px to the first unit. The rail has no heading: the Friends tab names it.
 
-| | Band | Rail card |
+| | Band | Rail card (J's, 2026-09-25) |
 |---|---|---|
 | Unit | 1236×224, radius 12, ink, 6 apart | 560 wide, radius 12, ink, 6 apart; padding 12/14 |
-| Tile | 56 at x=20, centred; initial 22 | 48 at x=14, 3px down; initial 19 |
-| Poster | 100×150 at (92, 24) | strip 72×108, radius 6, 8 apart, 8 under the line; an empty slot at a 6% fill |
+| Tile | 56 at x=20, centred; initial 22 | 48 at x=14, 3px down; initial 19; own filled; photo per R1 |
+| Poster | 100×150 at (92, 24) | the acts strip: three cells **96×144**, 16 apart, 8 under the name, at the tile's right; radius 6, 1px white/8, shadow `0 3 12 /.5`; a title without artwork a 6% slot, its name 18/66%, padding 8 |
+| Corner disc | — | 44 round, ink `oklch(13% .02 264)` at 85%, a 1px ring white/18, inset 8 at the poster's top-right; **glyph 28 at stroke 2** at 92%; the heart's disc on `--love` with the glyph white, every other disc neutral; two acts stacked 6 apart in mast order |
 | Text | x 210→700 | x 76→546 |
-| Line 1 | 22/30 at 80%; name 500 at 96%; glyph 20 | name 22/28 600; the ago 18 at 66% right-aligned on its line |
-| Line 2 | title 28/36 600; year 18 at 66% | presence 20/26 at 80%; title 500 at 96%; glyph 18 |
-| Line 3 | review 22/30 at 78%, two lines | subtitle / note 18/24 at 66% |
+| Line 1 | 22/30 at 80%; name 500 at 96%; glyph 20 | name 22/28 600 at the tile's top; the ago 18 at 66% right-aligned; none with no acts |
+| Line 2 | title 28/36 600; year 18 at 66% | — nothing under the name |
+| Line 3 | review 22/30 at 78%, two lines | — |
 | Time | 18 at 78%, right edge 700 | — |
 | Seat | 32px at y 168–200; verbs 18, icons 20 | — |
 | Picture | box `max(700, width − 900)` → 536×224, a **74% slice**; mask 240; scrim .93 at 700 · .55 at 820 · .16 at 940 · .04 at 1060 — the 360px dissolve | — |
 | Cursor | 3px primary ring, scrim × .8, ground 13 → 16%, the seat shown | 3px ring, ground 13 → 16% |
 
-Card heights: **shares watches 194**; **reviews only / listings only 104**; **You 128**; **nothing shared 78**. The rail of eight is 1184 with its foot.
+Card heights (J's): **with acts 205**; **no acts 72** (Theo). The rail of eight is 1593 with its foot (measured 2026-09-25; G's tab strip shares the `.strip` class name, and its hairline and foot margin are reset on the card's strip, or the card grows 17px).
 
 Paging controls, all 32 tall and 20px at the tile's edge: **Show older** at 70%, a ghost 10px under the last band; the cap's foot line at 66% in the same seat; **"3 new"** at 84% on ink at .94 with a shadow and a 20px up-arrow, 12px from the viewport's top while scrolled. **All 30 friends** at 70% under the last card.
 
 Lowest read text 66% on ink, about 10:1 — one secondary alpha. Crop `50% 30%`, `50% 38%` on the second adjacent unit of one title; twenty stills, no failure at 74%.
 
-**The fold at 1080**: 937px under the strip — four bands (4 × 230) beside You, Cleo, Nick, Bob, Femi and Sam's head; the rail ends a quarter of the way down the first window.
+**The fold at 1080** (re-measured 2026-09-25 with J's card): 921px under the strip — four bands (4 × 230) beside You, Cleo, Nick, Bob and Sam's head; the rail of eight ends 1609 under the strip, three-quarters of the way down the second window.
 
 ## The four sharing states, as drawn
 
