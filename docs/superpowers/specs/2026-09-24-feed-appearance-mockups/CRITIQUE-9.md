@@ -48,17 +48,20 @@ grow from 72×108 to 96×144 for the flag to read, so four cards sit in
 the rail's fold instead of five and a half; the episode number and the
 verb leave the card for the person's opened view; the TV has no hover,
 so the flag's tooltip does not exist there; and the vocabulary is
-learned, not read — the one risk. The note "Doesn't share watching"
-should stay: state 1b renders Ada both ways, and without the note a
-strip of only hearts does not say whether she withholds watches or has
-not watched.
+learned, not read — the one risk. State 1b renders the reviews-only
+card with and without a "Doesn't share watching" note; the owner's
+call (2026-09-25): **no sharing notes** — the card shows what the
+person shared and says nothing about what they did not, so a strip of
+only hearts is a strip of only hearts, and a friend with no acts is a
+tile and a name.
 
 ## Verdict
 
 **Adopt the acts strip on both surfaces** — the rail's card (posters at
 96×144, the flag at 36/28) and the Friends page's card (posters at
-130×195, the flag at 42/32) — with the mast placement, the note kept in
-its one slot, and the presence sentence gone from the card face. Keep
+130×195, the flag at 42/32) — with the mast placement, no sharing notes
+of any kind, and the presence sentence gone from the card face; the You
+card keeps "How friends see you", which names the mirror, not a share. Keep
 H's frame for the page: the two-column grid of 900px cards, the head
 (tile 64, name 24, time 18), Add a friend at the foot, the text rows and
 management in the opened card. With every sharer carrying posters the

@@ -207,6 +207,13 @@ superseded by the design this campaign produces, and the record says so.
   the Library grid and Home's poster rails carry no flags; a person
   card's acts strip flies them on posters because there the poster is
   the act. No record to amend.
+* `2026-09-25` — The owner: "we don't need to be told who shares
+  what; we just render what we have." No sharing notes on person
+  cards ("Doesn't share watching", "You don't share watching",
+  "Nothing shared yet" all go); a card is the person's acts as posters
+  and nothing about what they withhold; a friend with no acts is a
+  tile and a name. The You card keeps "How friends see you" (the
+  mirror's label, not a share).
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
