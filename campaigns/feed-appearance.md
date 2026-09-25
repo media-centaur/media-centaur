@@ -164,6 +164,18 @@ superseded by the design this campaign produces, and the record says so.
   (`/discovery/friends` as a route at every width), two nav graphs,
   one definition of presence, UIDR-038 rules 7–10. The couch floors
   belong in the `user-interface` skill as a house rule.
+* `2026-09-25` (morning) — The owner's review of round 7: the masthead
+  is busy and relegates the rail; friends may withhold watches and
+  listings (both off by default), so person surfaces design for four
+  sharing states; the reason to look at a friend is the few things
+  they last watched, which never reach the Feed, so the rail's rows
+  are compact person cards with the strip; many friends need a cap
+  and an "All N friends" foot; feed paging must be deliberate (a
+  window of twenty, Show older to sixty, "N new" queued at the head
+  when scrolled). The Friends tab stays at every width as the full
+  page where the roster is managed; the tab strip is constant; the
+  rail is its summary. Round 8 (`BRIEF-8.md`) builds one Feed page
+  and one Friends page from one person-card anatomy at two widths.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -191,6 +203,9 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
+3f. **Round 8** — running: `G-couch-feed` (two full-height columns,
+   no lead, the rail as person cards with four sharing states, paging
+   drawn) and `G-friends-page` (the Friends tab at couch scale).
 3e. **Round 7** — done (`BRIEF-7.md`, `CRITIQUE-7.md`): couch scale
    and the Friends rail. Round 8, on the owner's word: one assembled
    couch page (R3's structure, R1's rail density, every state)
