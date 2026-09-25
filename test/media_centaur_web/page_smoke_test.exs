@@ -27,6 +27,12 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
   alias MediaCentaur.Settings.Config
   alias MediaCentaur.Secret
+  alias MediaCentaur.Activities
+  alias MediaCentaur.Activities.Translation
+  alias MediaCentaur.Nostr.Event
+  alias MediaCentaur.Social
+  alias MediaCentaur.Social.Identity
+  alias MediaCentaur.TMDB.Title
 
   # These smokes mount each route and assert the key structural content
   # renders — a render-path crash (KeyError, FunctionClauseError, a bad
@@ -55,11 +61,6 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           {"/reconcile", "reconcile"},
           {"/console", "console"},
           {"/history", "watch history"},
-          {"/discovery", "discovery feed"},
-          {"/discovery?scope=friends", "discovery feed, friends scope"},
-          {"/discovery?scope=you", "discovery feed, you scope"},
-          {"/discovery/watchlist", "discovery watchlist"},
-          {"/discovery/friends", "discovery friends"},
           {"/guide", "guide index"},
           {"/guide/#{@guide_slug}", "guide chapter"},
           {"/apps", "apps"}
@@ -77,6 +78,80 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     result = live_async!(conn, path)
     await_supervised_tasks()
     result
+  end
+
+  # Discovery with a roster: a friend's listing on a title the library
+  # owns (so a band paints the entity's backdrop and the rail has You and
+  # a friend), an own review, and the Friends grid with a card opened by
+  # the address.
+  describe "/discovery with a roster" do
+    @smoke_friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
+    @smoke_friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
+
+    setup do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.setup_artwork_cache()
+      Identity.ensure()
+
+      movie = create_standalone_movie(%{name: "Sample Movie 424242"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "424242"})
+      create_linked_file(%{movie_id: movie.id})
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "backdrop",
+        content_url: "#{movie.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      {:ok, _friend} = Social.add_friend(@smoke_friend_pubkey, "Sample Friend")
+
+      owned =
+        Title.new!(%{tmdb_id: 424_242, media_type: :movie, name: "Sample Movie 424242", year: "2024"})
+
+      at = System.os_time(:second)
+
+      {:ok, _listing} =
+        Activities.ingest(
+          Event.sign(
+            Translation.to_event(:listing, owned, [], @smoke_friend_pubkey,
+              created_at: at,
+              acted_at: at
+            ),
+            @smoke_friend_secret
+          )
+        )
+
+      {:ok, _review} =
+        Activities.review(
+          Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie 777"}),
+          :like,
+          "mine"
+        )
+
+      :ok
+    end
+
+    for {path, label} <- [
+          {"/discovery", "discovery feed"},
+          {"/discovery?scope=friends", "discovery feed, friends scope"},
+          {"/discovery?scope=you", "discovery feed, you scope"},
+          {"/discovery/watchlist", "discovery watchlist"},
+          {"/discovery/friends", "discovery friends"},
+          {"/discovery/friends?person=person-you", "discovery friends, a card opened"}
+        ] do
+      test "#{label} (#{path}) renders without crashing", %{conn: conn} do
+        assert {:ok, _view, html} = smoke!(conn, unquote(path))
+        assert is_binary(html)
+      end
+    end
   end
 
   # The Discovery title detail modal is URL-driven (`?title=`); a watchlist

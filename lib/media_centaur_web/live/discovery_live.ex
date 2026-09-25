@@ -15,11 +15,21 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   Activities cannot know — `Library.ExternalIds.tmdb_owners/1`,
   `Discovery.rungs/0` and `Acquisition.TitleStates.for_refs/1`.
 
-  Feed (`/discovery`, the page's default; UIDR-038, UIDR-045) — every
-  author's reviews and listings, friends' and your own, one row per
-  action, newest first, flat (`FeedEntries`), in one list surface; the
-  newest `feed_window` of them and a *Show older* control past that
-  (`feed_show_older`). The scope — Everyone, Friends, You — is the
+  Feed (`/discovery`, the page's default; UIDR-038, UIDR-045, UIDR-046)
+  — every author's reviews and listings, friends' and your own, one
+  band per action, newest first, flat (`FeedEntries`, `FeedBand`), in a
+  column at the layout's full width beside the rail: person cards
+  (`PersonCard` at the rail's width, `People.rail/1` — You first, then
+  friends by latest act, capped at eight with *All N friends*), drawn on
+  the Feed and Watchlist tabs, folded away by CSS below 1600px of
+  content (the LiveView never learns the width). Paging is a window with
+  a cap and a queued head: the newest `feed_window` bands (twenty; *Show
+  older* adds twenty to sixty, then `#feed-cap` says so), and
+  `feed_head` — nil while the column's top is in view, so an arrival
+  prepends live; else the newest band shown, set by the `FeedHead`
+  hook's `feed_scrolled`, cleared by `feed_at_top` and by "N new"
+  (`feed_show_new`, which also scrolls the window to the top). The
+  scope — Everyone, Friends, You — is the
   `?scope=` param, read in `handle_params`, patched by the pill
   (`feed_scope`) and carried by every modal path and, while the Feed is
   the active tab, by the Feed tab's link, so it survives a refresh, the
@@ -30,10 +40,13 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   on a friend's row, `ignore_title` (the Ignored rung, with the Undo
   toast). An own row has neither Ignore nor Delete: it opens the modal
   speaking for its action, where Delete lives. Friends
-  (`/discovery/friends`) — one `Person` card per friend and one for You
-  (`People`), each with their shelves, and the add-friend form below;
-  identity and relays live on the Settings page's Social section, which
-  this tab points at.
+  (`/discovery/friends`) — a grid of page cards, one per friend and one
+  for You (`People`), each their latest acts as posters under act slots;
+  a press opens a card in place (`toggle_person`, the `opened_people`
+  set), and `?person=<card id>` — where a rail card's press lands
+  (`open_person`) — opens that card and hands it focus on mount; the
+  add-friend form below; identity and relays live on the Settings
+  page's Social section, which this tab points at.
 
   The watchlist — authored intent, and the arming surface (UIDR-035).
   Rows come from `Discovery.list_watchlist/0` (library presence derived
@@ -128,6 +141,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        feed_window: FeedEntries.page_size(),
        feed_scope: :everyone,
        feed_ready?: false,
+       feed_head: nil,
+       feed_queued: 0,
+       feed_at_cap?: false,
+       rail: %{people: [], hidden: 0},
+       landed_person: nil,
        people: [],
        opened_people: MapSet.new(),
        ignore_undo: nil,
@@ -145,11 +163,23 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # rows were loaded on mount.
   @impl true
   def handle_params(params, _uri, socket) do
+    scope = FeedEntries.parse_scope(params["scope"])
+    landed = if socket.assigns.live_action == :friends, do: params["person"]
+
     {:noreply,
      socket
-     |> assign(:feed_scope, FeedEntries.parse_scope(params["scope"]))
+     |> reset_head_on_scope_change(scope)
+     |> assign(feed_scope: scope, landed_person: landed)
+     |> open_landed(landed)
      |> project()}
   end
+
+  # A new scope is a new column: the reader is at its top.
+  defp reset_head_on_scope_change(%{assigns: %{feed_scope: scope}} = socket, scope), do: socket
+  defp reset_head_on_scope_change(socket, _scope), do: assign(socket, :feed_head, nil)
+
+  defp open_landed(socket, nil), do: socket
+  defp open_landed(socket, id), do: update(socket, :opened_people, &MapSet.put(&1, id))
 
   # --- TitleDetailHost ---
 
@@ -219,7 +249,34 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # --- the Feed's toolbar — see the moduledoc ---
 
   def handle_event("feed_show_older", _params, socket) do
-    {:noreply, socket |> update(:feed_window, &(&1 + FeedEntries.page_size())) |> project()}
+    {:noreply,
+     socket
+     |> update(:feed_window, &min(&1 + FeedEntries.page_size(), FeedEntries.cap()))
+     |> project()}
+  end
+
+  # The FeedHead hook's crossings. Scrolled in, the window freezes at the
+  # newest band shown and arrivals queue; back at the top, they land.
+  def handle_event("feed_scrolled", _params, socket) do
+    head =
+      case socket.assigns.feed do
+        [first | _rest] -> first.activity_id
+        [] -> nil
+      end
+
+    {:noreply, assign(socket, :feed_head, head)}
+  end
+
+  def handle_event("feed_at_top", _params, socket),
+    do: {:noreply, socket |> assign(:feed_head, nil) |> project()}
+
+  # "N new": the queue lands and the window scrolls back to its top.
+  def handle_event("feed_show_new", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:feed_head, nil)
+     |> project()
+     |> push_event("feed:scroll_top", %{})}
   end
 
   # The pill patches the address; handle_params does the rest.
@@ -458,22 +515,28 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp project(socket) do
     now = DateTime.utc_now()
 
-    %{entries: entries, has_older?: has_older?} =
+    %{entries: entries, has_older?: has_older?, at_cap?: at_cap?, queued: queued} =
       FeedEntries.build(socket.assigns.activities,
         now: now,
         window: socket.assigns.feed_window,
-        scope: socket.assigns.feed_scope
+        scope: socket.assigns.feed_scope,
+        head: socket.assigns.feed_head
+      )
+
+    people =
+      People.build(socket.assigns.activities, socket.assigns.friends,
+        me: Identity.pubkey() != nil,
+        now: now
       )
 
     assign(socket,
       feed: entries,
       feed_has_older?: has_older?,
+      feed_at_cap?: at_cap?,
+      feed_queued: queued,
       feed_empty_reason: FeedEntries.empty_reason(socket.assigns.feed_scope, socket.assigns.feed_ready?),
-      people:
-        People.build(socket.assigns.activities, socket.assigns.friends,
-          me: Identity.pubkey() != nil,
-          now: now
-        )
+      people: people,
+      rail: People.rail(people)
     )
   end
 
@@ -534,6 +597,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       flash={@flash}
       current_path={current_path(@live_action)}
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
+      full_width
     >
       <:overlays>
         <DetailPanel.detail_panel
@@ -561,7 +625,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         data-nav-default-zone="discovery"
         data-nav-transient-params="title,entity,view,activity"
       >
-        <div class="mx-auto w-full max-w-4xl space-y-4 pt-10">
+        <div class="discovery-page w-full space-y-4 pt-10">
           <.page_header title="Discovery" class="px-1" />
 
           <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
@@ -576,138 +640,188 @@ defmodule MediaCentaurWeb.DiscoveryLive do
             />
           </div>
 
-          <div :if={@live_action == :feed} class="space-y-2">
-            <.empty_state
-              :if={@feed == []}
-              id="feed-empty"
-              icon="hero-users"
-              headline={feed_empty_headline(@feed_scope, @feed_empty_reason)}
-            >
-              {feed_empty_body(@feed_empty_reason)}
-              <:action :if={@feed_empty_reason == :not_ready}>
-                <.button
-                  variant="primary"
-                  size="sm"
-                  navigate={~p"/settings?section=social"}
-                  data-nav-item
-                  tabindex="0"
+          <div class="discovery-columns">
+            <div class="min-w-0">
+              <div :if={@live_action == :feed} class="space-y-2">
+                <%!-- The column's head: the FeedHead hook reports it leaving and
+                  returning to the viewport, and "N new" holds what arrived
+                  while the reader was scrolled in. --%>
+                <div id="feed-head" phx-hook="FeedHead" phx-update="ignore" class="h-px"></div>
+                <button
+                  :if={@feed_queued > 0}
+                  id="feed-new"
+                  type="button"
+                  class="sticky top-3 z-10 ml-5 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[oklch(13%_0.02_264/0.94)] px-3.5 text-xl text-base-content/85 shadow-[0_4px_16px_oklch(0%_0_0/0.5)]"
+                  phx-click="feed_show_new"
                 >
-                  Add a relay
-                </.button>
-              </:action>
-              <:action :if={@feed_empty_reason == :not_ready}>
-                <.button
-                  variant="dismiss"
-                  size="sm"
-                  navigate={~p"/discovery/friends"}
-                  data-nav-item
-                  tabindex="0"
+                  <.icon name="hero-arrow-up" class="size-5" /> {@feed_queued} new
+                </button>
+                <.empty_state
+                  :if={@feed == []}
+                  id="feed-empty"
+                  icon="hero-users"
+                  headline={feed_empty_headline(@feed_scope, @feed_empty_reason)}
                 >
-                  Add a friend
-                </.button>
-              </:action>
-              <:action :if={@feed_empty_reason == :nothing_shared}>
-                <.button
-                  variant="dismiss"
-                  size="sm"
-                  navigate={~p"/settings?section=social"}
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Settings → Social
-                </.button>
-              </:action>
-            </.empty_state>
+                  {feed_empty_body(@feed_empty_reason)}
+                  <:action :if={@feed_empty_reason == :not_ready}>
+                    <.button
+                      variant="primary"
+                      size="sm"
+                      navigate={~p"/settings?section=social"}
+                      data-nav-item
+                      tabindex="0"
+                    >
+                      Add a relay
+                    </.button>
+                  </:action>
+                  <:action :if={@feed_empty_reason == :not_ready}>
+                    <.button
+                      variant="dismiss"
+                      size="sm"
+                      navigate={~p"/discovery/friends"}
+                      data-nav-item
+                      tabindex="0"
+                    >
+                      Add a friend
+                    </.button>
+                  </:action>
+                  <:action :if={@feed_empty_reason == :nothing_shared}>
+                    <.button
+                      variant="dismiss"
+                      size="sm"
+                      navigate={~p"/settings?section=social"}
+                      data-nav-item
+                      tabindex="0"
+                    >
+                      Settings → Social
+                    </.button>
+                  </:action>
+                </.empty_state>
 
-            <div :if={@feed != []} id="feed-list" class="feed-column">
-              <FeedBand.feed_band :for={entry <- @feed} entry={entry} />
-            </div>
+                <div :if={@feed != []} id="feed-list" class="feed-column">
+                  <FeedBand.feed_band :for={entry <- @feed} entry={entry} />
+                </div>
 
-            <div :if={@feed_has_older?} class="flex justify-center pt-3">
-              <.button id="feed-show-older" variant="dismiss" size="sm" phx-click="feed_show_older">
-                Show older
-              </.button>
-            </div>
-          </div>
+                <div :if={@feed_has_older?} class="pl-5 pt-2.5">
+                  <.button
+                    id="feed-show-older"
+                    variant="dismiss"
+                    size="sm"
+                    phx-click="feed_show_older"
+                  >
+                    Show older
+                  </.button>
+                </div>
+                <p :if={@feed_at_cap?} id="feed-cap" class="pl-5 pt-2.5 text-xl text-base-content/65">
+                  That's the last sixty.
+                </p>
+              </div>
 
-          <ActionToast.action_toast
-            :if={@ignore_undo}
-            id="ignore-undo"
-            message={"#{@ignore_undo.title.name} ignored"}
-            action="Undo"
-            on_action={JS.push("ignore_undo")}
-            on_dismiss={JS.push("ignore_undo_dismiss") |> hide("#ignore-undo")}
-          />
-
-          <div :if={@live_action == :friends} class="space-y-4">
-            <div :if={@people != []} class="space-y-3" data-nav-zone="people">
-              <PersonCard.person_card
-                :for={person <- @people}
-                person={person}
-                width={:page}
-                opened?={MapSet.member?(@opened_people, person.id)}
+              <ActionToast.action_toast
+                :if={@ignore_undo}
+                id="ignore-undo"
+                message={"#{@ignore_undo.title.name} ignored"}
+                action="Undo"
+                on_action={JS.push("ignore_undo")}
+                on_dismiss={JS.push("ignore_undo_dismiss") |> hide("#ignore-undo")}
               />
-            </div>
-            <AddFriendBlock.add_friend_block />
-            <p id="friends-settings-pointer" class="px-1 text-xs text-base-content/55">
-              Your identity and relays are under <.link
-                navigate={~p"/settings?section=social"}
-                class="link link-primary"
-              >
+
+              <div :if={@live_action == :friends} class="space-y-4">
+                <div :if={@people != []} id="friends-grid" class="friends-grid" data-nav-zone="people">
+                  <PersonCard.person_card
+                    :for={person <- @people}
+                    person={person}
+                    width={:page}
+                    opened?={MapSet.member?(@opened_people, person.id)}
+                    landed?={person.id == @landed_person}
+                  />
+                </div>
+                <AddFriendBlock.add_friend_block />
+                <p id="friends-settings-pointer" class="px-1 text-xs text-base-content/55">
+                  Your identity and relays are under <.link
+                    navigate={~p"/settings?section=social"}
+                    class="link link-primary"
+                  >
                 Settings → Social
               </.link>.
-            </p>
-          </div>
+                </p>
+              </div>
 
-          <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="title_rows">
-            <.empty_state
-              :if={@items == []}
-              id="watchlist-empty"
-              icon="hero-bookmark"
-              headline="Titles you save land here"
-            >
-              Bookmark a title from its detail view and it is kept here until you
-              watch it.
-              <:action>
-                <.button
-                  variant="primary"
-                  size="sm"
-                  navigate={~p"/incoming"}
-                  data-nav-item
-                  tabindex="0"
+              <div :if={@live_action == :watchlist} class="space-y-2" data-nav-zone="title_rows">
+                <.empty_state
+                  :if={@items == []}
+                  id="watchlist-empty"
+                  icon="hero-bookmark"
+                  headline="Titles you save land here"
                 >
-                  Search for a title
-                </.button>
-              </:action>
-            </.empty_state>
+                  Bookmark a title from its detail view and it is kept here until you
+                  watch it.
+                  <:action>
+                    <.button
+                      variant="primary"
+                      size="sm"
+                      navigate={~p"/incoming"}
+                      data-nav-item
+                      tabindex="0"
+                    >
+                      Search for a title
+                    </.button>
+                  </:action>
+                </.empty_state>
 
-            <%!-- A watchlist row never says On watchlist about itself —
+                <%!-- A watchlist row never says On watchlist about itself —
                   that is the tab's own fact. Its mode is shown, never set
                   here: the row's modal is where you arm (UIDR-035). --%>
-            <TitleRow.title_row
-              :for={row <- @items}
-              id={"watchlist-item-#{row.item.media_type}-#{row.item.tmdb_id}"}
-              title={row.item.title}
-              poster_url={row.poster_url}
-              markers={
-                Logic.row_markers(
-                  %{
-                    in_library?: not is_nil(row.library_owner_id),
-                    acquisition_state: row.acquisition_state,
-                    rung: row.rung,
-                    next_air_date: row.next_air_date,
-                    today: @today
-                  },
-                  true
-                )
-              }
-              notes={Logic.note_list(row.item.note)}
-              friend_activity={row.friend_activity}
-            />
+                <TitleRow.title_row
+                  :for={row <- @items}
+                  id={"watchlist-item-#{row.item.media_type}-#{row.item.tmdb_id}"}
+                  title={row.item.title}
+                  poster_url={row.poster_url}
+                  markers={
+                    Logic.row_markers(
+                      %{
+                        in_library?: not is_nil(row.library_owner_id),
+                        acquisition_state: row.acquisition_state,
+                        rung: row.rung,
+                        next_air_date: row.next_air_date,
+                        today: @today
+                      },
+                      true
+                    )
+                  }
+                  notes={Logic.note_list(row.item.note)}
+                  friend_activity={row.friend_activity}
+                />
+              </div>
+            </div>
+            <.rail :if={@live_action != :friends} rail={@rail} friends={@friends} />
           </div>
         </div>
       </div>
     </Layouts.app>
+    """
+  end
+
+  # The rail (UIDR-046): the roster's summary beside the Feed and the
+  # Watchlist — You first, then the seven most recent, and "All N
+  # friends" when the cap hides anyone. Page composition, not a reusable
+  # component; nothing here is a nav item until the hardening pass.
+  attr :rail, :map, required: true, doc: "`People.rail/1`: the cards shown and how many the cap hid"
+  attr :friends, :list, required: true, doc: "the roster, for the count"
+
+  defp rail(assigns) do
+    ~H"""
+    <aside :if={@rail.people != []} id="feed-rail" class="discovery-rail">
+      <PersonCard.person_card :for={person <- @rail.people} person={person} width={:rail} />
+      <.link
+        :if={@rail.hidden > 0}
+        id="feed-rail-all"
+        navigate={~p"/discovery/friends"}
+        class="pl-3.5 pt-1 text-xl text-base-content/70 hover:text-base-content/90"
+      >
+        All {length(@friends)} friends
+      </.link>
+    </aside>
     """
   end
 end

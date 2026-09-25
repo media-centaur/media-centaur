@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
   defp build(rows, opts \\ []) do
     FeedEntries.build(
       rows,
-      Keyword.merge([now: @now, window: FeedEntries.page_size(), scope: :everyone], opts)
+      Keyword.merge([now: @now, window: FeedEntries.page_size(), scope: :everyone, head: nil], opts)
     )
   end
 
@@ -95,13 +95,62 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
       assert Enum.map(entries, & &1.ref) == [{8, :movie}, {7, :movie}, {7, :movie}, {7, :movie}]
     end
 
-    test "the window bounds the entries and says whether older ones exist" do
-      rows = for id <- 1..3, do: row("Nick", %{tmdb_id: id, kind: :listing, id: "act-#{id}"})
+    test "the window is twenty, Show older adds twenty, sixty is the cap" do
+      rows =
+        for id <- 1..70,
+            do:
+              row("Nick", %{
+                tmdb_id: id,
+                kind: :listing,
+                id: "act-#{id}",
+                acted_at: DateTime.add(@now, -id, :minute)
+              })
 
-      assert %{entries: [_, _], has_older?: true} = build(rows, window: 2)
-      assert %{entries: [_, _, _], has_older?: false} = build(rows, window: 3)
-      assert %{entries: [_, _, _], has_older?: false} = build(rows, window: 50)
-      assert FeedEntries.page_size() == 50
+      assert FeedEntries.page_size() == 20
+      assert FeedEntries.cap() == 60
+      assert %{entries: entries, has_older?: true, at_cap?: false} = build(rows, window: 20)
+      assert length(entries) == 20
+      assert %{has_older?: true, at_cap?: false} = build(rows, window: 40)
+      assert %{entries: entries, has_older?: false, at_cap?: true} = build(rows, window: 60)
+      assert length(entries) == 60
+      assert %{has_older?: false, at_cap?: false} = build(Enum.take(rows, 45), window: 60)
+      # A window past the cap is the cap.
+      assert %{entries: entries} = build(rows, window: 80)
+      assert length(entries) == 60
+    end
+
+    test "a head freezes the window at the newest band shown and counts what arrived above it as queued" do
+      rows =
+        for id <- 1..5,
+            do:
+              row("Nick", %{
+                tmdb_id: id,
+                kind: :listing,
+                id: "act-#{id}",
+                acted_at: DateTime.add(@now, -id, :minute)
+              })
+
+      assert %{entries: entries, queued: 0} = build(rows, head: nil)
+      assert Enum.map(entries, & &1.activity_id) == ~w(act-1 act-2 act-3 act-4 act-5)
+
+      assert %{entries: entries, queued: 2} = build(rows, head: "act-3")
+      assert Enum.map(entries, & &1.activity_id) == ~w(act-3 act-4 act-5)
+
+      # A head the list no longer holds (withdrawn) is live again.
+      assert %{queued: 0, entries: [_, _, _, _, _]} = build(rows, head: "gone")
+    end
+
+    test "the queue is counted in the scope" do
+      rows = [
+        row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo", acted_at: ~U[2026-09-01 13:00:00Z]}),
+        row(nil, %{tmdb_id: 2, kind: :review, id: "mine", acted_at: ~U[2026-09-01 12:30:00Z]}, %{
+          own?: true
+        }),
+        row("Nick", %{tmdb_id: 3, kind: :listing, id: "nick", acted_at: ~U[2026-09-01 12:00:00Z]})
+      ]
+
+      assert build(rows, scope: :everyone, head: "nick").queued == 2
+      assert build(rows, scope: :friends, head: "nick").queued == 1
     end
 
     test "an entry carries what the row shows and the facts the toolbar resolves from" do

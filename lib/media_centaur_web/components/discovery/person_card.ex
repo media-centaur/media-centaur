@@ -30,6 +30,8 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+
+  alias Phoenix.LiveView.JS
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaurWeb.Components.Discovery.IdentityTile
@@ -44,6 +46,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   attr :person, Person, required: true
   attr :width, :atom, required: true, values: [:rail, :page]
   attr :opened?, :boolean, default: false, doc: "the page card grown in place; the host keeps the set"
+  attr :landed?, :boolean, default: false, doc: "the card the address names takes focus on mount"
 
   def person_card(assigns) do
     assigns =
@@ -65,6 +68,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
       data-opened={@opened?}
       phx-click={if @page?, do: "toggle_person", else: "open_person"}
       phx-value-id={@person.id}
+      phx-mounted={@landed? && JS.focus()}
     >
       <header class={["flex gap-3", if(@page?, do: "items-center", else: "items-start")]}>
         <IdentityTile.identity_tile name={@person.name} own?={@person.own?} size={tile_size(@width)} />
