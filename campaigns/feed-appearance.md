@@ -35,12 +35,16 @@ This campaign adds:
 
 ## Status
 
-Night of 2026-09-24/25 complete: rounds 4, 5 and 6 done; the
-proposed page is `F-cinematic-feed` (its REASONING's "What the user
-sees" table is the spec's draft); the review artifact carries every
-page with its reasoning and a morning brief. Awaiting the owner's
-decision: ship F as assembled; full width for all of Discovery; the
-Watchlist next; hover ease. Steps 1–3
+**Design settled 2026-09-25** after rounds 4–9 (nine rounds, two
+days). The Feed is `G-couch-feed`; the person card is `J-friends-page`
+with the act disc; the spec's "What the user sees", "The model" and
+acceptance criteria are written from those two pages
+(`docs/superpowers/specs/2026-09-24-feed-appearance-design.md`), and
+the implementation plan is rewritten to them
+(`docs/plans/2026-09-25-cinematic-feed.md`, seven phases, test-first).
+The review artifact carries every page, brief and critique. **Awaiting
+the owner's go for implementation** (the plan's "Owner decisions this
+plan assumes" lists nine mechanics, each one line to flip). Steps 1–3
 done: the diagnosis is in the spec's Problem section
 (`docs/superpowers/specs/2026-09-24-feed-appearance-design.md`); five
 directions are built under
@@ -255,8 +259,9 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
-3j. **Round 9e** — running: J patched to the corner disc (the
-   owner's call); the spec's
+3j. **Round 9e** — done: J carries the corner disc; the spec and the
+   plan are re-derived from G and J. **Next: the owner's go, then
+   Phase 1 of the plan.** Was: the spec's
    "What the user sees" and the implementation plan re-derived from G
    and J.
 3i. **Round 9d** — done (the clipped corner picked). Was: `K-flag-forms`, five forms for the act
