@@ -30,6 +30,8 @@ for d in sorted(os.listdir('.')):
     if os.path.isdir(d) and os.path.exists(f'{d}/REASONING.md'):
         docs.append((f'{d}/REASONING.md', f'reasoning-{d}.html', f'{d} — reasoning'))
 if os.path.exists('CRITIQUE-5.md'): docs.append(('CRITIQUE-5.md','critique-5.html','Round 5 critique'))
+if os.path.exists('BRIEF-7.md'): docs.append(('BRIEF-7.md','brief-7.html','Round 7 brief'))
+if os.path.exists('CRITIQUE-7.md'): docs.append(('CRITIQUE-7.md','critique-7.html','Round 7 critique'))
 for src,dst,title in docs:
     if os.path.exists(src): page(src, f'{out}/docs/{dst}', title); print('doc', dst)
 PY
