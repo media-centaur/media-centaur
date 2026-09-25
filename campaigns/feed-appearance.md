@@ -295,6 +295,12 @@ superseded by the design this campaign produces, and the record says so.
   `P2-slot-header`: the header on the poster's top, the header above
   the poster on the card's ground, against the disc; with a count of
   fixture posters whose face sits under the disc vs under the band.
+  Rendered: the fixed-slot scan works at half size; the face count is
+  a wash (the disc covers a face on 7 of 16 posters, 3 partial; the
+  band on 8, 1 partial); the header above the poster covers nothing
+  for 36px of card height; a one-act band reads sparse only when the
+  lone glyph is the right-hand bookmark. The designer's pick: above
+  the poster. The owner decides.
 * `2026-09-25` — The owner: a hover / cursor "additional info" layer
   on the act discs (the verb, the episode, the title) is a **separate
   future scope**; the current iteration is readability only. Deferred,
