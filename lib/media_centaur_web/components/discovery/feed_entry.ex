@@ -8,7 +8,9 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
   review's `sentiment` is its verdict or nil, and `text` its words or
   nil; both nil on a listing. `poster_url` and `backdrop_url` are the
   row artwork, resolved by the host down `TitleArtwork`'s ladder; nil
-  paints the inset tone. A view-model, like `Person`: every fact here
+  paints the inset tone. `offset_crop?` marks the second of two adjacent
+  rows of one title, so two stills of one frame never repeat exactly
+  (UIDR-046's crop rule). A view-model, like `Person`: every fact here
   was resolved by the host (`DiscoveryLive.FeedEntries`), the row
   decides nothing.
 
@@ -42,7 +44,8 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
     :library_owner_id,
     :acquisition_state,
     :list_slot,
-    :download_slot
+    :download_slot,
+    offset_crop?: false
   ]
 
   @type list_slot :: :list | :listed | :following
@@ -66,6 +69,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
           library_owner_id: Ecto.UUID.t() | nil,
           acquisition_state: atom() | nil,
           list_slot: list_slot(),
-          download_slot: download_slot()
+          download_slot: download_slot(),
+          offset_crop?: boolean()
         }
 end

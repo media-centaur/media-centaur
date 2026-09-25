@@ -88,7 +88,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Store
   alias MediaCentaurWeb.Components.ActionToast
-  alias MediaCentaurWeb.Components.Discovery.FeedEntryRow
+  alias MediaCentaurWeb.Components.Discovery.FeedBand
   alias MediaCentaurWeb.Components.Discovery.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.IncomingLive.PlanQuery
@@ -619,8 +619,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               </:action>
             </.empty_state>
 
-            <div :if={@feed != []} id="feed-list" class="glass-inset overflow-hidden rounded-xl">
-              <FeedEntryRow.feed_entry_row :for={entry <- @feed} entry={entry} />
+            <div :if={@feed != []} id="feed-list" class="feed-column">
+              <FeedBand.feed_band :for={entry <- @feed} entry={entry} />
             </div>
 
             <div :if={@feed_has_older?} class="flex justify-center pt-3">

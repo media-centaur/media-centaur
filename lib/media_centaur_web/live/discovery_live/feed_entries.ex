@@ -72,9 +72,21 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
       |> Enum.sort_by(& &1.activity.acted_at, {:desc, DateTime})
 
     %{
-      entries: entries |> Enum.take(window) |> Enum.map(&entry(&1, now)),
+      entries: entries |> Enum.take(window) |> Enum.map(&entry(&1, now)) |> stamp_crops(),
       has_older?: length(entries) > window
     }
+  end
+
+  # The crop rule's one variable: a row directly under a row of the same
+  # title takes the offset, unless that row already did — a run alternates.
+  defp stamp_crops(entries) do
+    entries
+    |> Enum.map_reduce(nil, fn entry, above ->
+      offset? = above != nil and above.ref == entry.ref and not above.offset_crop?
+      entry = %{entry | offset_crop?: offset?}
+      {entry, entry}
+    end)
+    |> elem(0)
   end
 
   # The entry rule: a review or a listing, by an author on the roster or
