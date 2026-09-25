@@ -29,6 +29,8 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
+  alias MediaCentaur.Format
+
   defmodule Card do
     @moduledoc """
     One shelf row — the display contract the `IncomingLive.View`
@@ -139,7 +141,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
           class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-base-content/[0.07] to-transparent"
         >
           <span class="select-none text-sm font-extrabold tracking-tighter text-base-content/15">
-            {initial(@card.title)}
+            {Format.monogram(@card.title)}
           </span>
         </div>
       </div>
@@ -189,13 +191,6 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   end
 
   defp pill_anchor(%Card{}), do: nil
-
-  defp initial(title) do
-    case String.first(title || "") do
-      nil -> "?"
-      first -> String.upcase(first)
-    end
-  end
 
   defp subtitle_line(%Card{kind: :season_drop, subtitle: subtitle, episode_count: count})
        when is_integer(count) do

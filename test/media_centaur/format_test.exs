@@ -169,4 +169,17 @@ defmodule MediaCentaur.FormatTest do
       assert Format.month_day(~D[2026-12-25]) == "Dec 25"
     end
   end
+
+  describe "monogram/1" do
+    test "the first grapheme, uppercased" do
+      assert Format.monogram("cleo") == "C"
+      assert Format.monogram("Ada") == "A"
+      assert Format.monogram("éponine") == "É"
+    end
+
+    test "a missing or empty name is a question mark" do
+      assert Format.monogram(nil) == "?"
+      assert Format.monogram("") == "?"
+    end
+  end
 end

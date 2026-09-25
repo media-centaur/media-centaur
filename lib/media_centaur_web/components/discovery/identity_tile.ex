@@ -16,7 +16,9 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
 
   use Phoenix.Component
 
-  attr :name, :string, required: true, doc: "the display name; its first grapheme is the monogram"
+  alias MediaCentaur.Format
+
+  attr :name, :string, required: true, doc: "the display name; `Format.monogram/1` of it is the letter"
   attr :size, :integer, required: true, values: [48, 56, 64]
   attr :own?, :boolean, default: false
   attr :photo_url, :string, default: nil
@@ -49,7 +51,7 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
         loading="eager"
         decoding="sync"
       />
-      {if !@photo_url, do: String.first(@name)}
+      {if !@photo_url, do: Format.monogram(@name)}
     </span>
     """
   end

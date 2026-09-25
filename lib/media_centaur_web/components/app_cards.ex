@@ -17,6 +17,8 @@ defmodule MediaCentaurWeb.Components.AppCards do
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
+  alias MediaCentaur.Format
+
   attr :id, :string, required: true, doc: "DOM id (stable across renders)"
   attr :app_id, :string, required: true
 
@@ -54,7 +56,7 @@ defmodule MediaCentaurWeb.Components.AppCards do
         :if={!@banner_url}
         class="absolute inset-0 flex flex-col items-center justify-center gap-1 text-base-content/60"
       >
-        <span class="text-4xl font-semibold">{@name |> String.first() |> String.upcase()}</span>
+        <span class="text-4xl font-semibold">{Format.monogram(@name)}</span>
         <span class="text-sm font-medium truncate max-w-[90%]">{@name}</span>
       </div>
       <.button
