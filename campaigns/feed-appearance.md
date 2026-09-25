@@ -199,6 +199,14 @@ superseded by the design this campaign produces, and the record says so.
   person-card exception (the poster is the act's subject); UIDR-038
   rules 8–9 are replaced by the strip. H's grid frame stays; its holes
   were the sentence card's (reviews-only friends had no picture).
+* `2026-09-25` — The owner on "never on poster cards": "sort of
+  ridiculous, why would we be constrained by such a rule". Checked:
+  it is one sentence in the `user-interface` skill (added 2026-09-05
+  with the first pennant), with no rationale and no decision record;
+  UIDR-037 never says it. Rewritten in the skill to its real scope —
+  the Library grid and Home's poster rails carry no flags; a person
+  card's acts strip flies them on posters because there the poster is
+  the act. No record to amend.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside

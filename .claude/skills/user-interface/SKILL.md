@@ -246,7 +246,12 @@ only for reviews ("You"). The sentiment glyphs come from
 `Components.Title.Sentiment` (`<.sentiment_glyph sentiment={…} />`,
 story `/storybook/title/sentiment_glyph`), the one map every surface
 shares. Never a provenance line elsewhere; a friend's review text is the
-one thing that stays in the body. Never on poster cards. Story:
+one thing that stays in the body. The Library grid and Home's poster
+rails carry no flags (a wall of posters is the title's surface, and
+friends' flags there are provenance noise; the detail modal flies
+them). A person's card is different: its acts strip flies the same
+flags on posters because there the poster is the act (the Feed
+appearance campaign, 2026-09-25). Story:
 `/storybook/title/pennants`.
 
 ### File Paths
