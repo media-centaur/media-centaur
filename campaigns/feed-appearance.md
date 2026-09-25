@@ -190,6 +190,15 @@ superseded by the design this campaign produces, and the record says so.
   poster-led cards (name, presence line, one note slot, the Recently
   watched strip with its caption; the text rows and management behind
   the card).
+* `2026-09-25` — Round 9 verdict (`CRITIQUE-9.md`): the owner's
+  acts-strip pitch wins over the presence sentence — a person's card
+  is their latest acts as posters flying the pennant's flags (eye,
+  heart, thumbs, bubble, bookmark; two on one poster), the mast
+  placement at a 28px (rail) / 32px (page) outline glyph, the sharing
+  note kept in one slot. UIDR-037's "never on poster cards" gets a
+  person-card exception (the poster is the act's subject); UIDR-038
+  rules 8–9 are replaced by the strip. H's grid frame stays; its holes
+  were the sentence card's (reviews-only friends had no picture).
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -217,7 +226,12 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
-3g. **Round 9** — running: `H-friends-page`, the Friends tab
+3h. **Round 9c** — running: `J-friends-page`, H's grid with I's acts
+   strip, and the rail column redrawn once beside it for the shared
+   component.
+3g. **Round 9** — done (`CRITIQUE-9.md`): adopt the acts strip on
+   both person surfaces (the mast placement, a 28–32px outline glyph,
+   the note kept); keep H's grid and card frame. Was: `H-friends-page`, the Friends tab
    breathable and poster-led in a grid; and `I-acts-strip`
    (`BRIEF-9b.md`), the owner's pitch of posters flying the pennant's
    flags (eye, heart, thumbs, bubble, bookmark) in place of the
