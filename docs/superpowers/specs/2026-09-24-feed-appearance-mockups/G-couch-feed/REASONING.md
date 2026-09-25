@@ -6,6 +6,8 @@ Round 8: the Feed and Watchlist tabs as two full-height columns beside the Frien
 
 **2026-09-25 — the disc opaque, the glyph solid.** J's disc as L's treatment (b): ink at 1.0 under the same 1px ring, the heroicons solid glyph 28 at 96% white, the heart alone `--love`; two acts share **one capsule 44×78** — the disc lengthened by a glyph and the 6px gap — in mast order, not two discs. Nothing else on the page moved.
 
+**2026-09-25 — the act header above the poster.** J's card as P2's row 3: the corner disc and the capsule are gone; each act is a glyph in a **36px header above its poster** on the card's ground — no backing, the poster whole — in one of three fixed slots at x 6 · 34 · 62 (the review glyph, the eye, the bookmark), the solid glyph 28 **matte white/78**, gold at three or more friends (no act here carries a count, so all matte); the heart is not rose; an absent act draws nothing. The card grows 36: **241 with acts**; the rail of eight is 1845 with its foot. The rail column of the size table, the card heights and the fold carry the new values. Nothing else on the page moved.
+
 ## Sizes — the spec
 
 Content 1820 at 1920: the **feed column 1236**, a **24px gutter**, the **rail 560**. One strip across both — Feed · Watchlist · Friends at 22/500 with 18px counts, the scope pill (44 tall, 20px options) at the column's right edge — one hairline under all of it, 16px to the first unit. The rail has no heading: the Friends tab names it.
@@ -14,8 +16,8 @@ Content 1820 at 1920: the **feed column 1236**, a **24px gutter**, the **rail 56
 |---|---|---|
 | Unit | 1236×224, radius 12, ink, 6 apart | 560 wide, radius 12, ink, 6 apart; padding 12/14 |
 | Tile | 56 at x=20, centred; initial 22 | 48 at x=14, 3px down; initial 19; own filled; photo per R1 |
-| Poster | 100×150 at (92, 24) | the acts strip: three cells **96×144**, 16 apart, 8 under the name, at the tile's right; radius 6, 1px white/8, shadow `0 3 12 /.5`; a title without artwork a 6% slot, its name 18/66%, padding 8 |
-| Corner disc | — | 44 round, **opaque** ink `oklch(13% .02 264)`, a 1px ring white/18, inset 8 at the poster's top-right; **solid glyph 28** (heroicons 24/solid) at 96% white; the heart alone `--love`, on the same ink; two acts share **one capsule 44×78** — the disc lengthened by a glyph and the 6px gap — in mast order |
+| Poster | 100×150 at (92, 24) | the acts strip: three cells **96×144**, each under its 36 act header, 16 apart, 8 under the name, at the tile's right; radius 6, 1px white/8, shadow `0 3 12 /.5`; a title without artwork a 6% slot, its name 18/66%, padding 8 |
+| Act header | — | **36 tall above each poster**, on the card's ground, no backing; three fixed 28px slots at x **6 · 34 · 62** (6 \| 28 \| 28 \| 28 \| 6): the review glyph, the eye, the bookmark; **solid glyph 28** (heroicons 24/solid) matte white/78, gold at 3+, the heart not rose; an absent act draws nothing |
 | Text | x 210→700 | x 76→546 |
 | Line 1 | 22/30 at 80%; name 500 at 96%; glyph 20 | name 22/28 600 at the tile's top; the ago 18 at 66% right-aligned; none with no acts |
 | Line 2 | title 28/36 600; year 18 at 66% | — nothing under the name |
@@ -25,13 +27,13 @@ Content 1820 at 1920: the **feed column 1236**, a **24px gutter**, the **rail 56
 | Picture | box `max(700, width − 900)` → 536×224, a **74% slice**; mask 240; scrim .93 at 700 · .55 at 820 · .16 at 940 · .04 at 1060 — the 360px dissolve | — |
 | Cursor | 3px primary ring, scrim × .8, ground 13 → 16%, the seat shown | 3px ring, ground 13 → 16% |
 
-Card heights (J's): **with acts 205**; **no acts 72** (Theo). The rail of eight is 1593 with its foot (measured 2026-09-25; G's tab strip shares the `.strip` class name, and its hairline and foot margin are reset on the card's strip, or the card grows 17px).
+Card heights (J's): **with acts 241**; **no acts 72** (Theo). The rail of eight is 1845 with its foot (measured 2026-09-25 with the act header; G's tab strip shares the `.strip` class name, and its hairline and foot margin are reset on the card's strip, or the card grows 17px).
 
 Paging controls, all 32 tall and 20px at the tile's edge: **Show older** at 70%, a ghost 10px under the last band; the cap's foot line at 66% in the same seat; **"3 new"** at 84% on ink at .94 with a shadow and a 20px up-arrow, 12px from the viewport's top while scrolled. **All 30 friends** at 70% under the last card.
 
 Lowest read text 66% on ink, about 10:1 — one secondary alpha. Crop `50% 30%`, `50% 38%` on the second adjacent unit of one title; twenty stills, no failure at 74%.
 
-**The fold at 1080** (re-measured 2026-09-25 with J's card): 921px under the strip — four bands (4 × 230) beside You, Cleo, Nick, Bob and Sam's head; the rail of eight ends 1609 under the strip, three-quarters of the way down the second window.
+**The fold at 1080** (re-measured 2026-09-25 with J's card): 921px under the strip — four bands (4 × 230) beside You, Cleo, Nick and 163px of Bob (his head, the act header and the top of his posters); the rail of eight ends 1861 under the strip, 19px into the third window.
 
 ## The four sharing states, as drawn
 

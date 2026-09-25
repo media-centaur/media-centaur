@@ -4,6 +4,8 @@ Round 9c: H's frame with I's acts strip as the card's picture; G's rail column b
 
 **2026-09-25 — the disc opaque, the glyph solid.** L's treatment (b): every act disc is ink at 1.0 under the same 1px ring; the glyph is the heroicons solid set (`eye`, `hand-thumb-up`, `hand-thumb-down`, `bookmark`, `chat-bubble-oval-left`, `heart`) at 96% white, the heart alone `--love`; a poster with two acts carries **one capsule** — the disc lengthened by a glyph and the 6px gap, 52×90 on the page and 44×78 on the rail — not two discs. The opened rows' 22px glyphs are the same solid set. No size moved. The *Corner disc* row below carries the new values; *The 10-foot check* records the outline disc's read.
 
+**2026-09-25 — the act header above the poster.** P2's row 3, by the owner's decision: the corner disc and the capsule are gone; every act on a poster is a glyph in a **36px header above it**, on the card's own ground — no band, no backing, the poster whole. Three fixed slots in the poster's width, each act kind always in the same place on every poster: the review glyph (heart / thumb up / thumb down / bubble) in slot 1, the eye in slot 2, the bookmark in slot 3 — on the page's 130 posters at x 11 · 51 · 91 (28px glyphs, 12 apart), on the rail's 96 at 6 · 34 · 62 (the slots touch; the glyph's inner margin is the gap). An absent act has no element, so its slot is bare. The glyph is the solid set at 28 on both widths (the page's 32 went), **matte white/78**; the grade owns colour — gold at three or more friends — so the heart is no longer rose. No act on this page carries a count, so every glyph is matte. The card grows 36: **371** on the page, **241** on the rail. The opened rows' 22px glyphs are untouched. The *Act header* row and the heights below carry the new values; *The 10-foot check* records the disc's read.
+
 ## Sizes
 
 | | Page card | Rail card |
@@ -14,22 +16,22 @@ Round 9c: H's frame with I's acts strip as the card's picture; G's rail column b
 | Name | 24/32 600, **centred on the tile** | 22/28 600, at the tile's top |
 | Ago | 18 at 66%, tabular, at the card's right edge; none with no acts | same |
 | Under the name | nothing | nothing |
-| Strip | 16 under the head; up to five cells **130×195**, 16 apart, at the card's left (714 of 840) | 8 under the name; three cells **96×144**, 16 apart, at the tile's right |
+| Strip | 16 under the head; up to five cells **130×195**, each under its 36 act header, 16 apart, at the card's left (714 of 840) | 8 under the name; three cells **96×144**, each under its 36 header, 16 apart, at the tile's right |
 | Poster | radius 6, 1px white/8, shadow `0 4 16 /.55`; no-artwork slot a 6% fill, the title 18/66%, padding 12 | shadow `0 3 12 /.5`; padding 8 |
-| Corner disc | 52 round, **opaque** ink `oklch(13% .02 264)`, a 1px ring white/18, inset 8 at the poster's top-right; **solid glyph 32** (heroicons 24/solid) centred, at 96% white; the heart alone `--love`, on the same ink; two acts share **one capsule 52×90** — the disc lengthened by a glyph and the 6px gap — in mast order | 44 round, **solid glyph 28**; two acts one capsule **44×78** |
+| Act header | **36 tall above each poster**, on the card's ground, no backing; three fixed 28px slots at x **11 · 51 · 91** (11 \| 28 \| 12 \| 28 \| 12 \| 28 \| 11): the review glyph, the eye, the bookmark; **solid glyph 28** (heroicons 24/solid) matte white/78, gold at 3+, the heart not rose; an absent act draws nothing | 36 tall; slots at x **6 · 34 · 62** (6 \| 28 \| 28 \| 28 \| 6); the same glyph 28 |
 | Cursor ring | 4 | 3 |
-| Height | **335**; no acts 124 | **204**; no acts 72 |
+| Height | **371**; no acts 124 | **241**; no acts 72 |
 | Opened | strip wraps 16/16; rows 22/30 at 80%, title 500/96%, the act's glyph 22 after it, ago 18/66% right; foot: key and date 18/66%, Remove friend a 32px ghost 18/70% | a press opens the tab |
 
-Shared beyond the "same" cells: the tile's states, name 600, the strip's rule and 16 gap, the poster's radius, border and empty fill, the glyph's form (the corner disc, opaque ink ringed white/18, the solid glyph, rose for love, one capsule for two acts). Differing: every other row, the strip's seat, grid / column, a press grows the card / opens the tab. Nothing read below 18px; one secondary alpha, 66%.
+Shared beyond the "same" cells: the tile's states, name 600, the strip's rule and 16 gap, the poster's radius, border and empty fill, the glyph's form (the 36 act header above the poster, three fixed slots, the solid glyph 28 matte white/78, gold at 3+, nothing drawn for an absent act). Differing: every other row, the strip's seat, grid / column, a press grows the card / opens the tab. Nothing read below 18px; one secondary alpha, 66%.
 
 ## The strip's rule
 
-One poster per **title acted on**, newest first, left to right; every act on it is a disc on its poster, in mast order (Cleo's Charade: heart over eye). The ago is the first poster's. A title without artwork is the 6% slot, named, its disc in the corner like any poster's (Femi's Coffee Run). A binge collapses: three episodes of one show are one poster with one eye; the episode is the opened card's.
+One poster per **title acted on**, newest first, left to right; every act on it is a glyph in its slot in the header above its poster (Cleo's Charade: the heart in slot 1, the eye in slot 2). The ago is the first poster's. A title without artwork is the 6% slot, named, its header above it like any poster's (Femi's Coffee Run). A binge collapses: three episodes of one show are one poster with one eye; the episode is the opened card's.
 
 ## The holes
 
-From the render: every card with any act is **335 tall** — one row of posters, two or five — so the grid has **one hole, beside Theo**: 211px under Femi. At thirty friends: a hole only beside a friend who has shared nothing, always 211. The ink right of a short strip (422px on Sam's) is inside the card, which the head spans. The 1080 fold holds two rows and the third's heads; 1280 one card and the second's head; 2560 (capped at 1820) three rows.
+From the render: every card with any act is **371 tall** — one row of posters, two or five — so the grid has **one hole, beside Theo**: 247px under Femi. At thirty friends: a hole only beside a friend who has shared nothing, always 247. The ink right of a short strip (422px on Sam's) is inside the card, which the head spans. The 1080 fold holds two rows and the third's heads; 1280 one card and the second's head; 2560 (capped at 1820) three rows.
 
 ## The 10-foot check
 
