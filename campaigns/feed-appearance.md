@@ -272,6 +272,11 @@ superseded by the design this campaign produces, and the record says so.
   ring (a 4px gold ring for 2, gold fill for 3+ — three tiers legible,
   no added footprint). Viable: fill or heavy ring; the owner decides,
   and whether a middle tier is worth having at today's roster size.
+  The owner's steer (2026-09-25): three finishes at one size — ink /
+  silver metal / gold metal — the gold must not read as sized up (a
+  light filled disc reads larger than an ink one; a darker rim holds
+  the edge), and the band should be tried as a **header** (poster
+  titles live in the footer). Under render as `O-metal-tiers`.
 * `2026-09-25` — The owner: a hover / cursor "additional info" layer
   on the act discs (the verb, the episode, the title) is a **separate
   future scope**; the current iteration is readability only. Deferred,
