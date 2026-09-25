@@ -5,7 +5,7 @@
 # written by the session that publishes it; this script only stages.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"; cd "$here"
-out=.review; rm -rf "$out"; mkdir -p "$out/docs" "$out/measure"
+out=.review; rm -rf "$out/docs" "$out/measure"; mkdir -p "$out/docs" "$out/measure" "$out/open"
 python3 - "$out" <<'PY'
 import sys, os, re, markdown
 out=sys.argv[1]
