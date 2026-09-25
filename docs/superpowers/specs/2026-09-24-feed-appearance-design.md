@@ -184,8 +184,8 @@ alone beneath. The scope pill and *Show older* never touch it.
 
 **The act disc.** At the poster's top right, inset 8px: a disc of ink
 at .85 with a 1px white/18 ring, the act glyph centred in it on the
-card's text colour at 80%; the love disc on `--color-love` with a
-white heart, every other disc neutral. Two acts on one poster are two
+card's text colour at 80%; every disc the same ink, and the heart glyph alone solid rose
+(`--color-love`). Two acts on one poster are two
 discs stacked downward 6px apart in the pennant's mast order — love,
 like, dislike, reviewed, watched, listing (UIDR-037). The glyphs are
 the house's: the sentiment glyphs from `Title.Sentiment`, the bubble,

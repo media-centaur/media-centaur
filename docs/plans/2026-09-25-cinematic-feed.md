@@ -627,7 +627,7 @@ Run → FAIL (`width` unknown, `acts` unknown).
   box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.18);
   color: oklch(from var(--color-base-content) l c h / 0.8); }
 .act-disc > .icon, .act-disc > span { width: var(--glyph); height: var(--glyph); }
-.act-disc-love { background: var(--color-love); color: oklch(98% 0.01 12); }
+.act-disc-love { color: var(--color-love); } /* the same ink disc as every other glyph; only the heart is rose */
 ```
 
 (The `.icon` selector must match what `<.icon>` emits — check `core_components.ex` and use the class it renders, or size the glyph with the `class` attr instead.) Then `~/scripts/agents/agent-mix assets.build`.
