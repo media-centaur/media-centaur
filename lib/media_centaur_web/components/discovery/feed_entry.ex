@@ -6,8 +6,10 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
   a friend's nickname or "You"; `own?` says which, and decides the
   verb's subject and whether Ignore renders (never on an own row). A
   review's `sentiment` is its verdict or nil, and `text` its words or
-  nil; both nil on a listing. A view-model, like `Person`: every fact
-  here was resolved by the host (`DiscoveryLive.FeedEntries`), the row
+  nil; both nil on a listing. `poster_url` and `backdrop_url` are the
+  row artwork, resolved by the host down `TitleArtwork`'s ladder; nil
+  paints the inset tone. A view-model, like `Person`: every fact here
+  was resolved by the host (`DiscoveryLive.FeedEntries`), the row
   decides nothing.
 
   `list_slot` is what the List position holds: the verb `:list`, the
@@ -28,6 +30,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
     :ref,
     :title,
     :poster_url,
+    :backdrop_url,
     :author,
     :own?,
     :kind,
@@ -51,6 +54,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
           ref: {integer(), Title.media_type()},
           title: Title.t(),
           poster_url: String.t() | nil,
+          backdrop_url: String.t() | nil,
           author: String.t(),
           own?: boolean(),
           kind: :review | :listing,

@@ -119,6 +119,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
             },
             %{
               poster_url: "/p.jpg",
+              backdrop_url: "/b.jpg",
               rung: :list,
               library_owner_id: "owner",
               acquisition_state: :downloading
@@ -148,6 +149,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
                text: "Saw it twice.",
                ago: "2h ago",
                poster_url: "/p.jpg",
+               backdrop_url: "/b.jpg",
                rung: :list,
                library_owner_id: "owner",
                acquisition_state: :downloading,
@@ -166,6 +168,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
                sentiment: nil,
                text: nil,
                ago: "1d ago",
+               poster_url: nil,
+               backdrop_url: nil,
                rung: nil,
                list_slot: :list,
                download_slot: :download
