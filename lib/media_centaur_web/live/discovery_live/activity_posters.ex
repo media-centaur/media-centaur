@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityPosters do
   import MediaCentaurWeb.LiveHelpers, only: [title_poster_url: 1]
 
   alias MediaCentaur.Activities.Activity
-  alias MediaCentaur.Library.Posters
+  alias MediaCentaur.Library.Artwork
 
   @typedoc "A TMDB identity, as the activity rows and `ExternalIds.tmdb_owners/1` key it."
   @type ref :: {integer(), :movie | :tv_series}
@@ -35,8 +35,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityPosters do
   @typedoc "The owning library entity per identity, from `ExternalIds.tmdb_owners/1`."
   @type owners :: %{ref() => Ecto.UUID.t()}
 
-  @doc "The `Library.Posters` refs for every identity this install owns."
-  @spec library_refs(owners()) :: [Posters.ref()]
+  @doc "The `Library.Artwork` refs for every identity this install owns."
+  @spec library_refs(owners()) :: [Artwork.ref()]
   def library_refs(owners) do
     Enum.map(owners, fn {{_tmdb_id, media_type}, owner_id} -> {media_type, owner_id} end)
   end
@@ -45,7 +45,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityPosters do
   The poster `src` for one activity: the library tier when the owned
   entity has one, then the referenced tier, then the hotlink, then nil.
   """
-  @spec url(Activity.t(), owners(), %{Posters.ref() => String.t()}) :: String.t() | nil
+  @spec url(Activity.t(), owners(), %{Artwork.ref() => String.t()}) :: String.t() | nil
   def url(%Activity{} = activity, owners, library_posters) do
     library_url(activity, owners, library_posters) || title_poster_url(activity.title)
   end

@@ -9,7 +9,7 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivity do
 
   Each recent entry carries two-tier display parts derived from the *stored*
   event title (`primary`/`secondary` — see `title_parts/2`) and a `poster_url`
-  resolved from the linked entity via `MediaCentaur.Library.Posters`. Both
+  resolved from the linked entity via `MediaCentaur.Library.Artwork`. Both
   degrade gracefully for deleted entities: parts fall back to the recorded
   string, `poster_url` to `nil` — history outlives titles.
 
@@ -21,7 +21,7 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivity do
         last_write_at: DateTime.t() | nil,
         lifetime: %{hours: non_neg_integer(), titles: non_neg_integer(), streak: non_neg_integer()}}
   """
-  alias MediaCentaur.Library.Posters
+  alias MediaCentaur.Library.Artwork
   alias MediaCentaur.WatchHistory
 
   @recent_limit 5
@@ -35,7 +35,10 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivity do
   @spec snapshot() :: map()
   def snapshot do
     events = WatchHistory.recent_events(@recent_limit)
-    posters = events |> Enum.map(&event_ref/1) |> Enum.reject(&is_nil/1) |> Posters.urls_by_refs()
+
+    posters =
+      events |> Enum.map(&event_ref/1) |> Enum.reject(&is_nil/1) |> Artwork.urls_by_refs("poster")
+
     recent = Enum.map(events, &shape_event(&1, posters))
     stats = WatchHistory.stats()
 

@@ -66,6 +66,31 @@ converges on the tile when Phase 3 rebuilds the card, so two drawings
 coexist only through Phase 2. Phases 2–7 follow the plan; the owner's
 TV look at `/discovery` comes after Phase 5.
 
+**Phase 2 under `/unify_design`** (2026-09-25, the owner: "use the
+unify design premise on all future scopes"). The organizing idea is
+*a title's artwork resolves down one ladder per role: the owning
+library entity's image, then the referenced cache, then the TMDB
+hotlink*. The code held it four ways: two batch library reads
+(`Library.Posters.urls_by_refs/1` for posters,
+`Library.Images.logo_urls_for_entities/1` for logos, keyed
+differently); four TMDB CDN URL builders (`LiveHelpers.tmdb_cdn_url/2`,
+`TMDB.Mapper.tmdb_image_url/1`, and a `@tmdb_cdn <> path` in
+`TmdbArtwork` and `ImageRepair`); and the ladder itself hand-rolled in
+`ActivityPosters.url/3` (poster), `TitleDetailHost.build_detail/4`
+(poster, backdrop, logo), `LiveHelpers.title_poster_url/1` (poster,
+no library rung) and `ReleaseTracking.logo_url_for_item/2` (logo) —
+while `ReleaseTracking.list_releases_between/3` skipped the library
+tier for backdrops altogether. Disposition, all fixed in this phase
+as separate commits: `Library.Artwork.urls_by_refs(refs, role)` is the
+one batch read (poster · backdrop · logo); `TMDB.Mapper.image_url/2`
+the one CDN builder; `MediaCentaur.TitleArtwork.urls/3` the one
+ladder, in core so release tracking composes it too; the four
+composers call it and the release rows take the library backdrop like
+every other surface. The Feed's `backdrop_url` then rides the same
+call. Cost: about four times the plan's file count for the phase, all
+mechanical; the behaviour changes are the release rows' backdrop (the
+library's wins, as everywhere else) and nothing on the Feed.
+
 ## Handoff — start here in a fresh context
 
 1. Read this file (Status, Decisions made, Deferred), then the plan's

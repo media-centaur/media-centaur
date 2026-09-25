@@ -80,7 +80,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ExternalIds
-  alias MediaCentaur.Library.Posters
+  alias MediaCentaur.Library.Artwork
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Social
@@ -370,7 +370,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     owners =
       ExternalIds.tmdb_owners(Enum.map(rows, &{&1.activity.tmdb_id, &1.activity.media_type}))
 
-    library_posters = owners |> ActivityPosters.library_refs() |> Posters.urls_by_refs()
+    library_posters = owners |> ActivityPosters.library_refs() |> Artwork.urls_by_refs("poster")
     rungs = Discovery.rungs()
 
     activities =

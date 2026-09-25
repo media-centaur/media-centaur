@@ -769,18 +769,19 @@ defmodule MediaCentaur.ReleaseTracking do
   yet imported); returns `nil` if neither is available.
 
   `library_logos` is the map returned by
-  `MediaCentaur.Library.Images.logo_urls_for_entities/1`, batched by the caller so
+  `MediaCentaur.Library.Artwork.urls_by_refs/2` for the logo role, batched by the caller so
   a single query covers many items.
 
   Single source of truth for "what logo should this card show?" — both
   `upcoming_live` and `list_releases_between/3` route through here so the
   precedence rule lives in exactly one place.
   """
-  @spec logo_url_for_item(%Item{}, %{Ecto.UUID.t() => String.t()}) :: String.t() | nil
+  @spec logo_url_for_item(%Item{}, %{MediaCentaur.Library.Artwork.ref() => String.t()}) ::
+          String.t() | nil
   def logo_url_for_item(%Item{} = item, library_logos) do
     cond do
-      item.library_container_id && Map.get(library_logos, item.library_container_id) ->
-        Map.get(library_logos, item.library_container_id)
+      item.library_container_id && Map.get(library_logos, {item.media_type, item.library_container_id}) ->
+        Map.get(library_logos, {item.media_type, item.library_container_id})
 
       logo = TmdbArtwork.urls(item.media_type, item.tmdb_id).logo_url ->
         logo
@@ -828,7 +829,7 @@ defmodule MediaCentaur.ReleaseTracking do
           do: [{r.item.media_type, r.item.library_container_id}],
           else: []
       end)
-      |> MediaCentaur.Library.Images.logo_urls_for_entities()
+      |> MediaCentaur.Library.Artwork.urls_by_refs("logo")
 
     Enum.map(releases, fn release ->
       backdrop_url = TmdbArtwork.urls(release.item.media_type, release.item.tmdb_id).backdrop_url

@@ -14,7 +14,6 @@ defmodule MediaCentaur.Library.Images do
 
   import Ecto.Query
 
-  alias MediaCentaur.ImageFiles
   alias MediaCentaur.Library.Image
 
   alias MediaCentaur.Library.ImageCache
@@ -112,38 +111,6 @@ defmodule MediaCentaur.Library.Images do
   @spec list_for_owner(atom(), Ecto.UUID.t()) :: [Image.t()]
   def list_for_owner(owner_type, owner_id) when is_atom(owner_type) and is_binary(owner_id) do
     Repo.all(from(i in Image, where: i.owner_type == ^owner_type and i.owner_id == ^owner_id))
-  end
-
-  @doc """
-  Resolves logo URLs for `{media_type, entity_id}` pairs in one query,
-  returning `%{entity_id => web_path}` for any pair whose entity has a
-  logo. Entities without one are simply absent.
-
-  Used by views rendering tracked-show cards (Upcoming, Coming Up) so
-  they can fall back from typography to the show logo without per-card
-  lookups.
-  """
-  @spec logo_urls_for_entities([{:movie | :tv_series, Ecto.UUID.t()}]) :: %{
-          Ecto.UUID.t() => String.t()
-        }
-  def logo_urls_for_entities([]), do: %{}
-
-  def logo_urls_for_entities(pairs) when is_list(pairs) do
-    movie_ids = for {:movie, id} <- pairs, is_binary(id), do: id
-    tv_ids = for {:tv_series, id} <- pairs, is_binary(id), do: id
-
-    rows =
-      Repo.all(
-        from(i in Image,
-          where:
-            i.role == "logo" and
-              ((i.owner_type == :movie and i.owner_id in ^movie_ids) or
-                 (i.owner_type == :tv_series and i.owner_id in ^tv_ids)),
-          select: {i.owner_id, i.content_url}
-        )
-      )
-
-    Map.new(rows, fn {entity_id, content_url} -> {entity_id, ImageFiles.web_path(content_url)} end)
   end
 
   defp delete_replaced_file(attrs, conflict_target) when is_list(conflict_target) do
