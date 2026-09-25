@@ -214,6 +214,13 @@ superseded by the design this campaign produces, and the record says so.
   and nothing about what they withhold; a friend with no acts is a
   tile and a name. Then: no "How friends see you" either — the You
   card is your acts like anyone's, the filled own tile its only mark.
+* `2026-09-25` — Round 9c verdict (`CRITIQUE-9.md` addendum,
+  `K-flag-forms`): the act glyph's form on a poster is the **clipped
+  corner** (a 44px notch on the rail, 56 on the page; the glyph on the
+  card's ground in the notch; two acts grow the notch down), the
+  footer band the runner-up, the mast rejected for its two-act stack.
+  UIDR-037's pennant is a form for the title surfaces, not a rule for
+  the person card.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -241,7 +248,10 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
-3i. **Round 9d** — running: `K-flag-forms`, five forms for the act
+3j. **Round 9e** — running: J patched to the clipped corner; the spec's
+   "What the user sees" and the implementation plan re-derived from G
+   and J.
+3i. **Round 9d** — done (the clipped corner picked). Was: `K-flag-forms`, five forms for the act
    glyph on a poster (footer band, clipped corner, stamp, under the
    poster, the mast as control) on the same cards at both widths; the
    owner asked whether the pennant is the right form.

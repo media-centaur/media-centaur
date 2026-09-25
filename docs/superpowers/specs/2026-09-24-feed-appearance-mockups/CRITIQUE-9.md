@@ -84,3 +84,38 @@ person card from J at two widths.
   acts, flags for the act, newest first; the presence line survives
   only as the note slot and in the opened view.
 - The identity tile, the crop rule and the couch floors as settled.
+
+## Addendum, round 9c — the glyph's form
+
+`K-flag-forms` rendered five forms on the same cards at both widths
+and judged them at half size: the footer band, the clipped corner, the
+stamp, under the poster, and the mast as control. All five pass the
+glyph-legibility check at a 28px outline with a 2px stroke (round 9b's
+disc failed on size, not form).
+
+**The pick is the clipped corner**: the poster's top-right cut away by a
+44px notch (56px on the page), the glyph centred in the notch on the
+card's ground. Nothing sits behind the glyph, so it is the crispest form
+at couch distance, and it is the one form that reads as a mark on the
+picture rather than a layer stuck to it. One act costs a corner the art
+uses least, never the title zone. Two acts: the notch grows down
+(44×76, 56×92) and the second glyph sits under the first in mast order;
+a side-by-side notch was tried and read as a cropped image.
+
+**Runner-up, the footer band**: two acts free and legibility uniform,
+but every poster pays — five posters become five bars, and the band
+sits on the title lettering. **Not the mast**: its two-act stack is the
+chrome that opened this round. **Not the stamp**: a rounded ink square
+is a badge. **Not under the poster**: clean, but off the picture.
+
+The reservation, the designer's and mine: on a poster dark at its
+top-right the cut vanishes and the form is a bare glyph on imagery —
+legible, and the fixed corner makes it read as the same mark, but one
+form in code is two in the eye. If the owner sees a hole rather than a
+mark, the band is the answer.
+
+**UIDR-037 is a form, not a rule.** The pennant stays the title
+surfaces' idiom (named flags flying inward from a hero's edge, with a
+tooltip); the person card takes the corner form with the same glyphs,
+order and tints, because its job is different (one glyph on a 96px
+poster, not a name on a wide surface).
