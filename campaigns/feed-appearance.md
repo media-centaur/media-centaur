@@ -1,7 +1,7 @@
 ---
 status: implementing
 started: 2026-09-24
-last_updated: 2026-09-24
+last_updated: 2026-09-25
 ---
 # The Feed's appearance: telling authors apart
 
@@ -50,6 +50,21 @@ test-first phases; its "Owner decisions this plan assumes" lists the
 mechanics, each one line to flip. The grade threshold is **two or more
 friends** ("more than one might be considered several; we can tweak it
 from there").
+
+**Phase 1 shipped 2026-09-25** (`Discovery.IdentityTile` at 48/56/64
+with its contract test and story; the storybook fixtures
+`priv/static/images/storybook/sample-{poster,backdrop}.jpg` from the
+showcase's *The General* pair, downsized to 400×600 and 1280×720, and
+the six stale story references repointed). Two departures from the
+plan's text, both recorded in the code: the component raises on a size
+outside 48/56/64 because Phoenix checks `values:` at compile time only,
+and the fixtures are derivatives, not raw copies, so the release does
+not carry a 2MB poster for a dev-only catalog. Under `/unify_design`:
+the person card's inline monogram is the one existing drawing of a
+person (the app-card and shelf initials draw apps and titles); it
+converges on the tile when Phase 3 rebuilds the card, so two drawings
+coexist only through Phase 2. Phases 2–7 follow the plan; the owner's
+TV look at `/discovery` comes after Phase 5.
 
 ## Handoff — start here in a fresh context
 
@@ -446,8 +461,9 @@ done. Close or re-home them at this campaign's completion.
   the last scope). *Behaviour, not appearance; still applies unless
   this campaign changes tab navigation to patch within the page.*
 * **Storybook sample poster path `/images/sample-nosferatu-poster.jpg`
-  does not exist**; several stories show a broken image. *Unrelated but
-  in the way: fix early in this campaign's story work.*
+  does not exist**; several stories show a broken image. *Closed by
+  Phase 1 (2026-09-25): every story reads
+  `/images/storybook/sample-poster.jpg`, a tracked PD fixture.*
 * **The user-interface skill's UIDR-042 row still says "Track release
   dates"**, the old switch label. *Unrelated; still applies. Check
   UIDR-042's own wording first.*

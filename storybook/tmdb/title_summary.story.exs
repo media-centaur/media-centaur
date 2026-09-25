@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.Storybook.TMDB.TitleSummary do
         description:
           "With art the placeholder gives way to the eager+sync poster thumb " <>
             "(the bundled sample poster).",
-        attributes: %{title: title(%{}), poster_url: "/images/sample-nosferatu-poster.jpg"}
+        attributes: %{title: title(%{}), poster_url: "/images/storybook/sample-poster.jpg"}
       },
       %Variation{
         id: :markers,

@@ -37,7 +37,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       entry(1399, "Sample Show",
         media_type: :tv_series,
         episode: %Episode{season_number: 2, episode_number: 5},
-        poster_url: "/images/sample-nosferatu-poster.jpg"
+        poster_url: "/images/storybook/sample-poster.jpg"
       ),
       entry(11, "Movie A"),
       entry(12, "Movie B"),

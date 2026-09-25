@@ -122,7 +122,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
         attributes: %{
           id: "row-with-poster",
           title: title(),
-          poster_url: "/images/sample-nosferatu-poster.jpg"
+          poster_url: "/images/storybook/sample-poster.jpg"
         }
       }
     ]

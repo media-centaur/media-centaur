@@ -128,9 +128,9 @@ The tile is a new component (component then story); the person card is rebuilt i
 - Create: `priv/static/images/storybook/sample-poster.jpg`, `sample-backdrop.jpg`; modify the six fixture references (`grep -rn 'sample-nosferatu\|storybook/fixtures' storybook`)
 - Modify: `storybook/discovery/_discovery.index.exs`
 
-- [ ] **Step 1: The fixtures.** `find priv/showcase/images -name backdrop.jpg | head`; open two or three with Read and keep a still whose subject sits in the upper third (the crop rule's case). Copy the pair to `priv/static/images/storybook/sample-poster.jpg` and `sample-backdrop.jpg`; confirm `git check-ignore` reports neither. Repoint every `/images/sample-nosferatu-poster.jpg` and `/storybook/fixtures/poster.jpg` to `/images/storybook/sample-poster.jpg`. (`priv/static/images` is in `static_paths/0`; the plain path serves in dev, the digested one in prod.)
+- [x] **Step 1: The fixtures.** `find priv/showcase/images -name backdrop.jpg | head`; open two or three with Read and keep a still whose subject sits in the upper third (the crop rule's case). Copy the pair to `priv/static/images/storybook/sample-poster.jpg` and `sample-backdrop.jpg`; confirm `git check-ignore` reports neither. Repoint every `/images/sample-nosferatu-poster.jpg` and `/storybook/fixtures/poster.jpg` to `/images/storybook/sample-poster.jpg`. (`priv/static/images` is in `static_paths/0`; the plain path serves in dev, the digested one in prod.)
 
-- [ ] **Step 2: Write the failing component test**
+- [x] **Step 2: Write the failing component test**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Discovery.IdentityTileTest do
@@ -177,12 +177,12 @@ end
 
 (`render_component` asserts the tile's *contract* — the letter, `data-own`, `data-size`, the photo's `src`, `aria-hidden` — the way `segmented_control_test.exs` does, never its classes.)
 
-- [ ] **Step 3: Run it to verify it fails**
+- [x] **Step 3: Run it to verify it fails**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/discovery/identity_tile_test.exs`
 Expected: FAIL — `IdentityTile.identity_tile/1 is undefined`.
 
-- [ ] **Step 4: The component**
+- [x] **Step 4: The component**
 
 ```elixir
 defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
@@ -238,9 +238,9 @@ end
 
 Class precedence is stylesheet order (the `phoenix-thinking` gotcha), which is why the states are disjoint branches rather than a base plus overrides. A photo `src` is not local artwork (no `/media-images`), so MC0028 does not apply; when the protocol brings one it will be, and the tile gets a `tile_photo_src/1` builder then.
 
-- [ ] **Step 5: The story** — `storybook/discovery/identity_tile.story.exs`, `MediaCentaurWeb.Storybook.Discovery.IdentityTile`, `render_source :function`. Three `VariationGroup`s, one per size (`:rail_48`, `:band_56`, `:page_64`), each with four variations: `:monogram` (`name: "Cleo"`), `:photo` (`name: "Ada", photo_url: "/images/storybook/sample-poster.jpg"`), `:own` (`name: "You", own?: true`), `:own_photo`. All of `48`, `56` and `64` must appear as literals (MC0009's `values:` scan). Index entry: `def entry("identity_tile"), do: [icon: {:fa, "circle-user", :thin}, name: "Identity tile"]`.
+- [x] **Step 5: The story** — `storybook/discovery/identity_tile.story.exs`, `MediaCentaurWeb.Storybook.Discovery.IdentityTile`, `render_source :function`. Three `VariationGroup`s, one per size (`:rail_48`, `:band_56`, `:page_64`), each with four variations: `:monogram` (`name: "Cleo"`), `:photo` (`name: "Ada", photo_url: "/images/storybook/sample-poster.jpg"`), `:own` (`name: "You", own?: true`), `:own_photo`. All of `48`, `56` and `64` must appear as literals (MC0009's `values:` scan). Index entry: `def entry("identity_tile"), do: [icon: {:fa, "circle-user", :thin}, name: "Identity tile"]`.
 
-- [ ] **Step 6: Green, precommit, look**
+- [x] **Step 6: Green, precommit, look**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/components/discovery test/media_centaur_web/storybook_render_test.exs`, then `~/scripts/agents/agent-mix precommit` (foreground, timeout 600000). Open `/storybook/discovery/identity_tile` on :2160 and Read a `page-shot`; also the six stories that pointed at a missing image.
 
