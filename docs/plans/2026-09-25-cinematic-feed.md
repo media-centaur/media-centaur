@@ -743,7 +743,7 @@ Storybook-first: the story is rewritten before the component. The DOM contract i
 - Create: `test/media_centaur_web/components/discovery/feed_band_test.exs`, `test/support/referenced_artwork.ex`
 - Modify: `storybook/discovery/_discovery.index.exs`, `feed_entry.ex` (`offset_crop?`), `feed_entries.ex` (the crop stamp), `feed_entries_test.exs`, `assets/css/app.css`, `discovery_live.ex` (the alias and the call), `title/row.ex:9-10`, `discovery_live_test.exs` (the artwork page test), `test/media_centaur/tmdb_artwork_test.exs` (the moved helper)
 
-- [ ] **Step 1: The crop offset — failing projection test**
+- [x] **Step 1: The crop offset — failing projection test**
 
 ```elixir
     test "the second of two adjacent entries of one title carries the offset crop; a run alternates" do
@@ -776,7 +776,7 @@ Storybook-first: the story is rewritten before the component. The DOM contract i
 
 Run → FAIL.
 
-- [ ] **Step 2: The projection** — `FeedEntry` gains `offset_crop?: false` (default in `defstruct`, `boolean()` in the type; moduledoc: "the second of two adjacent rows of one title, so two stills of one frame never repeat exactly — UIDR-046's crop rule"). In `FeedEntries.build/2` the windowed entries pass through `stamp_crops/1`:
+- [x] **Step 2: The projection** — `FeedEntry` gains `offset_crop?: false` (default in `defstruct`, `boolean()` in the type; moduledoc: "the second of two adjacent rows of one title, so two stills of one frame never repeat exactly — UIDR-046's crop rule"). In `FeedEntries.build/2` the windowed entries pass through `stamp_crops/1`:
 
 ```elixir
   # The crop rule's one variable: a row directly under a row of the same
@@ -794,7 +794,7 @@ Run → FAIL.
 
 Green.
 
-- [ ] **Step 3: The story, rewritten** — `git mv` both files. `storybook/discovery/feed_band.story.exs`, module `MediaCentaurWeb.Storybook.Discovery.FeedBand`, `function: &…FeedBand.feed_band/1`, `layout :one_column`, template `<div class="feed-column w-[1236px]"><.psb-variation/></div>`. The fixture `entry/2` gains `backdrop_url: "/images/storybook/sample-backdrop.jpg"` and `offset_crop?: false`. Variations (every state a component can hold; page states are named with where they are pinned):
+- [x] **Step 3: The story, rewritten** — `git mv` both files. `storybook/discovery/feed_band.story.exs`, module `MediaCentaurWeb.Storybook.Discovery.FeedBand`, `function: &…FeedBand.feed_band/1`, `layout :one_column`, template `<div class="feed-column w-[1236px]"><.psb-variation/></div>`. The fixture `entry/2` gains `backdrop_url: "/images/storybook/sample-backdrop.jpg"` and `offset_crop?: false`. Variations (every state a component can hold; page states are named with where they are pinned):
 
 | Variation | State |
 |---|---|
@@ -814,7 +814,7 @@ Green.
 
 Index: `def entry("feed_band"), do: [icon: {:fa, "stream", :thin}, name: "Feed band"]`.
 
-- [ ] **Step 4: The CSS** — append after the person-card block:
+- [x] **Step 4: The CSS** — append after the person-card block:
 
 ```css
 /* ── Feed bands (UIDR-046) ── one unit, one size: the title's still in a
@@ -868,7 +868,7 @@ Index: `def entry("feed_band"), do: [icon: {:fa, "stream", :thin}, name: "Feed b
 
 The scrim's stops are G's (.93 at the box's edge, .55 at +120, .16 at +240, .04 at +360) — G names them at 700/820/940/1060 in the 1236 column, i.e. relative to the box's left edge, which `--bx` is. Then `~/scripts/agents/agent-mix assets.build`.
 
-- [ ] **Step 5: The component** — `lib/media_centaur_web/components/discovery/feed_band.ex`, `Discovery.FeedBand`, `feed_band/1`, `attr :entry, FeedEntry, required: true`. Two public builders (MC0028 sees `*_src(`):
+- [x] **Step 5: The component** — `lib/media_centaur_web/components/discovery/feed_band.ex`, `Discovery.FeedBand`, `feed_band/1`, `attr :entry, FeedEntry, required: true`. Two public builders (MC0028 sees `*_src(`):
 
 ```elixir
   @doc "The `src` a band's still paints — one definition, so a prefetch can match it."
@@ -923,9 +923,9 @@ The template, from G's DOM, keeping the row's contract:
 
 Alphas: 80% body, 95% name, 65% year (MC0034 wants an integer ≥ 55; G's 66% rounds to `/65`), 78% review and time, 80% seat. The tile's position is the band's (`span.feed-band-tile`), its look the tile's. Moduledoc rewritten from the spec's *Band* row plus the contract paragraph; `title/row.ex:9-10` now says `Discovery.FeedBand`. A small `feed_band_test.exs` pins the contract the page tests do not: `data-offset-crop`, `img[data-role='backdrop'][src$='?w=1280']`, `[data-role='poster-empty']` when the poster is nil, the tile at `data-size='56'` with `data-own` on an own entry.
 
-- [ ] **Step 6: Wire the page minimally** — in `discovery_live.ex`, alias `FeedBand`, and `<FeedBand.feed_band :for={entry <- @feed} entry={entry} />` inside the old `#feed-list` (the column is Phase 5). Run the page tests: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs` — all green without edits proves decision 1 held. Then the storybook render test.
+- [x] **Step 6: Wire the page minimally** — in `discovery_live.ex`, alias `FeedBand`, and `<FeedBand.feed_band :for={entry <- @feed} entry={entry} />` inside the old `#feed-list` (the column is Phase 5). Run the page tests: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs` — all green without edits proves decision 1 held. Then the storybook render test.
 
-- [ ] **Step 7: The artwork page test.** Move `seed_entry/4` from `tmdb_artwork_test.exs` into `test/support/referenced_artwork.ex` as `seed_referenced_artwork/4` (both files use it). In `discovery_live_test.exs` § feed tab, with a `setup` that points the config's `data_dir` at a temp directory the way `tmdb_artwork_test.exs:7-17` does (a `:persistent_term` write, legal in this `async: false` module and restored by the checkout):
+- [x] **Step 7: The artwork page test.** Move `seed_entry/4` from `tmdb_artwork_test.exs` into `test/support/referenced_artwork.ex` as `seed_referenced_artwork/4` (both files use it). In `discovery_live_test.exs` § feed tab, with a `setup` that points the config's `data_dir` at a temp directory the way `tmdb_artwork_test.exs:7-17` does (a `:persistent_term` write, legal in this `async: false` module and restored by the checkout):
 
 ```elixir
     test "a band paints the library entity's backdrop for an owned title, the artwork cache's for an unowned one, nothing for a bare one",
@@ -955,9 +955,11 @@ Alphas: 80% body, 95% name, 65% year (MC0034 wants an integer ≥ 55; G's 66% ro
 
 (An empty `backdrop.jpg` is enough: the page checks `File.exists?`, never decodes. The warm path behaves as in every existing feed test: gated by `Capabilities.tmdb_ready?/0`, awaited by `await_supervised_tasks/0`.)
 
-- [ ] **Step 8: Precommit and look.** `~/scripts/agents/agent-mix precommit`. `page-shot` `/storybook/discovery/feed_band` at 1920 and Read it and its half-size copy: the still's crop on the adjacent pair; the seat on the hover-pinned variations; every text readable at half.
+- [x] **Step 8: Precommit and look.** `~/scripts/agents/agent-mix precommit`. `page-shot` `/storybook/discovery/feed_band` at 1920 and Read it and its half-size copy: the still's crop on the adjacent pair; the seat on the hover-pinned variations; every text readable at half.
 
 **Acceptance:** every variation renders at 224px; the crop offset alternates in the projection; the page tests pass untouched; MC0009 finds `feed_band.story.exs`; no `loading="lazy"`; every `/media-images` src is width-declared; the half-size check passes on the story.
+
+> **Realized 2026-09-25, under `/unify_design`:** as written. The primary-coloured "You" of UIDR-045 is gone from the Feed — the identity tile is the author mark on both surfaces now, closing Phase 1's convergence. `test/support/referenced_artwork.ex` (`MediaCentaur.ReferencedArtwork.seed_referenced_artwork/4`) is the one seeder for the referenced cache, used by `tmdb_artwork_test` and the page test. The band's scrim is its own recipe, by design distinct from the identity-banner family's hue-under-scrim; both draw from `--ink`. The old `#feed-list` keeps its id as a `.feed-column` until Phase 5 replaces the page's frame.
 
 ```bash
 git add -A

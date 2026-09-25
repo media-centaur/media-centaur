@@ -113,6 +113,13 @@ holds; the identity-banner family's ink literal became `--ink`. The
 Friends tab renders the page card in today's column; the rail, the
 grid and `?person=` are Phase 5.
 
+**Phase 4 shipped 2026-09-25.** `Discovery.FeedBand` renders every
+entry as the band — the still under the scrim, the tile, the poster,
+the words at the couch floors — keeping the row's DOM contract, so the
+Feed's page tests passed untouched. The crop offset is stamped by the
+projection from adjacency in the scoped window. The bands sit in the
+old 896px column until Phase 5 gives the page its frame.
+
 ## Handoff — start here in a fresh context
 
 1. Read this file (Status, Decisions made, Deferred), then the plan's

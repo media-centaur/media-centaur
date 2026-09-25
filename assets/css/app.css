@@ -3242,6 +3242,140 @@ body:has(.modal-backdrop[data-state="open"]) {
   );
 }
 
+/* ── Feed bands (UIDR-046) ── one unit, one size: the title's still in a
+   right-hand image box under the ink scrim, the words in the text zone on
+   the left. Every position is a custom property; the text is Tailwind on
+   top. */
+:root {
+  --feed-text-zone: 700px; /* no image box begins left of it */
+  --feed-dissolve: 360px; /* the scrim's dissolve across the box's left */
+}
+
+.feed-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feed-band {
+  --s: 1;
+  --h: 224px;
+  --box: 900px;
+  --tile: 56px;
+  --x-tile: 20px;
+  --pw: 100px;
+  --ph: 150px;
+  --x-poster: 92px;
+  --pad-y: 24px;
+  --x-body: 210px;
+  --bx: max(var(--feed-text-zone), calc(100% - var(--box)));
+  position: relative;
+  height: var(--h);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ink);
+  isolation: isolate;
+  cursor: pointer;
+}
+
+.feed-band-backdrop {
+  position: absolute;
+  top: 0;
+  left: var(--bx);
+  width: calc(100% - var(--bx));
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  display: block;
+  mask-image: linear-gradient(to right, transparent, #000 240px);
+}
+
+.feed-band-offset .feed-band-backdrop {
+  object-position: 50% 38%;
+}
+
+/* The scrim's stops are the settled page's: .93 at the box's edge, .55 at
+   +120, .16 at +240, .04 at the dissolve's end, 0 at the right. */
+.feed-band-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    oklch(from var(--ink) l c h / calc(0.97 * var(--s))) 0,
+    oklch(from var(--ink) l c h / calc(0.93 * var(--s))) var(--bx),
+    oklch(from var(--ink) l c h / calc(0.55 * var(--s))) calc(var(--bx) + 120px),
+    oklch(from var(--ink) l c h / calc(0.16 * var(--s))) calc(var(--bx) + 240px),
+    oklch(from var(--ink) l c h / calc(0.04 * var(--s))) calc(var(--bx) + var(--feed-dissolve)),
+    oklch(from var(--ink) l c h / 0) 100%
+  );
+}
+
+.feed-band-bare {
+  background: var(--glass-inset-bg);
+}
+
+.feed-band-bare .feed-band-scrim {
+  background: linear-gradient(
+    to right,
+    oklch(from var(--ink) l c h / 0.35),
+    oklch(from var(--ink) l c h / 0) 800px
+  );
+}
+
+.feed-band-tile {
+  position: absolute;
+  left: var(--x-tile);
+  top: calc(50% - var(--tile) / 2);
+  z-index: 2;
+}
+
+.feed-band-poster {
+  position: absolute;
+  left: var(--x-poster);
+  top: var(--pad-y);
+  width: var(--pw);
+  height: var(--ph);
+  z-index: 2;
+  border-radius: 6px;
+  box-shadow: 0 3px 12px oklch(0% 0 0 / 0.55);
+}
+
+.feed-band-body {
+  position: absolute;
+  left: var(--x-body);
+  right: calc(100% - var(--feed-text-zone));
+  top: var(--pad-y);
+  bottom: var(--pad-y);
+  z-index: 2;
+}
+
+.feed-band-time {
+  position: absolute;
+  right: calc(100% - var(--feed-text-zone));
+  top: var(--pad-y);
+  z-index: 2;
+}
+
+/* Hover: every scrim alpha × .8 and the ground lifts; nothing moves. The
+   catalog pins it with .feed-hover-pin, since a story cannot hover. */
+.feed-band:hover,
+.feed-band:focus-within,
+.feed-hover-pin > .feed-band {
+  --s: 0.8;
+  background: oklch(16% 0.02 264);
+}
+
+.feed-band-bare:hover,
+.feed-band-bare:focus-within,
+.feed-hover-pin > .feed-band-bare {
+  background: oklch(20% 0.017 264 / 0.5);
+}
+
+.feed-hover-pin > .feed-band [data-role="toolbar"] {
+  opacity: 1;
+}
+
 /* ── Guide book prose ──
    Reading typography for the in-app guide (/guide). A coordinated multi-element
    system (headings, lists, tables, code, callouts), so it lives in CSS rather than

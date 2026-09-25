@@ -1,13 +1,15 @@
-defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
+defmodule MediaCentaurWeb.Storybook.Discovery.FeedBand do
   @moduledoc """
-  One Feed row (UIDR-038, UIDR-045): poster left, then who did what —
-  the sentiment glyph after the verb when the review gives one — the
-  title, the review's text when it has some, and the relative time in
-  the right column. The toolbar seat is empty at rest and shows on
-  hover; the variations cover every state its two resolved slots can
-  hold, and the own rows, which say You and carry no Ignore. A listing
-  and a review, a friend's and your own, are one row. Rows are meant to
-  sit in one inset list surface; the story's template supplies it.
+  One Feed band (UIDR-046): one author's action on one title as a
+  1236×224 unit on ink — the identity tile, the poster, then who did
+  what (the sentiment glyph after the verb when the review gives one),
+  the title and year, the review's words at two lines, the time at the
+  text zone's edge, and the title's still in a right-hand image box
+  under the scrim's 360px dissolve. The toolbar seat is empty at rest
+  and shows on hover; the variations cover every state the two resolved
+  slots can hold, both authors, the artwork states, the adjacent pair's
+  offset crop, and the hover seat pinned by the template. Every size is
+  the couch floor's: nothing read is under 18px.
   """
 
   use PhoenixStorybook.Story, :component
@@ -15,17 +17,25 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
 
-  def function, do: &MediaCentaurWeb.Components.Discovery.FeedEntryRow.feed_entry_row/1
+  def function, do: &MediaCentaurWeb.Components.Discovery.FeedBand.feed_band/1
   def render_source, do: :function
   def layout, do: :one_column
 
   def template do
     """
-    <div class="glass-inset w-full rounded-xl overflow-hidden">
+    <div class="feed-column w-[1236px]">
       <.psb-variation/>
     </div>
     """
   end
+
+  @hover_pinned """
+  <div class="feed-column feed-hover-pin w-[1236px]">
+    <.psb-variation/>
+  </div>
+  """
+
+  @review_text "Saw it twice. The last twenty minutes are the whole film, and the score does most of the work."
 
   defp entry(id, overrides) do
     tmdb_id = Map.get(overrides, :tmdb_id, 777)
@@ -37,6 +47,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
         ref: {tmdb_id, :movie},
         title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie", year: "2024"}),
         poster_url: "/images/storybook/sample-poster.jpg",
+        backdrop_url: "/images/storybook/sample-backdrop.jpg",
         author: "Sample Friend",
         own?: false,
         kind: :listing,
@@ -48,7 +59,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
         library_owner_id: nil,
         acquisition_state: nil,
         list_slot: :list,
-        download_slot: :download
+        download_slot: :download,
+        offset_crop?: false
       },
       overrides
     )
@@ -59,33 +71,22 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
       %Variation{
         id: :listing,
         description:
-          "A friend wants to watch it: two lines at the top of the row, the time on the right.",
+          "A friend wants to watch it: two lines, the time at the text zone's edge, the still in its box.",
         attributes: %{entry: entry("listing", %{ago: "just now"})}
       },
       %Variation{
         id: :review_like_with_text,
-        description: "Like is the thumbs up after the verb; the text is the third line.",
+        description:
+          "Like is the thumbs up after the verb; the review is the third line, two lines at most.",
         attributes: %{
-          entry:
-            entry("like", %{
-              kind: :review,
-              sentiment: :like,
-              text: "Slow start, give it three episodes.",
-              ago: "1d ago"
-            })
+          entry: entry("like", %{kind: :review, sentiment: :like, text: @review_text, ago: "1d ago"})
         }
       },
       %Variation{
         id: :review_love,
-        description: "Love is the rose heart after the verb — the only colour on a friend's row.",
+        description: "Love is the rose heart after the verb — the only colour on a friend's band.",
         attributes: %{
-          entry:
-            entry("love", %{
-              kind: :review,
-              sentiment: :love,
-              text: "Saw it twice. The last twenty minutes are the whole film.",
-              ago: "2h ago"
-            })
+          entry: entry("love", %{kind: :review, sentiment: :love, text: @review_text, ago: "2h ago"})
         }
       },
       %Variation{
@@ -125,7 +126,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
       %Variation{
         id: :own_listing,
         description:
-          "Your own listing: You in the primary colour, the verb in the second person, Listed filled, no Ignore.",
+          "Your own listing: the filled own tile, \"You want to watch\", Listed filled, no Ignore.",
         attributes: %{
           entry:
             entry("own-listing", %{
@@ -139,7 +140,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
       },
       %Variation{
         id: :own_review,
-        description: "Your own review: the same row; the toolbar holds List and Download only.",
+        description: "Your own review: the same band; the seat holds List and Download only.",
         attributes: %{
           entry:
             entry("own-review", %{
@@ -147,7 +148,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
               own?: true,
               kind: :review,
               sentiment: :love,
-              text: "Saw it twice. The last twenty minutes are the whole film.",
+              text: @review_text,
               ago: "1h ago"
             })
         }
@@ -181,9 +182,59 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedEntryRow do
         }
       },
       %Variation{
-        id: :no_poster,
-        description: "No artwork yet: the poster slot is a quiet tile.",
-        attributes: %{entry: entry("bare", %{poster_url: nil, ago: "3w ago"})}
+        id: :no_artwork,
+        description:
+          "No artwork on any tier: the band on the inset tone with a short scrim, the poster slot empty.",
+        attributes: %{entry: entry("bare", %{poster_url: nil, backdrop_url: nil, ago: "3w ago"})}
+      },
+      %Variation{
+        id: :no_backdrop,
+        description: "A poster and no still: the words on the bare ground, the poster in place.",
+        attributes: %{entry: entry("no-still", %{backdrop_url: nil, ago: "2w ago"})}
+      },
+      %VariationGroup{
+        id: :adjacent_pair,
+        description:
+          "Two adjacent bands of one title: the same still at 30%, then at 38% — one frame never repeats exactly.",
+        template: """
+        <div class="feed-column w-[1236px]">
+          <.psb-variation-group/>
+        </div>
+        """,
+        variations: [
+          %Variation{
+            id: :first,
+            attributes: %{entry: entry("pair-a", %{author: "Cleo", ago: "4m ago"})}
+          },
+          %Variation{
+            id: :second,
+            attributes: %{
+              entry:
+                entry("pair-b", %{
+                  author: "Nick",
+                  kind: :review,
+                  sentiment: :like,
+                  ago: "9m ago",
+                  offset_crop?: true
+                })
+            }
+          }
+        ]
+      },
+      %Variation{
+        id: :hovered,
+        description:
+          "Under the cursor: the seat shown — List · Download · Ignore — the scrim × .8, the ground lifted; the height unchanged.",
+        attributes: %{entry: entry("hovered", %{kind: :review, sentiment: :like, text: @review_text})},
+        template: @hover_pinned
+      },
+      %Variation{
+        id: :own_hovered,
+        description: "An own band under the cursor: List · Download, no Ignore.",
+        attributes: %{
+          entry: entry("own-hovered", %{author: "You", own?: true, rung: :list, list_slot: :listed})
+        },
+        template: @hover_pinned
       }
     ]
   end

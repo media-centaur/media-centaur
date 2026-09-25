@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.DiscoveryLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.ReferencedArtwork
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
@@ -447,9 +448,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
     @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
 
+    # The referenced artwork cache lives under `{data_dir}/images/tmdb/`;
+    # a per-test tmp dir keeps the artwork test's seed its own (the
+    # checkout restores the config term).
     setup do
       Identity.ensure()
-      :ok
+      dir = Path.join(System.tmp_dir!(), "discovery_feed_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(dir)
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, dir))
+      on_exit(fn -> File.rm_rf!(dir) end)
+      {:ok, data_dir: dir}
     end
 
     @other_secret Secret.wrap(String.duplicate("0", 63) <> "2")
@@ -516,6 +525,47 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     defp entry(%{id: id}), do: "#feed-row-#{id}"
     defp entries(view), do: ids(view, "[data-component='feed-row']")
     defp feed_badge, do: "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge"
+
+    test "a band paints the library entity's backdrop for an owned title, the artwork cache's for an unowned one, nothing for a bare one",
+         %{conn: conn, data_dir: data_dir} do
+      movie = create_standalone_movie(%{name: "Sample Movie 424242"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "424242"})
+      create_linked_file(%{movie_id: movie.id})
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "backdrop",
+        content_url: "#{movie.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      seed_referenced_artwork(data_dir, :movie, 777, [:backdrop])
+
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      now = System.os_time(:second)
+      {:ok, owned} = Activities.ingest(friend_listing_event(424_242, now))
+      {:ok, cached} = Activities.ingest(friend_listing_event(777, now - 60))
+      {:ok, bare} = Activities.ingest(friend_listing_event(778, now - 120))
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      assert has_element?(
+               view,
+               entry(owned) <>
+                 " img[data-role='backdrop'][src='/media-images/#{movie.id}/backdrop.jpg?w=1280']"
+             )
+
+      assert has_element?(
+               view,
+               entry(cached) <>
+                 " img[data-role='backdrop'][src='/media-images/images/tmdb/movie-777/backdrop.jpg?w=1280']"
+             )
+
+      refute has_element?(view, entry(bare) <> " img[data-role='backdrop']")
+      assert has_element?(view, entry(bare) <> " [data-role='poster-empty']")
+
+      await_supervised_tasks()
+    end
 
     test "empty state names the prerequisites, then the quiet empty state", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery")
