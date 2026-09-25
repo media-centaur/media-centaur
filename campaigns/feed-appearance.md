@@ -1,5 +1,5 @@
 ---
-status: planning
+status: implementing
 started: 2026-09-24
 last_updated: 2026-09-24
 ---
@@ -35,16 +35,40 @@ This campaign adds:
 
 ## Status
 
-**Design settled 2026-09-25** after rounds 4–9 (nine rounds, two
-days). The Feed is `G-couch-feed`; the person card is `J-friends-page`
+**Implementation approved 2026-09-25** ("execute implementation in a
+new context"). The design was settled over rounds 4–9 plus the act-mark
+iterations of the afternoon (disc → opaque with solid glyphs → fixed
+slots above the poster; the grade at two tiers, gold from two friends). The Feed is `G-couch-feed`; the person card is `J-friends-page`
 with the act disc; the spec's "What the user sees", "The model" and
 acceptance criteria are written from those two pages
 (`docs/superpowers/specs/2026-09-24-feed-appearance-design.md`), and
 the implementation plan is rewritten to them
 (`docs/plans/2026-09-25-cinematic-feed.md`, seven phases, test-first).
-The review artifact carries every page, brief and critique. **Awaiting
-the owner's go for implementation** (the plan's "Owner decisions this
-plan assumes" lists nine mechanics, each one line to flip). Steps 1–3
+The review artifact carries every page, brief and critique. **The plan is
+the contract**: `docs/plans/2026-09-25-cinematic-feed.md`, seven
+test-first phases; its "Owner decisions this plan assumes" lists the
+mechanics, each one line to flip. The grade threshold is **two or more
+friends** ("more than one might be considered several; we can tweak it
+from there").
+
+## Handoff — start here in a fresh context
+
+1. Read this file (Status, Decisions made, Deferred), then the plan's
+   ground rules and its "Owner decisions this plan assumes", then
+   Phase 1. Do not re-read the mockup rounds unless a phase points at
+   a page for a size; `G-couch-feed/REASONING.md` and
+   `J-friends-page/REASONING.md` hold every number.
+2. The review artifact (private, the owner's) shows the two settled
+   pages and the spec/plan: https://claude.ai/code/artifact/7588de25-86db-4849-aab1-416ac323c8a4
+3. Work phase by phase: tests first, `~/scripts/agents/agent-mix`
+   never bare `mix`, `mix precommit` clean before each phase's commit,
+   one commit per phase, no push. Verify visually with `page-shot`
+   against the dev server at 1920 and at half size (the couch check).
+4. Another session works in this checkout on bundled mpv scripts
+   (`campaigns/bundled-mpv-scripts.md`); stage paths explicitly, never
+   `git add -A`.
+5. When Phase 5 lands, the owner looks at `/discovery` on the TV before
+   Phase 6 writes the records. Steps 1–3
 done: the diagnosis is in the spec's Problem section
 (`docs/superpowers/specs/2026-09-24-feed-appearance-design.md`); five
 directions are built under
@@ -337,9 +361,11 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
-3k. **Round 9f** — the act mark settled as the fixed-slot header above
-   the poster; G and J patched; the spec's and the plan's act-disc
-   sections rewritten to it.
+3l. **Implementation** — approved; runs in a new context from the
+   Handoff above, Phase 1 first.
+3k. **Round 9f** — done: the act mark settled as the fixed-slot header
+   above the poster; G and J patched; the spec and plan rewritten to
+   it; the grade threshold set at two friends.
 3j. **Round 9e** — done: J carried the corner disc (since retired); the spec and the
    plan are re-derived from G and J. **Next: the owner's go, then
    Phase 1 of the plan.** Was: the spec's

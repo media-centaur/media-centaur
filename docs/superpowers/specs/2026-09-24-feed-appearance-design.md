@@ -40,8 +40,8 @@ Existing terms are in `docs/GLOSSARY.md`: *Feed*, *feed row*, *Scope*,
 | **Person card** | One component at two widths drawing one person: the head (tile, name, the time of the latest act) over the acts strip. The rail's card at 560; the Friends page's at 900, where a press opens it. |
 | **Acts strip** | The person card's picture: one poster per title the person acted on, newest first, each poster under its act slots. Up to three posters in the rail, five on the page. |
 | **Act glyph** | The glyph for one act, in the pennant's vocabulary: heart (love), thumbs up (like), thumbs down (dislike), speech bubble (reviewed without a verdict), eye (watched), bookmark (listing). The heroicons solid set at 28px at both widths, drawn in its act slot; matte white at 78%, or gold at the grade. |
-| **Act slots** | The act glyphs' place: a 36px strip above the poster on the card's ground, three fixed 28px positions (the opinion, the eye, the bookmark), empty positions drawn as nothing, no backing; the glyph matte (white at 78%) by default and gold metal when three or more friends did that act (the *grade*; the heart is not rose here). Retires the act disc and the capsule (2026-09-25). Formerly: an opaque disc of ink with a 1px white/18 ring at the poster's top right, inset 8px — 44px in the rail, 52 on the page — the heart glyph alone solid rose (`--color-love`) on the same ink disc as every other glyph; two acts as one joined capsule holding both glyphs. The person card's form; the pennant stays the title surfaces'. |
-| **Grade** | The act glyph's material, two tiers: matte (white at 78%) below three; gold metal (a linear gradient `oklch(90% 0.13 88)` → `oklch(62% 0.13 78)` at 55% → `oklch(84% 0.14 85)`) when three or more friends on the roster did that act on that title. Counted per (title, flag) across the roster. The grade owns the glyph's colour: no rose heart on a person card; silver did not read. |
+| **Act slots** | The act glyphs' place: a 36px strip above the poster on the card's ground, three fixed 28px positions (the opinion, the eye, the bookmark), empty positions drawn as nothing, no backing; the glyph matte (white at 78%) by default and gold metal when two or more friends did that act (the *grade*; the heart is not rose here). Retires the act disc and the capsule (2026-09-25). Formerly: an opaque disc of ink with a 1px white/18 ring at the poster's top right, inset 8px — 44px in the rail, 52 on the page — the heart glyph alone solid rose (`--color-love`) on the same ink disc as every other glyph; two acts as one joined capsule holding both glyphs. The person card's form; the pennant stays the title surfaces'. |
+| **Grade** | The act glyph's material, two tiers: matte (white at 78%) below three; gold metal (a linear gradient `oklch(90% 0.13 88)` → `oklch(62% 0.13 78)` at 55% → `oklch(84% 0.14 85)`) when two or more friends on the roster did that act on that title. Counted per (title, flag) across the roster. The grade owns the glyph's colour: no rose heart on a person card; silver did not read. |
 | **Opened card** | The Friends page's card after a press: the strip in full, one sentence row per poster ending in its glyph, then the key, the added date and Remove friend. The rail's card does not open; it goes to the Friends tab. |
 | **Window** | The bands the Feed holds: twenty at first, twenty more per *Show older*, sixty at most — a count, not a span. The tab's count is the window's size under the scope. |
 | **Queued arrivals** | Actions that arrive while the reader is scrolled into the column: held behind a *N new* control at the column's head until pressed, so the column never moves under the reader. At the top they prepend live. |
@@ -194,7 +194,7 @@ or stack exists. In the rail the slots touch at x = 6 · 34 · 62
 (96 = 6 + 28 + 28 + 28 + 6; the glyph's inner margin is the gap); on
 the page they sit at x = 11 · 51 · 91 with 12px gaps. The glyph is the
 heroicons solid set, matte white at 78% by default and gold at the
-grade — three or more friends on the roster did that act on that
+grade — two or more friends on the roster did that act on that
 title. The heart is not rose here; the grade owns the colour. The
 glyphs are the house's: the sentiment glyphs from `Title.Sentiment`,
 the bubble, the eye and the bookmark from the pennant.
@@ -374,7 +374,7 @@ The rail and the person card
 - [ ] No person card carries a presence sentence, a sharing note, "How friends see you" or "Nothing shared yet".
 - [ ] The acts strip holds one poster per title, newest first; every live act on the title is a glyph in its fixed slot above the poster — the opinion in slot 1, the eye in slot 2, the bookmark in slot 3 — and an empty slot draws nothing; no disc, capsule or stack.
 - [ ] The act slots are a 36px strip on the card's ground above each poster, no backing, with 28px solid glyphs at x = 6 · 34 · 62 in the rail and x = 11 · 51 · 91 on the page.
-- [ ] A glyph is matte white at 78% by default and gold when three or more friends on the roster did that act on that title; at two it is matte; the heart is never rose on a person card.
+- [ ] A glyph is matte white at 78% by default and gold when two or more friends on the roster did that act on that title; at two it is matte; the heart is never rose on a person card.
 - [ ] The You card is own acts like anyone's — reviews always, watched and listings when they were shared — with the filled own tile as its only mark.
 - [ ] A press on a rail card opens `/discovery/friends` with that person's card open and focused.
 - [ ] A press on a poster opens the title modal speaking for the newest act on that title; the modal keeps Delete on an own act.
