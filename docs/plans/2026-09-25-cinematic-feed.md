@@ -978,7 +978,7 @@ Four seams: the window/cap/head in the projection (pure), the `FeedHead` hook (b
 - Create: `assets/js/hooks/feed_head.js`, `assets/js/hooks/feed_head.test.js`
 - Modify: `assets/js/app.js`, `lib/media_centaur_web/live/discovery_live/feed_entries.ex`, `test/media_centaur_web/live/discovery_live/feed_entries_test.exs`, `lib/media_centaur_web/live/discovery_live.ex` (`mount`, `handle_params`, the events, `render/1`, the moduledoc), `assets/css/app.css` (the columns and the fold), `test/media_centaur_web/live/discovery_live_test.exs` § feed tab and § friends tab, `test/media_centaur_web/page_smoke_test.exs`
 
-- [ ] **Step 1: The window, the cap and the head — failing projection tests**
+- [x] **Step 1: The window, the cap and the head — failing projection tests**
 
 In `feed_entries_test.exs`, the window test becomes the paging test:
 
@@ -1023,7 +1023,7 @@ In `feed_entries_test.exs`, the window test becomes the paging test:
 
 `build/2`'s default opts in the test gain `head: nil`. Run → FAIL.
 
-- [ ] **Step 2: The projection** — `@page_size 20`, `@cap 60`, `cap/0`; `build/2` takes `head: activity_id | nil`:
+- [x] **Step 2: The projection** — `@page_size 20`, `@cap 60`, `cap/0`; `build/2` takes `head: activity_id | nil`:
 
 ```elixir
     sorted = rows |> Enum.filter(&(entry?(&1) and in_scope?(&1, scope))) |> Enum.sort_by(& &1.activity.acted_at, {:desc, DateTime})
@@ -1052,7 +1052,7 @@ In `feed_entries_test.exs`, the window test becomes the paging test:
 
 Moduledoc: the window, the cap, the head. The existing `feed_entries_test` line `assert FeedEntries.page_size() == 50` goes with the old window test. Green.
 
-- [ ] **Step 3: The `FeedHead` hook — failing bun test**
+- [x] **Step 3: The `FeedHead` hook — failing bun test**
 
 `assets/js/hooks/feed_head.test.js`: construct the hook with a fake element and a fake `IntersectionObserver` (capture the callback), call it with `isIntersecting: false` → `pushEvent("feed_scrolled")` once; `true` → `pushEvent("feed_at_top")`; a repeated `false` pushes nothing (the crossing, not the state); `destroyed()` disconnects. Run `bun test assets/js/hooks/feed_head.test.js` → FAIL. Then:
 
@@ -1077,7 +1077,7 @@ export const FeedHead = {
 
 Register in `app.js` beside `StripChart`. The dependency-cruiser boundaries (`mix boundaries`) see a hook importing nothing; fine.
 
-- [ ] **Step 4: Failing page tests** (§ feed tab; the helpers `entry/1`, `entries/1`, `feed_badge/0` exist):
+- [x] **Step 4: Failing page tests** (§ feed tab; the helpers `entry/1`, `entries/1`, `feed_badge/0` exist):
 
 ```elixir
     test "the window is twenty; Show older widens it by twenty to sixty, then the foot says so", %{conn: conn} do
@@ -1161,7 +1161,7 @@ Register in `app.js` beside `StripChart`. The dependency-cruiser boundaries (`mi
 
 Run → FAIL.
 
-- [ ] **Step 5: The CSS** — the columns and the fold, after the band block:
+- [x] **Step 5: The CSS** — the columns and the fold, after the band block:
 
 ```css
 /* ── Discovery's columns (UIDR-046) ── the feed column beside the rail
@@ -1182,7 +1182,7 @@ Run → FAIL.
 
 `assets.build`.
 
-- [ ] **Step 6: The template and the events** (`discovery_live.ex`):
+- [x] **Step 6: The template and the events** (`discovery_live.ex`):
 
 - `<Layouts.app … full_width …>`; the inner wrapper `mx-auto w-full max-w-4xl space-y-4 pt-10` → `discovery-page w-full space-y-4 pt-10`.
 - `mount` assigns `feed_head: nil`, `feed_queued: 0`, `feed_at_cap?: false`, `opened_people: MapSet.new()`, `landed_person: nil`; `feed_window: FeedEntries.page_size()` stays (now 20).
@@ -1214,13 +1214,15 @@ Run → FAIL.
 `rail/1` a private component in the LiveView (it is page composition, not a reusable component — no story; `data-nav-zone` none until Phase 7): `<aside id="feed-rail" class="discovery-rail">` with `<PersonCard.person_card :for={person <- @rail.people} person={person} width={:rail} />` and `<.link :if={@rail.hidden > 0} id="feed-rail-all" navigate={~p"/discovery/friends"} class="…">All {length(@friends)} friends</.link>`. The Watchlist tab's body goes into the same `discovery-columns` with the rail; the Friends tab renders `<div id="friends-grid" class="friends-grid" data-nav-zone="people">` with `width={:page}`, `opened?`, `landed?={person.id == @landed_person}`, then `AddFriendBlock` and the Settings pointer.
 - The moduledoc's Feed and Friends paragraphs rewritten from the spec (the columns, the rail, the window/cap/head, the grid, `?person=`).
 
-- [ ] **Step 7: The smoke** — `page_smoke_test.exs`: the `/discovery` fixture seeds one friend with a listing on a title the library owns (poster and backdrop images) and one own review, so the smoke renders a band's artwork branch, the rail with You and a friend, and the Friends grid; add `{"/discovery/friends?person=person-you", "discovery friends, a card opened"}`.
+- [x] **Step 7: The smoke** — `page_smoke_test.exs`: the `/discovery` fixture seeds one friend with a listing on a title the library owns (poster and backdrop images) and one own review, so the smoke renders a band's artwork branch, the rail with You and a friend, and the Friends grid; add `{"/discovery/friends?person=person-you", "discovery friends, a card opened"}`.
 
-- [ ] **Step 8: Green, precommit, the three widths**
+- [x] **Step 8: Green, precommit, the three widths**
 
 `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live_test.exs test/media_centaur_web/live/discovery_live test/media_centaur_web/page_smoke_test.exs`, `bun test assets/js/hooks`, then precommit. On :2160 (the real roster) `page-shot` `/discovery` at `1920x1080`, `1280x800`, `2560x1440`, and `/discovery?scope=you`, `/discovery/friends`, `/discovery/watchlist` at 1920; the half-size copy of each 1920 shot. Read each. What to look for, from G and J: the feed column at 1236 beside the rail at 560 with the 24 gutter; four bands and about five rail cards in the 1080 fold; the still's box beginning at x≈700; at 1280 no rail and the box from 700 (a 480 box at 1180); at 2560 the 900 cap; the Friends grid two across with the heads on one line; every name, ago, sentence, title and glyph readable at half.
 
 **Acceptance:** the page is two columns above the fold and one below, with no assign for the width; the rail is You first, seven by latest act, *All N friends* when the cap hides anyone, absent on the Friends tab; the window is 20/40/60 with the cap's foot line; an arrival prepends live at the top and queues behind "N new" when scrolled; a rail card opens the Friends tab at its person; the grid folds at 1700; the tab count follows the scope; the modal opens from a band and closes to the same scope (existing tests); the three widths and the half-size check read as the spec describes.
+
+> **Realized 2026-09-25, under `/unify_design`:** as written, with the sentinel one pixel tall (a zero-height target is not reliably intersecting) and the observer's root the viewport, since the page scrolls the window (`nav_reselect.js` does the same). `?person=` is navigation state read in `handle_params` like `?scope=`; the landed card is `landed?` on the card, `phx-mounted` focus. The page tests that ingest a large roster seed the referenced cache first — every ingest warms the title's artwork in a supervised task, and the TMDB rate limiter releases about thirty a second, so sixty-five unseeded ingests outrun the one-second drain.
 
 ```bash
 git commit -am "feat: the Feed at full width — bands beside the rail, a windowed feed with a queued head, the Friends grid

@@ -12,9 +12,18 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   `:friends` (no own rows) or `:you` (own rows only). It is navigation
   state — the page reads it off `?scope=` with `parse_scope/1` and
   writes it back with `scope_query/1`, the one pair that spells the
-  scope in a URL — never a preference. The window is the newest `window` rows; `has_older?`
-  says whether *Show older* has anything to show. The tab's count is
-  the window's size under the current scope.
+  scope in a URL — never a preference.
+
+  Paging is a window with a cap and a queued head (UIDR-046). The
+  window is the newest `window` rows — twenty at first, *Show older*
+  adding twenty (`page_size/0`) to the cap of sixty (`cap/0`);
+  `has_older?` says whether *Show older* has anything to show and
+  `at_cap?` that the cap hides older actions. The `head` is the newest
+  band the reader was shown: `nil` while the column's top is in view,
+  so an arrival prepends live; else that activity's id, which freezes
+  the window there and counts what sorts above it as `queued` — "N
+  new" until pressed. A head the list no longer holds is live again.
+  The tab's count is the window's size under the current scope.
 
   `empty_reason/2` is the empty state's diagnosis (UIDR-034): the You
   scope needs no relay and no friend, since a review creates its row
@@ -31,7 +40,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.Title.Logic
 
-  @page_size 50
+  @page_size 20
+  @cap 60
   @kinds [:review, :listing]
 
   @type scope :: :everyone | :friends | :you
@@ -40,6 +50,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   @doc "Rows per window — the initial load and each Show older step."
   @spec page_size() :: pos_integer()
   def page_size, do: @page_size
+
+  @doc "The most rows a window shows; past it the foot says so."
+  @spec cap() :: pos_integer()
+  def cap, do: @cap
 
   @doc "The scope named by the URL's `scope` param; Everyone for anything else."
   @spec parse_scope(String.t() | nil) :: scope()
@@ -58,23 +72,53 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   def empty_reason(_scope, false), do: :not_ready
   def empty_reason(_scope, true), do: :quiet
 
-  @doc "The windowed rows under `scope`, newest first. `now` anchors each row's relative time."
-  @spec build([map()], now: DateTime.t(), window: pos_integer(), scope: scope()) ::
-          %{entries: [FeedEntry.t()], has_older?: boolean()}
+  @doc """
+  The windowed rows under `scope`, newest first, at or below the `head`.
+  `now` anchors each row's relative time; a `window` past the cap is the
+  cap.
+  """
+  @spec build([map()],
+          now: DateTime.t(),
+          window: pos_integer(),
+          scope: scope(),
+          head: String.t() | nil
+        ) ::
+          %{
+            entries: [FeedEntry.t()],
+            has_older?: boolean(),
+            at_cap?: boolean(),
+            queued: non_neg_integer()
+          }
   def build(rows, opts) do
     now = Keyword.fetch!(opts, :now)
-    window = Keyword.fetch!(opts, :window)
+    window = min(Keyword.fetch!(opts, :window), @cap)
     scope = Keyword.fetch!(opts, :scope)
 
-    entries =
+    sorted =
       rows
       |> Enum.filter(&(entry?(&1) and in_scope?(&1, scope)))
       |> Enum.sort_by(& &1.activity.acted_at, {:desc, DateTime})
 
+    {queued, visible} = split_at_head(sorted, Keyword.get(opts, :head))
+
     %{
-      entries: entries |> Enum.take(window) |> Enum.map(&entry(&1, now)) |> stamp_crops(),
-      has_older?: length(entries) > window
+      entries: visible |> Enum.take(window) |> Enum.map(&entry(&1, now)) |> stamp_crops(),
+      has_older?: length(visible) > window and window < @cap,
+      at_cap?: window == @cap and length(visible) > @cap,
+      queued: length(queued)
     }
+  end
+
+  # The head is the newest band the reader was shown; what sorts above it
+  # arrived since and waits behind "N new". No head, or a head that was
+  # withdrawn, is live.
+  defp split_at_head(sorted, nil), do: {[], sorted}
+
+  defp split_at_head(sorted, head) do
+    case Enum.split_while(sorted, &(&1.activity.id != head)) do
+      {_all, []} -> {[], sorted}
+      {above, from_head} -> {above, from_head}
+    end
   end
 
   # The crop rule's one variable: a row directly under a row of the same

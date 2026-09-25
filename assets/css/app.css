@@ -3376,6 +3376,49 @@ body:has(.modal-backdrop[data-state="open"]) {
   opacity: 1;
 }
 
+/* ── Discovery's columns (UIDR-046) ── the feed column beside the rail
+   above 1600px of content; one column below. The width is the
+   container's, never an assign's. The Friends grid folds at 1700. */
+.discovery-page {
+  container: discovery / inline-size;
+}
+
+.discovery-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 24px;
+  align-items: start;
+}
+
+.discovery-rail {
+  display: none;
+}
+
+@container discovery (min-width: 1600px) {
+  .discovery-columns {
+    grid-template-columns: minmax(0, 1fr) 560px;
+  }
+
+  .discovery-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
+.friends-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@container discovery (min-width: 1700px) {
+  .friends-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* ── Guide book prose ──
    Reading typography for the in-app guide (/guide). A coordinated multi-element
    system (headings, lists, tables, code, callouts), so it lives in CSS rather than

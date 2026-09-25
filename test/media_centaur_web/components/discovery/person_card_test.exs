@@ -139,6 +139,19 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert row_text =~ "reviewed Sample Movie 7"
   end
 
+  test "the card the address names takes focus on mount; the others do not" do
+    landed = render(person: quiet_friend(), width: :page, landed?: true)
+
+    assert landed
+           |> LazyHTML.query("[data-component='person-card']")
+           |> LazyHTML.attribute("phx-mounted") != []
+
+    plain = render(person: quiet_friend(), width: :page)
+
+    assert plain |> LazyHTML.query("[data-component='person-card']") |> LazyHTML.attribute("phx-mounted") ==
+             []
+  end
+
   test "a person with no acts is a tile and a name: no strip, no ago, no note of any kind" do
     html = render(person: quiet_friend(), width: :rail)
 

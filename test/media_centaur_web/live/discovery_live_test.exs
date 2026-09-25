@@ -442,6 +442,23 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert length(ids(view, friend_card() <> " [data-role='acts'] > button")) == 5
       refute has_element?(view, friend_card() <> " footer")
     end
+
+    test "?person= opens that card and lands on it; the grid holds every person", %{conn: conn} do
+      Identity.ensure()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+
+      {:ok, view, _html} =
+        live(conn, "/discovery/friends?person=" <> String.replace(friend_card(), "#", ""))
+
+      assert has_element?(view, friend_card() <> "[data-opened]")
+      assert has_element?(view, friend_card() <> "[phx-mounted]")
+      refute has_element?(view, "#person-you[data-opened]")
+
+      assert ids(view, "#friends-grid [data-component='person-card']") == [
+               "person-you",
+               String.replace(friend_card(), "#", "")
+             ]
+    end
   end
 
   describe "feed tab" do
@@ -519,6 +536,32 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       Event.sign(
         Translation.to_event(:listing, title, [], @friend_pubkey, created_at: at, acted_at: at),
         @friend_secret
+      )
+    end
+
+    defp friend_id, do: "person-" <> String.slice(@friend_pubkey, 0, 8)
+
+    # A roster of many: one keypair per index, from a distinct secret.
+    defp roster_secret(index),
+      do:
+        Secret.wrap(
+          String.duplicate("0", 60) <> String.pad_leading(Integer.to_string(1000 + index), 4, "0")
+        )
+
+    defp roster_pubkey(index), do: Keys.pubkey(roster_secret(index))
+
+    defp roster_listing_event(index, tmdb_id, at) do
+      title =
+        Title.new!(%{
+          tmdb_id: tmdb_id,
+          media_type: :movie,
+          name: "Sample Movie #{tmdb_id}",
+          year: "2024"
+        })
+
+      Event.sign(
+        Translation.to_event(:listing, title, [], roster_pubkey(index), created_at: at, acted_at: at),
+        roster_secret(index)
       )
     end
 
@@ -1020,22 +1063,123 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       await_supervised_tasks()
     end
 
-    test "the window holds a page; Show older widens it", %{conn: conn} do
+    test "the window is twenty; Show older widens it by twenty to sixty, then the foot says so",
+         %{conn: conn, data_dir: data_dir} do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       now = System.os_time(:second)
 
-      for offset <- 1..51,
-          do: {:ok, _} = Activities.ingest(friend_listing_event(1000 + offset, now - offset))
+      # Every ingest warms the title's artwork in a task; with the cache
+      # already whole for these titles there is nothing to fetch, so
+      # sixty-five of them drain at once.
+      for offset <- 1..65 do
+        seed_referenced_artwork(data_dir, :movie, 1000 + offset, [:poster, :backdrop, :logo])
+        {:ok, _} = Activities.ingest(friend_listing_event(1000 + offset, now - offset))
+      end
 
       {:ok, view, _html} = live(conn, "/discovery")
-      assert length(entries(view)) == 50
-      assert has_element?(view, feed_badge(), "50")
+      assert length(entries(view)) == 20
+      assert has_element?(view, feed_badge(), "20")
       assert has_element?(view, "#feed-show-older", "Show older")
+      refute has_element?(view, "#feed-cap")
 
       view |> element("#feed-show-older") |> render_click()
-      assert length(entries(view)) == 51
-      assert has_element?(view, feed_badge(), "51")
+      assert length(entries(view)) == 40
+      assert has_element?(view, feed_badge(), "40")
+
+      view |> element("#feed-show-older") |> render_click()
+      assert length(entries(view)) == 60
       refute has_element?(view, "#feed-show-older")
+      assert has_element?(view, "#feed-cap", "That's the last sixty.")
+
+      await_supervised_tasks()
+    end
+
+    test "at the top an arrival prepends live; scrolled, it queues behind N new until pressed",
+         %{conn: conn} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      now = System.os_time(:second)
+      {:ok, first} = Activities.ingest(friend_listing_event(701, now - 60))
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      {:ok, live_one} = Activities.ingest(friend_listing_event(702, now - 30))
+      render_until(view, fn _html -> has_element?(view, entry(live_one)) end)
+      assert entries(view) == ["feed-row-#{live_one.id}", "feed-row-#{first.id}"]
+      refute has_element?(view, "#feed-new")
+
+      render_hook(view, "feed_scrolled", %{})
+      {:ok, queued} = Activities.ingest(friend_listing_event(703, now))
+      render_until(view, fn _html -> has_element?(view, "#feed-new") end)
+      refute has_element?(view, entry(queued))
+      assert has_element?(view, "#feed-new", "1 new")
+      assert has_element?(view, feed_badge(), "2")
+
+      view |> element("#feed-new") |> render_click()
+      assert hd(entries(view)) == "feed-row-#{queued.id}"
+      refute has_element?(view, "#feed-new")
+
+      render_hook(view, "feed_scrolled", %{})
+      {:ok, later} = Activities.ingest(friend_listing_event(704, now + 1))
+      render_until(view, fn _html -> has_element?(view, "#feed-new") end)
+      render_hook(view, "feed_at_top", %{})
+      assert has_element?(view, entry(later))
+      refute has_element?(view, "#feed-new")
+      assert length(entries(view)) == 4
+
+      await_supervised_tasks()
+    end
+
+    test "the rail is You first then friends by latest act, capped at eight with All N friends; a card opens the Friends tab at the person",
+         %{conn: conn} do
+      now = System.os_time(:second)
+
+      for index <- 1..10 do
+        {:ok, _friend} = Social.add_friend(roster_pubkey(index), "Friend #{index}")
+        {:ok, _} = Activities.ingest(roster_listing_event(index, 2000 + index, now - index * 60))
+      end
+
+      {:ok, view, _html} = live(conn, "/discovery")
+
+      rail_cards = ids(view, "#feed-rail [data-component='person-card']")
+      assert hd(rail_cards) == "person-you"
+      assert length(rail_cards) == 8
+      assert Enum.at(rail_cards, 1) == "person-" <> String.slice(roster_pubkey(1), 0, 8)
+      assert has_element?(view, "#feed-rail [data-component='person-card'][data-width='rail']")
+      assert has_element?(view, "#feed-rail-all", "All 10 friends")
+
+      card = "#feed-rail #person-" <> String.slice(roster_pubkey(1), 0, 8)
+      view |> element(card) |> render_click()
+      assert_redirect(view, "/discovery/friends?person=person-" <> String.slice(roster_pubkey(1), 0, 8))
+
+      await_supervised_tasks()
+    end
+
+    test "the rail is on the Feed and Watchlist tabs, not the Friends tab; the scope and Show older leave it alone",
+         %{conn: conn, data_dir: data_dir} do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      now = System.os_time(:second)
+
+      for offset <- 1..25 do
+        seed_referenced_artwork(data_dir, :movie, 1000 + offset, [:poster, :backdrop, :logo])
+        {:ok, _} = Activities.ingest(friend_listing_event(1000 + offset, now - offset))
+      end
+
+      {:ok, view, _html} = live(conn, "/discovery")
+      assert ids(view, "#feed-rail [data-component='person-card']") == ["person-you", friend_id()]
+
+      view |> element("#feed-scope button", "You") |> render_click()
+      assert_patch(view, "/discovery?scope=you")
+      assert ids(view, "#feed-rail [data-component='person-card']") == ["person-you", friend_id()]
+
+      view |> element("#feed-scope button", "Everyone") |> render_click()
+      view |> element("#feed-show-older") |> render_click()
+      assert ids(view, "#feed-rail [data-component='person-card']") == ["person-you", friend_id()]
+
+      {:ok, view, _html} = live(conn, "/discovery/watchlist")
+      assert has_element?(view, "#feed-rail")
+
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      refute has_element?(view, "#feed-rail")
+      assert has_element?(view, "#friends-grid")
 
       await_supervised_tasks()
     end

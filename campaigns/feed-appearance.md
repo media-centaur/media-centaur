@@ -120,6 +120,17 @@ Feed's page tests passed untouched. The crop offset is stamped by the
 projection from adjacency in the scoped window. The bands sit in the
 old 896px column until Phase 5 gives the page its frame.
 
+**Phase 5 shipped 2026-09-25.** Discovery takes the layout's full
+width: the Feed column beside the rail (person cards at the rail's
+width, You first, seven by latest act, *All N friends* past the cap)
+above 1600px of content and one column below — a container query, no
+assign; the window is twenty to a cap of sixty with the foot line; an
+arrival prepends live at the top and queues behind "N new" when the
+`FeedHead` hook reports the column's head gone; a rail card opens the
+Friends tab at its person (`?person=`), whose grid folds at 1700.
+**The owner's TV look at `/discovery` is next, before Phase 6 writes
+the records.**
+
 ## Handoff — start here in a fresh context
 
 1. Read this file (Status, Decisions made, Deferred), then the plan's
