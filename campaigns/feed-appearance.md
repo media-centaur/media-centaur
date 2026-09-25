@@ -152,6 +152,18 @@ superseded by the design this campaign produces, and the record says so.
   renders the rail (R1), full width at the same scale (R2) and a
   spanning lead over feed-plus-rail (R3), with a half-size "10-foot"
   check on every render.
+* `2026-09-25` (morning) — Round 7 verdict (`CRITIQUE-7.md`): the
+  couch floors work (every page reads at half size) and change the
+  band into a photograph (47–74% slices at 220–236px); full width is
+  no longer wasted at couch scale, so the question is what the width
+  is spent on. Recommended: R3's structure — the masthead lead over a
+  feed column beside a Friends rail whose row is the person's latest
+  watch, folding to three tabs below 1700px — with R1's rail density;
+  R2 (full width, no rail) is the fallback if the rail proves thin on
+  a three-friend roster. Opened for the record: what a rail row opens
+  (`/discovery/friends` as a route at every width), two nav graphs,
+  one definition of presence, UIDR-038 rules 7–10. The couch floors
+  belong in the `user-interface` skill as a house rule.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -179,6 +191,10 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
+3e. **Round 7** — done (`BRIEF-7.md`, `CRITIQUE-7.md`): couch scale
+   and the Friends rail. Round 8, on the owner's word: one assembled
+   couch page (R3's structure, R1's rail density, every state)
+   replacing F; then the spec and the plan re-derived.
 3d. **Draft implementation plan** —
    `docs/plans/2026-09-25-cinematic-feed.md`, test-first, six phases,
    written before the owner's decision so a yes goes straight to
