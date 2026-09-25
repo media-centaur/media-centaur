@@ -276,7 +276,11 @@ superseded by the design this campaign produces, and the record says so.
   silver metal / gold metal — the gold must not read as sized up (a
   light filled disc reads larger than an ink one; a darker rim holds
   the edge), and the band should be tried as a **header** (poster
-  titles live in the footer). Under render as `O-metal-tiers`.
+  titles live in the footer). Corrected by the owner mid-render: the
+  finish goes on the **glyph**, not the backing — the disc stays ink at
+  one size in every tier; the glyph is matte (white at 78%) for one
+  friend, silver metal for two, gold metal for three or more. Under
+  render as `O-metal-tiers`, disc and header band.
 * `2026-09-25` — The owner: a hover / cursor "additional info" layer
   on the act discs (the verb, the episode, the title) is a **separate
   future scope**; the current iteration is readability only. Deferred,
