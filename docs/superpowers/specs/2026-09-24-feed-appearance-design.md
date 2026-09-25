@@ -182,8 +182,7 @@ alone beneath. The scope pill and *Show older* never touch it.
 | Height | 204 with acts; 72 with none | 335 with acts; 124 with none |
 | A press | opens the Friends tab at this person | opens the card in place |
 
-**The act disc.** At the poster's top right, inset 8px: a disc of ink
-at .85 with a 1px white/18 ring, the act glyph centred in it on the
+**The act disc.** At the poster's top right, inset 8px: an opaque disc of ink with a 1px white/18 ring, the act glyph centred in it on the
 card's text colour at 80%; every disc the same ink, and the heart glyph alone solid rose
 (`--color-love`). Two acts on one poster share one joined capsule backing (the disc's width, two glyphs tall) holding both glyphs in mast order. The glyphs are
 the house's: the sentiment glyphs from `Title.Sentiment`, the bubble,
