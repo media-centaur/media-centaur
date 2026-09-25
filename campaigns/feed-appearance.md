@@ -280,7 +280,13 @@ superseded by the design this campaign produces, and the record says so.
   finish goes on the **glyph**, not the backing — the disc stays ink at
   one size in every tier; the glyph is matte (white at 78%) for one
   friend, silver metal for two, gold metal for three or more. Under
-  render as `O-metal-tiers`, disc and header band.
+  rendered as `O-metal-tiers`, disc and header band. Finding: gold
+  separates at half size; **silver does not separate from matte**
+  (the gradient averages to the same grey at 14px); a mixed capsule
+  reads honestly; the header band costs the poster's top quarter,
+  where faces sit; the filled disc still reads larger than ink at the
+  same diameter. Viable with glyph materials: two tiers (matte /
+  gold), not three.
 * `2026-09-25` — The owner: a hover / cursor "additional info" layer
   on the act discs (the verb, the episode, the title) is a **separate
   future scope**; the current iteration is readability only. Deferred,
