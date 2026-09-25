@@ -299,8 +299,13 @@ superseded by the design this campaign produces, and the record says so.
   a wash (the disc covers a face on 7 of 16 posters, 3 partial; the
   band on 8, 1 partial); the header above the poster covers nothing
   for 36px of card height; a one-act band reads sparse only when the
-  lone glyph is the right-hand bookmark. The designer's pick: above
-  the poster. The owner decides.
+  lone glyph is the right-hand bookmark. **Decided (owner, "agreed",
+  2026-09-25): the act mark is the fixed-slot header above the
+  poster** — three 28px slots on the card's ground (the opinion, the
+  eye, the bookmark), empty slots drawn as nothing, no backing, the
+  glyph matte by default and gold when several friends agree; the
+  corner disc and the capsule are retired. G and J patched; the spec
+  and the plan follow.
 * `2026-09-25` — The owner: a hover / cursor "additional info" layer
   on the act discs (the verb, the episode, the title) is a **separate
   future scope**; the current iteration is readability only. Deferred,
@@ -332,7 +337,10 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
-3j. **Round 9e** — done: J carries the corner disc; the spec and the
+3k. **Round 9f** — the act mark settled as the fixed-slot header above
+   the poster; G and J patched; the spec's and the plan's act-disc
+   sections rewritten to it.
+3j. **Round 9e** — done: J carried the corner disc (since retired); the spec and the
    plan are re-derived from G and J. **Next: the owner's go, then
    Phase 1 of the plan.** Was: the spec's
    "What the user sees" and the implementation plan re-derived from G
