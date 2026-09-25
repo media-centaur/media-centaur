@@ -241,7 +241,7 @@ the film's untouched HDR10 grade and applies its own tone mapping.
 - **Every switch holds playback.** The display shows black for about a
   second while it re-locks the HDMI link on a mode change (same as a game
   console). The script pauses before the switch and resumes `settle_seconds`
-  later (1.5 s), so the opening of the film isn't lost under the black. The
+  later (3 s), so the opening of the film isn't lost under the black. The
   hold applies in both directions — entering HDR, and dropping back to SDR
   when the next playlist entry is SDR — but not on quit. A player that was
   already paused is left alone, and resuming by hand during the window ends
