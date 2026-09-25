@@ -1,0 +1,114 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>P2 · Slot header</title><style>
+/* ---- P2 · three fixed slots for the three act kinds a person can have on one title: the review glyph (heart / thumb up / thumb down / bubble), the eye, the
+   bookmark — each always in the same position on every poster, so no capsule or stack is needed and an empty slot draws nothing. Two forms, against the disc
+   as it stands, on O's three rail cards (You, Cleo, Nick at 560; posters 96×144; the solid glyph 28). The grade is O's in practice — two tiers: the glyph matte
+   white/78 for one or two friends, gold for three or more. Cards, acts and counts are O's verbatim. ---- */
+:root{--ink:oklch(13% 0.02 264);              /* the unit's ground; the disc */
+ --sec:oklch(93% 0.01 264/.66);               /* the ago, the labels */
+ --matte:oklch(100% 0 0/.78);                 /* the glyph below tier 3: flat white at 78% */
+ --ring1:oklch(100% 0 0/.18);                 /* J's 1px ring inside the disc's edge */
+ --band:linear-gradient(oklch(13% 0.02 264/.9),oklch(13% 0.02 264/.7))}   /* the header band: ink at .9 fading to .7 at its bottom edge */
+.content{max-width:none}
+h1{font-size:30px;line-height:36px;margin:0 0 14px 4px}
+
+/* ---- the card: J's anatomy, verbatim from O (rail) and K (page). Per-form sizes are named here and only here:
+   --g the glyph, --d the disc, --bh the band, --x1/--x2/--x3 the three slots' left edges. ---- */
+.card{position:relative;border-radius:12px;background:var(--ink);cursor:pointer;isolation:isolate}
+.card.rail{display:flex;align-items:flex-start;gap:14px;padding:12px 14px;width:560px;--tile:48px;--tile-fs:19px;--pw:96px;--sgap:16px;--stop:8px;
+ --g:28px;--d:44px;--bh:36px;--x1:6px;--x2:34px;--x3:62px}                       /* 96 wide: 6 | 28 | 28 | 28 | 6 */
+.card.page{padding:30px;width:900px;--tile:64px;--tile-fs:26px;--pw:130px;--sgap:16px;--stop:16px;
+ --g:28px;--bh:44px;--x1:11px;--x2:51px;--x3:91px}                               /* 130 wide: 11 | 28 | 12 | 28 | 12 | 28 | 11 */
+.head{display:flex;align-items:center;gap:18px}
+.ht,.pt{flex:1;min-width:0}
+.tile{position:relative;width:var(--tile);height:var(--tile);border-radius:99px;display:grid;place-items:center;font-size:var(--tile-fs);font-weight:600;line-height:1;flex:none;overflow:hidden;
+ background:oklch(72% 0.14 264/.18);color:var(--p);box-shadow:0 0 0 1px oklch(72% 0.14 264/.22) inset,0 2px 8px oklch(0% 0 0/.35)}
+.card.rail .tile{margin-top:3px}
+.tile.you{background:oklch(62% 0.16 264);color:oklch(96% 0.008 264);font-weight:700;box-shadow:0 2px 8px oklch(0% 0 0/.4)}
+.nm{display:flex;align-items:baseline;gap:12px;font-weight:600;color:var(--bc)}
+.card.page .nm{font-size:24px;line-height:32px}
+.card.rail .nm{font-size:22px;line-height:28px}
+.nm span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm .ago{margin-left:auto;flex:none;font-size:18px;font-weight:400;color:var(--sec);font-variant-numeric:tabular-nums}
+.strip{display:flex;flex-wrap:wrap;gap:var(--sgap);margin-top:var(--stop)}
+.act{position:relative;display:block;flex:none;width:var(--pw)}
+.sp{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:6px;border:1px solid oklch(100% 0 0/.08);background:oklch(93% 0.01 264/.1)}
+.card.page .sp{box-shadow:0 4px 16px oklch(0% 0 0/.55)}
+.card.rail .sp{box-shadow:0 3px 12px oklch(0% 0 0/.5)}
+.gl{display:block;width:var(--g);height:var(--g);fill:currentColor}   /* the symbols carry no fill of their own, so the fill is set here and inherits into the <use> */
+
+/* ---- the glyph's material, two tiers: matte white/78 below 3, gold at 3+ — O's 135° gradient across the glyph's 24-unit box. .t1 / .t2 / .t3 on each act name its count. ---- */
+.flag{color:var(--matte)}
+.flag.t3 .gl{fill:url(#g-gold)}
+
+/* 1 · the disc as it stands: O's geometry — opaque ink, the 1px white/18 ring, --d wide, ends fully round, inset 8 at the poster's top-right; each act a --d circle
+   with the glyph centred; consecutive cells overlap 10, so one act is the 44 disc and two the 44×78 capsule. */
+.r-disc .flags{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;align-items:center;width:var(--d);border-radius:99px;z-index:2;
+ background:var(--ink);box-shadow:0 0 0 1px var(--ring1) inset}
+.r-disc .flag{position:relative;display:grid;place-items:center;width:var(--d);height:var(--d);border-radius:99px}
+.r-disc .flags > * + *{margin-top:-10px}
+
+/* the slots (2 and 3): each act kind has one fixed left edge inside the --bh strip — the review glyph at --x1, the eye at --x2, the bookmark at --x3 — and the
+   glyph sits vertically centred. An act that is absent has no element, so its slot is bare strip. */
+.slots .flag{position:absolute;top:calc((var(--bh) - var(--g))/2);width:var(--g);height:var(--g);display:grid;place-items:center}
+.slots .flag.love,.slots .flag.like,.slots .flag.dislike,.slots .flag.review{left:var(--x1)}
+.slots .flag.watched{left:var(--x2)}
+.slots .flag.listing{left:var(--x3)}
+
+/* 2 · header on the poster: a --bh band across the poster's top, its top corners on the poster's radius 6, the bottom edge square; ink .9 at the top fading to .7
+   at the bottom edge; no ring. */
+.r-on .flags{position:absolute;top:0;left:0;right:0;height:var(--bh);border-radius:6px 6px 0 0;background:var(--band);z-index:2}
+
+/* 3 · header above the poster: the same slots in a --bh strip above the poster on the card's own ground — no band, no backing; the poster untouched; the act,
+   and so the card, grows by --bh. */
+.r-above .act{display:flex;flex-direction:column}
+.r-above .flags{order:-1;position:relative;display:block;height:var(--bh);width:100%}
+
+/* mockup scaffolding: the legend under the heading, the row labels (18px), the count under each poster (18px, aligned to the strip's columns, off the card; two acts in slot order) */
+.legend{margin:0 4px 20px;max-width:150ch;font-size:18px;line-height:24px;color:oklch(93% 0.01 264/.7)}
+.legend b{color:oklch(93% 0.01 264/.9);font-weight:500}
+.lab{font-size:18px;line-height:24px;color:var(--sec);margin:28px 0 8px 2px;white-space:nowrap}
+.lab.first{margin-top:0}
+.lab b{color:oklch(93% 0.01 264/.9);font-weight:500}
+.row{display:flex;gap:24px;align-items:flex-start}
+.unit{width:560px}
+.unit.page{width:900px}
+.tiers{display:grid;grid-template-columns:repeat(3,96px);gap:16px;margin:8px 0 0 76px;font-size:18px;line-height:22px;color:var(--sec);font-variant-numeric:tabular-nums}
+.unit.page .tiers{grid-template-columns:repeat(3,130px);margin-left:30px}
+.tiers span{white-space:nowrap}
+</style></head><body>
+<div class="frame"><aside class="sidebar"><i></i><i></i><i class="on"></i><i></i><i></i><i class="gap"></i><i></i></aside><main><div class="content"><h1>Discovery</h1>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<!-- the gold: one 135° sweep across the glyph's 24-unit box; the light stop at the top-left, the dark at 55%, a lighter stop at the bottom-right -->
+<linearGradient id="g-gold" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="24" y2="24"><stop offset="0" stop-color="oklch(90% 0.13 88)"/><stop offset=".55" stop-color="oklch(62% 0.13 78)"/><stop offset="1" stop-color="oklch(84% 0.14 85)"/></linearGradient>
+<!-- the solid set: heroicons 24/solid — heart, hand-thumb-up, hand-thumb-down, chat-bubble-oval-left, eye, bookmark (J's paths; the fill comes from .gl so a gradient can take it) -->
+<symbol id="s-love" viewBox="0 0 24 24"><path d="m11.645 20.91-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z"/></symbol>
+<symbol id="s-like" viewBox="0 0 24 24"><path d="M7.493 18.5c-.425 0-.82-.236-.975-.632A7.48 7.48 0 0 1 6 15.125c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75A.75.75 0 0 1 15 2a2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23h-.777ZM2.331 10.727a11.969 11.969 0 0 0-.831 4.398 12 12 0 0 0 .52 3.507C2.28 19.482 3.105 20 3.994 20H4.9c.445 0 .72-.498.523-.898a8.963 8.963 0 0 1-.924-3.977c0-1.708.476-3.305 1.302-4.666.245-.403-.028-.959-.5-.959H4.25c-.832 0-1.612.453-1.918 1.227Z"/></symbol>
+<symbol id="s-dislike" viewBox="0 0 24 24"><path d="M15.73 5.5h1.035A7.465 7.465 0 0 1 18 9.625a7.465 7.465 0 0 1-1.235 4.125h-.148c-.806 0-1.534.446-2.031 1.08a9.04 9.04 0 0 1-2.861 2.4c-.723.384-1.35.956-1.653 1.715a4.499 4.499 0 0 0-.322 1.672v.633A.75.75 0 0 1 9 22a2.25 2.25 0 0 1-2.25-2.25c0-1.152.26-2.243.723-3.218.266-.558-.107-1.282-.725-1.282H3.622c-1.026 0-1.945-.694-2.054-1.715A12.137 12.137 0 0 1 1.5 12.25c0-2.848.992-5.464 2.649-7.521C4.537 4.247 5.136 4 5.754 4H9.77a4.5 4.5 0 0 1 1.423.23l3.114 1.04a4.5 4.5 0 0 0 1.423.23ZM21.669 14.023c.536-1.362.831-2.845.831-4.398 0-1.22-.182-2.398-.52-3.507-.26-.85-1.084-1.368-1.973-1.368H19.1c-.445 0-.72.498-.523.898.591 1.2.924 2.55.924 3.977a8.958 8.958 0 0 1-1.302 4.666c-.245.403.028.959.5.959h1.053c.832 0 1.612-.453 1.918-1.227Z"/></symbol>
+<symbol id="s-review" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M5.337 21.718a6.707 6.707 0 0 1-.533-.074.75.75 0 0 1-.44-1.223 3.73 3.73 0 0 0 .814-1.686c.023-.115-.022-.317-.254-.543C3.274 16.587 2.25 14.41 2.25 12c0-5.03 4.428-9 9.75-9s9.75 3.97 9.75 9c0 5.03-4.428 9-9.75 9-.833 0-1.643-.097-2.417-.279a6.721 6.721 0 0 1-4.246.997Z"/></symbol>
+<symbol id="s-watched" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1.323 11.447C2.811 6.976 7.028 3.75 12.001 3.75c4.97 0 9.185 3.223 10.675 7.69.12.362.12.752 0 1.113-1.487 4.471-5.705 7.697-10.677 7.697-4.97 0-9.186-3.223-10.675-7.69a1.762 1.762 0 0 1 0-1.113ZM17.25 12a5.25 5.25 0 1 1-10.5 0 5.25 5.25 0 0 1 10.5 0Z"/></symbol>
+<symbol id="s-listing" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.32 2.577a49.255 49.255 0 0 1 11.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 0 1-1.085.67L12 18.089l-7.165 3.583A.75.75 0 0 1 3.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93Z"/></symbol>
+</defs></svg>
+<p class="legend"><b>P2 · Slot header.</b> Three fixed slots for the three act kinds a person can have on one title — the review glyph, the eye, the bookmark — each always in the same position, so no capsule or stack; an empty slot draws nothing. Two forms, against the disc as it stands. Same three rail cards, acts and counts as O; two tiers — matte white below 3, gold at 3+. Under each strip, the count per poster.</p>
+<div class="lab first"><b>1 · The disc</b> — O's ink disc, 44 at the poster's top-right; two acts the 44×78 capsule. The glyph 28: matte white/78, gold at 3+.</div>
+<div class="row r-disc">
+<div class="unit" id="you-disc"><div class="card rail"><div class="tile you">Y</div><div class="pt"><div class="nm"><span>You</span><span class="ago">1h ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag love t3" title="loves"><svg class="gl"><use href="#s-love"/></svg></span></span></span><span class="act"><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""><span class="flags"><span class="flag listing t1" title="wants to watch"><svg class="gl"><use href="#s-listing"/></svg></span></span></span><span class="act"><img class="sp" src="../art/tears-of-steel-poster.jpg" alt=""><span class="flags"><span class="flag dislike t1" title="dislikes"><svg class="gl"><use href="#s-dislike"/></svg></span></span></span></div></div></div><div class="tiers"><span>3+</span><span>1</span><span>1</span></div></div>
+<div class="unit" id="cleo-disc"><div class="card rail"><div class="tile">C</div><div class="pt"><div class="nm"><span>Cleo</span><span class="ago">5m ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><span class="flags"><span class="flag watched t2" title="watched"><svg class="gl"><use href="#s-watched"/></svg></span></span></span><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag love t3" title="loves"><svg class="gl"><use href="#s-love"/></svg></span><span class="flag watched t1" title="watched"><svg class="gl"><use href="#s-watched"/></svg></span></span></span><span class="act"><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><span class="flags"><span class="flag like t3" title="likes"><svg class="gl"><use href="#s-like"/></svg></span></span></span></div></div></div><div class="tiers"><span>2</span><span>3+ · 1</span><span>3+</span></div></div>
+<div class="unit" id="nick-disc"><div class="card rail"><div class="tile">N</div><div class="pt"><div class="nm"><span>Nick</span><span class="ago">2h ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag like t2" title="likes"><svg class="gl"><use href="#s-like"/></svg></span></span></span><span class="act"><img class="sp" src="../art/metropolis-poster.jpg" alt=""><span class="flags"><span class="flag listing t1" title="wants to watch"><svg class="gl"><use href="#s-listing"/></svg></span></span></span><span class="act"><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><span class="flags"><span class="flag love t2" title="loves"><svg class="gl"><use href="#s-love"/></svg></span></span></span></div></div></div><div class="tiers"><span>2</span><span>1</span><span>2</span></div></div>
+</div>
+<div class="lab"><b>2 · Header on the poster</b> — a 36 band across the poster's top, ink .9 fading to .7; three fixed slots at 6 · 34 · 62: the review glyph, the eye, the bookmark. An empty slot is bare band.</div>
+<div class="row r-on slots">
+<div class="unit" id="you-on"><div class="card rail"><div class="tile you">Y</div><div class="pt"><div class="nm"><span>You</span><span class="ago">1h ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag love t3" title="loves"><svg class="gl"><use href="#s-love"/></svg></span></span></span><span class="act"><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""><span class="flags"><span class="flag listing t1" title="wants to watch"><svg class="gl"><use href="#s-listing"/></svg></span></span></span><span class="act"><img class="sp" src="../art/tears-of-steel-poster.jpg" alt=""><span class="flags"><span class="flag dislike t1" title="dislikes"><svg class="gl"><use href="#s-dislike"/></svg></span></span></span></div></div></div><div class="tiers"><span>3+</span><span>1</span><span>1</span></div></div>
+<div class="unit" id="cleo-on"><div class="card rail"><div class="tile">C</div><div class="pt"><div class="nm"><span>Cleo</span><span class="ago">5m ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><span class="flags"><span class="flag watched t2" title="watched"><svg class="gl"><use href="#s-watched"/></svg></span></span></span><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag love t3" title="loves"><svg class="gl"><use href="#s-love"/></svg></span><span class="flag watched t1" title="watched"><svg class="gl"><use href="#s-watched"/></svg></span></span></span><span class="act"><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><span class="flags"><span class="flag like t3" title="likes"><svg class="gl"><use href="#s-like"/></svg></span></span></span></div></div></div><div class="tiers"><span>2</span><span>3+ · 1</span><span>3+</span></div></div>
+<div class="unit" id="nick-on"><div class="card rail"><div class="tile">N</div><div class="pt"><div class="nm"><span>Nick</span><span class="ago">2h ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag like t2" title="likes"><svg class="gl"><use href="#s-like"/></svg></span></span></span><span class="act"><img class="sp" src="../art/metropolis-poster.jpg" alt=""><span class="flags"><span class="flag listing t1" title="wants to watch"><svg class="gl"><use href="#s-listing"/></svg></span></span></span><span class="act"><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><span class="flags"><span class="flag love t2" title="loves"><svg class="gl"><use href="#s-love"/></svg></span></span></span></div></div></div><div class="tiers"><span>2</span><span>1</span><span>2</span></div></div>
+</div>
+<div class="lab"><b>3 · Header above the poster</b> — the same slots in a 36 strip on the card's ground above the poster; no band, no backing; the poster untouched; the card 36 taller.</div>
+<div class="row r-above slots">
+<div class="unit" id="you-above"><div class="card rail"><div class="tile you">Y</div><div class="pt"><div class="nm"><span>You</span><span class="ago">1h ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag love t3" title="loves"><svg class="gl"><use href="#s-love"/></svg></span></span></span><span class="act"><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""><span class="flags"><span class="flag listing t1" title="wants to watch"><svg class="gl"><use href="#s-listing"/></svg></span></span></span><span class="act"><img class="sp" src="../art/tears-of-steel-poster.jpg" alt=""><span class="flags"><span class="flag dislike t1" title="dislikes"><svg class="gl"><use href="#s-dislike"/></svg></span></span></span></div></div></div><div class="tiers"><span>3+</span><span>1</span><span>1</span></div></div>
+<div class="unit" id="cleo-above"><div class="card rail"><div class="tile">C</div><div class="pt"><div class="nm"><span>Cleo</span><span class="ago">5m ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><span class="flags"><span class="flag watched t2" title="watched"><svg class="gl"><use href="#s-watched"/></svg></span></span></span><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag love t3" title="loves"><svg class="gl"><use href="#s-love"/></svg></span><span class="flag watched t1" title="watched"><svg class="gl"><use href="#s-watched"/></svg></span></span></span><span class="act"><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><span class="flags"><span class="flag like t3" title="likes"><svg class="gl"><use href="#s-like"/></svg></span></span></span></div></div></div><div class="tiers"><span>2</span><span>3+ · 1</span><span>3+</span></div></div>
+<div class="unit" id="nick-above"><div class="card rail"><div class="tile">N</div><div class="pt"><div class="nm"><span>Nick</span><span class="ago">2h ago</span></div><div class="strip"><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag like t2" title="likes"><svg class="gl"><use href="#s-like"/></svg></span></span></span><span class="act"><img class="sp" src="../art/metropolis-poster.jpg" alt=""><span class="flags"><span class="flag listing t1" title="wants to watch"><svg class="gl"><use href="#s-listing"/></svg></span></span></span><span class="act"><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><span class="flags"><span class="flag love t2" title="loves"><svg class="gl"><use href="#s-love"/></svg></span></span></span></div></div></div><div class="tiers"><span>2</span><span>1</span><span>2</span></div></div>
+</div>
+<div class="lab"><b>Page · header on the poster</b> — Cleo's page card: posters 130×195, the band 44, the glyph 28 in slots at 11 · 51 · 91.</div>
+<div class="row r-on slots">
+<div class="unit page" id="cleo-page"><div class="card page"><div class="head"><div class="tile">C</div><div class="ht"><div class="nm"><span>Cleo</span><span class="ago">5m ago</span></div></div></div><div class="strip"><span class="act"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><span class="flags"><span class="flag watched t2" title="watched"><svg class="gl"><use href="#s-watched"/></svg></span></span></span><span class="act"><img class="sp" src="../art/charade-poster.jpg" alt=""><span class="flags"><span class="flag love t3" title="loves"><svg class="gl"><use href="#s-love"/></svg></span><span class="flag watched t1" title="watched"><svg class="gl"><use href="#s-watched"/></svg></span></span></span><span class="act"><img class="sp" src="../art/cosmos-laundromat-poster.jpg" alt=""><span class="flags"><span class="flag like t3" title="likes"><svg class="gl"><use href="#s-like"/></svg></span></span></span></div></div><div class="tiers"><span>2</span><span>3+ · 1</span><span>3+</span></div></div>
+</div>
+</div></main></div></body></html>
