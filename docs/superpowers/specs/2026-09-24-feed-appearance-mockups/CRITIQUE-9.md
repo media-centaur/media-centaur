@@ -60,8 +60,9 @@ tile and a name.
 **Adopt the acts strip on both surfaces** — the rail's card (posters at
 96×144, the flag at 36/28) and the Friends page's card (posters at
 130×195, the flag at 42/32) — with the mast placement, no sharing notes
-of any kind, and the presence sentence gone from the card face; the You
-card keeps "How friends see you", which names the mirror, not a share. Keep
+of any kind, no "How friends see you", and the presence sentence gone
+from the card face: the You card is your acts like anyone's, the filled
+own tile its only mark. Keep
 H's frame for the page: the two-column grid of 900px cards, the head
 (tile 64, name 24, time 18), Add a friend at the foot, the text rows and
 management in the opened card. With every sharer carrying posters the

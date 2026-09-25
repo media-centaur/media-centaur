@@ -212,8 +212,8 @@ superseded by the design this campaign produces, and the record says so.
   cards ("Doesn't share watching", "You don't share watching",
   "Nothing shared yet" all go); a card is the person's acts as posters
   and nothing about what they withhold; a friend with no acts is a
-  tile and a name. The You card keeps "How friends see you" (the
-  mirror's label, not a share).
+  tile and a name. Then: no "How friends see you" either — the You
+  card is your acts like anyone's, the filled own tile its only mark.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
