@@ -204,9 +204,23 @@ defmodule MediaCentaur.TMDB.Mapper do
   def tmdb_url(:tv, tmdb_id), do: "https://www.themoviedb.org/tv/#{tmdb_id}"
   def tmdb_url(:collection, id), do: "https://www.themoviedb.org/collection/#{id}"
 
-  @doc "Builds a full TMDB image CDN URL from a relative path."
-  def tmdb_image_url(nil), do: nil
-  def tmdb_image_url(path), do: "https://image.tmdb.org/t/p/original#{path}"
+  @cdn_sizes ~w(w92 w154 w185 w300 w342 w500 w780 w1280 original)a
+
+  @doc """
+  The one builder for TMDB image CDN URLs — the download source for the
+  artwork the app caches (`:original`) and the **hotlink** rung of
+  `MediaCentaur.TitleArtwork`'s ladder at the width a surface paints.
+  `size` must be one of TMDB's fixed classes (#{inspect(@cdn_sizes)}); an
+  unknown one raises rather than serving a broken URL. `nil` paths stay
+  `nil` so call sites can chain their fallbacks.
+  """
+  @spec image_url(String.t() | nil, atom()) :: String.t() | nil
+  def image_url(path, size) when size in @cdn_sizes do
+    case path do
+      nil -> nil
+      "/" <> _ = path -> "https://image.tmdb.org/t/p/#{size}#{path}"
+    end
+  end
 
   @doc """
   Builds the artwork list from a TMDB movie/tv/collection payload:
@@ -219,11 +233,11 @@ defmodule MediaCentaur.TMDB.Mapper do
     Enum.reject(
       [
         data["poster_path"] &&
-          %{role: "poster", url: tmdb_image_url(data["poster_path"]), extension: "jpg"},
+          %{role: "poster", url: image_url(data["poster_path"], :original), extension: "jpg"},
         data["backdrop_path"] &&
-          %{role: "backdrop", url: tmdb_image_url(data["backdrop_path"]), extension: "jpg"},
+          %{role: "backdrop", url: image_url(data["backdrop_path"], :original), extension: "jpg"},
         pick_logo_path(data) &&
-          %{role: "logo", url: tmdb_image_url(pick_logo_path(data)), extension: "png"}
+          %{role: "logo", url: image_url(pick_logo_path(data), :original), extension: "png"}
       ],
       &is_nil/1
     )

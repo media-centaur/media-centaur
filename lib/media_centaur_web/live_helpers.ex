@@ -168,28 +168,17 @@ defmodule MediaCentaurWeb.LiveHelpers do
     end
   end
 
-  @tmdb_cdn_widths ~w(w92 w154 w185 w300 w342 w500 w780 w1280 original)a
-
   @doc """
-  The one builder for TMDB CDN hotlinks — the **browsing tier** of the
-  artwork ladder: search-result thumbs, plan-modal imagery, and cast
-  headshots, where nothing is downloaded because no durable reference
-  to the title exists yet. Referenced identities resolve locally via
+  A TMDB CDN hotlink at one of TMDB's fixed size classes — the
+  **browsing tier** of the artwork ladder: search-result thumbs,
+  plan-modal imagery and cast headshots, where nothing is downloaded
+  because no durable reference to the title exists yet. One builder,
+  `MediaCentaur.TMDB.Mapper.image_url/2`; an unknown size raises, `nil`
+  paths stay `nil`. Referenced identities resolve locally via
   `MediaCentaur.TmdbArtwork.urls/2` instead; library entities via
   `image_url/2`.
-
-  `width` must be one of TMDB's fixed size classes
-  (#{inspect(@tmdb_cdn_widths)}) — an unknown one raises, same policy
-  as `sized_image_url/2`. `nil` paths stay `nil` so call sites can
-  chain their placeholder fallbacks.
   """
-  @spec tmdb_cdn_url(String.t() | nil, atom()) :: String.t() | nil
-  def tmdb_cdn_url(path, width) when width in @tmdb_cdn_widths do
-    case path do
-      nil -> nil
-      "/" <> _ = path -> "https://image.tmdb.org/t/p/#{width}#{path}"
-    end
-  end
+  defdelegate tmdb_cdn_url(path, width), to: MediaCentaur.TMDB.Mapper, as: :image_url
 
   @doc """
   The `src` a title thumb paints: the local cached tier when

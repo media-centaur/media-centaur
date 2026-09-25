@@ -359,7 +359,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
 
   defp build_episode_images(tmdb_episode) do
     if tmdb_episode["still_path"] do
-      [%{role: "thumb", url: Mapper.tmdb_image_url(tmdb_episode["still_path"]), extension: "jpg"}]
+      [%{role: "thumb", url: Mapper.image_url(tmdb_episode["still_path"], :original), extension: "jpg"}]
     else
       []
     end
