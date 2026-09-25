@@ -1,0 +1,155 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css"><title>H · Friends page</title><style>
+/* ---- the person card at the tab's width: the rail's card (G-couch-feed) grown to a grid column. One anatomy, two widths; every shared and differing value is named in REASONING. ---- */
+:root{--ink:oklch(13% 0.02 264);              /* the unit's ground: the rail's, the band's */
+ --sec:oklch(93% 0.01 264/.66);               /* the one secondary alpha: the ago, the note, the caption, "all N" */
+ --gut:20px;--pad:30px;--cell:130px;--sgap:12px;--tile:64px;--tile-fs:26px}
+.content{max-width:none}
+h1{font-size:30px;line-height:36px;margin:0 0 14px 4px}
+.pw{container:page/inline-size}
+
+/* ---- the tab strip: constant across the three tabs and every width ---- */
+.tabs{display:flex;align-items:flex-end;gap:28px;margin:0 0 20px;padding:0 0 0 4px;font-size:22px;border-bottom:1px solid var(--hair)}
+.tab{padding-bottom:12px;font-weight:500;line-height:28px}
+.tab.active:after{height:3px}
+.tab .n{font-size:18px;line-height:22px;padding:2px 10px;margin-left:8px;vertical-align:1px}
+
+/* ---- the grid: two columns of 900 at 1920 (1820 − 20), row-major, each row as tall as its taller card, the cards at the row's top so
+   the two heads share a line; one column below a 1700 container (two five-poster strips at the 120 floor need 2 × 840 + 20) ---- */
+.people{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--gut);align-items:start}
+@container page (width < 1700px){.people{grid-template-columns:minmax(0,1fr)}}
+.card{position:relative;padding:var(--pad);border-radius:12px;background:var(--ink);cursor:pointer;isolation:isolate}
+/* the cursor: the TV's hover — the ground lifts 13 → 16%, a 4px primary ring on the card's own edge */
+.card:hover,.card.cursor{background:oklch(16% 0.02 264)}
+.card.cursor:after{content:"";position:absolute;inset:0;border:4px solid var(--p);border-radius:inherit;z-index:4;pointer-events:none}
+
+/* ---- head: the tile at the left, the name with the ago at the right, the presence line under the name, the note slot under that ---- */
+.head{display:flex;align-items:flex-start;gap:18px}
+.tile{position:relative;width:var(--tile);height:var(--tile);margin-top:-1px;border-radius:99px;display:grid;place-items:center;font-size:var(--tile-fs);font-weight:600;line-height:1;flex:none;overflow:hidden;
+ background:oklch(72% 0.14 264/.18);color:var(--p);box-shadow:0 0 0 1px oklch(72% 0.14 264/.22) inset,0 2px 8px oklch(0% 0 0/.35)}
+.tile.you{background:oklch(62% 0.16 264);color:oklch(96% 0.008 264);font-weight:700;box-shadow:0 2px 8px oklch(0% 0 0/.4)}
+.tile.photo{box-shadow:0 0 0 1px oklch(93% 0.01 264/.18) inset,0 2px 8px oklch(0% 0 0/.4)}
+/* the photo stand-in (R1's recipe): a window --w of the still's width centred on (--x,--y) of the frame, sized from the tile */
+.tile.photo img{position:absolute;display:block;object-fit:cover;width:calc(var(--tile)/var(--w));height:calc(var(--tile)/var(--w)*9/16);
+ left:calc(var(--tile)*(.5 - var(--x)/var(--w)));top:calc(var(--tile)*(.5 - var(--y)/var(--w)*9/16))}
+.ht{flex:1;min-width:0}
+.nm{display:flex;align-items:baseline;gap:12px;font-size:24px;line-height:32px;font-weight:600;color:var(--bc)}
+.nm span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm .ago{margin-left:auto;flex:none;font-size:18px;font-weight:400;color:var(--sec);font-variant-numeric:tabular-nums}
+.pl{font-size:22px;line-height:30px;color:oklch(93% 0.01 264/.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl b{font-weight:500;color:oklch(93% 0.01 264/.96)}
+.pl.none{color:var(--sec)}
+.note{font-size:18px;line-height:24px;color:var(--sec);margin-top:2px}
+.g{width:20px;height:20px;vertical-align:-3px;margin-left:6px;display:inline-block}
+.g.love{color:var(--love)}
+
+/* ---- Recently watched: the card's picture. Six cells across the card's inner width, 12 apart, each at most 130 wide (130×195 at 1920),
+   shrinking to the 120 floor before the grid folds; only when the person shares watches ---- */
+.watched{margin-top:20px}
+.cap{font-size:18px;line-height:24px;color:var(--sec);margin-bottom:10px}
+.strip{display:grid;grid-template-columns:repeat(6,minmax(0,var(--cell)));gap:var(--sgap)}
+.sp{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:6px;display:block;border:1px solid oklch(100% 0 0/.08);box-shadow:0 4px 16px oklch(0% 0 0/.55);background:oklch(93% 0.01 264/.1)}
+/* a watched title with no artwork yet: the slot at a 6% fill, the title's name at its foot */
+.sp-empty{display:flex;align-items:flex-end;padding:12px;font-size:18px;line-height:22px;color:var(--sec);background:oklch(93% 0.01 264/.06);border-color:oklch(100% 0 0/.05);box-shadow:none}
+.all{width:100%;aspect-ratio:2/3;border-radius:6px;background:oklch(93% 0.01 264/.07);display:grid;place-items:center;font-size:20px;color:var(--sec)}
+
+/* ---- the open card (state 4): the person's view, grown in place — every shelf in full, the text rows, and the management foot ---- */
+.rows{margin-top:16px}
+.row{display:flex;align-items:baseline;gap:16px;margin-top:10px;font-size:22px;line-height:30px}
+.row .lab{flex:none;width:150px;font-size:18px;color:var(--sec)}
+.names{color:oklch(93% 0.01 264/.88);min-width:0}
+.names .nw{white-space:nowrap}
+.names i{font-style:normal;color:oklch(93% 0.01 264/.4);margin:0 3px 0 9px}
+.foot{margin-top:22px;padding-top:16px;border-top:1px solid var(--hair);display:flex;align-items:center;justify-content:space-between;font-size:18px;line-height:24px;color:var(--sec)}
+.foot .key{font-family:ui-monospace,monospace;font-size:18px;color:inherit}
+.rm{display:inline-flex;align-items:center;height:32px;padding:0 12px;margin:-4px -12px -4px 0;border-radius:8px;font-size:18px;color:oklch(93% 0.01 264/.7);cursor:pointer}
+.rm:hover{background:oklch(93% 0.01 264/.06);color:oklch(93% 0.01 264/.96)}
+
+/* ---- Add a friend: a card at the grid's foot spanning its width, the form at a column's inner width ---- */
+.addf{grid-column:1/-1}
+.addf .ah{font-size:24px;font-weight:600;line-height:32px}
+.addf .ab{font-size:18px;line-height:24px;color:oklch(93% 0.01 264/.7);margin:4px 0 16px}
+.af{display:flex;gap:12px;align-items:center;max-width:840px}
+.in{height:44px;border-radius:10px;border:1px solid var(--glass-border);background:oklch(93% 0.01 264/.045);padding:0 16px;display:flex;align-items:center;font-size:20px;color:oklch(93% 0.01 264/.55)}
+.in.w{flex:1}.in.n{width:200px}
+.addf .btn.soft{height:44px;padding:0 18px;font-size:20px;border-radius:10px;display:inline-flex;align-items:center;font-weight:500}
+.foot-note{margin:16px 0 0 4px;font-size:18px;line-height:24px;color:var(--sec)}
+.foot-note .lnk{color:var(--p)}
+
+.state{margin-top:56px}
+.state .sec{font-size:13px}
+.state .keys{font-size:14px}
+.one{max-width:900px}
+.legend{margin:40px 4px 0;max-width:96ch;font-size:16px;line-height:1.5;color:oklch(93% 0.01 264/.7)}
+</style></head><body><div class="frame"><aside class="sidebar"><i></i><i></i><i class="on"></i><i></i><i></i><i class="gap"></i><i></i></aside><main><div class="content"><h1>Discovery</h1><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-8.5-5.4-8.5-11A4.6 4.6 0 0 1 12 7.4 4.6 4.6 0 0 1 20.5 10c0 5.6-8.5 11-8.5 11z" fill="currentColor"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z" fill="currentColor"/></g></symbol>
+</defs></svg>
+
+<section id="s1"><div class="state first"><span class="sec">1 · The Friends tab at 1920</span><span class="keys">the strip with Friends active, no rail · a two-column grid, row-major · You first, then friends by latest act · the four sharing states, a photo on Ada · eight of thirty drawn; the rest follow in the same order · Add a friend at the foot</span></div>
+<div class="pw">
+<div class="tabs"><span class="tab">Feed<span class="n">16</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab active">Friends<span class="n">30</span></span></div>
+<div class="people">
+<div class="card own" id="p-you"><div class="head"><div class="tile you">Y</div><div class="ht"><div class="nm"><span>You</span><span class="ago">1h ago</span></div><div class="pl">reviewed <b>Charade</b><svg class="g love"><use href="#i-heart"/></svg></div><div class="note">How friends see you</div></div></div></div>
+
+<div class="card" id="p-cleo"><div class="head"><div class="tile">C</div><div class="ht"><div class="nm"><span>Cleo</span><span class="ago">5m ago</span></div><div class="pl">watched S01E03 of <b>Pioneer One</b></div></div></div>
+<div class="watched"><div class="cap">Recently watched</div><div class="strip"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><img class="sp" src="../art/caligari-poster.jpg" alt=""><img class="sp" src="../art/metropolis-poster.jpg" alt=""><img class="sp" src="../art/the-general-poster.jpg" alt=""><img class="sp" src="../art/nosferatu-poster.jpg" alt=""><span class="all">all 9</span></div></div></div>
+
+<div class="card" id="p-nick"><div class="head"><div class="tile">N</div><div class="ht"><div class="nm"><span>Nick</span><span class="ago">2h ago</span></div><div class="pl">reviewed <b>Charade</b><svg class="g"><use href="#i-up"/></svg></div><div class="note">Doesn't share watching</div></div></div></div>
+
+<div class="card" id="p-bob"><div class="head"><div class="tile">B</div><div class="ht"><div class="nm"><span>Bob</span><span class="ago">1d ago</span></div><div class="pl">watched S01E05 of <b>One Step Beyond</b></div></div></div>
+<div class="watched"><div class="cap">Recently watched</div><div class="strip"><img class="sp" src="../art/one-step-beyond-poster.jpg" alt=""><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""></div></div></div>
+
+<div class="card" id="p-sam"><div class="head"><div class="tile">S</div><div class="ht"><div class="nm"><span>Sam</span><span class="ago">3d ago</span></div><div class="pl">wants to watch <b>Big Buck Bunny</b></div><div class="note">Doesn't share watching</div></div></div></div>
+
+<div class="card" id="p-ada"><div class="head"><div class="tile photo" style="--w:.24;--x:.53;--y:.37"><img src="../art/one-step-beyond-backdrop.jpg" alt=""></div><div class="ht"><div class="nm"><span>Ada</span><span class="ago">4d ago</span></div><div class="pl">reviewed <b>Night of the Living Dead</b><svg class="g love"><use href="#i-heart"/></svg></div><div class="note">Doesn't share watching</div></div></div></div>
+
+<div class="card" id="p-femi"><div class="head"><div class="tile">F</div><div class="ht"><div class="nm"><span>Femi</span><span class="ago">5d ago</span></div><div class="pl">watched <b>Big Buck Bunny</b></div></div></div>
+<div class="watched"><div class="cap">Recently watched</div><div class="strip"><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""><span class="sp sp-empty">Coffee Run</span></div></div></div>
+
+<div class="card" id="p-theo"><div class="head"><div class="tile">T</div><div class="ht"><div class="nm"><span>Theo</span></div><div class="pl none">Nothing shared yet</div></div></div></div>
+
+<div class="card addf"><div class="ah">Add a friend</div><div class="ab">Paste the key they give you; the name is only for you.</div><div class="af"><span class="in w">npub1…</span><span class="in n">Name</span><span class="btn soft">Add friend</span></div></div>
+</div>
+<p class="foot-note">Your identity and relays are under <span class="lnk">Settings → Social</span>.</p>
+</div></section>
+
+<section id="s2"><div class="state"><span class="sec">2 · The same page at 1280</span><span class="keys">an 1180px window · the strip still three tabs · one column; the card's every size unchanged, the strip at the card's left</span></div>
+<div class="pw" style="max-width:1180px">
+<div class="tabs"><span class="tab">Feed<span class="n">16</span></span><span class="tab">Watchlist<span class="n">7</span></span><span class="tab active">Friends<span class="n">30</span></span></div>
+<div class="people">
+<div class="card own"><div class="head"><div class="tile you">Y</div><div class="ht"><div class="nm"><span>You</span><span class="ago">1h ago</span></div><div class="pl">reviewed <b>Charade</b><svg class="g love"><use href="#i-heart"/></svg></div><div class="note">How friends see you</div></div></div></div>
+<div class="card"><div class="head"><div class="tile">C</div><div class="ht"><div class="nm"><span>Cleo</span><span class="ago">5m ago</span></div><div class="pl">watched S01E03 of <b>Pioneer One</b></div></div></div>
+<div class="watched"><div class="cap">Recently watched</div><div class="strip"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><img class="sp" src="../art/caligari-poster.jpg" alt=""><img class="sp" src="../art/metropolis-poster.jpg" alt=""><img class="sp" src="../art/the-general-poster.jpg" alt=""><img class="sp" src="../art/nosferatu-poster.jpg" alt=""><span class="all">all 9</span></div></div></div>
+<div class="card"><div class="head"><div class="tile">N</div><div class="ht"><div class="nm"><span>Nick</span><span class="ago">2h ago</span></div><div class="pl">reviewed <b>Charade</b><svg class="g"><use href="#i-up"/></svg></div><div class="note">Doesn't share watching</div></div></div></div>
+<div class="card"><div class="head"><div class="tile">B</div><div class="ht"><div class="nm"><span>Bob</span><span class="ago">1d ago</span></div><div class="pl">watched S01E05 of <b>One Step Beyond</b></div></div></div>
+<div class="watched"><div class="cap">Recently watched</div><div class="strip"><img class="sp" src="../art/one-step-beyond-poster.jpg" alt=""><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""></div></div></div>
+<div class="card"><div class="head"><div class="tile">T</div><div class="ht"><div class="nm"><span>Theo</span></div><div class="pl none">Nothing shared yet</div></div></div></div>
+<div class="card addf"><div class="ah">Add a friend</div><div class="ab">Paste the key they give you; the name is only for you.</div><div class="af"><span class="in w">npub1…</span><span class="in n">Name</span><span class="btn soft">Add friend</span></div></div>
+</div>
+<p class="foot-note">Your identity and relays are under <span class="lnk">Settings → Social</span>.</p>
+</div></section>
+
+<section id="s3"><div class="state"><span class="sec">3 · Nick under the cursor</span><span class="keys">the 4px ring, the ground lifted · the grid's idiom: Right → Bob, the next card in the row · Down → Sam, the card below · Up → You · Left is a wall (Nick is the row's first) · the card is one item; its posters become items when it opens</span></div>
+<div class="pw">
+<div class="people">
+<div class="card own"><div class="head"><div class="tile you">Y</div><div class="ht"><div class="nm"><span>You</span><span class="ago">1h ago</span></div><div class="pl">reviewed <b>Charade</b><svg class="g love"><use href="#i-heart"/></svg></div><div class="note">How friends see you</div></div></div></div>
+<div class="card"><div class="head"><div class="tile">C</div><div class="ht"><div class="nm"><span>Cleo</span><span class="ago">5m ago</span></div><div class="pl">watched S01E03 of <b>Pioneer One</b></div></div></div>
+<div class="watched"><div class="cap">Recently watched</div><div class="strip"><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><img class="sp" src="../art/caligari-poster.jpg" alt=""><img class="sp" src="../art/metropolis-poster.jpg" alt=""><img class="sp" src="../art/the-general-poster.jpg" alt=""><img class="sp" src="../art/nosferatu-poster.jpg" alt=""><span class="all">all 9</span></div></div></div>
+<div class="card cursor"><div class="head"><div class="tile">N</div><div class="ht"><div class="nm"><span>Nick</span><span class="ago">2h ago</span></div><div class="pl">reviewed <b>Charade</b><svg class="g"><use href="#i-up"/></svg></div><div class="note">Doesn't share watching</div></div></div></div>
+<div class="card"><div class="head"><div class="tile">B</div><div class="ht"><div class="nm"><span>Bob</span><span class="ago">1d ago</span></div><div class="pl">watched S01E05 of <b>One Step Beyond</b></div></div></div>
+<div class="watched"><div class="cap">Recently watched</div><div class="strip"><img class="sp" src="../art/one-step-beyond-poster.jpg" alt=""><img class="sp" src="../art/pioneer-one-poster.jpg" alt=""><img class="sp" src="../art/big-buck-bunny-poster.jpg" alt=""></div></div></div>
+<div class="card"><div class="head"><div class="tile">S</div><div class="ht"><div class="nm"><span>Sam</span><span class="ago">3d ago</span></div><div class="pl">wants to watch <b>Big Buck Bunny</b></div><div class="note">Doesn't share watching</div></div></div></div>
+<div class="card"><div class="head"><div class="tile photo" style="--w:.24;--x:.53;--y:.37"><img src="../art/one-step-beyond-backdrop.jpg" alt=""></div><div class="ht"><div class="nm"><span>Ada</span><span class="ago">4d ago</span></div><div class="pl">reviewed <b>Night of the Living Dead</b><svg class="g love"><use href="#i-heart"/></svg></div><div class="note">Doesn't share watching</div></div></div></div>
+</div></div></section>
+
+<section id="s4"><div class="state"><span class="sec">4 · Where the rest went: Nick's card, open</span><span class="keys">a press on the card grows it in place (the app's expanded state) · every shelf in full: the Wants to watch and Reviewed rows, a watch-sharer's whole strip · the management foot: the key, the added date, Remove friend · the same press, or Back, closes it</span></div>
+<div class="pw one">
+<div class="card open"><div class="head"><div class="tile">N</div><div class="ht"><div class="nm"><span>Nick</span><span class="ago">2h ago</span></div><div class="pl">reviewed <b>Charade</b><svg class="g"><use href="#i-up"/></svg></div><div class="note">Doesn't share watching</div></div></div>
+<div class="rows"><div class="row"><span class="lab">Wants to watch</span><span class="names">Metropolis</span></div>
+<div class="row"><span class="lab">Reviewed</span><span class="names"><span class="nw">Charade<svg class="g"><use href="#i-up"/></svg><i>·</i></span> <span class="nw">Cosmos Laundromat<svg class="g love"><use href="#i-heart"/></svg></span></span></div></div>
+<div class="foot"><span><span class="key">npub1ksgn…vnpc</span> · added Sep 3</span><span class="rm">Remove friend</span></div></div>
+</div></section>
+
+<p class="legend"><b>H · Friends page.</b> The Friends tab at couch scale as a two-column grid of person cards on ink: the identity tile at 64, the name at 24 with the time at the right, the presence line at 22, one 18px slot for the sharing note or "How friends see you", and — when the person shares watches — the card's picture: a Recently watched strip of 130×195 posters across the card's width with the "all N" tile. Nothing else on the face. A press opens the card in place: the text rows, the whole strip, and the key, the added date and Remove friend at its foot. The rail draws the same card at 560.</p>
+</div></main></div></body></html>
