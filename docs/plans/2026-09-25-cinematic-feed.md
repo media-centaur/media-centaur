@@ -618,7 +618,7 @@ Run → FAIL (`width` unknown, `acts` unknown).
   outline: 1px solid oklch(100% 0 0 / 0.08); outline-offset: -1px; display: block; }
 .act-empty { display: flex; align-items: flex-end; border-radius: 6px;
   background: oklch(from var(--color-base-content) l c h / 0.06); }
-/* The act disc: ink at .85 with a 1px ring at the poster's top right,
+/* The act disc: opaque ink with a 1px ring at the poster's top right,
    inset 8px; two acts stack downward 6px apart in mast order. */
 .act-discs { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column;
   gap: 6px; z-index: 2; pointer-events: none; }
@@ -1206,7 +1206,7 @@ Claude-Session: https://claude.ai/code/session_01JY93FNevijFHrkNdKdSw5L"
   3. **Row artwork is the row's subject**: the title's backdrop on a band, the acts' posters on a person card; the crop rule `50% 30%`, the offset `50% 38%` on the second adjacent band of one title, derived, never set; no smart crop.
   4. **The rail**: person cards beside the Feed and Watchlist above 1600px of content — You first, then by latest act, eight at most, *All N friends*; a summary of the Friends tab, never a timeline; hidden on the Friends tab.
   5. **The person card at two widths**, one component: the head and the acts strip — one poster per title, newest first, every act a disc in mast order; no presence sentence, no sharing notes; the page card opens in place to its rows and its foot.
-  6. **The act disc** is the person card's form for the pennant's flags: 44/28 in the rail, 52/32 on the page, ink at .85 with a 1px ring, love on `--color-love`; the pennant stays the title surfaces' form.
+  6. **The act disc** is the person card's form for the pennant's flags: 44/28 in the rail, 52/32 on the page, opaque ink with a 1px ring, love on `--color-love`; the pennant stays the title surfaces' form.
   7. **Paging**: a window of twenty, *Show older* to a cap of sixty (a count, "That's the last sixty."), arrivals live at the top and queued behind "N new" when scrolled.
   8. **The couch floors** — read text ≥ 22px, secondary ≥ 18px, titles ≥ 28px, tiles 48–64, 32px targets, a 3–4px ring, 4.5:1 over imagery, the half-size check — are a house rule for every surface; the Feed is the first designed under them.
   9. **Every size named**: the spec's tables, pasted.

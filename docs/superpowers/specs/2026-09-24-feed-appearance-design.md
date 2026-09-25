@@ -38,7 +38,7 @@ Existing terms are in `docs/GLOSSARY.md`: *Feed*, *feed row*, *Scope*,
 | **Person card** | One component at two widths drawing one person: the head (tile, name, the time of the latest act) over the acts strip. The rail's card at 560; the Friends page's at 900, where a press opens it. |
 | **Acts strip** | The person card's picture: one poster per title the person acted on, newest first, each poster carrying an act disc per act on it. Up to three posters in the rail, five on the page. |
 | **Act glyph** | The glyph for one act, in the pennant's vocabulary: heart (love), thumbs up (like), thumbs down (dislike), speech bubble (reviewed without a verdict), eye (watched), bookmark (listing). Outline at a 2px stroke, 28px in the rail, 32 on the page. |
-| **Act disc** | The act glyph's form on a poster: a disc of ink at .85 with a 1px white/18 ring at the poster's top right, inset 8px — 44px in the rail, 52 on the page — the heart glyph alone solid rose (`--color-love`) on the same ink disc as every other glyph; two acts as two discs stacked downward 6px apart in mast order. The person card's form; the pennant stays the title surfaces'. |
+| **Act disc** | The act glyph's form on a poster: an opaque disc of ink with a 1px white/18 ring at the poster's top right, inset 8px — 44px in the rail, 52 on the page — the heart glyph alone solid rose (`--color-love`) on the same ink disc as every other glyph; two acts as one joined capsule holding both glyphs. The person card's form; the pennant stays the title surfaces'. |
 | **Opened card** | The Friends page's card after a press: the strip in full, one sentence row per poster ending in its glyph, then the key, the added date and Remove friend. The rail's card does not open; it goes to the Friends tab. |
 | **Window** | The bands the Feed holds: twenty at first, twenty more per *Show older*, sixty at most — a count, not a span. The tab's count is the window's size under the scope. |
 | **Queued arrivals** | Actions that arrive while the reader is scrolled into the column: held behind a *N new* control at the column's head until pressed, so the column never moves under the reader. At the top they prepend live. |
@@ -177,7 +177,7 @@ alone beneath. The scope pill and *Show older* never touch it.
 | Under the name | nothing | nothing |
 | Strip | 8 under the name, at the tile's right; up to three posters 96×144, 16 apart | 16 under the head, at the card's left; up to five posters 130×195, 16 apart (714 of 840) |
 | Poster | radius 6, 1px white/8, shadow `0 3px 12px oklch(0% 0 0 / .5)`; no artwork: a 6% slot naming its title at 18/66%, padding 8 | shadow `0 4px 16px oklch(0% 0 0 / .55)`; the slot's padding 12 |
-| Act disc | 44px, glyph 28 at stroke 2 | 52px, glyph 32 at stroke 2 |
+| Act disc | 44px, glyph 28 (the heroicons solid set) | 52px, glyph 32 (the heroicons solid set) |
 | Cursor ring | 3px primary | 4px primary |
 | Height | 204 with acts; 72 with none | 335 with acts; 124 with none |
 | A press | opens the Friends tab at this person | opens the card in place |
@@ -185,9 +185,7 @@ alone beneath. The scope pill and *Show older* never touch it.
 **The act disc.** At the poster's top right, inset 8px: a disc of ink
 at .85 with a 1px white/18 ring, the act glyph centred in it on the
 card's text colour at 80%; every disc the same ink, and the heart glyph alone solid rose
-(`--color-love`). Two acts on one poster are two
-discs stacked downward 6px apart in the pennant's mast order — love,
-like, dislike, reviewed, watched, listing (UIDR-037). The glyphs are
+(`--color-love`). Two acts on one poster share one joined capsule backing (the disc's width, two glyphs tall) holding both glyphs in mast order. The glyphs are
 the house's: the sentiment glyphs from `Title.Sentiment`, the bubble,
 the eye and the bookmark from the pennant.
 
@@ -357,8 +355,8 @@ The rail and the person card
 - [ ] The rail lists You first, then friends by latest act of any kind, friends with no acts last by name; at most eight cards; *All N friends* under the last card when the cap hides anyone, N being the roster.
 - [ ] A rail card is the tile (48), the name (22), the ago (18), and up to three posters (96×144) with their act discs; a friend with no acts is a tile and a name at 72px.
 - [ ] No person card carries a presence sentence, a sharing note, "How friends see you" or "Nothing shared yet".
-- [ ] The acts strip holds one poster per title, newest first; every live act on the title is a disc on its poster in mast order; two acts are two discs stacked downward.
-- [ ] The act disc is 44px with a 28px glyph in the rail and 52 with a 32px glyph on the page, ink at .85 with a 1px ring, inset 8px at the top right; love on `--color-love` with a white heart.
+- [ ] The acts strip holds one poster per title, newest first; every live act on the title is a disc on its poster in mast order; two acts are one joined capsule holding both glyphs.
+- [ ] The act disc is 44px with a 28px glyph in the rail and 52 with a 32px glyph on the page, opaque ink with a 1px ring, inset 8px at the top right; love on `--color-love` with a white heart.
 - [ ] The You card is own acts like anyone's — reviews always, watched and listings when they were shared — with the filled own tile as its only mark.
 - [ ] A press on a rail card opens `/discovery/friends` with that person's card open and focused.
 - [ ] A press on a poster opens the title modal speaking for the newest act on that title; the modal keeps Delete on an own act.
