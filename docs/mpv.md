@@ -248,6 +248,13 @@ the film's untouched HDR10 grade and applies its own tone mapping.
   the hold.
 - The app's playback session sees the hold as an ordinary pause: expect a
   paused/resumed pair in the playback log on every HDR launch.
+- **Hyprland must not auto-switch mpv.** The mpv window rule in
+  `~/.config/hypr/rules.lua` sets `no_auto_hdr = true`. Hyprland's
+  `render:cm_auto_hdr` (on by default) sends the HDR infoframe only once the
+  fullscreen surface is HDR, and mpv's swapchain turns HDR on its first draw
+  after the hold — that put a second HDMI re-lock a few seconds into
+  playback. With the rule, the infoframe follows the script's monitor line,
+  inside the hold.
 - HDR → HDR playlist transitions don't bounce the display (gamma is only
   `nil` between files, and `nil` never triggers a switch)
 - The monitor lines in the script's config table must mirror `hl.monitor` in
@@ -266,3 +273,11 @@ mpv --msg-level=hdr_display=debug /path/to/video.mkv
 
 This outputs gamma observations, the hold and release of playback around
 each switch, and the hyprctl calls.
+
+For display-side timing, the app launches mpv with `--log-file` at
+`/tmp/media-centaur-<session>.log` (deleted when the session stops — copy it
+while playing). The lines to correlate are the script's hold/release, mpv's
+`Preferred surface feedback received` (the compositor's colourspace change)
+and libplacebo's `Picked surface configuration … HDR10` (mpv's swapchain
+turning HDR). The Hyprland log shows `drm: Modesetting` per re-lock but
+carries no timestamps.
