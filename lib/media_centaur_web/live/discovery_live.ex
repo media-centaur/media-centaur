@@ -652,79 +652,95 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
           <div class="discovery-columns">
             <div class="min-w-0">
-              <div :if={@live_action == :feed} class="space-y-2">
+              <div :if={@live_action == :feed} class="relative">
                 <%!-- The column's head: the FeedHead hook reports it leaving and
-                  returning to the viewport, and "N new" holds what arrived
-                  while the reader was scrolled in. --%>
-                <div id="feed-head" phx-hook="FeedHead" phx-update="ignore" class="h-px"></div>
-                <button
-                  :if={@feed_queued > 0}
-                  id="feed-new"
-                  type="button"
-                  class="sticky top-3 z-10 ml-5 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[oklch(13%_0.02_264/0.94)] px-3.5 text-xl text-base-content/85 shadow-[0_4px_16px_oklch(0%_0_0/0.5)]"
-                  phx-click="feed_show_new"
+                  returning to the viewport. Out of the flow, so the first
+                  band's top is the column's top, level with the rail. --%>
+                <div
+                  id="feed-head"
+                  phx-hook="FeedHead"
+                  phx-update="ignore"
+                  class="absolute left-0 top-0 h-px w-px"
                 >
-                  <.icon name="hero-arrow-up" class="size-5" /> {@feed_queued} new
-                </button>
-                <.empty_state
-                  :if={@feed == []}
-                  id="feed-empty"
-                  icon="hero-users"
-                  headline={feed_empty_headline(@feed_scope, @feed_empty_reason)}
-                >
-                  {feed_empty_body(@feed_empty_reason)}
-                  <:action :if={@feed_empty_reason == :not_ready}>
-                    <.button
-                      variant="primary"
-                      size="sm"
-                      navigate={~p"/settings?section=social"}
-                      data-nav-item
-                      tabindex="0"
-                    >
-                      Add a relay
-                    </.button>
-                  </:action>
-                  <:action :if={@feed_empty_reason == :not_ready}>
-                    <.button
-                      variant="dismiss"
-                      size="sm"
-                      navigate={~p"/discovery/friends"}
-                      data-nav-item
-                      tabindex="0"
-                    >
-                      Add a friend
-                    </.button>
-                  </:action>
-                  <:action :if={@feed_empty_reason == :nothing_shared}>
-                    <.button
-                      variant="dismiss"
-                      size="sm"
-                      navigate={~p"/settings?section=social"}
-                      data-nav-item
-                      tabindex="0"
-                    >
-                      Settings → Social
-                    </.button>
-                  </:action>
-                </.empty_state>
-
-                <div :if={@feed != []} id="feed-list" class="feed-column">
-                  <FeedBand.feed_band :for={entry <- @feed} entry={entry} />
                 </div>
-
-                <div :if={@feed_has_older?} class="pl-5 pt-2.5">
-                  <.button
-                    id="feed-show-older"
-                    variant="dismiss"
-                    size="sm"
-                    phx-click="feed_show_older"
+                <%!-- "N new" holds what arrived while the reader was scrolled in:
+                  a zero-height sticky anchor, so the control rides 12px under
+                  the viewport's top without moving the column. --%>
+                <div :if={@feed_queued > 0} class="sticky top-3 z-10 h-0">
+                  <button
+                    id="feed-new"
+                    type="button"
+                    class="absolute left-5 top-0 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[oklch(13%_0.02_264/0.94)] px-3.5 text-xl text-base-content/85 shadow-[0_4px_16px_oklch(0%_0_0/0.5)]"
+                    phx-click="feed_show_new"
                   >
-                    Show older
-                  </.button>
+                    <.icon name="hero-arrow-up" class="size-5" /> {@feed_queued} new
+                  </button>
                 </div>
-                <p :if={@feed_at_cap?} id="feed-cap" class="pl-5 pt-2.5 text-xl text-base-content/65">
-                  That's the last sixty.
-                </p>
+                <div class="space-y-2">
+                  <.empty_state
+                    :if={@feed == []}
+                    id="feed-empty"
+                    icon="hero-users"
+                    headline={feed_empty_headline(@feed_scope, @feed_empty_reason)}
+                  >
+                    {feed_empty_body(@feed_empty_reason)}
+                    <:action :if={@feed_empty_reason == :not_ready}>
+                      <.button
+                        variant="primary"
+                        size="sm"
+                        navigate={~p"/settings?section=social"}
+                        data-nav-item
+                        tabindex="0"
+                      >
+                        Add a relay
+                      </.button>
+                    </:action>
+                    <:action :if={@feed_empty_reason == :not_ready}>
+                      <.button
+                        variant="dismiss"
+                        size="sm"
+                        navigate={~p"/discovery/friends"}
+                        data-nav-item
+                        tabindex="0"
+                      >
+                        Add a friend
+                      </.button>
+                    </:action>
+                    <:action :if={@feed_empty_reason == :nothing_shared}>
+                      <.button
+                        variant="dismiss"
+                        size="sm"
+                        navigate={~p"/settings?section=social"}
+                        data-nav-item
+                        tabindex="0"
+                      >
+                        Settings → Social
+                      </.button>
+                    </:action>
+                  </.empty_state>
+
+                  <div :if={@feed != []} id="feed-list" class="feed-column">
+                    <FeedBand.feed_band :for={entry <- @feed} entry={entry} />
+                  </div>
+
+                  <div :if={@feed_has_older?} class="pl-5 pt-2.5">
+                    <.button
+                      id="feed-show-older"
+                      variant="dismiss"
+                      size="sm"
+                      phx-click="feed_show_older"
+                    >
+                      Show older
+                    </.button>
+                  </div>
+                  <p
+                    :if={@feed_at_cap?}
+                    id="feed-cap"
+                    class="pl-5 pt-2.5 text-xl text-base-content/65"
+                  >
+                    That's the last sixty.
+                  </p>
+                </div>
               </div>
 
               <ActionToast.action_toast
