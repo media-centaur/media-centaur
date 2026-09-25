@@ -256,6 +256,10 @@ superseded by the design this campaign produces, and the record says so.
   take it too); attribution on a person card (the intensity may read
   as the person's); thresholds vs roster size; three tiers must
   survive the half-size check. Neither is decided.
+* `2026-09-25` — The owner: a hover / cursor "additional info" layer
+  on the act discs (the verb, the episode, the title) is a **separate
+  future scope**; the current iteration is readability only. Deferred,
+  with the note that on the TV the cursor state is the hover.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -328,6 +332,13 @@ superseded by the design this campaign produces, and the record says so.
    component's story pins every author state.
 6. **Then the Feed's hardening pass**: nav zones for the rows and the
    scope pill, once the layout stops moving.
+
+## Deferred from this campaign
+
+* **A detail layer on the act disc** — hover on the desktop, the
+  cursor state on the TV — showing the verb, the episode and the title
+  the disc's poster stands for. The owner's call, 2026-09-25: a
+  separate scope after readability is settled.
 
 ## Follow-ups inherited from the feed timeline scope work
 
