@@ -241,6 +241,10 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
+3i. **Round 9d** — running: `K-flag-forms`, five forms for the act
+   glyph on a poster (footer band, clipped corner, stamp, under the
+   poster, the mast as control) on the same cards at both widths; the
+   owner asked whether the pennant is the right form.
 3h. **Round 9c** — running: `J-friends-page`, H's grid with I's acts
    strip, and the rail column redrawn once beside it for the shared
    component.
