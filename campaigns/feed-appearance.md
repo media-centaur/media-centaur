@@ -255,7 +255,16 @@ superseded by the design this campaign produces, and the record says so.
   the grade un-pinks the heart app-wide if adopted (the pennant would
   take it too); attribution on a person card (the intensity may read
   as the person's); thresholds vs roster size; three tiers must
-  survive the half-size check. Neither is decided.
+  survive the half-size check. Rendered (`L-glyph-legibility`,
+  `M-graded-discs`): the capsule reads as one mark and is adopted
+  with the opaque disc and solid glyphs; the grade's three tiers do
+  **not** survive half size — the tier-2 ring is invisible, so only
+  plain vs filled reads (two tiers); gold beats rose for the filled
+  tier (rose on a thumb reads as love); a mixed capsule reads
+  correctly; on a Feed band the graded disc reads as the person's act,
+  not the roster's. Open for the owner: a two-tier grade (plain /
+  filled gold, threshold to set) or no grade; if adopted, the heart is
+  white at tier 1 and the pennant takes the same rule.
 * `2026-09-25` — The owner: a hover / cursor "additional info" layer
   on the act discs (the verb, the episode, the title) is a **separate
   future scope**; the current iteration is readability only. Deferred,
