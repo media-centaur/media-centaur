@@ -128,14 +128,31 @@ assign; the window is twenty to a cap of sixty with the foot line; an
 arrival prepends live at the top and queues behind "N new" when the
 `FeedHead` hook reports the column's head gone; a rail card opens the
 Friends tab at its person (`?person=`), whose grid folds at 1700.
-**The owner's TV look at `/discovery` is next, before Phase 6 writes
-the records.**
+Two fixes followed the owner's first TV look (`796befb9`, `ef9fb655`):
+the head row now shares the columns' grid with one hairline under both,
+the tab strip and the segmented control gained a couch size (`:lg`)
+that Discovery passes, and the head sentinel and "N new" left the
+column's flow so the first band's top is level with the rail's first
+card. **The owner looked at it on the TV (2026-09-25 evening): "seems
+ok"; more tweaks are coming in a new context before anything ships.
+Nothing is pushed. Phase 6 (the records and docs) waits for those
+tweaks.**
 
 ## Handoff — start here in a fresh context
 
+0. **Where it stands (2026-09-25 evening):** Phases 1–5 are on `main`,
+   unpushed (`de9deb2b` … `ef9fb655`); the owner has seen the Feed on
+   the TV and will name tweaks next. Take the tweaks under
+   `/unify_design` like every phase, one commit each with precommit
+   clean, a `page-shot` of `/discovery` at 1920 and its half-size copy
+   after each; then Phase 6 of the plan (UIDR-046, the amendments, the
+   docs, the wiki), then the campaign's closure by destination. The
+   plan's "Realized" notes under each phase say where the code differs
+   from the plan's text; the `/storybook/iframe/discovery/<story>?
+   variation_id=<id>` route shoots one variation in isolation.
 1. Read this file (Status, Decisions made, Deferred), then the plan's
    ground rules and its "Owner decisions this plan assumes", then
-   Phase 1. Do not re-read the mockup rounds unless a phase points at
+   Phase 6. Do not re-read the mockup rounds unless a phase points at
    a page for a size; `G-couch-feed/REASONING.md` and
    `J-friends-page/REASONING.md` hold every number.
 2. The review artifact (private, the owner's) shows the two settled
