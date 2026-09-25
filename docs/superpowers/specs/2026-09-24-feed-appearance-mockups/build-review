@@ -34,6 +34,8 @@ if os.path.exists('BRIEF-7.md'): docs.append(('BRIEF-7.md','brief-7.html','Round
 if os.path.exists('CRITIQUE-7.md'): docs.append(('CRITIQUE-7.md','critique-7.html','Round 7 critique'))
 if os.path.exists('BRIEF-8.md'): docs.append(('BRIEF-8.md','brief-8.html','Round 8 brief'))
 if os.path.exists('CRITIQUE-8.md'): docs.append(('CRITIQUE-8.md','critique-8.html','Round 8 critique'))
+if os.path.exists('BRIEF-9.md'): docs.append(('BRIEF-9.md','brief-9.html','Round 9 brief'))
+if os.path.exists('CRITIQUE-9.md'): docs.append(('CRITIQUE-9.md','critique-9.html','Round 9 critique'))
 for src,dst,title in docs:
     if os.path.exists(src): page(src, f'{out}/docs/{dst}', title); print('doc', dst)
 PY

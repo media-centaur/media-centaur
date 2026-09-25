@@ -183,6 +183,13 @@ superseded by the design this campaign produces, and the record says so.
   sixty with "N new" queued at the head; `G-friends-page` is the
   Friends tab, one component with the rail's card at two widths. The
   couch floors are a house rule.
+* `2026-09-25` — The owner: the Feed is "really improved" —
+  `G-couch-feed` stands as the Feed's page. The Friends tab is the one
+  open surface: more space per friend, posters carrying the card, less
+  text. Round 9 (`BRIEF-9.md`) redraws it as a two-column grid of
+  poster-led cards (name, presence line, one note slot, the Recently
+  watched strip with its caption; the text rows and management behind
+  the card).
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
@@ -210,6 +217,8 @@ superseded by the design this campaign produces, and the record says so.
 3c. **Round 6** — done: `F-cinematic-feed`, the settled choices on one
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
+3g. **Round 9** — running: `H-friends-page`, the Friends tab
+   breathable and poster-led in a grid; the Feed is settled.
 3f. **Round 8** — done (`BRIEF-8.md`, `CRITIQUE-8.md`):
    `G-couch-feed` replaces F as the proposed page (two full-height
    columns at couch scale, no lead, the rail as person cards with four
