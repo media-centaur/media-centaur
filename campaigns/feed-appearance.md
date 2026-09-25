@@ -245,6 +245,17 @@ superseded by the design this campaign produces, and the record says so.
   legibility up close (the disc translucent, the glyphs thin) — a
   comparison of the current disc, an opaque disc with solid glyphs,
   and the footer band with solid glyphs.
+* `2026-09-25` — Two owner brainstorms under render, both on the act
+  disc: (a) for two acts on one poster, one joined capsule backing
+  holding both glyphs instead of two stacked discs (the backing's
+  length is the number of acts); (b) a **grade** — the glyph's shape
+  says what was done and its colour says how many friends did it
+  (tier 1 plain ink disc, tier 2 a ring, tier 3 a filled disc in rose
+  or gold), so the heart is not pink by default. Concerns recorded:
+  the grade un-pinks the heart app-wide if adopted (the pennant would
+  take it too); attribution on a person card (the intensity may read
+  as the person's); thresholds vs roster size; three tiers must
+  survive the half-size check. Neither is decided.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
