@@ -232,6 +232,10 @@ superseded by the design this campaign produces, and the record says so.
   top-right inset 8px, the love disc on `--color-love`; two acts as two
   discs stacked downward. Round 9b's disc failed at a 24px glyph; 28px
   at a 2px stroke is the size every form passed at in round 9c.
+* `2026-09-25` — The owner: the heart in a rose disc was not as
+  readable; the love disc is now the same ink disc as every other
+  glyph and the heart alone is solid rose. Applied to G, J, the spec
+  and the plan.
 * `2026-09-24` — Page-level fact for every direction: the app's content
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
