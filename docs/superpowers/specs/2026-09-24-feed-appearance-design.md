@@ -3,8 +3,10 @@
 **Date:** 2026-09-24 · **Status:** design settled 2026-09-25 (campaign
 `campaigns/feed-appearance.md`, rounds 4–9). The Feed page is
 `2026-09-24-feed-appearance-mockups/G-couch-feed/` and the person card
-is `J-friends-page/` with the act glyph in the owner's corner-disc form
-(`CRITIQUE-9.md`, owner's call); the crop rule is `MEASUREMENT.md`; the
+is `J-friends-page/` with the act glyphs in the slot header above the
+poster (`P2-slot-header/`, row 3 — the owner's call of 2026-09-25,
+replacing the corner disc of `CRITIQUE-9.md`); the crop rule is
+`MEASUREMENT.md`; the
 couch floors are `BRIEF-7.md`; the paging and the Friends-tab decision
 are `BRIEF-8.md`; the settled table from round 5 (the identity tile,
 the crop rule, the scrim, "You" neutral, no motion beyond a possible
@@ -36,9 +38,10 @@ Existing terms are in `docs/GLOSSARY.md`: *Feed*, *feed row*, *Scope*,
 | **Seat** | The toolbar's fixed 32px slot at the text zone's foot, empty at rest, shown on hover or cursor; unchanged from UIDR-045 in slots and behaviour. |
 | **Rail** | The 560px column at the right of the Feed and Watchlist tabs above the fold width: person cards, You first, then friends by latest act, capped at eight, with *All N friends* at its foot. A summary of the Friends tab, never a timeline. Hidden on the Friends tab and below the fold. |
 | **Person card** | One component at two widths drawing one person: the head (tile, name, the time of the latest act) over the acts strip. The rail's card at 560; the Friends page's at 900, where a press opens it. |
-| **Acts strip** | The person card's picture: one poster per title the person acted on, newest first, each poster carrying an act disc per act on it. Up to three posters in the rail, five on the page. |
-| **Act glyph** | The glyph for one act, in the pennant's vocabulary: heart (love), thumbs up (like), thumbs down (dislike), speech bubble (reviewed without a verdict), eye (watched), bookmark (listing). Outline at a 2px stroke, 28px in the rail, 32 on the page. |
+| **Acts strip** | The person card's picture: one poster per title the person acted on, newest first, each poster under its act slots. Up to three posters in the rail, five on the page. |
+| **Act glyph** | The glyph for one act, in the pennant's vocabulary: heart (love), thumbs up (like), thumbs down (dislike), speech bubble (reviewed without a verdict), eye (watched), bookmark (listing). The heroicons solid set at 28px at both widths, drawn in its act slot; matte white at 78%, or gold at the grade. |
 | **Act slots** | The act glyphs' place: a 36px strip above the poster on the card's ground, three fixed 28px positions (the opinion, the eye, the bookmark), empty positions drawn as nothing, no backing; the glyph matte (white at 78%) by default and gold metal when three or more friends did that act (the *grade*; the heart is not rose here). Retires the act disc and the capsule (2026-09-25). Formerly: an opaque disc of ink with a 1px white/18 ring at the poster's top right, inset 8px — 44px in the rail, 52 on the page — the heart glyph alone solid rose (`--color-love`) on the same ink disc as every other glyph; two acts as one joined capsule holding both glyphs. The person card's form; the pennant stays the title surfaces'. |
+| **Grade** | The act glyph's material, two tiers: matte (white at 78%) below three; gold metal (a linear gradient `oklch(90% 0.13 88)` → `oklch(62% 0.13 78)` at 55% → `oklch(84% 0.14 85)`) when three or more friends on the roster did that act on that title. Counted per (title, flag) across the roster. The grade owns the glyph's colour: no rose heart on a person card; silver did not read. |
 | **Opened card** | The Friends page's card after a press: the strip in full, one sentence row per poster ending in its glyph, then the key, the added date and Remove friend. The rail's card does not open; it goes to the Friends tab. |
 | **Window** | The bands the Feed holds: twenty at first, twenty more per *Show older*, sixty at most — a count, not a span. The tab's count is the window's size under the scope. |
 | **Queued arrivals** | Actions that arrive while the reader is scrolled into the column: held behind a *N new* control at the column's head until pressed, so the column never moves under the reader. At the top they prepend live. |
@@ -175,21 +178,30 @@ alone beneath. The scope pill and *Show older* never touch it.
 | Name | 22/28 at 600, at the tile's top | 24/32 at 600, centred on the tile |
 | Ago | 18 at 66%, tabular, at the card's right edge; none when the person has no acts | the same |
 | Under the name | nothing | nothing |
-| Strip | 8 under the name, at the tile's right; up to three posters 96×144, 16 apart | 16 under the head, at the card's left; up to five posters 130×195, 16 apart (714 of 840) |
+| Strip | 8 under the name, at the tile's right; up to three cells — the act slots over a 96×144 poster — 16 apart | 16 under the head, at the card's left; up to five cells — the act slots over a 130×195 poster — 16 apart (714 of 840) |
 | Poster | radius 6, 1px white/8, shadow `0 3px 12px oklch(0% 0 0 / .5)`; no artwork: a 6% slot naming its title at 18/66%, padding 8 | shadow `0 4px 16px oklch(0% 0 0 / .55)`; the slot's padding 12 |
-| Act disc | 44px, glyph 28 (the heroicons solid set) | 52px, glyph 32 (the heroicons solid set) |
+| Act slots | a 36px strip above each poster; glyph 28 (the heroicons solid set) at x = 6 · 34 · 62 | a 36px strip above each poster; glyph 28 at x = 11 · 51 · 91 (12px gaps) |
 | Cursor ring | 3px primary | 4px primary |
-| Height | 204 with acts; 72 with none | 335 with acts; 124 with none |
+| Height | 240 with acts; 72 with none | 371 with acts; 124 with none |
 | A press | opens the Friends tab at this person | opens the card in place |
 
-**The act disc.** At the poster's top right, inset 8px: an opaque disc of ink with a 1px white/18 ring, the act glyph centred in it on the
-card's text colour at 80%; every disc the same ink, and the heart glyph alone solid rose
-(`--color-love`). Two acts on one poster share one joined capsule backing (the disc's width, two glyphs tall) holding both glyphs in mast order. The glyphs are
-the house's: the sentiment glyphs from `Title.Sentiment`, the bubble,
-the eye and the bookmark from the pennant.
+**The act slots.** A 36px strip above each poster on the card's own
+ground — no band, no backing, the poster untouched — holding three
+fixed 28px slots: slot 1 the opinion (heart, thumb up, thumb down or
+bubble; one at most), slot 2 the eye, slot 3 the bookmark. An absent
+act draws nothing, so every glyph is found by position and no capsule
+or stack exists. In the rail the slots touch at x = 6 · 34 · 62
+(96 = 6 + 28 + 28 + 28 + 6; the glyph's inner margin is the gap); on
+the page they sit at x = 11 · 51 · 91 with 12px gaps. The glyph is the
+heroicons solid set, matte white at 78% by default and gold at the
+grade — three or more friends on the roster did that act on that
+title. The heart is not rose here; the grade owns the colour. The
+glyphs are the house's: the sentiment glyphs from `Title.Sentiment`,
+the bubble, the eye and the bookmark from the pennant.
 
 **The strip's rule.** One poster per title acted on, newest first, left
-to right; every live act on the title is a disc on its poster. The
+to right; every live act on the title is a glyph in its slot above the
+poster. The
 ago is the first poster's. A binge collapses: three episodes of one
 show are one poster with one eye; the episode is the opened card's. A
 person's card is what the person shared and says nothing about what
@@ -244,9 +256,10 @@ cursor ring 3–4px, text over imagery ≥ 4.5:1 against the ink it sits
 on (checked on the lowest-alpha text). Every render is read at half
 size before it is accepted: the sentence, the title, the review, the
 time, the tile's letter, the rail's names and agos, and each act
-glyph — the heart reads as rose first, the eye is a ring with a dot,
-the bubble keeps its tail, the thumb reads up from down by where its
-stem sits, the bookmark keeps its notch, two discs read as two.
+glyph — the eye is a ring with a dot, the bubble keeps its tail, the
+thumb reads up from down by where its stem sits, the bookmark keeps
+its notch, two glyphs read as two by their slots, and gold reads as
+gold beside matte.
 
 **Motion.** None: no parallax, no drift, no entrance. Hover is the
 scrim step and the ground lift, instant; the seat's 120ms fade is the
@@ -292,8 +305,13 @@ it, once each, as what they last did.
   activity and the glyph for a flag are one vocabulary
   (`Title.Flag`: the pennant's `flag/1` and glyph map extracted so the
   pennant and the strip compose it; the sentiment glyphs stay
-  `Title.Sentiment`'s). `presence`, `watched`, `listed` and `reviewed`
-  leave `Person`; the card reads nothing about sharing preferences.
+  `Title.Sentiment`'s). The grade comes from the rows the pennant
+  already reads: `People.build/3` holds every roster activity, so it
+  counts each (title, flag) across friends once — the grouping the
+  pennant's `mast/1` does per title on `Activities.friend_activity_for/1`
+  — and stamps the gold flags on each `Act`; the card reads no second
+  source. `presence`, `watched`, `listed` and `reviewed` leave
+  `Person`; the card reads nothing about sharing preferences.
 - **The rail's roster is a projection.** `People.build/3` keeps its
   order (You first, then by latest act, quiet last by name);
   `People.rail/1` takes the first eight and says how many the cap hid.
@@ -352,10 +370,11 @@ The band
 The rail and the person card
 
 - [ ] The rail lists You first, then friends by latest act of any kind, friends with no acts last by name; at most eight cards; *All N friends* under the last card when the cap hides anyone, N being the roster.
-- [ ] A rail card is the tile (48), the name (22), the ago (18), and up to three posters (96×144) with their act discs; a friend with no acts is a tile and a name at 72px.
+- [ ] A rail card is the tile (48), the name (22), the ago (18), and up to three posters (96×144) under their act slots, 240px tall; a friend with no acts is a tile and a name at 72px.
 - [ ] No person card carries a presence sentence, a sharing note, "How friends see you" or "Nothing shared yet".
-- [ ] The acts strip holds one poster per title, newest first; every live act on the title is a disc on its poster in mast order; two acts are one joined capsule holding both glyphs.
-- [ ] The act disc is 44px with a 28px glyph in the rail and 52 with a 32px glyph on the page, opaque ink with a 1px ring, inset 8px at the top right; love on `--color-love` with a white heart.
+- [ ] The acts strip holds one poster per title, newest first; every live act on the title is a glyph in its fixed slot above the poster — the opinion in slot 1, the eye in slot 2, the bookmark in slot 3 — and an empty slot draws nothing; no disc, capsule or stack.
+- [ ] The act slots are a 36px strip on the card's ground above each poster, no backing, with 28px solid glyphs at x = 6 · 34 · 62 in the rail and x = 11 · 51 · 91 on the page.
+- [ ] A glyph is matte white at 78% by default and gold when three or more friends on the roster did that act on that title; at two it is matte; the heart is never rose on a person card.
 - [ ] The You card is own acts like anyone's — reviews always, watched and listings when they were shared — with the filled own tile as its only mark.
 - [ ] A press on a rail card opens `/discovery/friends` with that person's card open and focused.
 - [ ] A press on a poster opens the title modal speaking for the newest act on that title; the modal keeps Delete on an own act.
@@ -364,7 +383,7 @@ The rail and the person card
 The Friends page
 
 - [ ] `/discovery/friends` is a grid of page cards, two columns of 900 at 1920 and one column below 1700px of content, You first then by latest act, Add a friend at the foot.
-- [ ] A page card is the tile (64), the name (24) centred on it, the ago (18), and up to five posters (130×195) with their discs; 335px with acts, 124 without.
+- [ ] A page card is the tile (64), the name (24) centred on it, the ago (18), and up to five posters (130×195) under their act slots; 371px with acts, 124 without.
 - [ ] A press opens the card in place: the strip in full, one row per poster ending in its glyph, the key, the date and Remove friend; the same press closes it; the You card opens to its rows and has no foot.
 - [ ] Remove friend works from the opened card; Add a friend works as today.
 
@@ -407,8 +426,9 @@ palette, a per-friend hue, social-network chrome as UIDR-038 defines it
 - **Motion** — parallax, drift, entrance; the seat's fade is the ceiling.
 - **A sharing note on a person card** — "Doesn't share watching", "You don't share watching", "Nothing shared yet", "How friends see you"; the card shows what was shared and nothing about what was not.
 - **A presence sentence on the card face** — the strip is the presence; the sentence lives in the opened card's rows.
-- **A caption over the strip** — the discs say what each poster is.
-- **A badge, stamp or footer band for the act glyph** — the disc is the form; the pennant stays the title surfaces'.
+- **A caption over the strip** — the slots say what each poster is.
+- **A badge, stamp, disc, capsule or band on the poster for the act glyph** — the slots above the poster are the form and the poster stays whole; the pennant stays the title surfaces'.
+- **A third tier, or colour by kind** — matte and gold only; silver did not read; the heart is not rose on a person card, the grade owns the colour.
 - **A rail heading or a "Manage friends" link** — the Friends tab names the rail and is in the strip at every width.
 - **The rail as a timeline** — one card per person, replaced on the next act, bounded by the roster, never paged or grown by activity.
 - **A span-based cap** — "the last two months"; the cap is a count.
@@ -421,7 +441,8 @@ palette, a per-friend hue, social-network chrome as UIDR-038 defines it
 - **UIDR-046 — the cinematic feed**: one band on the title's still under
   the ink scrim, every size named; the identity tile as the app's person
   device; the crop rule; the rail of person cards; the person card at two
-  widths with the acts strip and the act disc; the window, the cap and
+  widths with the acts strip, the act slots and the grade; the window,
+  the cap and
   the queued head; the fold; the couch floors as a house rule. Amends
   the four below.
 - **UIDR-045** — rule 3: the own mark is the identity tile filled with
@@ -432,8 +453,8 @@ palette, a per-friend hue, social-network chrome as UIDR-038 defines it
 - **UIDR-038** — rules 7–10 become the person card's at both widths:
   one card per person, You first, the name as the head, the key in the
   opened card's foot (7); no presence line — the strip is the presence
-  (8); the body is the acts strip, one poster per title with its act
-  discs, the text rows in the opened card (9); the You card is own acts
+  (8); the body is the acts strip, one poster per title under its act
+  slots, the text rows in the opened card (9); the You card is own acts
   like anyone's, the modal the place to withdraw (10). *Social-network
   chrome* admits the identity tile as the app's person device on every
   Discovery surface; handles, counts and reactions stay banned. *Wall of
@@ -441,10 +462,12 @@ palette, a per-friend hue, social-network chrome as UIDR-038 defines it
   person's presence, replaced on the next act, never a timeline.
 - **UIDR-037** — a note: the pennant is a form for the title surfaces —
   named flags flying inward from a hero's edge, with a tooltip; the
-  person card takes the act disc with the same glyphs, order and
-  tints, because its job differs (one glyph on a 96px poster, not a name
-  on a wide surface). The person card's strip flies flags on posters
-  because there the poster is the act.
+  person card takes the act slots with the same glyphs and order,
+  because its job differs (a glyph in a fixed slot above a 96px poster,
+  not a name on a wide surface); there the grade owns the glyph's
+  colour, and whether the pennant takes the grade is a later decision.
+  The person card's strip flies flags on posters because there the
+  poster is the act.
 - **UIDR-033** — a note: a row's own title artwork is that row's
   subject; the Feed's bands carry their title's backdrop, a person card
   its acts' posters; a band or a card of an unrelated title stays
