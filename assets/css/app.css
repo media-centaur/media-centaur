@@ -1316,6 +1316,18 @@ body:has(.modal-backdrop[data-state="open"]) {
   color: oklch(from var(--color-base-content) l c h / 0.7);
 }
 
+/* The couch size (UIDR-046): 22px tabs on a 28px line, the underline at
+   3px — the Feed's strip, read from the sofa. */
+.tab-strip-lg .zone-tab {
+  font-size: 22px;
+  line-height: 28px;
+  padding-bottom: 12px;
+}
+
+.tab-strip-lg .zone-tab::after {
+  height: 3px;
+}
+
 /* Active state signals via full-strength color + the underline only — a
    font-weight bump would change glyph widths and shift the tab row. */
 .zone-tab-active {
@@ -1399,6 +1411,22 @@ body:has(.modal-backdrop[data-state="open"]) {
   align-items: center;
   cursor: pointer;
   transition: color 150ms, background 150ms, box-shadow 150ms;
+}
+
+/* The couch size (UIDR-046): a 44px rail with 36px, 20px options — the
+   Feed's scope pill, read from the sofa. Unlayered, so it beats the
+   button's text-sm utility. */
+.segmented-control-lg {
+  min-height: 44px;
+  padding: 3px 4px;
+  gap: 3px;
+}
+
+.segmented-control-lg .tab {
+  height: 36px;
+  padding: 0 18px;
+  font-size: 20px;
+  border-radius: 30px;
 }
 
 .segmented-control .tab:hover {
@@ -3287,6 +3315,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   object-fit: cover;
   object-position: 50% 30%;
   display: block;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 240px);
   mask-image: linear-gradient(to right, transparent, #000 240px);
 }
 
@@ -3392,6 +3421,28 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 .discovery-rail {
   display: none;
+}
+
+/* The head row: the strip and the scope pill in the feed column's cell,
+   one hairline under both columns, 16px to the first unit (the page's
+   spacing). The pill sits 8px above the hairline, the tabs' underline on
+   it. */
+.discovery-head {
+  border-bottom: 1px solid oklch(from var(--color-base-content) l c h / 0.1);
+}
+
+.discovery-head > .discovery-head-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  min-width: 0;
+  padding-left: 4px;
+}
+
+.discovery-head .segmented-control {
+  margin-bottom: 8px;
 }
 
 @container discovery (min-width: 1600px) {

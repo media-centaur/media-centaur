@@ -628,16 +628,26 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         <div class="discovery-page w-full space-y-4 pt-10">
           <.page_header title="Discovery" class="px-1" />
 
-          <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-            <.tab_strip tabs={tabs(@feed, @items, @friends, @feed_scope)} active={@live_action} />
-            <.segmented_control
-              :if={@live_action == :feed}
-              id="feed-scope"
-              label="Scope"
-              options={[{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}]}
-              selected={@feed_scope}
-              event="feed_scope"
-            />
+          <%!-- The head row shares the columns' grid: the strip and the
+                scope pill in the feed column's cell, the hairline under
+                both columns (UIDR-046). --%>
+          <div class="discovery-columns discovery-head">
+            <div class="discovery-head-cell">
+              <.tab_strip
+                tabs={tabs(@feed, @items, @friends, @feed_scope)}
+                active={@live_action}
+                size={:lg}
+              />
+              <.segmented_control
+                :if={@live_action == :feed}
+                id="feed-scope"
+                label="Scope"
+                options={[{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}]}
+                selected={@feed_scope}
+                event="feed_scope"
+                size={:lg}
+              />
+            </div>
           </div>
 
           <div class="discovery-columns">

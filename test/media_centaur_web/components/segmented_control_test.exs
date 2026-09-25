@@ -41,6 +41,18 @@ defmodule MediaCentaurWeb.Components.SegmentedControlTest do
     assert render([]) |> buttons() |> LazyHTML.attribute("tabindex") == ["0", "0", "0"]
   end
 
+  test "the size is the surface's: the default rail, or the couch rail on a sofa surface" do
+    assert render([])
+           |> LazyHTML.from_fragment()
+           |> LazyHTML.query("[role='group']")
+           |> LazyHTML.attribute("data-size") ==
+             ["md"]
+
+    couch = render(size: :lg) |> LazyHTML.from_fragment() |> LazyHTML.query("[role='group']")
+    assert LazyHTML.attribute(couch, "data-size") == ["lg"]
+    assert hd(LazyHTML.attribute(couch, "class")) =~ "segmented-control-lg"
+  end
+
   test "an event param named value is refused: a button's native value clobbers it on click" do
     assert_raise ArgumentError, ~r/phx-value-value/, fn ->
       render(event_value: %{"value" => "x"})

@@ -14,9 +14,23 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.SegmentedControl do
   def variations do
     [
       %Variation{
+        id: :couch,
+        description:
+          "The couch size (`:lg`): a 44px rail with 20px options — the Feed's scope pill, read from the sofa",
+        attributes: %{
+          id: "scope-couch",
+          label: "Scope",
+          options: [{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}],
+          selected: :everyone,
+          event: "pick",
+          size: :lg
+        }
+      },
+      %Variation{
         id: :three_options,
         description: "Three options, the first chosen.",
         attributes: %{
+          size: :md,
           label: "Scope",
           options: [{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}],
           selected: :everyone,
