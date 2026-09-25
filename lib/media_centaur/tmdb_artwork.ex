@@ -58,7 +58,6 @@ defmodule MediaCentaur.TmdbArtwork do
   # All roles download TMDB `original` — masters stay full-size and the
   # `?w=` derivative ladder handles serving sizes, same as the library
   # store. Storage cost is one directory per referenced identity.
-  @tmdb_cdn "https://image.tmdb.org/t/p/original"
 
   # Files written before the switch to `original` were typically
   # 10-20KB w300/w185 thumbnails. TMDB `original` backdrops/posters
@@ -345,7 +344,7 @@ defmodule MediaCentaur.TmdbArtwork do
     type = normalize_type(type)
     dest = on_disk_path(role, type, tmdb_id)
 
-    case ImageFiles.download_raw(@tmdb_cdn <> tmdb_path, dest, upstream: :tmdb_images) do
+    case ImageFiles.download_raw(Mapper.image_url(tmdb_path, :original), dest, upstream: :tmdb_images) do
       {:ok, _path} ->
         Log.info(:tmdb, "downloaded tmdb #{role} for #{type}-#{tmdb_id}")
         touch(type, tmdb_id)

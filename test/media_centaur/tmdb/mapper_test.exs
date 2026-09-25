@@ -763,14 +763,23 @@ defmodule MediaCentaur.TMDB.MapperTest do
     end
   end
 
-  describe "tmdb_image_url/1" do
-    test "nil returns nil" do
-      assert Mapper.tmdb_image_url(nil) == nil
+  describe "image_url/2" do
+    test "nil returns nil at any size, so call sites can chain their fallbacks" do
+      assert Mapper.image_url(nil, :original) == nil
+      assert Mapper.image_url(nil, :w92) == nil
     end
 
-    test "path returns full CDN URL" do
-      assert Mapper.tmdb_image_url("/abc.jpg") ==
-               "https://image.tmdb.org/t/p/original/abc.jpg"
+    test "a path becomes the CDN URL at the named size" do
+      assert Mapper.image_url("/abc.jpg", :original) == "https://image.tmdb.org/t/p/original/abc.jpg"
+      assert Mapper.image_url("/abc.jpg", :w185) == "https://image.tmdb.org/t/p/w185/abc.jpg"
+      assert Mapper.image_url("/abc.jpg", :w1280) == "https://image.tmdb.org/t/p/w1280/abc.jpg"
+    end
+
+    test "a size outside TMDB's fixed classes is refused rather than served as a broken URL" do
+      # Through `Enum.at/2` so the type checker cannot see the literal — the
+      # assertion is the runtime behaviour, not a compile-time impossibility.
+      bad_size = Enum.at([:w999], 0)
+      assert_raise FunctionClauseError, fn -> Mapper.image_url("/abc.jpg", bad_size) end
     end
   end
 

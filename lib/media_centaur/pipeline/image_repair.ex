@@ -36,8 +36,6 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
   alias MediaCentaur.TMDB
   alias MediaCentaur.Topics
 
-  @tmdb_cdn "https://image.tmdb.org/t/p/original"
-
   @type result :: %{
           enqueued: non_neg_integer(),
           queue_reused: non_neg_integer(),
@@ -231,7 +229,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
       {:ok, %{payload: data}} ->
         case find_episode_still(data, episode_number) do
           nil -> {:skip, {:tmdb_no_still, episode_number}}
-          path -> {:ok, @tmdb_cdn <> path, entity_id, tv_series_id}
+          path -> {:ok, TMDB.Mapper.image_url(path, :original), entity_id, tv_series_id}
         end
 
       {:error, reason} ->
@@ -246,7 +244,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
   defp resolve_via({:ok, data}, role, owner_id, entity_id, _role_log) do
     case role_path(data, role) do
       nil -> {:skip, {:tmdb_no_path, role}}
-      path -> {:ok, @tmdb_cdn <> path, owner_id, entity_id}
+      path -> {:ok, TMDB.Mapper.image_url(path, :original), owner_id, entity_id}
     end
   end
 
