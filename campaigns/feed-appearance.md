@@ -218,7 +218,11 @@ superseded by the design this campaign produces, and the record says so.
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
 3g. **Round 9** — running: `H-friends-page`, the Friends tab
-   breathable and poster-led in a grid; the Feed is settled.
+   breathable and poster-led in a grid; and `I-acts-strip`
+   (`BRIEF-9b.md`), the owner's pitch of posters flying the pennant's
+   flags (eye, heart, thumbs, bubble, bookmark) in place of the
+   presence sentence, in three placements at both card widths. The
+   Feed is settled.
 3f. **Round 8** — done (`BRIEF-8.md`, `CRITIQUE-8.md`):
    `G-couch-feed` replaces F as the proposed page (two full-height
    columns at couch scale, no lead, the rail as person cards with four
