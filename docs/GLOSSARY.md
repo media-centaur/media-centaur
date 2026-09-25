@@ -161,6 +161,18 @@ The vocabulary of the strip charts (design
 | **Save on the act** | A settings control that persists the moment it changes (toggle, stepper, choice, select, text row on Enter/blur, list add/remove). The Settings page's default; a Save button exists only inside a connection row's edit form (UIDR-041 §2). |
 | **Gated card** | A settings card whose controls need Prowlarr ready (Download button, Auto-acquisition). It stays on the page with the line "Available once Prowlarr's connection test passes." instead of vanishing (UIDR-041 §4, the stance of UIDR-034). |
 
+## Playback
+
+| Term | Meaning |
+|---|---|
+| **Player** | The mpv process one playback session launches (`MediaCentaur.Playback.MpvSession`). |
+| **Launch flags** | The mpv command-line options the session passes on every launch (`Playback.LaunchFlags`). mpv gives command-line options precedence over every config file, so a launch flag is the one place a session requirement cannot be undone by user configuration. Rule (ADR-072): the session never depends on anything in the user config. |
+| **User config** | mpv's per-user configuration directory, `~/.config/mpv/` (or `$MPV_HOME`): `mpv.conf`, `input.conf`, `scripts/`, `script-opts/`, `fonts/`. Owned by the user; the app never writes into it (ADR-072). |
+| **Bundled scripts** | The Lua package Media Centaur ships in its release under `priv/mpv/scripts/media-centaur/` and loads on every launch with the `--script=` launch flag. One mpv directory script named `media_centaur`; modules `main.lua`, `pill.lua`, `skip_intro.lua`, `next_episode.lua`, `track_menu.lua`. Versioned, smoke-tested and updated with the app. |
+| **User scripts** | Lua scripts in the user config's `scripts/` directory, auto-loaded by mpv on every launch. `hdr-display.lua` (contrib), uosc and mpv-mpris are user scripts. |
+| **Script option** | mpv's per-script settings mechanism (`mp.options`): values from `<user config>/script-opts/<script>.conf`, overridden by the `--script-opts=` launch flag. The one way a user tunes or disables a bundled feature (`media_centaur.conf`: `skip_intro`, `next_episode`, `track_menu`). |
+| **Example config** | The `mpv/` directory of the contrib repo: an `mpv.conf`, an `input.conf` and `hdr-display.lua` a user may copy into their user config as a starting point. Nothing in the app requires it. |
+
 ## Apps
 
 | Term | Meaning |

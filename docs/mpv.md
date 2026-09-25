@@ -1,6 +1,6 @@
 # mpv Integration
 
-End-user content has moved to the wiki:
+End-user content lives on the wiki:
 
 - **[Playback](https://github.com/media-centaur/media-centaur/wiki/Playback)** — how playback works end-to-end.
 - **[Keyboard & Gamepad](https://github.com/media-centaur/media-centaur/wiki/Keyboard-and-Gamepad)** — full mpv key bindings (playback, seek, tracks, volume, subtitles).
@@ -10,274 +10,300 @@ End-user content has moved to the wiki:
 
 ## Contributor internals
 
-The remainder of this file documents mpv configuration, the couch-mode Lua scripts shipped in `../contrib/mpv/`, and their implementation details. End users who just want to know which keys do what should use the wiki links above.
+The remainder of this file documents how the app launches mpv, the bundled
+Lua package that gives it couch behaviour, and the example config kept in
+the sibling `contrib` repo. Decision record:
+[ADR-072](../decisions/architecture/2026-09-25-072-bundled-mpv-scripts.md).
+Design and verification transcript:
+[`docs/superpowers/specs/2026-09-25-bundled-mpv-scripts-design.md`](superpowers/specs/2026-09-25-bundled-mpv-scripts-design.md).
 
-> **Repo layout note:** mpv configs live in the sibling `contrib/` repo at `~/src/media-centaur/contrib/`, not inside this main app repo. Paths below are relative to this repo's root. If the contrib repo isn't checked out alongside, clone it: `git clone git@github.com:media-centaur/contrib.git ../contrib`.
+## Two owners
 
-## Installation
+The player has two owners, and mpv's own precedence rules keep them apart.
 
-Copy the contrib files into your mpv config directory:
+| Layer | Owner | Delivered by | Lives in |
+|---|---|---|---|
+| **Launch flags** | app | command line on every launch (`Playback.LaunchFlags`) | `lib/media_centaur/playback/launch_flags.ex` |
+| **Bundled scripts** | app | `--script=<dir>` launch flag | `priv/mpv/scripts/media-centaur/` |
+| **User config** | user | mpv reads it as it always does | `~/.config/mpv/` (or `$MPV_HOME`) |
+| **User scripts** | user | mpv auto-loads `<user config>/scripts/` | `~/.config/mpv/scripts/` |
+| **Example config** | user, by copying | nothing in the app needs it | `../contrib/mpv/` |
+
+Rules that follow:
+
+- **The session never depends on anything in the user config.** Every mpv
+  behaviour `MpvSession` relies on is a launch flag, because a launch flag
+  survives any `mpv.conf`.
+- **The app never writes into the user config.** No `--config-dir`, no
+  `--no-config`, no installer copies. `mpv.conf`, `input.conf`, user
+  scripts, `script-opts/` and fonts stay live on every app launch.
+- **A user tunes or disables a bundled script through mpv's script
+  options**, not through the app.
+
+## Launch flags
+
+`Playback.LaunchFlags` builds the list; `MpvSession.spawn_mpv/2` passes it
+to `Port.open`. Unit-tested without spawning anything.
+
+| Flag | Why |
+|---|---|
+| `--fullscreen`, `--force-window=immediate` | The couch window. |
+| `--no-terminal`, `--msg-level=all=error` | mpv's stdout is not the diagnostic channel; the log file is. |
+| `--input-ipc-server=<socket>` | The observation protocol (see [`playback.md`](playback.md)). |
+| `--log-file=<socket_dir>/media-centaur-<session>.log` | Exit classification and script errors. |
+| `--keep-open=yes` | `eof-reached` fires only at true playlist end. `always` would fire it at every file and quit mpv mid-chain. |
+| `--resume-playback=no` | The app owns position, track choice and sound toggles. mpv's watch-later restore fills in `start`, `aid`, `sid`, `af` and more whenever the command line leaves them unset, which the restart-from-0 path does. |
+| `--script=<priv>/mpv/scripts/media-centaur` | The bundled package. |
+| `--alang`, `--slang`, `--subs-with-matching-audio`, `--sid=no` | The language policy (`LanguageContext.to_mpv_flags/1`). |
+| `--{ --start=N <file> --}` | Resume position, scoped to the launch file so appended successors start at their own offset (ADR-062). |
+
+## Bundled package
+
+`priv/mpv/scripts/media-centaur/` is one mpv **directory script**: mpv loads
+`main.lua`, names the script after the directory (`media_centaur`) and adds
+the directory to the Lua package path so the modules `require` each other.
+
+| Module | Role |
+|---|---|
+| `main.lua` | Reads the script options, loads each enabled feature module, registers the default keys. |
+| `pill.lua` | The shared bottom-right pill: 1080p scaling, frame, fade in/out, delay timer, hover-gated `MBTN_LEFT` capture, forced ENTER binding while visible, resize repaint, `end-file` cleanup. A feature supplies its label content and its action. |
+| `theme.lua` | The palette (ASS BGR) and ASS tag helpers every overlay shares. |
+| `log.lua` | `mp.msg` with a per-feature prefix, so one log domain stays readable. |
+| `skip_intro.lua` | Skip Intro on an intro chapter. |
+| `next_episode.lua` | Next Episode during credits, and the end-of-file countdown. |
+| `track_menu.lua` | The TAB overlay: audio, subtitles, sound toggles with per-folder memory and the auto limiter. |
+
+`priv/` ships in every release. In dev `_build/dev/lib/media_centaur/priv`
+is a symlink to the repo's `priv/`, so an edit applies on the next launch.
+There is no copy step.
+
+### Script options
+
+Read with `mp.options` from `<user config>/script-opts/media_centaur.conf`,
+overridden by `--script-opts=media_centaur-<key>=<value>`.
+
+| Option | Default | Effect |
+|---|---|---|
+| `skip_intro` | `yes` | Load the Skip Intro feature. |
+| `next_episode` | `yes` | Load the Next Episode feature. |
+| `track_menu` | `yes` | Load the track menu, its default keys and the `track-menu-toggle-sound` script-message. |
+
+### Default keys
+
+Registered by the package with `mp.add_key_binding`, so a stock user config
+works. A user's `input.conf` overrides them by mpv precedence.
+
+| Key | Binding | Action |
+|---|---|---|
+| `TAB` | `script-binding media_centaur/track-menu` | Open or close the track menu. |
+| `n` | `script-binding media_centaur/night-mode` | Toggle the `dynaudnorm` sound filter (the same toggle as the menu's Sound column). |
+| `ENTER` | forced while a pill shows | Skip Intro, or play the next episode. |
+
+Other scripts toggle a sound filter with
+`script-message track-menu-toggle-sound <dynaudnorm|dialog>`.
+
+### Logging
+
+One log domain for the package. Messages carry a feature prefix.
 
 ```bash
-cp ../contrib/mpv/mpv.conf ~/.config/mpv/mpv.conf
-cp ../contrib/mpv/input.conf ~/.config/mpv/input.conf
-cp -r ../contrib/mpv/scripts/ ~/.config/mpv/scripts/
+mpv --msg-level=media_centaur=trace /path/to/video.mkv
+# [media_centaur] skip-intro: show: skip target=92.5s
+# [media_centaur] next-episode: set_mode: countdown
+# [media_centaur] track-menu: open_menu
 ```
 
-## File Overview
+Under the app, the same lines land in the per-session `--log-file` (copy it
+while playing; it is deleted when the session stops). A Lua error in any
+module is reported there too.
 
-| File | Purpose |
-|------|---------|
-| `../contrib/mpv/mpv.conf` | Player settings — rendering, subtitles, audio, OSD |
-| `../contrib/mpv/input.conf` | Key bindings |
-| `../contrib/mpv/scripts/track-menu.lua` | Two-column audio/subtitle track selector overlay |
-| `../contrib/mpv/scripts/skip-intro.lua` | Chapter-based intro skip button |
-| `../contrib/mpv/scripts/next-episode.lua` | "Next Episode" button during credits + auto-play countdown |
-| `../contrib/mpv/scripts/hdr-display.lua` | Auto-switch the Hyprland output to HDR mode while HDR content plays |
+### Stale copies
 
-## mpv.conf
+Before this package, users copied `skip-intro.lua`, `next-episode.lua` and
+`track-menu.lua` into `~/.config/mpv/scripts/`. mpv still auto-loads
+those, so both the old script and the bundled module run: two pills. At
+launch the session checks the user config's `scripts/` for the three
+filenames and logs a `:playback` warning naming them (Status → Playback).
+It never deletes them.
 
-### Rendering (NVIDIA + Vulkan)
+## Track menu (`track_menu.lua`)
 
-- `gpu-api=vulkan` with `vo=gpu-next` and `hwdec=nvdec` for hardware-accelerated decoding
-- `profile=gpu-hq` enables high-quality defaults
-- High-quality scaling: `ewa_lanczossharp` for up/chroma, `mitchell` for downscale
-
-### HDR
-
-- `target-colorspace-hint=yes` — when the compositor runs the display in HDR
-  mode, mpv emits PQ BT.2020 untouched and the display does its own tone
-  mapping. The `hdr-display.lua` script (below) flips the display into HDR
-  mode automatically for HDR content.
-- **Dolby Vision is not passed through, and there is nothing to switch into.**
-  No display mode on this stack carries a DV signal — DRM/KMS, Hyprland and
-  the NVIDIA driver expose no DV tunnelling, and mpv's `--target-colorspace-hint`
-  docs state it never sends DV or HDR10+ metadata. libplacebo instead reads the
-  DV RPU itself (`vo=gpu-next`, format's `dolbyvision=yes` by default) and
-  applies it, so the TV receives HDR10. Profiles 7, 8.1 and 4 carry an HDR10 or
-  HLG base layer, so `video-params/gamma` reads `pq`/`hlg` and `hdr-display.lua`
-  engages exactly as it does for HDR10. Profile 5 has no such base layer; mpv
-  maps it to PQ BT.2020 in the frame params, which should engage the script the
-  same way — not yet confirmed against a real file. A profile 7 enhancement
-  layer (FEL) is discarded; no Linux player applies it.
-- SDR fallback (display in SDR mode): `tone-mapping=bt.2446a` +
-  `hdr-contrast-recovery=0.30` — the ITU HDR→SDR broadcast-conversion curve,
-  noticeably brighter than mpv's default spline on dim-graded films.
-
-### Subtitles
-
-- Preferred languages: `alang=en,eng`, `slang=en,eng`
-- `subs-with-matching-audio=forced` — only show forced subs when audio matches preferred language
-- `subs-fallback=yes` — fall back to any available sub track
-- `sub-auto=fuzzy` — load external subtitle files with fuzzy name matching
-
-### OSD & Window
-
-- `osc=yes` — built-in on-screen controller enabled
-- `keep-open=yes` — don't close the window when playback ends
-- `autofit-larger=90%x90%` — cap initial window size at 90% of screen
-- `cursor-autohide=1000` — hide cursor after 1 second
-
-### Audio
-
-- `volume=100`, `volume-max=150` — default volume with headroom for boost
-
-### Screenshots
-
-- Saved to `~/pictures/` as PNG
-
-## Key Bindings (input.conf)
-
-See the wiki's [Keyboard & Gamepad](https://github.com/media-centaur/media-centaur/wiki/Keyboard-and-Gamepad) page for the user-facing reference. The canonical source is `../contrib/mpv/input.conf`.
-
-## track-menu Plugin
-
-`scripts/track-menu.lua` is a custom two-column overlay for selecting audio and subtitle tracks. It replaces the uosc menu with a purpose-built track selector.
+A three-column overlay: Audio, Subtitles, Sound.
 
 ### Usage
 
-Press **Tab** to toggle the menu open/closed.
+Press **Tab** to toggle the menu open or closed.
 
-- **Up/Down** — move cursor within the active column
-- **Left/Right** — switch between Audio (left) and Subtitles (right) columns
-- **Enter** — apply the highlighted track (menu stays open)
-- **Esc**, **Tab**, or **Mouse Back** — close the menu
+- **Up/Down** move the cursor within the active column
+- **Left/Right** switch columns
+- **Enter** applies the highlighted track or flips the highlighted sound toggle (the menu stays open)
+- **Esc**, **Tab** or **Mouse Back** close the menu
 
-### Behavior
+### Behaviour
 
-- Cursor defaults to the currently active subtitle track on open
-- The subtitle column includes a "None" option to disable subs
-- Active (currently playing) track is marked with `●`
-- Enter and Esc have global bindings (`cycle fullscreen` and `quit-watch-later`), but the plugin uses `mp.add_forced_key_binding` to override them while the menu is open and restores them on close
+- The cursor opens on the active subtitle track
+- The subtitle column includes a "None" option
+- The active track or toggle is marked with `●`
+- Enter and Esc have global bindings in a typical `input.conf`; the menu takes them with `mp.add_forced_key_binding` while open and releases them on close
+- **Sound column.** *Night mode* (`dynaudnorm`) and *Dialogue boost*
+  (`dialoguenhance`) are managed audio filters. Whenever any is on, a
+  true-peak limiter (`alimiter`) is appended last and removed when all are
+  off. Choices are saved per folder to
+  `~/.local/state/mpv/sound-toggles.json` and restored on `file-loaded`.
+  Flipping a toggle while paused can reset the other one, because mpv
+  cannot rebuild the audio filter chain without a live stream.
 
-### Visual Style
+### Visual style
 
-Glassmorphism-inspired dark panel with semi-transparent background, blue highlight bar on the cursor row, and blue column headers. All sizes scale relative to display resolution (1080p baseline) so the menu looks consistent at any resolution.
+Dark semi-transparent panel, orange highlight bar on the cursor row, orange
+column headers. All sizes scale from a 1080p baseline.
 
-### Debugging
+### Implementation notes
 
-Run mpv with trace-level logging for the plugin:
+- **OSD overlay resolution.** `mp.create_osd_overlay("ass-events")` defaults
+  to a 720p virtual coordinate system; the module sets `overlay.res_x` and
+  `overlay.res_y` from `mp.get_osd_size()` so pixel coordinates are correct
+  at any resolution.
+- **Resolution scaling.** Layout values are defined at 1080p and multiplied
+  by `osd_height / 1080` at render time.
+- **Forward declaration.** `close_menu` is declared as a local before
+  `open_menu`, whose closures reference it.
 
-```bash
-mpv --msg-level=track_menu=trace /path/to/video.mkv
-```
+## Skip Intro (`skip_intro.lua`)
 
-This outputs detailed logs for script loading, track discovery, rendering, overlay updates, and navigation events.
+Observes mpv's `chapter` property. When the current chapter's title matches
+(case-insensitive) `Intro`, `Intro …`, `Opening`, `Opening …`, `OP`,
+`OP …`, `OP<digit>` or `Prologue`, and a next chapter exists, a pill
+appears bottom-right after a one-second delay: `ENTER  Skip Intro  ▶▶`.
+Enter or a click seeks to the next chapter's start. The pill fades out when
+playback leaves the chapter.
 
-### Implementation Notes
+- No user key binding is needed; the feature activates from the chapter observer
+- ENTER is force-bound while the pill shows and released when it hides
+- **The pill is clickable.** A `mouse-pos` observer hit-tests the cursor
+  against the pill bounds; `MBTN_LEFT` is force-bound only while the cursor
+  is over the pill, so clicks elsewhere still reach the OSC and seek bar.
+  Hovering brightens the border to the accent colour
+- Files without chapters, or with untitled chapters, are unaffected
+- An intro that is the last chapter shows no pill
 
-- **Script name mapping:** mpv converts hyphens in script filenames to underscores internally. The file is `track-menu.lua` but the binding in `input.conf` must use `track_menu/toggle`.
-- **OSD overlay resolution:** `mp.create_osd_overlay("ass-events")` defaults to a 720p virtual coordinate system. The plugin sets `overlay.res_x` and `overlay.res_y` to match `mp.get_osd_size()` so that pixel coordinates work correctly at any resolution.
-- **Resolution scaling:** All layout values (font sizes, padding, column widths) are defined at a 1080p baseline and multiplied by `osd_height / 1080` at render time.
-- **Forward declaration:** Lua requires `close_menu` to be forward-declared as a local before `open_menu` since `open_menu`'s closures reference it.
+## Next Episode (`next_episode.lua`)
 
-## skip-intro Plugin
+Shows a "Next Episode" pill when the playlist holds a queued successor (the
+backend appends the next episode, ADR-062). Two modes:
 
-`scripts/skip-intro.lua` detects intro/opening chapters and shows a "Skip Intro" pill button in the bottom-right corner. Press **Enter** or **click the pill** to skip to the next chapter.
+- **Skip mode** while rolling credits play: Enter or a click advances
+  immediately with `playlist-next`. The pill only shortens the credits; it
+  never skips content on its own.
+- **Countdown mode** in the final 20 seconds of the file, chapters or not:
+  the pill reads "Next episode in Ns" so auto-play never lands unannounced.
+  Enter plays now. Quitting the player is how you decline.
 
-### How It Works
+### How it works
 
-The script observes mpv's `chapter` property. When a chapter change occurs, it checks the chapter title (case-insensitive) against these patterns:
+Observes `chapter`, `playlist-count` and `time-remaining`. Skip mode
+appears when both hold:
 
-- `Intro`, `Intro Credits`, etc.
-- `Opening`, `Opening Theme`, etc.
-- `OP`, `OP 1`, `OP2`, etc.
-- `Prologue`
+- the current chapter's title names the credits (`credits` or `outro`,
+  case-insensitive whole word, the same words as the backend's
+  `ChapterCompletion`) and the chapter starts at or after 80% of the
+  runtime, so an "Opening Credits" chapter at t=0 never triggers it; and
+- `playlist-count - playlist-pos > 1`, a successor is actually queued.
 
-If the title matches and there is a next chapter to skip to, a glassmorphism pill appears in the bottom-right corner with `ENTER  Skip Intro  ▶▶`. The button auto-dismisses when playback leaves the intro chapter.
+Countdown mode replaces it, or appears on its own for files without a
+credits chapter, once `time-remaining` drops inside the 20-second window
+while a successor is queued. The number is the true time to end-of-file,
+so pausing pauses the countdown.
 
-### Behavior
+- ENTER is force-bound to `playlist-next` while the pill shows; ESC keeps
+  its global binding at all times
+- Same hover-gated `MBTN_LEFT` capture as Skip Intro
+- A chain end or auto-play turned off means no successor and no pill
+- Skip mode waits 1 s after the chapter change; countdown mode appears at once
 
-- **No key binding needed** — the script activates automatically via chapter observation
-- ENTER is force-bound to "skip to next chapter" while the button is visible, overriding the global fullscreen toggle. The global binding is restored when the button disappears.
-- **The pill is clickable.** A `mouse-pos` observer hit-tests the cursor against the pill bounds; `MBTN_LEFT` is force-bound only while the cursor is over the pill, so clicks elsewhere still reach the OSC / seek bar. Hovering brightens the border to the orange accent as a clickable affordance.
-- Files without chapters or with untitled chapters are unaffected
-- If the intro is the last chapter (no next chapter), the button is suppressed
+## Example config (`../contrib/mpv/`)
 
-### Visual Style
+An `mpv.conf`, an `input.conf` and the user script `hdr-display.lua` that a
+user may copy into their user config as a starting point. Nothing in the
+app reads them. What follows documents them for contributors; the user
+guide is `guides/mpv-setup.md` in contrib.
 
-Same glassmorphism aesthetic as track-menu: dark semi-transparent pill with subtle border, dim "ENTER" key hint, bold white "Skip Intro" label, and orange accent arrow.
+### mpv.conf
 
-### Debugging
+**Rendering (NVIDIA + Vulkan)**
 
-```bash
-mpv --msg-level=skip_intro=trace /path/to/video.mkv
-```
+- `gpu-api=vulkan` with `vo=gpu-next` and `hwdec=nvdec`
+- `profile=gpu-hq`
+- `ewa_lanczossharp` for up/chroma scaling, `mitchell` for downscale
 
-This outputs chapter change events, pattern matching results, overlay rendering, and skip actions.
+**HDR**
 
-## next-episode Plugin
+- `target-colorspace-hint=yes`: when the compositor runs the display in HDR
+  mode, mpv emits PQ BT.2020 untouched and the display does its own tone
+  mapping. `hdr-display.lua` flips the display into HDR mode for HDR content.
+- **Dolby Vision is not passed through, and there is nothing to switch
+  into.** No display mode on this stack carries a DV signal; mpv's
+  `--target-colorspace-hint` never sends DV or HDR10+ metadata. libplacebo
+  reads the DV RPU itself (`vo=gpu-next`) and applies it, so the TV receives
+  HDR10. Profiles 7, 8.1 and 4 carry an HDR10 or HLG base layer, so
+  `video-params/gamma` reads `pq`/`hlg` and `hdr-display.lua` engages as for
+  HDR10. Profile 5 has no such base layer; mpv maps it to PQ BT.2020 in the
+  frame params, which should engage the script the same way, not yet
+  confirmed against a real file. A profile 7 enhancement layer is discarded.
+- SDR fallback (display in SDR mode): `tone-mapping=bt.2446a` +
+  `hdr-contrast-recovery=0.30`, the ITU HDR→SDR broadcast curve, brighter
+  than mpv's default spline on dim-graded films.
 
-`scripts/next-episode.lua` shows a "Next Episode" pill in the bottom-right
-corner when the playlist holds a queued successor (the backend appends the
-next episode — ADR-062). It has two modes:
+**Subtitles**: `alang=en,eng`, `slang=en,eng`,
+`subs-with-matching-audio=forced`, `subs-fallback=yes`, `sub-auto=fuzzy`.
+Under the app the language policy's launch flags override the first three.
 
-- **Skip mode** — while rolling credits play: press **Enter** or **click
-  the pill** to advance immediately with `playlist-next`. The pill only
-  shortens the credits, it never skips content automatically.
-- **Countdown mode** — in the final 20 seconds of the file, chapters or
-  not: the pill switches to "Next episode in Ns" so auto-play never lands
-  unannounced. **Enter** plays now. Declining needs no dedicated control —
-  quitting the player (ESC / the remote's back button, as ever) ends the
-  session, queued successor and all.
+**OSD and window**: `osc=yes`, `keep-open=yes` (the app pins this itself),
+`autofit-larger=90%x90%`, `cursor-autohide=1000`, `input-ar-delay=1000`
+(the FLIRC remote's double-press fix).
 
-### How It Works
+**Audio**: `volume=100`, `volume-max=150`, `ad-lavc-ac3drc=1.0` (the
+authored AC3 night-mode curve), `audio-channels=stereo`.
 
-The script observes `chapter`, `playlist-count` and `time-remaining`. Skip
-mode appears when **both** hold:
+**Screenshots**: `~/pictures/`, PNG.
 
-- the current chapter's title names the credits (`credits`/`outro`,
-  case-insensitive whole-word — same patterns as the backend's
-  `ChapterCompletion`) **and** the chapter starts at ≥ 80% of the runtime
-  (so an "Opening Credits" chapter at t=0 never triggers it); and
-- `playlist-count - playlist-pos > 1` — a successor is actually queued.
+### input.conf
 
-Countdown mode replaces it (or appears on its own for files without a
-credits chapter) once `time-remaining` drops inside the 20-second window
-while a successor is queued. The countdown number is the true time to
-end-of-file — when mpv itself advances — so pausing pauses the countdown.
+Section-commented, one concern per block. The package binds `TAB` and `n`
+itself, so the file carries neither. Every quit key is plain `quit`: the
+app saves position over IPC and launches with `--resume-playback=no`, so
+`quit-watch-later` would write files the app-launched player never reads.
 
-### Behavior
+### hdr-display.lua (user script)
 
-- **No key binding needed** — activates automatically via property observers
-- ENTER is force-bound to `playlist-next` while the pill is visible; the
-  global binding is restored when it disappears. ESC keeps its global
-  quit binding at all times — exiting the player is how you decline
-- The pill is clickable with the same hover-gated `MBTN_LEFT` capture as
-  skip-intro — clicks elsewhere still reach the OSC / seek bar
-- Series without a queued successor (chain end, auto-play turned off) never
-  show the pill in either mode
-- Skip mode waits 1 s after the chapter change before appearing; countdown
-  mode appears immediately
+Keeps the desktop in SDR and switches the Hyprland output to 10-bit HDR
+while HDR content plays. On a file whose transfer function is PQ or HLG it
+runs `hyprctl eval 'hl.monitor({ … cm = "hdr" })'`; on SDR content or quit
+it applies the SDR monitor line. With `target-colorspace-hint=yes` the
+display receives the untouched HDR10 grade.
 
-### Visual Style
-
-Same glassmorphism pill as skip-intro: dim key hints, bold white label,
-orange accent arrows. The countdown pill reuses the same
-footprint — no progress bar (the ticking seconds are the countdown).
-
-### Debugging
-
-```bash
-mpv --msg-level=next_episode=trace /path/to/video.mkv
-```
-
-This outputs chapter/playlist/time observations, credits detection results,
-mode switches, overlay rendering, and advance actions.
-
-## hdr-display Plugin
-
-Keeps the desktop in SDR (where it looks right) while giving HDR films a
-real HDR signal. When mpv loads a file whose transfer function is PQ or HLG,
-the script switches the Hyprland output to 10-bit HDR mode through the
-compositor's Lua config manager (`hyprctl eval 'hl.monitor({ … cm = "hdr" })'`);
-when playback moves to SDR content or mpv quits, it applies the SDR monitor
-line again. Combined with `target-colorspace-hint=yes`, the display receives
-the film's untouched HDR10 grade and applies its own tone mapping.
-
-### Behavior
-
-- **No key binding needed** — activates via a `video-params/gamma` observer
-- **Every switch holds playback.** The display shows black for about a
-  second while it re-locks the HDMI link on a mode change (same as a game
-  console). The script pauses before the switch and resumes `settle_seconds`
-  later (2.3 s), so the opening of the film isn't lost under the black. The
-  hold applies in both directions — entering HDR, and dropping back to SDR
-  when the next playlist entry is SDR — but not on quit. A player that was
-  already paused is left alone, and resuming by hand during the window ends
-  the hold.
-- The app's playback session sees the hold as an ordinary pause: expect a
-  paused/resumed pair in the playback log on every HDR launch.
+- Activates from a `video-params/gamma` observer
+- **Every switch holds playback.** The TV shows black for about a second
+  while it re-locks the HDMI link. The script pauses before the switch and
+  resumes `settle_seconds` later (2.3 s), in both directions but not on
+  quit. A player already paused is left alone; resuming by hand during the
+  window ends the hold. The app's session sees an ordinary pause.
 - **Hyprland must not auto-switch mpv.** The mpv window rule in
-  `~/.config/hypr/rules.lua` sets `no_auto_hdr = true`. Hyprland's
-  `render:cm_auto_hdr` (on by default) sends the HDR infoframe only once the
-  fullscreen surface is HDR, and mpv's swapchain turns HDR on its first draw
-  after the hold — that put a second HDMI re-lock a few seconds into
-  playback. With the rule, the infoframe follows the script's monitor line,
-  inside the hold.
-- HDR → HDR playlist transitions don't bounce the display (gamma is only
-  `nil` between files, and `nil` never triggers a switch)
+  `~/.config/hypr/rules.lua` sets `no_auto_hdr = true`; otherwise Hyprland
+  sends the HDR infoframe on mpv's first HDR draw after the hold, a second
+  re-lock a few seconds into playback.
+- HDR → HDR playlist transitions do not bounce the display
 - The monitor lines in the script's config table must mirror `hl.monitor` in
-  `~/.config/hypr/hyprland.lua` so the SDR line lands on the compositor's
-  steady state. `hl.monitor` merges, so the SDR line resets every key the
-  HDR line sets.
-- If mpv is killed hard (no shutdown event), the display stays in HDR mode —
-  recover by running the script's SDR line through `hyprctl eval`, or reload
-  Hyprland
+  `~/.config/hypr/hyprland.lua`; `hl.monitor` merges, so the SDR line resets
+  every key the HDR line sets
+- If mpv is killed hard, the display stays in HDR mode; run the script's SDR
+  line through `hyprctl eval`, or reload Hyprland
 
-### Debugging
+Debug: `mpv --msg-level=hdr_display=debug /path/to/video.mkv`. For
+display-side timing correlate the script's hold/release in the app's
+per-session log with mpv's `Preferred surface feedback received` and
+libplacebo's `Picked surface configuration … HDR10`.
 
-```bash
-mpv --msg-level=hdr_display=debug /path/to/video.mkv
-```
-
-This outputs gamma observations, the hold and release of playback around
-each switch, and the hyprctl calls.
-
-For display-side timing, the app launches mpv with `--log-file` at
-`/tmp/media-centaur-<session>.log` (deleted when the session stops — copy it
-while playing). The lines to correlate are the script's hold/release, mpv's
-`Preferred surface feedback received` (the compositor's colourspace change)
-and libplacebo's `Picked surface configuration … HDR10` (mpv's swapchain
-turning HDR). The Hyprland log shows `drm: Modesetting` per re-lock but
-carries no timestamps.
+This script is the canonical example of a user script: one named output,
+one TV's settle time, one compositor. It is exactly what the bundled
+package must never contain.

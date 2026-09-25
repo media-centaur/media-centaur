@@ -89,8 +89,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     Events,
     IpcFraming,
     LanguageContext,
+    LaunchFlags,
     MpvExitClassifier,
     MpvLogReader,
+    MpvUserConfig,
     NextEpisode,
     OverrideCapture,
     ProgressBroadcaster,
@@ -396,40 +398,21 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # --- mpv launch ---
 
-  @doc """
-  The argv tail selecting the launch file, with its resume position scoped
-  per-file via mpv's `--{ … --}` option grouping.
-
-  A bare global `--start` applies to **every** file mpv loads — including
-  successors appended to the playlist (ADR-062) — so an unwatched next
-  episode would begin at the first episode's resume offset. The group pins
-  the flag to the launch file alone; appended entries carry their own
-  per-entry `start` option or none at all (`NextEpisode.loadfile_command/1`).
-  """
-  @spec launch_target(String.t(), number()) :: [String.t()]
-  def launch_target(url, start_position) when start_position > 0 do
-    ["--{", "--start=#{start_position}", url, "--}"]
-  end
-
-  def launch_target(url, _start_position), do: [url]
-
   defp spawn_mpv(state, env_pairs) do
     Log.info(:playback, "launching mpv — #{Path.basename(state.content_url)}")
     mpv_path = Config.get(:mpv_path)
 
-    language_flags = LanguageContext.to_mpv_flags(state.language_context.priority_args)
+    warn_about_stale_script_copies()
 
     flags =
-      [
-        "--fullscreen",
-        "--no-terminal",
-        "--msg-level=all=error",
-        "--force-window=immediate",
-        "--input-ipc-server=#{state.socket_path}",
-        "--log-file=#{state.log_file_path}"
-      ] ++
-        language_flags ++
-        launch_target(state.content_url, state.start_position)
+      LaunchFlags.build(%{
+        socket_path: state.socket_path,
+        log_file_path: state.log_file_path,
+        language_flags: LanguageContext.to_mpv_flags(state.language_context.priority_args),
+        content_url: state.content_url,
+        start_position: state.start_position,
+        bundled_scripts_dir: LaunchFlags.bundled_scripts_dir()
+      })
 
     port =
       Port.open({:spawn_executable, to_charlist(mpv_path)}, [
@@ -442,6 +425,25 @@ defmodule MediaCentaur.Playback.MpvSession do
 
     Process.send_after(self(), :connect_socket, @socket_retry_interval_ms)
     {:noreply, %{state | port: port}}
+  end
+
+  # Old single-file copies of the now-bundled scripts in the user config
+  # double every overlay. Named here so Status → Playback shows them; the
+  # app never deletes anything in the user's mpv config.
+  defp warn_about_stale_script_copies do
+    case MpvUserConfig.stale_bundled_copies() do
+      [] ->
+        :ok
+
+      paths ->
+        names = Enum.map_join(paths, ", ", &Path.basename/1)
+
+        Log.warning(
+          :playback,
+          "old copies of the built-in mpv scripts in #{Path.dirname(hd(paths))}: #{names}. " <>
+            "Delete them, or Skip Intro and Next Episode appear twice."
+        )
+    end
   end
 
   # --- Idempotent Finalization ---

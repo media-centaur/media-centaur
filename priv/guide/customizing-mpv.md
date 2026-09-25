@@ -4,76 +4,78 @@ part: Watching
 slug: customizing-mpv
 order: 10
 ---
-Playback runs through mpv (see [Playback](/guide/playback)). Media Centaur ships an optional
-mpv configuration — a couple of Lua scripts plus tuned settings — that makes mpv behave like
-a media-center player: a track picker, a Skip Intro button, sensible rendering, and audio
-that doesn't blast you. It's not installed automatically; you opt in by copying it into your
-mpv config.
+Playback runs through mpv (see [Playback](/guide/playback)). Media Centaur
+starts mpv with its own additions on every play and leaves your mpv
+configuration alone. Both layers apply at once.
 
-The config is the source of truth in the **[contrib repo](https://github.com/media-centaur/contrib)**,
-under [`mpv/`](https://github.com/media-centaur/contrib/tree/main/mpv).
+## What is built in
 
-## What it adds
+These load on every play from the app. No files to install.
 
-| Piece | What you get |
+| Feature | What you get |
 |---|---|
-| [`scripts/track-menu.lua`](https://github.com/media-centaur/contrib/blob/main/mpv/scripts/track-menu.lua) | A glassy **Tab** overlay: Audio, Subtitles, and a **Sound** column (night mode + dialogue boost), remembered per folder |
-| [`scripts/skip-intro.lua`](https://github.com/media-centaur/contrib/blob/main/mpv/scripts/skip-intro.lua) | A **Skip Intro** button on intro chapters |
-| [`mpv.conf`](https://github.com/media-centaur/contrib/blob/main/mpv/mpv.conf) | Rendering (Vulkan + hardware decode), language defaults, OSD, and audio dynamic-range handling |
-| [`input.conf`](https://github.com/media-centaur/contrib/blob/main/mpv/input.conf) | Key bindings, grouped by concern |
+| Track menu | **Tab** opens an overlay with Audio, Subtitles and a **Sound** column (night mode, dialogue boost). Sound choices are remembered per folder. **n** toggles night mode without opening the menu. |
+| Skip Intro | A button on intro chapters. **Enter** or a click jumps to the next chapter. |
+| Next Episode | A button while the credits roll when the next episode is queued, and a countdown in the last 20 seconds. **Enter** or a click plays it now. |
 
-## Installing it
+These run only when Media Centaur starts mpv. mpv opened by hand does not
+have them.
 
-mpv reads from `~/.config/mpv/`, so you install by copying the files there:
+## Turning one off
 
-```sh
-git clone https://github.com/media-centaur/contrib.git
-cp contrib/mpv/mpv.conf ~/.config/mpv/mpv.conf
-cp contrib/mpv/input.conf ~/.config/mpv/input.conf
-cp -r contrib/mpv/scripts/ ~/.config/mpv/scripts/
+Each feature has a switch in mpv's script options. Create
+`~/.config/mpv/script-opts/media_centaur.conf` with the lines you want:
+
+```ini
+skip_intro=no
+next_episode=no
+track_menu=no
 ```
 
-Scripts auto-load — no registration. Restart mpv (close any open playback) to pick up changes.
+Use this when another script you run covers the same ground, such as uosc's
+menus or a chapter-skip script.
 
-## Keeping it up to date
+## Your own configuration
 
-There's no automatic sync. After `git pull` in the contrib repo, re-copy the changed files —
-or **symlink** them once so a pull updates mpv directly:
+mpv reads `~/.config/mpv/` as usual: `mpv.conf`, `input.conf`, everything in
+`scripts/`, fonts. Media Centaur never writes there. Your key bindings in
+`input.conf` take precedence over the built-in ones, so you can move
+**Tab** or **n** to other keys, or unbind them.
 
-```sh
-ln -sf "$PWD"/contrib/mpv/scripts/*.lua ~/.config/mpv/scripts/
-ln -sf "$PWD"/contrib/mpv/input.conf ~/.config/mpv/input.conf
-```
+Two things Media Centaur sets on the command line each time it starts mpv,
+which `mpv.conf` cannot change for those plays:
 
-Keep **`mpv.conf` as your own copy** rather than a symlink — it carries per-machine bits
-(GPU/display) you'll want to tune locally.
+- Playback position comes from Media Centaur, not from mpv's watch-later
+  files. Position is saved as you watch no matter how you quit, so a
+  `quit-watch-later` binding gains nothing here.
+- `keep-open=yes`, so the player window stays until Media Centaur closes it
+  at the end of the queue.
 
-## Taming loud-then-quiet audio
+## Scripts you can add
 
-The standout feature. Theatrical mixes whisper the dialogue and then deafen you with the
-explosion; on a home setup that range is punishing. The config offers three independent fixes,
-two of them as live toggles in the track menu's **Sound** column (or the `n` key):
+Drop them into `~/.config/mpv/scripts/`. They load alongside the built-in
+features and need no Media Centaur changes.
 
-- **Authored DRC** (on by default) — applies the dynamic-range curve the film's own mixers
-  wrote, the least destructive option.
-- **Night mode** — evens out loud and quiet passages when the authored curve isn't enough.
-- **Dialogue boost** — lifts buried dialogue (often a casualty of a 5.1→stereo downmix).
+- **[uosc](https://github.com/tomasklaen/uosc)**: a richer, proximity-based player UI.
+- **[mpv-mpris](https://github.com/hoyon/mpv-mpris)**: standard Linux media-key support.
+- **[mpv-kscreen-doctor](https://gitlab.com/smaniottonicola/mpv-kscreen-doctor)**: match the display's refresh rate to the video's framerate (Wayland-friendly).
+- **[mpv-oled-screensaver](https://github.com/Akemi/mpv-oled-screensaver)**: fade to black when paused in fullscreen.
 
-Sound choices are **remembered per folder**, so setting night mode once on a season folder
-carries to every episode. The full rationale and tuning is in the contrib
+## A starting point for mpv.conf
+
+The **[contrib repo](https://github.com/media-centaur/contrib)** keeps an
+example configuration under
+[`mpv/`](https://github.com/media-centaur/contrib/tree/main/mpv): an
+`mpv.conf` with rendering, HDR and audio dynamic-range settings, an
+`input.conf` grouped by concern, and `hdr-display.lua`, a script that
+switches a Hyprland display into HDR mode while HDR content plays. Copy
+what you want into `~/.config/mpv/`; nothing in Media Centaur needs it.
+The audio settings are explained in the contrib
 [mpv-setup guide](https://github.com/media-centaur/contrib/blob/main/guides/mpv-setup.md).
 
-## Going further
+## If you installed the scripts by hand before
 
-That same guide recommends external plugins that complement the bundled config — they drop
-into `~/.config/mpv/scripts/` and need no Media Centaur changes:
-
-- **[uosc](https://github.com/tomasklaen/uosc)** — a richer, proximity-based player UI.
-- **[mpv-mpris](https://github.com/hoyon/mpv-mpris)** — standard Linux media-key support.
-- **[mpv-kscreen-doctor](https://gitlab.com/smaniottonicola/mpv-kscreen-doctor)** — match the display's refresh rate to the video's framerate to kill judder (Wayland-friendly).
-- **[mpv-oled-screensaver](https://github.com/Akemi/mpv-oled-screensaver)** — fade to black when paused in fullscreen, to spare OLED panels.
-
-> [!TIP]
-> The per-folder sound memory is the bit people miss: flip **night mode** once for a show and
-> every episode in that folder inherits it, while a film in an unconfigured folder still starts
-> at the faithful default.
+Earlier versions asked you to copy `skip-intro.lua`, `next-episode.lua` and
+`track-menu.lua` into `~/.config/mpv/scripts/`. mpv still loads those, so
+each feature runs twice and you see two buttons. Delete the three files.
+Status → Playback names them while they are present.

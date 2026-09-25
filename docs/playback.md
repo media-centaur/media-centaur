@@ -36,7 +36,7 @@ graph TD
 
 **Multi-session playback:** Multiple mpv processes can run concurrently, one per entity. Each session is identified by its entity_id and uses an entity-scoped socket (`media-centaur-{entity_id}.sock`).
 
-**Episode auto-advance ([ADR-062](../decisions/architecture/2026-08-18-062-playlist-based-episode-advance.md)):** a TV episode session is a *viewing chain*, not one file. The backend appends the successor episode to the mpv playlist (`Playback.NextEpisode`), so end-of-episode rolls into the next file inside the same mpv process — no window teardown, no HDR re-lock. The queueing decision runs off mpv's own `playlist-count`/`playlist-pos` observations (append only while the current entry is the last — reconnect-safe by construction), and a `path` change is the advance signal: the session closes out the finished episode, re-points its identity at the new file, and queues the next successor. The successor is always the *literally next* episode — a story-order gap (undownloaded episode) ends the chain rather than being skipped. Gated by the `auto_play_next_episode` setting (default on), read at each queueing decision. The in-player "Next Episode" pill during credits (`next-episode.lua`, contrib) is just `playlist-next`; the backend observes it like any other transition.
+**Episode auto-advance ([ADR-062](../decisions/architecture/2026-08-18-062-playlist-based-episode-advance.md)):** a TV episode session is a *viewing chain*, not one file. The backend appends the successor episode to the mpv playlist (`Playback.NextEpisode`), so end-of-episode rolls into the next file inside the same mpv process — no window teardown, no HDR re-lock. The queueing decision runs off mpv's own `playlist-count`/`playlist-pos` observations (append only while the current entry is the last — reconnect-safe by construction), and a `path` change is the advance signal: the session closes out the finished episode, re-points its identity at the new file, and queues the next successor. The successor is always the *literally next* episode — a story-order gap (undownloaded episode) ends the chain rather than being skipped. Gated by the `auto_play_next_episode` setting (default on), read at each queueing decision. The in-player "Next Episode" pill during credits (`next_episode.lua` in the bundled package, see [`mpv.md`](mpv.md)) is just `playlist-next`; the backend observes it like any other transition.
 
 **Observation, not control:** The backend is a tracking system. The user controls mpv directly (keyboard, remote, gamepad). Each MpvSession observes position/duration/pause/eof via IPC, persists watch progress, and broadcasts state via PubSub.
 
@@ -84,7 +84,7 @@ flowchart TD
 3. Sessions checks Registry for duplicates, then starts a new `MpvSession` via `SessionSupervisor`
 4. MpvSession registers in `SessionRegistry` by entity_id
 5. `DisplayEnv.resolve/1` builds the env list (WAYLAND_DISPLAY / DISPLAY, resolved from parent env or socket discovery); on `{:error, :no_display}` the session broadcasts `PlaybackFailed{reason: :no_display}` and stops
-6. MpvSession launches mpv with `--input-ipc-server`, `--fullscreen`, `--log-file=<per-session-path>`, the resolved display env, and optional `--start=position`
+6. MpvSession launches mpv with the flags `Playback.LaunchFlags` builds (IPC socket, log file, `--keep-open=yes`, `--resume-playback=no`, the bundled scripts package, the language policy, and the per-file `--start` group) plus the resolved display env; see [`mpv.md`](mpv.md) for the full table
 
 #### MPV IPC Protocol
 
