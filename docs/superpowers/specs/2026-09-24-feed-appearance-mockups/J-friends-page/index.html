@@ -5,7 +5,7 @@
  --sec:oklch(93% 0.01 264/.66);               /* the one secondary alpha: the ago, "All N friends" */
  --disc:oklch(13% 0.02 264/.85);              /* the disc's ink */
  --ondisc:oklch(93% 0.01 264/.92);            /* the glyph on the disc */
- --lovefg:oklch(98% 0.01 12)}                 /* the white heart on the rose disc */
+ --lovefg:oklch(98% 0.01 12)}                 /* unused since the heart went solid rose on the ink disc */
 .content{max-width:none}
 h1{font-size:30px;line-height:36px;margin:0 0 14px 4px}
 .pw{container:page/inline-size;max-width:1820px}   /* a raw 2560 keeps 900px cards; the app composes 2560 at 1920 CSS px anyway */
@@ -61,12 +61,12 @@ h1{font-size:30px;line-height:36px;margin:0 0 14px 4px}
 .card.page .sp-empty{padding:12px}
 .card.rail .sp-empty{padding:8px}
 /* the corner disc: a round of ink /.85 with a 1px ring white/18, inset 8 at the poster's top-right, the glyph centred on it; two acts stack downward 6 apart in mast order;
-   the love disc on rose with the white heart, every other disc neutral */
+   every disc the same ink; the heart alone solid rose */
 .gl{display:block;width:var(--g);height:var(--g);stroke-width:var(--sw)}
 .flags{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px;z-index:2}
 .flag{display:inline-flex;align-items:center;justify-content:center;width:var(--d);height:var(--d);border-radius:99px;color:var(--ondisc);background:var(--disc);
  box-shadow:0 0 0 1px oklch(100% 0 0/.18) inset}
-.flag.love{color:var(--lovefg);background:var(--love)}
+.flag.love{color:var(--love)} /* the same ink disc as the rest; only the heart is solid rose */
 
 /* ---- the opened card (state 3b): the strip in full (wrapping), one sentence row per poster — the verb, the episode, the ago — and the management foot ---- */
 .rows{margin-top:20px}

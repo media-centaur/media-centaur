@@ -5,7 +5,7 @@
  --sec:oklch(93% 0.01 264/.66);            /* one secondary alpha: years, agos, plain seat states, the rail's no-artwork slot */
  --disc:oklch(13% 0.02 264/.85);           /* the rail card's corner disc: its ink */
  --ondisc:oklch(93% 0.01 264/.92);         /* the glyph on the disc */
- --lovefg:oklch(98% 0.01 12)}              /* the white heart on the rose disc */
+ --lovefg:oklch(98% 0.01 12)}              /* unused since the heart went solid rose on the ink disc */
 .content{max-width:none}
 h1{font-size:30px;line-height:36px;margin:0 0 14px 4px}
 
@@ -173,12 +173,12 @@ h1{font-size:30px;line-height:36px;margin:0 0 14px 4px}
 /* a title with no artwork yet: the slot at a 6% fill, the title's name at its foot, its flag flown all the same */
 .sp-empty{display:flex;align-items:flex-end;padding:8px;font-size:18px;line-height:22px;color:var(--sec);background:oklch(93% 0.01 264/.06);border-color:oklch(100% 0 0/.05);box-shadow:none}
 /* the corner disc (J's, verbatim): a round of ink /.85 with a 1px ring white/18, inset 8 at the poster's top-right, the glyph centred on it;
-   two acts stack downward 6 apart in mast order; the love disc on rose with the white heart, every other disc neutral */
+   two acts stack downward 6 apart in mast order; every disc the same ink; the heart alone solid rose */
 .gl{display:block;width:var(--g);height:var(--g);stroke-width:var(--sw)}
 .flags{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px;z-index:2}
 .flag{display:inline-flex;align-items:center;justify-content:center;width:var(--d);height:var(--d);border-radius:99px;color:var(--ondisc);background:var(--disc);
  box-shadow:0 0 0 1px oklch(100% 0 0/.18) inset}
-.flag.love{color:var(--lovefg);background:var(--love)}
+.flag.love{color:var(--love)} /* the same ink disc as the rest; only the heart is solid rose */
 .railfoot{padding:10px 0 0 2px}
 
 /* ---- paging: Show older at the column's foot, the cap's foot line, "3 new" at the column's head — 32px tall, 20px, on the reading edge ---- */
