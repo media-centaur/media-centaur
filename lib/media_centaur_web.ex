@@ -22,6 +22,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.Subtitles,
       MediaCentaur.TMDB,
       MediaCentaur.TmdbArtwork,
+      MediaCentaur.TitleArtwork,
       MediaCentaur.Settings.Controls,
       MediaCentaur.IntegrationAvailability,
       MediaCentaur.IntegrationHealth,

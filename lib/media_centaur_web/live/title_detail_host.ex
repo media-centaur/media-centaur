@@ -84,7 +84,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   import Phoenix.Component, only: [assign: 2, assign: 3, update: 3]
   import Phoenix.LiveView
-  import MediaCentaurWeb.LiveHelpers, only: [image_url: 2, title_poster_url: 1, tmdb_cdn_url: 2]
+  import MediaCentaurWeb.LiveHelpers, only: [image_url: 2]
 
   alias MediaCentaur.Acquisition.{DownloadParams, PlanEvents, TitleStates}
   alias MediaCentaur.Acquisition.TitleDownloadParams
@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaur.TmdbArtwork
+  alias MediaCentaur.TitleArtwork
   alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
@@ -465,7 +465,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   defp build_detail(socket, %Title{} = title, given, preview) do
     ref = Title.ref(title)
     library = Map.get_lazy(given, :library, fn -> LibraryHalf.load(ref) end)
-    artwork = TmdbArtwork.urls(title.media_type, title.tmdb_id)
+    artwork = TitleArtwork.urls(title, library_images(library), :w92)
     acquisition? = Capabilities.acquisition_ready?()
     planning_mode = PlanningMode.value()
     today = socket.assigns.today
@@ -478,11 +478,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         DownloadParams.lower_quality_accepted?(TitleDownloadParams.get(title.tmdb_id, title.media_type)),
       acquisition_state: Map.get(TitleStates.for_refs([ref]), ref),
       release_mode_available: Capabilities.prowlarr_ready?(),
-      poster_url: library_image(library, "poster") || title_poster_url(title),
-      backdrop_url:
-        library_image(library, "backdrop") || artwork.backdrop_url ||
-          tmdb_cdn_url(title.backdrop_path, :w1280),
-      logo_url: library_image(library, "logo") || artwork.logo_url,
+      poster_url: artwork.poster_url,
+      backdrop_url: artwork.backdrop_url,
+      logo_url: artwork.logo_url,
       tracking:
         TrackingDetail.load(ref, %{
           today: today,
@@ -516,6 +514,10 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
 
   # The library's image ladder (UIDR-021): the subject's art, then the
   # container's — a collection member rarely carries its own backdrop.
+  # The library tier of the ladder, from the one loaded entity: the
+  # subject's image, else its entry's. `TitleArtwork` takes it from here.
+  defp library_images(library), do: Map.new(~w(poster backdrop logo), &{&1, library_image(library, &1)})
+
   defp library_image(nil, _role), do: nil
 
   defp library_image(%{subject: subject, entry: %{entity: entity}}, role),

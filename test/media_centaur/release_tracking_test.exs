@@ -973,69 +973,74 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
-  describe "logo_url_for_item/2" do
-    defp seed_cached_logo(media_type, tmdb_id) do
+  describe "list_releases_between/3 artwork" do
+    defp seed_cached(role, media_type, tmdb_id) do
       data_dir = put_tmp_data_dir()
       dir = Path.join([data_dir, "images", "tmdb", "#{media_type}-#{tmdb_id}"])
       File.mkdir_p!(dir)
-      File.write!(Path.join(dir, "logo.png"), "png")
+      File.write!(Path.join(dir, role), "bytes")
     end
 
-    test "prefers the library container's logo when present" do
-      container_id = Ecto.UUID.generate()
-      seed_cached_logo(:tv_series, 9001)
+    test "a row dresses from the library entity where it has the image and the referenced cache where not" do
+      series = create_tv_series(%{name: "Owned Show"})
+
+      create_image(%{
+        owner_type: :tv_series,
+        owner_id: series.id,
+        role: "logo",
+        content_url: "s/logo.png"
+      })
+
+      seed_cached("backdrop.jpg", :tv_series, 9101)
 
       item =
         create_tracking_item(%{
-          name: "Has both",
-          tmdb_id: 9001,
+          name: "Owned Show",
+          tmdb_id: 9101,
           media_type: :tv_series,
           library_container_type: :tv_series,
-          library_container_id: container_id
+          library_container_id: series.id
         })
 
-      library_logos = %{{:tv_series, container_id} => "/media-images/library/some-other-logo.png"}
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-04-28],
+        season_number: 1,
+        episode_number: 1
+      })
 
-      assert ReleaseTracking.logo_url_for_item(item, library_logos) ==
-               "/media-images/library/some-other-logo.png"
+      assert [row] = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
+      assert row.logo_url == "/media-images/s/logo.png"
+      assert row.backdrop_url == "/media-images/images/tmdb/tv_series-9101/backdrop.jpg"
     end
 
-    test "falls back to the tracking item's cached logo when no library logo is available" do
-      seed_cached_logo(:tv_series, 9002)
+    test "a row for a title the library does not own dresses from the referenced cache, nil when it is empty" do
+      seed_cached("logo.png", :tv_series, 9102)
+      tracked = create_tracking_item(%{name: "Tracked Show", tmdb_id: 9102, media_type: :tv_series})
 
-      item =
-        create_tracking_item(%{
-          name: "Tracked but not imported",
-          tmdb_id: 9002,
-          media_type: :tv_series
-        })
+      create_tracking_release(%{
+        item_id: tracked.id,
+        air_date: ~D[2026-04-28],
+        season_number: 1,
+        episode_number: 2
+      })
 
-      assert ReleaseTracking.logo_url_for_item(item, %{}) ==
-               "/media-images/images/tmdb/tv_series-9002/logo.png"
-    end
+      bare = create_tracking_item(%{name: "Bare Show", tmdb_id: 9103, media_type: :tv_series})
 
-    test "falls back to the tracking item's cached logo when the library container has no logo" do
-      container_id = Ecto.UUID.generate()
-      seed_cached_logo(:tv_series, 9003)
+      create_tracking_release(%{
+        item_id: bare.id,
+        air_date: ~D[2026-04-29],
+        season_number: 1,
+        episode_number: 1
+      })
 
-      item =
-        create_tracking_item(%{
-          name: "Imported but no library logo",
-          tmdb_id: 9003,
-          media_type: :tv_series,
-          library_container_type: :tv_series,
-          library_container_id: container_id
-        })
+      assert [tracked_row, bare_row] =
+               ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
 
-      # library_logos has no entry for this container_id
-      assert ReleaseTracking.logo_url_for_item(item, %{}) ==
-               "/media-images/images/tmdb/tv_series-9003/logo.png"
-    end
-
-    test "returns nil when neither library logo nor tracking logo is available" do
-      item = create_tracking_item(%{name: "No logos at all"})
-
-      assert ReleaseTracking.logo_url_for_item(item, %{}) == nil
+      assert tracked_row.logo_url == "/media-images/images/tmdb/tv_series-9102/logo.png"
+      assert tracked_row.backdrop_url == nil
+      assert bare_row.logo_url == nil
+      assert bare_row.backdrop_url == nil
     end
   end
 

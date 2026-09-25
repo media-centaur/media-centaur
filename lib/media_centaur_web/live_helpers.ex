@@ -181,17 +181,18 @@ defmodule MediaCentaurWeb.LiveHelpers do
   defdelegate tmdb_cdn_url(path, width), to: MediaCentaur.TMDB.Mapper, as: :image_url
 
   @doc """
-  The `src` a title thumb paints: the local cached tier when
-  `TmdbArtwork` holds the identity, the TMDB hotlink otherwise, nil when
-  the title carries no poster path either. Filesystem-only (no DB), so
-  hosts may call it at render time per row or once at load;
-  `title_summary/1` sizes the result.
+  The `src` a title thumb paints, down `MediaCentaur.TitleArtwork`'s
+  ladder without the library rung — the referenced tier when
+  `TmdbArtwork` holds the identity, the TMDB hotlink at `:w92`
+  otherwise, nil when the title carries no poster path either. For a
+  surface that also knows the owning library entity, call
+  `TitleArtwork.urls/3` with it. Filesystem-only (no DB), so hosts may
+  call it at render time per row or once at load; `title_summary/1`
+  sizes the result.
   """
   @spec title_poster_url(MediaCentaur.TMDB.Title.t()) :: String.t() | nil
-  def title_poster_url(%MediaCentaur.TMDB.Title{} = title) do
-    MediaCentaur.TmdbArtwork.urls(title.media_type, title.tmdb_id).poster_url ||
-      tmdb_cdn_url(title.poster_path, :w92)
-  end
+  def title_poster_url(%MediaCentaur.TMDB.Title{} = title),
+    do: MediaCentaur.TitleArtwork.urls(title, %{}, :w92).poster_url
 
   @typedoc """
   How wide the surface will actually paint a piece of artwork.

@@ -335,7 +335,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
     # An activity's title snapshot carries no poster path, so the only
     # artwork this install can paint for a title it owns is the entity's
-    # own poster — the top of the ladder `ActivityPosters` walks.
+    # own poster — the top of the ladder `ActivityArtwork` walks.
     test "an activity for a title in the library paints the entity's poster", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie 424242"})
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "424242"})
