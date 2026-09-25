@@ -60,6 +60,7 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 069 | 2026-09-17 | [No Elixir dead-code gate; JS keeps one](architecture/2026-09-17-069-no-elixir-dead-code-gate.md) | accepted |
 | 070 | 2026-09-19 | [Durable observational time series live outside the main database](architecture/2026-09-19-070-time-series-outside-the-database.md) | accepted |
 | 071 | 2026-09-20 | [TMDB knowledge is one record per title, asked only when due](architecture/2026-09-20-071-tmdb-store-one-record-per-title.md) | accepted |
+| 072 | 2026-09-25 | [Bundled mpv scripts ship in the release; the user's mpv config is the user's](architecture/2026-09-25-072-bundled-mpv-scripts.md) | accepted |
 
 ## User Interface (`user-interface/`)
 
