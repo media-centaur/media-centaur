@@ -94,6 +94,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
       ref: {activity.tmdb_id, activity.media_type},
       title: activity.title,
       poster_url: row.poster_url,
+      backdrop_url: row.backdrop_url,
       author: if(row.own?, do: "You", else: row.nickname),
       own?: row.own?,
       kind: activity.kind,

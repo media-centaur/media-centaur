@@ -91,6 +91,16 @@ call. Cost: about four times the plan's file count for the phase, all
 mechanical; the behaviour changes are the release rows' backdrop (the
 library's wins, as everywhere else) and nothing on the Feed.
 
+**Phase 2 shipped 2026-09-25** in four commits (`29f45e82` the batch
+read, `d678bb9f` the CDN builder, `b2fe8237` the ladder and its
+composers, then the Feed's `backdrop_url`). Recorded for later: the
+Coming Up events (`ReleaseTracking.UpcomingFeed.event_from/2`) still
+dress from the referenced tier alone, per release, because a library
+read there would be one query per event; converge on `TitleArtwork`
+with a batched read when that shelf is next touched. Plans and
+pursuits read the referenced tier by design — an acquisition subject
+is not owned — and are not ladders.
+
 ## Handoff — start here in a fresh context
 
 1. Read this file (Status, Decisions made, Deferred), then the plan's

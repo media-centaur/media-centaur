@@ -265,7 +265,7 @@ Data only; nothing renders a backdrop until Phase 4. Three seams, each test-firs
 - Rename + modify: `lib/media_centaur_web/live/discovery_live/activity_posters.ex` → `activity_artwork.ex`; its test
 - Modify: `lib/media_centaur_web/components/discovery/feed_entry.ex`, `lib/media_centaur_web/live/discovery_live/feed_entries.ex`, `test/media_centaur_web/live/discovery_live/feed_entries_test.exs`, `test/support/discovery_rows.ex`, `lib/media_centaur_web/live/discovery_live.ex` (`load_activities/1`, `warm_activity_artwork/1`)
 
-- [ ] **Step 1: `Library.Artwork` — failing tests**
+- [x] **Step 1: `Library.Artwork` — failing tests**
 
 `git mv` the module and its test; rename the module to `MediaCentaur.Library.Artwork`, every `Posters.urls_by_refs(refs)` in the test to `Artwork.urls_by_refs(refs, "poster")`, and append:
 
@@ -298,9 +298,9 @@ Data only; nothing renders a backdrop until Phase 4. Three seams, each test-firs
 
 (Grep `TestFactory` for the image builder's exact name and keys before writing; the existing `posters_test.exs` shows the shape it uses.) Run: `~/scripts/agents/agent-mix test test/media_centaur/library/artwork_test.exs` → FAIL, `Artwork.urls_by_refs/2 is undefined`.
 
-- [ ] **Step 2: `Library.Artwork`** — the module keeps its shape; `@type role :: String.t()` with `@roles ~w(poster backdrop)`, `urls_by_refs(refs, role) when role in @roles`, and `image.role == ^role` in `poster_urls_by_owner/1` (renamed `urls_by_owner/2`). Moduledoc: "Batch artwork-URL resolution by entity reference and role — the poster or the backdrop — for surfaces outside the Library views…"; keep the episode → series sentence (both roles resolve to the series). `library.ex`: `Artwork` in `exports:`, the moduledoc row `| Artwork | \`Library.Images\`, \`Library.Artwork\`, \`Library.ImageHealth\` |`. `playback_activity.ex`: `Artwork.urls_by_refs(refs, "poster")` and its moduledoc sentence. Run `~/scripts/agents/agent-mix compile --force` once (the exports manifest), then the test → green; then `~/scripts/agents/agent-mix test test/media_centaur/watch_history` → green.
+- [x] **Step 2: `Library.Artwork`** — the module keeps its shape; `@type role :: String.t()` with `@roles ~w(poster backdrop)`, `urls_by_refs(refs, role) when role in @roles`, and `image.role == ^role` in `poster_urls_by_owner/1` (renamed `urls_by_owner/2`). Moduledoc: "Batch artwork-URL resolution by entity reference and role — the poster or the backdrop — for surfaces outside the Library views…"; keep the episode → series sentence (both roles resolve to the series). `library.ex`: `Artwork` in `exports:`, the moduledoc row `| Artwork | \`Library.Images\`, \`Library.Artwork\`, \`Library.ImageHealth\` |`. `playback_activity.ex`: `Artwork.urls_by_refs(refs, "poster")` and its moduledoc sentence. Run `~/scripts/agents/agent-mix compile --force` once (the exports manifest), then the test → green; then `~/scripts/agents/agent-mix test test/media_centaur/watch_history` → green.
 
-- [ ] **Step 3: `ActivityArtwork` — failing tests**
+- [x] **Step 3: `ActivityArtwork` — failing tests**
 
 `git mv` the resolver and its test. Rewrite the test module against the new contract:
 
@@ -360,7 +360,7 @@ Data only; nothing renders a backdrop until Phase 4. Three seams, each test-firs
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur_web/live/discovery_live/activity_artwork_test.exs` → FAIL.
 
-- [ ] **Step 4: `ActivityArtwork`**
+- [x] **Step 4: `ActivityArtwork`**
 
 ```elixir
   @typedoc "The library tier's URLs per role, from `Library.Artwork.urls_by_refs/2`."
@@ -404,17 +404,19 @@ Import `tmdb_cdn_url: 2` from `LiveHelpers` instead of `title_poster_url: 1` —
 
 `warm_activity_artwork/1` reads `ActivityArtwork.missing/1` unchanged in shape; its comment gains "or a backdrop — the band paints one". `People.build/3` keeps reading `row.poster_url`.
 
-- [ ] **Step 5: `FeedEntry.backdrop_url` — failing projection test**
+- [x] **Step 5: `FeedEntry.backdrop_url` — failing projection test**
 
 In `feed_entries_test.exs`, the test "an entry carries what the row shows…" adds `backdrop_url: "/b.jpg"` to the first row's overrides and to the `%FeedEntry{…} = review` match, and `backdrop_url: nil` to the listing's. `test/support/discovery_rows.ex` gains `backdrop_url: Map.get(overrides, :backdrop_url)`. Run → FAIL (`backdrop_url` is not a key of `FeedEntry`).
 
-- [ ] **Step 6: The field** — `FeedEntry` gains `:backdrop_url` after `:poster_url` (struct, `@type`, moduledoc: "`poster_url` and `backdrop_url` are the row artwork, resolved by the host down the ladder; nil paints the inset tone"); `FeedEntries.entry/2` copies `row.backdrop_url`. Green.
+- [x] **Step 6: The field** — `FeedEntry` gains `:backdrop_url` after `:poster_url` (struct, `@type`, moduledoc: "`poster_url` and `backdrop_url` are the row artwork, resolved by the host down the ladder; nil paints the inset tone"); `FeedEntries.entry/2` copies `row.backdrop_url`. Green.
 
-- [ ] **Step 7: Green, precommit**
+- [x] **Step 7: Green, precommit**
 
 Run: `~/scripts/agents/agent-mix test test/media_centaur/library test/media_centaur_web/live/discovery_live test/media_centaur_web/live/discovery_live_test.exs test/media_centaur/watch_history`, then precommit.
 
 **Acceptance:** `Library.Artwork.urls_by_refs/2` resolves both roles; `ActivityArtwork.urls/3` returns both and `missing/1` names either-role gaps; every `FeedEntry` carries `backdrop_url`; `Posters` and `ActivityPosters` no longer exist (`grep -rn 'Posters' lib test` is empty); the Feed renders exactly as before.
+
+> **Realized 2026-09-25, under `/unify_design`** (four commits): `Library.Artwork.urls_by_refs(refs, role)` also took the logo role and replaced `Images.logo_urls_for_entities/1`; `TMDB.Mapper.image_url/2` became the one CDN URL builder (`LiveHelpers.tmdb_cdn_url/2` delegates); the ladder itself is `MediaCentaur.TitleArtwork.urls(title, library_by_role, poster_width)` in core, composed by `ActivityArtwork.urls/3` (`:w185`), the title detail host (`:w92`, the review modal's thumb), `title_poster_url/1` (no library rung, `:w92`) and `ReleaseTracking.list_releases_between/3` (whose rows now take the library backdrop; `logo_url_for_item/2` is gone). Later phases read `entry.backdrop_url` as written here.
 
 ```bash
 git commit -am "feat: row artwork — the backdrop resolves down the same ladder as the poster
