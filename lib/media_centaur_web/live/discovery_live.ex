@@ -95,7 +95,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.Components.Title.Row, as: TitleRow
-  alias MediaCentaurWeb.DiscoveryLive.ActivityPosters
+  alias MediaCentaurWeb.DiscoveryLive.ActivityArtwork
   alias MediaCentaurWeb.DiscoveryLive.AddFriendBlock
   alias MediaCentaurWeb.DiscoveryLive.FeedEntries
   alias MediaCentaurWeb.Components.Title.Logic
@@ -363,25 +363,24 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # from the contexts that own them. Both tabs project from this list.
   # The poster too — an activity snapshot carries no poster path, so
   # only this page knows which artwork tier the title lives in
-  # (`ActivityPosters`).
+  # (`ActivityArtwork`).
   defp load_activities(socket) do
     rows = Activities.list_activities()
 
     owners =
       ExternalIds.tmdb_owners(Enum.map(rows, &{&1.activity.tmdb_id, &1.activity.media_type}))
 
-    library_posters = owners |> ActivityPosters.library_refs() |> Artwork.urls_by_refs("poster")
+    refs = ActivityArtwork.library_refs(owners)
+    library_artwork = Map.new(ActivityArtwork.roles(), &{&1, Artwork.urls_by_refs(refs, &1)})
     rungs = Discovery.rungs()
 
     activities =
       Enum.map(rows, fn %{activity: activity} = row ->
         ref = {activity.tmdb_id, activity.media_type}
 
-        Map.merge(row, %{
-          poster_url: ActivityPosters.url(activity, owners, library_posters),
-          library_owner_id: Map.get(owners, ref),
-          rung: Map.get(rungs, ref)
-        })
+        row
+        |> Map.merge(ActivityArtwork.urls(activity, owners, library_artwork))
+        |> Map.merge(%{library_owner_id: Map.get(owners, ref), rung: Map.get(rungs, ref)})
       end)
 
     socket
@@ -401,7 +400,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp warm_activity_artwork(socket) do
     refs =
       socket.assigns.activities
-      |> ActivityPosters.missing()
+      |> ActivityArtwork.missing()
       |> Enum.reject(&MapSet.member?(socket.assigns.warmed_artwork, &1))
 
     if refs == [] or not connected?(socket) or not Capabilities.tmdb_ready?() do

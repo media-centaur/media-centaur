@@ -8,6 +8,7 @@ defmodule MediaCentaur.ReleaseTracking do
       MediaCentaur.Retention,
       MediaCentaur.Search,
       MediaCentaur.Settings,
+      MediaCentaur.TitleArtwork,
       MediaCentaur.TmdbArtwork
     ],
     exports: [
@@ -60,7 +61,7 @@ defmodule MediaCentaur.ReleaseTracking do
 
   alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaur.TmdbArtwork
+  alias MediaCentaur.TitleArtwork
 
   require MediaCentaur.Log, as: Log
 
@@ -761,37 +762,6 @@ defmodule MediaCentaur.ReleaseTracking do
   def tmdb_type_for(:movie), do: "movie"
 
   @doc """
-  Resolves the best available logo URL for a tracking item.
-
-  Prefers the paired Library entity's logo (most authoritative — it's the same
-  asset that drives the rest of the library); falls back to the identity's
-  `TmdbArtwork` cache entry (fetched from TMDB by the refresher for shows not
-  yet imported); returns `nil` if neither is available.
-
-  `library_logos` is the map returned by
-  `MediaCentaur.Library.Artwork.urls_by_refs/2` for the logo role, batched by the caller so
-  a single query covers many items.
-
-  Single source of truth for "what logo should this card show?" — both
-  `upcoming_live` and `list_releases_between/3` route through here so the
-  precedence rule lives in exactly one place.
-  """
-  @spec logo_url_for_item(%Item{}, %{MediaCentaur.Library.Artwork.ref() => String.t()}) ::
-          String.t() | nil
-  def logo_url_for_item(%Item{} = item, library_logos) do
-    cond do
-      item.library_container_id && Map.get(library_logos, {item.media_type, item.library_container_id}) ->
-        Map.get(library_logos, {item.media_type, item.library_container_id})
-
-      logo = TmdbArtwork.urls(item.media_type, item.tmdb_id).logo_url ->
-        logo
-
-      true ->
-        nil
-    end
-  end
-
-  @doc """
   List tracked releases with `air_date` between `from_date` and `to_date` (inclusive),
   for watching items only. Used by HomeLive's "Coming Up" digest.
 
@@ -822,19 +792,18 @@ defmodule MediaCentaur.ReleaseTracking do
         )
       )
 
-    logo_urls =
-      releases
-      |> Enum.flat_map(fn r ->
-        if r.item.library_container_id,
-          do: [{r.item.media_type, r.item.library_container_id}],
-          else: []
-      end)
-      |> MediaCentaur.Library.Artwork.urls_by_refs("logo")
+    # The library tier of each row's artwork, one batch read per role
+    # over the items the library owns; `TitleArtwork` walks the ladder.
+    refs =
+      for release <- releases,
+          release.item.library_container_id,
+          do: {release.item.media_type, release.item.library_container_id}
+
+    library_artwork =
+      Map.new(~w(backdrop logo), &{&1, MediaCentaur.Library.Artwork.urls_by_refs(refs, &1)})
 
     Enum.map(releases, fn release ->
-      backdrop_url = TmdbArtwork.urls(release.item.media_type, release.item.tmdb_id).backdrop_url
-
-      logo_url = logo_url_for_item(release.item, logo_urls)
+      %{backdrop_url: backdrop_url, logo_url: logo_url} = item_artwork(release.item, library_artwork)
 
       %{
         item: %{
@@ -853,5 +822,15 @@ defmodule MediaCentaur.ReleaseTracking do
         logo_url: logo_url
       }
     end)
+  end
+
+  # A tracked item dresses like any title named by TMDB identity: the
+  # owning library entity's image when it has one, else the referenced
+  # cache. The poster width is moot — the rows paint no poster.
+  defp item_artwork(%Item{} = item, library_artwork) do
+    ref = {item.media_type, item.library_container_id}
+    library = Map.new(library_artwork, fn {role, urls} -> {role, Map.get(urls, ref)} end)
+    title = Title.new!(%{tmdb_id: item.tmdb_id, media_type: item.media_type, name: item.name})
+    TitleArtwork.urls(title, library, :w92)
   end
 end
