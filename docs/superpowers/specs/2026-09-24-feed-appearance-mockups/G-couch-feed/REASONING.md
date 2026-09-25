@@ -4,6 +4,8 @@ Round 8: the Feed and Watchlist tabs as two full-height columns beside the Frien
 
 **2026-09-25 — the rail card replaced.** The rail's cards are J's person card at the rail's width (`../J-friends-page/REASONING.md`, its *Rail card* column): the acts strip with corner discs, no presence line, no note of any kind; the data, order and "All 30 friends" follow J's state 4. The rail column of the size table, the card heights and the fold below carry J's values. Nothing else on the page moved. *The four sharing states, as drawn* and *The one thing I am least sure of* describe round 8's card and stand as the record; J answered the second.
 
+**2026-09-25 — the disc opaque, the glyph solid.** J's disc as L's treatment (b): ink at 1.0 under the same 1px ring, the heroicons solid glyph 28 at 96% white, the heart alone `--love`; two acts share **one capsule 44×78** — the disc lengthened by a glyph and the 6px gap — in mast order, not two discs. Nothing else on the page moved.
+
 ## Sizes — the spec
 
 Content 1820 at 1920: the **feed column 1236**, a **24px gutter**, the **rail 560**. One strip across both — Feed · Watchlist · Friends at 22/500 with 18px counts, the scope pill (44 tall, 20px options) at the column's right edge — one hairline under all of it, 16px to the first unit. The rail has no heading: the Friends tab names it.
@@ -13,7 +15,7 @@ Content 1820 at 1920: the **feed column 1236**, a **24px gutter**, the **rail 56
 | Unit | 1236×224, radius 12, ink, 6 apart | 560 wide, radius 12, ink, 6 apart; padding 12/14 |
 | Tile | 56 at x=20, centred; initial 22 | 48 at x=14, 3px down; initial 19; own filled; photo per R1 |
 | Poster | 100×150 at (92, 24) | the acts strip: three cells **96×144**, 16 apart, 8 under the name, at the tile's right; radius 6, 1px white/8, shadow `0 3 12 /.5`; a title without artwork a 6% slot, its name 18/66%, padding 8 |
-| Corner disc | — | 44 round, ink `oklch(13% .02 264)` at 85%, a 1px ring white/18, inset 8 at the poster's top-right; **glyph 28 at stroke 2** at 92%; the heart's disc on `--love` with the glyph white, every other disc neutral; two acts stacked 6 apart in mast order |
+| Corner disc | — | 44 round, **opaque** ink `oklch(13% .02 264)`, a 1px ring white/18, inset 8 at the poster's top-right; **solid glyph 28** (heroicons 24/solid) at 96% white; the heart alone `--love`, on the same ink; two acts share **one capsule 44×78** — the disc lengthened by a glyph and the 6px gap — in mast order |
 | Text | x 210→700 | x 76→546 |
 | Line 1 | 22/30 at 80%; name 500 at 96%; glyph 20 | name 22/28 600 at the tile's top; the ago 18 at 66% right-aligned; none with no acts |
 | Line 2 | title 28/36 600; year 18 at 66% | — nothing under the name |

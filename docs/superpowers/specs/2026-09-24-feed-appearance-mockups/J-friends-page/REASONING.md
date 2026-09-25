@@ -2,6 +2,8 @@
 
 Round 9c: H's frame with I's acts strip as the card's picture; G's rail column beside it, the same card at 560. Patched after K, by the owner's decision: the act glyph on every poster is the corner disc, not the mast — at the glyph sizes that passed K's half-size check (28 and 32 at stroke 2), not 9b's 24; nothing else moved. The owner's decision, applied before the first render: **no notes on a person card** — no sharing note, no "How friends see you", no "Nothing shared yet"; a friend with no acts is tile and name (Theo). Three passes at 1920, read at half; once at 1280 and 2560. No JavaScript.
 
+**2026-09-25 — the disc opaque, the glyph solid.** L's treatment (b): every act disc is ink at 1.0 under the same 1px ring; the glyph is the heroicons solid set (`eye`, `hand-thumb-up`, `hand-thumb-down`, `bookmark`, `chat-bubble-oval-left`, `heart`) at 96% white, the heart alone `--love`; a poster with two acts carries **one capsule** — the disc lengthened by a glyph and the 6px gap, 52×90 on the page and 44×78 on the rail — not two discs. The opened rows' 22px glyphs are the same solid set. No size moved. The *Corner disc* row below carries the new values; *The 10-foot check* records the outline disc's read.
+
 ## Sizes
 
 | | Page card | Rail card |
@@ -14,12 +16,12 @@ Round 9c: H's frame with I's acts strip as the card's picture; G's rail column b
 | Under the name | nothing | nothing |
 | Strip | 16 under the head; up to five cells **130×195**, 16 apart, at the card's left (714 of 840) | 8 under the name; three cells **96×144**, 16 apart, at the tile's right |
 | Poster | radius 6, 1px white/8, shadow `0 4 16 /.55`; no-artwork slot a 6% fill, the title 18/66%, padding 12 | shadow `0 3 12 /.5`; padding 8 |
-| Corner disc | 52 round, ink `oklch(13% .02 264)` at 85%, a 1px ring white/18, inset 8 at the poster's top-right; **glyph 32 at stroke 2** centred, at 92%; the heart's disc on `--love` with the glyph white, every other disc neutral; two acts stacked downward 6 apart in mast order | 44 round, **glyph 28 at stroke 2**; 6 apart |
+| Corner disc | 52 round, **opaque** ink `oklch(13% .02 264)`, a 1px ring white/18, inset 8 at the poster's top-right; **solid glyph 32** (heroicons 24/solid) centred, at 96% white; the heart alone `--love`, on the same ink; two acts share **one capsule 52×90** — the disc lengthened by a glyph and the 6px gap — in mast order | 44 round, **solid glyph 28**; two acts one capsule **44×78** |
 | Cursor ring | 4 | 3 |
 | Height | **335**; no acts 124 | **204**; no acts 72 |
 | Opened | strip wraps 16/16; rows 22/30 at 80%, title 500/96%, the act's glyph 22 after it, ago 18/66% right; foot: key and date 18/66%, Remove friend a 32px ghost 18/70% | a press opens the tab |
 
-Shared beyond the "same" cells: the tile's states, name 600, the strip's rule and 16 gap, the poster's radius, border and empty fill, the glyph's form (the corner disc, ink at 85% ringed white/18, rose for love, outline at stroke 2). Differing: every other row, the strip's seat, grid / column, a press grows the card / opens the tab. Nothing read below 18px; one secondary alpha, 66%.
+Shared beyond the "same" cells: the tile's states, name 600, the strip's rule and 16 gap, the poster's radius, border and empty fill, the glyph's form (the corner disc, opaque ink ringed white/18, the solid glyph, rose for love, one capsule for two acts). Differing: every other row, the strip's seat, grid / column, a press grows the card / opens the tab. Nothing read below 18px; one secondary alpha, 66%.
 
 ## The strip's rule
 
