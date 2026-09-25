@@ -4,6 +4,23 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.40.0 — 2026-09-25
+
+### New
+
+- **Skip Intro, Next Episode and the track menu come built in.** Media Centaur now starts mpv with these on every play; there is nothing to copy into `~/.config/mpv/` any more, and updates carry them along. Your own mpv configuration is untouched and still applies: `mpv.conf`, `input.conf`, your scripts and fonts all work as before, and your key bindings win over the built-in ones (`TAB` for the menu, `n` for night mode). To turn a feature off, create `~/.config/mpv/script-opts/media_centaur.conf` with `skip_intro=no`, `next_episode=no` or `track_menu=no`. **If you copied `skip-intro.lua`, `next-episode.lua` or `track-menu.lua` into `~/.config/mpv/scripts/` from an earlier version, delete them**, or each button appears twice; **Status → Playback** names them while they are present. See [Playback](https://github.com/media-centaur/media-centaur/wiki/Playback).
+- **Your own reviews and listings appear in the Feed.** They sit in the timeline beside your friends', in action time, and an **Everyone / Friends / You** switch at the right of the tab strip narrows it. Your rows read the same as anyone else's, marked only by the word You; their toolbar offers List and Download, and withdrawing something you shared still happens in the entry's own view. The **You** scope is the quickest way to audit what you have shared.
+
+### Improved
+
+- **One switch control across the app.** The Feed's scope, the Library's type tabs and the time window on **Status → Connections** now use the same segmented control, so they look and behave alike, and entering one with a keyboard or controller lands on the option that is currently chosen.
+- **The Feed is one list.** Rows sit in a single panel separated by hairlines, with the time in its own column, and the Discovery page uses the same wider column on every tab.
+
+### Fixed
+
+- **A film could resume partway through when it was meant to start over.** If your mpv key bindings used `quit-watch-later`, mpv's own saved position, audio and subtitle choice could override what Media Centaur asked for on the next play, and only once, so it was hard to pin down. Media Centaur now tells mpv to leave its watch-later files alone; position is saved by Media Centaur no matter how you quit.
+- **The sentiment icon floated above the words** in the Feed and on Friends. It now sits in the line of text.
+
 ## v1.39.0 — 2026-09-24
 
 ### Improved
