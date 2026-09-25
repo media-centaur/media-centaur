@@ -129,7 +129,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        feed_scope: :everyone,
        feed_ready?: false,
        people: [],
-       expanded_people: MapSet.new(),
+       opened_people: MapSet.new(),
        ignore_undo: nil,
        warmed_artwork: MapSet.new(),
        today: Date.utc_today()
@@ -190,8 +190,17 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp activity_ref(%{activity: activity}), do: {activity.tmdb_id, activity.media_type}
 
   @impl true
-  def handle_event("expand_person", %{"id" => id}, socket),
-    do: {:noreply, update(socket, :expanded_people, &MapSet.put(&1, id))}
+  # The page card's press opens it in place; the same press closes it.
+  def handle_event("toggle_person", %{"id" => id}, socket) do
+    {:noreply,
+     update(socket, :opened_people, fn opened ->
+       if MapSet.member?(opened, id), do: MapSet.delete(opened, id), else: MapSet.put(opened, id)
+     end)}
+  end
+
+  # The rail card's press goes to the person on the Friends page.
+  def handle_event("open_person", %{"id" => id}, socket),
+    do: {:noreply, push_navigate(socket, to: ~p"/discovery/friends?person=#{id}")}
 
   def handle_event("add_friend", %{"key" => key, "nickname" => nickname}, socket) do
     case Social.add_friend(key, nickname) do
@@ -635,7 +644,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               <PersonCard.person_card
                 :for={person <- @people}
                 person={person}
-                expanded?={MapSet.member?(@expanded_people, person.id)}
+                width={:page}
+                opened?={MapSet.member?(@opened_people, person.id)}
               />
             </div>
             <AddFriendBlock.add_friend_block />

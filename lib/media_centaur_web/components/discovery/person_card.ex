@@ -1,166 +1,168 @@
 defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   @moduledoc """
-  One person on the Friends tab (UIDR-038): the name as the card's
-  title, the presence line on the right, a *Recently watched* strip of
-  up to #{5} posters with an "all N" tile that grows the strip in
-  place, then Wants to watch and Reviewed as text rows of up to #{3}
-  names and "N more", Reviewed carrying the sentiment glyph. A friend's
-  footer holds the elided key, the added date and Remove friend; the
-  You card has a primary-tinted border, a subtitle, and no footer. A
-  person with nothing shared collapses to header and footer.
+  One person as their latest acts (UIDR-046), on the Feed's rail and
+  the Friends page from one function at two widths. The head is the
+  identity tile, the name and the ago of the newest act; under it the
+  **acts strip**: one poster per title acted on, newest first, each
+  under its **act slots** — a 36px strip on the card's own ground with
+  three fixed 28px positions holding the opinion, the eye and the
+  bookmark, an absent act drawing nothing, so every glyph is found by
+  its place. A flag at the grade is gold; the rest are matte. A person
+  with no acts is a tile and a name; the card says nothing about what a
+  person withholds, and the You card is the reader's acts like anyone's,
+  the filled own tile its only mark.
 
-  Pure rendering of a `Person`. Every poster and name is a nav item
-  that bubbles `open_title` with the title's ref *and* the activity, so
-  the modal shows that person's act; `expand_person` and `remove_friend`
-  bubble the same way.
+  The rail's card (`width: :rail`, 560) shows three acts and its press
+  navigates to the person on the Friends page; the page's card
+  (`:page`, 900) shows five and its press opens the card in place
+  (`opened?`, the host's set): every act, one row per poster in
+  `ActivityWords`' sentence with the act's flags after the title, then
+  a friend's foot — the key, the added date, Remove friend. A poster's
+  press opens the title modal speaking for the newest act on it.
+
+  Pure rendering of a `Person`. Every poster, row and Remove friend is a
+  nav item that bubbles `open_title` with the title's ref *and* the
+  activity, or `remove_friend`; `open_person` and `toggle_person` are
+  the card's own presses. The root gets no nav wiring until the
+  hardening pass.
   """
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
-  alias MediaCentaur.Format
+  alias MediaCentaurWeb.Components.Discovery.IdentityTile
   alias MediaCentaurWeb.Components.Discovery.Person
-  alias MediaCentaurWeb.Components.Discovery.Person.Entry
-  alias MediaCentaurWeb.Components.Title.Sentiment
+  alias MediaCentaurWeb.Components.Discovery.Person.Act
+  alias MediaCentaurWeb.Components.Title.Flag
+  alias MediaCentaurWeb.DiscoveryLive.ActivityWords
   alias MediaCentaurWeb.TitleRef
 
-  @strip_cap 5
-  @row_cap 3
+  @cap %{rail: 3, page: 5}
 
   attr :person, Person, required: true
-  attr :expanded?, :boolean, default: false, doc: "every shelf in full; the host keeps the set"
+  attr :width, :atom, required: true, values: [:rail, :page]
+  attr :opened?, :boolean, default: false, doc: "the page card grown in place; the host keeps the set"
 
   def person_card(assigns) do
     assigns =
       assign(assigns,
-        watched: shown(assigns.person.watched, @strip_cap, assigns.expanded?),
-        listed: shown(assigns.person.listed, @row_cap, assigns.expanded?),
-        reviewed: shown(assigns.person.reviewed, @row_cap, assigns.expanded?),
-        watched_hidden: hidden(assigns.person.watched, @strip_cap, assigns.expanded?),
-        listed_hidden: hidden(assigns.person.listed, @row_cap, assigns.expanded?),
-        reviewed_hidden: hidden(assigns.person.reviewed, @row_cap, assigns.expanded?)
+        shown: shown(assigns.person.acts, assigns.width, assigns.opened?),
+        subject: subject(assigns.person),
+        page?: assigns.width == :page
       )
 
     ~H"""
     <section
       id={@person.id}
-      class={[
-        "glass-surface space-y-3 rounded-xl px-4 py-4",
-        @person.own? && "border-primary/30"
-      ]}
+      role="button"
+      tabindex="-1"
+      class={["person-card", @page? && "person-card-page", @opened? && "person-card-opened"]}
       data-component="person-card"
+      data-width={@width}
       data-own={@person.own?}
+      data-opened={@opened?}
+      phx-click={if @page?, do: "toggle_person", else: "open_person"}
+      phx-value-id={@person.id}
     >
-      <header class="flex items-center gap-3">
-        <span
-          class="grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-base font-semibold text-primary"
-          aria-hidden="true"
+      <header class={["flex gap-3", if(@page?, do: "items-center", else: "items-start")]}>
+        <IdentityTile.identity_tile name={@person.name} own?={@person.own?} size={tile_size(@width)} />
+        <h2
+          class={[
+            "min-w-0 flex-1 truncate font-semibold",
+            if(@page?, do: "text-2xl leading-8", else: "text-[22px] leading-7")
+          ]}
+          data-role="name"
         >
-          {String.first(@person.name)}
-        </span>
-        <div class="min-w-0 flex-1">
-          <h2 class="truncate text-lg font-semibold leading-tight">{@person.name}</h2>
-          <p :if={@person.own?} class="text-xs text-base-content/55">
-            {own_subtitle(@person)}
-          </p>
-        </div>
-        <div :if={@person.presence} class="shrink-0 text-right text-sm" data-role="presence">
-          <div>{@person.presence.text}</div>
-          <div class="text-xs text-base-content/55">{@person.presence.ago}</div>
-        </div>
-        <span :if={!@person.presence && !@person.own?} class="shrink-0 text-sm text-base-content/55">
-          Nothing shared yet
+          {@person.name}
+        </h2>
+        <span
+          :if={@person.acts != []}
+          class="shrink-0 text-lg leading-7 tabular-nums text-base-content/65"
+          data-role="ago"
+        >
+          {hd(@person.acts).ago}
         </span>
       </header>
 
-      <div :if={@person.watched != []} class="space-y-2">
-        <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/55">
-          Recently watched
-        </h3>
-        <div class="grid grid-cols-6 gap-2" data-role="watched-strip">
-          <button
-            :for={entry <- @watched}
-            id={"#{@person.id}-watched-#{entry.activity_id}"}
-            type="button"
-            class="relative aspect-[2/3] cursor-pointer overflow-hidden rounded-md bg-base-content/10"
-            title={@person.name <> " watched " <> episode_and_title(entry)}
-            phx-click="open_title"
-            phx-value-ref={TitleRef.param(entry.ref)}
-            phx-value-activity={entry.activity_id}
-            data-entity-id={TitleRef.param(entry.ref)}
-            data-nav-item
-            tabindex="0"
-          >
-            <%!-- 240, not the 160 the app's other small posters use: those
-                  are fixed-width thumbnails (`w-10`/`w-12`/`w-16`), this cell
-                  is fluid — one sixth of a `max-w-3xl` card, ~116px at the
-                  1920 composition, so ~232 device px on a 4K panel. 160 was
-                  sized as if this were a thumbnail too, and read soft. --%>
-            <img
-              :if={entry.poster_url}
-              src={sized_image_url(entry.poster_url, 240)}
-              alt={entry.title.name}
-              class="h-full w-full object-cover"
-              loading="eager"
-              decoding="sync"
-            />
+      <div
+        :if={@person.acts != []}
+        class={["acts-strip", if(@page?, do: "mt-4", else: "mt-2 pl-15")]}
+        data-role="acts"
+      >
+        <button
+          :for={act <- @shown}
+          id={"#{@person.id}-act-#{TitleRef.param(act.ref)}"}
+          type="button"
+          class="act"
+          title={@person.name <> " " <> sentence(act, @subject)}
+          phx-click="open_title"
+          phx-value-ref={TitleRef.param(act.ref)}
+          phx-value-activity={act.activity_id}
+          data-entity-id={TitleRef.param(act.ref)}
+          data-flags={Enum.join(act.flags, " ")}
+          data-nav-item
+          tabindex="0"
+        >
+          <span class="act-slots" aria-hidden="true">
             <span
-              :if={!entry.poster_url}
-              class="flex h-full w-full items-end p-1.5 text-left text-[10px] leading-tight text-base-content/70"
+              :for={flag <- act.flags}
+              class={["act-glyph", flag in act.gold && "act-glyph-gold"]}
+              data-flag={flag}
+              data-slot={Flag.slot(flag)}
             >
-              {entry.title.name}
+              <.icon name={Flag.glyph(flag, :solid)} class="act-icon" />
             </span>
-            <span
-              :if={entry.episode}
-              class="absolute left-1 top-1 rounded-full bg-neutral/80 px-1.5 text-[10px] font-medium leading-4 text-neutral-content"
-            >
-              {Format.episode_label(entry.episode.season_number, entry.episode.episode_number)}
-            </span>
-          </button>
-          <button
-            :if={@watched_hidden > 0}
-            id={"#{@person.id}-watched-all"}
-            type="button"
-            class="glass-inset grid aspect-[2/3] cursor-pointer place-items-center rounded-md text-xs text-base-content/60"
-            phx-click="expand_person"
-            phx-value-id={@person.id}
-            data-nav-item
-            tabindex="0"
-          >
-            all {length(@person.watched)}
-          </button>
-        </div>
+          </span>
+          <img
+            :if={act.poster_url}
+            src={act_poster_src(act.poster_url, @width)}
+            alt={act.title.name}
+            loading="eager"
+            decoding="sync"
+          />
+          <span :if={!act.poster_url} class="act-empty text-lg leading-tight text-base-content/65">
+            {act.title.name}
+          </span>
+        </button>
       </div>
 
-      <.shelf_row
-        :if={@person.listed != []}
-        label="Wants to watch"
-        person={@person}
-        entries={@listed}
-        hidden={@listed_hidden}
-        verb="wants to watch"
-      />
-      <.shelf_row
-        :if={@person.reviewed != []}
-        label="Reviewed"
-        person={@person}
-        entries={@reviewed}
-        hidden={@reviewed_hidden}
-        verb="reviewed"
-      />
+      <div :if={@opened?} class="mt-5 space-y-1" data-role="act-rows">
+        <button
+          :for={act <- @person.acts}
+          id={"#{@person.id}-#{act.activity_id}"}
+          type="button"
+          class="flex w-full cursor-pointer items-baseline gap-3 rounded-md px-2 py-1 text-left text-[22px] leading-[30px] hover:bg-base-content/5"
+          data-role="act-row"
+          phx-click="open_title"
+          phx-value-ref={TitleRef.param(act.ref)}
+          phx-value-activity={act.activity_id}
+          data-entity-id={TitleRef.param(act.ref)}
+          data-nav-item
+          tabindex="0"
+        >
+          <span class="min-w-0 flex-1 truncate text-base-content/80">
+            {ActivityWords.verb_phrase(newest(act).kind, act.episode, @subject)}
+            <span class="font-medium text-base-content/95">{act.title.name}</span>
+            <span :for={flag <- act.flags} class="ml-1 inline-block align-middle" data-flag={flag}>
+              <.icon name={Flag.glyph(flag, :solid)} class="size-[22px] text-base-content/80" />
+            </span>
+          </span>
+          <span class="shrink-0 text-lg text-base-content/65">{act.ago}</span>
+        </button>
+      </div>
 
       <footer
-        :if={!@person.own?}
-        class="flex items-center justify-between border-t border-base-content/10 pt-3"
+        :if={@opened? and not @person.own?}
+        class="mt-5 flex items-center justify-between border-t border-base-content/10 pt-4"
       >
-        <span class="text-xs text-base-content/55">
+        <span class="text-lg text-base-content/65">
           <code>{@person.short_npub}</code> · added {Calendar.strftime(@person.added_on, "%b %-d")}
         </span>
         <.button
           variant="dismiss"
-          size="xs"
+          size="sm"
           phx-click="remove_friend"
           phx-value-pubkey={@person.pubkey}
           data-nav-item
@@ -173,70 +175,22 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
     """
   end
 
-  attr :label, :string, required: true
-  attr :person, Person, required: true
-  attr :entries, :list, required: true, doc: "the `Person.Entry` structs shown, already capped"
-  attr :hidden, :integer, required: true, doc: "how many the cap hid; 0 shows no N more"
-  attr :verb, :string, required: true
+  @doc "The poster derivative for the width it paints at: 96 CSS px on the rail, 130 on the page, ×2 for a 4K panel."
+  @spec act_poster_src(String.t(), :rail | :page) :: String.t()
+  def act_poster_src(url, :rail), do: sized_image_url(url, 240)
+  def act_poster_src(url, :page), do: sized_image_url(url, 320)
 
-  defp shelf_row(assigns) do
-    ~H"""
-    <div class="flex items-baseline gap-3 text-sm">
-      <span class="w-24 shrink-0 text-xs font-medium uppercase tracking-wider text-base-content/55">
-        {@label}
-      </span>
-      <span class="min-w-0 flex-1">
-        <span :for={{entry, index} <- Enum.with_index(@entries)}>
-          <span :if={index > 0} class="text-base-content/40"> · </span>
-          <button
-            id={"#{@person.id}-#{entry.activity_id}"}
-            type="button"
-            class="cursor-pointer hover:underline"
-            title={@person.name <> " " <> @verb <> " " <> entry.title.name}
-            phx-click="open_title"
-            phx-value-ref={TitleRef.param(entry.ref)}
-            phx-value-activity={entry.activity_id}
-            data-entity-id={TitleRef.param(entry.ref)}
-            data-nav-item
-            tabindex="0"
-          >
-            {entry.title.name}<Sentiment.sentiment_glyph
-              :if={entry.sentiment}
-              sentiment={entry.sentiment}
-              class="ml-1 size-3.5"
-            />
-          </button>
-        </span>
-        <button
-          :if={@hidden > 0}
-          type="button"
-          class="cursor-pointer text-base-content/55 hover:underline"
-          phx-click="expand_person"
-          phx-value-id={@person.id}
-          data-nav-item
-          tabindex="0"
-        >
-          <span class="text-base-content/40"> · </span>{@hidden} more
-        </button>
-      </span>
-    </div>
-    """
-  end
+  defp shown(acts, _width, true), do: acts
+  defp shown(acts, width, false), do: Enum.take(acts, @cap[width])
 
-  defp shown(entries, _cap, true), do: entries
-  defp shown(entries, cap, false), do: Enum.take(entries, cap)
+  defp tile_size(:rail), do: 48
+  defp tile_size(:page), do: 64
 
-  defp hidden(_entries, _cap, true), do: 0
-  defp hidden(entries, cap, false), do: max(length(entries) - cap, 0)
+  defp subject(%Person{own?: true}), do: :you
+  defp subject(%Person{}), do: :friend
 
-  defp episode_and_title(%Entry{episode: nil, title: title}), do: title.name
+  defp newest(%Act{entries: [entry | _rest]}), do: entry
 
-  defp episode_and_title(%Entry{episode: episode, title: title}),
-    do: Format.episode_label(episode.season_number, episode.episode_number) <> " of " <> title.name
-
-  defp own_subtitle(%Person{presence: nil}),
-    do:
-      "Friends see here what you review from a title's page, and what you watch and list once sharing is on under Settings → Social."
-
-  defp own_subtitle(_person), do: "How friends see you"
+  defp sentence(%Act{} = act, subject),
+    do: ActivityWords.sentence(newest(act).kind, act.episode, act.title.name, subject)
 end

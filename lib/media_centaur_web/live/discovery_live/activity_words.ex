@@ -3,8 +3,8 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWords do
   The words for an activity's kind, in one place: the verb
   ("reviewed", "watched S02E05", "wants to watch" — "want to watch"
   when You are the subject), the noun the delete verb and its flash
-  name ("review", "watched activity", "listing"), and the presence
-  sentence a person card leads with ("watched S02E05 of Sample Show",
+  name ("review", "watched activity", "listing"), and the sentence for
+  one act — a person card's opened row ("watched S02E05 of Sample Show",
   "wants to watch Sample Show").
   """
 
@@ -38,13 +38,20 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWords do
   def noun(:listing), do: "listing"
 
   @doc """
-  The presence sentence: the verb and the title — "reviewed Sample
+  The sentence for one act: the verb and the title — "reviewed Sample
   Movie", "watched S02E05 of Sample Show", "wants to watch Sample Show"
   ("want to watch Sample Show" for You).
   """
-  @spec presence(Activity.kind(), Episode.t() | nil, String.t(), subject()) :: String.t()
-  def presence(:watched, %Episode{} = episode, title_name, subject),
-    do: verb(:watched, episode, subject) <> " of " <> title_name
+  @spec sentence(Activity.kind(), Episode.t() | nil, String.t(), subject()) :: String.t()
+  def sentence(kind, episode, title_name, subject),
+    do: verb_phrase(kind, episode, subject) <> " " <> title_name
 
-  def presence(kind, episode, title_name, subject), do: verb(kind, episode, subject) <> " " <> title_name
+  @doc """
+  The verb phrase the title follows: the verb, with "of" after an
+  episode watch — "watched S02E05 of", "wants to watch", "reviewed" — so
+  a surface can set the title in its own weight.
+  """
+  @spec verb_phrase(Activity.kind(), Episode.t() | nil, subject()) :: String.t()
+  def verb_phrase(:watched, %Episode{} = episode, subject), do: verb(:watched, episode, subject) <> " of"
+  def verb_phrase(kind, episode, subject), do: verb(kind, episode, subject)
 end
