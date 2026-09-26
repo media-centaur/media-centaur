@@ -13,7 +13,8 @@ defmodule MediaCentaur.HttpClient.TrafficTest do
     recent = :"traffic_recent_#{suffix}"
 
     start_supervised!(
-      {Store, name: :"traffic_store_name_#{suffix}", table: store, schema: Traffic.schema()},
+      {Store,
+       name: :"traffic_store_name_#{suffix}", table: store, schema: Traffic.schema(), component: :http},
       id: :store
     )
 

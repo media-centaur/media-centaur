@@ -216,7 +216,7 @@ Same `Diagnostics.*` helpers as dev work; non-interactive, scripts cleanly:
 ```bash
 mc-rpc 'MediaCentaur.Diagnostics.services()'
 mc-rpc 'alias MediaCentaur.{Library, Repo}; import Ecto.Query; Repo.aggregate(Library.Movie, :count)'
-echo 'MediaCentaur.Console.snapshot()' | mc-rpc
+echo 'MediaCentaur.Console.read(MediaCentaur.Console.Filter.all(), 50)' | mc-rpc
 ```
 
 Set `MC_BIN` to override the release path on hosts with a non-default install.
@@ -246,8 +246,14 @@ debug browser won't.
 
 Call functions directly on the running dev node:
 - `MediaCentaur.Diagnostics.log_recent(20)` — print recent entries
-- `MediaCentaur.Console.Buffer.recent(20)` — same data as `%Entry{}` structs
-- `MediaCentaur.Console.Buffer.snapshot()` — entries + buffer cap + current filter
+- `MediaCentaur.Console.read(MediaCentaur.Console.Filter.all(), 200)` — same data
+  as `%Entry{}` structs, newest first, every component and level. Build filters
+  with `Filter.all/0` only: a hand-made `%Filter{}` with a malformed field
+  crashes the buffer GenServer and mints a `system` incident of its own.
+- `MediaCentaur.Console.Buffer.config()` — buffer cap + current filter
+- The buffer holds the text a line rendered and nothing else: keyword metadata
+  on a `Log` call is never shown (MC0039), so a reason missing from a message
+  is missing everywhere, incidents included.
 - `MediaCentaur.Diagnostics.playback()` — active playback state
 - `MediaCentaur.Diagnostics.services()` — watcher/pipeline/session counts
 - `MediaCentaur.Diagnostics.status()` — supervision tree health

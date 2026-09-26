@@ -28,7 +28,9 @@ defmodule MediaCentaur.Log do
   ## Extra metadata
 
   Each macro accepts an optional keyword list of additional `:logger` metadata.
-  The one option the diagnostics layer reads is **`mc_incident: :skip`** — it
+  No log view renders metadata — not the Console, the journal formatter or a
+  Status incident — so a line's data (a reason, a path, an id) goes in the
+  message; MC0039 reports any other key. The one option the diagnostics layer reads is **`mc_incident: :skip`** — it
   keeps the line in the volatile console but tells `ErrorReports.LogHandler` not
   to mint a durable `:log` incident from it (ADR-054). Use it for a warning whose
   incident a subsystem `assess/0` already owns — e.g. download-client

@@ -10,7 +10,7 @@ defmodule MediaCentaur.TimeSeries.StoreTest do
     suffix = System.unique_integer([:positive])
     name = :"time_series_store_test_#{suffix}"
     table = :"time_series_store_table_#{suffix}"
-    start_supervised!({Store, name: name, table: table, schema: @schema})
+    start_supervised!({Store, name: name, table: table, schema: @schema, component: :system})
     %{name: name, table: table}
   end
 

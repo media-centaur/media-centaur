@@ -7,7 +7,15 @@ defmodule MediaCentaur.TimeSeries.Snapshot do
 
   `read/2` accepts only a file whose tag, version and field list match the
   schema given; anything else is `{:error, reason}` and the caller starts
-  empty. Observational data is never migrated (ADR-070).
+  empty. Observational data is never migrated (ADR-070): a
+  `:schema_mismatch` is the expected outcome of changing a tenant's
+  fields, while `:corrupt` and `:unrecognised` mean the file is damaged.
+
+  Decoding does not use `binary_to_term/2`'s `:safe` option. `:safe`
+  refuses any atom the VM has not created yet, and the atoms a snapshot
+  names — resolutions and the tenant's keys — only exist once the modules
+  that name them are loaded. A dev VM loads modules on first use, so on a
+  cold boot `:safe` rejected a valid file and the history was lost.
   """
 
   alias MediaCentaur.TimeSeries.Schema
@@ -36,12 +44,12 @@ defmodule MediaCentaur.TimeSeries.Snapshot do
   end
 
   # The file is one the app itself wrote beside its database, never user
-  # input: `:safe` refuses new atoms and funs, and only a tuple with our
-  # tag, version and field list is accepted. Anyone able to replace it can
-  # already replace the database next to it.
+  # input, and only a tuple with our tag, version and field list is
+  # accepted. Anyone able to replace it can already replace the database
+  # next to it. Not `:safe`: see the moduledoc.
   # sobelow_skip ["Misc.BinToTerm"]
   defp decode(binary, fields) do
-    case :erlang.binary_to_term(binary, [:safe]) do
+    case :erlang.binary_to_term(binary) do
       {@tag, @version, ^fields, rows} when is_list(rows) -> {:ok, rows}
       {@tag, @version, _other_fields, _rows} -> {:error, :schema_mismatch}
       _other -> {:error, :unrecognised}

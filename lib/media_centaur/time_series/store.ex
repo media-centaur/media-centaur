@@ -23,7 +23,8 @@ defmodule MediaCentaur.TimeSeries.Store do
   test environment) sees an empty series rather than an error.
 
   Options: `:name`, `:table` (both required and unique per instance),
-  `:schema` (`Schema.t/0`), `:snapshot_path`, `:retention_policy` (the
+  `:schema` (`Schema.t/0`), `:component` (the tenant's `MediaCentaur.Log`
+  component, which the store's own log lines carry), `:snapshot_path`, `:retention_policy` (the
   `Retention` policy key to report sweep counts under), `:sweep_ms`,
   `:snapshot_ms` (both default one minute).
   """
@@ -112,6 +113,7 @@ defmodule MediaCentaur.TimeSeries.Store do
     Process.flag(:trap_exit, true)
     table = Keyword.fetch!(opts, :table)
     schema = Keyword.fetch!(opts, :schema)
+    component = Keyword.fetch!(opts, :component)
 
     ^table =
       :ets.new(table, [
@@ -127,6 +129,7 @@ defmodule MediaCentaur.TimeSeries.Store do
     state = %{
       table: table,
       schema: schema,
+      component: component,
       snapshot_path: Keyword.get(opts, :snapshot_path),
       retention_policy: Keyword.get(opts, :retention_policy),
       sweep_ms: Keyword.get(opts, :sweep_ms, @minute),
@@ -229,9 +232,9 @@ defmodule MediaCentaur.TimeSeries.Store do
           :ok
 
         {:error, reason} ->
-          MediaCentaur.Log.warning(:system, "time series snapshot not written",
-            path: state.snapshot_path,
-            reason: inspect(reason)
+          MediaCentaur.Log.warning(
+            state.component,
+            "time series snapshot not written to #{state.snapshot_path} — #{inspect(reason)}"
           )
       end
 
@@ -250,10 +253,18 @@ defmodule MediaCentaur.TimeSeries.Store do
       :empty ->
         state
 
+      {:error, :schema_mismatch} ->
+        MediaCentaur.Log.info(
+          state.component,
+          "time series snapshot #{state.snapshot_path} has other fields — :schema_mismatch; starting empty"
+        )
+
+        state
+
       {:error, reason} ->
-        MediaCentaur.Log.warning(:system, "time series snapshot ignored; starting empty",
-          path: state.snapshot_path,
-          reason: inspect(reason)
+        MediaCentaur.Log.warning(
+          state.component,
+          "time series snapshot #{state.snapshot_path} ignored — #{inspect(reason)}; starting empty"
         )
 
         state
