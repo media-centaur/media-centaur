@@ -1,0 +1,117 @@
+/* Round 10 — the ground, the edges, the still. Every knob is an attribute on
+   <html>; a direction page sets them statically, the switchboard flips them.
+   Loaded after G's own <style>, so a rule here wins on equal specificity and
+   the html[...] prefix wins the rest.
+
+   data-ground   standard | dark | ink      the page's ground
+   data-unit     ink | open | glass         what a unit sits on: its own ink,
+                                            nothing, or one glass panel per column
+   data-tone     13 | 16 | 19               the ink's lightness (unit=ink only)
+   data-edges    cards | sheet              6px apart with corners, or flush in
+                                            one surface with the column's corners
+   data-hair     on | off                   a hairline between flush units
+   data-still    box | wide | full          where the still begins: the text
+                                            zone's edge (700), under the title's
+                                            tail (400), or the band's left edge
+   data-dissolve 240 | 360 | 480            the still's mask, from its left edge */
+
+/* ---- the ground ----
+   app: what Discovery sits on today, layer for layer from app.css — base-100 at 27%, the two
+   radial blobs, and .page-side-dim: black at .5 fading out across the left 35%, and the vertical
+   ramp that is clear to 35% of the viewport and .55 black from 70% down. The top third is the
+   page's lightest part; that is where the first band and the first card sit.
+   dark: the same page with the vertical ramp starting at the top — .55 black everywhere — the
+   one CSS change a Discovery variant of the scrim would make; ≈15% under the blobs.
+   ink: the band's own tone as the page, the blobs faint. */
+html[data-ground="app"] body{background:
+ linear-gradient(to right,oklch(0% 0 0/.5) 0%,transparent 35%),
+ linear-gradient(to bottom,transparent 0%,transparent 35%,oklch(0% 0 0/.55) 70%,oklch(0% 0 0/.55) 100%),
+ radial-gradient(ellipse at 20% 15%,oklch(40% 0.16 250/.2),transparent 60%),
+ radial-gradient(ellipse at 80% 80%,oklch(38% 0.14 300/.15),transparent 60%),
+ oklch(27% 0.019 264);background-attachment:fixed}
+html[data-ground="dark"] body{background:
+ linear-gradient(to right,oklch(0% 0 0/.5) 0%,transparent 35%),
+ linear-gradient(oklch(0% 0 0/.55),oklch(0% 0 0/.55)),
+ radial-gradient(ellipse at 20% 15%,oklch(40% 0.16 250/.2),transparent 60%),
+ radial-gradient(ellipse at 80% 80%,oklch(38% 0.14 300/.15),transparent 60%),
+ oklch(27% 0.019 264);background-attachment:fixed}
+html[data-ground="ink"] body{background:
+ radial-gradient(ellipse at 20% 15%,oklch(40% 0.16 250/.07),transparent 60%),
+ radial-gradient(ellipse at 80% 80%,oklch(38% 0.14 300/.05),transparent 60%),
+ oklch(13% 0.02 264);background-attachment:fixed}
+
+/* ---- the ink's tone; the scrim and the hover follow it ---- */
+html[data-tone="16"]{--ink:oklch(16% 0.02 264)}
+html[data-tone="19"]{--ink:oklch(19% 0.02 264)}
+.entry .scrim{background:linear-gradient(to right,
+ oklch(from var(--ink) l c h/calc(.97*var(--s))) 0,
+ oklch(from var(--ink) l c h/calc(.93*var(--s))) var(--bx),
+ oklch(from var(--ink) l c h/calc(.55*var(--s))) calc(var(--bx) + var(--d1)),
+ oklch(from var(--ink) l c h/calc(.16*var(--s))) calc(var(--bx) + var(--d2)),
+ oklch(from var(--ink) l c h/calc(.04*var(--s))) calc(var(--bx) + var(--d3)),
+ oklch(from var(--ink) l c h/0) 100%)}
+.entry:hover,.entry.hovered,.entry.cursor,.card:hover,.card.hovered,.card.cursor{background:oklch(from var(--ink) calc(l + .03) c h)}
+
+/* ---- the still's mask ---- */
+html[data-dissolve="360"] .entry{--dissolve:360px}
+html[data-dissolve="480"] .entry{--dissolve:480px}
+
+/* ---- the edges: flush units, the column carries the corners ---- */
+html[data-edges="sheet"] .feed,html[data-edges="sheet"] .rail .people{gap:0;border-radius:12px;overflow:hidden}
+html[data-edges="sheet"] .entry,html[data-edges="sheet"] .card{border-radius:0}
+/* the hairline: across the text zone, gone over the dissolve, so it never scores the picture; the rail's inset to the card's padding */
+html[data-hair="on"][data-edges="sheet"] .entry + .entry::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;z-index:3;pointer-events:none;
+ background:linear-gradient(to right,var(--hair) var(--tz),transparent calc(var(--tz) + 320px))}
+html[data-hair="on"][data-edges="sheet"] .card + .card::before{content:"";position:absolute;left:14px;right:14px;top:0;height:1px;background:var(--hair);pointer-events:none}
+
+/* ---- no unit ground: the row is the page, the still a photograph fading into it; no scrim, no shadow on the words ---- */
+html[data-unit="open"] .entry,html[data-unit="open"] .entry.noart,html[data-unit="open"] .card{background:transparent}
+html[data-unit="open"] .entry .scrim,html[data-unit="open"] .entry.noart .scrim{background:none}
+html[data-unit="open"] .body,html[data-unit="open"] .when{text-shadow:none}
+html[data-unit="open"] .entry:hover,html[data-unit="open"] .entry.hovered,html[data-unit="open"] .entry.cursor,
+html[data-unit="open"] .card:hover,html[data-unit="open"] .card.hovered,html[data-unit="open"] .card.cursor{background:oklch(93% 0.01 264/.05)}
+html[data-unit="open"] .entry.noart .poster-empty{background:oklch(93% 0.01 264/.06)}
+
+/* ---- glass: one house panel per column, the rows on it ---- */
+html[data-unit="glass"] .feed,html[data-unit="glass"] .rail .people{gap:0;border-radius:14px;overflow:hidden;
+ background:var(--glass-bg);border:1px solid var(--glass-border);box-shadow:0 4px 16px var(--glass-shadow);backdrop-filter:blur(12px)}
+html[data-unit="glass"] .entry,html[data-unit="glass"] .entry.noart,html[data-unit="glass"] .card{background:transparent;border-radius:0}
+html[data-unit="glass"] .entry .scrim,html[data-unit="glass"] .entry.noart .scrim{background:none}
+html[data-unit="glass"] .body,html[data-unit="glass"] .when{text-shadow:none}
+html[data-unit="glass"] .entry:hover,html[data-unit="glass"] .entry.hovered,html[data-unit="glass"] .entry.cursor,
+html[data-unit="glass"] .card:hover,html[data-unit="glass"] .card.hovered,html[data-unit="glass"] .card.cursor{background:oklch(93% 0.01 264/.05)}
+html[data-unit="glass"][data-hair="on"] .entry + .entry::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;z-index:3;pointer-events:none;
+ background:linear-gradient(to right,var(--hair) var(--tz),transparent calc(var(--tz) + 320px))}
+html[data-unit="glass"][data-hair="on"] .card + .card::before{content:"";position:absolute;left:14px;right:14px;top:0;height:1px;background:var(--hair);pointer-events:none}
+
+/* ---- the still's extent (unit=ink only; without ink there is nothing to put the words on) ---- */
+/* wide: the still begins under the title's tail; the scrim holds .93 to 400 and .86 at the text zone's edge, then the settled dissolve */
+html[data-still="wide"][data-unit="ink"] .entry{--bx:400px}
+html[data-still="wide"][data-unit="ink"] .entry .scrim{background:linear-gradient(to right,
+ oklch(from var(--ink) l c h/calc(.97*var(--s))) 0,
+ oklch(from var(--ink) l c h/calc(.93*var(--s))) var(--bx),
+ oklch(from var(--ink) l c h/calc(.86*var(--s))) var(--tz),
+ oklch(from var(--ink) l c h/calc(.55*var(--s))) calc(var(--tz) + 120px),
+ oklch(from var(--ink) l c h/calc(.16*var(--s))) calc(var(--tz) + 240px),
+ oklch(from var(--ink) l c h/calc(.04*var(--s))) calc(var(--tz) + 360px),
+ oklch(from var(--ink) l c h/0) 100%)}
+/* full: the still is the band; no mask; the scrim is the text measure — .92 under the words, .84 at the time, then away */
+html[data-still="full"][data-unit="ink"] .entry{--bx:0px}
+html[data-still="full"][data-unit="ink"] .entry .bd{-webkit-mask-image:none;mask-image:none}
+html[data-still="full"][data-unit="ink"] .entry .scrim{background:linear-gradient(to right,
+ oklch(from var(--ink) l c h/calc(.96*var(--s))) 0,
+ oklch(from var(--ink) l c h/calc(.92*var(--s))) 560px,
+ oklch(from var(--ink) l c h/calc(.84*var(--s))) var(--tz),
+ oklch(from var(--ink) l c h/calc(.5*var(--s))) calc(var(--tz) + 160px),
+ oklch(from var(--ink) l c h/calc(.14*var(--s))) calc(var(--tz) + 320px),
+ oklch(from var(--ink) l c h/calc(.03*var(--s))) calc(var(--tz) + 440px),
+ oklch(from var(--ink) l c h/0) 100%)}
+/* the no-art band keeps its own faint scrim in every mode but open/glass */
+.entry.noart .scrim{background:linear-gradient(to right,oklch(from var(--ink) l c h/.35),oklch(from var(--ink) l c h/0) 800px)}
+
+/* ---- the round's scaffolding: the label line above each page and the legend below it ---- */
+.r10-label{margin:6px 0 12px 4px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.r10-label .sec{font-size:13px;flex:none}
+.r10-label .keys{font-size:14px;color:oklch(93% 0.01 264/.55)}
+.r10-legend{margin:40px 4px 0;max-width:96ch;font-size:16px;line-height:1.5;color:oklch(93% 0.01 264/.7)}
+.r10-second{margin-top:56px}

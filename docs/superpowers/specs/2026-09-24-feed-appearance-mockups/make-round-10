@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+"""Round 10 — build the ground/edges/still pages from G's settled page.
+
+Reads G-couch-feed/index.html: its <style>, its SVG symbol defs and the
+markup of state 1 (Everyone, two columns). Writes one page per direction
+(Q1..Q5), each G's page under round10.css with the round's knobs set as
+attributes on <html>, plus Q-switchboard/index.html (the same page with a
+panel that flips the knobs live, state in the URL hash) and
+Q-switchboard/compare.html (the five presets side by side at half size —
+the 10-foot check). Re-run after editing round10.css or a preset; nothing
+here is hand-edited.
+"""
+import os, re, sys, html as H
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+os.chdir(HERE)
+
+src = open('G-couch-feed/index.html', encoding='utf-8').read()
+
+# --- G's style block and its SVG defs ---
+style = src[src.index('<style>') + len('<style>'):src.index('</style>')]
+svg_i = src.index('<svg width="0"')
+svg_j = src.index('</svg>', svg_i) + len('</svg>')
+defs = src[svg_i:svg_j]
+
+# --- state 1's page markup: the .pw div inside section#s1 ---
+s1 = src[src.index('<section id="s1">'):]
+s1 = s1[:s1.index('</section>')]
+pw = s1[s1.index('<div class="pw">'):]
+
+def div_end(text, start):
+    """Index just past the </div> closing the <div at `start` (only divs nest here)."""
+    depth = 0
+    for m in re.finditer(r'<div\b|</div>', text[start:]):
+        depth += 1 if m.group(0) == '<div' else -1
+        if depth == 0:
+            return start + m.end()
+    raise ValueError('unbalanced div')
+
+def first_n(text, opener, n):
+    out, pos = [], 0
+    for _ in range(n):
+        i = text.index(opener, pos)
+        j = div_end(text, i)
+        out.append(text[i:j]); pos = j
+    return out
+
+def add_class(div, cls):
+    return div.replace('class="', f'class="{cls} ', 1)
+
+# the second strip: two bands and two cards under the cursor / hover
+bands = first_n(pw, '<div class="entry band', 3)
+cards = first_n(pw, '<div class="card', 2)
+second = (
+  '<div class="pw r10-second" id="cursor"><div class="r10-label"><span class="sec">Under the cursor</span>'
+  '<span class="keys">the first band with the TV’s cursor (ring, seat shown), the second hovered by the mouse; '
+  'a rail card under the cursor. The lit unit is the one place the unit’s own shape shows.</span></div>'
+  '<div class="page"><div class="col"><div class="feed">'
+  + add_class(bands[0], 'cursor') + add_class(bands[1], 'hovered') + bands[2] +
+  '</div></div><aside class="rail"><div class="people">' + add_class(cards[0], 'cursor') + cards[1] +
+  '</div></aside></div></div>')
+
+KNOBS = ['ground', 'unit', 'tone', 'edges', 'hair', 'still', 'dissolve']
+
+PRESETS = [
+ dict(dir='Q1-dark-sheet', title='Q1 · Dark sheet',
+      attrs=dict(ground='dark', unit='ink', tone='13', edges='sheet', hair='on', still='box', dissolve='240'),
+      keys='the page’s ground darkened to the ink’s tone · the units flush in one surface per column, a hairline between them across the words, gone over the picture · the still boxed as settled',
+      legend='<b>Q1 · Dark sheet.</b> Discovery’s ground sits at the ink’s tone, so a band’s edge has nothing to show against; the bands are flush in one column with the column’s corners, a hairline between them that stops where the picture begins. The rail is one column of people the same way. What remains to see is a dark page, a column of stills fading out of it, and the words. The band’s anatomy and its readability are the settled ones.'),
+ dict(dir='Q2-film-strip', title='Q2 · Film strip',
+      attrs=dict(ground='ink', unit='ink', tone='13', edges='sheet', hair='off', still='wide', dissolve='240'),
+      keys='the page at ink · the still begins under the title’s tail (836 of the 1236), so the frame is drawn larger — a 48% slice, faces framed — and a hint of it shows through the words’ scrim · no hairlines: the pictures separate the bands',
+      legend='<b>Q2 · Film strip.</b> The page is ink, the bands flush with no hairline, and the still is wider: it begins under the title’s tail, so the frame is drawn at a larger scale (a 48% slice of its height against the settled 74%) and a hint of it shows through the scrim behind the words. One band ends where the next picture begins; the column reads as a reel. The full-bleed still (1236, a 32% slice) is on the switchboard: more picture, but it cuts faces at the settled crop.'),
+ dict(dir='Q3-open-rows', title='Q3 · Open rows',
+      attrs=dict(ground='app', unit='open', tone='13', edges='sheet', hair='on', still='box', dissolve='360'),
+      keys='the app’s own ground, no ink anywhere · a band is a row on the page: tile, poster, words · the still a photograph fading into the page over 360px · hairlines between rows · the rail the same',
+      legend='<b>Q3 · Open rows.</b> Nothing is boxed because nothing has a ground: the rows sit on Discovery’s page as Watch History’s do, hairlines between them, and the still is a soft-edged photograph at each row’s right fading into the page. The page keeps the app’s tone; the words read as they do everywhere else in the app, with no shadow. The rail is a list of people, not cards.'),
+ dict(dir='Q4-glass-list', title='Q4 · Glass list',
+      attrs=dict(ground='app', unit='glass', tone='13', edges='sheet', hair='on', still='box', dissolve='240'),
+      keys='the house idiom: one glass panel per column, the rows on it with hairlines · the still fades into the glass · two panels on the page, the same shape as Settings’ and Status’ cards',
+      legend='<b>Q4 · Glass list.</b> The Feed column and the rail are two glass panels, the shape every other page’s cards have, and the rows are rows on the panel with a hairline between them. The stills fade into the glass. The page has two surfaces instead of eight, both lighter than the ground as the house cards are.'),
+ dict(dir='Q5-matched-cards', title='Q5 · Matched cards',
+      attrs=dict(ground='dark', unit='ink', tone='13', edges='cards', hair='off', still='box', dissolve='240'),
+      keys='the settled cards kept: corners, 6px apart, the boxed still · only the ground changes, darkened to the ink’s tone, so the cards’ edges go quiet · the least change',
+      legend='<b>Q5 · Matched cards.</b> The settled page with one change: Discovery’s ground darkened to the ink’s tone. Every unit keeps its own corners and the 6px gap, so one action is still one thing under the cursor and the lit unit shows its shape, but at rest the edges have almost nothing to show against. The least change that answers the complaint.'),
+ dict(dir='Q6-dark-sheet-wide-still', title='Q6 · Dark sheet, wide still',
+      attrs=dict(ground='dark', unit='ink', tone='13', edges='sheet', hair='on', still='wide', dissolve='240'),
+      keys='Q1’s page — the dark ground, the flush columns, the hairline across the words — carrying Q2’s wider still (836), so the frame is drawn larger and faces read from the couch · the cross the critique recommends',
+      legend='<b>Q6 · Dark sheet, wide still.</b> Q1 and Q2 crossed: Discovery’s ground darkened to the ink’s tone, the columns flush with a hairline between units that stops where the picture begins, and the still beginning under the title’s tail so the frame is drawn at a larger scale. The page reads as one dark surface with a column of photographs; the words keep the settled scrim under them; the hairline keeps the list’s rhythm where two dark stills meet.'),
+]
+
+def attrs_str(a):
+    return ' '.join(f'data-{k}="{v}"' for k, v in a.items())
+
+def head(title, extra=''):
+    return ('<!doctype html><html lang="en" %s><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css">'
+            '<title>%s</title><style>%s</style><link rel="stylesheet" href="../round10.css">%s</head>')
+
+def page(title, attrs, keys, legend, extra_head='', extra_body=''):
+    label = (f'<div class="r10-label"><span class="sec">{H.escape(title)}</span><span class="keys">{keys}</span></div>')
+    return (f'<!doctype html><html lang="en" {attrs_str(attrs)}><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css">'
+            f'<title>{H.escape(title)}</title><style>{style}</style><link rel="stylesheet" href="../round10.css">{extra_head}</head>'
+            f'<body><div class="frame"><aside class="sidebar"><i></i><i></i><i class="on"></i><i></i><i></i><i class="gap"></i><i></i></aside>'
+            f'<main><div class="content"><h1>Discovery</h1>{defs}{label}{pw}{second}'
+            f'<p class="r10-legend">{legend}</p></div></main></div>{extra_body}</body></html>')
+
+for p in PRESETS:
+    os.makedirs(p['dir'], exist_ok=True)
+    open(f"{p['dir']}/index.html", 'w', encoding='utf-8').write(page(p['title'], p['attrs'], p['keys'], p['legend']))
+
+# --- the switchboard ---
+OPTIONS = {
+ 'ground':   [('app', 'app'), ('dark', 'dark'), ('ink', 'ink')],
+ 'unit':     [('ink', 'ink'), ('open', 'open'), ('glass', 'glass')],
+ 'tone':     [('13', '13%'), ('16', '16%'), ('19', '19%')],
+ 'edges':    [('cards', 'cards'), ('sheet', 'sheet')],
+ 'hair':     [('on', 'on'), ('off', 'off')],
+ 'still':    [('box', 'box'), ('wide', 'wide'), ('full', 'full')],
+ 'dissolve': [('240', '240'), ('360', '360'), ('480', '480')],
+}
+LABELS = {'ground': 'Page ground', 'unit': 'Unit ground', 'tone': 'Ink tone', 'edges': 'Edges',
+          'hair': 'Hairline', 'still': 'The still', 'dissolve': 'Dissolve'}
+NOTES = {'ground': 'app = today\u2019s', 'tone': 'ink only', 'hair': 'sheet only', 'still': '536 · 836 · 1236', 'dissolve': 'box · wide'}
+
+panel_css = """
+.sb{position:fixed;right:16px;bottom:16px;z-index:50;width:300px;padding:14px 16px 12px;border-radius:14px;font-size:13px;line-height:1.35;
+ background:oklch(20% 0.02 264/.82);border:1px solid var(--glass-border);box-shadow:0 8px 32px oklch(0% 0 0/.45);backdrop-filter:blur(16px);color:var(--bc)}
+.sb h2{margin:0 0 10px;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:oklch(93% 0.01 264/.6);display:flex;justify-content:space-between;align-items:baseline}
+.sb h2 button{font:inherit;text-transform:none;letter-spacing:0;color:oklch(93% 0.01 264/.55);background:none;border:0;cursor:pointer;padding:0}
+.sb .row{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:6px 8px;margin:0 0 7px}
+.sb .row label{color:oklch(93% 0.01 264/.7)}
+.sb .row label small{display:block;font-size:11px;color:oklch(93% 0.01 264/.4)}
+.sb .opts{display:inline-flex;background:oklch(93% 0.01 264/.05);border:1px solid oklch(93% 0.01 264/.09);border-radius:20px;padding:2px;gap:2px}
+.sb .opts button{font:inherit;font-size:12px;height:24px;padding:0 9px;border-radius:16px;border:0;background:none;color:oklch(93% 0.01 264/.6);cursor:pointer;white-space:nowrap}
+.sb .opts button.on{background:oklch(32% 0.02 264/.9);color:var(--bc);box-shadow:0 1px 3px oklch(0% 0 0/.3)}
+.sb .row.off .opts{opacity:.35;pointer-events:none}
+.sb .presets{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding-top:10px;border-top:1px solid var(--hair)}
+.sb .presets button{font:inherit;font-size:12px;height:26px;padding:0 10px;border-radius:8px;border:1px solid oklch(93% 0.01 264/.12);background:oklch(93% 0.01 264/.04);color:oklch(93% 0.01 264/.8);cursor:pointer}
+.sb .presets button:hover{background:oklch(93% 0.01 264/.1)}
+.sb .presets button.on{border-color:var(--p);color:var(--p)}
+.sb .foot{margin:10px 0 0;font-size:11px;color:oklch(93% 0.01 264/.45)}
+.sb .foot a{color:var(--p)}
+body.sb-hidden .sb,body.sb-off .sb,body.sb-off .sb-show{display:none}
+.sb-show{position:fixed;right:16px;bottom:16px;z-index:50;display:none;font:13px system-ui;height:30px;padding:0 12px;border-radius:8px;border:1px solid var(--glass-border);background:oklch(20% 0.02 264/.85);color:var(--bc);cursor:pointer}
+body.sb-hidden .sb-show{display:block}
+"""
+
+rows = ''
+for k in KNOBS:
+    note = f'<small>{NOTES[k]}</small>' if k in NOTES else ''
+    btns = ''.join(f'<button data-k="{k}" data-v="{v}">{H.escape(t)}</button>' for v, t in OPTIONS[k])
+    rows += f'<div class="row" data-row="{k}"><label>{LABELS[k]}{note}</label><span class="opts">{btns}</span></div>'
+presets_js = '{' + ','.join(f'"{p["title"].split(" ")[0]}":{{{",".join(f"{k}:\"{v}\"" for k,v in p["attrs"].items())}}}' for p in PRESETS) + '}'
+preset_btns = ''.join(f'<button data-preset="{p["title"].split(" ")[0]}" title="{H.escape(p["keys"])}">{H.escape(p["title"])}</button>' for p in PRESETS)
+
+panel_html = f"""
+<div class="sb" id="sb"><h2>Round 10 · knobs <button id="sb-hide">hide</button></h2>{rows}
+<div class="presets">{preset_btns}</div>
+<p class="foot">The state is in the address: copy the link to name a combination. <a href="compare.html">The five side by side</a>.</p></div>
+<button class="sb-show" id="sb-show">knobs</button>
+<script>
+const PRESETS={presets_js};
+const KNOBS={KNOBS!r};
+const DEFAULT=PRESETS.Q1;
+const root=document.documentElement;
+function state(){{const s={{}};for(const k of KNOBS)s[k]=root.dataset[k];return s}}
+function apply(s){{for(const k of KNOBS)root.dataset[k]=s[k];paint()}}
+function paint(){{
+  const s=state();
+  document.querySelectorAll('.sb .opts button').forEach(b=>b.classList.toggle('on',s[b.dataset.k]===b.dataset.v));
+  const ink=s.unit==='ink';
+  document.querySelector('[data-row=tone]').classList.toggle('off',!ink);
+  document.querySelector('[data-row=still]').classList.toggle('off',!ink);
+  document.querySelector('[data-row=hair]').classList.toggle('off',s.edges!=='sheet'&&s.unit!=='glass');
+  document.querySelector('[data-row=dissolve]').classList.toggle('off',ink&&s.still==='full');
+  document.querySelectorAll('.sb .presets button').forEach(b=>{{const p=PRESETS[b.dataset.preset];b.classList.toggle('on',KNOBS.every(k=>p[k]===s[k]))}});
+  const keep=location.hash.includes('panel=off')?'&panel=off':'';
+  history.replaceState(null,'',location.pathname+location.search+'#'+KNOBS.map(k=>k+'='+s[k]).join('&')+keep);
+}}
+function fromHash(){{
+  const s=Object.assign({{}},DEFAULT);
+  for(const kv of location.hash.replace(/^#/,'').split('&')){{const [k,v]=kv.split('=');if(KNOBS.includes(k)&&v)s[k]=v;if(k==='panel'&&v==='off')document.body.classList.add('sb-off')}}
+  return s;
+}}
+document.querySelectorAll('.sb .opts button').forEach(b=>b.onclick=()=>{{root.dataset[b.dataset.k]=b.dataset.v;paint()}});
+document.querySelectorAll('.sb .presets button').forEach(b=>b.onclick=()=>apply(PRESETS[b.dataset.preset]));
+document.getElementById('sb-hide').onclick=()=>document.body.classList.add('sb-hidden');
+document.getElementById('sb-show').onclick=()=>document.body.classList.remove('sb-hidden');
+window.addEventListener('hashchange',()=>apply(fromHash()));
+apply(fromHash());
+</script>"""
+
+os.makedirs('Q-switchboard', exist_ok=True)
+open('Q-switchboard/index.html', 'w', encoding='utf-8').write(page(
+    'Q · Switchboard', PRESETS[0]['attrs'],
+    'every knob of the round on G’s page; the panel at the bottom right flips them, the presets are the five direction pages',
+    '<b>Q · Switchboard.</b> The same page as the direction pages with the round’s knobs live. The page ground, the unit’s ground and tone, the edges and hairline, the still’s extent and dissolve; the presets Q1–Q5 are the five direction pages. A combination is named by its link.',
+    extra_head=f'<style>{panel_css}</style>', extra_body=panel_html))
+
+# --- the comparison sheet: five presets at half size ---
+today_hash = '#ground=app&unit=ink&tone=13&edges=cards&hair=off&still=box&dissolve=240&panel=off'
+frames = (f'<figure class="today"><figcaption><b>Today</b> <span>the shipped page, for reference: ink cards 6px apart on the app’s ground</span> '
+          f'<a href="index.html{today_hash}">open</a></figcaption><div class="vp"><iframe src="index.html{today_hash}" loading="eager"></iframe></div></figure>')
+frames += ''.join(
+    f'<figure><figcaption><b>{H.escape(p["title"])}</b> <span>{p["keys"]}</span> <a href="../{p["dir"]}/index.html">open</a></figcaption>'
+    f'<div class="vp"><iframe src="../{p["dir"]}/index.html" loading="eager"></iframe></div></figure>' for p in PRESETS)
+compare = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Round 10 · the six at half size</title><link rel="stylesheet" href="../base.css"><style>
+body{{background:oklch(11% 0.015 264);padding:28px 24px 60px}}
+h1{{font-size:22px;margin:0 0 6px}}p.lede{{margin:0 0 24px;max-width:110ch;font-size:15px;line-height:1.5;color:oklch(93% 0.01 264/.7)}}
+.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 24px}}
+figure{{margin:0;min-width:0}}figure.today .vp{{outline:1px dashed oklch(93% 0.01 264/.25);outline-offset:4px}}figcaption{{font-size:14px;line-height:1.4;margin:0 0 8px;color:oklch(93% 0.01 264/.72)}}
+figcaption b{{color:var(--bc);font-size:16px;margin-right:8px}}figcaption a{{color:var(--p);margin-left:8px}}
+.vp{{position:relative;width:100%;aspect-ratio:1920/1080;overflow:hidden;border-radius:8px;box-shadow:0 8px 30px oklch(0% 0 0/.5);background:#000}}
+.vp iframe{{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;transform:scale(var(--k));pointer-events:none}}
+</style></head><body><h1>Round 10 · the ground, the edges, the still</h1>
+<p class="lede">Today’s page and the six directions at half size — the 10-foot check. Each is G’s settled page under one set of the round’s knobs; nothing in a band’s anatomy moved. Open one for the 1920 render and the cursor strip; the <a href="index.html" style="color:var(--p)">switchboard</a> flips every knob live.</p>
+<div class="grid">{frames}</div>
+<script>function fit(){{document.querySelectorAll('.vp').forEach(v=>v.style.setProperty('--k',(v.clientWidth/1920).toFixed(4)))}}fit();addEventListener('resize',fit)</script>
+</body></html>"""
+open('Q-switchboard/compare.html', 'w', encoding='utf-8').write(compare)
+
+print('built:', ', '.join(p['dir'] for p in PRESETS), 'Q-switchboard/index.html', 'Q-switchboard/compare.html')

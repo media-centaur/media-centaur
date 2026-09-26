@@ -147,11 +147,30 @@ carries this campaign carries that fix too. It needs no changelog line:
 a release preloads every module at boot, so end users never hit the
 cold-boot rejection — only the dev daily driver did.
 
+**The owner's first desk look (2026-09-26): "bunches of dark boxes."**
+Diagnosis: on a dark UI a surface is lighter than its page; the Feed
+inverted that — ink units at 13% on a ground that is 27% under the blue
+blob at the top, dimmed only from a third of the way down — so each unit
+reads as a hole, and eight holes with corners and gaps read as a grid. The
+mockup rounds had not shown it because `base.css` mirrored the ground as
+one radial (28 → 17%). **Round 10** (`BRIEF-10.md`, `CRITIQUE-10.md`,
+`round10.css`, built by `make-round-10`) rebuilds G's page under seven
+knobs — page ground, unit ground, ink tone, edges, hairline, the still's
+extent, its dissolve — as six presets, each a good idea (Q1 dark sheet,
+Q2 film strip, Q3 open rows, Q4 glass list, Q5 matched cards, Q6 dark
+sheet with the wide still), a switchboard with every knob live
+(`Q-switchboard/index.html`, the state in the address) and a half-size
+comparison sheet with today's page beside them (`compare.html`). The
+critique recommends **Q6**. Nothing in a band's anatomy moved; every
+direction is CSS on the shipped components. **Next: the owner picks a
+preset or names a combination by its switchboard link.**
+
 ## Handoff — start here in a fresh context
 
-0. **Where it stands (2026-09-25 evening):** Phases 1–5 are on `main`,
-   unpushed (`de9deb2b` … `ef9fb655`); the owner has seen the Feed on
-   the TV and will name tweaks next. Take the tweaks under
+0. **Where it stands (2026-09-26):** Phases 1–5 are on `main`,
+   unpushed (`de9deb2b` … `ef9fb655`); the owner's first tweak is the
+   "dark boxes" complaint, answered by round 10 (Status above) and
+   waiting on the owner's pick. Take the tweaks under
    `/unify_design` like every phase, one commit each with precommit
    clean, a `page-shot` of `/discovery` at 1920 and its half-size copy
    after each; then Phase 6 of the plan (UIDR-046, the amendments, the
@@ -444,6 +463,23 @@ superseded by the design this campaign produces, and the record says so.
   container is 1280px, left-aligned (`layouts.ex`, `max-w-7xl`); Home
   opts out with `full_width`. Discovery centres an 896px column inside
   it, which is why the list sits in the left third at 1920.
+* `2026-09-26` — The owner, on the shipped Feed at the desk: "bunches of
+  dark boxes"; then "show me a bunch of mockups with a variety of options
+  and parameters. no false options, everything you show me should be a
+  good idea", and "take your time to consider some good options". Round
+  10 is that: six presets and a switchboard, all from G's page.
+* `2026-09-26` — Round 10's mockup ground is the app's, layer for layer
+  (`round10.css`, `data-ground="app"`): base-100, the two blobs, and
+  `.page-side-dim` as `app.css` paints them. The earlier rounds' single
+  radial had flattered the design; the reference cell now reproduces the
+  owner's screenshot. A "dark" ground is that page with the vertical dim
+  from the top (≈15%) — one scrim variant away.
+* `2026-09-26` — Round 10 finding: the **wide still** (from x=400, 836 of
+  the 1236, a 48% slice) frames every fixture's subject at the settled 30%
+  crop and draws the frame larger for the couch; the **full-bleed** still
+  (1236, 32%) cuts faces and stays a knob, not a preset. Lifting the unit's
+  tone instead of darkening the page fades the boxes from the wrong side
+  and costs the words; kept as a knob only.
 
 ## Next steps
 
@@ -468,7 +504,13 @@ superseded by the design this campaign produces, and the record says so.
    page with fourteen states; its REASONING's size table is the draft
    of the spec's "What the user sees".
 3l. **Implementation** — approved; runs in a new context from the
-   Handoff above, Phase 1 first.
+   Handoff above, Phase 1 first. Phases 1–5 done.
+3m. **Round 10 — the ground, the edges, the still** — running: the owner
+   picks a preset (Q1–Q6) or names a combination by its switchboard link;
+   then the tweak lands as CSS under `/unify_design`, one commit, the
+   story's variations pinning the band and the card at rest and under
+   the hover pin; the spec's size table and UIDR-046 take the ground, the
+   sheet and the still's origin.
 3k. **Round 9f** — done: the act mark settled as the fixed-slot header
    above the poster; G and J patched; the spec and plan rewritten to
    it; the grade threshold set at two friends.
