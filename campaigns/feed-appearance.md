@@ -138,6 +138,15 @@ ok"; more tweaks are coming in a new context before anything ships.
 Nothing is pushed. Phase 6 (the records and docs) waits for those
 tweaks.**
 
+**Riding along, unrelated to the Feed (2026-09-26):** `1120a736` fixes
+the Connections request history being dropped after a reboot (the
+time series snapshot was rejected as corrupt on a cold dev boot) and
+adds MC0039. A `/ship patch` was asked for that day and held by the
+owner so the Feed would not ship before its tweaks. The release that
+carries this campaign carries that fix too. It needs no changelog line:
+a release preloads every module at boot, so end users never hit the
+cold-boot rejection — only the dev daily driver did.
+
 ## Handoff — start here in a fresh context
 
 0. **Where it stands (2026-09-25 evening):** Phases 1–5 are on `main`,
