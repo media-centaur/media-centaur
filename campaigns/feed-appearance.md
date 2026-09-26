@@ -212,6 +212,22 @@ frame whole, and makes the Feed's band and Home's card one artwork idiom
 extract the card's gradient-and-logo block into one component Home and
 the Feed share.
 
+**The owner's turn (2026-09-26): "maybe i don't want the backdrop on
+there at all and for us to go with something more like what we have
+already in the app and maybe just reduce the size of those columns a bit
+to counter."** **Round 13** (`BRIEF-13.md`, `CRITIQUE-13.md`,
+`round13.css`, `make-round-13`) removes the still and draws the settled
+row anatomy — tile, poster, three lines, the time at the edge, the seat —
+at the couch floors on three surfaces and two widths: T1 the list surface
+(one inset container per column, hairlines) at 1500, T2 the same in the
+app's 1280 container with an 80px poster, T3 Q6's dark sheet without the
+still, T4 bare rows. The row settles at 206; 1500 is the width the row
+wants. The critique recommends **T1**, and records what the choice sets
+aside: the still was the campaign's presence, and T1 is the app's list
+idiom, calm and correct. **Next: the owner's pick, then one
+implementation pass; the earlier rounds' pages stand as the record of
+the road not taken.**
+
 ## Handoff — start here in a fresh context
 
 0. **Where it stands (2026-09-26):** Phases 1–5 are on `main`,
@@ -558,6 +574,16 @@ superseded by the design this campaign produces, and the record says so.
   which argues for extracting the card's gradient-and-logo block into a
   shared component when this lands. The tile moves to sit between the
   picture and the sentence in S5; S6 keeps it first on a smaller card.
+* `2026-09-26` — The owner: no backdrop at all; "something more like
+  what we have already in the app"; narrower columns to counter. Round
+  13 draws the poster row on the list surface. Findings: the row cannot
+  go below 206 at the couch floors (the words set it, not the poster);
+  1500 is the width a two-line review wants, 1280 clips it to three
+  lines; the inset container answers round 10's boxes without a dark
+  ground because the units are no longer ink; the rail's card fits 480
+  unchanged. Every complaint of the day traced to the still; removing it
+  removes the crop rule, the adjacency offset, the mask and the scrim
+  from the implementation.
 
 ## Next steps
 
@@ -602,7 +628,16 @@ superseded by the design this campaign produces, and the record says so.
    the owner picks S1–S6 or a switchboard link; the critique's pick is
    S5, the owner's own proposal. If S5 or S6 lands, the card's
    gradient-and-logo block is extracted from `ContinueWatchingRow` into
-   one component Home and the Feed share. If a left-hand
+   one component Home and the Feed share.
+3p. **Round 13 — no backdrop, the poster row, narrower columns** —
+   running: the owner picks T1–T4 or a switchboard link; the critique's
+   pick is T1. If a round-13 page lands, the implementation pass removes
+   the still from `FeedBand` and `FeedEntry` (`backdrop_url`,
+   `offset_crop?`, the adjacency pass), puts the columns on the list
+   surface, caps Discovery's content at 1500, and rewrites the spec's
+   size table to the row; UIDR-046 records that the Feed carries no
+   still. Rounds 10–12 stand in the folder as the record of what was
+   tried. If a left-hand
    composition lands, the implementation pass deletes the crop machinery
    (`offset_crop?`, the adjacency pass in `FeedEntries`, the mask and
    scrim CSS) as part of the change, and the spec's size table is

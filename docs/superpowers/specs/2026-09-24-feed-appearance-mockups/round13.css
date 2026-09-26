@@ -1,0 +1,49 @@
+/* Round 13 — no backdrop. The poster row, as the app already draws its lists, in
+   narrower columns. Loaded after round10.css and round11.css on G's markup with a
+   logo slot added and the poster kept; the still and its scrim are hidden.
+
+   The owner: "maybe i don't want the backdrop on there at all and for us to go
+   with something more like what we have already in the app and maybe just reduce
+   the size of those columns a bit to counter".
+
+   data-cols     full | narrow | container
+                 the content width: 1820 (feed 1236 + rail 560), 1500 (916 + 560),
+                 1280 (776 + 480) — the app's own container, left-aligned
+   data-surface  sheet | list | open
+                 Q6's dark flush sheet; the inset glass list container per column
+                 (Watch History's idiom) on the app's ground; rows on the page
+   data-poster   100 | 80          the poster's width, ×1.5 tall
+   data-logo     none | headline   round 11's headline logo in place of the typed title */
+
+/* ---- no picture: the still and its scrim are gone; the time at the edge; the row is 206 ---- */
+.entry .bd,.entry .scrim,.entry .foot{display:none}
+.band{--h:206px;--pad-y:20px;--body-h:166px;--x-body:210px;--l3n:2;--bx:100%}
+.entry .poster{top:calc(50% - var(--ph) / 2)}
+html[data-poster="100"] .band{--pw:100px;--ph:150px;--x-poster:92px;--x-body:210px}
+html[data-poster="80"] .band{--pw:80px;--ph:120px;--x-poster:92px;--x-body:190px}
+.when{right:20px}
+.body{right:20px}
+.l3{max-width:640px}
+.body,.when{text-shadow:none}
+html[data-logo="headline"] .band{--h:calc(192px + var(--logo-h,72px));--body-h:calc(var(--h) - 2 * var(--pad-y))}
+html[data-logo="headline"] .logo{width:440px}
+
+/* ---- the columns: the grid holds two columns at every width here; the rail never folds ---- */
+html[data-cols="narrow"] .content{max-width:1500px}
+html[data-cols="container"] .content{max-width:1280px}
+html[data-cols="container"] .pw{--railw:480px}
+html[data-cols] .page,html[data-cols] .strip{grid-template-columns:minmax(0,1fr) var(--railw)}
+html[data-cols] .rail{display:block}
+
+/* ---- the list surface: one inset container per column, the rows on it, a hairline between ---- */
+html[data-surface="list"] .feed,html[data-surface="list"] .rail .people{gap:0;border-radius:12px;overflow:hidden;background:var(--glass-inset-bg)}
+html[data-surface="list"] .entry,html[data-surface="list"] .entry.noart,html[data-surface="list"] .card{background:transparent;border-radius:0}
+html[data-surface="list"] .entry:hover,html[data-surface="list"] .entry.hovered,html[data-surface="list"] .entry.cursor,
+html[data-surface="list"] .card:hover,html[data-surface="list"] .card.hovered,html[data-surface="list"] .card.cursor{background:oklch(93% 0.01 264/.05)}
+html[data-surface="list"] .entry + .entry::before{content:"";position:absolute;left:20px;right:20px;top:0;height:1px;background:var(--hair);z-index:3;pointer-events:none}
+html[data-surface="list"] .card + .card::before{content:"";position:absolute;left:14px;right:14px;top:0;height:1px;background:var(--hair);pointer-events:none}
+
+/* ---- the hairline runs the row when there is no picture to stop at ---- */
+html[data-surface="sheet"][data-hair="on"][data-edges="sheet"] .entry + .entry::before,
+html[data-surface="open"][data-hair="on"][data-edges="sheet"] .entry + .entry::before{background:var(--hair);left:20px;right:20px}
+html[data-surface="sheet"][data-unit="ink"] .entry.noart{background:var(--ink)}

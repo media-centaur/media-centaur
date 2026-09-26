@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""Round 13 — no backdrop: the poster row in narrower columns.
+
+Executes make-round-11's prefix up to its band rewrite to get G's state-1
+markup, the SVG defs and the wordmark helpers, then adds the logo slot to
+every band without removing the poster (the still is hidden by CSS).
+Writes one page per composition (T1..T4) with round10.css, round11.css
+and round13.css, Q-row-switchboard/index.html with the round's knobs
+live, and Q-row-switchboard/compare.html with S5 (the last with-backdrop
+pick) beside the four at half size.
+"""
+import os, re, html as H
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+os.chdir(HERE)
+
+src11 = open('make-round-11', encoding='utf-8').read()
+prefix = src11[:src11.index('pw = rewrite_all(pw)')]
+ns = {'__file__': os.path.abspath('make-round-11'), '__name__': 'round11'}
+exec(compile(prefix, 'make-round-11', 'exec'), ns)
+style, defs, pw, div_end, wordmark, OPT = ns['style'], ns['defs'], ns['pw'], ns['div_end'], ns['wordmark'], ns['OPT']
+
+def add_logo(band):
+    m = re.search(r'art/([a-z0-9-]+)-backdrop', band)
+    t = re.search(r'<div class="l2"><b>([^<]*)</b>(?:<span class="y">([^<]*)</span>)?', band)
+    title = t.group(1) if t else ''
+    year = t.group(2) if t and t.group(2) else ''
+    if not m:
+        return band
+    slug = m.group(1)
+    band = band.replace('class="entry band', 'class="entry band haslogo', 1)
+    if slug in OPT:
+        band = band.replace('<div class="entry', '<div data-logo-tier="opt" class="entry', 1)
+    logo = f'<div class="logo">{wordmark(slug, title)}' + (f'<span class="yr">{year}</span>' if year else '') + '</div>'
+    return band.replace('<div class="scrim"></div>', '<div class="scrim"></div><div class="foot"></div>' + logo, 1)
+
+def rewrite_all(text):
+    out, pos = [], 0
+    while True:
+        i = text.find('<div class="entry band', pos)
+        if i < 0:
+            out.append(text[pos:]); break
+        j = div_end(text, i)
+        out.append(text[pos:i]); out.append(add_logo(text[i:j])); pos = j
+    return ''.join(out)
+
+pw = rewrite_all(pw)
+
+def first_n(text, opener, n):
+    out, pos = [], 0
+    for _ in range(n):
+        i = text.index(opener, pos); j = div_end(text, i)
+        out.append(text[i:j]); pos = j
+    return out
+
+def add_class(div, cls):
+    return re.sub(r'class="entry', f'class="{cls} entry', div, count=1) if 'class="entry' in div else div.replace('class="', f'class="{cls} ', 1)
+
+starts = sorted(m.start() for m in re.finditer(r'<div (?:data-logo-tier="opt" )?class="entry band', pw))[:3]
+bands = [pw[s:div_end(pw, s)] for s in starts]
+cards = first_n(pw, '<div class="card', 2)
+second = ('<div class="pw r10-second" id="cursor"><div class="r10-label"><span class="sec">Under the cursor</span>'
+          '<span class="keys">the first row with the TV’s cursor, the second hovered; a rail card under the cursor.</span></div>'
+          '<div class="page"><div class="col"><div class="feed">' + add_class(bands[0], 'cursor') + add_class(bands[1], 'hovered') + bands[2] +
+          '</div></div><aside class="rail"><div class="people">' + add_class(cards[0], 'cursor') + cards[1] + '</div></aside></div></div>')
+
+R10 = dict(tone='13', still='box', dissolve='240')
+LIST = dict(R10, ground='app', unit='open', edges='sheet', hair='on', surface='list')
+SHEET = dict(R10, ground='dark', unit='ink', edges='sheet', hair='on', surface='sheet')
+OPEN = dict(R10, ground='app', unit='open', edges='sheet', hair='on', surface='open')
+LOGO = {'logo-h': '72', 'place': 'corner', 'mix': 'some'}
+KNOBS = ['ground', 'unit', 'tone', 'edges', 'hair', 'still', 'dissolve', 'surface', 'cols', 'poster', 'logo', 'logo-h', 'place', 'mix']
+
+PRESETS = [
+ dict(dir='T1-list-narrow', title='T1 · List surface, 1500',
+      attrs=dict(LIST, **LOGO, cols='narrow', poster='100', logo='none'),
+      keys='the poster row on Watch History\u2019s list surface: one inset container per column, hairlines between rows, the app\u2019s ground · the poster 100×150, the time at the edge · the content 1500: the feed 916, the rail 560 · the row 206',
+
+      legend='<b>T1 · List surface, 1500.</b> No backdrop. The row is the settled anatomy — tile, poster, three lines, the seat — on Watch History’s list surface: one inset container per column with a hairline between rows, on the app’s ground. The content is narrowed to 1500 so the words fill the row they are given; the time sits at the edge. This is the Feed as the rest of the app would draw it, at the couch floors.'),
+ dict(dir='T2-list-container', title='T2 · List surface, the 1280 container',
+      attrs=dict(LIST, **LOGO, cols='container', poster='80', logo='none'),
+      keys='the same rows in the app’s own 1280 container, left-aligned as every other page: the feed 776, the rail 480 · the poster 80×120 · the row 206',
+      legend='<b>T2 · List surface, the 1280 container.</b> T1 pulled in to the container every other page uses, left-aligned: the feed at 776, the rail at 480 with the same person card. The poster steps down to 80×120 so the row keeps its measure. The densest page of the campaign, and the one that looks most like the app around it.'),
+ dict(dir='T3-sheet-narrow', title='T3 · Dark sheet, 1500',
+      attrs=dict(SHEET, **LOGO, cols='narrow', poster='100', logo='none'),
+      keys='the same rows on Q6’s page — the dark ground, the columns flush, the hairline — without the still · the content 1500 · the poster 100×150 · the row 206',
+      legend='<b>T3 · Dark sheet, 1500.</b> Round 10’s answer to the boxes without round 5’s picture: the ground darkened to the ink, the columns flush with hairlines, the poster row in them. Narrowed to 1500. The page stays darker than the app around it and the rows keep the poster as their one picture.'),
+ dict(dir='T4-open-narrow', title='T4 · Open rows, 1500',
+      attrs=dict(OPEN, **LOGO, cols='narrow', poster='100', logo='none'),
+      keys='the rows on the app’s ground with nothing around them: hairlines, no container, no ink · the content 1500 · the poster 100×150',
+      legend='<b>T4 · Open rows, 1500.</b> The lightest reading: rows on the page, hairlines between, no container and no ink. The app’s ground shows through everywhere; the posters and the tiles are the only shapes. Narrowed to 1500.'),
+]
+
+def attrs_str(a):
+    return ' '.join(f'data-{k}="{v}"' for k, v in a.items())
+
+def page(title, attrs, keys, legend, extra_head='', extra_body=''):
+    label = f'<div class="r10-label"><span class="sec">{H.escape(title)}</span><span class="keys">{keys}</span></div>'
+    return (f'<!doctype html><html lang="en" {attrs_str(attrs)}><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css">'
+            f'<title>{H.escape(title)}</title><style>{style}</style><link rel="stylesheet" href="../round10.css"><link rel="stylesheet" href="../round11.css">'
+            f'<link rel="stylesheet" href="../round13.css">{extra_head}</head>'
+            f'<body><div class="frame"><aside class="sidebar"><i></i><i></i><i class="on"></i><i></i><i></i><i class="gap"></i><i></i></aside>'
+            f'<main><div class="content"><h1>Discovery</h1>{defs}{label}{pw}{second}'
+            f'<p class="r10-legend">{legend}</p></div></main></div>{extra_body}</body></html>')
+
+for p in PRESETS:
+    os.makedirs(p['dir'], exist_ok=True)
+    open(f"{p['dir']}/index.html", 'w', encoding='utf-8').write(page(p['title'], p['attrs'], p['keys'], p['legend']))
+
+OPTIONS = {
+ 'cols':     [('full', '1820'), ('narrow', '1500'), ('container', '1280')],
+ 'surface':  [('list', 'list'), ('sheet', 'sheet'), ('open', 'open')],
+ 'poster':   [('100', '100'), ('80', '80')],
+ 'logo':     [('none', 'none'), ('headline', 'headline')],
+ 'mix':      [('some', 'some'), ('all', 'all'), ('none', 'none')],
+}
+LABELS = {'cols': 'Content width', 'surface': 'Surface', 'poster': 'Poster', 'logo': 'The logo', 'mix': 'Titles with a logo'}
+NOTES = {'cols': 'feed + rail', 'surface': 'inset container · Q6 · bare rows', 'poster': 'width', 'logo': 'round 11', 'mix': 'some = four typed'}
+SHOWN = ['cols', 'surface', 'poster', 'logo', 'mix']
+# the surface knob carries round 10's knobs with it
+SURFACE_SETS = {'list': dict(ground='app', unit='open', edges='sheet', hair='on'),
+                'sheet': dict(ground='dark', unit='ink', edges='sheet', hair='on'),
+                'open': dict(ground='app', unit='open', edges='sheet', hair='on')}
+
+panel_css = open('Q-switchboard/index.html', encoding='utf-8').read()
+panel_css = panel_css[panel_css.index('.sb{'):panel_css.index('</style>', panel_css.index('.sb{'))]
+panel_css = panel_css.replace('width:300px', 'width:330px')
+
+rows = ''
+for k in SHOWN:
+    note = f'<small>{NOTES[k]}</small>' if k in NOTES else ''
+    btns = ''.join(f'<button data-k="{k}" data-v="{v}">{H.escape(t)}</button>' for v, t in OPTIONS[k])
+    rows += f'<div class="row" data-row="{k}"><label>{LABELS[k]}{note}</label><span class="opts">{btns}</span></div>'
+def js_obj(a):
+    return '{' + ','.join(f'"{k}":"{v}"' for k, v in a.items()) + '}'
+presets_js = '{' + ','.join(f'"{p["title"].split(" ")[0]}":{js_obj(p["attrs"])}' for p in PRESETS) + '}'
+surface_js = '{' + ','.join(f'"{k}":{js_obj(v)}' for k, v in SURFACE_SETS.items()) + '}'
+preset_btns = ''.join(f'<button data-preset="{p["title"].split(" ")[0]}" title="{H.escape(p["keys"])}">{H.escape(p["title"])}</button>' for p in PRESETS)
+
+panel_html = f"""
+<div class="sb" id="sb"><h2>Round 13 · knobs <button id="sb-hide">hide</button></h2>{rows}
+<div class="presets">{preset_btns}</div>
+<p class="foot">The state is in the address. <a href="compare.html">S5 and the four side by side</a>.</p></div>
+<button class="sb-show" id="sb-show">knobs</button>
+<script>
+const PRESETS={presets_js};
+const SURFACE={surface_js};
+const KNOBS={KNOBS!r};
+const DEFAULT=PRESETS.T1;
+const root=document.documentElement;
+function state(){{const s={{}};for(const k of KNOBS)s[k]=root.getAttribute('data-'+k);return s}}
+function setAttr(k,v){{root.setAttribute('data-'+k,v)}}
+function apply(s){{for(const k of KNOBS)setAttr(k,s[k]);paint()}}
+function paint(){{
+  const s=state();
+  document.querySelectorAll('.sb .opts button').forEach(b=>b.classList.toggle('on',s[b.dataset.k]===b.dataset.v));
+  document.querySelector('[data-row=mix]').classList.toggle('off',s.logo==='none');
+  document.querySelectorAll('.sb .presets button').forEach(b=>{{const p=PRESETS[b.dataset.preset];b.classList.toggle('on',KNOBS.every(k=>p[k]===s[k]))}});
+  const keep=location.hash.includes('panel=off')?'&panel=off':'';
+  history.replaceState(null,'',location.pathname+location.search+'#'+KNOBS.map(k=>k+'='+s[k]).join('&')+keep);
+}}
+function fromHash(){{
+  const s=Object.assign({{}},DEFAULT);
+  for(const kv of location.hash.replace(/^#/,'').split('&')){{const [k,v]=kv.split('=');if(KNOBS.includes(k)&&v)s[k]=v;if(k==='panel'&&v==='off')document.body.classList.add('sb-off')}}
+  return s;
+}}
+document.querySelectorAll('.sb .opts button').forEach(b=>b.onclick=()=>{{
+  setAttr(b.dataset.k,b.dataset.v);
+  if(b.dataset.k==='surface')for(const [k,v] of Object.entries(SURFACE[b.dataset.v]))setAttr(k,v);
+  paint()}});
+document.querySelectorAll('.sb .presets button').forEach(b=>b.onclick=()=>apply(PRESETS[b.dataset.preset]));
+document.getElementById('sb-hide').onclick=()=>document.body.classList.add('sb-hidden');
+document.getElementById('sb-show').onclick=()=>document.body.classList.remove('sb-hidden');
+window.addEventListener('hashchange',()=>apply(fromHash()));
+apply(fromHash());
+</script>"""
+
+os.makedirs('Q-row-switchboard', exist_ok=True)
+open('Q-row-switchboard/index.html', 'w', encoding='utf-8').write(page(
+    'Q · Row switchboard', PRESETS[0]['attrs'],
+    'no backdrop: the poster row in narrower columns; the surface, the width, the poster and the logo as knobs; the presets T1–T4 are the direction pages',
+    '<b>Q · Row switchboard.</b> The poster row without the still, with the round’s knobs live.',
+    extra_head=f'<style>{panel_css}</style>', extra_body=panel_html))
+
+ref = '../S5-picture-flush-logo-on-it/index.html'
+frames = (f'<figure class="today"><figcaption><b>S5</b> <span>the last pick with a backdrop, for comparison</span> <a href="{ref}">open</a></figcaption>'
+          f'<div class="vp"><iframe src="{ref}" loading="eager"></iframe></div></figure>')
+frames += ''.join(
+    f'<figure><figcaption><b>{H.escape(p["title"])}</b> <span>{p["keys"]}</span> <a href="../{p["dir"]}/index.html">open</a></figcaption>'
+    f'<div class="vp"><iframe src="../{p["dir"]}/index.html" loading="eager"></iframe></div></figure>' for p in PRESETS)
+compare = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Round 13 · no backdrop</title><link rel="stylesheet" href="../base.css"><style>
+body{{background:oklch(11% 0.015 264);padding:28px 24px 60px}}
+h1{{font-size:22px;margin:0 0 6px}}p.lede{{margin:0 0 24px;max-width:110ch;font-size:15px;line-height:1.5;color:oklch(93% 0.01 264/.7)}}
+.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 24px}}
+figure{{margin:0;min-width:0}}figure.today .vp{{outline:1px dashed oklch(93% 0.01 264/.25);outline-offset:4px}}figcaption{{font-size:14px;line-height:1.4;margin:0 0 8px;color:oklch(93% 0.01 264/.72)}}
+figcaption b{{color:var(--bc);font-size:16px;margin-right:8px}}figcaption a{{color:var(--p);margin-left:8px}}
+.vp{{position:relative;width:100%;aspect-ratio:1920/1080;overflow:hidden;border-radius:8px;box-shadow:0 8px 30px oklch(0% 0 0/.5);background:#000}}
+.vp iframe{{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;transform:scale(var(--k));pointer-events:none}}
+</style></head><body><h1>Round 13 · no backdrop: the poster row in narrower columns</h1>
+<p class="lede">S5 for comparison, then four pages without the still: the poster row at the couch floors on three surfaces and two widths. Open one for the 1920 render; the <a href="index.html" style="color:var(--p)">switchboard</a> flips the round’s knobs.</p>
+<div class="grid">{frames}</div>
+<script>function fit(){{document.querySelectorAll('.vp').forEach(v=>v.style.setProperty('--k',(v.clientWidth/1920).toFixed(4)))}}fit();addEventListener('resize',fit)</script>
+</body></html>"""
+open('Q-row-switchboard/compare.html', 'w', encoding='utf-8').write(compare)
+print('built:', ', '.join(p['dir'] for p in PRESETS), 'Q-row-switchboard/{index,compare}.html')
