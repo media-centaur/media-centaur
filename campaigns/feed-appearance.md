@@ -200,6 +200,18 @@ every complaint so far at once: Q6's ground and columns, R2's logo, the
 still whole at the left, the time at the edge. **Next: the owner's pick
 across the three rounds, then one implementation pass.**
 
+**The owner's proposal (2026-09-26): "S2 but the logo is atop the
+backdrop, like we do for the card view on the home page".** Built as
+**S5** (S2's flush picture with `ContinueWatchingRow`'s treatment: the
+to-top gradient, the logo bottom left, the white name as fallback; the
+panel is the sentence alone, so the band stays 224) and **S6** (the same
+on S1's inset thumbnail, the tile first). The critique moves its
+recommendation to **S5**: it answers both complaints, keeps 224, shows the
+frame whole, and makes the Feed's band and Home's card one artwork idiom
+— the propagation round 4's brief asked for. The implementation would
+extract the card's gradient-and-logo block into one component Home and
+the Feed share.
+
 ## Handoff — start here in a fresh context
 
 0. **Where it stands (2026-09-26):** Phases 1–5 are on `main`,
@@ -538,6 +550,14 @@ superseded by the design this campaign produces, and the record says so.
   time at the band's edge needs ground under it — ink, or a right-edge
   vignette over a full-bleed still (the round-5 lead's device); a review
   wants a 640px measure, not the band's width.
+* `2026-09-26` — The owner: "what about S2 but the logo is atop the
+  backdrop, like we do for the card view on the home page?" Rendered as
+  S5 and S6 with Home's card treatment verbatim. Finding: with the title
+  on the picture the panel has no title line, so the band does not grow;
+  the Feed's band and Home's Continue Watching card become one idiom,
+  which argues for extracting the card's gradient-and-logo block into a
+  shared component when this lands. The tile moves to sit between the
+  picture and the sentence in S5; S6 keeps it first on a smaller card.
 
 ## Next steps
 
@@ -579,7 +599,10 @@ superseded by the design this campaign produces, and the record says so.
    name, as the hero's is. The rail keeps its posters (UIDR-046: a
    person's card is their acts).
 3o. **Round 12 — the picture's place and the time's place** — running:
-   the owner picks S1–S4 or a switchboard link. If a left-hand
+   the owner picks S1–S6 or a switchboard link; the critique's pick is
+   S5, the owner's own proposal. If S5 or S6 lands, the card's
+   gradient-and-logo block is extracted from `ContinueWatchingRow` into
+   one component Home and the Feed share. If a left-hand
    composition lands, the implementation pass deletes the crop machinery
    (`offset_crop?`, the adjacency pass in `FeedEntries`, the mask and
    scrim CSS) as part of the change, and the spec's size table is

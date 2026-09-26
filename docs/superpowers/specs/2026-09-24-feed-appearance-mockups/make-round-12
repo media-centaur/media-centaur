@@ -59,6 +59,15 @@ PRESETS = [
       attrs=dict(BASE, logo='none', pic='inset', time='edge'),
       keys='S1 without the logo: the typed title on line 2, the band 224, the thumbnail 320×180 · for judging the composition apart from the logo question',
       legend='<b>S4 · Picture left, typed title.</b> S1’s composition with round 11’s R1 instead of R2: no logo, the typed title, the band at 224 with a 320×180 thumbnail. Here so the picture’s place and the time’s place can be judged apart from the logo.'),
+ dict(dir='S5-picture-flush-logo-on-it', title='S5 · Picture flush, logo on it',
+      attrs=dict(BASE, logo='picture', pic='flush', time='edge'),
+      keys='S2 with Home\u2019s card treatment on the picture: the logo bottom left over a to-top gradient, the name in white without one · the words beside are who did what and the review · the band stays 224 · the time at the edge',
+
+      legend='<b>S5 · Picture flush, logo on it.</b> The owner\u2019s ask: S2\u2019s composition with the Home card\u2019s treatment on the picture — the logo bottom left over the card\u2019s gradient, the typed name in white in its place when there is none. The title leaves the text panel, so the band stays 224 and the words are who did what and the review at three lines. The picture is the band\u2019s left end at full height, the whole frame; the tile follows it. Every band of the Feed is then a Continue Watching card with a sentence beside it.'),
+ dict(dir='S6-picture-left-logo-on-it', title='S6 · Picture left, logo on it',
+      attrs=dict(BASE, logo='picture', pic='inset', time='edge'),
+      keys='the same treatment on S1\u2019s inset thumbnail (320×180), so the tile stays first · the logo bottom left of the thumbnail over its gradient · the band 224',
+      legend='<b>S6 · Picture left, logo on it.</b> S5\u2019s idea on S1\u2019s thumbnail: the picture keeps the poster\u2019s slot at the tile\u2019s right, framed, and carries the logo bottom left over the card\u2019s gradient. The author mark stays first. The thumbnail is 320×180, so the logo is capped lower than the Home card\u2019s.'),
 ]
 
 def attrs_str(a):
@@ -80,7 +89,7 @@ for p in PRESETS:
 OPTIONS = {
  'pic':      [('box', 'box'), ('inset', 'inset'), ('flush', 'flush'), ('full', 'full')],
  'time':     [('zone', 'zone'), ('edge', 'edge')],
- 'logo':     [('none', 'none'), ('headline', 'headline')],
+ 'logo':     [('none', 'none'), ('headline', 'headline'), ('picture', 'on the picture')],
  'logo-h':   [('56', '56'), ('72', '72'), ('96', '96')],
  'mix':      [('some', 'some'), ('all', 'all'), ('none', 'none')],
  'ground':   [('app', 'app'), ('dark', 'dark'), ('ink', 'ink')],
@@ -123,7 +132,7 @@ function apply(s){{for(const k of KNOBS)setAttr(k,s[k]);paint()}}
 function paint(){{
   const s=state();
   document.querySelectorAll('.sb .opts button').forEach(b=>b.classList.toggle('on',s[b.dataset.k]===b.dataset.v));
-  document.querySelector('[data-row="logo-h"]').classList.toggle('off',s.logo==='none');
+  document.querySelector('[data-row="logo-h"]').classList.toggle('off',s.logo!=='headline');
   document.querySelector('[data-row=mix]').classList.toggle('off',s.logo==='none');
   document.querySelector('[data-row=hair]').classList.toggle('off',s.edges!=='sheet');
   document.querySelectorAll('.sb .presets button').forEach(b=>{{const p=PRESETS[b.dataset.preset];b.classList.toggle('on',KNOBS.every(k=>p[k]===s[k]))}});
@@ -165,7 +174,7 @@ figcaption b{{color:var(--bc);font-size:16px;margin-right:8px}}figcaption a{{col
 .vp{{position:relative;width:100%;aspect-ratio:1920/1080;overflow:hidden;border-radius:8px;box-shadow:0 8px 30px oklch(0% 0 0/.5);background:#000}}
 .vp iframe{{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;transform:scale(var(--k));pointer-events:none}}
 </style></head><body><h1>Round 12 · where the picture sits and where the time sits</h1>
-<p class="lede">R2 as the reference, then four compositions that take the picture off the right and the time out of the middle, at half size. Open one for the 1920 render; the <a href="index.html" style="color:var(--p)">switchboard</a> flips every knob of the three rounds.</p>
+<p class="lede">R2 as the reference, then six compositions that take the picture off the right and the time out of the middle, at half size. Open one for the 1920 render; the <a href="index.html" style="color:var(--p)">switchboard</a> flips every knob of the three rounds.</p>
 <div class="grid">{frames}</div>
 <script>function fit(){{document.querySelectorAll('.vp').forEach(v=>v.style.setProperty('--k',(v.clientWidth/1920).toFixed(4)))}}fit();addEventListener('resize',fit)</script>
 </body></html>"""

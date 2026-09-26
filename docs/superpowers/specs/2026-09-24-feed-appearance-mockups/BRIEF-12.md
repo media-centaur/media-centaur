@@ -41,6 +41,21 @@ of the band is no favour to a reader.
 S4 is S1 without the logo, so the composition can be judged apart from the
 round-11 question.
 
+**Added on the owner's ask** ("what about S2 but the logo is atop the
+backdrop, like we do for the card view on the home page?"): a logo mode
+`picture` that draws the logo as `ContinueWatchingRow` does — bottom left
+over a to-top gradient (black .85, .2 at the midpoint, clear), height-
+capped, 80% of the picture's width, the name in white when there is none —
+and two presets on it:
+
+| | Picture | Tile | Band |
+|---|---|---|---|
+| S5 Picture flush, logo on it | the band's left end, 398×224, the logo on it | after the picture | 224 |
+| S6 Picture left, logo on it | the inset thumbnail, 320×180, the logo on it | first | 224 |
+
+With the title on the picture the panel has no title line, so neither
+grows.
+
 ## Deliverables
 
 `S1`–`S4` pages with `REASONING.md`; `Q-place-switchboard/index.html`

@@ -71,3 +71,24 @@ html[data-pic="full"] .entry .foot{display:none}
 html[data-hair="on"][data-edges="sheet"][data-pic="inset"] .entry + .entry::before,
 html[data-hair="on"][data-edges="sheet"][data-pic="flush"] .entry + .entry::before{background:var(--hair)}
 html[data-hair="on"][data-edges="sheet"][data-pic="flush"] .entry + .entry::before{left:var(--thumb-w)}
+
+/* ---- the logo on the picture, as Home's Continue Watching card draws it: bottom left over a to-top
+   gradient (black .85 → .2 at the midpoint → clear), height-capped, 80% of the picture's width, the
+   name in white when there is no logo. The words beside lose the title line, so the band stays 224. ---- */
+html[data-logo="picture"] .band{--logo-h:64px;--h:224px;--body-h:calc(var(--h) - 2 * var(--pad-y));--l3n:3}
+html[data-logo="picture"] .l3{margin-top:8px}
+html[data-logo="picture"][data-pic="flush"] .band{--pic-x:0px;--pic-y:0px;--pic-w:var(--thumb-w);--pic-h:var(--h);--pic-r:0px;--logo-b:16px}
+html[data-logo="picture"][data-pic="inset"] .band{--pic-x:92px;--pic-y:22px;--pic-w:var(--thumb-w);--pic-h:var(--thumb-h);--pic-r:8px;--logo-b:38px}
+html[data-logo="picture"] .entry.haslogo .logo{display:flex}
+html[data-logo="picture"] .entry.haslogo .l2{display:none}
+html[data-logo="picture"][data-pic="flush"] .entry:not(.noart) .foot,html[data-logo="picture"][data-pic="inset"] .entry:not(.noart) .foot{display:block;position:absolute;
+ left:var(--pic-x);top:var(--pic-y);width:var(--pic-w);height:var(--pic-h);border-radius:var(--pic-r);z-index:1;pointer-events:none;
+ background:linear-gradient(to top,rgba(0,0,0,.85),rgba(0,0,0,.2) 50%,transparent)}
+html[data-logo="picture"] .logo{left:calc(var(--pic-x) + 16px);top:auto;bottom:var(--logo-b);width:calc(var(--pic-w) * .8);height:var(--logo-h);
+ flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:2px;z-index:3;filter:drop-shadow(0 2px 10px rgba(0,0,0,.85))}
+html[data-logo="picture"] .logo .yr{color:oklch(93% 0.01 264/.8)}
+html[data-logo="picture"][data-pic="flush"] .entry:not(.noart) .l2,html[data-logo="picture"][data-pic="inset"] .entry:not(.noart) .l2{position:absolute;
+ left:calc(var(--pic-x) + 16px - var(--x-body));top:auto;bottom:calc(var(--logo-b) - var(--pad-y));margin:0;width:calc(var(--pic-w) * .8);
+ flex-direction:column;align-items:flex-start;gap:2px;z-index:3;filter:drop-shadow(0 2px 10px rgba(0,0,0,.85))}
+html[data-logo="picture"] .entry:not(.noart) .l2 b{font-size:24px;line-height:28px;color:#fff;max-width:100%}
+html[data-logo="picture"] .entry:not(.noart) .l2 .y{color:oklch(93% 0.01 264/.8)}
