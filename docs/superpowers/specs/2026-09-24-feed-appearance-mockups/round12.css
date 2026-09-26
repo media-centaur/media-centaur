@@ -1,0 +1,73 @@
+/* Round 12 — where the picture sits and where the time sits. Loaded after
+   round10.css and round11.css on the round-11 markup (the poster gone, the
+   logo slot in). The owner: "i hate the timestamp being in the middle of the
+   row and the image on the right". Both come from one fact: the still's box
+   begins at 700, the text zone ends there, and the time is right-aligned to
+   it. Move the picture and the time can go to the edge.
+
+   data-pic   box | inset | flush | full
+              box:   the settled right-hand box (the reference)
+              inset: the still as a 16:9 thumbnail in the poster's slot, at the
+                     tile's right, the whole frame, no crop — tile · picture · words
+              flush: the still at the band's left edge at the band's height, the
+                     whole frame; the tile after it — picture · tile · words
+              full:  the still under the whole band; the words on the left scrim
+   data-time  zone | edge
+              zone: right-aligned at the text zone's edge (700), as settled
+              edge: the band's right edge, 20px in, on line 1's height */
+
+/* ---- the time at the edge ---- */
+html[data-time="edge"] .when{right:20px}
+html[data-time="edge"][data-pic="inset"] .body,html[data-time="edge"][data-pic="flush"] .body{right:20px}
+html[data-time="edge"][data-pic="full"] .l1,html[data-time="edge"][data-pic="box"] .l1{padding-right:0}
+/* a long measure is no favour to a review: cap it */
+html[data-pic="inset"] .l3,html[data-pic="flush"] .l3{max-width:640px}
+
+/* ---- inset: the whole frame in the poster's slot ---- */
+html[data-pic="inset"] .band{--thumb-h:calc(var(--h) - 44px);--thumb-w:calc(var(--thumb-h) * 16 / 9);--x-body:calc(92px + var(--thumb-w) + 24px)}
+html[data-pic="inset"] .entry .bd{left:92px;top:22px;width:var(--thumb-w);height:var(--thumb-h);object-position:50% 50%;border-radius:8px;
+ box-shadow:0 4px 16px oklch(0% 0 0/.55);outline:1px solid oklch(100% 0 0/.08);outline-offset:-1px;-webkit-mask-image:none;mask-image:none}
+html[data-pic="inset"] .entry.alt .bd{object-position:50% 50%}
+html[data-pic="inset"] .entry .scrim,html[data-pic="inset"] .entry .foot{display:none}
+html[data-pic="inset"] .entry.noart .thumb-empty{display:block;position:absolute;left:92px;top:22px;width:var(--thumb-w);height:var(--thumb-h);border-radius:8px;
+ background:oklch(93% 0.01 264/.06);outline:1px solid oklch(100% 0 0/.06);outline-offset:-1px}
+html[data-pic="inset"] .entry.noart{background:var(--ink)}
+html[data-pic="inset"] .logo{width:440px}
+html[data-pic="inset"] .body,html[data-pic="inset"] .when{text-shadow:none}
+
+/* ---- flush: the whole frame at the band's left edge, the tile after it ---- */
+html[data-pic="flush"] .band{--thumb-w:calc(var(--h) * 16 / 9);--x-tile:calc(var(--thumb-w) + 20px);--x-body:calc(var(--thumb-w) + 92px)}
+html[data-pic="flush"] .entry .bd{left:0;top:0;width:var(--thumb-w);height:100%;object-position:50% 50%;-webkit-mask-image:none;mask-image:none}
+html[data-pic="flush"] .entry.alt .bd{object-position:50% 50%}
+html[data-pic="flush"] .entry .scrim,html[data-pic="flush"] .entry .foot{display:none}
+html[data-pic="flush"] .entry.noart .thumb-empty{display:block;position:absolute;left:0;top:0;width:var(--thumb-w);height:100%;background:oklch(93% 0.01 264/.05)}
+html[data-pic="flush"] .entry.noart{background:var(--ink)}
+html[data-pic="flush"] .logo{width:440px}
+html[data-pic="flush"] .body,html[data-pic="flush"] .when{text-shadow:none}
+
+/* ---- full: the still is the band; the words keep the text zone; a vignette at the right edge carries the time ---- */
+html[data-pic="full"] .entry{--bx:0px}
+html[data-pic="full"] .entry .bd{-webkit-mask-image:none;mask-image:none}
+html[data-pic="full"] .entry .scrim{background:linear-gradient(to right,
+ oklch(from var(--ink) l c h/calc(.96*var(--s))) 0,
+ oklch(from var(--ink) l c h/calc(.92*var(--s))) 560px,
+ oklch(from var(--ink) l c h/calc(.84*var(--s))) var(--tz),
+ oklch(from var(--ink) l c h/calc(.5*var(--s))) calc(var(--tz) + 160px),
+ oklch(from var(--ink) l c h/calc(.14*var(--s))) calc(var(--tz) + 320px),
+ oklch(from var(--ink) l c h/calc(.03*var(--s))) calc(var(--tz) + 440px),
+ oklch(from var(--ink) l c h/0) 100%)}
+html[data-pic="full"][data-time="edge"] .entry .scrim{background:linear-gradient(to right,
+ oklch(from var(--ink) l c h/calc(.96*var(--s))) 0,
+ oklch(from var(--ink) l c h/calc(.92*var(--s))) 560px,
+ oklch(from var(--ink) l c h/calc(.84*var(--s))) var(--tz),
+ oklch(from var(--ink) l c h/calc(.5*var(--s))) calc(var(--tz) + 160px),
+ oklch(from var(--ink) l c h/calc(.14*var(--s))) calc(var(--tz) + 320px),
+ oklch(from var(--ink) l c h/calc(.03*var(--s))) calc(var(--tz) + 440px),
+ oklch(from var(--ink) l c h/0) 100%),
+ linear-gradient(to left,oklch(from var(--ink) l c h/calc(.5*var(--s))),oklch(from var(--ink) l c h/0) 300px)}
+html[data-pic="full"] .entry .foot{display:none}
+
+/* the hairline runs the band when the picture is not on the right */
+html[data-hair="on"][data-edges="sheet"][data-pic="inset"] .entry + .entry::before,
+html[data-hair="on"][data-edges="sheet"][data-pic="flush"] .entry + .entry::before{background:var(--hair)}
+html[data-hair="on"][data-edges="sheet"][data-pic="flush"] .entry + .entry::before{left:var(--thumb-w)}

@@ -182,6 +182,24 @@ switchboard (`Q-logo-switchboard/index.html`) carries both rounds' knobs;
 `compare.html` puts Q6 beside the four. The critique recommends **R2**.
 **Next: the owner's answer to R1's test and, if the logo, a pick.**
 
+**The owner's third complaint (2026-09-26): "i hate the timestamp being
+in the middle of the row and the image on the right".** One cause: the
+still's box begins at 700, the text zone ends there, and the time is
+right-aligned to it. **Round 12** (`BRIEF-12.md`, `CRITIQUE-12.md`,
+`round12.css`, `make-round-12`) moves the picture so the time can go to
+the edge: S1 picture left (the still whole as a 16:9 thumbnail in the
+poster's slot, tile · picture · words, the time at the edge), S2 picture
+flush (the still as the band's left end, the tile after it), S3 full
+bleed with the time at the top right over a vignette, S4 = S1 with the
+typed title. The left-hand compositions show the whole frame, so the
+crop rule, the 38% adjacency offset, the mask and the scrim all fall
+away. The switchboard (`Q-place-switchboard/index.html`) carries all
+three rounds' knobs; `compare.html` puts R2 beside the four. The
+critique recommends **S1** — and notes that S1 is the page that answers
+every complaint so far at once: Q6's ground and columns, R2's logo, the
+still whole at the left, the time at the edge. **Next: the owner's pick
+across the three rounds, then one implementation pass.**
+
 ## Handoff — start here in a fresh context
 
 0. **Where it stands (2026-09-26):** Phases 1–5 are on `main`,
@@ -512,6 +530,14 @@ superseded by the design this campaign produces, and the record says so.
   from each title's name in the machine's fonts — TMDB has almost no
   logos for the showcase's public-domain titles, and real titles may not
   appear in committed mockups.
+* `2026-09-26` — The owner: "i hate the timestamp being in the middle of
+  the row and the image on the right". Round 12 answers by moving the
+  picture. Finding: a 16:9 box at the band's height shows the still
+  whole, which deletes the crop rule, the adjacency offset
+  (`offset_crop?`), the mask and the scrim rather than tuning them; a
+  time at the band's edge needs ground under it — ink, or a right-edge
+  vignette over a full-bleed still (the round-5 lead's device); a review
+  wants a 640px measure, not the band's width.
 
 ## Next steps
 
@@ -552,6 +578,13 @@ superseded by the design this campaign produces, and the record says so.
    artwork; UIDR-046 records that the Feed's title is the logo, else the
    name, as the hero's is. The rail keeps its posters (UIDR-046: a
    person's card is their acts).
+3o. **Round 12 — the picture's place and the time's place** — running:
+   the owner picks S1–S4 or a switchboard link. If a left-hand
+   composition lands, the implementation pass deletes the crop machinery
+   (`offset_crop?`, the adjacency pass in `FeedEntries`, the mask and
+   scrim CSS) as part of the change, and the spec's size table is
+   rewritten to the thumbnail. The three rounds' picks make one
+   implementation pass, not three.
 3k. **Round 9f** — done: the act mark settled as the fixed-slot header
    above the poster; G and J patched; the spec and plan rewritten to
    it; the grade threshold set at two friends.

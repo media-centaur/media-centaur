@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""Round 12 — where the picture sits and where the time sits.
+
+Reuses make-round-11's markup (G's state 1 with the poster gone and the
+logo slot in) by executing that script's prefix — everything before its
+presets — then adds a `.thumb-empty` slot to the no-artwork band and
+writes one page per composition (S1..S4) on Q6's page with R2's logo
+headline, Q-place-switchboard/index.html with the knobs of rounds 10–12
+live, and Q-place-switchboard/compare.html with R2 (picture right, time
+in the middle) beside the four at half size.
+"""
+import os, re, html as H
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+os.chdir(HERE)
+
+src11 = open('make-round-11', encoding='utf-8').read()
+prefix = src11[:src11.index('BASE = dict(')]
+ns = {'__file__': os.path.abspath('make-round-11'), '__name__': 'round11'}
+exec(compile(prefix, 'make-round-11', 'exec'), ns)
+style, defs, pw, second, div_end = ns['style'], ns['defs'], ns['pw'], ns['second'], ns['div_end']
+
+# the no-artwork band gets an empty thumbnail slot for the left-picture compositions
+def add_thumb_empty(text):
+    out, pos = [], 0
+    while True:
+        i = text.find('<div class="entry band', pos)
+        j = text.find('<div data-logo-tier="opt" class="entry band', pos)
+        cands = [x for x in (i, j) if x >= 0]
+        if not cands:
+            out.append(text[pos:]); break
+        i = min(cands); k = div_end(text, i); band = text[i:k]
+        if 'noart' in band[:120]:
+            band = band.replace('<div class="scrim"></div>', '<div class="scrim"></div><div class="thumb-empty"></div>', 1)
+        out.append(text[pos:i]); out.append(band); pos = k
+    return ''.join(out)
+
+pw = add_thumb_empty(pw)
+second = add_thumb_empty(second)
+
+BASE = dict(ground='dark', unit='ink', tone='13', edges='sheet', hair='on', still='wide', dissolve='240',
+            **{'logo-h': '72'}, place='corner', mix='some')
+KNOBS = ['ground', 'unit', 'tone', 'edges', 'hair', 'still', 'dissolve', 'logo', 'logo-h', 'place', 'mix', 'pic', 'time']
+
+PRESETS = [
+ dict(dir='S1-picture-left', title='S1 · Picture left',
+      attrs=dict(BASE, logo='headline', pic='inset', time='edge'),
+      keys='the still takes the poster’s slot as a 16:9 thumbnail at the tile’s right — the whole frame, no crop · tile, picture, words, in the settled order · the time at the band’s right edge · the logo as the headline; the band 264, the thumbnail 391×220',
+      legend='<b>S1 · Picture left.</b> The settled anatomy with one substitution: where the poster stood, the still, as a 16:9 thumbnail showing the whole frame. Tile, picture, words, left to right, and the time where a list puts it, at the right edge on the first line. The words gain the width the box used to take, capped at a reading measure. Nothing is cropped, nothing is scrimmed, nothing dissolves: the band is a row with a picture in it.'),
+ dict(dir='S2-picture-flush', title='S2 · Picture flush',
+      attrs=dict(BASE, logo='headline', pic='flush', time='edge'),
+      keys='the still at the band’s left edge at the band’s full height, the whole frame (469×264) · the tile after it, then the words · the time at the edge · the hairline runs from the picture’s edge',
+      legend='<b>S2 · Picture flush.</b> The still is the band’s left end: full height, the whole frame, no frame around it. The tile follows, then the words, then the time at the edge. The picture is bigger than S1’s and the band reads as a tile: picture on the left, a text panel on the right. The author mark is no longer first.'),
+ dict(dir='S3-full-bleed', title='S3 · Full bleed, time at the edge',
+      attrs=dict(BASE, logo='headline', pic='full', time='edge'),
+      keys='the still under the whole band, the words on the left scrim as before · the time at the top right over a vignette that darkens the last 300px · the picture is not on the right because it is everywhere',
+      legend='<b>S3 · Full bleed, time at the edge.</b> The picture is the band. The words keep their zone on the left scrim; the time leaves the zone for the top right, over a right-edge vignette borrowed from the round-5 lead. The one composition of the round that keeps the still large.'),
+ dict(dir='S4-picture-left-typed', title='S4 · Picture left, typed title',
+      attrs=dict(BASE, logo='none', pic='inset', time='edge'),
+      keys='S1 without the logo: the typed title on line 2, the band 224, the thumbnail 320×180 · for judging the composition apart from the logo question',
+      legend='<b>S4 · Picture left, typed title.</b> S1’s composition with round 11’s R1 instead of R2: no logo, the typed title, the band at 224 with a 320×180 thumbnail. Here so the picture’s place and the time’s place can be judged apart from the logo.'),
+]
+
+def attrs_str(a):
+    return ' '.join(f'data-{k}="{v}"' for k, v in a.items())
+
+def page(title, attrs, keys, legend, extra_head='', extra_body=''):
+    label = f'<div class="r10-label"><span class="sec">{H.escape(title)}</span><span class="keys">{keys}</span></div>'
+    return (f'<!doctype html><html lang="en" {attrs_str(attrs)}><head><meta charset="utf-8"><link rel="stylesheet" href="../base.css">'
+            f'<title>{H.escape(title)}</title><style>{style}</style><link rel="stylesheet" href="../round10.css"><link rel="stylesheet" href="../round11.css">'
+            f'<link rel="stylesheet" href="../round12.css">{extra_head}</head>'
+            f'<body><div class="frame"><aside class="sidebar"><i></i><i></i><i class="on"></i><i></i><i></i><i class="gap"></i><i></i></aside>'
+            f'<main><div class="content"><h1>Discovery</h1>{defs}{label}{pw}{second}'
+            f'<p class="r10-legend">{legend}</p></div></main></div>{extra_body}</body></html>')
+
+for p in PRESETS:
+    os.makedirs(p['dir'], exist_ok=True)
+    open(f"{p['dir']}/index.html", 'w', encoding='utf-8').write(page(p['title'], p['attrs'], p['keys'], p['legend']))
+
+OPTIONS = {
+ 'pic':      [('box', 'box'), ('inset', 'inset'), ('flush', 'flush'), ('full', 'full')],
+ 'time':     [('zone', 'zone'), ('edge', 'edge')],
+ 'logo':     [('none', 'none'), ('headline', 'headline')],
+ 'logo-h':   [('56', '56'), ('72', '72'), ('96', '96')],
+ 'mix':      [('some', 'some'), ('all', 'all'), ('none', 'none')],
+ 'ground':   [('app', 'app'), ('dark', 'dark'), ('ink', 'ink')],
+ 'edges':    [('cards', 'cards'), ('sheet', 'sheet')],
+ 'hair':     [('on', 'on'), ('off', 'off')],
+}
+LABELS = {'pic': 'The picture', 'time': 'The time', 'logo': 'The logo', 'logo-h': 'Logo height', 'mix': 'Titles with a logo',
+          'ground': 'Page ground', 'edges': 'Edges', 'hair': 'Hairline'}
+NOTES = {'pic': 'right box · left inset · left flush · full bleed', 'time': 'text zone · band edge', 'logo': 'round 11', 'logo-h': 'grows the band', 'mix': 'some = four typed',
+         'ground': 'round 10', 'edges': 'round 10', 'hair': 'round 10'}
+SHOWN = ['pic', 'time', 'logo', 'logo-h', 'mix', 'ground', 'edges', 'hair']
+
+panel_css = open('Q-switchboard/index.html', encoding='utf-8').read()
+panel_css = panel_css[panel_css.index('.sb{'):panel_css.index('</style>', panel_css.index('.sb{'))]
+panel_css = panel_css.replace('width:300px', 'width:340px')
+
+rows = ''
+for k in SHOWN:
+    note = f'<small>{NOTES[k]}</small>' if k in NOTES else ''
+    btns = ''.join(f'<button data-k="{k}" data-v="{v}">{H.escape(t)}</button>' for v, t in OPTIONS[k])
+    rows += f'<div class="row" data-row="{k}"><label>{LABELS[k]}{note}</label><span class="opts">{btns}</span></div>'
+def js_obj(a):
+    return '{' + ','.join(f'"{k}":"{v}"' for k, v in a.items()) + '}'
+presets_js = '{' + ','.join(f'"{p["title"].split(" ")[0]}":{js_obj(p["attrs"])}' for p in PRESETS) + '}'
+preset_btns = ''.join(f'<button data-preset="{p["title"].split(" ")[0]}" title="{H.escape(p["keys"])}">{H.escape(p["title"])}</button>' for p in PRESETS)
+
+panel_html = f"""
+<div class="sb" id="sb"><h2>Round 12 · knobs <button id="sb-hide">hide</button></h2>{rows}
+<div class="presets">{preset_btns}</div>
+<p class="foot">The state is in the address. <a href="compare.html">R2 and the four side by side</a>.</p></div>
+<button class="sb-show" id="sb-show">knobs</button>
+<script>
+const PRESETS={presets_js};
+const KNOBS={KNOBS!r};
+const DEFAULT=PRESETS.S1;
+const root=document.documentElement;
+function state(){{const s={{}};for(const k of KNOBS)s[k]=root.getAttribute('data-'+k);return s}}
+function setAttr(k,v){{root.setAttribute('data-'+k,v)}}
+function apply(s){{for(const k of KNOBS)setAttr(k,s[k]);paint()}}
+function paint(){{
+  const s=state();
+  document.querySelectorAll('.sb .opts button').forEach(b=>b.classList.toggle('on',s[b.dataset.k]===b.dataset.v));
+  document.querySelector('[data-row="logo-h"]').classList.toggle('off',s.logo==='none');
+  document.querySelector('[data-row=mix]').classList.toggle('off',s.logo==='none');
+  document.querySelector('[data-row=hair]').classList.toggle('off',s.edges!=='sheet');
+  document.querySelectorAll('.sb .presets button').forEach(b=>{{const p=PRESETS[b.dataset.preset];b.classList.toggle('on',KNOBS.every(k=>p[k]===s[k]))}});
+  const keep=location.hash.includes('panel=off')?'&panel=off':'';
+  history.replaceState(null,'',location.pathname+location.search+'#'+KNOBS.map(k=>k+'='+s[k]).join('&')+keep);
+}}
+function fromHash(){{
+  const s=Object.assign({{}},DEFAULT);
+  for(const kv of location.hash.replace(/^#/,'').split('&')){{const [k,v]=kv.split('=');if(KNOBS.includes(k)&&v)s[k]=v;if(k==='panel'&&v==='off')document.body.classList.add('sb-off')}}
+  return s;
+}}
+document.querySelectorAll('.sb .opts button').forEach(b=>b.onclick=()=>{{setAttr(b.dataset.k,b.dataset.v);paint()}});
+document.querySelectorAll('.sb .presets button').forEach(b=>b.onclick=()=>apply(PRESETS[b.dataset.preset]));
+document.getElementById('sb-hide').onclick=()=>document.body.classList.add('sb-hidden');
+document.getElementById('sb-show').onclick=()=>document.body.classList.remove('sb-hidden');
+window.addEventListener('hashchange',()=>apply(fromHash()));
+apply(fromHash());
+</script>"""
+
+os.makedirs('Q-place-switchboard', exist_ok=True)
+open('Q-place-switchboard/index.html', 'w', encoding='utf-8').write(page(
+    'Q · Place switchboard', PRESETS[0]['attrs'],
+    'where the picture sits and where the time sits, with the knobs of rounds 10 and 11 under them; the presets S1–S4 are the direction pages',
+    '<b>Q · Place switchboard.</b> The four compositions and every earlier knob on one page.',
+    extra_head=f'<style>{panel_css}</style>', extra_body=panel_html))
+
+r2 = '../R2-logo-headline/index.html'
+frames = (f'<figure class="today"><figcaption><b>R2</b> <span>the picture in a box on the right, the time at the text zone’s edge, mid-band: the reference</span> <a href="{r2}">open</a></figcaption>'
+          f'<div class="vp"><iframe src="{r2}" loading="eager"></iframe></div></figure>')
+frames += ''.join(
+    f'<figure><figcaption><b>{H.escape(p["title"])}</b> <span>{p["keys"]}</span> <a href="../{p["dir"]}/index.html">open</a></figcaption>'
+    f'<div class="vp"><iframe src="../{p["dir"]}/index.html" loading="eager"></iframe></div></figure>' for p in PRESETS)
+compare = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Round 12 · the picture and the time</title><link rel="stylesheet" href="../base.css"><style>
+body{{background:oklch(11% 0.015 264);padding:28px 24px 60px}}
+h1{{font-size:22px;margin:0 0 6px}}p.lede{{margin:0 0 24px;max-width:110ch;font-size:15px;line-height:1.5;color:oklch(93% 0.01 264/.7)}}
+.grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 24px}}
+figure{{margin:0;min-width:0}}figure.today .vp{{outline:1px dashed oklch(93% 0.01 264/.25);outline-offset:4px}}figcaption{{font-size:14px;line-height:1.4;margin:0 0 8px;color:oklch(93% 0.01 264/.72)}}
+figcaption b{{color:var(--bc);font-size:16px;margin-right:8px}}figcaption a{{color:var(--p);margin-left:8px}}
+.vp{{position:relative;width:100%;aspect-ratio:1920/1080;overflow:hidden;border-radius:8px;box-shadow:0 8px 30px oklch(0% 0 0/.5);background:#000}}
+.vp iframe{{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;transform:scale(var(--k));pointer-events:none}}
+</style></head><body><h1>Round 12 · where the picture sits and where the time sits</h1>
+<p class="lede">R2 as the reference, then four compositions that take the picture off the right and the time out of the middle, at half size. Open one for the 1920 render; the <a href="index.html" style="color:var(--p)">switchboard</a> flips every knob of the three rounds.</p>
+<div class="grid">{frames}</div>
+<script>function fit(){{document.querySelectorAll('.vp').forEach(v=>v.style.setProperty('--k',(v.clientWidth/1920).toFixed(4)))}}fit();addEventListener('resize',fit)</script>
+</body></html>"""
+open('Q-place-switchboard/compare.html', 'w', encoding='utf-8').write(compare)
+print('built:', ', '.join(p['dir'] for p in PRESETS), 'Q-place-switchboard/{index,compare}.html')
