@@ -11,7 +11,9 @@ defmodule MediaCentaur.Showcase.SyntheticTrafficTest do
   setup do
     table = :"synthetic_traffic_#{System.unique_integer([:positive])}"
 
-    start_supervised!({Store, name: :"#{table}_store", table: table, schema: Traffic.schema()})
+    start_supervised!(
+      {Store, name: :"#{table}_store", table: table, schema: Traffic.schema(), component: :http}
+    )
 
     %{table: table}
   end

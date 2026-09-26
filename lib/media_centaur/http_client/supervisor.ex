@@ -35,6 +35,7 @@ defmodule MediaCentaur.HttpClient.Supervisor do
        name: Traffic.Store,
        table: Traffic.store_table(),
        schema: Traffic.schema(),
+       component: :http,
        snapshot_path: snapshot_path,
        retention_policy: :request_history},
       Traffic

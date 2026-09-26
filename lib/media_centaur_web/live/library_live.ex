@@ -199,7 +199,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   def handle_async(:scan, {:exit, reason}, socket) do
-    Log.warning(:library, "Library scan failed", reason: inspect(reason))
+    Log.warning(:library, "library scan failed — #{inspect(reason)}")
     {:noreply, assign(socket, scanning: false)}
   end
 

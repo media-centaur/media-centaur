@@ -278,6 +278,10 @@
           # table it reads is MediaCentaur.Log.Component. Added by the 2026-09
           # audit remediation (E53).
           {MediaCentaur.Credo.Checks.LogComponentMatchesContext, []},
+          # MC0039 keeps a log line's data in its message: keyword metadata
+          # is rendered by no log view, so a reason passed as `reason:` was
+          # lost (the 2026-09-26 time series snapshot incident).
+          {MediaCentaur.Credo.Checks.LogDataInMessage, []},
           # MC0022 keeps a lookup's name honest about its return shape:
           # `fetch…` yields a tuple, `get…` yields the record or nil, `…!`
           # raises. It only opines where the shape is statically

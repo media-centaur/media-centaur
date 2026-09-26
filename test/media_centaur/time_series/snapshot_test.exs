@@ -1,6 +1,8 @@
 defmodule MediaCentaur.TimeSeries.SnapshotTest do
   use MediaCentaur.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias MediaCentaur.TimeSeries.{Schema, Snapshot, Store}
 
   @schema Schema.new(requests: :sum, latency_max_ms: :max)
@@ -33,6 +35,68 @@ defmodule MediaCentaur.TimeSeries.SnapshotTest do
     assert {:error, _} = Snapshot.read(path, @schema)
   end
 
+  # Regression: a dev VM loads modules lazily, so on a cold boot the atoms a
+  # snapshot names (resolutions, upstream ids) may not exist yet. Decoding
+  # with `[:safe]` then rejected a valid file as `:corrupt` and the store
+  # started empty (incident a67dde4ce96a2c0b, 2026-09-26).
+  test "a file naming an atom this VM has not created yet is read", %{tmp_dir: dir} do
+    path = Path.join(dir, "traffic.snapshot")
+    placeholder = "key_placeholder_000000"
+    unseen = "key_unseen_" <> String.pad_leading("#{System.unique_integer([:positive])}", 11, "0")
+    rows = [{{:"10s", String.to_atom(placeholder), 1_789_800_010}, 3, 180}]
+    :ok = Snapshot.write(path, @schema, rows)
+
+    # Swap the atom's text for one of the same length that no code has
+    # created: the file is what a previous VM wrote about a key this one
+    # has not loaded.
+    <<131, 80, _size::32, compressed::binary>> = File.read!(path)
+    binary = compressed |> :zlib.uncompress() |> String.replace(placeholder, unseen)
+    File.write!(path, <<131, 80, byte_size(binary)::32>> <> :zlib.compress(binary))
+
+    assert {:ok, [{{:"10s", key, 1_789_800_010}, 3, 180}]} = Snapshot.read(path, @schema)
+    assert Atom.to_string(key) == unseen
+  end
+
+  test "a store says why it ignored a snapshot, under its tenant's component", %{tmp_dir: dir} do
+    path = Path.join(dir, "traffic.snapshot")
+    File.write!(path, "not a snapshot")
+
+    log =
+      capture_log([level: :info, format: "[$level][$metadata]$message\n", metadata: [:component]], fn ->
+        start_store(path)
+      end)
+
+    assert [line] = log |> String.split("\n") |> Enum.filter(&String.contains?(&1, path))
+    assert line =~ "[warning][component=http ]"
+    assert line =~ ":corrupt"
+  end
+
+  test "a snapshot from other fields is an expected discard, not a warning", %{tmp_dir: dir} do
+    path = Path.join(dir, "traffic.snapshot")
+    :ok = Snapshot.write(path, Schema.new(other: :sum), [{{:"10s", :tmdb, 1}, 1}])
+
+    # A warning would mint a `:log` incident; the test env's floor is
+    # `:warning`, so the info line itself is not observable here. Only this
+    # module's stores log about snapshots, and its tests run one at a time.
+    log = capture_log([level: :warning], fn -> start_store(path) end)
+
+    refute log =~ "time series snapshot"
+  end
+
+  defp start_store(path) do
+    suffix = System.unique_integer([:positive])
+
+    start_supervised!(
+      {Store,
+       name: :"snapshot_log_store_#{suffix}",
+       table: :"snapshot_log_table_#{suffix}",
+       schema: @schema,
+       component: :http,
+       snapshot_path: path},
+      id: suffix
+    )
+  end
+
   test "a store loads its snapshot on boot and writes on shutdown", %{tmp_dir: dir} do
     path = Path.join(dir, "traffic.snapshot")
     suffix = System.unique_integer([:positive])
@@ -43,7 +107,7 @@ defmodule MediaCentaur.TimeSeries.SnapshotTest do
 
     pid =
       start_supervised!(
-        {Store, name: name, table: table, schema: @schema, snapshot_path: path},
+        {Store, name: name, table: table, schema: @schema, component: :system, snapshot_path: path},
         id: name
       )
 
@@ -56,7 +120,7 @@ defmodule MediaCentaur.TimeSeries.SnapshotTest do
     name2 = :"snapshot_store_name_#{suffix}_b"
 
     start_supervised!(
-      {Store, name: name2, table: table2, schema: @schema, snapshot_path: path},
+      {Store, name: name2, table: table2, schema: @schema, component: :system, snapshot_path: path},
       id: name2
     )
 

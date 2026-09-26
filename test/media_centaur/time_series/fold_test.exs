@@ -10,7 +10,11 @@ defmodule MediaCentaur.TimeSeries.FoldTest do
   setup do
     suffix = System.unique_integer([:positive])
     table = :"fold_table_#{suffix}"
-    start_supervised!({Store, name: :"fold_store_#{suffix}", table: table, schema: @schema})
+
+    start_supervised!(
+      {Store, name: :"fold_store_#{suffix}", table: table, schema: @schema, component: :system}
+    )
+
     %{table: table}
   end
 
