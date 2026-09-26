@@ -68,8 +68,8 @@ R10 = dict(tone='13', still='box', dissolve='240')
 LIST = dict(R10, ground='app', unit='open', edges='sheet', hair='on', surface='list')
 SHEET = dict(R10, ground='dark', unit='ink', edges='sheet', hair='on', surface='sheet')
 OPEN = dict(R10, ground='app', unit='open', edges='sheet', hair='on', surface='open')
-LOGO = {'logo-h': '72', 'place': 'corner', 'mix': 'some'}
-KNOBS = ['ground', 'unit', 'tone', 'edges', 'hair', 'still', 'dissolve', 'surface', 'cols', 'poster', 'logo', 'logo-h', 'place', 'mix']
+LOGO = {'logo-h': '72', 'place': 'corner', 'mix': 'some', 'acts': 'slots', 'align': 'centre'}
+KNOBS = ['ground', 'unit', 'tone', 'edges', 'hair', 'still', 'dissolve', 'surface', 'cols', 'poster', 'logo', 'logo-h', 'place', 'mix', 'acts', 'align']
 
 PRESETS = [
  dict(dir='T1-list-narrow', title='T1 · List surface, 1500',
@@ -89,6 +89,11 @@ PRESETS = [
       attrs=dict(OPEN, **LOGO, cols='narrow', poster='100', logo='none'),
       keys='the rows on the app’s ground with nothing around them: hairlines, no container, no ink · the content 1500 · the poster 100×150',
       legend='<b>T4 · Open rows, 1500.</b> The lightest reading: rows on the page, hairlines between, no container and no ink. The app’s ground shows through everywhere; the posters and the tiles are the only shapes. Narrowed to 1500.'),
+ dict(dir='T5-open-narrow-top', title='T5 · Open rows, 1500, the two notes',
+      attrs=dict(OPEN, **dict(LOGO, acts='centred', align='top'), cols='narrow', poster='100', logo='none'),
+      keys='T4 with the owner\u2019s two notes: the act glyphs centred as a group over each poster in the rail · the tile and the poster hung from the row\u2019s top line, as the person card places its tile',
+
+      legend='<b>T5 · Open rows, 1500, the two notes.</b> T4 with two changes. In the rail, the act glyphs over a poster are centred as a group instead of sitting in three fixed slots: one act in the middle, two as a pair, three where the slots had them. In the row, the tile and the poster hang from the top line with the words instead of centring in the row, which is how the person card places its tile and how every text row with an avatar reads.'),
 ]
 
 def attrs_str(a):
@@ -113,10 +118,12 @@ OPTIONS = {
  'poster':   [('100', '100'), ('80', '80')],
  'logo':     [('none', 'none'), ('headline', 'headline')],
  'mix':      [('some', 'some'), ('all', 'all'), ('none', 'none')],
+ 'acts':     [('slots', 'slots'), ('centred', 'centred')],
+ 'align':    [('centre', 'centre'), ('top', 'top')],
 }
-LABELS = {'cols': 'Content width', 'surface': 'Surface', 'poster': 'Poster', 'logo': 'The logo', 'mix': 'Titles with a logo'}
-NOTES = {'cols': 'feed + rail', 'surface': 'inset container · Q6 · bare rows', 'poster': 'width', 'logo': 'round 11', 'mix': 'some = four typed'}
-SHOWN = ['cols', 'surface', 'poster', 'logo', 'mix']
+LABELS = {'cols': 'Content width', 'surface': 'Surface', 'poster': 'Poster', 'logo': 'The logo', 'mix': 'Titles with a logo', 'acts': 'Act glyphs', 'align': 'Tile and poster'}
+NOTES = {'cols': 'feed + rail', 'surface': 'inset container · Q6 · bare rows', 'poster': 'width', 'logo': 'round 11', 'mix': 'some = four typed', 'acts': 'over the rail\u2019s posters', 'align': 'in the row'}
+SHOWN = ['cols', 'surface', 'poster', 'acts', 'align', 'logo', 'mix']
 # the surface knob carries round 10's knobs with it
 SURFACE_SETS = {'list': dict(ground='app', unit='open', edges='sheet', hair='on'),
                 'sheet': dict(ground='dark', unit='ink', edges='sheet', hair='on'),
@@ -197,7 +204,7 @@ figcaption b{{color:var(--bc);font-size:16px;margin-right:8px}}figcaption a{{col
 .vp{{position:relative;width:100%;aspect-ratio:1920/1080;overflow:hidden;border-radius:8px;box-shadow:0 8px 30px oklch(0% 0 0/.5);background:#000}}
 .vp iframe{{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;transform:scale(var(--k));pointer-events:none}}
 </style></head><body><h1>Round 13 · no backdrop: the poster row in narrower columns</h1>
-<p class="lede">S5 for comparison, then four pages without the still: the poster row at the couch floors on three surfaces and two widths. Open one for the 1920 render; the <a href="index.html" style="color:var(--p)">switchboard</a> flips the round’s knobs.</p>
+<p class="lede">S5 for comparison, then five pages without the still: the poster row at the couch floors on three surfaces and two widths. Open one for the 1920 render; the <a href="index.html" style="color:var(--p)">switchboard</a> flips the round’s knobs.</p>
 <div class="grid">{frames}</div>
 <script>function fit(){{document.querySelectorAll('.vp').forEach(v=>v.style.setProperty('--k',(v.clientWidth/1920).toFixed(4)))}}fit();addEventListener('resize',fit)</script>
 </body></html>"""

@@ -47,7 +47,40 @@ person card, the identity tile.
   correct and looks like the app; it does not look like round 4 asked
   for. That is the owner's call, made with the page in front of them.
 
+## Added on the owner's notes: T5
+
+The owner liked T4 most and gave two notes: the act glyphs over the rail's
+posters should be centred, and the tile should sit at the top of the row
+as it does on the person card. Both rendered as knobs and as **T5**.
+
+* **Centred glyphs are right for the posters the rail actually shows.**
+  Most acts are one act. In the fixed slots a lone bookmark sits at the
+  poster's right edge and a lone opinion at its left, and the eye reads
+  both as misplaced. Centred, one act sits in the middle, two as a pair,
+  and three land exactly where the slots put them. What is given up is
+  UIDR-046's scan — "the eye" at one x on every poster — which the owner
+  has judged less valuable than balance. The order within a group is
+  kept.
+* **The tile at the top is how a text row reads.** The band centred its
+  tile beside a 224px picture; on a row of words the centred tile floats
+  between lines. Hung from the top line it pairs with the name on line 1
+  and matches the person card. The poster hangs from the same line so
+  the row's three columns share one edge.
+* **Nothing else moved**, so T5 is T4 as the owner saw it, corrected.
+
 ## Recommendation
+
+**T5** — T4 with the two notes. The rows on the page at 1500, hairlines
+between, the tile and poster hung from the top, the rail's glyphs centred.
+It is the page the owner chose, made right by their own notes.
+
+Before the notes the recommendation was **T1**, the list surface — the
+inset container gave the two columns edges T4 does without. That remains
+the one thing to look at on T5: the feed and the rail are told apart by
+their content and the gutter alone. If that reads fine on the TV, T5
+stands; if not, the `surface` knob turns T5 into T1 with the notes kept.
+
+The earlier recommendation stands as the record:
 
 **T1** — the poster row on the list surface at 1500. It is the app's own
 idiom at the couch floors, it answers every complaint of the day by
@@ -57,12 +90,24 @@ other page and the shorter measure is acceptable. T3 and T4 are honest
 but each drops something T1 keeps: T3 the app's ground, T4 the columns'
 edges.
 
-## In the app, for T1
+## In the app, for T5
 
 `FeedBand`: the backdrop `<img>`, the scrim and the image box go; the time
-anchors to the row's right; the body runs to the edge. `.feed-column` and
-`.discovery-rail` take `glass-inset` with a 12px radius and hairlines
-between children; the bands and cards lose their own ground. Discovery's
+anchors to the row's right; the body runs to the edge; the tile and the
+poster take `top: var(--pad-y)`. `.feed-column` and `.discovery-rail` lose
+their unit grounds and take hairlines between children; no container.
+`PersonCard`'s act slots become a centred flex row and `--x1/--x2/--x3`
+are deleted. Discovery's content caps at 1500. `FeedEntry` loses
+`offset_crop?` and `backdrop_url`; `FeedEntries` loses the adjacency pass.
+The story pins a row with a review, one without, and the no-artwork row;
+the person card's story pins one, two and three acts on a poster.
+UIDR-046 records the row, the width, the centred glyphs (amending the
+fixed slots) and that the Feed carries no still.
+
+## In the app, for T1
+
+As T5, except `.feed-column` and `.discovery-rail` take `glass-inset`
+with a 12px radius as the container. Discovery's
 content caps at 1500. `FeedEntry` loses `offset_crop?` and `backdrop_url`;
 `FeedEntries` loses the adjacency pass; the projection stops reading
 backdrops for the Feed. The story pins a row with a review, one without,

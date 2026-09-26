@@ -58,6 +58,13 @@ losing a review line or moving the seat.
 | T3 Dark sheet, 1500 | sheet | narrow | 100 |
 | T4 Open rows, 1500 | open | narrow | 100 |
 
+**Added on the owner's notes** ("for the friends posters, there's the 3
+icons in the heading part.. i want those centered over the poster. are we
+sure that the circle with the name letter in it should be centered and not
+aligned near the top of the row like it is for friends? So far I think i
+like t4 the most"): two knobs — `acts` (slots · centred) and `align`
+(centre · top) — and **T5**, T4 with both applied.
+
 ## Deliverables
 
 `T1`–`T4` pages with `REASONING.md`; `Q-row-switchboard/index.html`;

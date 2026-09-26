@@ -47,3 +47,16 @@ html[data-surface="list"] .card + .card::before{content:"";position:absolute;lef
 html[data-surface="sheet"][data-hair="on"][data-edges="sheet"] .entry + .entry::before,
 html[data-surface="open"][data-hair="on"][data-edges="sheet"] .entry + .entry::before{background:var(--hair);left:20px;right:20px}
 html[data-surface="sheet"][data-unit="ink"] .entry.noart{background:var(--ink)}
+
+/* ---- the owner's two notes on T4 (2026-09-26) ----
+   data-acts   slots | centred   the act glyphs over a poster: the three fixed slots (UIDR-046), or centred as a
+                                 group — one act in the middle, two as a pair, three where the slots had them
+   data-align  centre | top      the tile and the poster centred in the row, or hung from the row's top line as the
+                                 person card hangs its tile beside the name */
+html[data-acts="centred"] .flags{display:flex;justify-content:center;align-items:center;gap:4px}
+html[data-acts="centred"] .flag{position:static;top:auto;left:auto}
+html[data-acts="centred"] .flag.love,html[data-acts="centred"] .flag.like,html[data-acts="centred"] .flag.dislike,html[data-acts="centred"] .flag.review{order:1}
+html[data-acts="centred"] .flag.watched{order:2}
+html[data-acts="centred"] .flag.listing{order:3}
+html[data-align="top"] .band{--tile-top:var(--pad-y)}
+html[data-align="top"] .entry .poster{top:var(--pad-y)}

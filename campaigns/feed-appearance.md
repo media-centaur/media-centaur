@@ -228,6 +228,17 @@ idiom, calm and correct. **Next: the owner's pick, then one
 implementation pass; the earlier rounds' pages stand as the record of
 the road not taken.**
 
+**The owner (2026-09-26, later): "So far I think i like t4 the most",
+with two notes** — the rail's act glyphs centred over the poster, and
+the row's tile at the top as on the person card. Built as **T5** (T4
+with both) and as two knobs (`acts`, `align`). The critique moves to T5
+and names the one thing to check on the TV: without a container the two
+columns are told apart by content and gutter alone; the `surface` knob
+turns T5 into T1 with the notes kept. Centring the glyphs amends
+UIDR-046's fixed slots (the scan gives way to balance; the order within
+a group is kept). **Next: the owner confirms T5 on the TV, then the
+implementation pass.**
+
 ## Handoff — start here in a fresh context
 
 0. **Where it stands (2026-09-26):** Phases 1–5 are on `main`,
@@ -584,6 +595,14 @@ superseded by the design this campaign produces, and the record says so.
   unchanged. Every complaint of the day traced to the still; removing it
   removes the crop rule, the adjacency offset, the mask and the scrim
   from the implementation.
+* `2026-09-26` — The owner leans to T4 (bare rows at 1500) and gives two
+  notes: **the act glyphs centred over the poster** (a lone glyph in the
+  fixed slots sat at the poster's edge; most acts are one act) — this
+  amends the fixed-slot header UIDR-046 was to record: the scan gives
+  way to balance, the group's order is kept; and **the tile at the top
+  of the row**, as the person card places it and as every text row with
+  an avatar reads; the poster hangs from the same line. T5 is T4 with
+  both.
 
 ## Next steps
 
@@ -630,8 +649,11 @@ superseded by the design this campaign produces, and the record says so.
    gradient-and-logo block is extracted from `ContinueWatchingRow` into
    one component Home and the Feed share.
 3p. **Round 13 — no backdrop, the poster row, narrower columns** —
-   running: the owner picks T1–T4 or a switchboard link; the critique's
-   pick is T1. If a round-13 page lands, the implementation pass removes
+   running: the owner leans T4 and T5 is T4 with their two notes; the
+   critique's pick is T5, with the container question (T1's surface) to
+   settle on the TV. If a round-13 page lands, the implementation pass
+   also centres the person card's act glyphs (the slot positions go) and
+   hangs the row's tile and poster from the top; and it removes
    the still from `FeedBand` and `FeedEntry` (`backdrop_url`,
    `offset_crop?`, the adjacency pass), puts the columns on the list
    surface, caps Discovery's content at 1500, and rewrites the spec's
