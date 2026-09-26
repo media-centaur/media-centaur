@@ -102,7 +102,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
     {queued, visible} = split_at_head(sorted, Keyword.get(opts, :head))
 
     %{
-      entries: visible |> Enum.take(window) |> Enum.map(&entry(&1, now)) |> stamp_crops(),
+      entries: visible |> Enum.take(window) |> Enum.map(&entry(&1, now)),
       has_older?: length(visible) > window and window < @cap,
       at_cap?: window == @cap and length(visible) > @cap,
       queued: length(queued)
@@ -119,18 +119,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
       {_all, []} -> {[], sorted}
       {above, from_head} -> {above, from_head}
     end
-  end
-
-  # The crop rule's one variable: a row directly under a row of the same
-  # title takes the offset, unless that row already did — a run alternates.
-  defp stamp_crops(entries) do
-    entries
-    |> Enum.map_reduce(nil, fn entry, above ->
-      offset? = above != nil and above.ref == entry.ref and not above.offset_crop?
-      entry = %{entry | offset_crop?: offset?}
-      {entry, entry}
-    end)
-    |> elem(0)
   end
 
   # The entry rule: a review or a listing, by an author on the roster or
@@ -150,7 +138,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
       ref: {activity.tmdb_id, activity.media_type},
       title: activity.title,
       poster_url: row.poster_url,
-      backdrop_url: row.backdrop_url,
       author: if(row.own?, do: "You", else: row.nickname),
       own?: row.own?,
       kind: activity.kind,

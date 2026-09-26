@@ -2,19 +2,22 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   @moduledoc """
   One person as their latest acts (UIDR-046), on the Feed's rail and
   the Friends page from one function at two widths. The head is the
-  identity tile, the name and the ago of the newest act; under it the
-  **acts strip**: one poster per title acted on, newest first, each
-  under its **act slots** — a 36px strip on the card's own ground with
-  three fixed 28px positions holding the opinion, the eye and the
-  bookmark, an absent act drawing nothing, so every glyph is found by
-  its place. A flag at the grade is gold; the rest are matte. A person
+  identity tile and the name — no clock: the card says what a person
+  did, the Feed says when; under it the **acts strip**: one poster per
+  title acted on, newest first, each under its **act glyphs** — a 36px
+  strip on the card's ground with the glyphs for what the person did
+  centred as a group in mast order (the opinion, the eye, the
+  bookmark), one act in the middle, two as a pair. A flag at the grade
+  is gold; the rest are matte. A person
   with no acts is a tile and a name; the card says nothing about what a
   person withholds, and the You card is the reader's acts like anyone's,
   the filled own tile its only mark.
 
-  The rail's card (`width: :rail`, 560) shows three acts and its press
-  navigates to the person on the Friends page; the page's card
-  (`:page`, 900) shows five and its press opens the card in place
+  The rail's card (`width: :rail`) is a row in the rail's list — no
+  ground of its own, a hairline between cards — showing three acts; its
+  press navigates to the person on the Friends page. The page's card
+  (`:page`) is a card in the Friends grid on the inset tone, showing
+  five acts; its press opens the card in place
   (`opened?`, the host's set): every act, one row per poster in
   `ActivityWords`' sentence with the act's flags after the title, then
   a friend's foot — the key, the added date, Remove friend. A poster's
@@ -70,29 +73,22 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
       phx-value-id={@person.id}
       phx-mounted={@landed? && JS.focus()}
     >
-      <header class={["flex gap-3", if(@page?, do: "items-center", else: "items-start")]}>
+      <header class="flex items-center gap-3">
         <IdentityTile.identity_tile name={@person.name} own?={@person.own?} size={tile_size(@width)} />
         <h2
           class={[
             "min-w-0 flex-1 truncate font-semibold",
-            if(@page?, do: "text-2xl leading-8", else: "text-[22px] leading-7")
+            if(@page?, do: "text-xl leading-8", else: "text-lg leading-7")
           ]}
           data-role="name"
         >
           {@person.name}
         </h2>
-        <span
-          :if={@person.acts != []}
-          class="shrink-0 text-lg leading-7 tabular-nums text-base-content/65"
-          data-role="ago"
-        >
-          {hd(@person.acts).ago}
-        </span>
       </header>
 
       <div
         :if={@person.acts != []}
-        class={["acts-strip", if(@page?, do: "mt-4", else: "mt-2 pl-15")]}
+        class={["acts-strip", if(@page?, do: "mt-4", else: "mt-2 pl-13")]}
         data-role="acts"
       >
         <button
@@ -114,7 +110,6 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
               :for={flag <- act.flags}
               class={["act-glyph", flag in act.gold && "act-glyph-gold"]}
               data-flag={flag}
-              data-slot={Flag.slot(flag)}
             >
               <.icon name={Flag.glyph(flag, :solid)} class="act-icon" />
             </span>
@@ -126,7 +121,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             loading="eager"
             decoding="sync"
           />
-          <span :if={!act.poster_url} class="act-empty text-lg leading-tight text-base-content/65">
+          <span :if={!act.poster_url} class="act-empty text-sm leading-tight text-base-content/65">
             {act.title.name}
           </span>
         </button>
@@ -137,7 +132,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
           :for={act <- @person.acts}
           id={"#{@person.id}-#{act.activity_id}"}
           type="button"
-          class="flex w-full cursor-pointer items-baseline gap-3 rounded-md px-2 py-1 text-left text-[22px] leading-[30px] hover:bg-base-content/5"
+          class="flex w-full cursor-pointer items-baseline gap-3 rounded-md px-2 py-1 text-left text-base leading-6 hover:bg-base-content/5"
           data-role="act-row"
           phx-click="open_title"
           phx-value-ref={TitleRef.param(act.ref)}
@@ -150,10 +145,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             {ActivityWords.verb_phrase(newest(act).kind, act.episode, @subject)}
             <span class="font-medium text-base-content/95">{act.title.name}</span>
             <span :for={flag <- act.flags} class="ml-1 inline-block align-middle" data-flag={flag}>
-              <.icon name={Flag.glyph(flag, :solid)} class="size-[22px] text-base-content/80" />
+              <.icon name={Flag.glyph(flag, :solid)} class="size-4 text-base-content/80" />
             </span>
           </span>
-          <span class="shrink-0 text-lg text-base-content/65">{act.ago}</span>
+          <span class="shrink-0 text-sm text-base-content/65">{act.ago}</span>
         </button>
       </div>
 
@@ -161,7 +156,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
         :if={@opened? and not @person.own?}
         class="mt-5 flex items-center justify-between border-t border-base-content/10 pt-4"
       >
-        <span class="text-lg text-base-content/65">
+        <span class="text-sm text-base-content/65">
           <code>{@person.short_npub}</code> · added {Calendar.strftime(@person.added_on, "%b %-d")}
         </span>
         <.button
@@ -187,8 +182,8 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   defp shown(acts, _width, true), do: acts
   defp shown(acts, width, false), do: Enum.take(acts, @cap[width])
 
-  defp tile_size(:rail), do: 48
-  defp tile_size(:page), do: 64
+  defp tile_size(:rail), do: 40
+  defp tile_size(:page), do: 48
 
   defp subject(%Person{own?: true}), do: :you
   defp subject(%Person{}), do: :friend

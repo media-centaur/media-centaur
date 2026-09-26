@@ -275,20 +275,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       # You first, then the friend.
       assert ids(view, "[data-component='person-card']") == ["person-you", "person-f9308a01"]
 
-      # One poster for the show flies the watch and the listing in their
-      # slots; the review's poster flies love. No presence line anywhere.
+      # One poster for the show flies the watch and the listing above it;
+      # the review's poster flies love. No presence line, no clock.
       show_act = friend_card() <> "-act-tv_series-1399"
       assert has_element?(view, show_act <> "[data-flags='watched listing']")
-      assert has_element?(view, show_act <> " .act-glyph[data-slot='2'][data-flag='watched']")
-      assert has_element?(view, show_act <> " .act-glyph[data-slot='3'][data-flag='listing']")
-
-      assert has_element?(
-               view,
-               friend_card() <> "-act-movie-777 .act-glyph[data-slot='1'][data-flag='love']"
-             )
+      assert has_element?(view, show_act <> " .act-glyph[data-flag='watched']")
+      assert has_element?(view, show_act <> " .act-glyph[data-flag='listing']")
+      assert has_element?(view, friend_card() <> "-act-movie-777 .act-glyph[data-flag='love']")
 
       refute has_element?(view, friend_card() <> " [data-role='presence']")
-      assert has_element?(view, friend_card() <> " [data-role='ago']")
+      refute has_element?(view, friend_card() <> " [data-role='ago']")
 
       view |> element(show_act) |> render_click()
       assert_patch(view, "/discovery/friends?title=tv_series-1399&activity=#{watched.id}")
@@ -343,12 +339,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert has_element?(
                view,
-               "#person-you-act-movie-42 .act-glyph[data-slot='3'][data-flag='listing']"
+               "#person-you-act-movie-42 .act-glyph[data-flag='listing']"
              )
 
       assert has_element?(
                view,
-               "#person-you-act-movie-99 .act-glyph[data-slot='1'][data-flag='like']"
+               "#person-you-act-movie-99 .act-glyph[data-flag='like']"
              )
 
       # The rows are behind the card's press, in the second person.
@@ -569,7 +565,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     defp entries(view), do: ids(view, "[data-component='feed-row']")
     defp feed_badge, do: "[data-nav-zone='zone-tabs'] a[href='/discovery'] .badge"
 
-    test "a band paints the library entity's backdrop for an owned title, the artwork cache's for an unowned one, nothing for a bare one",
+    test "a row paints the library entity's poster for an owned title, the artwork cache's for an unowned one, the empty slot for a bare one",
          %{conn: conn, data_dir: data_dir} do
       movie = create_standalone_movie(%{name: "Sample Movie 424242"})
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "424242"})
@@ -577,12 +573,12 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       create_image(%{
         movie_id: movie.id,
-        role: "backdrop",
-        content_url: "#{movie.id}/backdrop.jpg",
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
       })
 
-      seed_referenced_artwork(data_dir, :movie, 777, [:backdrop])
+      seed_referenced_artwork(data_dir, :movie, 777, [:poster])
 
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       now = System.os_time(:second)
@@ -595,16 +591,16 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert has_element?(
                view,
                entry(owned) <>
-                 " img[data-role='backdrop'][src='/media-images/#{movie.id}/backdrop.jpg?w=1280']"
+                 " img[data-role='poster'][src='/media-images/#{movie.id}/poster.jpg?w=240']"
              )
 
       assert has_element?(
                view,
                entry(cached) <>
-                 " img[data-role='backdrop'][src='/media-images/images/tmdb/movie-777/backdrop.jpg?w=1280']"
+                 " img[data-role='poster'][src='/media-images/images/tmdb/movie-777/poster.jpg?w=240']"
              )
 
-      refute has_element?(view, entry(bare) <> " img[data-role='backdrop']")
+      refute has_element?(view, entry(bare) <> " img[data-role='poster']")
       assert has_element?(view, entry(bare) <> " [data-role='poster-empty']")
 
       await_supervised_tasks()

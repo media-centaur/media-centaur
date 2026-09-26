@@ -4,8 +4,8 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   name's first letter — the monogram — or a photo when one exists. The
   reader's own tile is filled with the button primary and a white
   letter, so an own row is found without reading; a photo inside a 2px
-  primary ring says the same. Three sizes, one per surface: 48 in the
-  Feed's rail, 56 on a band, 64 on the Friends page. `aria-hidden`: the
+  primary ring says the same. Two sizes: 40 on a Feed row and the rail's
+  person card, 48 on the Friends page's. `aria-hidden`: the
   name is read from the surface's text, the tile is its redundant
   channel.
 
@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   alias MediaCentaur.Format
 
   attr :name, :string, required: true, doc: "the display name; `Format.monogram/1` of it is the letter"
-  attr :size, :integer, required: true, values: [48, 56, 64]
+  attr :size, :integer, required: true, values: [40, 48]
   attr :own?, :boolean, default: false
   attr :photo_url, :string, default: nil
 
@@ -61,10 +61,9 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   # is checked here as well as by `values:` because a template's check is
   # compile-time only — a dynamic `size={@n}` would otherwise render an
   # unsized circle.
+  defp size_classes(40), do: "size-10 text-base"
   defp size_classes(48), do: "size-12 text-[19px]"
-  defp size_classes(56), do: "size-14 text-[22px]"
-  defp size_classes(64), do: "size-16 text-[26px]"
 
   defp size_classes(size),
-    do: raise(ArgumentError, "identity_tile size must be 48, 56 or 64, got: #{inspect(size)}")
+    do: raise(ArgumentError, "identity_tile size must be 40 or 48, got: #{inspect(size)}")
 end

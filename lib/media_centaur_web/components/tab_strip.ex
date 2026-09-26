@@ -30,19 +30,9 @@ defmodule MediaCentaurWeb.Components.TabStrip do
   attr :tabs, :list, required: true, doc: "`Tab.t()` in display order"
   attr :active, :atom, required: true, doc: "the `Tab` id of the page rendering the strip"
 
-  attr :size, :atom,
-    default: :md,
-    values: [:md, :lg],
-    doc:
-      "`:lg` is the couch size — 22px tabs with 18px counts — for a surface read from the sofa (UIDR-046)"
-
   def tab_strip(assigns) do
     ~H"""
-    <div
-      data-nav-zone="zone-tabs"
-      class={["flex items-baseline", if(@size == :lg, do: "tab-strip-lg gap-7", else: "gap-5")]}
-      data-size={@size}
-    >
+    <div data-nav-zone="zone-tabs" class="flex items-baseline gap-5">
       <.link
         :for={tab <- @tabs}
         navigate={tab.navigate}
@@ -51,12 +41,7 @@ defmodule MediaCentaurWeb.Components.TabStrip do
         tabindex="0"
       >
         {tab.label}
-        <.badge
-          :if={tab.count > 0}
-          variant="ghost"
-          size={if(@size == :lg, do: "sm", else: "xs")}
-          class="ml-1"
-        >
+        <.badge :if={tab.count > 0} variant="ghost" size="xs" class="ml-1">
           {tab.count}
         </.badge>
       </.link>

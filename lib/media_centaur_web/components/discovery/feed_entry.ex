@@ -32,7 +32,6 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
     :ref,
     :title,
     :poster_url,
-    :backdrop_url,
     :author,
     :own?,
     :kind,
@@ -44,8 +43,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
     :library_owner_id,
     :acquisition_state,
     :list_slot,
-    :download_slot,
-    offset_crop?: false
+    :download_slot
   ]
 
   @type list_slot :: :list | :listed | :following
@@ -57,7 +55,6 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
           ref: {integer(), Title.media_type()},
           title: Title.t(),
           poster_url: String.t() | nil,
-          backdrop_url: String.t() | nil,
           author: String.t(),
           own?: boolean(),
           kind: :review | :listing,
@@ -69,7 +66,6 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
           library_owner_id: Ecto.UUID.t() | nil,
           acquisition_state: atom() | nil,
           list_slot: list_slot(),
-          download_slot: download_slot(),
-          offset_crop?: boolean()
+          download_slot: download_slot()
         }
 end

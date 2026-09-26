@@ -1,14 +1,14 @@
 defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   @moduledoc """
   One person as their latest acts (UIDR-046): the identity tile, the
-  name, the ago, and a strip of posters — one per title acted on —
-  each under its act slots: three fixed positions holding the opinion,
-  the eye and the bookmark, an absent act drawing nothing, a flag at
-  the grade in gold. One component at two widths: the Feed's rail (560,
-  three acts, a press navigates to the person) and the Friends page
-  (900, five acts, a press opens the card in place to every act, one
-  row each, and the foot). A person with no acts is a tile and a name;
-  nothing says what a person withholds.
+  name — no clock — and a strip of posters, one per title acted on,
+  each under its act glyphs centred as a group in mast order (the
+  opinion, the eye, the bookmark), a flag at the grade in gold. One
+  component at two widths: the Feed's rail (500, a row in the rail's
+  list, three acts, a press navigates to the person) and the Friends
+  page (900, a card on the inset tone, five acts, a press opens the card
+  in place to every act, one row each, and the foot). A person with no
+  acts is a tile and a name; nothing says what a person withholds.
   """
 
   use PhoenixStorybook.Story, :component
@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   def layout, do: :one_column
 
   @poster "/images/storybook/sample-poster.jpg"
-  @rail ~s(<div class="w-[560px]"><.psb-variation/></div>)
+  @rail ~s(<div class="w-[500px]"><.psb-variation/></div>)
   @page ~s(<div class="w-[900px]"><.psb-variation/></div>)
 
   defp act(tmdb_id, name, flags, opts \\ []) do
@@ -115,7 +115,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
     for flag <- [:love, :like, :dislike, :review, :watched, :listing] do
       %Variation{
         id: flag,
-        description: "#{flag}: the glyph alone in its slot, the other two slots bare",
+        description: "#{flag}: the glyph alone, centred over the poster",
         attributes: %{person: friend([act(31, "Movie K", [flag])]), width: width}
       }
     end
@@ -125,8 +125,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
     [
       %Variation{
         id: :rail_friend,
-        description:
-          "The rail's card: three acts; the second flies love and watched (slots 1 and 2), slot 3 bare",
+        description: "The rail's card: three acts; the second flies love and watched as a centred pair",
         attributes: %{person: friend(three_acts()), width: :rail},
         template: @rail
       },
@@ -150,20 +149,19 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       },
       %Variation{
         id: :rail_quiet,
-        description: "A friend with no acts: a tile and a name, no ago, nothing about sharing",
+        description: "A friend with no acts: a tile and a name, nothing about sharing",
         attributes: %{person: friend([]), width: :rail},
         template: @rail
       },
       %VariationGroup{
         id: :rail_flags,
-        description:
-          "Each flag alone at 28px in its slot on the rail: the four opinions in slot 1, the eye in 2, the bookmark in 3",
+        description: "Each flag alone at 28px, centred over its poster on the rail",
         template: @rail,
         variations: one_flag_each(:rail)
       },
       %Variation{
         id: :rail_all_slots,
-        description: "One act flying love, watched and listing: every slot filled",
+        description: "One act flying love, watched and listing: the three across",
         attributes: %{person: friend([act(51, "Movie M", [:love, :watched, :listing])]), width: :rail},
         template: @rail
       },
@@ -207,13 +205,13 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       },
       %VariationGroup{
         id: :page_flags,
-        description: "Each flag alone in its page slot (x 11 · 51 · 91)",
+        description: "Each flag alone, centred over the page's wider poster",
         template: @page,
         variations: one_flag_each(:page)
       },
       %Variation{
         id: :page_all_slots,
-        description: "One act with every slot filled, at the page width",
+        description: "One act flying all three, at the page width",
         attributes: %{person: friend([act(51, "Movie M", [:love, :watched, :listing])]), width: :page},
         template: @page
       },

@@ -438,12 +438,6 @@ defmodule MediaCentaurWeb.CoreComponents do
   attr :event_value, :map, default: %{}, doc: "extra `phx-value-*` params (string keys)"
   attr :class, :string, default: nil
 
-  attr :size, :atom,
-    default: :md,
-    values: [:md, :lg],
-    doc:
-      "`:lg` is the couch size — a 44px rail with 20px options — for a surface read from the sofa (UIDR-046)"
-
   @doc """
   The house pick-one pill for content surfaces: a glass rail with the
   chosen option lifted (`.segmented-control` in `app.css`). Clicking an
@@ -461,14 +455,9 @@ defmodule MediaCentaurWeb.CoreComponents do
     ~H"""
     <div
       id={@id}
-      class={[
-        "tabs tabs-boxed segmented-control w-fit max-w-full",
-        @size == :lg && "segmented-control-lg",
-        @class
-      ]}
+      class={["tabs tabs-boxed segmented-control w-fit max-w-full", @class]}
       role="group"
       aria-label={@label}
-      data-size={@size}
     >
       <button
         :for={{value, label} <- @options}

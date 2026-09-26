@@ -1,24 +1,25 @@
 defmodule MediaCentaurWeb.DiscoveryLive.ActivityArtwork do
   @moduledoc """
-  An activity row's artwork — the poster and the backdrop — and which
-  identities still have none.
+  An activity row's artwork — the poster — and which identities still
+  have none.
 
   An activity carries a TMDB identity and a title snapshot with **no
   artwork paths** — `Activities.Publisher` leaves artwork to the install
   reading the row, because the entity a watch came from has no TMDB
   paths to snapshot. So the row's artwork is the host's to resolve
   (`ReviewFlow`'s moduledoc says the same for the review modal), down
-  `MediaCentaur.TitleArtwork`'s ladder per role: the owning **library**
-  entity's image — read in one batch over every owned identity, by
-  `library_refs/1` and `Library.Artwork.urls_by_refs/2` per role — then
-  the **referenced** tier, then the **hotlink**, dead in practice for
-  both roles since the snapshot carries no paths. The band paints its
-  poster at 100×150 CSS px, so the hotlink would ask `:w185`.
+  `MediaCentaur.TitleArtwork`'s ladder: the owning **library** entity's
+  poster — read in one batch over every owned identity, by
+  `library_refs/1` and `Library.Artwork.urls_by_refs/2` — then the
+  **referenced** tier, then the **hotlink**, dead in practice since the
+  snapshot carries no paths. The Feed's row and the person card's strip
+  paint the poster at 80 to 96 CSS px, so the hotlink would ask `:w185`.
+  Nothing on Discovery paints a backdrop.
 
   `missing/1` names the identities that reached the bottom of the
-  ladder with nothing in either role, for the page to warm
-  asynchronously — without it a title this install does not own stays
-  blank forever, since no other surface warms an activity's identity.
+  ladder with nothing, for the page to warm asynchronously — without it
+  a title this install does not own stays blank forever, since no other
+  surface warms an activity's identity.
   """
 
   alias MediaCentaur.Activities.Activity
@@ -34,7 +35,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityArtwork do
   @typedoc "The library tier's URLs per role, from `Library.Artwork.urls_by_refs/2`."
   @type library_artwork :: %{String.t() => %{Artwork.ref() => String.t()}}
 
-  @roles ~w(poster backdrop)
+  @roles ~w(poster)
 
   @doc "The roles a row paints — what the host reads from the library tier."
   @spec roles() :: [String.t()]
@@ -47,16 +48,15 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityArtwork do
   end
 
   @doc """
-  The poster and backdrop `src` for one activity, each down the ladder:
-  the library tier when the owned entity has that image, then the
-  referenced tier, then the hotlink, then nil.
+  The poster `src` for one activity, down the ladder: the library tier
+  when the owned entity has a poster, then the referenced tier, then the
+  hotlink, then nil.
   """
-  @spec urls(Activity.t(), owners(), library_artwork()) ::
-          %{poster_url: String.t() | nil, backdrop_url: String.t() | nil}
+  @spec urls(Activity.t(), owners(), library_artwork()) :: %{poster_url: String.t() | nil}
   def urls(%Activity{} = activity, owners, library) do
     activity.title
     |> TitleArtwork.urls(library_for(activity, owners, library), :w185)
-    |> Map.take([:poster_url, :backdrop_url])
+    |> Map.take([:poster_url])
   end
 
   defp library_for(%Activity{} = activity, owners, library) do
@@ -69,11 +69,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityArtwork do
     end
   end
 
-  @doc "The identities whose rows painted nothing in either role, once each — what to warm."
+  @doc "The identities whose rows painted no poster, once each — what to warm."
   @spec missing([map()]) :: [ref()]
   def missing(rows) do
-    for %{activity: %Activity{} = activity} = row <- rows,
-        is_nil(row.poster_url) or is_nil(row.backdrop_url),
+    for %{activity: %Activity{} = activity, poster_url: nil} <- rows,
         uniq: true,
         do: {activity.tmdb_id, activity.media_type}
   end

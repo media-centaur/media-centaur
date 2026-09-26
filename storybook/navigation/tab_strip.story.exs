@@ -26,13 +26,7 @@ defmodule MediaCentaurWeb.Storybook.Navigation.TabStrip do
         id: :three_tabs,
         description:
           "Three sibling pages; counts badge the tabs with work, the active one is underlined.",
-        attributes: %{tabs: tabs(), active: :watchlist, size: :md}
-      },
-      %Variation{
-        id: :couch,
-        description:
-          "The couch size (`:lg`): 22px tabs with 18px counts, the underline at 3px — the Feed's strip, read from the sofa (UIDR-046).",
-        attributes: %{tabs: tabs(), active: :feed, size: :lg}
+        attributes: %{tabs: tabs(), active: :watchlist}
       },
       %Variation{
         id: :single_tab,
