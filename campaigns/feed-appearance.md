@@ -165,6 +165,23 @@ critique recommends **Q6**. Nothing in a band's anatomy moved; every
 direction is CSS on the shipped components. **Next: the owner picks a
 preset or names a combination by its switchboard link.**
 
+**The owner's second question (2026-09-26): backdrop and logo instead of
+poster and backdrop** — "this may be causing some irritation for me…
+what could we do with the ui with that?" Facts: 27 of 30 movies and 14 of
+14 series in the library carry a logo; the Feed's artwork ladder already
+returns `logo_url` and `FeedEntry` drops it; an unowned friend's title has
+one only when the referenced cache holds it, so the Feed is a mix.
+**Round 11** (`BRIEF-11.md`, `CRITIQUE-11.md`, `round11.css`,
+`make-round-11`) removes the poster from every band of Q6's page and
+draws four directions with wordmark stand-ins for the logos and four
+titles typed as the fallback: R1 backdrop only (the subtraction, the
+test), R2 logo headline (the logo as line 2 on the ink, the band 264),
+R3 title card (the logo bottom right of the picture over a foot gradient,
+the band 224), R4 hero band (the logo first over the full still). The
+switchboard (`Q-logo-switchboard/index.html`) carries both rounds' knobs;
+`compare.html` puts Q6 beside the four. The critique recommends **R2**.
+**Next: the owner's answer to R1's test and, if the logo, a pick.**
+
 ## Handoff — start here in a fresh context
 
 0. **Where it stands (2026-09-26):** Phases 1–5 are on `main`,
@@ -480,6 +497,21 @@ superseded by the design this campaign produces, and the record says so.
   (1236, 32%) cuts faces and stays a knob, not a preset. Lifting the unit's
   tone instead of darkening the page fades the boxes from the wrong side
   and costs the words; kept as a knob only.
+* `2026-09-26` — The owner: the poster and the backdrop together "may be
+  causing some irritation"; what could the UI do with the backdrop and
+  the logo instead? Round 11 answers on Q6's page. Diagnosis for the
+  record: with the poster, every band carried two pictures of one title
+  in two aspects, the title twice (printed and typed), and three objects
+  at the band's left; the rail repeats the posters a third time.
+* `2026-09-26` — Round 11 findings: a headline logo needs the band at 264
+  (the poster set 224); a logo placed on the picture at the seam covers
+  the subject's face on most stills, so the title card's place is the
+  bottom right over a foot gradient; **the typed fallback goes where the
+  logo goes**, or the mix moves the title around the band; the fallback
+  wants 34px beside a 50px wordmark. The wordmarks are stand-ins built
+  from each title's name in the machine's fonts — TMDB has almost no
+  logos for the showcase's public-domain titles, and real titles may not
+  appear in committed mockups.
 
 ## Next steps
 
@@ -511,6 +543,15 @@ superseded by the design this campaign produces, and the record says so.
    story's variations pinning the band and the card at rest and under
    the hover pin; the spec's size table and UIDR-046 take the ground, the
    sheet and the still's origin.
+3n. **Round 11 — backdrop and logo** — running: the owner answers R1's
+   test (is the poster the irritation?) and, if the logo, picks R2, R3 or
+   R4 or a switchboard link. If a logo direction lands: `FeedEntry` takes
+   `logo_url` from the ladder the projection already calls; the band
+   loses the poster and gains the logo slot with the typed title as its
+   fallback; the story pins a band with a logo, without, and without
+   artwork; UIDR-046 records that the Feed's title is the logo, else the
+   name, as the hero's is. The rail keeps its posters (UIDR-046: a
+   person's card is their acts).
 3k. **Round 9f** — done: the act mark settled as the fixed-slot header
    above the poster; G and J patched; the spec and plan rewritten to
    it; the grade threshold set at two friends.

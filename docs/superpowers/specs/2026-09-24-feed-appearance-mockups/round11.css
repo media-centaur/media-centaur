@@ -1,0 +1,85 @@
+/* Round 11 — backdrop and logo instead of poster and backdrop. Loaded after
+   G's <style> and round10.css; the build removes the poster from every band
+   and adds a .logo slot (a wordmark stand-in, or nothing for a title without
+   one) and a .foot for the title card's corner gradient.
+
+   data-logo    none | headline | card | hero
+                none: the poster gone, the typed title kept (the subtraction)
+                headline: the logo is line 2, on the ink, between who-did-what and the review
+                card: the words on the ink; the logo on the picture (data-place seam | corner)
+                hero: the Home hero's anatomy at band scale — logo first, then the words
+   data-logo-h  56 | 72 | 96   the logo box's height
+   data-place   seam | corner  card only: at the picture's left edge on the dissolve, or bottom right over a foot gradient
+   data-mix     all | some | none   which titles show a logo: every one that has a stand-in;
+                a realistic mix (four titles fall back to the typed title); none (every band typed) */
+
+/* ---- the poster is gone: the words start at the tile's right ---- */
+.band{--x-body:92px}
+.logo{display:none;position:absolute;z-index:2;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:4px;
+ container-type:inline-size;left:var(--x-body);height:var(--logo-h,72px);width:min(440px,calc(var(--tz) - var(--x-body) - 130px))}
+.logo .wm{display:block;line-height:1;white-space:nowrap;color:oklch(96% 0.01 264/.96);
+ font-size:min(calc(var(--k,.72) * var(--kk,1) * var(--logo-h,72px)),calc(100cqw / (var(--n,10) * var(--cw,.58))))}
+.logo .wm.two{line-height:.92}
+.logo .yr{font-size:18px;line-height:22px;color:var(--sec);font-variant-numeric:tabular-nums}
+.foot{display:none}
+
+/* ---- which bands show a logo: those with a stand-in, less the mix ---- */
+html[data-logo="headline"] .entry.haslogo .logo,html[data-logo="card"] .entry.haslogo .logo,html[data-logo="hero"] .entry.haslogo .logo{display:flex}
+html[data-logo="headline"] .entry.haslogo .l2,html[data-logo="card"] .entry.haslogo .l2,html[data-logo="hero"] .entry.haslogo .l2{display:none}
+html[data-mix="some"][data-logo] .entry.haslogo[data-logo-tier="opt"] .logo,html[data-mix="none"][data-logo] .entry.haslogo .logo{display:none}
+html[data-mix="some"][data-logo] .entry.haslogo[data-logo-tier="opt"] .l2,html[data-mix="none"][data-logo] .entry.haslogo .l2{display:flex}
+
+/* ---- headline: the logo is line 2; the band grows with the logo; the typed title sits in the same slot when there is no logo ---- */
+html[data-logo="headline"] .band{--h:calc(192px + var(--logo-h,72px));--body-h:calc(var(--h) - 2 * var(--pad-y))}
+html[data-logo="headline"] .logo{top:calc(var(--pad-y) + var(--l1h) + 6px);flex-direction:row;justify-content:flex-start;align-items:flex-end;gap:14px}
+html[data-logo="headline"] .l2{position:absolute;left:0;top:calc(var(--l1h) + 6px);height:var(--logo-h,72px);margin:0;align-items:flex-end}
+html[data-logo="headline"] .l3{margin-top:calc(var(--logo-h,72px) + 14px)}
+/* the typed fallback sits in the logo's slot at 34px, so it holds its own beside a 50px wordmark */
+html[data-logo="headline"] .l2 b,html[data-logo="hero"] .l2 b{font-size:34px;line-height:40px}
+
+/* ---- card: the words keep the ink; the logo goes to the picture ---- */
+html[data-logo="card"] .band{--l3n:3}
+html[data-logo="card"] .logo .wm{--kk:.86}
+html[data-logo="card"] .logo,html[data-logo="card"] .l2 b{filter:drop-shadow(0 2px 10px rgba(0,0,0,.85))}
+html[data-logo="card"][data-place="seam"] .logo{left:calc(var(--tz) + 24px);top:50%;translate:0 -50%;width:300px;justify-content:center}
+html[data-logo="card"][data-place="corner"] .logo{left:auto;right:24px;bottom:18px;width:320px;align-items:flex-end;justify-content:flex-end}
+html[data-logo="card"][data-place="corner"] .entry:not(.noart) .foot{display:block;position:absolute;left:var(--tz);right:0;bottom:0;height:140px;z-index:1;pointer-events:none;
+ background:linear-gradient(to top,oklch(from var(--ink) l c h/.82),oklch(from var(--ink) l c h/0))}
+/* the typed fallback goes where the logo goes: the body spans the band so the title can reach the corner; the words keep the text zone's measure */
+html[data-logo="card"][data-place="corner"] .body{right:0}
+html[data-logo="card"][data-place="corner"] .l1,html[data-logo="card"][data-place="corner"] .l3{max-width:calc(var(--tz) - var(--x-body))}
+html[data-logo="card"][data-place="corner"] .entry:not(.noart) .l2{position:absolute;right:24px;bottom:-6px;margin:0;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+html[data-logo="card"][data-place="corner"] .entry:not(.noart) .l2 b{font-size:34px;line-height:40px;color:oklch(96% 0.01 264/.96)}
+html[data-logo="card"][data-place="seam"] .entry:not(.noart) .l2{position:absolute;left:calc(var(--tz) + 24px - var(--x-body));top:50%;translate:0 -50%;margin:0;flex-direction:column;align-items:flex-start;gap:2px}
+html[data-logo="card"][data-place="seam"] .entry:not(.noart) .l2 b{font-size:34px;line-height:40px}
+
+/* ---- hero: logo first, then who did what, then the review; the full still under a left scrim ---- */
+html[data-logo="hero"] .band{--h:calc(192px + var(--logo-h,72px));--body-h:calc(var(--h) - 2 * var(--pad-y))}
+html[data-logo="hero"] .logo{top:var(--pad-y);flex-direction:row;justify-content:flex-start;align-items:flex-end;gap:14px}
+html[data-logo="hero"] .logo,html[data-logo="hero"] .l2 b{filter:drop-shadow(0 2px 10px rgba(0,0,0,.85))}
+html[data-logo="hero"] .body{padding-top:calc(var(--logo-h,72px) + 10px)}
+html[data-logo="hero"] .l2{position:absolute;left:0;top:0;height:var(--logo-h,72px);margin:0;align-items:flex-end}
+html[data-logo="hero"] .when{top:var(--pad-y)}
+
+/* ---- the logo box height ---- */
+html[data-logo-h="56"] .band{--logo-h:56px}
+html[data-logo-h="72"] .band{--logo-h:72px}
+html[data-logo-h="96"] .band{--logo-h:96px}
+
+/* ---- wordmark stand-ins: one treatment per title, in the fonts this machine has. They stand for the
+   title's logo PNG the way the photo tile stood for a photo — the layout is the subject, not the lettering. ---- */
+.wm-sintel{font-family:'URW Gothic',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.22em;--k:.62;--cw:.78}
+.wm-charade{font-family:'URW Bookman',serif;font-weight:600;letter-spacing:.01em;color:oklch(86% 0.15 88);--k:.7;--cw:.6}
+.wm-metropolis{font-family:'Roboto Condensed','Nimbus Sans Narrow',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.24em;transform:scaleY(1.2);transform-origin:left bottom;--k:.58;--cw:.72}
+.wm-big-buck-bunny{font-family:'URW Gothic',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.02em;color:oklch(84% 0.1 230);--k:.44;--cw:.66}
+.wm-night-of-the-living-dead{font-family:'Nimbus Sans Narrow',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:oklch(64% 0.2 25);--k:.44;--cw:.5}
+.wm-pioneer-one{font-family:'Roboto Mono','Adwaita Mono',monospace;font-weight:500;text-transform:uppercase;letter-spacing:.3em;--k:.5;--cw:.9}
+.wm-tears-of-steel{font-family:'Roboto Condensed','Nimbus Sans Narrow',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.24em;color:oklch(92% 0.01 264/.9);--k:.4;--cw:.72}
+.wm-nosferatu{font-family:'Nimbus Roman',serif;font-weight:700;text-transform:uppercase;letter-spacing:.14em;transform:scaleY(1.25);transform-origin:left bottom;--k:.56;--cw:.78}
+.wm-spring{font-family:'Z003',cursive;font-weight:500;--k:.92;--cw:.5}
+.wm-the-general{font-family:'C059',serif;font-weight:700;text-transform:uppercase;letter-spacing:.12em;--k:.6;--cw:.8}
+.wm-cosmos-laundromat{font-family:'Nimbus Sans',sans-serif;font-weight:700;font-style:italic;text-transform:lowercase;letter-spacing:-.01em;--k:.44;--cw:.55}
+.wm-carnival-of-souls{font-family:'P052',serif;font-weight:700;font-style:italic;--k:.44;--cw:.52}
+.wm-sprite-fright{font-family:'URW Gothic',sans-serif;font-weight:700;text-transform:uppercase;transform:skewX(-8deg);transform-origin:left bottom;color:oklch(80% 0.16 140);--k:.44;--cw:.68}
+.wm-caligari{font-family:'Nimbus Roman',serif;font-weight:400;font-style:italic;font-variant:small-caps;letter-spacing:.06em;--k:.66;--cw:.56}
+.wm-one-step-beyond{font-family:'Nimbus Sans Narrow',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.16em;--k:.44;--cw:.62}
