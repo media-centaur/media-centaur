@@ -12,12 +12,12 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTileTest do
   defp letter(html), do: html |> tile() |> LazyHTML.text() |> String.trim()
 
   test "a monogram carries the name's first letter uppercased, hidden from assistive tech" do
-    html = render(name: "cleo", size: 56)
+    html = render(name: "cleo", size: 40)
 
     assert letter(html) == "C"
     assert html |> tile() |> LazyHTML.attribute("aria-hidden") == ["true"]
     assert html |> tile() |> LazyHTML.attribute("data-own") == []
-    assert html |> tile() |> LazyHTML.attribute("data-size") == ["56"]
+    assert html |> tile() |> LazyHTML.attribute("data-size") == ["40"]
   end
 
   test "an own tile says so; the letter stays" do
@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTileTest do
   end
 
   test "a photo replaces the letter and paints eagerly" do
-    html = render(name: "Ada", size: 64, photo_url: "/images/storybook/sample-poster.jpg")
+    html = render(name: "Ada", size: 48, photo_url: "/images/storybook/sample-poster.jpg")
     img = LazyHTML.query(html, "[data-component='identity-tile'] img")
 
     assert LazyHTML.attribute(img, "src") == ["/images/storybook/sample-poster.jpg"]
@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTileTest do
     assert letter(html) == ""
   end
 
-  test "the size is one of the three the surfaces render" do
-    assert_raise ArgumentError, ~r/48, 56 or 64/, fn -> render(name: "Cleo", size: 40) end
+  test "the size is one of the two the surfaces render" do
+    assert_raise ArgumentError, ~r/40 or 48/, fn -> render(name: "Cleo", size: 56) end
   end
 end

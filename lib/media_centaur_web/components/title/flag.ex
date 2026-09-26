@@ -61,14 +61,4 @@ defmodule MediaCentaurWeb.Components.Title.Flag do
   @doc "The given flags in mast order, each once."
   @spec sort_by_mast([flag()]) :: [flag()]
   def sort_by_mast(flags), do: Enum.filter(@mast_order, &(&1 in flags))
-
-  @doc """
-  The act slot a flag is drawn in on a person card's poster: the four
-  opinions share slot 1 (a person holds at most one opinion of a title),
-  the eye is slot 2, the bookmark slot 3. The pennant does not read it.
-  """
-  @spec slot(flag()) :: 1 | 2 | 3
-  def slot(flag) when flag in [:love, :like, :dislike, :review], do: 1
-  def slot(:watched), do: 2
-  def slot(:listing), do: 3
 end

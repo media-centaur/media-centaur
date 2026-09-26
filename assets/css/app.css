@@ -1316,18 +1316,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   color: oklch(from var(--color-base-content) l c h / 0.7);
 }
 
-/* The couch size (UIDR-046): 22px tabs on a 28px line, the underline at
-   3px — the Feed's strip, read from the sofa. */
-.tab-strip-lg .zone-tab {
-  font-size: 22px;
-  line-height: 28px;
-  padding-bottom: 12px;
-}
-
-.tab-strip-lg .zone-tab::after {
-  height: 3px;
-}
-
 /* Active state signals via full-strength color + the underline only — a
    font-weight bump would change glyph widths and shift the tab row. */
 .zone-tab-active {
@@ -1411,22 +1399,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   align-items: center;
   cursor: pointer;
   transition: color 150ms, background 150ms, box-shadow 150ms;
-}
-
-/* The couch size (UIDR-046): a 44px rail with 36px, 20px options — the
-   Feed's scope pill, read from the sofa. Unlayered, so it beats the
-   button's text-sm utility. */
-.segmented-control-lg {
-  min-height: 44px;
-  padding: 3px 4px;
-  gap: 3px;
-}
-
-.segmented-control-lg .tab {
-  height: 36px;
-  padding: 0 18px;
-  font-size: 20px;
-  border-radius: 30px;
 }
 
 .segmented-control .tab:hover {
@@ -3132,16 +3104,18 @@ body:has(.modal-backdrop[data-state="open"]) {
   box-shadow: 0 4px 16px oklch(0% 0 0 / 0.25);
 }
 
-/* ── Ink — the dark ground the identity-banner family, the Feed's bands
-   and the person card share (UIDR-046). The 13% literal those gradients
-   used, defined once; not base-100 (27%), which would wash the words. */
+/* ── Ink — the dark ground the identity-banner family shares. The 13%
+   literal those gradients used, defined once; not base-100 (27%), which
+   would wash the words. */
 :root {
   --ink: oklch(13% 0.02 264);
 }
 
 /* ── Person card (UIDR-046) ── one component at two widths: the rail's
-   (560) and the Friends page's (900). Every size is a custom property of
-   the width class; the text is Tailwind on top. */
+   row and the Friends page's card. Every size is a custom property of the
+   width class; the text is Tailwind on top. The rail's card has no ground
+   of its own — the rail is a list with a hairline between cards — and the
+   page's sits on the inset tone, since a grid needs cells. */
 .person-card {
   --pad: 12px 14px;
   --pw: 96px;
@@ -3149,31 +3123,32 @@ body:has(.modal-backdrop[data-state="open"]) {
   --gap: 16px;
   --slots: 36px;
   --glyph: 28px;
-  --x1: 6px;
-  --x2: 34px;
-  --x3: 62px; /* 96 = 6 | 28 | 28 | 28 | 6 */
   --pshadow: 0 3px 12px oklch(0% 0 0 / 0.5);
   position: relative;
-  border-radius: 12px;
-  background: var(--ink);
+  border-radius: 8px;
   padding: var(--pad);
   cursor: pointer;
 }
 
 .person-card-page {
-  --pad: 30px;
+  --pad: 24px;
   --pw: 130px;
   --ph: 195px;
-  --x1: 11px;
-  --x2: 51px;
-  --x3: 91px; /* 130 = 11 | 28 | 12 | 28 | 12 | 28 | 11 */
   --pshadow: 0 4px 16px oklch(0% 0 0 / 0.55);
+  border-radius: 12px;
+  background: var(--glass-inset-bg);
 }
 
 .person-card:hover,
 .person-card:focus-within,
 .person-card-opened {
-  background: oklch(16% 0.02 264);
+  background: oklch(from var(--color-base-content) l c h / 0.05);
+}
+
+.person-card-page:hover,
+.person-card-page:focus-within,
+.person-card-page.person-card-opened {
+  background: oklch(from var(--color-base-content) l c h / 0.08);
 }
 
 .acts-strip {
@@ -3182,7 +3157,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   gap: var(--gap);
 }
 
-/* A cell is the act slots over the poster: 36 + 144 in the rail, 36 + 195
+/* A cell is the act glyphs over the poster: 36 + 144 in the rail, 36 + 195
    on the page. */
 .act {
   position: relative;
@@ -3220,36 +3195,24 @@ body:has(.modal-backdrop[data-state="open"]) {
   padding: 12px;
 }
 
-/* The act slots (UIDR-046): a 36px strip on the card's own ground above
-   the poster — no backing — with three fixed positions: the opinion at
-   --x1, the eye at --x2, the bookmark at --x3. An absent act has no
-   element, so an empty slot is bare ground and a glyph is found by
-   position; nothing stacks and no capsule exists. */
+/* The act glyphs (UIDR-046): a 36px strip on the card's ground above the
+   poster — no backing — with the glyphs for what the person did centred
+   as a group in mast order: one act sits in the middle, two as a pair,
+   three across. An absent act has no element. */
 .act-slots {
-  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
   height: var(--slots);
   width: 100%;
   pointer-events: none;
 }
 
 .act-glyph {
-  position: absolute;
-  top: calc((var(--slots) - var(--glyph)) / 2);
   width: var(--glyph);
   height: var(--glyph);
   color: oklch(100% 0 0 / 0.78); /* matte: flat white at 78% */
-}
-
-.act-glyph[data-slot="1"] {
-  left: var(--x1);
-}
-
-.act-glyph[data-slot="2"] {
-  left: var(--x2);
-}
-
-.act-glyph[data-slot="3"] {
-  left: var(--x3);
 }
 
 .act-icon {
@@ -3270,146 +3233,24 @@ body:has(.modal-backdrop[data-state="open"]) {
   );
 }
 
-/* ── Feed bands (UIDR-046) ── one unit, one size: the title's still in a
-   right-hand image box under the ink scrim, the words in the text zone on
-   the left. Every position is a custom property; the text is Tailwind on
-   top. */
-:root {
-  --feed-text-zone: 700px; /* no image box begins left of it */
-  --feed-dissolve: 360px; /* the scrim's dissolve across the box's left */
-}
-
-.feed-column {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.feed-band {
-  --s: 1;
-  --h: 224px;
-  --box: 900px;
-  --tile: 56px;
-  --x-tile: 20px;
-  --pw: 100px;
-  --ph: 150px;
-  --x-poster: 92px;
-  --pad-y: 24px;
-  --x-body: 210px;
-  --bx: max(var(--feed-text-zone), calc(100% - var(--box)));
-  position: relative;
-  height: var(--h);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--ink);
-  isolation: isolate;
-  cursor: pointer;
-}
-
-.feed-band-backdrop {
-  position: absolute;
-  top: 0;
-  left: var(--bx);
-  width: calc(100% - var(--bx));
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 30%;
-  display: block;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 240px);
-  mask-image: linear-gradient(to right, transparent, #000 240px);
-}
-
-.feed-band-offset .feed-band-backdrop {
-  object-position: 50% 38%;
-}
-
-/* The scrim's stops are the settled page's: .93 at the box's edge, .55 at
-   +120, .16 at +240, .04 at the dissolve's end, 0 at the right. */
-.feed-band-scrim {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to right,
-    oklch(from var(--ink) l c h / calc(0.97 * var(--s))) 0,
-    oklch(from var(--ink) l c h / calc(0.93 * var(--s))) var(--bx),
-    oklch(from var(--ink) l c h / calc(0.55 * var(--s))) calc(var(--bx) + 120px),
-    oklch(from var(--ink) l c h / calc(0.16 * var(--s))) calc(var(--bx) + 240px),
-    oklch(from var(--ink) l c h / calc(0.04 * var(--s))) calc(var(--bx) + var(--feed-dissolve)),
-    oklch(from var(--ink) l c h / 0) 100%
-  );
-}
-
-.feed-band-bare {
-  background: var(--glass-inset-bg);
-}
-
-.feed-band-bare .feed-band-scrim {
-  background: linear-gradient(
-    to right,
-    oklch(from var(--ink) l c h / 0.35),
-    oklch(from var(--ink) l c h / 0) 800px
-  );
-}
-
-.feed-band-tile {
-  position: absolute;
-  left: var(--x-tile);
-  top: calc(50% - var(--tile) / 2);
-  z-index: 2;
-}
-
-.feed-band-poster {
-  position: absolute;
-  left: var(--x-poster);
-  top: var(--pad-y);
-  width: var(--pw);
-  height: var(--ph);
-  z-index: 2;
-  border-radius: 6px;
-  box-shadow: 0 3px 12px oklch(0% 0 0 / 0.55);
-}
-
-.feed-band-body {
-  position: absolute;
-  left: var(--x-body);
-  right: calc(100% - var(--feed-text-zone));
-  top: var(--pad-y);
-  bottom: var(--pad-y);
-  z-index: 2;
-}
-
-.feed-band-time {
-  position: absolute;
-  right: calc(100% - var(--feed-text-zone));
-  top: var(--pad-y);
-  z-index: 2;
-}
-
-/* Hover: every scrim alpha × .8 and the ground lifts; nothing moves. The
-   catalog pins it with .feed-hover-pin, since a story cannot hover. */
-.feed-band:hover,
-.feed-band:focus-within,
-.feed-hover-pin > .feed-band {
-  --s: 0.8;
-  background: oklch(16% 0.02 264);
-}
-
-.feed-band-bare:hover,
-.feed-band-bare:focus-within,
-.feed-hover-pin > .feed-band-bare {
-  background: oklch(20% 0.017 264 / 0.5);
-}
-
-.feed-hover-pin > .feed-band [data-role="toolbar"] {
+/* ── Feed rows (UIDR-046) ── the rows sit in a column with a hairline
+   between them (Tailwind's divide on the list); the row's own layout is
+   Tailwind. The catalog pins the hovered seat, since a story cannot hover. */
+.feed-hover-pin > .feed-row [data-role="toolbar"] {
   opacity: 1;
 }
 
 /* ── Discovery's columns (UIDR-046) ── the feed column beside the rail
-   above 1600px of content; one column below. The width is the
-   container's, never an assign's. The Friends grid folds at 1700. */
+   above 1300px of content; one column below. The width is the
+   container's, never an assign's. The Feed and the Watchlist compose at
+   1500px — a poster row wants a reading measure — while the Friends grid
+   keeps the layout's width and folds at 1700. */
 .discovery-page {
   container: discovery / inline-size;
+}
+
+.discovery-page-narrow {
+  max-width: 1500px;
 }
 
 .discovery-columns {
@@ -3424,9 +3265,8 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* The head row: the strip and the scope pill in the feed column's cell,
-   one hairline under both columns, 16px to the first unit (the page's
-   spacing). The pill sits 8px above the hairline, the tabs' underline on
-   it. */
+   one hairline under both columns. The pill sits 8px above the hairline,
+   the tabs' underline on it. */
 .discovery-head {
   border-bottom: 1px solid oklch(from var(--color-base-content) l c h / 0.1);
 }
@@ -3445,15 +3285,13 @@ body:has(.modal-backdrop[data-state="open"]) {
   margin-bottom: 8px;
 }
 
-@container discovery (min-width: 1600px) {
+@container discovery (min-width: 1300px) {
   .discovery-columns {
-    grid-template-columns: minmax(0, 1fr) 560px;
+    grid-template-columns: minmax(0, 1fr) 500px;
   }
 
   .discovery-rail {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    display: block;
   }
 }
 

@@ -31,10 +31,4 @@ defmodule MediaCentaurWeb.Components.Title.FlagTest do
   test "sort_by_mast/1 orders flags and drops repeats" do
     assert Flag.sort_by_mast([:watched, :love, :watched, :review]) == [:love, :review, :watched]
   end
-
-  test "slot/1 is the act slot a flag is drawn in: the four opinions in 1, the eye in 2, the bookmark in 3" do
-    assert Enum.map([:love, :like, :dislike, :review], &Flag.slot/1) == [1, 1, 1, 1]
-    assert Flag.slot(:watched) == 2
-    assert Flag.slot(:listing) == 3
-  end
 end

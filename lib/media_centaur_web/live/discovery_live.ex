@@ -17,16 +17,16 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   Feed (`/discovery`, the page's default; UIDR-038, UIDR-045, UIDR-046)
   — every author's reviews and listings, friends' and your own, one
-  band per action, newest first, flat (`FeedEntries`, `FeedBand`), in a
+  row per action, newest first, flat (`FeedEntries`, `FeedRow`), in a
   column at the layout's full width beside the rail: person cards
   (`PersonCard` at the rail's width, `People.rail/1` — You first, then
   friends by latest act, capped at eight with *All N friends*), drawn on
   the Feed and Watchlist tabs, folded away by CSS below 1600px of
   content (the LiveView never learns the width). Paging is a window with
-  a cap and a queued head: the newest `feed_window` bands (twenty; *Show
+  a cap and a queued head: the newest `feed_window` rows (twenty; *Show
   older* adds twenty to sixty, then `#feed-cap` says so), and
   `feed_head` — nil while the column's top is in view, so an arrival
-  prepends live; else the newest band shown, set by the `FeedHead`
+  prepends live; else the newest row shown, set by the `FeedHead`
   hook's `feed_scrolled`, cleared by `feed_at_top` and by "N new"
   (`feed_show_new`, which also scrolls the window to the top). The
   scope — Everyone, Friends, You — is the
@@ -101,7 +101,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Store
   alias MediaCentaurWeb.Components.ActionToast
-  alias MediaCentaurWeb.Components.Discovery.FeedBand
+  alias MediaCentaurWeb.Components.Discovery.FeedRow
   alias MediaCentaurWeb.Components.Discovery.PersonCard
   alias MediaCentaurWeb.Components.TabStrip.Tab
   alias MediaCentaurWeb.IncomingLive.PlanQuery
@@ -256,7 +256,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   end
 
   # The FeedHead hook's crossings. Scrolled in, the window freezes at the
-  # newest band shown and arrivals queue; back at the top, they land.
+  # newest row shown and arrivals queue; back at the top, they land.
   def handle_event("feed_scrolled", _params, socket) do
     head =
       case socket.assigns.feed do
@@ -625,19 +625,26 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         data-nav-default-zone="discovery"
         data-nav-transient-params="title,entity,view,activity"
       >
-        <div class="discovery-page w-full space-y-4 pt-10">
-          <.page_header title="Discovery" class="px-1" />
+        <%!-- The same fixed scrim every page but Home carries (UIDR-033),
+              behind the columns so it darkens the ground, never the posters. --%>
+        <div class="page-side-dim" aria-hidden="true"></div>
+
+        <%!-- Library's frame: the page header at the top of the page, the
+              controls under it. The Feed and the Watchlist sit in a 1500px
+              composition — a poster row wants a reading measure, not the
+              panel — while the Friends grid keeps the full width. --%>
+        <div class={[
+          "discovery-page relative z-[1] w-full",
+          @live_action != :friends && "discovery-page-narrow"
+        ]}>
+          <.page_header title="Discovery" class="mb-5" />
 
           <%!-- The head row shares the columns' grid: the strip and the
                 scope pill in the feed column's cell, the hairline under
                 both columns (UIDR-046). --%>
-          <div class="discovery-columns discovery-head">
+          <div class="discovery-columns discovery-head mb-4">
             <div class="discovery-head-cell">
-              <.tab_strip
-                tabs={tabs(@feed, @items, @friends, @feed_scope)}
-                active={@live_action}
-                size={:lg}
-              />
+              <.tab_strip tabs={tabs(@feed, @items, @friends, @feed_scope)} active={@live_action} />
               <.segmented_control
                 :if={@live_action == :feed}
                 id="feed-scope"
@@ -645,7 +652,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 options={[{:everyone, "Everyone"}, {:friends, "Friends"}, {:you, "You"}]}
                 selected={@feed_scope}
                 event="feed_scope"
-                size={:lg}
               />
             </div>
           </div>
@@ -655,7 +661,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               <div :if={@live_action == :feed} class="relative">
                 <%!-- The column's head: the FeedHead hook reports it leaving and
                   returning to the viewport. Out of the flow, so the first
-                  band's top is the column's top, level with the rail. --%>
+                  row's top is the column's top, level with the rail. --%>
                 <div
                   id="feed-head"
                   phx-hook="FeedHead"
@@ -670,10 +676,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                   <button
                     id="feed-new"
                     type="button"
-                    class="absolute left-5 top-0 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[oklch(13%_0.02_264/0.94)] px-3.5 text-xl text-base-content/85 shadow-[0_4px_16px_oklch(0%_0_0/0.5)]"
+                    class="absolute left-4 top-0 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-[oklch(13%_0.02_264/0.94)] px-3 text-sm text-base-content/85 shadow-[0_4px_16px_oklch(0%_0_0/0.5)]"
                     phx-click="feed_show_new"
                   >
-                    <.icon name="hero-arrow-up" class="size-5" /> {@feed_queued} new
+                    <.icon name="hero-arrow-up" class="size-4" /> {@feed_queued} new
                   </button>
                 </div>
                 <div class="space-y-2">
@@ -719,11 +725,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                     </:action>
                   </.empty_state>
 
-                  <div :if={@feed != []} id="feed-list" class="feed-column">
-                    <FeedBand.feed_band :for={entry <- @feed} entry={entry} />
+                  <div :if={@feed != []} id="feed-list" class="divide-y divide-base-content/10">
+                    <FeedRow.feed_row :for={entry <- @feed} entry={entry} />
                   </div>
 
-                  <div :if={@feed_has_older?} class="pl-5 pt-2.5">
+                  <div :if={@feed_has_older?} class="pl-4 pt-2.5">
                     <.button
                       id="feed-show-older"
                       variant="dismiss"
@@ -736,7 +742,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                   <p
                     :if={@feed_at_cap?}
                     id="feed-cap"
-                    class="pl-5 pt-2.5 text-xl text-base-content/65"
+                    class="pl-4 pt-2.5 text-sm text-base-content/65"
                   >
                     That's the last sixty.
                   </p>
@@ -837,13 +843,17 @@ defmodule MediaCentaurWeb.DiscoveryLive do
 
   defp rail(assigns) do
     ~H"""
-    <aside :if={@rail.people != []} id="feed-rail" class="discovery-rail">
+    <aside
+      :if={@rail.people != []}
+      id="feed-rail"
+      class="discovery-rail divide-y divide-base-content/10"
+    >
       <PersonCard.person_card :for={person <- @rail.people} person={person} width={:rail} />
       <.link
         :if={@rail.hidden > 0}
         id="feed-rail-all"
         navigate={~p"/discovery/friends"}
-        class="pl-3.5 pt-1 text-xl text-base-content/70 hover:text-base-content/90"
+        class="block pl-3.5 pt-3 text-sm text-base-content/70 hover:text-base-content/90"
       >
         All {length(@friends)} friends
       </.link>

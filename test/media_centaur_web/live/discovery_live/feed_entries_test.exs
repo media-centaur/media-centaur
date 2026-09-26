@@ -168,7 +168,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
             },
             %{
               poster_url: "/p.jpg",
-              backdrop_url: "/b.jpg",
               rung: :list,
               library_owner_id: "owner",
               acquisition_state: :downloading
@@ -198,7 +197,6 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
                text: "Saw it twice.",
                ago: "2h ago",
                poster_url: "/p.jpg",
-               backdrop_url: "/b.jpg",
                rung: :list,
                library_owner_id: "owner",
                acquisition_state: :downloading,
@@ -218,40 +216,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
                text: nil,
                ago: "1d ago",
                poster_url: nil,
-               backdrop_url: nil,
                rung: nil,
                list_slot: :list,
                download_slot: :download
              } = listing
-    end
-
-    test "the second of two adjacent entries of one title carries the offset crop; a run alternates" do
-      at = fn minutes -> DateTime.add(~U[2026-09-01 12:00:00Z], -minutes, :minute) end
-
-      %{entries: entries} =
-        build([
-          row("Cleo", %{tmdb_id: 7, kind: :listing, id: "a", acted_at: at.(0)}),
-          row("Nick", %{tmdb_id: 7, kind: :review, id: "b", acted_at: at.(1)}),
-          row("Sam", %{tmdb_id: 7, kind: :review, id: "c", acted_at: at.(2)}),
-          row("Sam", %{tmdb_id: 8, kind: :listing, id: "d", acted_at: at.(3)}),
-          row("Ada", %{tmdb_id: 7, kind: :listing, id: "e", acted_at: at.(4)})
-        ])
-
-      assert Enum.map(entries, &{&1.activity_id, &1.offset_crop?}) ==
-               [{"a", false}, {"b", true}, {"c", false}, {"d", false}, {"e", false}]
-    end
-
-    test "adjacency is judged inside the scope and the window, not the whole list" do
-      rows = [
-        row("Cleo", %{tmdb_id: 7, kind: :listing, id: "cleo", acted_at: ~U[2026-09-01 12:00:00Z]}),
-        row(nil, %{tmdb_id: 8, kind: :review, id: "mine", acted_at: ~U[2026-09-01 11:59:00Z]}, %{
-          own?: true
-        }),
-        row("Nick", %{tmdb_id: 7, kind: :review, id: "nick", acted_at: ~U[2026-09-01 11:58:00Z]})
-      ]
-
-      assert Enum.map(build(rows, scope: :everyone).entries, & &1.offset_crop?) == [false, false, false]
-      assert Enum.map(build(rows, scope: :friends).entries, & &1.offset_crop?) == [false, true]
     end
   end
 

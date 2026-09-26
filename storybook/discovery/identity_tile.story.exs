@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
   @moduledoc """
   The app's one drawing of a person (UIDR-046): the monogram, the
-  reader's own filled tile, and a photo in each, at the three sizes the
-  surfaces render — 48 in the Feed's rail, 56 on a band, 64 on the
-  Friends page. No protocol event carries a photo yet; the photo
+  reader's own filled tile, and a photo in each, at the two sizes the
+  surfaces render — 40 on a Feed row and the rail's person card, 48 on
+  the Friends page's. No protocol event carries a photo yet; the photo
   variations pin the space the design leaves for one.
   """
 
@@ -17,19 +17,14 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
   def variations do
     [
       %VariationGroup{
-        id: :rail_48,
-        description: "The rail's person card: 48px, the initial at 19",
+        id: :row_40,
+        description: "A Feed row and the rail's person card: 40px, the initial at 16",
+        variations: states(40)
+      },
+      %VariationGroup{
+        id: :page_48,
+        description: "The Friends page's card: 48px, the initial at 19",
         variations: states(48)
-      },
-      %VariationGroup{
-        id: :band_56,
-        description: "A Feed band: 56px, the initial at 22",
-        variations: states(56)
-      },
-      %VariationGroup{
-        id: :page_64,
-        description: "The Friends page's card: 64px, the initial at 26",
-        variations: states(64)
       }
     ]
   end

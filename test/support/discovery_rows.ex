@@ -4,7 +4,7 @@ defmodule MediaCentaur.DiscoveryRows do
   @moduledoc """
   Enriched activity rows in the shape `DiscoveryLive` assigns — the
   `Activities.activity_row/0` plus the page's joins (poster and
-  backdrop, library owner, watchlist membership, acquisition state) —
+  library owner, watchlist membership, acquisition state) —
   for the pure projection tests.
   """
 
@@ -51,7 +51,6 @@ defmodule MediaCentaur.DiscoveryRows do
       nickname: Map.get(overrides, :nickname, "Sample Friend"),
       own?: Map.get(overrides, :own?, false),
       poster_url: Map.get(overrides, :poster_url),
-      backdrop_url: Map.get(overrides, :backdrop_url),
       library_owner_id: Map.get(overrides, :library_owner_id),
       rung: Map.get(overrides, :rung),
       acquisition_state: Map.get(overrides, :acquisition_state)

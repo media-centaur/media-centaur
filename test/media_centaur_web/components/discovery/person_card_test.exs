@@ -71,11 +71,12 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert posters |> LazyHTML.query("[data-flag='love']") |> Enum.count() == 1
   end
 
-  test "each glyph sits in its fixed slot above the poster; a flag at the grade is gold, the rest matte" do
+  test "the glyphs sit centred above the poster in mast order; a flag at the grade is gold, the rest matte" do
     html = render(person: friend_with_acts(), width: :rail)
     glyphs = LazyHTML.query(html, "[data-role='acts'] > button > .act-slots > .act-glyph")
 
-    assert LazyHTML.attribute(glyphs, "data-slot") == ["1", "2", "2", "3"]
+    assert LazyHTML.attribute(glyphs, "data-flag") == ["love", "watched", "watched", "listing"]
+    assert LazyHTML.attribute(glyphs, "data-slot") == []
     assert html |> LazyHTML.query(".act-glyph-gold") |> LazyHTML.attribute("data-flag") == ["love"]
     assert Enum.empty?(LazyHTML.query(html, ".act-disc, .act-discs"))
   end
@@ -163,18 +164,17 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
              "Sample Friend"
   end
 
-  test "the tile is the identity tile at the width's size; the ago is the newest act's" do
+  test "the tile is the identity tile at the width's size; the card carries no clock" do
     assert render(person: quiet_friend(), width: :rail)
-           |> LazyHTML.query("[data-component='identity-tile'][data-size='48']")
+           |> LazyHTML.query("[data-component='identity-tile'][data-size='40']")
            |> Enum.count() == 1
 
     assert render(person: quiet_friend(), width: :page)
-           |> LazyHTML.query("[data-component='identity-tile'][data-size='64']")
+           |> LazyHTML.query("[data-component='identity-tile'][data-size='48']")
            |> Enum.count() == 1
 
-    assert render(person: friend_with_acts(), width: :rail)
-           |> LazyHTML.query("[data-role='ago']")
-           |> LazyHTML.text()
-           |> String.trim() == "2h ago"
+    assert Enum.empty?(
+             LazyHTML.query(render(person: friend_with_acts(), width: :rail), "[data-role='ago']")
+           )
   end
 end

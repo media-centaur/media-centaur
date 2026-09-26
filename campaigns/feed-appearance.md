@@ -239,6 +239,47 @@ UIDR-046's fixed slots (the scan gives way to balance; the order within
 a group is kept). **Next: the owner confirms T5 on the TV, then the
 implementation pass.**
 
+**Implemented (2026-09-26): T5, with three further notes from the
+owner** — "let's go ahead and remove the timestamp from the friend cards
+(leave them on the feed) and implement what we have… 1. we should scale
+this ui down a bit… the home page is basically the gold standard. 2. …
+The discovery page should use the same template as the library page."
+One pass, one commit:
+
+* `Discovery.FeedBand` → **`Discovery.FeedRow`** (the DOM contract
+  already said `feed-row`): a flex row, no still, no scrim, no image
+  box; the tile at 40 and the poster at 80×120 hung from the top line
+  with the words; the time at the row's right edge; the seat under the
+  words. Type on the app's ramp — 16px words, an 18px title, 14px year
+  and time — not the couch floors. Rows in a column with a hairline
+  between them and no ground of their own.
+* `FeedEntry` lost `backdrop_url` and `offset_crop?`; `FeedEntries`
+  lost its adjacency pass; `ActivityArtwork` reads the poster role
+  alone and `missing/1` judges the poster alone. The crop rule, the
+  38% offset, the mask and the dissolve are gone from the code.
+* `PersonCard`: no clock in the head (the opened card's act rows keep
+  their agos — they are the detail listing, not the card's face); the
+  act glyphs centred as a group in mast order (`Flag.slot/1` deleted
+  with its `data-slot`); the rail's card is a row in a hairlined list
+  with no ground, the page's card sits on the inset tone since a grid
+  needs cells; type on the app's ramp.
+* `IdentityTile`: sizes 40 (row, rail) and 48 (page); 56 and 64 gone.
+* `TabStrip` and `segmented_control` lost their `:lg` couch size —
+  Discovery was the only user — with the two CSS blocks.
+* Discovery's frame is Library's: the page header at the top with
+  `mb-5`, no `pt-10`, the page scrim every page but Home carries
+  (UIDR-033; Discovery had been missing it), the controls under the
+  header. The Feed and the Watchlist compose at 1500px
+  (`.discovery-page-narrow`; the feed column beside a 500px rail above
+  a 1300px container, one column below); the Friends grid keeps the
+  layout's width and its 1700 fold.
+* Stories: `feed_row.story.exs` replaces the band's; the person card,
+  identity tile, tab strip and segmented control stories follow.
+* Rounds 10–13 stand in the mockups folder as the record of what was
+  tried. The spec's size table and the plan's "Realized" notes are Phase
+  6's to rewrite to the row; UIDR-046 records the row, the list, the
+  width, the centred glyphs and that the Feed carries no still.
+
 ## Handoff — start here in a fresh context
 
 0. **Where it stands (2026-09-26):** Phases 1–5 are on `main`,
