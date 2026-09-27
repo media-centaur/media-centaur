@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
 
   def function, do: &MediaCentaurWeb.Components.Title.Row.title_row/1
@@ -42,10 +43,22 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
         title: title(),
         acted_at: ~U[2026-09-01 12:00:00Z]
       },
-      nickname: nickname,
-      own?: is_nil(nickname)
+      author: author(nickname)
     }
   end
+
+  # nil is the reader; a string is a friend under your name for them.
+  defp author(nil),
+    do: %Person{pubkey: "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", own?: true}
+
+  defp author(name),
+    do: %Person{
+      pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+      name_override: name,
+      own?: false,
+      short_npub: "npub1lyy9…8z4h",
+      added_on: ~D[2026-08-30]
+    }
 
   def variations do
     [

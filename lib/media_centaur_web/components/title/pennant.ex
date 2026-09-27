@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   bookmark) — all but love on a neutral tint, since only love is a
   colour. Which flag an activity flies, the glyph and the order are
   `Title.Flag`'s, the vocabulary the person card's act slots share. A
-  pennant carries up to two nicknames and then a
+  pennant carries up to two names and then a
   count ("Nick, Sam", "Nick +2"); an own review reads "You". Every
   pennant carries the full sentence as a tooltip.
 
@@ -28,9 +28,11 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Format
+  alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Title.Flag
 
-  @type pennant :: %{flag: Flag.flag(), names: [String.t()]}
+  @type pennant :: %{flag: Flag.flag(), people: [Person.t()]}
 
   attr :activity, :list,
     required: true,
@@ -63,17 +65,16 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
 
   @doc """
   The mast for one title's activity rows: one pennant per flag in mast
-  order, the names in the rows' order (newest first) with "You" last.
+  order, the people in the rows' order (newest first) with the reader
+  last.
   """
-  @spec pennants([%{activity: Activity.t(), nickname: String.t() | nil, own?: boolean()}]) ::
-          [pennant()]
+  @spec mast([%{activity: Activity.t(), author: Person.t()}]) :: [pennant()]
   def mast(rows) do
     by_flag = Enum.group_by(rows, &Flag.flag(&1.activity))
 
     for flag <- Flag.mast_order(), group = Map.get(by_flag, flag, []), group != [] do
-      {own, friends} = Enum.split_with(group, & &1.own?)
-      names = Enum.map(friends, & &1.nickname) ++ Enum.map(own, fn _row -> "You" end)
-      %{flag: flag, names: names}
+      {own, friends} = Enum.split_with(group, & &1.author.own?)
+      %{flag: flag, people: Enum.map(friends ++ own, & &1.author)}
     end
   end
 
@@ -81,13 +82,19 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
 
   @doc ~s(Up to two names, then a count: "Nick, Sam", "Nick +2".)
   @spec label(pennant()) :: String.t()
-  def label(%{names: names}) when length(names) <= @max_named, do: Enum.join(names, ", ")
-  def label(%{names: [first | rest]}), do: "#{first} +#{length(rest)}"
+  def label(%{people: people}) do
+    names = Enum.map(people, &Format.person_name/1)
+
+    if length(names) <= @max_named,
+      do: Enum.join(names, ", "),
+      else: "#{hd(names)} +#{length(names) - 1}"
+  end
 
   @doc ~s(The whole statement: "Nick loves this", "Nick dislikes this", "Nick, Sam and you like this", "Nick reviewed this", "Nick wants to watch this".)
   @spec tooltip(pennant()) :: String.t()
-  def tooltip(%{flag: flag, names: names}) do
-    subjects = Enum.map(names, &if(&1 == "You" and length(names) > 1, do: "you", else: &1))
+  def tooltip(%{flag: flag, people: people}) do
+    plural? = length(people) > 1
+    subjects = Enum.map(people, &subject_word(&1, plural?))
 
     subject =
       case subjects do
@@ -95,12 +102,16 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
         many -> Enum.join(Enum.drop(many, -1), ", ") <> " and " <> List.last(many)
       end
 
-    "#{subject} #{verb(flag, subjects)} this"
+    "#{subject} #{verb(flag, people)} this"
   end
 
-  defp verb(:love, [name]) when name != "You", do: "loves"
-  defp verb(:like, [name]) when name != "You", do: "likes"
-  defp verb(:dislike, [name]) when name != "You", do: "dislikes"
+  # The reader is "you" mid-sentence and "You" alone.
+  defp subject_word(%Person{own?: true}, true), do: "you"
+  defp subject_word(person, _plural?), do: Format.person_name(person)
+
+  defp verb(:love, [%Person{own?: false}]), do: "loves"
+  defp verb(:like, [%Person{own?: false}]), do: "likes"
+  defp verb(:dislike, [%Person{own?: false}]), do: "dislikes"
   defp verb(:listing, [_one]), do: "wants to watch"
   defp verb(:love, _plural_or_you), do: "love"
   defp verb(:like, _plural_or_you), do: "like"

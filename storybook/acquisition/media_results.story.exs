@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.MediaResults.media_results/1
@@ -64,10 +65,22 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie"}),
         acted_at: ~U[2026-09-01 10:00:00Z]
       },
-      nickname: nickname,
-      own?: is_nil(nickname)
+      author: author(nickname)
     }
   end
+
+  # nil is the reader; a string is a friend under your name for them.
+  defp author(nil),
+    do: %Person{pubkey: "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", own?: true}
+
+  defp author(name),
+    do: %Person{
+      pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+      name_override: name,
+      own?: false,
+      short_npub: "npub1lyy9…8z4h",
+      added_on: ~D[2026-08-30]
+    }
 
   def variations do
     [

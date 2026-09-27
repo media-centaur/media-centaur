@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
 
   def function, do: &MediaCentaurWeb.Components.CinematicShell.cinematic_shell/1
@@ -66,10 +67,19 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
         title: Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Subject"}),
         acted_at: ~U[2026-09-01 12:00:00Z]
       },
-      nickname: nickname,
-      own?: false
+      author: author(nickname)
     }
   end
+
+  # A friend under your name for them; every row here is a friend's.
+  defp author(name),
+    do: %Person{
+      pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+      name_override: name,
+      own?: false,
+      short_npub: "npub1lyy9…8z4h",
+      added_on: ~D[2026-08-30]
+    }
 
   def variations do
     [
