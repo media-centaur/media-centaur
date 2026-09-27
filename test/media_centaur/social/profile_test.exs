@@ -22,6 +22,7 @@ defmodule MediaCentaur.Social.ProfileTest do
       Social.subscribe()
 
       assert {:error, :name_required} = Social.save_profile("   ")
+      assert {:error, :name_too_long} = Social.save_profile(String.duplicate("x", 51))
       refute Identity.present?()
 
       assert {:ok, %Profile{name: "Sample Name", created_at: first}} =
@@ -82,6 +83,13 @@ defmodule MediaCentaur.Social.ProfileTest do
       refute Identity.pubkey() == old
       assert Repo.all(Profile) == []
       assert Social.own_profile() == nil
+    end
+
+    test "re-importing the same key keeps the own profile" do
+      {:ok, _profile} = Social.save_profile("Me")
+      :ok = Social.import_identity(Identity.export_nsec())
+
+      assert %Profile{name: "Me"} = Social.own_profile()
     end
   end
 

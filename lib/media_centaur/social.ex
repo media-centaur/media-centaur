@@ -164,8 +164,9 @@ defmodule MediaCentaur.Social do
 
   @doc """
   Every person this reader knows, by public key (ADR-074): the identity's
-  own when one exists, and every roster member, each as a `Person`.
-  The one place a friend's roster row becomes what the reader sees.
+  own when one exists, and every roster member, each as a `Person` with
+  the name their `Profile` published, when one is stored. The one place
+  a roster row and a profile become what the reader sees.
   """
   @spec people() :: %{optional(String.t()) => Person.t()}
   def people do
@@ -203,12 +204,14 @@ defmodule MediaCentaur.Social do
   Saves the reader's own profile (ADR-073, UIDR-047): mints the identity
   when none exists, stamps the event strictly after the stored one,
   signs, stores, publishes to every connected relay and broadcasts
-  `ProfileUpdated`. The name is required: the form refuses to save
-  without one.
+  `ProfileUpdated`. The name is required and capped at
+  `Profile.Translation.max_name_length/0` characters, checked before
+  anything is minted: the form refuses to save without one.
   """
-  @spec save_profile(String.t()) :: {:ok, Profile.t()} | {:error, :name_required}
+  @spec save_profile(String.t()) :: {:ok, Profile.t()} | {:error, :name_required | :name_too_long}
   def save_profile(name) when is_binary(name) do
-    with {:ok, name} <- present_name(name) do
+    with {:ok, name} <- present_name(name),
+         :ok <- within_name_cap(name) do
       secret = Identity.ensure()
       me = Identity.pubkey()
       stored = Repo.get_by(Profile, pubkey: me)
@@ -298,7 +301,8 @@ defmodule MediaCentaur.Social do
     old = Identity.pubkey()
 
     with :ok <- Identity.import_nsec(nsec) do
-      if old, do: delete_profile(old)
+      # Re-importing the same key changes nothing and keeps its profile.
+      if old && old != Identity.pubkey(), do: delete_profile(old)
       :ok
     end
   end
@@ -338,6 +342,12 @@ defmodule MediaCentaur.Social do
       "" -> {:error, :name_required}
       trimmed -> {:ok, trimmed}
     end
+  end
+
+  defp within_name_cap(name) do
+    if String.length(name) <= ProfileTranslation.max_name_length(),
+      do: :ok,
+      else: {:error, :name_too_long}
   end
 
   defp known_friend(pubkey) do

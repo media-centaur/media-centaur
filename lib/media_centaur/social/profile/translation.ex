@@ -67,9 +67,10 @@ defmodule MediaCentaur.Social.Profile.Translation do
     end
   end
 
-  defp check_version(%{"v" => version}) when version in [nil, @content_version], do: :ok
+  # An absent `v` means 1; an explicit null is not absent, as for activities.
+  defp check_version(%{"v" => @content_version}), do: :ok
   defp check_version(%{"v" => _other}), do: {:error, :unsupported_version}
-  defp check_version(_content), do: :ok
+  defp check_version(_absent), do: :ok
 
   defp read_name(%{"name" => name}) when is_binary(name) do
     trimmed = String.trim(name)

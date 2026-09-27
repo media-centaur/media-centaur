@@ -57,6 +57,8 @@ defmodule MediaCentaur.Social.Profile.TranslationTest do
 
     assert {:error, :bad_content} = Translation.from_event(signed(~s({"v":1,"name":7})))
     assert {:error, :unsupported_version} = Translation.from_event(signed(~s({"v":2,"name":"x"})))
+    assert {:error, :unsupported_version} = Translation.from_event(signed(~s({"v":null,"name":"x"})))
+    assert {:ok, %{name: "x"}} = Translation.from_event(signed(~s({"name":"x"})))
   end
 
   test "an unknown field is ignored and a name at the cap passes" do
