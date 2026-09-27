@@ -19,7 +19,8 @@ defmodule MediaCentaur.DiscoveryRows do
   @doc """
   A friend as the reader sees them, under the reader's name for them;
   nil is a friend without an override. `published_name:` is what the
-  friend's key published.
+  friend's key published; `avatar_url:` its avatar; `show_avatar:` the
+  reader's switch (default true).
   """
   @spec person(String.t() | nil, keyword()) :: Person.t()
   def person(name, opts \\ []) when is_binary(name) or is_nil(name) do
@@ -28,6 +29,7 @@ defmodule MediaCentaur.DiscoveryRows do
       name_override: name,
       published_name: Keyword.get(opts, :published_name),
       avatar_url: Keyword.get(opts, :avatar_url),
+      show_avatar: Keyword.get(opts, :show_avatar, true),
       own?: false,
       short_npub: "npub1lyy9…8z4h",
       added_on: ~D[2026-08-30]

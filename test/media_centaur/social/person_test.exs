@@ -2,12 +2,30 @@ defmodule MediaCentaur.Social.PersonTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Format
+  alias MediaCentaur.Nostr.Event
+  alias MediaCentaur.Nostr.Keys
+  alias MediaCentaur.Secret
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
+  alias MediaCentaur.Social.Profile.Translation
 
   @friend "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
   @other "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
+  @signer_secret Secret.wrap(String.duplicate("0", 63) <> "3")
+  @signer Keys.pubkey(@signer_secret)
+  @webp <<"RIFF", 0, 0, 0, 0, "WEBPVP8 ", 0, 0, 0, 0>>
+
+  # Avatars are written under `{data_dir}/images/social/`: point data_dir
+  # at a per-test tmp dir (GlobalStateSandbox restores the config term).
+  setup do
+    dir = Path.join(System.tmp_dir!(), "person-test-#{System.unique_integer([:positive])}")
+    config = :persistent_term.get({Config, :config})
+    :persistent_term.put({Config, :config}, Map.put(config, :data_dir, dir))
+    on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
 
   describe "people/0" do
     test "the roster as people: the reader's name, no avatar" do
@@ -31,13 +49,33 @@ defmodule MediaCentaur.Social.PersonTest do
       assert %Person{name_override: "Cleo", own?: false} = people[@other]
     end
 
+    test "a friend's avatar shows by default; the reader's switch hides it" do
+      {:ok, _friend} = Social.add_friend(@signer, "Nick")
+
+      {:ok, _profile} =
+        Social.ingest_profile(
+          Event.sign(
+            Translation.to_event("One", %{type: "image/webp", bytes: @webp}, @signer, 1_700_000_000),
+            @signer_secret
+          )
+        )
+
+      assert %Person{show_avatar: true, avatar_url: url} = Social.people()[@signer]
+      assert is_binary(url)
+
+      {:ok, _friend} = Social.set_show_avatar(@signer, false)
+      assert %Person{show_avatar: false, avatar_url: nil} = Social.people()[@signer]
+    end
+
     test "the reader is in the map once an identity exists, and is their own" do
       refute Enum.any?(Social.people(), fn {_pubkey, person} -> person.own? end)
 
       Identity.ensure()
       me = Identity.pubkey()
 
-      assert %Person{pubkey: ^me, own?: true, name_override: nil, added_on: nil} = Social.people()[me]
+      assert %Person{pubkey: ^me, own?: true, name_override: nil, added_on: nil, show_avatar: true} =
+               Social.people()[me]
+
       assert Social.people()[me].short_npub == Social.short_npub(me)
       assert Social.people()[me].published_name == nil
 

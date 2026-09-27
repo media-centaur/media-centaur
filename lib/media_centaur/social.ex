@@ -121,6 +121,12 @@ defmodule MediaCentaur.Social do
     end
   end
 
+  @doc "Shows or hides a friend's avatar for this reader. Broadcasts `FriendChanged` when it flipped."
+  @spec set_show_avatar(String.t(), boolean()) :: {:ok, Friend.t()} | {:error, :not_a_friend}
+  def set_show_avatar(pubkey, show?) when is_binary(pubkey) and is_boolean(show?) do
+    with {:ok, friend} <- known_friend(pubkey), do: apply_change(friend, %{show_avatar: show?})
+  end
+
   @doc "Removes a friend by public key. Absent is a no-op, and broadcasts nothing."
   @spec remove_friend(String.t()) :: :ok
   def remove_friend(pubkey) when is_binary(pubkey) do
@@ -369,7 +375,8 @@ defmodule MediaCentaur.Social do
       pubkey: friend.pubkey,
       name_override: friend.name_override,
       published_name: profile && profile.name,
-      avatar_url: avatar_url(profile),
+      avatar_url: if(friend.show_avatar, do: avatar_url(profile)),
+      show_avatar: friend.show_avatar,
       own?: false,
       short_npub: short_npub(friend.pubkey),
       added_on: DateTime.to_date(friend.inserted_at)

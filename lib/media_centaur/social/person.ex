@@ -5,7 +5,8 @@ defmodule MediaCentaur.Social.Person do
   reader's own); `published_name` is what the key said about itself
   (`Social.Profile`); `name/1` resolves them. `avatar_url` is the
   stored avatar's versioned URL, nil when the key published none, the
-  reader hides it, or the file is missing. `own?` says
+  reader hides it, or the file is missing. `show_avatar` is the reader's
+  switch; always true for the reader's own. `own?` says
   whether the key is the reader's own. Built in the app only by
   `Social.people/0` and `Social.own_person/0`; every surface that draws
   a person takes one.
@@ -19,13 +20,23 @@ defmodule MediaCentaur.Social.Person do
   Not `MediaCentaur.Library.Person`, which is a title's cast member.
   """
 
-  defstruct [:pubkey, :name_override, :published_name, :avatar_url, :short_npub, :added_on, own?: false]
+  defstruct [
+    :pubkey,
+    :name_override,
+    :published_name,
+    :avatar_url,
+    :short_npub,
+    :added_on,
+    own?: false,
+    show_avatar: true
+  ]
 
   @type t :: %__MODULE__{
           pubkey: String.t() | nil,
           name_override: String.t() | nil,
           published_name: String.t() | nil,
           avatar_url: String.t() | nil,
+          show_avatar: boolean(),
           own?: boolean(),
           short_npub: String.t() | nil,
           added_on: Date.t() | nil

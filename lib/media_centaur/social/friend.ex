@@ -3,8 +3,9 @@ defmodule MediaCentaur.Social.Friend do
   One followed public key: the x-only key as lowercase hex and, when the
   reader gave one, `name_override` (UIDR-047): the reader's own word for
   the friend, which masks the name the key publishes (`Social.Profile`).
-  The override is optional; blank is none. Nothing here comes from the
-  network.
+  The override is optional; blank is none. `show_avatar` is the reader's
+  switch for the friend's avatar, on by default. Nothing here comes from
+  the network.
 
   The table still carries a nullable `nickname` column the outgoing
   release reads; the release after this one drops it.
@@ -20,6 +21,7 @@ defmodule MediaCentaur.Social.Friend do
   schema "friends" do
     field :pubkey, :string
     field :name_override, :string
+    field :show_avatar, :boolean, default: true
 
     timestamps()
   end
@@ -30,9 +32,9 @@ defmodule MediaCentaur.Social.Friend do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(friend \\ %__MODULE__{}, attrs) do
     friend
-    |> cast(attrs, [:pubkey, :name_override])
+    |> cast(attrs, [:pubkey, :name_override, :show_avatar])
     |> update_change(:name_override, &blank_to_nil/1)
-    |> validate_required([:pubkey])
+    |> validate_required([:pubkey, :show_avatar])
     |> validate_format(:pubkey, ~r/^[0-9a-f]{64}$/)
     |> unique_constraint(:pubkey)
   end
