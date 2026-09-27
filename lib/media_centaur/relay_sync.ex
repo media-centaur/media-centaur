@@ -23,9 +23,10 @@ defmodule MediaCentaur.RelaySync do
       withdrawn ones, the reader's profile. A per-relay diff, not a
       blanket re-publish.
     * `{:ok, id, false, reason}` → log the refusal by what was refused
-      (`Activities.own_event_kind/1`, then `Social.own_event_kind/1`): a relay refusing a deletion
-      is the one that has not been upgraded to carry the contract. The
-      connection keeps the reason as the relay row's last error.
+      (`Activities.own_event_kind/1`, then `Social.own_event_kind/1`): a
+      relay refusing a deletion or a profile is one not yet upgraded to
+      carry the contract. The connection keeps the reason as the relay
+      row's last error.
 
   Consumes `social:updates`: a roster change re-issues `"feed"` on every
   connected relay with the new author list.
@@ -46,8 +47,7 @@ defmodule MediaCentaur.RelaySync do
 
   Paging steps `until` back by one second, so more than `page_limit`
   events sharing one second lose the excess; the alternative is an
-  endless page. Gated off under `:test` (`:start_activities_sync`, a key
-  that predates the move out of `Activities` and keeps its name); tests
+  endless page. Gated off under `:test` (`:start_activities_sync`); tests
   start it by hand against `Nostr.FakeRelay`, with `page_limit:` lowered
   to exercise paging.
   """
@@ -123,10 +123,8 @@ defmodule MediaCentaur.RelaySync do
   end
 
   def handle_info({:relay_connection, url, {:ok, event_id, false, reason}}, state) do
-    Log.warning(
-      :social,
-      "#{url} rejected #{refused(Activities.own_event_kind(event_id) || Social.own_event_kind(event_id))}: #{reason}"
-    )
+    what = refused(Activities.own_event_kind(event_id) || Social.own_event_kind(event_id))
+    Log.warning(:social, "#{url} rejected #{what}: #{reason}")
 
     {:noreply, state}
   end
