@@ -70,6 +70,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   alias MediaCentaur.Library.EntityView
   alias MediaCentaur.Library.{Person, WatchedFile}
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
+  alias MediaCentaur.Social.Person, as: SocialPerson
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Detail.TitlePreview
   alias MediaCentaurWeb.Components.ReleaseTracking.TrackingDetail
@@ -697,10 +698,25 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         media_type: media_type,
         acted_at: ~U[2026-09-01 10:00:00Z]
       },
-      nickname: nickname,
-      own?: is_nil(nickname)
+      author: author(nickname)
     }
   end
+
+  # nil is the reader; a string is a friend under your name for them.
+  defp author(nil),
+    do: %SocialPerson{
+      pubkey: "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5",
+      own?: true
+    }
+
+  defp author(name),
+    do: %SocialPerson{
+      pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+      name_override: name,
+      own?: false,
+      short_npub: "npub1lyy9…8z4h",
+      added_on: ~D[2026-08-30]
+    }
 
   defp preview(title) do
     %TitlePreview{
