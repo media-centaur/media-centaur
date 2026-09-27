@@ -359,10 +359,4 @@ defmodule MediaCentaur.TmdbArtwork do
   defp filename(:poster), do: "poster.jpg"
   defp filename(:backdrop), do: "backdrop.jpg"
   defp filename(:logo), do: "logo.png"
-
-  # Falls back to "data" (cwd-relative) only if data_dir is not
-  # configured — a misconfigured deploy still writes somewhere instead
-  # of crashing. The sweep and migration refuse that fallback instead.
-  # No cwd-relative fallback for TMDB artwork: an unset data_dir is a
-  # misconfiguration, not a reason to write under `./data`.
 end
