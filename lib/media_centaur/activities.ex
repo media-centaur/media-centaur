@@ -31,11 +31,11 @@ defmodule MediaCentaur.Activities do
   per author + kind + title (a newer event replaces the row), and synced
   with the relays by `Activities.Sync`. Knows nothing about the watchlist
   or the library — the web layer joins those, which is why `list_activities/0`
-  decorates rows with the friend's nickname and nothing else.
+  decorates rows with their author and nothing else.
 
   `list_activities/0` includes this identity's own activities alongside
-  received ones — `own?` and `nickname` tell a row apart; `nickname` is
-  `nil` on an own row. Withdrawn rows (tombstones, see `Activity`) are
+  received ones — each row's `author` is a `Social.Person`, whose `own?`
+  tells a row apart. Withdrawn rows (tombstones, see `Activity`) are
   excluded everywhere except `own_events/0`, which republishes their
   deletions.
 
@@ -54,6 +54,7 @@ defmodule MediaCentaur.Activities do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Activities.Activity.Episode
@@ -64,7 +65,7 @@ defmodule MediaCentaur.Activities do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
-  @type activity_row :: %{activity: Activity.t(), nickname: String.t() | nil, own?: boolean()}
+  @type activity_row :: %{activity: Activity.t(), author: Person.t() | nil}
 
   @doc "Subscribe the caller to activity events."
   @spec subscribe() :: :ok | {:error, term()}
@@ -215,29 +216,29 @@ defmodule MediaCentaur.Activities do
   end
 
   @doc """
-  Every activity, newest first — received ones with the friend's
-  nickname (`nil` for a former friend: a row nobody on the roster
-  owns), this identity's own marked `own?: true` with `nickname: nil`
-  (the You card). Before an identity exists nothing stored can be ours,
-  so every row is a received one.
+  Every activity by a person this reader knows, newest first, each with
+  its author as the reader sees them (`Social.people/0`, ADR-074). A row
+  whose author is neither the identity nor on the roster is left out: a
+  former friend's activity is kept in the table and shown nowhere.
+  Before an identity exists nothing stored can be ours.
   """
   @spec list_activities() :: [activity_row()]
   def list_activities do
-    friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
-    me = Identity.pubkey()
+    people = Social.people()
 
     Activity
     |> live()
     |> order_by(desc: :acted_at)
     |> Repo.all()
-    |> Enum.map(&activity_row(&1, me, friends))
+    |> Enum.filter(&is_map_key(people, &1.author_pubkey))
+    |> Enum.map(&activity_row(&1, people))
   end
 
   @doc """
   The live friend activity on the titles in `refs`, as `%{ref =>
   [activity_row]}` — every kind a current friend has broadcast for the
-  title (review, watched, listing) plus this identity's own
-  reviews, in `list_activities/0`'s row shape, newest first, in
+  title (review, watched, listing) plus this identity's own reviews,
+  each row with its author, in `list_activities/0`'s row shape, newest first, in
   one query plus one roster read. Refs with no activity are absent, and
   a former friend's is left out: a pennant names a friend. Own watched
   and listing acts are left out too — a pennant tells you what friends
@@ -248,8 +249,7 @@ defmodule MediaCentaur.Activities do
   def friend_activity_for([]), do: %{}
 
   def friend_activity_for(refs) when is_list(refs) do
-    friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
-    me = Identity.pubkey()
+    people = Social.people()
     tmdb_ids = refs |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
     wanted = MapSet.new(refs)
 
@@ -258,12 +258,11 @@ defmodule MediaCentaur.Activities do
     |> where([a], a.tmdb_id in ^tmdb_ids)
     |> order_by(desc: :acted_at)
     |> Repo.all()
-    |> Enum.filter(
-      &(MapSet.member?(wanted, {&1.tmdb_id, &1.media_type}) and
-          ((&1.author_pubkey == me and &1.kind == :review) or
-             is_map_key(friends, &1.author_pubkey)))
-    )
-    |> Enum.group_by(&{&1.tmdb_id, &1.media_type}, &activity_row(&1, me, friends))
+    |> Enum.filter(fn activity ->
+      MapSet.member?(wanted, {activity.tmdb_id, activity.media_type}) and
+        pennant_author?(Map.get(people, activity.author_pubkey), activity.kind)
+    end)
+    |> Enum.group_by(&{&1.tmdb_id, &1.media_type}, &activity_row(&1, people))
   end
 
   @doc "Activities this install sent, newest first — none before an identity exists."
@@ -318,17 +317,16 @@ defmodule MediaCentaur.Activities do
   def get(id), do: Repo.get(Activity, id)
 
   @doc """
-  One live activity by id as the rows carry it — `%{activity, nickname,
-  own?}`, the same shape `friend_activity_for/1` groups — or nil for an
-  unknown, malformed or withdrawn id. The title detail reads the
+  One live activity by id as the rows carry it, `%{activity, author}`,
+  the author nil for a person no longer known, or nil for an unknown,
+  malformed or withdrawn id. The title detail reads the
   activity it speaks for through this, by identity, on every page.
   """
   @spec get_row(String.t()) :: activity_row() | nil
   def get_row(id) when is_binary(id) do
     with {:ok, uuid} <- Ecto.UUID.cast(id),
          %Activity{} = activity <- Activity |> live() |> where([a], a.id == ^uuid) |> Repo.one() do
-      friends = Map.new(Social.list_friends(), &{&1.pubkey, &1.nickname})
-      activity_row(activity, Identity.pubkey(), friends)
+      activity_row(activity, Social.people())
     else
       _none -> nil
     end
@@ -410,11 +408,13 @@ defmodule MediaCentaur.Activities do
     end
   end
 
-  defp activity_row(%Activity{author_pubkey: author} = activity, me, _friends) when author == me,
-    do: %{activity: activity, nickname: nil, own?: true}
+  defp activity_row(%Activity{} = activity, people),
+    do: %{activity: activity, author: Map.get(people, activity.author_pubkey)}
 
-  defp activity_row(%Activity{} = activity, _me, friends),
-    do: %{activity: activity, nickname: Map.get(friends, activity.author_pubkey), own?: false}
+  # A pennant names a friend for any act, and the reader for a review alone.
+  defp pennant_author?(nil, _kind), do: false
+  defp pennant_author?(%Person{own?: true}, kind), do: kind == :review
+  defp pennant_author?(%Person{}, _kind), do: true
 
   # One grouped count query buckets every row as "sent" or "received" by
   # comparing author_pubkey to `me`; a second query finds the newest

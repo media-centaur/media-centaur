@@ -6,6 +6,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Events.Deleted
@@ -63,7 +64,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert id == rec.id
       assert [%Activity{id: ^id}] = Activities.list_sent()
 
-      assert [%{activity: %Activity{id: ^id}, nickname: nil, own?: true}] =
+      assert [%{activity: %Activity{id: ^id}, author: %Person{own?: true}}] =
                Activities.list_activities()
 
       await_supervised_tasks()
@@ -122,7 +123,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert {:ok, event} = Event.from_map(bare.raw_event)
       refute Map.has_key?(Jason.decode!(event.content), "sentiment")
 
-      assert [%{activity: %Activity{sentiment: nil, text: nil}, own?: true}] =
+      assert [%{activity: %Activity{sentiment: nil, text: nil}, author: %Person{own?: true}}] =
                Activities.list_activities()
 
       await_supervised_tasks()
@@ -160,20 +161,21 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert %{
                {603, :movie} => [
-                 %{activity: %Activity{id: ^mine_id, kind: :review}, nickname: nil, own?: true},
+                 %{activity: %Activity{id: ^mine_id, kind: :review}, author: %Person{own?: true}},
                  %{
                    activity: %Activity{id: ^watched_id, kind: :watched},
-                   nickname: "Sample Friend",
-                   own?: false
+                   author: %Person{name_override: "Sample Friend", own?: false}
                  },
                  %{
                    activity: %Activity{id: ^theirs_id, sentiment: :love},
-                   nickname: "Sample Friend",
-                   own?: false
+                   author: %Person{name_override: "Sample Friend", own?: false}
                  }
                ],
                {604, :movie} => [
-                 %{activity: %Activity{id: ^other_id}, nickname: "Sample Friend", own?: false}
+                 %{
+                   activity: %Activity{id: ^other_id},
+                   author: %Person{name_override: "Sample Friend", own?: false}
+                 }
                ]
              } = result
 
@@ -199,15 +201,18 @@ defmodule MediaCentaur.ActivitiesTest do
       {:ok, rec} = Activities.review(title(), :like, "Go.")
       await_supervised_tasks()
 
-      assert %{activity: %Activity{id: id}, nickname: nil, own?: true} = Activities.get_row(rec.id)
+      assert %{activity: %Activity{id: id}, author: %Person{own?: true}} = Activities.get_row(rec.id)
       assert id == rec.id
     end
 
-    test "a friend's activity carries the friend's nickname" do
+    test "a friend's activity carries the friend as its author" do
       {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
       {:ok, rec} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000))
 
-      assert %{activity: %Activity{text: "theirs"}, nickname: "Sample Friend", own?: false} =
+      assert %{
+               activity: %Activity{text: "theirs"},
+               author: %Person{name_override: "Sample Friend", own?: false}
+             } =
                Activities.get_row(rec.id)
     end
 
@@ -224,10 +229,21 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert Activities.get_row(rec.id) == nil
     end
+
+    test "a removed friend's activity keeps its row but has no author; the lists drop it" do
+      {:ok, _} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      {:ok, rec} = Activities.ingest(friend_event(title(), "theirs", 1_700_000_000))
+      :ok = Social.remove_friend(@friend_pubkey)
+
+      assert %{activity: %Activity{id: id}, author: nil} = Activities.get_row(rec.id)
+      assert id == rec.id
+      assert Activities.list_activities() == []
+      await_supervised_tasks()
+    end
   end
 
   describe "ingest/1" do
-    test "accepts a friend's verified event, decorates the feed with the nickname, broadcasts" do
+    test "accepts a friend's verified event, attributes it to the friend, broadcasts" do
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       Activities.subscribe()
       event = friend_event(title(), "Great.", 1_700_000_000)
@@ -235,7 +251,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert {:ok, %Activity{}} = Activities.ingest(event)
       assert_receive {:activity_received, %Received{author_pubkey: @friend_pubkey}}, 500
 
-      assert [%{activity: %Activity{text: "Great."}, nickname: "Sample Friend"}] =
+      assert [%{activity: %Activity{text: "Great."}, author: %Person{name_override: "Sample Friend"}}] =
                Activities.list_activities()
 
       await_supervised_tasks()
@@ -275,7 +291,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert :ignored = Activities.ingest(event)
 
-      assert [%{activity: %Activity{id: id}, nickname: nil, own?: true}] =
+      assert [%{activity: %Activity{id: id}, author: %Person{own?: true}}] =
                Activities.list_activities()
 
       assert id == rec.id
@@ -633,7 +649,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert_receive {:activity_received, %Received{kind: :watched}}, 500
 
-      assert [%{activity: %Activity{kind: :watched}, nickname: "Sam", own?: false}] =
+      assert [%{activity: %Activity{kind: :watched}, author: %Person{name_override: "Sam", own?: false}}] =
                Activities.list_activities()
 
       await_supervised_tasks()
