@@ -47,15 +47,21 @@ Phase 2 plan opens with:
 * The "Unnamed" clause in `Format.person_name/1`, in the same change as the optional name: the function's doc says so, and without it the Feed crashes on a nameless friend.
 * The identity tile's person-glyph mark.
 * The card foot's placeholder as `Format.person_name(%Person{person | name_override: nil})`, never a literal.
+* Flip the pinned test "Format.person_name/1 has no words yet for a friend without a name" (`test/media_centaur/social/person_test.exs`) in that same change.
+* Delete the forward-pointing sentences the phase fulfils: `Social.Person`'s moduledoc ("nil until the profile event arrives"), `Social.Friend`'s ("the phase 2 rebuild renames it"), `Format.person_name/1`'s doc (the unmatched-clause paragraph), `IdentityTile`'s ("UIDR-047's third mark lands with phase 2").
+* Every `Person` field added updates `test/support/discovery_rows.ex` and the eight story fixture builders (`identity_tile`, `person_card`, `feed_row`, `pennants`, `title_row`, `media_results`, `cinematic_shell`, `detail_panel`); stories cannot import test support, so the copies stay.
 
 Phase 3 plan:
 
 * `show_avatar` as a plain `add` column, `Social.set_show_avatar/2`, the card's switch.
 * Normalise an empty-string `avatar_url` to nil in `Social.person_for/1`; the tile treats any binary as an avatar.
+* Delete `IdentityTile`'s "No avatar exists yet (phase 3)" sentence and `Social.Person`'s "nil until the profiles campaign's phase 3 fills it".
+* Decision recorded 2026-09-27: `Person.avatar_url` and the tile's `:avatar` mark stayed in phase 1 without a writer, the one exception to "nothing in a phase exists for a later one", because they carry the photo state UIDR-046 shipped before the campaign (plan § What this phase does not do).
 
 Deferred, any phase:
 
-* `Identity.pubkey/0` derives the point from the secret on every call, and `people/0` and `own_person/0` (three times per review-modal render) pay it; candidate: derive once beside the secret.
+* `Identity.pubkey/0` derives the point from the secret on every call, and `people/0` and `own_person/0` pay it once per Discovery load and per review-modal render; candidate: derive once beside the secret.
+* The rename input and button in the card's foot carry no `data-nav-item`; a gamepad user cannot rename until the person card's nav hardening pass, which also owns the input-inside-`role="button"` note below.
 * `mix social.dev` carries a third npub elision (`String.slice(0, 12) <> "…"`); unify on `Social.short_npub/1`.
 * The add-friend inputs and the card's rename input wear `.library-filter`, the library search pill, padded for a glass and a clear they lack; a surface-neutral text-input class is owed.
 * The rename input sits inside `<section role="button">`; belongs to the person card's nav hardening pass.

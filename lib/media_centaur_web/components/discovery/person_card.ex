@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
         id: dom_id(assigns.person),
         name: Format.person_name(assigns.person),
         shown: shown(assigns.acts, assigns.width, assigns.opened?),
-        subject: subject(assigns.person),
+        subject: ActivityWords.subject(assigns.person),
         page?: assigns.width == :page
       )
 
@@ -220,9 +220,6 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
 
   defp tile_size(:rail), do: 40
   defp tile_size(:page), do: 48
-
-  defp subject(%Person{own?: true}), do: :you
-  defp subject(%Person{}), do: :friend
 
   defp newest(%Act{entries: [entry | _rest]}), do: entry
 

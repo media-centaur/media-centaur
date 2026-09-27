@@ -52,6 +52,18 @@ defmodule MediaCentaur.Social.PersonTest do
     assert Format.person_name(%Person{pubkey: @friend, name_override: "Nick"}) == "Nick"
   end
 
+  # A friend without a name is not a phase-1 Person; the clause is
+  # unmatched on purpose. Phase 2 flips this test when it adds "Unnamed"
+  # together with the optional name.
+  test "Format.person_name/1 has no words yet for a friend without a name" do
+    # Called dynamically: the compiler's type checker would otherwise
+    # warn that no clause accepts the argument, which is the point.
+    nameless = %Person{pubkey: @friend, name_override: nil}
+    words = :person_name
+
+    assert_raise FunctionClauseError, fn -> apply(Format, words, [nameless]) end
+  end
+
   test "short_npub/1 elides the middle" do
     short = Social.short_npub(@friend)
 

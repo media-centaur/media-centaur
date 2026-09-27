@@ -30,6 +30,8 @@ Recorded here so the phase 2 and 3 plans open with them:
 - **Phase 2**, with the profile event: the `friends` rebuild (`name_override` as a real nullable column beside a nullable `nickname` the outgoing release still reads; `nickname` dropped the release after); the name optional in `add_friend/2`, `set_name_override/2` and the add form; `Person.published_name` and `Person.name/1` (override, else published, else nil); `Format.person_name/1` saying "Unnamed" for a nil name; the identity tile's third mark, the person glyph; the foot's placeholder as the person's words without the override, `Format.person_name(%Person{person | name_override: nil})`, never a literal.
 - **Phase 3**, with the avatar: `show_avatar` as a plain `add` column (no rebuild needed), `Social.set_show_avatar/2`, the card's switch, `Person.avatar_url` filled.
 
+One named exception to "nothing in a phase exists for a later one": `Person.avatar_url` and the tile's `:avatar` mark have no writer in phase 1. They carry the photo state UIDR-046 shipped and the storybook pinned before this campaign; removing a shipped, decided render state to satisfy the letter of the rule would be churn, and phase 3 fills the field. `published_name` and `show_avatar` had no prior existence, which is why they wait.
+
 ## File structure
 
 Created:

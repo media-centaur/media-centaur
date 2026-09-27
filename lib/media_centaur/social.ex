@@ -102,7 +102,7 @@ defmodule MediaCentaur.Social do
   changed; the same name again is silent.
   """
   @spec set_name_override(String.t(), String.t()) ::
-          {:ok, Friend.t()} | {:error, :name_required | :not_a_friend | Ecto.Changeset.t()}
+          {:ok, Friend.t()} | {:error, :name_required | :not_a_friend}
   def set_name_override(pubkey, name) when is_binary(pubkey) and is_binary(name) do
     with {:ok, name} <- present_name(name),
          {:ok, friend} <- known_friend(pubkey) do
@@ -217,17 +217,17 @@ defmodule MediaCentaur.Social do
     end
   end
 
-  # No change is no broadcast.
+  # No change is no broadcast. The changeset cannot fail here: the name
+  # was checked present and the key is unchanged, so a failure is a bug.
   defp apply_change(%Friend{} = existing, attrs) do
     changeset = Friend.changeset(existing, attrs)
 
     if changeset.changes == %{} do
       {:ok, existing}
     else
-      with {:ok, friend} <- Repo.update(changeset) do
-        Events.broadcast(%Events.FriendChanged{pubkey: friend.pubkey})
-        {:ok, friend}
-      end
+      friend = Repo.update!(changeset)
+      Events.broadcast(%Events.FriendChanged{pubkey: friend.pubkey})
+      {:ok, friend}
     end
   end
 
