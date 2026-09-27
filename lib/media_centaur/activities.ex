@@ -65,6 +65,9 @@ defmodule MediaCentaur.Activities do
   alias MediaCentaur.TMDB.Title
   alias MediaCentaur.Topics
 
+  # The author is nil from `get_row/1` alone: a watchlist row may still
+  # point at the activity of a friend who left the roster. The lists
+  # (`list_activities/0`, `friend_activity_for/1`) never yield one.
   @type activity_row :: %{activity: Activity.t(), author: Person.t() | nil}
 
   @doc "Subscribe the caller to activity events."
@@ -219,8 +222,8 @@ defmodule MediaCentaur.Activities do
   Every activity by a person this reader knows, newest first, each with
   its author as the reader sees them (`Social.people/0`, ADR-074). A row
   whose author is neither the identity nor on the roster is left out: a
-  former friend's activity is kept in the table and shown nowhere.
-  Before an identity exists nothing stored can be ours.
+  former friend's activity is kept in the table and reached only by id
+  (`get_row/1`). Before an identity exists nothing stored can be ours.
   """
   @spec list_activities() :: [activity_row()]
   def list_activities do
@@ -357,8 +360,9 @@ defmodule MediaCentaur.Activities do
   Aggregate traffic for the Status widget, in two queries rather than
   loading every row: how many activities this identity sent, how many it
   received, and when the newest received one landed. Before an identity
-  exists nothing stored can be ours, so everything counts as received
-  (mirrors `list_activities/0`).
+  exists nothing stored can be ours, so everything counts as received.
+  Every live row counts, a former friend's included: this is traffic,
+  not the roster's view.
   """
   @spec counts() :: %{
           sent: non_neg_integer(),

@@ -211,7 +211,7 @@ defmodule MediaCentaur.ActivitiesTest do
 
       assert %{
                activity: %Activity{text: "theirs"},
-               author: %Person{name_override: "Sample Friend", own?: false}
+               author: %Person{pubkey: @friend_pubkey, name_override: "Sample Friend", own?: false}
              } =
                Activities.get_row(rec.id)
     end
@@ -238,6 +238,7 @@ defmodule MediaCentaur.ActivitiesTest do
       assert %{activity: %Activity{id: id}, author: nil} = Activities.get_row(rec.id)
       assert id == rec.id
       assert Activities.list_activities() == []
+      assert Activities.friend_activity_for([{603, :movie}]) == %{}
       await_supervised_tasks()
     end
   end
@@ -251,8 +252,12 @@ defmodule MediaCentaur.ActivitiesTest do
       assert {:ok, %Activity{}} = Activities.ingest(event)
       assert_receive {:activity_received, %Received{author_pubkey: @friend_pubkey}}, 500
 
-      assert [%{activity: %Activity{text: "Great."}, author: %Person{name_override: "Sample Friend"}}] =
-               Activities.list_activities()
+      assert [
+               %{
+                 activity: %Activity{text: "Great."},
+                 author: %Person{pubkey: @friend_pubkey, name_override: "Sample Friend"}
+               }
+             ] = Activities.list_activities()
 
       await_supervised_tasks()
     end
