@@ -257,12 +257,20 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       assert Social.list_friends() == []
     end
 
-    test "a roster change in another tab lands live", %{conn: conn} do
+    test "a roster change in another tab lands live: added, renamed, removed, and the identity minted",
+         %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/friends")
       refute has_element?(view, friend_card())
+      refute has_element?(view, "#person-you")
 
       {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
       render_until(view, fn _html -> has_element?(view, friend_card(), "Sample Friend") end)
+
+      {:ok, _friend} = Social.set_name_override(@friend_pubkey, "Nick")
+      render_until(view, fn _html -> has_element?(view, friend_card() <> " h2", "Nick") end)
+
+      Identity.ensure()
+      render_until(view, fn _html -> has_element?(view, "#person-you") end)
 
       :ok = Social.remove_friend(@friend_pubkey)
       render_until(view, fn _html -> not has_element?(view, friend_card()) end)
