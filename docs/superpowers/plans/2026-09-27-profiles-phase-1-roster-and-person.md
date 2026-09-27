@@ -1366,7 +1366,10 @@ git commit -m "refactor: the pennant flies people, its words from person_name; t
 **Files:**
 - Modify: `lib/media_centaur_web/components/detail_panel.ex:580`, `:850-853`
 - Modify: `lib/media_centaur_web/live/review_modal.ex:125-127`
+- Modify: `lib/media_centaur_web/live/title_detail_host.ex:893` (`activity_delete` matches `author: %Person{own?: true}`), `:998` (`provenance/1`: the reader's own activity carries none; any other author, nil included, does)
 - Test: `test/media_centaur_web/components/title/logic_test.exs:86`
+
+(The two host clauses were found by the Task 8 quality review; the plan had missed them. Sweep with `grep -rn "own?: true\|own?: false\|nickname" lib | grep -v "Person{"` after this task: only `people.ex` (Task 9) may remain.)
 
 - [ ] **Step 1: Fix the logic test's row**
 
