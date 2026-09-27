@@ -298,8 +298,9 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :class, :string, default: nil
 
   attr :rest, :global,
-    include: ~w(autocomplete list phx-blur phx-keydown phx-key phx-value-name min max step),
-    doc: "input attributes the row kinds bind: autocomplete, the blur/keydown events, number bounds."
+    include: ~w(autocomplete list maxlength phx-blur phx-keydown phx-key phx-value-name min max step),
+    doc:
+      "input attributes the row kinds bind: autocomplete, the blur/keydown events, number bounds, a length cap."
 
   @doc "The house text input (UIDR-041 §31): bordered, full width, monospace for paths and keys, a nav item."
   def settings_input(assigns) do
