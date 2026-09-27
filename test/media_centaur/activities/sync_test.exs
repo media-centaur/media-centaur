@@ -8,6 +8,7 @@ defmodule MediaCentaur.Activities.SyncTest do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
   alias MediaCentaur.Nostr.Keys
@@ -47,7 +48,10 @@ defmodule MediaCentaur.Activities.SyncTest do
     {:ok, _row} = Social.add_relay(relay.url)
 
     assert_receive {:activity_received, _event}, 5_000
-    assert [%{activity: %{tmdb_id: 1}, nickname: "Sample Friend"}] = Activities.list_activities()
+
+    assert [%{activity: %{tmdb_id: 1}, author: %Person{name_override: "Sample Friend"}}] =
+             Activities.list_activities()
+
     await_supervised_tasks()
   end
 
