@@ -12,6 +12,7 @@ defmodule MediaCentaur.Social do
       Events.RelayRemoved,
       Friend,
       Identity,
+      Person,
       Relay
     ]
 
@@ -31,6 +32,7 @@ defmodule MediaCentaur.Social do
   alias MediaCentaur.Social.Events
   alias MediaCentaur.Social.Friend
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.Social.Relay
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Repo
@@ -140,6 +142,48 @@ defmodule MediaCentaur.Social do
   @spec friend_pubkeys() :: [String.t()]
   def friend_pubkeys,
     do: Repo.all(from(friend in Friend, select: friend.pubkey, order_by: friend.pubkey))
+
+  @doc """
+  Every person this reader knows, by public key (ADR-074): the identity's
+  own when one exists, and every roster member, each as a `Person`.
+  The one place a friend's roster row becomes what the reader sees.
+  """
+  @spec people() :: %{optional(String.t()) => Person.t()}
+  def people do
+    friends = Map.new(list_friends(), &{&1.pubkey, person_for(&1)})
+
+    case Identity.pubkey() do
+      nil -> friends
+      me -> Map.put(friends, me, own_person_for(me))
+    end
+  end
+
+  @doc """
+  The reader as a person, with or without an identity: the review modal
+  previews as the reader before a key exists.
+  """
+  @spec own_person() :: Person.t()
+  def own_person, do: own_person_for(Identity.pubkey())
+
+  @doc "The npub, elided in the middle: enough to compare against what a friend told you."
+  @spec short_npub(String.t()) :: String.t()
+  def short_npub(pubkey) when is_binary(pubkey) do
+    npub = to_npub(pubkey)
+    String.slice(npub, 0, 9) <> "…" <> String.slice(npub, -4..-1//1)
+  end
+
+  defp own_person_for(pubkey),
+    do: %Person{pubkey: pubkey, own?: true, short_npub: pubkey && short_npub(pubkey)}
+
+  defp person_for(%Friend{} = friend) do
+    %Person{
+      pubkey: friend.pubkey,
+      name_override: friend.name_override,
+      own?: false,
+      short_npub: short_npub(friend.pubkey),
+      added_on: DateTime.to_date(friend.inserted_at)
+    }
+  end
 
   defp not_own_key(pubkey), do: if(Identity.pubkey() == pubkey, do: {:error, :own_key}, else: :ok)
 

@@ -21,7 +21,7 @@ runs; they graduate to `docs/GLOSSARY.md` at completion.
 | **Friend** | A roster entry: a followed key plus the reader's choices for it. Exists today; gains the two choices below. |
 | **Name override** | The reader's own name for a friend, masking the published one. Today's `nickname`, made optional. |
 | **Show avatar** | The reader's per-friend switch; off hides that friend's avatar and the tile falls back to the letter, or the person glyph when there is no name. |
-| **Person** | A key as this reader sees it: the resolved name, the resolved avatar, whether it is the reader's own. The read model every surface draws. New (`Social.Person`). |
+| **Person** | A key as this reader sees it: the resolved name, the resolved avatar, whether it is the reader's own. The read model every surface draws. New (`Social.Person`). Carries the override and, from phase 2, the published name; `Person.name/1` resolves. |
 | **Unnamed** | The word a reader renders for a Person with no name. Never on the wire. |
 | **Identity tile** | The circle that draws a person (UIDR-046). |
 | **Person glyph** | The tile's mark for a person with neither a name nor an avatar. |
@@ -158,19 +158,26 @@ boolean, not null, default true.
 
 ```elixir
 %Social.Person{
-  pubkey: hex,
-  name: String.t() | nil,        # override, else the published name, else nil
-  avatar_url: String.t() | nil,  # nil when none, hidden, or the file is missing
+  pubkey: hex | nil,                 # nil for the reader before an identity exists
+  name_override: String.t() | nil,   # the reader's word for a friend; nil for the reader's own
+  published_name: String.t() | nil,  # what the key said about itself (phase 2)
+  avatar_url: String.t() | nil,      # nil when none, hidden, or the file is missing (phase 3)
   own?: boolean,
-  short_npub: String.t(),
-  added_on: Date.t() | nil       # nil for the reader's own
+  short_npub: String.t() | nil,
+  added_on: Date.t() | nil           # nil for the reader's own
 }
 ```
 
-`Social.people/0` returns `%{pubkey => Person}` for the identity (when
-one exists) and every roster member; `Social.person/1` one of them or
-nil. The own Person always shows its own avatar; the switch is a
-friend's field.
+The struct grows with its writers. Phase 1 builds it with
+`name_override` required and `avatar_url` nil; phase 2 adds
+`published_name`, `Person.name/1` (the override, else the published
+name, else nil) and the optional override; phase 3 fills `avatar_url`.
+The card's foot shows the override with the published name as its
+placeholder, which is why both ride on the struct. `Social.people/0`
+returns `%{pubkey => Person}` for the identity (when one exists) and
+every roster member; `Social.own_person/0` is the reader with or
+without an identity. The own Person always shows its own avatar; the
+switch is a friend's field.
 
 Activities keeps the enriched-list join it owns today, but the actor is
 a Person: `list_activities/0`, `friend_activity_for/1` and `get_row/1`
@@ -328,12 +335,14 @@ boot-time heal for a missing avatar file.
 
 Each phase ships on its own.
 
-1. **Roster and Person.** The paired migration's first half,
-   `FriendChanged`, `Social.Person` and `people/0`, Activities rows carry
-   `author`, every web site and story reads a Person, add friend takes
-   an optional name, the override field on the card. No wire change;
-   a friend added without a name is Unnamed.
-2. **Profile on the wire.** `profiles`, `Social.Profile` and its
+1. **Roster and Person.** `Friend.name_override` over the `nickname`
+   column with `source:`, `FriendChanged`, `Social.Person` and
+   `people/0`, Activities rows carry `author`, every web site and story
+   reads a Person, the override field on the card. No wire change, no
+   schema change, the name still required.
+2. **Profile on the wire.** The `friends` rebuild and the optional
+   name, Unnamed and the person glyph open this phase, since the
+   published name is what a missing override falls back to. `profiles`, `Social.Profile` and its
    translation, ingest, RelaySync with the new kind and the own diff,
    `ProfileUpdated`, Settings' two cards with the name alone,
    mint-on-save, FakeRelay. social-relay v0.7.0 first. Names travel.
