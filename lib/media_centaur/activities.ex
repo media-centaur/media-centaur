@@ -386,9 +386,12 @@ defmodule MediaCentaur.Activities do
   # --- internals ---
 
   # The wire time of a new own event: an activity is stamped strictly
-  # after the activity or tombstone it supersedes (`Event.stamp_after/2`
-  # has the rationale), and a deletion no earlier than the activity it
-  # withdraws, since a deletion wins a tie (contract Deletion rule 2).
+  # after the activity or tombstone it supersedes (`Event.stamp_after/2`),
+  # and a deletion no earlier than the activity it withdraws, since a
+  # deletion wins a tie (contract Deletion rule 2). Our relay keeps what
+  # it holds on a tie, so a same-second replacement stamped no later
+  # would be discarded there and republished by the own-events diff on
+  # every connect.
   defp stamp(nil, now, _bound), do: now
 
   defp stamp(%Activity{} = activity, now, bound) do

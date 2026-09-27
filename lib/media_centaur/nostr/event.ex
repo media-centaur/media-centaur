@@ -53,10 +53,11 @@ defmodule MediaCentaur.Nostr.Event do
   @doc """
   The wire time for a record that replaces `held` (the stored record's
   `created_at`, or nil): `now`, or one second past `held` when `now`
-  does not already pass it. A relay keeps one record per address and,
-  on a tie, keeps what it holds, so a replacement made within the same
-  second must be stamped later or the relay discards it and the
-  own-events diff republishes it on every connect.
+  does not already pass it. A relay holding a replaceable or addressable
+  record keeps the newer `created_at`; what it does on a tie is the
+  relay's choice, and NIP-01 does not favour the newcomer. A replacement
+  minted within the stored record's second is therefore stamped one past
+  it, which wins under every tie rule.
   """
   @spec stamp_after(non_neg_integer() | nil, non_neg_integer()) :: non_neg_integer()
   def stamp_after(nil, now), do: now
