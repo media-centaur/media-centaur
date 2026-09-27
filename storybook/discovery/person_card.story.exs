@@ -14,10 +14,10 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Activities.Activity.Episode
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.Components.Discovery.Person
-  alias MediaCentaurWeb.Components.Discovery.Person.Act
-  alias MediaCentaurWeb.Components.Discovery.Person.Entry
+  alias MediaCentaurWeb.Components.Discovery.Act
+  alias MediaCentaurWeb.Components.Discovery.Act.Entry
 
   def function, do: &MediaCentaurWeb.Components.Discovery.PersonCard.person_card/1
   def render_source, do: :function
@@ -58,29 +58,18 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   defp kind(:listing), do: :listing
   defp kind(_opinion), do: :review
 
-  defp friend(acts) do
+  defp friend do
     %Person{
-      id: "person-f9308a01",
-      name: "Sample Friend",
-      own?: false,
       pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+      name_override: "Sample Friend",
+      own?: false,
       short_npub: "npub1lyy9…8z4h",
-      added_on: ~D[2026-08-30],
-      acts: acts
+      added_on: ~D[2026-08-30]
     }
   end
 
-  defp you(acts) do
-    %Person{
-      id: "person-you",
-      name: "You",
-      own?: true,
-      pubkey: nil,
-      short_npub: nil,
-      added_on: nil,
-      acts: acts
-    }
-  end
+  defp you,
+    do: %Person{pubkey: "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", own?: true}
 
   defp three_acts do
     [
@@ -116,7 +105,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       %Variation{
         id: flag,
         description: "#{flag}: the glyph alone, centred over the poster",
-        attributes: %{person: friend([act(31, "Movie K", [flag])]), width: width}
+        attributes: %{person: friend(), acts: [act(31, "Movie K", [flag])], width: width}
       }
     end
   end
@@ -126,14 +115,15 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       %Variation{
         id: :rail_friend,
         description: "The rail's card: three acts; the second flies love and watched as a centred pair",
-        attributes: %{person: friend(three_acts()), width: :rail},
+        attributes: %{person: friend(), acts: three_acts(), width: :rail},
         template: @rail
       },
       %Variation{
         id: :rail_no_artwork,
         description: "An act whose title has no poster: the slot names it",
         attributes: %{
-          person: friend([act(41, "Movie L", [:watched], poster_url: nil) | tl(three_acts())]),
+          person: friend(),
+          acts: [act(41, "Movie L", [:watched], poster_url: nil) | tl(three_acts())],
           width: :rail
         },
         template: @rail
@@ -142,7 +132,8 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         id: :rail_you,
         description: "The reader on the rail: the filled own tile, own acts, no foot ever",
         attributes: %{
-          person: you([act(11, "Movie A", [:love]), act(12, "Movie B", [:listing], ago: "3d ago")]),
+          person: you(),
+          acts: [act(11, "Movie A", [:love]), act(12, "Movie B", [:listing], ago: "3d ago")],
           width: :rail
         },
         template: @rail
@@ -150,7 +141,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       %Variation{
         id: :rail_quiet,
         description: "A friend with no acts: a tile and a name, nothing about sharing",
-        attributes: %{person: friend([]), width: :rail},
+        attributes: %{person: friend(), acts: [], width: :rail},
         template: @rail
       },
       %VariationGroup{
@@ -162,45 +153,49 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       %Variation{
         id: :rail_all_slots,
         description: "One act flying love, watched and listing: the three across",
-        attributes: %{person: friend([act(51, "Movie M", [:love, :watched, :listing])]), width: :rail},
+        attributes: %{
+          person: friend(),
+          acts: [act(51, "Movie M", [:love, :watched, :listing])],
+          width: :rail
+        },
         template: @rail
       },
       %Variation{
         id: :rail_gold,
         description:
           "The grade: a gold heart alone; a gold eye beside a matte bookmark; a matte thumb up",
-        attributes: %{person: friend(gold_acts()), width: :rail},
+        attributes: %{person: friend(), acts: gold_acts(), width: :rail},
         template: @rail
       },
       %Variation{
         id: :page_friend,
         description: "The Friends page's card: five of seven acts, the strip at the card's left",
-        attributes: %{person: friend(seven_acts()), width: :page},
+        attributes: %{person: friend(), acts: seven_acts(), width: :page},
         template: @page
       },
       %Variation{
         id: :page_opened,
         description:
-          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with the key, the date and Remove friend",
-        attributes: %{person: friend(seven_acts()), width: :page, opened?: true},
+          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with your name for them, the key, the date and Remove friend",
+        attributes: %{person: friend(), acts: seven_acts(), width: :page, opened?: true},
         template: @page
       },
       %Variation{
         id: :page_you,
         description: "The reader's page card: own acts",
-        attributes: %{person: you(three_acts()), width: :page},
+        attributes: %{person: you(), acts: three_acts(), width: :page},
         template: @page
       },
       %Variation{
         id: :page_you_opened,
         description: "The reader's card opened: the rows, no foot",
-        attributes: %{person: you(three_acts()), width: :page, opened?: true},
+        attributes: %{person: you(), acts: three_acts(), width: :page, opened?: true},
         template: @page
       },
       %Variation{
         id: :page_quiet,
         description: "A friend with no acts at the page width",
-        attributes: %{person: friend([]), width: :page},
+        attributes: %{person: friend(), acts: [], width: :page},
         template: @page
       },
       %VariationGroup{
@@ -212,13 +207,17 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       %Variation{
         id: :page_all_slots,
         description: "One act flying all three, at the page width",
-        attributes: %{person: friend([act(51, "Movie M", [:love, :watched, :listing])]), width: :page},
+        attributes: %{
+          person: friend(),
+          acts: [act(51, "Movie M", [:love, :watched, :listing])],
+          width: :page
+        },
         template: @page
       },
       %Variation{
         id: :page_gold,
         description: "The grade at the page width",
-        attributes: %{person: friend(gold_acts()), width: :page},
+        attributes: %{person: friend(), acts: gold_acts(), width: :page},
         template: @page
       }
     ]
