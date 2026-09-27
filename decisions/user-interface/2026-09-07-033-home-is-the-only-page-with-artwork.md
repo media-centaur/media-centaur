@@ -1,10 +1,13 @@
 ---
 status: accepted
 date: 2026-09-07
+amended: 2026-09-27
 ---
 # Home is the only page that carries artwork
 
 Supersedes the Library and Incoming halves of UIDR-032.
+
+Note (UIDR-046, 2026-09-27): Discovery carries `.page-side-dim` like every page but Home — it had shipped without it, which is part of why its ground read lighter than the app's. A row's own title artwork is that row's subject and not page artwork: the Feed's row carries its title's poster, a person card its acts' posters; the Feed carries no backdrop. Rule 2 is unchanged.
 
 ## Context and Problem Statement
 

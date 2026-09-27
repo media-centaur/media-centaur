@@ -250,8 +250,8 @@ one thing that stays in the body. The Library grid and Home's poster
 rails carry no flags (a wall of posters is the title's surface, and
 friends' flags there are provenance noise; the detail modal flies
 them). A person's card is different: its acts strip flies the same
-flags on posters because there the poster is the act (the Feed
-appearance campaign, 2026-09-25). Story:
+flags as **act glyphs** centred above each poster, gold at the grade
+(two friends), because there the poster is the act (UIDR-046). Story:
 `/storybook/title/pennants`.
 
 ### File Paths
@@ -418,6 +418,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 | 042 | Tracking is the bookmark and two switches (Track release dates, Auto-grab) over one record |
 | 043 | One title detail, composed by facts — one modal for one TMDB identity on every page; files are one more fact (supersedes 035 rules 1–2) |
 | 045 | Own actions join the Feed under an author scope; the segmented control is one component |
+| 046 | The Feed is the app's list beside a rail of people — the poster row, the identity tile, the person card's acts strip with centred glyphs and the grade, Library's frame; no still, no per-surface type floors |
 
 The index in [`decisions/README.md`](../../../decisions/README.md) is the authority; this table is a reading aid.
 
@@ -454,6 +455,9 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `tab_strip/1` | `tab_strip.ex` | Horizontal tab strip |
 | `segmented_control/1` | `core_components.ex` | The house pick-one pill for content surfaces (Feed scope, Library type tabs, strip chart window); `settings_choice/1` composes it | ✅ |
 | `coming_up_marquee/1` | `coming_up_marquee.ex` | Incoming's Coming Up shelf (UIDR-015) |
+| `identity_tile/1` | `discovery/identity_tile.ex` | The app's one drawing of a person: monogram, photo, the filled own tile (UIDR-046) | ✅ |
+| `feed_row/1` | `discovery/feed_row.ex` | One Feed row: tile, poster, words, the time at the edge, the hover seat (UIDR-046) | ✅ |
+| `person_card/1` | `discovery/person_card.ex` | A person as their acts, at the rail's and the Friends page's widths (UIDR-046) | ✅ |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
 | `log_list/1` | `console_components.ex` | Monospace log stream |
 | `action_footer/1` | `console_components.ex` | Console controls |

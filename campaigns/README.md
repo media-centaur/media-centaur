@@ -21,16 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`feed-appearance.md`](feed-appearance.md) —
-  **planning 2026-09-24; successor to the feed timeline scope work
-  (UIDR-045).** Consider the whole look of the Feed: a reader should tell
-  their own rows from friends' at a glance and tell one friend from
-  another. Design conversation first — diagnosis, mockups in distinct
-  directions, then a decision on which standing rules (UIDR-045 rule 3,
-  UIDR-038's chrome and decoration anti-patterns, the colour-is-signal
-  rule) the chosen author mark amends. Carries the eleven follow-ups the
-  scope work left, each noting whether it survives this campaign. No code
-  yet.
 * [`collection-identity.md`](collection-identity.md) —
   **planning 2026-09-15; successor to `title-detail-unification`.** A
   collection has a TMDB id but is not a title, and v1.30.0's migration
@@ -149,6 +139,26 @@ Use [`template.md`](template.md) as a starter.
 
 Files retired; git history holds the verbatim record. Each entry names
 where any leftover went.
+
+* **Feed appearance** —
+  **complete 2026-09-27; file retired (git history holds it: `campaigns/feed-appearance.md` at `6c362a6c`).**
+  Opened 2026-09-24 to tell authors apart on the Feed and make the page
+  "gorgeous". Nine mockup rounds settled a cinematic band on the title's
+  still at couch type sizes across the full width, beside a rail of person
+  cards; it shipped in five phases on 2026-09-25 and was replaced the next
+  day, after the owner's first look on the desk, by the poster row on the
+  app's list idiom at Home's scale in Library's frame (rounds 10–13;
+  [UIDR-046](../decisions/user-interface/2026-09-27-046-the-feed-is-the-apps-list-beside-a-rail-of-people.md)).
+  What stands: the identity tile, the rail, the person card's acts strip
+  with the grade, the paging, the fold. Leftovers: Phase 7 (nav zones for
+  the rows, the scope pill, the rail and the Friends grid; the plan's
+  outline in `docs/plans/2026-09-25-cinematic-feed.md` § Phase 7) →
+  the input-system rollout; a detail layer on the act glyphs and the logo
+  in the poster's place → deferred until asked; the Feed→Watchlist→Feed
+  scope reset → the Discovery backlog; the four unrelated follow-ups
+  (Status drill-in's window pill, the wiki's Keyboard page, hand-rolled
+  query strings on Home and Incoming, UIDR-042's wording in the skill) →
+  stay open where they were. Nothing pushed at closure.
 
 * **TMDB fetch policy** —
   **shipped v1.35.0 2026-09-21; file retired (git history holds it).**

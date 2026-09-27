@@ -1,11 +1,13 @@
 ---
 status: accepted
 date: 2026-09-08
-amended: 2026-09-12
+amended: 2026-09-27
 ---
 # Friend provenance is the pennant, on every title surface
 
 Extends UIDR-035 and UIDR-038; UIDR-040 (2026-09-12) is folded in.
+
+Note (UIDR-046, 2026-09-27): the pennant is a form for the title surfaces — named flags flying inward from a hero's edge, with a tooltip. The person card takes the act glyphs with the same glyphs and order (`Title.Flag`) because its job differs: a glyph centred above a 96px poster, no name; there the grade owns the colour (gold at two friends, the heart matte), and whether the pennant takes the grade is a later decision. A person card's strip flies flags on posters because there the poster is the act; the Library grid and Home's rails carry none.
 
 ## Context and Problem Statement
 

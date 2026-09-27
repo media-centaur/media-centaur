@@ -1,6 +1,15 @@
 # Discovery › Feed: the Feed's appearance — telling authors apart
 
-**Date:** 2026-09-24 · **Status:** design settled 2026-09-25 (campaign
+**Date:** 2026-09-24 · **Status:** superseded in part 2026-09-27 (UIDR-046).
+The band shipped 2026-09-25 (Phases 1–5) and was replaced the next day by
+the poster row on the app's list idiom after the owner's first look on the
+desk; rounds 10–13 under `2026-09-24-feed-appearance-mockups/` (`BRIEF-10`
+to `BRIEF-13`, `CRITIQUE-10` to `CRITIQUE-13`) are the record of that, and
+UIDR-046 names what stands: the identity tile, the rail, the person card
+with the acts strip (its glyphs now centred, not slotted; no clock), the
+paging, the fold — and what does not: the still, the crop rule, the couch
+type floors, the full width. The tables below describe the band as built
+and are kept as its record. Originally: design settled 2026-09-25 (campaign
 `campaigns/feed-appearance.md`, rounds 4–9). The Feed page is
 `2026-09-24-feed-appearance-mockups/G-couch-feed/` and the person card
 is `J-friends-page/` with the act glyphs in the slot header above the

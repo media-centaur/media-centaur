@@ -1234,6 +1234,8 @@ Claude-Session: https://claude.ai/code/session_01JY93FNevijFHrkNdKdSw5L"
 
 ### Phase 6: Records and docs
 
+> **Realized 2026-09-27**, to the row and not the band: after Phases 1–5 shipped, the owner's first look replaced the band with the poster row on the app's list idiom (rounds 10–13, `campaigns/feed-appearance.md`). UIDR-046 is `2026-09-27-046-the-feed-is-the-apps-list-beside-a-rail-of-people.md`; the amendments, the spec's status, `docs/social.md`, `docs/GLOSSARY.md`, `docs/storybook.md`, the `user-interface` skill and the wiki were written to what shipped, not to the steps below, which are kept as the plan's record. The couch floors were not adopted as a house rule.
+
 **Files:**
 - Create: `decisions/user-interface/2026-09-25-046-the-cinematic-feed.md`
 - Modify: `decisions/user-interface/2026-09-24-045-…md`, `2026-09-11-038-…md`, `2026-09-08-037-…md`, `2026-09-07-033-…md`; run `scripts/gen-decisions-index`
