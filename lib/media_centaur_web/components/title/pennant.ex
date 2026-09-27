@@ -13,8 +13,9 @@ defmodule MediaCentaurWeb.Components.Title.Pennant do
   colour. Which flag an activity flies, the glyph and the order are
   `Title.Flag`'s, the vocabulary the person card's act slots share. A
   pennant carries up to two names and then a
-  count ("Nick, Sam", "Nick +2"); an own review reads "You". Every
-  pennant carries the full sentence as a tooltip.
+  count ("Nick, Sam", "Nick +2"); the words are `Format.person_name/1`'s,
+  so an own review reads "You". Every pennant carries the full sentence
+  as a tooltip.
 
   Fed the `Activities.friend_activity_for/1` rows for one title; the
   grouping (`mast/1`), the label and the tooltip are pure. The mast
