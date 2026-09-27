@@ -7,10 +7,8 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
   subject and whether Ignore renders (never on an own row), and
   `Format.person_name/1` gives its words. A review's `sentiment` is its
   verdict or nil, and `text` its words or nil; both nil on a listing.
-  `poster_url` and `backdrop_url` are the row artwork, resolved by the
-  host down `TitleArtwork`'s ladder; nil paints the inset tone.
-  `offset_crop?` marks the second of two adjacent rows of one title, so
-  two stills of one frame never repeat exactly (UIDR-046's crop rule).
+  `poster_url` is the row's one picture, resolved by the host down
+  `TitleArtwork`'s ladder; nil shows the empty slot (UIDR-046).
   A view-model: every fact here was resolved by the host
   (`DiscoveryLive.FeedEntries`), the row decides nothing.
 

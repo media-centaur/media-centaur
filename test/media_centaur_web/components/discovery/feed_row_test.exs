@@ -102,6 +102,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRowTest do
            |> LazyHTML.query("[data-component='identity-tile'][data-size='40']:not([data-own])")
            |> Enum.count() == 1
 
+    assert Enum.empty?(LazyHTML.query(friend, "[data-component='feed-row'][data-own]"))
     assert friend |> LazyHTML.query("#feed-row-a-ignore") |> Enum.count() == 1
   end
 end
