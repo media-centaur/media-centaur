@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.AddFriendBlock do
       <div class="space-y-1">
         <h2 class="text-sm font-semibold">Add a friend</h2>
         <p class="text-xs text-base-content/55">
-          Paste the key they give you. The name is only for you and optional; without one you see the name they publish, or Unnamed.
+          Paste the key they give you. A name is optional and only you see it; without one you see the name they publish, or Unnamed.
         </p>
       </div>
 

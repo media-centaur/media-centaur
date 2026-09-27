@@ -23,7 +23,7 @@ defmodule MediaCentaur.Social do
   Bounded context for the friend network's configuration: this install's
   identity (`Social.Identity`), the relay list (`Social.Relay`), the
   live connections keyed by it (`Social.Connections`) and the roster of
-  followed keys under the reader's names for them (`Social.Friend`),
+  followed keys, each under an optional name of the reader's (`Social.Friend`),
   and each key's published profile (`Social.Profile`), saved by the
   reader for their own key and ingested for a friend's.
   `people/0` reads the identity and the roster as `Social.Person`, the
