@@ -2,17 +2,17 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
   @moduledoc """
   One row on the Feed (UIDR-038, UIDR-045): one author's action on one
   title — a review or a listing — with everything the row shows and
-  the two toolbar slots already resolved. `author` is the display name,
-  a friend's nickname or "You"; `own?` says which, and decides the
-  verb's subject and whether Ignore renders (never on an own row). A
-  review's `sentiment` is its verdict or nil, and `text` its words or
-  nil; both nil on a listing. `poster_url` and `backdrop_url` are the
-  row artwork, resolved by the host down `TitleArtwork`'s ladder; nil
-  paints the inset tone. `offset_crop?` marks the second of two adjacent
-  rows of one title, so two stills of one frame never repeat exactly
-  (UIDR-046's crop rule). A view-model, like `Person`: every fact here
-  was resolved by the host (`DiscoveryLive.FeedEntries`), the row
-  decides nothing.
+  the two toolbar slots already resolved. `author` is the person as the
+  reader sees them (`Social.Person`); its `own?` decides the verb's
+  subject and whether Ignore renders (never on an own row), and
+  `Format.person_name/1` gives its words. A review's `sentiment` is its
+  verdict or nil, and `text` its words or nil; both nil on a listing.
+  `poster_url` and `backdrop_url` are the row artwork, resolved by the
+  host down `TitleArtwork`'s ladder; nil paints the inset tone.
+  `offset_crop?` marks the second of two adjacent rows of one title, so
+  two stills of one frame never repeat exactly (UIDR-046's crop rule).
+  A view-model: every fact here was resolved by the host
+  (`DiscoveryLive.FeedEntries`), the row decides nothing.
 
   `list_slot` is what the List position holds: the verb `:list`, the
   filled `:listed`, or the state `:following` (Follow and above; the
@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Discovery.TitleIntent
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
 
   defstruct [
@@ -33,7 +34,6 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
     :title,
     :poster_url,
     :author,
-    :own?,
     :kind,
     :sentiment,
     :text,
@@ -55,8 +55,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedEntry do
           ref: {integer(), Title.media_type()},
           title: Title.t(),
           poster_url: String.t() | nil,
-          author: String.t(),
-          own?: boolean(),
+          author: Person.t(),
           kind: :review | :listing,
           sentiment: Activity.sentiment() | nil,
           text: String.t() | nil,
