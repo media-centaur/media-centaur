@@ -29,7 +29,14 @@ defmodule MediaCentaur.Social.Events do
   end
 
   defmodule FriendAdded do
-    @moduledoc "A public key joined the roster, or its nickname changed."
+    @moduledoc "A public key joined the roster."
+    @enforce_keys [:pubkey]
+    defstruct [:pubkey]
+    @type t :: %__MODULE__{pubkey: String.t()}
+  end
+
+  defmodule FriendChanged do
+    @moduledoc "The reader's choices for a roster key changed: today the name override."
     @enforce_keys [:pubkey]
     defstruct [:pubkey]
     @type t :: %__MODULE__{pubkey: String.t()}
@@ -47,6 +54,7 @@ defmodule MediaCentaur.Social.Events do
           | RelayAdded.t()
           | RelayRemoved.t()
           | FriendAdded.t()
+          | FriendChanged.t()
           | FriendRemoved.t()
 
   @spec broadcast(t()) :: :ok | {:error, term()}
@@ -54,6 +62,7 @@ defmodule MediaCentaur.Social.Events do
   def broadcast(%RelayAdded{} = event), do: publish({:relay_added, event})
   def broadcast(%RelayRemoved{} = event), do: publish({:relay_removed, event})
   def broadcast(%FriendAdded{} = event), do: publish({:friend_added, event})
+  def broadcast(%FriendChanged{} = event), do: publish({:friend_changed, event})
   def broadcast(%FriendRemoved{} = event), do: publish({:friend_removed, event})
 
   @doc """

@@ -5,6 +5,7 @@ defmodule MediaCentaur.Social do
       Connections,
       Events,
       Events.FriendAdded,
+      Events.FriendChanged,
       Events.FriendRemoved,
       Events.IdentityChanged,
       Events.RelayAdded,
@@ -18,7 +19,7 @@ defmodule MediaCentaur.Social do
   Bounded context for the friend network's configuration: this install's
   identity (`Social.Identity`), the relay list (`Social.Relay`), the
   live connections keyed by it (`Social.Connections`) and the roster of
-  followed keys (`Social.Friend`).
+  followed keys under the reader's names for them (`Social.Friend`).
 
   Broadcasts typed events on `social:updates` (subscribe through
   `subscribe/0`) and re-broadcasts every relay connection's messages on
@@ -73,21 +74,39 @@ defmodule MediaCentaur.Social do
   def list_relays, do: Repo.all(from(relay in Relay, order_by: relay.url))
 
   @doc """
-  Adds a friend by npub or 64-hex key with a local nickname. Idempotent
-  on the key: re-adding one already on the roster renames it.
+  Adds a friend by npub or 64-hex key under the reader's name for them
+  (UIDR-047). Idempotent on the key: re-adding one already on the roster
+  changes nothing, as adding a relay you already have does; the name is
+  changed with `set_name_override/2`.
   """
   @spec add_friend(String.t(), String.t()) ::
           {:ok, Friend.t()}
-          | {:error, :invalid_pubkey | :nickname_required | :own_key | Ecto.Changeset.t()}
-  def add_friend(key, nickname) when is_binary(key) and is_binary(nickname) do
+          | {:error, :invalid_pubkey | :name_required | :own_key | Ecto.Changeset.t()}
+  def add_friend(key, name) when is_binary(key) and is_binary(name) do
     with {:ok, pubkey} <- Keys.parse_pubkey(String.trim(key)),
          :ok <- not_own_key(pubkey),
-         :ok <- nickname_present(nickname) do
-      upsert_friend(pubkey, String.trim(nickname))
+         {:ok, name} <- present_name(name) do
+      case Repo.get_by(Friend, pubkey: pubkey) do
+        %Friend{} = existing -> {:ok, existing}
+        nil -> insert_friend(pubkey, name)
+      end
     end
   end
 
-  @doc "Removes a friend by public key. Absent is a no-op — and broadcasts nothing."
+  @doc """
+  Sets the reader's name for a friend. Broadcasts `FriendChanged` when it
+  changed; the same name again is silent.
+  """
+  @spec set_name_override(String.t(), String.t()) ::
+          {:ok, Friend.t()} | {:error, :name_required | :not_a_friend | Ecto.Changeset.t()}
+  def set_name_override(pubkey, name) when is_binary(pubkey) and is_binary(name) do
+    with {:ok, name} <- present_name(name),
+         {:ok, friend} <- known_friend(pubkey) do
+      apply_change(friend, %{name_override: name})
+    end
+  end
+
+  @doc "Removes a friend by public key. Absent is a no-op, and broadcasts nothing."
   @spec remove_friend(String.t()) :: :ok
   def remove_friend(pubkey) when is_binary(pubkey) do
     case Repo.get_by(Friend, pubkey: String.downcase(pubkey)) do
@@ -101,9 +120,9 @@ defmodule MediaCentaur.Social do
     end
   end
 
-  @doc "The roster, by nickname."
+  @doc "The roster, oldest first."
   @spec list_friends() :: [Friend.t()]
-  def list_friends, do: Repo.all(from(friend in Friend, order_by: friend.nickname))
+  def list_friends, do: Repo.all(from(friend in Friend, order_by: [friend.inserted_at, friend.pubkey]))
 
   @doc "One friend by public key, or nil."
   @spec friend_by_pubkey(String.t()) :: Friend.t() | nil
@@ -124,37 +143,45 @@ defmodule MediaCentaur.Social do
 
   defp not_own_key(pubkey), do: if(Identity.pubkey() == pubkey, do: {:error, :own_key}, else: :ok)
 
-  defp nickname_present(nickname),
-    do: if(String.trim(nickname) == "", do: {:error, :nickname_required}, else: :ok)
-
-  defp upsert_friend(pubkey, nickname) do
-    case Repo.get_by(Friend, pubkey: pubkey) do
-      %Friend{} = existing -> rename_friend(existing, nickname)
-      nil -> insert_friend(pubkey, nickname)
+  defp present_name(name) do
+    case String.trim(name) do
+      "" -> {:error, :name_required}
+      trimmed -> {:ok, trimmed}
     end
   end
 
-  defp insert_friend(pubkey, nickname) do
-    case Repo.insert(Friend.changeset(%{pubkey: pubkey, nickname: nickname})) do
+  defp known_friend(pubkey) do
+    case friend_by_pubkey(pubkey) do
+      nil -> {:error, :not_a_friend}
+      friend -> {:ok, friend}
+    end
+  end
+
+  defp insert_friend(pubkey, name) do
+    case Repo.insert(Friend.changeset(%{pubkey: pubkey, name_override: name})) do
       {:ok, friend} ->
         Events.broadcast(%Events.FriendAdded{pubkey: friend.pubkey})
         {:ok, friend}
 
       {:error, changeset} ->
-        # A concurrent insert of the same key is the rename case, not a failure.
+        # A concurrent insert of the same key is the re-add case, not a failure.
         if unique_violation?(changeset),
-          do: rename_friend(Repo.get_by!(Friend, pubkey: pubkey), nickname),
+          do: {:ok, Repo.get_by!(Friend, pubkey: pubkey)},
           else: {:error, changeset}
     end
   end
 
-  # An identical re-add is a no-op: same nickname, no broadcast.
-  defp rename_friend(%Friend{nickname: nickname} = existing, nickname), do: {:ok, existing}
+  # No change is no broadcast.
+  defp apply_change(%Friend{} = existing, attrs) do
+    changeset = Friend.changeset(existing, attrs)
 
-  defp rename_friend(existing, nickname) do
-    with {:ok, friend} <- Repo.update(Friend.changeset(existing, %{nickname: nickname})) do
-      Events.broadcast(%Events.FriendAdded{pubkey: friend.pubkey})
-      {:ok, friend}
+    if changeset.changes == %{} do
+      {:ok, existing}
+    else
+      with {:ok, friend} <- Repo.update(changeset) do
+        Events.broadcast(%Events.FriendChanged{pubkey: friend.pubkey})
+        {:ok, friend}
+      end
     end
   end
 
