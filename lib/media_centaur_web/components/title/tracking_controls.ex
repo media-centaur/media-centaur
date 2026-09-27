@@ -23,11 +23,11 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
   title shows the one line saying the Feed hides it. `control_form/1` is
   that rule; `rows/1` decides which switches a listed title gets.
 
-  A switch is a toggle glyph and its label, the whole thing one click
-  (`role="switch"`, `aria-checked`), narrow enough to sit beside the
-  dates readout. A click pushes `set_rung` with `phx-value-choice` — the
-  rung the switch sets (`track_choice/1`, `grab_choice/2`), never a
-  toggle the host has to interpret — and `phx-value-ref`. A list row
+  Each switch is `Components.Switch` in its leading layout, narrow enough
+  to sit beside the dates readout. A click pushes `set_rung` with
+  `phx-value-choice` — the rung the switch sets (`track_choice/1`,
+  `grab_choice/2`), never a toggle the host has to interpret — and
+  `phx-value-ref`; a switch with no rung to set is held. A list row
   never wears the switches — it shows its rung as a quiet marker and
   opens its modal to change them.
   """
@@ -36,6 +36,7 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
 
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.TMDB.Title
+  alias MediaCentaurWeb.Components.Switch
 
   attr :id, :string, required: true
 
@@ -85,23 +86,25 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
     >
       <p :if={@form == :ignored} class="text-sm text-base-content/70">{ignored_line()}</p>
       <div :if={@form == :controls} class="space-y-1">
-        <.switch
+        <Switch.switch
           :if={:track in @rows}
           id={"#{@id}-track"}
           label="Notify you via Coming up"
           description={track_description(@media_type, @rung)}
           checked={TitleIntent.follows_releases?(@rung)}
-          choice={track_choice(@rung)}
-          ref={@ref}
+          event={track_choice(@rung) && "set_rung"}
+          values={%{"choice" => track_choice(@rung), "ref" => @ref}}
+          class="-mx-2 px-2 py-1.5"
         />
-        <.switch
+        <Switch.switch
           :if={:grab in @rows}
           id={"#{@id}-grab"}
           label="Auto-grab"
           description={grab_description(@media_type, @approval_policy)}
           checked={TitleIntent.grabs?(@rung)}
-          choice={grab_choice(@rung, @rows)}
-          ref={@ref}
+          event="set_rung"
+          values={%{"choice" => grab_choice(@rung, @rows), "ref" => @ref}}
+          class="-mx-2 px-2 py-1.5"
         />
       </div>
       <p
@@ -111,51 +114,6 @@ defmodule MediaCentaurWeb.Components.Title.TrackingControls do
       >
         Auto-grab downloads nothing until an indexer and a download client are set up under Settings → Acquisition.
       </p>
-    </div>
-    """
-  end
-
-  attr :id, :string, required: true
-  attr :label, :string, required: true
-  attr :description, :string, required: true
-  attr :checked, :boolean, required: true
-
-  attr :choice, :string,
-    default: nil,
-    doc: "the rung a click sets; nil means the switch is held and takes no click"
-
-  attr :ref, :string, required: true
-
-  # The toggle glyph and its words as one click. Held (no choice): no
-  # click, `aria-disabled`, and the description says why; it keeps its
-  # place so the nav graph never shifts.
-  defp switch(assigns) do
-    ~H"""
-    <div
-      id={@id}
-      role="switch"
-      aria-checked={to_string(@checked)}
-      aria-disabled={is_nil(@choice) && "true"}
-      class={[
-        "-mx-2 flex items-start gap-3 rounded-lg px-2 py-1.5 transition-colors duration-150",
-        if(is_nil(@choice), do: "opacity-60", else: "cursor-pointer hover:bg-base-content/[0.04]")
-      ]}
-      data-nav-item
-      tabindex="0"
-      phx-click={@choice && "set_rung"}
-      phx-value-choice={@choice}
-      phx-value-ref={@ref}
-    >
-      <input
-        type="checkbox"
-        class="toggle toggle-sm toggle-info pointer-events-none mt-0.5"
-        checked={@checked}
-        tabindex="-1"
-      />
-      <span class="min-w-0">
-        <span class="block text-sm font-medium leading-tight">{@label}</span>
-        <span class="block text-xs text-base-content/55">{@description}</span>
-      </span>
     </div>
     """
   end

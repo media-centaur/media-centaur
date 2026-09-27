@@ -409,21 +409,22 @@ defmodule MediaCentaurWeb.CoreComponents do
 
   @doc """
   `phx-value-*` attributes from a map of extra event params, string
-  keys. A `value` key is refused: a button's native `value` property
-  clobbers `phx-value-value` on click (MC0021), and the Credo check
-  cannot see keys that arrive through a map.
+  keys. A nil value is dropped — the param is absent, not `""`. A
+  `value` key is refused: a button's native `value` property clobbers
+  `phx-value-value` on click (MC0021), and the Credo check cannot see
+  keys that arrive through a map.
   """
   @spec phx_values(map() | nil) :: map()
   def phx_values(nil), do: %{}
 
   def phx_values(map) do
-    Map.new(map, fn
-      {key, _value} when key in ["value", :value] ->
+    for {key, value} <- map, not is_nil(value), into: %{} do
+      if key in ["value", :value] do
         raise ArgumentError, "phx-value-value is clobbered on click; use a descriptive key"
+      end
 
-      {key, value} ->
-        {"phx-value-#{key}", value}
-    end)
+      {"phx-value-#{key}", value}
+    end
   end
 
   attr :id, :string, default: nil

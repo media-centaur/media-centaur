@@ -197,7 +197,19 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       %Variation{
         id: :page_opened,
         description:
-          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with your name for them, the picture switch on, the key, the date and Remove friend",
+          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with your name for them, the picture switch on over the letter mark (the common state: nothing published yet), the key, the date and Remove friend",
+        attributes: %{
+          person: friend(),
+          acts: seven_acts(),
+          width: :page,
+          opened?: true
+        },
+        template: @page
+      },
+      %Variation{
+        id: :page_opened_avatar,
+        description:
+          "The opened card of a friend whose picture you show: the tile carries the avatar, the switch is on",
         attributes: %{
           person: friend_with_avatar(),
           acts: seven_acts(),
