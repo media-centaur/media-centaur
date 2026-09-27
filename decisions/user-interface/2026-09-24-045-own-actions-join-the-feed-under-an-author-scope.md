@@ -1,10 +1,13 @@
 ---
 status: accepted
 date: 2026-09-24
+amended: 2026-09-27
 ---
 # Own actions join the Feed under an author scope
 
 Amends UIDR-038 (rules 1, 3, 4, 6 and 10). Design: `docs/superpowers/specs/2026-09-24-feed-timeline-scope-design.md`.
+
+Amended by UIDR-046 (2026-09-27): rule 3 — the own mark is the identity tile filled with the button primary beside the word You, the second person kept; rule 5 — the rows keep the list but lose the container: a hairlined column with no ground of its own, the time at the row's edge, in the layout's 1280px container beside a 480px rail of person cards.
 
 ## Context and Problem Statement
 

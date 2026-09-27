@@ -123,6 +123,10 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `settings.settings_card/1`, `settings_row/1`, `settings_stepper/1`, `settings_choice/1`, `settings_select_row/1`, `settings_text_row/1`, `settings_list/1`, `settings_field/1`, `settings_input/1`, `settings_disclosure/1`, `path_status/1` | ✅ covered | The Settings kit (UIDR-041): each row kind's states; `storybook/settings/` |
 | `settings.connection_row/1` | ✅ covered | Every readout state (not configured, not tested, testing, connected, unreachable, detected, editing) + relay rows |
 | `upcoming_cards.upcoming_zone/1` | ✅ covered | Calendar + active shows + tracked items + modal |
+| `discovery.identity_tile/1` | ✅ covered | Monogram, own, photo at 40 and 48 |
+| `discovery.feed_row/1` | ✅ covered | Every slot state, both authors, no artwork, the hovered seat pinned |
+| `discovery.person_card/1` | ✅ covered | Rail and page widths, each flag alone and together, the grade, opened, quiet |
+| `title/flag.ex` | ⚠️ skip | Pure vocabulary (flags, glyph names, mast order), not a function component |
 | `coming_up_marquee/1` | ⚠️ skip | Depends on release-tracking timer state |
 | `console_components.chip_row/1` | ⚠️ skip | Log stream is sticky LiveView state |
 | `console_components.log_list/1` | ⚠️ skip | Log stream is sticky LiveView state |

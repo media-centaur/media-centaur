@@ -1,13 +1,15 @@
 ---
 status: accepted
 date: 2026-09-11
-amended: 2026-09-24
+amended: 2026-09-27
 ---
 # The Feed is friends' actions, one entry each
 
 Supersedes UIDR-031 (retired); its Friends card and You card rules are carried here. Amends UIDR-036 (Ignore and the bookmark move into the entry's toolbar) and UIDR-037 (the feed has no mast). UIDR-040 (2026-09-12) is folded in.
 
 Amended by UIDR-045 (2026-09-24): own actions join the Feed under an author scope; rules 1, 3, 4, 6 and 10 read as UIDR-045 states them, and the entry's glass card becomes a row in one list surface.
+
+Amended by UIDR-046 (2026-09-27): rules 7–10 are the person card's at both widths — one card per person, You first, the name as the head, the key in the opened card's foot, no clock (7); no presence line, the acts strip is the presence (8); the body is the strip of posters under their act glyphs, the text rows in the opened card (9); the You card is own acts like anyone's, the modal the place to withdraw (10). Rule 3's "no avatar" and *social-network chrome* admit the identity tile as the app's one drawing of a person; handles, counts and reactions stay banned. *Wall of watching* is bent in the rail and the card only: watching as a person's presence, replaced on the next act, never a timeline.
 
 ## Context and Problem Statement
 

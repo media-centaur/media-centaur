@@ -281,11 +281,17 @@ project one enriched list — every live activity with its actor
 
 - **Feed** — `DiscoveryLive.FeedEntries`: every author's reviews and
   listings, friends' and this identity's own, one
-  `Components.Discovery.FeedEntry` per action, newest first, flat,
-  windowed (50, then *Show older*), filtered by the `?scope=` param
+  `Components.Discovery.FeedEntry` per action, newest first, flat, a
+  window of twenty to a cap of sixty (*Show older*) with a queued head
+  ("N new" while scrolled; the `FeedHead` hook reports the column's
+  head leaving the viewport), filtered by the `?scope=` param
   (Everyone, Friends, You — `parse_scope/1`; UIDR-045). Watched, former
   friends' and ignored-title rows make no row for any author.
-  `FeedEntryRow` renders one row for the page's one inset list surface,
+  `ActivityArtwork` resolves each row's poster down
+  `MediaCentaur.TitleArtwork`'s ladder (`Library.Artwork` is the
+  library tier); the Feed carries no backdrop (UIDR-046).
+  `Components.Discovery.FeedRow` renders one row — the identity tile,
+  the poster, the words, the time at the edge — in a hairlined column,
   with its hover toolbar — `feed_list` (the bottom rung as a toggle;
   Following as plain state), `feed_download` (the modal's plain
   Download, same `Plans.plan_title/2` and flash) and, on a friend's row,
@@ -295,12 +301,17 @@ project one enriched list — every live activity with its actor
   `TitleIntent.friend_provenance/2`, the same spelling the modal uses.
 - **Friends** — `DiscoveryLive.People` folds the list into one
   `Components.Discovery.Person` per friend and one for You (when an
-  identity exists), each with its watched / listed / reviewed
-  shelves and a presence line (`DiscoveryLive.ActivityWords.presence/4`);
-  `Components.Discovery.PersonCard` renders it. Every poster and name
-  opens the title modal with `?title=<ref>&activity=<id>` so the modal
-  speaks for that act; Delete on an own activity → `Activities.delete/1`
-  lives there. `DiscoveryLive.AddFriendBlock` is the add-friend form,
+  identity exists): the person's **acts**, one per title acted on,
+  newest first, each carrying its flags (`Components.Title.Flag`, mast
+  order) and which of them are at the grade (gold: two or more friends
+  did that act on that title). `Components.Discovery.PersonCard`
+  renders it at two widths — the Feed's rail (`People.rail/1`: You
+  first, then by latest act, eight at most) and the Friends grid — as
+  the tile, the name and the acts strip of posters under their centred
+  glyphs; no clock, no presence line, nothing about what a person
+  withholds (UIDR-046). Every poster and opened-card row opens the title
+  modal with `?title=<ref>&activity=<id>` so the modal speaks for that
+  act; Delete on an own activity → `Activities.delete/1` lives there. `DiscoveryLive.AddFriendBlock` is the add-friend form,
   still an iteration-phase component under `live/discovery_live/`.
 
 What friends did with a title — reviewed and with what sentiment, watched,
