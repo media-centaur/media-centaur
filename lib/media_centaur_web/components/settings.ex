@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.Components.Settings do
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaurWeb.Components.Switch
   alias MediaCentaurWeb.Live.SettingsLive.PathCheck
   alias Phoenix.LiveView.JS
 
@@ -36,22 +37,22 @@ defmodule MediaCentaurWeb.Components.Settings do
   attr :event, :string, required: true
   attr :event_value, :map, default: %{}, doc: "phx-value-* params map (string-keyed)."
 
-  @doc "A boolean setting: label and description on the left, the toggle on the right, saved on click."
+  @doc """
+  A boolean setting: label and description on the left, the toggle on the
+  right, saved on click — `Components.Switch` in its trailing layout with
+  the kit's row spacing.
+  """
   def settings_row(assigns) do
     ~H"""
-    <div
-      class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg transition-colors duration-150 cursor-pointer hover:bg-base-content/[0.04]"
-      data-nav-item
-      tabindex="0"
-      phx-click={@event}
-      {phx_values(@event_value)}
-    >
-      <div>
-        <span class="font-medium">{@label}</span>
-        <p class="text-xs text-base-content/55 mt-0.5">{@description}</p>
-      </div>
-      <input type="checkbox" class="toggle toggle-sm toggle-info" checked={@checked} tabindex="-1" />
-    </div>
+    <Switch.switch
+      layout={:trailing}
+      class="py-2.5 px-3.5"
+      label={@label}
+      description={@description}
+      checked={@checked}
+      event={@event}
+      values={@event_value}
+    />
     """
   end
 

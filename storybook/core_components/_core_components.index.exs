@@ -17,5 +17,6 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents do
   def entry("modal"), do: [icon: {:fa, "window-maximize", :thin}]
   def entry("segmented_control"), do: [icon: {:fa, "grip-lines", :thin}, name: "Segmented control"]
   def entry("split_button"), do: [icon: {:fa, "square-caret-down", :thin}, name: "Split button"]
+  def entry("switch"), do: [icon: {:fa, "toggle-on", :thin}]
   def entry("table"), do: [icon: {:fa, "table", :thin}]
 end
