@@ -173,12 +173,20 @@ defmodule MediaCentaur.Social do
   @doc """
   Every person this reader knows, by public key (ADR-074): the identity's
   own when one exists, and every roster member, each as a `Person` with
-  the name and avatar their `Profile` published, when one is stored. The one place
-  a roster row and a profile become what the reader sees.
+  the name their `Profile` published, when one is stored, and its avatar
+  when the reader shows it. The one place a roster row and a profile
+  become what the reader sees.
   """
   @spec people() :: %{optional(String.t()) => Person.t()}
   def people do
-    profiles = Map.new(Repo.all(Profile), &{&1.pubkey, &1})
+    # Four fields per row: `raw_event` carries the encoded avatar and is
+    # for republish, not for a page load.
+    profiles =
+      Profile
+      |> select([p], struct(p, [:pubkey, :name, :avatar_type, :created_at]))
+      |> Repo.all()
+      |> Map.new(&{&1.pubkey, &1})
+
     friends = Map.new(list_friends(), &{&1.pubkey, person_for(&1, Map.get(profiles, &1.pubkey))})
 
     case Identity.pubkey() do
@@ -208,6 +216,9 @@ defmodule MediaCentaur.Social do
 
   # --- profiles ----------------------------------------------------------------
 
+  @typedoc "What the save does with the avatar: keep the stored one, remove it, or set new WebP bytes (the master `ImageFiles.square_webp/2` made)."
+  @type avatar_change :: :keep | :none | {:new, binary()}
+
   @doc """
   Saves the reader's own profile (ADR-073, UIDR-047): mints the identity
   when none exists, stamps the event strictly after the stored one,
@@ -216,11 +227,9 @@ defmodule MediaCentaur.Social do
   `Profile.Translation.max_name_length/0` characters, checked before
   anything is minted: the form refuses to save without one. The avatar
   change keeps the stored avatar, removes it, or sets new bytes; the
-  stored file follows the row.
+  stored file follows the row. `:keep` publishes the stored file's
+  bytes; when the file is missing it publishes none, and the row follows.
   """
-  @typedoc "What the save does with the avatar: keep the stored one, remove it, or set new WebP bytes (the master `ImageFiles.square_webp/2` made)."
-  @type avatar_change :: :keep | :none | {:new, binary()}
-
   @spec save_profile(String.t(), avatar_change()) ::
           {:ok, Profile.t()} | {:error, :name_required | :name_too_long}
   def save_profile(name, avatar_change) when is_binary(name) do
@@ -337,7 +346,10 @@ defmodule MediaCentaur.Social do
   defp resolve_avatar(:keep, _none), do: nil
 
   # The row and the file move together: the avatar bytes never enter
-  # the row, and a profile without an avatar leaves no file behind.
+  # the row, and a profile without an avatar leaves no file behind. Row
+  # first: a write that fails after the row leaves a type with no file,
+  # which `AvatarStore.url/3` reads as no avatar until a newer profile
+  # arrives; file first could serve new bytes under the old version.
   defp store_profile(stored, attrs) do
     {bytes, row_attrs} = Map.pop(attrs, :avatar_bytes)
 
@@ -425,7 +437,8 @@ defmodule MediaCentaur.Social do
   end
 
   # No change is no broadcast. The changeset cannot fail here: the name
-  # is optional and the key is unchanged, so a failure is a bug.
+  # is optional, the switch is a boolean by guard and the key is
+  # unchanged, so a failure is a bug.
   defp apply_change(%Friend{} = existing, attrs) do
     changeset = Friend.changeset(existing, attrs)
 

@@ -41,9 +41,22 @@ defmodule MediaCentaur.Social.AvatarStore do
 
     case File.ls(dir) do
       {:ok, files} ->
+        # A file another writer removed between the listing and the
+        # remove is already what we wanted.
         files
         |> Enum.filter(&String.starts_with?(&1, pubkey <> "."))
-        |> Enum.each(&File.rm!(Path.join(dir, &1)))
+        |> Enum.each(fn file ->
+          case File.rm(Path.join(dir, file)) do
+            :ok ->
+              :ok
+
+            {:error, :enoent} ->
+              :ok
+
+            {:error, reason} ->
+              raise File.Error, reason: reason, action: "remove file", path: Path.join(dir, file)
+          end
+        end)
 
       {:error, _no_dir} ->
         :ok

@@ -1,10 +1,11 @@
 defmodule MediaCentaur.Social.ProfileTest do
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TmpDataDir
+
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
-  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Social
   alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Events.ProfileUpdated
@@ -15,15 +16,8 @@ defmodule MediaCentaur.Social.ProfileTest do
   @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
   @friend_pubkey Keys.pubkey(@friend_secret)
 
-  # Avatars are written under `{data_dir}/images/social/`: point data_dir
-  # at a per-test tmp dir (GlobalStateSandbox restores the config term).
-  setup do
-    dir = Path.join(System.tmp_dir!(), "profile-test-#{System.unique_integer([:positive])}")
-    config = :persistent_term.get({Config, :config})
-    :persistent_term.put({Config, :config}, Map.put(config, :data_dir, dir))
-    on_exit(fn -> File.rm_rf!(dir) end)
-    :ok
-  end
+  # Avatars are written under `{data_dir}/images/social/`.
+  setup :setup_tmp_data_dir
 
   defp friend_profile(name, created_at),
     do: Event.sign(Translation.to_event(name, nil, @friend_pubkey, created_at), @friend_secret)
@@ -144,12 +138,33 @@ defmodule MediaCentaur.Social.ProfileTest do
       assert {:ok, @webp} = AvatarStore.read(@friend_pubkey, "image/webp")
       assert Social.people()[@friend_pubkey].avatar_url =~ ".webp?v=1700000000"
 
+      png = <<0x89, "PNG\r\n", 0x1A, 0x0A, 0, 0>>
+
+      replaced =
+        Event.sign(
+          Translation.to_event("One", %{type: "image/png", bytes: png}, @friend_pubkey, 1_700_000_001),
+          @friend_secret
+        )
+
+      assert {:ok, %Profile{avatar_type: "image/png"}} = Social.ingest_profile(replaced)
+      assert {:ok, ^png} = AvatarStore.read(@friend_pubkey, "image/png")
+      assert AvatarStore.read(@friend_pubkey, "image/webp") == {:error, :enoent}
+      assert Social.people()[@friend_pubkey].avatar_url =~ ".png?v=1700000001"
+
       without =
-        Event.sign(Translation.to_event("One", nil, @friend_pubkey, 1_700_000_001), @friend_secret)
+        Event.sign(Translation.to_event("One", nil, @friend_pubkey, 1_700_000_002), @friend_secret)
 
       assert {:ok, %Profile{avatar_type: nil}} = Social.ingest_profile(without)
-      assert AvatarStore.read(@friend_pubkey, "image/webp") == {:error, :enoent}
+      assert AvatarStore.read(@friend_pubkey, "image/png") == {:error, :enoent}
       assert Social.people()[@friend_pubkey].avatar_url == nil
+    end
+
+    test "save_profile/2 with :keep and a missing file publishes no avatar, and the row follows" do
+      {:ok, %Profile{avatar_type: "image/webp"}} = Social.save_profile("Me", {:new, @webp})
+      :ok = AvatarStore.delete(Identity.pubkey())
+
+      assert {:ok, %Profile{avatar_type: nil}} = Social.save_profile("Me", :keep)
+      refute Map.has_key?(Jason.decode!(hd(Social.own_events()).content), "avatar")
     end
 
     test "removing the friend removes the file" do
