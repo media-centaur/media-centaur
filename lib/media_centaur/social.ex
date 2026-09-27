@@ -233,8 +233,7 @@ defmodule MediaCentaur.Social do
   @spec save_profile(String.t(), avatar_change()) ::
           {:ok, Profile.t()} | {:error, :name_required | :name_too_long}
   def save_profile(name, avatar_change) when is_binary(name) do
-    with {:ok, name} <- present_name(name),
-         :ok <- within_name_cap(name) do
+    with {:ok, name} <- check_name(name) do
       secret = Identity.ensure()
       me = Identity.pubkey()
       stored = Repo.get_by(Profile, pubkey: me)
@@ -401,6 +400,19 @@ defmodule MediaCentaur.Social do
     do: AvatarStore.url(profile.pubkey, profile.avatar_type, profile.created_at)
 
   defp not_own_key(pubkey), do: if(Identity.pubkey() == pubkey, do: {:error, :own_key}, else: :ok)
+
+  @doc """
+  The profile name rule, the one `save_profile/2` applies: trimmed, present
+  and within `Profile.Translation.max_name_length/0`. The form checks it
+  before it consumes a chosen picture, so a name error costs nothing.
+  """
+  @spec check_name(String.t()) :: {:ok, String.t()} | {:error, :name_required | :name_too_long}
+  def check_name(name) when is_binary(name) do
+    with {:ok, trimmed} <- present_name(name),
+         :ok <- within_name_cap(trimmed) do
+      {:ok, trimmed}
+    end
+  end
 
   defp present_name(name) do
     case String.trim(name) do

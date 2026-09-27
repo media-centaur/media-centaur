@@ -121,6 +121,68 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert {:error, [[_ref, :not_accepted]]} = render_upload(upload, "notes.txt")
       assert Social.own_profile() == nil
     end
+
+    test "a picture the app cannot read is consumed and refused; nothing is saved", %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "x.png", content: "hello", type: "image/png"}
+        ])
+
+      assert render_upload(upload, "x.png") =~ "x.png"
+      html = view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+
+      assert html =~ "That file is not a picture we can read"
+      # The consumed entry drops on the channel's next pass, after the reply.
+      refute render(view) =~ "x.png"
+      assert Social.own_profile() == nil
+    end
+
+    test "a name error leaves the chosen picture pending for the next save", %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+      {:ok, img} = Image.new(64, 64, color: :red)
+      {:ok, png} = Image.write(img, :memory, suffix: ".png")
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "me.png", content: png, type: "image/png"}
+        ])
+
+      assert render_upload(upload, "me.png") =~ "me.png"
+      html = view |> form("#profile-form", %{"name" => "   "}) |> render_submit()
+      assert html =~ "Your profile needs a name"
+      assert html =~ "me.png"
+      assert Social.own_profile() == nil
+
+      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      assert %{avatar_type: "image/webp"} = Social.own_profile()
+    end
+
+    test "Remove steps aside while a picture is chosen", %{conn: conn} do
+      Identity.ensure()
+      {:ok, img} = Image.new(64, 64, color: :red)
+      {:ok, png} = Image.write(img, :memory, suffix: ".png")
+      {:ok, _profile} = Social.save_profile("Sample Name", {:new, png_to_webp(png)})
+      {:ok, view, _html} = live_async!(conn, @section)
+      assert has_element?(view, "#remove-avatar")
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "next.png", content: png, type: "image/png"}
+        ])
+
+      assert render_upload(upload, "next.png") =~ "next.png"
+      refute has_element?(view, "#remove-avatar")
+    end
+  end
+
+  defp png_to_webp(png) do
+    {:ok, img} = Image.from_binary(png)
+    {:ok, webp} = Image.write(img, :memory, suffix: ".webp")
+    webp
   end
 
   describe "identity" do

@@ -942,9 +942,12 @@ defmodule MediaCentaurWeb.SettingsLive do
     do: {:noreply, cancel_upload(socket, :avatar, ref)}
 
   # The first save mints the identity; the identity, relay and sharing
-  # cards appear with it.
+  # cards appear with it. The name is checked before the chosen picture
+  # is consumed, so a name error leaves the picture pending for the
+  # next save instead of dropping it.
   def handle_event("save_profile", %{"name" => name}, socket) do
-    with {:ok, avatar} <- avatar_change(socket),
+    with {:ok, _name} <- Social.check_name(name),
+         {:ok, avatar} <- avatar_change(socket),
          {:ok, profile} <- Social.save_profile(name, avatar) do
       {:noreply,
        socket

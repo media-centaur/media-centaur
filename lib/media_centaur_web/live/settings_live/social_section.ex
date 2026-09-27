@@ -4,19 +4,20 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   four cards. Your profile — the name friends see and the picture beside
   it, one form whose save mints the identity when none exists
   (`Social.save_profile/2`); it is the only card before an identity
-  exists, so opening the section mints nothing. The picture is the
-  app's one LiveView upload: the identity tile previews the stored
-  avatar (or the letter while a Remove is pending), the file input takes
-  one JPEG, PNG or WebP, and the save turns it into the 256×256 WebP
-  master or, after Remove, clears it. Your identity — the npub with a
+  exists, so opening the section mints nothing. The picture is a
+  LiveView upload: the identity tile shows the stored avatar (or the
+  letter while a Remove is pending), the file input takes one JPEG, PNG
+  or WebP, and the save turns it into the 256×256 WebP master or, after
+  Remove, clears it; Remove steps aside while a file is chosen, since
+  the chosen file is what the save publishes. Your identity — the npub with a
   copy control, and behind a disclosure the secret key with reveal and
   copy plus the two-click import that replaces the identity. Relays —
   one connection row per relay (its live state from
   `Social.Connections`, the last error on the detail line, Remove) and
   the inline add-by-URL. Sharing — the toggles that decide which of the
   user's acts become activities for friends (watched, listed; reviewing
-  always is). `SettingsLive` delegates to
-  `render/1` and hosts the handlers: `validate_profile`, `remove_avatar`,
+  always is). `SettingsLive` delegates to `render/1` and hosts the
+  handlers: `validate_profile`, `remove_avatar`,
   `cancel_avatar`, `save_profile`, `reveal_nsec`, `hide_nsec`,
   `import_nsec`, `add_relay`, `remove_relay`, `toggle_share_watched`,
   `toggle_share_watchlist`. The friend roster stays on the Discovery
@@ -77,7 +78,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             />
             <.live_file_input upload={@uploads.avatar} class="file-input file-input-sm min-w-0" />
             <.button
-              :if={@own_person.avatar_url && !@avatar_removed?}
+              :if={@own_person.avatar_url && !@avatar_removed? && @uploads.avatar.entries == []}
               id="remove-avatar"
               type="button"
               variant="dismiss"
@@ -90,7 +91,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
             </.button>
           </div>
           <p :for={err <- upload_errors(@uploads.avatar)} class="text-xs text-error">
-            {upload_error_words(err)}
+            {upload_error_words(err, @uploads.avatar)}
           </p>
           <p
             :for={entry <- @uploads.avatar.entries}
@@ -98,7 +99,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
           >
             <span class="truncate">{entry.client_name}</span>
             <span :for={err <- upload_errors(@uploads.avatar, entry)} class="text-error">
-              {upload_error_words(err)}
+              {upload_error_words(err, @uploads.avatar)}
             </span>
             <.button
               type="button"
@@ -119,6 +120,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               placeholder="Name"
               maxlength={@name_cap}
               autocomplete="off"
+              phx-debounce="blur"
               class="min-w-0 flex-1"
             />
             <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
@@ -315,16 +317,19 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   defp profile_description(_npub),
     do: "The name your friends see you under, and the picture beside it, if you like."
 
-  # The tile previews what the save would publish: the stored avatar,
-  # or the letter once Remove is pending.
+  # The tile shows the stored avatar, or the letter once Remove is
+  # pending; a chosen file shows by name until the save.
   defp shown_person(%Person{} = person, true = _removed?), do: %{person | avatar_url: nil}
   defp shown_person(%Person{} = person, false = _removed?), do: person
 
   # `Phoenix.Component.upload_errors/1,2`: the whole-upload error and the
   # two an entry can carry under `allow_upload`'s accept and size caps.
-  defp upload_error_words(:too_many_files), do: "One picture"
-  defp upload_error_words(:too_large), do: "Larger than 10 MB"
-  defp upload_error_words(:not_accepted), do: "Not a JPEG, PNG or WebP"
+  defp upload_error_words(:too_many_files, _upload), do: "One picture"
+
+  defp upload_error_words(:too_large, %{max_file_size: bytes}),
+    do: "Larger than #{div(bytes, 1_000_000)} MB"
+
+  defp upload_error_words(:not_accepted, _upload), do: "Not a JPEG, PNG or WebP"
 
   # The relay row's dot (UIDR-041 §1): synced and connected are the healthy
   # states, connecting is a verify in flight, everything else is a failure.
