@@ -37,7 +37,7 @@ person's acts into activities.
 | Context | Owns | Depends on |
 |---|---|---|
 | `MediaCentaur.Nostr` | The protocol and nothing else: `Keys`, `Event`, `Filter`, `Connection`. No tables, no domain meaning. | — |
-| `MediaCentaur.Social` | The network's *configuration*: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), and `Connections` (one live connection per relay). | `Nostr` |
+| `MediaCentaur.Social` | The network's *configuration*: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), and `Connections` (one live connection per relay); and `Person`, a key as the reader sees it, built by `Social.people/0` (ADR-074). | `Nostr` |
 | `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Sync` (relays ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `Discovery`, `Settings.Preferences` |
 | `MediaCentaur.Discovery` | The watchlist (`watchlist_items`). Knows nothing about the friend network — a row from the feed stores a bare `activity_id`. | `Library`, `TmdbArtwork`, `TMDB` |
 
@@ -261,7 +261,7 @@ All three are declared in `MediaCentaur.Topics`.
 
 | Topic | Publisher | Messages |
 |---|---|---|
-| `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_removed, _}` |
+| `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_changed, _}`, `{:friend_removed, _}` |
 | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — the re-broadcast of every `Nostr.Connection` owner message |
 | `activities:updates` | `Activities.Events` | `{:activity_received, _}`, `{:activity_sent, _}`, `{:activity_deleted, _}` — each payload carries the activity's `kind` |
 
@@ -275,7 +275,19 @@ disagree with the owner about what a message meant.
 ## Web layer
 
 `MediaCentaurWeb.DiscoveryLive` is one LiveView with a `live_action` per tab
-(`:feed` at `/discovery`, `:watchlist`, `:friends`). Both social tabs
+(`:feed` at `/discovery`, `:watchlist`, `:friends`).
+
+A person is drawn from one read model everywhere, `Social.Person`
+(ADR-074): the reader's name for a friend (`name_override`), the avatar
+URL (nil until the profiles campaign's phase 3), and whether it is the
+reader's own; phase 2 adds the name the key published.
+`Social.people/0` builds `%{pubkey => Person}` for the identity and the
+roster; `Social.own_person/0` is the reader alone.
+`MediaCentaur.Format.person_name/1` gives the words ("You" or the
+name); `Components.Discovery.IdentityTile` draws the avatar or the
+letter (UIDR-047).
+
+Both social tabs
 project one enriched list — every live activity with its actor
 (`Activities.list_activities/0`) — two ways (UIDR-038):
 
@@ -300,12 +312,12 @@ project one enriched list — every live activity with its actor
   Friend provenance for a listing or an ignore is
   `TitleIntent.friend_provenance/2`, the same spelling the modal uses.
 - **Friends** — `DiscoveryLive.People` folds the list into one
-  `Components.Discovery.Person` per friend and one for You (when an
-  identity exists): the person's **acts**, one per title acted on,
+  `People.Card` (a `Social.Person` and their acts) per known person,
+  the reader first when an identity exists: the person's **acts**, one per title acted on,
   newest first, each carrying its flags (`Components.Title.Flag`, mast
   order) and which of them are at the grade (gold: two or more friends
   did that act on that title). `Components.Discovery.PersonCard`
-  renders it at two widths — the Feed's rail (`People.rail/1`: You
+  renders a person and their acts at two widths — the Feed's rail (`People.rail/1`: You
   first, then by latest act, eight at most) and the Friends grid — as
   the tile, the name and the acts strip of posters under their centred
   glyphs; no clock, no presence line, nothing about what a person
@@ -313,6 +325,13 @@ project one enriched list — every live activity with its actor
   modal with `?title=<ref>&activity=<id>` so the modal speaks for that
   act; Delete on an own activity → `Activities.delete/1` lives there. `DiscoveryLive.AddFriendBlock` is the add-friend form,
   still an iteration-phase component under `live/discovery_live/`.
+  The opened card's foot carries the reader's name for the friend
+  (`Social.set_name_override/2`, the `set_friend_name` event), the key,
+  the added date and Remove friend. `DiscoveryLive.AddFriendBlock`
+  takes an npub and the name (`Social.add_friend/2`, name required);
+  re-adding a key changes nothing. A rename broadcasts
+  `Social.Events.FriendChanged`, and the page rebuilds its
+  `people_by_pubkey` map from `Social.people/0`.
 
 What friends did with a title — reviewed and with what sentiment, watched,
 or listed — is one component everywhere but the Feed, the pennant
@@ -328,13 +347,14 @@ is the current rule).
 The joins the contexts may not make happen here:
 
 - **Activity rows** — `Activities.list_activities/0` returns the record plus
-  the friend's nickname (`nil` for a former friend; `own?: true`, `nickname: nil` for this identity's
-  own). `DiscoveryLive` adds `poster_url`, `library_owner_id`
+  its `author`, a `Social.Person`, for authors the reader knows; a former
+  friend's rows are left out. `DiscoveryLive` adds `poster_url`, `library_owner_id`
   (`Library.ExternalIds.tmdb_owners/1`), `on_watchlist?`
   (`Discovery.watchlisted_refs/0`) and the acquisition state, then both
   projections read from that one list.
 - **Watchlist rows** — the row stores only `activity_id`; the page resolves
-  it to a nickname through `Activities.get_many/1` → `Social.list_friends/0`.
+  it through `Activities.get_row/1`, whose `author` may be nil for a
+  removed friend.
 
 `MediaCentaurWeb.Live.ReviewFlow` is the modal flow (`use ReviewFlow`
 injects the handlers, the clearable sentiment choice included), hosted by

@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-09-27
 last_updated: 2026-09-27
 ---
@@ -16,8 +16,9 @@ reader's alone.
 
 ## Status
 
-Design approved 2026-09-27; spec, records and this file written. No
-code.
+Phase 1 (roster and Person) shipped on main 2026-09-27, precommit
+clean; phase 2 (the profile on the wire, opening with the `friends`
+rebuild and the optional name) next, social-relay v0.7.0 first.
 
 ## Decisions made
 
@@ -28,14 +29,37 @@ code.
 * `2026-09-27` — The word is **avatar**, in code, on the wire and in copy; "photo" in UIDR-046 and the storybook is renamed. (spec glossary)
 * `2026-09-27` — Avatar bytes live as a file under `{data_dir}/images/social/`, served by the existing image server with `?v=`; no new controller. (spec § Storage)
 * `2026-09-27` — Unify pass on the phase 1 plan: every shipped state is a whole product, nothing in a phase exists for a later one. The name stays required until the published name exists to fall back on, so the `friends` rebuild, the optional name, Unnamed and the person glyph open phase 2; `Person.published_name` and `Person.name/1` arrive with phase 2, `show_avatar` and `set_show_avatar/2` with phase 3. Phase 1 renames the field in code with `source: :nickname` and needs no migration. Re-adding a key already on the roster changes nothing; the card's foot is the one place to rename. The LiveView holds the people map alone, the friend count derived. (plan § What this phase does not do)
+* `2026-09-27` — Phase 1 as built: `Activities` rows are `%{activity, author}`, an unknown author makes no row, and the author is nil only from `get_row/1`. `Format.person_name/1` has no clause for a nameless friend until phase 2 adds Unnamed. `Components.Discovery.Act` (with `Act.Entry`) replaced the web `Person`; `DiscoveryLive.People.build/3` returns `People.Card`s; `DiscoveryLive` holds `people_by_pubkey` and rebuilds it on every roster or identity broadcast. (commits `e08c673c`..`54446ed4`)
 
 ## Next steps
 
-1. Phase 1 plan written: `docs/superpowers/plans/2026-09-27-profiles-phase-1-roster-and-person.md` (12 tasks; the suite is red between its Tasks 1 and 10 by design). Phases 2 to 4 get their own plans when phase 1 lands.
-2. Phase 1, roster and Person: `Friend.name_override` over the `nickname` column, `FriendChanged`, `Social.Person` and `people/0`, Activities rows carry `author`, every web site and story reads a Person, the rename form on the card's foot. No migration, the name still required. Ships alone.
-3. Phase 2, profile on the wire: social-relay v0.7.0 first; opens with the `friends` rebuild (`name_override` nullable beside a nullable `nickname`; dropped the release after), the optional name, `Person.published_name` and `Person.name/1`, Unnamed, the person glyph, the foot's placeholder through `person_name`; then `profiles`, `Social.Profile` and its translation, ingest, RelaySync with the kind and the own diff, `ProfileUpdated`, Settings' two cards with the name, mint-on-save, FakeRelay.
-4. Phase 3, avatar: upload, the 256×256 WebP master in `ImageFiles`, file store and serving, the tile's avatar mark, the `show_avatar` column (a plain `add`), `Social.set_show_avatar/2` and the card's switch.
-5. Phase 4, docs: protocol page and changes row, wiki (Social, Settings-Reference, Hosting-a-Private-Relay, Troubleshooting), `docs/social.md`, `docs/GLOSSARY.md`; records to accepted; close by destination. The following release drops `nickname`.
+1. Phase 2, profile on the wire: social-relay v0.7.0 first; opens with the `friends` rebuild (`name_override` nullable beside a nullable `nickname`; dropped the release after), the optional name, `Person.published_name` and `Person.name/1`, Unnamed, the person glyph, the foot's placeholder through `person_name`; then `profiles`, `Social.Profile` and its translation, ingest, RelaySync with the kind and the own diff, `ProfileUpdated`, Settings' two cards with the name, mint-on-save, FakeRelay. Write its plan first; it opens with the phase 2 items under Follow-ups.
+2. Phase 3, avatar: upload, the 256×256 WebP master in `ImageFiles`, file store and serving, the tile's avatar mark, the `show_avatar` column (a plain `add`), `Social.set_show_avatar/2` and the card's switch.
+3. Phase 4, docs: protocol page and changes row, wiki (Social, Settings-Reference, Hosting-a-Private-Relay, Troubleshooting), `docs/social.md`, `docs/GLOSSARY.md`; records to accepted; close by destination. The following release drops `nickname`.
+
+## Follow-ups from phase 1 reviews
+
+Phase 2 plan opens with:
+
+* The `friends` rebuild.
+* The optional name in `add_friend/2`, `set_name_override/2` and the add form.
+* `Person.published_name` and `Person.name/1`.
+* The "Unnamed" clause in `Format.person_name/1`, in the same change as the optional name: the function's doc says so, and without it the Feed crashes on a nameless friend.
+* The identity tile's person-glyph mark.
+* The card foot's placeholder as `Format.person_name(%Person{person | name_override: nil})`, never a literal.
+
+Phase 3 plan:
+
+* `show_avatar` as a plain `add` column, `Social.set_show_avatar/2`, the card's switch.
+* Normalise an empty-string `avatar_url` to nil in `Social.person_for/1`; the tile treats any binary as an avatar.
+
+Deferred, any phase:
+
+* `Identity.pubkey/0` derives the point from the secret on every call, and `people/0` and `own_person/0` (three times per review-modal render) pay it; candidate: derive once beside the secret.
+* `mix social.dev` carries a third npub elision (`String.slice(0, 12) <> "…"`); unify on `Social.short_npub/1`.
+* The add-friend inputs and the card's rename input wear `.library-filter`, the library search pill, padded for a glass and a clear they lack; a surface-neutral text-input class is owed.
+* The rename input sits inside `<section role="button">`; belongs to the person card's nav hardening pass.
+* A pre-existing runtime log line in the suite (`tmdb poster download failed for tv_series-5555`, from tests this phase did not touch) is a zero-warnings-policy item outside this campaign.
 
 ## Completion criteria
 

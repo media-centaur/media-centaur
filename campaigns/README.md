@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`profiles.md`](profiles.md) —
-  **planning 2026-09-27.** A person publishes how they appear: a name,
+  **phase 1 shipped on main 2026-09-27.** A person publishes how they appear: a name,
   required in the form, and an optional avatar, as one replaceable
   event (kind 12160) per identity. Friends see it in the identity tile
   under the reader's override and a per-friend switch. One `Social.Person`

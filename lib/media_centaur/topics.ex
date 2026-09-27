@@ -58,7 +58,7 @@ defmodule MediaCentaur.Topics do
   | `watcher:state` | `Watcher` | dir-watch state transitions |
   | `review:intake` | `Review` | inbound files awaiting review |
   | `discovery:updates` | `Discovery.Events` | `{:watchlist_item_added, _}`, `{:watchlist_item_removed, _}` |
-  | `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_removed, _}` |
+  | `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_changed, _}`, `{:friend_removed, _}` |
   | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — re-broadcast of `Nostr.Connection` owner messages |
   | `activities:updates` | `Activities.Events` | `{:activity_received, _}`, `{:activity_sent, _}`, `{:activity_deleted, _}` |
   | `apps:updates` | `Apps.Events` | `{:app_artwork_cached, _}` — async CDN art landed |
