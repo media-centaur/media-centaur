@@ -3,8 +3,9 @@ defmodule MediaCentaur.Social.Person do
   A public key as this reader sees it (ADR-074, UIDR-047).
   `name_override` is the reader's word for a friend (nil for the
   reader's own); `published_name` is what the key said about itself
-  (`Social.Profile`); `name/1` resolves them. `avatar_url` is nil;
-  nothing sets it yet, though the tile already draws one. `own?` says
+  (`Social.Profile`); `name/1` resolves them. `avatar_url` is the
+  stored avatar's versioned URL, nil when the key published none, the
+  reader hides it, or the file is missing. `own?` says
   whether the key is the reader's own. Built in the app only by
   `Social.people/0` and `Social.own_person/0`; every surface that draws
   a person takes one.

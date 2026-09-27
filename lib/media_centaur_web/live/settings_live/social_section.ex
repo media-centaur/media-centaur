@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   @moduledoc """
   The Social section of the Settings page (UIDR-041; UIDR-047 rule 3):
   four cards. Your profile — the name friends see, a form whose save
-  mints the identity when none exists (`Social.save_profile/1`); it is
+  mints the identity when none exists (`Social.save_profile/2`); it is
   the only card before an identity exists, so opening the section mints
   nothing. Your identity — the npub with a copy control, and behind a
   disclosure the secret key with reveal and copy plus the two-click

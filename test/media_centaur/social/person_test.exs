@@ -41,7 +41,7 @@ defmodule MediaCentaur.Social.PersonTest do
       assert Social.people()[me].short_npub == Social.short_npub(me)
       assert Social.people()[me].published_name == nil
 
-      {:ok, _profile} = Social.save_profile("Me")
+      {:ok, _profile} = Social.save_profile("Me", :keep)
       assert Social.people()[me].published_name == "Me"
       assert Social.own_person().published_name == "Me"
     end

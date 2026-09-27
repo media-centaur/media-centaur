@@ -4,7 +4,7 @@ defmodule MediaCentaur.Social.Identity do
   in the sensitive `nostr_secret_key` config key (hex, `MediaCentaur.Secret`
   wrapped at rest and in memory); the public key is derived on read.
 
-  Generated on first use (`ensure/0`) — called by `Social.save_profile/1`
+  Generated on first use (`ensure/0`) — called by `Social.save_profile/2`
   when the reader saves their profile (the Settings path; opening the
   section mints nothing, UIDR-047) and by `Activities.review/3` when a
   user reviews a title before ever saving one. Replaced only by
