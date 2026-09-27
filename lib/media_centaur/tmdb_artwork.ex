@@ -43,7 +43,6 @@ defmodule MediaCentaur.TmdbArtwork do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Settings.Config
   alias MediaCentaur.ImageFiles
   alias MediaCentaur.IntegrationAvailability
   alias MediaCentaur.TMDB.Store
@@ -101,17 +100,9 @@ defmodule MediaCentaur.TmdbArtwork do
     ImageFiles.on_disk_path(relative_path(role, type, tmdb_id))
   end
 
-  @doc """
-  The absolute cache root, or `nil` when no `data_dir` is configured
-  (the sweep must not walk a cwd-relative fallback).
-  """
-  @spec root() :: String.t() | nil
-  def root do
-    case Config.get(:data_dir) do
-      nil -> nil
-      data_dir -> Path.join(data_dir, @subdir)
-    end
-  end
+  @doc "The absolute cache root under the data dir; raises when none is configured, like every artwork path."
+  @spec root() :: String.t()
+  def root, do: ImageFiles.on_disk_path(@subdir)
 
   # --- Reads -------------------------------------------------------------
 
@@ -253,20 +244,14 @@ defmodule MediaCentaur.TmdbArtwork do
   """
   @spec sweep() :: non_neg_integer()
   def sweep do
-    case root() do
-      nil ->
-        0
+    holds = collect_holds()
+    cutoff = System.os_time(:second) - @ttl_days * 86_400
 
-      root ->
-        holds = collect_holds()
-        cutoff = System.os_time(:second) - @ttl_days * 86_400
-
-        root
-        |> entries()
-        |> Enum.count(fn {key, dir} ->
-          not MapSet.member?(holds, key) and aged_out?(dir, cutoff) and remove_entry(dir)
-        end)
-    end
+    root()
+    |> entries()
+    |> Enum.count(fn {key, dir} ->
+      not MapSet.member?(holds, key) and aged_out?(dir, cutoff) and remove_entry(dir)
+    end)
   end
 
   defp entries(root) do
