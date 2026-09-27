@@ -385,19 +385,19 @@ defmodule MediaCentaur.Activities do
 
   # --- internals ---
 
-  # The wire time of a new own event. A relay keeps one record per
-  # address and, on a tie, keeps what it holds (a deletion beating an
-  # activity, contract Deletion rule 2), so an activity must be stamped
-  # strictly after the activity or tombstone it supersedes and a
-  # deletion no earlier than the activity it withdraws — otherwise the
-  # relay discards what this install stored, and the own-events diff
-  # republishes it on every connect.
+  # The wire time of a new own event: an activity is stamped strictly
+  # after the activity or tombstone it supersedes (`Event.stamp_after/2`
+  # has the rationale), and a deletion no earlier than the activity it
+  # withdraws, since a deletion wins a tie (contract Deletion rule 2).
   defp stamp(nil, now, _bound), do: now
 
   defp stamp(%Activity{} = activity, now, bound) do
     held = Enum.max([Activity.event_created_at(activity), Activity.deletion_created_at(activity) || 0])
-    floor = if bound == :after, do: held + 1, else: held
-    max(now, floor)
+
+    case bound do
+      :after -> Event.stamp_after(held, now)
+      :at_or_after -> max(now, held)
+    end
   end
 
   defp validate_text(nil), do: {:ok, nil}
@@ -446,11 +446,7 @@ defmodule MediaCentaur.Activities do
 
   defp max_acted_at(query), do: query |> select([a], max(a.acted_at)) |> Repo.one()
 
-  defp known_author(pubkey) do
-    if pubkey == Identity.pubkey() or Social.friend_by_pubkey(pubkey),
-      do: :ok,
-      else: {:error, :unknown_author}
-  end
+  defp known_author(pubkey), do: if(Social.known_key?(pubkey), do: :ok, else: {:error, :unknown_author})
 
   defp store_if_newer(attrs) do
     case upsert_if_newer(attrs) do

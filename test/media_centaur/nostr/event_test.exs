@@ -186,4 +186,13 @@ defmodule MediaCentaur.Nostr.EventTest do
       assert Event.tag_value(event, "e") == nil
     end
   end
+
+  describe "stamp_after/2" do
+    test "a new record is stamped strictly after the one it replaces, and never before now" do
+      assert Event.stamp_after(nil, 1_000) == 1_000
+      assert Event.stamp_after(900, 1_000) == 1_000
+      assert Event.stamp_after(1_000, 1_000) == 1_001
+      assert Event.stamp_after(1_500, 1_000) == 1_501
+    end
+  end
 end

@@ -50,6 +50,18 @@ defmodule MediaCentaur.Nostr.Event do
     }
   end
 
+  @doc """
+  The wire time for a record that replaces `held` (the stored record's
+  `created_at`, or nil): `now`, or one second past `held` when `now`
+  does not already pass it. A relay keeps one record per address and,
+  on a tie, keeps what it holds, so a replacement made within the same
+  second must be stamped later or the relay discards it and the
+  own-events diff republishes it on every connect.
+  """
+  @spec stamp_after(non_neg_integer() | nil, non_neg_integer()) :: non_neg_integer()
+  def stamp_after(nil, now), do: now
+  def stamp_after(held, now) when is_integer(held), do: max(now, held + 1)
+
   @doc "NIP-01 canonical serialization — the exact bytes the id hashes."
   @spec serialize(t()) :: String.t()
   def serialize(%__MODULE__{pubkey: nil}) do
