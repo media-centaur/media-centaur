@@ -52,6 +52,11 @@ defmodule MediaCentaur.Format do
   The words for a `MediaCentaur.Social.Person` (UIDR-047): "You" for the
   reader's own, else the reader's name for them. The one place "You"
   exists as a person's name.
+
+  A friend without a name is not a phase-1 Person: the roster requires
+  one, so no clause matches it on purpose. The profiles campaign's
+  phase 2 adds the "Unnamed" clause in the same change that makes the
+  name optional; the two must land together.
   """
   @spec person_name(MediaCentaur.Social.Person.t()) :: String.t()
   def person_name(%MediaCentaur.Social.Person{own?: true}), do: "You"

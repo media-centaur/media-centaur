@@ -13,7 +13,8 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   is read from the surface's text, the tile is its redundant channel.
 
   `data-mark` names the mark drawn, for tests and probes. No avatar
-  exists yet (phase 3); the attr is the space the design leaves for one.
+  exists yet (phase 3); the Person's `avatar_url` and the `:avatar` mark
+  are the space the design leaves for one.
   """
 
   use Phoenix.Component
