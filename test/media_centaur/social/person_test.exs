@@ -18,8 +18,13 @@ defmodule MediaCentaur.Social.PersonTest do
 
       assert map_size(people) == 2
 
-      assert %Person{pubkey: @friend, name_override: "Nick", avatar_url: nil, own?: false} =
-               people[@friend]
+      assert %Person{
+               pubkey: @friend,
+               name_override: "Nick",
+               published_name: nil,
+               avatar_url: nil,
+               own?: false
+             } = people[@friend]
 
       assert people[@friend].short_npub == Social.short_npub(@friend)
       assert people[@friend].added_on == DateTime.to_date(friend.inserted_at)
@@ -34,6 +39,11 @@ defmodule MediaCentaur.Social.PersonTest do
 
       assert %Person{pubkey: ^me, own?: true, name_override: nil, added_on: nil} = Social.people()[me]
       assert Social.people()[me].short_npub == Social.short_npub(me)
+      assert Social.people()[me].published_name == nil
+
+      {:ok, _profile} = Social.save_profile("Me")
+      assert Social.people()[me].published_name == "Me"
+      assert Social.own_person().published_name == "Me"
     end
   end
 
@@ -52,16 +62,25 @@ defmodule MediaCentaur.Social.PersonTest do
     assert Format.person_name(%Person{pubkey: @friend, name_override: "Nick"}) == "Nick"
   end
 
-  # A friend without a name is not a phase-1 Person; the clause is
-  # unmatched on purpose. Phase 2 flips this test when it adds "Unnamed"
-  # together with the optional name.
-  test "Format.person_name/1 has no words yet for a friend without a name" do
-    # Called dynamically: the compiler's type checker would otherwise
-    # warn that no clause accepts the argument, which is the point.
-    nameless = %Person{pubkey: @friend, name_override: nil}
-    words = :person_name
+  test "Person.name/1 is the override, else the published name, else nil" do
+    assert Person.name(%Person{pubkey: @friend, name_override: "Nick", published_name: "Nicholas"}) ==
+             "Nick"
 
-    assert_raise FunctionClauseError, fn -> apply(Format, words, [nameless]) end
+    assert Person.name(%Person{pubkey: @friend, published_name: "Nicholas"}) == "Nicholas"
+    assert Person.name(%Person{pubkey: @friend}) == nil
+  end
+
+  test "Format.person_name/1 says You, the name, or Unnamed" do
+    assert Format.person_name(%Person{pubkey: "me", own?: true}) == "You"
+
+    assert Format.person_name(%Person{
+             pubkey: @friend,
+             name_override: "Nick",
+             published_name: "Nicholas"
+           }) == "Nick"
+
+    assert Format.person_name(%Person{pubkey: @friend, published_name: "Nicholas"}) == "Nicholas"
+    assert Format.person_name(%Person{pubkey: @friend}) == "Unnamed"
   end
 
   test "short_npub/1 elides the middle" do

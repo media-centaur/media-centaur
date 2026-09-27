@@ -16,12 +16,17 @@ defmodule MediaCentaur.DiscoveryRows do
   @friend_pubkey "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
   @own_pubkey "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5"
 
-  @doc "A friend as the reader sees them, under the reader's name for them."
-  @spec person(String.t(), keyword()) :: Person.t()
-  def person(name, opts \\ []) when is_binary(name) do
+  @doc """
+  A friend as the reader sees them, under the reader's name for them;
+  nil is a friend without an override. `published_name:` is what the
+  friend's key published.
+  """
+  @spec person(String.t() | nil, keyword()) :: Person.t()
+  def person(name, opts \\ []) when is_binary(name) or is_nil(name) do
     %Person{
       pubkey: Keyword.get(opts, :pubkey, @friend_pubkey),
       name_override: name,
+      published_name: Keyword.get(opts, :published_name),
       avatar_url: Keyword.get(opts, :avatar_url),
       own?: false,
       short_npub: "npub1lyy9…8z4h",
