@@ -1,11 +1,12 @@
 defmodule MediaCentaur.Social.PersonTest do
   use MediaCentaur.DataCase, async: false
 
+  import MediaCentaur.TmpDataDir
+
   alias MediaCentaur.Format
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
-  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
@@ -17,15 +18,8 @@ defmodule MediaCentaur.Social.PersonTest do
   @signer Keys.pubkey(@signer_secret)
   @webp <<"RIFF", 0, 0, 0, 0, "WEBPVP8 ", 0, 0, 0, 0>>
 
-  # Avatars are written under `{data_dir}/images/social/`: point data_dir
-  # at a per-test tmp dir (GlobalStateSandbox restores the config term).
-  setup do
-    dir = Path.join(System.tmp_dir!(), "person-test-#{System.unique_integer([:positive])}")
-    config = :persistent_term.get({Config, :config})
-    :persistent_term.put({Config, :config}, Map.put(config, :data_dir, dir))
-    on_exit(fn -> File.rm_rf!(dir) end)
-    :ok
-  end
+  # Avatars are written under `{data_dir}/images/social/`.
+  setup :setup_tmp_data_dir
 
   describe "people/0" do
     test "the roster as people: the reader's name, no avatar" do

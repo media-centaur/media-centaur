@@ -6,8 +6,8 @@ defmodule MediaCentaur.Social.Person do
   (`Social.Profile`); `name/1` resolves them. `avatar_url` is the
   stored avatar's versioned URL, nil when the key published none, the
   reader hides it, or the file is missing. `show_avatar` is the reader's
-  switch; always true for the reader's own. `own?` says
-  whether the key is the reader's own. Built in the app only by
+  switch; always true for the reader's own. `own?` says whether the key
+  is the reader's own. Built in the app only by
   `Social.people/0` and `Social.own_person/0`; every surface that draws
   a person takes one.
   "You" is `MediaCentaur.Format.person_name/1`'s word for `own?`, never

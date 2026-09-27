@@ -73,20 +73,13 @@ defmodule MediaCentaur.TmdbStubs do
   (`MediaCentaur.TaskAwaits.await_supervised_tasks/0`).
   """
   def setup_artwork_cache(context \\ %{}) do
-    data_dir = Path.join(System.tmp_dir!(), "tmdb_artwork_#{System.unique_integer([:positive])}")
-    File.mkdir_p!(data_dir)
-
-    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
-    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, data_dir))
-    ExUnit.Callbacks.on_exit(fn -> File.rm_rf!(data_dir) end)
-
     Req.Test.stub(:images, fn conn ->
       conn
       |> Plug.Conn.put_resp_content_type("image/jpeg")
       |> Plug.Conn.send_resp(200, :binary.copy("x", 2048))
     end)
 
-    Map.put(context, :data_dir, data_dir)
+    MediaCentaur.TmpDataDir.setup_tmp_data_dir(context)
   end
 
   # ---------------------------------------------------------------------------

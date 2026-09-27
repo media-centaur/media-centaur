@@ -24,12 +24,15 @@ defmodule MediaCentaur.DiscoveryRows do
   """
   @spec person(String.t() | nil, keyword()) :: Person.t()
   def person(name, opts \\ []) when is_binary(name) or is_nil(name) do
+    show_avatar = Keyword.get(opts, :show_avatar, true)
+
     %Person{
       pubkey: Keyword.get(opts, :pubkey, @friend_pubkey),
       name_override: name,
       published_name: Keyword.get(opts, :published_name),
-      avatar_url: Keyword.get(opts, :avatar_url),
-      show_avatar: Keyword.get(opts, :show_avatar, true),
+      # As `Social.person_for/2` builds it: a hidden avatar has no URL.
+      avatar_url: if(show_avatar, do: Keyword.get(opts, :avatar_url)),
+      show_avatar: show_avatar,
       own?: false,
       short_npub: "npub1lyy9…8z4h",
       added_on: ~D[2026-08-30]
