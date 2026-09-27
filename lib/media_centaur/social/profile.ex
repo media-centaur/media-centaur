@@ -1,6 +1,7 @@
 defmodule MediaCentaur.Social.Profile do
   @moduledoc """
-  What a public key published about itself (ADR-073): its name, or
+  What a public key published about itself (ADR-073): its name and
+  its avatar's type, the bytes living in `AvatarStore`'s file, or
   nothing yet. One row per known key, replaced whole by a newer event;
   `raw_event` is the signed wire form the own-events diff republishes,
   `created_at` the wire time that decides which copy wins. The reader's
@@ -19,6 +20,7 @@ defmodule MediaCentaur.Social.Profile do
   schema "profiles" do
     field :pubkey, :string
     field :name, :string
+    field :avatar_type, :string
     field :raw_event, :map
     field :created_at, :integer
 
@@ -31,7 +33,7 @@ defmodule MediaCentaur.Social.Profile do
   @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(profile \\ %__MODULE__{}, attrs) do
     profile
-    |> cast(attrs, [:pubkey, :name, :raw_event, :created_at])
+    |> cast(attrs, [:pubkey, :name, :avatar_type, :raw_event, :created_at])
     |> validate_required([:pubkey, :raw_event, :created_at])
     |> validate_format(:pubkey, ~r/^[0-9a-f]{64}$/)
     |> unique_constraint(:pubkey)

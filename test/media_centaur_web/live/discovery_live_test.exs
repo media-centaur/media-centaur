@@ -189,7 +189,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
     end
 
     defp friend_profile(name, created_at),
-      do: Event.sign(ProfileTranslation.to_event(name, @friend_pubkey, created_at), @friend_secret)
+      do: Event.sign(ProfileTranslation.to_event(name, nil, @friend_pubkey, created_at), @friend_secret)
 
     test "shows the add form and points at Settings; no identity, no You card", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/friends")

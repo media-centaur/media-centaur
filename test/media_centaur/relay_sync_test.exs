@@ -287,7 +287,7 @@ defmodule MediaCentaur.RelaySyncTest do
   test "the feed carries kind 12160 and a friend's profile lands as their published name" do
     profile =
       Event.sign(
-        ProfileTranslation.to_event("Sample Name", @friend_pubkey, 1_700_000_000),
+        ProfileTranslation.to_event("Sample Name", nil, @friend_pubkey, 1_700_000_000),
         @friend_secret
       )
 
