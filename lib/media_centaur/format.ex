@@ -49,6 +49,15 @@ defmodule MediaCentaur.Format do
   end
 
   @doc """
+  The words for a `MediaCentaur.Social.Person` (UIDR-047): "You" for the
+  reader's own, else the reader's name for them. The one place "You"
+  exists as a person's name.
+  """
+  @spec person_name(MediaCentaur.Social.Person.t()) :: String.t()
+  def person_name(%MediaCentaur.Social.Person{own?: true}), do: "You"
+  def person_name(%MediaCentaur.Social.Person{name_override: name}), do: name
+
+  @doc """
   Returns the 4-digit year for a `Date` as a string. `nil` and non-Date
   inputs return `nil`. Used by templates that display only the year
   portion of `entity.date_published`.
