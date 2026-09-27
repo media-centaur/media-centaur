@@ -30,7 +30,7 @@ code.
 
 ## Next steps
 
-1. Implementation plan from the spec (writing-plans).
+1. Phase 1 plan written: `docs/superpowers/plans/2026-09-27-profiles-phase-1-roster-and-person.md` (13 tasks; the suite is red between its Tasks 2 and 11 by design). Phases 2 to 4 get their own plans when phase 1 lands.
 2. Phase 1, roster and Person: paired migration's first half, `FriendChanged`, `Social.Person` and `people/0`, Activities rows carry `author`, every web site and story reads a Person, add friend with an optional name, the override field. Ships alone.
 3. Phase 2, profile on the wire: social-relay v0.7.0 first; `profiles`, `Social.Profile` and its translation, ingest, RelaySync with the kind and the own diff, `ProfileUpdated`, Settings' two cards with the name, mint-on-save, FakeRelay.
 4. Phase 3, avatar: upload, the 256×256 WebP master in `ImageFiles`, file store and serving, the tile's avatar mark, the switch.
