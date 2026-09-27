@@ -83,4 +83,15 @@ defmodule MediaCentaur.Social.FriendTest do
       refute_receive {:friend_removed, _event}, 100
     end
   end
+
+  describe "known_key?/1" do
+    test "the identity and every roster key are known; anything else is not" do
+      {:ok, _friend} = Social.add_friend(@pubkey, "Sample Friend")
+      refute Social.known_key?(String.duplicate("a", 64))
+      assert Social.known_key?(@pubkey)
+
+      Identity.ensure()
+      assert Social.known_key?(Identity.pubkey())
+    end
+  end
 end

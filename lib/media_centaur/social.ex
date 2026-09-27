@@ -145,6 +145,11 @@ defmodule MediaCentaur.Social do
   def friend_pubkeys,
     do: Repo.all(from(friend in Friend, select: friend.pubkey, order_by: friend.pubkey))
 
+  @doc "Whether a public key is this identity's or on the roster: the keys whose events a reader keeps."
+  @spec known_key?(String.t()) :: boolean()
+  def known_key?(pubkey) when is_binary(pubkey),
+    do: pubkey == Identity.pubkey() or friend_by_pubkey(pubkey) != nil
+
   @doc """
   Every person this reader knows, by public key (ADR-074): the identity's
   own when one exists, and every roster member, each as a `Person`.
