@@ -1,10 +1,11 @@
 defmodule MediaCentaur.Social.Profile do
   @moduledoc """
   What a public key published about itself (ADR-073): its name and
-  its avatar's type, the bytes living in `AvatarStore`'s file, or
-  nothing yet. One row per known key, replaced whole by a newer event;
-  `raw_event` is the signed wire form the own-events diff republishes,
-  `created_at` the wire time that decides which copy wins. The reader's
+  its avatar's type, or nothing yet. The decoded avatar bytes live in
+  `AvatarStore`'s file, never in a column. One row per known key,
+  replaced whole by a newer event; `raw_event` is the signed wire form
+  the own-events diff republishes, avatar included, `created_at` the
+  wire time that decides which copy wins. The reader's
   own is a row like any other, under the identity's key. Built and read
   through `Social` (`save_profile/2`, `ingest_profile/1`, `own_profile/0`);
   the wire shape is `Profile.Translation`'s.

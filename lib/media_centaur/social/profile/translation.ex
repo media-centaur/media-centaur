@@ -18,7 +18,9 @@ defmodule MediaCentaur.Social.Profile.Translation do
   `FF D8 FF`). An unknown type, bad base64, bytes over the cap, a
   signature mismatch or any other shape drops the whole profile. A
   reader never decodes an avatar: `from_event/1` hands the bytes on as
-  `avatar_bytes`, and they are written to a file, never to the row.
+  `avatar_bytes`, and they go to a file, never to a column; the row's
+  `raw_event` still carries the wire form, avatar included, for
+  republish.
   """
 
   alias MediaCentaur.Nostr.Event
@@ -26,10 +28,12 @@ defmodule MediaCentaur.Social.Profile.Translation do
   @kind 12_160
   @content_version 1
   @max_name_length 50
+  # Each accepted type: its file extension and the marks its bytes must
+  # carry, as `{offset, magic}`.
   @avatar_types %{
-    "image/webp" => {"webp", <<"RIFF">>, 8, <<"WEBP">>},
-    "image/png" => {"png", <<0x89, "PNG\r\n", 0x1A, 0x0A>>, 0, <<>>},
-    "image/jpeg" => {"jpg", <<0xFF, 0xD8, 0xFF>>, 0, <<>>}
+    "image/webp" => {"webp", [{0, "RIFF"}, {8, "WEBP"}]},
+    "image/png" => {"png", [{0, <<0x89, "PNG\r\n", 0x1A, 0x0A>>}]},
+    "image/jpeg" => {"jpg", [{0, <<0xFF, 0xD8, 0xFF>>}]}
   }
   @max_avatar_bytes 64 * 1024
 
@@ -51,7 +55,7 @@ defmodule MediaCentaur.Social.Profile.Translation do
   @spec max_name_length() :: 50
   def max_name_length, do: @max_name_length
 
-  @doc "The avatar types a reader accepts, and the file extension for each."
+  @doc "The file extension for an accepted avatar type; raises on any other."
   @spec avatar_extension(String.t()) :: String.t()
   def avatar_extension(type), do: @avatar_types |> Map.fetch!(type) |> elem(0)
 
@@ -132,10 +136,10 @@ defmodule MediaCentaur.Social.Profile.Translation do
   # signature. Anything else drops the whole profile.
   defp read_avatar(%{"avatar" => %{"type" => type, "data" => data}})
        when is_binary(type) and is_binary(data) do
-    with {:ok, {_ext, magic, offset, magic2}} <- Map.fetch(@avatar_types, type),
+    with {:ok, {_ext, marks}} <- Map.fetch(@avatar_types, type),
          {:ok, bytes} <- Base.decode64(data),
          true <- byte_size(bytes) <= @max_avatar_bytes,
-         true <- signature?(bytes, magic, offset, magic2) do
+         true <- signature?(bytes, marks) do
       {:ok, %{type: type, bytes: bytes}}
     else
       _bad -> {:error, :bad_content}
@@ -146,13 +150,11 @@ defmodule MediaCentaur.Social.Profile.Translation do
   defp read_avatar(%{"avatar" => _wrong_shape}), do: {:error, :bad_content}
   defp read_avatar(_absent), do: {:ok, nil}
 
-  # WebP carries a second signature (`WEBP` at 8); PNG and JPEG carry none.
-  defp signature?(bytes, magic, offset, magic2) do
-    size = byte_size(magic)
-    size2 = byte_size(magic2)
-
-    match?(<<^magic::binary-size(^size), _::binary>>, bytes) and
-      (size2 == 0 or
-         match?(<<_::binary-size(^offset), ^magic2::binary-size(^size2), _::binary>>, bytes))
+  # Every mark of the type sits at its offset.
+  defp signature?(bytes, marks) do
+    Enum.all?(marks, fn {at, magic} ->
+      size = byte_size(magic)
+      byte_size(bytes) >= at + size and binary_part(bytes, at, size) == magic
+    end)
   end
 end

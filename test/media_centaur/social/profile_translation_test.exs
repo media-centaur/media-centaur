@@ -95,13 +95,20 @@ defmodule MediaCentaur.Social.Profile.TranslationTest do
   end
 
   test "a malformed avatar drops the whole profile: unknown type, bad base64, over the cap, signature mismatch, wrong shape" do
+    over_cap_by_one = @png <> :binary.copy(<<0>>, 64 * 1024 - byte_size(@png) + 1)
+
     bad = [
       ~s({"v":1,"avatar":#{avatar_json("image/gif", @png)}}),
       ~s({"v":1,"avatar":{"type":"image/png","data":"@@@"}}),
-      ~s({"v":1,"avatar":#{avatar_json("image/png", @png <> :binary.copy(<<0>>, 64 * 1024))}}),
+      ~s({"v":1,"avatar":#{avatar_json("image/png", over_cap_by_one)}}),
       ~s({"v":1,"avatar":#{avatar_json("image/png", @webp)}}),
+      ~s({"v":1,"avatar":#{avatar_json("image/jpeg", @png)}}),
+      ~s({"v":1,"avatar":#{avatar_json("image/webp", <<"RIFF", 0, 0, 0, 0, "XXXXVP8 ">>)}}),
+      ~s({"v":1,"avatar":#{avatar_json("image/webp", "RIFF")}}),
       ~s({"v":1,"avatar":"not an object"}),
-      ~s({"v":1,"avatar":{"type":"image/png"}})
+      ~s({"v":1,"avatar":{"type":"image/png"}}),
+      ~s({"v":1,"avatar":{"data":"#{Base.encode64(@png)}"}}),
+      ~s({"v":1,"avatar":{"type":7,"data":"#{Base.encode64(@png)}"}})
     ]
 
     for content <- bad do
