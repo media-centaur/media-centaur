@@ -1,73 +1,72 @@
 defmodule MediaCentaurWeb.DiscoveryLive.People do
   @moduledoc """
-  Folds the page's enriched activity rows into `Person` cards (ADR-030,
-  UIDR-046): You first when an identity exists, then friends by their
-  latest act of any kind, then friends with no acts by name. A former
-  friend's activities (no nickname, not own) belong to nobody on the
-  roster and get no card.
+  Folds the page's enriched activity rows into person cards (ADR-030,
+  ADR-074, UIDR-046): one `Card` — a `Social.Person` and their acts —
+  for the reader first when the known people include them, then friends
+  by their latest act of any kind, then friends with no acts by name.
+  The rows carry known people only (Activities drops a former friend's),
+  so every row lands on a card.
 
   A person's acts are one per title, newest first; each flies every act
   on that title in mast order, and a flag is **gold** when two or more
-  friends on the roster did that act on that title — counted once over
-  the rows this fold already holds, one count per friend per title and
-  flag, the reader's own acts not counting. `rail/1` is the Feed's
-  rail: the first eight of that order and how many the cap hid.
+  friends did that act on that title — counted once over the rows this
+  fold already holds, one count per friend per title and flag, the
+  reader's own acts not counting. `rail/1` is the Feed's rail: the first
+  eight of that order and how many the cap hid.
   """
 
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Format
-  alias MediaCentaur.Social
-  alias MediaCentaur.Social.Friend
-  alias MediaCentaurWeb.Components.Discovery.Person
-  alias MediaCentaurWeb.Components.Discovery.Person.Act
-  alias MediaCentaurWeb.Components.Discovery.Person.Entry
+  alias MediaCentaur.Social.Person
+  alias MediaCentaurWeb.Components.Discovery.Act
+  alias MediaCentaurWeb.Components.Discovery.Act.Entry
   alias MediaCentaurWeb.Components.Title.Flag
+
+  defmodule Card do
+    @moduledoc """
+    One person card's content: the person as the reader sees them and
+    their acts, newest first. `PersonCard` renders it from the two
+    attrs; `PersonCard.dom_id/1` names it.
+    """
+
+    defstruct [:person, acts: []]
+
+    @type t :: %__MODULE__{person: Person.t(), acts: [Act.t()]}
+  end
 
   @grade 2
   @rail_cap 8
 
   @doc """
-  The cards for `friends` and, with `me: true`, for this identity, from
-  the enriched activity rows. `now` anchors each act's relative time.
+  The cards for `people` (the `Social.people/0` map) from the enriched
+  activity rows. `now` anchors each act's relative time.
   """
-  @spec build([map()], [Friend.t()], me: boolean(), now: DateTime.t()) :: [Person.t()]
-  def build(rows, friends, opts) do
+  @spec build([map()], %{optional(String.t()) => Person.t()}, now: DateTime.t()) :: [Card.t()]
+  def build(rows, people, opts) do
     now = Keyword.fetch!(opts, :now)
     by_author = Enum.group_by(rows, & &1.activity.author_pubkey)
-    {own, theirs} = Enum.split_with(rows, & &1.own?)
-    gold = gold_flags(theirs, friends)
+    gold = rows |> Enum.reject(& &1.author.own?) |> gold_flags()
+    {me, friends} = people |> Map.values() |> Enum.split_with(& &1.own?)
 
-    you = if Keyword.fetch!(opts, :me), do: [person("You", nil, nil, own, now, gold)], else: []
+    you = Enum.map(me, &card(&1, Map.get(by_author, &1.pubkey, []), now, gold))
 
     friends
-    |> Enum.map(fn friend ->
-      person(
-        friend.nickname,
-        friend.pubkey,
-        friend.inserted_at,
-        Map.get(by_author, friend.pubkey, []),
-        now,
-        gold
-      )
-    end)
+    |> Enum.map(&card(&1, Map.get(by_author, &1.pubkey, []), now, gold))
     |> Enum.sort_by(&sort_key/1)
     |> then(&(you ++ &1))
   end
 
   @doc "The Feed's rail: the first eight cards in `build/3`'s order, and how many the cap hid."
-  @spec rail([Person.t()]) :: %{people: [Person.t()], hidden: non_neg_integer()}
-  def rail(people) do
-    {shown, hidden} = Enum.split(people, @rail_cap)
-    %{people: shown, hidden: length(hidden)}
+  @spec rail([Card.t()]) :: %{cards: [Card.t()], hidden: non_neg_integer()}
+  def rail(cards) do
+    {shown, hidden} = Enum.split(cards, @rail_cap)
+    %{cards: shown, hidden: length(hidden)}
   end
 
-  # The (title, flag) pairs at the grade: friends on the roster only,
-  # each friend once per pair however many rows they have on it.
-  defp gold_flags(rows, friends) do
-    roster = MapSet.new(friends, & &1.pubkey)
-
+  # The (title, flag) pairs at the grade: each friend once per pair
+  # however many rows they have on it.
+  defp gold_flags(rows) do
     rows
-    |> Enum.filter(&MapSet.member?(roster, &1.activity.author_pubkey))
     |> Enum.map(&{ref(&1), Flag.flag(&1.activity), &1.activity.author_pubkey})
     |> Enum.uniq()
     |> Enum.frequencies_by(fn {ref, flag, _author} -> {ref, flag} end)
@@ -76,23 +75,14 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   end
 
   # Latest act first; the quiet ones after, by name.
-  defp sort_key(%Person{acts: [], name: name}), do: {1, 0, name}
+  defp sort_key(%Card{acts: [], person: person}), do: {1, 0, Format.person_name(person)}
 
-  defp sort_key(%Person{acts: [%Act{acted_at: at} | _rest], name: name}),
-    do: {0, -DateTime.to_unix(at), name}
+  defp sort_key(%Card{acts: [%Act{acted_at: at} | _rest], person: person}),
+    do: {0, -DateTime.to_unix(at), Format.person_name(person)}
 
-  defp person(name, pubkey, added_at, rows, now, gold) do
+  defp card(%Person{} = person, rows, now, gold) do
     sorted = Enum.sort_by(rows, & &1.activity.acted_at, {:desc, DateTime})
-
-    %Person{
-      id: if(pubkey, do: "person-" <> String.slice(pubkey, 0, 8), else: "person-you"),
-      name: name,
-      own?: is_nil(pubkey),
-      pubkey: pubkey,
-      short_npub: pubkey && short_npub(pubkey),
-      added_on: added_at && DateTime.to_date(added_at),
-      acts: acts(sorted, gold, now)
-    }
+    %Card{person: person, acts: acts(sorted, gold, now)}
   end
 
   # One act per title in the order the titles first appear — newest
@@ -134,11 +124,4 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
   end
 
   defp ref(%{activity: %Activity{tmdb_id: tmdb_id, media_type: media_type}}), do: {tmdb_id, media_type}
-
-  @doc "The npub, elided in the middle — enough to compare against what a friend told you."
-  @spec short_npub(String.t()) :: String.t()
-  def short_npub(pubkey) do
-    npub = Social.to_npub(pubkey)
-    String.slice(npub, 0, 9) <> "…" <> String.slice(npub, -4..-1//1)
-  end
 end
