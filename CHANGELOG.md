@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.41.0 — 2026-09-27
+
+### New
+
+- **Your friends sit beside the Feed.** A column on the right shows each person as their latest titles: the poster of everything they recently reviewed, watched or put on their watchlist, newest first, with a small icon above each poster for what they did — a heart, a thumbs up or thumbs down, or a speech bubble for a review, an eye for watched, a bookmark for wants to watch. When two or more friends did the same thing with the same title, that icon turns gold. You come first, then friends by who did something most recently; **All N friends** opens the Friends tab when more people share than fit. Press a person to open them on the Friends tab, or a poster to open that title.
+- **The Friends tab is the same cards, larger.** Each person shows their five latest titles. Press a card to see every title as a line — what they did, and when — with the friend's key and **Remove friend** at the foot. Nothing on a card says what a person has chosen not to share.
+
+### Improved
+
+- **Every row on the Feed carries who did it.** A circle with the person's initial leads the row — yours is filled blue — so your own rows and each friend's are told apart without reading. The poster, who did what, the title and year, the review's words and how long ago sit beside it in one row, aligned to the top like every other list in the app.
+- **The Feed shows twenty rows at a time.** **Show older** adds twenty more, up to sixty. Rows that arrive while you are scrolled down wait behind **N new** at the top of the column until you press it, so nothing moves under your eyes.
+- **Discovery matches the other pages.** Its header sits where Library's does, its text is the size Home's is, and the Feed and Watchlist use the app's standard page width.
+
 ## v1.40.0 — 2026-09-25
 
 ### New
