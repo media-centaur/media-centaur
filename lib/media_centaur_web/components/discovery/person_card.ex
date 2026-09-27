@@ -20,9 +20,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   five acts; its press opens the card in place (`opened?`, the host's
   set): every act, one row per poster in `ActivityWords`' sentence with
   the act's flags after the title, then a friend's foot — the reader's
-  name for the friend, ready to change, the key, the added date, Remove
-  friend. A poster's press opens the title modal speaking for the newest
-  act on it.
+  name for the friend, ready to change, over the name it masks as the
+  field's placeholder (the published name, else Unnamed; UIDR-047), the
+  key, the added date, Remove friend. A poster's press opens the title
+  modal speaking for the newest act on it.
 
   Pure rendering of a `Social.Person` and their `Act`s. Every poster, row
   and Remove friend is a nav item that bubbles `open_title` with the
@@ -175,6 +176,7 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
             type="text"
             name="name"
             value={@person.name_override}
+            placeholder={masked_name(@person)}
             class="library-filter basis-48 grow-0 shrink-0"
             autocomplete="off"
             aria-label="Your name for this friend"
@@ -220,6 +222,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
 
   defp tile_size(:rail), do: 40
   defp tile_size(:page), do: 48
+
+  # The name the override masks — the published one, else Unnamed — as
+  # the foot's placeholder; never a literal here.
+  defp masked_name(%Person{} = person), do: Format.person_name(%{person | name_override: nil})
 
   defp newest(%Act{entries: [entry | _rest]}), do: entry
 

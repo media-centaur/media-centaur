@@ -1,11 +1,12 @@
 defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
   @moduledoc """
-  The app's one drawing of a person (UIDR-046, UIDR-047): the letter and
-  the avatar, for a friend and for the reader's own filled tile, at the
-  two sizes the surfaces render: 40 on a Feed row and the rail's person
-  card, 48 on the Friends page's. No profile event carries an avatar yet
-  (phase 3); the avatar variations pin the space the design leaves for
-  one. The person glyph joins with phase 2.
+  The app's one drawing of a person (UIDR-046, UIDR-047): the three
+  marks — the avatar, the letter, the person glyph for a friend with no
+  name at all — for a friend and for the reader's own filled tile, at
+  the two sizes the surfaces render: 40 on a Feed row and the rail's
+  person card, 48 on the Friends page's. No profile event carries an
+  avatar yet (phase 3); the avatar variations pin the space the design
+  leaves for one.
   """
 
   use PhoenixStorybook.Story, :component
@@ -40,6 +41,12 @@ defmodule MediaCentaurWeb.Storybook.Discovery.IdentityTile do
         id: :letter,
         description: "A friend: the first letter of your name for them on a primary tint",
         attributes: %{person: friend("Cleo"), size: size}
+      },
+      %Variation{
+        id: :glyph,
+        description:
+          "A friend with no name at all: the person glyph on the primary tint, never a letter",
+        attributes: %{person: friend(nil), size: size}
       },
       %Variation{
         id: :avatar,

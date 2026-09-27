@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaur.Discovery
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaur.Library
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
@@ -187,6 +188,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       Event.sign(Translation.to_event(kind, title, opts, @friend_pubkey), @friend_secret)
     end
 
+    defp friend_profile(name, created_at),
+      do: Event.sign(ProfileTranslation.to_event(name, @friend_pubkey, created_at), @friend_secret)
+
     test "shows the add form and points at Settings; no identity, no You card", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/friends")
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active", "Friends")
@@ -227,16 +231,54 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
 
       assert [%{name_override: "Nick"}] = Social.list_friends()
 
+      # A blank clears the override; with nothing published, the friend is Unnamed.
       view |> form(friend_card() <> " [data-role='name-form']", %{"name" => "  "}) |> render_submit()
-      assert render(view) =~ "Give your friend a name"
-      assert has_element?(view, friend_card() <> " h2", "Nick")
+      assert has_element?(view, friend_card() <> " h2", "Unnamed")
+      assert has_element?(view, friend_card() <> " [data-component='identity-tile'][data-mark='glyph']")
+      assert [%{name_override: nil}] = Social.list_friends()
 
       view |> element(friend_card() <> " button", "Remove friend") |> render_click()
       refute has_element?(view, friend_card())
       assert Social.list_friends() == []
     end
 
-    test "refuses a bad key, your own key, and a blank name with flashes", %{conn: conn} do
+    test "adds a friend without a name: Unnamed until they publish one; the foot's placeholder is the published name and a blank shows it",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+
+      view
+      |> form("#add-friend-form", %{"key" => Keys.to_npub(@friend_pubkey), "name" => ""})
+      |> render_submit()
+
+      assert has_element?(view, friend_card() <> " h2", "Unnamed")
+      assert has_element?(view, friend_card() <> " [data-component='identity-tile'][data-mark='glyph']")
+      assert [%{name_override: nil}] = Social.list_friends()
+
+      {:ok, _profile} = Social.ingest_profile(friend_profile("Ada", 1_700_000_000))
+      render_until(view, fn _html -> has_element?(view, friend_card() <> " h2", "Ada") end)
+      assert has_element?(view, friend_card() <> " [data-component='identity-tile'][data-mark='letter']")
+
+      view |> element(friend_card()) |> render_click()
+
+      assert has_element?(
+               view,
+               friend_card() <> " [data-role='name-form'] input[name='name'][placeholder='Ada']"
+             )
+
+      view |> form(friend_card() <> " [data-role='name-form']", %{"name" => "Nick"}) |> render_submit()
+      assert has_element?(view, friend_card() <> " h2", "Nick")
+
+      assert has_element?(
+               view,
+               friend_card() <> " [data-role='name-form'] input[name='name'][placeholder='Ada']"
+             )
+
+      view |> form(friend_card() <> " [data-role='name-form']", %{"name" => ""}) |> render_submit()
+      assert has_element?(view, friend_card() <> " h2", "Ada")
+      assert [%{name_override: nil}] = Social.list_friends()
+    end
+
+    test "refuses a bad key and your own key with flashes", %{conn: conn} do
       Identity.ensure()
       {:ok, view, _html} = live(conn, "/discovery/friends")
 
@@ -248,12 +290,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       |> render_submit()
 
       assert render(view) =~ "That is your own key"
-
-      view
-      |> form("#add-friend-form", %{"key" => Keys.to_npub(@friend_pubkey), "name" => " "})
-      |> render_submit()
-
-      assert render(view) =~ "Give your friend a name"
       assert Social.list_friends() == []
     end
 

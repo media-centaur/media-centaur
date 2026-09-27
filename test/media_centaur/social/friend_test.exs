@@ -38,13 +38,21 @@ defmodule MediaCentaur.Social.FriendTest do
       assert length(Social.list_friends()) == 1
     end
 
-    test "rejects a bad key, a blank name, and your own key" do
+    test "the name is optional: none, or blank, is a friend without an override" do
+      assert {:ok, %Friend{pubkey: @pubkey, name_override: nil}} = Social.add_friend(@pubkey)
+      :ok = Social.remove_friend(@pubkey)
+
+      assert {:ok, %Friend{pubkey: @pubkey, name_override: nil}} = Social.add_friend(@pubkey, "  ")
+      assert [%Friend{name_override: nil}] = Social.list_friends()
+    end
+
+    test "rejects a bad key and your own key" do
       assert {:error, :invalid_pubkey} = Social.add_friend("npub1nope", "X")
-      assert {:error, :invalid_pubkey} = Social.add_friend("12", "X")
-      assert {:error, :name_required} = Social.add_friend(@pubkey, "   ")
+      assert {:error, :invalid_pubkey} = Social.add_friend("12")
 
       Identity.ensure()
       assert {:error, :own_key} = Social.add_friend(Identity.npub(), "Me")
+      assert {:error, :own_key} = Social.add_friend(Identity.npub())
       assert Social.list_friends() == []
     end
   end
@@ -61,11 +69,20 @@ defmodule MediaCentaur.Social.FriendTest do
       refute_receive {:friend_changed, _event}, 100
     end
 
-    test "refuses a blank name and a key not on the roster" do
+    test "a blank clears the override and broadcasts; nil on none is silent" do
       {:ok, _friend} = Social.add_friend(@pubkey, "One")
+      Social.subscribe()
 
-      assert {:error, :name_required} = Social.set_name_override(@pubkey, "   ")
-      assert Social.friend_by_pubkey(@pubkey).name_override == "One"
+      assert {:ok, %Friend{name_override: nil}} = Social.set_name_override(@pubkey, "")
+      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
+      assert Social.friend_by_pubkey(@pubkey).name_override == nil
+
+      assert {:ok, %Friend{name_override: nil}} = Social.set_name_override(@pubkey, nil)
+      assert {:ok, %Friend{name_override: nil}} = Social.set_name_override(@pubkey, "   ")
+      refute_receive {:friend_changed, _event}, 100
+    end
+
+    test "refuses a key not on the roster" do
       assert {:error, :not_a_friend} = Social.set_name_override(String.duplicate("a", 64), "X")
     end
   end
