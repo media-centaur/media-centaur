@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   and this identity's own — one row per action, newest first, flat.
   Nothing groups and nothing re-sorts. Watched actions and any title at
   the Ignored rung make no row for any author; a former friend's rows
-  never reach the page (Activities keeps rows for known people only).
+  never reach the page (Activities lists rows for known people only).
 
   The scope filters by author after the entry rule: `:everyone`,
   `:friends` (no own rows) or `:you` (own rows only). It is navigation
