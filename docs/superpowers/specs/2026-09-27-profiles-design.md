@@ -132,8 +132,7 @@ kind before.
 |---|---|
 | `pubkey` | hex, unique |
 | `name` | nullable |
-| `avatar_type` | nullable |
-| `avatar_path` | relative path under the data dir's images folder, nullable |
+| `avatar_type` | nullable; the file's path derives from the key and the type |
 | `raw_event` | the signed wire form, for republish |
 | `created_at` | the wire time; decides which copy wins |
 
@@ -150,6 +149,11 @@ so a replaced avatar busts the browser cache and an unchanged one is
 immutable. No new controller. `Social.people/0` yields an avatar URL
 only for a file that exists; a missing file reads as no avatar until the
 next profile arrives.
+
+2026-09-28, as built: no `avatar_path` column; `Social.AvatarStore`
+derives `images/social/<pubkey>.<ext>` from the key and `avatar_type`
+through `ImageFiles.on_disk_path/1`, and the URL is
+`ImageFiles.web_path/2` with `created_at` as the version, never `?w=`.
 
 `friends`: `nickname` becomes `name_override`, nullable; `show_avatar`
 boolean, not null, default true.
