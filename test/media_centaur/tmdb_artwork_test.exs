@@ -142,11 +142,11 @@ defmodule MediaCentaur.TmdbArtworkTest do
       assert File.exists?(stray)
     end
 
-    test "no data_dir configured sweeps nothing" do
+    test "no data_dir configured raises instead of walking a working-directory path" do
       config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
       :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, nil))
 
-      assert TmdbArtwork.sweep() == 0
+      assert_raise ArgumentError, ~r/data_dir/, fn -> TmdbArtwork.sweep() end
     end
   end
 

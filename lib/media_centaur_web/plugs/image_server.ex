@@ -21,8 +21,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   @behaviour Plug
   import Plug.Conn
 
-  alias MediaCentaur.Settings.Config
-
+  alias MediaCentaur.ImageFiles
   alias MediaCentaur.Library.ImageCache
 
   @impl true
@@ -67,7 +66,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
         send_file_response(conn, master_path)
 
       width ->
-        case MediaCentaur.ImageFiles.derivative(master_path, width) do
+        case ImageFiles.derivative(master_path, width) do
           {:ok, served_path} -> send_file_response(conn, served_path)
           {:error, _reason} -> send_file_response(conn, master_path)
         end
@@ -95,19 +94,13 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
     ImageCache.resolve_path(relative) || find_in_data_dir(relative)
   end
 
-  # Configured app-data root — covers the data-dir image stores
-  # (`MediaCentaur.TmdbArtwork`, `MediaCentaur.Apps.Artwork`,
-  # `MediaCentaur.Social.AvatarStore`), whose paths `ImageFiles.on_disk_path/1`
-  # derives. Independent of cwd.
+  # The data-dir image stores (`MediaCentaur.TmdbArtwork`,
+  # `MediaCentaur.Apps.Artwork`, `MediaCentaur.Social.AvatarStore`): the
+  # same derivation their URLs came from, so the plug opens exactly what
+  # a store wrote.
   defp find_in_data_dir(relative) do
-    case Config.get(:data_dir) do
-      nil ->
-        nil
-
-      data_dir ->
-        candidate = Path.join(data_dir, relative)
-        if File.regular?(candidate), do: candidate
-    end
+    candidate = ImageFiles.on_disk_path(relative)
+    if File.regular?(candidate), do: candidate
   end
 
   defp send_file_response(conn, file_path) do

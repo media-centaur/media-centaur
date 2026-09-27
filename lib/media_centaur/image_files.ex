@@ -37,8 +37,9 @@ defmodule MediaCentaur.ImageFiles do
 
   @doc "`web_path/1` with the immutable-cache version `ImageServer` honours: a replaced master mints a new URL."
   @spec web_path(String.t(), non_neg_integer()) :: String.t()
-  def web_path(relative_path, version) when is_binary(relative_path) and is_integer(version),
-    do: web_path(relative_path) <> "?v=#{version}"
+  def web_path(relative_path, version)
+      when is_binary(relative_path) and is_integer(version) and version >= 0,
+      do: web_path(relative_path) <> "?v=#{version}"
 
   @doc """
   The on-disk path of an app-owned image under the data dir: what
@@ -129,9 +130,13 @@ defmodule MediaCentaur.ImageFiles do
   @doc """
   A square WebP master of `side` pixels from the image file at `path`,
   centre-cropped, returned in memory: the avatar a sender publishes.
-  `{:error, reason}` when the file is not an image libvips can open.
+  `{:error, reason}` when the file is not an image libvips can open. A
+  truncated file with a sound header opens without error and yields a
+  partly grey master, so the sender sees the result before publishing.
+  `path` is a file the app wrote (an upload's temp file), never a
+  user-typed name: libvips reads loader options after a `[` in it.
   """
-  @spec square_webp(Path.t(), pos_integer()) :: {:ok, binary()} | {:error, term()}
+  @spec square_webp(String.t(), pos_integer()) :: {:ok, binary()} | {:error, term()}
   def square_webp(path, side) when is_binary(path) and is_integer(side) and side > 0 do
     with {:ok, image} <- Image.open(path),
          {:ok, square} <- Image.thumbnail(image, side, crop: :center) do
