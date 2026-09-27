@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   name — no clock — and a strip of posters, one per title acted on,
   each under its act glyphs centred as a group in mast order (the
   opinion, the eye, the bookmark), a flag at the grade in gold. One
-  component at two widths: the Feed's rail (500, a row in the rail's
+  component at two widths: the Feed's rail (480, a row in the rail's
   list, three acts, a press navigates to the person) and the Friends
   page (900, a card on the inset tone, five acts, a press opens the card
   in place to every act, one row each, and the foot). A person with no
@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   def layout, do: :one_column
 
   @poster "/images/storybook/sample-poster.jpg"
-  @rail ~s(<div class="w-[500px]"><.psb-variation/></div>)
+  @rail ~s(<div class="w-[480px]"><.psb-variation/></div>)
   @page ~s(<div class="w-[900px]"><.psb-variation/></div>)
 
   defp act(tmdb_id, name, flags, opts \\ []) do

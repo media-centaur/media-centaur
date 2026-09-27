@@ -269,10 +269,12 @@ One pass, one commit:
 * Discovery's frame is Library's: the page header at the top with
   `mb-5`, no `pt-10`, the page scrim every page but Home carries
   (UIDR-033; Discovery had been missing it), the controls under the
-  header. The Feed and the Watchlist compose at 1500px
-  (`.discovery-page-narrow`; the feed column beside a 500px rail above
-  a 1300px container, one column below); the Friends grid keeps the
-  layout's width and its 1700 fold.
+  header. The Feed and the Watchlist sit in the layout's 1280px
+  container like every page but Home — Discovery's `full_width` is now
+  the Friends tab's alone — the feed at 776 beside a 480px rail above a
+  1100px container, one column below; the Friends grid keeps the full
+  width and its 1700 fold. (First landed at 1500; the owner's shot at
+  the TV's scale showed the row's words ending long before the time.)
 * Stories: `feed_row.story.exs` replaces the band's; the person card,
   identity tile, tab strip and segmented control stories follow.
 * Rounds 10–13 stand in the mockups folder as the record of what was

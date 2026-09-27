@@ -597,7 +597,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       flash={@flash}
       current_path={current_path(@live_action)}
       badges={assigns[:badges] || %MediaCentaurWeb.ShellBadges.Counts{}}
-      full_width
+      full_width={@live_action == :friends}
     >
       <:overlays>
         <DetailPanel.detail_panel
@@ -630,13 +630,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         <div class="page-side-dim" aria-hidden="true"></div>
 
         <%!-- Library's frame: the page header at the top of the page, the
-              controls under it. The Feed and the Watchlist sit in a 1500px
-              composition — a poster row wants a reading measure, not the
-              panel — while the Friends grid keeps the full width. --%>
-        <div class={[
-          "discovery-page relative z-[1] w-full",
-          @live_action != :friends && "discovery-page-narrow"
-        ]}>
+              controls under it. The Feed and the Watchlist sit in the
+              layout's 1280px container like every page but Home — a poster
+              row wants a reading measure, not the panel — while the Friends
+              grid opts out to the full width for its two columns. --%>
+        <div class="discovery-page relative z-[1] w-full">
           <.page_header title="Discovery" class="mb-5" />
 
           <%!-- The head row shares the columns' grid: the strip and the
