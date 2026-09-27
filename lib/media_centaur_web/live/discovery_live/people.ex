@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.People do
     attrs; `PersonCard.dom_id/1` names it.
     """
 
+    @enforce_keys [:person]
     defstruct [:person, acts: []]
 
     @type t :: %__MODULE__{person: Person.t(), acts: [Act.t()]}
