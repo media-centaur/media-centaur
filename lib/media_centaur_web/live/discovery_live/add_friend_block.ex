@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.AddFriendBlock do
         idiom), and only a set basis keeps a fixed field open. --%>
         <input
           type="text"
-          name="nickname"
+          name="name"
           placeholder="Name"
           class="library-filter basis-40 grow-0 shrink-0"
           autocomplete="off"

@@ -25,7 +25,6 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   alias MediaCentaurWeb.IncomingLive.PlanQuery
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
-  alias MediaCentaurWeb.DiscoveryLive.People
 
   setup do
     TmdbStubs.setup_tmdb_client()
@@ -198,22 +197,39 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       refute has_element?(view, "#add-relay-form")
     end
 
-    test "adds a friend by npub + name, shows their card, and removes", %{conn: conn} do
+    test "adds a friend by npub and name, shows their card, renames from the foot, and removes", %{
+      conn: conn
+    } do
       {:ok, view, _html} = live(conn, "/discovery/friends")
       npub = Keys.to_npub(@friend_pubkey)
 
       view
-      |> form("#add-friend-form", %{"key" => npub, "nickname" => "Sample Friend"})
+      |> form("#add-friend-form", %{"key" => npub, "name" => "Sample Friend"})
       |> render_submit()
 
       assert has_element?(view, friend_card() <> " h2", "Sample Friend")
       refute has_element?(view, friend_card(), "Nothing shared yet")
       refute has_element?(view, friend_card() <> " [data-role='acts']")
-      # The foot is behind the card's press.
-      view |> element(friend_card()) |> render_click()
-      assert has_element?(view, friend_card() <> " footer", People.short_npub(@friend_pubkey))
       assert has_element?(view, "[data-nav-zone='zone-tabs'] a.zone-tab-active .badge", "1")
-      assert [%{nickname: "Sample Friend"}] = Social.list_friends()
+      assert [%{name_override: "Sample Friend"}] = Social.list_friends()
+
+      # The foot is behind the card's press: your name for them, and the key.
+      view |> element(friend_card()) |> render_click()
+      assert has_element?(view, friend_card() <> " footer", Social.short_npub(@friend_pubkey))
+
+      view |> form(friend_card() <> " [data-role='name-form']", %{"name" => "Nick"}) |> render_submit()
+      assert has_element?(view, friend_card() <> " h2", "Nick")
+
+      assert has_element?(
+               view,
+               friend_card() <> " [data-role='name-form'] input[name='name'][value='Nick']"
+             )
+
+      assert [%{name_override: "Nick"}] = Social.list_friends()
+
+      view |> form(friend_card() <> " [data-role='name-form']", %{"name" => "  "}) |> render_submit()
+      assert render(view) =~ "Give your friend a name"
+      assert has_element?(view, friend_card() <> " h2", "Nick")
 
       view |> element(friend_card() <> " button", "Remove friend") |> render_click()
       refute has_element?(view, friend_card())
@@ -224,17 +240,17 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       Identity.ensure()
       {:ok, view, _html} = live(conn, "/discovery/friends")
 
-      view |> form("#add-friend-form", %{"key" => "npub1nope", "nickname" => "X"}) |> render_submit()
+      view |> form("#add-friend-form", %{"key" => "npub1nope", "name" => "X"}) |> render_submit()
       assert render(view) =~ "That is not a valid public key"
 
       view
-      |> form("#add-friend-form", %{"key" => Identity.npub(), "nickname" => "Me"})
+      |> form("#add-friend-form", %{"key" => Identity.npub(), "name" => "Me"})
       |> render_submit()
 
       assert render(view) =~ "That is your own key"
 
       view
-      |> form("#add-friend-form", %{"key" => Keys.to_npub(@friend_pubkey), "nickname" => " "})
+      |> form("#add-friend-form", %{"key" => Keys.to_npub(@friend_pubkey), "name" => " "})
       |> render_submit()
 
       assert render(view) =~ "Give your friend a name"

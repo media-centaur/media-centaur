@@ -54,9 +54,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   release date as quiet markers — joined here from `ReleaseTracking`,
   because Discovery stays free of tracking (ADR-066); a row is armed
   from its modal. A row added from a friend's action carries a bare
-  `activity_id`, and this page turns it into `from <nickname>`
-  (`Activities.friend_activity_for/1`, which joins `Social.list_friends/0`)
-  — the join neither context may make.
+  `activity_id`; the friend's name reaches the page through the pennants
+  (`Activities.friend_activity_for/1`, whose rows carry their author as a
+  `Social.Person`).
 
   A listing or an ignore made from a row carries that row's activity
   as provenance (`TitleIntent.friend_provenance/2`), the way the
@@ -97,7 +97,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.Social
-  alias MediaCentaur.Social.Identity
   alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.TMDB.Store
   alias MediaCentaurWeb.Components.ActionToast
@@ -133,7 +132,6 @@ defmodule MediaCentaurWeb.DiscoveryLive do
      socket
      |> assign(:page_title, "Discovery")
      |> assign(
-       friends: [],
        items: [],
        activities: [],
        feed: [],
@@ -144,7 +142,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        feed_head: nil,
        feed_queued: 0,
        feed_at_cap?: false,
-       rail: %{people: [], hidden: 0},
+       rail: %{cards: [], hidden: 0},
        landed_person: nil,
        people: [],
        opened_people: MapSet.new(),
@@ -152,7 +150,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
        warmed_artwork: MapSet.new(),
        today: Date.utc_today()
      )
-     |> load_friends()
+     |> load_people()
      |> load_items()
      |> load_activities()}
   end
@@ -209,7 +207,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # and an own feed row name it; a watchlist title is not a place to
   # narrate your own broadcasts back to you.
   defp activity_row(socket, ref, nil) do
-    friends = Enum.filter(socket.assigns.activities, &(activity_ref(&1) == ref and not &1.own?))
+    friends = Enum.filter(socket.assigns.activities, &(activity_ref(&1) == ref and not &1.author.own?))
     Enum.find(friends, &(&1.activity.kind == :review)) || List.first(friends)
   end
 
@@ -232,18 +230,32 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_event("open_person", %{"id" => id}, socket),
     do: {:noreply, push_navigate(socket, to: ~p"/discovery/friends?person=#{id}")}
 
-  def handle_event("add_friend", %{"key" => key, "nickname" => nickname}, socket) do
-    case Social.add_friend(key, nickname) do
-      {:ok, _friend} -> {:noreply, socket |> load_friends() |> load_activities()}
+  def handle_event("add_friend", %{"key" => key, "name" => name}, socket) do
+    case Social.add_friend(key, name) do
+      {:ok, _friend} -> {:noreply, socket |> load_people() |> load_activities()}
       {:error, :own_key} -> {:noreply, put_flash(socket, :error, "That is your own key")}
-      {:error, :nickname_required} -> {:noreply, put_flash(socket, :error, "Give your friend a name")}
+      {:error, :name_required} -> {:noreply, put_flash(socket, :error, "Give your friend a name")}
       {:error, _invalid} -> {:noreply, put_flash(socket, :error, "That is not a valid public key")}
+    end
+  end
+
+  # The opened card's foot: the reader's name for the friend.
+  def handle_event("set_friend_name", %{"pubkey" => pubkey, "name" => name}, socket) do
+    case Social.set_name_override(pubkey, name) do
+      {:ok, _friend} ->
+        {:noreply, socket |> load_people() |> load_activities()}
+
+      {:error, :name_required} ->
+        {:noreply, put_flash(socket, :error, "Give your friend a name")}
+
+      {:error, :not_a_friend} ->
+        {:noreply, put_flash(socket, :error, "That friend is no longer on your list")}
     end
   end
 
   def handle_event("remove_friend", %{"pubkey" => pubkey}, socket) do
     :ok = Social.remove_friend(pubkey)
-    {:noreply, socket |> load_friends() |> load_activities()}
+    {:noreply, socket |> load_people() |> load_activities()}
   end
 
   # --- the Feed's toolbar — see the moduledoc ---
@@ -370,8 +382,9 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, load_activities(socket)}
   end
 
-  def handle_info({tag, _event}, socket) when tag in [:friend_added, :friend_removed] do
-    {:noreply, socket |> load_friends() |> load_activities()}
+  def handle_info({tag, _event}, socket)
+      when tag in [:friend_added, :friend_removed, :friend_changed, :identity_changed] do
+    {:noreply, socket |> load_people() |> load_activities()}
   end
 
   # A mode moved, an arm landed, a calendar refreshed: the rows' mode and
@@ -424,8 +437,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   defp next_air_date(nil, _today), do: nil
   defp next_air_date(item, today), do: Logic.next_air_date(item.releases, today)
 
-  # The activity row's decoration: Activities owns the record and the
-  # nickname; watchlist and library presence are derived here, live,
+  # The activity row's decoration: Activities owns the record and its
+  # author; watchlist and library presence are derived here, live,
   # from the contexts that own them. Both tabs project from this list.
   # The poster too — an activity snapshot carries no poster path, so
   # only this page knows which artwork tier the title lives in
@@ -452,7 +465,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     socket
     |> assign(
       activities: activities,
-      feed_ready?: Social.list_relays() != [] and Social.list_friends() != []
+      feed_ready?: Social.list_relays() != [] and socket.assigns.friend_count > 0
     )
     |> stamp_acquisition_states()
     |> warm_activity_artwork()
@@ -523,11 +536,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
         head: socket.assigns.feed_head
       )
 
-    people =
-      People.build(socket.assigns.activities, socket.assigns.friends,
-        me: Identity.pubkey() != nil,
-        now: now
-      )
+    people = People.build(socket.assigns.activities, socket.assigns.people_by_pubkey, now: now)
 
     assign(socket,
       feed: entries,
@@ -540,13 +549,23 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     )
   end
 
-  defp load_friends(socket), do: assign(socket, :friends, Social.list_friends())
+  # The known people (`Social.people/0`), the reader included when an
+  # identity exists: the cards are built from the map, the tab's count
+  # and the feed's readiness are derived from it. The roster is held once.
+  defp load_people(socket) do
+    people = Social.people()
 
-  defp tabs(feed, items, friends, scope),
+    assign(socket,
+      people_by_pubkey: people,
+      friend_count: Enum.count(people, fn {_pubkey, person} -> not person.own? end)
+    )
+  end
+
+  defp tabs(feed, items, friend_count, scope),
     do: [
       %Tab{id: :feed, label: "Feed", navigate: feed_path(scope), count: length(feed)},
       %Tab{id: :watchlist, label: "Watchlist", navigate: "/discovery/watchlist", count: length(items)},
-      %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends", count: length(friends)}
+      %Tab{id: :friends, label: "Friends", navigate: "/discovery/friends", count: friend_count}
     ]
 
   # The Feed under a scope, Everyone being the bare address.
@@ -642,7 +661,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 both columns (UIDR-046). --%>
           <div class="discovery-columns discovery-head mb-4">
             <div class="discovery-head-cell">
-              <.tab_strip tabs={tabs(@feed, @items, @friends, @feed_scope)} active={@live_action} />
+              <.tab_strip
+                tabs={tabs(@feed, @items, @friend_count, @feed_scope)}
+                active={@live_action}
+              />
               <.segmented_control
                 :if={@live_action == :feed}
                 id="feed-scope"
@@ -759,11 +781,12 @@ defmodule MediaCentaurWeb.DiscoveryLive do
               <div :if={@live_action == :friends} class="space-y-4">
                 <div :if={@people != []} id="friends-grid" class="friends-grid" data-nav-zone="people">
                   <PersonCard.person_card
-                    :for={person <- @people}
-                    person={person}
+                    :for={card <- @people}
+                    person={card.person}
+                    acts={card.acts}
                     width={:page}
-                    opened?={MapSet.member?(@opened_people, person.id)}
-                    landed?={person.id == @landed_person}
+                    opened?={MapSet.member?(@opened_people, PersonCard.dom_id(card.person))}
+                    landed?={PersonCard.dom_id(card.person) == @landed_person}
                   />
                 </div>
                 <AddFriendBlock.add_friend_block />
@@ -824,7 +847,7 @@ defmodule MediaCentaurWeb.DiscoveryLive do
                 />
               </div>
             </div>
-            <.rail :if={@live_action != :friends} rail={@rail} friends={@friends} />
+            <.rail :if={@live_action != :friends} rail={@rail} friend_count={@friend_count} />
           </div>
         </div>
       </div>
@@ -837,23 +860,28 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # friends" when the cap hides anyone. Page composition, not a reusable
   # component; nothing here is a nav item until the hardening pass.
   attr :rail, :map, required: true, doc: "`People.rail/1`: the cards shown and how many the cap hid"
-  attr :friends, :list, required: true, doc: "the roster, for the count"
+  attr :friend_count, :integer, required: true, doc: "for All N friends"
 
   defp rail(assigns) do
     ~H"""
     <aside
-      :if={@rail.people != []}
+      :if={@rail.cards != []}
       id="feed-rail"
       class="discovery-rail divide-y divide-base-content/10"
     >
-      <PersonCard.person_card :for={person <- @rail.people} person={person} width={:rail} />
+      <PersonCard.person_card
+        :for={card <- @rail.cards}
+        person={card.person}
+        acts={card.acts}
+        width={:rail}
+      />
       <.link
         :if={@rail.hidden > 0}
         id="feed-rail-all"
         navigate={~p"/discovery/friends"}
         class="block pl-3.5 pt-3 text-sm text-base-content/70 hover:text-base-content/90"
       >
-        All {length(@friends)} friends
+        All {@friend_count} friends
       </.link>
     </aside>
     """
