@@ -1,13 +1,13 @@
 defmodule MediaCentaur.Social.Friend do
   @moduledoc """
-  One followed public key: the x-only key as lowercase hex and the
-  reader's name for it, `name_override` (UIDR-047): the reader's own
-  word for the friend, which will mask the name the key publishes once
-  profiles carry one. Nothing here comes from the network.
+  One followed public key: the x-only key as lowercase hex and, when the
+  reader gave one, `name_override` (UIDR-047): the reader's own word for
+  the friend, which masks the name the key publishes (`Social.Profile`).
+  The override is optional; blank is none. Nothing here comes from the
+  network.
 
-  The column is still `nickname`, mapped with `source:`; the profiles
-  campaign's phase 2 rebuild renames it when the name becomes optional
-  beside the published one.
+  The table still carries a nullable `nickname` column the outgoing
+  release reads; the release after this one drops it.
   """
 
   use Ecto.Schema
@@ -19,7 +19,7 @@ defmodule MediaCentaur.Social.Friend do
 
   schema "friends" do
     field :pubkey, :string
-    field :name_override, :string, source: :nickname
+    field :name_override, :string
 
     timestamps()
   end
@@ -31,9 +31,18 @@ defmodule MediaCentaur.Social.Friend do
   def changeset(friend \\ %__MODULE__{}, attrs) do
     friend
     |> cast(attrs, [:pubkey, :name_override])
-    |> update_change(:name_override, &String.trim/1)
-    |> validate_required([:pubkey, :name_override])
+    |> update_change(:name_override, &blank_to_nil/1)
+    |> validate_required([:pubkey])
     |> validate_format(:pubkey, ~r/^[0-9a-f]{64}$/)
     |> unique_constraint(:pubkey)
+  end
+
+  defp blank_to_nil(nil), do: nil
+
+  defp blank_to_nil(name) when is_binary(name) do
+    case String.trim(name) do
+      "" -> nil
+      trimmed -> trimmed
+    end
   end
 end

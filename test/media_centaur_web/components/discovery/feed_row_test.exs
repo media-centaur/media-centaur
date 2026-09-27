@@ -105,4 +105,15 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRowTest do
     assert Enum.empty?(LazyHTML.query(friend, "[data-component='feed-row'][data-own]"))
     assert friend |> LazyHTML.query("#feed-row-a-ignore") |> Enum.count() == 1
   end
+
+  test "a friend with no name at all is Unnamed under the person glyph" do
+    html = render(%{author: person(nil)})
+
+    who = html |> LazyHTML.query("[data-role='who']") |> LazyHTML.text() |> String.replace(~r/\s+/, " ")
+    assert who =~ "Unnamed wants to watch"
+
+    assert html
+           |> LazyHTML.query("[data-component='identity-tile'][data-size='40']")
+           |> LazyHTML.attribute("data-mark") == ["glyph"]
+  end
 end

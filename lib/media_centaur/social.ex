@@ -87,18 +87,18 @@ defmodule MediaCentaur.Social do
   def list_relays, do: Repo.all(from(relay in Relay, order_by: relay.url))
 
   @doc """
-  Adds a friend by npub or 64-hex key under the reader's name for them
-  (UIDR-047). Idempotent on the key: re-adding one already on the roster
-  changes nothing, as adding a relay you already have does; the name is
-  changed with `set_name_override/2`.
+  Adds a friend by npub or 64-hex key, optionally under the reader's own
+  name for them, the override that masks the name they publish
+  (UIDR-047); nil or blank is a friend without one. Idempotent on the
+  key: re-adding one already on the roster changes nothing, as adding a
+  relay you already have does; the name is changed with
+  `set_name_override/2`.
   """
-  @spec add_friend(String.t(), String.t()) ::
-          {:ok, Friend.t()}
-          | {:error, :invalid_pubkey | :name_required | :own_key | Ecto.Changeset.t()}
-  def add_friend(key, name) when is_binary(key) and is_binary(name) do
+  @spec add_friend(String.t(), String.t() | nil) ::
+          {:ok, Friend.t()} | {:error, :invalid_pubkey | :own_key | Ecto.Changeset.t()}
+  def add_friend(key, name \\ nil) when is_binary(key) and (is_binary(name) or is_nil(name)) do
     with {:ok, pubkey} <- Keys.parse_pubkey(String.trim(key)),
-         :ok <- not_own_key(pubkey),
-         {:ok, name} <- present_name(name) do
+         :ok <- not_own_key(pubkey) do
       case Repo.get_by(Friend, pubkey: pubkey) do
         %Friend{} = existing -> {:ok, existing}
         nil -> insert_friend(pubkey, name)
@@ -107,14 +107,14 @@ defmodule MediaCentaur.Social do
   end
 
   @doc """
-  Sets the reader's name for a friend. Broadcasts `FriendChanged` when it
-  changed; the same name again is silent.
+  Sets the reader's optional name for a friend; nil or blank clears it,
+  and the published name, else Unnamed, stands in. Broadcasts
+  `FriendChanged` when it changed; the same name again is silent.
   """
-  @spec set_name_override(String.t(), String.t()) ::
-          {:ok, Friend.t()} | {:error, :name_required | :not_a_friend}
-  def set_name_override(pubkey, name) when is_binary(pubkey) and is_binary(name) do
-    with {:ok, name} <- present_name(name),
-         {:ok, friend} <- known_friend(pubkey) do
+  @spec set_name_override(String.t(), String.t() | nil) ::
+          {:ok, Friend.t()} | {:error, :not_a_friend}
+  def set_name_override(pubkey, name) when is_binary(pubkey) and (is_binary(name) or is_nil(name)) do
+    with {:ok, friend} <- known_friend(pubkey) do
       apply_change(friend, %{name_override: name})
     end
   end
@@ -372,7 +372,7 @@ defmodule MediaCentaur.Social do
   end
 
   # No change is no broadcast. The changeset cannot fail here: the name
-  # was checked present and the key is unchanged, so a failure is a bug.
+  # is optional and the key is unchanged, so a failure is a bug.
   defp apply_change(%Friend{} = existing, attrs) do
     changeset = Friend.changeset(existing, attrs)
 

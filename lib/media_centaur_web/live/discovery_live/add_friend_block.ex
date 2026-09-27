@@ -1,8 +1,9 @@
 defmodule MediaCentaurWeb.DiscoveryLive.AddFriendBlock do
   @moduledoc """
-  The Friends tab's add-friend form: a key and the name it goes under
-  here. Iteration-phase component (lives with the LiveView, no story
-  yet — spec decision 11). `add_friend` bubbles to `DiscoveryLive`.
+  The Friends tab's add-friend form: a key and, if the reader likes, the
+  name it goes under here (UIDR-047: the optional override). Iteration-phase
+  component (lives with the LiveView, no story yet — spec decision 11).
+  `add_friend` bubbles to `DiscoveryLive`.
   """
 
   use MediaCentaurWeb, :html
@@ -13,7 +14,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.AddFriendBlock do
       <div class="space-y-1">
         <h2 class="text-sm font-semibold">Add a friend</h2>
         <p class="text-xs text-base-content/55">
-          Paste the key they give you; the name is only for you.
+          Paste the key they give you. The name is only for you and optional; without one you see the name they publish, or Unnamed.
         </p>
       </div>
 
@@ -31,7 +32,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.AddFriendBlock do
         <input
           type="text"
           name="name"
-          placeholder="Name"
+          placeholder="Name (optional)"
           class="library-filter basis-40 grow-0 shrink-0"
           autocomplete="off"
         />

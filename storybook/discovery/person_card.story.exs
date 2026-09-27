@@ -144,6 +144,12 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         attributes: %{person: friend(), acts: [], width: :rail},
         template: @rail
       },
+      %Variation{
+        id: :rail_unnamed,
+        description: "A friend with no name at all: the person glyph and Unnamed, no note about it",
+        attributes: %{person: %{friend() | name_override: nil}, acts: three_acts(), width: :rail},
+        template: @rail
+      },
       %VariationGroup{
         id: :rail_flags,
         description: "Each flag alone at 28px, centred over its poster on the rail",

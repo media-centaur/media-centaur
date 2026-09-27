@@ -234,19 +234,15 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     case Social.add_friend(key, name) do
       {:ok, _friend} -> {:noreply, socket |> load_people() |> load_activities()}
       {:error, :own_key} -> {:noreply, put_flash(socket, :error, "That is your own key")}
-      {:error, :name_required} -> {:noreply, put_flash(socket, :error, "Give your friend a name")}
       {:error, _invalid} -> {:noreply, put_flash(socket, :error, "That is not a valid public key")}
     end
   end
 
-  # The opened card's foot: the reader's name for the friend.
+  # The opened card's foot: the reader's name for the friend; a blank clears it.
   def handle_event("set_friend_name", %{"pubkey" => pubkey, "name" => name}, socket) do
     case Social.set_name_override(pubkey, name) do
       {:ok, _friend} ->
         {:noreply, socket |> load_people() |> load_activities()}
-
-      {:error, :name_required} ->
-        {:noreply, put_flash(socket, :error, "Give your friend a name")}
 
       {:error, :not_a_friend} ->
         {:noreply, put_flash(socket, :error, "That friend is no longer on your list")}
@@ -382,8 +378,11 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     {:noreply, load_activities(socket)}
   end
 
-  def handle_info({tag, _event}, socket)
-      when tag in [:friend_added, :friend_removed, :friend_changed, :identity_changed] do
+  @people_tags [:friend_added, :friend_removed, :friend_changed, :identity_changed, :profile_updated]
+
+  # The roster, the identity or a published name changed: the people are
+  # reread and the rows redrawn under them.
+  def handle_info({tag, _event}, socket) when tag in @people_tags do
     {:noreply, socket |> load_people() |> load_activities()}
   end
 

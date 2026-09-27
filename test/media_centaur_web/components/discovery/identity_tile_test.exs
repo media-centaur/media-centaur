@@ -41,6 +41,19 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTileTest do
     assert letter(html) == ""
   end
 
+  test "a friend with no name at all is the person glyph, never a letter" do
+    html = render(person: person(nil), size: 40)
+    assert mark(html) == ["glyph"]
+    assert letter(html) == ""
+
+    assert html |> LazyHTML.query("[data-component='identity-tile'] .hero-user-solid") |> Enum.count() ==
+             1
+  end
+
+  test "the published name gives the letter when there is no override" do
+    assert letter(render(person: person(nil, published_name: "ada"), size: 40)) == "A"
+  end
+
   test "the size is one of the two the surfaces render" do
     assert_raise ArgumentError, ~r/40 or 48/, fn -> render(person: person("Cleo"), size: 56) end
   end

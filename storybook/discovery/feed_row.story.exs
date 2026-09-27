@@ -129,6 +129,14 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedRow do
         attributes: %{entry: entry("bare", %{kind: :review, sentiment: nil, text: nil})}
       },
       %Variation{
+        id: :unnamed_listing,
+        description:
+          "A friend with no name at all: the person glyph in the tile, Unnamed wants to watch it.",
+        attributes: %{
+          entry: entry("unnamed", %{author: %{friend() | name_override: nil}, ago: "5m ago"})
+        }
+      },
+      %Variation{
         id: :own_listing,
         description: "The reader's own listing: the filled own tile, the second-person verb, no Ignore.",
         attributes: %{entry: entry("own", %{author: you(), ago: "1h ago"})}

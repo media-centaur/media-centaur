@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.DiscoveryRows, only: [person: 1, own_person: 0]
+  import MediaCentaur.DiscoveryRows, only: [person: 1, person: 2, own_person: 0]
   import Phoenix.LiveViewTest, only: [render_component: 2]
 
   alias MediaCentaur.TMDB.Title
@@ -143,6 +143,29 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert html |> LazyHTML.query("footer input[name='pubkey']") |> LazyHTML.attribute("value") == [
              person("Nick").pubkey
            ]
+  end
+
+  test "the foot's placeholder is the published name the override masks, else Unnamed; never a letter of it" do
+    published =
+      render(person: person("Nick", published_name: "Ada"), acts: [], width: :page, opened?: true)
+
+    input = LazyHTML.query(published, "footer [data-role='name-form'] input[name='name']")
+
+    assert LazyHTML.attribute(input, "value") == ["Nick"]
+    assert LazyHTML.attribute(input, "placeholder") == ["Ada"]
+
+    nameless = render(person: person(nil), acts: [], width: :page, opened?: true)
+    input = LazyHTML.query(nameless, "footer [data-role='name-form'] input[name='name']")
+
+    assert LazyHTML.attribute(input, "value") == []
+    assert LazyHTML.attribute(input, "placeholder") == ["Unnamed"]
+
+    assert nameless |> LazyHTML.query("[data-role='name']") |> LazyHTML.text() |> String.trim() ==
+             "Unnamed"
+
+    assert nameless
+           |> LazyHTML.query("[data-component='identity-tile']")
+           |> LazyHTML.attribute("data-mark") == ["glyph"]
   end
 
   test "dom_id/1 is person-you for the reader and the key's first eight hex digits for a friend" do
