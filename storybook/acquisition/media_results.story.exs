@@ -69,10 +69,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
     }
   end
 
-  # nil is the reader; a string is a friend under your name for them.
-  defp author(nil),
-    do: %Person{pubkey: "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", own?: true}
-
+  # A friend under your name for them; every row here is a friend's.
   defp author(name),
     do: %Person{
       pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
