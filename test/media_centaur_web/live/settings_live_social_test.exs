@@ -14,22 +14,70 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
   @section "/settings?section=social"
 
-  describe "identity" do
-    test "opening the section generates an identity and shows the npub with a copy control", %{
-      conn: conn
-    } do
-      refute Identity.present?()
+  describe "profile" do
+    test "opening Social mints nothing; Create profile mints the identity and shows the other cards",
+         %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
+      refute Identity.present?()
+      assert has_element?(view, "#profile-form button", "Create profile")
+      refute has_element?(view, "#identity-npub")
+      refute has_element?(view, "#add-relay-form")
+      refute has_element?(view, "#social-sharing")
 
+      view |> form("#profile-form", %{"name" => "   "}) |> render_submit()
+      assert render(view) =~ "Your profile needs a name"
+      refute Identity.present?()
+
+      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
       assert Identity.present?()
+      assert render(view) =~ "Profile saved"
       assert has_element?(view, "#identity-npub", Identity.npub())
       assert has_element?(view, "#copy-npub[data-copy-text='#{Identity.npub()}']")
-      refute render(view) =~ Identity.export_nsec()
+      assert has_element?(view, "#add-relay-form")
+      assert has_element?(view, "#social-sharing")
+      assert has_element?(view, "#profile-form input[name='name'][value='Sample Name']")
+      assert has_element?(view, "#profile-form button", "Save")
+      assert %{name: "Sample Name"} = Social.own_profile()
+    end
+
+    test "an identity without a profile shows both cards, the name empty", %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+      assert has_element?(view, "#identity-npub")
+      assert has_element?(view, "#profile-form input[name='name']:not([value])")
+      assert has_element?(view, "#profile-form button", "Save")
+    end
+
+    test "a profile saved in another tab shows here", %{conn: conn} do
+      Identity.ensure()
+      {:ok, tab_a, _html} = live_async!(conn, @section)
+      {:ok, tab_b, _html} = live_async!(conn, @section)
+
+      tab_b |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+
+      render_until(tab_a, fn _html ->
+        has_element?(tab_a, "#profile-form input[name='name'][value='Sample Name']")
+      end)
     end
 
     test "other sections do not mint an identity", %{conn: conn} do
       {:ok, _view, _html} = live_async!(conn, "/settings?section=tmdb")
       refute Identity.present?()
+    end
+  end
+
+  describe "identity" do
+    setup do
+      Identity.ensure()
+      :ok
+    end
+
+    test "the npub shows with a copy control; the secret key does not", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, @section)
+
+      assert has_element?(view, "#identity-npub", Identity.npub())
+      assert has_element?(view, "#copy-npub[data-copy-text='#{Identity.npub()}']")
+      refute render(view) =~ Identity.export_nsec()
     end
 
     test "the secret key is revealed only on request", %{conn: conn} do
@@ -45,7 +93,9 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       refute render(view) =~ nsec
     end
 
-    test "importing a secret key replaces the identity after a second click", %{conn: conn} do
+    test "importing a secret key replaces the identity after a second click and forgets the old profile",
+         %{conn: conn} do
+      {:ok, _profile} = Social.save_profile("Sample Name")
       {:ok, view, _html} = live_async!(conn, @section)
       before = Identity.pubkey()
       nsec = Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "3"))
@@ -60,6 +110,8 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert render(view) =~ "Identity replaced"
       assert has_element?(view, "#identity-npub", Identity.npub())
       refute has_element?(view, "#import-nsec", nsec)
+      assert Social.own_profile() == nil
+      assert has_element?(view, "#profile-form input[name='name']:not([value])")
     end
 
     test "replacing the identity in another tab clears the revealed key and the arm", %{conn: conn} do
@@ -97,6 +149,11 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
   describe "relays" do
     @relay_url "wss://relay.example/"
+
+    setup do
+      Identity.ensure()
+      :ok
+    end
 
     defp relay_row, do: "#" <> SocialSection.relay_dom_id(@relay_url)
 
@@ -137,16 +194,23 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert has_element?(view, relay_row(), "not on the allowlist")
     end
 
-    test "the section is three cards", %{conn: conn} do
+    test "the section is four cards, Your profile first", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
 
-      for title <- ["Your identity", "Relays", "Sharing"] do
+      for title <- ["Your profile", "Your identity", "Relays", "Sharing"] do
         assert has_element?(view, "#settings-social h3", title)
       end
+
+      assert has_element?(view, "#settings-social > div:first-child h3", "Your profile")
     end
   end
 
   describe "sharing" do
+    setup do
+      Identity.ensure()
+      :ok
+    end
+
     test "both toggles start off and flip their preference", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
       refute ShareWatched.enabled?()

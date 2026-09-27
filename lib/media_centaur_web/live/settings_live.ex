@@ -62,6 +62,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
 
   # Sections are grouped for sidebar display — a thin divider renders between
@@ -206,6 +207,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(bindings: %{})
      |> assign(glyph_style: nil)
      |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
+     |> assign(profile_name: nil, name_cap: ProfileTranslation.max_name_length())
      |> assign(relays: [], relay_status: %{}, share_watched?: false, share_watchlist?: false)
      |> assign(
        sections: @sections,
@@ -318,14 +320,14 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, socket}
   end
 
-  # The Social section is where the identity comes into existence (the
-  # only other minting site is `Activities.review/2`). Other
-  # sections leave it alone, so opening Settings never creates a key.
+  # Opening the Social section mints nothing (UIDR-047 rule 3): Create
+  # profile does (`Social.save_profile/1`), and publishing an own activity
+  # still mints silently (`Activities`). Without an identity only the
+  # profile card shows.
   defp load_social(socket, "social") do
-    Identity.ensure()
-
     socket
     |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false, import_draft: "")
+    |> assign(profile_name: profile_name())
     |> assign(relay_status: Connections.status())
     |> assign(share_watched?: ShareWatched.enabled?(), share_watchlist?: ShareWatchlist.enabled?())
     |> load_relays()
@@ -334,6 +336,15 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp load_social(socket, _section), do: socket
 
   defp load_relays(socket), do: assign(socket, :relays, Social.list_relays())
+
+  # The saved name, or nil before a profile exists; nil renders the field
+  # without a value.
+  defp profile_name do
+    case Social.own_profile() do
+      nil -> nil
+      %{name: name} -> name
+    end
+  end
 
   # First-render data load — runs on BOTH the disconnected (static) and
   # connected renders so the first paint already carries the settings state,
@@ -883,7 +894,22 @@ defmodule MediaCentaurWeb.SettingsLive do
   # values, so the user sees their input preserved instead of clobbered.
   # See `test/media_centaur_web/live/settings_live_acquisition_test.exs`.
 
-  # --- Social: identity + relays ------------------------------------------
+  # --- Social: profile, identity + relays ------------------------------------
+
+  # The first save mints the identity; the identity, relay and sharing
+  # cards appear with it.
+  def handle_event("save_profile", %{"name" => name}, socket) do
+    case Social.save_profile(name) do
+      {:ok, profile} ->
+        {:noreply,
+         socket
+         |> assign(identity_npub: Identity.npub(), profile_name: profile.name)
+         |> put_flash(:info, "Profile saved")}
+
+      {:error, :name_required} ->
+        {:noreply, put_flash(socket, :error, "Your profile needs a name")}
+    end
+  end
 
   def handle_event("reveal_nsec", _params, socket),
     do: {:noreply, assign(socket, nsec_revealed: Identity.export_nsec())}
@@ -896,12 +922,13 @@ defmodule MediaCentaurWeb.SettingsLive do
     do: {:noreply, assign(socket, import_armed?: true, import_draft: nsec)}
 
   def handle_event("import_nsec", %{"nsec" => nsec}, socket) do
-    case Identity.import_nsec(nsec) do
+    case Social.import_identity(nsec) do
       :ok ->
         {:noreply,
          socket
          |> assign(
            identity_npub: Identity.npub(),
+           profile_name: profile_name(),
            nsec_revealed: nil,
            import_armed?: false,
            import_draft: ""
@@ -1513,15 +1540,23 @@ defmodule MediaCentaurWeb.SettingsLive do
   # Another tab replaced the identity. A key revealed here belongs to the
   # identity that is gone, an arm here is aimed at it too, and the pasted
   # draft is the secret that arm would have installed — all three drop.
+  # The name is the new key's (none until its profile arrives).
   def handle_info({:identity_changed, _event}, socket) do
     {:noreply,
      assign(socket,
        identity_npub: Identity.npub(),
+       profile_name: profile_name(),
        nsec_revealed: nil,
        import_armed?: false,
        import_draft: ""
      )}
   end
+
+  # The own profile was saved in another tab or arrived from a relay; the
+  # name follows. A friend's profile fires this too and re-reads the same
+  # one row.
+  def handle_info({:profile_updated, _event}, socket),
+    do: {:noreply, assign(socket, profile_name: profile_name())}
 
   def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
     {:noreply, load_relays(socket)}
@@ -1757,6 +1792,8 @@ defmodule MediaCentaurWeb.SettingsLive do
               <.section_content
                 active_section={@active_section}
                 identity_npub={@identity_npub}
+                profile_name={@profile_name}
+                name_cap={@name_cap}
                 nsec_revealed={@nsec_revealed}
                 import_armed?={@import_armed?}
                 import_draft={@import_draft}
@@ -1954,6 +1991,8 @@ defmodule MediaCentaurWeb.SettingsLive do
     ~H"""
     <SocialSection.render
       npub={@identity_npub}
+      profile_name={@profile_name}
+      name_cap={@name_cap}
       nsec_revealed={@nsec_revealed}
       import_armed?={@import_armed?}
       import_draft={@import_draft}

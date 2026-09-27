@@ -1,16 +1,20 @@
 defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   @moduledoc """
-  The Social section of the Settings page (UIDR-041): three cards. Your
-  identity — the npub with a copy control, and behind a disclosure the
-  secret key with reveal and copy plus the two-click import that replaces
-  the identity. Relays — one connection row per relay (its live state
-  from `Social.Connections`, the last error on the detail line, Remove)
-  and the inline add-by-URL. Sharing — the toggles that decide which of
-  the user's acts become activities for friends (watched, listed;
-  reviewing always is). `SettingsLive` delegates to `render/1` and hosts
-  the handlers: `reveal_nsec`, `hide_nsec`, `import_nsec`, `add_relay`,
-  `remove_relay`, `toggle_share_watched`, `toggle_share_watchlist`. The
-  friend roster stays on the Discovery page's Friends tab.
+  The Social section of the Settings page (UIDR-041; UIDR-047 rule 3):
+  four cards. Your profile — the name friends see, a form whose save
+  mints the identity when none exists (`Social.save_profile/1`); it is
+  the only card before an identity exists, so opening the section mints
+  nothing. Your identity — the npub with a copy control, and behind a
+  disclosure the secret key with reveal and copy plus the two-click
+  import that replaces the identity. Relays — one connection row per
+  relay (its live state from `Social.Connections`, the last error on the
+  detail line, Remove) and the inline add-by-URL. Sharing — the toggles
+  that decide which of the user's acts become activities for friends
+  (watched, listed; reviewing always is). `SettingsLive` delegates to
+  `render/1` and hosts the handlers: `save_profile`, `reveal_nsec`,
+  `hide_nsec`, `import_nsec`, `add_relay`, `remove_relay`,
+  `toggle_share_watched`, `toggle_share_watchlist`. The friend roster
+  stays on the Discovery page's Friends tab.
 
   The import textarea renders `import_draft`, so the arming click keeps
   what was pasted and a finished import clears it.
@@ -23,7 +27,12 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
 
   alias MediaCentaurWeb.RelayStatusRow
 
-  attr :npub, :string, required: true
+  attr :npub, :string,
+    default: nil,
+    doc: "nil before an identity exists; gates every card but the profile"
+
+  attr :profile_name, :string, default: nil, doc: "the saved name; nil before a profile exists"
+  attr :name_cap, :integer, required: true, doc: "`Social.Profile.Translation.max_name_length/0`"
   attr :nsec_revealed, :string, default: nil, doc: "the nsec while revealed; nil hides it"
   attr :import_armed?, :boolean, required: true
   attr :import_draft, :string, default: "", doc: "the pasted nsec while the replace is armed"
@@ -39,7 +48,24 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   def render(assigns) do
     ~H"""
     <div id="settings-social" class="space-y-4">
+      <.settings_card title="Your profile" description={profile_description(@npub)}>
+        <form id="profile-form" phx-submit="save_profile" class="flex items-center gap-2">
+          <.settings_input
+            name="name"
+            value={@profile_name}
+            placeholder="Name"
+            maxlength={@name_cap}
+            autocomplete="off"
+            class="min-w-0 flex-1"
+          />
+          <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
+            {if @npub, do: "Save", else: "Create profile"}
+          </.button>
+        </form>
+      </.settings_card>
+
       <.settings_card
+        :if={@npub}
         title="Your identity"
         description="Friends add you by this key. Your reviews are visible to anyone who can read the relays you configure."
       >
@@ -141,6 +167,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
       </.settings_card>
 
       <.settings_card
+        :if={@npub}
         title="Relays"
         description="The servers your activity is published to and read from. Your group's own relay first; public relays are more entries."
       >
@@ -184,6 +211,7 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
       </.settings_card>
 
       <.settings_card
+        :if={@npub}
         id="social-sharing"
         title="Sharing"
         description="Reviewing always shares. Each of these shares from the moment it is switched on; what was sent before stays until you delete it from the Feed."
@@ -212,6 +240,15 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   def relay_dom_id(url) do
     "relay-" <> (url |> String.replace(~r/[^a-z0-9]+/i, "-") |> String.trim("-") |> String.downcase())
   end
+
+  # Before an identity exists the save also mints it, and the identity
+  # card that would explain the key is not on the page yet; the
+  # description carries that once.
+  defp profile_description(nil),
+    do:
+      "The name your friends see you under. Saving it creates your identity, the key friends add you by."
+
+  defp profile_description(_npub), do: "The name your friends see you under."
 
   # The relay row's dot (UIDR-041 §1): synced and connected are the healthy
   # states, connecting is a verify in flight, everything else is a failure.
