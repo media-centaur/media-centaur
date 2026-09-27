@@ -1,24 +1,29 @@
-defmodule MediaCentaur.Activities.Sync do
+defmodule MediaCentaur.RelaySync do
   @moduledoc """
-  Keeps activities in step with the relays — the app's side of the
-  *Reading and sync* section of `docs/social-protocol.md`. Consumes
-  `social:connections`:
+  The loop that keeps stored rows in step with the relays (ADR-074):
+  activities and deletions for `Activities`, profiles for `Social`.
+  Neither context may depend on the other, so the loop sits above both
+  and only routes. The app's side of the *Reading and sync* section of
+  `docs/social-protocol.md`. Consumes `social:connections`:
 
     * `:connected` for a relay → subscribe `"feed"` (authors = friends ++
-      self, every activity kind and 5, `limit` = the page size) and
+      self, every activity kind, 5 and the profile's 12160, `limit` =
+      the page size) and
       `"own:<url>"` (authors = [self], same kinds) on that relay; collect the event ids
       the relay sends on the own sub.
-    * `{:event, "feed", event}` → `Activities.ingest/1` (verified,
-      friend or self, newest wins; a deletion tombstones).
+    * `{:event, "feed", event}` → by kind: 12160 to
+      `Social.ingest_profile/1`, every other kind to `Activities.ingest/1`
+      (verified, friend or self, newest wins; a deletion tombstones).
     * `{:eose, "feed"}` → if the page came back full, ask for the next
       one (`until` = one second before the oldest seen); after a short
       page that followed a full one, re-issue `"feed"` live (no `until`)
       so new events keep arriving.
     * `{:eose, "own:<url>"}` → publish to that relay every stored own
       event it did not send — activities of live rows, deletions of
-      withdrawn ones. A per-relay diff, not a blanket re-publish.
+      withdrawn ones, the reader's profile. A per-relay diff, not a
+      blanket re-publish.
     * `{:ok, id, false, reason}` → log the refusal by what was refused
-      (`Activities.own_event_kind/1`): a relay refusing a deletion
+      (`Activities.own_event_kind/1`, then `Social.own_event_kind/1`): a relay refusing a deletion
       is the one that has not been upgraded to carry the contract. The
       connection keeps the reason as the relay row's last error.
 
@@ -41,10 +46,12 @@ defmodule MediaCentaur.Activities.Sync do
 
   Paging steps `until` back by one second, so more than `page_limit`
   events sharing one second lose the excess; the alternative is an
-  endless page. Gated off under `:test` (`:start_activities_sync`);
-  tests start it by hand against `Nostr.FakeRelay`, with `page_limit:`
-  lowered to exercise paging.
+  endless page. Gated off under `:test` (`:start_activities_sync`, a key
+  that predates the move out of `Activities` and keeps its name); tests
+  start it by hand against `Nostr.FakeRelay`, with `page_limit:` lowered
+  to exercise paging.
   """
+  use Boundary, deps: [MediaCentaur.Activities, MediaCentaur.Nostr, MediaCentaur.Social], exports: []
   use GenServer
 
   require MediaCentaur.Log, as: Log
@@ -52,6 +59,7 @@ defmodule MediaCentaur.Activities.Sync do
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
+  alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaur.Nostr.Filter
   alias MediaCentaur.Activities
   alias MediaCentaur.Activities.Translation
@@ -91,7 +99,7 @@ defmodule MediaCentaur.Activities.Sync do
     state = if sub_id == own_sub(url), do: mark_seen(state, url, event.id), else: state
     state = if sub_id == @feed, do: note_page_event(state, url, event), else: state
 
-    case Activities.ingest(event) do
+    case ingest(event) do
       {:ok, _rec} ->
         :ok
 
@@ -117,7 +125,7 @@ defmodule MediaCentaur.Activities.Sync do
   def handle_info({:relay_connection, url, {:ok, event_id, false, reason}}, state) do
     Log.warning(
       :social,
-      "#{url} rejected #{refused(Activities.own_event_kind(event_id))}: #{reason}"
+      "#{url} rejected #{refused(Activities.own_event_kind(event_id) || Social.own_event_kind(event_id))}: #{reason}"
     )
 
     {:noreply, state}
@@ -126,6 +134,13 @@ defmodule MediaCentaur.Activities.Sync do
   def handle_info({:friend_added, _event}, state), do: {:noreply, resubscribe(state)}
   def handle_info({:friend_removed, _event}, state), do: {:noreply, resubscribe(state)}
   def handle_info(_other, state), do: {:noreply, state}
+
+  # Each context ingests its own kinds; the loop only routes.
+  defp ingest(%{kind: kind} = event) do
+    if kind == ProfileTranslation.kind(),
+      do: Social.ingest_profile(event),
+      else: Activities.ingest(event)
+  end
 
   # --- feed paging ---------------------------------------------------------
 
@@ -169,13 +184,14 @@ defmodule MediaCentaur.Activities.Sync do
   defp refused(:watched), do: "a watched activity"
   defp refused(:listing), do: "a listing"
   defp refused(:deletion), do: "a deletion"
+  defp refused(:profile), do: "a profile"
   defp refused(nil), do: "an event"
 
   defp mark_seen(state, url, event_id),
     do: %{state | seen: Map.update(state.seen, url, MapSet.new([event_id]), &MapSet.put(&1, event_id))}
 
   defp publish_missing(url, seen) do
-    missing = Enum.reject(Activities.own_events(), &MapSet.member?(seen, &1.id))
+    missing = Enum.reject(Activities.own_events() ++ Social.own_events(), &MapSet.member?(seen, &1.id))
     for event <- missing, do: Connections.publish(url, event)
 
     if missing != [],
@@ -196,7 +212,7 @@ defmodule MediaCentaur.Activities.Sync do
 
   defp own_filter, do: Filter.new(authors: Enum.reject([Identity.pubkey()], &is_nil/1), kinds: kinds())
 
-  defp kinds, do: Translation.kinds() ++ [Translation.deletion_kind()]
+  defp kinds, do: Translation.kinds() ++ [Translation.deletion_kind(), ProfileTranslation.kind()]
 
   defp own_sub(url), do: "own:" <> url
 end

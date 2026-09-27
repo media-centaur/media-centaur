@@ -118,7 +118,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
     MediaCentaur.Pipeline.Image.Supervisor => {:unobservable, "Broadway topology; state is per-message"},
     MediaCentaur.Social.Connections =>
       {:unobservable, "the relay-connection owner is not started under :test"},
-    MediaCentaur.Activities.Sync => {:unobservable, "not started under :test; sync_test starts its own"},
+    MediaCentaur.RelaySync => {:unobservable, "not started under :test; relay_sync_test starts its own"},
     MediaCentaur.Console.JournalSource => {:unobservable, "reads journald; no public read"},
     MediaCentaur.Library.BroadcastCoalescer => {:unobservable, "enqueue/1 is its only public function"},
     MediaCentaur.Library.FileEventHandler => {:unobservable, "debounce timers only; no public read"},

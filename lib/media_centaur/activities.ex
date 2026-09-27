@@ -29,7 +29,7 @@ defmodule MediaCentaur.Activities do
 
   Records are translated from signed events (`Translation`), kept one
   per author + kind + title (a newer event replaces the row), and synced
-  with the relays by `Activities.Sync`. Knows nothing about the watchlist
+  with the relays by `RelaySync`. Knows nothing about the watchlist
   or the library — the web layer joins those, which is why `list_activities/0`
   decorates rows with their author and nothing else.
 

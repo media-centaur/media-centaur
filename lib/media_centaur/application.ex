@@ -8,6 +8,7 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Capabilities,
       MediaCentaur.Social,
       MediaCentaur.Activities,
+      MediaCentaur.RelaySync,
       MediaCentaur.Settings.Controls,
       MediaCentaur.Library,
       MediaCentaur.BootHeal,
@@ -92,7 +93,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.Watcher.Supervisor,
           MediaCentaur.Social.Connections
         ] ++
-        activities_sync_children() ++
+        relay_sync_children() ++
         [
           MediaCentaur.Library.BroadcastCoalescer,
           MediaCentaur.Library.MediaFileAvailability,
@@ -287,11 +288,12 @@ defmodule MediaCentaur.Application do
   # warnings. The opted-in daily driver (prod release, or dev with the env var)
   # is the sole instance, so it owns the marker.
   # Gated like the relay-connection owner it rides on: under :test the
-  # sync would subscribe every FakeRelay a test stands up, so sync_test
-  # starts its own by hand.
-  defp activities_sync_children do
+  # sync would subscribe every FakeRelay a test stands up, so
+  # relay_sync_test starts its own by hand. The key predates the loop's
+  # move out of Activities and keeps its name.
+  defp relay_sync_children do
     if Application.get_env(:media_centaur, :start_activities_sync, true),
-      do: [MediaCentaur.Activities.Sync],
+      do: [MediaCentaur.RelaySync],
       else: []
   end
 

@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Activities.SyncTest do
+defmodule MediaCentaur.RelaySyncTest do
   use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
@@ -9,12 +9,13 @@ defmodule MediaCentaur.Activities.SyncTest do
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
+  alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.FakeRelay
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Activities
-  alias MediaCentaur.Activities.Sync
   alias MediaCentaur.Activities.Translation
+  alias MediaCentaur.RelaySync
   alias MediaCentaur.Secret
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.TMDB.Title
@@ -29,7 +30,7 @@ defmodule MediaCentaur.Activities.SyncTest do
     Identity.ensure()
     {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
     start_supervised!({Connections.Owner, backoff_ms: 50})
-    start_supervised!(Sync)
+    start_supervised!(RelaySync)
     Activities.subscribe()
     :ok
   end
@@ -83,7 +84,11 @@ defmodule MediaCentaur.Activities.SyncTest do
                     [
                       "REQ",
                       "feed",
-                      %{"authors" => authors, "kinds" => [32_161, 32_163, 32_164, 5], "limit" => 500}
+                      %{
+                        "authors" => authors,
+                        "kinds" => [32_161, 32_163, 32_164, 5, 12_160],
+                        "limit" => 500
+                      }
                     ]},
                    5_000
 
@@ -149,7 +154,7 @@ defmodule MediaCentaur.Activities.SyncTest do
 
     FakeRelay.drop(relay)
     # The reconnect sends "feed" twice (the owner replays its registered
-    # subscription, then Sync re-issues it); neither carries a cursor.
+    # subscription, then RelaySync re-issues it); neither carries a cursor.
     assert_receive {:relay_in, ["REQ", "feed", again]}, 5_000
     refute Map.has_key?(again, "since")
     refute_receive {:relay_in, ["REQ", "feed", %{"since" => _cursor}]}, 500
@@ -159,8 +164,8 @@ defmodule MediaCentaur.Activities.SyncTest do
   end
 
   test "a full page is followed by the next one, then the feed goes live again" do
-    stop_supervised!(Sync)
-    start_supervised!({Sync, page_limit: 2})
+    stop_supervised!(RelaySync)
+    start_supervised!({RelaySync, page_limit: 2})
     now = System.os_time(:second)
 
     relay =
@@ -265,6 +270,45 @@ defmodule MediaCentaur.Activities.SyncTest do
 
     assert_receive {:activity_deleted, _event}, 5_000
     assert Activities.list_activities() == []
+    await_supervised_tasks()
+  end
+
+  test "the feed carries kind 12160 and a friend's profile lands as their published name" do
+    profile =
+      Event.sign(
+        ProfileTranslation.to_event("Sample Name", @friend_pubkey, 1_700_000_000),
+        @friend_secret
+      )
+
+    relay = FakeRelay.start(events: [profile])
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["REQ", "feed", %{"kinds" => kinds}]}, 5_000
+    assert 12_160 in kinds
+
+    eventually(fn -> Social.people()[@friend_pubkey].published_name == "Sample Name" end)
+    await_supervised_tasks()
+  end
+
+  test "the own-events diff publishes the reader's profile to a relay that lacks it, once" do
+    {:ok, _profile} = Social.save_profile("Me")
+    relay = FakeRelay.start()
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["EVENT", %{"kind" => 12_160, "content" => content}]}, 5_000
+    assert Jason.decode!(content)["name"] == "Me"
+    refute_receive {:relay_in, ["EVENT", %{"kind" => 12_160}]}, 300
+    await_supervised_tasks()
+  end
+
+  test "a relay that refuses the profile is named for it" do
+    {:ok, _profile} = Social.save_profile("Me")
+    relay = FakeRelay.start(accept: false, reason: "blocked: kind 12160 is not stored by this relay")
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["EVENT", %{"kind" => 12_160}]}, 5_000
+
+    assert_logged(~r/rejected a profile: blocked: kind 12160/)
     await_supervised_tasks()
   end
 end
