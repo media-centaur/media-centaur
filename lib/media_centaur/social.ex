@@ -216,7 +216,7 @@ defmodule MediaCentaur.Social do
       me = Identity.pubkey()
       stored = Repo.get_by(Profile, pubkey: me)
       created_at = Event.stamp_after(stored && stored.created_at, System.os_time(:second))
-      event = name |> ProfileTranslation.to_event(me, created_at) |> Event.sign(secret)
+      event = name |> ProfileTranslation.to_event(nil, me, created_at) |> Event.sign(secret)
       {:ok, attrs} = ProfileTranslation.from_event(event)
       profile = upsert_profile(stored, attrs)
       Connections.publish(event)

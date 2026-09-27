@@ -14,7 +14,7 @@ defmodule MediaCentaur.Social.ProfileTest do
   @friend_pubkey Keys.pubkey(@friend_secret)
 
   defp friend_profile(name, created_at),
-    do: Event.sign(Translation.to_event(name, @friend_pubkey, created_at), @friend_secret)
+    do: Event.sign(Translation.to_event(name, nil, @friend_pubkey, created_at), @friend_secret)
 
   describe "save_profile/1" do
     test "mints the identity, stores the row, publishes, broadcasts; a blank name is refused" do
