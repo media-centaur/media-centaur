@@ -21,7 +21,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   set): every act, one row per poster in `ActivityWords`' sentence with
   the act's flags after the title, then a friend's foot — the reader's
   name for the friend, ready to change, over the name it masks as the
-  field's placeholder (the published name, else Unnamed; UIDR-047), the
+  field's placeholder (the published name, else Unnamed; UIDR-047); the
+  **avatar switch**, *Show their picture*, on while the reader shows the
+  friend's published picture in every identity tile
+  (`Person.show_avatar`) and off when the letter stands in for it; the
   key, the added date, Remove friend. A poster's press opens the title
   modal speaking for the newest act on it.
 
@@ -30,9 +33,11 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
   title's ref *and* the activity, or `remove_friend`; the name form
   submits `set_friend_name` with the key and the name, and swallows its
   clicks (`phx-click={%JS{}}`, the modal panel's idiom) so typing in it
-  does not press the card; `open_person` and `toggle_person` are the
-  card's own presses. The root gets no nav wiring until the hardening
-  pass.
+  does not press the card; the avatar switch (`role="switch"`) pushes
+  `set_show_avatar` with the key and the value to set — the opposite of
+  the current — and its own `phx-click` is what keeps the card's press
+  from it; `open_person` and `toggle_person` are the card's own presses.
+  The root gets no nav wiring until the hardening pass.
   """
 
   use Phoenix.Component
@@ -183,6 +188,26 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCard do
           />
           <.button type="submit" variant="neutral" size="sm">Rename</.button>
         </form>
+        <div
+          id={"#{@id}-avatar-switch"}
+          role="switch"
+          aria-checked={to_string(@person.show_avatar)}
+          class="-mx-2 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-base-content/[0.04]"
+          data-role="avatar-switch"
+          data-nav-item
+          tabindex="0"
+          phx-click="set_show_avatar"
+          phx-value-pubkey={@person.pubkey}
+          phx-value-show={to_string(not @person.show_avatar)}
+        >
+          <input
+            type="checkbox"
+            class="toggle toggle-sm toggle-info pointer-events-none"
+            checked={@person.show_avatar}
+            tabindex="-1"
+          />
+          <span class="text-sm">Show their picture</span>
+        </div>
         <div class="flex items-center justify-between">
           <span class="text-sm text-base-content/65">
             <code>{@person.short_npub}</code> · added {Calendar.strftime(@person.added_on, "%b %-d")}

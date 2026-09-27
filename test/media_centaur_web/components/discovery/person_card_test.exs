@@ -145,6 +145,30 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
            ]
   end
 
+  test "the opened foot carries the avatar switch, checked when the reader shows it" do
+    shown =
+      render(
+        person: person("Nick", avatar_url: "/media-images/images/social/x.webp?v=1"),
+        acts: [],
+        width: :page,
+        opened?: true
+      )
+
+    switch = LazyHTML.query(shown, "footer [data-role='avatar-switch']")
+    assert LazyHTML.attribute(switch, "role") == ["switch"]
+    assert LazyHTML.attribute(switch, "aria-checked") == ["true"]
+    assert LazyHTML.attribute(switch, "phx-click") == ["set_show_avatar"]
+    assert LazyHTML.attribute(switch, "phx-value-pubkey") == [person("Nick").pubkey]
+    assert LazyHTML.attribute(switch, "phx-value-show") == ["false"]
+    assert switch |> LazyHTML.query("input[type='checkbox']") |> LazyHTML.attribute("checked") == [""]
+
+    hidden = render(person: person("Nick", show_avatar: false), acts: [], width: :page, opened?: true)
+    switch = LazyHTML.query(hidden, "footer [data-role='avatar-switch']")
+    assert LazyHTML.attribute(switch, "aria-checked") == ["false"]
+    assert LazyHTML.attribute(switch, "phx-value-show") == ["true"]
+    assert switch |> LazyHTML.query("input[type='checkbox']") |> LazyHTML.attribute("checked") == []
+  end
+
   test "the foot's placeholder is the published name the override masks, else Unnamed; never a letter of it" do
     published =
       render(person: person("Nick", published_name: "Ada"), acts: [], width: :page, opened?: true)

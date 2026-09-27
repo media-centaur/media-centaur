@@ -7,8 +7,10 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
   component at two widths: the Feed's rail (480, a row in the rail's
   list, three acts, a press navigates to the person) and the Friends
   page (900, a card on the inset tone, five acts, a press opens the card
-  in place to every act, one row each, and the foot). A person with no
-  acts is a tile and a name; nothing says what a person withholds.
+  in place to every act, one row each, and the foot: your name for them,
+  the switch showing or hiding their picture for you (UIDR-047), the
+  key, the date, Remove friend). A person with no acts is a tile and a
+  name; nothing says what a person withholds.
   """
 
   use PhoenixStorybook.Story, :component
@@ -68,6 +70,12 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
     }
   end
 
+  # A friend whose published picture the reader shows: the tile's avatar
+  # mark. A hidden picture has no URL at all — `Social` hands the card
+  # `avatar_url: nil` with `show_avatar: false` — so the hidden fixture
+  # below is `friend/0` with the switch off, not this one with a URL.
+  defp friend_with_avatar, do: %{friend() | avatar_url: @poster}
+
   defp you,
     do: %Person{pubkey: "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", own?: true}
 
@@ -116,6 +124,13 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
         id: :rail_friend,
         description: "The rail's card: three acts; the second flies love and watched as a centred pair",
         attributes: %{person: friend(), acts: three_acts(), width: :rail},
+        template: @rail
+      },
+      %Variation{
+        id: :rail_friend_avatar,
+        description:
+          "A friend whose picture you show: the tile carries the avatar inside a neutral ring",
+        attributes: %{person: friend_with_avatar(), acts: three_acts(), width: :rail},
         template: @rail
       },
       %Variation{
@@ -182,8 +197,25 @@ defmodule MediaCentaurWeb.Storybook.Discovery.PersonCard do
       %Variation{
         id: :page_opened,
         description:
-          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with your name for them, the key, the date and Remove friend",
-        attributes: %{person: friend(), acts: seven_acts(), width: :page, opened?: true},
+          "The same card opened: seven acts wrapping 5+2, one row per poster, the foot with your name for them, the picture switch on, the key, the date and Remove friend",
+        attributes: %{
+          person: friend_with_avatar(),
+          acts: seven_acts(),
+          width: :page,
+          opened?: true
+        },
+        template: @page
+      },
+      %Variation{
+        id: :page_opened_avatar_hidden,
+        description:
+          "The opened card with the picture switch off: the tile falls back to the letter, since a hidden picture has no URL",
+        attributes: %{
+          person: %{friend() | show_avatar: false},
+          acts: seven_acts(),
+          width: :page,
+          opened?: true
+        },
         template: @page
       },
       %Variation{
