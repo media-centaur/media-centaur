@@ -24,6 +24,7 @@ Media Centaur's kinds occupy the same block in each range: **2160–2999**, **12
 | 32162 | Tracking — **retired** 2026-09-11 | Addressable | Media Centaur. Never reused; relays refuse it, readers drop it. |
 | 32163 | Listing | Addressable | Media Centaur |
 | 32164 | Review | Addressable | Media Centaur |
+| 12160 | Profile | Replaceable | Media Centaur |
 | 5 | Deletion | Regular | Nostr (NIP-09) |
 | 22242 | Relay authentication | Ephemeral | Nostr (NIP-42) |
 | 27235 | HTTP authentication, used by relay administration | Ephemeral | Nostr (NIP-98) |
@@ -109,6 +110,26 @@ Kind 32162 (Tracking, `tracked_at`) said the person started tracking the title's
 - Between two activities of one kind from the same signer for the same title, the newer `created_at` wins. On a tie, what is already stored is kept.
 - `created_at` is the wire time and decides only which copy wins. `reviewed_at` / `watched_at` / `listed_at` is when the person acted; readers order and display by it and never derive one from the other. The two coincide when a message is made and sent in one go.
 
+## Profile (kind 12160)
+
+What a person says about themselves: the name their friends see them under. The first kind of the replaceable block, so a signer holds one profile, and a newer one replaces it everywhere. It names no title and has no address beyond its signer.
+
+**Tags**: none.
+
+**Content** is a JSON object:
+
+| Field | Type | Cap | Notes |
+|---|---|---|---|
+| `v` | integer | | Content schema version. Absent means 1. |
+| `name` | string | 50 characters | The name the person gives. Optional: absent or blank means the person gives none. |
+
+**Rules**
+
+- Readers ignore fields they do not know. A message whose `v` is not 1 (an explicit `null` included), whose content is not a JSON object, or whose `name` is not a string or exceeds the cap is dropped as malformed. Nothing is repaired or truncated.
+- Between two profiles from the same signer, the newer `created_at` wins. On a tie, what is already stored is kept.
+- A profile is never withdrawn. A person changes it by publishing a newer one; a deletion may not name it, and a relay refuses one that does with `blocked: only the author may delete an event`.
+- A profile without a name has no stand-in on the wire. The reader decides what to show; Media Centaur shows **Unnamed**.
+
 ## Deletion (kind 5)
 
 A person withdrawing their own activity of any kind. Standard NIP-09, restricted to the address form.
@@ -138,14 +159,14 @@ The app keeps one long-lived connection per relay and, on every connect, opens t
 
 | Subscription | Authors | Kinds | Purpose |
 |---|---|---|---|
-| `feed` | followed keys plus the install's own | 32164, 32161, 32163, 5 | what friends did and withdrew |
-| `own:<relay url>` | the install's own | 32164, 32161, 32163, 5 | what this relay holds of ours |
+| `feed` | followed keys plus the install's own | 32164, 32161, 32163, 5, 12160 | what friends did, withdrew and say about themselves |
+| `own:<relay url>` | the install's own | 32164, 32161, 32163, 5, 12160 | what this relay holds of ours |
 
 **From the start, every time.** Every connect reads the relay's whole stored set for the subscription; the app keeps no `since` cursor. A relay holds one record per signer per kind per title (Deletion rule 3), so a friend group's history is a page or two, and a cursor keyed on `created_at` would skip a message published late with an older stamp — a withdrawal made while offline. Re-reading is idempotent: a reader ignores anything not newer than what it holds.
 
 **Paged.** The app asks for at most 500 events per request. A batch that comes back full is followed by another request with `until` set to one second before the oldest `created_at` in the batch, until a batch comes back short.
 
-**Own-events diff.** When the `own:<url>` subscription reaches end-of-stored-events, the app publishes to that relay every own activity and deletion the relay did not send. This is how a message made while offline, or before the relay was added, reaches it later.
+**Own-events diff.** When the `own:<url>` subscription reaches end-of-stored-events, the app publishes to that relay every own activity, deletion and profile the relay did not send. This is how a message made while offline, or before the relay was added, reaches it later.
 
 **Roster changes.** Adding or removing a friend re-issues `feed` on every relay with the new author list.
 
@@ -157,8 +178,9 @@ For a relay to carry Media Centaur traffic:
 |---|---|
 | Authentication | Challenge on connect (NIP-42). The app answers immediately and never reacts to an `auth-required:` rejection. |
 | Access | Reads and writes gated by an allowlist of public keys. |
-| Kinds stored | 32164, 32161, 32163 and 5, with the rules above. Every other kind, the retired 32160 and 32162 included, refused with `blocked:`. |
+| Kinds stored | 32164, 32161, 32163, 12160 and 5, with the rules above. Every other kind, the retired 32160 and 32162 included, refused with `blocked:`. |
 | Addressable storage | One record per signer per kind per address, activity or deletion (Deletion rule 3). |
+| Replaceable storage | One record per signer per kind for 12160; a newer `created_at` replaces, a tie keeps the stored one; a kind 5 may not name it (refused with the author wording). |
 | Deletion checks | Deletion rules 1, 2 and 4. |
 | Filters | `authors`, `kinds`, `since`, `until`, `limit` (NIP-01). `limit` capped at 500. |
 | End of stored events | `EOSE` after the stored matches of every `REQ`. |
@@ -173,6 +195,7 @@ For a relay to carry Media Centaur traffic:
 | A member publishing another key's event | `OK <id> false restricted: the event author is not a member of this relay` |
 | A kind the relay does not store | `OK <id> false blocked: kind <n> is not stored by this relay` |
 | A deletion naming another signer's address | `OK <id> false blocked: only the author may delete an event` |
+| A deletion naming a profile | `OK <id> false blocked: only the author may delete an event` |
 | An activity older than the stored deletion of its address | `OK <id> false blocked: a newer deletion exists for this address` |
 | A deletion for an address the relay never held | `OK <id> true` — nothing to remove, still a valid statement |
 
@@ -185,3 +208,4 @@ For a relay to carry Media Centaur traffic:
 | 2026-09-05 | Activities: Watched (32161, with `watched_at` and `episode`) and Tracking (32162, with `tracked_at`) beside Recommendation, sharing its envelope and address. A deletion's `a` tag names the kind it withdraws. Relays store the two new kinds and key the address slot by kind (social-relay v0.4.0). |
 | 2026-09-11 | Listing (32163, with `listed_at`) replaces Tracking: published when a title first reaches List, withdrawn by a deletion when it drops below. 32162 retired — never reused, refused by relays, dropped by readers. Relays store 32163 and refuse 32162 (social-relay v0.5.0). |
 | 2026-09-12 | Review (32164, with `sentiment` of `dislike` / `like` / `love` or absent for none, `text`, `reviewed_at`) replaces Recommendation: an opinion of any valence, neither field required. 32160 retired — never reused, refused by relays, dropped by readers. Relays store 32164 and refuse 32160 (social-relay v0.6.0). |
+| 2026-09-28 | Profile (12160, with `name`, optional, capped at 50 characters): the first replaceable kind, one per signer, never withdrawn. Both subscriptions and the own-events diff carry it. Relays store 12160 as one record per signer and refuse a deletion naming it (social-relay v0.7.0). |
