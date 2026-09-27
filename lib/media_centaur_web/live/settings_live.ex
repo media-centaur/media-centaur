@@ -59,6 +59,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Services
   alias MediaCentaurWeb.SettingsLive.Tmdb
   alias MediaCentaurWeb.SettingsLive.SocialSection
+  alias MediaCentaur.ImageFiles
   alias MediaCentaur.Social
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Identity
@@ -175,6 +176,16 @@ defmodule MediaCentaurWeb.SettingsLive do
       Process.send_after(self(), :refresh_update_schedule, 60_000)
     end
 
+    # The profile card's picture: one file, the three types the wire
+    # carries, capped well above any sensible source (the master is
+    # 256×256). Consumed on save by `avatar_change/1`.
+    socket =
+      allow_upload(socket, :avatar,
+        accept: ~w(.jpg .jpeg .png .webp),
+        max_entries: 1,
+        max_file_size: 10_000_000
+      )
+
     {:ok,
      socket
      |> assign(loaded?: false)
@@ -208,6 +219,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(glyph_style: nil)
      |> assign(identity_npub: nil, nsec_revealed: nil, import_armed?: false, import_draft: "")
      |> assign(profile_name: nil, name_cap: ProfileTranslation.max_name_length())
+     |> assign(own_person: nil, avatar_removed?: false)
      |> assign(relays: [], relay_status: %{}, share_watched?: false, share_watchlist?: false)
      |> assign(
        sections: @sections,
@@ -327,7 +339,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp load_social(socket, "social") do
     socket
     |> assign(identity_npub: Identity.npub(), nsec_revealed: nil, import_armed?: false, import_draft: "")
-    |> assign(profile_name: profile_name())
+    |> assign(profile_name: profile_name(), own_person: Social.own_person())
     |> assign(relay_status: Connections.status())
     |> assign(share_watched?: ShareWatched.enabled?(), share_watchlist?: ShareWatchlist.enabled?())
     |> load_relays()
@@ -343,6 +355,28 @@ defmodule MediaCentaurWeb.SettingsLive do
     case Social.own_profile() do
       nil -> nil
       %{name: name} -> name
+    end
+  end
+
+  # What the save does with the avatar (`Social.avatar_change/0`): the
+  # chosen file becomes the 256×256 master, Remove means none, neither
+  # means keep. A chosen file wins over a pending Remove. The entry is
+  # consumed either way, so a file libvips cannot open leaves nothing
+  # pending.
+  defp avatar_change(socket) do
+    masters =
+      consume_uploaded_entries(socket, :avatar, fn %{path: path}, _entry ->
+        case ImageFiles.square_webp(path, 256) do
+          {:ok, bytes} -> {:ok, {:new, bytes}}
+          {:error, _reason} -> {:ok, :bad_image}
+        end
+      end)
+
+    case {masters, socket.assigns.avatar_removed?} do
+      {[:bad_image], _removed?} -> {:error, :bad_image}
+      {[{:new, bytes}], _removed?} -> {:ok, {:new, bytes}}
+      {[], true} -> {:ok, :none}
+      {[], false} -> {:ok, :keep}
     end
   end
 
@@ -896,21 +930,36 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # --- Social: profile, identity + relays ------------------------------------
 
+  # The upload's change event: LiveView needs it bound to track the entry.
+  def handle_event("validate_profile", _params, socket), do: {:noreply, socket}
+
+  # Remove is pending until the save: the tile shows the letter, the
+  # stored avatar stays until `:none` is saved.
+  def handle_event("remove_avatar", _params, socket),
+    do: {:noreply, assign(socket, avatar_removed?: true)}
+
+  def handle_event("cancel_avatar", %{"ref" => ref}, socket),
+    do: {:noreply, cancel_upload(socket, :avatar, ref)}
+
   # The first save mints the identity; the identity, relay and sharing
   # cards appear with it.
   def handle_event("save_profile", %{"name" => name}, socket) do
-    case Social.save_profile(name, :keep) do
-      {:ok, profile} ->
-        {:noreply,
-         socket
-         |> assign(identity_npub: Identity.npub(), profile_name: profile.name)
-         |> put_flash(:info, "Profile saved")}
-
+    with {:ok, avatar} <- avatar_change(socket),
+         {:ok, profile} <- Social.save_profile(name, avatar) do
+      {:noreply,
+       socket
+       |> assign(identity_npub: Identity.npub(), profile_name: profile.name, avatar_removed?: false)
+       |> assign(own_person: Social.own_person())
+       |> put_flash(:info, "Profile saved")}
+    else
       {:error, :name_required} ->
         {:noreply, put_flash(socket, :error, "Your profile needs a name")}
 
       {:error, :name_too_long} ->
         {:noreply, put_flash(socket, :error, "Names are at most #{socket.assigns.name_cap} characters")}
+
+      {:error, :bad_image} ->
+        {:noreply, put_flash(socket, :error, "That file is not a picture we can read")}
     end
   end
 
@@ -1541,14 +1590,17 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # Another tab replaced the identity. A key revealed here belongs to the
-  # identity that is gone, an arm here is aimed at it too, and the pasted
-  # draft is the secret that arm would have installed — all three drop.
-  # The name is the new key's (none until its profile arrives).
+  # identity that is gone, an arm here is aimed at it too, the pasted
+  # draft is the secret that arm would have installed, and a pending
+  # Remove was aimed at the old key's avatar — all four drop. The name
+  # and the picture are the new key's (none until its profile arrives).
   def handle_info({:identity_changed, _event}, socket) do
     {:noreply,
      assign(socket,
        identity_npub: Identity.npub(),
        profile_name: profile_name(),
+       own_person: Social.own_person(),
+       avatar_removed?: false,
        nsec_revealed: nil,
        import_armed?: false,
        import_draft: ""
@@ -1556,10 +1608,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   # The own profile was saved in another tab or arrived from a relay; the
-  # name follows. A friend's profile fires this too and re-reads the same
-  # one row.
+  # name and the picture follow. A friend's profile fires this too and
+  # re-reads the same one row.
   def handle_info({:profile_updated, _event}, socket),
-    do: {:noreply, assign(socket, profile_name: profile_name())}
+    do: {:noreply, assign(socket, profile_name: profile_name(), own_person: Social.own_person())}
 
   def handle_info({tag, _event}, socket) when tag in [:relay_added, :relay_removed] do
     {:noreply, load_relays(socket)}
@@ -1797,6 +1849,9 @@ defmodule MediaCentaurWeb.SettingsLive do
                 identity_npub={@identity_npub}
                 profile_name={@profile_name}
                 name_cap={@name_cap}
+                uploads={@uploads}
+                own_person={@own_person}
+                avatar_removed?={@avatar_removed?}
                 nsec_revealed={@nsec_revealed}
                 import_armed?={@import_armed?}
                 import_draft={@import_draft}
@@ -1996,6 +2051,9 @@ defmodule MediaCentaurWeb.SettingsLive do
       npub={@identity_npub}
       profile_name={@profile_name}
       name_cap={@name_cap}
+      uploads={@uploads}
+      own_person={@own_person}
+      avatar_removed?={@avatar_removed?}
       nsec_revealed={@nsec_revealed}
       import_armed?={@import_armed?}
       import_draft={@import_draft}

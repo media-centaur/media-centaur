@@ -1,9 +1,11 @@
 defmodule MediaCentaurWeb.SettingsLiveSocialTest do
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TmpDataDir
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Social
+  alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Events
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Nostr.Keys
@@ -15,6 +17,9 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
   @section "/settings?section=social"
 
   describe "profile" do
+    # The avatar master lands under `{data_dir}/images/social/`.
+    setup :setup_tmp_data_dir
+
     test "opening Social mints nothing; Create profile mints the identity and shows the other cards",
          %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, @section)
@@ -68,6 +73,53 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
     test "other sections do not mint an identity", %{conn: conn} do
       {:ok, _view, _html} = live_async!(conn, "/settings?section=tmdb")
       refute Identity.present?()
+    end
+
+    test "choosing a picture and saving publishes a 256×256 WebP avatar; Remove clears it",
+         %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+      {:ok, img} = Image.new(400, 300, color: :blue)
+      {:ok, png} = Image.write(img, :memory, suffix: ".png")
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "me.png", content: png, type: "image/png"}
+        ])
+
+      assert render_upload(upload, "me.png") =~ "me.png"
+      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+
+      me = Identity.pubkey()
+      assert %{avatar_type: "image/webp"} = Social.own_profile()
+      {:ok, bytes} = AvatarStore.read(me, "image/webp")
+      {:ok, back} = Image.from_binary(bytes)
+      assert {256, 256, _bands} = Image.shape(back)
+      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-mark='avatar']")
+      assert has_element?(view, "#remove-avatar")
+
+      view |> element("#remove-avatar") |> render_click()
+      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-mark='letter']")
+      assert %{avatar_type: "image/webp"} = Social.own_profile()
+
+      view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
+      assert %{avatar_type: nil} = Social.own_profile()
+      assert AvatarStore.read(me, "image/webp") == {:error, :enoent}
+      assert has_element?(view, "#profile-form [data-component='identity-tile'][data-mark='letter']")
+      refute has_element?(view, "#remove-avatar")
+    end
+
+    test "a file that is not an image is refused before anything is saved", %{conn: conn} do
+      Identity.ensure()
+      {:ok, view, _html} = live_async!(conn, @section)
+
+      upload =
+        file_input(view, "#profile-form", :avatar, [
+          %{name: "notes.txt", content: "hello", type: "text/plain"}
+        ])
+
+      assert {:error, [[_ref, :not_accepted]]} = render_upload(upload, "notes.txt")
+      assert Social.own_profile() == nil
     end
   end
 
