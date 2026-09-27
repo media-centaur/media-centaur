@@ -98,7 +98,6 @@ defmodule MediaCentaur.TmdbArtwork do
   @doc "The on-disk absolute path for a role, whether or not the file exists."
   @spec on_disk_path(role(), media_type(), integer()) :: String.t()
   def on_disk_path(role, type, tmdb_id) do
-    require_data_dir!()
     ImageFiles.on_disk_path(relative_path(role, type, tmdb_id))
   end
 
@@ -366,8 +365,4 @@ defmodule MediaCentaur.TmdbArtwork do
   # of crashing. The sweep and migration refuse that fallback instead.
   # No cwd-relative fallback for TMDB artwork: an unset data_dir is a
   # misconfiguration, not a reason to write under `./data`.
-  defp require_data_dir! do
-    Config.get(:data_dir) || raise(ArgumentError, "data_dir is not configured")
-    :ok
-  end
 end

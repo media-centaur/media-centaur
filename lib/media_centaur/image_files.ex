@@ -44,11 +44,15 @@ defmodule MediaCentaur.ImageFiles do
   The on-disk path of an app-owned image under the data dir: what
   `ImageServer` opens for `web_path/1` of the same relative path when no
   media directory holds it. The one derivation the data-dir stores
-  share (`TmdbArtwork`, `Apps.Artwork`, `Social.AvatarStore`).
+  share (`TmdbArtwork`, `Apps.Artwork`, `Social.AvatarStore`). Raises
+  when no data dir is configured: an artwork path is never relative to
+  the working directory.
   """
   @spec on_disk_path(String.t()) :: String.t()
-  def on_disk_path(relative_path) when is_binary(relative_path),
-    do: Path.join(Config.get(:data_dir) || "data", relative_path)
+  def on_disk_path(relative_path) when is_binary(relative_path) do
+    data_dir = Config.get(:data_dir) || raise(ArgumentError, "data_dir is not configured")
+    Path.join(data_dir, relative_path)
+  end
 
   @doc """
   The relative path a `/media-images/` URL names, any query dropped — the
