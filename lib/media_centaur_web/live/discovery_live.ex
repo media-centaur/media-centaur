@@ -230,9 +230,19 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   def handle_event("open_person", %{"id" => id}, socket),
     do: {:noreply, push_navigate(socket, to: ~p"/discovery/friends?person=#{id}")}
 
+  # --- the roster: the add form and the opened card's foot ---
+  #
+  # None of these reloads the people on success. `Social` broadcasts the
+  # change (`FriendAdded`, `FriendChanged`, `FriendRemoved`) over local
+  # PubSub, synchronously, so the message is in this LiveView's mailbox
+  # before the handler returns, and the `@people_tags` `handle_info` does
+  # the one reload — the same path a change from another tab takes. A
+  # no-op (a key already on the roster, the same name again) broadcasts
+  # nothing, and there is nothing to reload.
+
   def handle_event("add_friend", %{"key" => key, "name" => name}, socket) do
     case Social.add_friend(key, name) do
-      {:ok, _friend} -> {:noreply, socket |> load_people() |> load_activities()}
+      {:ok, _friend} -> {:noreply, socket}
       {:error, :own_key} -> {:noreply, put_flash(socket, :error, "That is your own key")}
       {:error, _invalid} -> {:noreply, put_flash(socket, :error, "That is not a valid public key")}
     end
@@ -241,11 +251,8 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # The opened card's foot: the reader's name for the friend; a blank clears it.
   def handle_event("set_friend_name", %{"pubkey" => pubkey, "name" => name}, socket) do
     case Social.set_name_override(pubkey, name) do
-      {:ok, _friend} ->
-        {:noreply, socket |> load_people() |> load_activities()}
-
-      {:error, :not_a_friend} ->
-        {:noreply, put_flash(socket, :error, "That friend is no longer on your list")}
+      {:ok, _friend} -> {:noreply, socket}
+      {:error, :not_a_friend} -> {:noreply, flash_not_a_friend(socket)}
     end
   end
 
@@ -253,17 +260,14 @@ defmodule MediaCentaurWeb.DiscoveryLive do
   # published picture; `show` is the value to set.
   def handle_event("set_show_avatar", %{"pubkey" => pubkey, "show" => show}, socket) do
     case Social.set_show_avatar(pubkey, show == "true") do
-      {:ok, _friend} ->
-        {:noreply, socket |> load_people() |> load_activities()}
-
-      {:error, :not_a_friend} ->
-        {:noreply, put_flash(socket, :error, "That friend is no longer on your list")}
+      {:ok, _friend} -> {:noreply, socket}
+      {:error, :not_a_friend} -> {:noreply, flash_not_a_friend(socket)}
     end
   end
 
   def handle_event("remove_friend", %{"pubkey" => pubkey}, socket) do
     :ok = Social.remove_friend(pubkey)
-    {:noreply, socket |> load_people() |> load_activities()}
+    {:noreply, socket}
   end
 
   # --- the Feed's toolbar — see the moduledoc ---
@@ -571,6 +575,10 @@ defmodule MediaCentaurWeb.DiscoveryLive do
       friend_count: Enum.count(people, fn {_pubkey, person} -> not person.own? end)
     )
   end
+
+  # The foot acted on a key the roster no longer holds — removed in
+  # another tab between the card's open and the click.
+  defp flash_not_a_friend(socket), do: put_flash(socket, :error, "That friend is no longer on your list")
 
   defp tabs(feed, items, friend_count, scope),
     do: [
