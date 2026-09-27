@@ -16,11 +16,12 @@ defmodule MediaCentaur.Social.Person do
   Not `MediaCentaur.Library.Person`, which is a title's cast member.
   """
 
-  defstruct [:pubkey, :name_override, :avatar_url, :short_npub, :added_on, own?: false]
+  defstruct [:pubkey, :name_override, :published_name, :avatar_url, :short_npub, :added_on, own?: false]
 
   @type t :: %__MODULE__{
           pubkey: String.t() | nil,
           name_override: String.t() | nil,
+          published_name: String.t() | nil,
           avatar_url: String.t() | nil,
           own?: boolean(),
           short_npub: String.t() | nil,
