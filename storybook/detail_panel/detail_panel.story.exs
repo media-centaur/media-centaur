@@ -686,11 +686,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     })
   end
 
-  defp act(tmdb_id, media_type, nickname, kind, sentiment \\ :like, text \\ nil) do
+  defp act(tmdb_id, media_type, name, kind, sentiment \\ :like, text \\ nil) do
     %{
       activity: %Activity{
-        id:
-          "0d2c5cd6-0000-4000-8000-00000000000" <> Integer.to_string(:erlang.phash2({nickname, kind}, 9)),
+        id: "0d2c5cd6-0000-4000-8000-00000000000" <> Integer.to_string(:erlang.phash2({name, kind}, 9)),
         kind: kind,
         sentiment: sentiment,
         text: text,
@@ -698,7 +697,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         media_type: media_type,
         acted_at: ~U[2026-09-01 10:00:00Z]
       },
-      author: author(nickname)
+      author: author(name)
     }
   end
 

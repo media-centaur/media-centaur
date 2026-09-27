@@ -50,8 +50,8 @@ defmodule MediaCentaur.Discovery.TitleIntent do
   sender/recipient columns — no dead columns until then. A `:friend`
   record names the friend's review or listing it came from in
   `activity_id` — a bare uuid, because Discovery and Activities are
-  independent contexts; the web layer resolves the nickname from the
-  activity's author — and, for a review, carries its text as the record's
+  independent contexts; the web layer resolves the activity's author as
+  a `Social.Person` — and, for a review, carries its text as the record's
   `note`: what the friend said when the person acted, a snapshot. A
   `:manual` record carries none, and the pairing is validated both ways.
   """

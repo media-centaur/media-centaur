@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
     )
   end
 
-  defp review(nickname, sentiment) do
+  defp review(name, sentiment) do
     %{
       activity: %Activity{
         kind: :review,
@@ -43,7 +43,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Row do
         title: title(),
         acted_at: ~U[2026-09-01 12:00:00Z]
       },
-      author: author(nickname)
+      author: author(name)
     }
   end
 

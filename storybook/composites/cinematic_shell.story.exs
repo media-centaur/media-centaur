@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
     ]
   end
 
-  defp activity_row(nickname, kind, sentiment) do
+  defp activity_row(name, kind, sentiment) do
     %{
       activity: %Activity{
         kind: kind,
@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
         title: Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Subject"}),
         acted_at: ~U[2026-09-01 12:00:00Z]
       },
-      author: author(nickname)
+      author: author(name)
     }
   end
 
