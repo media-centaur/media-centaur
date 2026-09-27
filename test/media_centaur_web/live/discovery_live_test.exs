@@ -4,6 +4,7 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
   import MediaCentaur.ReferencedArtwork
   import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
+  import MediaCentaur.TmpDataDir, only: [setup_tmp_data_dir: 0]
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.Plans
@@ -188,8 +189,9 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       Event.sign(Translation.to_event(kind, title, opts, @friend_pubkey), @friend_secret)
     end
 
-    defp friend_profile(name, created_at),
-      do: Event.sign(ProfileTranslation.to_event(name, nil, @friend_pubkey, created_at), @friend_secret)
+    defp friend_profile(name, created_at, avatar \\ nil),
+      do:
+        Event.sign(ProfileTranslation.to_event(name, avatar, @friend_pubkey, created_at), @friend_secret)
 
     test "shows the add form and points at Settings; no identity, no You card", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/discovery/friends")
@@ -276,6 +278,37 @@ defmodule MediaCentaurWeb.DiscoveryLiveTest do
       view |> form(friend_card() <> " [data-role='name-form']", %{"name" => ""}) |> render_submit()
       assert has_element?(view, friend_card() <> " h2", "Ada")
       assert [%{name_override: nil}] = Social.list_friends()
+    end
+
+    test "the opened foot's switch hides a friend's picture for this reader, and shows it again",
+         %{conn: conn} do
+      # The friend's avatar file lands under `{data_dir}/images/social/`.
+      setup_tmp_data_dir()
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Sample Friend")
+      webp = <<"RIFF", 0, 0, 0, 0, "WEBPVP8 ", 0, 0, 0, 0>>
+
+      {:ok, _profile} =
+        Social.ingest_profile(friend_profile("Ada", 1_700_000_000, %{type: "image/webp", bytes: webp}))
+
+      {:ok, view, _html} = live(conn, "/discovery/friends")
+      tile = friend_card() <> " [data-component='identity-tile']"
+      switch = friend_card() <> " footer [data-role='avatar-switch']"
+      assert has_element?(view, tile <> "[data-mark='avatar']")
+
+      # The switch is in the foot, behind the card's press, on by default.
+      refute has_element?(view, switch)
+      view |> element(friend_card()) |> render_click()
+      assert has_element?(view, switch <> "[aria-checked='true']", "Show their picture")
+
+      view |> element(switch) |> render_click()
+      assert has_element?(view, tile <> "[data-mark='letter']")
+      assert has_element?(view, switch <> "[aria-checked='false']")
+      assert %{show_avatar: false} = Social.friend_by_pubkey(@friend_pubkey)
+
+      view |> element(switch) |> render_click()
+      assert has_element?(view, tile <> "[data-mark='avatar']")
+      assert has_element?(view, switch <> "[aria-checked='true']")
+      assert %{show_avatar: true} = Social.friend_by_pubkey(@friend_pubkey)
     end
 
     test "refuses a bad key and your own key with flashes", %{conn: conn} do

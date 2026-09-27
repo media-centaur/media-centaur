@@ -249,6 +249,18 @@ defmodule MediaCentaurWeb.DiscoveryLive do
     end
   end
 
+  # The opened card's foot: whether this reader shows the friend's
+  # published picture; `show` is the value to set.
+  def handle_event("set_show_avatar", %{"pubkey" => pubkey, "show" => show}, socket) do
+    case Social.set_show_avatar(pubkey, show == "true") do
+      {:ok, _friend} ->
+        {:noreply, socket |> load_people() |> load_activities()}
+
+      {:error, :not_a_friend} ->
+        {:noreply, put_flash(socket, :error, "That friend is no longer on your list")}
+    end
+  end
+
   def handle_event("remove_friend", %{"pubkey" => pubkey}, socket) do
     :ok = Social.remove_friend(pubkey)
     {:noreply, socket |> load_people() |> load_activities()}
