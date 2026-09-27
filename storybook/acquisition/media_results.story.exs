@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
     ]
   end
 
-  defp review(tmdb_id, nickname, sentiment) do
+  defp review(tmdb_id, name, sentiment) do
     %{
       activity: %MediaCentaur.Activities.Activity{
         kind: :review,
@@ -65,7 +65,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie"}),
         acted_at: ~U[2026-09-01 10:00:00Z]
       },
-      author: author(nickname)
+      author: author(name)
     }
   end
 

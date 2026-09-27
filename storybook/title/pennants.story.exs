@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
     """
   end
 
-  defp row(nickname, kind, sentiment \\ :like) do
+  defp row(name, kind, sentiment \\ :like) do
     %{
       activity: %Activity{
         kind: kind,
@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Storybook.Title.Pennant do
         title: Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"}),
         acted_at: ~U[2026-09-01 12:00:00Z]
       },
-      author: author(nickname)
+      author: author(name)
     }
   end
 
