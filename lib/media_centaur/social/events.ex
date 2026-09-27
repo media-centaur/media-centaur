@@ -49,6 +49,13 @@ defmodule MediaCentaur.Social.Events do
     @type t :: %__MODULE__{pubkey: String.t()}
   end
 
+  defmodule ProfileUpdated do
+    @moduledoc "A known key's profile was stored: ingested from a relay, or the reader's own saved."
+    @enforce_keys [:pubkey]
+    defstruct [:pubkey]
+    @type t :: %__MODULE__{pubkey: String.t()}
+  end
+
   @type t ::
           IdentityChanged.t()
           | RelayAdded.t()
@@ -56,6 +63,7 @@ defmodule MediaCentaur.Social.Events do
           | FriendAdded.t()
           | FriendChanged.t()
           | FriendRemoved.t()
+          | ProfileUpdated.t()
 
   @spec broadcast(t()) :: :ok | {:error, term()}
   def broadcast(%IdentityChanged{} = event), do: publish({:identity_changed, event})
@@ -64,6 +72,7 @@ defmodule MediaCentaur.Social.Events do
   def broadcast(%FriendAdded{} = event), do: publish({:friend_added, event})
   def broadcast(%FriendChanged{} = event), do: publish({:friend_changed, event})
   def broadcast(%FriendRemoved{} = event), do: publish({:friend_removed, event})
+  def broadcast(%ProfileUpdated{} = event), do: publish({:profile_updated, event})
 
   @doc """
   Re-broadcasts one relay connection's owner message on

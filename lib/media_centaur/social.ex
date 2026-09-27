@@ -8,11 +8,14 @@ defmodule MediaCentaur.Social do
       Events.FriendChanged,
       Events.FriendRemoved,
       Events.IdentityChanged,
+      Events.ProfileUpdated,
       Events.RelayAdded,
       Events.RelayRemoved,
       Friend,
       Identity,
       Person,
+      Profile,
+      Profile.Translation,
       Relay
     ]
 
@@ -20,7 +23,9 @@ defmodule MediaCentaur.Social do
   Bounded context for the friend network's configuration: this install's
   identity (`Social.Identity`), the relay list (`Social.Relay`), the
   live connections keyed by it (`Social.Connections`) and the roster of
-  followed keys under the reader's names for them (`Social.Friend`).
+  followed keys under the reader's names for them (`Social.Friend`),
+  and each key's published profile (`Social.Profile`), saved by the
+  reader for their own key and ingested for a friend's.
   `people/0` reads the identity and the roster as `Social.Person`, the
   one read model every surface draws a person from (ADR-074).
 
@@ -31,11 +36,15 @@ defmodule MediaCentaur.Social do
 
   import Ecto.Query
 
+  alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Events
   alias MediaCentaur.Social.Friend
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Person
+  alias MediaCentaur.Social.Profile
+  alias MediaCentaur.Social.Profile.Translation, as: ProfileTranslation
   alias MediaCentaur.Social.Relay
+  alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
@@ -119,6 +128,7 @@ defmodule MediaCentaur.Social do
 
       friend ->
         Repo.delete!(friend)
+        delete_profile(friend.pubkey)
         Events.broadcast(%Events.FriendRemoved{pubkey: friend.pubkey})
         :ok
     end
@@ -157,11 +167,12 @@ defmodule MediaCentaur.Social do
   """
   @spec people() :: %{optional(String.t()) => Person.t()}
   def people do
-    friends = Map.new(list_friends(), &{&1.pubkey, person_for(&1)})
+    names = Map.new(Repo.all(Profile), &{&1.pubkey, &1.name})
+    friends = Map.new(list_friends(), &{&1.pubkey, person_for(&1, names)})
 
     case Identity.pubkey() do
       nil -> friends
-      me -> Map.put(friends, me, own_person_for(me))
+      me -> Map.put(friends, me, own_person_for(me, Map.get(names, me)))
     end
   end
 
@@ -170,7 +181,12 @@ defmodule MediaCentaur.Social do
   previews as the reader before a key exists.
   """
   @spec own_person() :: Person.t()
-  def own_person, do: own_person_for(Identity.pubkey())
+  def own_person do
+    case own_profile() do
+      nil -> own_person_for(Identity.pubkey(), nil)
+      %Profile{pubkey: pubkey, name: name} -> own_person_for(pubkey, name)
+    end
+  end
 
   @doc "The npub, elided in the middle: enough to compare against what a friend told you."
   @spec short_npub(String.t()) :: String.t()
@@ -179,13 +195,134 @@ defmodule MediaCentaur.Social do
     String.slice(npub, 0, 9) <> "…" <> String.slice(npub, -4..-1//1)
   end
 
-  defp own_person_for(pubkey),
-    do: %Person{pubkey: pubkey, own?: true, short_npub: pubkey && short_npub(pubkey)}
+  # --- profiles ----------------------------------------------------------------
 
-  defp person_for(%Friend{} = friend) do
+  @doc """
+  Saves the reader's own profile (ADR-073, UIDR-047): mints the identity
+  when none exists, stamps the event strictly after the stored one,
+  signs, stores, publishes to every connected relay and broadcasts
+  `ProfileUpdated`. The name is required: the form refuses to save
+  without one.
+  """
+  @spec save_profile(String.t()) :: {:ok, Profile.t()} | {:error, :name_required}
+  def save_profile(name) when is_binary(name) do
+    with {:ok, name} <- present_name(name) do
+      secret = Identity.ensure()
+      me = Identity.pubkey()
+      stored = Repo.get_by(Profile, pubkey: me)
+      created_at = Event.stamp_after(stored && stored.created_at, System.os_time(:second))
+      event = name |> ProfileTranslation.to_event(me, created_at) |> Event.sign(secret)
+      {:ok, attrs} = ProfileTranslation.from_event(event)
+      profile = upsert_profile(stored, attrs)
+      Connections.publish(event)
+      Events.broadcast(%Events.ProfileUpdated{pubkey: me})
+      {:ok, profile}
+    end
+  end
+
+  @doc """
+  Stores a verified profile event from a known key (the identity or the
+  roster): newer wins, a tie or an older one is `:ignored`, anything
+  malformed is dropped whole. Broadcasts `ProfileUpdated` when stored.
+  """
+  @spec ingest_profile(Event.t()) ::
+          {:ok, Profile.t()}
+          | :ignored
+          | {:error,
+             :unknown_author
+             | :wrong_kind
+             | :bad_content
+             | :unsupported_version
+             | :bad_id
+             | :bad_signature
+             | :malformed}
+  def ingest_profile(%Event{} = event) do
+    with :ok <- Event.verify(event),
+         :ok <- known_key_or_error(event.pubkey),
+         {:ok, attrs} <- ProfileTranslation.from_event(event) do
+      case Repo.get_by(Profile, pubkey: attrs.pubkey) do
+        %Profile{created_at: held} when held >= attrs.created_at ->
+          :ignored
+
+        stored ->
+          profile = upsert_profile(stored, attrs)
+          Events.broadcast(%Events.ProfileUpdated{pubkey: profile.pubkey})
+          {:ok, profile}
+      end
+    end
+  end
+
+  @doc "The reader's own profile, or nil before one was saved."
+  @spec own_profile() :: Profile.t() | nil
+  def own_profile do
+    case Identity.pubkey() do
+      nil -> nil
+      me -> Repo.get_by(Profile, pubkey: me)
+    end
+  end
+
+  @doc "The own profile as a wire event, for the own-events diff; `[]` before one exists."
+  @spec own_events() :: [Event.t()]
+  def own_events do
+    case own_profile() do
+      nil ->
+        []
+
+      %Profile{raw_event: raw} ->
+        case Event.from_map(raw) do
+          {:ok, event} -> [event]
+          {:error, _reason} -> []
+        end
+    end
+  end
+
+  @doc "What an own event with this id is, for the words a relay's refusal takes: `:profile`, or nil."
+  @spec own_event_kind(String.t()) :: :profile | nil
+  def own_event_kind(event_id) when is_binary(event_id) do
+    case own_profile() do
+      %Profile{raw_event: %{"id" => ^event_id}} -> :profile
+      _other -> nil
+    end
+  end
+
+  @doc """
+  Replaces the identity with another secret key and forgets the old
+  key's own profile row, which no longer names anyone the reader is.
+  The new key's profile arrives from the relays if one was ever
+  published.
+  """
+  @spec import_identity(String.t()) :: :ok | {:error, :invalid_secret}
+  def import_identity(nsec) when is_binary(nsec) do
+    old = Identity.pubkey()
+
+    with :ok <- Identity.import_nsec(nsec) do
+      if old, do: delete_profile(old)
+      :ok
+    end
+  end
+
+  defp upsert_profile(nil, attrs), do: Repo.insert!(Profile.changeset(attrs))
+  defp upsert_profile(%Profile{} = stored, attrs), do: Repo.update!(Profile.changeset(stored, attrs))
+
+  defp delete_profile(pubkey),
+    do: Repo.delete_all(from(profile in Profile, where: profile.pubkey == ^pubkey))
+
+  defp known_key_or_error(pubkey), do: if(known_key?(pubkey), do: :ok, else: {:error, :unknown_author})
+
+  defp own_person_for(pubkey, published_name) do
+    %Person{
+      pubkey: pubkey,
+      own?: true,
+      published_name: published_name,
+      short_npub: pubkey && short_npub(pubkey)
+    }
+  end
+
+  defp person_for(%Friend{} = friend, names) do
     %Person{
       pubkey: friend.pubkey,
       name_override: friend.name_override,
+      published_name: Map.get(names, friend.pubkey),
       own?: false,
       short_npub: short_npub(friend.pubkey),
       added_on: DateTime.to_date(friend.inserted_at)
