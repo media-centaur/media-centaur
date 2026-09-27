@@ -355,4 +355,31 @@ defmodule MediaCentaur.ImageFilesTest do
       assert ImageFiles.relative_path("/images/centaur-logo.png") == nil
     end
   end
+
+  describe "on_disk_path/1 and web_path/2" do
+    test "an app-owned relative path lives under the data dir and is served with a version" do
+      assert ImageFiles.on_disk_path("images/social/abc.webp") ==
+               Path.join(MediaCentaur.Settings.Config.get(:data_dir), "images/social/abc.webp")
+
+      assert ImageFiles.web_path("images/social/abc.webp", 1_700_000_000) ==
+               "/media-images/images/social/abc.webp?v=1700000000"
+    end
+  end
+
+  describe "square_webp/2" do
+    test "centre-crops any image to a square WebP of the given side, in memory", %{tmp_dir: dir} do
+      source = Path.join(dir, "wide.png")
+      {:ok, img} = Image.new(400, 300, color: :red)
+      {:ok, _} = Image.write(img, source)
+
+      assert {:ok, bytes} = ImageFiles.square_webp(source, 256)
+      assert <<"RIFF", _size::32-little, "WEBP", _rest::binary>> = bytes
+      {:ok, back} = Image.from_binary(bytes)
+      assert {256, 256, _bands} = Image.shape(back)
+    end
+
+    test "a file that is not an image is refused" do
+      assert {:error, _reason} = ImageFiles.square_webp(__ENV__.file, 256)
+    end
+  end
 end

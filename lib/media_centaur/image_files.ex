@@ -16,6 +16,7 @@ defmodule MediaCentaur.ImageFiles do
   """
 
   alias MediaCentaur.HttpClient
+  alias MediaCentaur.Settings.Config
 
   @web_prefix "/media-images/"
 
@@ -33,6 +34,21 @@ defmodule MediaCentaur.ImageFiles do
   @spec web_path(String.t() | nil) :: String.t() | nil
   def web_path(nil), do: nil
   def web_path(relative_path) when is_binary(relative_path), do: @web_prefix <> relative_path
+
+  @doc "`web_path/1` with the immutable-cache version `ImageServer` honours: a replaced master mints a new URL."
+  @spec web_path(String.t(), non_neg_integer()) :: String.t()
+  def web_path(relative_path, version) when is_binary(relative_path) and is_integer(version),
+    do: web_path(relative_path) <> "?v=#{version}"
+
+  @doc """
+  The on-disk path of an app-owned image under the data dir: what
+  `ImageServer` opens for `web_path/1` of the same relative path when no
+  media directory holds it. The one derivation the data-dir stores
+  share (`TmdbArtwork`, `Apps.Artwork`, `Social.AvatarStore`).
+  """
+  @spec on_disk_path(String.t()) :: String.t()
+  def on_disk_path(relative_path) when is_binary(relative_path),
+    do: Path.join(Config.get(:data_dir) || "data", relative_path)
 
   @doc """
   The relative path a `/media-images/` URL names, any query dropped — the
@@ -103,6 +119,19 @@ defmodule MediaCentaur.ImageFiles do
 
       {:error, reason} ->
         {:error, categorize(reason), reason}
+    end
+  end
+
+  @doc """
+  A square WebP master of `side` pixels from the image file at `path`,
+  centre-cropped, returned in memory: the avatar a sender publishes.
+  `{:error, reason}` when the file is not an image libvips can open.
+  """
+  @spec square_webp(Path.t(), pos_integer()) :: {:ok, binary()} | {:error, term()}
+  def square_webp(path, side) when is_binary(path) and is_integer(side) and side > 0 do
+    with {:ok, image} <- Image.open(path),
+         {:ok, square} <- Image.thumbnail(image, side, crop: :center) do
+      Image.write(square, :memory, suffix: ".webp", quality: 82)
     end
   end
 
@@ -197,7 +226,7 @@ defmodule MediaCentaur.ImageFiles do
   defp derivative_root do
     base =
       Process.get(:image_derivative_root) ||
-        MediaCentaur.Settings.Config.get(:data_dir) ||
+        Config.get(:data_dir) ||
         System.tmp_dir!()
 
     Path.join(base, "image-derivatives")

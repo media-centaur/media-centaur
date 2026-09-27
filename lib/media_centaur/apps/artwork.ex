@@ -13,7 +13,6 @@ defmodule MediaCentaur.Apps.Artwork do
   """
 
   alias MediaCentaur.ImageFiles
-  alias MediaCentaur.Settings.Config
 
   @subdir "images/apps"
   @filenames %{banner: "banner.jpg", poster: "poster.jpg"}
@@ -28,7 +27,7 @@ defmodule MediaCentaur.Apps.Artwork do
 
   @doc "The on-disk absolute path for a role, whether or not the file exists."
   @spec on_disk_path(role(), String.t()) :: String.t()
-  def on_disk_path(role, app_id), do: Path.join(data_dir(), relative_path(role, app_id))
+  def on_disk_path(role, app_id), do: ImageFiles.on_disk_path(relative_path(role, app_id))
 
   @doc "Web URLs for the roles that exist on disk; missing roles are nil."
   @spec urls(String.t()) :: %{banner_url: String.t() | nil, poster_url: String.t() | nil}
@@ -60,7 +59,7 @@ defmodule MediaCentaur.Apps.Artwork do
   @doc "Removes the app's art directory and any derivatives. Idempotent."
   @spec delete(String.t()) :: :ok
   def delete(app_id) do
-    dir = Path.join([data_dir(), @subdir, app_id])
+    dir = ImageFiles.on_disk_path(Path.join(@subdir, app_id))
 
     case File.ls(dir) do
       {:ok, files} -> Enum.each(files, &ImageFiles.purge_derivatives_for(Path.join(dir, &1)))
@@ -79,12 +78,10 @@ defmodule MediaCentaur.Apps.Artwork do
     case File.stat(on_disk_path(role, app_id)) do
       {:ok, %{mtime: mtime}} ->
         version = :calendar.datetime_to_gregorian_seconds(mtime)
-        ImageFiles.web_path(relative_path(role, app_id)) <> "?v=#{version}"
+        ImageFiles.web_path(relative_path(role, app_id), version)
 
       {:error, _missing} ->
         nil
     end
   end
-
-  defp data_dir, do: Config.get(:data_dir) || "data"
 end
