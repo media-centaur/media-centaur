@@ -507,6 +507,39 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "#review-modal img[src^='/media-images/#{movie.id}/poster.jpg']")
     end
 
+    test "the Review modal previews each choice as the reader's own pennant", %{conn: conn} do
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        value: %{"enabled" => true}
+      })
+
+      movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?entity=#{movie.id}")
+
+      view |> element("#detail-review") |> render_click()
+      assert has_element?(view, "#review-modal[data-state='open']", "Sample Movie")
+
+      # No identity exists yet and the preview flies as the reader all the
+      # same: each choice's pennant reads the choice's word and carries the
+      # reader's own sentence as its tooltip.
+      for {sentiment, word, sentence} <- [
+            {:dislike, "Dislike", "You dislike this"},
+            {:like, "Like", "You like this"},
+            {:love, "Love", "You love this"}
+          ] do
+        view |> element("#review-sentiment-#{sentiment}") |> render_click()
+        assert has_element?(view, "#review-sentiment-#{sentiment}[aria-pressed='true']")
+
+        assert has_element?(
+                 view,
+                 "#review-sentiment-#{sentiment} .pennant[data-flag='#{sentiment}'][title='#{sentence}']",
+                 word
+               )
+      end
+    end
+
     test "the Review control is absent while Discovery is off", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie", tmdb_id: "777"})
       _ = create_linked_file(%{movie_id: movie.id})

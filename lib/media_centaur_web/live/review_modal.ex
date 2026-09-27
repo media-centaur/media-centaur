@@ -25,6 +25,7 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   import MediaCentaurWeb.Components.TMDB.TitleSummary, only: [title_summary: 1]
 
   alias MediaCentaur.Activities.Activity
+  alias MediaCentaur.Social
   alias MediaCentaur.TMDB.Title
 
   attr :subject, Title, default: nil, doc: "the title being reviewed; nil = closed"
@@ -122,9 +123,10 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
   end
 
   # The choice shows the pennant the friend will see, worded as the
-  # choice itself rather than as the sender's name.
+  # choice itself rather than as the sender's name: the reader's own
+  # pennant, with or without an identity yet.
   defp preview(sentiment),
-    do: %{activity: %Activity{kind: :review, sentiment: sentiment}, nickname: nil, own?: true}
+    do: %{activity: %Activity{kind: :review, sentiment: sentiment}, author: Social.own_person()}
 
   defp sentiment_word(:dislike), do: "Dislike"
   defp sentiment_word(:like), do: "Like"
