@@ -79,6 +79,9 @@ media_centaur-*.tar
 # Ignore digested assets cache.
 /priv/static/cache_manifest.json
 
+# phx.digest writes hashed copies of the storybook fixtures beside them.
+/priv/static/images/storybook/*-????????????????????????????????.jpg
+
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log
 /assets/node_modules/
