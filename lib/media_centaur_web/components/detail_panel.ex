@@ -76,7 +76,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   import MediaCentaurWeb.LibraryFormatters, only: [format_type: 1, format_human_duration: 1]
 
+  alias MediaCentaur.Format
   alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.CastPanel
   alias MediaCentaurWeb.Components.Detail.CastSelection
@@ -577,7 +579,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     """
   end
 
-  defp own_activity(%TitleDetail{activity: %{activity: activity, own?: true}}), do: activity
+  defp own_activity(%TitleDetail{activity: %{activity: activity, author: %Person{own?: true}}}),
+    do: activity
+
   defp own_activity(_detail), do: nil
 
   attr :note, :any, required: true, doc: "`%{sender, text}` or nil"
@@ -791,7 +795,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp hairline_label(%{type: :movie}), do: "Movie progress"
   defp hairline_label(_subject), do: "Watch progress"
 
-  defp year_or_nil(subject), do: MediaCentaur.Format.year(Map.get(subject, :date_published))
+  defp year_or_nil(subject), do: Format.year(Map.get(subject, :date_published))
 
   defp season_count_or_nil(%{type: :tv_series, seasons: seasons}) when is_list(seasons) do
     case length(seasons) do
@@ -848,14 +852,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp blank_to_nil(_value), do: nil
 
   # The words under the hero: the activity's text attributed to its
-  # nickname when it has any, else the person's own watchlist note.
-  defp note_words(%TitleDetail{activity: %{activity: %{text: text}, nickname: nickname}})
-       when is_binary(text) and text != "", do: %{sender: nickname, text: text}
+  # author when a friend wrote it (the reader's own words stand
+  # unattributed), else the person's own watchlist note.
+  defp note_words(%TitleDetail{activity: %{activity: %{text: text}, author: author}})
+       when is_binary(text) and text != "", do: %{sender: sender(author), text: text}
 
   defp note_words(%TitleDetail{intent_note: note}) when is_binary(note) and note != "",
     do: %{sender: nil, text: note}
 
   defp note_words(_detail), do: nil
+
+  defp sender(%Person{own?: false} = person), do: Format.person_name(person)
+  defp sender(_own_or_unknown), do: nil
 
   # The artwork ladder (UIDR-021). Owned: subject art first, entity art
   # as the ladder's next rungs — a member movie rarely carries its own

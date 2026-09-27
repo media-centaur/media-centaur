@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.Components.Title.LogicTest do
   use MediaCentaur.Case, async: true
 
+  import MediaCentaur.DiscoveryRows, only: [person: 1]
   import MediaCentaur.TestFactory, only: [build_activity: 1, build_entity: 1, build_tracking_release: 1]
 
   alias MediaCentaur.TMDB.ReleaseWindow
@@ -83,7 +84,7 @@ defmodule MediaCentaurWeb.Components.Title.LogicTest do
     end
 
     test "carries the activity it speaks for as one row, and the intent's note beside it" do
-      row = %{activity: build_activity(%{text: "Watch it."}), nickname: "Sample Friend", own?: false}
+      row = %{activity: build_activity(%{text: "Watch it."}), author: person("Sample Friend")}
 
       detail = Logic.title_detail(movie(), facts(%{activity: row, intent_note: "Mine."}))
       assert detail.activity == row
