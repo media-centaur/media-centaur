@@ -40,6 +40,8 @@ defmodule MediaCentaur.Repo.Migrations.FriendsNameOverrideIsOptional do
 
     execute """
     INSERT INTO friends_prev (id, pubkey, nickname, inserted_at, updated_at)
+    -- Not a lossless inverse: the new code never writes nickname, so an
+    -- override cleared on the new release rolls back to the name it had.
     SELECT id, pubkey, COALESCE(name_override, nickname, ''), inserted_at, updated_at FROM friends
     """
 
