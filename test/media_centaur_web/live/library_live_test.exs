@@ -19,6 +19,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Discovery
   alias MediaCentaur.Library
+  alias MediaCentaur.Settings.Preferences.DiscoveryVisibility
   alias MediaCentaur.Settings.Preferences.PlanningMode
   alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Playback.{Events, ProgressBroadcaster}
@@ -414,7 +415,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
     test "the detail page's Review control opens the modal and sends", %{conn: conn} do
       MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        key: DiscoveryVisibility.setting_key(),
         value: %{"enabled" => true}
       })
 
@@ -487,7 +488,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
     test "the Review modal paints the library poster", %{conn: conn} do
       MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        key: DiscoveryVisibility.setting_key(),
         value: %{"enabled" => true}
       })
 
@@ -509,7 +510,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
     test "the Review modal previews each choice as the reader's own pennant", %{conn: conn} do
       MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Settings.Preferences.DiscoveryVisibility.setting_key(),
+        key: DiscoveryVisibility.setting_key(),
         value: %{"enabled" => true}
       })
 
