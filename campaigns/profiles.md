@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-09-27
-last_updated: 2026-09-27
+last_updated: 2026-09-28
 ---
 # Profiles
 
@@ -16,9 +16,9 @@ reader's alone.
 
 ## Status
 
-Phase 1 (roster and Person) shipped on main 2026-09-27, precommit
-clean; phase 2 (the profile on the wire, opening with the `friends`
-rebuild and the optional name) next, social-relay v0.7.0 first.
+Phase 2 shipped on main 2026-09-28, precommit clean; social-relay
+v0.7.0 committed in `../social-relay` (`567d3d8`), tag and push await
+the owner's ship; phase 3 (the avatar) next.
 
 ## Decisions made
 
@@ -30,32 +30,27 @@ rebuild and the optional name) next, social-relay v0.7.0 first.
 * `2026-09-27` — Avatar bytes live as a file under `{data_dir}/images/social/`, served by the existing image server with `?v=`; no new controller. (spec § Storage)
 * `2026-09-27` — Unify pass on the phase 1 plan: every shipped state is a whole product, nothing in a phase exists for a later one. The name stays required until the published name exists to fall back on, so the `friends` rebuild, the optional name, Unnamed and the person glyph open phase 2; `Person.published_name` and `Person.name/1` arrive with phase 2, `show_avatar` and `set_show_avatar/2` with phase 3. Phase 1 renames the field in code with `source: :nickname` and needs no migration. Re-adding a key already on the roster changes nothing; the card's foot is the one place to rename. The LiveView holds the people map alone, the friend count derived. (plan § What this phase does not do)
 * `2026-09-27` — Phase 1 as built: `Activities` rows are `%{activity, author}`, an unknown author makes no row, and the author is nil only from `get_row/1`. `Format.person_name/1` has no clause for a nameless friend until phase 2 adds Unnamed. `Components.Discovery.Act` (with `Act.Entry`) replaced the web `Person`; `DiscoveryLive.People.build/3` returns `People.Card`s; `DiscoveryLive` holds `people_by_pubkey` and rebuilds it on every roster or identity broadcast. (commits `e08c673c`..`54446ed4`)
+* `2026-09-28` — The relay's slot finds a replaceable record by signer and kind: for 12160 one record per signer, newer `created_at` replaces, a tie keeps the stored one. Which kinds are stored and which a kind 5 may name are separate lists: 12160 is stored but never deletable, so a deletion naming it is refused with the author wording. (social-relay ADR-003, v0.7.0)
+* `2026-09-28` — The two rules both contexts need moved to their owners: `Social.known_key?/1` (the identity or the roster; hex in any case) and `Nostr.Event.stamp_after/2` (strictly after the stored record). `Activities` keeps the relay consequence in its own stamping. (commits `99768ae3`, `2eb9ebf2`)
+* `2026-09-28` — The Discovery page reloads its people and rows on `{:profile_updated, _}`, so a friend's published name is live. (commit `08a1e77a`)
+* `2026-09-28` — `Social.save_profile/1` refuses a blank name (`:name_required`) and one over the 50-character cap (`:name_too_long`) before minting the identity; the form shows either as a flash instead of crashing. (commits `ed9f896e`, `de6930c4`)
+* `2026-09-28` — Phase 2 as built: `Social.Profile` and `Profile.Translation`, `save_profile/1`, `ingest_profile/1`, `own_profile/0`, `own_events/0`, `own_event_kind/1`, `import_identity/1` (drops the old key's row unless the key is unchanged), `remove_friend/1` drops the friend's row; `ProfileUpdated` on `social:updates`; `MediaCentaur.RelaySync` replaces `Activities.Sync`, gated under `:test` by the kept `:start_activities_sync` key; Settings → Social opens on Your profile; the `friends` rebuild with `name_override` nullable beside the nullable `nickname` the outgoing release still reads. (commits `99768ae3`..`83da42fa`)
 
 ## Next steps
 
-1. Phase 2, profile on the wire: social-relay v0.7.0 first; opens with the `friends` rebuild (`name_override` nullable beside a nullable `nickname`; dropped the release after), the optional name, `Person.published_name` and `Person.name/1`, Unnamed, the person glyph, the foot's placeholder through `person_name`; then `profiles`, `Social.Profile` and its translation, ingest, RelaySync with the kind and the own diff, `ProfileUpdated`, Settings' two cards with the name, mint-on-save, FakeRelay. Write its plan first; it opens with the phase 2 items under Follow-ups.
+1. Ship: tag and push social-relay v0.7.0 with the app release that carries phase 2 (owner's instruction).
 2. Phase 3, avatar: upload, the 256×256 WebP master in `ImageFiles`, file store and serving, the tile's avatar mark, the `show_avatar` column (a plain `add`), `Social.set_show_avatar/2` and the card's switch.
-3. Phase 4, docs: protocol page and changes row, wiki (Social, Settings-Reference, Hosting-a-Private-Relay, Troubleshooting), `docs/social.md`, `docs/GLOSSARY.md`; records to accepted; close by destination. The following release drops `nickname`.
+3. Phase 4, docs: the avatar on the protocol page, the wiki, `docs/social.md` and `docs/GLOSSARY.md` (the name landed with phase 2); ADR-073, ADR-074 and UIDR-047 to accepted; close by destination.
+4. The release after the one carrying phase 2 drops `friends.nickname` (a paired migration; the outgoing release still reads it).
 
-## Follow-ups from phase 1 reviews
-
-Phase 2 plan opens with:
-
-* The `friends` rebuild.
-* The optional name in `add_friend/2`, `set_name_override/2` and the add form.
-* `Person.published_name` and `Person.name/1`.
-* The "Unnamed" clause in `Format.person_name/1`, in the same change as the optional name: the function's doc says so, and without it the Feed crashes on a nameless friend.
-* The identity tile's person-glyph mark.
-* The card foot's placeholder as `Format.person_name(%Person{person | name_override: nil})`, never a literal.
-* Flip the pinned test "Format.person_name/1 has no words yet for a friend without a name" (`test/media_centaur/social/person_test.exs`) in that same change.
-* Delete the forward-pointing sentences the phase fulfils: `Social.Person`'s moduledoc ("nil until the profile event arrives"), `Social.Friend`'s ("the phase 2 rebuild renames it"), `Format.person_name/1`'s doc (the unmatched-clause paragraph), `IdentityTile`'s ("UIDR-047's third mark lands with phase 2").
-* Every `Person` field added updates `test/support/discovery_rows.ex` and the eight story fixture builders (`identity_tile`, `person_card`, `feed_row`, `pennants`, `title_row`, `media_results`, `cinematic_shell`, `detail_panel`); stories cannot import test support, so the copies stay.
+## Follow-ups from reviews
 
 Phase 3 plan:
 
 * `show_avatar` as a plain `add` column, `Social.set_show_avatar/2`, the card's switch.
 * Normalise an empty-string `avatar_url` to nil in `Social.person_for/1`; the tile treats any binary as an avatar.
 * Delete `IdentityTile`'s "No avatar exists yet (phase 3)" sentence and `Social.Person`'s "nil until the profiles campaign's phase 3 fills it".
+* Every `Person` field added updates `test/support/discovery_rows.ex` and the eight story fixture builders (`identity_tile`, `person_card`, `feed_row`, `pennants`, `title_row`, `media_results`, `cinematic_shell`, `detail_panel`); stories cannot import test support, so the copies stay.
 * Decision recorded 2026-09-27: `Person.avatar_url` and the tile's `:avatar` mark stayed in phase 1 without a writer, the one exception to "nothing in a phase exists for a later one", because they carry the photo state UIDR-046 shipped before the campaign (plan § What this phase does not do).
 
 Deferred, any phase:

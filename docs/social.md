@@ -3,9 +3,11 @@
 **Social** is the subsystem that connects one install to friends' installs over
 Nostr relays: this install's identity, its relays, its friends, and the
 activities that travel between them — a title reviewed, watched, or
-listed. A **friend** is one roster entry inside it. How it is put together:
-four contexts, one protocol library, one long-lived WebSocket per relay, and
-a sync loop that keeps stored activities in step with what the relays hold.
+listed — and the profile each person publishes about themselves. A
+**friend** is one roster entry inside it. How it is put together: four
+contexts, one protocol library, one long-lived WebSocket per relay, and a
+sync loop that keeps stored activities and profiles in step with what the
+relays hold.
 
 End-user setup lives on the wiki:
 [Social](https://github.com/media-centaur/media-centaur/wiki/Social).
@@ -29,16 +31,20 @@ and `campaigns/friends-recommendations.md` (completed and removed — see git hi
 
 ## Contexts
 
-Four `Boundary` contexts, each with one job. The dependency edges run one way:
-`Discovery ← Activities → Social → Nostr`; `Activities` also reads
+Four `Boundary` contexts, each with one job, and the sync loop above two of
+them. The dependency edges run one way: `Discovery ← Activities → Social →
+Nostr`, and `RelaySync → Activities, Social, Nostr`; `Activities` also reads
 `Library`, `WatchHistory`, `Discovery` and `Settings.Preferences` to turn a
-person's acts into activities.
+person's acts into activities. Neither `Activities` nor `Social` may depend on
+the other's rows, so the loop that reconciles both with the relays sits above
+them (ADR-074).
 
 | Context | Owns | Depends on |
 |---|---|---|
 | `MediaCentaur.Nostr` | The protocol and nothing else: `Keys`, `Event`, `Filter`, `Connection`. No tables, no domain meaning. | — |
-| `MediaCentaur.Social` | The network's *configuration*: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), and `Connections` (one live connection per relay); and `Person`, a key as the reader sees it, built by `Social.people/0` (ADR-074). | `Nostr` |
-| `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Sync` (relays ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `Discovery`, `Settings.Preferences` |
+| `MediaCentaur.Social` | The network's *configuration* and who is on it: `Identity` (the keypair), `Relay` (`relays` table), `Friend` (`friends` table), `Connections` (one live connection per relay), `Profile` (`profiles` table, what each known key published about itself; `Profile.Translation`, events ↔ rows), and `Person`, a key as the reader sees it, built by `Social.people/0` (ADR-074). | `Nostr` |
+| `MediaCentaur.Activities` | The *content*: `activities` table, `Translation` (events ↔ rows), `Publisher` (a person's acts → activities, behind the sharing toggles). | `Social`, `Nostr`, `TMDB`, `TmdbArtwork`, `Library`, `WatchHistory`, `Discovery`, `Settings.Preferences` |
+| `MediaCentaur.RelaySync` | No tables. The loop that keeps both contexts' rows in step with the relays: subscribes, routes each event to its owning context, publishes what a relay lacks. | `Activities`, `Social`, `Nostr` |
 | `MediaCentaur.Discovery` | The watchlist (`watchlist_items`). Knows nothing about the friend network — a row from the feed stores a bare `activity_id`. | `Library`, `TmdbArtwork`, `TMDB` |
 
 The Discovery/Activities separation is deliberate: a watchlist row records
@@ -53,11 +59,15 @@ layer's job — see [Web layer](#web-layer).
 `MediaCentaur.Secret` at rest and in memory); the public key is derived on every
 read rather than stored, so the two can never disagree.
 
-- `ensure/0` generates on first use. Two callers: the Settings page's Social section, and
-  `Activities` publishing an own activity — a user can review a title before
-  ever opening the tab, which mints the identity right there.
-- `import_nsec/1` is the only replacement path (two-click arm in the UI,
-  MC0027 treatment b).
+- `ensure/0` generates on first use. Two callers: `Social.save_profile/1`,
+  when the reader saves their profile under Settings → Social (opening the
+  section mints nothing, UIDR-047), and `Activities` publishing an own
+  activity — a user can review a title before ever saving a profile, which
+  mints the identity right there.
+- `import_nsec/1` is the only replacement path, reached through
+  `Social.import_identity/1` (two-click arm in the UI, MC0027 treatment b),
+  which also deletes the old key's own profile row; re-importing the same
+  key keeps it.
 - Both broadcast `Social.Events.IdentityChanged`, which makes
   `Connections.Owner` rebuild every connection so `AUTH` answers are re-signed.
 
@@ -206,49 +216,82 @@ its domain time gets the wire time as fallback.
 keeps what it holds (a deletion beating an activity). So a new own activity is
 stamped strictly after the activity or tombstone the row already holds, and
 `delete/1` stamps the deletion no earlier than the activity it withdraws
-(`Activities.stamp/3`, private). Without this
+(`Activities.stamp/3`, private, over `Nostr.Event.stamp_after/2`, which owns
+the strictly-after rule). Without this
 a same-second re-review would replace the row here, be discarded by
 the relay, and be republished by the own-events diff on every connect.
 
+**Profile.** `Social.Profile.Translation` is the profile's anti-corruption
+layer, pure both ways: kind `12160`, replaceable, no tags, content
+`{"v": 1, "name": <string>}`. The name cap (50 characters,
+`max_name_length/0`) lives there alone; the Settings form and the protocol
+page mirror it. An absent or blank name reads as nil; an unknown `v`, content
+that is not a JSON object, or a name that is not a string or is over the cap
+drops the event whole. `Social.Profile` is the row, one per key (`pubkey`
+unique, `name`, `raw_event`, `created_at`), for the identity and the roster
+only.
+
+- `Social.save_profile/1` is the Settings form's save: it refuses a blank name
+  (`:name_required`) or one over the cap (`:name_too_long`) before minting
+  anything, then mints the identity if none exists, stamps strictly after the
+  stored profile (`Event.stamp_after/2`), signs, stores, publishes and
+  broadcasts `ProfileUpdated`.
+- `Social.ingest_profile/1` verifies the signature, requires a known key
+  (`Social.known_key?/1`: the identity or the roster), keeps the newer
+  `created_at` (a tie or an older one is `:ignored`) and broadcasts
+  `ProfileUpdated` when it stores.
+- `own_profile/0`, `own_events/0` (the stored own profile as a wire event, for
+  the own-events diff) and `own_event_kind/1` (`:profile` for the refusal
+  words) are what `RelaySync` reads.
+- A profile is never withdrawn (ADR-073), so there is no deletion path.
+  Removing a friend (`remove_friend/1`) deletes their row; replacing the
+  identity (`import_identity/1`) deletes the old key's.
+
 ## Sync
 
-`Activities.Sync` is a GenServer over `social:connections` and
-`social:updates`:
+`MediaCentaur.RelaySync` is a GenServer over `social:connections` and
+`social:updates`. It owns no rows: it subscribes, routes by kind to the
+context that owns the event, and publishes what a relay lacks.
 
 1. `:connected` for a relay → subscribe `"feed"` (authors = friends ++ self,
-   kinds 32164, 32161, 32163 + 5, `limit` 500, no `since`) and `"own:<url>"`
-   (authors = [self], same kinds) on that relay, and reset the seen-set for
-   that URL.
-2. `{:event, "feed", event}` → `Activities.ingest/1` (verify signature,
-   require a known author, newest wins, deletions tombstone). Events on
-   `"own:<url>"` also record their id in the seen-set.
+   kinds 32164, 32161, 32163, 5 and 12160, `limit` 500, no `since`) and
+   `"own:<url>"` (authors = [self], same kinds) on that relay, and reset the
+   seen-set for that URL.
+2. `{:event, "feed", event}` → by kind: 12160 to `Social.ingest_profile/1`,
+   every other kind to `Activities.ingest/1` (verify signature, require a
+   known author, newest wins, deletions tombstone). Events on `"own:<url>"`
+   also record their id in the seen-set.
 3. `{:eose, "feed"}` → a full page asks for the next (`until` = oldest − 1);
    the first short page after paging re-issues `"feed"` live.
 4. `{:eose, "own:<url>"}` → publish to that relay every stored own event it did
-   *not* send — activities of live rows, deletions of withdrawn ones. A
-   per-relay diff, not a blanket re-publish.
+   *not* send — `Activities.own_events/0` (activities of live rows, deletions
+   of withdrawn ones) followed by `Social.own_events/0` (the reader's
+   profile). A per-relay diff, not a blanket re-publish.
 5. A roster change on `social:updates` resubscribes `"feed"` on every connected
    relay with the new author list.
+6. `{:ok, id, false, reason}` → a warning naming what the relay refused:
+   the context that owns the event says what it is
+   (`Activities.own_event_kind/1`, then `Social.own_event_kind/1`) and the
+   loop words it ("rejected a deletion: …" / "rejected a review: …" /
+   "rejected a watched activity: …" / "rejected a profile: …").
+   `Connections` only keeps the reason as the relay row's last error. A relay
+   refusing a deletion with `blocked: kind 5 is not stored by this relay` is a
+   `social-relay` older than v0.3.0; one refusing kind 32161 is older than
+   v0.4.0, one refusing 32163 older than v0.5.0, one refusing 32164 older than
+   v0.6.0, one refusing 12160 older than v0.7.0 — and, because an old deletion
+   parser only knows the coordinates of its day, that relay refuses the
+   *deletion* of a watched activity or a listing with `blocked: only the
+   author may delete an event`. Each is re-sent on every connect until the
+   relay is upgraded.
 
 There is no sync cursor: every connect reads the relay from the start. A relay
 holds one record per signer per title, so the whole history is a page, and a
 `since` keyed on `created_at` skipped an event published late with an older
 stamp (a withdrawal made offline). Re-reading is idempotent.
-6. `{:ok, id, false, reason}` → a warning naming what the relay refused
-   (`Activities.own_event_kind/1`: "rejected a deletion: …" / "rejected a
-   review: …" / "rejected a watched activity: …"). The publisher owns
-   the wording; `Connections` only keeps the reason as the relay row's last
-   error. A relay refusing a deletion with `blocked: kind 5 is not stored by
-   this relay` is a `social-relay` older than v0.3.0; one refusing kind 32161
-   is older than v0.4.0, one refusing 32163 older than v0.5.0, one refusing
-   32164 older than v0.6.0 — and, because
-   an old deletion parser only knows the coordinates of its day, that relay
-   refuses the *deletion* of a watched activity or a listing with
-   `blocked: only the author may delete an event`. Both are re-sent on
-   every connect until it is upgraded.
 
-`ingest/1` rejects anything not signed by the identity or a key on the roster, so
-a relay that hands over the whole world still yields only what you follow.
+Both ingest paths reject anything not signed by the identity or a key on the
+roster (`Social.known_key?/1`), so a relay that hands over the whole world
+still yields only what you follow.
 
 On reconnect, `Connections.Owner` re-applies the relay's registered subscriptions
 as well, so `"feed"` and `"own:<url>"` each go out twice. That is harmless
@@ -261,7 +304,7 @@ All three are declared in `MediaCentaur.Topics`.
 
 | Topic | Publisher | Messages |
 |---|---|---|
-| `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_changed, _}`, `{:friend_removed, _}` |
+| `social:updates` | `Social.Events` | `{:identity_changed, _}`, `{:relay_added, _}`, `{:relay_removed, _}`, `{:friend_added, _}`, `{:friend_changed, _}`, `{:friend_removed, _}`, `{:profile_updated, _}` |
 | `social:connections` | `Social.Connections.Owner` | `{:relay_connection, url, message}` — the re-broadcast of every `Nostr.Connection` owner message |
 | `activities:updates` | `Activities.Events` | `{:activity_received, _}`, `{:activity_sent, _}`, `{:activity_deleted, _}` — each payload carries the activity's `kind` |
 
@@ -278,14 +321,20 @@ disagree with the owner about what a message meant.
 (`:feed` at `/discovery`, `:watchlist`, `:friends`).
 
 A person is drawn from one read model everywhere, `Social.Person`
-(ADR-074): the reader's name for a friend (`name_override`), the avatar
-URL (nil until the profiles campaign's phase 3), and whether it is the
-reader's own; phase 2 adds the name the key published.
-`Social.people/0` builds `%{pubkey => Person}` for the identity and the
-roster; `Social.own_person/0` is the reader alone.
-`MediaCentaur.Format.person_name/1` gives the words ("You" or the
-name); `Components.Discovery.IdentityTile` draws the avatar or the
-letter (UIDR-047).
+(ADR-074): the reader's name for a friend (`name_override`, optional),
+the name the key published (`published_name`, from its `Social.Profile`),
+the avatar URL (nil until the profiles campaign's phase 3), and whether
+it is the reader's own. `Person.name/1` resolves the override, else the
+published name, else nil. `Social.people/0` builds `%{pubkey => Person}`
+for the identity and the roster, joining their profiles;
+`Social.own_person/0` is the reader alone.
+`MediaCentaur.Format.person_name/1` gives the words: "You", the resolved
+name, or "Unnamed". `Components.Discovery.IdentityTile` draws one of three
+marks (UIDR-047): the avatar (none exists yet), the letter of those words,
+or the person glyph for a friend with no name at all, so no letter is
+invented from Unnamed. A `ProfileUpdated` reaches the page as
+`{:profile_updated, _}` and reloads the people and the rows, so a
+friend's published name is live.
 
 Both social tabs
 project one enriched list — every live activity with its actor
@@ -325,13 +374,15 @@ project one enriched list — every live activity with its actor
   modal with `?title=<ref>&activity=<id>` so the modal speaks for that
   act; Delete on an own activity → `Activities.delete/1` lives there.
   The opened card's foot carries the reader's name for the friend
-  (`Social.set_name_override/2`, the `set_friend_name` event), the key,
-  the added date and Remove friend. `DiscoveryLive.AddFriendBlock`, the
-  add-friend form (still an iteration-phase component under
-  `live/discovery_live/`), takes an npub and the name
-  (`Social.add_friend/2`, name required); re-adding a key changes
-  nothing. A rename broadcasts
-  `Social.Events.FriendChanged`, and the page rebuilds its
+  (`Social.set_name_override/2`, the `set_friend_name` event; a blank
+  clears it back to the published name) over the name it masks as the
+  field's placeholder (`Format.person_name/1` of the person without the
+  override: the published name, else Unnamed), the key, the added date
+  and Remove friend. `DiscoveryLive.AddFriendBlock`, the add-friend form
+  (still an iteration-phase component under `live/discovery_live/`),
+  takes an npub and an optional name (`Social.add_friend/2`; placeholder
+  "Name (optional)"); re-adding a key changes nothing. A rename
+  broadcasts `Social.Events.FriendChanged`, and the page rebuilds its
   `people_by_pubkey` map from `Social.people/0`.
 
 What friends did with a title — reviewed and with what sentiment, watched,
@@ -356,6 +407,12 @@ The joins the contexts may not make happen here:
 - **Watchlist rows** — the row stores only `activity_id`; the page resolves
   it through `Activities.get_row/1`, whose `author` may be nil for a
   removed friend.
+
+Settings → Social (`SettingsLive.SocialSection`) is four cards. **Your
+profile** comes first: the name, required and capped at 50, saved by
+`Social.save_profile/1`; before an identity exists its button is **Create
+profile**, and saving mints the identity. **Your identity**, **Relays** and
+**Sharing** appear once an identity exists. Opening the section mints nothing.
 
 `MediaCentaurWeb.Live.ReviewFlow` is the modal flow (`use ReviewFlow`
 injects the handlers, the clearable sentiment choice included), hosted by
@@ -383,7 +440,7 @@ the drill-in below the tile shows the live per-relay rows
 (`Components.StatusWidgets.Social`).
 
 Console tags: `:nostr` for the wire (`Nostr.Connection`), `:social` for
-everything above it (`Social`, `Activities`). `HealthBoard.normalize/1`
+everything above it (`Social`, `Activities`, `RelaySync`). `HealthBoard.normalize/1`
 aliases `:nostr` incidents onto the Social tile.
 
 ## Testing
@@ -402,7 +459,7 @@ Two application gates keep the real thing out of the suite, both `false` in
 | Key | Gates |
 |---|---|
 | `:start_relay_connections` | `Social.Connections.Owner` — without it, no connection is opened for a configured relay |
-| `:start_activities_sync` | `Activities.Sync` — without it, nothing subscribes to every `FakeRelay` a test stands up |
+| `:start_activities_sync` | `MediaCentaur.RelaySync` — without it, nothing subscribes to every `FakeRelay` a test stands up |
 
 `Activities.Publisher` is a pubsub listener, so it is not started under
 `:test` either; `publisher_test` starts it by hand.
@@ -412,8 +469,8 @@ Tests that need either start it by hand, pointed at a `FakeRelay`.
 ## Development
 
 Two things stand in for the network on a dev machine: the private relay from
-`../social-relay` running in Docker on `ws://127.0.0.1:2173` (v0.5.0 or later
-for the listing kind), and a **dev friend** — a second keypair
+`../social-relay` running in Docker on `ws://127.0.0.1:2173` (v0.7.0 or later
+for the profile kind), and a **dev friend** — a second keypair
 in `priv/dev-social/friend.nsec` (gitignored) driven from the command line. `just social` prints the walkthrough; `just --list` shows
 the recipes.
 
