@@ -3,10 +3,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
   The Feed's rows from the page's enriched activity rows (ADR-030,
   UIDR-038, UIDR-045): every author's reviews and listings — friends'
   and this identity's own — one row per action, newest first, flat.
-  Nothing groups and nothing re-sorts. Watched actions, a former
-  friend's actions and any title at the Ignored rung make no row for
-  any author; the activities themselves stay for the Friends tab and
-  the pennants.
+  Nothing groups and nothing re-sorts. Watched actions and any title at
+  the Ignored rung make no row for any author; a former friend's rows
+  never reach the page (Activities keeps rows for known people only).
 
   The scope filters by author after the entry rule: `:everyone`,
   `:friends` (no own rows) or `:you` (own rows only). It is navigation
@@ -37,6 +36,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
 
   alias MediaCentaur.Discovery.TitleIntent
   alias MediaCentaur.Format
+  alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.Title.Logic
 
@@ -121,15 +121,14 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
     end
   end
 
-  # The entry rule: a review or a listing, by an author on the roster or
-  # by this identity, on a title not ignored. Who wrote it is the scope's
-  # question, not this one's.
-  defp entry?(%{activity: activity, own?: own?, nickname: nickname, rung: rung}),
-    do: activity.kind in @kinds and (own? or nickname != nil) and rung != :ignored
+  # The entry rule: a review or a listing on a title not ignored. Who
+  # wrote it is the scope's question; that the author is known is
+  # Activities' (a former friend's rows never reach the page).
+  defp entry?(%{activity: activity, rung: rung}), do: activity.kind in @kinds and rung != :ignored
 
   defp in_scope?(_row, :everyone), do: true
-  defp in_scope?(%{own?: own?}, :friends), do: not own?
-  defp in_scope?(%{own?: own?}, :you), do: own?
+  defp in_scope?(%{author: %Person{own?: own?}}, :friends), do: not own?
+  defp in_scope?(%{author: %Person{own?: own?}}, :you), do: own?
 
   defp entry(%{activity: activity} = row, now) do
     %FeedEntry{
@@ -138,8 +137,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntries do
       ref: {activity.tmdb_id, activity.media_type},
       title: activity.title,
       poster_url: row.poster_url,
-      author: if(row.own?, do: "You", else: row.nickname),
-      own?: row.own?,
+      author: row.author,
       kind: activity.kind,
       sentiment: if(activity.kind == :review, do: activity.sentiment),
       text: if(activity.kind == :review, do: activity.text),

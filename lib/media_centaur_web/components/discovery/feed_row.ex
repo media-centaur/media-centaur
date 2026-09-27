@@ -38,6 +38,8 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
+  alias MediaCentaur.Format
+  alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.Discovery.IdentityTile
   alias MediaCentaurWeb.Components.Title.Sentiment
@@ -59,7 +61,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
       class="group feed-row flex cursor-pointer items-start gap-4 rounded-lg px-4 py-4 text-left hover:bg-base-content/5"
       data-component="feed-row"
       data-kind={@entry.kind}
-      data-own={@entry.own?}
+      data-own={@entry.author.own?}
       data-list-slot={@entry.list_slot}
       data-download-slot={slot_name(@entry.download_slot)}
       phx-click="open_title"
@@ -67,7 +69,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
       phx-value-activity={@entry.activity_id}
       data-entity-id={TitleRef.param(@entry.ref)}
     >
-      <IdentityTile.identity_tile name={@entry.author} own?={@entry.own?} size={40} />
+      <IdentityTile.identity_tile person={@entry.author} size={40} />
 
       <img
         :if={@entry.poster_url}
@@ -87,7 +89,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
 
       <div class="min-w-0 flex-1">
         <p class="truncate text-base leading-6 text-base-content/80" data-role="who">
-          <span class="font-medium text-base-content/95">{@entry.author}</span>
+          <span class="font-medium text-base-content/95">{Format.person_name(@entry.author)}</span>
           {ActivityWords.verb(@entry.kind, nil, subject(@entry))}
           <Sentiment.sentiment_glyph
             :if={@entry.sentiment}
@@ -156,7 +158,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
           </span>
 
           <button
-            :if={not @entry.own?}
+            :if={not @entry.author.own?}
             id={"#{@entry.id}-ignore"}
             type="button"
             class={[@verb_class, "ml-2.5"]}
@@ -179,7 +181,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
   @spec row_poster_src(String.t() | nil) :: String.t() | nil
   def row_poster_src(url), do: sized_image_url(url, 240)
 
-  defp subject(%FeedEntry{own?: true}), do: :you
+  defp subject(%FeedEntry{author: %Person{own?: true}}), do: :you
   defp subject(%FeedEntry{}), do: :friend
 
   defp slot_name(:download), do: "download"

@@ -14,6 +14,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedRow do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.Title
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
 
@@ -47,8 +48,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedRow do
         ref: {tmdb_id, :movie},
         title: Title.new!(%{tmdb_id: tmdb_id, media_type: :movie, name: "Sample Movie", year: "2024"}),
         poster_url: "/images/storybook/sample-poster.jpg",
-        author: "Sample Friend",
-        own?: false,
+        author: friend(),
         kind: :listing,
         sentiment: nil,
         text: nil,
@@ -63,6 +63,18 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedRow do
       overrides
     )
   end
+
+  defp friend,
+    do: %Person{
+      pubkey: "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9",
+      name_override: "Sample Friend",
+      own?: false,
+      short_npub: "npub1lyy9…8z4h",
+      added_on: ~D[2026-08-30]
+    }
+
+  defp you,
+    do: %Person{pubkey: "c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5", own?: true}
 
   def variations do
     [
@@ -119,7 +131,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedRow do
       %Variation{
         id: :own_listing,
         description: "The reader's own listing: the filled own tile, the second-person verb, no Ignore.",
-        attributes: %{entry: entry("own", %{author: "You", own?: true, ago: "1h ago"})}
+        attributes: %{entry: entry("own", %{author: you(), ago: "1h ago"})}
       },
       %Variation{
         id: :own_review,
@@ -127,8 +139,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedRow do
         attributes: %{
           entry:
             entry("own-review", %{
-              author: "You",
-              own?: true,
+              author: you(),
               kind: :review,
               sentiment: :love,
               text: @review_text,
@@ -183,8 +194,7 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedRow do
         attributes: %{
           entry:
             entry("own-hovered", %{
-              author: "You",
-              own?: true,
+              author: you(),
               kind: :review,
               sentiment: :love,
               text: "Saw it twice.",

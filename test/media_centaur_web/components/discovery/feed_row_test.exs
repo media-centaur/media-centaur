@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb.Components.Discovery.FeedRowTest do
   use MediaCentaur.Case, async: true
 
+  import MediaCentaur.DiscoveryRows, only: [person: 1, own_person: 0]
   import Phoenix.LiveViewTest, only: [render_component: 2]
 
   alias MediaCentaur.TMDB.Title
@@ -15,8 +16,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRowTest do
         ref: {777, :movie},
         title: Title.new!(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie", year: "2024"}),
         poster_url: "/media-images/x/poster.jpg",
-        author: "Sample Friend",
-        own?: false,
+        author: person("Sample Friend"),
         kind: :listing,
         sentiment: nil,
         text: nil,
@@ -84,13 +84,14 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRowTest do
     assert html |> LazyHTML.query("[data-role='poster-empty']") |> Enum.count() == 1
   end
 
-  test "the author is the identity tile at 40 — filled on an own row, with the second-person verb and no Ignore" do
-    own = render(%{author: "You", own?: true})
+  test "the author is the identity tile at 40: filled on an own row, with the second-person verb and no Ignore" do
+    own = render(%{author: own_person()})
 
     assert own
            |> LazyHTML.query("[data-component='identity-tile'][data-size='40'][data-own]")
            |> Enum.count() == 1
 
+    assert own |> LazyHTML.query("[data-component='feed-row'][data-own]") |> Enum.count() == 1
     who = own |> LazyHTML.query("[data-role='who']") |> LazyHTML.text() |> String.replace(~r/\s+/, " ")
     assert who =~ "You want to watch"
     assert Enum.empty?(LazyHTML.query(own, "#feed-row-a-ignore"))

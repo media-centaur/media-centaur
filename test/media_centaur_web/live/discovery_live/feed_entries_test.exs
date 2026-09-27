@@ -1,15 +1,20 @@
 defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
   use MediaCentaur.Case, async: true
 
-  import MediaCentaur.DiscoveryRows, only: [activity_row: 1]
+  import MediaCentaur.DiscoveryRows, only: [activity_row: 1, person: 1, own_person: 0]
 
+  alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.DiscoveryLive.FeedEntries
 
   @now ~U[2026-09-01 14:00:00Z]
 
-  defp row(nickname, attrs, overrides \\ %{}) do
-    activity_row(Map.merge(%{nickname: nickname, activity: attrs}, overrides))
+  defp row(name, attrs, overrides \\ %{}) do
+    activity_row(Map.merge(%{author: person(name), activity: attrs}, overrides))
+  end
+
+  defp own(attrs, overrides \\ %{}) do
+    activity_row(Map.merge(%{author: own_person(), activity: attrs}, overrides))
   end
 
   defp build(rows, opts \\ []) do
@@ -20,17 +25,16 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
   end
 
   describe "build/2" do
-    test "keeps every author's reviews and listings; drops watched, former-friend, ignored" do
+    test "keeps every author's reviews and listings; drops watched and ignored" do
       %{entries: entries, has_older?: false} =
         build([
           row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo-lists-1"}),
           row("Nick", %{tmdb_id: 2, kind: :review, id: "nick-recs-2"}),
           row("Nick", %{tmdb_id: 3, kind: :watched, id: "nick-watched-3"}),
-          row(nil, %{tmdb_id: 4, kind: :review, id: "mine"}, %{own?: true}),
-          row(nil, %{tmdb_id: 41, kind: :watched, id: "mine-watched"}, %{own?: true}),
-          row(nil, %{tmdb_id: 5, kind: :listing, id: "gone"}, %{own?: false}),
+          own(%{tmdb_id: 4, kind: :review, id: "mine"}),
+          own(%{tmdb_id: 41, kind: :watched, id: "mine-watched"}),
           row("Sam", %{tmdb_id: 6, kind: :review, id: "ignored"}, %{rung: :ignored}),
-          row(nil, %{tmdb_id: 7, kind: :review, id: "mine-ignored"}, %{own?: true, rung: :ignored})
+          own(%{tmdb_id: 7, kind: :review, id: "mine-ignored"}, %{rung: :ignored})
         ])
 
       assert Enum.map(entries, & &1.activity_id) == ["cleo-lists-1", "nick-recs-2", "mine"]
@@ -39,15 +43,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
     test "the entry rule holds under every scope; the scope drops the other authors" do
       rows = [
         row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo", acted_at: ~U[2026-09-01 13:00:00Z]}),
-        row(nil, %{tmdb_id: 2, kind: :review, id: "mine", acted_at: ~U[2026-09-01 12:00:00Z]}, %{
-          own?: true
-        }),
+        own(%{tmdb_id: 2, kind: :review, id: "mine", acted_at: ~U[2026-09-01 12:00:00Z]}),
         row("Nick", %{tmdb_id: 3, kind: :watched, id: "nick-watched"}),
-        row(
-          nil,
-          %{tmdb_id: 4, kind: :listing, id: "mine-listing", acted_at: ~U[2026-09-01 11:00:00Z]},
-          %{own?: true}
-        )
+        own(%{tmdb_id: 4, kind: :listing, id: "mine-listing", acted_at: ~U[2026-09-01 11:00:00Z]})
       ]
 
       ids = fn scope -> Enum.map(build(rows, scope: scope).entries, & &1.activity_id) end
@@ -62,9 +60,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
         row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo-1", acted_at: ~U[2026-09-01 13:00:00Z]}),
         row("Nick", %{tmdb_id: 2, kind: :listing, id: "nick-2", acted_at: ~U[2026-09-01 12:00:00Z]}),
         row("Sam", %{tmdb_id: 3, kind: :listing, id: "sam-3", acted_at: ~U[2026-09-01 11:00:00Z]}),
-        row(nil, %{tmdb_id: 4, kind: :review, id: "mine", acted_at: ~U[2026-09-01 10:00:00Z]}, %{
-          own?: true
-        })
+        own(%{tmdb_id: 4, kind: :review, id: "mine", acted_at: ~U[2026-09-01 10:00:00Z]})
       ]
 
       assert build(rows, scope: :everyone, window: 3).has_older?
@@ -143,9 +139,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
     test "the queue is counted in the scope" do
       rows = [
         row("Cleo", %{tmdb_id: 1, kind: :listing, id: "cleo", acted_at: ~U[2026-09-01 13:00:00Z]}),
-        row(nil, %{tmdb_id: 2, kind: :review, id: "mine", acted_at: ~U[2026-09-01 12:30:00Z]}, %{
-          own?: true
-        }),
+        own(%{tmdb_id: 2, kind: :review, id: "mine", acted_at: ~U[2026-09-01 12:30:00Z]}),
         row("Nick", %{tmdb_id: 3, kind: :listing, id: "nick", acted_at: ~U[2026-09-01 12:00:00Z]})
       ]
 
@@ -173,10 +167,9 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
               acquisition_state: :downloading
             }
           ),
-          row(
-            nil,
+          own(
             %{tmdb_id: 11, kind: :listing, id: "mine-11", acted_at: ~U[2026-09-01 11:00:00Z]},
-            %{own?: true, rung: :list}
+            %{rung: :list}
           ),
           row("Cleo", %{
             tmdb_id: 10,
@@ -190,8 +183,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
                id: "feed-row-nick-recs-9",
                activity_id: "nick-recs-9",
                ref: {9, :movie},
-               author: "Nick",
-               own?: false,
+               author: %Person{name_override: "Nick", own?: false},
                kind: :review,
                sentiment: :love,
                text: "Saw it twice.",
@@ -206,11 +198,10 @@ defmodule MediaCentaurWeb.DiscoveryLive.FeedEntriesTest do
 
       assert review.title.name == "Sample Movie 9"
 
-      assert %FeedEntry{author: "You", own?: true, kind: :listing, list_slot: :listed} = own
+      assert %FeedEntry{author: %Person{own?: true}, kind: :listing, list_slot: :listed} = own
 
       assert %FeedEntry{
-               author: "Cleo",
-               own?: false,
+               author: %Person{name_override: "Cleo", own?: false},
                kind: :listing,
                sentiment: nil,
                text: nil,
