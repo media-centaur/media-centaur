@@ -45,6 +45,8 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
     doc: "`{connected, total}` from `ReviewFlow.relay_counts/0`, captured when the modal opened"
 
   def review_modal(assigns) do
+    assigns = assign(assigns, :reader, Social.own_person())
+
     ~H"""
     <.modal
       id="review-modal"
@@ -74,7 +76,7 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
               tabindex="0"
             >
               <.pennants
-                activity={[preview(sentiment)]}
+                activity={[preview(sentiment, @reader)]}
                 label={sentiment_word(sentiment)}
               />
             </button>
@@ -124,9 +126,10 @@ defmodule MediaCentaurWeb.Live.ReviewModal do
 
   # The choice shows the pennant the friend will see, worded as the
   # choice itself rather than as the sender's name: the reader's own
-  # pennant, with or without an identity yet.
-  defp preview(sentiment),
-    do: %{activity: %Activity{kind: :review, sentiment: sentiment}, author: Social.own_person()}
+  # pennant, with or without an identity yet. The reader is read once
+  # per render, not once per choice.
+  defp preview(sentiment, reader),
+    do: %{activity: %Activity{kind: :review, sentiment: sentiment}, author: reader}
 
   defp sentiment_word(:dislike), do: "Dislike"
   defp sentiment_word(:like), do: "Like"

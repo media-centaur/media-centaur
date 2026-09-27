@@ -39,7 +39,6 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaur.Format
-  alias MediaCentaur.Social.Person
   alias MediaCentaurWeb.Components.Discovery.FeedEntry
   alias MediaCentaurWeb.Components.Discovery.IdentityTile
   alias MediaCentaurWeb.Components.Title.Sentiment
@@ -90,7 +89,7 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
       <div class="min-w-0 flex-1">
         <p class="truncate text-base leading-6 text-base-content/80" data-role="who">
           <span class="font-medium text-base-content/95">{Format.person_name(@entry.author)}</span>
-          {ActivityWords.verb(@entry.kind, nil, subject(@entry))}
+          {ActivityWords.verb(@entry.kind, nil, ActivityWords.subject(@entry.author))}
           <Sentiment.sentiment_glyph
             :if={@entry.sentiment}
             sentiment={@entry.sentiment}
@@ -180,9 +179,6 @@ defmodule MediaCentaurWeb.Components.Discovery.FeedRow do
   @doc "The `src` a row's poster paints at 80×120 CSS px — the 240 derivative the rail's posters share, so one file serves both."
   @spec row_poster_src(String.t() | nil) :: String.t() | nil
   def row_poster_src(url), do: sized_image_url(url, 240)
-
-  defp subject(%FeedEntry{author: %Person{own?: true}}), do: :you
-  defp subject(%FeedEntry{}), do: :friend
 
   defp slot_name(:download), do: "download"
   defp slot_name({:state, word}), do: word

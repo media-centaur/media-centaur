@@ -36,7 +36,7 @@ defmodule MediaCentaur.Social.Events do
   end
 
   defmodule FriendChanged do
-    @moduledoc "The reader's choices for a roster key changed: today the name override."
+    @moduledoc "The reader's choices for a roster key changed (the name override)."
     @enforce_keys [:pubkey]
     defstruct [:pubkey]
     @type t :: %__MODULE__{pubkey: String.t()}

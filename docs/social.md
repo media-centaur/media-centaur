@@ -323,13 +323,14 @@ project one enriched list — every live activity with its actor
   glyphs; no clock, no presence line, nothing about what a person
   withholds (UIDR-046). Every poster and opened-card row opens the title
   modal with `?title=<ref>&activity=<id>` so the modal speaks for that
-  act; Delete on an own activity → `Activities.delete/1` lives there. `DiscoveryLive.AddFriendBlock` is the add-friend form,
-  still an iteration-phase component under `live/discovery_live/`.
+  act; Delete on an own activity → `Activities.delete/1` lives there.
   The opened card's foot carries the reader's name for the friend
   (`Social.set_name_override/2`, the `set_friend_name` event), the key,
-  the added date and Remove friend. `DiscoveryLive.AddFriendBlock`
-  takes an npub and the name (`Social.add_friend/2`, name required);
-  re-adding a key changes nothing. A rename broadcasts
+  the added date and Remove friend. `DiscoveryLive.AddFriendBlock`, the
+  add-friend form (still an iteration-phase component under
+  `live/discovery_live/`), takes an npub and the name
+  (`Social.add_friend/2`, name required); re-adding a key changes
+  nothing. A rename broadcasts
   `Social.Events.FriendChanged`, and the page rebuilds its
   `people_by_pubkey` map from `Social.people/0`.
 

@@ -11,9 +11,15 @@ defmodule MediaCentaurWeb.DiscoveryLive.ActivityWords do
   alias MediaCentaur.Activities.Activity
   alias MediaCentaur.Activities.Activity.Episode
   alias MediaCentaur.Format
+  alias MediaCentaur.Social.Person
 
   @typedoc "The grammatical subject: a friend (third person) or You (second person)."
   @type subject :: :friend | :you
+
+  @doc "The subject a person takes: You for the reader's own, a friend otherwise."
+  @spec subject(Person.t()) :: subject()
+  def subject(%Person{own?: true}), do: :you
+  def subject(%Person{}), do: :friend
 
   @doc """
   The verb for a kind, agreeing with its subject: "wants to watch" for
