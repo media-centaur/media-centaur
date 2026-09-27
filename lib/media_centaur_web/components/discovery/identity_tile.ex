@@ -9,13 +9,12 @@ defmodule MediaCentaurWeb.Components.Discovery.IdentityTile do
   invented from Unnamed. The reader's own tile is filled with the button
   primary and a white mark, so an own row is found without reading; an
   avatar inside a 2px primary ring says the same. Two sizes: 40 on a
-  Feed row and the rail's person card, 48 on the Friends page's.
+  Feed row and the rail's person card, 48 on the Friends page's and the
+  Settings profile card.
   `aria-hidden`: the name is read from the surface's text, the tile is
   its redundant channel.
 
-  `data-mark` names the mark drawn, for tests and probes. No avatar
-  exists yet (phase 3); the Person's `avatar_url` and the `:avatar` mark
-  are the space the design leaves for one.
+  `data-mark` names the mark drawn, for tests and probes.
   """
 
   use Phoenix.Component

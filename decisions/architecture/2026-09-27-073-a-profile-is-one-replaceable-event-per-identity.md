@@ -28,3 +28,5 @@ Chosen option: one profile per identity, as a replaceable event carrying the ava
 * Good, because the size bound is fixed: one record per member, under 30 KB on the wire.
 * Bad, because it is another social-relay release (v0.7.0) and older relays refuse the kind until upgraded, re-sent on every connect as before.
 * Bad, because per-group names are not served; they wait on multi-identity.
+
+**Amendment 2026-09-28.** The size bound above said "under 30 KB on the wire", the estimate made before the avatar was built. The bound is the avatar cap: 64 KB decoded, about 87 KB base64-encoded, so a profile is about 90 KB on the wire, one per member. `docs/social-protocol.md` states the cap and a relay's 128 KB message floor; `Social.Profile.Translation.max_avatar_bytes/0` enforces the cap.

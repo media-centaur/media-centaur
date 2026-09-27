@@ -112,7 +112,7 @@ Kind 32162 (Tracking, `tracked_at`) said the person started tracking the title's
 
 ## Profile (kind 12160)
 
-What a person says about themselves: the name their friends see them under. The first kind of the replaceable block, so a signer holds one profile, and a newer one replaces it everywhere. It names no title and has no address beyond its signer.
+What a person says about themselves: the name their friends see them under and the picture beside it. The first kind of the replaceable block, so a signer holds one profile, and a newer one replaces it everywhere. It names no title and has no address beyond its signer.
 
 **Tags**: none.
 
@@ -122,12 +122,24 @@ What a person says about themselves: the name their friends see them under. The 
 |---|---|---|---|
 | `v` | integer | | Content schema version. Absent means 1. |
 | `name` | string | 50 characters | The name the person gives. Optional: absent or blank means the person gives none. |
+| `avatar` | object | 64 KB decoded | The person's picture. Optional: absent or `null` means the person gives none. Below. |
+
+`avatar` is `{"type": <type>, "data": <base64>}`:
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | string | One of `image/webp`, `image/png`, `image/jpeg`. |
+| `data` | string | The image bytes, base64 with the standard alphabet and padding. At most 65 536 bytes once decoded (64 KB, inclusive). |
+
+The decoded bytes must open with the type's signature: for `image/webp`, `RIFF` at offset 0 and `WEBP` at offset 8; for `image/png`, the eight-byte PNG signature (`89 50 4E 47 0D 0A 1A 0A`); for `image/jpeg`, `FF D8 FF`. Media Centaur sends a 256×256 WebP, centre-cropped from the picture the person chose.
 
 **Rules**
 
 - Readers ignore fields they do not know. A message whose `v` is not 1 (an explicit `null` included), whose content is not a JSON object, or whose `name` is not a string or exceeds the cap is dropped as malformed. Nothing is repaired or truncated.
+- An `avatar` that is not an object of the shape above, whose `type` is not one of the three, whose `data` is not valid base64, whose decoded bytes exceed the cap, or whose first bytes do not carry the type's signature drops the whole profile.
+- A reader never decodes an avatar: it stores the bytes and serves them with the declared type.
 - Between two profiles from the same signer, the newer `created_at` wins. On a tie, what is already stored is kept.
-- A profile is never withdrawn. A person changes it by publishing a newer one; a deletion may not name it, and a relay refuses one that does with `blocked: only the author may delete an event`.
+- A profile is never withdrawn. A person changes it by publishing a newer one, and removes the picture or the name by publishing one without the field; a deletion may not name it, and a relay refuses one that does with `blocked: only the author may delete an event`.
 - A profile without a name has no stand-in on the wire. The reader decides what to show; Media Centaur shows **Unnamed**.
 
 ## Deletion (kind 5)
@@ -184,6 +196,7 @@ For a relay to carry Media Centaur traffic:
 | Deletion checks | Deletion rules 1, 2 and 4. |
 | Filters | `authors`, `kinds`, `since`, `until`, `limit` (NIP-01). `limit` capped at 500. |
 | End of stored events | `EOSE` after the stored matches of every `REQ`. |
+| Message size | Accepts a client message of at least 128 KB. A profile with an avatar is about 90 KB on the wire. |
 
 **Rejection reasons.** Fixed strings; the app shows them on the relay row.
 
@@ -209,3 +222,4 @@ For a relay to carry Media Centaur traffic:
 | 2026-09-11 | Listing (32163, with `listed_at`) replaces Tracking: published when a title first reaches List, withdrawn by a deletion when it drops below. 32162 retired — never reused, refused by relays, dropped by readers. Relays store 32163 and refuse 32162 (social-relay v0.5.0). |
 | 2026-09-12 | Review (32164, with `sentiment` of `dislike` / `like` / `love` or absent for none, `text`, `reviewed_at`) replaces Recommendation: an opinion of any valence, neither field required. 32160 retired — never reused, refused by relays, dropped by readers. Relays store 32164 and refuse 32160 (social-relay v0.6.0). |
 | 2026-09-28 | Profile (12160, with `name`, optional, capped at 50 characters): the first replaceable kind, one per signer, never withdrawn. Both subscriptions and the own-events diff carry it. Relays store 12160 as one record per signer and refuse a deletion naming it (social-relay v0.7.0). |
+| 2026-09-28 | Profile `avatar` (`type` of `image/webp`, `image/png` or `image/jpeg`, base64 `data`, at most 64 KB decoded, opening with the type's signature), optional; a reader stores the bytes and never decodes them. Relays accept a client message of at least 128 KB; social-relay's Nostr layer (khatru) accepts 512 KB, so no relay release was needed. |

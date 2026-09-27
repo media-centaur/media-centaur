@@ -59,7 +59,7 @@ layer's job — see [Web layer](#web-layer).
 `MediaCentaur.Secret` at rest and in memory); the public key is derived on every
 read rather than stored, so the two can never disagree.
 
-- `ensure/0` generates on first use. Two callers: `Social.save_profile/1`,
+- `ensure/0` generates on first use. Two callers: `Social.save_profile/2`,
   when the reader saves their profile under Settings → Social (opening the
   section mints nothing, UIDR-047), and `Activities` publishing an own
   activity — a user can review a title before ever saving a profile, which
@@ -223,29 +223,55 @@ the relay, and be republished by the own-events diff on every connect.
 
 **Profile.** `Social.Profile.Translation` is the profile's anti-corruption
 layer, pure both ways: kind `12160`, replaceable, no tags, content
-`{"v": 1, "name": <string>}`. The name cap (50 characters,
-`max_name_length/0`) lives there alone; the Settings form and the protocol
-page mirror it. An absent or blank name reads as nil; an unknown `v`, content
-that is not a JSON object, or a name that is not a string or is over the cap
-drops the event whole. `Social.Profile` is the row, one per key (`pubkey`
-unique, `name`, `raw_event`, `created_at`), for the identity and the roster
-only.
+`{"v": 1, "name": <string>, "avatar": {"type": <type>, "data": <base64>}}`.
+The caps live there alone (`max_name_length/0`, 50 characters;
+`max_avatar_bytes/0`, 64 KB decoded, inclusive); the Settings form and the
+protocol page mirror them. An absent or blank name reads as nil; an absent or
+null avatar means none. An unknown `v`, content that is not a JSON object, a
+name that is not a string or is over the cap, or an avatar whose type is not
+`image/webp`, `image/png` or `image/jpeg`, whose data is not base64, whose
+decoded bytes are over the cap or do not open with the type's signature drops
+the event whole. The reader never decodes an avatar: `from_event/1` hands the
+bytes on as `avatar_bytes` for the file store. `Social.Profile` is the row,
+one per key (`pubkey` unique, `name`, `avatar_type`, `raw_event`,
+`created_at`), for the identity and the roster only.
 
-- `Social.save_profile/1` is the Settings form's save: it refuses a blank name
-  (`:name_required`) or one over the cap (`:name_too_long`) before minting
-  anything, then mints the identity if none exists, stamps strictly after the
-  stored profile (`Event.stamp_after/2`), signs, stores, publishes and
-  broadcasts `ProfileUpdated`.
+- `Social.save_profile/2` is the Settings form's save. It takes the name and
+  an avatar change: `:keep` the stored avatar, `:none` to remove it, or
+  `{:new, bytes}`, the WebP master `ImageFiles.square_webp/2` made. It refuses
+  a blank name (`:name_required`) or one over the cap (`:name_too_long`) before
+  minting anything (`Social.check_name/1` is the same rule, for the form),
+  then mints the identity if none exists, stamps strictly after the stored
+  profile (`Event.stamp_after/2`), signs, stores, publishes and broadcasts
+  `ProfileUpdated`. `:keep` re-reads the stored file; when the file is
+  missing the new profile carries no avatar.
 - `Social.ingest_profile/1` verifies the signature, requires a known key
   (`Social.known_key?/1`: the identity or the roster), keeps the newer
-  `created_at` (a tie or an older one is `:ignored`) and broadcasts
-  `ProfileUpdated` when it stores.
+  `created_at` (a tie or an older one is `:ignored`), stores the row and the
+  avatar file, and broadcasts `ProfileUpdated` when it stores.
 - `own_profile/0`, `own_events/0` (the stored own profile as a wire event, for
   the own-events diff) and `own_event_kind/1` (`:profile` for the refusal
   words) are what `RelaySync` reads.
 - A profile is never withdrawn (ADR-073), so there is no deletion path.
   Removing a friend (`remove_friend/1`) deletes their row; replacing the
-  identity (`import_identity/1`) deletes the old key's.
+  identity (`import_identity/1`) deletes the old key's. Either removes the
+  key's avatar file with it.
+
+**Avatar storage.** The bytes never enter a column. `Social.AvatarStore`
+keeps one file per key at `{data_dir}/images/social/<pubkey>.<ext>` (`webp`,
+`png` or `jpg`, from the type); the row carries `avatar_type` alone and the
+path is derived from the key and the type. `raw_event` carries the encoded
+wire form, avatar included, for republish. `store_profile/2` writes the row,
+then the file, or deletes the file when the profile has no avatar. Row first:
+a write that fails after the row leaves a type with no file, which reads as
+no avatar until a newer profile arrives; file first could serve new bytes
+under the old URL. The URL is `ImageFiles.web_path/2` of the relative path
+with the profile's `created_at` as `?v=`, so a replaced avatar gets a new URL
+and `Plugs.ImageServer` serves an unchanged one as immutable; it never carries
+`?w=`, since the tile paints the master as it is. `AvatarStore.url/3` returns
+nil when the file is missing. `Social.people/0` selects four fields of each
+profile (`pubkey`, `name`, `avatar_type`, `created_at`), leaving `raw_event`
+unread on a page load.
 
 ## Sync
 
@@ -323,14 +349,17 @@ disagree with the owner about what a message meant.
 A person is drawn from one read model everywhere, `Social.Person`
 (ADR-074): the reader's name for a friend (`name_override`, optional),
 the name the key published (`published_name`, from its `Social.Profile`),
-the avatar URL (nil; nothing sets it yet), and whether
-it is the reader's own. `Person.name/1` resolves the override, else the
+the avatar URL (`avatar_url`), the reader's per-friend switch
+(`show_avatar`), and whether it is the reader's own. `Person.name/1` resolves the override, else the
 published name, else nil. `Social.people/0` builds `%{pubkey => Person}`
 for the identity and the roster, joining their profiles;
-`Social.own_person/0` is the reader alone.
+`Social.own_person/0` is the reader alone. `avatar_url` is nil when the key
+published no avatar, the file is missing, or the reader switched the friend's
+picture off: `Friend.show_avatar` is applied at the one seam, `Social`'s
+private `person_for/2`, so no surface checks it.
 `MediaCentaur.Format.person_name/1` gives the words: "You", the resolved
 name, or "Unnamed". `Components.Discovery.IdentityTile` draws one of three
-marks (UIDR-047): the avatar (none exists yet), the letter of those words,
+marks (UIDR-047): the avatar, the letter of those words,
 or the person glyph for a friend with no name at all, so no letter is
 invented from Unnamed. A `ProfileUpdated` reaches the page as
 `{:profile_updated, _}` and reloads the people and the rows, so a
@@ -377,8 +406,10 @@ project one enriched list — every live activity with its actor
   (`Social.set_name_override/2`, the `set_friend_name` event; a blank
   clears it back to the published name) over the name it masks as the
   field's placeholder (`Format.person_name/1` of the person without the
-  override: the published name, else Unnamed), the key, the added date
-  and Remove friend. `DiscoveryLive.AddFriendBlock`, the add-friend form
+  override: the published name, else Unnamed), the **Show their picture**
+  switch (`Social.set_show_avatar/2`, the `set_show_avatar` event;
+  `Friend.show_avatar`, on by default), the key, the added date and Remove
+  friend. `DiscoveryLive.AddFriendBlock`, the add-friend form
   (still an iteration-phase component under `live/discovery_live/`),
   takes an npub and an optional name (`Social.add_friend/2`; placeholder
   "Name (optional)"); re-adding a key changes nothing. A rename
@@ -409,10 +440,18 @@ The joins the contexts may not make happen here:
   removed friend.
 
 Settings → Social (`SettingsLive.SocialSection`) is four cards. **Your
-profile** comes first: the name, required and capped at 50, saved by
-`Social.save_profile/1`; before an identity exists its button is **Create
-profile**, and saving mints the identity. **Your identity**, **Relays** and
-**Sharing** appear once an identity exists. Opening the section mints nothing.
+profile** comes first: the picture and the name, one form saved by
+`Social.save_profile/2`; before an identity exists its button is **Create
+profile**, and saving mints the identity. The picture is the app's one
+LiveView upload (`allow_upload(:avatar)`): one JPEG, PNG or WebP up to 10 MB.
+On save the form checks the name with `Social.check_name/1` before it
+consumes the upload, so a name error leaves the chosen file pending; the
+file then becomes the 256×256 WebP master (`ImageFiles.square_webp(path,
+256)`), and a file libvips cannot open is refused with a flash. **Remove**
+marks the stored avatar for removal until the save (the tile shows the
+letter meanwhile) and steps aside while a file is chosen; a chosen file wins
+over a pending Remove. **Your identity**, **Relays** and **Sharing** appear
+once an identity exists. Opening the section mints nothing.
 
 `MediaCentaurWeb.Live.ReviewFlow` is the modal flow (`use ReviewFlow`
 injects the handlers, the clearable sentiment choice included), hosted by
