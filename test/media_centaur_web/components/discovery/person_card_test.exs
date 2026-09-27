@@ -136,6 +136,10 @@ defmodule MediaCentaurWeb.Components.Discovery.PersonCardTest do
     assert html |> LazyHTML.query("footer [data-role='name-form']") |> LazyHTML.attribute("phx-submit") ==
              ["set_friend_name"]
 
+    # The form swallows its clicks so typing in it does not press the card.
+    assert html |> LazyHTML.query("footer [data-role='name-form']") |> LazyHTML.attribute("phx-click") ==
+             ["[]"]
+
     assert html |> LazyHTML.query("footer input[name='pubkey']") |> LazyHTML.attribute("value") == [
              person("Nick").pubkey
            ]
