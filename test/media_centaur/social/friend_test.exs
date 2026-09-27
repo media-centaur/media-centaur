@@ -87,6 +87,19 @@ defmodule MediaCentaur.Social.FriendTest do
     end
   end
 
+  describe "set_show_avatar/2" do
+    test "flips the switch and broadcasts FriendChanged once per change; an unknown key is refused" do
+      {:ok, %Friend{show_avatar: true}} = Social.add_friend(@pubkey, "One")
+      Social.subscribe()
+
+      assert {:ok, %Friend{show_avatar: false}} = Social.set_show_avatar(@pubkey, false)
+      assert_receive {:friend_changed, %FriendChanged{pubkey: @pubkey}}, 500
+      assert {:ok, %Friend{show_avatar: false}} = Social.set_show_avatar(@pubkey, false)
+      refute_receive {:friend_changed, _event}, 100
+      assert {:error, :not_a_friend} = Social.set_show_avatar(String.duplicate("a", 64), true)
+    end
+  end
+
   describe "remove_friend/1" do
     test "removes by pubkey and broadcasts; absent is a no-op" do
       {:ok, _friend} = Social.add_friend(@pubkey, "Sample Friend")
