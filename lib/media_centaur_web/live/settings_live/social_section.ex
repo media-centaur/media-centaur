@@ -1,20 +1,26 @@
 defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   @moduledoc """
   The Social section of the Settings page (UIDR-041; UIDR-047 rule 3):
-  four cards. Your profile — the name friends see, a form whose save
-  mints the identity when none exists (`Social.save_profile/2`); it is
-  the only card before an identity exists, so opening the section mints
-  nothing. Your identity — the npub with a copy control, and behind a
-  disclosure the secret key with reveal and copy plus the two-click
-  import that replaces the identity. Relays — one connection row per
-  relay (its live state from `Social.Connections`, the last error on the
-  detail line, Remove) and the inline add-by-URL. Sharing — the toggles
-  that decide which of the user's acts become activities for friends
-  (watched, listed; reviewing always is). `SettingsLive` delegates to
-  `render/1` and hosts the handlers: `save_profile`, `reveal_nsec`,
-  `hide_nsec`, `import_nsec`, `add_relay`, `remove_relay`,
-  `toggle_share_watched`, `toggle_share_watchlist`. The friend roster
-  stays on the Discovery page's Friends tab.
+  four cards. Your profile — the name friends see and the picture beside
+  it, one form whose save mints the identity when none exists
+  (`Social.save_profile/2`); it is the only card before an identity
+  exists, so opening the section mints nothing. The picture is the
+  app's one LiveView upload: the identity tile previews the stored
+  avatar (or the letter while a Remove is pending), the file input takes
+  one JPEG, PNG or WebP, and the save turns it into the 256×256 WebP
+  master or, after Remove, clears it. Your identity — the npub with a
+  copy control, and behind a disclosure the secret key with reveal and
+  copy plus the two-click import that replaces the identity. Relays —
+  one connection row per relay (its live state from
+  `Social.Connections`, the last error on the detail line, Remove) and
+  the inline add-by-URL. Sharing — the toggles that decide which of the
+  user's acts become activities for friends (watched, listed; reviewing
+  always is). `SettingsLive` delegates to
+  `render/1` and hosts the handlers: `validate_profile`, `remove_avatar`,
+  `cancel_avatar`, `save_profile`, `reveal_nsec`, `hide_nsec`,
+  `import_nsec`, `add_relay`, `remove_relay`, `toggle_share_watched`,
+  `toggle_share_watchlist`. The friend roster stays on the Discovery
+  page's Friends tab.
 
   The import textarea renders `import_draft`, so the arming click keeps
   what was pasted and a finished import clears it.
@@ -25,6 +31,8 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   import MediaCentaurWeb.Components.Settings
   import MediaCentaurWeb.Components.Settings.ConnectionRow
 
+  alias MediaCentaur.Social.Person
+  alias MediaCentaurWeb.Components.Discovery.IdentityTile
   alias MediaCentaurWeb.RelayStatusRow
 
   attr :npub, :string,
@@ -33,6 +41,13 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
 
   attr :profile_name, :string, default: nil, doc: "the saved name; nil before a profile exists"
   attr :name_cap, :integer, required: true, doc: "`Social.Profile.Translation.max_name_length/0`"
+  attr :uploads, :map, required: true, doc: "the LiveView's `@uploads`; `.avatar` is the one upload"
+  attr :own_person, Person, required: true, doc: "`Social.own_person/0`; the tile previews its avatar"
+
+  attr :avatar_removed?, :boolean,
+    required: true,
+    doc: "Remove was clicked and the save is still to come"
+
   attr :nsec_revealed, :string, default: nil, doc: "the nsec while revealed; nil hides it"
   attr :import_armed?, :boolean, required: true
   attr :import_draft, :string, default: "", doc: "the pasted nsec while the replace is armed"
@@ -49,18 +64,67 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
     ~H"""
     <div id="settings-social" class="space-y-4">
       <.settings_card title="Your profile" description={profile_description(@npub)}>
-        <form id="profile-form" phx-submit="save_profile" class="flex items-center gap-2">
-          <.settings_input
-            name="name"
-            value={@profile_name}
-            placeholder="Name"
-            maxlength={@name_cap}
-            autocomplete="off"
-            class="min-w-0 flex-1"
-          />
-          <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
-            {if @npub, do: "Save", else: "Create profile"}
-          </.button>
+        <form
+          id="profile-form"
+          phx-submit="save_profile"
+          phx-change="validate_profile"
+          class="space-y-3"
+        >
+          <div class="flex items-center gap-3">
+            <IdentityTile.identity_tile
+              person={shown_person(@own_person, @avatar_removed?)}
+              size={48}
+            />
+            <.live_file_input upload={@uploads.avatar} class="file-input file-input-sm min-w-0" />
+            <.button
+              :if={@own_person.avatar_url && !@avatar_removed?}
+              id="remove-avatar"
+              type="button"
+              variant="dismiss"
+              size="xs"
+              phx-click="remove_avatar"
+              data-nav-item
+              tabindex="0"
+            >
+              Remove
+            </.button>
+          </div>
+          <p :for={err <- upload_errors(@uploads.avatar)} class="text-xs text-error">
+            {upload_error_words(err)}
+          </p>
+          <p
+            :for={entry <- @uploads.avatar.entries}
+            class="flex items-center gap-2 text-xs text-base-content/60"
+          >
+            <span class="truncate">{entry.client_name}</span>
+            <span :for={err <- upload_errors(@uploads.avatar, entry)} class="text-error">
+              {upload_error_words(err)}
+            </span>
+            <.button
+              type="button"
+              variant="dismiss"
+              size="xs"
+              phx-click="cancel_avatar"
+              phx-value-ref={entry.ref}
+              data-nav-item
+              tabindex="0"
+            >
+              Cancel
+            </.button>
+          </p>
+          <div class="flex items-center gap-2">
+            <.settings_input
+              name="name"
+              value={@profile_name}
+              placeholder="Name"
+              maxlength={@name_cap}
+              autocomplete="off"
+              class="min-w-0 flex-1"
+            />
+            <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
+              {if @npub, do: "Save", else: "Create profile"}
+            </.button>
+          </div>
         </form>
       </.settings_card>
 
@@ -246,9 +310,21 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
   # description carries that once.
   defp profile_description(nil),
     do:
-      "The name your friends see you under. Saving it creates your identity, the key friends add you by."
+      "The name your friends see you under, and the picture beside it, if you like. Saving creates your identity, the key friends add you by."
 
-  defp profile_description(_npub), do: "The name your friends see you under."
+  defp profile_description(_npub),
+    do: "The name your friends see you under, and the picture beside it, if you like."
+
+  # The tile previews what the save would publish: the stored avatar,
+  # or the letter once Remove is pending.
+  defp shown_person(%Person{} = person, true = _removed?), do: %{person | avatar_url: nil}
+  defp shown_person(%Person{} = person, false = _removed?), do: person
+
+  # `Phoenix.Component.upload_errors/1,2`: the whole-upload error and the
+  # two an entry can carry under `allow_upload`'s accept and size caps.
+  defp upload_error_words(:too_many_files), do: "One picture"
+  defp upload_error_words(:too_large), do: "Larger than 10 MB"
+  defp upload_error_words(:not_accepted), do: "Not a JPEG, PNG or WebP"
 
   # The relay row's dot (UIDR-041 §1): synced and connected are the healthy
   # states, connecting is a verify in flight, everything else is a failure.
