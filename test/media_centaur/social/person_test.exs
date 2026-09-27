@@ -33,12 +33,13 @@ defmodule MediaCentaur.Social.PersonTest do
       me = Identity.pubkey()
 
       assert %Person{pubkey: ^me, own?: true, name_override: nil, added_on: nil} = Social.people()[me]
+      assert Social.people()[me].short_npub == Social.short_npub(me)
     end
   end
 
   describe "own_person/0" do
     test "speaks as the reader before and after an identity exists" do
-      assert %Person{pubkey: nil, own?: true} = Social.own_person()
+      assert %Person{pubkey: nil, own?: true, short_npub: nil} = Social.own_person()
 
       Identity.ensure()
       assert %Person{pubkey: pubkey, own?: true} = Social.own_person()
@@ -54,8 +55,11 @@ defmodule MediaCentaur.Social.PersonTest do
   test "short_npub/1 elides the middle" do
     short = Social.short_npub(@friend)
 
-    assert String.starts_with?(short, "npub1")
+    npub = Social.to_npub(@friend)
+
+    assert String.starts_with?(short, String.slice(npub, 0, 9))
     assert String.contains?(short, "…")
+    assert String.ends_with?(short, String.slice(npub, -4..-1//1))
     assert String.length(short) == 14
   end
 end

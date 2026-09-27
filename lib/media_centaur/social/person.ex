@@ -4,10 +4,10 @@ defmodule MediaCentaur.Social.Person do
   `name_override` for a friend (nil for the reader's own, who has no
   name here yet), the avatar URL (nil until the profiles campaign's
   phase 3 fills it; the tile already draws one), and whether the key is
-  the reader's own. Built only by `Social.people/0` and
+  the reader's own. Built in the app only by `Social.people/0` and
   `Social.own_person/0`; every surface that draws a person takes one.
-  "You" is the web layer's word for `own?`
-  (`MediaCentaur.Format.person_name/1`), never data here.
+  "You" is `MediaCentaur.Format.person_name/1`'s word for `own?`, never
+  data here.
 
   `pubkey` is nil for the reader before an identity exists: the review
   modal previews as the reader all the same. `added_on` is nil for the

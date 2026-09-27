@@ -55,7 +55,7 @@ defmodule MediaCentaur.Format do
   """
   @spec person_name(MediaCentaur.Social.Person.t()) :: String.t()
   def person_name(%MediaCentaur.Social.Person{own?: true}), do: "You"
-  def person_name(%MediaCentaur.Social.Person{name_override: name}), do: name
+  def person_name(%MediaCentaur.Social.Person{name_override: name}) when is_binary(name), do: name
 
   @doc """
   Returns the 4-digit year for a `Date` as a string. `nil` and non-Date
