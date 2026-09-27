@@ -28,6 +28,11 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
       assert render(view) =~ "Your profile needs a name"
       refute Identity.present?()
 
+      # The input's maxlength stops this in a browser; a crafted submit must not crash the view.
+      view |> form("#profile-form", %{"name" => String.duplicate("x", 51)}) |> render_submit()
+      assert render(view) =~ "Names are at most 50 characters"
+      refute Identity.present?()
+
       view |> form("#profile-form", %{"name" => "Sample Name"}) |> render_submit()
       assert Identity.present?()
       assert render(view) =~ "Profile saved"

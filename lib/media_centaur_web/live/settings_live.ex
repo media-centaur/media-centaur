@@ -908,6 +908,9 @@ defmodule MediaCentaurWeb.SettingsLive do
 
       {:error, :name_required} ->
         {:noreply, put_flash(socket, :error, "Your profile needs a name")}
+
+      {:error, :name_too_long} ->
+        {:noreply, put_flash(socket, :error, "Names are at most #{socket.assigns.name_cap} characters")}
     end
   end
 
