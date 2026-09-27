@@ -95,6 +95,7 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Settings.Preferences.PlanningMode
+  alias MediaCentaur.Social.Person
   alias MediaCentaur.TMDB.ReleaseWindow
   alias MediaCentaur.TMDB.Store
   alias MediaCentaur.TMDB.Title
@@ -890,7 +891,9 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
         _params,
         %{
           assigns: %{
-            title_detail: %TitleDetail{activity: %{activity: %{id: id, kind: kind}, own?: true}}
+            title_detail: %TitleDetail{
+              activity: %{activity: %{id: id, kind: kind}, author: %Person{own?: true}}
+            }
           }
         } = socket
       ) do
@@ -995,7 +998,11 @@ defmodule MediaCentaurWeb.Live.TitleDetailHost do
   # A feed-born detail carries the review's provenance onto the
   # record the raise creates — who sent it, and what they said. It applies
   # on creation only, so re-raising an existing record leaves it alone.
-  defp provenance(%TitleDetail{activity: %{activity: %{id: id, text: text}, own?: false}}),
+  # The reader's own activity carries none; a friend's does, whether or
+  # not they are still on the roster (the author is nil once removed).
+  defp provenance(%TitleDetail{activity: %{author: %Person{own?: true}}}), do: %{}
+
+  defp provenance(%TitleDetail{activity: %{activity: %{id: id, text: text}}}),
     do: TitleIntent.friend_provenance(id, text)
 
   defp provenance(_detail), do: %{}
