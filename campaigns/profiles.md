@@ -43,13 +43,23 @@ the owner's ship; phase 3 (the avatar) next.
 3. Phase 4, docs: the avatar on the protocol page, the wiki, `docs/social.md` and `docs/GLOSSARY.md` (the name landed with phase 2); ADR-073, ADR-074 and UIDR-047 to accepted; close by destination.
 4. The release after the one carrying phase 2 drops `friends.nickname` (a paired migration; the outgoing release still reads it).
 
+## Ship notes for phase 2 (the CHANGELOG draws on these)
+
+* Settings → Social opens on **Your profile**: the name friends see you under, up to 50 characters; **Create profile** creates your identity. Opening the section no longer creates one. **Save** republishes the name.
+* A friend's name is optional. A friend shows under your name for them, else the name they publish, else **Unnamed** with a person glyph. The opened card's empty name field shows the name it masks; saving it empty returns to the published name.
+* Profiles need **social-relay v0.7.0**: an older relay refuses them (`blocked: kind 12160 is not stored by this relay`, "rejected a profile" on the relay row) and they are re-sent on every connect until it is upgraded. Tag and push v0.7.0 with the release.
+* Two migrations: the `profiles` table; `friends` rebuilt so the name is nullable, `nickname` kept nullable for the outgoing release and dropped in the release after. A friend added in the seconds between migrate and restart shows as Unnamed until renamed. Rolling back is not lossless.
+* Existing users publish nothing until they save a profile; friends see them under their own name for them, or as Unnamed, until then. Replacing the identity forgets the old key's profile; re-importing the same key keeps it.
+* Internal: `Activities.Sync` is `MediaCentaur.RelaySync`; `{:profile_updated, _}` on `social:updates`; `:start_activities_sync` keeps its name until `nickname` is dropped, then both go.
+* Not wired, by inheritance: the title detail and Incoming pages load pennant rows on open and react to neither `:friend_changed` nor `:profile_updated`; a new name shows on the next open, as a rename always has.
+
 ## Follow-ups from reviews
 
 Phase 3 plan:
 
 * `show_avatar` as a plain `add` column, `Social.set_show_avatar/2`, the card's switch.
 * Normalise an empty-string `avatar_url` to nil in `Social.person_for/1`; the tile treats any binary as an avatar.
-* Delete `IdentityTile`'s "No avatar exists yet (phase 3)" sentence and `Social.Person`'s "nil until the profiles campaign's phase 3 fills it".
+* Delete `IdentityTile`'s "No avatar exists yet (phase 3)" sentence and `Social.Person`'s "`avatar_url` is nil; nothing sets it yet"; sweep `docs/social.md` for the same claim.
 * Every `Person` field added updates `test/support/discovery_rows.ex` and the eight story fixture builders (`identity_tile`, `person_card`, `feed_row`, `pennants`, `title_row`, `media_results`, `cinematic_shell`, `detail_panel`); stories cannot import test support, so the copies stay.
 * Decision recorded 2026-09-27: `Person.avatar_url` and the tile's `:avatar` mark stayed in phase 1 without a writer, the one exception to "nothing in a phase exists for a later one", because they carry the photo state UIDR-046 shipped before the campaign (plan § What this phase does not do).
 

@@ -77,8 +77,8 @@ config :media_centaur, :req_test_stubs, %{
 }
 
 config :media_centaur, :skip_user_config, true
-# The activities relay sync would subscribe every FakeRelay a test
-# stands up; sync_test starts its own by hand, as connections_test does.
+# RelaySync would subscribe every FakeRelay a test stands up;
+# relay_sync_test starts its own by hand, as connections_test does.
 config :media_centaur, :start_activities_sync, false
 config :media_centaur, :start_pipeline, false
 # Skip mpv socket recovery — otherwise the recovery task scans

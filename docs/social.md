@@ -31,7 +31,7 @@ and `campaigns/friends-recommendations.md` (completed and removed — see git hi
 
 ## Contexts
 
-Four `Boundary` contexts, each with one job, and the sync loop above two of
+Five `Boundary` contexts, each with one job; `RelaySync` is the one above two of
 them. The dependency edges run one way: `Discovery ← Activities → Social →
 Nostr`, and `RelaySync → Activities, Social, Nostr`; `Activities` also reads
 `Library`, `WatchHistory`, `Discovery` and `Settings.Preferences` to turn a
@@ -323,7 +323,7 @@ disagree with the owner about what a message meant.
 A person is drawn from one read model everywhere, `Social.Person`
 (ADR-074): the reader's name for a friend (`name_override`, optional),
 the name the key published (`published_name`, from its `Social.Profile`),
-the avatar URL (nil until the profiles campaign's phase 3), and whether
+the avatar URL (nil; nothing sets it yet), and whether
 it is the reader's own. `Person.name/1` resolves the override, else the
 published name, else nil. `Social.people/0` builds `%{pubkey => Person}`
 for the identity and the roster, joining their profiles;
