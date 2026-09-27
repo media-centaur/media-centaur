@@ -2,6 +2,7 @@ defmodule MediaCentaur.Social do
   use Boundary,
     deps: [MediaCentaur.ErrorReports, MediaCentaur.Nostr],
     exports: [
+      AvatarStore,
       Connections,
       Events,
       Events.FriendAdded,
@@ -36,6 +37,7 @@ defmodule MediaCentaur.Social do
 
   import Ecto.Query
 
+  alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Connections
   alias MediaCentaur.Social.Events
   alias MediaCentaur.Social.Friend
@@ -165,17 +167,17 @@ defmodule MediaCentaur.Social do
   @doc """
   Every person this reader knows, by public key (ADR-074): the identity's
   own when one exists, and every roster member, each as a `Person` with
-  the name their `Profile` published, when one is stored. The one place
+  the name and avatar their `Profile` published, when one is stored. The one place
   a roster row and a profile become what the reader sees.
   """
   @spec people() :: %{optional(String.t()) => Person.t()}
   def people do
-    names = Map.new(Repo.all(Profile), &{&1.pubkey, &1.name})
-    friends = Map.new(list_friends(), &{&1.pubkey, person_for(&1, names)})
+    profiles = Map.new(Repo.all(Profile), &{&1.pubkey, &1})
+    friends = Map.new(list_friends(), &{&1.pubkey, person_for(&1, Map.get(profiles, &1.pubkey))})
 
     case Identity.pubkey() do
       nil -> friends
-      me -> Map.put(friends, me, own_person_for(me, Map.get(names, me)))
+      me -> Map.put(friends, me, own_person_for(me, Map.get(profiles, me)))
     end
   end
 
@@ -187,7 +189,7 @@ defmodule MediaCentaur.Social do
   def own_person do
     case own_profile() do
       nil -> own_person_for(Identity.pubkey(), nil)
-      %Profile{pubkey: pubkey, name: name} -> own_person_for(pubkey, name)
+      %Profile{pubkey: pubkey} = profile -> own_person_for(pubkey, profile)
     end
   end
 
@@ -206,19 +208,26 @@ defmodule MediaCentaur.Social do
   signs, stores, publishes to every connected relay and broadcasts
   `ProfileUpdated`. The name is required and capped at
   `Profile.Translation.max_name_length/0` characters, checked before
-  anything is minted: the form refuses to save without one.
+  anything is minted: the form refuses to save without one. The avatar
+  change keeps the stored avatar, removes it, or sets new bytes; the
+  stored file follows the row.
   """
-  @spec save_profile(String.t()) :: {:ok, Profile.t()} | {:error, :name_required | :name_too_long}
-  def save_profile(name) when is_binary(name) do
+  @typedoc "What the save does with the avatar: keep the stored one, remove it, or set new WebP bytes (the master `ImageFiles.square_webp/2` made)."
+  @type avatar_change :: :keep | :none | {:new, binary()}
+
+  @spec save_profile(String.t(), avatar_change()) ::
+          {:ok, Profile.t()} | {:error, :name_required | :name_too_long}
+  def save_profile(name, avatar_change) when is_binary(name) do
     with {:ok, name} <- present_name(name),
          :ok <- within_name_cap(name) do
       secret = Identity.ensure()
       me = Identity.pubkey()
       stored = Repo.get_by(Profile, pubkey: me)
+      avatar = resolve_avatar(avatar_change, stored)
       created_at = Event.stamp_after(stored && stored.created_at, System.os_time(:second))
-      event = name |> ProfileTranslation.to_event(nil, me, created_at) |> Event.sign(secret)
+      event = name |> ProfileTranslation.to_event(avatar, me, created_at) |> Event.sign(secret)
       {:ok, attrs} = ProfileTranslation.from_event(event)
-      profile = upsert_profile(stored, attrs)
+      profile = store_profile(stored, attrs)
       Connections.publish(event)
       Events.broadcast(%Events.ProfileUpdated{pubkey: me})
       {:ok, profile}
@@ -250,7 +259,7 @@ defmodule MediaCentaur.Social do
           :ignored
 
         stored ->
-          profile = upsert_profile(stored, attrs)
+          profile = store_profile(stored, attrs)
           Events.broadcast(%Events.ProfileUpdated{pubkey: profile.pubkey})
           {:ok, profile}
       end
@@ -307,33 +316,70 @@ defmodule MediaCentaur.Social do
     end
   end
 
-  defp upsert_profile(nil, attrs), do: Repo.insert!(Profile.changeset(attrs))
-  defp upsert_profile(%Profile{} = stored, attrs), do: Repo.update!(Profile.changeset(stored, attrs))
+  defp resolve_avatar(:none, _stored), do: nil
 
-  defp delete_profile(pubkey),
-    do: Repo.delete_all(from(profile in Profile, where: profile.pubkey == ^pubkey))
+  defp resolve_avatar({:new, bytes}, _stored) when is_binary(bytes),
+    do: %{type: "image/webp", bytes: bytes}
+
+  defp resolve_avatar(:keep, %Profile{pubkey: pubkey, avatar_type: type}) when is_binary(type) do
+    case AvatarStore.read(pubkey, type) do
+      {:ok, bytes} -> %{type: type, bytes: bytes}
+      {:error, _missing} -> nil
+    end
+  end
+
+  defp resolve_avatar(:keep, _none), do: nil
+
+  # The row and the file move together: the avatar bytes never enter
+  # the row, and a profile without an avatar leaves no file behind.
+  defp store_profile(stored, attrs) do
+    {bytes, row_attrs} = Map.pop(attrs, :avatar_bytes)
+
+    profile =
+      if stored,
+        do: Repo.update!(Profile.changeset(stored, row_attrs)),
+        else: Repo.insert!(Profile.changeset(row_attrs))
+
+    if bytes,
+      do: AvatarStore.write(profile.pubkey, profile.avatar_type, bytes),
+      else: AvatarStore.delete(profile.pubkey)
+
+    profile
+  end
+
+  defp delete_profile(pubkey) do
+    Repo.delete_all(from(profile in Profile, where: profile.pubkey == ^pubkey))
+    AvatarStore.delete(pubkey)
+  end
 
   defp known_key_or_error(pubkey), do: if(known_key?(pubkey), do: :ok, else: {:error, :unknown_author})
 
-  defp own_person_for(pubkey, published_name) do
+  defp own_person_for(pubkey, profile) do
     %Person{
       pubkey: pubkey,
       own?: true,
-      published_name: published_name,
+      published_name: profile && profile.name,
+      avatar_url: avatar_url(profile),
       short_npub: pubkey && short_npub(pubkey)
     }
   end
 
-  defp person_for(%Friend{} = friend, names) do
+  defp person_for(%Friend{} = friend, profile) do
     %Person{
       pubkey: friend.pubkey,
       name_override: friend.name_override,
-      published_name: Map.get(names, friend.pubkey),
+      published_name: profile && profile.name,
+      avatar_url: avatar_url(profile),
       own?: false,
       short_npub: short_npub(friend.pubkey),
       added_on: DateTime.to_date(friend.inserted_at)
     }
   end
+
+  defp avatar_url(nil), do: nil
+
+  defp avatar_url(%Profile{} = profile),
+    do: AvatarStore.url(profile.pubkey, profile.avatar_type, profile.created_at)
 
   defp not_own_key(pubkey), do: if(Identity.pubkey() == pubkey, do: {:error, :own_key}, else: :ok)
 

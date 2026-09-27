@@ -6,7 +6,7 @@ defmodule MediaCentaur.Social.Profile do
   `raw_event` is the signed wire form the own-events diff republishes,
   `created_at` the wire time that decides which copy wins. The reader's
   own is a row like any other, under the identity's key. Built and read
-  through `Social` (`save_profile/1`, `ingest_profile/1`, `own_profile/0`);
+  through `Social` (`save_profile/2`, `ingest_profile/1`, `own_profile/0`);
   the wire shape is `Profile.Translation`'s.
   """
 

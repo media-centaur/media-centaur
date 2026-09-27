@@ -77,7 +77,7 @@ defmodule MediaCentaur.RelaySyncTest do
   end
 
   test "the own profile the relay already has is not republished" do
-    {:ok, _profile} = Social.save_profile("Me")
+    {:ok, _profile} = Social.save_profile("Me", :keep)
     [own] = Social.own_events()
     relay = FakeRelay.start(events: [own])
     {:ok, _row} = Social.add_relay(relay.url)
@@ -302,7 +302,7 @@ defmodule MediaCentaur.RelaySyncTest do
   end
 
   test "the own-events diff publishes the reader's profile to a relay that lacks it, once" do
-    {:ok, _profile} = Social.save_profile("Me")
+    {:ok, _profile} = Social.save_profile("Me", :keep)
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
 
@@ -313,7 +313,7 @@ defmodule MediaCentaur.RelaySyncTest do
   end
 
   test "a relay that refuses the profile is named for it" do
-    {:ok, _profile} = Social.save_profile("Me")
+    {:ok, _profile} = Social.save_profile("Me", :keep)
     relay = FakeRelay.start(accept: false, reason: "blocked: kind 12160 is not stored by this relay")
     {:ok, _row} = Social.add_relay(relay.url)
 

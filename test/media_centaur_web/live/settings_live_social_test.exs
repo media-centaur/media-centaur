@@ -100,7 +100,7 @@ defmodule MediaCentaurWeb.SettingsLiveSocialTest do
 
     test "importing a secret key replaces the identity after a second click and forgets the old profile",
          %{conn: conn} do
-      {:ok, _profile} = Social.save_profile("Sample Name")
+      {:ok, _profile} = Social.save_profile("Sample Name", :keep)
       {:ok, view, _html} = live_async!(conn, @section)
       before = Identity.pubkey()
       nsec = Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "3"))

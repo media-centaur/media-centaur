@@ -4,7 +4,9 @@ defmodule MediaCentaur.Social.ProfileTest do
   alias MediaCentaur.Nostr.Event
   alias MediaCentaur.Nostr.Keys
   alias MediaCentaur.Secret
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Social
+  alias MediaCentaur.Social.AvatarStore
   alias MediaCentaur.Social.Events.ProfileUpdated
   alias MediaCentaur.Social.Identity
   alias MediaCentaur.Social.Profile
@@ -13,20 +15,30 @@ defmodule MediaCentaur.Social.ProfileTest do
   @friend_secret Secret.wrap(String.duplicate("0", 63) <> "3")
   @friend_pubkey Keys.pubkey(@friend_secret)
 
+  # Avatars are written under `{data_dir}/images/social/`: point data_dir
+  # at a per-test tmp dir (GlobalStateSandbox restores the config term).
+  setup do
+    dir = Path.join(System.tmp_dir!(), "profile-test-#{System.unique_integer([:positive])}")
+    config = :persistent_term.get({Config, :config})
+    :persistent_term.put({Config, :config}, Map.put(config, :data_dir, dir))
+    on_exit(fn -> File.rm_rf!(dir) end)
+    :ok
+  end
+
   defp friend_profile(name, created_at),
     do: Event.sign(Translation.to_event(name, nil, @friend_pubkey, created_at), @friend_secret)
 
-  describe "save_profile/1" do
+  describe "save_profile/2" do
     test "mints the identity, stores the row, publishes, broadcasts; a blank name is refused" do
       refute Identity.present?()
       Social.subscribe()
 
-      assert {:error, :name_required} = Social.save_profile("   ")
-      assert {:error, :name_too_long} = Social.save_profile(String.duplicate("x", 51))
+      assert {:error, :name_required} = Social.save_profile("   ", :keep)
+      assert {:error, :name_too_long} = Social.save_profile(String.duplicate("x", 51), :keep)
       refute Identity.present?()
 
       assert {:ok, %Profile{name: "Sample Name", created_at: first}} =
-               Social.save_profile("  Sample Name ")
+               Social.save_profile("  Sample Name ", :keep)
 
       assert Identity.present?()
       me = Identity.pubkey()
@@ -34,7 +46,7 @@ defmodule MediaCentaur.Social.ProfileTest do
       assert %Profile{name: "Sample Name"} = Social.own_profile()
 
       # A second save within the same second is stamped strictly after the first.
-      assert {:ok, %Profile{name: "Renamed", created_at: second}} = Social.save_profile("Renamed")
+      assert {:ok, %Profile{name: "Renamed", created_at: second}} = Social.save_profile("Renamed", :keep)
       assert second > first
       assert [%Event{kind: 12_160}] = Social.own_events()
     end
@@ -77,7 +89,7 @@ defmodule MediaCentaur.Social.ProfileTest do
       assert Social.people() == %{}
       assert Repo.all(Profile) == []
 
-      {:ok, _profile} = Social.save_profile("Me")
+      {:ok, _profile} = Social.save_profile("Me", :keep)
       old = Identity.pubkey()
       :ok = Social.import_identity(Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "5")))
       refute Identity.pubkey() == old
@@ -86,15 +98,89 @@ defmodule MediaCentaur.Social.ProfileTest do
     end
 
     test "re-importing the same key keeps the own profile" do
-      {:ok, _profile} = Social.save_profile("Me")
+      {:ok, _profile} = Social.save_profile("Me", :keep)
       :ok = Social.import_identity(Identity.export_nsec())
 
       assert %Profile{name: "Me"} = Social.own_profile()
     end
   end
 
+  describe "avatars" do
+    @webp <<"RIFF", 0, 0, 0, 0, "WEBPVP8 ", 0, 0, 0, 0>>
+
+    test "save_profile/2 sets, keeps and removes the avatar; the event carries it and the file follows" do
+      {:ok, %Profile{avatar_type: "image/webp"}} = Social.save_profile("Me", {:new, @webp})
+      me = Identity.pubkey()
+      assert {:ok, @webp} = AvatarStore.read(me, "image/webp")
+      [event] = Social.own_events()
+      assert %{"avatar" => %{"type" => "image/webp"}} = Jason.decode!(event.content)
+      assert Social.own_person().avatar_url =~ "images/social/#{me}.webp?v="
+
+      {:ok, %Profile{name: "Renamed", avatar_type: "image/webp"}} = Social.save_profile("Renamed", :keep)
+      [kept] = Social.own_events()
+      assert %{"avatar" => %{"type" => "image/webp"}} = Jason.decode!(kept.content)
+
+      {:ok, %Profile{avatar_type: nil}} = Social.save_profile("Renamed", :none)
+      assert AvatarStore.read(me, "image/webp") == {:error, :enoent}
+      assert Social.own_person().avatar_url == nil
+      refute Map.has_key?(Jason.decode!(hd(Social.own_events()).content), "avatar")
+    end
+
+    test "ingest_profile/1 writes a friend's avatar, replaces it, and removes it when a newer profile has none" do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Nick")
+
+      with_avatar =
+        Event.sign(
+          Translation.to_event(
+            "One",
+            %{type: "image/webp", bytes: @webp},
+            @friend_pubkey,
+            1_700_000_000
+          ),
+          @friend_secret
+        )
+
+      assert {:ok, %Profile{avatar_type: "image/webp"}} = Social.ingest_profile(with_avatar)
+      assert {:ok, @webp} = AvatarStore.read(@friend_pubkey, "image/webp")
+      assert Social.people()[@friend_pubkey].avatar_url =~ ".webp?v=1700000000"
+
+      without =
+        Event.sign(Translation.to_event("One", nil, @friend_pubkey, 1_700_000_001), @friend_secret)
+
+      assert {:ok, %Profile{avatar_type: nil}} = Social.ingest_profile(without)
+      assert AvatarStore.read(@friend_pubkey, "image/webp") == {:error, :enoent}
+      assert Social.people()[@friend_pubkey].avatar_url == nil
+    end
+
+    test "removing the friend removes the file" do
+      {:ok, _friend} = Social.add_friend(@friend_pubkey, "Nick")
+
+      {:ok, _} =
+        Social.ingest_profile(
+          Event.sign(
+            Translation.to_event("One", %{type: "image/webp", bytes: @webp}, @friend_pubkey, 1),
+            @friend_secret
+          )
+        )
+
+      :ok = Social.remove_friend(@friend_pubkey)
+      assert AvatarStore.read(@friend_pubkey, "image/webp") == {:error, :enoent}
+    end
+
+    test "replacing the identity removes the old key's file; re-importing the same key keeps it" do
+      {:ok, _profile} = Social.save_profile("Me", {:new, @webp})
+      old = Identity.pubkey()
+
+      :ok = Social.import_identity(Identity.export_nsec())
+      assert {:ok, @webp} = AvatarStore.read(old, "image/webp")
+
+      :ok = Social.import_identity(Keys.to_nsec(Secret.wrap(String.duplicate("0", 63) <> "5")))
+      assert AvatarStore.read(old, "image/webp") == {:error, :enoent}
+    end
+  end
+
   test "own_event_kind/1 names the own profile and nothing else" do
-    {:ok, _profile} = Social.save_profile("Me")
+    {:ok, _profile} = Social.save_profile("Me", :keep)
     [event] = Social.own_events()
     assert Social.own_event_kind(event.id) == :profile
     assert Social.own_event_kind("nope") == nil
