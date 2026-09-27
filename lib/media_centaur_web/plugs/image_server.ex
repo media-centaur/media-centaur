@@ -95,8 +95,10 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
     ImageCache.resolve_path(relative) || find_in_data_dir(relative)
   end
 
-  # Configured app-data root — covers tracking-item images written by
-  # `MediaCentaur.ReleaseTracking.ImageStore`. Independent of cwd.
+  # Configured app-data root — covers the data-dir image stores
+  # (`MediaCentaur.TmdbArtwork`, `MediaCentaur.Apps.Artwork`,
+  # `MediaCentaur.Social.AvatarStore`), whose paths `ImageFiles.on_disk_path/1`
+  # derives. Independent of cwd.
   defp find_in_data_dir(relative) do
     case Config.get(:data_dir) do
       nil ->
