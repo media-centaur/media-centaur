@@ -27,13 +27,14 @@ code.
 * `2026-09-27` — Name order override → published → Unnamed; the tile's three marks; Settings opens on Your profile and mints on save; add friend's name is optional; the card foot carries the override and the Show avatar switch. ([UIDR-047](../decisions/user-interface/2026-09-27-047-what-a-reader-sees-of-a-person.md))
 * `2026-09-27` — The word is **avatar**, in code, on the wire and in copy; "photo" in UIDR-046 and the storybook is renamed. (spec glossary)
 * `2026-09-27` — Avatar bytes live as a file under `{data_dir}/images/social/`, served by the existing image server with `?v=`; no new controller. (spec § Storage)
+* `2026-09-27` — Unify pass on the phase 1 plan: every shipped state is a whole product, nothing in a phase exists for a later one. The name stays required until the published name exists to fall back on, so the `friends` rebuild, the optional name, Unnamed and the person glyph open phase 2; `Person.published_name` and `Person.name/1` arrive with phase 2, `show_avatar` and `set_show_avatar/2` with phase 3. Phase 1 renames the field in code with `source: :nickname` and needs no migration. Re-adding a key already on the roster changes nothing; the card's foot is the one place to rename. The LiveView holds the people map alone, the friend count derived. (plan § What this phase does not do)
 
 ## Next steps
 
-1. Phase 1 plan written: `docs/superpowers/plans/2026-09-27-profiles-phase-1-roster-and-person.md` (13 tasks; the suite is red between its Tasks 2 and 11 by design). Phases 2 to 4 get their own plans when phase 1 lands.
-2. Phase 1, roster and Person: paired migration's first half, `FriendChanged`, `Social.Person` and `people/0`, Activities rows carry `author`, every web site and story reads a Person, add friend with an optional name, the override field. Ships alone.
-3. Phase 2, profile on the wire: social-relay v0.7.0 first; `profiles`, `Social.Profile` and its translation, ingest, RelaySync with the kind and the own diff, `ProfileUpdated`, Settings' two cards with the name, mint-on-save, FakeRelay.
-4. Phase 3, avatar: upload, the 256×256 WebP master in `ImageFiles`, file store and serving, the tile's avatar mark, the switch.
+1. Phase 1 plan written: `docs/superpowers/plans/2026-09-27-profiles-phase-1-roster-and-person.md` (12 tasks; the suite is red between its Tasks 1 and 10 by design). Phases 2 to 4 get their own plans when phase 1 lands.
+2. Phase 1, roster and Person: `Friend.name_override` over the `nickname` column, `FriendChanged`, `Social.Person` and `people/0`, Activities rows carry `author`, every web site and story reads a Person, the rename form on the card's foot. No migration, the name still required. Ships alone.
+3. Phase 2, profile on the wire: social-relay v0.7.0 first; opens with the `friends` rebuild (`name_override` nullable beside a nullable `nickname`; dropped the release after), the optional name, `Person.published_name` and `Person.name/1`, Unnamed, the person glyph, the foot's placeholder through `person_name`; then `profiles`, `Social.Profile` and its translation, ingest, RelaySync with the kind and the own diff, `ProfileUpdated`, Settings' two cards with the name, mint-on-save, FakeRelay.
+4. Phase 3, avatar: upload, the 256×256 WebP master in `ImageFiles`, file store and serving, the tile's avatar mark, the `show_avatar` column (a plain `add`), `Social.set_show_avatar/2` and the card's switch.
 5. Phase 4, docs: protocol page and changes row, wiki (Social, Settings-Reference, Hosting-a-Private-Relay, Troubleshooting), `docs/social.md`, `docs/GLOSSARY.md`; records to accepted; close by destination. The following release drops `nickname`.
 
 ## Completion criteria
