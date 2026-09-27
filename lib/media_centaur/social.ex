@@ -21,6 +21,8 @@ defmodule MediaCentaur.Social do
   identity (`Social.Identity`), the relay list (`Social.Relay`), the
   live connections keyed by it (`Social.Connections`) and the roster of
   followed keys under the reader's names for them (`Social.Friend`).
+  `people/0` reads the identity and the roster as `Social.Person`, the
+  one read model every surface draws a person from (ADR-074).
 
   Broadcasts typed events on `social:updates` (subscribe through
   `subscribe/0`) and re-broadcasts every relay connection's messages on
