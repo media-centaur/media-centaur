@@ -3241,16 +3241,12 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* ── Discovery's columns (UIDR-046) ── the feed column beside the rail
-   above 1300px of content; one column below. The width is the
-   container's, never an assign's. The Feed and the Watchlist compose at
-   1500px — a poster row wants a reading measure — while the Friends grid
-   keeps the layout's width and folds at 1700. */
+   above 1100px of content; one column below. The width is the
+   container's, never an assign's: the Feed and the Watchlist sit in the
+   layout's 1280px container (the feed at 776 beside the 480 rail), the
+   Friends grid takes the full width and folds at 1700. */
 .discovery-page {
   container: discovery / inline-size;
-}
-
-.discovery-page-narrow {
-  max-width: 1500px;
 }
 
 .discovery-columns {
@@ -3285,9 +3281,9 @@ body:has(.modal-backdrop[data-state="open"]) {
   margin-bottom: 8px;
 }
 
-@container discovery (min-width: 1300px) {
+@container discovery (min-width: 1100px) {
   .discovery-columns {
-    grid-template-columns: minmax(0, 1fr) 500px;
+    grid-template-columns: minmax(0, 1fr) 480px;
   }
 
   .discovery-rail {

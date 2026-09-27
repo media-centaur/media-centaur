@@ -23,14 +23,14 @@ defmodule MediaCentaurWeb.Storybook.Discovery.FeedRow do
 
   def template do
     """
-    <div class="w-[976px] divide-y divide-base-content/10">
+    <div class="w-[776px] divide-y divide-base-content/10">
       <.psb-variation/>
     </div>
     """
   end
 
   @hover_pinned """
-  <div class="feed-hover-pin w-[976px] divide-y divide-base-content/10">
+  <div class="feed-hover-pin w-[776px] divide-y divide-base-content/10">
     <.psb-variation/>
   </div>
   """
