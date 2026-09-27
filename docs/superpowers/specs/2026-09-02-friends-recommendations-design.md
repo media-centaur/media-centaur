@@ -70,6 +70,10 @@ Made in this session (2026-09-01 / 02):
    live behind a disclosure. No passphrase.
 6. **Friend = pasted npub + typed nickname.** No profile events. Names are
    local.
+   **Amendment 2026-09-27.** Superseded: a profile event (kind 12160,
+   ADR-073) carries a published name and avatar, and the local name is
+   an optional override (UIDR-047). See
+   `docs/superpowers/specs/2026-09-27-profiles-design.md`.
 7. **Recommend action on library detail modals and watchlist rows** only.
 8. **Transport = one long-lived connection per relay.** Not polling.
 9. **No native dependency.** `bitcoinex` (pure Elixir, maintained, dep only

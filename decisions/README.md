@@ -61,6 +61,8 @@ System design, data model, integration patterns, and engineering standards. Cite
 | 070 | 2026-09-19 | [Durable observational time series live outside the main database](architecture/2026-09-19-070-time-series-outside-the-database.md) | accepted |
 | 071 | 2026-09-20 | [TMDB knowledge is one record per title, asked only when due](architecture/2026-09-20-071-tmdb-store-one-record-per-title.md) | accepted |
 | 072 | 2026-09-25 | [Bundled mpv scripts ship in the release; the user's mpv config is the user's](architecture/2026-09-25-072-bundled-mpv-scripts.md) | accepted |
+| 073 | 2026-09-27 | [A profile is one replaceable event per identity](architecture/2026-09-27-073-a-profile-is-one-replaceable-event-per-identity.md) | proposed |
+| 074 | 2026-09-27 | [A person is read through `Social.Person`; RelaySync owns the reconciliation loop](architecture/2026-09-27-074-person-read-model-and-relay-sync-context.md) | proposed |
 
 ## User Interface (`user-interface/`)
 
@@ -103,3 +105,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 044 | 2026-09-20 | [One control to ask TMDB again: Refresh from TMDB](user-interface/2026-09-20-044-refresh-from-tmdb.md) | accepted |
 | 045 | 2026-09-24 | [Own actions join the Feed under an author scope](user-interface/2026-09-24-045-own-actions-join-the-feed-under-an-author-scope.md) | accepted, amended 2026-09-27 |
 | 046 | 2026-09-27 | [The Feed is the app's list, beside a rail of people](user-interface/2026-09-27-046-the-feed-is-the-apps-list-beside-a-rail-of-people.md) | accepted |
+| 047 | 2026-09-27 | [What a reader sees of a person: their published name under your override, or Unnamed](user-interface/2026-09-27-047-what-a-reader-sees-of-a-person.md) | proposed |
