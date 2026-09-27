@@ -63,6 +63,12 @@ Phase 3 plan:
 * Every `Person` field added updates `test/support/discovery_rows.ex` and the eight story fixture builders (`identity_tile`, `person_card`, `feed_row`, `pennants`, `title_row`, `media_results`, `cinematic_shell`, `detail_panel`); stories cannot import test support, so the copies stay.
 * Decision recorded 2026-09-27: `Person.avatar_url` and the tile's `:avatar` mark stayed in phase 1 without a writer, the one exception to "nothing in a phase exists for a later one", because they carry the photo state UIDR-046 shipped before the campaign (plan § What this phase does not do).
 
+Phase 3 reviews, owed to Task 7 or Task 8:
+
+* Task 7: drop `AvatarStore` from `Social`'s exports if no `lib/` caller outside the context remains after Task 6 (the web layer goes through `save_profile/2` and `Person.avatar_url`).
+* Task 8: `save_profile/1` is still named in `docs/GLOSSARY.md`, `docs/architecture.md` and `docs/social.md` (three places); ADR-073 says "under 30 KB on the wire" and the cap is 64 KB decoded, about 87 KB encoded: dated amendment.
+* Task 8: the rule "an artwork path is never relative to the working directory" lives in `ImageFiles.on_disk_path/1`'s doc; commit `6e27c6ed` cites an audit item (E23) no file in the repo carries, so the doc is the citation.
+
 Deferred, any phase:
 
 * `Identity.pubkey/0` derives the point from the secret on every call, and `people/0` and `own_person/0` pay it once per Discovery load and per review-modal render; candidate: derive once beside the secret.
