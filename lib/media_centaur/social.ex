@@ -2,7 +2,6 @@ defmodule MediaCentaur.Social do
   use Boundary,
     deps: [MediaCentaur.ErrorReports, MediaCentaur.Nostr],
     exports: [
-      AvatarStore,
       Connections,
       Events,
       Events.FriendAdded,

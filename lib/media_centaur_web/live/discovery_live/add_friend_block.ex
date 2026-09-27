@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.DiscoveryLive.AddFriendBlock do
           type="text"
           name="name"
           placeholder="Name (optional)"
-          class="library-filter basis-40 grow-0 shrink-0"
+          class="library-filter basis-48 grow-0 shrink-0"
           autocomplete="off"
         />
         <.button type="submit" variant="neutral" size="sm">Add friend</.button>
