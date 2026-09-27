@@ -76,6 +76,17 @@ defmodule MediaCentaur.RelaySyncTest do
     await_supervised_tasks()
   end
 
+  test "the own profile the relay already has is not republished" do
+    {:ok, _profile} = Social.save_profile("Me")
+    [own] = Social.own_events()
+    relay = FakeRelay.start(events: [own])
+    {:ok, _row} = Social.add_relay(relay.url)
+
+    assert_receive {:relay_in, ["REQ", "own:" <> _url, _filter]}, 5_000
+    refute_receive {:relay_in, ["EVENT", _event]}, 1_000
+    await_supervised_tasks()
+  end
+
   test "a live event from a friend arrives through the feed subscription" do
     relay = FakeRelay.start()
     {:ok, _row} = Social.add_relay(relay.url)
