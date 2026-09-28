@@ -19,9 +19,9 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
     required: true,
     doc: "summary string/map of entities missing artwork."
 
-  attr :confirming_image_refresh, :boolean,
+  attr :image_refresh_armed, :boolean,
     required: true,
-    doc: "true once the Refresh button is armed and awaiting its second click."
+    doc: "Refresh is armed and one click from firing."
 
   attr :rederiving_extra_names, :boolean, required: true
   attr :refetching_backdrops, :boolean, required: true
@@ -147,41 +147,18 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
             </p>
           </div>
           <%!-- Recoverable — the artwork comes back, it just takes a while
-                — so it arms in place rather than raising a modal. Same
-                Confirm/Cancel swap the media-directory rows use, so the
-                page has one in-place idiom. MC0027 has the full rule. --%>
+                — so it arms in place rather than raising a modal (MC0027
+                tier 2). --%>
           <div class="flex items-center gap-2 shrink-0">
-            <%= if @confirming_image_refresh and not @refreshing_images do %>
-              <.button
-                variant="risky"
-                size="sm"
-                phx-click="refresh_image_cache"
-                data-nav-item
-                tabindex="0"
-              >
-                Confirm
-              </.button>
-              <.button
-                variant="dismiss"
-                size="sm"
-                phx-click="refresh_image_cache_cancel"
-                data-nav-item
-                tabindex="0"
-              >
-                Cancel
-              </.button>
-            <% else %>
-              <.button
-                variant="risky"
-                size="sm"
-                phx-click="refresh_image_cache_confirm"
-                disabled={@refreshing_images}
-                data-nav-item
-                tabindex="0"
-              >
-                {if @refreshing_images, do: "Refreshing…", else: "Refresh"}
-              </.button>
-            <% end %>
+            <.armed_button
+              armed={@image_refresh_armed and not @refreshing_images}
+              event="refresh_image_cache"
+              armed_label="Click again to refresh all artwork"
+              variant="risky"
+              disabled={@refreshing_images}
+            >
+              {if @refreshing_images, do: "Refreshing…", else: "Refresh"}
+            </.armed_button>
           </div>
         </div>
       </div>

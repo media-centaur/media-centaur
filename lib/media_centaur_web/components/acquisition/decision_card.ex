@@ -25,7 +25,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
         "is the single home for all decision-related actions when the pursuit is " <>
         "awaiting a decision — the Activity card is suppressed in that case by the modal."
 
-  attr :on_cancel_arm, :string, default: nil, doc: "event that arms Cancel pursuit (first click)."
   attr :cancel_armed, :boolean, default: false, doc: "Cancel pursuit is one click from firing."
 
   def decision_card(assigns) do
@@ -85,8 +84,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
         <.armed_button
           :if={@on_cancel}
           armed={@cancel_armed}
-          arm={@on_cancel_arm || @on_cancel}
-          fire={@on_cancel}
+          event={@on_cancel}
           armed_label="Click again to cancel the pursuit"
           variant="dismiss"
         >

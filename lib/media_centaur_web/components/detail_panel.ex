@@ -108,6 +108,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Title.SocialGlyph
   alias MediaCentaurWeb.Components.Title.TrackingControls
   alias MediaCentaurWeb.DiscoveryLive.ActivityWords
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.TitleRef
   alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.Orientation
@@ -118,6 +119,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :state, ModalState,
     default: nil,
     doc: "the per-opening state the host owns; `nil` is a fresh `ModalState.new/1`."
+
+  attr :armed_gesture, :any,
+    default: nil,
+    doc: "the host's armed slot (`MediaCentaurWeb.Live.ArmGesture`) — the Manage sheet's arms."
 
   attr :today, Date, required: true, doc: "the host's date — for the download and tracking rules."
   attr :spoiler_free, :boolean, default: false
@@ -358,8 +363,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               entity={@entity}
               files={@files}
               files_status={@files_status}
-              rematch_confirm={@state.rematch_confirm}
-              delete_confirm={@state.delete_confirm}
+              rematch_confirm={ArmGesture.armed?(@armed_gesture, "rematch")}
+              delete_confirm={ArmGesture.armed_target(@armed_gesture, ManagePanel.delete_events())}
               deleting={@state.deleting}
               tmdb_ready={@tmdb_ready}
               tmdb_checking?={@state.tmdb_checking}

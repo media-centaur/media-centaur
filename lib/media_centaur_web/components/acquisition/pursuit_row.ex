@@ -292,8 +292,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         <.armed_button
           :if={@queue_item_id}
           armed={@cancel_armed_id == @queue_item_id}
-          arm="cancel_download_prompt"
-          fire="cancel_download_confirm"
+          event="cancel_download"
           armed_label="Click again to cancel"
           variant="destructive_inline"
           size="xs"

@@ -302,16 +302,15 @@ defmodule MediaCentaurWeb.SettingsLive.SocialSection do
               data-nav-item
               tabindex="0"
             >{@import_draft}</textarea>
-            <.button
+            <.armed_button
               id="import-nsec-submit"
               type="submit"
-              variant={if @import_armed?, do: "danger", else: "neutral"}
-              size="sm"
-              data-nav-item
-              tabindex="0"
+              armed={@import_armed?}
+              armed_label="Click again to replace"
+              variant="risky"
             >
-              {if @import_armed?, do: "Click again to replace", else: "Replace identity"}
-            </.button>
+              Replace identity
+            </.armed_button>
           </form>
         </.settings_disclosure>
       </.settings_card>

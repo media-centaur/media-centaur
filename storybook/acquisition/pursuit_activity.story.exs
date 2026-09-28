@@ -69,8 +69,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "When complete, the file watcher matches the title."
               }
             ),
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -94,8 +93,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "When complete, the file watcher matches the title."
               }
             ),
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -113,7 +111,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               available_actions: [:cancel, :change_target, :request_decision]
             ),
           on_cancel: "noop",
-          on_cancel_arm: "noop",
           on_change_target: "noop",
           on_request_decision: "noop"
         }
@@ -131,8 +128,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               download: %DownloadProgress{state: :paused, progress_pct: 67.0},
               next_step: %NextStep{description: "Resume it in your download client."}
             ),
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -148,8 +144,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               download: %DownloadProgress{state: :queued},
               next_step: %NextStep{description: "Will start when a slot frees up."}
             ),
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -175,8 +170,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
                 description: "Trying expanded queries — will pick the best match or snooze."
               }
             ),
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -195,7 +189,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               last_activity_at: DateTime.add(DateTime.utc_now(:second), -3 * 3600, :second)
             ),
           on_cancel: "noop",
-          on_cancel_arm: "noop",
           on_change_target: "noop",
           on_request_decision: "noop"
         }
@@ -220,7 +213,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               last_activity_at: DateTime.add(DateTime.utc_now(:second), -2 * 86_400, :second)
             ),
           on_cancel: "noop",
-          on_cancel_arm: "noop",
           on_change_target: "noop"
         }
       },
@@ -241,8 +233,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               staleness: :stale,
               last_activity_at: DateTime.add(DateTime.utc_now(:second), -6 * 3600, :second)
             ),
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -258,8 +249,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               download: %DownloadProgress{state: :completed, progress_pct: 100.0},
               next_step: %NextStep{description: "InboundListener picks it up next."}
             ),
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -282,7 +272,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
             ),
           client_url: "http://localhost:8085",
           on_cancel: "noop",
-          on_cancel_arm: "noop",
           on_change_target: "noop"
         }
       },
@@ -299,8 +288,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
               },
               next_step: %NextStep{description: "Use the decision card below to pick or skip."}
             ),
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{

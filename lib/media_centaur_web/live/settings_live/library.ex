@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
     required: true,
     doc: "list of media-dir entry maps with id / dir / name / images_dir keys."
 
-  attr :media_dir_delete_confirm, :any, required: true, doc: "id of the dir pending delete, or nil"
+  attr :armed_media_dir, :any, required: true, doc: "id of the dir whose removal is armed, or nil"
   attr :scanning, :boolean, required: true
 
   attr :ignore_rules, :map,
@@ -124,39 +124,16 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
               >
                 <.icon name="hero-pencil-square" class="size-4" />
               </.button>
-              <%= if @media_dir_delete_confirm == entry["id"] do %>
-                <.button
-                  variant="danger"
-                  size="sm"
-                  phx-click="media_dir:delete"
-                  phx-value-id={entry["id"]}
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Confirm
-                </.button>
-                <.button
-                  variant="dismiss"
-                  size="sm"
-                  phx-click="media_dir:delete_cancel"
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Cancel
-                </.button>
-              <% else %>
-                <.button
-                  variant="destructive_inline"
-                  size="sm"
-                  phx-click="media_dir:delete_confirm"
-                  phx-value-id={entry["id"]}
-                  aria-label="Remove media directory"
-                  data-nav-item
-                  tabindex="0"
-                >
-                  <.icon name="hero-trash" class="size-4" />
-                </.button>
-              <% end %>
+              <.armed_button
+                armed={@armed_media_dir == entry["id"]}
+                event="media_dir:delete"
+                armed_label="Click again to remove"
+                variant="destructive_inline"
+                phx-value-id={entry["id"]}
+                aria-label="Remove media directory"
+              >
+                <.icon name="hero-trash" class="size-4" />
+              </.armed_button>
             </div>
           </li>
         </ul>

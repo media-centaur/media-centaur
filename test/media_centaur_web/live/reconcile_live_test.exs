@@ -72,6 +72,22 @@ defmodule MediaCentaurWeb.ReconcileLiveTest do
     assert Reconciliation.list_awaiting() == []
   end
 
+  # Regression: selecting a show left Dismiss all armed, so the next click
+  # dismissed every file of whatever show was now selected. Any other
+  # interaction is a change of mind (MC0027).
+  test "any other interaction disarms Dismiss all", %{conn: conn} do
+    seed_show()
+    divert_file()
+    {:ok, view, _html} = live(conn, "/reconcile")
+
+    render_click(view, "dismiss_all", %{})
+    render_click(view, "select_show", %{"tmdb" => "42"})
+
+    html = render_click(view, "dismiss_all", %{})
+    assert html =~ "Click again to dismiss all"
+    assert length(Reconciliation.list_awaiting()) == 1, "the click after a change of mind only arms"
+  end
+
   test "empty queue renders the explainer, not a crash", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/reconcile")
 

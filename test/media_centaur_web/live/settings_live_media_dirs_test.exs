@@ -46,6 +46,33 @@ defmodule MediaCentaurWeb.SettingsLiveMediaDirsTest do
     assert Enum.map(Config.media_dirs_entries(), & &1["dir"]) == [Path.expand(tmp)]
   end
 
+  test "removing a directory takes two clicks on the same row", %{conn: conn} do
+    :ok =
+      Config.put_media_dirs([
+        %{"id" => "u1", "dir" => "/media/one", "images_dir" => nil, "name" => "One"},
+        %{"id" => "u2", "dir" => "/media/two", "images_dir" => nil, "name" => "Two"}
+      ])
+
+    {:ok, view, _} = live_async!(conn, "/settings?section=library")
+    wait_for_async_load(view)
+
+    remove = fn id ->
+      view
+      |> element("button[phx-click='media_dir:delete'][phx-value-id='#{id}']")
+      |> render_click()
+    end
+
+    remove.("u1")
+    assert length(Config.media_dirs_entries()) == 2, "the first click only arms"
+
+    # A click on another row's remove re-arms there instead of firing.
+    remove.("u2")
+    assert length(Config.media_dirs_entries()) == 2
+
+    remove.("u2")
+    assert Enum.map(Config.media_dirs_entries(), & &1["id"]) == ["u1"]
+  end
+
   test "clears a previously-set name when user empties the field", %{conn: conn} do
     tmp = Path.join(System.tmp_dir!(), "wd-clear-name-test-#{System.unique_integer([:positive])}")
 

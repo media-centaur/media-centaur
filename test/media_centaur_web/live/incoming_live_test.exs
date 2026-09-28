@@ -1251,11 +1251,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert_patch(view, "/incoming?plan=#{plan.id}&zone=activity")
 
       view
-      |> element("button[phx-click='plan_discard_prompt']")
+      |> element("button[phx-click='plan_discard']")
       |> render_click()
 
       view
-      |> element("button[phx-click='plan_discard_confirm']")
+      |> element("button[phx-click='plan_discard']")
       |> render_click()
 
       _ = render(view)
@@ -1284,7 +1284,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # (MC0027 tier 2 — no overlay, so nothing can open behind anything).
       html =
         view
-        |> element("button[phx-click='plan_discard_prompt']")
+        |> element("button[phx-click='plan_discard']")
         |> render_click()
 
       assert html =~ "Click again to discard"
@@ -1304,7 +1304,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # And a disarmed second click cannot fire: the control is back to
       # arming, so the plan still survives.
       view
-      |> element("button[phx-click='plan_discard_prompt']")
+      |> element("button[phx-click='plan_discard']")
       |> render_click()
 
       {:ok, still_there} = Plans.fetch(plan.id)
@@ -1532,7 +1532,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
 
       assert has_element?(view, "button[phx-click='plan_stop_searching']")
-      refute has_element?(view, "button[phx-click='plan_discard_prompt']")
+      refute has_element?(view, "button[phx-click='plan_discard']")
 
       view
       |> element("button[phx-click='plan_stop_searching']")
@@ -2989,13 +2989,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       html = render(view)
       assert html =~ "Movie.Test.2024"
-      assert has_element?(view, "[phx-click='cancel_download_prompt']")
+      assert has_element?(view, "[phx-click='cancel_download']")
 
       # First click only arms the control — no overlay opens, and nothing
       # has been deleted yet (MC0027 tier 2).
       html =
         view
-        |> element("button[phx-click='cancel_download_prompt']")
+        |> element("button[phx-click='cancel_download']")
         |> render_click()
 
       assert html =~ "Click again to cancel"
@@ -3004,7 +3004,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # Second click fires the qBittorrent delete and optimistically drops the row.
       html =
         view
-        |> element("button[phx-click='cancel_download_confirm']")
+        |> element("button[phx-click='cancel_download']")
         |> render_click()
 
       assert :counters.get(delete_counter, 1) == 1
@@ -3050,8 +3050,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [stale_item]}})
       assert has_element?(view, "[phx-value-id='abcd1234abcd1234abcd1234abcd1234abcd1234']")
 
-      view |> element("button[phx-click='cancel_download_prompt']") |> render_click()
-      view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
+      view |> element("button[phx-click='cancel_download']") |> render_click()
+      view |> element("button[phx-click='cancel_download']") |> render_click()
 
       # Simulate the next poll arriving before qBittorrent has propagated
       # the deletion — the same item shows up in the snapshot. The LiveView
@@ -3110,7 +3110,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       html =
         view
-        |> element("button[phx-click='cancel_download_prompt']")
+        |> element("button[phx-click='cancel_download']")
         |> render_click()
 
       assert html =~ "Click again to cancel"
@@ -3126,7 +3126,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # So the next click on the control arms again rather than firing —
       # the torrent is still there.
       view
-      |> element("button[phx-click='cancel_download_prompt']")
+      |> element("button[phx-click='cancel_download']")
       |> render_click()
 
       assert :counters.get(delete_counter, 1) == 0

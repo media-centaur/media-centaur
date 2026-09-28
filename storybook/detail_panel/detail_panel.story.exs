@@ -329,34 +329,36 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :rematch_confirm,
         description:
-          "`rematch_confirm` — the **Rematch** action in the toolbar card flips to " <>
-            "its confirm prompt.",
+          "Rematch armed — the **Rematch** action in the toolbar card relabels to " <>
+            "**Click again to rematch** (the host's arm gesture slot).",
         attributes: %{
           detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
-          state: %{ModalState.new(:info) | rematch_confirm: true}
+          state: ModalState.new(:info),
+          armed_gesture: {"rematch", nil}
         }
       },
       %Variation{
         id: :delete_pending_all_inline,
         description:
-          "`delete_confirm: :all` — the prominent danger button reads **Click again " <>
-            "to confirm — Delete all files (size)** with an inline Cancel beside it.",
+          "Delete all armed — the prominent danger button reads **Click again " <>
+            "to confirm — Delete all files (size)**. Any other interaction disarms it.",
         attributes: %{
           detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
-          state: %{ModalState.new(:info) | delete_confirm: :all}
+          state: ModalState.new(:info),
+          armed_gesture: {"delete_all_prompt", :all}
         }
       },
       %Variation{
         id: :delete_pending_file_inline,
         description:
-          "`delete_confirm: {:file, path}` targeting one row: the danger tint, a " <>
+          "One file's delete armed: the danger tint, a " <>
             "thin error ring, and the trash button widens to **Click to confirm**.",
         attributes: %{
           detail: movie_detail(%{}, nil, {:ok, sample_detail_files()}),
-          state: %{
-            ModalState.new(:info)
-            | delete_confirm: {:file, "/media/movies/Sample Movie (1922)/Sample.Movie.1922.1080p.mkv"}
-          }
+          state: ModalState.new(:info),
+          armed_gesture:
+            {"delete_file_prompt",
+             {:file, "/media/movies/Sample Movie (1922)/Sample.Movie.1922.1080p.mkv"}}
         }
       },
       %Variation{

@@ -951,8 +951,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             <.armed_button
               :if={@board.status == :ready}
               armed={@discard_armed}
-              arm="plan_discard_prompt"
-              fire="plan_discard_confirm"
+              event="plan_discard"
               armed_label="Click again to discard"
               variant="dismiss"
               size="sm"

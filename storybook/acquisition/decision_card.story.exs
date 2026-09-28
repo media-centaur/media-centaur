@@ -29,8 +29,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             loading?: true,
             search_queries: ["Sample Movie 2010"]
           },
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -45,8 +44,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             loading?: true,
             search_queries: ["Sample Movie 2010"]
           },
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -60,8 +58,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             loading?: false,
             search_queries: ["Sample Movie 2010"]
           },
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -84,8 +81,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             loading?: false,
             search_queries: ["Sample Movie 2010"]
           },
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -123,8 +119,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             ],
             loading?: false
           },
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       },
       %Variation{
@@ -171,8 +166,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
             ],
             loading?: false
           },
-          on_cancel: "noop",
-          on_cancel_arm: "noop"
+          on_cancel: "noop"
         }
       }
     ]

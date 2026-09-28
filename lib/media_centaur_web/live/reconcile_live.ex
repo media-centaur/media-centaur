@@ -22,6 +22,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
 
   alias MediaCentaur.Reconciliation
   alias MediaCentaur.Reconciliation.ShowReview
+  alias MediaCentaurWeb.Live.ArmGesture
   alias MediaCentaurWeb.ReconcileView
 
   @impl true
@@ -35,7 +36,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
     {:ok,
      socket
      |> assign(loaded?: false, selected_tmdb: nil, review: nil, targets: %{}, episode_options: [])
-     |> assign(shows: [], dismiss_all_armed: false)}
+     |> assign(shows: [])}
   end
 
   @impl true
@@ -108,22 +109,20 @@ defmodule MediaCentaurWeb.ReconcileLive do
 
   # Dismissing every awaiting file has no undo, so it takes the arm
   # gesture (MC0027 tier 2): the first click arms, the second fires.
-  def handle_event("dismiss_all_arm", _params, socket) do
-    {:noreply, assign(socket, dismiss_all_armed: true)}
-  end
-
-  def handle_event("dismiss_all", _params, %{assigns: %{dismiss_all_armed: false}} = socket) do
-    {:noreply, assign(socket, dismiss_all_armed: true)}
-  end
-
   def handle_event("dismiss_all", _params, socket) do
-    for file <- socket.assigns.review.awaiting_files, do: Reconciliation.dismiss_awaiting(file)
+    case ArmGesture.press(socket, "dismiss_all") do
+      {:armed, socket} ->
+        {:noreply, socket}
 
-    {:noreply,
-     socket
-     |> assign(dismiss_all_armed: false)
-     |> put_flash(:info, "Dismissed #{length(socket.assigns.review.awaiting_files)} file(s).")
-     |> load()}
+      {:fire, socket} ->
+        files = socket.assigns.review.awaiting_files
+        for file <- files, do: Reconciliation.dismiss_awaiting(file)
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Dismissed #{length(files)} file(s).")
+         |> load()}
+    end
   end
 
   @impl true
@@ -208,7 +207,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
           <div class="flex-1 min-h-0 overflow-y-auto thin-scrollbar" data-nav-zone="reconcile-detail">
             <.detail
               :if={@review}
-              dismiss_all_armed={@dismiss_all_armed}
+              dismiss_all_armed={ArmGesture.armed?(@armed_gesture, "dismiss_all")}
               review={@review}
               targets={@targets}
               episode_options={@episode_options}
@@ -254,8 +253,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
           </.button>
           <.armed_button
             armed={@dismiss_all_armed}
-            arm="dismiss_all_arm"
-            fire="dismiss_all"
+            event="dismiss_all"
             armed_label="Click again to dismiss all"
             variant="dismiss"
           >

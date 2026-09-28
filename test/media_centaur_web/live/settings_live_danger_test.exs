@@ -79,33 +79,30 @@ defmodule MediaCentaurWeb.SettingsLiveDangerTest do
   end
 
   describe "refresh image cache — arm in place" do
-    test "the first click arms the row rather than refreshing", %{conn: conn} do
+    test "the first click arms the button rather than refreshing", %{conn: conn} do
       view = open_maintenance_section(conn)
 
       html =
         view
-        |> element("button[phx-click='refresh_image_cache_confirm']")
+        |> element("button[phx-click='refresh_image_cache']")
         |> render_click()
 
       refute html =~ "Refreshing…"
-      # Only the armed row can fire the real thing.
-      assert has_element?(view, "button[phx-click='refresh_image_cache'][data-nav-item]")
-      assert has_element?(view, "button[phx-click='refresh_image_cache_cancel'][data-nav-item]")
+      assert has_element?(view, "button[phx-click='refresh_image_cache'][data-armed]")
+      assert html =~ "Click again to refresh all artwork"
     end
 
-    test "cancelling disarms it", %{conn: conn} do
+    test "leaving the section disarms it", %{conn: conn} do
       view = open_maintenance_section(conn)
 
       view
-      |> element("button[phx-click='refresh_image_cache_confirm']")
+      |> element("button[phx-click='refresh_image_cache']")
       |> render_click()
 
-      view
-      |> element("button[phx-click='refresh_image_cache_cancel']")
-      |> render_click()
+      render_patch(view, "/settings?section=library")
+      render_patch(view, "/settings?section=maintenance")
 
-      refute has_element?(view, "button[phx-click='refresh_image_cache']")
-      assert has_element?(view, "button[phx-click='refresh_image_cache_confirm']")
+      refute has_element?(view, "button[phx-click='refresh_image_cache'][data-armed]")
     end
   end
 
