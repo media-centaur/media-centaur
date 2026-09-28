@@ -452,9 +452,26 @@ defmodule MediaCentaurWeb.IncomingLive do
   # person's involvement: the pursuit runs on its own. Land on Activity,
   # where its in-flight row is, rather than opening a second modal over
   # someone who just finished a task; the one patch drops whichever modal
-  # was up.
+  # was up. The search that found the title is finished too, so its
+  # results clear — otherwise they keep owning the page and hide Activity.
   @impl TitleDetailHost
-  def download_started(socket), do: push_patch(socket, to: Logic.zone_path(:activity))
+  def download_started(socket) do
+    socket
+    |> clear_omnibox()
+    |> push_patch(to: Logic.zone_path(:activity))
+  end
+
+  # The media search's reset: an empty query owns nothing, so the zones
+  # come back. Shared by Clear search and a started download.
+  defp clear_omnibox(socket) do
+    assign(socket,
+      omnibox_query: "",
+      omnibox_results: [],
+      omnibox_searching?: false,
+      omnibox_searched: nil,
+      omnibox_scope: :all
+    )
+  end
 
   # Fetches one row past the window so `history_has_older?` is a fact
   # about the archive, not a guess — search/filter narrow in SQL over
@@ -1517,16 +1534,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # client-side input wipe rides the button's JS.dispatch (see
   # MediaResults).
   def handle_event("omnibox_clear", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(
-       omnibox_query: "",
-       omnibox_results: [],
-       omnibox_searching?: false,
-       omnibox_searched: nil,
-       omnibox_scope: :all
-     )
-     |> push_event("omnibox:refocus", %{})}
+    {:noreply, socket |> clear_omnibox() |> push_event("omnibox:refocus", %{})}
   end
 
   # The upcoming/released chips between the box and the rows. Clicking
