@@ -388,7 +388,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp avatar_change(socket) do
     masters =
       consume_uploaded_entries(socket, :avatar, fn %{path: path}, _entry ->
-        case ImageFiles.square_webp(path, 256, ProfileTranslation.max_avatar_bytes()) do
+        case ImageFiles.square_webp(path, 256, ProfileTranslation.max_avatar_bytes(), crop: nil) do
           {:ok, bytes} -> {:ok, {:new, bytes}}
           {:error, :too_large} -> {:ok, :too_large}
           {:error, _reason} -> {:ok, :bad_image}

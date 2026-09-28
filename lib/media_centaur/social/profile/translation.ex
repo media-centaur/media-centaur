@@ -75,7 +75,7 @@ defmodule MediaCentaur.Social.Profile.Translation do
   @spec max_avatar_bytes() :: pos_integer()
   def max_avatar_bytes, do: @max_avatar_bytes
 
-  @doc "The type of the master this app publishes (`ImageFiles.square_webp/3`); one of the three."
+  @doc "The type of the master this app publishes (`ImageFiles.square_webp/4`); one of the three."
   @spec master_type() :: String.t()
   def master_type, do: "image/webp"
 
